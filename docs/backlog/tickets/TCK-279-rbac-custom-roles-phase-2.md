@@ -1,7 +1,7 @@
 ---
 id: TCK-279
 title: "RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités)"
-status: review
+status: done
 phase: P1
 family: full
 estimate: L

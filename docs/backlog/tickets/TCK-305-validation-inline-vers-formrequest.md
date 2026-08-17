@@ -1,7 +1,7 @@
 ---
 id: TCK-305
 title: "120 validations inline contre 65 FormRequest — deux conventions sur le même geste"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: L

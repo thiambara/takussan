@@ -1,7 +1,7 @@
 ---
 id: TCK-308
 title: "`BaseResource` adoptée par 7 ressources sur 44 — 37 refont les conversions à la main"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: M

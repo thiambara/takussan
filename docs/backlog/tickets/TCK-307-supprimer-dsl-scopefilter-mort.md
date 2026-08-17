@@ -1,7 +1,7 @@
 ---
 id: TCK-307
 title: "Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S
