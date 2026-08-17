@@ -24,7 +24,8 @@ confondu avec un vert de la suite.
 
 ## Contrat de données
 
-Aucune donnée applicative. Un fichier dérivé, `takussan-api/tests/impact-map.json` (~0,08 Mo) :
+Aucune donnée applicative. Un fichier dérivé, `takussan-api/tests/impact-map.json` — **0,12 Mo
+mesuré le 2026-08-17** sur 346 classes et 667 fichiers couverts sur 796 scannés :
 
 ```json
 { "version": 1, "commit": "…", "generated_at": "…",
@@ -62,7 +63,11 @@ d'environnement que `phpunit.xml` pose délibérément.
 PHPUnit conserve sous `--coverage-php` l'association *ligne de code → test*. **Vérifié, pas déduit** :
 sur `PropertyCrudTest`, 20 tests → 20 identifiants distincts de la forme
 `Tests\Feature\Api\PropertyCrudTest::test_requires_auth`. Carte complète produite en 891,8 s sous
-Xdebug (`load average` 2,6 → 9,9) : 95 Mo bruts, **0,08 Mo** réduits à la granularité classe.
+Xdebug (`load average` 2,6 → 9,9) : 95 Mo bruts, **0,12 Mo** réduits à la granularité classe.
+
+> Le premier jet de ce ticket annonçait 0,08 Mo. C'était une estimation prise sur une carte
+> antérieure ; la carte réellement livrée en fait 0,12. *Un ordre de grandeur estimé n'est pas une
+> mesure, et il vieillit dès qu'on ajoute des tests.*
 
 **Par fichier modifié** — l'agent qui itère, sur les 482 fichiers `app/` réellement modifiés en
 400 commits :
