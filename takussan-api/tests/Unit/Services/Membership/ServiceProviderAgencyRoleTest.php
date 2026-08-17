@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
- * TCK-315 (ADR-0015) — le rôle d'agence d'un prestataire vit sur la
+ * TCK-315 (ADR-0016) — le rôle d'agence d'un prestataire vit sur la
  * COLLABORATION, donc **un rôle par agence**.
  *
  * Le test central est {@see self::test_provider_with_two_agencies_gets_two_different_verdicts}.

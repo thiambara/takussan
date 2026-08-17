@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * TCK-315 (ADR-0015) — le rôle d'agence d'un prestataire vit sur la
+ * TCK-315 (ADR-0016) — le rôle d'agence d'un prestataire vit sur la
  * COLLABORATION, pas sur le profil.
  *
  * TCK-279 avait posé `agency_role_id` sur trois tables de profils et laissé
@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Schema;
  *
  * `service_provider_agency_collaborations` porte déjà exactement le couple
  * (profil, agence) — contrainte unique `sp_agency_collab_unique`. C'est là
- * que le pointeur est juste, et c'est ce qu'ADR-0015 acte.
+ * que le pointeur est juste, et c'est ce qu'ADR-0016 acte.
  *
  * Trois étapes séparées, comme pour TCK-279 : nullable ici, backfillé par
  * la migration suivante, NOT NULL par celle d'après. Chacune est vérifiable

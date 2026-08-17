@@ -94,7 +94,7 @@ plusieurs agences avec un seul compte, et le `user_id` UNIQUE lui interdit d'en 
 
 ## Delta à produire
 
-- [x] ADR numéroté qui **écrit la décision A** et ses conséquences sur la Règle 6 (la décision est prise ; l'ADR la rend durable) — [ADR-0015](../../adr/0015-role-agence-du-prestataire-porte-par-la-collaboration.md)
+- [x] ADR numéroté qui **écrit la décision A** et ses conséquences sur la Règle 6 (la décision est prise ; l'ADR la rend durable) — [ADR-0016](../../adr/0016-role-agence-du-prestataire-porte-par-la-collaboration.md)
 - [ ] `docs/models-spec.md` §52-53 et **Règle 6** : écrire l'exception `service_provider` explicitement — une exception déduite d'une absence de colonne se perd → **délibérément non fait ici**, cf. `## Reste sur dev`
 - [x] Migration correspondante, `down()` juste, éprouvée sur MySQL 8.0
 - [x] Backfill : chaque collaboration existante reçoit le rôle système `service_provider` de **son**

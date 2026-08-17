@@ -6,7 +6,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
 /**
- * TCK-315 (ADR-0015) — migration de DONNÉES. Chaque collaboration
+ * TCK-315 (ADR-0016) — migration de DONNÉES. Chaque collaboration
  * prestataire↔agence existante reçoit le rôle système `service_provider`
  * de **SON** agence.
  *

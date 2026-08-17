@@ -133,7 +133,7 @@ class AgencyRoleService
      * AC5 — suppression refusée si le rôle est encore porté. Retourne la
      * liste des porteurs en cause pour que l'appelant compose son 409.
      *
-     * TCK-315 (ADR-0015) : pour un rôle `service_provider`, le porteur est
+     * TCK-315 (ADR-0016) : pour un rôle `service_provider`, le porteur est
      * une COLLABORATION, qui n'a pas de `user_id` — on le prend sur son
      * profil. Sans cela le 409 nommerait des porteurs sans utilisateur, et
      * l'UI ne saurait pas qui détacher.

@@ -6,10 +6,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * TCK-315 (ADR-0015) — troisième et dernière étape : `agency_role_id`
+ * TCK-315 (ADR-0016) — troisième et dernière étape : `agency_role_id`
  * devient NOT NULL sur `service_provider_agency_collaborations`.
  *
- * C'est ce qui donne son sens à la Règle 6 telle qu'ADR-0015 la réécrit :
+ * C'est ce qui donne son sens à la Règle 6 telle qu'ADR-0016 la réécrit :
  * « 1 profil = 1 rôle, sauf `ServiceProviderProfile` où c'est 1
  * COLLABORATION = 1 rôle ». Pas de fallback nullable — une collaboration
  * sans rôle serait un prestataire dont les droits dépendent d'un chemin

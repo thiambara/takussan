@@ -1,4 +1,4 @@
-# ADR-0015 — Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil
+# ADR-0016 — Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil
 
 - **Statut** : Accepté
 - **Date** : 2026-08-17

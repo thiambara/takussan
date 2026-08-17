@@ -115,7 +115,7 @@ class AgencyRole extends AbstractModel
     }
 
     /**
-     * TCK-315 (ADR-0015) — le pendant des trois relations ci-dessus pour
+     * TCK-315 (ADR-0016) — le pendant des trois relations ci-dessus pour
      * les prestataires : le porteur est la COLLABORATION, pas le profil.
      */
     public function serviceProviderCollaborations(): HasMany
@@ -172,7 +172,7 @@ class AgencyRole extends AbstractModel
      * Porteurs de ce rôle. Sert au 409 de `DELETE` (spec : « liste des
      * profils en cause »).
      *
-     * **Pas toujours un profil, depuis TCK-315 (ADR-0015)** : pour
+     * **Pas toujours un profil, depuis TCK-315 (ADR-0016)** : pour
      * `base_profile_type = service_provider`, le porteur est une ligne de
      * `service_provider_agency_collaborations`. Sans cette branche, un rôle
      * prestataire encore porté serait déclaré libre par l'API, puis

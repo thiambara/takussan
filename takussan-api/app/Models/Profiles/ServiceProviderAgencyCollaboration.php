@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * TCK-315 (ADR-0015) — **c'est cette ligne, et non le profil, qui porte le
+ * TCK-315 (ADR-0016) — **c'est cette ligne, et non le profil, qui porte le
  * rôle d'agence d'un prestataire.**
  *
  * `ServiceProviderProfile` est user-scopé (`user_id` UNIQUE, aucune colonne

@@ -20,7 +20,7 @@ use App\Models\User;
  * ?Agency)` sont intacts, ce que garde
  * `MembershipCapabilityResolverSignatureTest`.
  *
- * Phase 3 (TCK-315, ADR-0015) : la branche `service_provider` rejoint le
+ * Phase 3 (TCK-315, ADR-0016) : la branche `service_provider` rejoint le
  * pivot elle aussi, via `service_provider_agency_collaborations.agency_role_id`.
  * **Plus aucun chemin d'autorisation ne court-circuite le pivot** — cette
  * classe ne lit plus {@see SystemRoleCapabilities} du tout.
@@ -108,7 +108,7 @@ class MembershipCapabilityResolver
     }
 
     /**
-     * Branche prestataire — TCK-315 (ADR-0015).
+     * Branche prestataire — TCK-315 (ADR-0016).
      *
      * `ServiceProviderProfile` n'a pas de pointeur `agency_role_id` et n'en
      * aura pas : il est user-scopé (`user_id` UNIQUE, aucune colonne

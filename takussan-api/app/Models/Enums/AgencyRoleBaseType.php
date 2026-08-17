@@ -17,7 +17,7 @@ use App\Models\Profiles\OwnerProfile;
  * vers le rôle d'UNE agence contredirait « l'agence est la frontière
  * d'isolation ».
  *
- * TCK-315 (ADR-0015) a tranché : **le rôle d'un prestataire vit sur
+ * TCK-315 (ADR-0016) a tranché : **le rôle d'un prestataire vit sur
  * `service_provider_agency_collaborations.agency_role_id`** — une ligne par
  * agence, donc un rôle par agence. C'est pourquoi `profileClass()` et
  * `profileTable()` rendent `null` pour ce cas : son porteur existe, il n'est

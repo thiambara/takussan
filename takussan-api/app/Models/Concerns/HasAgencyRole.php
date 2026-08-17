@@ -14,7 +14,7 @@ use LogicException;
 /**
  * TCK-279 — porté par les profils métier agence-scopés
  * (`AgentProfile`, `AgencyAdminProfile`, `OwnerProfile`), et depuis
- * TCK-315 (ADR-0015) par `ServiceProviderAgencyCollaboration`.
+ * TCK-315 (ADR-0016) par `ServiceProviderAgencyCollaboration`.
  *
  * ⚠️ Ce trait **n'est pas** `HasRoles`. `spatie/laravel-permission` a été
  * désinstallé par TCK-278 (ADR-0002) et une garde d'`api-ci.yml` casse sur
@@ -27,7 +27,7 @@ use LogicException;
  * reste : il est user-scopé (`user_id` UNIQUE, aucune colonne `agency_id`)
  * et collabore avec N agences. C'est sa COLLABORATION qui porte le rôle —
  * une par agence. La Règle 6 s'y lit « 1 collaboration = 1 rôle ». Voir
- * ADR-0015 et la migration 090000 de TCK-315.
+ * ADR-0016 et la migration 090000 de TCK-315.
  */
 trait HasAgencyRole
 {
