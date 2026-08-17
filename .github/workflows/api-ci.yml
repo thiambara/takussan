@@ -244,10 +244,33 @@ jobs:
       # `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
       # repos/thiambara/takussan/branches/dev/protection` → 404). Le jour où elle le
       # devient, ce step échouera au push et devra passer par une PR.
+      # Node n'est PAS installé par ce job — c'est un job PHP. `ubuntu-latest` en fournit
+      # un par défaut, mais s'appuyer dessus ferait dépendre une garde d'une version que
+      # personne ici n'a choisie, et qui change avec l'image du runner. On épingle la même
+      # que `repo-ci.yml`, et seulement quand le step suivant tourne réellement.
+      - uses: actions/setup-node@v7
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        with:
+          node-version: '24'
+
       - name: Régénérer la carte d'impact
         if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
         run: |
           php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
+
+          # ⚠ LA CARTE EST VALIDÉE PAR CELUI QUI LA PRODUIT, ET C'EST LE SEUL MOMENT OÙ
+          # ELLE PEUT L'ÊTRE. `repo-ci.yml` déclenche bien `check-impact-map.mjs` sur ce
+          # fichier — mais le commit ci-dessous porte `[skip ci]`, qui saute TOUS les
+          # workflows sur ce commit, Repo CI compris ; et aucune PR ne touche la carte,
+          # puisqu'elle n'est réécrite que sur `dev`. Le déclencheur ajouté là-bas ne
+          # s'exerce donc jamais sur le cas qu'il vise : une carte corrompue sortirait
+          # « sur la PR de quelqu'un d'autre », exactement l'issue que son commentaire dit
+          # éviter. Ici, en revanche, l'échec appartient à celui qui l'a causé.
+          #
+          # Pas de `|| exit 0` : une carte structurellement fausse ne se pousse pas. C'est
+          # la SEULE chose de ce step qui fasse rougir le job — sa fraîcheur, non (cf. plus
+          # bas), sa validité, oui.
+          node ../scripts/check-impact-map.mjs --report
 
           # `git diff` SEUL compare l'arbre de travail à l'INDEX, pour des chemins déjà
           # suivis — un fichier jamais commité (ou redevenu absent du suivi) n'y apparaît
