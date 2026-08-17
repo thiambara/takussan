@@ -267,7 +267,7 @@ jobs:
             --coverage \
             --min=86 \
             --coverage-clover=storage/coverage/clover.xml \
-            --coverage-html=storage/coverage/html \
+            --coverage-html=storage/coverage/html
           code=$?
           set -e
           echo "Durée de la suite AVEC couverture : $(( $(date +%s) - debut )) s"
