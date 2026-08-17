@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**305 tickets** — 20 ouverts, 284 livrés.
+**305 tickets** — 19 ouverts, 285 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 17 |
+| 📋 Todo | 16 |
 | 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 284 |
+| ✅ Done | 285 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -47,7 +47,6 @@
 - [TCK-313](tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md) — Le délai propre de waitFor/findBy est un défaut de framework, pas une mesure `S · P2 · front`
 - [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
 - [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
-- [TCK-319](tickets/TCK-319-porter-watermarkservice-sur-intervention-image-4.md) — Porter `WatermarkService` sur intervention/image 4 — `place()` devient `insert()`, et l'opacité change d'unité `S · P3 · back`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 - [TCK-323](tickets/TCK-323-typescript-7-casse-le-cliquet-i18n.md) — TypeScript 7 n'exporte plus l'API compilateur côté Node — le cliquet i18n en dépend, et le bump PR #182 le casse `M · P2 · technique`
 
@@ -67,7 +66,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 284
+## ✅ Done — 285
 
 <details>
 <summary><strong>Vague 40 — Évacuation dette — documentation : specs et documents périmés (2026-08-16)</strong> — 2 tickets</summary>
@@ -78,10 +77,11 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 2 tickets</summary>
+<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 3 tickets</summary>
 
 - [TCK-316](tickets/TCK-316-regles-react-compiler-inertes-sous-eslint-9.md) — Cinq familles de règles React Compiler sont déclarées bloquantes et ne s'exécutent pas — 23 violations que le bump ESLint 10 révèle `M · P2 · front`
 - [TCK-317](tickets/TCK-317-roles-systeme-derivent-par-date-de-creation.md) — Les rôles système dérivent par date de création d'agence — une capacité ajoutée à l'enum n'atteint jamais les agences existantes `M · P2 · back`
+- [TCK-319](tickets/TCK-319-porter-watermarkservice-sur-intervention-image-4.md) — Porter `WatermarkService` sur intervention/image 4 — `place()` devient `insert()`, et l'opacité change d'unité `S · P3 · back`
 
 </details>
 

@@ -25,8 +25,8 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | Médias | spatie/laravel-medialibrary | ^11.0 |
 | PDF | spatie/laravel-pdf | ^2.0 (driver `cloudflare` par défaut, `dompdf` / `browsershot` / `gotenberg` possibles) |
 | Query API | spatie/laravel-query-builder | ^7.2 (cf. `docs/spatie-query-builder.md`) |
-| Image processing | intervention/image | ^3.7 |
-| Excel / CSV | maatwebsite/excel | ^3.1 + league/csv ^9.16 |
+| Image processing | intervention/image | ^4.2 — **majeure montée le 2026-08-17** (TCK-319, PR #181). v4 remplace `read()` par `decodePath()`, `create()` par `createImage()`, et `place($img, $pos, $x, $y, 0-100)` par `insert($img, $x, $y, $pos, 0,0-1,0)` : l'unité d'opacité change en même temps que la méthode. Un seul fichier l'importe, `app/Services/Media/WatermarkService.php`. |
+| Excel / CSV | maatwebsite/excel | ^4.0 + league/csv ^9.16 |
 | 2FA | pragmarx/google2fa ^9.0 + bacon/bacon-qr-code ^3.1 |
 | Subscriptions | lemonsqueezy/laravel | ^1.9 |
 | Tooling dev | Pint, Pail, PHPUnit ^12.5, Mockery, Faker, Collision |
