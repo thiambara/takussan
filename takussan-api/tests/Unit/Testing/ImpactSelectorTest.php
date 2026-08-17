@@ -85,6 +85,18 @@ class ImpactSelectorTest extends TestCase
             ['takussan-api/tests/TestCase.php'],
             ['takussan-api/database/factories/PropertyFactory.php'],
             ['takussan-api/database/seeders/UserSeeder.php'],
+            // C-1 : les fichiers de harnais que la version précédente ignorait EN
+            // SILENCE (whitelist à défaut « ignorer », cf. le docblock de la classe).
+            ['takussan-api/tests/BaseTestCase.php'],
+            ['takussan-api/tests/ApiTestCase.php'],
+            ['takussan-api/tests/Concerns/InteractsWithMeilisearch.php'],
+            ['takussan-api/tests/Support/TestProcessToken.php'],
+            // C-1 : chemins hors `tests/`/`routes/`/`config/`/`app/`, même défaut.
+            ['takussan-api/.env.example'],
+            ['takussan-api/lang/fr/validation.php'],
+            ['takussan-api/resources/views/pdf/invoice.blade.php'],
+            // I-6 : `config/` n'a plus le repli conçu pour `routes/` — déclencheur dur.
+            ['takussan-api/config/scout.php'],
         ];
     }
 
@@ -124,6 +136,23 @@ class ImpactSelectorTest extends TestCase
 
         $this->assertTrue($s->fullSuite);
         $this->assertStringContainsString('routes/api.php', (string) $s->reason);
+    }
+
+    /**
+     * C-1 corrige le défaut « ignorer », mais la classe garde une liste EXPLICITE
+     * de chemins réellement inertes (`INERT_PREFIXES`) pour ne pas devenir bruyante.
+     * Ce test garde cette liste : si elle change de sens, c'est ici que ça casse.
+     */
+    public function test_genuinely_inert_paths_still_select_nothing(): void
+    {
+        $s = $this->selector()->select([
+            'takussan-api/storage/logs/laravel.log',
+            'takussan-api/vendor/foo/bar.php',
+            'takussan-api/README.md',
+        ], $this->noDiff(), []);
+
+        $this->assertFalse($s->fullSuite);
+        $this->assertSame([], $s->classes);
     }
 
     public function test_files_outside_the_api_are_ignored(): void

@@ -21,6 +21,38 @@ namespace Tests\Support;
  *   · une migration non plus — elle s'exécute une fois par processus, attribuée
  *     au premier test. Elle reste un déclencheur dur, et c'est correct : une
  *     migration change le schéma sous tous les tests.
+ *   · `config/` NE PASSE PLUS par le même repli que `routes/` (cf. la revue de
+ *     branche, constat I-6). Pour `routes/`, l'arête route → contrôleur borne
+ *     réellement l'impact : une route qui ne cite aucun contrôleur reconnu peut
+ *     raisonnablement escalader. Pour `config/`, cette arête n'existe pas — une
+ *     valeur de configuration est lue globalement, et le fait qu'une ligne du
+ *     diff mentionne `PropertySearchService` ne dit rien de la portée réelle du
+ *     changement. Le repli protégeait la MAJORITÉ des cas (la plupart des diffs
+ *     de `config/` ne citent aucune classe à suffixe reconnu, et escaladaient
+ *     déjà) mais le cas où il RÉSOUT est précisément celui où l'outil pouvait se
+ *     tromper à la baisse sur un fichier global. `config/` est donc un
+ *     déclencheur dur, au même titre que `bootstrap/` : le coût est faible, les
+ *     diffs de `config/` sont rares.
+ *
+ * ⚠ CE QUI ARRIVE À LA FIN DE LA BOUCLE SANS AVOIR ÉTÉ RECONNU ESCALADE (cf. la
+ * revue de branche, constat C-1 — CRITIQUE). La version précédente de cette
+ * classe finissait la boucle par un `continue` : tout chemin sous
+ * `takussan-api/` qui n'était NI un fichier de `tests/` de la forme `*Test.php`,
+ * NI `routes/`, NI `config/`, NI `app/`, était ignoré EN SILENCE. C'était un
+ * whitelist à défaut « ignorer » — la contradiction directe du principe énoncé
+ * dix lignes plus haut : *« en cas de doute, escalader »*. Et c'était la MÊME
+ * famille de défaut que celui trouvé sur `database/factories/` plus tôt sur
+ * cette branche : une modification de `tests/BaseTestCase.php` (dont héritent
+ * 89 classes de test), de `tests/ApiTestCase.php` (38), de
+ * `tests/Concerns/InteractsWithMeilisearch.php` (21 fichiers), de
+ * `.env.example` (l'environnement de test DE LA CI elle-même), ou d'un template
+ * Blade, ne sélectionnait ZÉRO classe et rendait « rien à lancer », sortie 0.
+ * Un `tests/` non reconnu comme classe de test escalade désormais, au lieu
+ * d'être ignoré — le même traitement que `classesFor()` réserve déjà à un
+ * fichier de `app/` absent de la carte. Le reste des chemins non reconnus
+ * escalade aussi, sauf la liste explicite `INERT_PREFIXES` ci-dessous : un
+ * whitelist à défaut « ignorer » ne se corrige pas en ajoutant des cas reconnus
+ * un par un, il se corrige en inversant le défaut.
  */
 final class ImpactSelector
 {
@@ -32,6 +64,7 @@ final class ImpactSelector
         'database/factories/',   // Consommée par un nombre inconnu de tests ; on ne sait pas lesquels.
         'database/seeders/',     // Idem : modifie la fixture de base de tous les tests.
         'bootstrap/',
+        'config/',                // cf. docblock de la classe : pas la même arête que `routes/`.
     ];
 
     /** Fichiers dont la modification invalide TOUTE la suite. */
@@ -46,7 +79,28 @@ final class ImpactSelector
     /** Préfixes qu'on ne sait pas cartographier, mais dont on sait extraire des noms de classe. */
     private const RESOLVED_FROM_DIFF = [
         'routes/',
-        'config/',
+    ];
+
+    /**
+     * Chemins dont on est CERTAIN qu'ils n'exécutent aucun test — la seule
+     * exception au « tout chemin non reconnu escalade » ci-dessus. Chacun est
+     * délibéré, pas un oubli qu'on comble au fil des faux positifs :
+     *   · `docs/` (de `takussan-api/`, pas la racine) — de la documentation.
+     *   · `storage/` — écrit à l'exécution, jamais lu par le code applicatif.
+     *   · `vendor/`, `node_modules/` — dépendances tierces, jamais modifiées
+     *     par un diff de ce dépôt sans passer par `composer.lock`/`package-lock`,
+     *     déjà des déclencheurs durs.
+     *   · `public/build/` — sortie de build front-end, sans lien avec les tests
+     *     PHP.
+     * Les `*.md` sont exclus séparément, sous n'importe quel répertoire : un
+     * fichier Markdown ne s'exécute jamais.
+     */
+    private const INERT_PREFIXES = [
+        'docs/',
+        'storage/',
+        'vendor/',
+        'node_modules/',
+        'public/build/',
     ];
 
     public function __construct(private readonly ImpactMap $map) {}
@@ -79,9 +133,17 @@ final class ImpactSelector
 
             if (str_starts_with($relative, 'tests/')) {
                 $class = ImpactMap::classForFile($relative);
-                if ($class !== null) {
-                    $selected[$class] = true;
+                if ($class === null) {
+                    // Un fichier de `tests/` qui n'est PAS une classe `*Test.php` est du
+                    // harnais — base de test, concern, mécanisme de D-44 — partagé par un
+                    // nombre inconnu de classes. `classForFile()` rend `null` par
+                    // conception pour ces fichiers-là (cf. son propre test) ; le traiter
+                    // comme « rien » ici, au lieu d'escalader comme `classesFor()` le fait
+                    // pour `app/`, est le cœur du défaut C-1 (cf. docblock de la classe).
+                    return ImpactSelection::full("fichier de harnais modifié : $relative");
                 }
+
+                $selected[$class] = true;
 
                 continue;
             }
@@ -103,19 +165,38 @@ final class ImpactSelector
                 continue 2;
             }
 
-            if (! str_starts_with($relative, 'app/')) {
+            if (str_starts_with($relative, 'app/')) {
+                $classes = $this->map->classesFor($relative);
+
+                if ($classes === null) {
+                    return ImpactSelection::full("fichier absent de la carte : $relative");
+                }
+
+                foreach ($classes as $class) {
+                    $selected[$class] = true;
+                }
+
                 continue;
             }
 
-            $classes = $this->map->classesFor($relative);
-
-            if ($classes === null) {
-                return ImpactSelection::full("fichier absent de la carte : $relative");
+            foreach (self::INERT_PREFIXES as $prefix) {
+                if (str_starts_with($relative, $prefix)) {
+                    continue 2;
+                }
             }
 
-            foreach ($classes as $class) {
-                $selected[$class] = true;
+            if (str_ends_with($relative, '.md')) {
+                continue;
             }
+
+            // Tout ce qui arrive ici n'est reconnu par AUCUNE des règles ci-dessus —
+            // ni harnais de test, ni route, ni `app/`, ni de la liste explicite des
+            // chemins inertes. C'est exactement le cas que C-1 laissait tomber en
+            // silence (cf. docblock de la classe) : `lang/`, `resources/views/`,
+            // `.env.example`, un `bin/` neuf, ou tout chemin qu'on n'a pas anticipé.
+            // Par construction on ne peut pas savoir ce qu'il couvre — la seule
+            // réponse qui ne produit jamais de faux vert est d'escalader.
+            return ImpactSelection::full("chemin non reconnu, sécurité par défaut : $relative");
         }
 
         return ImpactSelection::partial(array_keys($selected));

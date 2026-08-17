@@ -140,6 +140,16 @@ if (! $statusKnown) {
     fwrite(STDERR, "⚠ le commit de la carte est introuvable dans l'historique (clone superficiel ?).\n".
         "  La réparation de péremption est impossible → suite entière.\n");
     $command = 'php artisan test';
+} elseif ($changed === []) {
+    // Arbre de travail propre : PAS « rien à lancer, aucun fichier modifié n'est
+    // couvert par un test » (le message plus bas, pour le cas où des fichiers ONT
+    // changé mais qu'aucun n'est testé) — c'est le cas de l'agent qui vient de
+    // commiter et relance la commande par réflexe. Les deux phrases se ressemblent
+    // mais ne se paient pas pareil : celle-ci dit vrai sur un arbre sans aucun
+    // changement, l'autre sur un diff réel sans couverture. Les confondre rassure
+    // à l'endroit où l'outil a le moins d'information.
+    echo "rien n'a changé — arbre de travail propre. Comparer à `dev` avec --base=dev ?\n";
+    exit(0);
 } else {
     $selection = (new ImpactSelector($map))->select(array_keys($changed), $diffFor, $testClassesSince);
 
