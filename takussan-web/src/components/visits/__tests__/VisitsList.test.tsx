@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
+import { withIntl } from '@/test/intl';
 import { VisitsList } from '../VisitsList';
 import type { PropertyVisit } from '@/types/visit';
 
@@ -31,11 +31,9 @@ function wrap(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return (
-    <NextIntlClientProvider locale="fr" messages={{}}>
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-    </NextIntlClientProvider>
-  );
+  // `withIntl` charge le VRAI `fr.json` : depuis TCK-291, l'état vide passe par next-intl et
+  // `messages={{}}` rendrait la CLÉ au lieu du libellé.
+  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 function mockVisit(overrides: Partial<PropertyVisit> = {}): PropertyVisit {

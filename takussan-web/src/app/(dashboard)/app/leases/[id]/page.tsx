@@ -1,6 +1,9 @@
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { apiRequest } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { ErrorState } from '@/components/feedback';
 import { LeaseDetail } from '@/components/leases/LeaseDetail';
 
 export async function generateMetadata({
@@ -41,11 +44,10 @@ export default async function Page({
   const leaseId = Number(id);
 
   if (!Number.isFinite(leaseId) || leaseId <= 0) {
-    return (
-      <div className="rounded-xl bg-card p-6 text-sm text-red-600">
-        Bail introuvable.
-      </div>
-    );
+    // Server component : PAS d'`onRetry`. Réessayer ne changerait rien — l'identifiant
+    // de l'URL est invalide, pas la requête.
+    const t = await getTranslations('lease.detail');
+    return <ErrorState message={t('error')} />;
   }
 
   return <LeaseDetail leaseId={leaseId} />;
