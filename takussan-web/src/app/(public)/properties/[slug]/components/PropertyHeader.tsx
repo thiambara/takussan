@@ -1,4 +1,5 @@
 'use client';
+import { useTranslations } from 'next-intl';
 import { Star, Eye, Heart, Share2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,8 @@ interface PropertyHeaderProps {
 }
 
 export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite }: PropertyHeaderProps) {
+  const t = useTranslations('property.detail');
+
   return (
     <header className="flex flex-col gap-3">
       <div className="flex flex-col-reverse md:flex-row md:items-start md:justify-between gap-3">
@@ -25,7 +28,7 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
               <span className="inline-flex items-center gap-1">
                 <Star className="size-4 fill-current text-amber-500" aria-hidden />
                 <span className="font-medium text-stone-900">{property.average_rating.toFixed(1)}</span>
-                <span className="text-stone-500">({property.reviews_count} avis)</span>
+                <span className="text-stone-500">{t('reviewsCount', { count: property.reviews_count })}</span>
               </span>
             )}
             <span className="inline-flex items-center gap-1">
@@ -34,15 +37,15 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             </span>
             <span className="inline-flex items-center gap-1 text-stone-500">
               <Eye className="size-4" aria-hidden />
-              {property.views_count} vues
+              {t('viewsCount', { count: property.views_count })}
             </span>
             {property.reference_number && (
-              <span className="text-stone-400 text-xs">Réf. {property.reference_number}</span>
+              <span className="text-stone-400 text-xs">{t('reference', { value: property.reference_number })}</span>
             )}
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline">{property.status_label}</Badge>
-            {property.featured && <Badge variant="default">Mis en avant</Badge>}
+            {property.featured && <Badge variant="default">{t('featured')}</Badge>}
           </div>
         </div>
 
@@ -51,17 +54,17 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             variant="ghost"
             size="sm"
             onClick={onShare}
-            aria-label="Partager ce bien"
+            aria-label={t('shareAria')}
             className="gap-2"
           >
             <Share2 className="size-4" aria-hidden />
-            <span className="hidden sm:inline">Partager</span>
+            <span className="hidden sm:inline">{t('share')}</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={onToggleFavorite}
-            aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+            aria-label={isFavorite ? t('removeFavorite') : t('addFavorite')}
             aria-pressed={isFavorite}
             className="gap-2"
           >

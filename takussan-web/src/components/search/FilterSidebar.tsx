@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { X, RotateCcw, Search, Star, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -91,36 +92,14 @@ function RangeInputs({
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const CONTRACT_TYPES = [
-  { label: 'Vente',    value: 'sale' as const },
-  { label: 'Location', value: 'rent' as const },
-];
+const CONTRACT_TYPE_VALUES = ['sale', 'rent'] as const;
 
-const PROPERTY_TYPES = [
-  { label: 'Appartement', value: 'apartment' },
-  { label: 'Maison',      value: 'house' },
-  { label: 'Villa',       value: 'villa' },
-  { label: 'Studio',      value: 'studio' },
-  { label: 'Chambre',     value: 'room' },
-  { label: 'Terrain',     value: 'land' },
-  { label: 'Bureau',      value: 'office' },
-  { label: 'Commerce',    value: 'shop' },
-  { label: 'Entrepôt',    value: 'warehouse' },
-  { label: 'Hôtel',       value: 'hotel' },
-  { label: 'Complexe',    value: 'resort' },
-  { label: 'Garage',      value: 'garage' },
-  { label: 'Parking',     value: 'parking' },
-  { label: 'Ferme',       value: 'farm' },
-  { label: 'Usine',       value: 'factory' },
-  { label: 'Autre',       value: 'other' },
-];
+const PROPERTY_TYPE_VALUES = [
+  'apartment', 'house', 'villa', 'studio', 'room', 'land', 'office', 'shop',
+  'warehouse', 'hotel', 'resort', 'garage', 'parking', 'farm', 'factory', 'other',
+] as const;
 
-const RENT_PERIODS = [
-  { label: 'Journalier', value: 'daily' as const },
-  { label: 'Hebdo',      value: 'weekly' as const },
-  { label: 'Mensuel',    value: 'monthly' as const },
-  { label: 'Annuel',     value: 'yearly' as const },
-];
+const RENT_PERIOD_VALUES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 
 const BEDROOM_OPTIONS = [
   { label: '1', value: 1 },
@@ -136,13 +115,7 @@ const BATHROOM_OPTIONS = [
   { label: '3+', value: 3 },
 ];
 
-const FLOOR_OPTIONS = [
-  { label: 'RDC', value: 0 },
-  { label: '1er', value: 1 },
-  { label: '2e', value: 2 },
-  { label: '3e', value: 3 },
-  { label: '4e+', value: 4 },
-];
+const FLOOR_KEYS = ['ground', 'first', 'second', 'third', 'fourthPlus'] as const;
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -163,10 +136,19 @@ export function FilterSidebar({
   open,
   onClose,
 }: FilterSidebarProps) {
+  const t = useTranslations('search.filters');
+  const tTypes = useTranslations('property.types');
+  const tContract = useTranslations('property.contractTypes');
+  const tPeriods = useTranslations('property.rentPeriods');
+
   const set = useCallback(
     (patch: Partial<SearchFilters>) => onFilterChange({ ...patch, page: 1 }),
     [onFilterChange]
   );
+
+  const contractTypes = CONTRACT_TYPE_VALUES.map((v) => ({ label: tContract(v), value: v }));
+  const rentPeriods = RENT_PERIOD_VALUES.map((v) => ({ label: tPeriods(v), value: v }));
+  const floorOptions = FLOOR_KEYS.map((k, i) => ({ label: t(`floors.${k}`), value: i }));
 
   const priceHint = (() => {
     const parts = [];
@@ -180,7 +162,7 @@ export function FilterSidebar({
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
         <h2 className="text-base font-bold text-gray-900 flex items-center">
-          Filtres
+          {t('title')}
           {activeCount > 0 && (
             <Badge className="ml-2">{activeCount}</Badge>
           )}
@@ -192,13 +174,13 @@ export function FilterSidebar({
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              Tout effacer
+              {t('clearAll')}
             </button>
           )}
           <button
             onClick={onClose}
             className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500"
-            aria-label="Fermer les filtres"
+            aria-label={t('close')}
           >
             <X className="w-4 h-4" />
           </button>
@@ -209,27 +191,27 @@ export function FilterSidebar({
       <div className="px-5">
 
         {/* 1. Transaction */}
-        <Section title="Type de transaction">
+        <Section title={t(`sections.contractType`)}>
           <ChipGroup
-            options={CONTRACT_TYPES}
+            options={contractTypes}
             value={filters.contract_type}
             onChange={(v) => set({ contract_type: v as SearchFilters['contract_type'], rent_period: undefined })}
           />
         </Section>
 
         {/* 2. Property type — multi-select */}
-        <Section title="Type de bien">
+        <Section title={t(`sections.propertyType`)}>
           <div className="flex flex-wrap gap-2">
-            {PROPERTY_TYPES.map(opt => {
+            {PROPERTY_TYPE_VALUES.map(opt => {
               const selected = filters.type ?? [];
-              const isActive = selected.includes(opt.value);
+              const isActive = selected.includes(opt);
               return (
                 <button
-                  key={opt.value}
+                  key={opt}
                   onClick={() => {
                     const next = isActive
-                      ? selected.filter(t => t !== opt.value)
-                      : [...selected, opt.value];
+                      ? selected.filter((value) => value !== opt)
+                      : [...selected, opt];
                     set({ type: next.length > 0 ? next : undefined });
                   }}
                   className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 ${
@@ -238,7 +220,7 @@ export function FilterSidebar({
                       : 'border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
                   }`}
                 >
-                  {opt.label}
+                  {tTypes(opt)}
                 </button>
               );
             })}
@@ -247,9 +229,9 @@ export function FilterSidebar({
 
         {/* 3. Rent period — conditional */}
         {filters.contract_type === 'rent' && (
-          <Section title="Fréquence de loyer">
+          <Section title={t(`sections.rentPeriod`)}>
             <ChipGroup
-              options={RENT_PERIODS}
+              options={rentPeriods}
               value={filters.rent_period}
               onChange={(v) => set({ rent_period: v as SearchFilters['rent_period'] })}
             />
@@ -257,18 +239,18 @@ export function FilterSidebar({
         )}
 
         {/* 4. Location */}
-        <Section title="Localisation">
+        <Section title={t(`sections.location`)}>
           <div className="space-y-2">
             <Input
               type="text"
-              placeholder="Ville (ex : Dakar, Mbour…)"
+              placeholder={t('cityPlaceholder')}
               value={filters.city ?? ''}
               onChange={(e) => set({ city: e.target.value || undefined })}
               className="rounded-xl"
             />
             <Input
               type="text"
-              placeholder="Quartier (ex : Plateau, Almadies…)"
+              placeholder={t('quarterPlaceholder')}
               value={filters.location ?? ''}
               onChange={(e) => set({ location: e.target.value || undefined })}
               className="rounded-xl"
@@ -277,10 +259,10 @@ export function FilterSidebar({
         </Section>
 
         {/* 5. Budget */}
-        <Section title="Budget (FCFA)">
+        <Section title={t(`sections.budget`)}>
           <RangeInputs
-            placeholderMin="Min"
-            placeholderMax="Max"
+            placeholderMin={t('min')}
+            placeholderMax={t('max')}
             valueMin={filters.price_min}
             valueMax={filters.price_max}
             hint={priceHint || undefined}
@@ -289,7 +271,7 @@ export function FilterSidebar({
         </Section>
 
         {/* 6. Chambres */}
-        <Section title="Chambres">
+        <Section title={t(`sections.bedrooms`)}>
           <ChipGroup
             options={BEDROOM_OPTIONS}
             value={filters.bedrooms}
@@ -298,7 +280,7 @@ export function FilterSidebar({
         </Section>
 
         {/* 7. Salles de bain */}
-        <Section title="Salles de bain">
+        <Section title={t(`sections.bathrooms`)}>
           <ChipGroup
             options={BATHROOM_OPTIONS}
             value={filters.bathrooms}
@@ -307,10 +289,10 @@ export function FilterSidebar({
         </Section>
 
         {/* 8. Surface */}
-        <Section title="Surface (m²)">
+        <Section title={t(`sections.area`)}>
           <RangeInputs
-            placeholderMin="Min m²"
-            placeholderMax="Max m²"
+            placeholderMin={t('minArea')}
+            placeholderMax={t('maxArea')}
             valueMin={filters.area_min}
             valueMax={filters.area_max}
             onChange={(min, max) => set({ area_min: min, area_max: max })}
@@ -318,7 +300,7 @@ export function FilterSidebar({
         </Section>
 
         {/* 9. État */}
-        <Section title="État du bien">
+        <Section title={t(`sections.condition`)}>
           <div className="space-y-2">
             <button
               onClick={() => set({ furnished: filters.furnished === true ? undefined : true })}
@@ -339,7 +321,7 @@ export function FilterSidebar({
                   }`}
                 />
               </span>
-              <span className="text-sm font-semibold">Meublé uniquement</span>
+              <span className="text-sm font-semibold">{t('furnishedOnly')}</span>
             </button>
 
             <button
@@ -355,24 +337,24 @@ export function FilterSidebar({
                   filters.featured === true ? 'fill-amber-400 text-amber-400' : 'text-gray-400'
                 }`}
               />
-              <span className="text-sm font-semibold">Biens en vedette</span>
+              <span className="text-sm font-semibold">{t('featuredOnly')}</span>
             </button>
           </div>
         </Section>
 
         {/* 10. Étage */}
-        <Section title="Étage">
+        <Section title={t(`sections.floor`)}>
           <ChipGroup
-            options={FLOOR_OPTIONS}
+            options={floorOptions}
             value={filters.floor_number}
             onChange={(v) => set({ floor_number: v as number })}
           />
         </Section>
 
         {/* 11. Disponibilité */}
-        <Section title="Disponibilité">
+        <Section title={t(`sections.availability`)}>
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">Disponible dès le…</label>
+            <label className="block text-xs text-gray-500 mb-1.5">{t('availableFrom')}</label>
             <DatePicker
               value={filters.available_from ?? ''}
               min={new Date().toISOString().slice(0, 10)}
@@ -383,27 +365,27 @@ export function FilterSidebar({
         </Section>
 
         {/* 12. Tags */}
-        <Section title="Équipements">
+        <Section title={t(`sections.amenities`)}>
           <div className="relative">
             <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <Input
               type="text"
-              placeholder="piscine, parking, terrasse…"
+              placeholder={t('amenitiesPlaceholder')}
               value={filters.tags ?? ''}
               onChange={(e) => set({ tags: e.target.value || undefined })}
               className="rounded-xl pl-9"
             />
           </div>
-          <p className="text-[11px] text-gray-400 mt-1.5">Séparez par des virgules</p>
+          <p className="text-[11px] text-gray-400 mt-1.5">{t('amenitiesHint')}</p>
         </Section>
 
         {/* 13. Full-text search */}
-        <Section title="Recherche avancée">
+        <Section title={t(`sections.advanced`)}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
             <Input
               type="text"
-              placeholder="Mot-clé, référence, description…"
+              placeholder={t('advancedPlaceholder')}
               value={filters.q ?? ''}
               onChange={(e) => set({ q: e.target.value || undefined })}
               className="rounded-xl pl-9"
@@ -438,7 +420,7 @@ export function FilterSidebar({
                 onClick={onClose}
                 className="w-full rounded-full h-12 text-sm font-semibold"
               >
-                Voir les résultats
+                {t('showResults')}
               </Button>
             </div>
           </div>

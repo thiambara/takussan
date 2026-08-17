@@ -4,12 +4,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Clock } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
-import type {
-  PropertyListItem,
-  PropertyType,
-  RentPeriod,
-} from '@/types/property';
+import type { PropertyListItem } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
@@ -26,31 +23,6 @@ import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
  * negligible.
  */
 
-const RENT_PERIOD_LABEL: Record<RentPeriod, string> = {
-  daily: 'jour',
-  weekly: 'sem.',
-  monthly: 'mois',
-  yearly: 'an',
-};
-
-const PROPERTY_TYPE_LABEL: Record<PropertyType, string> = {
-  apartment: 'Appartement',
-  house: 'Maison',
-  villa: 'Villa',
-  studio: 'Studio',
-  room: 'Chambre',
-  land: 'Terrain',
-  office: 'Bureau',
-  shop: 'Boutique',
-  warehouse: 'Entrepôt',
-  factory: 'Usine',
-  farm: 'Ferme',
-  hotel: 'Hôtel',
-  resort: 'Complexe',
-  garage: 'Garage',
-  parking: 'Parking',
-  other: 'Autre',
-};
 
 const FALLBACK_IMAGE =
   'https://placehold.co/800x533/e7e5e4/a8a29e?text=Photo+%C3%A0+venir';
@@ -94,6 +66,8 @@ export function PropertyCard({
   hideFavorite = false,
   hideCompare = false,
 }: PropertyCardProps) {
+  const t = useTranslations('property');
+  const tCards = useTranslations('property.cards');
   const ref = useRef<HTMLDivElement>(null);
   // Priority cards (above-the-fold) skip the initial hidden state so the
   // browser can count their image as the LCP candidate immediately.
@@ -169,7 +143,7 @@ export function PropertyCard({
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
               <span className="text-sm font-semibold text-gray-400 ml-0.5">
-                /{RENT_PERIOD_LABEL[property.rent_period]}
+                /{t(`rentPeriodsShort.${property.rent_period}`)}
               </span>
             )}
           </p>
@@ -189,16 +163,18 @@ export function PropertyCard({
           <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-semibold text-gray-400">
             {property.bedrooms != null && property.bedrooms > 0 && (
               <>
-                <span>{property.bedrooms} Ch.</span>
-                <span className="text-gray-300">&bull;</span>
+                <span>{tCards('bedroomsAbbrev', { count: property.bedrooms })}</span>
+                <span className="text-gray-300">•</span>
               </>
             )}
             <span className="truncate">{surface}</span>
             {property.type && (
               <>
-                <span className="text-gray-300">&bull;</span>
+                <span className="text-gray-300">•</span>
                 <span className="truncate capitalize">
-                  {PROPERTY_TYPE_LABEL[property.type] || property.type}
+                  {t.has(`types.${property.type}`)
+                    ? t(`types.${property.type}`)
+                    : property.type}
                 </span>
               </>
             )}

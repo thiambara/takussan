@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import type { PropertyPhoto } from '@/types/property';
@@ -14,6 +15,7 @@ interface PropertyLightboxProps {
 }
 
 export function PropertyLightbox({ photos, open, startIndex, onClose, title }: PropertyLightboxProps) {
+  const t = useTranslations('property.detail');
   const [index, setIndex] = useState(startIndex);
   const [lastStart, setLastStart] = useState(startIndex);
   const [lastOpen, setLastOpen] = useState(open);
@@ -58,7 +60,7 @@ export function PropertyLightbox({ photos, open, startIndex, onClose, title }: P
             <button
               type="button"
               onClick={onClose}
-              aria-label="Fermer"
+              aria-label={t('gallery.close')}
               className="rounded-full p-2 hover:bg-white/10 transition-colors"
             >
               <X className="size-5" aria-hidden />
@@ -78,7 +80,7 @@ export function PropertyLightbox({ photos, open, startIndex, onClose, title }: P
                 <button
                   type="button"
                   onClick={prev}
-                  aria-label="Photo précédente"
+                  aria-label={t('gallery.previousPhoto')}
                   className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
                 >
                   <ChevronLeft className="size-6" aria-hidden />
@@ -86,7 +88,7 @@ export function PropertyLightbox({ photos, open, startIndex, onClose, title }: P
                 <button
                   type="button"
                   onClick={next}
-                  aria-label="Photo suivante"
+                  aria-label={t('gallery.nextPhoto')}
                   className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
                 >
                   <ChevronRight className="size-6" aria-hidden />

@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Clock, MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
@@ -22,6 +23,7 @@ export function PropertyCardStandard({
   index = 0,
   priority = false,
 }: PropertyCardCommonProps) {
+  const t = useTranslations('property.cards');
   const photo = property.main_photo_url ?? FALLBACK_IMAGE;
   const location = [property.location.quarter, property.location.city]
     .filter(Boolean)
@@ -89,7 +91,7 @@ export function PropertyCardStandard({
           <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] font-semibold text-muted-foreground">
             {property.bedrooms != null && property.bedrooms > 0 && (
               <>
-                <span>{property.bedrooms} ch</span>
+                <span>{t('bedroomsShort', { count: property.bedrooms })}</span>
                 <span className="text-border">•</span>
               </>
             )}
@@ -99,7 +101,7 @@ export function PropertyCardStandard({
                 {property.bathrooms != null && property.bathrooms > 0 && (
                   <>
                     <span className="text-border">•</span>
-                    <span>{property.bathrooms} sdb</span>
+                    <span>{t('bathroomsShort', { count: property.bathrooms })}</span>
                   </>
                 )}
               </>

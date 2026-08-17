@@ -60,24 +60,6 @@
       "sell": "Vendre",
       "services": "Nos Services"
     },
-    "categories": {
-      "apartment": "Appartement",
-      "house": "Maison",
-      "villa": "Villa",
-      "land": "Terrain",
-      "shop": "Commerce",
-      "office": "Bureau",
-      "studio": "Studio",
-      "room": "Chambre",
-      "warehouse": "Entrepôt",
-      "hotel": "Hôtel",
-      "resort": "Complexe",
-      "garage": "Garage",
-      "parking": "Parking",
-      "farm": "Ferme",
-      "factory": "Usine",
-      "other": "Autre"
-    },
     "sidebar": {
       "dashboard": "Tableau de bord",
       "myProperties": "Mes biens",
@@ -437,19 +419,21 @@
       "studio": "Studio",
       "room": "Chambre",
       "office": "Bureau",
-      "shop": "Boutique",
+      "shop": "Commerce",
       "warehouse": "Entrepôt",
       "factory": "Usine",
       "farm": "Ferme",
       "hotel": "Hôtel",
-      "resort": "Resort",
+      "resort": "Complexe",
       "garage": "Garage",
       "parking": "Parking",
       "other": "Autre"
     },
     "contractTypes": {
       "sale": "Vente",
-      "rent": "Location"
+      "rent": "Location",
+      "saleLong": "En vente",
+      "rentLong": "En location"
     },
     "portfolio": {
       "empty_title": "Aucun bien dans votre portefeuille",
@@ -458,6 +442,118 @@
       "filtered_empty_title": "Aucun bien ne correspond à vos filtres",
       "filtered_empty_description": "Ajustez ou retirez certains filtres pour élargir votre recherche.",
       "filtered_empty_cta": "Réinitialiser les filtres"
+    },
+    "cards": {
+      "bedroomsShort": "{count} ch",
+      "bedroomsAbbrev": "{count} Ch.",
+      "bathroomsShort": "{count} sdb"
+    },
+    "row": {
+      "viewAll": "Tout voir",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "empty": "Pas encore de biens dans cette sélection."
+    },
+    "discovery": {
+      "viewSwitchAria": "Vue des résultats",
+      "viewList": "Liste",
+      "viewMap": "Carte"
+    },
+    "rentPeriodsShort": {
+      "daily": "jour",
+      "weekly": "sem.",
+      "monthly": "mois",
+      "yearly": "an"
+    },
+    "rentPeriods": {
+      "daily": "Journalier",
+      "weekly": "Hebdo",
+      "monthly": "Mensuel",
+      "yearly": "Annuel"
+    },
+    "detail": {
+      "reviewsCount": "({count} avis)",
+      "viewsCount": "{count} vues",
+      "reference": "Réf. {value}",
+      "featured": "Mis en avant",
+      "shareAria": "Partager ce bien",
+      "share": "Partager",
+      "removeFavorite": "Retirer des favoris",
+      "addFavorite": "Ajouter aux favoris",
+      "characteristics": "Caractéristiques",
+      "rows": {
+        "type": "Type",
+        "contract": "Contrat",
+        "period": "Période",
+        "status": "Statut",
+        "floor": "Étage",
+        "yearBuilt": "Année de construction",
+        "parking": "Places de parking",
+        "furnished": "Meublé",
+        "titleDeed": "Titre foncier",
+        "yes": "Oui"
+      },
+      "specs": {
+        "bedrooms": "Chambres",
+        "bathrooms": "SDB",
+        "area": "Surface",
+        "floors": "Étages",
+        "year": "Année",
+        "parking": "Parking"
+      },
+      "description": "Description",
+      "collapse": "Réduire",
+      "readMore": "Lire la suite",
+      "amenities": "Équipements",
+      "breadcrumbAria": "Fil d'Ariane",
+      "priceHistory": "Historique du prix",
+      "documents": "Documents",
+      "download": "Télécharger",
+      "downloadAria": "Télécharger {name}",
+      "requestVisit": "Demander une visite",
+      "sendMessage": "Envoyer un message",
+      "noChargeNotice": "Vous ne serez pas débité avant la confirmation.",
+      "agent": {
+        "phoneUnavailable": "Numéro de téléphone indisponible pour ce bien.",
+        "phoneError": "Impossible de récupérer le numéro. Veuillez réessayer.",
+        "verifiedAria": "Agence vérifiée",
+        "independent": "Agent indépendant",
+        "private": "Particulier",
+        "message": "Message",
+        "callAria": "Appeler"
+      },
+      "breadcrumb": {
+        "home": "Accueil",
+        "rent": "Louer",
+        "buy": "Acheter"
+      },
+      "location": "Emplacement",
+      "addressHidden": "Adresse non communiquée.",
+      "viewOnOsm": "Voir sur OpenStreetMap",
+      "shareDialog": {
+        "title": "Partager cette annonce",
+        "description": "Envoyez le lien à vos proches.",
+        "linkAria": "Lien à partager",
+        "copied": "Copié",
+        "copy": "Copier"
+      },
+      "similar": "Biens similaires",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "gallery": {
+        "close": "Fermer",
+        "previousPhoto": "Photo précédente",
+        "nextPhoto": "Photo suivante",
+        "noPhoto": "Aucune photo",
+        "noPhotoAvailable": "Aucune photo disponible",
+        "viewAll": "Voir toutes les photos ({count})"
+      },
+      "bottomBar": {
+        "visit": "Visiter",
+        "offer": "Offre",
+        "reserve": "Réserver",
+        "apply": "Postuler"
+      }
     }
   },
   "dashboard": {
@@ -1173,7 +1269,82 @@
     "results": {
       "empty_title": "Aucun bien trouvé",
       "empty_description": "Élargissez vos critères ou retirez quelques filtres — il y a sûrement un bien pour vous.",
-      "empty_cta": "Effacer tous les filtres"
+      "empty_cta": "Effacer tous les filtres",
+      "error": "Une erreur est survenue. Veuillez réessayer."
+    },
+    "filters": {
+      "title": "Filtres",
+      "clearAll": "Tout effacer",
+      "close": "Fermer les filtres",
+      "showResults": "Voir les résultats",
+      "sections": {
+        "contractType": "Type de transaction",
+        "propertyType": "Type de bien",
+        "rentPeriod": "Fréquence de loyer",
+        "location": "Localisation",
+        "budget": "Budget (FCFA)",
+        "bedrooms": "Chambres",
+        "bathrooms": "Salles de bain",
+        "area": "Surface (m²)",
+        "condition": "État du bien",
+        "floor": "Étage",
+        "availability": "Disponibilité",
+        "amenities": "Équipements",
+        "advanced": "Recherche avancée"
+      },
+      "cityPlaceholder": "Ville (ex : Dakar, Mbour…)",
+      "quarterPlaceholder": "Quartier (ex : Plateau, Almadies…)",
+      "min": "Min",
+      "max": "Max",
+      "minArea": "Min m²",
+      "maxArea": "Max m²",
+      "furnishedOnly": "Meublé uniquement",
+      "featuredOnly": "Biens en vedette",
+      "availableFrom": "Disponible dès le…",
+      "amenitiesPlaceholder": "piscine, parking, terrasse…",
+      "amenitiesHint": "Séparez par des virgules",
+      "advancedPlaceholder": "Mot-clé, référence, description…",
+      "floors": {
+        "ground": "RDC",
+        "first": "1er",
+        "second": "2e",
+        "third": "3e",
+        "fourthPlus": "4e+"
+      }
+    },
+    "toolbar": {
+      "loading": "Chargement…",
+      "resultCount": "{count, plural, =1 {# bien trouvé} other {# biens trouvés}}",
+      "perPageAria": "Résultats par page",
+      "perPageOption": "{count} / page",
+      "filters": "Filtres"
+    },
+    "sort": {
+      "relevance": "Pertinence",
+      "price_asc": "Prix croissant",
+      "price_desc": "Prix décroissant",
+      "created_desc": "Plus récent"
+    },
+    "tags": {
+      "furnished": "Meublé",
+      "notFurnished": "Non meublé",
+      "featured": "★ En vedette",
+      "groundFloor": "Rez-de-chaussée",
+      "floor": "Étage {n}",
+      "availableFrom": "Dispo dès {date}",
+      "quarter": "Quartier : {value}",
+      "tags": "Tags : {value}",
+      "priceMin": "≥ {value} FCFA",
+      "priceMax": "≤ {value} FCFA",
+      "bedrooms": "{n} ch.",
+      "bathrooms": "{n} sdb",
+      "areaMin": "≥ {value} m²",
+      "areaMax": "≤ {value} m²"
+    },
+    "pagination": {
+      "aria": "Pagination",
+      "previous": "Page précédente",
+      "next": "Page suivante"
     }
   },
   "wizardDrafts": {

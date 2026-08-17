@@ -43,24 +43,6 @@
       "sell": "Jaay",
       "services": "Sunuy liggéey"
     },
-    "categories": {
-      "apartment": "Apartama",
-      "house": "Kër",
-      "villa": "Wiila",
-      "land": "Suuf",
-      "shop": "Butik",
-      "office": "Biro",
-      "studio": "Studio",
-      "room": "Neeg",
-      "warehouse": "Magasin",
-      "hotel": "Otel",
-      "resort": "Kompleks",
-      "garage": "Garaas",
-      "parking": "Parking",
-      "farm": "Tool",
-      "factory": "Usin",
-      "other": "Beneen"
-    },
     "sidebar": {
       "dashboard": "Taablo",
       "myProperties": "Samay kër",
@@ -1049,7 +1031,82 @@
     "results": {
       "empty_title": "Gisunu benn kër",
       "empty_description": "Yaatal say coobare walla dindil ay filtre — am na kër bu la war.",
-      "empty_cta": "Faral filtre yépp"
+      "empty_cta": "Faral filtre yépp",
+      "error": "Am na njuumte. Jéemaatal su la neexee."
+    },
+    "filters": {
+      "title": "Tànneef",
+      "clearAll": "Far lépp",
+      "close": "Tëj tànneef yi",
+      "showResults": "Gis njeexital yi",
+      "sections": {
+        "contractType": "Xeetu jaay",
+        "propertyType": "Xeetu kër",
+        "rentPeriod": "Jamono luwaas",
+        "location": "Bérébu",
+        "budget": "Alal (FCFA)",
+        "bedrooms": "Neeg yi",
+        "bathrooms": "Sanjaan yi",
+        "area": "Yaatuwaay (m²)",
+        "condition": "Nekkinu kër gi",
+        "floor": "Etaas",
+        "availability": "Jotaay",
+        "amenities": "Jumtukaay yi",
+        "advanced": "Seet bu xóot"
+      },
+      "cityPlaceholder": "Dëkk (ci misaal : Ndakaaru, Mbuur…)",
+      "quarterPlaceholder": "Gox (ci misaal : Plateau, Almadies…)",
+      "min": "Min",
+      "max": "Max",
+      "minArea": "Min m²",
+      "maxArea": "Max m²",
+      "furnishedOnly": "Yu ame meebal rekk",
+      "featuredOnly": "Kër yu ñu tànn",
+      "availableFrom": "Jot ci…",
+      "amenitiesPlaceholder": "pisin, parking, teras…",
+      "amenitiesHint": "Xàjjeel ak wirgil",
+      "advancedPlaceholder": "Baat, nomboro, leeral…",
+      "floors": {
+        "ground": "Suuf",
+        "first": "1u",
+        "second": "2u",
+        "third": "3u",
+        "fourthPlus": "4u+"
+      }
+    },
+    "toolbar": {
+      "loading": "Mu ngi yeb…",
+      "resultCount": "{count, plural, =1 {# kër la ñu gis} other {# kër la ñu gis}}",
+      "perPageAria": "Njeexital ci xët bu nekk",
+      "perPageOption": "{count} / xët",
+      "filters": "Tànneef"
+    },
+    "sort": {
+      "relevance": "Li gën a jaadu",
+      "price_asc": "Njëg gu yokku",
+      "price_desc": "Njëg gu wàcc",
+      "created_desc": "Bi gën a bees"
+    },
+    "tags": {
+      "furnished": "Ame na meebal",
+      "notFurnished": "Amul meebal",
+      "featured": "★ Ñu ko tànn",
+      "groundFloor": "Etaas bu suuf",
+      "floor": "Etaas {n}",
+      "availableFrom": "Jot ci {date}",
+      "quarter": "Gox : {value}",
+      "tags": "Tag : {value}",
+      "priceMin": "≥ {value} FCFA",
+      "priceMax": "≤ {value} FCFA",
+      "bedrooms": "{n} neeg",
+      "bathrooms": "{n} sanjaan",
+      "areaMin": "≥ {value} m²",
+      "areaMax": "≤ {value} m²"
+    },
+    "pagination": {
+      "aria": "Xët yi",
+      "previous": "Xët wi jiitu",
+      "next": "Xët wi ci topp"
     }
   },
   "wizardDrafts": {
@@ -1999,6 +2056,142 @@
       "filtered_empty_title": "Amul kër bu ànd ak say filtre",
       "filtered_empty_description": "Soppil walla dindil ay filtre ngir yaatal sa seet.",
       "filtered_empty_cta": "Delloo filtre yi ci bopp"
+    },
+    "types": {
+      "apartment": "Apartama",
+      "house": "Kër",
+      "villa": "Wiila",
+      "land": "Suuf",
+      "shop": "Butik",
+      "office": "Biro",
+      "studio": "Studio",
+      "room": "Neeg",
+      "warehouse": "Magasin",
+      "hotel": "Otel",
+      "resort": "Kompleks",
+      "garage": "Garaas",
+      "parking": "Parking",
+      "farm": "Tool",
+      "factory": "Usin",
+      "other": "Beneen"
+    },
+    "contractTypes": {
+      "sale": "Njaay",
+      "rent": "Luwaas",
+      "saleLong": "Ñu ngi ko jaay",
+      "rentLong": "Ñu ngi ko luwaa"
+    },
+    "cards": {
+      "bedroomsShort": "{count} neeg",
+      "bedroomsAbbrev": "{count} neeg",
+      "bathroomsShort": "{count} sanjaan"
+    },
+    "row": {
+      "viewAll": "Gis lépp",
+      "previous": "Bi jiitu",
+      "next": "Bi ci topp",
+      "empty": "Amul kër ci tànneef bii ba tey."
+    },
+    "discovery": {
+      "viewSwitchAria": "Wonewu njeexital yi",
+      "viewList": "Limu",
+      "viewMap": "Kart"
+    },
+    "rentPeriodsShort": {
+      "daily": "bés",
+      "weekly": "ayu-bés",
+      "monthly": "weer",
+      "yearly": "at"
+    },
+    "rentPeriods": {
+      "daily": "Bés bu nekk",
+      "weekly": "Ayu-bés",
+      "monthly": "Weer wu nekk",
+      "yearly": "At mu nekk"
+    },
+    "detail": {
+      "reviewsCount": "({count} xalaat)",
+      "viewsCount": "{count} xool",
+      "reference": "Nomboro {value}",
+      "featured": "Ñu ko tànn",
+      "shareAria": "Séddoo kër gi",
+      "share": "Séddoo",
+      "removeFavorite": "Dindi ci say cofeel",
+      "addFavorite": "Yokk ci say cofeel",
+      "characteristics": "Melokaan yi",
+      "rows": {
+        "type": "Xeet",
+        "contract": "Kontaraa",
+        "period": "Jamono",
+        "status": "Nekkin",
+        "floor": "Etaas",
+        "yearBuilt": "Atum tabax",
+        "parking": "Palaasu parking",
+        "furnished": "Ame na meebal",
+        "titleDeed": "Kayitu suuf",
+        "yes": "Waaw"
+      },
+      "specs": {
+        "bedrooms": "Neeg yi",
+        "bathrooms": "Sanjaan",
+        "area": "Yaatuwaay",
+        "floors": "Etaas yi",
+        "year": "At",
+        "parking": "Parking"
+      },
+      "description": "Leeral",
+      "collapse": "Wàññi",
+      "readMore": "Jàng li ci des",
+      "amenities": "Jumtukaay yi",
+      "breadcrumbAria": "Yoonu wesaaru",
+      "priceHistory": "Taariixu njëg gi",
+      "documents": "Dokimaa yi",
+      "download": "Yebbi",
+      "downloadAria": "Yebbi {name}",
+      "requestVisit": "Ñaan seetlu",
+      "sendMessage": "Yónnee bataaxal",
+      "noChargeNotice": "Duñu la jël xaalis balaa ñu ko dëggal.",
+      "agent": {
+        "phoneUnavailable": "Nomboro telefon bi jotul ci kër gii.",
+        "phoneError": "Mënuñu jël nomboro bi. Jéemaatal su la neexee.",
+        "verifiedAria": "Ajaas bu ñu seetlu",
+        "independent": "Ajaŋ bu tënkul",
+        "private": "Boroom kër bopp",
+        "message": "Bataaxal",
+        "callAria": "Woo"
+      },
+      "breadcrumb": {
+        "home": "Kër gi",
+        "rent": "Luwaa",
+        "buy": "Jënd"
+      },
+      "location": "Bérébu",
+      "addressHidden": "Joxeewuñu adres bi.",
+      "viewOnOsm": "Xool ci OpenStreetMap",
+      "shareDialog": {
+        "title": "Séddoo yégle bii",
+        "description": "Yónnee lien bi say xarit.",
+        "linkAria": "Lien bu ñuy séddoo",
+        "copied": "Ñu ko duplikaat",
+        "copy": "Duplikaat"
+      },
+      "similar": "Kër yu niroo",
+      "previous": "Bi jiitu",
+      "next": "Bi ci topp",
+      "gallery": {
+        "close": "Tëj",
+        "previousPhoto": "Nataal bi jiitu",
+        "nextPhoto": "Nataal bi ci topp",
+        "noPhoto": "Amul nataal",
+        "noPhotoAvailable": "Amul nataal bu jot",
+        "viewAll": "Xool nataal yépp ({count})"
+      },
+      "bottomBar": {
+        "visit": "Seetlu",
+        "offer": "Njaay",
+        "reserve": "Réserwe",
+        "apply": "Ñaan"
+      }
     }
   },
   "documents": {

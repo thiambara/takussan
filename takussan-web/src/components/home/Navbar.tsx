@@ -48,7 +48,7 @@ export function Navbar({ className }: NavbarProps) {
   const searchParams = useSearchParams();
   const { user, isLoading, setUser } = useAuth();
   const t = useTranslations('nav');
-  const tCategories = useTranslations('nav.categories');
+  const tCategories = useTranslations('property.types');
   const tLinks = useTranslations('nav.links');
   const TRANSACTION_OPTIONS = [
     { value: 'Acheter', label: t('buy') },

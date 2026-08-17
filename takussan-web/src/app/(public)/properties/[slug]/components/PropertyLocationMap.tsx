@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useTranslations } from 'next-intl';
 import { MapPin } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -16,13 +17,15 @@ interface PropertyLocationMapProps {
 }
 
 export function PropertyLocationMap({ latitude, longitude, address }: PropertyLocationMapProps) {
+  const t = useTranslations('property.detail');
+
   if (latitude == null || longitude == null) {
     return (
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-stone-900">Emplacement</h2>
+        <h2 className="text-xl font-semibold text-stone-900">{t('location')}</h2>
         <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-6 text-sm text-stone-600 flex items-center gap-2">
           <MapPin className="size-4 text-stone-400" aria-hidden />
-          <span>{address || 'Adresse non communiquée.'}</span>
+          <span>{address || t('addressHidden')}</span>
         </div>
       </section>
     );
@@ -30,7 +33,7 @@ export function PropertyLocationMap({ latitude, longitude, address }: PropertyLo
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-stone-900">Emplacement</h2>
+      <h2 className="text-xl font-semibold text-stone-900">{t('location')}</h2>
       {address && (
         <p className="text-sm text-stone-600 flex items-center gap-2">
           <MapPin className="size-4 text-stone-400" aria-hidden />
@@ -44,7 +47,7 @@ export function PropertyLocationMap({ latitude, longitude, address }: PropertyLo
         rel="noopener noreferrer"
         className="text-sm text-primary hover:underline"
       >
-        Voir sur OpenStreetMap
+        {t('viewOnOsm')}
       </a>
     </section>
   );

@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Copy, Mail, MessageCircle, Share2, X as XIcon, Check } from 'lucide-react';
 import {
   Dialog,
@@ -19,6 +20,7 @@ interface PropertyShareDialogProps {
 }
 
 export function PropertyShareDialog({ open, onOpenChange, title, url }: PropertyShareDialogProps) {
+  const t = useTranslations('property.detail');
   const [copied, setCopied] = useState(false);
   const shares = buildShareUrls(title, url);
 
@@ -41,19 +43,19 @@ export function PropertyShareDialog({ open, onOpenChange, title, url }: Property
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Partager cette annonce</DialogTitle>
-          <DialogDescription>Envoyez le lien à vos proches.</DialogDescription>
+          <DialogTitle>{t('shareDialog.title')}</DialogTitle>
+          <DialogDescription>{t('shareDialog.description')}</DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-2">
           <input
             readOnly
             value={url}
             className="flex-1 rounded-md border border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-700"
-            aria-label="Lien à partager"
+            aria-label={t('shareDialog.linkAria')}
           />
           <Button type="button" variant="outline" onClick={handleCopy} className="gap-2 shrink-0">
             {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-            {copied ? 'Copié' : 'Copier'}
+            {copied ? t('shareDialog.copied') : t('shareDialog.copy')}
           </Button>
         </div>
         <div className="grid grid-cols-4 gap-2">

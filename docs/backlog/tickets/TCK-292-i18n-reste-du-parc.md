@@ -1,13 +1,13 @@
 ---
 id: TCK-292
 title: "i18n — le reste du parc : 409 fichiers, 3 542 libellés, en 12 lots"
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: XL
 wave: null
 created: 2026-08-15
-updated: 2026-08-15
+updated: 2026-08-17
 depends_on: [TCK-286]
 blocks: []
 spec_refs:
@@ -137,6 +137,111 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
 - **Le basculement FR→EN→WO vérifié au navigateur.** Tout ce qui précède est mesuré sur le code
   source, pas sur le rendu.
 
+## Reste sur dev
+
+**Rien de ce ticket n'est sur `dev` à l'heure où cette section est écrite** — le travail vit sur
+`wave3/i18n`. Le statut est `doing` parce que le lot B lui-même est **partiel**, pas seulement
+parce que la branche n'est pas mergée.
+
+### Lot B — surface publique : 132 / 363 occurrences
+
+Le ticket annonçait 60 fichiers / 407 occurrences pour ce lot ; l'inventaire repris à la source à
+l'ouverture de la branche en donne **54 / 363** (TCK-291 en avait résorbé une partie, et
+`app/(public)/playground/` relève du lot L).
+
+**Fait — 28 fichiers à zéro :**
+
+- `components/property/` et `components/property/cards/` (7 fichiers, 20 occ.)
+- `components/search/` (4 fichiers, 55 occ., dont `SearchFilters.tsx` **supprimé** : aucun
+  importeur dans tout `src`, même raisonnement que les 4 fichiers `layout/` du Delta)
+- `app/(public)/properties/[slug]/components/` (17 fichiers sur 22, 57 occ.)
+
+**Reste — 26 fichiers, 231 occurrences :**
+
+| Fichier | Occ. |
+|---|---:|
+| `components/property-form/PropertyForm.tsx` | 57 |
+| `app/(public)/properties/[slug]/components/PropertyReservationDialog.tsx` | 36 |
+| `app/(public)/properties/[slug]/components/PropertyVisitDialog.tsx` | 22 |
+| `app/(public)/properties/[slug]/components/PropertyReportButton.tsx` | 14 |
+| `components/favorites/SaveSearchButton.tsx` | 12 |
+| `app/(public)/agencies/[slug]/page.tsx` | 11 |
+| `app/(public)/agents/[slug]/page.tsx` | 10 |
+| `…/PropertyReviewReplyForm.tsx`, `…/PropertyReviews.tsx` | 9 + 9 |
+| `components/property-form/options.ts`, `PropertyModerationBanner.tsx` | 8 + 7 |
+| `…/PropertyReviewForm.tsx` | 7 |
+| `components/reviews/LeaveReviewCta.tsx` | 5 |
+| 13 fichiers à 1–4 occurrences | 22 |
+
+### Lots C à L
+
+**Non commencés.** L'ordre du Delta (B → C → D → E → F → G → H → I → J → K → A → L) est inchangé.
+
+### Deux résidus qui ne sont PAS de la dette de traduction
+
+Ils resteront comptés par la garde tant qu'on n'aura pas tranché — ce sont des **faux positifs**
+du scanner, pas du texte à traduire :
+
+- `…/PropertyLocationMapInner.tsx:11` — un SVG inline (`<?xml …><svg …>`) encodé en data-URI pour
+  le marqueur Leaflet. C'est du balisage, pas de la prose.
+- `…/PropertyContactMessageDialog.tsx:198` — le `<label>` d'un champ **honeypot** anti-spam,
+  `aria-hidden` et positionné hors écran. Il n'est montré à personne, et le **traduire changerait
+  l'appât** : c'est du texte qui doit rester tel quel par conception.
+
+Le Delta prévoit « étendre la garde si le besoin s'en fait sentir ». Le besoin s'en fait sentir
+ici, mais `scripts/i18n-scan.mjs` vient d'être réécrit et validé occurrence par occurrence
+(TCK-323) : y toucher se décide, ça ne s'improvise pas au fil d'un lot.
+
+### Décisions du Delta encore ouvertes
+
+- Sort de `src/components/playground/` (7 fichiers) et des route handlers `src/app/api/**`
+  (15 fichiers) — le ticket penche pour les requalifier hors périmètre.
+- Suppression de `src/components/layout/{Footer,Header,Navigation,Sidebar}.tsx` : **vérifiée
+  bonne** (0 référence pour chacun des quatre), mais gardée pour le lot L afin de ne pas mélanger
+  les lots.
+
 ## Notes d'implémentation
 
-_(Rempli pendant le travail.)_
+### La divergence du vocabulaire des types de bien : tranchée, et elle était plus large
+
+Le Delta annonce deux tables (`nav.categories` ↔ `property.types`). **Mesuré, il y en avait cinq**
+pour le même enum backend : les deux du dictionnaire, plus trois tables locales
+(`property/PropertyCard.tsx`, `search/SearchToolbar.tsx`, `search/FilterSidebar.tsx`), plus une
+sixième côté formulaire (`property-form/options.ts`).
+
+Ce qui a tranché est une mesure, pas un goût :
+
+1. **`property.types` n'avait aucun consommateur.** Aucun `useTranslations('property.types')` dans
+   tout `src` — le seul sous-arbre lu sous `property.*` était `property.portfolio`.
+2. **`property.types` n'avait aucun wolof.** `nav.categories` avait ses 16 valeurs dans les trois
+   langues.
+
+D'où : **`property.types` gagne comme emplacement** (vocabulaire de bien, pas de navigation),
+**`nav.categories` gagne comme valeurs**, et `nav.categories` est supprimé. Effet de bord :
+18 des 88 clés wolof manquantes disparaissent — le doublon était la dette, pas la traduction.
+
+**Ce que ça change à l'écran, exhaustivement** : `shop` passe de « Boutique » à « Commerce » sur la
+carte de bien publique et dans le formulaire ; `resort` passe de « Resort » à « Complexe » dans le
+formulaire. **Trois libellés, deux écrans.** Toute la surface de recherche publique (navbar, barre
+d'outils, panneau de filtres) est inchangée au caractère près, et aucun test n'assertait ces mots.
+
+### Le patron « la donnée porte la clé » a une variante non prévue
+
+`SearchToolbar.FILTER_LABELS` n'était pas une table de libellés mais une table **de fonctions**
+(une par filtre, qui formate sa valeur). Une fonction ne peut pas porter une clé statique. Elle est
+devenue une **fabrique** qui reçoit les traducteurs et rend la même table depuis le composant.
+
+### Un piège du React Compiler, payé une fois
+
+`search/Pagination.tsx` ouvrait sur `if (lastPage <= 1) return null;`. Un `useTranslations` posé
+après cette ligne aurait été un hook conditionnel — refusé par le React Compiler (ADR-0015, activé
+par TCK-318). Le hook se place **avant** la sortie anticipée. À vérifier systématiquement dans les
+lots suivants : le motif « garde d'entrée en première instruction » est fréquent dans ce dépôt.
+
+### Une dette trouvée, hors périmètre
+
+**Le formatage des nombres et des dates est figé en `fr-SN` quelle que soit la locale** —
+`toLocaleString('fr-SN')`, `toLocaleDateString('fr-SN', …)`, écrits en dur dans `SearchToolbar` et
+ailleurs. Traduire les libellés ne corrige pas ça : un anglophone lira des libellés anglais et des
+nombres au format français. Le scanner ne le voit pas (ce n'est pas du texte) et ce n'est pas dans
+le Delta. **Ça vaut un ticket.**

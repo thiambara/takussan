@@ -72,10 +72,12 @@ function ViewToggle({
   onChange: (v: View) => void;
   className?: string;
 }) {
+  const t = useTranslations('property.discovery');
+
   return (
     <div
       role="tablist"
-      aria-label="Vue des résultats"
+      aria-label={t('viewSwitchAria')}
       className={`inline-flex items-center rounded-full border border-stone-200 bg-white p-1 shadow-sm ${className}`}
     >
       <button
@@ -89,7 +91,7 @@ function ViewToggle({
         }`}
       >
         <List className="w-3.5 h-3.5" />
-        Liste
+        {t('viewList')}
       </button>
       <button
         role="tab"
@@ -102,13 +104,14 @@ function ViewToggle({
         }`}
       >
         <MapIcon className="w-3.5 h-3.5" />
-        Carte
+        {t('viewMap')}
       </button>
     </div>
   );
 }
 
 export function PropertiesDiscoveryPage() {
+  const t = useTranslations('search.results');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [view, setView] = useState<View>('list');
 
@@ -193,7 +196,7 @@ export function PropertiesDiscoveryPage() {
               <>
                 {error && !loading && (
                   <div className="py-16 text-center text-sm text-gray-400">
-                    Une erreur est survenue. Veuillez réessayer.
+                    {t('error')}
                   </div>
                 )}
 

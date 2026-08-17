@@ -81,11 +81,17 @@ const UPDATE = process.argv.includes('--update');
  *
  * 96 → 88 au lot 1 de TCK-286 : huit des clés manquantes tombaient dans des sous-arbres que le
  * lot réécrivait (`auth.login.*`, `auth.register.*`), et les traduire coûtait moins que de les
- * laisser. Les 88 restantes sont réparties ailleurs et sont portées par le ticket de suite.
+ * laisser.
+ *
+ * 88 → 70 au lot B de TCK-292, et **sans qu'une seule traduction wolof ait été écrite pour ça** :
+ * les 18 clés qui manquaient étaient `property.types.*` et deux voisines, un sous-arbre qui n'avait
+ * AUCUN consommateur et AUCUN wolof. Il faisait doublon avec `nav.categories.*`, qui traduisait le
+ * même enum backend dans les trois langues et que le `Navbar` lisait vraiment. Fusionner les deux
+ * a résolu les 18 d'un coup — le doublon était la dette, pas la traduction manquante.
  */
 const PLAFONDS_PARITE = {
   en: 0,
-  wo: 88,
+  wo: 70,
 };
 
 // ── Parcours ──────────────────────────────────────────────────────────────────────────────────
