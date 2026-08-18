@@ -273,66 +273,6 @@ jobs:
           echo "Durée de la suite AVEC couverture : $(( $(date +%s) - debut )) s"
           exit "$code"
 
-      # ══════════════════════════════════════════════════════════════════════════════════
-      # ⚠ STEPS TEMPORAIRES — TCK-324. À RETIRER une fois la décision écrite.
-      #
-      # La mesure de `--parallel` n'existait que sur la machine locale (8 coeurs) ; le runner
-      # en a 2 à 4. TCK-321 avait laissé son AC6 en échec PAR ÉCRIT plutôt que de conclure par
-      # analogie — c'est cette mesure-là qui manquait, et rien d'autre.
-      #
-      # Les deux exécutions tournent SUR LE MÊME COMMIT, dans le MÊME job, donc sur le même
-      # runner et avec le même vendor : c'est la seule façon d'obtenir une paire comparable.
-      # `nproc` est relevé À CÔTÉ des durées — un temps sans son contexte de charge ne veut
-      # rien dire, c'est la règle que le dépôt applique partout ailleurs.
-      #
-      # Sans couverture des deux côtés : PCOV agrège mal entre processus, et le cliquet
-      # `--min=86` n'est PAS touché par ce ticket.
-      - name: 'TCK-324 — mesure : combien de coeurs a ce runner ?'
-        if: always()
-        working-directory: takussan-api
-        run: |
-          echo "nproc            = $(nproc)"
-          echo "modèle           = $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | xargs)"
-          echo "mémoire (MB)     = $(free -m | awk '/^Mem:/{print $2}')"
-          echo "load average     = $(cut -d' ' -f1-3 /proc/loadavg)"
-
-      - name: 'TCK-324 — mesure : suite SÉQUENTIELLE, chronométrée'
-        if: always()
-        working-directory: takussan-api
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-          SCOUT_DRIVER: meilisearch
-          MEILISEARCH_HOST: http://127.0.0.1:7700
-          MEILISEARCH_KEY: masterKey
-        run: |
-          debut=$(date +%s)
-          set +e
-          php artisan test > /tmp/seq.log 2>&1
-          code=$?
-          set -e
-          echo "SÉQUENTIEL  durée=$(( $(date +%s) - debut )) s  sortie=$code  load=$(cut -d' ' -f1-3 /proc/loadavg)"
-          tail -4 /tmp/seq.log
-
-      - name: 'TCK-324 — mesure : suite --parallel, chronométrée'
-        if: always()
-        working-directory: takussan-api
-        env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
-          SCOUT_DRIVER: meilisearch
-          MEILISEARCH_HOST: http://127.0.0.1:7700
-          MEILISEARCH_KEY: masterKey
-        run: |
-          debut=$(date +%s)
-          set +e
-          php artisan test --parallel > /tmp/par.log 2>&1
-          code=$?
-          set -e
-          echo "PARALLÈLE   durée=$(( $(date +%s) - debut )) s  sortie=$code  load=$(cut -d' ' -f1-3 /proc/loadavg)"
-          tail -6 /tmp/par.log
-      # ══════════════════════════════════════════════════════════════════════════════════
-
       # DEUX artefacts, et la coupure n'est pas un détail de rangement : les deux formats ne
       # répondent pas à la même question, et ne coûtent pas le même prix.
       #

@@ -130,11 +130,25 @@ séquentiel à load 3,74 → **64,90 s** à load 6,11, 8 cœurs).
    remourir l'une des deux. **Toutes sur des sous-ensembles** — la paire sur la suite ENTIÈRE reste
    à jouer. Jusque-là : un seul agent à la fois sur `--parallel` en suite entière. Le mode
    séquentiel et `bin/impacted-tests.php` supportent la simultanéité depuis D-44.
-2. **Pas activé en CI**, et c'est une décision, pas un oubli : elle exige une mesure sur le runner
-   (2 à 4 cœurs, contre les 8 d'ici) qui n'a pas été prise. Le cliquet `--min=86` n'est pas touché —
-   PCOV agrège mal entre processus.
+2. **Pas activé en CI — et c'est désormais un RÉSULTAT, plus un défaut** (TCK-324, mesuré le
+   2026-08-18 sur le runner `ubuntu-latest`, `nproc` **4**, AMD EPYC 7763, load 1,05 au départ) :
 
-Détail et raisonnement : ardoise **D-30**, tickets **TCK-302**, **TCK-314**, **TCK-321**, **TCK-322**.
+   | suite | durée | sortie |
+   |---|---|---|
+   | séquentielle | **206 s** | 0 · 2552 passés |
+   | `--parallel` | **83 s** | 0 · 2554 tests, 8069 assertions |
+
+   **Gain ×2,48**, bien au-dessus de la barre de ~1,5× que TCK-324 posait. **L'obstacle n'est pas
+   le gain** : une SEULE exécution de la suite porte à la fois les tests **et** le cliquet
+   `--min=86`, et PCOV agrège mal entre processus. Paralléliser cette exécution-là revient à
+   abandonner le cliquet ; l'ajouter en second passage coûte 83 s de plus, pas 123 s de moins,
+   puisque la couverture reste le chemin critique.
+
+   *Le gain est réel et inutilisable dans la forme actuelle de la CI* — ce n'est pas « ça ne vaut
+   pas le coup ». Ce qui changerait la réponse : sortir le cliquet du job de PR. Détail : ardoise
+   **D-30**.
+
+Détail et raisonnement : ardoise **D-30**, tickets **TCK-302**, **TCK-314**, **TCK-321**, **TCK-322**, **TCK-324**.
 
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
@@ -168,9 +182,12 @@ php artisan test --parallel          # ×3,2 sur la meilleure mesure (208,80 s s
                                     #   le 2026-08-17, load average 5,7 → 21,7 sur 8 cœurs : user
                                     #   417,40 s + sys 29,42 s pour 611,4 s), et
                                     #   deux agents qui parallélisent en même temps demandent 16
-                                    #   cœurs à une machine qui en a 8. NON activé en CI : la
-                                    #   décision exige une mesure sur le runner (2 à 4 cœurs), qui
-                                    #   n'a pas été prise (cf. D-30).
+                                    #   cœurs à une machine qui en a 8. NON activé en CI, et
+                                    #   c'est MESURÉ (TCK-324, 2026-08-18, runner à 4 cœurs) :
+                                    #   206 s séquentiel → 83 s en parallèle, gain ×2,48. Le gain
+                                    #   est réel ; il est INUTILISABLE, parce qu'une seule
+                                    #   exécution porte les tests ET le cliquet --min=86, et que
+                                    #   PCOV agrège mal entre processus (cf. D-30).
                                     #   ⚠⚠ La mort au démarrage de deux --parallel simultanés
                                     #   (« mkdir(): File exists ») est CORRIGÉE par TCK-322 :
                                     #   les vues compilées sont enracinées par exécution. Cinq

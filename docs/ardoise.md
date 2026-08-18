@@ -1747,7 +1747,7 @@ charge, intersection non vide mais ensembles distincts) · `tests/Concerns/Inter
 > pour ce qui est mergé sur `dev` » est juste ; elle n'a de valeur que si l'on va **regarder** ce
 > qui est mergé sur `dev`.
 
-### D-30 — Aucune mesure de couverture, aucune parallélisation 🟡 *couverture SOLDÉE le 2026-08-16 ; parallélisation validée en local le 2026-08-17 (critère rempli, troisième défaut révélé) — activation en CI NON tranchée, mesure runner requise* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md)
+### D-30 — Aucune mesure de couverture, aucune parallélisation ✅ *couverture SOLDÉE le 2026-08-16 ; parallélisation MESURÉE SUR LE RUNNER le 2026-08-18 (TCK-324) — gain réel ×2,48, décision de NE PAS activer, motivée* → [TCK-302](backlog/tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) · [TCK-324](backlog/tickets/TCK-324-mesurer-parallel-sur-le-runner-ci.md)
 
 > **Confirmé le 2026-08-16** : `coverage: none` apparaît **deux fois** dans `api-ci.yml` (lignes 42
 > et 192), et `--parallel` n'est configuré nulle part. Le temps de référence à retenir est
@@ -1951,6 +1951,36 @@ le gain net survit au runner, ou l'absence d'activation documentée si non. Tant
 n'est pas prise, l'activation en CI reste une option ouverte, pas une décision prise.
 
 ---
+
+> **Mesure sur le runner — 2026-08-18, TCK-324.** L'AC6 de TCK-321 est enfin tenu : la décision
+> n'est plus un défaut, c'est un résultat.
+>
+> | | runner GitHub `ubuntu-latest` |
+> |---|---|
+> | `nproc` | **4** · AMD EPYC 7763 · 15 993 Mo · `load` 1,05 au départ |
+> | suite **séquentielle** | **206 s** · sortie 0 · 2552 passés, 2 ignorés |
+> | suite **`--parallel`** | **83 s** · sortie 0 · 2554 tests, 8069 assertions, 2 ignorés |
+> | **gain** | **×2,48** |
+>
+> Les deux exécutions tournent sur le **même commit**, dans le **même job**, donc sur le même
+> runner et le même `vendor` — la seule paire comparable possible. Le décompte 2552/2554 n'est pas
+> un écart : ParaTest imprime le TOTAL (2554 = 2552 passés + 2 ignorés) là où l'affichage
+> séquentiel sépare les deux.
+>
+> **DÉCISION : NE PAS ACTIVER — et le gain n'y est pour rien.** ×2,48 est bien au-dessus de la
+> barre de ~1,5× que le ticket posait. L'obstacle est ailleurs, et la mesure seule ne le montrait
+> pas : **une seule exécution de la suite porte à la fois les tests ET le cliquet `--min=86`**.
+> PCOV agrège mal entre processus, donc paralléliser cette exécution-là revient à abandonner le
+> cliquet. Et l'ajouter en second passage coûterait 83 s de plus, pas 123 s de moins : la
+> couverture reste le chemin critique du job.
+>
+> *Le gain est réel et inutilisable dans la forme actuelle de la CI.* Ce n'est pas la même chose
+> que « ça ne vaut pas le coup », et c'est ce qu'il fallait écrire.
+>
+> **Ce qui changerait la réponse**, et qui n'est pas fait : sortir le cliquet de couverture du job
+> de PR — vers un job planifié, ou un job distinct qui ne bloque pas le retour. Le job de tests
+> pourrait alors paralléliser et rendre son verdict en 83 s au lieu de 206. C'est un ticket à
+> ouvrir le jour où le temps de retour de PR devient le sujet ; il ne l'est pas aujourd'hui.
 
 ### D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟢 *cause nommée et corrigée le 2026-08-17 ; épreuve sur la suite ENTIÈRE encore à jouer* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
 

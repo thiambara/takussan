@@ -1,13 +1,13 @@
 ---
 id: TCK-324
 title: "Mesurer `--parallel` sur le runner CI, puis trancher — la décision actuelle est un défaut, pas un résultat"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 41
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-18
 depends_on: []
 blocks: []
 spec_refs:
@@ -62,22 +62,22 @@ celui-ci aurait effacé la suite avec le ticket.
 
 ## Delta à produire
 
-- [ ] PR temporaire de mesure sur `api-ci.yml` : step `nproc` + une exécution séquentielle et une
+- [x] PR temporaire de mesure sur `api-ci.yml` : step `nproc` + une exécution séquentielle et une
       `--parallel` chronométrées, sur le même commit.
-- [ ] Relever les deux durées, `nproc`, et le nombre d'échecs de chacune.
-- [ ] Trancher, et écrire la décision **avec ses chiffres** dans l'ardoise D-30 et dans
+- [x] Relever les deux durées, `nproc`, et le nombre d'échecs de chacune.
+- [x] Trancher, et écrire la décision **avec ses chiffres** dans l'ardoise D-30 et dans
       `CLAUDE.md` — en remplaçant la phrase « la mesure n'a pas été prise ».
-- [ ] Retirer le step temporaire.
-- [ ] Si activé : vérifier qu'aucun autre job ne parallélise sur le même runner (TCK-322).
+- [x] Retirer le step temporaire.
+- [x] Si activé : vérifier qu'aucun autre job ne parallélise sur le même runner (TCK-322).
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Les deux durées et `nproc` du runner sont écrits dans D-30, datés.
-- [ ] AC2 — La décision est prise ET motivée par ces chiffres, dans les deux sens possibles.
-- [ ] AC3 — `CLAUDE.md` ne dit plus « la mesure n'a pas été prise » : soit le gain mesuré, soit le
+- [x] AC1 — Les deux durées et `nproc` du runner sont écrits dans D-30, datés.
+- [x] AC2 — La décision est prise ET motivée par ces chiffres, dans les deux sens possibles.
+- [x] AC3 — `CLAUDE.md` ne dit plus « la mesure n'a pas été prise » : soit le gain mesuré, soit le
       refus mesuré.
-- [ ] AC4 — Le cliquet `--min=86` rend la même valeur qu'avant, à la décimale.
-- [ ] AC5 — Si activé, la suite CI passe trois fois de suite à 0 échec. Une seule rouge refuse.
+- [x] AC4 — Le cliquet `--min=86` rend la même valeur qu'avant, à la décimale.
+- [x] AC5 — *sans objet : non activé.* Si activé, la suite CI passe trois fois de suite à 0 échec. Une seule rouge refuse.
 
 ## Hors périmètre
 
@@ -89,3 +89,33 @@ celui-ci aurait effacé la suite avec le ticket.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Notes d'implémentation
+
+**Mesuré le 2026-08-18** — runner `ubuntu-latest`, `nproc` **4**, AMD EPYC 7763, 15 993 Mo,
+`load average` 1,05 au départ. Les deux exécutions sur le **même commit**, dans le **même job**.
+
+| suite | durée | sortie | tests |
+|---|---|---|---|
+| séquentielle | **206 s** | 0 | 2552 passés, 2 ignorés |
+| `--parallel` | **83 s** | 0 | 2554 tests, 8069 assertions, 2 ignorés |
+
+⚠ Le décompte 2552/2554 n'est **pas** un écart : ParaTest imprime le TOTAL (2554 = 2552 + 2
+ignorés) là où l'affichage séquentiel les sépare.
+
+**Gain ×2,48 — et la décision est NÉGATIVE quand même.** C'est le point de ce ticket, et il ne se
+lisait pas depuis les chiffres : **une seule exécution de la suite porte à la fois les tests et le
+cliquet `--min=86`**. PCOV agrégeant mal entre processus, paralléliser cette exécution revient à
+abandonner le cliquet, et l'ajouter en second passage coûte +83 s au lieu de −123 s puisque la
+couverture reste le chemin critique du job.
+
+*Le gain est réel et inutilisable dans la forme actuelle de la CI.* Ce n'est pas « ça ne vaut pas
+le coup », et l'écrire autrement aurait reproduit exactement la phrase que ce ticket existait pour
+supprimer.
+
+**Vérifié aussi (contrainte du ticket)** : aucun autre job d'`api-ci.yml` ne parallélise, et chaque
+job GitHub obtient son propre runner — le piège de TCK-322 ne s'applique pas.
+
+**Ce qui changerait la réponse** : sortir le cliquet de couverture du job de PR. Le job de tests
+rendrait alors son verdict en 83 s au lieu de 206. À ticketer le jour où le temps de retour de PR
+devient le sujet.
