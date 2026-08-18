@@ -239,10 +239,24 @@ jobs:
           # `--coverage-php` ; si elles rougissent encore, il est dans le rendu de la table
           # ou l'évaluation de `--min`, et il faudra le chercher là. Une seule variable
           # change à la fois, exprès : `memory_limit` n'est PAS touché dans le même geste.
-          COVERAGE_PHP=""
-          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/dev" ]; then
-            COVERAGE_PHP="--coverage-php=storage/coverage/cov.php"
-          fi
+          # ⚠ TCK-331 — `--coverage-php` est RETIRÉ PARTOUT, y compris sur `push` vers `dev`.
+          #
+          # `artisan test --coverage` le passe DÉJÀ à PHPUnit en interne : c'est ainsi qu'il
+          # construit sa table par fichier et qu'il évalue `--min`. L'ajouter explicitement le
+          # rend présent DEUX FOIS, PHPUnit l'écarte, le rapport d'artisan ne se matérialise
+          # jamais, `--min` n'a rien à évaluer, et la commande sort en 1 — sur une suite
+          # entièrement verte. Le message existe et se perd dans un pipe :
+          #
+          #     WARN  Option --coverage-php cannot be used more than once
+          #
+          # Prouvé PAR ABLATION, même sous-ensemble, une seule variable :
+          #   sans l'option → `Total: 0.7 %`, sortie 0
+          #   avec l'option → pas de `Total:`, sortie 1 sous `--min=86`
+          #
+          # Ce n'est PAS la mémoire : `cov.php` était écrit EN ENTIER (104 Mo sur la suite
+          # complète). Ce n'est PAS un seuil : l'option n'avait jamais tourné avec succès,
+          # deux exécutions, deux échecs. La couverture n'a pas bougé : 86,33 % mesuré sur le
+          # clover de l'exécution ROUGE.
 
           debut=$(date +%s)
           # `set +e` : le shell par défaut d'un step est `bash -e`, qui interromprait le step
@@ -253,8 +267,7 @@ jobs:
             --coverage \
             --min=86 \
             --coverage-clover=storage/coverage/clover.xml \
-            --coverage-html=storage/coverage/html \
-            ${COVERAGE_PHP}
+            --coverage-html=storage/coverage/html
           code=$?
           set -e
           echo "Durée de la suite AVEC couverture : $(( $(date +%s) - debut )) s"
@@ -324,8 +337,29 @@ jobs:
         with:
           node-version: '24'
 
+      # ⚠ TCK-331 — DÉSACTIVÉ, et ce n'est pas un oubli.
+      #
+      # Ce step consomme `storage/coverage/cov.php`, que le step de test ne produit plus (l'option
+      # était passée en double et faisait sortir PHPUnit en 1 — cf. le bloc plus haut). Il n'a
+      # d'ailleurs JAMAIS tourné avec succès : les deux seules exécutions qui ont produit `cov.php`
+      # ont échoué toutes les deux.
+      #
+      # Il est désactivé plutôt que laissé en place, parce qu'un step qui échoue est bruyant tandis
+      # qu'un step qui ne fait rien en silence est exactement ce qui a coûté une journée ici :
+      # l'AC7 de TCK-320 a été coché en LISANT ce bloc, sur du code qui ne s'était jamais exécuté.
+      #
+      # ⚠ Conséquence à connaître : `tests/impact-map.json` est FIGÉE à sa construction manuelle
+      # (`eafab606`). Elle ne ment pas — elle s'émousse : un fichier absent de la carte impose la
+      # suite entière, et la réparation de péremption ajoute toute classe de test modifiée depuis.
+      # La sélection devient plus large et plus lente, jamais plus permissive.
       - name: Régénérer la carte d'impact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        # TCK-331 — condition mise à `false` plutôt qu'une SECONDE clé `if:` ajoutée au-dessus :
+        # deux `if:` sur un même step font rejeter le workflow ENTIER par GitHub, qui n'exécute
+        # alors aucun job. Et `yaml.safe_load` l'accepte sans broncher — une clé dupliquée écrase
+        # silencieusement la précédente — donc la validation locale passe sur un fichier invalide.
+        # La condition d'origine est conservée ci-dessous en commentaire, pour la restauration.
+        #   if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        if: false
         run: |
           php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
 
