@@ -121,8 +121,49 @@ le rituel de fin de branche exige déjà la suite entière.
 - **AC6** — `scripts/check-impact-map.mjs` échoue sur un défaut **structurel** (index hors bornes,
   clé de `files` absente de `scanned`, version inattendue) et **avertit** sur la péremption.
   Vérifié par ablation dans les deux sens.
-- **AC7** — La CI régénère la carte **sur push vers `dev` uniquement**, avec `[skip ci]` pour ne pas
-  boucler. `dev` n'est pas protégée (vérifié le 2026-08-17).
+- **AC7** — ❌ **NON TENU — correction datée du 2026-08-17, le soir.** La CI régénère la carte
+  **sur push vers `dev` uniquement**, avec `[skip ci]` pour ne pas boucler. `dev` n'est pas protégée
+  (vérifié le 2026-08-17).
+
+  > **Cet AC a été coché le 2026-08-17 après-midi sur une LECTURE du workflow**, pas sur une
+  > exécution : la condition `if: github.event_name == 'push' && github.ref == 'refs/heads/dev'`, le
+  > `[skip ci]`, l'ordre `git add` avant `git diff --cached`. Tout cela est juste. **Rien de tout
+  > cela n'avait jamais tourné.**
+  >
+  > `--coverage-php` et ce step sont arrivés sur `origin` avec le commit `656d6645`, poussé le
+  > 2026-08-17 à 15h2x. Le dernier run vert d'API CI qui le précède (32014693898, sha `4eee25aa`)
+  > ne contenait ni l'un ni l'autre — vérifié : `git show 4eee25aa:.github/workflows/api-ci.yml |
+  > grep -c build-impact-map` rend **0**, et sa liste de steps s'arrête à 13.
+  >
+  > **Inventaire complet des exécutions ayant jamais produit `cov.php` :**
+  >
+  > | exécution | résultat |
+  > |---|---|
+  > | push `4bd5aa71` | morte AVANT, sur un 429 à l'installation Composer |
+  > | PR #199, 1ʳᵉ | **rouge** — suite verte, sortie 1 sans un mot |
+  > | PR #199, 2ᵈᵉ | `--coverage-php` retiré sur PR → verte |
+  > | push `d7132beb` | **rouge** — 2552 tests passés, sortie 1 sans un mot |
+  >
+  > **Deux exécutions, deux échecs, zéro succès.** La cause est trouvée et porte son propre
+  > ticket, [TCK-331](TCK-331-coverage-php-en-double-casse-le-cliquet.md) : `artisan test --coverage` passe DÉJÀ `--coverage-php` à PHPUnit en
+  > interne — c'est ainsi qu'il construit sa table et évalue `--min`. Le passer une seconde fois le
+  > fait écarter (`WARN Option --coverage-php cannot be used more than once`), le rapport d'artisan
+  > ne se matérialise jamais, `--min` n'a rien à évaluer, et la commande sort en 1.
+  >
+  > **Conséquence, et c'est elle qui compte** : `takussan-api/tests/impact-map.json` n'a **jamais**
+  > été régénérée automatiquement. Elle date de son unique construction manuelle (`eafab606`) et
+  > vieillit depuis.
+  >
+  > **Ce que la carte gelée fait, et ne fait pas.** Elle s'émousse, elle ne ment pas : un fichier
+  > de `app/` absent de la carte impose la **suite entière** (AC2/AC3bis) et la réparation de
+  > péremption ajoute d'office toute classe de test modifiée depuis le commit de la carte (AC4) —
+  > un ensemble qui grossit à mesure qu'elle vieillit. La sélection devient donc plus large et plus
+  > lente, **jamais plus permissive**. Elle ne fabriquera pas de faux vert.
+  >
+  > *Pourquoi cette correction plutôt qu'une réécriture de l'AC :* ce ticket a coché un critère en
+  > confondant « la configuration dit que » et « cela s'est produit » — la faute exacte que
+  > `CLAUDE.md` documente sur le moteur de base de données et sur la chaîne de déploiement. Effacer
+  > la trace effacerait aussi la leçon.
 - **AC8** — `takussan-api/CLAUDE.md` et le `CLAUDE.md` racine documentent la commande **et sa
   limite** : un vert ici ne dit rien de la suite.
 - **AC9** — Le gain réel est **mesuré et reporté dans ce ticket**, avec `uptime` et `hw.ncpu` à côté
@@ -161,7 +202,9 @@ reviendrait à reproduire, un étage plus bas, le défaut que ce ticket corrige.
 
 ## Vérifié le 2026-08-17, avant de passer `done`
 
-Aucun AC basculé sur la foi du plan : chacun a été éprouvé sur l'état de `dev`.
+Aucun AC basculé sur la foi du plan — **sauf AC7, et c'est le sujet de sa correction datée
+ci-dessus** : lui a été « vérifié » en lisant le workflow, sur un step qui n'avait jamais été
+exécuté. Les huit autres ont été éprouvés sur l'état de `dev`, deux d'entre eux par ablation.
 
 | AC | Vérification | Résultat |
 |---|---|---|
@@ -172,7 +215,7 @@ Aucun AC basculé sur la foi du plan : chacun a été éprouvé sur l'état de `
 | AC4 | **ablation** : `commit` de la carte remplacé par 40 zéros | escalade, message explicite « le commit de la carte est introuvable […] → suite entière ». Carte restaurée, `git diff` vide |
 | AC5 | `ls tests/Support/` · `grep -rl ImpactSelector app/` | `ImpactMap`, `ImpactSelection`, `ImpactSelector` sous `tests/Support/` · **0** fichier dans `app/` |
 | AC6 | **ablation dans les deux sens**, code de sortie relevé hors tuyau | indice de classe hors bornes → **sortie 1** avec le nom du fichier et la borne ; carte saine → **sortie 0**. La péremption, elle, n'avertit que (`⚠`, sortie 0) |
-| AC7 | `.github/workflows/api-ci.yml:256-297` | `if: push && ref == refs/heads/dev`, `[skip ci]`, validée par celui qui la produit, `git add` avant `git diff --cached` |
+| AC7 | ❌ **la vérification était une LECTURE, pas une exécution** — cf. l'encadré daté sous l'AC7 ci-dessus | `.github/workflows/api-ci.yml:256-297` est juste ligne à ligne, et n'avait **jamais tourné**. Deux exécutions l'ont depuis atteint, deux échecs. Cause et suite : [TCK-331](TCK-331-coverage-php-en-double-casse-le-cliquet.md) |
 | AC8 | `CLAUDE.md` racine + `takussan-api/CLAUDE.md` | 6 et 4 occurrences, chacune portant la limite : *« un vert ici ne dit RIEN de la suite »* |
 | AC9 | corps de ce ticket | 4 classes, 26 tests, **16,7 s** à `load average` 5,2-5,8 sur **8 cœurs** — mesuré par ablation, avec son contexte de charge |
 
