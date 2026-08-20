@@ -1,5 +1,8 @@
 'use client';
 
+import { Users } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CustomerForm } from '@/components/customer-form';
 import type {
@@ -9,7 +12,7 @@ import type {
   CustomerRelationship,
 } from '@/types/customer';
 import { formatDateTime } from '@/lib/format';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { Locale } from '@/i18n/config';
 
 import { CustomerNotesTimeline } from './CustomerNotesTimeline';
@@ -33,14 +36,16 @@ export function CustomerDetailTabs({
   relationships,
 }: CustomerDetailTabsProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('crm.customerDetail.relationships');
+  const tTabs = useTranslations('crm.customerDetail.tabs');
 
   return (
     <Tabs defaultValue="overview" className="space-y-4">
       <TabsList>
-        <TabsTrigger value="overview">Aperçu</TabsTrigger>
-        <TabsTrigger value="notes">Notes ({notes.length})</TabsTrigger>
-        <TabsTrigger value="documents">Documents ({documents.length})</TabsTrigger>
-        <TabsTrigger value="relationships">Relations ({relationships.length})</TabsTrigger>
+        <TabsTrigger value="overview">{tTabs('overview')}</TabsTrigger>
+        <TabsTrigger value="notes">{tTabs('notes', { count: notes.length })}</TabsTrigger>
+        <TabsTrigger value="documents">{tTabs('documents', { count: documents.length })}</TabsTrigger>
+        <TabsTrigger value="relationships">{tTabs('relationships', { count: relationships.length })}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview" className="rounded-xl bg-app-surface-1 p-6">
@@ -57,9 +62,11 @@ export function CustomerDetailTabs({
 
       <TabsContent value="relationships">
         {relationships.length === 0 ? (
-          <p className="rounded-xl bg-app-surface-1 px-4 py-6 text-center text-sm text-app-ink-muted">
-            Aucune relation enregistrée pour ce contact.
-          </p>
+          <EmptyState
+            icon={<Users className="size-8" aria-hidden="true" />}
+            title={t('empty_title')}
+            description={t('empty_description')}
+          />
         ) : (
           <ul className="space-y-2">
             {relationships.map((rel) => (
@@ -71,9 +78,10 @@ export function CustomerDetailTabs({
                   {rel.relationship_type.replace('_', ' / ')}
                 </p>
                 <p className="text-xs text-app-ink-muted">
-                  Depuis le {formatDateTime(rel.start_date, locale)}
-                  {rel.end_date ? ` jusqu'au ${formatDateTime(rel.end_date, locale)}` : ''}
-                  {rel.is_primary ? ' · contact principal' : ''} · statut {rel.status}
+                  {t('since', { date: formatDateTime(rel.start_date, locale) })}
+                  {rel.end_date ? t('until', { date: formatDateTime(rel.end_date, locale) }) : ''}
+                  {rel.is_primary ? t('primaryContact') : ''}
+                  {t('statusSuffix', { status: rel.status })}
                 </p>
                 {rel.notes ? (
                   <p className="mt-2 whitespace-pre-line text-app-ink">{rel.notes}</p>

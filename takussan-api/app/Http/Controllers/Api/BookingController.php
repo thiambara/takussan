@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\CancelBookingRequest;
+use App\Http\Requests\Api\RejectBookingRequest;
+use App\Http\Requests\Api\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
-use App\Models\Enums\Currency;
 use App\Models\Property;
 use App\Services\Model\BookingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
@@ -37,29 +38,12 @@ class BookingController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => BookingResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, BookingResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreBookingRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'property_id' => ['required', 'exists:properties,id'],
-            'customer_id' => ['nullable', 'exists:customers,id'],
-            'total_amount' => ['required', 'numeric', 'min:0'],
-            'deposit_amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'notes' => ['nullable', 'string'],
-            'expires_at' => ['nullable', 'date'],
-        ]);
+        $data = $request->validated();
 
         $property = Property::findOrFail($data['property_id']);
         $booking = $this->bookings->create($property, $request->user(), $data);
@@ -71,7 +55,7 @@ class BookingController extends Controller
 
     public function show(Request $request, Booking $booking): JsonResponse
     {
-        $this->authorizeAccess($request, $booking);
+        $this->authorize('view', $booking);
 
         return $this->json([
             'data' => BookingResource::make($booking->load(['property.address', 'customer']))->toArray($request),
@@ -80,7 +64,7 @@ class BookingController extends Controller
 
     public function confirm(Request $request, Booking $booking): JsonResponse
     {
-        $this->authorizeManage($request, $booking);
+        $this->authorize('update', $booking);
         $booking = $this->bookings->confirm($booking);
 
         return $this->json([
@@ -88,13 +72,10 @@ class BookingController extends Controller
         ]);
     }
 
-    public function cancel(Request $request, Booking $booking): JsonResponse
+    public function cancel(CancelBookingRequest $request, Booking $booking): JsonResponse
     {
-        $this->authorizeAccess($request, $booking);
 
-        $data = $request->validate([
-            'reason' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $booking = $this->bookings->cancel($booking, $request->user(), $data['reason'] ?? null);
 
@@ -103,42 +84,15 @@ class BookingController extends Controller
         ]);
     }
 
-    public function reject(Request $request, Booking $booking): JsonResponse
+    public function reject(RejectBookingRequest $request, Booking $booking): JsonResponse
     {
-        $this->authorizeManage($request, $booking);
 
-        $data = $request->validate([
-            'reason' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $booking = $this->bookings->reject($booking, $data['reason'] ?? null);
 
         return $this->json([
             'data' => BookingResource::make($booking)->toArray($request),
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Booking $booking): void
-    {
-        $user = $request->user();
-        $property = $booking->property;
-        $ok = $user->isSuperAdmin()
-            || $booking->created_by_id === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id)
-            || ($booking->customer && $booking->customer->user_id === $user->id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, Booking $booking): void
-    {
-        $user = $request->user();
-        $property = $booking->property;
-        $ok = $user->isSuperAdmin()
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $user->agency_id === $booking->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

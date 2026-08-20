@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class InventoryResource extends JsonResource
+class InventoryResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -16,18 +16,18 @@ class InventoryResource extends JsonResource
             'type' => $this->type?->value,
             'conducted_by' => $this->conducted_by,
             'tenant_id' => $this->tenant_id,
-            'conducted_at' => $this->conducted_at?->toISOString(),
+            'conducted_at' => $this->iso($this->conducted_at),
             'status' => $this->status?->value,
             'general_condition' => $this->general_condition?->value,
             'rooms' => $this->rooms,
             'notes' => $this->notes,
             'tenant_signed' => (bool) $this->tenant_signed,
-            'tenant_signed_at' => $this->tenant_signed_at?->toISOString(),
+            'tenant_signed_at' => $this->iso($this->tenant_signed_at),
             'tenant_signature_hash' => $this->tenant_signature_hash,
             'owner_signed' => (bool) $this->owner_signed,
-            'owner_signed_at' => $this->owner_signed_at?->toISOString(),
+            'owner_signed_at' => $this->iso($this->owner_signed_at),
             'owner_signature_hash' => $this->owner_signature_hash,
-            'signed_at' => $this->signed_at?->toISOString(),
+            'signed_at' => $this->iso($this->signed_at),
             // TCK-182 — surface human-readable labels when the related models
             // are eager-loaded so the customer UI can render `<bien>` /
             // `<bail.reference>` instead of raw ids.
@@ -40,7 +40,7 @@ class InventoryResource extends JsonResource
                 'id' => $this->lease->id,
                 'reference_number' => $this->lease->reference_number,
             ] : null),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

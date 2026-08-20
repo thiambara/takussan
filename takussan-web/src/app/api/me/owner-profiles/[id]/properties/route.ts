@@ -19,12 +19,12 @@ export async function GET(req: NextRequest, ctx: { params: Params }): Promise<Ne
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (!token) {
-    return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 });
+    return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
   }
 
   const { id } = await ctx.params;
   if (!/^\d+$/.test(id)) {
-    return NextResponse.json({ message: 'Invalid profile id.' }, { status: 400 });
+    return NextResponse.json({ code: 'invalid_profile_id' }, { status: 400 });
   }
 
   const search = req.nextUrl.search ?? '';

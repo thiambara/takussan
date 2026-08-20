@@ -4,7 +4,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 > Monorepo :
 > - `takussan-api/` — Laravel 13, PHP ^8.4
-> - `takussan-web/` — Next.js 16.2.3, React 19, TypeScript 5
+> - `takussan-web/` — Next.js 16.3.1, React 19, TypeScript 5
 
 ---
 
@@ -19,14 +19,14 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 | Auth API | Laravel Sanctum | ^4.3 (SPA cookie + Personal Access Tokens) |
 | Search | Laravel Scout | ^11.1 — **driver `meilisearch` sur TOUS les environnements**, CI comprise (ADR-0008, TCK-280). `collection` est un défaut hérité du framework qui ne prouve rien : il filtre en PHP sur une collection Eloquent. |
 | OAuth social | Laravel Socialite | ^5.26 + providers `apple`, `facebook` (Google natif) |
-| Admin panel | Filament | ^4.0 (+ plugin `spatie-laravel-media-library-plugin`) |
+| Admin panel | ~~Filament~~ — **supprimé le 2026-08-15** (TCK-287, ardoise D-41). L'administration est en Next.js : `/admin/*` pour l'admin d'agence, `/super-admin/*` pour la plateforme. | — |
 | Permissions | ~~spatie/laravel-permission~~ — **retiré en TCK-278**, remplacé par les profils polymorphes (cf. Règle 5 de `models-spec.md`) | — |
 | Audit log | spatie/laravel-activitylog | ^5.0 |
 | Médias | spatie/laravel-medialibrary | ^11.0 |
 | PDF | spatie/laravel-pdf | ^2.0 (driver `cloudflare` par défaut, `dompdf` / `browsershot` / `gotenberg` possibles) |
 | Query API | spatie/laravel-query-builder | ^7.2 (cf. `docs/spatie-query-builder.md`) |
-| Image processing | intervention/image | ^3.7 |
-| Excel / CSV | maatwebsite/excel | ^3.1 + league/csv ^9.16 |
+| Image processing | intervention/image | ^4.2 — **majeure montée le 2026-08-17** (TCK-319, PR #181). v4 remplace `read()` par `decodePath()`, `create()` par `createImage()`, et `place($img, $pos, $x, $y, 0-100)` par `insert($img, $x, $y, $pos, 0,0-1,0)` : l'unité d'opacité change en même temps que la méthode. Un seul fichier l'importe, `app/Services/Media/WatermarkService.php`. |
+| Excel / CSV | maatwebsite/excel | ^4.0 + league/csv ^9.16 |
 | 2FA | pragmarx/google2fa ^9.0 + bacon/bacon-qr-code ^3.1 |
 | Subscriptions | lemonsqueezy/laravel | ^1.9 |
 | Tooling dev | Pint, Pail, PHPUnit ^12.5, Mockery, Faker, Collision |
@@ -35,7 +35,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 | Couche | Techno | Version |
 |---|---|---|
-| Framework | Next.js | 16.2.3 (App Router, Turbopack par défaut) |
+| Framework | Next.js | 16.3.1 (App Router, Turbopack par défaut) |
 | UI | React / React DOM | 19.2.4 |
 | Langage | TypeScript | ^5 |
 | Styling | Tailwind CSS | ^4 (via `@tailwindcss/postcss`) + `tw-animate-css`, `tailwind-merge` |
@@ -230,7 +230,8 @@ curl http://127.0.0.1:7700/health      # → {"status":"available"}
 
 #### Côté Laravel / Scout
 
-Les modèles `Property`, `Document` et `Message` portent le trait `Searchable` ; les
+Sept modèles portent le trait `Searchable` — `Property`, `Document`, `Message`, et
+depuis TCK-281 `Customer`, `MaintenanceRequest`, `Agency`, `User` ; les
 réglages d'index (`searchableAttributes`, `filterableAttributes`,
 `sortableAttributes`, `rankingRules`) sont définis dans `config/scout.php`.
 
@@ -239,12 +240,27 @@ php artisan scout:sync-index-settings           # pousse les réglages d'index
 php artisan scout:import "App\Models\Property"  # peuple un index (1ère fois)
 php artisan scout:import "App\Models\Document"
 php artisan scout:import "App\Models\Message"
+# TCK-281 — quatre index de plus, à peupler au même titre :
+php artisan scout:import "App\Models\Customer"
+php artisan scout:import "App\Models\MaintenanceRequest"
+php artisan scout:import "App\Models\Agency"
+php artisan scout:import "App\Models\User"
 ```
 
 - `scout:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
   par `scripts/deploy.sh` (Step 6b) quand `SCOUT_DRIVER=meilisearch`.
 - `scout:import` est une opération **ponctuelle** — 1er déploiement, ou après modif
   d'un `toSearchableArray()`. À lancer manuellement sur le serveur.
+
+> ⚠️ **`scripts/deploy.sh` ne lance AUCUN `scout:import`.** Un déploiement crée les
+> index et les paramètre correctement — et les laisse **VIDES**. La recherche rend
+> alors zéro résultat *sans lever la moindre exception* : rien dans les journaux, rien
+> dans le monitoring, un écran de liste qui répond « aucun résultat » à toutes les
+> requêtes. C'est la forme la plus coûteuse de panne, celle qui ne se signale pas.
+> Cette page ne suffit donc pas : la commande est **aussi** inscrite dans le runbook
+> de première mise en production (`docs/backlog/tickets/TCK-288-…`), parce que c'est
+> là qu'on la lira le jour où elle sert. *(L'automatisation dort sur la branche non
+> mergée `chore/deploy-meilisearch-reindex`.)*
 - `SCOUT_QUEUE=true` exige un worker de queue actif (`takussan-queue.service`) pour
   traiter les jobs `Laravel\Scout\Jobs\MakeSearchable`.
 
@@ -371,7 +387,7 @@ SEED_FILTER_COVERAGE=true
 SEED_DEMO_USERS=true
 ```
 
-### 3.16 Vite (assets backend Filament)
+### 3.16 Vite (assets backend)
 
 ```env
 VITE_APP_NAME="${APP_NAME}"
@@ -403,8 +419,15 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 - **Meilisearch** — **obligatoire, pas optionnel** (ADR-0008). `phpunit.xml` force
   `SCOUT_DRIVER=meilisearch` sans repli : **sans instance, `php artisan test` ne démarre pas.**
 - **Git**
-- *(Optionnel)* **Redis** — la production tourne en `CACHE_STORE=database` /
-  `QUEUE_CONNECTION=database`. Redis n'est requis que si l'on bascule ces drivers.
+- **Redis** — ⚠️ **cette ligne affirmait « la production tourne en `CACHE_STORE=database` », et
+  c'était faux.** Mesuré le 2026-08-16 : `.env.preview` **et** `.env.prod` déclarent tous deux
+  `CACHE_STORE=redis`, `SESSION_DRIVER=redis` et `REDIS_HOST=127.0.0.1:6379`. Seule la file de jobs
+  tourne en `database`. Le relevé fait foi et vit dans
+  [`infra/prod-drivers.json`](infra/prod-drivers.json) — ne pas le recopier ici (TCK-300).
+
+  **Ce que personne n'a vérifié** : que Redis écoute réellement sur le serveur. `server-setup.sh`
+  ne l'installe pas, et la production n'ayant *jamais* été déployée (D-04), le premier démarrage est
+  aussi le premier essai. À lever au tout début de TCK-288, par `redis-cli ping`, avant tout le reste.
 - *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ∉ {`dompdf`, `cloudflare`}
 
 > **Le plus simple est de ne rien installer de tout cela** : `docker-compose.yml` à la racine sert
@@ -543,12 +566,23 @@ npm run build
 
 - [ ] `APP_ENV=production`, `APP_DEBUG=false`
 - [ ] `APP_KEY` défini et sauvegardé (rotation via `APP_PREVIOUS_KEYS`)
-- [ ] `CACHE_STORE=redis`, `SESSION_DRIVER=redis` (ou `database`), `QUEUE_CONNECTION=redis`
+- [ ] `CACHE_STORE=redis`, `SESSION_DRIVER=redis`, `QUEUE_CONNECTION=database` — **valeurs
+      relevées dans les `.env` livrés**, pas prescrites de mémoire. Cette ligne demandait
+      `QUEUE_CONNECTION=redis` quand les deux fichiers déclarent `database` ; le relevé fait foi
+      ([`infra/prod-drivers.json`](infra/prod-drivers.json)), et `check-prod-drivers.mjs` casse si
+      cette ligne s'en écarte de nouveau
 - [ ] `php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan event:cache`
 - [ ] Worker queue : `php artisan queue:work` via supervisor / systemd
 - [ ] Scheduler cron : `* * * * * php artisan schedule:run >> /dev/null 2>&1`
 - [ ] HTTPS obligatoire (cookie `Secure` + Sanctum domain)
-- [ ] `SESSION_SECURE_COOKIE=true`, `SESSION_SAME_SITE=lax`
+- [ ] `SESSION_SECURE_COOKIE=true` — 🔴 **absente des `.env` livrés, et c'est le seul manque qui
+      coûte.** `config/session.php:172` la lit **sans défaut** : `env('SESSION_SECURE_COOKIE')` rend
+      `null`, qui est faux, donc le cookie de session n'est **pas** marqué `Secure`. Sur un
+      déploiement HTTPS, un repli en clair suffit à le faire émettre en clair.
+- [ ] `SESSION_SAME_SITE=lax` — également absente des `.env` livrés, mais **sans conséquence** :
+      `config/session.php:202` la lit avec le défaut `'lax'`, exactement la valeur prescrite.
+      *Deux clés absentes du même fichier n'ont pas le même coût — c'est le défaut du code qui
+      décide, pas l'absence.* L'ardoise D-11 les mettait dans le même sac.
 - [ ] CDN actif (`CDN_ENABLED=true`) et `secure_collections` correctement listées
 - [ ] Backups DB + storage automatisés
 - [ ] Frontend déployé avec `NEXT_PUBLIC_API_URL` pointant vers l'API HTTPS
@@ -563,6 +597,7 @@ npm run build
 - `docs/models-spec.md` — spec data/modèles
 - `docs/spatie-query-builder.md` — conventions API
 - `docs/design-guidelines.md` — UI / UX
-- `docs/seeding-plan.md` — stratégie de seeding démo
+- `docs/plans/2026-04-18-seeding-annee-activite.md` — plan d'origine du seeding démo (archive : le
+  raisonnement, pas l'état ; la source est `takussan-api/database/seeders/`)
 - `docs/backlog/INDEX.md` — kanban des tickets
 - `CLAUDE.md` — règles agent / monorepo

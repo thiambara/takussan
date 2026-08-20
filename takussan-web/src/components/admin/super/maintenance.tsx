@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, RotateCcw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,27 +12,28 @@ import { cancelMaintenance, scheduleMaintenance } from '@/lib/queries/super-admi
 import type { MaintenanceMode, MaintenanceSeverity, MaintenanceStatus } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-const modes: Array<{ value: MaintenanceMode; label: string }> = [
-  { value: 'banner', label: 'Bandeau' },
-  { value: 'read_only', label: 'Lecture seule' },
-  { value: 'down', label: 'Hors ligne' },
-];
+/** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.maintenance.modes.*`). */
+const MODES: MaintenanceMode[] = ['banner', 'read_only', 'down'];
 
-const severities: Array<{ value: MaintenanceSeverity; label: string }> = [
-  { value: 'info', label: 'Info' },
-  { value: 'scheduled', label: 'Planifiée' },
-  { value: 'interruption', label: 'Interruption' },
-];
+/** Idem pour les sévérités (`superAdmin.maintenance.severities.*`). */
+const SEVERITIES: MaintenanceSeverity[] = ['info', 'scheduled', 'interruption'];
 
 export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) {
+  const t = useTranslations('superAdmin.maintenance');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [mode, setMode] = useState<MaintenanceMode>('banner');
   const [severity, setSeverity] = useState<MaintenanceSeverity>('scheduled');
-  const [fr, setFr] = useState('Maintenance planifiée. Certaines actions peuvent être indisponibles.');
-  const [en, setEn] = useState('Scheduled maintenance. Some actions may be unavailable.');
+  // TCK-292 — contenu par DÉFAUT du bandeau ENVOYÉ À L'API, et non du texte d'interface : chaque
+  // champ porte la langue de SON destinataire. `defaultMessages.fr` vaut donc la même phrase
+  // française dans les trois dictionnaires — la résoudre par la locale de l'opérateur écrirait du
+  // wolof dans le champ « Message FR ».
+  const [fr, setFr] = useState(t('defaultMessages.fr'));
+  const [en, setEn] = useState(t('defaultMessages.en'));
   const [wo, setWo] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +51,7 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'maintenance'] });
       queryClient.invalidateQueries({ queryKey: ['maintenance-status'] });
     },
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
   const cancel = useMutation({
     mutationFn: cancelMaintenance,
@@ -63,50 +65,63 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <section className="rounded-xl bg-white p-5 ring-1 ring-stone-200">
-        <h2 className="font-display text-xl font-semibold text-stone-950">État courant</h2>
+        <h2 className="font-display text-xl font-semibold text-stone-950">{t('currentState')}</h2>
         <div className="mt-4 rounded-lg bg-stone-50 p-4 text-sm text-stone-700 ring-1 ring-stone-200">
           {status.window ? (
             <div className="space-y-2">
-              <p className="font-semibold">{status.active ? 'Maintenance active' : 'Maintenance programmée'}</p>
+              <p className="font-semibold">{status.active ? t('active') : t('scheduled')}</p>
               <p>{status.window.messages.fr}</p>
-              <p>Du {new Date(status.window.starts_at).toLocaleString('fr-SN')} au {new Date(status.window.ends_at).toLocaleString('fr-SN')}</p>
-              <p>Mode : {status.window.mode}</p>
+              <p>{t('windowRange', {
+                start: new Date(status.window.starts_at).toLocaleString('fr-SN'),
+                end: new Date(status.window.ends_at).toLocaleString('fr-SN'),
+              })}</p>
+              <p>{t('modeValue', { mode: status.window.mode })}</p>
             </div>
           ) : (
-            <p>Aucune fenêtre programmée.</p>
+            <p>{t('noWindow')}</p>
           )}
         </div>
         <Button type="button" variant="destructive" className="mt-4" onClick={() => cancel.mutate()} disabled={!status.window || cancel.isPending}>
           <RotateCcw className="size-4" aria-hidden="true" />
-          Annuler la fenêtre
+          {t('cancelWindow')}
         </Button>
       </section>
 
       <section className="rounded-xl bg-white p-5 ring-1 ring-stone-200">
-        <h2 className="font-display text-xl font-semibold text-stone-950">Programmer une fenêtre</h2>
+        <h2 className="font-display text-xl font-semibold text-stone-950">{t('scheduleWindow')}</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5">
-            <Label htmlFor="maintenance-start">Début</Label>
+            <Label htmlFor="maintenance-start">{t('start')}</Label>
             <DateTimePicker id="maintenance-start" value={startsAt} onValueChange={setStartsAt} />
           </label>
           <label className="space-y-1.5">
-            <Label htmlFor="maintenance-end">Fin</Label>
+            <Label htmlFor="maintenance-end">{t('end')}</Label>
             <DateTimePicker id="maintenance-end" value={endsAt} onValueChange={setEndsAt} />
           </label>
         </div>
-        <Segmented label="Mode" value={mode} options={modes} onChange={setMode} />
-        <Segmented label="Sévérité" value={severity} options={severities} onChange={setSeverity} />
+        <Segmented
+          label={t('mode')}
+          value={mode}
+          options={MODES.map((value) => ({ value, label: t(`modes.${value}`) }))}
+          onChange={setMode}
+        />
+        <Segmented
+          label={t('severity')}
+          value={severity}
+          options={SEVERITIES.map((value) => ({ value, label: t(`severities.${value}`) }))}
+          onChange={setSeverity}
+        />
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           <label className="space-y-1.5">
-            <Label htmlFor="maintenance-fr">Message FR</Label>
+            <Label htmlFor="maintenance-fr">{t('messageFr')}</Label>
             <Textarea id="maintenance-fr" value={fr} onChange={(event) => setFr(event.target.value)} />
           </label>
           <label className="space-y-1.5">
-            <Label htmlFor="maintenance-en">Message EN</Label>
+            <Label htmlFor="maintenance-en">{t('messageEn')}</Label>
             <Textarea id="maintenance-en" value={en} onChange={(event) => setEn(event.target.value)} />
           </label>
           <label className="space-y-1.5">
-            <Label htmlFor="maintenance-wo">Message WO</Label>
+            <Label htmlFor="maintenance-wo">{t('messageWo')}</Label>
             <Textarea id="maintenance-wo" value={wo} onChange={(event) => setWo(event.target.value)} />
           </label>
         </div>
@@ -117,7 +132,7 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
         {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
         <Button type="button" className="mt-4" onClick={() => schedule.mutate()} disabled={invalid || schedule.isPending}>
           <Save className="size-4" aria-hidden="true" />
-          Programmer
+          {t('schedule')}
         </Button>
       </section>
     </div>

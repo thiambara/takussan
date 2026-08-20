@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PropertyListItem } from '@/types/property';
@@ -95,7 +96,7 @@ export function PropertyRow({
   eyebrow,
   title,
   viewAllHref,
-  viewAllLabel = 'Tout voir',
+  viewAllLabel,
   variant,
   properties,
   loading,
@@ -104,6 +105,7 @@ export function PropertyRow({
   action,
   priorityCount = 0,
 }: PropertyRowProps) {
+  const t = useTranslations('property.row');
   const spec = VARIANTS[variant];
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
@@ -171,7 +173,7 @@ export function PropertyRow({
                 href={viewAllHref}
                 className="hidden md:inline-flex items-center gap-1 text-[14px] font-semibold text-foreground hover:text-primary transition-colors"
               >
-                {viewAllLabel}
+                {viewAllLabel ?? t('viewAll')}
                 <span aria-hidden="true" className="text-primary">▸</span>
               </Link>
             )
@@ -183,7 +185,7 @@ export function PropertyRow({
                 type="button"
                 onClick={() => scrollBy(-1)}
                 disabled={!canLeft}
-                aria-label="Précédent"
+                aria-label={t('previous')}
                 className="size-11 rounded-full bg-card border border-border text-primary flex items-center justify-center transition-all hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="size-5" strokeWidth={2} />
@@ -192,7 +194,7 @@ export function PropertyRow({
                 type="button"
                 onClick={() => scrollBy(1)}
                 disabled={!canRight}
-                aria-label="Suivant"
+                aria-label={t('next')}
                 className="size-11 rounded-full bg-card border border-border text-primary flex items-center justify-center transition-all hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="size-5" strokeWidth={2} />
@@ -208,7 +210,7 @@ export function PropertyRow({
         </div>
       ) : !loading && properties.length === 0 ? (
         <div className="py-12 text-center text-muted-foreground text-sm">
-          Pas encore de biens dans cette sélection.
+          {t('empty')}
         </div>
       ) : (
         <div

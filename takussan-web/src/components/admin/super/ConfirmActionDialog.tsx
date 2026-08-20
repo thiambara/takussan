@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,8 @@ export function ConfirmActionDialog({
   pending = false,
   onConfirm,
 }: ConfirmActionDialogProps) {
+  const t = useTranslations('superAdmin.confirmDialog');
+  const tCommon = useTranslations('common');
   const [typed, setTyped] = useState('');
   const enabled = typed.trim() === confirmPhrase;
 
@@ -58,7 +61,7 @@ export function ConfirmActionDialog({
         </DialogHeader>
         <div className="space-y-2">
           <label className="text-xs font-semibold text-stone-700">
-            Pour confirmer, tapez <code className="rounded bg-stone-100 px-1">{confirmPhrase}</code>
+            {t('typePrompt')} <code className="rounded bg-stone-100 px-1">{confirmPhrase}</code>
           </label>
           <input
             type="text"
@@ -76,7 +79,7 @@ export function ConfirmActionDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            Annuler
+            {tCommon('actions.cancel')}
           </Button>
           <Button
             type="button"
@@ -85,7 +88,7 @@ export function ConfirmActionDialog({
             variant={destructive ? 'destructive' : 'default'}
             onClick={onConfirm}
           >
-            {pending ? 'En cours…' : confirmLabel}
+            {pending ? t('pending') : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -2,13 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProfileReviewsList } from '../ProfileReviewsList';
+import { withIntl } from '@/test/intl';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
-}));
-
-vi.mock('next-intl', () => ({
-  useLocale: () => 'fr',
 }));
 
 const emptyPage = {
@@ -22,11 +19,11 @@ function renderList() {
     defaultOptions: { queries: { retry: false } },
   });
 
-  return render(
+  return render(withIntl(
     <QueryClientProvider client={queryClient}>
       <ProfileReviewsList roles={['customer']} />
     </QueryClientProvider>,
-  );
+  ));
 }
 
 function mockFetch({

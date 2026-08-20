@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +14,7 @@ import type {
   NotificationPreferenceCell,
   NotificationPreferencesResponse,
 } from '@/lib/notification-preferences';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-070 — event_type × channel matrix. Renders the backend-provided
@@ -23,38 +25,33 @@ import type {
  * verified phone) disables it and shows the reason inline.
  */
 
-// Display labels & grouping live on the frontend only (keeps the backend
-// free of UI copy). Must mirror `PreferenceResolver::EVENTS`.
-const EVENT_LABELS: Record<string, string> = {
-  message_received: 'Nouveau message',
-  booking_request: 'Demande de réservation',
-  booking_status_changed: 'Réservation — statut modifié',
-  lease_payment_due: 'Loyer — échéance',
-  lease_payment_overdue: 'Loyer — retard',
-  maintenance_status_changed: 'Maintenance — statut',
-  review_received: 'Nouvel avis',
-  saved_search_match: 'Recherche sauvegardée',
-  visit_reminder: 'Rappel de visite',
-  threshold_alert: 'Alerte seuil KPI',
-};
+// Grouping lives on the frontend only (keeps the backend free of UI copy).
+// Must mirror `PreferenceResolver::EVENTS`. Les LIBELLÉS, eux, vivent dans
+// `src/messages/{fr,en,wo}.json` sous `profile.notifications.*` (TCK-292) : la
+// donnée ci-dessous ne porte plus que des CLÉS.
+const EVENTS: readonly string[] = [
+  'message_received',
+  'booking_request',
+  'booking_status_changed',
+  'lease_payment_due',
+  'lease_payment_overdue',
+  'maintenance_status_changed',
+  'review_received',
+  'saved_search_match',
+  'visit_reminder',
+  'threshold_alert',
+];
 
-const CHANNEL_LABELS: Record<NotificationChannel, string> = {
-  inapp: 'In-app',
-  email: 'Email',
-  push: 'Push',
-  sms: 'SMS',
-};
-
-const GROUPS: { title: string; events: string[] }[] = [
-  { title: 'Messages', events: ['message_received'] },
+const GROUPS: { key: string; events: string[] }[] = [
+  { key: 'messages', events: ['message_received'] },
   {
-    title: 'Réservations',
+    key: 'bookings',
     events: ['booking_request', 'booking_status_changed'],
   },
-  { title: 'Baux', events: ['lease_payment_due', 'lease_payment_overdue'] },
-  { title: 'Maintenance', events: ['maintenance_status_changed'] },
-  { title: 'Avis', events: ['review_received'] },
-  { title: 'Alertes', events: ['saved_search_match', 'visit_reminder', 'threshold_alert'] },
+  { key: 'leases', events: ['lease_payment_due', 'lease_payment_overdue'] },
+  { key: 'maintenance', events: ['maintenance_status_changed'] },
+  { key: 'reviews', events: ['review_received'] },
+  { key: 'alerts', events: ['saved_search_match', 'visit_reminder', 'threshold_alert'] },
 ];
 
 const PREFS_KEY = ['notifications', 'preferences'] as const;
@@ -83,7 +80,13 @@ function normalizePreferencesResponse(
 }
 
 export function NotificationPreferencesMatrix() {
+  const t = useTranslations('profile.notifications');
+  const tCommon = useTranslations('common.status');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
+  // Repli sur le jeton brut pour un événement que le back émettrait sans que le
+  // front ne le connaisse — même invariant que le `?? event` d'avant.
+  const labelEvenement = (event: string) => (EVENTS.includes(event) ? t(`events.${event}`) : event);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -126,7 +129,7 @@ export function NotificationPreferencesMatrix() {
       return { previous };
     },
     onError: (err, _entry, context) => {
-      setLocalError(err.message);
+      setLocalError(messageErreur(err));
       if (context?.previous) {
         queryClient.setQueryData(PREFS_KEY, context.previous);
       }
@@ -165,16 +168,16 @@ export function NotificationPreferencesMatrix() {
   if (query.isError && !data) {
     return (
       <p role="alert" className="text-sm text-red-600">
-        {query.error.message}
+        {messageErreur(query.error)}
       </p>
     );
   }
   if (!data) {
-    return <p className="text-sm text-app-ink-muted">Chargement…</p>;
+    return <p className="text-sm text-app-ink-muted">{tCommon('loading')}</p>;
   }
 
   const channels = data.channels;
-  const displayError = localError ?? query.error?.message ?? null;
+  const displayError = localError ?? (query.error ? messageErreur(query.error) : null);
 
   return (
     <div className="space-y-6">
@@ -186,34 +189,33 @@ export function NotificationPreferencesMatrix() {
 
       {!data.phone_verified ? (
         <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          Les notifications SMS sont désactivées tant que votre téléphone
-          n&apos;est pas vérifié.{' '}
+          {t('smsDisabled')}{' '}
           <Link href="/app/profile" className="font-semibold underline">
-            Vérifier mon téléphone
+            {t('verifyPhone')}
           </Link>
         </p>
       ) : null}
 
       {savedAt ? (
         <p role="status" aria-live="polite" className="text-xs text-emerald-700">
-          Préférences enregistrées.
+          {t('saved')}
         </p>
       ) : null}
 
       {GROUPS.map((group) => (
-        <section key={group.title} className="rounded-2xl border border-app-surface-3 bg-white">
+        <section key={group.key} className="rounded-2xl border border-app-surface-3 bg-white">
           <header className="border-b border-app-surface-3 px-4 py-3">
-            <h3 className="text-sm font-bold text-app-ink">{group.title}</h3>
+            <h3 className="text-sm font-bold text-app-ink">{t(`groups.${group.key}`)}</h3>
           </header>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="text-xs text-app-ink-muted">
                 <tr>
-                  <th className="px-4 py-2">Événement</th>
+                  <th className="px-4 py-2">{t('eventColumn')}</th>
                   {channels.map((channel) => (
                     <th key={channel} className="px-4 py-2 text-center">
-                      {CHANNEL_LABELS[channel]}
+                      {t(`channels.${channel}`)}
                     </th>
                   ))}
                 </tr>
@@ -222,16 +224,16 @@ export function NotificationPreferencesMatrix() {
                 {group.events.map((event) => (
                   <tr key={event} className="border-t border-app-surface-3">
                     <td className="px-4 py-2 text-app-ink">
-                      {EVENT_LABELS[event] ?? event}
+                      {labelEvenement(event)}
                     </td>
                     {channels.map((channel) => {
                       const cell = cellMap.get(cellKey(event, channel));
                       if (!cell) return <td key={channel} className="px-4 py-2 text-center">—</td>;
                       const title =
                         cell.reason === 'inapp_always_on'
-                          ? 'Toujours actif pour ne rien manquer.'
+                          ? t('reasons.inappAlwaysOn')
                           : cell.reason === 'phone_not_verified'
-                            ? 'Téléphone non vérifié.'
+                            ? t('reasons.phoneNotVerified')
                             : undefined;
                       return (
                         <td key={channel} className="px-4 py-2 text-center">
@@ -247,7 +249,7 @@ export function NotificationPreferencesMatrix() {
                               disabled={cell.locked || mutation.isPending}
                               checked={cell.enabled}
                               onChange={(e) => toggle(event, channel, e.target.checked)}
-                              aria-label={`${EVENT_LABELS[event] ?? event} — ${CHANNEL_LABELS[channel]}`}
+                              aria-label={t('toggleAria', { event: labelEvenement(event), channel: t(`channels.${channel}`) })}
                             />
                           </label>
                         </td>
@@ -267,7 +269,7 @@ export function NotificationPreferencesMatrix() {
           disabled={query.isFetching}
           onClick={() => queryClient.invalidateQueries({ queryKey: PREFS_KEY })}
         >
-          Rafraîchir
+          {t('refresh')}
         </Button>
       </div>
     </div>

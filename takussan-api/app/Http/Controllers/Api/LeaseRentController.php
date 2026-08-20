@@ -68,12 +68,7 @@ class LeaseRentController extends Controller
                 'causer_type' => $log->causer_type,
                 'created_at' => $log->created_at?->toISOString(),
             ])->all(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 }

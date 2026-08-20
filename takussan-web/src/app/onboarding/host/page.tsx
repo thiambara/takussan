@@ -10,6 +10,7 @@
 
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 
 import { getMyProfilesAction } from '@/app/actions/profiles';
 import { HostIndividualWizard } from '@/components/onboarding/HostIndividualWizard';
@@ -17,9 +18,13 @@ import { getToken } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Publier mon premier bien' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('onboarding.host');
+  return { title: t('metaTitle') };
+}
 
 export default async function HostOnboardingPage() {
+  const t = await getTranslations('onboarding.host');
   const token = await getToken();
   if (!token) {
     redirect('/auth/login?redirect=%2Fonboarding%2Fhost');
@@ -49,11 +54,10 @@ export default async function HostOnboardingPage() {
       <div className="mx-auto max-w-3xl">
         <header className="mb-8 text-center">
           <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Publier votre premier bien
+            {t('pageTitle')}
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Quelques étapes pour créer votre espace et vérifier votre numéro —
-            vous serez ensuite redirigé vers le formulaire de mise en ligne.
+            {t('pageSubtitle')}
           </p>
         </header>
 

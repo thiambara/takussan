@@ -2,6 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ComponentProps } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+// `withIntl` charge le VRAI `fr.json` : depuis TCK-292 ces composants passent par next-intl, et
+// un rendu sans provider LÈVE. Les assertions françaises sont inchangées — c'est le point.
+import { withIntl } from '@/test/intl';
 import { PropertyReviewReplyForm, REPLY_MIN } from '../PropertyReviewReplyForm';
 
 type ReplySubmit = ComponentProps<typeof PropertyReviewReplyForm>['onSubmit'];
@@ -15,7 +18,7 @@ describe('<PropertyReviewReplyForm>', () => {
 
   it('disables the primary action when the content is too short', async () => {
     const user = userEvent.setup();
-    render(<PropertyReviewReplyForm reviewId={42} onSubmit={submit} />);
+    render(withIntl(<PropertyReviewReplyForm reviewId={42} onSubmit={submit} />));
 
     // No initial content → button disabled.
     expect(
@@ -33,7 +36,7 @@ describe('<PropertyReviewReplyForm>', () => {
 
   it('submits the reply with the reviewId when content is valid', async () => {
     const user = userEvent.setup();
-    render(<PropertyReviewReplyForm reviewId={77} onSubmit={submit} />);
+    render(withIntl(<PropertyReviewReplyForm reviewId={77} onSubmit={submit} />));
 
     await user.type(
       screen.getByLabelText(/contenu de la réponse/i),
@@ -48,13 +51,11 @@ describe('<PropertyReviewReplyForm>', () => {
   });
 
   it('pre-fills the textarea when editing an existing reply', () => {
-    render(
-      <PropertyReviewReplyForm
+    render(withIntl(<PropertyReviewReplyForm
         reviewId={5}
         initialContent="Bonjour, merci pour votre retour."
         onSubmit={submit}
-      />,
-    );
+      />));
 
     const textarea = screen.getByLabelText(/contenu de la réponse/i) as HTMLTextAreaElement;
     expect(textarea.value).toBe('Bonjour, merci pour votre retour.');
@@ -66,14 +67,12 @@ describe('<PropertyReviewReplyForm>', () => {
   it('triggers onCancel when the cancel button is clicked', async () => {
     const user = userEvent.setup();
     const cancel = vi.fn();
-    render(
-      <PropertyReviewReplyForm
+    render(withIntl(<PropertyReviewReplyForm
         reviewId={1}
         initialContent="hello world"
         onSubmit={submit}
         onCancel={cancel}
-      />,
-    );
+      />));
 
     await user.click(screen.getByRole('button', { name: /annuler/i }));
     expect(cancel).toHaveBeenCalled();

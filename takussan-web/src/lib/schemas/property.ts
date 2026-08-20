@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { requiredStringSchema } from './common';
+import { msgValidation } from './messages';
 
 /**
  * Property-related Zod schemas used by the agent dashboard CRUD flows
@@ -54,101 +55,101 @@ export const rentPeriodValues = ['daily', 'weekly', 'monthly', 'yearly'] as cons
  * TCK-120 adds: address fields, year_built, parking_spaces, tag_ids.
  */
 export const propertyFormSchema = z.object({
-  title: requiredStringSchema('Le titre est requis.').max(
+  title: requiredStringSchema(msgValidation('property.titleRequired')).max(
     200,
-    'Le titre est trop long (200 caractères max).',
+    msgValidation('property.titleTooLong'),
   ),
   type: z.enum(propertyTypeValues, {
-    error: 'Le type de bien est requis.',
+    error: msgValidation('property.typeRequired'),
   }),
   contract_type: z.enum(contractTypeValues, {
-    error: 'Le type de contrat est requis.',
+    error: msgValidation('property.contractTypeRequired'),
   }),
   price: z.coerce
-    .number({ error: 'Le prix est requis.' })
-    .positive('Le prix doit être supérieur à 0.')
-    .max(1_000_000_000_000, 'Le prix est irréaliste.'),
+    .number({ error: msgValidation('property.priceRequired') })
+    .positive(msgValidation('property.pricePositive'))
+    .max(1_000_000_000_000, msgValidation('property.priceUnrealistic')),
   currency: z.enum(currencyValues).default('XOF'),
   rent_period: z.enum(rentPeriodValues).optional(),
-  city: requiredStringSchema('La ville est requise.').max(120, 'La ville est trop longue.'),
+  city: requiredStringSchema(msgValidation('property.cityRequired')).max(120, msgValidation('property.cityTooLong')),
   quarter: z
     .string()
     .trim()
-    .max(120, 'Le quartier est trop long.')
+    .max(120, msgValidation('property.quarterTooLong'))
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
   region: z
     .string()
     .trim()
-    .max(120, 'La région est trop longue.')
+    .max(120, msgValidation('property.regionTooLong'))
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
   street: z
     .string()
     .trim()
-    .max(255, 'La rue est trop longue.')
+    .max(255, msgValidation('property.streetTooLong'))
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
   postal_code: z
     .string()
     .trim()
-    .max(20, 'Le code postal est trop long.')
+    .max(20, msgValidation('property.postalCodeTooLong'))
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
   country: z
     .string()
     .trim()
-    .length(2, 'Le code pays doit être sur 2 caractères (ex: SN).')
+    .length(2, msgValidation('property.countryLength'))
     .optional()
     .or(z.literal(''))
     .transform((v) => (v && v.length === 2 ? v : undefined)),
   latitude: z.coerce
     .number()
-    .min(-90, 'Latitude invalide.')
-    .max(90, 'Latitude invalide.')
+    .min(-90, msgValidation('property.latitudeInvalid'))
+    .max(90, msgValidation('property.latitudeInvalid'))
     .nullable()
     .optional(),
   longitude: z.coerce
     .number()
-    .min(-180, 'Longitude invalide.')
-    .max(180, 'Longitude invalide.')
+    .min(-180, msgValidation('property.longitudeInvalid'))
+    .max(180, msgValidation('property.longitudeInvalid'))
     .nullable()
     .optional(),
   area: z.coerce
     .number()
-    .int('La superficie doit être un entier.')
-    .positive('La superficie doit être supérieure à 0.')
-    .max(1_000_000, 'La superficie est irréaliste.')
+    .int(msgValidation('property.areaInteger'))
+    .positive(msgValidation('property.areaPositive'))
+    .max(1_000_000, msgValidation('property.areaUnrealistic'))
     .optional(),
   bedrooms: z.coerce
     .number()
-    .int('Nombre entier attendu.')
-    .min(0, 'Valeur invalide.')
-    .max(100, 'Valeur irréaliste.')
+    .int(msgValidation('property.integerExpected'))
+    .min(0, msgValidation('property.valueInvalid'))
+    .max(100, msgValidation('property.valueUnrealistic'))
     .optional(),
   bathrooms: z.coerce
     .number()
-    .int('Nombre entier attendu.')
-    .min(0, 'Valeur invalide.')
-    .max(100, 'Valeur irréaliste.')
+    .int(msgValidation('property.integerExpected'))
+    .min(0, msgValidation('property.valueInvalid'))
+    .max(100, msgValidation('property.valueUnrealistic'))
     .optional(),
   furnished: z.boolean().default(false),
   year_built: z.coerce
     .number()
-    .int('Nombre entier attendu.')
-    .min(1800, 'Année invalide.')
-    .max(2100, 'Année invalide.')
+    .int(msgValidation('property.integerExpected'))
+    .min(1800, msgValidation('property.yearInvalid'))
+    .max(2100, msgValidation('property.yearInvalid'))
     .optional(),
   parking_spaces: z.coerce
     .number()
-    .int('Nombre entier attendu.')
-    .min(0, 'Valeur invalide.')
-    .max(500, 'Valeur irréaliste.')
+    .int(msgValidation('property.integerExpected'))
+    .min(0, msgValidation('property.valueInvalid'))
+    .max(500, msgValidation('property.valueUnrealistic'))
     .optional(),
   description: z
     .string()
     .trim()
-    .max(10_000, 'La description est trop longue.')
+    .max(10_000, msgValidation('property.descriptionTooLong'))
     .optional()
     .transform((v) => (v && v.length > 0 ? v : undefined)),
   tag_ids: z.array(z.number().int().positive()).default([]),
@@ -162,7 +163,7 @@ export type PropertyFormPayload = z.output<typeof propertyFormSchema>;
  */
 export const propertyStatusChangeSchema = z.object({
   status: z.enum(propertyStatusValues, {
-    error: 'Statut invalide.',
+    error: msgValidation('property.statusInvalid'),
   }),
 });
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
+import { withIntl } from '@/test/intl';
 import { SignaturePad } from '../SignaturePad';
 
 /**
@@ -43,7 +44,7 @@ describe('<SignaturePad>', () => {
   stubCanvas();
 
   it('renders a canvas with the label and a disabled confirm button by default', () => {
-    render(<SignaturePad onConfirm={vi.fn()} label="Signez ici" />);
+    render(withIntl(<SignaturePad onConfirm={vi.fn()} label="Signez ici" />));
     expect(screen.getByTestId('signature-canvas')).toBeInTheDocument();
     // No stroke yet → confirm is disabled.
     expect(screen.getByRole('button', { name: /confirmer ma signature/i })).toBeDisabled();
@@ -51,7 +52,7 @@ describe('<SignaturePad>', () => {
   });
 
   it('enables confirm and clear once the user has drawn', () => {
-    render(<SignaturePad onConfirm={vi.fn()} />);
+    render(withIntl(<SignaturePad onConfirm={vi.fn()} />));
     const canvas = screen.getByTestId('signature-canvas');
 
     drawStroke(canvas);
@@ -62,7 +63,7 @@ describe('<SignaturePad>', () => {
 
   it('emits a base64 data URL through onConfirm', () => {
     const onConfirm = vi.fn();
-    render(<SignaturePad onConfirm={onConfirm} />);
+    render(withIntl(<SignaturePad onConfirm={onConfirm} />));
     const canvas = screen.getByTestId('signature-canvas');
 
     drawStroke(canvas);
@@ -75,7 +76,7 @@ describe('<SignaturePad>', () => {
   });
 
   it('clears the canvas and resets the confirm button', () => {
-    render(<SignaturePad onConfirm={vi.fn()} />);
+    render(withIntl(<SignaturePad onConfirm={vi.fn()} />));
     const canvas = screen.getByTestId('signature-canvas');
 
     drawStroke(canvas);
@@ -86,13 +87,13 @@ describe('<SignaturePad>', () => {
   });
 
   it('surfaces an error message passed in by the caller', () => {
-    render(<SignaturePad onConfirm={vi.fn()} errorMessage="Signature refusée" />);
+    render(withIntl(<SignaturePad onConfirm={vi.fn()} errorMessage="Signature refusée" />));
     expect(screen.getByText(/signature refusée/i)).toBeInTheDocument();
   });
 
   it('renders a custom confirm label', () => {
     render(
-      <SignaturePad onConfirm={vi.fn()} confirmLabel="Signer en tant que locataire" />,
+      withIntl(<SignaturePad onConfirm={vi.fn()} confirmLabel="Signer en tant que locataire" />),
     );
     expect(
       screen.getByRole('button', { name: /signer en tant que locataire/i }),

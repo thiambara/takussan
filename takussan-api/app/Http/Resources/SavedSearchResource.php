@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class SavedSearchResource extends JsonResource
+class SavedSearchResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -17,7 +17,7 @@ class SavedSearchResource extends JsonResource
             'notification_frequency' => $this->notification_frequency,
             'is_active' => (bool) $this->is_active,
             'results_count' => $this->results_count,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

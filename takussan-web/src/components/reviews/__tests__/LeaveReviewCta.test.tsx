@@ -1,10 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+// `withIntl` charge le VRAI `fr.json` : depuis TCK-292 ce composant passe par next-intl, et
+// `messages={{}}` (ou l'absence de provider) rendrait la CLÉ. Assertions inchangées.
+import { withIntl } from '@/test/intl';
 import { LeaveReviewCta } from '../LeaveReviewCta';
 
 describe('<LeaveReviewCta>', () => {
   it('renders a deep link to the public property page anchored on #avis', () => {
-    render(<LeaveReviewCta slug="villa-nord-dakar" propertyTitle="Villa Nord Dakar" />);
+    render(withIntl(<LeaveReviewCta slug="villa-nord-dakar" propertyTitle="Villa Nord Dakar" />));
 
     const link = screen.getByRole('link', { name: /laisser un avis/i });
     expect(link).toHaveAttribute('href', '/properties/villa-nord-dakar#avis');
@@ -12,14 +15,14 @@ describe('<LeaveReviewCta>', () => {
   });
 
   it('falls back to the generic prompt when no context is provided', () => {
-    render(<LeaveReviewCta slug="villa" />);
+    render(withIntl(<LeaveReviewCta slug="villa" />));
     expect(
       screen.getByText(/aide les prochains locataires/i),
     ).toBeInTheDocument();
   });
 
   it('uses the caller-provided context when present', () => {
-    render(<LeaveReviewCta slug="villa" context="Votre séjour est terminé." />);
+    render(withIntl(<LeaveReviewCta slug="villa" context="Votre séjour est terminé." />));
     expect(screen.getByText('Votre séjour est terminé.')).toBeInTheDocument();
   });
 });

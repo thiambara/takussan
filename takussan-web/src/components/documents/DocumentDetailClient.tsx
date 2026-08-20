@@ -2,6 +2,7 @@
 
 import { ArrowLeft, FileText, Shield, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 import { DocumentVersionsList } from '@/components/documents/DocumentVersionsList';
 import { useDocumentWithVersions } from '@/lib/queries/documents';
@@ -22,6 +23,7 @@ export function DocumentDetailClient({
   currentUserId,
   currentUserRoles,
 }: DocumentDetailClientProps) {
+  const t = useTranslations('documents.detail');
   const { data, isLoading, isError } = useDocumentWithVersions(documentId);
   const document = data?.data;
 
@@ -32,7 +34,7 @@ export function DocumentDetailClient({
   if (isLoading) {
     return (
       <div className="py-16 text-center text-sm text-app-ink-muted">
-        Chargement du document…
+        {t('loading')}
       </div>
     );
   }
@@ -40,7 +42,7 @@ export function DocumentDetailClient({
   if (isError || !document) {
     return (
       <div className="py-16 text-center text-sm text-destructive">
-        Document introuvable.
+        {t('not_found')}
       </div>
     );
   }
@@ -53,7 +55,7 @@ export function DocumentDetailClient({
         className="inline-flex items-center gap-1 text-sm text-app-ink-muted transition-colors hover:text-app-ink"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
-        Documents
+        {t('back')}
       </Link>
 
       {/* Document card */}
@@ -66,7 +68,11 @@ export function DocumentDetailClient({
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-app-ink-muted">
               {document.type ? <span className="capitalize">{document.type.replace(/_/g, ' ')}</span> : null}
               {document.expiry_date ? (
-                <span>Expiration: {new Date(document.expiry_date).toLocaleDateString('fr-FR')}</span>
+                <span>
+                  {t('expiry', {
+                    date: new Date(document.expiry_date).toLocaleDateString('fr-FR'),
+                  })}
+                </span>
               ) : null}
             </div>
             {document.description ? (
@@ -86,7 +92,7 @@ export function DocumentDetailClient({
             ) : (
               <Shield className="size-3" aria-hidden="true" />
             )}
-            {document.is_verified ? 'Vérifié' : 'Non vérifié'}
+            {document.is_verified ? t('verified') : t('not_verified')}
           </span>
         </div>
 
@@ -94,14 +100,14 @@ export function DocumentDetailClient({
         {document.active_version ? (
           <div className="border-t border-app-surface-3 bg-app-surface-2 px-5 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
-              Version active
+              {t('active_version')}
             </p>
             <p className="mt-1 text-sm font-medium text-app-ink">
               v{document.active_version.version_number} — {document.active_version.file_name}
             </p>
             {document.active_version.comment ? (
               <p className="mt-0.5 text-xs italic text-app-ink-muted">
-                &ldquo;{document.active_version.comment}&rdquo;
+                {t('comment_quoted', { comment: document.active_version.comment })}
               </p>
             ) : null}
           </div>

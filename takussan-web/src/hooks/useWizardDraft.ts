@@ -79,12 +79,23 @@ export function useWizardDraft<TData = Record<string, unknown>>(
   // Promise resolver for the current debounce window — `flush()` awaits it.
   const flushResolversRef = useRef<Array<() => void>>([]);
 
+  // TCK-316 — la remise à zéro « nouvelle clé, on recharge » se fait pendant le
+  // RENDU, pas au début de l'effet. `setIsLoading(true)` y était de toute façon
+  // redondant au montage (`useState(!skipInitialFetch)` l'a déjà posé) ; il ne
+  // servait qu'au changement de `key`, et le payer par un rendu en cascade à
+  // CHAQUE exécution de l'effet était le prix fort pour ce seul cas. L'écriture
+  // converge : `fetchedKey` rattrape `key` et n'y revient pas.
+  const [fetchedKey, setFetchedKey] = useState<string | null>(null);
+  if (!skipInitialFetch && fetchedKey !== key) {
+    setFetchedKey(key);
+    setIsLoading(true);
+    setError(null);
+  }
+
   // Initial fetch — runs once per `key`.
   useEffect(() => {
     if (skipInitialFetch) return;
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     void (async () => {
       try {

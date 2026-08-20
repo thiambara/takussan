@@ -1,13 +1,24 @@
 import { describe, it, expect } from 'vitest';
 
+import fr from '@/messages/fr.json';
+
 import {
   commissionFromRate,
   computePayoutNet,
-  INVOICE_STATUS_LABEL,
   INVOICE_STATUS_VARIANT,
-  PAYMENT_STATUS_LABEL,
-  PAYOUT_STATUS_LABEL,
+  PAYMENT_STATUS_VARIANT,
+  PAYOUT_STATUS_VARIANT,
 } from '../constants';
+
+/**
+ * TCK-292 — les tables de libellés françaises ont quitté `constants.ts` pour le DICTIONNAIRE.
+ * Ce qui reste à garder est exactement ce que ces trois cas gardaient déjà : que CHAQUE valeur
+ * d'enum ait un libellé, et que les libellés français n'aient pas bougé. On lit donc `fr.json`
+ * à la place de la table — les assertions françaises, elles, sont intactes.
+ */
+const PAYMENT_STATUS_LABEL = fr.payments.status;
+const INVOICE_STATUS_LABEL = fr.payments.invoiceStatus;
+const PAYOUT_STATUS_LABEL = fr.payments.payoutStatus;
 
 describe('commissionFromRate', () => {
   it('returns 10% of 100000 as 10000', () => {
@@ -51,6 +62,15 @@ describe('computePayoutNet', () => {
 });
 
 describe('status dictionaries', () => {
+  it('maps every enum value of every status family to a French label', () => {
+    for (const key of Object.keys(PAYMENT_STATUS_VARIANT)) {
+      expect(PAYMENT_STATUS_LABEL[key as keyof typeof PAYMENT_STATUS_LABEL]).toBeTruthy();
+    }
+    for (const key of Object.keys(PAYOUT_STATUS_VARIANT)) {
+      expect(PAYOUT_STATUS_LABEL[key as keyof typeof PAYOUT_STATUS_LABEL]).toBeTruthy();
+    }
+  });
+
   it('covers all payment statuses', () => {
     expect(PAYMENT_STATUS_LABEL.paid).toBeDefined();
     expect(PAYMENT_STATUS_LABEL.pending).toBeDefined();
@@ -58,8 +78,8 @@ describe('status dictionaries', () => {
   });
 
   it('maps every invoice status to a label and a badge variant', () => {
-    for (const key of Object.keys(INVOICE_STATUS_LABEL) as Array<
-      keyof typeof INVOICE_STATUS_LABEL
+    for (const key of Object.keys(INVOICE_STATUS_VARIANT) as Array<
+      keyof typeof INVOICE_STATUS_VARIANT
     >) {
       expect(INVOICE_STATUS_LABEL[key]).toBeTruthy();
       expect(INVOICE_STATUS_VARIANT[key]).toBeDefined();

@@ -3,14 +3,16 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Admin\CohortsReportingRequest;
+use App\Http\Requests\Api\Admin\FunnelReportingRequest;
+use App\Http\Requests\Api\Admin\GrowthReportingRequest;
 use App\Http\Requests\Api\Admin\ReportExportRequest;
+use App\Http\Requests\Api\Admin\RevenueReportingRequest;
 use App\Jobs\Reporting\GenerateReportExport;
 use App\Models\ReportExport;
 use App\Services\Export\ExportWriter;
 use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
@@ -27,13 +29,8 @@ class ReportingController extends Controller
         private readonly ExportWriter $exportWriter,
     ) {}
 
-    public function growth(Request $request): JsonResponse
+    public function growth(GrowthReportingRequest $request): JsonResponse
     {
-        $request->validate([
-            'metric' => ['required', Rule::in(['agencies', 'users', 'listings'])],
-            'period' => ['nullable', Rule::in(['3m', '6m', '12m'])],
-            'granularity' => ['nullable', Rule::in(['day', 'week', 'month'])],
-        ]);
 
         return $this->json([
             'data' => $this->reporting->growth(
@@ -44,12 +41,8 @@ class ReportingController extends Controller
         ]);
     }
 
-    public function revenue(Request $request): JsonResponse
+    public function revenue(RevenueReportingRequest $request): JsonResponse
     {
-        $request->validate([
-            'period' => ['nullable', Rule::in(['3m', '6m', '12m'])],
-            'granularity' => ['nullable', Rule::in(['day', 'week', 'month'])],
-        ]);
 
         return $this->json([
             'data' => $this->reporting->revenue(
@@ -59,12 +52,8 @@ class ReportingController extends Controller
         ]);
     }
 
-    public function cohorts(Request $request): JsonResponse
+    public function cohorts(CohortsReportingRequest $request): JsonResponse
     {
-        $request->validate([
-            'cohort_basis' => ['nullable', Rule::in(['signup_month'])],
-            'depth' => ['nullable', 'integer', 'min:1', 'max:24'],
-        ]);
 
         return $this->json([
             'data' => $this->reporting->cohorts(
@@ -74,11 +63,8 @@ class ReportingController extends Controller
         ]);
     }
 
-    public function funnel(Request $request): JsonResponse
+    public function funnel(FunnelReportingRequest $request): JsonResponse
     {
-        $request->validate([
-            'period' => ['nullable', Rule::in(['30d', '90d', '3m'])],
-        ]);
 
         return $this->json([
             'data' => $this->reporting->funnel(

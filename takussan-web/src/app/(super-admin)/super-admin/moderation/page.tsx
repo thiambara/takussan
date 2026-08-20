@@ -1,6 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { ShieldCheck } from 'lucide-react';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -19,8 +22,13 @@ import type {
   ModerationItemType,
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export default function SuperAdminModerationPage() {
+  const t = useTranslations('superAdmin.moderation');
+  const tPage = useTranslations('superAdmin.pages.moderation');
+  const tPagination = useTranslations('superAdmin.pages.pagination');
+  const messageErreur = useMessageErreurApi();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [selected, setSelected] = useState<AdminModerationItem | null>(null);
@@ -68,10 +76,8 @@ export default function SuperAdminModerationPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Modération</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          File plateforme cross-tenant pour les biens et avis en attente ou signalés.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
       </header>
 
       <ModerationStats items={items} total={meta?.total ?? 0} />
@@ -84,13 +90,13 @@ export default function SuperAdminModerationPage() {
           ))}
         </div>
       ) : queueQuery.isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20" role="alert">
-          Erreur de chargement. {queueQuery.error.displayMessage}
-        </div>
+        <ErrorState message={messageErreur(queueQuery.error, t('error'))} />
       ) : items.length === 0 ? (
-        <div className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground ring-1 ring-border">
-          Aucun item de modération ne correspond aux filtres courants.
-        </div>
+        <EmptyState
+          icon={<ShieldCheck className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-4">
@@ -100,23 +106,28 @@ export default function SuperAdminModerationPage() {
               onSelect={setSelected}
             />
             {meta && meta.last_page > 1 ? (
-              <nav className="flex items-center justify-between text-sm text-muted-foreground" aria-label="Pagination">
+              <nav className="flex items-center justify-between text-sm text-muted-foreground" aria-label={tPagination('aria')}>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => goTo(Math.max(1, meta.current_page - 1))}
                   disabled={meta.current_page <= 1}
                 >
-                  Précédent
+                  {tPagination('previous')}
                 </Button>
-                <span>Page {meta.current_page} sur {meta.last_page}</span>
+                <span>
+                  {tPagination('position', {
+                    page: String(meta.current_page),
+                    lastPage: String(meta.last_page),
+                  })}
+                </span>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => goTo(Math.min(meta.last_page, meta.current_page + 1))}
                   disabled={meta.current_page >= meta.last_page}
                 >
-                  Suivant
+                  {tPagination('next')}
                 </Button>
               </nav>
             ) : null}

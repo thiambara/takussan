@@ -22,7 +22,7 @@ class MaintenanceQuoteController extends Controller
 
     public function requestQuote(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeAgentOrOwner($request, $maintenanceRequest);
+        $this->authorize('manageQuotes', $maintenanceRequest);
 
         $mr = $this->workflow->requestQuote($maintenanceRequest);
 
@@ -43,7 +43,7 @@ class MaintenanceQuoteController extends Controller
 
     public function submitQuote(SubmitQuoteRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeProvider($request, $maintenanceRequest);
+        $this->authorize('actAsProvider', $maintenanceRequest);
 
         $data = $request->validated();
         $attachments = $request->file('attachments', []) ?? [];
@@ -72,7 +72,7 @@ class MaintenanceQuoteController extends Controller
 
     public function approveQuote(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeAgentOrOwner($request, $maintenanceRequest);
+        $this->authorize('manageQuotes', $maintenanceRequest);
 
         $mr = $this->workflow->approveQuote($maintenanceRequest, $request->user()->id);
 
@@ -93,7 +93,7 @@ class MaintenanceQuoteController extends Controller
 
     public function rejectQuote(RejectQuoteRequest $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
-        $this->authorizeAgentOrOwner($request, $maintenanceRequest);
+        $this->authorize('manageQuotes', $maintenanceRequest);
 
         $data = $request->validated();
         $mr = $this->workflow->rejectQuote($maintenanceRequest, $data['reason'], $request->user()->id);
@@ -116,44 +116,12 @@ class MaintenanceQuoteController extends Controller
     public function start(Request $request, MaintenanceRequest $maintenanceRequest): JsonResponse
     {
         // Provider or agent can start
-        $this->authorizeManage($request, $maintenanceRequest);
+        $this->authorize('update', $maintenanceRequest);
 
         $mr = $this->workflow->start($maintenanceRequest);
 
         return $this->json([
             'data' => MaintenanceRequestResource::make($mr)->toArray($request),
         ]);
-    }
-
-    protected function authorizeAgentOrOwner(Request $request, MaintenanceRequest $mr): void
-    {
-        $user = $request->user();
-        $property = $mr->property;
-        $ok = $user->isSuperAdmin()
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeProvider(Request $request, MaintenanceRequest $mr): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $mr->assigned_to === $user->id;
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, MaintenanceRequest $mr): void
-    {
-        $user = $request->user();
-        $property = $mr->property;
-        $ok = $user->isSuperAdmin()
-            || $mr->assigned_to === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

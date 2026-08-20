@@ -1,15 +1,18 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { UserPlus } from 'lucide-react';
 
 import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
 import {
-  CUSTOMER_STATUS_LABELS,
-  PIPELINE_STAGE_LABELS,
-} from '@/components/customer-form/options';
+  customerStatusValues,
+  pipelineStageValues,
+} from '@/lib/schemas/customer';
 
 interface CustomerListProps {
   readonly page: PaginatedResponse<CustomerListItem>;
@@ -17,8 +20,9 @@ interface CustomerListProps {
 }
 
 export function CustomerList({ page, onTagClick }: CustomerListProps) {
+  const t = useTranslations('crm.list');
   const { data: customers, meta } = page;
-  if (!customers || customers.length === 0) return <EmptyState />;
+  if (!customers || customers.length === 0) return <CustomersEmpty />;
 
   return (
     <div className="space-y-4">
@@ -26,11 +30,11 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-app-surface-2/50 text-left text-xs uppercase tracking-wide text-app-ink-muted">
-              <th className="px-4 py-3 font-semibold">Client</th>
-              <th className="px-4 py-3 font-semibold">Contact</th>
-              <th className="px-4 py-3 font-semibold">Tags</th>
-              <th className="px-4 py-3 font-semibold">Pipeline</th>
-              <th className="px-4 py-3 font-semibold">Statut</th>
+              <th className="px-4 py-3 font-semibold">{t('columns.client')}</th>
+              <th className="px-4 py-3 font-semibold">{t('columns.contact')}</th>
+              <th className="px-4 py-3 font-semibold">{t('columns.tags')}</th>
+              <th className="px-4 py-3 font-semibold">{t('columns.pipeline')}</th>
+              <th className="px-4 py-3 font-semibold">{t('columns.status')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-app-surface-2">
@@ -108,8 +112,11 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
       </ul>
 
       <p className="text-xs text-app-ink-muted">
-        {meta.total} client{meta.total > 1 ? 's' : ''} — page {meta.current_page} sur{' '}
-        {meta.last_page}
+        {t('pagination', {
+          total: meta.total,
+          page: meta.current_page,
+          pages: meta.last_page,
+        })}
       </p>
     </div>
   );
@@ -120,8 +127,11 @@ function PipelineBadge({
 }: {
   stage: CustomerListItem['pipeline_stage'];
 }) {
+  const t = useTranslations('crm.pipeline.stage');
   if (!stage) return <span className="text-xs text-app-ink-muted">—</span>;
-  const label = PIPELINE_STAGE_LABELS[stage] ?? stage;
+  // Repli sur le jeton brut : même invariant que le `?? stage` d'avant, pour une
+  // valeur de fil que le front ne connaîtrait pas.
+  const label = (pipelineStageValues as readonly string[]).includes(stage) ? t(stage) : stage;
   return (
     <Badge
       variant="outline"
@@ -139,7 +149,8 @@ function PipelineBadge({
 }
 
 function StatusBadge({ status }: { status: CustomerListItem['status'] }) {
-  const label = CUSTOMER_STATUS_LABELS[status] ?? status;
+  const t = useTranslations('crm.customerStatus');
+  const label = (customerStatusValues as readonly string[]).includes(status) ? t(status) : status;
   return (
     <Badge
       variant="outline"
@@ -154,23 +165,23 @@ function StatusBadge({ status }: { status: CustomerListItem['status'] }) {
   );
 }
 
-function EmptyState() {
+/**
+ * `useTranslations` (et non `getTranslations`) : ce fichier n'a pas de `'use client'` et il est
+ * rendu depuis `app/customers/page.tsx`, un server component. next-intl expose le hook dans les
+ * deux mondes tant que le composant n'est pas `async` — ce qui est le cas ici.
+ */
+function CustomersEmpty() {
+  const t = useTranslations('crm.list');
   return (
-    <div className="flex flex-col items-center justify-center gap-4 rounded-xl bg-app-surface-1 px-6 py-16 text-center">
-      <div className="rounded-full bg-app-surface-2 p-4 text-app-accent">
-        <UserPlus className="size-8" aria-hidden="true" />
-      </div>
-      <p className="text-lg font-semibold text-app-ink">Votre CRM est vide</p>
-      <p className="max-w-md text-sm text-app-ink-muted">
-        Ajoutez vos premiers contacts pour suivre leurs interactions et
-        qualifier leurs intérêts.
-      </p>
-      <Link
-        href="/app/customers/new"
-        className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-      >
-        Ajouter un client
-      </Link>
-    </div>
+    <EmptyState
+      icon={<UserPlus className="size-8" aria-hidden="true" />}
+      title={t('empty_title')}
+      description={t('empty_description')}
+      action={
+        <Link href="/app/customers/new" className={buttonVariants()}>
+          {t('empty_cta')}
+        </Link>
+      }
+    />
   );
 }

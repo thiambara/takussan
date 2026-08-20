@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { DoorOpen } from 'lucide-react';
 
+import { EmptyState } from '@/components/feedback';
 import { MediaDropzone } from '@/components/media';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
@@ -18,10 +20,6 @@ import {
 } from '@/lib/queries/inventory';
 import type { Inventory } from '@/types/inventory';
 
-import {
-  INVENTORY_CONDITION_LABEL,
-  INVENTORY_STATUS_LABEL,
-} from './labels';
 import {
   InventoryElementStateBadge,
   InventoryStatusBadge,
@@ -41,6 +39,10 @@ export function InventoryDetail({ id }: { readonly id: number }) {
 }
 
 function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
+  const t = useTranslations('inventory.detail');
+  const tRoot = useTranslations('inventory');
+  const tLease = useTranslations('lease');
+  const tConditions = useTranslations('inventory.conditions');
   const locale = useLocale() as Locale;
   const isDraft = inventory.status === 'draft';
 
@@ -50,7 +52,7 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-lg font-semibold text-app-ink">
-              {inventory.property?.title ?? `État des lieux #${inventory.id}`}
+              {inventory.property?.title ?? tRoot('fallbackReference', { id: String(inventory.id) })}
             </p>
             <p className="mt-1 text-xs text-app-ink-muted">
               {inventory.property?.slug ? (
@@ -58,17 +60,17 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
                   href={`/properties/${inventory.property.slug}`}
                   className="hover:underline"
                 >
-                  Voir le bien
+                  {t('viewProperty')}
                 </Link>
               ) : (
-                <>Bien #{inventory.property_id}</>
+                <>{t('propertyFallback', { id: String(inventory.property_id) })}</>
               )}
               {' · '}
               <Link
                 href={`/app/leases/${inventory.lease_id}`}
                 className="hover:underline"
               >
-                {inventory.lease?.reference_number ?? `Bail #${inventory.lease_id}`}
+                {inventory.lease?.reference_number ?? tLease('fallbackReference', { id: String(inventory.lease_id) })}
               </Link>
             </p>
           </div>
@@ -80,31 +82,31 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
 
         <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-app-ink-muted md:grid-cols-4">
           <div>
-            <dt className="font-semibold uppercase tracking-wide">État général</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('generalCondition')}</dt>
             <dd className="mt-0.5 text-app-ink">
-              {INVENTORY_CONDITION_LABEL[inventory.general_condition]}
+              {tConditions(inventory.general_condition)}
             </dd>
           </div>
           <div>
-            <dt className="font-semibold uppercase tracking-wide">Réalisé le</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('conductedAt')}</dt>
             <dd className="mt-0.5 text-app-ink">
               {inventory.conducted_at ? formatDateTime(inventory.conducted_at, locale) : '—'}
             </dd>
           </div>
           <div>
-            <dt className="font-semibold uppercase tracking-wide">Locataire</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('tenant')}</dt>
             <dd className="mt-0.5 text-app-ink">
               {inventory.tenant_signed && inventory.tenant_signed_at
-                ? `Signé le ${formatDateTime(inventory.tenant_signed_at, locale)}`
-                : 'En attente'}
+                ? t('signedOn', { date: formatDateTime(inventory.tenant_signed_at, locale) })
+                : t('pending')}
             </dd>
           </div>
           <div>
-            <dt className="font-semibold uppercase tracking-wide">Bailleur</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('landlord')}</dt>
             <dd className="mt-0.5 text-app-ink">
               {inventory.owner_signed && inventory.owner_signed_at
-                ? `Signé le ${formatDateTime(inventory.owner_signed_at, locale)}`
-                : 'En attente'}
+                ? t('signedOn', { date: formatDateTime(inventory.owner_signed_at, locale) })
+                : t('pending')}
             </dd>
           </div>
         </dl>
@@ -122,12 +124,14 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
 
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-app-ink">
-          Pièces ({inventory.rooms.length})
+          {t('rooms', { count: String(inventory.rooms.length) })}
         </h3>
         {inventory.rooms.length === 0 ? (
-          <p className="rounded-xl bg-app-surface-1 p-6 text-center text-sm text-app-ink-muted">
-            Aucune pièce n&apos;a été enregistrée dans ce brouillon.
-          </p>
+          <EmptyState
+            icon={<DoorOpen className="size-8" aria-hidden="true" />}
+            title={t('empty_rooms_title')}
+            description={t('empty_rooms_description')}
+          />
         ) : (
           <div className="space-y-3">
             {inventory.rooms.map((room, index) => (
@@ -154,6 +158,8 @@ function RoomCard({
   readonly inventoryId: number;
   readonly canUpload: boolean;
 }) {
+  const t = useTranslations('inventory.detail');
+  const tConditions = useTranslations('inventory.conditions');
   const upload = useUploadInventoryRoomPhotos(inventoryId);
   const [photos, setPhotos] = useState<File[]>([]);
 
@@ -163,7 +169,7 @@ function RoomCard({
         <div>
           <p className="text-sm font-semibold text-app-ink">{room.name}</p>
           <p className="text-xs text-app-ink-muted">
-            État : {INVENTORY_CONDITION_LABEL[room.condition]}
+            {t('roomCondition', { condition: tConditions(room.condition) })}
           </p>
         </div>
       </div>
@@ -215,11 +221,11 @@ function RoomCard({
                 }
               }}
             >
-              {upload.isPending ? 'Envoi…' : 'Envoyer les photos'}
+              {upload.isPending ? t('sending') : t('sendPhotos')}
             </Button>
             {upload.isError ? (
               <span className="text-xs text-destructive">
-                L&apos;envoi a échoué. Réessayez.
+                {t('uploadFailed')}
               </span>
             ) : null}
           </div>
@@ -230,6 +236,8 @@ function RoomCard({
 }
 
 function ActionBar({ inventory }: { readonly inventory: Inventory }) {
+  const t = useTranslations('inventory.detail');
+  const tStatus = useTranslations('inventory.status');
   const submit = useSubmitInventory(inventory.id);
   const dispute = useDisputeInventory(inventory.id);
   const [reason, setReason] = useState('');
@@ -244,8 +252,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
   if (!canSubmit && !canDispute && !showPdfAction) {
     return (
       <div className="rounded-2xl bg-app-surface-1 p-5 text-sm text-app-ink-muted">
-        Cet état des lieux est dans un état terminal (
-        {INVENTORY_STATUS_LABEL[inventory.status]}).
+        {t('terminalState', { status: tStatus(inventory.status) })}
       </div>
     );
   }
@@ -259,7 +266,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
             onClick={() => submit.mutate()}
             disabled={submit.isPending}
           >
-            {submit.isPending ? 'Envoi…' : 'Soumettre pour signature'}
+            {submit.isPending ? t('submitting') : t('submitForSignature')}
           </Button>
         ) : null}
         {canDispute ? (
@@ -268,7 +275,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
             variant="outline"
             onClick={() => setShowDispute((v) => !v)}
           >
-            {showDispute ? 'Annuler le litige' : 'Contester'}
+            {showDispute ? t('cancelDispute') : t('dispute')}
           </Button>
         ) : null}
         {showPdfAction ? (
@@ -285,7 +292,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
             htmlFor="dispute-reason"
             className="block text-xs font-semibold uppercase tracking-wide text-app-ink-muted"
           >
-            Motif du litige
+            {t('disputeReason')}
           </label>
           <textarea
             id="dispute-reason"
@@ -293,7 +300,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
             onChange={(e) => setReason(e.target.value)}
             rows={3}
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
-            placeholder="Expliquez le point contesté"
+            placeholder={t('disputeReasonPlaceholder')}
           />
           <Button
             type="button"
@@ -310,7 +317,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
               }
             }}
           >
-            Envoyer le litige
+            {t('sendDispute')}
           </Button>
         </div>
       ) : null}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,6 +25,11 @@ export function PhoneVerificationSection({
   phone,
   phoneVerified: initialVerified,
 }: PhoneVerificationSectionProps) {
+  const t = useTranslations('profile.security.phone');
+  // Le tunnel OTP est le MÊME que celui de la section « Coordonnées » (mêmes
+  // server actions) : ses libellés vivent sous `profile.contact.*`, et les
+  // rejouer ici créerait des clés jumelles.
+  const tOtp = useTranslations('profile.contact');
   const [verified, setVerified] = useState(initialVerified);
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
@@ -43,8 +49,8 @@ export function PhoneVerificationSection({
       setSent(true);
       setFeedback(
         result.data.debug_code
-          ? `Code envoyé. (Debug : ${result.data.debug_code})`
-          : "Code envoyé. Vérifiez votre SMS (peut prendre jusqu'à 60s).",
+          ? tOtp('otpSentDebug', { code: result.data.debug_code })
+          : tOtp('otpSent'),
       );
     });
   }
@@ -61,7 +67,7 @@ export function PhoneVerificationSection({
       }
       setVerified(true);
       setCode('');
-      setFeedback('Téléphone vérifié avec succès.');
+      setFeedback(tOtp('phoneVerifiedOk'));
     });
   }
 
@@ -70,12 +76,10 @@ export function PhoneVerificationSection({
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-app-ink">
-            Vérification du téléphone
+            {t('title')}
           </h3>
           <p className="mt-1 text-sm text-app-ink-muted">
-            {phone
-              ? `Code SMS à usage unique envoyé au ${phone}.`
-              : "Ajoutez d'abord un numéro de téléphone dans la section « Coordonnées »."}
+            {phone ? t('descriptionWithPhone', { phone }) : t('descriptionNoPhone')}
           </p>
         </div>
         <span
@@ -86,7 +90,7 @@ export function PhoneVerificationSection({
               : 'bg-app-surface-1 text-app-ink-muted')
           }
         >
-          {verified ? 'Vérifié' : 'Non vérifié'}
+          {verified ? tOtp('verified') : tOtp('notVerified')}
         </span>
       </div>
 
@@ -105,7 +109,7 @@ export function PhoneVerificationSection({
         <div className="mt-4 space-y-3">
           <div>
             <Button onClick={handleSend} disabled={pending} variant="outline">
-              {pending && !sent ? 'Envoi…' : sent ? 'Renvoyer le code' : 'Envoyer le code'}
+              {pending && !sent ? tOtp('sending') : sent ? tOtp('resendCode') : t('sendCode')}
             </Button>
           </div>
 
@@ -119,11 +123,11 @@ export function PhoneVerificationSection({
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="123456"
                 autoComplete="one-time-code"
-                aria-label="Code à 6 chiffres"
+                aria-label={tOtp('otpCodeAria')}
                 required
               />
               <Button type="submit" disabled={pending || code.length !== 6}>
-                {pending ? 'Vérification…' : 'Vérifier'}
+                {pending ? tOtp('verifying') : tOtp('verify')}
               </Button>
             </form>
           ) : null}

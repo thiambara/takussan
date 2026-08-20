@@ -23,9 +23,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *
  *  - `Agency.kind === standard` gate (TCK-248). `individual` agencies
  *    don't have a team — they are sole-host.
- *  - `manage_team` spatie permission scoped to the agency team_id
- *    (delegated automatically to `agency_admin`, optionally to a senior
- *    agent via {@see RoleDelegation}).
+ *  - `manage_team` gate, scoped to the agency (TCK-278 — a profile-based
+ *    check, not a spatie permission on a team_id: the package is
+ *    uninstalled, ADR-0002). Held by `agency_admin`, optionally delegated
+ *    to a senior agent via {@see RoleDelegation}.
  *  - Pre-creates an `AgentProfile` in `AgentProfileStatus::Draft` linked
  *    to the agency. The first/last/phone payload lands in `metadata`
  *    until acceptance promotes it onto a real `User` row.

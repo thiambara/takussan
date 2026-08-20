@@ -34,16 +34,24 @@ use App\Listeners\Permissions\NotifyDelegationActivated;
 use App\Listeners\Permissions\NotifyDelegationExpired;
 use App\Listeners\Permissions\NotifyDelegationRevoked;
 use App\Models\Agency;
+use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
+use App\Models\Booking;
 use App\Models\BookingPayment;
 use App\Models\Conversation;
+use App\Models\Customer;
+use App\Models\Document;
 use App\Models\Enums\Capability;
 use App\Models\Favorite;
+use App\Models\Guarantor;
 use App\Models\Inventory;
 use App\Models\Invitation;
+use App\Models\Invoice;
 use App\Models\Lease;
 use App\Models\LeasePayment;
+use App\Models\MaintenanceRequest;
 use App\Models\Message;
+use App\Models\Payout;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
@@ -52,9 +60,11 @@ use App\Models\Property;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\RoleDelegation;
+use App\Models\Task;
 use App\Models\User;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
+use App\Observers\AgencyObserver;
 use App\Observers\FavoriteObserver;
 use App\Observers\InventoryOnboardingObserver;
 use App\Observers\LeaseObserver;
@@ -68,17 +78,31 @@ use App\Observers\PropertyVisitObserver;
 use App\Observers\ReviewObserver;
 use App\Observers\UserObserver;
 use App\Policies\ActivityLogPolicy;
+use App\Policies\AgencyPolicy;
+use App\Policies\AgencyRolePolicy;
 use App\Policies\AgencyUpgradeRequestPolicy;
 use App\Policies\AgentProfilePolicy;
+use App\Policies\BookingPaymentPolicy;
+use App\Policies\BookingPolicy;
 use App\Policies\ConversationPolicy;
+use App\Policies\CustomerPolicy;
+use App\Policies\DocumentPolicy;
+use App\Policies\GuarantorPolicy;
+use App\Policies\InventoryPolicy;
 use App\Policies\InvitationPolicy;
+use App\Policies\InvoicePolicy;
+use App\Policies\LeasePaymentPolicy;
 use App\Policies\LeasePolicy;
+use App\Policies\MaintenanceRequestPolicy;
 use App\Policies\MediaPolicy;
 use App\Policies\OwnerProfilePolicy;
+use App\Policies\PayoutPolicy;
 use App\Policies\Profiles\ServiceProviderProfilePolicy;
 use App\Policies\PropertyModerationPolicy;
 use App\Policies\PropertyPolicy;
+use App\Policies\PropertyVisitPolicy;
 use App\Policies\RoleDelegationPolicy;
+use App\Policies\TaskPolicy;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
@@ -86,6 +110,9 @@ use App\Services\Media\Cdn\CdnProviderContract;
 use App\Services\Media\Cdn\CloudflareCdnDriver;
 use App\Services\Media\MediaUrlResolver;
 use App\Services\Membership\MembershipCapabilityResolver;
+use App\Services\Notifications\Sms\Dlr\LogDlrPuller;
+use App\Services\Notifications\Sms\Dlr\MtargetDlrPuller;
+use App\Services\Notifications\Sms\Dlr\SmsDlrPullerInterface;
 use App\Services\Notifications\Sms\Drivers\LAfricaMobileSmsDriver;
 use App\Services\Notifications\Sms\Drivers\LogSmsDriver;
 use App\Services\Notifications\Sms\Drivers\MtargetSmsDriver;
@@ -229,6 +256,19 @@ class AppServiceProvider extends ServiceProvider
                 default => $app->make(SmsRouterDriver::class),
             };
         });
+
+        // TCK-294 — Inbound DLR, pulled rather than pushed. Same
+        // driver/registry shape as the send side: one interface, N
+        // drivers, one conditional binding on config. `log` is the
+        // default so nothing calls the operator until an env says so.
+        $this->app->singleton(LogDlrPuller::class);
+        $this->app->singleton(MtargetDlrPuller::class);
+        $this->app->bind(SmsDlrPullerInterface::class, function ($app): SmsDlrPullerInterface {
+            return match ((string) $app['config']->get('sms.dlr_pulling.driver', 'log')) {
+                'mtarget' => $app->make(MtargetDlrPuller::class),
+                default => $app->make(LogDlrPuller::class),
+            };
+        });
     }
 
     private function registerWhatsappServices(): void
@@ -298,6 +338,21 @@ class AppServiceProvider extends ServiceProvider
         // reset-token brute force. Keyed by IP (no authenticated user yet).
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(10)->by('ip:'.$request->ip()));
         RateLimiter::for('auth-password', fn (Request $request) => Limit::perMinute(5)->by('ip:'.$request->ip()));
+
+        // TCK-272 — émission du code e-mail de step-up pour la suppression
+        // de compte. Route authentifiée : la clé est l'utilisateur, pas
+        // l'IP, pour qu'un NAT partagé ne collabe pas plusieurs comptes.
+        // Deux bornes : 3/min contre le martèlement, 10/h contre le
+        // mail-bombing sur une adresse dont on détient le jeton. Le service
+        // pose en plus un cooldown de 60 s côté cache — le limiteur borne
+        // les REQUÊTES, le cooldown borne les E-MAILS.
+        RateLimiter::for('account-deletion-step-up', function (Request $request) {
+            $key = $request->user() !== null
+                ? 'user:'.$request->user()->id
+                : 'ip:'.$request->ip();
+
+            return [Limit::perMinute(3)->by($key), Limit::perHour(10)->by($key)];
+        });
     }
 
     private function visitorRateLimitKey(Request $request): string
@@ -323,6 +378,10 @@ class AppServiceProvider extends ServiceProvider
 
     private function bootObservers(): void
     {
+        // TCK-279 — AC1 : seed synchrone des 4 AgencyRole système à la
+        // création d'une agence. Doit précéder toute création de profil
+        // dans cette agence : `agency_role_id` est NOT NULL.
+        Agency::observe(AgencyObserver::class);
         Property::observe(PropertyObserver::class);
         Message::observe(MessageObserver::class);
         Favorite::observe(FavoriteObserver::class);
@@ -370,6 +429,14 @@ class AppServiceProvider extends ServiceProvider
         // TCK-074 — explicit bind so `$user->can('duplicate', $property)` resolves.
         Gate::policy(Property::class, PropertyPolicy::class);
 
+        // TCK-290 — `AgencyPolicy::update` porte la règle « qui administre
+        // cette agence », partagée par `AgencyController` et par
+        // `MediaController::authorizeAttach` (upload du logo). L'auto-discovery
+        // `App\Models\Agency → App\Policies\AgencyPolicy` la trouverait aussi ;
+        // la liaison est écrite ici parce que c'est où ce fichier rend les
+        // policies lisibles d'un coup d'œil.
+        Gate::policy(Agency::class, AgencyPolicy::class);
+
         // TCK-085 — group conversation gates (admin-only mutations + system-message immutability).
         Gate::policy(Conversation::class, ConversationPolicy::class);
 
@@ -405,6 +472,31 @@ class AppServiceProvider extends ServiceProvider
         // policy lives in App\Policies\Profiles (auto-discovery only
         // probes App\Policies for `App\Models\Profiles\X` → `App\Policies\XPolicy`).
         Gate::policy(ServiceProviderProfile::class, ServiceProviderProfilePolicy::class);
+
+        // TCK-279 — rôles d'agence. `viewAny`, `create` et `assign` prennent
+        // l'Agency en second argument (comme AgentProfilePolicy@invite), ce
+        // que l'auto-discovery ne devine pas : on lie explicitement.
+        Gate::policy(AgencyRole::class, AgencyRolePolicy::class);
+
+        // TCK-306 — les dix policies qui reprennent les `authorizeAccess()` /
+        // `authorizeManage()` que 25 contrôleurs redéfinissaient chacun de leur côté
+        // (88 appels, la même logique copiée-collée). Elles sont liées ICI plutôt que
+        // laissées à l'auto-discovery pour la raison écrite plus haut à propos
+        // d'AgencyPolicy : ce fichier est l'endroit où les policies se lisent d'un
+        // coup d'œil. `scripts/check-controller-authorization.mjs` vérifie d'ailleurs
+        // que chacune y figure — une policy écrite mais jamais liée est un refus muet.
+        Gate::policy(Booking::class, BookingPolicy::class);
+        Gate::policy(BookingPayment::class, BookingPaymentPolicy::class);
+        Gate::policy(Customer::class, CustomerPolicy::class);
+        Gate::policy(Document::class, DocumentPolicy::class);
+        Gate::policy(Guarantor::class, GuarantorPolicy::class);
+        Gate::policy(Inventory::class, InventoryPolicy::class);
+        Gate::policy(Invoice::class, InvoicePolicy::class);
+        Gate::policy(LeasePayment::class, LeasePaymentPolicy::class);
+        Gate::policy(MaintenanceRequest::class, MaintenanceRequestPolicy::class);
+        Gate::policy(Payout::class, PayoutPolicy::class);
+        Gate::policy(PropertyVisit::class, PropertyVisitPolicy::class);
+        Gate::policy(Task::class, TaskPolicy::class);
 
         // TCK-098 — property moderation gates (approve, reject, resubmit).
         // Named gates avoid collision with the existing PropertyPolicy.

@@ -3,8 +3,10 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { UserPlus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { UserPlus, Users } from 'lucide-react';
 
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminUsersFilters } from '@/components/admin/users/AdminUsersFilters';
@@ -14,14 +16,18 @@ import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
 import { ConfirmRemoveDialog } from '@/components/admin/ConfirmRemoveDialog';
 import { fetchAdminUsers, postUserAction } from '@/lib/queries/admin-users';
 import { removeAgencyMember } from '@/lib/queries/agency-members';
+import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
+import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
+import type { AgencyRoleAssignment } from '@/types/agency-role';
 import type {
   AdminAgencyUserRow,
   AdminAgencyUsersResponse,
   AdminUserRoleFilter,
   AdminUserStatusFilter,
 } from '@/types/admin-users';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 const TAB_VALUES = ['tous', 'agents', 'admins', 'proprietaires'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
@@ -56,6 +62,10 @@ interface TeamConsoleProps {
  * targeting the same query param.
  */
 export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
+  const t = useTranslations('team.page');
+  const tConsole = useTranslations('admin.team.console');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -85,11 +95,44 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
     [searchParams],
   );
 
+  // Un état vide qui dit « invitez votre premier agent » alors que l'utilisateur a simplement
+  // tapé un nom dans la recherche serait faux. On sépare donc les deux cas.
+  const hasActiveFilters = Boolean(params.search || params.status || params.role);
+
   const usersQuery = useQuery<AdminAgencyUsersResponse, ApiError>({
     queryKey: ['admin-users', 'list', params],
     queryFn: () => fetchAdminUsers(params),
     staleTime: 15_000,
   });
+
+  // TCK-279 (AC11) — le rôle d'agence de chaque ligne affichée.
+  //
+  // Une requête SÉPARÉE, et bornée aux ids de la page : `UserResource`
+  // n'expose ni l'id du profil ni son rôle, et ne peut pas le faire sans
+  // choisir pour tout le produit lequel des N profils d'un utilisateur est
+  // « le » profil. La question n'a de réponse que rapportée à une agence.
+  const visibleUserIds = useMemo(
+    () => (usersQuery.data?.data ?? []).map((u) => u.id),
+    [usersQuery.data],
+  );
+  const assignmentsQuery = useAgencyRoleAssignments(agencyId, visibleUserIds);
+
+  const assignmentsByUser = useMemo(() => {
+    const map = new Map<number, AgencyRoleAssignment[]>();
+    for (const row of assignmentsQuery.data?.data ?? []) {
+      const list = map.get(row.user_id);
+      if (list) list.push(row);
+      else map.set(row.user_id, [row]);
+    }
+    return map;
+  }, [assignmentsQuery.data]);
+
+  // AC12 — le sélecteur de rôle est gardé par la CAPACITÉ, pas par le type
+  // de profil : deux `agency_admin` de la même agence peuvent porter des
+  // rôles différents depuis TCK-279, donc « être admin » ne dit plus qu'on
+  // peut attribuer un rôle. ⚠️ Cacher le contrôle n'autorise rien : c'est
+  // `AgencyRolePolicy::assign` qui décide.
+  const { can: canAssignRole } = useCan('team.assign_role', agencyId);
 
   const invalidateList = useCallback(
     () => queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] }),
@@ -103,7 +146,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
       setActionError(null);
       invalidateList();
     },
-    onError: (err: ApiError) => setActionError(err.displayMessage),
+    onError: (err: ApiError) => setActionError(messageErreur(err)),
   });
 
   const removeMutation = useMutation({
@@ -115,7 +158,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
       invalidateList();
     },
     onError: (err) =>
-      setActionError(err instanceof ApiError ? err.displayMessage : 'Une erreur est survenue.'),
+      setActionError(messageErreur(err, tConsole('genericError'))),
   });
 
   const setTab = useCallback(
@@ -139,28 +182,21 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList>
-            <TabsTrigger value="tous">Tous</TabsTrigger>
-            <TabsTrigger value="agents">Agents</TabsTrigger>
-            <TabsTrigger value="admins">Administrateurs</TabsTrigger>
-            <TabsTrigger value="proprietaires">Propriétaires</TabsTrigger>
+            <TabsTrigger value="tous">{tConsole('tabs.all')}</TabsTrigger>
+            <TabsTrigger value="agents">{tConsole('tabs.agents')}</TabsTrigger>
+            <TabsTrigger value="admins">{tConsole('tabs.admins')}</TabsTrigger>
+            <TabsTrigger value="proprietaires">{tConsole('tabs.owners')}</TabsTrigger>
           </TabsList>
           <Button onClick={() => setInviteOpen(true)} size="sm">
             <UserPlus className="mr-1 size-4" aria-hidden="true" />
-            Inviter
+            {tConsole('invite')}
           </Button>
         </div>
       </Tabs>
 
       <AdminUsersFilters hideRoleFilter />
 
-      {actionError ? (
-        <div
-          className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-2 text-sm text-destructive"
-          role="alert"
-        >
-          {actionError}
-        </div>
-      ) : null}
+      {actionError ? <ErrorState message={actionError} /> : null}
 
       {usersQuery.isLoading ? (
         <div className="space-y-2" data-testid="team-console-loading">
@@ -173,22 +209,39 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
           ))}
         </div>
       ) : usersQuery.isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900" role="alert">
-          Erreur de chargement. {usersQuery.error?.displayMessage}
-        </div>
+        <ErrorState
+          message={messageErreur(usersQuery.error, t('error'))}
+          onRetry={() => void usersQuery.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : !usersQuery.data || usersQuery.data.data.length === 0 ? (
-        <p
-          className="rounded-xl bg-card p-6 text-center text-sm text-muted-foreground"
+        // `team.*` était un namespace ORPHELIN : ses clés existaient dans les trois locales et
+        // aucun fichier ne les consommait. Elles portent exactement la copie « encouragement +
+        // CTA » que `design-guidelines.md:83` exige, là où l'écran affichait en dur « Aucun
+        // membre ne correspond aux filtres courants. » — un constat, pas un encouragement.
+        <EmptyState
           data-testid="team-console-empty"
-        >
-          Aucun membre ne correspond aux filtres courants.
-        </p>
+          icon={<Users className="size-8" aria-hidden="true" />}
+          title={hasActiveFilters ? t('empty_filtered_title') : t('empty_title')}
+          description={
+            hasActiveFilters ? t('empty_filtered_description') : t('empty_description')
+          }
+          action={
+            hasActiveFilters ? undefined : (
+              <Button onClick={() => setInviteOpen(true)}>
+                <UserPlus className="mr-1 size-4" aria-hidden="true" />
+                {t('add')}
+              </Button>
+            )
+          }
+        />
       ) : (
         <>
           <AdminUsersTable
             rows={usersQuery.data.data}
             total={usersQuery.data.meta.total}
             currentUserId={currentUserId}
+            assignmentsByUser={assignmentsByUser}
             onSelect={(u) => setDrawerUser(u)}
             onQuickAction={(u, action) => quickActionMutation.mutate({ id: u.id, action })}
             onRemove={(u) => setRemoving(u)}
@@ -203,6 +256,9 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
       <UserDetailDrawer
         user={drawerUser}
         currentUserId={currentUserId}
+        agencyId={agencyId}
+        assignments={drawerUser ? (assignmentsByUser.get(drawerUser.id) ?? []) : []}
+        canAssignRole={canAssignRole}
         onOpenChange={(open) => !open && setDrawerUser(null)}
         onRemove={(u) => setRemoving(u)}
         isRemoving={removeMutation.isPending}
@@ -226,6 +282,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
 }
 
 function Pagination({ page, lastPage }: { page: number; lastPage: number }) {
+  const t = useTranslations('admin.team.console.pagination');
   const router = useRouter();
   const searchParams = useSearchParams();
   if (lastPage <= 1) return null;
@@ -238,7 +295,7 @@ function Pagination({ page, lastPage }: { page: number; lastPage: number }) {
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t('label')}
       className="flex items-center justify-between text-sm text-muted-foreground"
     >
       <button
@@ -247,18 +304,16 @@ function Pagination({ page, lastPage }: { page: number; lastPage: number }) {
         disabled={page <= 1}
         className="rounded-md border border-input bg-background px-3 py-1 disabled:opacity-50"
       >
-        Précédent
+        {t('previous')}
       </button>
-      <span>
-        Page {page} sur {lastPage}
-      </span>
+      <span>{t('pageOf', { current: String(page), last: String(lastPage) })}</span>
       <button
         type="button"
         onClick={() => goTo(Math.min(lastPage, page + 1))}
         disabled={page >= lastPage}
         className="rounded-md border border-input bg-background px-3 py-1 disabled:opacity-50"
       >
-        Suivant
+        {t('next')}
       </button>
     </nav>
   );

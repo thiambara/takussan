@@ -1,11 +1,13 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { ElementType } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, EyeOff, ShieldCheck, Trash2, XCircle } from 'lucide-react';
+import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,29 +27,44 @@ import type {
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 const ALL = '__all__';
 
 type AgencyOption = { id: number; name: string };
 
-const TYPE_OPTIONS: Array<{ value: typeof ALL | ModerationItemType; label: string }> = [
-  { value: ALL, label: 'Tous' },
-  { value: 'property', label: 'Biens' },
-  { value: 'review', label: 'Avis' },
+/**
+ * TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.moderation.*`).
+ * Les valeurs (`__all__`, `property`, `-reported_at`, …) restent des jetons d'URL et d'API :
+ * elles ne se traduisent pas.
+ */
+const TYPE_VALUES: Array<{ value: typeof ALL | ModerationItemType; key: string }> = [
+  { value: ALL, key: 'types.all' },
+  { value: 'property', key: 'types.property' },
+  { value: 'review', key: 'types.review' },
 ];
 
-const STATUS_OPTIONS: Array<{ value: typeof ALL | ModerationItemStatus; label: string }> = [
-  { value: ALL, label: 'Tous statuts' },
-  { value: 'pending', label: 'En attente' },
-  { value: 'flagged', label: 'Signalés' },
+const STATUS_VALUES: Array<{ value: typeof ALL | ModerationItemStatus; key: string }> = [
+  { value: ALL, key: 'statuses.all' },
+  { value: 'pending', key: 'statuses.pending' },
+  { value: 'flagged', key: 'statuses.flagged' },
 ];
 
-const SORT_OPTIONS = [
-  { value: '-reported_at', label: 'Plus récents' },
-  { value: 'reported_at', label: 'Plus anciens' },
+const SORT_VALUES = [
+  { value: '-reported_at', key: 'sorts.newest' },
+  { value: 'reported_at', key: 'sorts.oldest' },
 ];
+
+/**
+ * TCK-292 — sentinelle de développement, JAMAIS affichée : `onError` lit `messageErreur(err)`,
+ * qu'un `Error` nu ne porte pas, et le panneau sort en amont quand `item` est nul. Vérifié
+ * plutôt que supposé — cf. le cas `new ApiError(401, { message: 'no token' })` du ticket, où
+ * la même hypothèse était fausse.
+ */
+const SENTINELLE_SANS_ITEM = 'moderation:no-item-selected';
 
 export function ModerationFilters({ agencies }: { agencies: AgencyOption[] }) {
+  const t = useTranslations('superAdmin.moderation');
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentType = (searchParams.get('filter[type]') as ModerationItemType | null) ?? ALL;
@@ -68,8 +85,8 @@ export function ModerationFilters({ agencies }: { agencies: AgencyOption[] }) {
 
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-white p-4 ring-1 ring-stone-200 md:flex-row md:items-end md:justify-between">
-      <div className="flex flex-wrap gap-2" aria-label="Types de modération">
-        {TYPE_OPTIONS.map((option) => {
+      <div className="flex flex-wrap gap-2" aria-label={t('typesAria')}>
+        {TYPE_VALUES.map((option) => {
           const active = currentType === option.value;
           return (
             <Button
@@ -79,7 +96,7 @@ export function ModerationFilters({ agencies }: { agencies: AgencyOption[] }) {
               onClick={() => updateParam('filter[type]', option.value)}
               aria-pressed={active}
             >
-              {option.label}
+              {t(option.key)}
             </Button>
           );
         })}
@@ -87,24 +104,24 @@ export function ModerationFilters({ agencies }: { agencies: AgencyOption[] }) {
 
       <div className="flex flex-wrap gap-3">
         <FilterSelect
-          label="Statut"
+          label={t('status')}
           value={currentStatus}
-          options={STATUS_OPTIONS}
+          options={STATUS_VALUES.map(({ value, key }) => ({ value, label: t(key) }))}
           onChange={(value) => updateParam('filter[status]', value)}
         />
         <FilterSelect
-          label="Agence"
+          label={t('agency')}
           value={currentAgency}
           options={[
-            { value: ALL, label: 'Toutes agences' },
+            { value: ALL, label: t('allAgencies') },
             ...agencies.map((agency) => ({ value: String(agency.id), label: agency.name })),
           ]}
           onChange={(value) => updateParam('filter[agency_id]', value)}
         />
         <FilterSelect
-          label="Ancienneté"
+          label={t('age')}
           value={currentSort}
-          options={SORT_OPTIONS}
+          options={SORT_VALUES.map(({ value, key }) => ({ value, label: t(key) }))}
           onChange={(value) => updateParam('sort', value)}
         />
       </div>
@@ -121,18 +138,19 @@ export function ModerationQueueTable({
   selectedId: string | null;
   onSelect: (item: AdminModerationItem) => void;
 }) {
+  const t = useTranslations('superAdmin.moderation');
   return (
     <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-stone-200">
       <table className="min-w-full divide-y divide-stone-200 text-sm" data-testid="moderation-queue-table">
         <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
           <tr>
-            <th scope="col" className="px-3 py-2">Sujet</th>
-            <th scope="col" className="px-3 py-2">Type</th>
-            <th scope="col" className="px-3 py-2">Agence</th>
-            <th scope="col" className="px-3 py-2">Rapporteur</th>
-            <th scope="col" className="px-3 py-2">Raison</th>
-            <th scope="col" className="px-3 py-2">Âge</th>
-            <th scope="col" className="px-3 py-2"><span className="sr-only">Action</span></th>
+            <th scope="col" className="px-3 py-2">{t('colSubject')}</th>
+            <th scope="col" className="px-3 py-2">{t('colType')}</th>
+            <th scope="col" className="px-3 py-2">{t('colAgency')}</th>
+            <th scope="col" className="px-3 py-2">{t('colReporter')}</th>
+            <th scope="col" className="px-3 py-2">{t('colReason')}</th>
+            <th scope="col" className="px-3 py-2">{t('colAge')}</th>
+            <th scope="col" className="px-3 py-2"><span className="sr-only">{t('colAction')}</span></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-stone-100">
@@ -148,32 +166,32 @@ export function ModerationQueueTable({
                     {item.subject.title}
                   </Link>
                 ) : (
-                  <span className="font-medium text-stone-950">Sujet indisponible</span>
+                  <span className="font-medium text-stone-950">{t('subjectUnavailable')}</span>
                 )}
                 <p className="mt-0.5 text-xs text-stone-500">{item.subject?.subtitle ?? item.id}</p>
               </td>
               <td className="px-3 py-3">
                 <div className="flex flex-col gap-1">
                   <Badge variant={item.type === 'property' ? 'outline' : 'secondary'}>
-                    {item.type === 'property' ? 'Bien' : 'Avis'}
+                    {item.type === 'property' ? t('typeProperty') : t('typeReview')}
                   </Badge>
                   <span className="text-xs text-stone-500">
-                    {item.status === 'flagged' ? 'Signalé' : 'En attente'}
+                    {item.status === 'flagged' ? t('statusFlagged') : t('statusPending')}
                   </span>
                 </div>
               </td>
-              <td className="px-3 py-3 text-stone-700">{item.agency?.name ?? 'Sans agence'}</td>
+              <td className="px-3 py-3 text-stone-700">{item.agency?.name ?? t('noAgency')}</td>
               <td className="px-3 py-3">
-                <span className="block text-stone-800">{item.reporter?.name ?? 'Anonyme'}</span>
+                <span className="block text-stone-800">{item.reporter?.name ?? t('anonymous')}</span>
                 {item.reporter?.email ? <span className="text-xs text-stone-500">{item.reporter.email}</span> : null}
               </td>
               <td className="max-w-xs px-3 py-3 text-stone-700">
                 <span className="line-clamp-2">{item.reason}</span>
               </td>
-              <td className="px-3 py-3 text-stone-600">{formatAge(item.reported_at)}</td>
+              <td className="px-3 py-3 text-stone-600">{formatAge(item.reported_at, t)}</td>
               <td className="px-3 py-3 text-right">
                 <Button type="button" variant="outline" size="sm" onClick={() => onSelect(item)}>
-                  Traiter
+                  {t('process')}
                 </Button>
               </td>
             </tr>
@@ -191,13 +209,15 @@ export function ModerationDecisionPanel({
   item: AdminModerationItem | null;
   onDone: () => void;
 }) {
+  const t = useTranslations('superAdmin.moderation');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: ({ decision }: { decision: ModerationDecision }) => {
-      if (!item) throw new Error('No item selected');
+      if (!item) throw new Error(SENTINELLE_SANS_ITEM);
       return postModerationDecision(item.id, { decision, reason: reason.trim() });
     },
     onSuccess: () => {
@@ -206,7 +226,7 @@ export function ModerationDecisionPanel({
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'moderation'] });
       onDone();
     },
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
   const canSubmit = Boolean(item && reason.trim().length > 0 && !mutation.isPending);
@@ -215,16 +235,16 @@ export function ModerationDecisionPanel({
     return (
       <aside className="rounded-xl bg-white p-5 text-sm text-stone-600 ring-1 ring-stone-200">
         <ShieldCheck className="mb-3 size-5 text-stone-500" aria-hidden="true" />
-        Sélectionnez une ligne pour afficher les décisions disponibles.
+        {t('selectRow')}
       </aside>
     );
   }
 
   const actions: Array<{ decision: ModerationDecision; label: string; icon: ElementType; variant?: 'outline' | 'destructive' | 'default' }> = [
-    { decision: 'approve', label: 'Approuver', icon: CheckCircle2, variant: 'default' },
-    { decision: 'hide', label: 'Masquer', icon: EyeOff, variant: 'outline' },
-    { decision: 'reject', label: 'Rejeter', icon: XCircle, variant: 'outline' },
-    { decision: 'remove', label: 'Supprimer', icon: Trash2, variant: 'destructive' },
+    { decision: 'approve', label: t('decisions.approve'), icon: CheckCircle2, variant: 'default' },
+    { decision: 'hide', label: t('decisions.hide'), icon: EyeOff, variant: 'outline' },
+    { decision: 'reject', label: t('decisions.reject'), icon: XCircle, variant: 'outline' },
+    { decision: 'remove', label: t('decisions.remove'), icon: Trash2, variant: 'destructive' },
   ];
 
   return (
@@ -232,14 +252,14 @@ export function ModerationDecisionPanel({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">
-            Décision
+            {t('decisionTitle')}
           </p>
           <h2 className="mt-1 font-display text-lg font-semibold text-stone-950">
             {item.subject?.title ?? item.id}
           </h2>
         </div>
         <Badge variant={item.status === 'flagged' ? 'destructive' : 'outline'}>
-          {item.status === 'flagged' ? 'Signalé' : 'En attente'}
+          {item.status === 'flagged' ? t('statusFlagged') : t('statusPending')}
         </Badge>
       </div>
 
@@ -248,20 +268,16 @@ export function ModerationDecisionPanel({
       </div>
 
       <label className="mt-4 block space-y-2 text-sm font-medium text-stone-800">
-        <span>Raison de décision</span>
+        <span>{t('decisionReason')}</span>
         <Textarea
           value={reason}
           onChange={(event) => setReason(event.target.value)}
-          placeholder="Motif visible dans l'audit"
+          placeholder={t('decisionReasonPlaceholder')}
           rows={4}
         />
       </label>
 
-      {error ? (
-        <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-900 ring-1 ring-red-200" role="alert">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorState className="mt-3" message={error} /> : null}
 
       <div className="mt-4 grid grid-cols-2 gap-2">
         {actions.map((action) => {
@@ -315,6 +331,7 @@ function FilterSelect({
 }
 
 export function ModerationStats({ items, total }: { items: AdminModerationItem[]; total: number }) {
+  const t = useTranslations('superAdmin.moderation');
   const stats = useMemo(() => {
     const properties = items.filter((item) => item.type === 'property').length;
     const reviews = items.filter((item) => item.type === 'review').length;
@@ -324,13 +341,13 @@ export function ModerationStats({ items, total }: { items: AdminModerationItem[]
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <Stat label="Total page" value={total} />
-      <Stat label="Biens" value={stats.properties} />
-      <Stat label="Avis" value={stats.reviews} />
+      <Stat label={t('statTotalPage')} value={total} />
+      <Stat label={t('statProperties')} value={stats.properties} />
+      <Stat label={t('statReviews')} value={stats.reviews} />
       {stats.old > 0 ? (
         <div className="sm:col-span-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
           <AlertTriangle className="mr-2 inline size-4" aria-hidden="true" />
-          {stats.old} item{stats.old > 1 ? 's' : ''} de cette page attendent depuis plus de 7 jours.
+          {t('staleWarning', { count: stats.old })}
         </div>
       ) : null}
     </div>
@@ -346,12 +363,15 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function formatAge(value: string | null): string {
+export function formatAge(
+  value: string | null,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
   const days = daysSince(value);
   if (days < 0) return '—';
-  if (days === 0) return "Aujourd'hui";
-  if (days === 1) return '1 jour';
-  return `${days} jours`;
+  if (days === 0) return t('ageToday');
+  if (days === 1) return t('ageOneDay');
+  return t('ageDays', { days });
 }
 
 function daysSince(value: string | null): number {

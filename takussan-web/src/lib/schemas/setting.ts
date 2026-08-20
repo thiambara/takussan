@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Setting / Integration (admin) schemas — TCK-068.
@@ -10,9 +11,9 @@ export const settingFormSchema = z.object({
   key: z
     .string()
     .trim()
-    .min(1, 'La clé est requise.')
-    .max(255, 'La clé est trop longue.')
-    .regex(/^[a-z0-9_.-]+$/i, 'Caractères invalides (alphanumériques, ".", "_" et "-").'),
+    .min(1, msgValidation('setting.keyRequired'))
+    .max(255, msgValidation('setting.keyTooLong'))
+    .regex(/^[a-z0-9_.-]+$/i, msgValidation('setting.keyPattern')),
   scope: z.enum(settingScopeValues),
   value: z.string(), // raw text / JSON — validated at submit time
 });
@@ -79,8 +80,8 @@ export const integrationFormSchema = z
     provider: z
       .string()
       .trim()
-      .min(1, 'Le fournisseur est requis.')
-      .max(80, 'Le nom du fournisseur est trop long.'),
+      .min(1, msgValidation('setting.providerRequired'))
+      .max(80, msgValidation('setting.providerTooLong')),
     is_active: z.boolean(),
     // Generic credentials (paiement, e-mail, etc.).
     api_key: z.string().trim(),
@@ -90,9 +91,9 @@ export const integrationFormSchema = z
       .trim()
       .refine(
         (v) => v === '' || /^https?:\/\/[^\s]+$/.test(v),
-        'URL invalide. Exemple : https://exemple.sn/webhook',
+        msgValidation('setting.webhookUrlInvalid'),
       ),
-    notes: z.string().trim().max(500, 'Note trop longue.'),
+    notes: z.string().trim().max(500, msgValidation('setting.notesTooLong')),
     // SMS Orange (TCK-102) — OAuth 2.0. Each SMS field defaults to ''
     // so callers that haven't migrated their fixtures keep working;
     // the form supplies all of them via `emptyForm()`.
@@ -104,7 +105,7 @@ export const integrationFormSchema = z
       .default('')
       .refine(
         (v) => v === '' || /^tel:\+221\d{9}$/.test(v),
-        'Format attendu : tel:+221XXXXXXXXX (numéro Orange SN).',
+        msgValidation('setting.smsSenderAddress'),
       ),
     sms_sender_name: z
       .string()
@@ -112,7 +113,7 @@ export const integrationFormSchema = z
       .default('')
       .refine(
         (v) => v === '' || /^[A-Za-z0-9]{1,11}$/.test(v),
-        'Sender name ≤ 11 caractères alphanumériques (whitelist Orange).',
+        msgValidation('setting.smsSenderNameOrange'),
       ),
     // SMS Mtarget — Basic auth + sender alphanumérique.
     sms_username: z.string().trim().default(''),
@@ -123,7 +124,7 @@ export const integrationFormSchema = z
       .default('')
       .refine(
         (v) => v === '' || /^[A-Za-z0-9]{1,11}$/.test(v),
-        'Sender ID ≤ 11 caractères alphanumériques.',
+        msgValidation('setting.smsSenderId'),
       ),
     sms_service_id: z.string().trim().default(''),
     // SMS LAfricaMobile — accountid + password + host override.
@@ -134,7 +135,7 @@ export const integrationFormSchema = z
       .default('')
       .refine(
         (v) => v === '' || /^https?:\/\/[^\s]+$/.test(v),
-        'Host invalide. Exemple : https://lampush-tls.lafricamobile.com',
+        msgValidation('setting.smsHostInvalid'),
       ),
   })
   .superRefine((values, ctx) => {
@@ -147,7 +148,7 @@ export const integrationFormSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['sms_sender_id'],
-        message: 'LAfricaMobile : le sender ID ne doit pas commencer par un chiffre.',
+        message: msgValidation('setting.lamSenderIdDigit'),
       });
     }
   });

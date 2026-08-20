@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class AgencyResource extends JsonResource
+class AgencyResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -35,7 +35,7 @@ class AgencyResource extends JsonResource
             'metadata' => $this->metadata ?? null,
             'moderation_required' => (bool) ($this->moderation_required ?? false),
             'primary_admin_id' => $this->primary_admin_id,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

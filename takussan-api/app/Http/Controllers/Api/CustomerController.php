@@ -3,17 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\SetPrimaryContactCustomerRequest;
+use App\Http\Requests\Api\StoreCustomerRequest;
+use App\Http\Requests\Api\UpdateCustomerRequest;
+use App\Http\Requests\Api\UpdatePipelineStageCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
 use App\Models\CustomerNote;
 use App\Models\Enums\CustomerPipelineStage;
 use App\Models\Enums\CustomerStatus;
-use App\Models\Enums\IdType;
 use App\Models\UserCustomerRelationship;
 use App\Services\Crm\PipelineStatsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
@@ -34,34 +36,21 @@ class CustomerController extends Controller
             }
         }
 
-        $paginator = Customer::buildQuery($base, $request)
-            ->defaultSort('-created_at')
+        // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
+        // `buildQuery()`, qui est ce qui interroge Meilisearch : d'où les deux
+        // instructions plutôt qu'une chaîne.
+        $query = Customer::buildQuery($base, $request);
+
+        $paginator = $query
+            ->defaultSorts(...Customer::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
-        return $this->json([
-            'data' => CustomerResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, CustomerResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreCustomerRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'first_name' => ['required', 'string'],
-            'last_name' => ['required', 'string'],
-            'email' => ['nullable', 'email'],
-            'phone' => ['nullable', 'string'],
-            'id_type' => ['nullable', Rule::enum(IdType::class)],
-            'id_number' => ['nullable', 'string'],
-            'occupation' => ['nullable', 'string'],
-            'pipeline_stage' => ['nullable', Rule::enum(CustomerPipelineStage::class)],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $user = $request->user();
         $customer = Customer::create(array_merge($data, [
@@ -78,7 +67,7 @@ class CustomerController extends Controller
 
     public function show(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         // Re-fetch through the query builder so ?include= params (e.g. tags) are honoured.
         $customer = Customer::buildQuery(Customer::where('id', $customer->id), $request)->firstOrFail();
@@ -88,25 +77,10 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function update(Request $request, Customer $customer): JsonResponse
+    public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
 
-        $data = $request->validate([
-            'first_name' => ['sometimes', 'string'],
-            'last_name' => ['sometimes', 'string'],
-            'email' => ['sometimes', 'nullable', 'email'],
-            'phone' => ['sometimes', 'nullable', 'string'],
-            'id_type' => ['sometimes', 'nullable', Rule::enum(IdType::class)],
-            'id_number' => ['sometimes', 'nullable', 'string'],
-            'occupation' => ['sometimes', 'nullable', 'string'],
-            'pipeline_stage' => ['sometimes', Rule::enum(CustomerPipelineStage::class)],
-            'status' => ['sometimes', Rule::enum(CustomerStatus::class)],
-            'notes' => ['sometimes', 'nullable', 'string'],
-            // TCK-083 — optional reason captured when transitioning to a
-            // terminal stage (`converted`/`lost`). Persisted as a CustomerNote.
-            'reason' => ['sometimes', 'nullable', 'string', 'max:5000'],
-        ]);
+        $data = $request->validated();
 
         $reason = $data['reason'] ?? null;
         unset($data['reason']);
@@ -137,20 +111,17 @@ class CustomerController extends Controller
 
     public function destroy(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $customer->delete();
 
         return $this->json(['message' => 'deleted'], 204);
     }
 
-    public function setPrimaryContact(Request $request, Customer $customer): JsonResponse
+    public function setPrimaryContact(SetPrimaryContactCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
 
-        $data = $request->validate([
-            'user_id' => ['required', 'exists:users,id'],
-        ]);
+        $data = $request->validated();
 
         // Remove existing primary
         UserCustomerRelationship::where('customer_id', $customer->id)
@@ -172,7 +143,7 @@ class CustomerController extends Controller
 
     public function relationships(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
+        $this->authorize('view', $customer);
 
         $relationships = $customer->relationships()
             ->with('user:id,first_name,last_name,email')
@@ -201,14 +172,10 @@ class CustomerController extends Controller
         return $this->json(['data' => $relationships]);
     }
 
-    public function updatePipelineStage(Request $request, Customer $customer): JsonResponse
+    public function updatePipelineStage(UpdatePipelineStageCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeAccess($request, $customer);
 
-        $data = $request->validate([
-            'pipeline_stage' => ['required', Rule::enum(CustomerPipelineStage::class)],
-            'reason' => ['sometimes', 'nullable', 'string', 'max:5000'],
-        ]);
+        $data = $request->validated();
 
         $oldStage = $customer->pipeline_stage;
         $customer->update(['pipeline_stage' => $data['pipeline_stage']]);
@@ -242,15 +209,5 @@ class CustomerController extends Controller
         return $this->json([
             'data' => $service->compute($request->user()),
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Customer $customer): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $customer->added_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $customer->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

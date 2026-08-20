@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\MarkFailedPayoutRequest;
+use App\Http\Requests\Api\MarkProcessedPayoutRequest;
+use App\Http\Requests\Api\StorePayoutRequest;
 use App\Http\Resources\PayoutResource;
-use App\Models\Enums\Currency;
-use App\Models\Enums\PaymentMethod;
 use App\Models\Payout;
 use App\Models\User;
 use App\Services\Model\PayoutService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class PayoutController extends Controller
 {
@@ -37,32 +37,12 @@ class PayoutController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => PayoutResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, PayoutResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StorePayoutRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'landlord_id' => ['required', 'exists:users,id'],
-            'lease_id' => ['nullable', 'exists:leases,id'],
-            'booking_id' => ['nullable', 'exists:bookings,id'],
-            'period_start' => ['nullable', 'date'],
-            'period_end' => ['nullable', 'date', 'after_or_equal:period_start'],
-            'gross_amount' => ['required', 'numeric', 'min:0'],
-            'commission_amount' => ['nullable', 'numeric', 'min:0'],
-            'fees_amount' => ['nullable', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-            'scheduled_at' => ['nullable', 'date'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $landlord = User::findOrFail($data['landlord_id']);
         $payout = $this->payouts->create($request->user(), $landlord, $data);
@@ -74,21 +54,17 @@ class PayoutController extends Controller
 
     public function show(Request $request, Payout $payout): JsonResponse
     {
-        $this->authorizeAccess($request, $payout);
+        $this->authorize('view', $payout);
 
         return $this->json([
             'data' => PayoutResource::make($payout->load('landlord'))->toArray($request),
         ]);
     }
 
-    public function markProcessed(Request $request, Payout $payout): JsonResponse
+    public function markProcessed(MarkProcessedPayoutRequest $request, Payout $payout): JsonResponse
     {
-        $this->authorizeManage($request, $payout);
 
-        $data = $request->validate([
-            'transaction_id' => ['nullable', 'string'],
-            'payment_method' => ['nullable', Rule::enum(PaymentMethod::class)],
-        ]);
+        $data = $request->validated();
 
         $payout = $this->payouts->markProcessed($payout, $data);
 
@@ -97,13 +73,10 @@ class PayoutController extends Controller
         ]);
     }
 
-    public function markFailed(Request $request, Payout $payout): JsonResponse
+    public function markFailed(MarkFailedPayoutRequest $request, Payout $payout): JsonResponse
     {
-        $this->authorizeManage($request, $payout);
 
-        $data = $request->validate([
-            'failed_reason' => ['required', 'string'],
-        ]);
+        $data = $request->validated();
 
         $payout = $this->payouts->markFailed($payout, $data);
 
@@ -114,32 +87,11 @@ class PayoutController extends Controller
 
     public function cancel(Request $request, Payout $payout): JsonResponse
     {
-        $this->authorizeManage($request, $payout);
+        $this->authorize('update', $payout);
         $payout = $this->payouts->cancel($payout);
 
         return $this->json([
             'data' => PayoutResource::make($payout)->toArray($request),
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Payout $payout): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $payout->landlord_id === $user->id
-            || $payout->issued_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $payout->agency_id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, Payout $payout): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $payout->issued_by_id === $user->id
-            || ($user->agency_id && $user->agency_id === $payout->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

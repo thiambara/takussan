@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
+import { withIntl } from '@/test/intl';
 import { ModerationWorkspace } from '../ModerationWorkspace';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -24,11 +24,7 @@ function wrap(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return (
-    <NextIntlClientProvider locale="fr" messages={{}}>
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-    </NextIntlClientProvider>
-  );
+  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 function makeReview(overrides: Partial<{

@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api\Auth;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\RequestAccountDeletionRequest;
+use App\Models\User;
 use App\Services\Account\AccountDeletionService;
+use App\Services\Account\DeletionStepUpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -53,6 +55,7 @@ class AccountDeletionController extends Controller
             $request->user(),
             $request->input('reason'),
             $request->input('reason_code'),
+            $request->stepUpMode(),
         );
 
         return $this->json([
@@ -62,6 +65,38 @@ class AccountDeletionController extends Controller
                 'scheduled_for' => $deletionRequest->scheduled_for?->toIso8601String(),
                 'days_remaining' => $deletionRequest->daysRemaining(),
             ],
+        ], 202);
+    }
+
+    /**
+     * POST /api/auth/me/deletion-request/step-up
+     *
+     * TCK-272 — émet le code à 6 chiffres qui remplace le mot de passe pour
+     * les comptes dont le hash en base est une valeur machine. Le backend
+     * est seul arbitre du mode : un compte QUI A un mot de passe utilisable
+     * se voit refuser cette voie (422), on n'ouvre pas une seconde porte,
+     * plus faible, à des comptes qui n'en ont pas besoin.
+     *
+     * Réponse invariante en 202 dès lors que la voie est la bonne — y
+     * compris quand le cooldown de renvoi court encore : le temps de
+     * réponse ne doit rien apprendre à un porteur de jeton volé.
+     */
+    public function sendStepUpCode(Request $request, DeletionStepUpService $stepUp): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        if ($user->hasUsablePassword()) {
+            return $this->json([
+                'message' => __('account.deletion.errors.step_up_not_applicable'),
+            ], 422);
+        }
+
+        $stepUp->sendCode($user);
+
+        return $this->json([
+            'message' => __('account.deletion.step_up.code_sent'),
+            'expires_in_seconds' => DeletionStepUpService::CODE_TTL_SECONDS,
         ], 202);
     }
 

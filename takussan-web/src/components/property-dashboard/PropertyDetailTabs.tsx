@@ -10,6 +10,8 @@ import { PropertyOverviewPanel } from '@/components/property-dashboard/PropertyO
 import { formatCurrency } from '@/lib/format';
 import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
+import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
+import { useTranslations } from 'next-intl';
 
 const TAB_VALUES = ['overview', 'edit', 'media', 'history'] as const;
 type TabKey = (typeof TAB_VALUES)[number];
@@ -24,16 +26,17 @@ interface Props {
 }
 
 export function PropertyDetailTabs({ property, tags }: Props) {
+  const t = useTranslations('property.dashboard.tabs');
   const searchParams = useSearchParams();
-  const initial = searchParams.get('tab');
-  const [tab, setTab] = useState<TabKey>(isTabKey(initial) ? initial : 'overview');
-
-  // Sync URL ↔ state without triggering a server round-trip.
-  useEffect(() => {
-    const next = searchParams.get('tab');
-    if (isTabKey(next) && next !== tab) setTab(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
+  // TCK-316 — l'onglet suit l'URL sans aller-retour serveur, et SANS effet :
+  // l'ancienne version rendait l'onglet précédent une frame avant de corriger.
+  //
+  // ⚠️ Un `?tab=` absent ou inconnu retombe sur `overview`, jamais sur l'onglet
+  // courant : `useStateSyncedWith` ne resynchronise que lorsque la valeur
+  // externe CHANGE, donc un clic utilisateur (qui écrit l'URL par
+  // `replaceState`, sans notifier le routeur) n'est pas écrasé au rendu suivant.
+  const urlTab = searchParams.get('tab');
+  const [tab, setTab] = useStateSyncedWith<TabKey>(isTabKey(urlTab) ? urlTab : 'overview');
 
   const handleChange = useCallback(
     (value: TabKey) => {
@@ -59,13 +62,13 @@ export function PropertyDetailTabs({ property, tags }: Props) {
       className="space-y-6"
     >
       <TabsList>
-        <TabsTrigger value="overview">Aperçu</TabsTrigger>
-        <TabsTrigger value="edit">Édition</TabsTrigger>
+        <TabsTrigger value="overview">{t('overview')}</TabsTrigger>
+        <TabsTrigger value="edit">{t('edit')}</TabsTrigger>
         <TabsTrigger value="media">
-          Médias ({property.photos?.length ?? 0})
+          {t('media', { count: property.photos?.length ?? 0 })}
         </TabsTrigger>
         <TabsTrigger value="history">
-          Historique ({priceHistory.length})
+          {t('history', { count: priceHistory.length })}
         </TabsTrigger>
       </TabsList>
 
@@ -85,16 +88,12 @@ export function PropertyDetailTabs({ property, tags }: Props) {
         <section className="rounded-xl bg-app-surface-1 p-6">
           <header>
             <h2 className="text-base font-semibold text-app-ink">
-              Historique complet des prix
+              {t('fullPriceHistory')}
             </h2>
-            <p className="text-xs text-app-ink-muted">
-              Toutes les évolutions enregistrées pour ce bien.
-            </p>
+            <p className="text-xs text-app-ink-muted">{t('fullPriceHistoryHint')}</p>
           </header>
           {priceHistory.length === 0 ? (
-            <p className="mt-4 text-sm text-app-ink-muted">
-              Aucune évolution de prix enregistrée pour ce bien.
-            </p>
+            <p className="mt-4 text-sm text-app-ink-muted">{t('noPriceHistory')}</p>
           ) : (
             <ol className="mt-4 divide-y divide-app-surface-2 text-sm">
               {priceHistory.map((entry) => (
@@ -103,7 +102,7 @@ export function PropertyDetailTabs({ property, tags }: Props) {
                   className="flex flex-wrap items-center justify-between gap-2 py-3"
                 >
                   <span className="text-app-ink-muted">
-                    {entry.changed_at?.slice(0, 10) ?? 'Date inconnue'}
+                    {entry.changed_at?.slice(0, 10) ?? t('unknownDate')}
                   </span>
                   <span className="font-medium text-app-ink">
                     {formatCurrency(entry.old_price, 'fr', { currency: entry.currency })}{' '}

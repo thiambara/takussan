@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-076 — "Télécharger PDF" button. The PDF route is guarded by session
@@ -22,8 +24,12 @@ export interface InventoryPdfButtonProps {
 export function InventoryPdfButton({
   inventoryId,
   signedAt,
-  label = 'Télécharger le PDF',
+  label,
 }: InventoryPdfButtonProps) {
+  // ⚠ Le hook précède la sortie anticipée : un `useTranslations` posé après le `return null`
+  // serait un hook conditionnel, refusé par le React Compiler (ADR-0015).
+  const t = useTranslations('inventory.pdf');
+  const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const [downloading, setDownloading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,7 +54,7 @@ export function InventoryPdfButton({
         },
       });
       if (!response.ok) {
-        throw new Error(`PDF indisponible (${response.status}).`);
+        throw new Error(t('unavailable', { status: String(response.status) }));
       }
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
@@ -61,7 +67,7 @@ export function InventoryPdfButton({
       URL.revokeObjectURL(objectUrl);
     } catch (err) {
       setErrorMessage(
-        err instanceof Error ? err.message : 'Téléchargement impossible.',
+        messageErreur(err, t('failed')),
       );
     } finally {
       setDownloading(false);
@@ -77,7 +83,7 @@ export function InventoryPdfButton({
         onClick={handleClick}
         disabled={downloading}
       >
-        {downloading ? 'Téléchargement…' : label}
+        {downloading ? t('downloading') : label ?? t('download')}
       </Button>
       {errorMessage ? (
         <span className="text-xs text-destructive">{errorMessage}</span>

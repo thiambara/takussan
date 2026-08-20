@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\AssignAgentPropertyRequest;
+use App\Http\Requests\Api\StorePropertyRequest;
+use App\Http\Requests\Api\UpdateStatusPropertyRequest;
+use App\Http\Requests\Api\UpdateVisibilityPropertyRequest;
 use App\Http\Requests\PropertyBulkArchiveRequest;
 use App\Http\Requests\PropertyDuplicateRequest;
 use App\Http\Requests\UpdatePropertyRequest;
 use App\Http\Resources\PropertyResource;
-use App\Models\Enums\ContractType;
-use App\Models\Enums\Currency;
 use App\Models\Enums\PropertyStatus;
-use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
-use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Billing\QuotaResolver;
@@ -24,7 +24,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\Rule;
 
 class PropertyController extends Controller
 {
@@ -57,48 +56,12 @@ class PropertyController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => PropertyResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'per_page' => $paginator->perPage(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, PropertyResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StorePropertyRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'type' => ['required', Rule::enum(PropertyType::class)],
-            'contract_type' => ['required', Rule::enum(ContractType::class)],
-            'rent_period' => ['nullable', Rule::enum(RentPeriod::class)],
-            'status' => ['nullable', Rule::enum(PropertyStatus::class)],
-            'visibility' => ['nullable', Rule::enum(PropertyVisibility::class)],
-            'price' => ['required', 'numeric', 'min:0'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'area' => ['nullable', 'integer', 'min:0'],
-            'bedrooms' => ['nullable', 'integer', 'min:0'],
-            'bathrooms' => ['nullable', 'integer', 'min:0'],
-            'furnished' => ['nullable', 'boolean'],
-            'floor_number' => ['nullable', 'integer'],
-            'total_floors' => ['nullable', 'integer'],
-            'year_built' => ['nullable', 'integer'],
-            'parking_spaces' => ['nullable', 'integer'],
-            'available_from' => ['nullable', 'date'],
-            'agency_id' => ['nullable', 'exists:agencies,id'],
-            'address' => ['nullable', 'array'],
-            'address.street' => ['nullable', 'string'],
-            'address.neighborhood' => ['nullable', 'string'],
-            'address.city' => ['nullable', 'string'],
-            'address.region' => ['nullable', 'string'],
-            'address.country' => ['nullable', 'string', 'size:2'],
-            'address.latitude' => ['nullable', 'numeric'],
-            'address.longitude' => ['nullable', 'numeric'],
-        ]);
+        $data = $request->validated();
 
         if (! $request->user()->isSuperAdmin()) {
             $data['agency_id'] = $request->user()->agency_id;
@@ -140,7 +103,7 @@ class PropertyController extends Controller
 
     public function show(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeAccess($request, $property);
+        $this->authorize('view', $property);
 
         if ($request->boolean('raw')) {
             $firstMedia = $property->getFirstMedia('photos');
@@ -156,7 +119,7 @@ class PropertyController extends Controller
 
     public function update(UpdatePropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
 
         $data = $request->validated();
 
@@ -189,7 +152,7 @@ class PropertyController extends Controller
 
     public function destroy(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         $property->delete();
 
         return $this->json(['message' => 'deleted'], 204);
@@ -197,7 +160,7 @@ class PropertyController extends Controller
 
     public function publish(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         abort_if(
             in_array($property->status, [PropertyStatus::Sold, PropertyStatus::Rented], true),
             422,
@@ -216,7 +179,7 @@ class PropertyController extends Controller
 
     public function unpublish(Request $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
+        $this->authorize('update', $property);
         abort_unless(
             in_array($property->status, [PropertyStatus::Available, PropertyStatus::Published], true),
             422,
@@ -233,13 +196,10 @@ class PropertyController extends Controller
         ]);
     }
 
-    public function updateStatus(Request $request, Property $property): JsonResponse
+    public function updateStatus(UpdateStatusPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
 
-        $data = $request->validate([
-            'status' => ['required', Rule::enum(PropertyStatus::class)],
-        ]);
+        $data = $request->validated();
 
         $status = PropertyStatus::from($data['status']);
         $updates = ['status' => $status];
@@ -261,13 +221,10 @@ class PropertyController extends Controller
         ]);
     }
 
-    public function updateVisibility(Request $request, Property $property): JsonResponse
+    public function updateVisibility(UpdateVisibilityPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
 
-        $data = $request->validate([
-            'visibility' => ['required', Rule::enum(PropertyVisibility::class)],
-        ]);
+        $data = $request->validated();
 
         $visibility = PropertyVisibility::from($data['visibility']);
         if ($visibility === PropertyVisibility::Public) {
@@ -277,13 +234,10 @@ class PropertyController extends Controller
         return $this->unpublish($request, $property);
     }
 
-    public function assignAgent(Request $request, Property $property): JsonResponse
+    public function assignAgent(AssignAgentPropertyRequest $request, Property $property): JsonResponse
     {
-        $this->authorizeManage($request, $property);
 
-        $data = $request->validate([
-            'user_id' => ['required', 'integer', 'exists:users,id'],
-        ]);
+        $data = $request->validated();
 
         $target = User::findOrFail($data['user_id']);
         $actor = $request->user();
@@ -356,25 +310,5 @@ class PropertyController extends Controller
             'failed' => $result['failed'],
             'archived_ids' => $result['archived_ids'],
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        if ($user->id === $property->user_id) {
-            return;
-        }
-        if ($user->agency_id && $user->agency_id === $property->agency_id) {
-            return;
-        }
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-        abort(403);
-    }
-
-    protected function authorizeManage(Request $request, Property $property): void
-    {
-        $this->authorizeAccess($request, $property);
     }
 }

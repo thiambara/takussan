@@ -1,5 +1,6 @@
 import * as React from "react"
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 import { LanguageSwitcher } from "@/components/shared/LanguageSwitcher"
@@ -29,6 +30,9 @@ export function Header({
   actions,
   showLanguageSwitcher = true,
 }: HeaderProps) {
+  // next-intl 4 : `useTranslations` est appelable en composant serveur comme client tant que le
+  // composant n'est pas `async` — ce shell reste donc un composant serveur.
+  const t = useTranslations("layout")
   return (
     <header
       className={cn(
@@ -40,13 +44,14 @@ export function Header({
         <Link
           href="/"
           className="text-lg font-bold tracking-tight text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          aria-label="Retour à l'accueil Takussan"
+          aria-label={t("header.brandHome")}
         >
+          {/* « Takussan » est la marque : elle ne se traduit pas. */}
           Takussan
         </Link>
 
         <nav
-          aria-label="Navigation principale"
+          aria-label={t("nav.mainNav")}
           className="hidden flex-1 items-center gap-6 md:flex"
         >
           {children}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+import { withIntl } from '@/test/intl';
+
 import { DashboardShortcuts } from '../DashboardShortcuts';
 
 function hrefs(container: HTMLElement): string[] {
@@ -9,7 +11,7 @@ function hrefs(container: HTMLElement): string[] {
 
 describe('<DashboardShortcuts>', () => {
   it('shows agent shortcuts and not owner-only ones for an agent', () => {
-    const { container } = render(<DashboardShortcuts roles={['agent']} />);
+    const { container } = render(withIntl(<DashboardShortcuts roles={['agent']} />));
     const links = hrefs(container);
 
     expect(links).toContain('/app/customers');
@@ -20,7 +22,7 @@ describe('<DashboardShortcuts>', () => {
   });
 
   it('shows tenant shortcuts including favorites and documents', () => {
-    const { container } = render(<DashboardShortcuts roles={['tenant']} />);
+    const { container } = render(withIntl(<DashboardShortcuts roles={['tenant']} />));
     const links = hrefs(container);
 
     expect(links).toContain('/app/leases');
@@ -30,7 +32,7 @@ describe('<DashboardShortcuts>', () => {
   });
 
   it('combines roles and deduplicates shared destinations like /app/messages', () => {
-    const { container } = render(<DashboardShortcuts roles={['agent', 'owner']} />);
+    const { container } = render(withIntl(<DashboardShortcuts roles={['agent', 'owner']} />));
     const links = hrefs(container);
 
     // Both agent-specific and owner-specific shortcuts present.
@@ -44,17 +46,15 @@ describe('<DashboardShortcuts>', () => {
   });
 
   it('renders the admin shortcuts only when an agency is attached', () => {
-    const { container: withAgency } = render(
-      <DashboardShortcuts roles={['agency_admin']} agencyId={1} />,
-    );
+    const { container: withAgency } = render(withIntl(<DashboardShortcuts roles={['agency_admin']} agencyId={1} />));
     expect(hrefs(withAgency)).toContain('/admin');
 
-    const { container: withoutAgency } = render(<DashboardShortcuts roles={['agency_admin']} />);
+    const { container: withoutAgency } = render(withIntl(<DashboardShortcuts roles={['agency_admin']} />));
     expect(hrefs(withoutAgency)).not.toContain('/admin');
   });
 
   it('renders the heading "Raccourcis" for screen readers', () => {
-    render(<DashboardShortcuts roles={['tenant']} />);
+    render(withIntl(<DashboardShortcuts roles={['tenant']} />));
     expect(screen.getByRole('heading', { name: 'Raccourcis' })).toBeInTheDocument();
   });
 });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+import { withIntl } from '@/test/intl';
+
 import type { DashboardAgencySummary } from '@/lib/queries/dashboard-agency';
 import { AgencyKpis } from '../AgencyKpis';
 
@@ -28,7 +30,7 @@ function buildSummary(overrides: Partial<DashboardAgencySummary> = {}): Dashboar
 
 describe('<AgencyKpis>', () => {
   it('renders the six tiles with formatted values', () => {
-    render(<AgencyKpis summary={buildSummary()} />);
+    render(withIntl(<AgencyKpis summary={buildSummary()} />));
 
     expect(screen.getByText('Biens')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
@@ -46,8 +48,7 @@ describe('<AgencyKpis>', () => {
   });
 
   it('marks the unpaid rate tile as warning when ≥ 10 %', () => {
-    const { container } = render(
-      <AgencyKpis
+    const { container } = render(withIntl(<AgencyKpis
         summary={buildSummary({
           finance: {
             revenue_month: 0,
@@ -57,15 +58,13 @@ describe('<AgencyKpis>', () => {
             unpaid_rate_percent: 18,
           },
         })}
-      />,
-    );
+      />));
 
     expect(container.querySelector('.bg-amber-50')).not.toBeNull();
   });
 
   it('hides the impayés hint and danger accent when there are no overdue payments', () => {
-    const { container } = render(
-      <AgencyKpis
+    const { container } = render(withIntl(<AgencyKpis
         summary={buildSummary({
           finance: {
             revenue_month: 1_000_000,
@@ -75,8 +74,7 @@ describe('<AgencyKpis>', () => {
             unpaid_rate_percent: 0,
           },
         })}
-      />,
-    );
+      />));
 
     expect(screen.queryByText(/échéances/)).toBeNull();
     expect(container.querySelector('.bg-rose-50')).toBeNull();

@@ -8,6 +8,8 @@ import { useTranslations } from 'next-intl';
 
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
+import { EmptyState, ErrorState } from '@/components/feedback';
+import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCompare as useCompareStore } from '@/context/CompareContext';
 import { useCompare as useCompareFetch } from '@/hooks/useCompare';
@@ -113,7 +115,7 @@ export function CompareClient() {
         </header>
 
         {showEmpty ? (
-          <EmptyState />
+          <CompareEmpty />
         ) : showLoading ? (
           <LoadingState count={effectiveIds.length} />
         ) : showError ? (
@@ -157,26 +159,20 @@ function findProperty(
   return properties.find((p) => p.id === id) ?? null;
 }
 
-function EmptyState() {
+function CompareEmpty() {
   const t = useTranslations('compare.empty');
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-stone-300 bg-white py-20 text-center">
-      <div
-        className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary"
-        aria-hidden="true"
-      >
-        <Scale className="h-8 w-8" />
-      </div>
-      <h2 className="mb-1 text-lg font-bold text-stone-900">{t('title')}</h2>
-      <p className="mb-6 max-w-md text-sm text-stone-500">{t('description')}</p>
-      <Link
-        href="/properties"
-        className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-      >
-        <Search className="h-4 w-4" aria-hidden="true" />
-        {t('cta')}
-      </Link>
-    </div>
+    <EmptyState
+      icon={<Scale className="size-8" aria-hidden="true" />}
+      title={t('title')}
+      description={t('description')}
+      action={
+        <Link href="/properties" className={buttonVariants()}>
+          <Search className="size-4" aria-hidden="true" />
+          {t('cta')}
+        </Link>
+      }
+    />
   );
 }
 
@@ -195,13 +191,3 @@ function LoadingState({ count }: { count: number }) {
   );
 }
 
-function ErrorState({ message }: { message: string }) {
-  return (
-    <div
-      role="alert"
-      className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
-    >
-      {message}
-    </div>
-  );
-}

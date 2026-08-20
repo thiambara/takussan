@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
-import { Loader2, Pin, Send } from 'lucide-react';
+import { Loader2, NotebookPen, Pin, Send } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,6 +32,7 @@ export function CustomerNotesTimeline({
 }: CustomerNotesTimelineProps) {
   const router = useRouter();
   const locale = useLocale() as Locale;
+  const t = useTranslations('crm.customerDetail.notes');
   const [body, setBody] = useState('');
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function CustomerNotesTimeline({
     e.preventDefault();
     const trimmed = body.trim();
     if (trimmed.length === 0) {
-      setError('La note ne peut pas être vide.');
+      setError(t('emptyBody'));
       return;
     }
     setError(null);
@@ -69,7 +71,7 @@ export function CustomerNotesTimeline({
           htmlFor="customer-note-body"
           className="text-sm font-medium text-app-ink"
         >
-          Ajouter une note
+          {t('add')}
         </label>
         <Textarea
           id="customer-note-body"
@@ -77,7 +79,7 @@ export function CustomerNotesTimeline({
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           maxLength={5000}
-          placeholder="Compte rendu d'appel, besoins identifiés, prochaine étape…"
+          placeholder={t('placeholder')}
           disabled={pending}
         />
         {error ? (
@@ -92,16 +94,17 @@ export function CustomerNotesTimeline({
             ) : (
               <Send aria-hidden="true" />
             )}
-            Publier
+            {t('publish')}
           </Button>
         </div>
       </form>
 
       {sorted.length === 0 ? (
-        <p className="rounded-xl bg-app-surface-1 px-4 py-6 text-center text-sm text-app-ink-muted">
-          Aucune note pour ce contact. Démarrez l&apos;historique en ajoutant une
-          première note ci-dessus.
-        </p>
+        <EmptyState
+          icon={<NotebookPen className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <ol className="space-y-3">
           {sorted.map((note) => (
@@ -118,7 +121,7 @@ export function CustomerNotesTimeline({
                   {formatDateTime(note.created_at, locale)}
                 </p>
                 {note.pinned ? (
-                  <Pin className="size-3 text-primary" aria-label="Note épinglée" />
+                  <Pin className="size-3 text-primary" aria-label={t('pinnedAria')} />
                 ) : null}
               </div>
               <p className="whitespace-pre-line text-sm text-app-ink">{note.body}</p>

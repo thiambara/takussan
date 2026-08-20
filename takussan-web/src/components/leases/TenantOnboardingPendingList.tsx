@@ -3,7 +3,11 @@
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { ClipboardCheck } from 'lucide-react';
+
 import { useAgencyOnboardingPending } from '@/lib/queries/tenant-onboarding';
+import { EmptyState } from '@/components/feedback';
+import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -22,13 +26,6 @@ type Props = { agencyId: number };
 
 type Row = TenantOnboardingChecklist & { lease?: { reference_number: string | null; signed_at: string | null } | null };
 
-const ITEM_LABELS: Record<keyof typeof CHECK_FIELDS, string> = {
-  welcome_seen_at: 'Welcome',
-  inventory_completed_at: 'EDL',
-  first_payment_at: 'Premier paiement',
-  documents_acknowledged_at: 'Documents',
-};
-
 const CHECK_FIELDS = {
   welcome_seen_at: true,
   inventory_completed_at: true,
@@ -44,83 +41,81 @@ function daysSince(iso: string | null | undefined): number {
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
 
-function missingItems(row: Row): string[] {
+/**
+ * La donnée porte la CLÉ (`agency.tenantOnboardingPending.items.*`), le rendu la résout — patron
+ * posé par TCK-286. Une table de libellés hors composant ne peut pas appeler `useTranslations`.
+ */
+function missingItems(row: Row, label: (field: string) => string): string[] {
   return (Object.keys(CHECK_FIELDS) as Array<keyof typeof CHECK_FIELDS>)
     .filter((field) => row[field as keyof TenantOnboardingChecklist] == null)
-    .map((field) => ITEM_LABELS[field]);
+    .map((field) => label(field));
 }
 
 export function TenantOnboardingPendingList({ agencyId }: Props) {
   const t = useTranslations('agency.tenantOnboardingPending');
   const locale = useLocale() as Locale;
-  const { data, isLoading, isError } = useAgencyOnboardingPending({ agencyId, per_page: 30 });
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
-        ))}
-      </div>
-    );
-  }
-
-  if (isError) {
-    return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        {t('error')}
-      </p>
-    );
-  }
-
-  const rows = (data?.data ?? []) as Row[];
-
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-xl border border-app-border bg-app-surface-1 p-8 text-center">
-        <p className="font-medium">{t('emptyTitle')}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{t('emptyDescription')}</p>
-      </div>
-    );
-  }
+  const query = useAgencyOnboardingPending({ agencyId, per_page: 30 });
 
   return (
-    <ul className="space-y-3">
-      {rows.map((row) => {
-        const days = daysSince(row.created_at);
-        const missing = missingItems(row);
-        const reference = row.lease?.reference_number ?? `#${row.lease_id}`;
-        const signedAt = row.lease?.signed_at ?? row.created_at;
+    <QueryBoundary
+      query={query}
+      loadingFallback={[0, 1, 2].map((i) => (
+        <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
+      ))}
+    >
+      {(data) => {
+        const rows = (data.data ?? []) as Row[];
+
+        if (rows.length === 0) {
+          return (
+            <EmptyState
+              icon={<ClipboardCheck className="size-8" aria-hidden="true" />}
+              title={t('emptyTitle')}
+              description={t('emptyDescription')}
+            />
+          );
+        }
 
         return (
-          <li
-            key={row.id}
-            className="rounded-xl border border-app-border bg-app-surface-1 p-4"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0">
-                <Link
-                  href={`/app/leases/${row.lease_id}`}
-                  className="text-sm font-semibold text-foreground hover:underline"
+          <ul className="space-y-3">
+            {rows.map((row) => {
+              const days = daysSince(row.created_at);
+              const missing = missingItems(row, (field) => t(`items.${field}`));
+              const reference = row.lease?.reference_number ?? `#${row.lease_id}`;
+              const signedAt = row.lease?.signed_at ?? row.created_at;
+
+              return (
+                <li
+                  key={row.id}
+                  className="rounded-xl border border-app-border bg-app-surface-1 p-4"
                 >
-                  {t('leaseReference', { reference })}
-                </Link>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('signedAt', { date: formatDate(signedAt ?? '', locale) })}
-                </p>
-                {missing.length > 0 ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {t('missing', { items: missing.join(' · ') })}
-                  </p>
-                ) : null}
-              </div>
-              <Badge variant={days > 14 ? 'destructive' : 'outline'}>
-                {t('daysOpen', { count: days })}
-              </Badge>
-            </div>
-          </li>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/app/leases/${row.lease_id}`}
+                        className="text-sm font-semibold text-foreground hover:underline"
+                      >
+                        {t('leaseReference', { reference })}
+                      </Link>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {t('signedAt', { date: formatDate(signedAt ?? '', locale) })}
+                      </p>
+                      {missing.length > 0 ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t('missing', { items: missing.join(' · ') })}
+                        </p>
+                      ) : null}
+                    </div>
+                    <Badge variant={days > 14 ? 'destructive' : 'outline'}>
+                      {t('daysOpen', { count: days })}
+                    </Badge>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         );
-      })}
-    </ul>
+      }}
+    </QueryBoundary>
   );
 }

@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   FileText,
   Share2,
@@ -17,9 +17,10 @@ import {
   FileCheck2,
 } from 'lucide-react';
 
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ApiError } from '@/lib/api';
+
 import { useAuth } from '@/hooks/useAuth';
 import { isOwner } from '@/lib/roles';
 import { formatDateTime } from '@/lib/format';
@@ -33,26 +34,14 @@ import type { Locale } from '@/i18n/config';
 import type { Document, DocumentType, DocumentableType } from '@/types/document';
 
 import {
-  DOCUMENT_TYPE_LABEL,
-  DOCUMENTABLE_TYPE_LABEL,
+  DOCUMENT_TYPE_ORDER,
   resolveDocumentableAlias,
   resolveDocumentableHref,
 } from './constants';
 import { DocumentShareDialog } from './DocumentShareDialog';
 import { DocumentUploadDialog } from './DocumentUploadDialog';
 import { DocumentsFilters } from './DocumentsFilters';
-
-const CATEGORY_ORDER: readonly DocumentType[] = [
-  'lease_contract',
-  'invoice',
-  'receipt',
-  'id_card',
-  'passport',
-  'insurance',
-  'inventory_report',
-  'photo',
-  'other',
-];
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 function formatFileSize(bytes: number | null): string {
   if (bytes === null || bytes === undefined) return '—';
@@ -63,6 +52,10 @@ function formatFileSize(bytes: number | null): string {
 
 export function DocumentsLibrary() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('documents.library');
+  const tTypes = useTranslations('documents.types');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -93,12 +86,13 @@ export function DocumentsLibrary() {
     const list = data?.data ?? [];
     const groups = new Map<DocumentType, Document[]>();
     for (const doc of list) {
-      const t = (doc.type ?? 'other') as DocumentType;
-      if (!groups.has(t)) groups.set(t, []);
-      groups.get(t)!.push(doc);
+      // `type`, et non `t` : `t` est désormais la fonction de traduction du composant.
+      const type = (doc.type ?? 'other') as DocumentType;
+      if (!groups.has(type)) groups.set(type, []);
+      groups.get(type)!.push(doc);
     }
     return Array.from(groups.entries()).sort(
-      (a, b) => CATEGORY_ORDER.indexOf(a[0]) - CATEGORY_ORDER.indexOf(b[0]),
+      (a, b) => DOCUMENT_TYPE_ORDER.indexOf(a[0]) - DOCUMENT_TYPE_ORDER.indexOf(b[0]),
     );
   }, [data]);
 
@@ -120,11 +114,11 @@ export function DocumentsLibrary() {
         await deleteDocument.mutateAsync({ id: docId });
       } catch (e) {
         setDeleteError(
-          e instanceof ApiError ? e.displayMessage : 'Suppression impossible.',
+          messageErreur(e, t('delete_error')),
         );
       }
     },
-    [deleteDocument],
+    [deleteDocument, t, messageErreur],
   );
 
   const totalFromMeta = data?.meta?.total ?? 0;
@@ -135,12 +129,14 @@ export function DocumentsLibrary() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-app-ink-muted">
-            {isLoading ? 'Chargement…' : `${totalFromMeta} document(s)`}
+            {isLoading
+              ? tCommon('status.loading')
+              : t('count', { count: totalFromMeta })}
           </p>
         </div>
         <Button type="button" onClick={() => setUploadOpen(true)}>
           <Plus className="mr-1 size-4" aria-hidden="true" />
-          Téléverser un document
+          {t('upload_cta')}
         </Button>
       </div>
 
@@ -168,28 +164,24 @@ export function DocumentsLibrary() {
             ))}
           </div>
         ) : isError ? (
-          <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-            <AlertCircle className="mr-2 inline size-4" aria-hidden="true" />
-            {error instanceof ApiError ? error.displayMessage : 'Impossible de charger les documents.'}
-          </p>
+          <ErrorState
+            icon={<AlertCircle className="size-4" aria-hidden="true" />}
+            message={messageErreur(error, t('error'))}
+          />
         ) : grouped.length === 0 ? (
-          <EmptyState
+          <DocumentsEmpty
             onUpload={() => setUploadOpen(true)}
             dragOver={dragOver}
             owner={ownerEmptyState}
           />
         ) : (
           <div className="space-y-5">
-            {deleteError ? (
-              <p role="alert" className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-                {deleteError}
-              </p>
-            ) : null}
+            {deleteError ? <ErrorState message={deleteError} /> : null}
             {grouped.map(([category, docs]) => (
               <section key={category}>
                 <header className="mb-2 flex items-center gap-2">
                   <h2 className="text-sm font-semibold text-app-ink">
-                    {DOCUMENT_TYPE_LABEL[category]}
+                    {tTypes(category)}
                   </h2>
                   <Badge variant="secondary">{docs.length}</Badge>
                 </header>
@@ -227,7 +219,20 @@ export function DocumentsLibrary() {
   );
 }
 
-function EmptyState({
+/**
+ * ⚠ Ce cas n'est PAS mécanique, et c'est le NOM qui le disait mal.
+ *
+ * La branche `owner && !dragOver` rend une grille d'exemples de catégories ET une liste de cibles
+ * de rattachement (bien / bail / profil). Ce n'est pas un état vide : c'est un MODE D'EMPLOI qui
+ * s'affiche quand c'est vide. Le forcer dans `{icon, title, description, action}` détruirait de la
+ * fonctionnalité — mais le laisser s'appeler `OwnerEmptyState` faisait passer pour un neuvième
+ * duplicata d'`EmptyState` un composant d'un autre genre, et lui valait une ligne dans
+ * l'allowlist de `scripts/check-feedback-states.mjs`.
+ *
+ * Il s'appelle donc `OwnerDocumentsPrimer` (TCK-291), et l'allowlist est vide. Le geste qui ferme
+ * la ligne est le renommage, pas un `--` sur le plafond de la garde.
+ */
+function DocumentsEmpty({
   onUpload,
   dragOver,
   owner,
@@ -236,39 +241,47 @@ function EmptyState({
   readonly dragOver: boolean;
   readonly owner: boolean;
 }) {
+  const t = useTranslations('documents.library');
+
   if (owner && !dragOver) {
-    return <OwnerEmptyState onUpload={onUpload} />;
+    return <OwnerDocumentsPrimer onUpload={onUpload} />;
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-xl bg-app-surface-1 px-6 py-12 text-center text-sm text-app-ink-muted">
-      <UploadCloud className="size-8 text-app-accent" aria-hidden="true" />
-      <p className="max-w-md">
-        {dragOver
-          ? 'Relâchez pour téléverser ce fichier.'
-          : 'Aucun document pour le moment. Glissez-déposez un fichier ou utilisez le bouton ci-dessous.'}
-      </p>
-      <Button type="button" variant="outline" onClick={onUpload}>
-        <Plus className="mr-1 size-4" aria-hidden="true" />
-        Téléverser un document
-      </Button>
-    </div>
+    <EmptyState
+      icon={<UploadCloud className="size-8" aria-hidden="true" />}
+      title={dragOver ? t('drop_title') : t('empty_title')}
+      description={dragOver ? t('drop_description') : t('empty_description')}
+      action={
+        dragOver ? undefined : (
+          <Button type="button" variant="outline" onClick={onUpload}>
+            <Plus className="mr-1 size-4" aria-hidden="true" />
+            {t('upload_cta')}
+          </Button>
+        )
+      }
+    />
   );
 }
 
-function OwnerEmptyState({ onUpload }: { readonly onUpload: () => void }) {
+function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
+  const t = useTranslations('documents.primer');
+  const tLibrary = useTranslations('documents.library');
+  const tTypes = useTranslations('documents.types');
+  const tEntities = useTranslations('documents.entities');
+
   const examples = [
-    { label: 'Titre foncier', type: DOCUMENT_TYPE_LABEL.other },
-    { label: 'Bail signé', type: DOCUMENT_TYPE_LABEL.lease_contract },
-    { label: 'Quittance', type: DOCUMENT_TYPE_LABEL.receipt },
-    { label: 'Devis ou facture', type: DOCUMENT_TYPE_LABEL.invoice },
-    { label: 'Pièce propriétaire', type: DOCUMENT_TYPE_LABEL.id_card },
+    { label: t('examples.land_title'), type: tTypes('other') },
+    { label: t('examples.signed_lease'), type: tTypes('lease_contract') },
+    { label: t('examples.receipt'), type: tTypes('receipt') },
+    { label: t('examples.invoice'), type: tTypes('invoice') },
+    { label: t('examples.owner_id'), type: tTypes('id_card') },
   ] as const;
 
   const targets = [
-    { icon: Home, title: 'Bien', helper: 'titre foncier, photos, assurance' },
-    { icon: FileText, title: 'Bail', helper: 'contrat signé, quittances, état des lieux' },
-    { icon: FileCheck2, title: 'Utilisateur', helper: 'pièce propriétaire ou passeport' },
+    { icon: Home, title: tEntities('property'), helper: t('targets.property_helper') },
+    { icon: FileText, title: tEntities('lease'), helper: t('targets.lease_helper') },
+    { icon: FileCheck2, title: tEntities('user'), helper: t('targets.user_helper') },
   ] as const;
 
   return (
@@ -277,22 +290,20 @@ function OwnerEmptyState({ onUpload }: { readonly onUpload: () => void }) {
         <div className="max-w-2xl">
           <div className="flex items-center gap-2">
             <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
-            <h2 className="text-base font-semibold">Aucun document propriétaire</h2>
+            <h2 className="text-base font-semibold">{t('title')}</h2>
           </div>
-          <p className="mt-2 text-app-ink-muted">
-            Ajoutez les fichiers utiles à votre portefeuille et rattachez-les au bien, au bail ou à votre profil propriétaire concerné.
-          </p>
+          <p className="mt-2 text-app-ink-muted">{t('body')}</p>
         </div>
         <Button type="button" onClick={onUpload} className="shrink-0">
           <Plus className="mr-1 size-4" aria-hidden="true" />
-          Téléverser un document
+          {tLibrary('upload_cta')}
         </Button>
       </div>
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
-            Exemples de catégories
+            {t('examples_heading')}
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
             {examples.map((example) => (
@@ -308,7 +319,7 @@ function OwnerEmptyState({ onUpload }: { readonly onUpload: () => void }) {
 
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
-            Rattachement conseillé
+            {t('targets_heading')}
           </h3>
           <div className="mt-2 grid gap-2">
             {targets.map((target) => {
@@ -339,6 +350,8 @@ interface DocumentRowProps {
 }
 
 function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowProps) {
+  const t = useTranslations('documents.library');
+  const tEntities = useTranslations('documents.entities');
   const alias = resolveDocumentableAlias(doc.documentable_type);
   const href = alias ? resolveDocumentableHref(alias, doc.documentable_id) : null;
 
@@ -348,7 +361,7 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate font-medium text-app-ink">{doc.name}</span>
-          {doc.is_verified ? <Badge variant="secondary">Vérifié</Badge> : null}
+          {doc.is_verified ? <Badge variant="secondary">{t('verified')}</Badge> : null}
         </div>
         <p className="mt-0.5 text-xs text-app-ink-muted">
           {formatFileSize(doc.file_size)}
@@ -359,11 +372,11 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
               {' · '}
               {href ? (
                 <Link href={href} className="underline-offset-2 hover:underline">
-                  {DOCUMENTABLE_TYPE_LABEL[alias]} #{doc.documentable_id}
+                  {tEntities(alias)} #{doc.documentable_id}
                 </Link>
               ) : (
                 <span>
-                  {DOCUMENTABLE_TYPE_LABEL[alias]} #{doc.documentable_id}
+                  {tEntities(alias)} #{doc.documentable_id}
                 </span>
               )}
             </>
@@ -380,7 +393,7 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
           render={
             <Link href={`/app/documents/${doc.id}`}>
               <History className="mr-1 size-4" aria-hidden="true" />
-              Versions
+              {t('versions')}
             </Link>
           }
         />
@@ -393,14 +406,14 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
             render={
               <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
                 <Download className="mr-1 size-4" aria-hidden="true" />
-                Télécharger
+                {t('download')}
               </a>
             }
           />
         ) : null}
         <Button type="button" size="sm" variant="outline" onClick={onShare}>
           <Share2 className="mr-1 size-4" aria-hidden="true" />
-          Partager
+          {t('share')}
         </Button>
         <Button
           type="button"
@@ -408,7 +421,7 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
           variant="outline"
           onClick={onDelete}
           disabled={deleting}
-          aria-label="Supprimer"
+          aria-label={t('delete_aria')}
         >
           <Trash2 className="size-4" aria-hidden="true" />
         </Button>

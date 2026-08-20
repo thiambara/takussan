@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog';
 import { XIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { parseServerDate } from '@/lib/calendar-date';
-import { paletteFor, typeLabel } from './event-colors';
+import { paletteFor, typeLabelKey } from './event-colors';
 import type { CalendarEvent } from '@/types/calendar';
 
 export interface EventDetailSheetProps {
@@ -14,7 +15,9 @@ export interface EventDetailSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function formatRange(event: CalendarEvent): string {
+type Traducteur = ReturnType<typeof useTranslations>;
+
+function formatRange(event: CalendarEvent, t: Traducteur): string {
   const start = parseServerDate(event.start);
   const end = parseServerDate(event.end);
   if (!start) return '';
@@ -26,10 +29,10 @@ function formatRange(event: CalendarEvent): string {
       year: 'numeric',
     };
     if (end && end.getTime() !== start.getTime()) {
-      return `Du ${start.toLocaleDateString('fr-FR', dateFmt)} au ${end.toLocaleDateString(
-        'fr-FR',
-        dateFmt,
-      )}`;
+      return t('range.fromTo', {
+        from: start.toLocaleDateString('fr-FR', dateFmt),
+        to: end.toLocaleDateString('fr-FR', dateFmt),
+      });
     }
     return start.toLocaleDateString('fr-FR', dateFmt);
   }
@@ -42,10 +45,12 @@ function formatRange(event: CalendarEvent): string {
     hour: '2-digit',
     minute: '2-digit',
   });
-  return `${dateLabel} à ${timeLabel}`;
+  return t('range.dateAtTime', { date: dateLabel, time: timeLabel });
 }
 
 export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheetProps) {
+  const t = useTranslations('calendar');
+  const tCommon = useTranslations('common');
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -55,12 +60,12 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
           className="fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-xl outline-none data-open:animate-in data-closed:animate-out data-open:slide-in-from-right data-closed:slide-out-to-right"
         >
           <DialogPrimitive.Title className="sr-only">
-            Détail de l&apos;événement
+            {t('detail.title')}
           </DialogPrimitive.Title>
           {event ? <EventDetailBody event={event} /> : null}
           <DialogPrimitive.Close
             className="absolute top-3 right-3 rounded-md p-1 text-stone-500 hover:bg-stone-100"
-            aria-label="Fermer"
+            aria-label={tCommon('actions.close')}
           >
             <XIcon className="size-5" />
           </DialogPrimitive.Close>
@@ -71,13 +76,14 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
 }
 
 function EventDetailBody({ event }: { event: CalendarEvent }) {
+  const t = useTranslations('calendar');
   const palette = paletteFor(event);
   const openLabel =
     event.type === 'booking'
-      ? 'la réservation'
+      ? t('detail.resource.booking')
       : event.type === 'lease'
-        ? 'le bail'
-        : 'la visite';
+        ? t('detail.resource.lease')
+        : t('detail.resource.visit');
 
   return (
     <div className="flex h-full flex-col">
@@ -89,36 +95,36 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
               palette.pill,
             )}
           >
-            {typeLabel(event.type)}
+            {t(typeLabelKey(event.type))}
           </span>
-          <span className="text-xs text-stone-500">{palette.label}</span>
+          <span className="text-xs text-stone-500">{t(palette.labelKey)}</span>
         </div>
         <h2 className="text-lg font-semibold text-stone-900">{event.title}</h2>
-        <p className="mt-1 text-sm text-stone-600 capitalize">{formatRange(event)}</p>
+        <p className="mt-1 text-sm text-stone-600 capitalize">{formatRange(event, t)}</p>
       </header>
 
       <dl className="flex-1 space-y-4 overflow-y-auto px-6 py-5 text-sm">
         {event.reference && (
           <div>
-            <dt className="text-xs font-semibold uppercase text-stone-500">Référence</dt>
+            <dt className="text-xs font-semibold uppercase text-stone-500">{t('detail.reference')}</dt>
             <dd className="font-medium text-stone-900">{event.reference}</dd>
           </div>
         )}
         {typeof event.duration_minutes === 'number' && event.duration_minutes > 0 && (
           <div>
-            <dt className="text-xs font-semibold uppercase text-stone-500">Durée</dt>
-            <dd className="text-stone-900">{event.duration_minutes} min</dd>
+            <dt className="text-xs font-semibold uppercase text-stone-500">{t('detail.duration')}</dt>
+            <dd className="text-stone-900">{event.duration_minutes} {t('detail.minutesUnit')}</dd>
           </div>
         )}
         {event.property_slug && (
           <div>
-            <dt className="text-xs font-semibold uppercase text-stone-500">Bien</dt>
+            <dt className="text-xs font-semibold uppercase text-stone-500">{t('detail.property')}</dt>
             <dd>
               <Link
                 className="text-app-topbar hover:underline"
                 href={`/properties/${event.property_slug}`}
               >
-                Voir la fiche du bien
+                {t('detail.viewProperty')}
               </Link>
             </dd>
           </div>
@@ -131,7 +137,7 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
           className="inline-flex w-full items-center justify-center rounded-lg bg-app-topbar px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           data-testid="calendar-event-open-resource"
         >
-          Ouvrir {openLabel}
+          {t('detail.open', { resource: openLabel })}
         </Link>
       </footer>
     </div>

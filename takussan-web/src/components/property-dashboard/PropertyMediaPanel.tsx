@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MediaManager, type MediaItem } from '@/components/media';
+import { useTranslations } from 'next-intl';
 import {
   deletePropertyMediaAction,
   fetchPropertyMediaAction,
@@ -23,6 +24,7 @@ interface PropertyMediaPanelProps {
 }
 
 export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
+  const t = useTranslations('property.dashboard.media');
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,8 +108,8 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
   if (loading) {
     return (
       <section className="rounded-xl bg-app-surface-1 p-6">
-        <h2 className="text-base font-semibold text-app-ink">Photos</h2>
-        <p className="mt-2 text-xs text-app-ink-muted">Chargement…</p>
+        <h2 className="text-base font-semibold text-app-ink">{t('photos')}</h2>
+        <p className="mt-2 text-xs text-app-ink-muted">{t('loading')}</p>
       </section>
     );
   }
@@ -125,8 +127,8 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
         onReorder={handleReorder}
         onDelete={handleDelete}
         maxSize={10 * 1024 * 1024}
-        title="Photos du bien"
-        hint="Glissez pour réorganiser — la première photo devient la couverture."
+        title={t('title')}
+        hint={t('hint')}
       />
     </section>
   );

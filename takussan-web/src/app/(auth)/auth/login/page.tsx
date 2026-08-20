@@ -14,8 +14,13 @@ import { useApiForm } from '@/hooks/useApiForm';
 import { login, isTwoFactorChallenge, type LoginResponse } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
 import { useCurrentLocale } from '@/i18n/hooks';
+import { useTranslations } from 'next-intl';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 function LoginForm() {
+  const t = useTranslations('auth.login');
+  const t2fa = useTranslations('auth.twoFactorChallenge');
+  const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const { setUser } = useAuth();
   const locale = useCurrentLocale();
@@ -79,7 +84,7 @@ function LoginForm() {
         locale,
       );
       if (isTwoFactorChallenge(result)) {
-        setChallengeError(result.message ?? 'Code invalide.');
+        setChallengeError(result.message ?? t2fa('invalidCode'));
         return;
       }
       await fetch('/api/auth/set-token', {
@@ -90,11 +95,9 @@ function LoginForm() {
       setUser(result.user);
       router.push(redirectTo);
     } catch (err) {
-      setChallengeError(
-        err instanceof Error && 'displayMessage' in err
-          ? (err as { displayMessage: string }).displayMessage
-          : 'Code invalide.',
-      );
+      // Le test structurel `'displayMessage' in err` rendait la CLÉ i18n quand l'erreur en
+      // portait une : `messageErreur` traduit le code avec le dictionnaire du client.
+      setChallengeError(messageErreur(err, t2fa('invalidCode')));
     } finally {
       setChallengePending(false);
     }
@@ -104,12 +107,10 @@ function LoginForm() {
     return (
       <div>
         <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
-          Authentification à deux facteurs
+          {t2fa('title')}
         </h1>
         <p className="text-muted-foreground text-sm mb-8">
-          {useRecovery
-            ? 'Entrez un de vos codes de récupération à usage unique.'
-            : 'Entrez le code à 6 chiffres généré par votre application d’authentification.'}
+          {useRecovery ? t2fa('recoveryIntro') : t2fa('appIntro')}
         </p>
 
         {challengeError ? (
@@ -122,7 +123,7 @@ function LoginForm() {
               htmlFor="two-factor-code"
               className="block text-sm font-medium"
             >
-              {useRecovery ? 'Code de récupération' : 'Code à 6 chiffres'}
+              {useRecovery ? t2fa('recoveryLabel') : t2fa('codeLabel')}
             </label>
             <Input
               id="two-factor-code"
@@ -137,7 +138,7 @@ function LoginForm() {
               inputMode={useRecovery ? 'text' : 'numeric'}
               pattern={useRecovery ? undefined : '\\d{6}'}
               autoComplete="one-time-code"
-              placeholder={useRecovery ? 'XXXXX-XXXXX' : '123456'}
+              placeholder={useRecovery ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}
               className="h-11"
               required
             />
@@ -151,10 +152,10 @@ function LoginForm() {
             {challengePending ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                Vérification…
+                {t2fa('verifying')}
               </>
             ) : (
-              'Vérifier'
+              t2fa('verify')
             )}
           </Button>
         </form>
@@ -169,7 +170,7 @@ function LoginForm() {
               setChallengeError(null);
             }}
           >
-            {useRecovery ? 'Utiliser mon application' : 'Utiliser un code de récupération'}
+            {useRecovery ? t2fa('useApp') : t2fa('useRecovery')}
           </button>
           <button
             type="button"
@@ -181,7 +182,7 @@ function LoginForm() {
               setUseRecovery(false);
             }}
           >
-            Annuler
+            {t2fa('cancel')}
           </button>
         </div>
       </div>
@@ -191,18 +192,16 @@ function LoginForm() {
   return (
     <div>
       <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
-        Content de vous revoir
+        {t('title')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">
-        Connectez-vous pour accéder à votre espace Takussan.
-      </p>
+      <p className="text-muted-foreground text-sm mb-8">{t('subtitle')}</p>
 
       {passwordWasReset ? (
         <div
           role="status"
           className="mb-6 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700"
         >
-          Votre mot de passe a été réinitialisé. Vous pouvez maintenant vous connecter.
+          {t('resetSuccess')}
         </div>
       ) : null}
 
@@ -215,10 +214,10 @@ function LoginForm() {
         <FormInput<LoginFormValues>
           name="email"
           control={form.control}
-          label="Adresse email"
+          label={t('email')}
           type="email"
           autoComplete="email"
-          placeholder="vous@exemple.com"
+          placeholder={t('emailPlaceholder')}
           className="h-11"
           required
         />
@@ -226,14 +225,14 @@ function LoginForm() {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label htmlFor="field-password" className="block text-sm font-medium">
-              Mot de passe
+              {t('password')}
               <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
             </label>
             <Link
               href="/auth/forgot-password"
               className="text-xs text-primary hover:underline font-medium"
             >
-              Mot de passe oublié ?
+              {t('forgotPassword')}
             </Link>
           </div>
           <FormInput<LoginFormValues>
@@ -250,7 +249,7 @@ function LoginForm() {
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
                 className="pr-1 text-muted-foreground hover:text-foreground"
-                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                aria-label={showPassword ? t('hidePassword') : t('showPassword')}
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
@@ -266,18 +265,18 @@ function LoginForm() {
           {isSubmitting ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Connexion…
+              {t('submitting')}
             </>
           ) : (
-            'Se connecter'
+            t('submit')
           )}
         </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Pas encore de compte ?{' '}
+        {t('noAccount')}{' '}
         <Link href="/auth/register" className="text-primary font-semibold hover:underline">
-          S&apos;inscrire
+          {t('registerCta')}
         </Link>
       </p>
     </div>

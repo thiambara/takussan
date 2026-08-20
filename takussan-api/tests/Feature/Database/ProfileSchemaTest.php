@@ -14,17 +14,43 @@ class ProfileSchemaTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * TCK-279 — `agency_role_id` est NOT NULL sur les profils agence-scopés (Règle 6).
+     * TCK-315 — et désormais aussi sur `service_provider_agency_collaborations`, d'où le
+     * paramètre de type.
+     *
+     * Ces tests insèrent en SQL BRUT, délibérément : ils éprouvent les contraintes du SCHÉMA
+     * (FK, unicité, NOT NULL), pas le comportement des modèles. Ils contournent donc le hook
+     * `creating` de `HasAgencyRole` qui pose le rôle système ailleurs — et c'est à eux de
+     * fournir toutes les colonnes NOT NULL, comme n'importe quel écrivain brut. C'est
+     * exactement ce que la contrainte est censée forcer.
+     *
+     * ⚠ Sans filtre de type, ce helper rend le PREMIER rôle système de l'agence, quel qu'il
+     * soit — la contrainte est satisfaite et le test vert avec un rôle `owner` posé sur une
+     * collaboration de prestataire. Vert par accident. Nommer le type quand il compte.
+     */
+    private function systemRoleId(int $agencyId, ?string $baseProfileType = null): ?int
+    {
+        $id = DB::table('agency_roles')
+            ->where('agency_id', $agencyId)
+            ->where('is_system', true)
+            ->when($baseProfileType !== null, fn ($q) => $q->where('base_profile_type', $baseProfileType))
+            ->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
     public function test_profile_tables_exist_with_expected_columns(): void
     {
         $expectations = [
             'owner_profiles' => [
-                'id', 'user_id', 'agency_id', 'status', 'rib', 'tax_id',
+                'id', 'user_id', 'agency_id', 'agency_role_id', 'status', 'rib', 'tax_id',
                 'id_document_type', 'id_document_number', 'monthly_income',
                 'employer', 'guarantor_user_id', 'metadata',
                 'deleted_at', 'created_at', 'updated_at',
             ],
             'agent_profiles' => [
-                'id', 'user_id', 'agency_id', 'status', 'license_number',
+                'id', 'user_id', 'agency_id', 'agency_role_id', 'status', 'license_number',
                 'commission_rate', 'specialty', 'hire_date', 'active_until',
                 'metadata', 'deleted_at', 'created_at', 'updated_at',
             ],
@@ -70,6 +96,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('owner_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -80,6 +107,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('owner_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -94,6 +122,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('agent_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -104,6 +133,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('agent_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -234,6 +264,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('service_provider_agency_collaborations')->insert([
             'service_provider_profile_id' => $spId,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id, 'service_provider'),
             'status' => 'active',
             'started_at' => now()->toDateString(),
             'created_at' => now(),
@@ -245,6 +276,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('service_provider_agency_collaborations')->insert([
             'service_provider_profile_id' => $spId,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id, 'service_provider'),
             'status' => 'active',
             'started_at' => now()->toDateString(),
             'created_at' => now(),
@@ -260,6 +292,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('owner_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -279,6 +312,7 @@ class ProfileSchemaTest extends TestCase
         DB::table('owner_profiles')->insert([
             'user_id' => 999_999,
             'agency_id' => $agency->id,
+            'agency_role_id' => $this->systemRoleId($agency->id),
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
@@ -288,12 +322,16 @@ class ProfileSchemaTest extends TestCase
     public function test_orphan_agent_profile_rejected_by_agency_fk(): void
     {
         $user = User::factory()->create();
+        // Rôle valide d'une agence réelle : ce test doit échouer sur la FK
+        // `agency_id`, pas sur le NOT NULL de `agency_role_id`.
+        $roleId = $this->systemRoleId((int) Agency::factory()->create()->id);
 
         $this->expectException(QueryException::class);
 
         DB::table('agent_profiles')->insert([
             'user_id' => $user->id,
             'agency_id' => 999_999,
+            'agency_role_id' => $roleId,
             'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),

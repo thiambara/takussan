@@ -14,11 +14,20 @@ on:
     paths:
       - 'takussan-web/**'
       - '.github/workflows/web-ci.yml'
+      # `src/types/__tests__/profile-types.parity.test.ts` (TCK-329) compare `PROFILE_TYPES` aux
+      # clés de `ActiveProfileResolver::TYPE_MAP`. C'est une garde à DEUX côtés, et le second
+      # n'était couvert par aucune ligne : une PR qui n'ajoute un type de profil QUE côté back —
+      # exactement la dérive que la garde existe pour voir — ne déclenchait pas ce workflow, et
+      # la garde restait muette. Même règle qu'en tête de `repo-ci.yml` : *les deux côtés qu'une
+      # garde compare doivent la déclencher.*
+      - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
   push:
     branches: [dev, master]
     paths:
       - 'takussan-web/**'
       - '.github/workflows/web-ci.yml'
+      # Mêmes motifs qu'au déclencheur `pull_request`, et pour la même raison.
+      - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
 
 jobs:
   quality:
@@ -29,9 +38,9 @@ jobs:
         working-directory: takussan-web
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
@@ -51,6 +60,16 @@ jobs:
         # bien une vérification de types, mais il s'arrête à la première erreur et ne voit pas les
         # fichiers de test — or l'erreur trouvée sur `dev` était précisément dans un test.
         run: npx tsc --noEmit
+
+      - name: i18n (parité des locales + cliquet sur le texte en dur)
+        # Cette garde vit dans `takussan-web/scripts/` et NON dans `scripts/` à la racine, où sont
+        # les sept autres. Ce n'est pas un oubli : `repo-ci.yml` n'exécute aucun `npm ci` — ses
+        # gardes n'importent que des modules `node:` natifs — et celle-ci parse le TypeScript avec
+        # le compilateur `typescript`. La brancher là-bas obligerait soit à installer les
+        # dépendances dans un workflow documentaire qui existe pour être léger, soit à retomber sur
+        # une analyse par regex, moins précise sur exactement le point qui compte (distinguer un
+        # libellé affiché d'une chaîne technique). Elle est donc ici, où `npm ci` a déjà tourné.
+        run: npm run check:i18n
 
       - name: Tests (Vitest)
         run: npm run test

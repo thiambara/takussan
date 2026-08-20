@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Mail, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTranslations } from 'next-intl';
 
 export default function VerifyEmailPage() {
+  const t = useTranslations('auth.verifyEmail');
   const [status, setStatus] = useState<'idle' | 'sent' | 'error'>('idle');
   const [loading, setLoading] = useState(false);
 
@@ -25,19 +27,16 @@ export default function VerifyEmailPage() {
         <Mail className="size-7" />
       </div>
       <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
-        Vérifiez votre adresse email
+        {t('title')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">
-        Nous avons envoyé un lien de vérification à votre adresse email. Cliquez sur le lien dans
-        le message pour activer votre compte.
-      </p>
+      <p className="text-muted-foreground text-sm mb-8">{t('body')}</p>
 
       {status === 'sent' && (
         <div
           role="status"
           className="mb-6 text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-4 py-3"
         >
-          Email de vérification renvoyé. Pensez à vérifier votre dossier spam.
+          {t('resent')}
         </div>
       )}
       {status === 'error' && (
@@ -45,7 +44,7 @@ export default function VerifyEmailPage() {
           role="alert"
           className="mb-6 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3"
         >
-          Impossible de renvoyer l&apos;email. Réessayez dans quelques instants.
+          {t('resendFailed')}
         </div>
       )}
 
@@ -58,10 +57,10 @@ export default function VerifyEmailPage() {
           {loading ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Envoi en cours…
+              {t('sending')}
             </>
           ) : (
-            "Renvoyer l'email de vérification"
+            t('resend')
           )}
         </Button>
 
@@ -69,7 +68,7 @@ export default function VerifyEmailPage() {
           href="/app"
           className="block text-center text-sm text-muted-foreground hover:text-foreground"
         >
-          Continuer vers le tableau de bord
+          {t('continue')}
         </Link>
       </div>
     </div>

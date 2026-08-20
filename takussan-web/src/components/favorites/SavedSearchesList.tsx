@@ -3,13 +3,15 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { BookmarkCheck, Trash2, Loader2, Search as SearchIcon } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import {
   useSavedSearchesQuery,
   useDeleteSavedSearchMutation,
   type SavedSearch,
 } from '@/lib/queries/saved-searches';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format/currency';
 
 /**
@@ -36,7 +38,7 @@ function criteriaToQueryString(criteria: Record<string, unknown>): string {
   return params.toString();
 }
 
-function humaniseCriteria(criteria: Record<string, unknown>): string {
+function humaniseCriteria(criteria: Record<string, unknown>, repliAucunCritere: string): string {
   const parts: string[] = [];
   if (criteria.contract_type === 'sale') parts.push('Vente');
   if (criteria.contract_type === 'rent') parts.push('Location');
@@ -68,7 +70,7 @@ function humaniseCriteria(criteria: Record<string, unknown>): string {
       `surface ${criteria.area_min ?? '…'} – ${criteria.area_max ?? '…'} m²`,
     );
   }
-  return parts.length > 0 ? parts.join(' · ') : 'Aucun critère';
+  return parts.length > 0 ? parts.join(' · ') : repliAucunCritere;
 }
 
 function SavedSearchRow({
@@ -80,6 +82,7 @@ function SavedSearchRow({
   onDelete: (id: number) => void;
   deleting: boolean;
 }) {
+  const t = useTranslations('search.saved');
   const qs = criteriaToQueryString(search.criteria);
   const href = `/properties${qs ? `?${qs}` : ''}`;
   return (
@@ -92,7 +95,7 @@ function SavedSearchRow({
           </h3>
         </div>
         <p className="mt-1 text-sm text-stone-500 truncate">
-          {humaniseCriteria(search.criteria)}
+          {humaniseCriteria(search.criteria, t('noCriteria'))}
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -101,14 +104,14 @@ function SavedSearchRow({
           className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition"
         >
           <SearchIcon className="w-3.5 h-3.5" />
-          Relancer
+          {t('relaunch')}
         </Link>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => onDelete(search.id)}
           disabled={deleting}
-          aria-label={`Supprimer ${search.name}`}
+          aria-label={t('deleteAria', { name: search.name })}
           className="text-stone-500 hover:text-red-600"
         >
           {deleting ? (
@@ -123,6 +126,8 @@ function SavedSearchRow({
 }
 
 export function SavedSearchesList() {
+  const t = useTranslations('search.saved');
+  const tCommon = useTranslations('common');
   const query = useSavedSearchesQuery();
   const remove = useDeleteSavedSearchMutation();
   const [pendingId, setPendingId] = useState<number | null>(null);
@@ -139,31 +144,27 @@ export function SavedSearchesList() {
 
   if (query.isError) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
-        Impossible de charger vos recherches pour le moment.
-      </div>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void query.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 
   const searches = query.data?.data ?? [];
   if (searches.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-12 text-center">
-        <BookmarkCheck className="w-10 h-10 text-stone-300 mx-auto mb-3" />
-        <h3 className="font-semibold text-stone-700 mb-1">
-          Aucune recherche sauvegardée
-        </h3>
-        <p className="text-sm text-stone-500 mb-4">
-          Depuis la page résultats, cliquez sur « Sauvegarder la recherche »
-          pour la retrouver ici.
-        </p>
-        <Link
-          href="/properties"
-          className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition"
-        >
-          Lancer une recherche
-        </Link>
-      </div>
+      <EmptyState
+        icon={<BookmarkCheck className="size-8" aria-hidden="true" />}
+        title={t('empty_title')}
+        description={t('empty_description')}
+        action={
+          <Link href="/properties" className={buttonVariants()}>
+            {t('empty_cta')}
+          </Link>
+        }
+      />
     );
   }
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 import { CustomerTagPicker } from './CustomerTagPicker';
 import type { Tag } from '@/types/tag';
@@ -17,11 +18,12 @@ interface Props {
  * that tag (/app/customers?tags=<name>).
  */
 export function CustomerTagPickerSection({ customerId, initialTags, suggestions }: Props) {
+  const t = useTranslations('crm.tags');
   const router = useRouter();
 
   return (
     <section className="rounded-xl bg-app-surface-1 p-4">
-      <h2 className="mb-3 text-sm font-semibold text-app-ink">Tags</h2>
+      <h2 className="mb-3 text-sm font-semibold text-app-ink">{t('sectionTitle')}</h2>
       <CustomerTagPicker
         customerId={customerId}
         initialTags={initialTags}

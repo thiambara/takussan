@@ -1,7 +1,7 @@
 'use client';
 
 import { useFieldArray } from 'react-hook-form';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Plus, Trash2 } from 'lucide-react';
 
 import {
@@ -35,11 +35,12 @@ interface CreateInvoiceDialogProps {
   readonly onCreated?: (invoiceId: number) => void;
 }
 
-const INVOICEABLE_OPTIONS = [
-  { value: '', label: 'Aucun' },
-  { value: 'lease', label: 'Bail' },
-  { value: 'booking', label: 'Réservation' },
-];
+/** Les valeurs sont la donnée ; les libellés se résolvent au rendu (TCK-292). */
+const INVOICEABLE_VALUES = [
+  { value: '', labelKey: 'none' },
+  { value: 'lease', labelKey: 'lease' },
+  { value: 'booking', labelKey: 'booking' },
+] as const;
 
 const DEFAULT_VALUES: CreateInvoiceFormValues = {
   customer_id: 0,
@@ -59,6 +60,7 @@ export function CreateInvoiceDialog({
   onCreated,
 }: CreateInvoiceDialogProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('payments.invoiceDialog');
   const createInvoice = useCreateInvoice();
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
@@ -117,10 +119,8 @@ export function CreateInvoiceDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Générer une facture</DialogTitle>
-          <DialogDescription>
-            Sélectionnez un client, ajoutez des lignes et l&apos;échéance.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <form
@@ -136,14 +136,14 @@ export function CreateInvoiceDialog({
               control={form.control}
               name="customer_id"
               type="number"
-              label="ID client"
+              label={t('customerId')}
               required
               min={1}
             />
             <FormSelect<CreateInvoiceFormValues>
               control={form.control}
               name="currency"
-              label="Devise"
+              label={t('currency')}
               options={CURRENCY_OPTIONS.map((o) => ({ ...o }))}
             />
           </div>
@@ -152,14 +152,17 @@ export function CreateInvoiceDialog({
             <FormSelect<CreateInvoiceFormValues>
               control={form.control}
               name="invoiceable_type"
-              label="Lié à"
-              options={INVOICEABLE_OPTIONS.map((o) => ({ ...o }))}
+              label={t('linkedTo')}
+              options={INVOICEABLE_VALUES.map((o) => ({
+                value: o.value,
+                label: t(`linked.${o.labelKey}`),
+              }))}
             />
             <FormInput<CreateInvoiceFormValues>
               control={form.control}
               name="invoiceable_id"
               type="number"
-              label="ID (bail ou réservation)"
+              label={t('linkedId')}
               min={1}
             />
           </div>
@@ -168,19 +171,19 @@ export function CreateInvoiceDialog({
             <FormDatePicker<CreateInvoiceFormValues>
               control={form.control}
               name="issue_date"
-              label="Date d'émission"
+              label={t('issueDate')}
               required
             />
             <FormDatePicker<CreateInvoiceFormValues>
               control={form.control}
               name="due_date"
-              label="Échéance"
+              label={t('dueDate')}
             />
           </div>
 
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-app-ink">Lignes</h3>
+              <h3 className="text-sm font-semibold text-app-ink">{t('lines')}</h3>
               <Button
                 type="button"
                 size="sm"
@@ -190,7 +193,7 @@ export function CreateInvoiceDialog({
                 }
               >
                 <Plus className="mr-1 size-4" aria-hidden="true" />
-                Ajouter
+                {t('addLine')}
               </Button>
             </div>
             <ul className="space-y-2">
@@ -202,7 +205,7 @@ export function CreateInvoiceDialog({
                   <FormInput<CreateInvoiceFormValues>
                     control={form.control}
                     name={`items.${index}.description`}
-                    placeholder="Description"
+                    placeholder={t('descriptionPlaceholder')}
                   />
                   <FormInput<CreateInvoiceFormValues>
                     control={form.control}
@@ -210,7 +213,7 @@ export function CreateInvoiceDialog({
                     type="number"
                     min={0}
                     step={1}
-                    placeholder="Qté"
+                    placeholder={t('quantityPlaceholder')}
                   />
                   <FormInput<CreateInvoiceFormValues>
                     control={form.control}
@@ -218,7 +221,7 @@ export function CreateInvoiceDialog({
                     type="number"
                     min={0}
                     step={100}
-                    placeholder="Prix unitaire"
+                    placeholder={t('unitPricePlaceholder')}
                   />
                   <Button
                     type="button"
@@ -226,7 +229,7 @@ export function CreateInvoiceDialog({
                     variant="ghost"
                     disabled={fields.length === 1}
                     onClick={() => remove(index)}
-                    aria-label="Supprimer la ligne"
+                    aria-label={t('removeLine')}
                   >
                     <Trash2 className="size-4" aria-hidden="true" />
                   </Button>
@@ -243,31 +246,31 @@ export function CreateInvoiceDialog({
               min={0}
               max={100}
               step={0.5}
-              label="TVA (%)"
+              label={t('taxRate')}
             />
             <FormTextarea<CreateInvoiceFormValues>
               control={form.control}
               name="notes"
-              label="Notes"
+              label={t('notes')}
               rows={2}
             />
           </div>
 
           <dl className="grid gap-2 rounded-xl bg-app-surface-1 p-3 text-xs sm:grid-cols-3">
             <div>
-              <dt className="text-app-ink-muted">Sous-total</dt>
+              <dt className="text-app-ink-muted">{t('subtotal')}</dt>
               <dd className="text-sm font-semibold text-app-ink">
                 {formatCurrency(subtotal, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">TVA</dt>
+              <dt className="text-app-ink-muted">{t('tax')}</dt>
               <dd className="text-sm font-semibold text-app-ink">
                 {formatCurrency(taxAmount, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">Total</dt>
+              <dt className="text-app-ink-muted">{t('total')}</dt>
               <dd className="text-sm font-semibold text-app-ink">
                 {formatCurrency(total, locale, { currency })}
               </dd>
@@ -276,10 +279,10 @@ export function CreateInvoiceDialog({
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
-              Annuler
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting || total <= 0}>
-              {isSubmitting ? 'Création…' : 'Créer la facture'}
+              {isSubmitting ? t('creating') : t('submit')}
             </Button>
           </div>
         </form>

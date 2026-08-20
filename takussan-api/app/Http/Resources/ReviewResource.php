@@ -2,13 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class ReviewResource extends JsonResource
+class ReviewResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -38,8 +38,8 @@ class ReviewResource extends JsonResource
             'status' => $this->status?->value,
             'reported_count' => (int) ($this->reported_count ?? 0),
             'reply_content' => $this->reply_content,
-            'replied_at' => $this->replied_at?->toISOString(),
-            'created_at' => $this->created_at?->toISOString(),
+            'replied_at' => $this->iso($this->replied_at),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 

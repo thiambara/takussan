@@ -48,9 +48,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // full app name explicitly since they don't go through the template.
   const title = property.title;
   const socialTitle = `${property.title} — Takussan`;
+  const tMeta = await getTranslations('meta.property');
+  // `String(…)` sur quarter/city : ces deux champs sont `string | null`, et le gabarit qui
+  // occupait cette place avant TCK-292 rendait littéralement « null » quand ils l'étaient.
+  // TCK-292 déplace le texte, il ne corrige aucun rendu (AC3) — le défaut est donc reproduit
+  // À L'IDENTIQUE et signalé comme dette, plutôt que réparé en passant.
   const description =
     property.description?.slice(0, 160) ??
-    `${property.type_label} à ${property.location.quarter}, ${property.location.city}.`;
+    tMeta('descriptionFallback', {
+      type: property.type_label,
+      quarter: String(property.location.quarter),
+      city: String(property.location.city),
+    });
   const image = property.main_photo_url ?? undefined;
 
   return {

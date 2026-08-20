@@ -19,7 +19,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-261 — covers the post-acceptance Service Provider wizard:
@@ -31,7 +31,7 @@ use Tests\BaseTestCase;
  *     sp_onboarding_completed).
  *  6. Authorization (401 unauth, 403 wrong owner).
  */
-class ServiceProviderOnboardingTest extends BaseTestCase
+class ServiceProviderOnboardingTest extends TestCase
 {
     use RefreshDatabase;
 

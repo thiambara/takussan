@@ -1,13 +1,16 @@
 'use client';
 
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import {
   eventTouchesDay,
   isSameDay,
   monthGrid,
   parseServerDate,
   startOfMonth,
-  WEEKDAY_SHORT_FR,
+  WEEKDAY_SHORT_KEYS,
 } from '@/lib/calendar-date';
 import { paletteFor } from './event-colors';
 import type { CalendarEvent } from '@/types/calendar';
@@ -38,6 +41,8 @@ export function MonthView({
   onDaySelect,
   maxPerDay = 2,
 }: MonthViewProps) {
+  const t = useTranslations('calendar');
+  const locale = useLocale() as Locale;
   const days = monthGrid(focus);
   const monthStart = startOfMonth(focus);
   const today = new Date();
@@ -52,16 +57,16 @@ export function MonthView({
   return (
     <div
       role="grid"
-      aria-label="Vue mois"
+      aria-label={t('gridAria.month')}
       className="grid grid-cols-7 overflow-hidden rounded-xl border border-stone-200 bg-white"
     >
-      {WEEKDAY_SHORT_FR.map((label) => (
+      {WEEKDAY_SHORT_KEYS.map((key) => (
         <div
-          key={label}
+          key={key}
           role="columnheader"
           className="bg-stone-50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-stone-500"
         >
-          {label}
+          {t(`weekdaysShort.${key}`)}
         </div>
       ))}
 
@@ -98,7 +103,16 @@ export function MonthView({
                       : 'text-stone-400',
                   selected && !todayBadge && 'bg-amber-200 text-amber-950 hover:bg-amber-200',
                 )}
-                aria-label={`Voir le détail du ${day.toLocaleDateString('fr-FR')}`}
+                aria-label={t('dayDetailAria', {
+                  // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur : le lecteur
+                  // d'écran d'un anglophone annonçait la date en français.
+                  date: formatDate(day, locale, {
+                    dateStyle: undefined,
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                  }),
+                })}
               >
                 {day.getDate()}
               </button>
@@ -117,7 +131,10 @@ export function MonthView({
                         palette.pill,
                       )}
                       data-testid={`calendar-event-pill-${event.type}-${event.id}`}
-                      aria-label={`${event.type === 'booking' ? 'Réservation' : 'Visite'} ${event.title}`}
+                      aria-label={t('eventPillAria', {
+                        type: event.type === 'booking' ? t('eventType.booking') : t('eventType.visit'),
+                        title: event.title,
+                      })}
                     >
                       <span className="truncate">{event.title}</span>
                     </button>
@@ -132,7 +149,7 @@ export function MonthView({
                     className="text-xs font-medium text-stone-600 underline-offset-2 hover:underline"
                     data-testid={`calendar-day-overflow-${day.toISOString().slice(0, 10)}`}
                   >
-                    +{overflow} autre{overflow > 1 ? 's' : ''}
+                    {t('moreEvents', { count: overflow })}
                   </button>
                 </li>
               )}

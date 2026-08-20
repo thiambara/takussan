@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   useActivateLease,
   useGenerateSchedule,
@@ -11,11 +11,11 @@ import {
   useReviewLeaseRent,
 } from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import type { Locale } from '@/i18n/config';
-import type { LeaseStatus } from '@/types/lease';
 import { LeaseSchedule } from './LeaseSchedule';
 import { LeasePaymentDialog } from './LeasePaymentDialog';
 import { GuarantorSection } from './GuarantorSection';
@@ -29,26 +29,15 @@ import { LeaveReviewCta } from '@/components/reviews/LeaveReviewCta';
 import { canLeaseLeaveReview } from '@/components/reviews/reviewEligibility';
 import { useAuth } from '@/context/AuthContext';
 
-const STATUS_LABEL: Record<LeaseStatus, string> = {
-  draft: 'Brouillon',
-  pending_signature: 'À signer',
-  active: 'Actif',
-  expired: 'Expiré',
-  // TCK-090 — early-termination request in flight.
-  terminating: 'Résiliation en cours',
-  terminated: 'Résilié',
-  renewed: 'Renouvelé',
-};
-
-// TCK-179 — display the FR label instead of the raw `Residential Rent`
-// snake_case enum value. Aligns with the type definition in
-// `models-spec.md#13-lease`.
-const LEASE_TYPE_LABEL: Record<string, string> = {
-  residential_rent: 'Bail d’habitation',
-  commercial_rent: 'Bail commercial',
-  seasonal_rent: 'Location saisonnière',
-  sale: 'Vente',
-};
+// TCK-179 — le libellé remplace la valeur d'enum brute (`Residential Rent`) ; TCK-292 l'a déplacé
+// du code vers le dictionnaire (`lease.status.*`, `lease.types.*`). Les valeurs connues sont
+// listées ici pour ne pas demander au dictionnaire une clé qu'il n'a pas.
+const KNOWN_LEASE_TYPES = new Set([
+  'residential_rent',
+  'commercial_rent',
+  'seasonal_rent',
+  'sale',
+]);
 
 interface LeaseDetailProps {
   readonly leaseId: number;
@@ -56,11 +45,19 @@ interface LeaseDetailProps {
 
 export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('lease.detail');
+  const tLease = useTranslations('lease');
+  const tStatus = useTranslations('lease.status');
+  const tTypes = useTranslations('lease.types');
+  const tRenewal = useTranslations('lease.renewal');
+  const tTermination = useTranslations('lease.early_termination');
+  const tCommon = useTranslations('common');
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [renewalOpen, setRenewalOpen] = useState(false);
   const [earlyTerminationOpen, setEarlyTerminationOpen] = useState(false);
   const { user } = useAuth();
-  const { data, isLoading, isError } = useLease(leaseId);
+  const leaseQuery = useLease(leaseId);
+  const { data, isLoading, isError } = leaseQuery;
   const { data: paymentsData } = useLeasePayments(leaseId);
   const generateSchedule = useGenerateSchedule(leaseId);
   const activateLease = useActivateLease(leaseId);
@@ -109,9 +106,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }
   if (isError || !data) {
     return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Bail introuvable.
-      </p>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void leaseQuery.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 
@@ -121,23 +120,23 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   async function handleActivate() {
     await activateLease.mutateAsync();
     toast.add({
-      title: 'Bail activé',
-      description: 'L’échéancier peut maintenant être généré ou consulté.',
+      title: t('activatedToastTitle'),
+      description: t('activatedToastBody'),
       type: 'success',
     });
   }
 
   async function handleRentReview() {
-    const rawRent = window.prompt('Nouveau loyer mensuel', String(lease.monthly_rent ?? ''))?.trim();
+    const rawRent = window.prompt(t('rentPromptAmount'), String(lease.monthly_rent ?? ''))?.trim();
     if (!rawRent) return;
     const newRent = Number(rawRent);
     if (!Number.isFinite(newRent) || newRent <= 0) return;
-    const reason = window.prompt('Motif de révision du loyer')?.trim();
+    const reason = window.prompt(t('rentPromptReason'))?.trim();
     if (!reason) return;
     await reviewRent.mutateAsync({ new_rent: newRent, reason });
     toast.add({
-      title: 'Loyer révisé',
-      description: 'La révision est journalisée dans l’historique du bail.',
+      title: t('rentReviewedToastTitle'),
+      description: t('rentReviewedToastBody'),
       type: 'success',
     });
   }
@@ -147,16 +146,20 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/app/leases" className="text-xs text-stone-500 hover:text-stone-700">
-            ← Retour aux baux
+            ← {t('backToList')}
           </Link>
           <h1 className="mt-1 text-2xl font-bold text-app-ink">
-            {lease.reference_number || `Bail #${lease.id}`}
+            {lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
           </h1>
           <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
-            <Badge>{STATUS_LABEL[lease.status]}</Badge>
-            {lease.type && <span>{LEASE_TYPE_LABEL[lease.type] ?? lease.type}</span>}
+            <Badge>{tStatus(lease.status)}</Badge>
+            {lease.type && (
+              <span>{KNOWN_LEASE_TYPES.has(lease.type) ? tTypes(lease.type) : lease.type}</span>
+            )}
             {latePaymentsCount > 0 && (
-              <Badge variant="destructive">{latePaymentsCount} en retard</Badge>
+              <Badge variant="destructive">
+                {t('latePayments', { count: String(latePaymentsCount) })}
+              </Badge>
             )}
           </div>
         </div>
@@ -166,7 +169,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               <AddDocumentButton
                 documentableType="lease"
                 documentableId={leaseId}
-                displayLabel={lease.reference_number || `Bail #${lease.id}`}
+                displayLabel={lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
               />
               <Button
                 type="button"
@@ -174,7 +177,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
                 onClick={() => generateSchedule.mutate({})}
                 disabled={generateSchedule.isPending || lease.status === 'draft'}
               >
-                {generateSchedule.isPending ? 'Génération…' : 'Générer l’échéancier'}
+                {generateSchedule.isPending ? t('generating') : t('generateSchedule')}
               </Button>
               {lease.status === 'draft' && (
                 <Button
@@ -182,7 +185,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
                   onClick={handleActivate}
                   disabled={activateLease.isPending}
                 >
-                  {activateLease.isPending ? 'Activation…' : 'Activer le bail'}
+                  {activateLease.isPending ? t('activating') : t('activate')}
                 </Button>
               )}
               {lease.status === 'active' && lease.type !== 'sale' && (
@@ -192,11 +195,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
                   onClick={handleRentReview}
                   disabled={reviewRent.isPending}
                 >
-                  Réviser le loyer
+                  {t('reviewRent')}
                 </Button>
               )}
               <Button type="button" onClick={() => setPaymentOpen(true)}>
-                Enregistrer un paiement reçu
+                {t('recordPayment')}
               </Button>
             </>
           )}
@@ -205,7 +208,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               href={`/api/leases/${leaseId}/contract/pdf`}
               className="inline-flex h-9 items-center justify-center rounded-md border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 hover:bg-stone-50"
             >
-              Télécharger le contrat PDF
+              {t('downloadContract')}
             </Link>
           )}
           {canRenew && (lease.status === 'active' || lease.status === 'expired') && (
@@ -214,7 +217,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               variant="outline"
               onClick={() => setRenewalOpen(true)}
             >
-              Renouveler le bail
+              {tRenewal('cta')}
             </Button>
           )}
           {canRequestTermination &&
@@ -222,10 +225,10 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               <Button
                 type="button"
                 variant="outline"
-                className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                className="border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
                 onClick={() => setEarlyTerminationOpen(true)}
               >
-                Résilier le bail
+                {tTermination('cta')}
               </Button>
             )}
         </div>
@@ -239,27 +242,29 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       <div className="grid gap-4 sm:grid-cols-3">
         <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">
-          <dt className="text-xs uppercase tracking-wide text-stone-500">Durée</dt>
+          <dt className="text-xs uppercase tracking-wide text-stone-500">{t('duration')}</dt>
           <dd className="mt-1 text-stone-900">
             {formatDate(lease.start_date, locale)}
-            {lease.end_date ? ` → ${formatDate(lease.end_date, locale)}` : ' → indéterminée'}
+            {lease.end_date
+              ? ` → ${formatDate(lease.end_date, locale)}`
+              : ` → ${t('openEnded')}`}
           </dd>
         </dl>
         <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">
           <dt className="text-xs uppercase tracking-wide text-stone-500">
-            {lease.type === 'sale' ? 'Prix' : 'Loyer'}
+            {lease.type === 'sale' ? t('price') : t('rent')}
           </dt>
           <dd className="mt-1 text-lg font-semibold text-stone-900">
             {typeof rentOrPrice === 'number'
               ? formatCurrency(rentOrPrice, locale)
               : '—'}
             {lease.type !== 'sale' && (
-              <span className="ml-1 text-xs text-stone-500">/ mois</span>
+              <span className="ml-1 text-xs text-stone-500">{tLease('perMonth')}</span>
             )}
           </dd>
         </dl>
         <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">
-          <dt className="text-xs uppercase tracking-wide text-stone-500">Caution</dt>
+          <dt className="text-xs uppercase tracking-wide text-stone-500">{t('deposit')}</dt>
           <dd className="mt-1 text-stone-900">
             {typeof lease.deposit_amount === 'number'
               ? formatCurrency(lease.deposit_amount, locale)
@@ -269,28 +274,28 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-app-ink">Échéancier</h2>
+        <h2 className="mb-3 text-sm font-semibold text-app-ink">{t('schedule')}</h2>
         {lease.status === 'draft' ? (
           <p className="mb-3 rounded-lg border border-dashed border-stone-200 bg-white p-3 text-sm text-stone-500">
-            Activez le bail avant de générer l’échéancier.
+            {t('activateBeforeSchedule')}
           </p>
         ) : null}
         <LeaseSchedule leaseId={leaseId} agencyId={lease.agency_id ?? null} />
       </section>
 
       <section className="rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">Caution</h2>
+        <h2 className="text-sm font-semibold text-stone-900">{t('deposit')}</h2>
         <p className="mt-2 text-sm text-stone-600">
-          Montant initial :{' '}
+          {t('depositInitialAmount')}{' '}
           <span className="font-medium text-stone-900">
             {typeof lease.deposit_amount === 'number'
               ? formatCurrency(lease.deposit_amount, locale)
               : '—'}
           </span>
           {lease.deposit_refunded_at ? (
-            <> · Remboursée le {formatDate(lease.deposit_refunded_at, locale)}</>
+            <> · {t('depositRefundedOn', { date: formatDate(lease.deposit_refunded_at, locale) })}</>
           ) : (
-            <> · Aucun remboursement enregistré</>
+            <> · {t('depositNoRefund')}</>
           )}
         </p>
       </section>
@@ -304,11 +309,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       {(lease.terms || lease.special_conditions) && (
         <section className="rounded-xl border border-stone-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-stone-900">Clauses</h2>
+          <h2 className="text-sm font-semibold text-stone-900">{t('clauses')}</h2>
           {lease.terms && (
             <div className="mt-3">
               <h3 className="text-xs uppercase tracking-wide text-stone-500">
-                Conditions générales
+                {tLease('terms')}
               </h3>
               <p className="mt-1 whitespace-pre-line text-sm text-stone-700">
                 {lease.terms}
@@ -318,7 +323,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           {lease.special_conditions && (
             <div className="mt-4">
               <h3 className="text-xs uppercase tracking-wide text-stone-500">
-                Conditions particulières
+                {tLease('specialConditions')}
               </h3>
               <p className="mt-1 whitespace-pre-line text-sm text-stone-700">
                 {lease.special_conditions}
@@ -333,8 +338,8 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           slug={lease.property.slug}
           context={
             lease.status === 'active'
-              ? 'Votre bail est en cours.'
-              : 'Votre bail est terminé.'
+              ? t('reviewContextActive')
+              : t('reviewContextEnded')
           }
           propertyTitle={lease.property.title}
         />

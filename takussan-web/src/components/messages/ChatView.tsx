@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import type { ZodType } from 'zod';
+import { useResolveurValidation } from '@/hooks/useApiForm';
 import { useLocale, useTranslations } from 'next-intl';
 import { ArrowLeft, Info, Paperclip, Send, Settings, Users } from 'lucide-react';
 import {
@@ -27,6 +28,7 @@ import { MessageDateSeparator } from './MessageDateSeparator';
 import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface ChatViewProps {
   readonly conversationId: number;
@@ -51,7 +53,9 @@ interface ChatViewProps {
  */
 export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewProps) {
   const isWidget = variant === 'widget';
+  const t = useTranslations('messaging');
   const tWidget = useTranslations('messaging.widget');
+  const messageErreur = useMessageErreurApi();
   const locale = useLocale() as Locale;
   const { user, token } = useAuth();
   const [isVisible, setIsVisible] = useState(
@@ -97,9 +101,19 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
   const sendMessage = useSendMessage(conversationId);
 
+  // Le cast reproduit celui que portait `zodResolver` ici même : `sendMessageSchema` a des
+  // champs à `.default()`, donc son `z.input` diffère de son `z.output` et ne s'unifie pas avec
+  // `SendMessageFormValues`. Il porte sur l'ARGUMENT, jamais sur le paramètre de type — sans quoi le
+  // résolveur retomberait sur `FieldValues` et `useForm` refuserait le branchement.
+  const resolver = useResolveurValidation<SendMessageFormValues>(
+    sendMessageSchema as unknown as ZodType<SendMessageFormValues>,
+  );
   const form = useForm<SendMessageFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(sendMessageSchema as unknown as any),
+    // `useResolveurValidation`, PAS `zodResolver` nu : les schémas de `src/lib/schemas/` portent
+    // une clé (`validation.…`) et non un libellé. Ce fichier montait `zodResolver` directement et
+    // rendait donc la clé brute à l'utilisateur — l'inventaire du lot J l'avait manqué alors même
+    // qu'il cherchait `zodResolver` (TCK-292, lot L).
+    resolver,
     defaultValues: { content: '' },
   });
 
@@ -175,7 +189,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
   // IntersectionObserver on the top sentinel triggers older-history fetch.
   const isSentinelVisible = useIntersectionObserver(loadMoreRef, {
-    root: scrollRef.current,
+    root: scrollRef,
     rootMargin: '120px 0px 0px 0px',
     enabled: Boolean(hasNextPage) && !isLoading,
   });
@@ -212,13 +226,13 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
       if (pendingFile) {
         const validation = isAllowedAttachment(pendingFile);
         if (!validation.ok) {
-          setAttachmentError(validation.reason ?? 'Fichier refusé.');
+          setAttachmentError(validation.reason ?? t('chat.attachmentRejected'));
         } else {
           setUploading(true);
           try {
             await uploadAttachment(result.data.id, pendingFile);
           } catch (err) {
-            setAttachmentError(err instanceof Error ? err.message : 'Upload échoué.');
+            setAttachmentError(messageErreur(err, t('chat.uploadFailed')));
           } finally {
             setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
@@ -236,7 +250,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
     if (!file) return;
     const v = isAllowedAttachment(file);
     if (!v.ok) {
-      setAttachmentError(v.reason ?? 'Fichier refusé.');
+      setAttachmentError(v.reason ?? t('chat.attachmentRejected'));
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }
@@ -277,11 +291,13 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           <h2 className="truncate text-sm font-semibold text-stone-900">
             {conversation?.subject ??
               conversation?.property?.title ??
-              `Conversation #${conversationId}`}
+              t('conversationTitleFallback', { id: String(conversationId) })}
           </h2>
           {isGroup && conversation?.participants && (
             <p className="text-xs text-stone-500">
-              {conversation.participants.filter((p) => !p.left_at).length} participants
+              {t('chat.participants', {
+                count: String(conversation.participants.filter((p) => !p.left_at).length),
+              })}
               {isMuted && ' · 🔕'}
             </p>
           )}
@@ -290,7 +306,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
               href={`/properties/${conversation.property.slug}`}
               className="text-xs text-stone-500 hover:underline"
             >
-              Voir le bien
+              {t('chat.viewProperty')}
             </Link>
           )}
         </div>
@@ -300,7 +316,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
             variant="ghost"
             size="icon"
             onClick={() => setInfoOpen(true)}
-            aria-label="Group info"
+            aria-label={t('chat.groupInfoAria')}
             data-testid="group-info-button"
           >
             <Info className="size-4" aria-hidden />
@@ -336,10 +352,10 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
             <div className="ml-auto h-10 w-1/2 animate-pulse rounded-lg bg-stone-200" />
           </div>
         ) : isError ? (
-          <p className="text-sm text-red-600">Impossible de charger les messages.</p>
+          <p className="text-sm text-red-600">{t('chat.loadError')}</p>
         ) : messages.length === 0 ? (
           <p className="text-center text-sm text-stone-500">
-            Pas encore de messages. Envoyez le premier !
+            {t('chat.empty')}
           </p>
         ) : (
           <ul className="space-y-3">
@@ -352,7 +368,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
               )}
             >
               {isFetchingNextPage ? (
-                <span className="text-[11px] text-stone-500">Chargement…</span>
+                <span className="text-[11px] text-stone-500">{t('chat.loadingMore')}</span>
               ) : null}
             </li>
             {renderItems.map((item) => {
@@ -376,7 +392,11 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
       </div>
 
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
+        // produire le gestionnaire, et `onSubmit` lit `fileInputRef.current` :
+        // le compilateur ne peut pas prouver que la ref n'est pas lue au rendu.
+        // On diffère l'appel dans l'événement, ce que fait déjà le bouton plus bas.
+        onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
         className="border-t border-stone-200 bg-white p-3"
       >
         {attachmentError && (
@@ -386,7 +406,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           <label
             htmlFor="chat-file"
             className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100"
-            aria-label="Joindre un fichier"
+            aria-label={t('chat.attachAria')}
           >
             <Paperclip className="size-4" aria-hidden />
             <input
@@ -401,7 +421,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           <Textarea
             {...form.register('content')}
             rows={1}
-            placeholder="Écrivez un message…"
+            placeholder={t('chat.placeholder')}
             className="min-h-9 resize-none"
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -414,7 +434,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
             type="submit"
             size="icon"
             disabled={sendMessage.isPending || uploading}
-            aria-label="Envoyer"
+            aria-label={t('chat.sendAria')}
           >
             <Send className="size-4" aria-hidden />
           </Button>

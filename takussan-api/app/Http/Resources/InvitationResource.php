@@ -2,8 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * TCK-249 — invitation envelope.
@@ -13,7 +13,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * Resend regenerates the token, so callers that legitimately need to
  * forward an invitation use the resend endpoint instead.
  */
-class InvitationResource extends JsonResource
+class InvitationResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -27,11 +27,11 @@ class InvitationResource extends JsonResource
             'invitable_id' => $this->invitable_id,
             'invited_by' => $this->invited_by,
             'invited_user_id' => $this->invited_user_id,
-            'expires_at' => $this->expires_at?->toIso8601String(),
-            'accepted_at' => $this->accepted_at?->toIso8601String(),
-            'revoked_at' => $this->revoked_at?->toIso8601String(),
-            'last_reminded_at' => $this->last_reminded_at?->toIso8601String(),
-            'created_at' => $this->created_at?->toIso8601String(),
+            'expires_at' => $this->iso($this->expires_at),
+            'accepted_at' => $this->iso($this->accepted_at),
+            'revoked_at' => $this->iso($this->revoked_at),
+            'last_reminded_at' => $this->iso($this->last_reminded_at),
+            'created_at' => $this->iso($this->created_at),
             'metadata' => $this->metadata,
         ];
     }

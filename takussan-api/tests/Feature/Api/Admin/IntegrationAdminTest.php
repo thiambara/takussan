@@ -8,9 +8,9 @@ use App\Models\IntegrationWebhookLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class IntegrationAdminTest extends BaseTestCase
+class IntegrationAdminTest extends TestCase
 {
     use RefreshDatabase;
 

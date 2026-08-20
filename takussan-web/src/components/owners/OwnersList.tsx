@@ -31,6 +31,7 @@ import {
 } from '@/lib/queries/owners';
 import type { PaginatedResponse } from '@/types/api';
 import { InviteOwnerSheet } from './InviteOwnerSheet';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type Props = {
   readonly agencyId: number;
@@ -46,8 +47,10 @@ const STATUS_VARIANT: Record<OwnerProfileStatus, 'default' | 'secondary' | 'outl
 };
 
 export function OwnersList({ agencyId, canInvite, initialData }: Props) {
+  const tErr = useTranslations('errors');
   const t = useTranslations('owners');
   const tInvite = useTranslations('owners.invite');
+  const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
@@ -56,7 +59,7 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
   const ownersQuery = useQuery({
     queryKey: ['owners', agencyId],
     queryFn: () => {
-      if (!token) throw new ApiError(401, { message: 'no token' });
+      if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       return fetchOwners(token, { agencyId });
     },
     initialData,
@@ -67,9 +70,9 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
 
   const resendMutation = useMutation<unknown, ApiError, OwnerProfileSummary>({
     mutationFn: async (owner) => {
-      if (!token) throw new ApiError(401, { message: 'no token' });
+      if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, owner);
-      if (id === null) throw new ApiError(404, { message: 'no pending invitation' });
+      if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       return resendInvitation(token, id);
     },
     onSuccess: () => {
@@ -78,7 +81,7 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
     onError: (error) => {
       toast.add({
         title: tInvite('toasts.error_title'),
-        description: error.displayMessage,
+        description: messageErreur(error),
         type: 'error',
       });
     },
@@ -86,9 +89,9 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
 
   const revokeMutation = useMutation<unknown, ApiError, OwnerProfileSummary>({
     mutationFn: async (owner) => {
-      if (!token) throw new ApiError(401, { message: 'no token' });
+      if (!token) throw new ApiError(401, { message: tErr('missingToken') });
       const id = await resolveInvitationId(token, owner);
-      if (id === null) throw new ApiError(404, { message: 'no pending invitation' });
+      if (id === null) throw new ApiError(404, { message: tErr('noPendingInvitation') });
       return revokeInvitation(token, id);
     },
     onSuccess: async () => {
@@ -98,7 +101,7 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
     onError: (error) => {
       toast.add({
         title: tInvite('toasts.error_title'),
-        description: error.displayMessage,
+        description: messageErreur(error),
         type: 'error',
       });
     },

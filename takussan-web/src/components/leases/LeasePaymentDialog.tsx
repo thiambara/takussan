@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -19,25 +20,26 @@ interface LeasePaymentDialogProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-const PAYMENT_METHOD_OPTIONS = [
-  { value: 'cash', label: 'Espèces' },
-  { value: 'bank_transfer', label: 'Virement bancaire' },
-  { value: 'mobile_money', label: 'Mobile Money' },
-  { value: 'check', label: 'Chèque' },
-  { value: 'card', label: 'Carte bancaire' },
-];
-
-const PAYMENT_TYPE_OPTIONS = [
-  { value: 'rent', label: 'Loyer' },
-  { value: 'charges', label: 'Charges' },
-  { value: 'deposit', label: 'Caution' },
-  { value: 'deposit_refund', label: 'Remboursement caution' },
-  { value: 'regularization', label: 'Régularisation' },
-  { value: 'penalty', label: 'Pénalité' },
-];
+/** Les valeurs d'enum du backend ; les libellés vivent sous `lease.payment.{methods,types}.*`. */
+const PAYMENT_METHODS = ['cash', 'bank_transfer', 'mobile_money', 'check', 'card'] as const;
+const PAYMENT_TYPES = [
+  'rent',
+  'charges',
+  'deposit',
+  'deposit_refund',
+  'regularization',
+  'penalty',
+] as const;
 
 export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePaymentDialogProps) {
+  const t = useTranslations('lease.payment');
+  const tMethods = useTranslations('lease.payment.methods');
+  const tTypes = useTranslations('lease.payment.types');
+  const tCommon = useTranslations('common');
   const createPayment = useCreateLeasePayment(leaseId);
+
+  const methodOptions = PAYMENT_METHODS.map((value) => ({ value, label: tMethods(value) }));
+  const typeOptions = PAYMENT_TYPES.map((value) => ({ value, label: tTypes(value) }));
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     LeasePaymentFormValues,
@@ -68,9 +70,9 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePayment
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Enregistrer un paiement</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
-            Loyer, charges ou régularisation pour ce bail.
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -84,7 +86,7 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePayment
             control={form.control}
             name="amount"
             type="number"
-            label="Montant"
+            label={t('amount')}
             required
             min={0}
             step={100}
@@ -92,51 +94,51 @@ export function LeasePaymentDialog({ leaseId, open, onOpenChange }: LeasePayment
           <FormSelect<LeasePaymentFormValues>
             control={form.control}
             name="payment_type"
-            label="Type"
-            options={PAYMENT_TYPE_OPTIONS}
+            label={t('type')}
+            options={typeOptions}
           />
           <FormSelect<LeasePaymentFormValues>
             control={form.control}
             name="payment_method"
-            label="Moyen"
-            options={PAYMENT_METHOD_OPTIONS}
+            label={t('method')}
+            options={methodOptions}
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <FormDatePicker<LeasePaymentFormValues>
               control={form.control}
               name="period_start"
-              label="Période début"
+              label={t('periodStart')}
               required
             />
             <FormDatePicker<LeasePaymentFormValues>
               control={form.control}
               name="period_end"
-              label="Période fin"
+              label={t('periodEnd')}
               required
             />
           </div>
           <FormDatePicker<LeasePaymentFormValues>
             control={form.control}
             name="paid_at"
-            label="Date effective"
+            label={t('effectiveDate')}
           />
           <FormInput<LeasePaymentFormValues>
             control={form.control}
             name="reference_number"
-            label="Référence / Reçu"
+            label={t('reference')}
           />
           <FormTextarea<LeasePaymentFormValues>
             control={form.control}
             name="notes"
-            label="Notes"
+            label={t('notes')}
             rows={2}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {tCommon('actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
+              {isSubmitting ? t('saving') : tCommon('actions.save')}
             </Button>
           </div>
         </form>

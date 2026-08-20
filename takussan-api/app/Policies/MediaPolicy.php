@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Enums\Capability;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -19,11 +20,15 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  */
 class MediaPolicy extends BasePolicy
 {
-    protected function resource(): string
-    {
-        return 'media';
-    }
-
+    /**
+     * TCK-297 — `media` n'est même pas un préfixe de `Capability` : les cinq
+     * abilities CRUD héritées se résolvaient sur des chaînes inexistantes.
+     * Aucune capacité n'est donc déclarée ici, et les abilities réellement
+     * utilisées (`view`, `delete`, `viewRaw`, `sign`) portent leur règle en
+     * propre — propriété du morph target, périmètre d'agence, et pour
+     * `viewRaw` la seule capacité qui existe vraiment :
+     * `Capability::PropertiesUpdateAny`.
+     */
     public function view(User $user, Model $model): bool
     {
         return true;
@@ -32,6 +37,16 @@ class MediaPolicy extends BasePolicy
     /**
      * TCK-106 — only the owner agency admin or platform admin may retrieve
      * the original (unwatermarked) media file via `?raw=1`.
+     *
+     * TCK-278 — this used to read `$user->can('properties.update')`. That
+     * string is **not** a `Capability` case (only `properties.update_any` and
+     * `properties.update_own` exist), so no Gate was ever defined for it — and
+     * an undefined ability does not throw, it denies. Every `agency_admin`
+     * who was not the agency's `primary_admin_id` silently lost access, while
+     * the spatie role `agency_admin` did carry `properties.update` before the
+     * cutover. We now go through the resolver with the real capability and the
+     * explicit agency, instead of a stringly-typed Gate lookup that no type,
+     * no lint and no test could catch.
      */
     public function viewRaw(User $user, Model $model): bool
     {
@@ -57,7 +72,8 @@ class MediaPolicy extends BasePolicy
                 return true;
             }
 
-            if ($user->isAgencyAdminAt((int) $user->agency_id) && $user->can('properties.update')) {
+            if ($user->isAgencyAdminAt((int) $user->agency_id)
+                && $user->canActAt(Capability::PropertiesUpdateAny, $agency)) {
                 return true;
             }
         }

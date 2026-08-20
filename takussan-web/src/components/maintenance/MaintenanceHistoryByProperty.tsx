@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { Wrench } from 'lucide-react';
 
+import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import { useMaintenanceHistoryForProperty } from '@/lib/queries/maintenance';
 
-import { MAINTENANCE_CATEGORY_LABEL } from './labels';
 import {
   MaintenancePriorityBadge,
   MaintenanceStatusBadge,
@@ -25,6 +26,8 @@ export function MaintenanceHistoryByProperty({
   readonly propertyId: number;
 }) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('maintenance.history');
+  const tCategory = useTranslations('maintenance.category');
   const query = useMaintenanceHistoryForProperty(propertyId);
 
   return (
@@ -32,9 +35,11 @@ export function MaintenanceHistoryByProperty({
       {(data) => {
         if (data.data.length === 0) {
           return (
-            <p className="rounded-xl bg-app-surface-1 p-6 text-center text-sm text-app-ink-muted">
-              Aucune intervention enregistrée sur ce bien.
-            </p>
+            <EmptyState
+              icon={<Wrench className="size-8" aria-hidden="true" />}
+              title={t('empty_title')}
+              description={t('empty_description')}
+            />
           );
         }
         return (
@@ -48,10 +53,12 @@ export function MaintenanceHistoryByProperty({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-app-ink">{r.title}</p>
                     <p className="text-xs text-app-ink-muted">
-                      {MAINTENANCE_CATEGORY_LABEL[r.category]} ·{' '}
+                      {tCategory(r.category)} ·{' '}
                       {formatDate(r.created_at, locale)}
                       {r.completed_at
-                        ? ` · Terminée le ${formatDate(r.completed_at, locale)}`
+                        ? ` · ${t('completed_at', {
+                            date: formatDate(r.completed_at, locale),
+                          })}`
                         : null}
                     </p>
                   </div>

@@ -1,8 +1,12 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 
-export const metadata: Metadata = { title: 'Mon profil' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.profile');
+  return { title: t('metaTitle') };
+}
 import { isAgent, isOwner, isCustomer, isAdmin } from '@/lib/roles';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
@@ -13,8 +17,12 @@ import { ProfileOwnerSection } from '@/components/profile/ProfileOwnerSection';
 import { ProfileAdminSection } from '@/components/profile/ProfileAdminSection';
 import { ProfileSecuritySection } from '@/components/profile/ProfileSecuritySection';
 import { MyProfilesSection } from '@/components/profile/MyProfilesSection';
+// `buttonVariants()` sur un `<Link>`, et non le wrapper polymorphe de shadcn/Radix que le ticket
+// prescrivait : ce dépôt n'a aucune dépendance Radix, cette API n'existe pas ici.
+import { buttonVariants } from '@/components/ui/button';
 
 export default async function ProfilePage() {
+  const t = await getTranslations('dashboard.profile');
   const user = await getMeAction();
   return (
     <ProfileLayout>
@@ -30,16 +38,14 @@ export default async function ProfilePage() {
       <section className="rounded-2xl bg-card p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-foreground">Notifications</h2>
-            <p className="text-sm text-muted-foreground">
-              Choisissez les canaux utilisés pour chaque type d&apos;événement.
-            </p>
+            <h2 className="text-lg font-bold text-foreground">{t('notifications')}</h2>
+            <p className="text-sm text-muted-foreground">{t('notificationsBody')}</p>
           </div>
           <Link
             href="/app/profile/notifications"
-            className="rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+            className={buttonVariants({ variant: 'outline' })}
           >
-            Gérer les préférences
+            {t('managePrefs')}
           </Link>
         </div>
       </section>
@@ -48,16 +54,14 @@ export default async function ProfilePage() {
         <section className="rounded-2xl bg-card p-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-foreground">Avis</h2>
-              <p className="text-sm text-muted-foreground">
-                Séjours et baux sur lesquels vous pouvez laisser un avis public.
-              </p>
+              <h2 className="text-lg font-bold text-foreground">{t('reviews')}</h2>
+              <p className="text-sm text-muted-foreground">{t('reviewsBody')}</p>
             </div>
             <Link
               href="/app/profile/reviews"
-              className="rounded-md border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground hover:bg-muted"
+              className={buttonVariants({ variant: 'outline' })}
             >
-              Voir mes avis
+              {t('seeReviews')}
             </Link>
           </div>
         </section>

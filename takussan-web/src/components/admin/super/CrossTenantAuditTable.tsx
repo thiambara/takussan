@@ -2,12 +2,18 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
+import { ScrollText } from 'lucide-react';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { DatePicker } from '@/components/ui/date-picker';
 import { fetchAuditLog } from '@/lib/queries/super-admin';
 import type { AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export function CrossTenantAuditTable() {
+  const t = useTranslations('superAdmin.audit');
+  const messageErreur = useMessageErreurApi();
   const [event, setEvent] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -39,7 +45,7 @@ export function CrossTenantAuditTable() {
             setEvent(e.target.value);
             setPage(1);
           }}
-          placeholder="Événement (ex. super_admin_agency_verified)"
+          placeholder={t('eventPlaceholder')}
           className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
         />
         <input
@@ -49,7 +55,7 @@ export function CrossTenantAuditTable() {
             setCauserId(e.target.value);
             setPage(1);
           }}
-          placeholder="ID du causer"
+          placeholder={t('causerPlaceholder')}
           className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
         />
         <DatePicker
@@ -58,7 +64,7 @@ export function CrossTenantAuditTable() {
             setDateFrom(value);
             setPage(1);
           }}
-          aria-label="Date depuis"
+          aria-label={t('dateFromAria')}
         />
         <DatePicker
           value={dateTo}
@@ -66,7 +72,7 @@ export function CrossTenantAuditTable() {
             setDateTo(value);
             setPage(1);
           }}
-          aria-label="Date jusqu'à"
+          aria-label={t('dateToAria')}
         />
       </div>
 
@@ -77,22 +83,22 @@ export function CrossTenantAuditTable() {
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl bg-red-50 p-4 text-sm text-red-900" role="alert">
-          Erreur de chargement. {error?.displayMessage}
-        </div>
+        <ErrorState message={messageErreur(error, t('error'))} />
       ) : !data || data.data.length === 0 ? (
-        <p className="rounded-xl bg-white p-6 text-center text-sm text-stone-500 ring-1 ring-stone-200">
-          Aucune entrée pour ces filtres.
-        </p>
+        <EmptyState
+          icon={<ScrollText className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-stone-200">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-600">
               <tr>
-                <th className="px-3 py-2">Date</th>
-                <th className="px-3 py-2">Événement</th>
-                <th className="px-3 py-2">Causer</th>
-                <th className="px-3 py-2">Sujet</th>
+                <th className="px-3 py-2">{t('colDate')}</th>
+                <th className="px-3 py-2">{t('colEvent')}</th>
+                <th className="px-3 py-2">{t('colCauser')}</th>
+                <th className="px-3 py-2">{t('colSubject')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-200">
@@ -123,10 +129,14 @@ export function CrossTenantAuditTable() {
             disabled={page <= 1}
             className="rounded-md border border-stone-300 bg-white px-3 py-1 disabled:opacity-50"
           >
-            Précédent
+            {t('previous')}
           </button>
           <span>
-            Page {data.meta.current_page} sur {data.meta.last_page} · {data.meta.total} entrées
+            {t('pagination', {
+              current: data.meta.current_page,
+              last: data.meta.last_page,
+              total: data.meta.total,
+            })}
           </span>
           <button
             type="button"
@@ -134,7 +144,7 @@ export function CrossTenantAuditTable() {
             disabled={page >= data.meta.last_page}
             className="rounded-md border border-stone-300 bg-white px-3 py-1 disabled:opacity-50"
           >
-            Suivant
+            {t('next')}
           </button>
         </div>
       ) : null}

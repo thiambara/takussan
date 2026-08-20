@@ -1,5 +1,8 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { FormTextarea, FormGlobalError } from '@/components/forms';
@@ -7,11 +10,19 @@ import { useApiForm } from '@/hooks/useApiForm';
 import { useRejectMaintenanceQuote } from '@/lib/queries/maintenance';
 import { z } from 'zod';
 
-const schema = z.object({
-  reason: z.string().min(5, 'Le motif doit contenir au moins 5 caractères').max(1000),
-});
+/**
+ * Le message de validation vient du dictionnaire — donc d'un traducteur, donc d'un hook. Le
+ * schéma est bâti DANS le composant (TCK-292, lot I) plutôt qu'au module : c'est le seul endroit
+ * où `t` existe. Le patron « clé portée par le schéma » du lot J vise `src/lib/schemas/`, partagé
+ * entre serveur et client ; ce schéma-ci est local à un composant client, et n'en a pas besoin.
+ */
+function construireSchema(t: (cle: string) => string) {
+  return z.object({
+    reason: z.string().min(5, t('reason_min')).max(1000),
+  });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof construireSchema>>;
 
 export function QuoteRejectionModal({ 
   id, 
@@ -22,8 +33,11 @@ export function QuoteRejectionModal({
   readonly open: boolean;
   readonly onClose: () => void;
 }) {
+  const t = useTranslations('maintenance.quote.reject');
+  const tCommon = useTranslations('common');
   const mutation = useRejectMaintenanceQuote(id);
-  
+  const schema = useMemo(() => construireSchema(t), [t]);
+
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<FormValues, unknown>({
     schema,
     defaultValues: {
@@ -41,7 +55,7 @@ export function QuoteRejectionModal({
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Rejeter le devis</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -50,17 +64,17 @@ export function QuoteRejectionModal({
           <FormTextarea
             name="reason"
             control={form.control}
-            label="Motif du rejet"
-            placeholder="Veuillez expliquer pourquoi ce devis est refusé..."
+            label={t('reason_label')}
+            placeholder={t('reason_placeholder')}
             rows={4}
           />
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Annuler
+              {tCommon('actions.cancel')}
             </Button>
             <Button type="submit" variant="destructive" disabled={isSubmitting}>
-              Confirmer le rejet
+              {t('confirm')}
             </Button>
           </div>
         </form>

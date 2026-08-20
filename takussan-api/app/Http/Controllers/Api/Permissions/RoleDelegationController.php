@@ -35,15 +35,7 @@ class RoleDelegationController extends Controller
 
         $paginated = $query->paginate($request->input('per_page', 20));
 
-        return $this->json([
-            'data' => RoleDelegationResource::collection($paginated),
-            'meta' => [
-                'current_page' => $paginated->currentPage(),
-                'last_page' => $paginated->lastPage(),
-                'per_page' => $paginated->perPage(),
-                'total' => $paginated->total(),
-            ],
-        ]);
+        return $this->paginated($paginated, RoleDelegationResource::collection($paginated));
     }
 
     public function store(Agency $agency, StoreRoleDelegationRequest $request): JsonResponse

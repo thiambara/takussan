@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Admin\DestroySessionUserSupportRequest;
 use App\Http\Requests\Api\Admin\Support\ForcePasswordResetRequest;
 use App\Http\Requests\Api\Admin\Support\Reset2faRequest;
 use App\Http\Requests\Api\Admin\Support\RevokeSessionsRequest;
@@ -10,7 +11,6 @@ use App\Http\Requests\Api\Admin\Support\UnlockRequest;
 use App\Models\User;
 use App\Services\Admin\UserSupportService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class UserSupportController extends Controller
 {
@@ -49,9 +49,9 @@ class UserSupportController extends Controller
         ));
     }
 
-    public function destroySession(Request $request, User $user, int $tokenId, UserSupportService $support): JsonResponse
+    public function destroySession(DestroySessionUserSupportRequest $request, User $user, int $tokenId, UserSupportService $support): JsonResponse
     {
-        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:500']]);
+        $data = $request->validated();
 
         return $this->success($support->revokeSession($request->user(), $user, $tokenId, $data['reason']));
     }

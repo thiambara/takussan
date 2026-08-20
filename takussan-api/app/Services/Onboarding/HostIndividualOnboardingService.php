@@ -25,8 +25,9 @@ use Symfony\Component\HttpFoundation\Response;
  *   1. Validates the phone OTP (delegated to {@see PhoneVerificationService}).
  *   2. Creates the {@see Agency} with `kind = individual`,
  *      `status = active`, `is_verified = false`.
- *   3. Pins the user as `primary_admin_id` and attaches the spatie
- *      `agency_admin` + `owner` roles scoped to the agency team_id.
+ *   3. Pins the user as `primary_admin_id`. TCK-278 — no spatie role is
+ *      attached any more (ADR-0002): the two profiles created at step 4
+ *      ARE the `agency_admin` + `owner` roles, scoped by their `agency_id`.
  *   4. Creates the {@see AgencyAdminProfile} (TCK-271 — agency-side
  *      profile, pinned as the active context cookie) and the
  *      {@see OwnerProfile} (KYC-bearing profile for the owner role).
@@ -111,9 +112,10 @@ class HostIndividualOnboardingService
                 // TCK-271 — the agency-admin profile is now the concrete
                 // active profile. Pinning it (rather than the OwnerProfile)
                 // makes the cookie semantics match the user's primary
-                // intent in the wizard ("I'm setting up my agency"), and
-                // ResolveActiveProfile resolves it back to the correct
-                // team_id via the spatie role attachment.
+                // intent in the wizard ("I'm setting up my agency"). TCK-278
+                // — ResolveActiveProfile reads the agency straight off the
+                // profile's own `agency_id`; there is no team_id and no
+                // spatie role attachment to go through (ADR-0002).
                 'active_profile' => $agencyAdminProfile,
             ];
         });

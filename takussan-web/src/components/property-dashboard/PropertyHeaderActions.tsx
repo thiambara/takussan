@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Archive,
   Copy,
@@ -29,9 +30,7 @@ import {
   updatePropertyStatusAction,
   updatePropertyVisibilityAction,
 } from '@/app/actions/dashboard-properties';
-import {
-  PROPERTY_STATUS_LABELS,
-} from '@/components/property-form/options';
+import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { propertyStatusValues } from '@/lib/schemas/property';
 import type { PropertyDetail } from '@/types/property';
 import {
@@ -50,6 +49,8 @@ interface Props {
 const PUBLIC_VIEWABLE_STATUSES = new Set(['available', 'published']);
 
 export function PropertyHeaderActions({ property }: Props) {
+  const t = useTranslations('property.dashboard.actions');
+  const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +66,7 @@ export function PropertyHeaderActions({ property }: Props) {
     startTransition(async () => {
       const result = await fn();
       if (!result.ok) {
-        setError(result.message ?? 'Action impossible. Réessayez.');
+        setError(result.message ?? t('error'));
         return;
       }
       setSuccess(successMessage);
@@ -76,14 +77,14 @@ export function PropertyHeaderActions({ property }: Props) {
   const publish = () => {
     runAction(
       () => updatePropertyVisibilityAction(property.id, 'public'),
-      'Bien publié.',
+      t('published'),
     );
   };
 
   const unpublish = () => {
     runAction(
       () => updatePropertyVisibilityAction(property.id, 'private'),
-      'Bien dépublié.',
+      t('unpublished'),
     );
   };
 
@@ -91,14 +92,14 @@ export function PropertyHeaderActions({ property }: Props) {
     if (status === property.status) return;
     runAction(
       () => updatePropertyStatusAction(property.id, status),
-      'Statut mis à jour.',
+      t('statusUpdated'),
     );
   };
 
   const archive = () => {
     runAction(
       () => updatePropertyStatusAction(property.id, 'archived'),
-      'Bien archivé.',
+      t('archived'),
     );
   };
 
@@ -108,11 +109,11 @@ export function PropertyHeaderActions({ property }: Props) {
     startTransition(async () => {
       const result = await duplicatePropertyAction(property.id);
       if (!result.ok) {
-        setError(result.message ?? 'Duplication impossible.');
+        setError(result.message ?? t('duplicateFailed'));
         return;
       }
       if (!result.data) {
-        setError('Duplication impossible.');
+        setError(t('duplicateFailed'));
         return;
       }
       router.push(`/app/properties/${result.data.id}`);
@@ -126,7 +127,7 @@ export function PropertyHeaderActions({ property }: Props) {
     startTransition(async () => {
       const result = await deletePropertyAction(property.id);
       if (!result.ok) {
-        setError(result.message ?? 'Suppression impossible.');
+        setError(result.message ?? t('deleteFailed'));
         return;
       }
       setConfirmDelete(false);
@@ -168,7 +169,7 @@ export function PropertyHeaderActions({ property }: Props) {
           className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
         >
           <ExternalLink aria-hidden="true" />
-          Voir la fiche publique
+          {t('viewPublic')}
         </Link>
       ) : null}
       <AddDocumentButton
@@ -182,7 +183,7 @@ export function PropertyHeaderActions({ property }: Props) {
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Plus d’actions"
+              aria-label={t('more')}
               disabled={pending}
             >
               {pending ? (
@@ -194,36 +195,36 @@ export function PropertyHeaderActions({ property }: Props) {
           }
         />
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>Actions rapides</DropdownMenuLabel>
+          <DropdownMenuLabel>{t('quickActions')}</DropdownMenuLabel>
           {isPublic ? (
             <DropdownMenuItem onSelect={unpublish} disabled={pending}>
-              Dépublier
+              {t('unpublish')}
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem onSelect={publish} disabled={pending}>
-              Publier
+              {t('publish')}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onSelect={duplicate} disabled={pending}>
             <Copy className="size-4" aria-hidden="true" />
-            Dupliquer
+            {t('duplicate')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>Statut</DropdownMenuLabel>
+          <DropdownMenuLabel>{t('statusHeading')}</DropdownMenuLabel>
           {statusActions.map((status) => (
             <DropdownMenuItem
               key={status}
               disabled={pending}
               onSelect={() => changeStatus(status)}
             >
-              {PROPERTY_STATUS_LABELS[status]}
+              {tStatus(status)}
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
           {property.status !== 'archived' ? (
             <DropdownMenuItem onSelect={archive} disabled={pending}>
               <Archive className="size-4" aria-hidden="true" />
-              Archiver
+              {t('archive')}
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem
@@ -232,18 +233,19 @@ export function PropertyHeaderActions({ property }: Props) {
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="size-4" aria-hidden="true" />
-            Supprimer
+            {t('delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Supprimer ce bien ?</DialogTitle>
+            <DialogTitle>{t('deleteTitle')}</DialogTitle>
             <DialogDescription>
-              Le bien <strong>{property.title}</strong> sera supprimé de votre
-              portefeuille agent. L’enregistrement reste restaurable côté
-              administration.
+              {t.rich('deleteBodyDetail', {
+                title: property.title,
+                b: (chunks) => <strong>{chunks}</strong>,
+              })}
             </DialogDescription>
           </DialogHeader>
           {error ? (
@@ -257,7 +259,7 @@ export function PropertyHeaderActions({ property }: Props) {
               onClick={() => setConfirmDelete(false)}
               disabled={pending}
             >
-              Annuler
+              {t('cancel')}
             </Button>
             <Button
               variant="destructive"
@@ -267,7 +269,7 @@ export function PropertyHeaderActions({ property }: Props) {
               {pending ? (
                 <Loader2 className="animate-spin" aria-hidden="true" />
               ) : null}
-              Supprimer
+              {t('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

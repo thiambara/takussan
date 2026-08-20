@@ -4,6 +4,7 @@ import * as React from "react";
 import { CalendarIcon } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -52,7 +53,7 @@ export function DatePicker({
   onValueChange,
   id,
   name,
-  placeholder = "Choisir une date",
+  placeholder,
   min,
   max,
   disabled,
@@ -64,6 +65,7 @@ export function DatePicker({
   "aria-label": ariaLabel,
   "data-testid": dataTestId,
 }: DatePickerProps) {
+  const t = useTranslations("ui.datePicker");
   const selected = toDate(value);
   const minDate = toDate(min);
   const maxDate = toDate(max);
@@ -101,7 +103,7 @@ export function DatePicker({
               <span className="truncate">
                 {selected
                   ? format(selected, "d MMMM yyyy", { locale: fr })
-                  : placeholder}
+                  : (placeholder ?? t("placeholder"))}
               </span>
               <CalendarIcon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
             </button>

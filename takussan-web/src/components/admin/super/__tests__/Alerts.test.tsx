@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
 import type React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -7,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAlertRule, patchAlertRule, testAlertRule } from '@/lib/queries/super-admin';
 import type { AlertRule } from '@/types/super-admin';
 import { AlertRuleDialog, AlertRuleTable } from '../alerts';
+import { withIntl } from '@/test/intl';
 
 vi.mock('@/lib/queries/super-admin', () => ({
   createAlertRule: vi.fn(),
@@ -29,11 +29,9 @@ const rule: AlertRule = {
 
 function renderWithQuery(node: React.ReactNode) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
-  render(
-    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
-      <QueryClientProvider client={queryClient}>{node}</QueryClientProvider>
-    </NextIntlClientProvider>,
-  );
+  render(withIntl(
+    <QueryClientProvider client={queryClient}>{node}</QueryClientProvider>,
+  ));
 }
 
 describe('alert rules UI', () => {

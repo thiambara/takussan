@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Agency;
 use App\Models\Document;
 use App\Models\Profiles\BrokerProfile;
@@ -10,12 +11,11 @@ use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Lang;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
-class PropertyResource extends JsonResource
+class PropertyResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -113,14 +113,14 @@ class PropertyResource extends JsonResource
             ),
             'documents' => $this->when($isDetail, fn () => $this->buildDocuments()),
             'price_history' => $this->when($isDetail, fn () => $this->buildPriceHistory()),
-            'published_at' => $this->published_at?->toISOString(),
-            'created_at' => $this->created_at?->toISOString(),
+            'published_at' => $this->iso($this->published_at),
+            'created_at' => $this->iso($this->created_at),
             // TCK-098 — moderation fields (always included so the agent dashboard
             // can render the status banner without a second round-trip).
             'rejection_reason' => $this->rejection_reason,
-            'submitted_at' => $this->submitted_at?->toISOString(),
-            'approved_at' => $this->approved_at?->toISOString(),
-            'rejected_at' => $this->rejected_at?->toISOString(),
+            'submitted_at' => $this->iso($this->submitted_at),
+            'approved_at' => $this->iso($this->approved_at),
+            'rejected_at' => $this->iso($this->rejected_at),
         ];
     }
 
@@ -216,7 +216,7 @@ class PropertyResource extends JsonResource
             'slug' => $owner->username,
             'avatar_url' => $owner->getFirstMediaUrl('avatar') ?: null,
             'is_agent' => $this->ownerActsAsAgent($owner),
-            'member_since' => $owner->created_at?->toISOString(),
+            'member_since' => $this->iso($owner->created_at),
         ];
     }
 
@@ -312,7 +312,7 @@ class PropertyResource extends JsonResource
             'new_price' => $entry->new_price !== null ? (float) $entry->new_price : null,
             'currency' => $entry->currency?->value,
             'reason' => $entry->reason?->value,
-            'changed_at' => $entry->changed_at?->toISOString(),
+            'changed_at' => $this->iso($entry->changed_at),
         ])->values()->all();
     }
 }

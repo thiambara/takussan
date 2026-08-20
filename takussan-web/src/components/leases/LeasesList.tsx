@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { FileText } from 'lucide-react';
 import { useLeasePropertyOptions, useLeases } from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -16,16 +19,17 @@ import {
 import type { Lease, LeaseStatus } from '@/types/lease';
 import type { Locale } from '@/i18n/config';
 
-const STATUS_LABEL: Record<LeaseStatus, string> = {
-  draft: 'Brouillon',
-  pending_signature: 'À signer',
-  active: 'Actif',
-  expired: 'Expiré',
+/** Les libellés vivent sous `lease.status.*` ; l'ordre d'affichage, lui, reste du code. */
+const STATUS_ORDER: readonly LeaseStatus[] = [
+  'draft',
+  'pending_signature',
+  'active',
+  'expired',
   // TCK-090
-  terminating: 'Résiliation en cours',
-  terminated: 'Résilié',
-  renewed: 'Renouvelé',
-};
+  'terminating',
+  'terminated',
+  'renewed',
+];
 
 const STATUS_VARIANT: Record<
   LeaseStatus,
@@ -40,16 +44,30 @@ const STATUS_VARIANT: Record<
   renewed: 'secondary',
 };
 
-export function statusFilterLabel(value: string): string {
-  return value === 'all' ? 'Tous les statuts' : STATUS_LABEL[value as LeaseStatus] ?? 'Tous les statuts';
+/**
+ * ⚠ Cette fonction était exportée et rendait du français en dur ; `agent-fr-regressions.test.ts`
+ * l'appelait pour garder « aucune valeur d'enum technique ne s'affiche ». La garde n'a pas
+ * disparu — elle s'exerce désormais sur le dictionnaire, qui est devenu la source du libellé.
+ */
+function statusFilterLabel(
+  value: string,
+  tStatus: (key: string) => string,
+  allLabel: string,
+): string {
+  return value === 'all' || !STATUS_ORDER.includes(value as LeaseStatus)
+    ? allLabel
+    : tStatus(value);
 }
 
 export function LeasesList() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('lease.list');
+  const tStatus = useTranslations('lease.status');
+  const tCommon = useTranslations('common');
   const [status, setStatus] = useState<string>('all');
   const [propertyId, setPropertyId] = useState<string>('all');
   const propertiesQuery = useLeasePropertyOptions();
-  const { data, isLoading, isError } = useLeases({
+  const { data, isLoading, isError, refetch } = useLeases({
     status: status === 'all' ? undefined : status,
     property_id: propertyId === 'all' ? undefined : Number(propertyId),
     per_page: 30,
@@ -68,40 +86,46 @@ export function LeasesList() {
 
   if (isError) {
     return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger les baux.
-      </p>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 
   const leases = data?.data ?? [];
+  // Le parc distinguait déjà « vraiment vide » de « rien qui corresponde aux filtres ». Un
+  // état vide unique qui perdrait cette nuance ferait régresser l'UX : le message
+  // d'encouragement + CTA de `design-guidelines.md:83` n'a de sens que pour le premier cas.
+  const hasActiveFilters = status !== 'all' || propertyId !== 'all';
 
   return (
     <div className="space-y-4">
       <div className="grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
         <Select value={status} onValueChange={(value) => setStatus(value ?? 'all')}>
-          <SelectTrigger aria-label="Filtrer par statut">
-            <SelectValue>{statusFilterLabel(status)}</SelectValue>
+          <SelectTrigger aria-label={t('filterByStatus')}>
+            <SelectValue>{statusFilterLabel(status, tStatus, t('allStatuses'))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            {Object.entries(STATUS_LABEL).map(([value, label]) => (
+            <SelectItem value="all">{t('allStatuses')}</SelectItem>
+            {STATUS_ORDER.map((value) => (
               <SelectItem key={value} value={value}>
-                {label}
+                {tStatus(value)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <Select value={propertyId} onValueChange={(value) => setPropertyId(value ?? 'all')}>
-          <SelectTrigger aria-label="Filtrer par bien">
+          <SelectTrigger aria-label={t('filterByProperty')}>
             <SelectValue>
               {propertyId === 'all'
-                ? 'Tous les biens'
-                : propertyOptions.find((property) => String(property.id) === propertyId)?.title ?? 'Tous les biens'}
+                ? t('allProperties')
+                : propertyOptions.find((property) => String(property.id) === propertyId)?.title ?? t('allProperties')}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les biens</SelectItem>
+            <SelectItem value="all">{t('allProperties')}</SelectItem>
             {propertyOptions.map((property) => (
               <SelectItem key={property.id} value={String(property.id)}>
                 {property.reference_number ? `${property.reference_number} · ` : ''}
@@ -113,9 +137,24 @@ export function LeasesList() {
       </div>
 
       {leases.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-          Aucun bail ne correspond à ces filtres.
-        </div>
+        hasActiveFilters ? (
+          <EmptyState
+            icon={<FileText className="size-8" aria-hidden="true" />}
+            title={t('empty_filtered_title')}
+            description={t('empty_filtered_description')}
+          />
+        ) : (
+          <EmptyState
+            icon={<FileText className="size-8" aria-hidden="true" />}
+            title={t('empty_title')}
+            description={t('empty_description')}
+            action={
+              <Link href="/app/leases/new" className={buttonVariants()}>
+                {t('empty_cta')}
+              </Link>
+            }
+          />
+        )
       ) : (
         <ul className="space-y-3">
           {leases.map((lease) => (
@@ -128,6 +167,8 @@ export function LeasesList() {
 }
 
 function LeaseRow({ lease, locale }: { lease: Lease; locale: Locale }) {
+  const tLease = useTranslations('lease');
+  const tStatus = useTranslations('lease.status');
   const rentOrPrice = lease.type === 'sale' ? lease.sale_price : lease.monthly_rent;
   return (
     <li>
@@ -139,10 +180,10 @@ function LeaseRow({ lease, locale }: { lease: Lease; locale: Locale }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="truncate text-sm font-semibold text-stone-900">
-                {lease.reference_number || `Bail #${lease.id}`}
+                {lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
               </h3>
               <Badge variant={STATUS_VARIANT[lease.status]}>
-                {STATUS_LABEL[lease.status]}
+                {tStatus(lease.status)}
               </Badge>
             </div>
             <p className="mt-1 text-xs text-stone-500">
@@ -156,7 +197,7 @@ function LeaseRow({ lease, locale }: { lease: Lease; locale: Locale }) {
                 {formatCurrency(rentOrPrice, locale)}
               </p>
               <p className="text-xs text-stone-500">
-                {lease.type === 'sale' ? 'Prix de vente' : '/ mois'}
+                {lease.type === 'sale' ? tLease('salePrice') : tLease('perMonth')}
               </p>
             </div>
           )}

@@ -1,7 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Activity, Database, HardDrive, Mail, Play, RotateCcw, Trash2, Wifi } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { Activity, CircleCheckBig, Database, HardDrive, Mail, Play, RotateCcw, Trash2, Wifi } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +24,7 @@ const CHECKS: Array<{ key: 'db' | 'cache' | 'storage' | 'mail' | 'sms'; label: s
 ];
 
 export function HealthDashboard() {
+  const t = useTranslations('superAdmin.systemHealth');
   const health = useQuery({
     queryKey: ['super-admin', 'health'],
     queryFn: fetchPlatformHealth,
@@ -43,9 +46,9 @@ export function HealthDashboard() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        <QueueMetric label="En attente" value={health.data?.data.queue.pending ?? 0} />
-        <QueueMetric label="En cours" value={health.data?.data.queue.processing ?? 0} />
-        <QueueMetric label="Échecs 24h" value={health.data?.data.queue.failed_24h ?? 0} tone="danger" />
+        <QueueMetric label={t('queuePending')} value={health.data?.data.queue.pending ?? 0} />
+        <QueueMetric label={t('queueProcessing')} value={health.data?.data.queue.processing ?? 0} />
+        <QueueMetric label={t('queueFailed24h')} value={health.data?.data.queue.failed_24h ?? 0} tone="danger" />
       </section>
 
       <FailedJobsTable jobs={jobs.data?.data ?? []} />
@@ -77,6 +80,8 @@ function QueueMetric({ label, value, tone = 'default' }: { label: string; value:
 }
 
 function FailedJobsTable({ jobs }: { jobs: FailedJob[] }) {
+  const t = useTranslations('superAdmin.systemHealth.failedJobs');
+  const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
   const retry = useMutation({
     mutationFn: retryFailedJob,
@@ -95,22 +100,22 @@ function FailedJobsTable({ jobs }: { jobs: FailedJob[] }) {
     <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-lg font-semibold text-stone-950">Jobs échoués</h2>
-          <p className="text-sm text-stone-600">Payload tronqué dans la liste.</p>
+          <h2 className="font-display text-lg font-semibold text-stone-950">{t('title')}</h2>
+          <p className="text-sm text-stone-600">{t('subtitle')}</p>
         </div>
         <Button type="button" variant="outline" onClick={() => retryAll.mutate()} disabled={retryAll.isPending}>
           <RotateCcw className="size-4" aria-hidden="true" />
-          Rejouer tout
+          {t('retryAll')}
         </Button>
       </div>
       <div className="mt-4 overflow-x-auto">
         <table className="min-w-full divide-y divide-stone-200 text-sm">
           <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
             <tr>
-              <th className="px-3 py-2">Queue</th>
-              <th className="px-3 py-2">Payload</th>
-              <th className="px-3 py-2">Échec</th>
-              <th className="px-3 py-2"><span className="sr-only">Actions</span></th>
+              <th className="px-3 py-2">{t('colQueue')}</th>
+              <th className="px-3 py-2">{t('colPayload')}</th>
+              <th className="px-3 py-2">{t('colFailedAt')}</th>
+              <th className="px-3 py-2"><span className="sr-only">{t('colActions')}</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
@@ -123,11 +128,11 @@ function FailedJobsTable({ jobs }: { jobs: FailedJob[] }) {
                   <div className="flex justify-end gap-2">
                     <Button type="button" variant="outline" size="sm" onClick={() => retry.mutate(job.id)}>
                       <Play className="size-4" aria-hidden="true" />
-                      Rejouer
+                      {t('retry')}
                     </Button>
                     <Button type="button" variant="destructive" size="sm" onClick={() => remove.mutate(job.id)}>
                       <Trash2 className="size-4" aria-hidden="true" />
-                      Supprimer
+                      {tCommon('actions.delete')}
                     </Button>
                   </div>
                 </td>
@@ -135,7 +140,14 @@ function FailedJobsTable({ jobs }: { jobs: FailedJob[] }) {
             ))}
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-3 py-8 text-center text-sm text-stone-500">Aucun job échoué.</td>
+                <td colSpan={4} className="p-0">
+                  <EmptyState
+                    className="border-0"
+                    icon={<CircleCheckBig className="size-8" aria-hidden="true" />}
+                    title={t('empty_title')}
+                    description={t('empty_description')}
+                  />
+                </td>
               </tr>
             ) : null}
           </tbody>

@@ -222,15 +222,11 @@ class PaymentController extends Controller
 
         return $this->json([
             'data' => $items->all(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
+            'meta' => $this->paginationMeta($paginator, [
                 'totals' => $totals,
                 'truncated' => $truncated,
                 'limit' => $maxRows,
-            ],
+            ]),
         ]);
     }
 

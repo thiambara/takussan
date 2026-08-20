@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
@@ -15,10 +15,6 @@ import {
 import type { MaintenanceRequest, MaintenanceStatus } from '@/types/maintenance';
 import { MAINTENANCE_TRANSITIONS } from '@/types/maintenance';
 
-import {
-  MAINTENANCE_CATEGORY_LABEL,
-  MAINTENANCE_STATUS_LABEL,
-} from './labels';
 import {
   MaintenancePriorityBadge,
   MaintenanceStatusBadge,
@@ -50,6 +46,8 @@ export function MaintenanceDetail({ id }: { readonly id: number }) {
 
 function MaintenanceDetailBody({ request }: { readonly request: MaintenanceRequest }) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('maintenance.detail');
+  const tCategory = useTranslations('maintenance.category');
   const [completeOpen, setCompleteOpen] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
 
@@ -60,8 +58,8 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold text-app-ink">{request.title}</h2>
             <p className="mt-1 text-xs text-app-ink-muted">
-              {MAINTENANCE_CATEGORY_LABEL[request.category]} · Créée le{' '}
-              {formatDateTime(request.created_at, locale)}
+              {tCategory(request.category)} ·{' '}
+              {t('created_at', { date: formatDateTime(request.created_at, locale) })}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -74,31 +72,31 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
 
         <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-app-ink-muted md:grid-cols-4">
           <div>
-            <dt className="font-semibold uppercase tracking-wide">Bien</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('property')}</dt>
             <dd className="mt-0.5 text-app-ink">
               <PropertyValue request={request} />
             </dd>
           </div>
           <div>
-            <dt className="font-semibold uppercase tracking-wide">Demandeur</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('requester')}</dt>
             <dd className="mt-0.5 text-app-ink">
-              {personLabel(request.requester) ?? 'Demandeur non chargé'}
+              {personLabel(request.requester) ?? t('requester_missing')}
             </dd>
           </div>
           <div>
-            <dt className="font-semibold uppercase tracking-wide">Assigné à</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('assignee')}</dt>
             <dd className="mt-0.5 text-app-ink">
-              {personLabel(request.assignee) ?? 'Non assignée'}
+              {personLabel(request.assignee) ?? t('unassigned')}
             </dd>
           </div>
           <div>
-            <dt className="font-semibold uppercase tracking-wide">Prévu le</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('scheduled_for')}</dt>
             <dd className="mt-0.5 text-app-ink">
               {request.scheduled_at ? formatDateTime(request.scheduled_at, locale) : '—'}
             </dd>
           </div>
           <div>
-            <dt className="font-semibold uppercase tracking-wide">Coût réel</dt>
+            <dt className="font-semibold uppercase tracking-wide">{t('actual_cost')}</dt>
             <dd className="mt-0.5 text-app-ink">
               {request.actual_cost !== null
                 ? formatCurrency(request.actual_cost, locale)
@@ -133,13 +131,13 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
 
       {request.resolution_notes ? (
         <section className="rounded-2xl bg-app-surface-1 p-5">
-          <h3 className="text-sm font-semibold text-app-ink">Notes de résolution</h3>
+          <h3 className="text-sm font-semibold text-app-ink">{t('resolution_notes')}</h3>
           <p className="mt-2 whitespace-pre-wrap text-sm text-app-ink">
             {request.resolution_notes}
           </p>
           {request.completed_at ? (
             <p className="mt-2 text-xs text-app-ink-muted">
-              Terminée le {formatDateTime(request.completed_at, locale)}
+              {t('completed_at', { date: formatDateTime(request.completed_at, locale) })}
             </p>
           ) : null}
         </section>
@@ -149,9 +147,10 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
 }
 
 function PropertyValue({ request }: { readonly request: MaintenanceRequest }) {
+  const t = useTranslations('maintenance.detail');
   const property = request.property;
   if (!property) {
-    return <span>Bien non chargé</span>;
+    return <span>{t('property_missing')}</span>;
   }
 
   const content = (
@@ -188,6 +187,8 @@ function StatusActions({
   readonly onComplete: () => void;
   readonly onReject: () => void;
 }) {
+  const t = useTranslations('maintenance.detail');
+  const tStatus = useTranslations('maintenance.status');
   const transition = useTransitionMaintenanceStatus(request.id);
   const requestQuoteMutation = useRequestMaintenanceQuote(request.id);
   const approveQuoteMutation = useApproveMaintenanceQuote(request.id);
@@ -198,8 +199,7 @@ function StatusActions({
   if (allowed.length === 0) {
     return (
       <div className="rounded-2xl bg-app-surface-1 p-5 text-sm text-app-ink-muted">
-        Cette demande est dans un état terminal ({MAINTENANCE_STATUS_LABEL[request.status]}).
-        Aucune transition n&apos;est possible.
+        {t('terminal', { status: tStatus(request.status) })}
       </div>
     );
   }
@@ -240,7 +240,7 @@ function StatusActions({
 
   return (
     <div className="rounded-2xl bg-app-surface-1 p-5">
-      <h3 className="text-sm font-semibold text-app-ink">Changer le statut</h3>
+      <h3 className="text-sm font-semibold text-app-ink">{t('change_status')}</h3>
       <div className="mt-3 flex flex-wrap gap-2">
         {allowed.map((next) => (
           <Button
@@ -251,13 +251,13 @@ function StatusActions({
             onClick={() => trigger(next)}
             className={next === 'rejected' ? 'text-destructive border-destructive hover:bg-destructive/10' : ''}
           >
-            {MAINTENANCE_STATUS_LABEL[next]}
+            {tStatus(next)}
           </Button>
         ))}
       </div>
       {transition.isError ? (
         <p className="mt-2 text-xs text-destructive">
-          La transition a échoué. Vérifiez les permissions et réessayez.
+          {t('transition_error')}
         </p>
       ) : null}
     </div>

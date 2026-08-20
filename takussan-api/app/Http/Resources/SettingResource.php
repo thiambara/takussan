@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class SettingResource extends JsonResource
+class SettingResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -16,7 +16,7 @@ class SettingResource extends JsonResource
             'scope' => $this->scope,
             'scope_id' => $this->scope_id,
             'updated_by_id' => $this->updated_by_id,
-            'updated_at' => $this->updated_at,
+            'updated_at' => $this->iso($this->updated_at),
         ];
     }
 }

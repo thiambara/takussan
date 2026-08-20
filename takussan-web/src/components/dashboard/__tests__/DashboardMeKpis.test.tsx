@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+import { withIntl } from '@/test/intl';
+
 import { DashboardMeKpis } from '../DashboardMeKpis';
 
 describe('<DashboardMeKpis>', () => {
   it('renders the four agency tiles with formatted values', () => {
-    render(
-      <DashboardMeKpis
+    render(withIntl(<DashboardMeKpis
         role="agency_admin"
         metrics={{
           properties_total: 42,
@@ -14,8 +15,7 @@ describe('<DashboardMeKpis>', () => {
           revenue_month: 1540000,
           overdue_count: 3,
         }}
-      />,
-    );
+      />));
 
     expect(screen.getByText('Biens')).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
@@ -29,8 +29,7 @@ describe('<DashboardMeKpis>', () => {
   });
 
   it('formats owner cashflow of 0 as a real value (not "—")', () => {
-    render(
-      <DashboardMeKpis
+    render(withIntl(<DashboardMeKpis
         role="owner"
         metrics={{
           portfolio_total: 5,
@@ -38,8 +37,7 @@ describe('<DashboardMeKpis>', () => {
           cashflow_month: 0,
           overdue_amount: 0,
         }}
-      />,
-    );
+      />));
 
     const cashflowLabel = screen.getByText('Cashflow du mois');
     const cashflowTile = cashflowLabel.parentElement!;
@@ -48,8 +46,7 @@ describe('<DashboardMeKpis>', () => {
   });
 
   it('falls back to "—" when tenant has no next_payment', () => {
-    render(
-      <DashboardMeKpis
+    render(withIntl(<DashboardMeKpis
         role="tenant"
         metrics={{
           leases_active: 1,
@@ -57,8 +54,7 @@ describe('<DashboardMeKpis>', () => {
           overdue_amount: 0,
           recent_documents: [],
         }}
-      />,
-    );
+      />));
 
     expect(screen.getByText('Prochaine échéance')).toBeInTheDocument();
     // The placeholder appears for next_payment AND should also appear if other
@@ -70,8 +66,7 @@ describe('<DashboardMeKpis>', () => {
   });
 
   it('marks the agent task tile warning when there are overdue tasks', () => {
-    const { container } = render(
-      <DashboardMeKpis
+    const { container } = render(withIntl(<DashboardMeKpis
         role="agent"
         metrics={{
           properties_managed: 10,
@@ -80,8 +75,7 @@ describe('<DashboardMeKpis>', () => {
           tasks_overdue: 2,
           commissions_month: 250000,
         }}
-      />,
-    );
+      />));
 
     expect(screen.getByText('Tâches ouvertes')).toBeInTheDocument();
     expect(screen.getByText('2 en retard')).toBeInTheDocument();

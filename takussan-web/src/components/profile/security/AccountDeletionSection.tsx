@@ -13,6 +13,13 @@ import type { AccountDeletionRequest } from '@/lib/account-deletion';
 
 interface Props {
   twoFactorEnabled: boolean;
+  /**
+   * TCK-272 — vient de `/api/auth/me`. Le défaut de l'appelant est `true`
+   * (parcours mot de passe) : `useAuth()` ne lève pas hors provider et rend
+   * `user === null`, or un défaut `false` afficherait le parcours par code
+   * — le plus faible — à tout le monde le temps d'un chargement.
+   */
+  hasUsablePassword: boolean;
 }
 
 /**
@@ -22,7 +29,7 @@ interface Props {
  *  - Pending request: shows the scheduled date + a cancel button (the
  *    full-page banner is rendered separately in the layout).
  */
-export function AccountDeletionSection({ twoFactorEnabled }: Props) {
+export function AccountDeletionSection({ twoFactorEnabled, hasUsablePassword }: Props) {
   const t = useTranslations('account.deletion.section');
   const tDialog = useTranslations('account.deletion.dialog');
   const tBanner = useTranslations('account.deletion.banner');
@@ -76,7 +83,7 @@ export function AccountDeletionSection({ twoFactorEnabled }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="mt-4 rounded-md border border-red-300 bg-red-50 p-4 text-red-800">
+        <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-4 text-destructive">
           <p className="font-semibold">{tBanner('title')}</p>
           <p className="text-sm">
             {tDialog('successBody', { days: String(request.days_remaining) })}
@@ -88,7 +95,7 @@ export function AccountDeletionSection({ twoFactorEnabled }: Props) {
               size="sm"
               onClick={handleCancel}
               disabled={pending}
-              className="border-red-300 text-red-800 hover:bg-red-100"
+              className="border-destructive/40 text-destructive hover:bg-destructive/15"
             >
               {tBanner('cancel')}
             </Button>
@@ -100,6 +107,7 @@ export function AccountDeletionSection({ twoFactorEnabled }: Props) {
         open={open}
         onOpenChange={setOpen}
         twoFactorEnabled={twoFactorEnabled}
+        hasUsablePassword={hasUsablePassword}
         onScheduled={handleScheduled}
       />
     </div>

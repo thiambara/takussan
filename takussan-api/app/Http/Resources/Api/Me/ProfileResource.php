@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Api\Me;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
@@ -9,7 +10,6 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Services\Profiles\ActiveProfileResolver;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * Wire-format for a profile in the Me-namespace endpoints. The composite
@@ -17,7 +17,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * or `PATCH /api/me/active-profile` — it disambiguates IDs across the
  * five profile tables.
  */
-class ProfileResource extends JsonResource
+class ProfileResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -35,7 +35,7 @@ class ProfileResource extends JsonResource
                 'slug' => $this->resource->agency->slug,
             ]),
             'status' => $this->statusValue(),
-            'created_at' => $this->resource->created_at?->toIso8601String(),
+            'created_at' => $this->iso($this->resource->created_at),
         ];
     }
 

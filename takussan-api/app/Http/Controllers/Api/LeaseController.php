@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\AttachGuarantorLeaseRequest;
+use App\Http\Requests\Api\StoreLeaseRequest;
+use App\Http\Requests\Api\TerminateLeaseRequest;
 use App\Http\Requests\UpdateLeaseRequest;
 use App\Http\Resources\LeaseResource;
-use App\Models\Enums\Currency;
-use App\Models\Enums\IdType;
-use App\Models\Enums\LeaseType;
-use App\Models\Enums\PaymentFrequency;
 use App\Models\Guarantor;
 use App\Models\Lease;
 use App\Models\Property;
@@ -42,35 +41,12 @@ class LeaseController extends Controller
             ->defaultSort('-created_at')
             ->paginate();
 
-        return $this->json([
-            'data' => LeaseResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, LeaseResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreLeaseRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'property_id' => ['required', 'exists:properties,id'],
-            'tenant_id' => ['required', 'exists:customers,id'],
-            'booking_id' => ['nullable', Rule::exists('bookings', 'id')->where('property_id', $request->input('property_id'))],
-            'guarantor_id' => ['nullable', 'exists:guarantors,id'],
-            'type' => ['required', Rule::enum(LeaseType::class)],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['nullable', 'date', 'after:start_date'],
-            'monthly_rent' => ['nullable', 'numeric', 'min:0'],
-            'sale_price' => ['nullable', 'numeric', 'min:0'],
-            'deposit_amount' => ['nullable', 'numeric', 'min:0'],
-            'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'payment_frequency' => ['nullable', Rule::enum(PaymentFrequency::class)],
-            'payment_day' => ['nullable', 'integer', 'between:1,28'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'terms' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $property = Property::findOrFail($data['property_id']);
         $lease = $this->leases->create($property, $request->user(), $data);
@@ -82,7 +58,7 @@ class LeaseController extends Controller
 
     public function show(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeAccess($request, $lease);
+        $this->authorize('view', $lease);
 
         return $this->json([
             'data' => LeaseResource::make($lease->load(['property.address', 'tenant', 'payments']))->toArray($request),
@@ -96,7 +72,7 @@ class LeaseController extends Controller
      */
     public function update(UpdateLeaseRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
 
         $data = $request->validated();
         if ($data !== []) {
@@ -110,7 +86,7 @@ class LeaseController extends Controller
 
     public function activate(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
         $lease = $this->leases->activate($lease);
 
         return $this->json([
@@ -118,13 +94,10 @@ class LeaseController extends Controller
         ]);
     }
 
-    public function terminate(Request $request, Lease $lease): JsonResponse
+    public function terminate(TerminateLeaseRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
 
-        $data = $request->validate([
-            'reason' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $lease = $this->leases->terminate($lease, $request->user(), $data['reason'] ?? null);
 
@@ -135,7 +108,7 @@ class LeaseController extends Controller
 
     public function generateSchedule(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
         $count = $this->leases->generateSchedule($lease);
 
         return $this->json(['data' => ['payments_created' => $count]]);
@@ -145,25 +118,10 @@ class LeaseController extends Controller
      * Attach an existing guarantor or create+attach a new one to the lease.
      * Enforces the business rule: max 3 guarantors per lease.
      */
-    public function attachGuarantor(Request $request, Lease $lease): JsonResponse
+    public function attachGuarantor(AttachGuarantorLeaseRequest $request, Lease $lease): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
 
-        $data = $request->validate([
-            'guarantor_id' => ['nullable', 'exists:guarantors,id'],
-            'role' => ['nullable', 'string', 'max:50'],
-            'first_name' => ['required_without:guarantor_id', 'string'],
-            'last_name' => ['required_without:guarantor_id', 'string'],
-            'phone' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
-            'id_type' => ['nullable', Rule::enum(IdType::class)],
-            'id_number' => ['nullable', 'string'],
-            'occupation' => ['nullable', 'string'],
-            'employer' => ['nullable', 'string'],
-            'monthly_income' => ['nullable', 'numeric', 'min:0'],
-            'relationship_to_tenant' => ['nullable', 'string'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         if (! empty($data['guarantor_id'])) {
             $guarantor = Guarantor::findOrFail($data['guarantor_id']);
@@ -220,7 +178,7 @@ class LeaseController extends Controller
 
     public function detachGuarantor(Request $request, Lease $lease, Guarantor $guarantor): JsonResponse
     {
-        $this->authorizeManage($request, $lease);
+        $this->authorize('update', $lease);
 
         $lease->guarantors()->detach($guarantor->id);
 
@@ -235,7 +193,7 @@ class LeaseController extends Controller
 
     public function listGuarantors(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeAccess($request, $lease);
+        $this->authorize('view', $lease);
 
         $guarantors = $lease->guarantors()->get()->map(fn (Guarantor $g) => [
             'id' => $g->id,
@@ -247,26 +205,5 @@ class LeaseController extends Controller
         ])->values();
 
         return $this->json(['data' => $guarantors]);
-    }
-
-    protected function authorizeAccess(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id)
-            || ($lease->tenant && $lease->tenant->user_id === $user->id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

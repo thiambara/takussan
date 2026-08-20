@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Document schemas — TCK-062.
@@ -32,20 +33,20 @@ export const documentableTypeSchema = z.enum([
 
 export const documentUploadSchema = z.object({
   name: z
-    .string({ error: 'Le nom est requis.' })
+    .string({ error: msgValidation('document.nameRequired') })
     .trim()
-    .min(1, 'Le nom est requis.')
-    .max(255, 'Le nom doit faire 255 caractères au maximum.'),
+    .min(1, msgValidation('document.nameRequired'))
+    .max(255, msgValidation('document.nameTooLong')),
   type: documentTypeSchema,
   documentable_type: documentableTypeSchema,
   documentable_id: z
-    .number({ error: 'Entité liée requise.' })
+    .number({ error: msgValidation('document.relatedRequired') })
     .int()
-    .positive('Entité liée requise.'),
+    .positive(msgValidation('document.relatedRequired')),
   description: z.string().trim().max(5000).optional().or(z.literal('')),
   expiry_date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide.')
+    .regex(/^\d{4}-\d{2}-\d{2}$/, msgValidation('common.dateInvalid'))
     .optional()
     .or(z.literal('')),
 });
@@ -55,7 +56,7 @@ export type DocumentUploadFormValues = z.infer<typeof documentUploadSchema>;
 const isoDateTime = z
   .string()
   .refine((v) => !v || !Number.isNaN(new Date(v).getTime()), {
-    message: "Date d'expiration invalide.",
+    message: msgValidation('document.expiryInvalid'),
   });
 
 export const shareLinkSchema = z.object({
@@ -65,12 +66,12 @@ export const shareLinkSchema = z.object({
   ttl: z.enum(['1h', '24h', '7d', '30d', 'custom']).default('24h'),
   expires_at: isoDateTime.optional(),
   max_downloads: z
-    .number({ error: 'Doit être un entier positif.' })
+    .number({ error: msgValidation('document.maxDownloadsInteger') })
     .int()
-    .min(1, 'Minimum 1 téléchargement.')
+    .min(1, msgValidation('document.maxDownloadsMin'))
     .max(10000)
     .optional(),
-  password: z.string().min(4, 'Mot de passe trop court.').optional().or(z.literal('')),
+  password: z.string().min(4, msgValidation('document.passwordTooShort')).optional().or(z.literal('')),
 });
 
 export type ShareLinkFormValues = z.infer<typeof shareLinkSchema>;

@@ -1,7 +1,7 @@
 'use client';
 
 import { Flag, Star } from 'lucide-react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
 import type { ModerationReview } from '@/lib/queries/reviews-moderation';
@@ -12,12 +12,7 @@ interface ModerationQueueListProps {
   readonly onSelect: (review: ModerationReview) => void;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  pending: 'En attente',
-  reported: 'Signalé',
-  approved: 'Approuvé',
-  rejected: 'Rejeté',
-};
+const STATUTS_CONNUS = new Set(['pending', 'reported', 'approved', 'rejected']);
 
 const STATUS_CLASS: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -31,6 +26,7 @@ export function ModerationQueueList({
   selectedId,
   onSelect,
 }: ModerationQueueListProps) {
+  const t = useTranslations('admin.moderation');
   const locale = useLocale();
   return (
     <ul className="max-h-[70vh] overflow-y-auto rounded-xl bg-app-surface-1">
@@ -57,7 +53,7 @@ export function ModerationQueueList({
                     STATUS_CLASS[status] ?? 'bg-app-surface-2 text-app-ink border-app-surface-3',
                   )}
                 >
-                  {STATUS_LABEL[status] ?? status}
+                  {STATUTS_CONNUS.has(status) ? t(`status.${status}`) : status}
                 </span>
                 {review.reported_count > 0 ? (
                   <span className="inline-flex items-center gap-1 text-xs text-red-600">
@@ -71,10 +67,10 @@ export function ModerationQueueList({
                 </div>
               </div>
               <p className="line-clamp-2 text-sm font-medium text-app-ink">
-                {review.title || review.content || 'Avis sans contenu'}
+                {review.title || review.content || t('emptyReview')}
               </p>
               <div className="flex items-center justify-between text-xs text-app-ink-muted">
-                <span className="truncate">{review.author?.name ?? 'Anonyme'}</span>
+                <span className="truncate">{review.author?.name ?? t('detail.anonymous')}</span>
                 <span>{new Date(review.created_at).toLocaleDateString(locale)}</span>
               </div>
             </button>

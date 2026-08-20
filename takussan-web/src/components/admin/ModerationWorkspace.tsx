@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Loader2, ShieldAlert } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -19,25 +22,31 @@ import {
 } from '@/lib/queries/reviews-moderation';
 import { ModerationQueueList } from './ModerationQueueList';
 import { ModerationDetail } from './ModerationDetail';
-import { ApiError } from '@/lib/api';
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'Tous les statuts' },
-  { value: 'pending', label: 'En attente' },
-  { value: 'flagged', label: 'Signalés' },
-  { value: 'approved', label: 'Approuvés' },
-  { value: 'rejected', label: 'Rejetés' },
-] as const;
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-const SUBJECT_TYPE_OPTIONS = [
-  { value: 'all', label: 'Tous les sujets' },
-  { value: 'App\\Models\\Property', label: 'Biens' },
-  { value: 'App\\Models\\Agency', label: 'Agences' },
-  { value: 'App\\Models\\User', label: 'Utilisateurs' },
-] as const;
+/**
+ * TCK-292 — la DONNÉE porte la clé : les options transportent la valeur d'API
+ * (le statut, ou le FQCN du sujet) et une clé de libellé ; le rendu la résout.
+ */
+const STATUS_KEYS = ['all', 'pending', 'flagged', 'approved', 'rejected'] as const;
+
+const SUBJECT_TYPE_KEYS: ReadonlyArray<{ key: string; value: string }> = [
+  { key: 'all', value: 'all' },
+  { key: 'property', value: 'App\\Models\\Property' },
+  { key: 'agency', value: 'App\\Models\\Agency' },
+  { key: 'user', value: 'App\\Models\\User' },
+];
 
 export function ModerationWorkspace() {
+  const t = useTranslations('admin.moderation.workspace');
+  const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
+  const statusOptions = STATUS_KEYS.map((k) => ({ value: k, label: t(`status.${k}`) }));
+  const subjectTypeOptions = SUBJECT_TYPE_KEYS.map((st) => ({
+    value: st.value,
+    label: t(`subjects.${st.key}`),
+  }));
   const queryClient = useQueryClient();
 
   const [status, setStatus] = useState<ModerationStatus | ''>('');
@@ -75,13 +84,13 @@ export function ModerationWorkspace() {
         <Select
           value={status || 'all'}
           onValueChange={(value) => setStatus(value === 'all' ? '' : ((value ?? '') as ModerationStatus | ''))}
-          items={STATUS_OPTIONS as unknown as Array<{ value: string; label: string }>}
+          items={statusOptions}
         >
-          <SelectTrigger className="h-9" aria-label="Filtrer par statut">
+          <SelectTrigger className="h-9" aria-label={t('statusAria')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_OPTIONS.map((opt) => (
+            {statusOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
             ))}
           </SelectContent>
@@ -89,13 +98,13 @@ export function ModerationWorkspace() {
         <Select
           value={subjectType || 'all'}
           onValueChange={(value) => setSubjectType(value === 'all' ? '' : (value ?? ''))}
-          items={SUBJECT_TYPE_OPTIONS as unknown as Array<{ value: string; label: string }>}
+          items={subjectTypeOptions}
         >
-          <SelectTrigger className="h-9" aria-label="Type de sujet">
+          <SelectTrigger className="h-9" aria-label={t('subjectAria')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {SUBJECT_TYPE_OPTIONS.map((opt) => (
+            {subjectTypeOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
             ))}
           </SelectContent>
@@ -107,11 +116,11 @@ export function ModerationWorkspace() {
             onChange={(e) => setReported(e.target.checked)}
             className="size-4 rounded border-input"
           />
-          Signalés uniquement
+          {t('reportedOnly')}
         </label>
         {data?.meta ? (
           <p className="ml-auto text-xs text-app-ink-muted">
-            {data.meta.pending_count} en file d&apos;attente
+            {t('queued', { count: String(data.meta.pending_count) })}
           </p>
         ) : null}
       </div>
@@ -119,14 +128,14 @@ export function ModerationWorkspace() {
       {isLoading ? (
         <div className="flex items-center justify-center gap-2 rounded-xl bg-app-surface-1 p-12 text-sm text-app-ink-muted">
           <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          Chargement de la file de modération…
+          {t('loading')}
         </div>
       ) : isError ? (
         <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-sm text-destructive">
-          {error instanceof ApiError ? error.displayMessage : 'Impossible de charger la file.'}
+          {messageErreur(error, t('loadError'))}
         </div>
       ) : reviews.length === 0 ? (
-        <EmptyState />
+        <ModerationEmpty />
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
           <ModerationQueueList
@@ -143,14 +152,13 @@ export function ModerationWorkspace() {
   );
 }
 
-function EmptyState() {
+function ModerationEmpty() {
+  const t = useTranslations('admin.moderation.reviews');
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl bg-app-surface-1 p-12 text-center">
-      <ShieldAlert className="size-8 text-app-accent" />
-      <p className="text-sm font-semibold text-app-ink">File vide</p>
-      <p className="max-w-md text-xs text-app-ink-muted">
-        Aucun avis n&apos;est en attente ou signalé pour le moment.
-      </p>
-    </div>
+    <EmptyState
+      icon={<ShieldAlert className="size-8" aria-hidden="true" />}
+      title={t('empty_title')}
+      description={t('empty_description')}
+    />
   );
 }

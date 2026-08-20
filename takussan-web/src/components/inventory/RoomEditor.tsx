@@ -1,6 +1,10 @@
 'use client';
 
 import { useFieldArray, type Control, type UseFormRegister } from 'react-hook-form';
+import { useTranslations } from 'next-intl';
+import { DoorOpen } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
 
 import {
   FormInput,
@@ -13,21 +17,6 @@ import {
   INVENTORY_CONDITIONS,
   INVENTORY_ELEMENT_STATES,
 } from '@/types/inventory';
-
-import {
-  INVENTORY_CONDITION_LABEL,
-  INVENTORY_ELEMENT_STATE_LABEL,
-} from './labels';
-
-const CONDITION_OPTIONS = INVENTORY_CONDITIONS.map((c) => ({
-  value: c,
-  label: INVENTORY_CONDITION_LABEL[c],
-}));
-
-const ELEMENT_STATE_OPTIONS = INVENTORY_ELEMENT_STATES.map((s) => ({
-  value: s,
-  label: INVENTORY_ELEMENT_STATE_LABEL[s],
-}));
 
 /**
  * Renders the dynamic room × elements form nested inside the inventory
@@ -44,12 +33,13 @@ export function RoomEditor({
   readonly control: Control<InventoryCreateInput>;
   readonly register: UseFormRegister<InventoryCreateInput>;
 }) {
+  const t = useTranslations('inventory.roomEditor');
   const rooms = useFieldArray({ control, name: 'rooms' });
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-app-ink">Pièces</h3>
+        <h3 className="text-sm font-semibold text-app-ink">{t('title')}</h3>
         <Button
           type="button"
           variant="outline"
@@ -58,14 +48,16 @@ export function RoomEditor({
             rooms.append({ name: '', condition: 'good', notes: null, elements: [] })
           }
         >
-          Ajouter une pièce
+          {t('addRoom')}
         </Button>
       </div>
 
       {rooms.fields.length === 0 ? (
-        <p className="rounded-lg bg-app-surface-2 p-4 text-center text-sm text-app-ink-muted">
-          Aucune pièce — cliquez sur « Ajouter une pièce » pour commencer.
-        </p>
+        <EmptyState
+          icon={<DoorOpen className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : null}
 
       {rooms.fields.map((room, roomIndex) => (
@@ -92,17 +84,29 @@ function RoomCard({
   readonly roomIndex: number;
   readonly onRemove: () => void;
 }) {
+  const t = useTranslations('inventory.roomEditor');
+  const tConditions = useTranslations('inventory.conditions');
+  const tElementStates = useTranslations('inventory.elementStates');
   const elements = useFieldArray({
     control,
     name: `rooms.${roomIndex}.elements`,
   });
 
+  const conditionOptions = INVENTORY_CONDITIONS.map((value) => ({
+    value,
+    label: tConditions(value),
+  }));
+  const elementStateOptions = INVENTORY_ELEMENT_STATES.map((value) => ({
+    value,
+    label: tElementStates(value),
+  }));
+
   return (
     <div className="rounded-xl bg-app-surface-1 p-4">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-semibold text-app-ink">Pièce #{roomIndex + 1}</p>
+        <p className="text-sm font-semibold text-app-ink">{t('room', { n: String(roomIndex + 1) })}</p>
         <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-          Retirer
+          {t('remove')}
         </Button>
       </div>
 
@@ -110,15 +114,15 @@ function RoomCard({
         <FormInput
           name={`rooms.${roomIndex}.name`}
           control={control}
-          label="Nom de la pièce"
-          placeholder="Salon, Cuisine, Chambre…"
+          label={t('roomName')}
+          placeholder={t('roomNamePlaceholder')}
           required
         />
         <FormSelect
           name={`rooms.${roomIndex}.condition`}
           control={control}
-          options={CONDITION_OPTIONS}
-          label="État général"
+          options={conditionOptions}
+          label={t('condition')}
           required
         />
       </div>
@@ -128,7 +132,7 @@ function RoomCard({
           htmlFor={`room-${roomIndex}-notes`}
           className="mb-1.5 block text-sm font-medium"
         >
-          Notes (optionnel)
+          {t('notes')}
         </label>
         <textarea
           id={`room-${roomIndex}-notes`}
@@ -141,7 +145,7 @@ function RoomCard({
       <div className="mt-4 rounded-lg bg-app-surface-2 p-3">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
-            Éléments
+            {t('elements')}
           </p>
           <Button
             type="button"
@@ -149,13 +153,13 @@ function RoomCard({
             size="sm"
             onClick={() => elements.append({ label: '', state: 'bon', notes: null })}
           >
-            Ajouter un élément
+            {t('addElement')}
           </Button>
         </div>
 
         {elements.fields.length === 0 ? (
           <p className="mt-2 text-xs text-app-ink-muted">
-            Aucun élément détaillé pour cette pièce.
+            {t('noElements')}
           </p>
         ) : (
           <ul className="mt-3 space-y-2">
@@ -167,16 +171,16 @@ function RoomCard({
                 <FormInput
                   name={`rooms.${roomIndex}.elements.${elementIndex}.label`}
                   control={control}
-                  label={elementIndex === 0 ? 'Élément' : undefined}
-                  placeholder="Canapé, Réfrigérateur…"
+                  label={elementIndex === 0 ? t('element') : undefined}
+                  placeholder={t('elementPlaceholder')}
                   required
                   containerClassName="min-w-0"
                 />
                 <FormSelect
                   name={`rooms.${roomIndex}.elements.${elementIndex}.state`}
                   control={control}
-                  options={ELEMENT_STATE_OPTIONS}
-                  label={elementIndex === 0 ? 'État' : undefined}
+                  options={elementStateOptions}
+                  label={elementIndex === 0 ? t('state') : undefined}
                   required
                 />
                 <div className="flex items-end justify-end md:pb-0.5">
@@ -186,13 +190,13 @@ function RoomCard({
                     size="sm"
                     onClick={() => elements.remove(elementIndex)}
                   >
-                    Retirer
+                    {t('remove')}
                   </Button>
                 </div>
                 <FormTextarea
                   name={`rooms.${roomIndex}.elements.${elementIndex}.notes`}
                   control={control}
-                  label="Notes"
+                  label={t('elementNotes')}
                   rows={1}
                   containerClassName="md:col-span-3"
                 />

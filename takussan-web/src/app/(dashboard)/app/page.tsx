@@ -10,13 +10,15 @@ import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
 import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
 import { isAgencyAdmin, isCustomer, isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardMe } from '@/lib/queries/dashboard-me';
+import { getTranslations } from 'next-intl/server';
 
 export default async function DashboardPage() {
+  const t = await getTranslations('dashboard.pages.home');
   const user = await getMeAction();
 
   // TCK-115: super_admin without agency_id has no data to display.
   if (isSuperAdmin(user.roles) && !user.agency_id) {
-    return <NoAgencyState title="Tableau de bord" />;
+    return <NoAgencyState title={t('noAgency')} />;
   }
 
   const payload = await fetchDashboardMe();
@@ -36,8 +38,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Bonjour ${user.first_name}`}
-        subtitle="Vue d'ensemble de votre activité"
+        title={t('greeting', { name: user.first_name })}
+        subtitle={t('subtitle')}
       />
 
       {showBrandingBanner ? <BrandingBanner /> : null}

@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class IntegrationResource extends JsonResource
+class IntegrationResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -14,12 +14,12 @@ class IntegrationResource extends JsonResource
             'provider' => $this->provider,
             'agency_id' => $this->agency_id,
             'is_active' => $this->is_active,
-            'last_used_at' => $this->last_used_at,
-            'last_health_check_at' => $this->last_health_check_at,
+            'last_used_at' => $this->iso($this->last_used_at),
+            'last_health_check_at' => $this->iso($this->last_health_check_at),
             'health_status' => $this->health_status,
             'metadata' => $this->metadata,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'created_at' => $this->iso($this->created_at),
+            'updated_at' => $this->iso($this->updated_at),
         ];
     }
 }

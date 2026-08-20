@@ -19,27 +19,12 @@ class PropertyAncestorsController extends Controller
 {
     public function index(Request $request, Property $property, HierarchyService $hierarchy): JsonResponse
     {
-        $this->authorizeAccess($request, $property);
+        $this->authorize('view', $property);
 
         $chain = $hierarchy->ancestors($property);
 
         return $this->json([
             'data' => PropertyResource::collection($chain)->toArray($request),
         ]);
-    }
-
-    protected function authorizeAccess(Request $request, Property $property): void
-    {
-        $user = $request->user();
-        if ($user->id === $property->user_id) {
-            return;
-        }
-        if ($user->agency_id && $user->agency_id === $property->agency_id) {
-            return;
-        }
-        if ($user->isSuperAdmin()) {
-            return;
-        }
-        abort(403);
     }
 }

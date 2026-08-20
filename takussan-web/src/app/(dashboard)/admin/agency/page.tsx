@@ -1,9 +1,12 @@
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
+import { Building2 } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { isAdmin } from '@/lib/roles';
 import { AgencyConfigForm } from '@/components/admin-agency/AgencyConfigForm';
+import { EmptyState, ErrorState } from '@/components/feedback';
 
 /**
  * Admin — agency configuration page (TCK-064).
@@ -16,23 +19,25 @@ import { AgencyConfigForm } from '@/components/admin-agency/AgencyConfigForm';
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
+  const tPage = await getTranslations('admin.pages.agencyConfig');
   const user = await getMeAction();
   if (!isAdmin(user.roles)) {
     redirect('/admin');
   }
+  const t = await getTranslations('agency.config');
+
   if (!user.agency_id) {
     return (
       <div className="space-y-6">
         <header>
-          <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Aucune agence n&apos;est rattachée à votre compte.
-          </p>
+          <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tPage('noAgency')}</p>
         </header>
-        <div className="rounded-xl border border-dashed border-input bg-card p-8 text-sm text-muted-foreground">
-          Contactez un super-administrateur pour être rattaché à une agence avant de
-          configurer ses paramètres.
-        </div>
+        <EmptyState
+          icon={<Building2 className="size-8" aria-hidden="true" />}
+          title={t('no_agency_title')}
+          description={t('no_agency_description')}
+        />
       </div>
     );
   }
@@ -42,14 +47,11 @@ export default async function Page() {
     return (
       <div className="space-y-6">
         <header>
-          <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Impossible de charger les informations de l&apos;agence.
-          </p>
+          <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tPage('loadError')}</p>
         </header>
-        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
-          {result.ok ? 'Agence introuvable.' : result.message}
-        </div>
+        {/* Pas d'`onRetry` : server component, aucun gestionnaire d'événement possible ici. */}
+        <ErrorState message={result.ok ? t('not_found') : result.message} />
       </div>
     );
   }
@@ -57,10 +59,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Configuration de l&apos;agence</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Identité, contact, logo et paramètres métier.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
       </header>
       <AgencyConfigForm agency={result.data} />
     </div>

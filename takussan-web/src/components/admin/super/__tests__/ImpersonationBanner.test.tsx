@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { withIntl } from '@/test/intl';
 import { ImpersonationBanner } from '../ImpersonationBanner';
 import {
   IMPERSONATION_EVENT,
@@ -13,11 +14,11 @@ function renderBanner() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  render(
+  render(withIntl(
     <QueryClientProvider client={queryClient}>
       <ImpersonationBanner />
     </QueryClientProvider>,
-  );
+  ));
 }
 
 describe('<ImpersonationBanner>', () => {

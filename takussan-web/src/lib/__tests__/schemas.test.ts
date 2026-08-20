@@ -81,6 +81,43 @@ describe('guarantorSchema', () => {
     expect(r.success).toBe(true);
   });
 
+  // Les trois entrées « pas de téléphone » — la clé absente était acceptée
+  // par accident jusqu'à zod 4.3.6 (l'optionalité d'un `pipe` était jugée
+  // sur sa sortie), et `optionalPhoneSchema` n'était en réalité pas
+  // optionnel. Cf. son docblock dans `schemas/common.ts`.
+  it.each([
+    ['key absent', {}],
+    ['explicit undefined', { phone: undefined }],
+    ['empty string', { phone: '' }],
+    ['whitespace only', { phone: '   ' }],
+  ])('treats an optional phone given as %s as absent', (_label, extra) => {
+    const r = guarantorSchema.safeParse({
+      first_name: 'Aminata',
+      last_name: 'Diop',
+      ...extra,
+    });
+    expect(r.success).toBe(true);
+    expect(r.success && r.data.phone).toBeUndefined();
+  });
+
+  it('still rejects a phone that is present and malformed', () => {
+    const r = guarantorSchema.safeParse({
+      first_name: 'Aminata',
+      last_name: 'Diop',
+      phone: 'pas-un-numéro',
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('keeps a well-formed phone', () => {
+    const r = guarantorSchema.safeParse({
+      first_name: 'Aminata',
+      last_name: 'Diop',
+      phone: '+221 77 123 45 67',
+    });
+    expect(r.success && r.data.phone).toBe('+221 77 123 45 67');
+  });
+
   it('rejects invalid email format', () => {
     const r = guarantorSchema.safeParse({
       first_name: 'X',

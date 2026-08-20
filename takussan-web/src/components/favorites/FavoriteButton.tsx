@@ -9,6 +9,7 @@ import {
   useRemoveFavoriteMutation,
 } from '@/lib/queries/favorites';
 import { useFavorites } from '@/lib/favoritesStore';
+import { useTranslations } from 'next-intl';
 
 /**
  * Heart button — toggles a property's favorite state.
@@ -51,6 +52,7 @@ export function FavoriteButton({
   size = 'md',
   requireAuth = false,
 }: FavoriteButtonProps) {
+  const t = useTranslations('favorites.button');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -108,7 +110,7 @@ export function FavoriteButton({
       type="button"
       onClick={handleClick}
       disabled={loading}
-      aria-label={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+      aria-label={t(isFavorite ? 'remove' : 'add')}
       aria-pressed={isFavorite}
       data-favorite={isFavorite ? 'true' : 'false'}
       className={`${SIZE_CLASSES[size]} rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-200 cursor-pointer disabled:cursor-wait ${

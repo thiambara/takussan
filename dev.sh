@@ -444,6 +444,52 @@ sonde_tcp() {
   fi
 }
 
+# ── L'écart que RIEN ne signale : le `.env` vise le port CANONIQUE (donc l'instance
+# native brew, ou celle d'un projet voisin) alors que le dépôt publie ce service sur
+# un port décalé d'un cran.
+#
+# Ce cas est invisible par construction, et c'est ce qui le rend coûteux :
+#
+#   · le service RÉPOND — `sonde_tcp` imprime un ✓ vert ;
+#   · `VISE_DOCKER` tombe à 0, donc le bloc « Services » imprime lui aussi un ✓ vert
+#     (« vise des services HORS de ce docker-compose ») — ce qui est vrai, et
+#     parfaitement légitime pour un poste installé nativement ;
+#   · `takussan-api/.env` est IGNORÉ PAR GIT : aucun fichier de ce dépôt ne peut
+#     corriger l'écart, et aucune revue ne peut le voir.
+#
+# Ce que le dépôt provisionne (docker-compose.yml : MySQL 8.0 — le moteur MESURÉ en
+# production le 2026-08-13 —, Meilisearch, Redis, Mailpit) n'est alors PAS ce que
+# l'API utilise. Le moteur de base peut différer, l'index Meilisearch est celui d'un
+# autre projet, et le courrier de développement part dans le vide.
+#
+# La seule sortie possible est donc de le NOMMER. C'est tout ce que ce bloc fait :
+# il ne corrige rien, il ne bascule rien, il enlève au défaut sa qualité de muet.
+# (dette D-48, TCK-301)
+NB_ECARTS_NATIFS=0
+ecart_port_natif() {
+  # `declare` est un builtin bash : la variable s'appelle `vise`, pas `declare`.
+  local libelle="$1" vise="$2" depot="$3" canonique="$4"
+  [ -n "$vise" ] || return 0
+  # On ne dit quelque chose QUE dans le cas exact où le dépôt décale ce port et où le
+  # `.env` vise l'autre. Un `.env` qui vise un troisième port (un tunnel, un serveur
+  # distant) est un choix explicite dont on n'a rien à dire.
+  [ "$vise" = "$canonique" ] || return 0
+  [ "$depot" != "$canonique" ] || return 0
+  avert "$libelle : le .env vise :$vise — le port CANONIQUE, servi par l'instance"
+  avert "  NATIVE de cette machine. Le dépôt provisionne $libelle sur :$depot."
+  NB_ECARTS_NATIFS=$((NB_ECARTS_NATIFS + 1))
+}
+
+# Port d'une URL — chaîne vide si elle n'en porte pas (80/443 implicites).
+port_de_url() {
+  local reste="${1#*://}"
+  reste="${reste%%/*}"
+  case "$reste" in
+    *:*) printf '%s' "${reste##*:}" ;;
+    *) printf '' ;;
+  esac
+}
+
 echo
 # Toute cette section lit `takussan-api/.env`. Sans lui, chaque sonde compare des chaînes vides
 # et rend un diagnostic sur un fichier qui n'existe pas — « MAIL_MAILER= » et le reste. On dit
@@ -460,6 +506,7 @@ if [ "$DB_CONNECTION_ENV" = "sqlite" ]; then
   avert "  Les quatre pièges MySQL documentés dans CLAUDE.md sont INVISIBLES sur SQLite."
 else
   sonde_tcp "Base ($DB_CONNECTION_ENV)" "$(env_get "$API/.env" DB_HOST)" "$DB_PORT_ENV"
+  ecart_port_natif "MySQL" "$DB_PORT_ENV" "${TAKUSSAN_DB_PORT:-3307}" "3306"
 fi
 
 SCOUT_ENV="$(env_get "$API/.env" SCOUT_DRIVER)"
@@ -489,6 +536,7 @@ if [ "$SCOUT_ENV" = "meilisearch" ] && [ -n "$MEILI_HOST_ENV" ]; then
     echo "     conteneur : MEILI_MASTER_KEY dans docker-compose.yml." >&2
     NB_INJOIGNABLES=$((NB_INJOIGNABLES + 1))
   fi
+  ecart_port_natif "Meilisearch" "$(port_de_url "$MEILI_HOST_ENV")" "${TAKUSSAN_MEILI_PORT:-7701}" "7700"
 elif [ "$SCOUT_ENV" = "collection" ]; then
   avert "SCOUT_DRIVER=collection — la CI et la production indexent sur Meilisearch."
   avert "  Le driver 'collection' filtre en PHP : il ne prouve rien de la vraie recherche."
@@ -496,6 +544,7 @@ fi
 
 if [ "$(env_get "$API/.env" CACHE_STORE)" = "redis" ] || [ "$(env_get "$API/.env" QUEUE_CONNECTION)" = "redis" ]; then
   sonde_tcp "Redis" "$(env_get "$API/.env" REDIS_HOST)" "$(env_get "$API/.env" REDIS_PORT)"
+  ecart_port_natif "Redis" "$(env_get "$API/.env" REDIS_PORT)" "${TAKUSSAN_REDIS_PORT:-6380}" "6379"
 elif [ "$VISE_DOCKER" = "1" ]; then
   # Le compose démarre Redis, mais `.env.docker` s'aligne sur la production, qui est en
   # `database`. Aucun driver ne s'y connecte donc — et sans cette branche, personne ne
@@ -510,6 +559,7 @@ fi
 
 if [ "$(env_get "$API/.env" MAIL_MAILER)" = "smtp" ]; then
   sonde_tcp "SMTP" "$(env_get "$API/.env" MAIL_HOST)" "$(env_get "$API/.env" MAIL_PORT)"
+  ecart_port_natif "Mailpit (SMTP)" "$(env_get "$API/.env" MAIL_PORT)" "${TAKUSSAN_MAILPIT_SMTP_PORT:-1026}" "1025"
 else
   avert "MAIL_MAILER=$(env_get "$API/.env" MAIL_MAILER) — les ~24 tâches planifiées qui envoient"
   avert "  du courrier n'aboutiront nulle part de consultable. Mailpit : MAIL_MAILER=smtp."
@@ -519,6 +569,20 @@ if [ "$NB_INJOIGNABLES" -gt 0 ]; then
   echo
   avert "$NB_INJOIGNABLES service(s) déclaré(s) mais injoignable(s) — l'API va démarrer quand même,"
   avert "  et c'est la première requête qui les touche qui échouera."
+fi
+
+if [ "$NB_ECARTS_NATIFS" -gt 0 ]; then
+  echo
+  avert "$NB_ECARTS_NATIFS service(s) servi(s) par une instance NATIVE, pas par les conteneurs du dépôt."
+  avert "  Tous répondent : c'est pour cela que rien d'autre ne le signale. Mais ce que le dépôt"
+  avert "  provisionne n'est alors pas ce que l'API utilise — autre moteur de base possible,"
+  avert "  index Meilisearch partagé avec un autre projet, courrier hors de Mailpit."
+  avert "  Le décalage des ports (3307 / 7701 / 6380 / 1026) est DÉLIBÉRÉ : il rend les deux"
+  avert "  mondes simultanés. Un .env hérité qui vise les ports canoniques rate donc le dépôt."
+  avert "  takussan-api/.env est ignoré par git : ce diagnostic est le seul endroit où l'écart"
+  avert "  peut se voir. Pour basculer sur les conteneurs du dépôt :"
+  avert "    cp takussan-api/.env.docker takussan-api/.env && (cd takussan-api && php artisan key:generate)"
+  avert "  Pour rester sur le natif : rien à faire, mais c'est désormais un choix su."
 fi
 fi  # fin de « takussan-api/.env existe-t-il ? »
 
@@ -550,6 +614,38 @@ if [ "$MODE" = "doctor" ]; then
   echo
   bold "▸ Front"
   if [ -d "$WEB/node_modules" ]; then ok "takussan-web/node_modules présent"; else avert "takussan-web : 'npm install' n'a jamais tourné"; fi
+  # ── L'écart qui ne produit AUCUN rouge : le front servi sur un hôte que Next 16 refuse.
+  #
+  # `allowedDevOrigins` absent de `next.config.ts` → toute page ouverte ailleurs que sur
+  # `localhost` rend son HTML, affiche son CSS, et **ne s'hydrate jamais** : 403 sur les
+  # chunks `/_next/*`, WebSocket HMR en échec, formulaires soumis en GET natif. Le serveur
+  # de développement le dit — dans SA sortie, que personne ne relit quand le symptôme est
+  # « le bouton ne fait rien ». (TCK-328, ardoise D-57.)
+  #
+  # ⚠ SONDE TEXTUELLE, et il faut le savoir : elle LIT le fichier, elle ne l'ÉVALUE pas.
+  # Un `allowedDevOrigins` construit dynamiquement, ou déclaré ailleurs que dans ce fichier,
+  # lui échapperait. Elle attrape le seul cas qui s'est produit — la ligne retirée — et
+  # c'est tout ce qu'elle prétend faire. Évaluer `next.config.ts` demanderait de charger
+  # TypeScript : un diagnostic ne doit pas coûter un compilateur.
+  #
+  # ⚠⚠ Le `grep -v '^\s*//'` n'est PAS une élégance : sans lui, la sonde était VERTE pendant
+  # son propre test d'ablation. Le bloc qui documente l'option dans `next.config.ts` cite
+  # `allowedDevOrigins` ET `127.0.0.1` en toutes lettres — la sonde lisait donc sa propre
+  # documentation et concluait que la configuration était là, la ligne venant d'être retirée.
+  # *Une sonde qui ne distingue pas le code du commentaire mesure le commentaire.* Constaté
+  # par ablation le 2026-08-20, pas déduit.
+  #
+  # Silencieuse quand tout va bien : `doctor` ne félicite pas, il signale.
+  if [ -f "$WEB/next.config.ts" ]; then
+    if ! grep -v '^[[:space:]]*//' "$WEB/next.config.ts" \
+         | awk '/allowedDevOrigins/,/\]/' | grep -q "127\.0\.0\.1"; then
+      avert "takussan-web/next.config.ts ne déclare pas 127.0.0.1 dans allowedDevOrigins."
+      avert "  Next 16 bloquera alors ses ressources de dev (/_next/*) pour cet hôte : la page"
+      avert "  s'affichera SANS S'HYDRATER, et le formulaire de connexion se soumettra en GET"
+      avert "  natif — le mot de passe dans l'URL. Le chemin nominal (l'URL imprimée par"
+      avert "  ./dev.sh, en localhost) n'est pas touché : c'est ce qui rend l'écart muet."
+    fi
+  fi
   echo
   exit 0
 fi
@@ -727,9 +823,25 @@ fi
 
 echo
 bold "▸ Takussan — environnement de développement"
+# ⚠ `localhost` ICI, et `127.0.0.1` sur les quatre lignes qui suivent : la différence est
+# PORTEUSE, elle n'est pas une inconstance de style.
+#
+# Next 16 bloque ses ressources de développement (`/_next/*`, `/__nextjs*`) pour tout hôte
+# absent d'`allowedDevOrigins`, dont la valeur par défaut ne contient que `localhost`. Servi
+# sur `http://127.0.0.1:<port>`, le front rendait son HTML puis **ne s'hydratait jamais** :
+# 403 sur les chunks, HMR mort, et le formulaire de connexion soumis en GET natif — mot de
+# passe dans l'URL. Mesuré le 2026-08-20 (TCK-328, ardoise D-57).
+#
+# `takussan-web/next.config.ts` déclare désormais la boucle locale, donc les DEUX hôtes
+# marchent. Cette ligne reste en `localhost` parce que c'est l'hôte que Next autorise sans
+# aucune configuration : si `allowedDevOrigins` disparaît un jour, le chemin nominal — celui
+# que ce script imprime — continue de fonctionner. `./dev.sh doctor` nomme alors l'écart.
 [ -n "$WEB_PORT" ] && lien "Front (Next.js)" "http://localhost:$WEB_PORT"
 lien "API (Laravel)" "http://127.0.0.1:$API_PORT/api"
-lien "Filament (admin)" "http://127.0.0.1:$API_PORT/admin"
+# Pas de lien « Filament (admin) » : le panel monté sur `/admin` du domaine de
+# l'API a été supprimé (TCK-287, ADR-0013) — il n'y a qu'un back-office, et il
+# est en Next.js. Le laisser affiché envoyait le développeur sur un 404 en lui
+# faisant chercher une panne dans un panel qui n'existe plus.
 lien "Mailpit (courrier de dev)" "http://localhost:${TAKUSSAN_MAILPIT_UI_PORT:-8026}"
 lien "Meilisearch" "http://127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}"
 echo "  MySQL 127.0.0.1:${TAKUSSAN_DB_PORT:-3307} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"

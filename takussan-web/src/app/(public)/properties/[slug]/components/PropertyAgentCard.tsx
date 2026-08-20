@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WhatsAppButton } from '@/components/contact/WhatsAppButton';
@@ -23,6 +24,7 @@ export function PropertyAgentCard({
   propertyTitle,
   onMessage,
 }: PropertyAgentCardProps) {
+  const t = useTranslations('property.detail.agent');
   const [calling, setCalling] = useState(false);
 
   async function handleCall() {
@@ -34,10 +36,10 @@ export function PropertyAgentCard({
       if (res.phone) {
         window.location.href = `tel:${res.phone.replace(/\s/g, '')}`;
       } else {
-        alert('Numéro de téléphone indisponible pour ce bien.');
+        alert(t('phoneUnavailable'));
       }
     } catch {
-      alert('Impossible de récupérer le numéro. Veuillez réessayer.');
+      alert(t('phoneError'));
     } finally {
       setCalling(false);
     }
@@ -80,13 +82,13 @@ export function PropertyAgentCard({
                 {agency.name}
               </Link>
               {agency.verified && (
-                <BadgeCheck className="size-4 text-sky-500 shrink-0" aria-label="Agence vérifiée" />
+                <BadgeCheck className="size-4 text-sky-500 shrink-0" aria-label={t('verifiedAria')} />
               )}
             </p>
           ) : owner.is_agent ? (
-            <p className="text-sm text-stone-500">Agent indépendant</p>
+            <p className="text-sm text-stone-500">{t('independent')}</p>
           ) : (
-            <p className="text-sm text-stone-500">Particulier</p>
+            <p className="text-sm text-stone-500">{t('private')}</p>
           )}
         </div>
       </div>
@@ -94,7 +96,7 @@ export function PropertyAgentCard({
       <div className="grid grid-cols-2 gap-2">
         <Button type="button" variant="outline" onClick={onMessage} className="gap-2">
           <MessageCircle className="size-4" aria-hidden />
-          Message
+          {t('message')}
         </Button>
         <Button
           type="button"
@@ -102,7 +104,7 @@ export function PropertyAgentCard({
           onClick={handleCall}
           disabled={calling}
           className="gap-2"
-          aria-label="Appeler"
+          aria-label={t('callAria')}
         >
           <Phone className="size-4" aria-hidden />
           {calling ? 'Connexion…' : 'Appeler'}

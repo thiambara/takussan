@@ -31,7 +31,7 @@ class KycDossierResource extends BaseResource
                 'size' => (int) $media->size,
                 'document_type' => $media->getCustomProperty('document_type'),
                 'signed_url' => URL::temporarySignedRoute('kyc.documents.show', now()->addMinutes(15), ['media' => $media->id]),
-                'expires_at' => now()->addMinutes(15)->toISOString(),
+                'expires_at' => $this->iso(now()->addMinutes(15)),
             ])->values()->all(),
             'created_at' => $this->iso($dossier->created_at),
             'updated_at' => $this->iso($dossier->updated_at),

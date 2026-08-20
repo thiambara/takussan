@@ -8,6 +8,7 @@ import {
   useState,
   type DragEvent as ReactDragEvent,
 } from 'react';
+import { useTranslations } from 'next-intl';
 import { GripVertical, Loader2, Star, Trash2, UploadCloud, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -79,16 +80,24 @@ function formatMo(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`;
 }
 
+/**
+ * Signature minimale d'un traducteur next-intl. `validateFile` vit au niveau du module — aucun
+ * hook n'y est appelable — donc le traducteur lui est PASSÉ par le composant appelant
+ * (TCK-292, lot I). Les deux appelants, `MediaManager` et `MediaDropzone`, en ont un.
+ */
+type Traducteur = (cle: string, valeurs?: Record<string, string | number>) => string;
+
 function validateFile(
   file: File,
   accept: readonly string[],
   maxSize: number,
+  t: Traducteur,
 ): string | null {
   if (!accept.includes(file.type)) {
-    return `Type non supporté (${file.type || 'inconnu'}). Formats acceptés : JPG, PNG ou WebP.`;
+    return t('unsupported_type', { type: file.type || t('unknown_mime') });
   }
   if (file.size > maxSize) {
-    return `Le fichier dépasse ${formatMo(maxSize)}.`;
+    return t('too_large', { size: formatMo(maxSize) });
   }
   return null;
 }
@@ -101,9 +110,10 @@ export function MediaManager({
   accept = DEFAULT_ACCEPT,
   maxSize = DEFAULT_MAX_SIZE,
   maxFiles = DEFAULT_MAX_FILES,
-  title = 'Médias',
+  title,
   hint,
 }: MediaManagerProps) {
+  const t = useTranslations('media');
   const [grid, setGrid] = useState<MediaItem[]>(items);
   const [progress, setProgress] = useState<UploadProgress[]>([]);
   const [isDragOverDropzone, setIsDragOverDropzone] = useState(false);
@@ -127,13 +137,13 @@ export function MediaManager({
     async (fileList: FileList | null) => {
       if (!fileList || fileList.length === 0) return;
       if (fileList.length > maxFiles) {
-        setError(`Maximum ${maxFiles} fichiers par envoi.`);
+        setError(t('max_files_batch', { max: maxFiles }));
         return;
       }
 
       const files = Array.from(fileList);
       const entries: UploadProgress[] = files.map((f) => {
-        const err = validateFile(f, accept, maxSize);
+        const err = validateFile(f, accept, maxSize, t);
         return {
           name: f.name,
           size: f.size,
@@ -186,7 +196,7 @@ export function MediaManager({
                   status: 'error',
                   progress: 0,
                   error:
-                    e instanceof Error ? e.message : 'Erreur lors de l’envoi.',
+                    e instanceof Error ? e.message : t('upload_error'),
                 }
               : p,
           ),
@@ -196,7 +206,7 @@ export function MediaManager({
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
     },
-    [accept, maxFiles, maxSize, onUpload],
+    [accept, maxFiles, maxSize, onUpload, t],
   );
 
   const persistReorder = useCallback(
@@ -207,10 +217,10 @@ export function MediaManager({
         await onReorder(next.map((m) => m.id));
       } catch {
         setGrid(snapshot);
-        setError('Impossible de sauvegarder le nouvel ordre.');
+        setError(t('reorder_error'));
       }
     },
-    [grid, onReorder],
+    [grid, onReorder, t],
   );
 
   const onItemDrop = useCallback(
@@ -242,12 +252,12 @@ export function MediaManager({
         await onDelete(mediaId);
       } catch {
         setGrid(snapshot);
-        setError('Suppression impossible.');
+        setError(t('delete_error'));
       } finally {
         setBusyId(null);
       }
     },
-    [grid, onDelete],
+    [grid, onDelete, t],
   );
 
   const makeCover = useCallback(
@@ -265,14 +275,17 @@ export function MediaManager({
     <div className="space-y-4" data-testid="media-manager">
       <header className="flex items-baseline justify-between gap-4">
         <div>
-          <h3 className="text-base font-semibold text-app-ink">{title}</h3>
+          <h3 className="text-base font-semibold text-app-ink">{title ?? t('title')}</h3>
           {hint ? (
             <p className="mt-0.5 text-xs text-app-ink-muted">{hint}</p>
           ) : null}
         </div>
         {grid.length > 0 ? (
           <span className="text-xs text-app-ink-muted">
-            {grid.length} photo{grid.length > 1 ? 's' : ''} · 1<sup>ère</sup> = photo principale
+            {t.rich('photo_count', {
+              count: grid.length,
+              sup: (chunks) => <sup>{chunks}</sup>,
+            })}
           </span>
         ) : null}
       </header>
@@ -299,11 +312,9 @@ export function MediaManager({
         )}
       >
         <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
-        <p className="text-sm font-medium text-app-ink">
-          Glissez-déposez vos photos ici
-        </p>
+        <p className="text-sm font-medium text-app-ink">{t('dropzone_title')}</p>
         <p className="text-xs">
-          ou cliquez pour sélectionner — {formatMo(maxSize)} max, jusqu&apos;à {maxFiles} fichiers.
+          {t('dropzone_hint', { size: formatMo(maxSize), max: maxFiles })}
         </p>
         <input
           ref={fileInputRef}
@@ -426,6 +437,8 @@ function MediaTile({
   onDelete,
   onMakeCover,
 }: MediaTileProps) {
+  const t = useTranslations('media');
+
   return (
     <li
       draggable
@@ -464,7 +477,7 @@ function MediaTile({
       {isCover ? (
         <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-app-accent px-2 py-0.5 text-xs font-semibold text-app-bg">
           <Star className="size-3" aria-hidden="true" />
-          Couverture
+          {t('cover')}
         </span>
       ) : null}
       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
@@ -477,7 +490,7 @@ function MediaTile({
             className="h-7 px-2 text-xs"
           >
             <Star className="size-3" aria-hidden="true" />
-            <span className="ml-1">Couverture</span>
+            <span className="ml-1">{t('cover')}</span>
           </Button>
         ) : (
           <span aria-hidden="true" />
@@ -487,7 +500,7 @@ function MediaTile({
           variant="destructive"
           size="sm"
           onClick={onDelete}
-          aria-label="Supprimer cette photo"
+          aria-label={t('delete_photo_aria')}
           className="h-7 px-2 text-xs"
         >
           {isBusy ? (
@@ -521,6 +534,7 @@ export function MediaDropzone({
   readonly maxSize?: number;
   readonly maxFiles?: number;
 }) {
+  const t = useTranslations('media');
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -528,12 +542,12 @@ export function MediaDropzone({
     (list: FileList | null) => {
       if (!list || list.length === 0) return;
       if (list.length + files.length > maxFiles) {
-        setError(`Maximum ${maxFiles} fichiers.`);
+        setError(t('max_files', { max: maxFiles }));
         return;
       }
       const next: File[] = [];
       for (const f of Array.from(list)) {
-        const err = validateFile(f, accept, maxSize);
+        const err = validateFile(f, accept, maxSize, t);
         if (err) {
           setError(err);
           return;
@@ -543,7 +557,7 @@ export function MediaDropzone({
       setError(null);
       onChange(next);
     },
-    [accept, files.length, maxFiles, maxSize, onChange],
+    [accept, files.length, maxFiles, maxSize, onChange, t],
   );
 
   return (
@@ -570,11 +584,9 @@ export function MediaDropzone({
         )}
       >
         <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
-        <p className="text-sm font-medium text-app-ink">
-          Glissez-déposez vos photos ici
-        </p>
+        <p className="text-sm font-medium text-app-ink">{t('dropzone_title')}</p>
         <p className="text-xs">
-          ou cliquez — {formatMo(maxSize)} max, jusqu&apos;à {maxFiles} fichiers.
+          {t('dropzone_hint_short', { size: formatMo(maxSize), max: maxFiles })}
         </p>
         <input
           id="media-dropzone-input"
@@ -606,7 +618,7 @@ export function MediaDropzone({
                 type="button"
                 onClick={() => onRemove(index)}
                 className="absolute right-1 top-1 rounded-full bg-app-bg/70 p-1 text-app-ink transition-opacity hover:bg-app-bg"
-                aria-label={`Retirer ${file.name}`}
+                aria-label={t('remove_file_aria', { name: file.name })}
               >
                 <X className="size-3" aria-hidden="true" />
               </button>

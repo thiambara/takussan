@@ -2,11 +2,11 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class MaintenanceRequestResource extends JsonResource
+class MaintenanceRequestResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -25,19 +25,19 @@ class MaintenanceRequestResource extends JsonResource
             'actual_cost' => $this->actual_cost !== null ? (float) $this->actual_cost : null,
             'quote_amount' => $this->quote_amount !== null ? (float) $this->quote_amount : null,
             'quote_currency' => $this->quote_currency,
-            'quote_submitted_at' => $this->quote_submitted_at?->toISOString(),
-            'quote_decision_at' => $this->quote_decision_at?->toISOString(),
+            'quote_submitted_at' => $this->iso($this->quote_submitted_at),
+            'quote_decision_at' => $this->iso($this->quote_decision_at),
             'quote_decision_by_id' => $this->quote_decision_by_id,
             'quote_rejection_reason' => $this->quote_rejection_reason,
-            'scheduled_at' => $this->scheduled_at?->toISOString(),
-            'started_at' => $this->started_at?->toISOString(),
-            'completed_at' => $this->completed_at?->toISOString(),
+            'scheduled_at' => $this->iso($this->scheduled_at),
+            'started_at' => $this->iso($this->started_at),
+            'completed_at' => $this->iso($this->completed_at),
             'resolution_notes' => $this->resolution_notes,
             'property' => $this->whenLoaded('property', fn () => $this->propertySummary()),
             'requester' => $this->whenLoaded('requester', fn () => $this->userSummary($this->requester)),
             'assignee' => $this->whenLoaded('assignee', fn () => $this->userSummary($this->assignee)),
             'quote_decision_by' => $this->whenLoaded('quoteDecisionBy', fn () => $this->userSummary($this->quoteDecisionBy)),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 

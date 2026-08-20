@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, Building2, Check, UserPlus } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -26,9 +27,11 @@ import {
 import { useToast } from '@/components/ui/toast';
 import { ApiError } from '@/lib/api';
 import { postAgencyOnboarding, type AgencyOnboardingPayload } from '@/lib/queries/super-admin';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type Step = 0 | 1 | 2;
 
+// Codes de locale : identiques dans les trois langues, ils ne se traduisent pas.
 const LANGUAGE_OPTIONS: Array<{ value: 'fr' | 'en' | 'wo'; label: string }> = [
   { value: 'fr', label: 'FR' },
   { value: 'en', label: 'EN' },
@@ -39,14 +42,16 @@ const LANGUAGE_OPTIONS: Array<{ value: 'fr' | 'en' | 'wo'; label: string }> = [
 // the new agency lands with the right display currency from day 1 (no
 // detour through /admin/agency settings post-activation). Mirrors the
 // codes accepted by the backend Currency enum (Senegal-first, then EU/US).
-const CURRENCY_OPTIONS: Array<{ value: string; label: string }> = [
-  { value: 'XOF', label: 'XOF — F CFA (UEMOA)' },
-  { value: 'XAF', label: 'XAF — F CFA (CEMAC)' },
-  { value: 'EUR', label: 'EUR — Euro' },
-  { value: 'USD', label: 'USD — US Dollar' },
-];
+// TCK-292 — la donnée porte la CLÉ, le rendu la résout.
+// ⚠ Le dictionnaire porte DÉJÀ un vocabulaire de devises sous `property.currencies.*`
+// (« FCFA (XOF) », « Dollar (USD) », …). Il diverge de celui-ci sur les QUATRE entrées :
+// le réutiliser changerait quatre libellés à l'écran, ce que TCK-292 interdit. Les deux
+// vocabulaires cohabitent donc, et trancher lequel gagne est une décision produit.
+const CURRENCY_CODES = ['XOF', 'XAF', 'EUR', 'USD'] as const;
 
 export function AgencyOnboardingDialog() {
+  const t = useTranslations('superAdmin.agencyOnboarding');
+  const messageErreur = useMessageErreurApi();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>(0);
   const [agency, setAgency] = useState({
@@ -71,6 +76,10 @@ export function AgencyOnboardingDialog() {
   const toast = useToast();
 
   const suggestedSlug = useMemo(() => slugify(agency.name), [agency.name]);
+  const currencyOptions = useMemo(
+    () => CURRENCY_CODES.map((code) => ({ value: code, label: t(`currencies.${code}`) })),
+    [t],
+  );
   const payload: AgencyOnboardingPayload = {
     agency: compact({
       name: agency.name,
@@ -98,17 +107,17 @@ export function AgencyOnboardingDialog() {
       setCreatedAgencyId(response.data.agency.id);
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'agencies'] });
       toast.add({
-        title: 'Agence créée',
-        description: `Invitation envoyée à ${response.data.admin.email}.`,
+        title: t('toastCreatedTitle'),
+        description: t('toastCreatedDescription', { email: response.data.admin.email }),
         type: 'success',
       });
     },
     onError: (e) => {
       if (e instanceof ApiError && e.status === 409) {
-        setError('Un compte existe déjà avec cet email admin.');
+        setError(t('errorEmailConflict'));
         return;
       }
-      setError(e instanceof ApiError ? e.displayMessage : 'Création impossible.');
+      setError(messageErreur(e, t('errorGeneric')));
     },
   });
 
@@ -129,7 +138,7 @@ export function AgencyOnboardingDialog() {
     <>
       <Button type="button" onClick={() => setOpen(true)}>
         <UserPlus className="mr-2 size-4" aria-hidden="true" />
-        Nouvelle agence
+        {t('newAgency')}
       </Button>
       <Dialog
         open={open}
@@ -140,61 +149,61 @@ export function AgencyOnboardingDialog() {
       >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Créer une agence</DialogTitle>
+            <DialogTitle>{t('dialogTitle')}</DialogTitle>
             <DialogDescription>
-              Provisionnez l’agence et son admin initial dans une seule opération auditée.
+              {t('dialogDescription')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-            <StepPill active={step === 0} done={step > 0}>Agence</StepPill>
+            <StepPill active={step === 0} done={step > 0}>{t('steps.agency')}</StepPill>
             <ArrowRight className="size-3" aria-hidden="true" />
-            <StepPill active={step === 1} done={step > 1}>Admin initial</StepPill>
+            <StepPill active={step === 1} done={step > 1}>{t('steps.admin')}</StepPill>
             <ArrowRight className="size-3" aria-hidden="true" />
-            <StepPill active={step === 2} done={createdAgencyId !== null}>Récap</StepPill>
+            <StepPill active={step === 2} done={createdAgencyId !== null}>{t('steps.recap')}</StepPill>
           </div>
 
           {step === 0 ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Nom de l’agence">
+              <Field label={t('fields.name')}>
                 <Input value={agency.name} onChange={(e) => setAgency({ ...agency, name: e.target.value })} />
               </Field>
               {/* TCK-270 — Devise positioned right after the name per the
                   ticket's UX direction: it's a step-1 decision (everything
                   downstream — pricing, invoices, payouts — depends on it). */}
-              <Field label="Devise">
+              <Field label={t('fields.currency')}>
                 <Select
                   value={agency.currency}
                   onValueChange={(value) => setAgency({ ...agency, currency: value ?? 'XOF' })}
-                  items={CURRENCY_OPTIONS}
+                  items={currencyOptions}
                 >
-                  <SelectTrigger className="h-9 w-full" aria-label="Devise par défaut de l’agence">
+                  <SelectTrigger className="h-9 w-full" aria-label={t('currencyAria')}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CURRENCY_OPTIONS.map((opt) => (
+                    {currencyOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </Field>
-              <Field label="Slug">
+              <Field label={t('fields.slug')}>
                 <Input
                   value={agency.slug}
                   placeholder={suggestedSlug}
                   onChange={(e) => setAgency({ ...agency, slug: e.target.value })}
                 />
               </Field>
-              <Field label="Type">
+              <Field label={t('fields.type')}>
                 <Input value={agency.type} onChange={(e) => setAgency({ ...agency, type: e.target.value })} />
               </Field>
-              <Field label="Email contact">
+              <Field label={t('fields.contactEmail')}>
                 <Input type="email" value={agency.email} onChange={(e) => setAgency({ ...agency, email: e.target.value })} />
               </Field>
-              <Field label="Téléphone">
+              <Field label={t('fields.phone')}>
                 <Input value={agency.phone} onChange={(e) => setAgency({ ...agency, phone: e.target.value })} />
               </Field>
-              <Field label="Adresse">
+              <Field label={t('fields.address')}>
                 <Input value={agency.address} onChange={(e) => setAgency({ ...agency, address: e.target.value })} />
               </Field>
             </div>
@@ -202,17 +211,17 @@ export function AgencyOnboardingDialog() {
 
           {step === 1 ? (
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Prénom">
+              <Field label={t('fields.firstName')}>
                 <Input value={admin.first_name} onChange={(e) => setAdmin({ ...admin, first_name: e.target.value })} />
               </Field>
-              <Field label="Nom">
+              <Field label={t('fields.lastName')}>
                 <Input value={admin.last_name} onChange={(e) => setAdmin({ ...admin, last_name: e.target.value })} />
               </Field>
-              <Field label="Email admin">
+              <Field label={t('fields.adminEmail')}>
                 <Input type="email" value={admin.email} onChange={(e) => setAdmin({ ...admin, email: e.target.value })} />
               </Field>
               <div className="space-y-2">
-                <Label>Langue</Label>
+                <Label>{t('fields.language')}</Label>
                 <div className="flex gap-2">
                   {LANGUAGE_OPTIONS.map((option) => (
                     <Button
@@ -237,14 +246,18 @@ export function AgencyOnboardingDialog() {
                 <span className="text-sm text-muted-foreground">/{agency.slug || suggestedSlug}</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                Admin initial : {admin.first_name} {admin.last_name} · {admin.email}
+                {t('recapAdmin', {
+                  firstName: admin.first_name,
+                  lastName: admin.last_name,
+                  email: admin.email,
+                })}
               </p>
               <p className="text-sm text-muted-foreground">
-                Devise par défaut : <span className="font-medium text-foreground">{agency.currency}</span>
+                {t('recapCurrency')} <span className="font-medium text-foreground">{agency.currency}</span>
               </p>
               {createdAgencyId ? (
                 <Link className={buttonVariants({ variant: 'outline' })} href={`/super-admin/agencies/${createdAgencyId}`}>
-                  Ouvrir la fiche agence
+                  {t('openAgency')}
                 </Link>
               ) : null}
             </div>
@@ -255,7 +268,7 @@ export function AgencyOnboardingDialog() {
           <DialogFooter>
             {step > 0 && !createdAgencyId ? (
               <Button type="button" variant="outline" onClick={() => setStep((step - 1) as Step)} disabled={mutation.isPending}>
-                Retour
+                {t('back')}
               </Button>
             ) : null}
             {step < 2 ? (
@@ -264,16 +277,16 @@ export function AgencyOnboardingDialog() {
                 onClick={() => setStep((step + 1) as Step)}
                 disabled={step === 0 ? !agencyValid : !adminValid}
               >
-                Continuer
+                {t('next')}
               </Button>
             ) : (
               <Button type="button" onClick={() => mutation.mutate()} disabled={!adminValid || mutation.isPending || createdAgencyId !== null}>
-                {mutation.isPending ? 'Création…' : createdAgencyId ? (
+                {mutation.isPending ? t('creating') : createdAgencyId ? (
                   <>
                     <Check className="mr-2 size-4" aria-hidden="true" />
-                    Créée
+                    {t('created')}
                   </>
-                ) : 'Créer et inviter l’admin'}
+                ) : t('submit')}
               </Button>
             )}
           </DialogFooter>

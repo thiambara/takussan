@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl';
+
 import type { PropertyDetail } from '@/types/property';
 
 function Row({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -11,22 +13,23 @@ function Row({ label, value }: { label: string; value: string | number | null | 
 }
 
 export function PropertyCharacteristics({ property }: { property: PropertyDetail }) {
+  const t = useTranslations('property.detail');
   const rows: Array<{ label: string; value: string | number | null | undefined }> = [
-    { label: 'Type', value: property.type_label },
-    { label: 'Contrat', value: property.contract_type_label },
-    { label: 'Période', value: property.rent_period_label },
-    { label: 'Statut', value: property.status_label },
+    { label: t('rows.type'), value: property.type_label },
+    { label: t('rows.contract'), value: property.contract_type_label },
+    { label: t('rows.period'), value: property.rent_period_label },
+    { label: t('rows.status'), value: property.status_label },
     {
-      label: 'Étage',
+      label: t('rows.floor'),
       value:
         property.floor_number !== null && property.total_floors
           ? `${property.floor_number} / ${property.total_floors}`
           : property.floor_number ?? property.total_floors ?? null,
     },
-    { label: 'Année de construction', value: property.year_built },
-    { label: 'Places de parking', value: property.parking_spaces },
-    { label: 'Meublé', value: property.furnished ? 'Oui' : null },
-    { label: 'Titre foncier', value: property.title_type_label },
+    { label: t('rows.yearBuilt'), value: property.year_built },
+    { label: t('rows.parking'), value: property.parking_spaces },
+    { label: t('rows.furnished'), value: property.furnished ? t('rows.yes') : null },
+    { label: t('rows.titleDeed'), value: property.title_type_label },
   ];
 
   const visible = rows.filter((r) => r.value !== null && r.value !== undefined && r.value !== '');
@@ -34,7 +37,7 @@ export function PropertyCharacteristics({ property }: { property: PropertyDetail
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-stone-900">Caractéristiques</h2>
+      <h2 className="text-xl font-semibold text-stone-900">{t('characteristics')}</h2>
       <div className="grid sm:grid-cols-2 gap-x-8 text-sm">
         {visible.map((r) => (
           <Row key={r.label} label={r.label} value={r.value} />

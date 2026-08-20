@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ApiError } from '@/lib/api';
+
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   useInvoice,
@@ -23,12 +23,10 @@ import {
 import type { Locale } from '@/i18n/config';
 import type { InvoiceStatus } from '@/types/invoice';
 
-import {
-  INVOICE_STATUS_LABEL,
-  INVOICE_STATUS_VARIANT,
-} from './constants';
+import { INVOICE_STATUS_VARIANT } from './constants';
 import { PayOnlineButton } from './PayOnlineButton';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface InvoiceDetailDialogProps {
   readonly invoiceId: number | null;
@@ -37,6 +35,9 @@ interface InvoiceDetailDialogProps {
 
 export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('payments.invoiceDetail');
+  const tStatus = useTranslations('payments.invoiceStatus');
+  const messageErreur = useMessageErreurApi();
   const { data, isLoading, isError, error } = useInvoice(invoiceId);
   const send = useInvoiceSend(invoiceId ?? 0);
   const markPaid = useInvoiceMarkPaid(invoiceId ?? 0);
@@ -61,42 +62,44 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
     <Dialog open={invoiceId !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Facture {invoice?.reference_number ?? `#${invoiceId}`}</DialogTitle>
-          <DialogDescription>
-            Statut et transitions de la facture.
-          </DialogDescription>
+          <DialogTitle>
+            {t('title', { reference: invoice?.reference_number ?? `#${invoiceId}` })}
+          </DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         {isLoading ? (
           <div className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
         ) : isError ? (
           <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-red-600">
-            {error instanceof ApiError ? error.displayMessage : 'Facture introuvable.'}
+            {messageErreur(error, t('notFound'))}
           </p>
         ) : invoice ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <Badge variant={INVOICE_STATUS_VARIANT[status] ?? 'outline'}>
-                {INVOICE_STATUS_LABEL[status] ?? status}
+                {tStatus(status)}
               </Badge>
               <span className="text-xs text-app-ink-muted">
-                Émise le {invoice.issue_date ? formatDate(invoice.issue_date, locale) : '—'}
+                {t('issuedOn', {
+                  date: invoice.issue_date ? formatDate(invoice.issue_date, locale) : '—',
+                })}
               </span>
             </div>
 
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">Client</dt>
+                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('customer')}</dt>
                 <dd className="mt-0.5 text-app-ink">#{invoice.customer_id}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">Échéance</dt>
+                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('dueDate')}</dt>
                 <dd className="mt-0.5 text-app-ink">
                   {invoice.due_date ? formatDate(invoice.due_date, locale) : '—'}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">Sous-total</dt>
+                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('subtotal')}</dt>
                 <dd className="mt-0.5 text-app-ink">
                   {formatCurrency(invoice.subtotal, locale, {
                     currency: invoice.currency || 'XOF',
@@ -104,7 +107,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">Total</dt>
+                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('total')}</dt>
                 <dd className="mt-0.5 font-semibold text-app-ink">
                   {formatCurrency(invoice.total_amount, locale, {
                     currency: invoice.currency || 'XOF',
@@ -113,11 +116,16 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
               </div>
               {invoice.tax_rate ? (
                 <div>
-                  <dt className="text-xs uppercase tracking-wide text-app-ink-muted">TVA</dt>
+                  <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('tax')}</dt>
                   <dd className="mt-0.5 text-app-ink">
-                    {invoice.tax_rate}% ({formatCurrency(invoice.tax_amount ?? 0, locale, {
-                      currency: invoice.currency || 'XOF',
-                    })})
+                    {t('taxValue', {
+                      // String() délibéré : ICU formaterait 1.5 en « 1,5 » sous fr, là où le JSX
+                      // d'origine rendait le nombre brut. Aucun rendu ne doit changer (TCK-292).
+                      rate: String(invoice.tax_rate),
+                      amount: formatCurrency(invoice.tax_amount ?? 0, locale, {
+                        currency: invoice.currency || 'XOF',
+                      }),
+                    })}
                   </dd>
                 </div>
               ) : null}
@@ -137,7 +145,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
                   disabled={send.isPending}
                   onClick={() => void handleAction(() => send.mutateAsync())}
                 >
-                  {send.isPending ? 'Envoi…' : 'Envoyer'}
+                  {send.isPending ? t('sending') : t('send')}
                 </Button>
               ) : null}
               {status !== 'paid' && status !== 'cancelled' && status !== 'void' ? (
@@ -147,7 +155,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
                   disabled={markPaid.isPending}
                   onClick={() => void handleAction(() => markPaid.mutateAsync())}
                 >
-                  {markPaid.isPending ? '…' : 'Marquer payée'}
+                  {markPaid.isPending ? t('working') : t('markPaid')}
                 </Button>
               ) : null}
               {status !== 'cancelled' && status !== 'void' && status !== 'paid' ? (
@@ -157,7 +165,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
                   disabled={cancel.isPending}
                   onClick={() => void handleAction(() => cancel.mutateAsync())}
                 >
-                  {cancel.isPending ? '…' : 'Annuler la facture'}
+                  {cancel.isPending ? t('working') : t('cancelInvoice')}
                 </Button>
               ) : null}
               {status !== 'paid' && status !== 'cancelled' && status !== 'void' && invoiceId ? (
@@ -169,7 +177,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
                 />
               ) : null}
               <Button variant="ghost" type="button" onClick={onClose}>
-                Fermer
+                {t('close')}
               </Button>
             </div>
           </div>

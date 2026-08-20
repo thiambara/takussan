@@ -13,7 +13,7 @@ use App\Models\PlatformPayout;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-144 — Defense-in-depth guard for the entire `/api/admin/*` namespace.
@@ -22,7 +22,7 @@ use Tests\BaseTestCase;
  * specific endpoint. New routes added under the prefix automatically join
  * the guarded set — no per-route test maintenance.
  */
-class NamespaceAccessGuardTest extends BaseTestCase
+class NamespaceAccessGuardTest extends TestCase
 {
     use RefreshDatabase;
 

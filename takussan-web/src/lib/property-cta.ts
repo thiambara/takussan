@@ -4,18 +4,31 @@ import type { ContractType, RentPeriod } from '@/types/property';
  * TCK-165 — primary CTA for the public property detail booking card.
  *
  * The verb depends on the contract:
- * - `sale`                                                → "Faire une offre"
- * - `rent` + short-term period (`daily` / `weekly`)       → "Réserver"
- * - `rent` + long-term period (`monthly` / `yearly`)      → "Postuler"
- * - unknown / null                                        → "Réserver" (safe default)
+ * - `sale`                                                → `offer`   (« Faire une offre »)
+ * - `rent` + short-term period (`daily` / `weekly`)       → `reserve` (« Réserver »)
+ * - `rent` + long-term period (`monthly` / `yearly`)      → `apply`   (« Postuler »)
+ * - unknown / null                                        → `reserve` (safe default)
  *
- * The `action` token tells the auth-required modal which copy variant
- * to render — same shape as the verb so the dialog stays in sync.
+ * TCK-292 — « la donnée porte la CLÉ, le rendu la résout ». Ce module est une fonction pure
+ * appelée hors composant : ni `useTranslations` ni `getTranslations` n'y est appelable. Il ne
+ * porte donc plus le libellé, seulement le jeton `action` — qui EST la clé sous
+ * {@link PRIMARY_CTA_NAMESPACE}. Le libellé se résout d'une ligne côté appelant :
+ *
+ * ```tsx
+ * const t = useTranslations('property.detail');           // = PRIMARY_CTA_NAMESPACE
+ * const cta = getPrimaryCtaForProperty(property);
+ * <Button>{t(`primaryCta.${cta.action}`)}</Button>
+ * ```
+ *
+ * Le jeton `action` servait déjà à choisir la variante de copie du modal d'authentification : il
+ * n'a pas été inventé pour l'i18n, il était simplement doublé par un libellé français.
  */
 export type PropertyCtaAction = 'offer' | 'reserve' | 'apply';
 
+/** Espace de noms où vivent les trois libellés — `primaryCta.{action}` sous cette racine. */
+export const PRIMARY_CTA_NAMESPACE = 'property.detail' as const;
+
 export interface PrimaryCta {
-  readonly label: string;
   readonly action: PropertyCtaAction;
 }
 
@@ -26,13 +39,13 @@ export function getPrimaryCtaForProperty(property: {
   rent_period?: RentPeriod | null;
 }): PrimaryCta {
   if (property.contract_type === 'sale') {
-    return { label: 'Faire une offre', action: 'offer' };
+    return { action: 'offer' };
   }
   if (property.contract_type === 'rent') {
     if (property.rent_period && SHORT_TERM_PERIODS.has(property.rent_period)) {
-      return { label: 'Réserver', action: 'reserve' };
+      return { action: 'reserve' };
     }
-    return { label: 'Postuler', action: 'apply' };
+    return { action: 'apply' };
   }
-  return { label: 'Réserver', action: 'reserve' };
+  return { action: 'reserve' };
 }

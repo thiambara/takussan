@@ -1,48 +1,23 @@
 /**
- * French labels for maintenance enums. Keeps display strings out of the
- * component bodies so we can translate them via `next-intl` later
- * without touching the UI.
+ * Tons (classes Tailwind) des enums de maintenance, et la table de décision d'un devis.
+ *
+ * ⚠ **Les LIBELLÉS ont quitté ce module (TCK-292, lot I).** Ils vivent sous
+ * `maintenance.status.*`, `maintenance.priority.*`, `maintenance.category.*` et
+ * `maintenance.quote.decisions.*` dans `src/messages/{fr,en,wo}.json`. Ce qui reste ici ne
+ * dépend d'aucune langue : des couleurs, et une fonction qui rend une CLÉ — patron « la donnée
+ * transporte la clé, le rendu la résout » posé par TCK-286.
+ *
+ * `src/lib/__tests__/agent-fr-regressions.test.ts` gardait « aucune valeur d'enum technique ne
+ * s'affiche » en lisant `MAINTENANCE_PRIORITY_LABEL`. La garde n'a pas disparu : elle s'exerce
+ * désormais sur `maintenance.priority` du dictionnaire, devenu la source du libellé — mêmes
+ * chaînes attendues, au caractère près.
  */
 
 import type {
   MaintenanceRequest,
-  MaintenanceCategory,
   MaintenancePriority,
   MaintenanceStatus,
 } from '@/types/maintenance';
-
-export const MAINTENANCE_STATUS_LABEL: Record<MaintenanceStatus, string> = {
-  open: 'Ouverte',
-  acknowledged: 'Prise en compte',
-  quote_requested: 'Devis demandé',
-  quote_submitted: 'Devis soumis',
-  approved: 'Devis approuvé',
-  rejected: 'Devis rejeté',
-  assigned: 'Assignée',
-  in_progress: 'En cours',
-  completed: 'Terminée',
-  closed: 'Clôturée',
-  cancelled: 'Annulée',
-};
-
-export const MAINTENANCE_PRIORITY_LABEL: Record<MaintenancePriority, string> = {
-  low: 'Faible',
-  normal: 'Normale',
-  high: 'Élevée',
-  urgent: 'Urgente',
-};
-
-export const MAINTENANCE_CATEGORY_LABEL: Record<MaintenanceCategory, string> = {
-  plumbing: 'Plomberie',
-  electrical: 'Électricité',
-  structural: 'Structure',
-  appliance: 'Électroménager',
-  painting: 'Peinture',
-  cleaning: 'Nettoyage',
-  pest_control: 'Nuisibles',
-  locksmith: 'Serrurerie',
-  other: 'Autre',
-};
 
 const STATUS_TONE: Record<MaintenanceStatus, string> = {
   open: 'bg-blue-100 text-blue-800',
@@ -73,12 +48,26 @@ export function maintenancePriorityBadgeClass(priority: MaintenancePriority): st
   return PRIORITY_TONE[priority] ?? 'bg-gray-100 text-gray-700';
 }
 
-export function quoteDecisionLabel(request: Pick<MaintenanceRequest, 'status'>): string {
-  if (request.status === 'rejected') return 'Refusé';
+/** Les cinq cas de `maintenance.quote.decisions.*`. */
+export type QuoteDecisionKey =
+  | 'rejected'
+  | 'approved'
+  | 'pending'
+  | 'requested'
+  | 'not_applicable';
+
+/**
+ * Rend la CLÉ de décision, jamais le libellé : le composant la résout par
+ * `useTranslations('maintenance.quote.decisions')`.
+ */
+export function quoteDecisionKey(
+  request: Pick<MaintenanceRequest, 'status'>,
+): QuoteDecisionKey {
+  if (request.status === 'rejected') return 'rejected';
   if (['approved', 'in_progress', 'completed', 'closed'].includes(request.status)) {
-    return 'Approuvé';
+    return 'approved';
   }
-  if (request.status === 'quote_submitted') return 'En attente de décision';
-  if (request.status === 'quote_requested') return 'Devis demandé';
-  return 'Non applicable';
+  if (request.status === 'quote_submitted') return 'pending';
+  if (request.status === 'quote_requested') return 'requested';
+  return 'not_applicable';
 }

@@ -15,8 +15,15 @@ use Illuminate\Support\Facades\Gate;
  * TCK-088 — `POST /api/leases/{lease}/deposit-refund` and
  * `GET /api/leases/{lease}/deposit-refund`.
  *
- * The store endpoint is gated by the `LeasePolicy@refundDeposit` ability
- * (Spatie permission `leases.refund_deposit`). The show endpoint is open
+ * The store endpoint is gated by the `LeasePolicy@refundDeposit` ability.
+ *
+ * TCK-278 — that ability now resolves through `Capability::LeasesRefundDeposit`
+ * and the Gate derived from the enum (ADR-0003), not through a Spatie
+ * permission: `spatie/laravel-permission` is uninstalled (ADR-0002). The
+ * capability string is unchanged, which is exactly why the stale wording
+ * survived — the name still reads true, the mechanism no longer exists.
+ *
+ * The show endpoint is open
  * to anyone with read access on the lease — including the tenant — so the
  * frontend banner can render for everyone involved.
  */
@@ -43,25 +50,10 @@ class LeaseDepositRefundController extends Controller
 
     public function show(Request $request, Lease $lease): JsonResponse
     {
-        $this->authorizeAccess($request, $lease);
+        $this->authorize('view', $lease);
 
         return $this->json([
             'data' => $this->refunds->state($lease),
         ]);
-    }
-
-    /**
-     * Mirrors `LeaseController::authorizeAccess` — kept private to this
-     * controller to avoid forcing every caller to extend a shared base.
-     */
-    protected function authorizeAccess(Request $request, Lease $lease): void
-    {
-        $user = $request->user();
-        $ok = $user->isSuperAdmin()
-            || $lease->landlord_id === $user->id
-            || ($user->agency_id && $user->agency_id === $lease->agency_id)
-            || ($lease->tenant && $lease->tenant->user_id === $user->id);
-
-        abort_unless($ok, 403);
     }
 }

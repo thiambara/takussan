@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Domain\Features\Flag;
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\Admin\OverrideFeatureFlagRequest;
+use App\Http\Requests\Api\Admin\UpdateFeatureFlagRequest;
 use App\Models\FeatureFlag;
 use App\Services\Features\FeatureFlagEvaluator;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class FeatureFlagController extends Controller
 {
@@ -29,18 +30,10 @@ class FeatureFlagController extends Controller
         })->values()->all()]);
     }
 
-    public function update(Request $request, string $key): JsonResponse
+    public function update(UpdateFeatureFlagRequest $request, string $key): JsonResponse
     {
         abort_unless(Flag::tryFrom($key), 404, 'Unknown feature flag.');
-        $data = $request->validate([
-            'enabled' => ['required', 'boolean'],
-            'segments' => ['nullable', 'array'],
-            'segments.roles' => ['nullable', 'array'],
-            'segments.roles.*' => ['string'],
-            'segments.agency_ids' => ['nullable', 'array'],
-            'segments.agency_ids.*' => ['integer'],
-            'segments.rollout_percentage' => ['nullable', 'integer', 'min:0', 'max:100'],
-        ]);
+        $data = $request->validated();
         $catalogue = Flag::from($key);
         $flag = FeatureFlag::updateOrCreate(
             ['key' => $key],
@@ -63,9 +56,9 @@ class FeatureFlagController extends Controller
         return $this->index();
     }
 
-    public function override(Request $request, string $key): JsonResponse
+    public function override(OverrideFeatureFlagRequest $request, string $key): JsonResponse
     {
-        $data = $request->validate(['enabled' => ['required', 'boolean']]);
+        $data = $request->validated();
         $this->evaluator->setOverride($request->user(), $key, $data['enabled']);
 
         return $this->json(['data' => ['key' => $key, 'enabled' => $data['enabled']]]);

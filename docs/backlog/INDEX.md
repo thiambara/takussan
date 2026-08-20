@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**272 tickets** — 12 ouverts, 259 livrés.
+**316 tickets** — 8 ouverts, 307 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 8 |
+| 📋 Todo | 5 |
 | 🚧 Doing | 3 |
 | 👀 Review | 0 |
-| ⛔ Blocked | 1 |
-| ✅ Done | 259 |
+| ⛔ Blocked | 0 |
+| ✅ Done | 307 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -33,20 +33,17 @@
 
 ## 📋 Todo
 
-- [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn — harmonisation transverse `M · P2 · front`
-- [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
-- [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternative pour comptes OAuth-only `M · P2 · applicatif`
-- [TCK-285](tickets/TCK-285-couverture-tests-services-policies.md) — Couverture de tests — services metier, policies, observers, webhooks `L · P1 · technique`
-- [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
-- [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
 - [TCK-288](tickets/TCK-288-chaine-de-deploiement-master-fige.md) — Premiere mise en production — la chaine n'a jamais tourne `M · P0 · technique`
-- [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
+- [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
+- [TCK-332](tickets/TCK-332-front-public-appelle-une-api-absente.md) — Le front de production est public et appelle une API qui n'existe pas `S · P0 · technique`
+- [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
+- [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
 
 ## 🚧 Doing
 
-- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique`
-- [TCK-281](tickets/TCK-281-search-internal-entities-meilisearch.md) — Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs) `L · P3 · back`
-- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
+- [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
+- [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
+- [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
 
 ## 👀 Review
 
@@ -54,11 +51,70 @@ _(aucun)_
 
 ## ⛔ Blocked
 
-- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (HasRoles sur Profils + AgencyRole) `L · P1 · full`
+_(aucun)_
 
 ---
 
-## ✅ Done — 259
+## ✅ Done — 307
+
+<details>
+<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 5 tickets</summary>
+
+- [TCK-320](tickets/TCK-320-selection-des-tests-par-impact.md) — Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests `M · P2 · technique`
+- [TCK-321](tickets/TCK-321-parallel-en-ci.md) — Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé `M · P2 · technique`
+- [TCK-324](tickets/TCK-324-mesurer-parallel-sur-le-runner-ci.md) — Mesurer `--parallel` sur le runner CI, puis trancher — la décision actuelle est un défaut, pas un résultat `S · P2 · technique`
+- [TCK-325](tickets/TCK-325-garde-des-declencheurs-durs-du-selecteur.md) — Garder la liste des déclencheurs durs du sélecteur d'impact — elle est recopiée à la main et avait dérivé le jour de son écriture `S · P2 · technique`
+- [TCK-331](tickets/TCK-331-coverage-php-en-double-casse-le-cliquet.md) — `--coverage-php` est passé DEUX FOIS — le cliquet sort en 1 sans un mot, et la carte d'impact n'a jamais été régénérée `M · P2 · technique`
+
+</details>
+
+<details>
+<summary><strong>Vague 40 — Évacuation dette — documentation : specs et documents périmés (2026-08-16)</strong> — 3 tickets</summary>
+
+- [TCK-310](tickets/TCK-310-models-spec-16-modeles-absents.md) — `docs/models-spec.md` ignore 16 modèles et documente encore un package désinstallé `M · P1 · technique`
+- [TCK-311](tickets/TCK-311-documents-perimes-et-pointeur-mort.md) — Cinq documents périmés, un pointeur mort dans les deux specs, et 4 Mo d'images commitées `S · P3 · technique`
+- [TCK-313](tickets/TCK-313-delai-waitfor-rtl-tendu-sous-charge.md) — Le délai propre de waitFor/findBy est un défaut de framework, pas une mesure `S · P2 · front`
+
+</details>
+
+<details>
+<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 11 tickets</summary>
+
+- [TCK-304](tickets/TCK-304-enveloppe-pagination-dupliquee.md) — Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes `L · P2 · technique`
+- [TCK-305](tickets/TCK-305-validation-inline-vers-formrequest.md) — 120 validations inline contre 65 FormRequest — deux conventions sur le même geste `L · P2 · technique`
+- [TCK-306](tickets/TCK-306-autorisation-controleurs-vers-policies.md) — 25 contrôleurs redéfinissent l'autorisation que 16 policies portent déjà `L · P2 · technique`
+- [TCK-307](tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) — Supprimer le DSL `scopeFilter` — mort mais toujours branché sur tous les modèles `S · P2 · technique`
+- [TCK-308](tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) — `BaseResource` adoptée par 7 ressources sur 44 — 37 refont les conversions à la main `M · P2 · technique`
+- [TCK-309](tickets/TCK-309-conventions-mineures-dedoublees.md) — Trois conventions dédoublées : classes de base de test, préfixes de commandes, namespaces d'auth `M · P3 · technique`
+- [TCK-316](tickets/TCK-316-regles-react-compiler-inertes-sous-eslint-9.md) — Cinq familles de règles React Compiler sont déclarées bloquantes et ne s'exécutent pas — 23 violations que le bump ESLint 10 révèle `M · P2 · front`
+- [TCK-317](tickets/TCK-317-roles-systeme-derivent-par-date-de-creation.md) — Les rôles système dérivent par date de création d'agence — une capacité ajoutée à l'enum n'atteint jamais les agences existantes `M · P2 · back`
+- [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
+- [TCK-319](tickets/TCK-319-porter-watermarkservice-sur-intervention-image-4.md) — Porter `WatermarkService` sur intervention/image 4 — `place()` devient `insert()`, et l'opacité change d'unité `S · P3 · back`
+- [TCK-326](tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) — Supprimer `scopeWithSearch` — le jumeau de `scopeFilter`, et un doublon INFÉRIEUR `S · P2 · technique`
+
+</details>
+
+<details>
+<summary><strong>Vague 38 — Évacuation dette — infra du dépôt : versions, déploiement front, environnement (2026-08-16)</strong> — 8 tickets</summary>
+
+- [TCK-298](tickets/TCK-298-versions-infra-production-non-epinglees.md) — Les versions d'infrastructure de production ne sont épinglées nulle part dans le dépôt `S · P2 · technique`
+- [TCK-299](tickets/TCK-299-deploiement-frontend-hors-depot.md) — Le déploiement du frontend n'existe dans aucun workflow ni script du dépôt `M · P1 · technique`
+- [TCK-300](tickets/TCK-300-guides-deploiement-contredisent-env-livres.md) — Les guides de déploiement prescrivent des drivers que les `.env` livrés contredisent `S · P2 · technique`
+- [TCK-301](tickets/TCK-301-pieges-muets-environnement-developpement.md) — Les pièges muets de l'environnement de développement : seeding, PDF, et un `.env` qui vise le natif `S · P2 · technique`
+- [TCK-302](tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) — Aucune mesure de couverture, aucune parallélisation — ~2050 tests en 313 s et pas de garde-fou `M · P2 · technique`
+- [TCK-303](tickets/TCK-303-arbitrer-agent-vs-agents.md) — Deux répertoires de compétences concurrents, `.agent/` et `.agents/` — arbitrer, supprimer le mort, et garder contre son retour `S · P1 · technique`
+- [TCK-312](tickets/TCK-312-tests-front-rougissent-sous-charge.md) — Quatre tests front rougissent sous charge — le pendant frontend de D-44 `S · P2 · front`
+- [TCK-314](tickets/TCK-314-test-recherche-dependant-de-l-ordre.md) — Un test de recherche publique ne passe que grâce à l'ORDRE de la suite — et il rougit 3 fois sur 5 en parallèle `S · P2 · technique`
+
+</details>
+
+<details>
+<summary><strong>Vague 37 — Évacuation dette — back sécurité : gardes webhook et policies (2026-08-16)</strong> — 2 tickets</summary>
+
+- [TCK-296](tickets/TCK-296-cles-env-gardes-webhook.md) — Les 7 clés d'environnement des gardes webhook ne sont pas toutes déclarées `S · P1 · technique`
+- [TCK-297](tickets/TCK-297-basepolicy-capacites-inexistantes.md) — BasePolicy résout des capacités qui n'existent pas — refus silencieux pour tous sauf super-admin `S · P1 · bug`
+
+</details>
 
 <details>
 <summary><strong>Vague 36 — Notifications WhatsApp sortant (2026-06-17)</strong> — 2 tickets</summary>
@@ -69,9 +125,19 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 35 — Recherche Meilisearch (2026-05-20)</strong> — 1 ticket</summary>
+<summary><strong>Vague 35 — Recherche Meilisearch (2026-05-20)</strong> — 2 tickets</summary>
 
 - [TCK-280](tickets/TCK-280-search-properties-meilisearch.md) — Recherche de biens sur Meilisearch (public + dashboard) `L · P2 · back`
+- [TCK-281](tickets/TCK-281-search-internal-entities-meilisearch.md) — Recherche interne sur Meilisearch (clients, maintenance, agences, utilisateurs) `L · P3 · back`
+
+</details>
+
+<details>
+<summary><strong>Vague 34 — Refonte RBAC : profil = rôle (2026-05-17)</strong> — 3 tickets</summary>
+
+- [TCK-278](tickets/TCK-278-rbac-profile-based-phase-1.md) — RBAC refondu — phase 1 : suppression de spatie sur User + PlatformProfile + Capability resolver `XL · P1 · technique`
+- [TCK-279](tickets/TCK-279-rbac-custom-roles-phase-2.md) — RBAC refondu — phase 2 : rôles personnalisés par agence (AgencyRole + pivot de capacités) `L · P1 · full`
+- [TCK-315](tickets/TCK-315-role-agence-du-prestataire.md) — Où vit le rôle d'agence d'un prestataire — le profil n'a pas d'agence, la collaboration si `M · P1 · technique`
 
 </details>
 
@@ -134,12 +200,21 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 27 — Audit design front (2026-05-09)</strong> — 4 tickets</summary>
+<summary><strong>Vague 28 — Discovery / homepage (2026-05-10)</strong> — 1 ticket</summary>
+
+- [TCK-247](tickets/TCK-247-public-homepage-discovery-endpoint.md) — Endpoint unique homepage discovery (4 rangées dédupliquées côté serveur) `M · P2 · back`
+
+</details>
+
+<details>
+<summary><strong>Vague 27 — Audit design front (2026-05-09)</strong> — 6 tickets</summary>
 
 - [TCK-242](tickets/TCK-242-public-agency-agent-pages-design-refresh.md) — Refonte design fiches publiques agence & agent `M · P1 · front`
 - [TCK-243](tickets/TCK-243-super-admin-native-controls-pagination.md) — Super-admin — éliminer les contrôles HTML natifs et factoriser la pagination `M · P2 · front`
 - [TCK-244](tickets/TCK-244-dashboard-admin-legacy-tokens-migration.md) — Dashboard /app + /admin — migration tokens legacy → tokens DS Lin `L · P2 · front`
 - [TCK-245](tickets/TCK-245-super-admin-stone-palette-to-ds-tokens.md) — Super-admin — passer la palette stone Tailwind sur les tokens DS Lin `M · P2 · front`
+- [TCK-246](tickets/TCK-246-empty-error-states-and-cta-buttons-harmonization.md) — Empty / error states + CTA shadcn — harmonisation transverse `M · P2 · front`
+- [TCK-291](tickets/TCK-291-etats-vides-erreurs-reste-du-parc.md) — États vides / erreurs — le reste du parc (super-admin, admin, tables) `M · P2 · front`
 
 </details>
 
@@ -155,7 +230,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 25 — Bugs smoke test utilisateurs authentifiés (2026-05-08)</strong> — 9 tickets</summary>
+<summary><strong>Vague 25 — Bugs smoke test utilisateurs authentifiés (2026-05-08)</strong> — 10 tickets</summary>
 
 - [TCK-228](tickets/TCK-228-notification-preferences-crash.md) — Préférences notifications — corriger le crash au toggle `S · P1 · bug`
 - [TCK-229](tickets/TCK-229-notification-bell-feed.md) — Notifications — restaurer la cloche et le feed `M · P0 · bug`
@@ -166,6 +241,7 @@ _(aucun)_
 - [TCK-234](tickets/TCK-234-i18n-auth-account-errors.md) — i18n — corriger auth et compte `M · P0 · bug`
 - [TCK-235](tickets/TCK-235-search-relevance-appartement.md) — Recherche — améliorer la pertinence plein texte `M · P0 · bug`
 - [TCK-236](tickets/TCK-236-profile-posted-reviews.md) — Profil — afficher les avis postés `M · P2 · bug`
+- [TCK-272](tickets/TCK-272-oauth-only-account-deletion-step-up.md) — Suppression de compte — step-up alternatif pour les comptes sans mot de passe utilisable `M · P2 · applicatif`
 
 </details>
 
@@ -474,10 +550,21 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 2 tickets</summary>
+<summary><strong>Sans vague</strong> — 13 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
+- [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
+- [TCK-285](tickets/TCK-285-couverture-tests-services-policies.md) — Couverture de tests — services metier, policies, observers, webhooks `L · P1 · technique`
+- [TCK-286](tickets/TCK-286-i18n-textes-en-dur.md) — i18n — les libelles produits encore codes en dur `L · P2 · front`
+- [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
 - [TCK-289](tickets/TCK-289-moteur-de-base-production-non-epingle.md) — Moteur de base de production non épinglé — la CI éprouvait une hypothèse, et elle était fausse `S · P1 · technique`
+- [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
+- [TCK-294](tickets/TCK-294-mtarget-api-pulling-dlr.md) — Mtarget — basculer les accusés de livraison sur l'API Pulling plutôt qu'un webhook non signé `M · P2 · technique`
+- [TCK-295](tickets/TCK-295-kpi-alertes-restriction-agence-individual.md) — §1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard` `S · P3 · technique`
+- [TCK-323](tickets/TCK-323-typescript-7-casse-le-cliquet-i18n.md) — TypeScript 7 n'exporte plus l'API compilateur côté Node — le cliquet i18n en dépend, et le bump PR #182 le casse `M · P2 · technique`
+- [TCK-328](tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md) — Le front servi sur `127.0.0.1` ne s'hydrate pas — Next 16 bloque ses ressources de dev, en silence `S · P2 · technique`
+- [TCK-329](tickets/TCK-329-profiletype-front-ignore-agency-admin.md) — Le type `ProfileType` du front ignore `agency_admin` — la barre supérieure affiche « undefined · <agence> » `S · P2 · front`
+- [TCK-330](tickets/TCK-330-saved-search-frequence-nulle-500.md) — Créer une recherche sauvegardée avec une fréquence d'alerte vide rend 500 `S · P1 · bug`
 
 </details>
 

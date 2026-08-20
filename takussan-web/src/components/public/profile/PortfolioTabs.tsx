@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { PropertyCardStandard } from '@/components/property/cards/PropertyCardStandard';
@@ -23,13 +24,8 @@ interface PortfolioTabsProps {
   readonly source?: { kind: 'agent' | 'agency'; slug: string };
 }
 
-const TAB_LABELS: Record<TabKey, string> = {
-  all: 'Tous',
-  rent: 'À louer',
-  sale: 'À vendre',
-};
-
 export function PortfolioTabs({ portfolio, emptyHint, totals, source }: PortfolioTabsProps) {
+  const t = useTranslations('publicProfile.portfolio');
   const loadMore = useMemo(
     () =>
       source
@@ -81,17 +77,17 @@ export function PortfolioTabs({ portfolio, emptyHint, totals, source }: Portfoli
 
   return (
     <Tabs value={tab} onValueChange={(value) => setTab((value ?? 'all') as TabKey)}>
-      <TabsList aria-label="Filtrer le portefeuille">
+      <TabsList aria-label={t('filterAria')}>
         <TabsTrigger value="all">
-          {TAB_LABELS.all}
+          {t('tabs.all')}
           <span className="ml-2 text-xs text-muted-foreground">{displayedTotals.all}</span>
         </TabsTrigger>
         <TabsTrigger value="rent">
-          {TAB_LABELS.rent}
+          {t('tabs.rent')}
           <span className="ml-2 text-xs text-muted-foreground">{displayedTotals.rent}</span>
         </TabsTrigger>
         <TabsTrigger value="sale">
-          {TAB_LABELS.sale}
+          {t('tabs.sale')}
           <span className="ml-2 text-xs text-muted-foreground">{displayedTotals.sale}</span>
         </TabsTrigger>
       </TabsList>
@@ -100,12 +96,12 @@ export function PortfolioTabs({ portfolio, emptyHint, totals, source }: Portfoli
         {current.length === 0 ? (
           <div className="rounded-2xl border border-border bg-card p-10 text-center">
             <p className="font-display text-xl text-foreground">
-              {tab === 'rent' && 'Pas encore de bien à louer'}
-              {tab === 'sale' && 'Pas encore de bien à vendre'}
-              {tab === 'all' && 'Pas encore de bien à présenter'}
+              {tab === 'rent' && t('empty.rent')}
+              {tab === 'sale' && t('empty.sale')}
+              {tab === 'all' && t('empty.all')}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {emptyHint ?? 'Reviens bientôt — les annonces se renouvellent régulièrement.'}
+              {emptyHint ?? t('emptyHint')}
             </p>
           </div>
         ) : (
@@ -125,15 +121,15 @@ export function PortfolioTabs({ portfolio, emptyHint, totals, source }: Portfoli
                   size="lg"
                   onClick={handleLoadMore}
                   disabled={isLoading}
-                  aria-label="Charger plus de biens"
+                  aria-label={t('loadMoreAria')}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="size-4 animate-spin" aria-hidden />
-                      Chargement…
+                      {t('loading')}
                     </>
                   ) : (
-                    `Voir plus de biens (${displayedTotals.all - accumulated.length} restants)`
+                    t('loadMore', { count: String(displayedTotals.all - accumulated.length) })
                   )}
                 </Button>
               </div>

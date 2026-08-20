@@ -12,7 +12,7 @@ Execute a backlog ticket against the codebase. The ticket is the **contract**, t
 **Announce at start:** "I'm using the implementing-specs skill to execute TCK-NNN."
 
 **Ticket location:** `docs/backlog/tickets/TCK-NNN-<slug>.md`
-**Index to maintain:** `docs/backlog/INDEX.md`
+**Index (GENERATED — never hand-edit):** `docs/backlog/INDEX.md`, rebuilt by `node docs/backlog/gen-index.mjs`
 **Specs (read-only):** `docs/features.md`, `docs/models-spec.md`
 
 ## When to use
@@ -87,9 +87,16 @@ status: doing
 updated: <today YYYY-MM-DD>
 ```
 
-**7. Update `INDEX.md`.**
+**7. Regenerate `INDEX.md` — do NOT edit it.**
 
-Move the ticket bullet from the `📋 Todo` section to `🚧 Doing`.
+```bash
+node docs/backlog/gen-index.mjs      # rebuilds INDEX.md from the frontmatters
+node docs/backlog/check-backlog.mjs  # verifies the source still tells the truth
+```
+
+The frontmatter you just changed **is** the source; the index derives from it. Hand-moving a bullet
+is how `INDEX.md` came to be false on 213 of its 266 entries (debt D-15), and Repo CI now rejects a
+stale index anyway.
 
 ### Phase 3 — Plan the work
 
@@ -109,9 +116,31 @@ Invoke `.agent/skills/test-driven-development/SKILL.md`. Write the failing test 
 
 **11. Respect the architecture** documented in `CLAUDE.md`:
 
-- **Backend**: Controllers are thin and delegate to `App\Services\Model\...`. Models extend `App\Models\Bases\AbstractModel`. Routes live under `routes/api/<resource>.php`. Permissions use `spatie/laravel-permission`. Media uses `spatie/laravel-medialibrary`.
-- **Frontend**: Standalone components (no NgModules). Services in `core/services/http/`. PrimeNG 21 + Tailwind 4. Template control flow uses `@if` / `@for` / `@switch`. Auth token in `AuthService.authToken` (static).
-- **API base URL (dev)**: `http://127.0.0.1:8002`. Frontend runs on port 4201.
+- **Backend** (`takussan-api/`, Laravel 13 / PHP 8.4): controllers are thin and delegate to
+  `App\Services\Model\...`. Models extend `App\Models\Bases\AbstractModel`. Routes live under
+  `routes/api/<resource>.php`. Reads go through `spatie/laravel-query-builder` (see
+  `docs/spatie-query-builder.md`). Media uses `spatie/laravel-medialibrary`.
+- **Authorization**: `spatie/laravel-permission` **has been uninstalled** (TCK-278). A role is a
+  **polymorphic profile** (`OwnerProfile`, `AgentProfile`, `AgencyAdminProfile`, `BrokerProfile`,
+  `ServiceProviderProfile`, `PlatformProfile`); capabilities are the `Capability` enum
+  (`<domain>.<verb>`) resolved by `MembershipCapabilityResolver` for a *(user, agency)* pair. The
+  agency is the isolation boundary; the active profile is read via `request()->activeProfile()`.
+  A CI guard fails on any `Spatie\Permission\` import. **Docblocks still describe the removed
+  package — do not trust them (debt D-21).**
+- **Frontend** (`takussan-web/`, Next.js 16 / React 19 / TypeScript 5): App Router, server
+  components by default. UI primitives are **shadcn style `base-nova` on `@base-ui/react`** —
+  there is **no Radix and no PrimeNG** in this project. Styling is Tailwind CSS 4. Data access is
+  `apiFetch` / `apiRequest` / `useApiQuery` — see `takussan-web/CLAUDE.md` for which one prefixes
+  `/api` and which one does not, because getting it wrong yields a CORS `net::ERR_FAILED`, not a
+  clean 404. Displayed text belongs to the front, via next-intl (`fr`/`en`/`wo`).
+- **Dev ports**: API on `http://127.0.0.1:8002`, front on `3000`. Both are started by `./dev.sh`,
+  which shifts them if the port is taken.
+
+> ⚠️ Until 2026-08-15 these three bullets described **another project entirely** — Angular
+> standalone components, PrimeNG 21, `@if`/`@for` templates, port 4201, and an authorization
+> package that had been removed months earlier. Every agent that read this file before writing
+> code started from a falsehood. If you find this section contradicting the code, the code wins
+> and this file is the bug: fix it in the same PR.
 
 **12. Honor the ticket's constraints.**
 
@@ -127,10 +156,23 @@ Invoke `.agent/skills/test-driven-development/SKILL.md`. Write the failing test 
 
 For each bullet in **Critères d'acceptation**, explicitly confirm green/red. If any AC is red, loop back to Phase 4 or STOP and report.
 
-**15. Run the tests.**
+**15. Run the tests — the ones relevant to YOUR work, never the whole suite.**
 
-- Backend: `php artisan test --filter=<TestClass>`
+- Backend: `php artisan test tests/Path/To/YourTest.php` (file paths are exact; `--filter=<TestClass>`
+  over-matches whenever one class name is a substring of another)
+- Backend, when you are not sure what your change touches: `php bin/impacted-tests.php --run`
 - Frontend: `npm test -- --include='**/<spec>.spec.ts'`
+
+⚠ **Do NOT run `php artisan test` or `npm run test` in full.** The session that delegated to you runs
+it once, at the end. Three measured reasons, in `CLAUDE.md` § *« Qui lance quoi »*: the suite occupies
+0.73 core of 8 so concurrent runs saturate rather than share (×11 measured between idle and
+saturated); a duration measured under load describes the machine, not the repo; and a red under load
+accuses innocent code — that is the whole story of debt D-44, where 14 search tests failed on a
+*different set each time* with no file changed.
+
+⚠ Any command over ~10 minutes cannot be delegated at all: it is cut off mid-run, **producing nothing
+and saying nothing**. Coverage runs, repeated trials, long builds — hand them back to the delegating
+session.
 
 **16. UI ACs require browser verification.**
 
@@ -160,9 +202,13 @@ updated: <today>
 
 Use `done` directly only if the user explicitly asked to auto-close.
 
-**19. Update `INDEX.md`.**
+**19. Regenerate `INDEX.md`.**
 
-Move the ticket from `🚧 Doing` to `👀 Review` (or `✅ Done`).
+```bash
+node docs/backlog/gen-index.mjs && node docs/backlog/check-backlog.mjs
+```
+
+Same rule as step 7: the frontmatter is the source, the index is derived. Never hand-edit it.
 
 **20. Post-implementation sync-specs.**
 

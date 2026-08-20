@@ -232,7 +232,11 @@ describe('PropertyForm — creation mode', () => {
     await fillRequiredFields(user);
     await user.click(screen.getByRole('button', { name: /enregistrer en brouillon/i }));
 
-    expect(await screen.findByText('Le serveur a rencontré une erreur. Réessayez dans un instant.')).toBeDefined();
+    // Le message du server action est DÉJÀ traduit et plus précis que le générique : il gagne.
+    // L'ordre inverse jetait aussi le `t('missingIdError')` que ce même formulaire lève en 500
+    // (`PropertyForm.tsx:192`). La 5xx anglaise de Laravel (« Server Error ») reste, elle,
+    // remplacée par le libellé générique — cf. SENTINELLES_FRAMEWORK dans `src/lib/api.ts`.
+    expect(await screen.findByText('Création impossible.')).toBeDefined();
     expect(routerMocks.push).not.toHaveBeenCalled();
     expect(screen.getByLabelText(/titre/i)).toHaveValue('Ma villa test');
     expect(screen.getByLabelText(/ville/i)).toHaveValue('Dakar');

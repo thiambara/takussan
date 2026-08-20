@@ -2,8 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 /**
@@ -16,7 +16,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  *   is_active, version_number,
  *   url (temporary signed URL via getTemporaryUrl or getFullUrl as fallback)
  */
-class DocumentVersionResource extends JsonResource
+class DocumentVersionResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -39,7 +39,7 @@ class DocumentVersionResource extends JsonResource
             'size' => $this->size,
             'mime_type' => $this->mime_type,
             'uploaded_by_id' => $uploadedById,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
             'comment' => $comment,
             'is_active' => $isActive,
             'version_number' => $versionNumber,

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Controller, type Control } from 'react-hook-form';
 import { useApiForm } from '@/hooks/useApiForm';
 import { Button } from '@/components/ui/button';
@@ -31,18 +32,15 @@ import { formatCurrency } from '@/lib/format';
 import type { CustomerListItem } from '@/types/customer';
 import type { PropertyListItem } from '@/types/property';
 
-const LEASE_TYPE_OPTIONS = [
-  { value: 'residential_rent', label: 'Location résidentielle' },
-  { value: 'commercial_rent', label: 'Location commerciale' },
-  { value: 'seasonal_rent', label: 'Location saisonnière' },
-  { value: 'sale', label: 'Vente' },
-];
+/**
+ * ⚠ Ce formulaire emploie un VOCABULAIRE DIFFÉRENT de `LeaseDetail` pour le même enum
+ * (« Location résidentielle » ici, « Bail d'habitation » là-bas). TCK-292 ne change AUCUN rendu :
+ * les deux tables sont donc conservées telles quelles, sous `lease.form.typeOptions.*` et
+ * `lease.types.*`. Les fusionner est une décision produit, pas un arbitrage de ce ticket.
+ */
+const LEASE_TYPES = ['residential_rent', 'commercial_rent', 'seasonal_rent', 'sale'] as const;
 
-const PAYMENT_FREQUENCY_OPTIONS = [
-  { value: 'monthly', label: 'Mensuel' },
-  { value: 'quarterly', label: 'Trimestriel' },
-  { value: 'yearly', label: 'Annuel' },
-];
+const PAYMENT_FREQUENCIES = ['monthly', 'quarterly', 'yearly'] as const;
 
 // TCK-084 — share the centralised currency catalogue.
 import { CURRENCY_METADATA } from '@/lib/format/currency';
@@ -53,6 +51,9 @@ const CURRENCY_OPTIONS = (['XOF', 'EUR', 'USD', 'XAF'] as const).map((code) => (
 }));
 
 export function CreateLeaseForm() {
+  const t = useTranslations('lease.form');
+  const tLease = useTranslations('lease');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const createLease = useCreateLease();
   const { user } = useAuth();
@@ -89,6 +90,18 @@ export function CreateLeaseForm() {
     },
   });
 
+  const customerLabel = (customer: CustomerListItem) =>
+    formatCustomerLabel(customer, (id) => t('customerFallback', { id: String(id) }));
+
+  const leaseTypeOptions = LEASE_TYPES.map((value) => ({
+    value,
+    label: t(`typeOptions.${value}`),
+  }));
+  const paymentFrequencyOptions = PAYMENT_FREQUENCIES.map((value) => ({
+    value,
+    label: t(`frequencyOptions.${value}`),
+  }));
+
   const type = form.watch('type');
   const isSale = type === 'sale';
   const selectedPropertyId = form.watch('property_id');
@@ -114,14 +127,14 @@ export function CreateLeaseForm() {
       <FormGlobalError>{globalError}</FormGlobalError>
 
       <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">Parties</h2>
+        <h2 className="text-sm font-semibold text-stone-900">{t('parties')}</h2>
         <input type="hidden" {...form.register('landlord_id', { valueAsNumber: true })} />
         <div className="grid gap-4 lg:grid-cols-2">
           <EntitySelect
             control={form.control}
             name="property_id"
-            label="Bien"
-            placeholder={propertiesQuery.isLoading ? 'Chargement des biens…' : 'Sélectionner un bien'}
+            label={t('property')}
+            placeholder={propertiesQuery.isLoading ? t('loadingProperties') : t('selectProperty')}
             options={properties.map((property) => ({
               value: property.id,
               label: formatPropertyLabel(property),
@@ -130,23 +143,23 @@ export function CreateLeaseForm() {
           />
           <div className="space-y-2">
             <label htmlFor="tenant-search" className="block text-sm font-medium">
-              Locataire
+              {t('tenant')}
               <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>
             </label>
             <Input
               id="tenant-search"
               value={customerSearch}
               onChange={(event) => setCustomerSearch(event.target.value)}
-              placeholder="Rechercher par nom, email ou téléphone"
+              placeholder={t('tenantSearchPlaceholder')}
             />
             <EntitySelect
               control={form.control}
               name="tenant_id"
               label={null}
-              placeholder={customersQuery.isLoading ? 'Recherche…' : 'Sélectionner un locataire'}
+              placeholder={customersQuery.isLoading ? t('searching') : t('selectTenant')}
               options={customers.map((customer) => ({
                 value: customer.id,
-                label: formatCustomerLabel(customer),
+                label: customerLabel(customer),
               }))}
               required
             />
@@ -154,11 +167,11 @@ export function CreateLeaseForm() {
         </div>
         <div className="grid gap-3 rounded-lg bg-stone-50 p-4 text-sm sm:grid-cols-2">
           <SummaryBlock
-            label="Bien sélectionné"
+            label={t('selectedProperty')}
             value={
               selectedProperty
                 ? `${selectedProperty.title} · ${selectedProperty.reference_number ?? `#${selectedProperty.id}`}`
-                : 'Aucun bien sélectionné'
+                : t('noPropertySelected')
             }
             detail={
               selectedProperty && typeof selectedProperty.price === 'number'
@@ -167,23 +180,27 @@ export function CreateLeaseForm() {
             }
           />
           <SummaryBlock
-            label="Locataire sélectionné"
-            value={selectedCustomer ? formatCustomerLabel(selectedCustomer) : 'Aucun locataire sélectionné'}
-            detail={user ? `Bailleur actif : ${user.full_name}` : 'Bailleur actif en cours de chargement'}
+            label={t('selectedTenant')}
+            value={selectedCustomer ? customerLabel(selectedCustomer) : t('noTenantSelected')}
+            detail={
+              user
+                ? t('activeLandlord', { name: user.full_name })
+                : t('loadingLandlord')
+            }
           />
         </div>
         <div className="rounded-lg border border-dashed border-stone-200 p-3 text-xs text-stone-500">
-          Les garants pourront être ajoutés sur la fiche du bail une fois le brouillon créé.
+          {t('guarantorsHint')}
         </div>
       </section>
 
       <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">Conditions financières</h2>
+        <h2 className="text-sm font-semibold text-stone-900">{t('financialTerms')}</h2>
         <FormSelect<CreateLeaseFormValues>
           control={form.control}
           name="type"
-          label="Type de contrat"
-          options={LEASE_TYPE_OPTIONS}
+          label={t('contractType')}
+          options={leaseTypeOptions}
           required
         />
 
@@ -191,13 +208,13 @@ export function CreateLeaseForm() {
           <FormDatePicker<CreateLeaseFormValues>
             control={form.control}
             name="start_date"
-            label="Date de début"
+            label={t('startDate')}
             required
           />
           <FormDatePicker<CreateLeaseFormValues>
             control={form.control}
             name="end_date"
-            label="Date de fin (optionnel)"
+            label={t('endDate')}
           />
         </div>
 
@@ -207,7 +224,7 @@ export function CreateLeaseForm() {
               control={form.control}
               name="sale_price"
               type="number"
-              label="Prix de vente"
+              label={t('salePrice')}
               required
               min={0}
               step={1000}
@@ -217,7 +234,7 @@ export function CreateLeaseForm() {
               control={form.control}
               name="monthly_rent"
               type="number"
-              label="Loyer mensuel"
+              label={t('monthlyRent')}
               required
               min={0}
               step={1000}
@@ -227,7 +244,7 @@ export function CreateLeaseForm() {
             control={form.control}
             name="deposit_amount"
             type="number"
-            label="Caution"
+            label={t('deposit')}
             required
             min={0}
             step={1000}
@@ -238,20 +255,20 @@ export function CreateLeaseForm() {
           <FormSelect<CreateLeaseFormValues>
             control={form.control}
             name="currency"
-            label="Devise"
+            label={t('currency')}
             options={CURRENCY_OPTIONS}
           />
           <FormSelect<CreateLeaseFormValues>
             control={form.control}
             name="payment_frequency"
-            label="Fréquence"
-            options={PAYMENT_FREQUENCY_OPTIONS}
+            label={t('frequency')}
+            options={paymentFrequencyOptions}
           />
           <FormInput<CreateLeaseFormValues>
             control={form.control}
             name="payment_day"
             type="number"
-            label="Jour du paiement"
+            label={t('paymentDay')}
             min={1}
             max={28}
           />
@@ -259,27 +276,27 @@ export function CreateLeaseForm() {
       </section>
 
       <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">Clauses</h2>
+        <h2 className="text-sm font-semibold text-stone-900">{t('clauses')}</h2>
         <FormTextarea<CreateLeaseFormValues>
           control={form.control}
           name="terms"
-          label="Conditions générales"
+          label={tLease('terms')}
           rows={4}
         />
         <FormTextarea<CreateLeaseFormValues>
           control={form.control}
           name="special_conditions"
-          label="Conditions particulières"
+          label={tLease('specialConditions')}
           rows={3}
         />
       </section>
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={() => router.back()}>
-          Annuler
+          {tCommon('actions.cancel')}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Création…' : 'Créer le bail'}
+          {isSubmitting ? t('creating') : t('submit')}
         </Button>
       </div>
     </form>
@@ -371,11 +388,19 @@ function formatPropertyLabel(property: PropertyListItem): string {
   return `${ref}${property.title}${price}`;
 }
 
-function formatCustomerLabel(customer: CustomerListItem): string {
+/**
+ * ⚠ Le repli `Customer #<id>` était ANGLAIS en dur dans l'interface française. TCK-292 ne change
+ * aucun rendu : la valeur `fr` du dictionnaire le reproduit au caractère près. Le corriger en
+ * « Client #… » est une décision produit, pas un effet de bord de ce ticket.
+ */
+function formatCustomerLabel(
+  customer: CustomerListItem,
+  fallback: (id: number) => string,
+): string {
   const name =
     customer.full_name ||
     [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() ||
-    `Customer #${customer.id}`;
+    fallback(customer.id);
   const contact = [customer.email, customer.phone].filter(Boolean).join(' · ');
   return contact ? `${name} · ${contact}` : name;
 }

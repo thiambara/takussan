@@ -1,17 +1,18 @@
 ---
 id: TCK-284
 title: "Quatre routes « pro » cadenassées sans garde serveur"
-status: doing
+status: done
 phase: P1
 family: bug
 estimate: S
 wave: null
 created: 2026-08-12
-updated: 2026-08-12
+updated: 2026-08-16
 depends_on: []
-blocks: []
+blocks: [TCK-295]
 spec_refs:
-  features: []
+  features:
+    - "docs/features.md#112-agence--équipe"
   models: []
 tags: [front, back, securite, autorisation, rbac]
 ---
@@ -87,26 +88,26 @@ Cela réduit le ticket à **une** question, et elle est produit :
 
 ## Delta à produire
 
-- [ ] Trancher le périmètre ci-dessus (produit).
-- [ ] Selon l'arbitrage : soit ajouter `ensureStandardAgencyOrRedirect` aux quatre pages, soit
+- [x] Trancher le périmètre ci-dessus (produit).
+- [x] Selon l'arbitrage : soit ajouter `ensureStandardAgencyOrRedirect` aux quatre pages, soit
       introduire une variante scopée par rôle, soit retirer ces routes de `PRO_ROUTES` si le
       cadenas était l'erreur.
-- [ ] ~~Vérifier que les **endpoints** qui les alimentent portent `AgencyKindGuard`~~ — **mesuré,
+- [x] ~~Vérifier que les **endpoints** qui les alimentent portent `AgencyKindGuard`~~ — **mesuré,
       ils ne le portent pas** (voir ci-dessous). Selon l'arbitrage : les y ajouter, ou constater
       qu'ils n'ont pas à l'être.
-- [ ] Retirer les quatre entrées de `ECARTS_ASSUMES` dans `scripts/check-pro-routes.mjs`. **La
+- [x] Retirer les quatre entrées de `ECARTS_ASSUMES` dans `scripts/check-pro-routes.mjs`. **La
       garde échoue tant qu'une entrée y reste sans être justifiée, et échoue aussi si une entrée y
       reste alors que la route est devenue gardée** — l'allowlist ne peut pas pourrir en silence.
-- [ ] Corriger le commentaire de `pro-features.ts` s'il reste inexact après l'arbitrage.
+- [x] Corriger le commentaire de `pro-features.ts` s'il reste inexact après l'arbitrage.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `node scripts/check-pro-routes.mjs` passe avec `ECARTS_ASSUMES` **vide**.
-- [ ] AC2 — pour chaque route de `PRO_ROUTES`, un test vérifie qu'un utilisateur d'agence
+- [x] AC1 — `node scripts/check-pro-routes.mjs` passe avec `ECARTS_ASSUMES` **vide**.
+- [x] AC2 — pour chaque route de `PRO_ROUTES`, un test vérifie qu'un utilisateur d'agence
       `individual` **dans le périmètre tranché** est refusé, en accès direct par l'URL.
-- [ ] AC3 — le même test vérifie qu'un utilisateur **hors périmètre** n'est PAS refusé : sans ce
+- [x] AC3 — le même test vérifie qu'un utilisateur **hors périmètre** n'est PAS refusé : sans ce
       second cas, on ne saurait pas distinguer une garde juste d'une garde trop large.
-- [ ] AC4 — l'endpoint d'API correspondant rend 403 pour le même acteur.
+- [x] AC4 — l'endpoint d'API correspondant rend 403 pour le même acteur.
 
 ## Hors périmètre
 
@@ -204,3 +205,89 @@ jeton valide de l'agence concernée. C'est une **asymétrie** entre deux famille
 
 > Ce ticket reste `doing` **et non `done`** parce que cette question est ouverte. Il reste ouvert
 > **et non `todo`** parce que tout le travail frontend est livré et mergé.
+
+## ⛔ SECONDE CORRECTION — le constat backend était faux sur un quart (2026-08-15)
+
+Tout ce qui précède énumère quatre endpoints « sans aucun `AgencyKindGuard` ». **Trois seulement
+l'étaient.**
+
+`/api/dashboard/agency` porte une garde `kind` **écrite en ligne** depuis le 2026-05-12
+(commit `5d40dd31`) — `abort_unless($agency->kind === AgencyKind::Standard, 403, …)` — avec un test
+qui prouve le 403 (`DashboardAgencyTest::test_individual_agency_admin_receives_403`). Le constat
+du 2026-08-12 était donc **déjà faux quand il a été écrit**.
+
+Deux erreurs, et la seconde est la première répétée un étage plus bas :
+
+1. **Le contrôleur nommé n'est pas celui qui sert la route.** Ce ticket, l'ardoise et le message
+   vert de `check-pro-routes.mjs` écrivaient tous les trois `DashboardController@agency` ;
+   `routes/api/dashboard.php` pointe sur **`DashboardAgencyController`**.
+2. **La mesure cherchait la CHAÎNE `AgencyKindGuard`, pas la propriété « cet endpoint refuse-t-il
+   une agence `individual` ? »** C'est *exactement* le faux négatif par recherche de jeton que la
+   première correction de ce ticket documente sur quarante lignes, commis une seconde fois, sur le
+   backend cette fois. *Une leçon tirée sur une couche ne se transporte pas toute seule à la
+   couche d'en dessous.*
+
+## ✅ Arbitrage produit — tranché le 2026-08-15
+
+**Les quatre écrans ne relèvent pas de la même réponse**, et c'est ce qui rendait la question
+insoluble tant qu'on la posait en bloc.
+
+| Écran | Réservé aux agences `standard` ? | Fondement |
+|---|---|---|
+| `/app/overview/agency` | **OUI** | `docs/features.md` §1.12 restreint nommément le « reporting cross-équipe », et §2.5 P1 nomme cet écran « Dashboard agence ». Déjà appliqué des deux côtés. |
+| `/app/owners` | **OUI** | TCK-256 **confirmé** : dans une agence `individual`, le propriétaire est le créateur du compte lui-même — un carnet d'autres bailleurs n'a pas d'objet. |
+| `/app/overview/kpis` · `/app/overview/alerts` | **NON** | Aucune spec, aucun ticket ne les restreint. §1.12 donne une liste **fermée** + une clause résiduelle (« toutes les autres capacités restent disponibles ») ; §2.5 P3 les liste sans qualification de `kind`. Le cadenas était l'ajout. |
+
+## Delta produit — 2026-08-15
+
+**Back — la donnée est fermée, pas seulement l'écran.**
+
+- `OwnerProfileController::index` appelle `AgencyKindGuard::ensureStandardForNonGlobal`, **après**
+  `viewAny` : le périmètre de la garde est donc exactement celui de la policy — `agency_admin` et
+  `agent` de l'agence — et n'atteint aucun autre rôle. C'est ce que le ticket craignait en
+  suspendant le correctif : poser le helper en tête aurait aussi répondu « réservé aux agences
+  standard » à des acteurs qui n'avaient de toute façon pas le droit de lire.
+- `tests/Feature/Api/OwnerProfileListingTest.php` — cette surface n'avait **aucun** test. Cinq
+  cas : les deux refus (`agency_admin`, `agent` d'une agence `individual`), et les trois
+  non-refus qui prouvent que la garde n'est pas trop large (`standard` admin, `standard` agent,
+  super-admin sur une agence `individual`).
+- Le commentaire de `DashboardAgencyController` citait `features.md §2.2` (« Rôles & permissions »,
+  qui ne dit rien du `kind`) : corrigé en §1.12.
+
+**Front — le cadenas dit désormais la même chose que les portes.**
+
+- `PRO_ROUTES` passe de 9 à **7** : `/app/overview/kpis` et `/app/overview/alerts` en sortent, et
+  leurs pages perdent leur `redirect` sur `agency.kind`.
+- `isProRouteLocked` couvre les `agent` en plus des `agency_admin`. Ce n'est **pas** un
+  élargissement de restriction : « Vue agence » était déjà poussée aux agents par `buildNavItems`,
+  déjà refusée par la page et déjà 403 côté API. Un agent d'agence `individual` cliquait une entrée
+  d'apparence normale pour se faire renvoyer sans explication. *Une porte fermée sans panneau se
+  lit comme une panne.*
+- `src/lib/access/__tests__/pro-features.test.ts` — premier test de ce module, qui avait pourtant
+  changé quatre fois en trois mois.
+- Le docblock de `owners/page.tsx` annonçait `OwnerProfilePolicy@invite` en défense en profondeur :
+  vrai de l'invitation, **faux de la lecture**, qui est le seul appel de cette page.
+
+**Spec — la contradiction est levée.** `docs/features.md` §1.12 nomme désormais la restriction
+« propriétaires ». C'est la source de l'impasse : TCK-256 avait décidé et livré une restriction que
+la spec, avec sa liste fermée et sa clause résiduelle, **niait explicitement**. Une règle tenue par
+le code et démentie par la spec finit toujours par être retirée par quelqu'un qui lit la spec.
+
+**Garde CI.** Le message vert de `check-pro-routes.mjs` affirmait, à chaque exécution, que les
+endpoints derrière `/app/*` n'avaient aucune garde `kind` — un fait qu'il ne mesure pas et qui était
+faux. Il annonce désormais sa **portée** (« pages Next seulement ») au lieu d'un état de l'API.
+
+## Reste ouvert
+
+- `KpiConfigController` et `ThresholdAlertController` n'ont toujours aucune garde `kind` — et c'est
+  désormais **correct** : la spec ne les restreint pas.
+- `/api/kpi-configs/metrics` (le catalogue) n'a aucun contrôle au-delà d'`auth:sanctum` : tout
+  utilisateur authentifié le lit. Sans rapport avec le `kind` — à ouvrir en ticket propre.
+- `docs/models-spec.md` répète la liste fermée de §1.12 sans la restriction « propriétaires ».
+  Convergence à faire par `/sync-specs`.
+
+> **Soldé le 2026-08-16.** La branche `fix/suite-deterministe-et-tickets-ouverts` est mergée sur
+> `dev` : tout ce que cette section listait comme « pas sur `dev` » y est. Le statut passe donc
+> `done` au titre de la règle n°3 du `CLAUDE.md` — *un statut vaut pour ce qui est mergé sur `dev`*.
+> La section est conservée telle quelle : elle documente l'écart qui a existé, et l'effacer
+> reviendrait à prétendre qu'il n'a jamais fallu le mesurer.

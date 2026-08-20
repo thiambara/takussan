@@ -4,9 +4,9 @@ namespace Tests\Feature\Testing;
 
 use Database\Seeders\TestSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
-class TestSeederTest extends BaseTestCase
+class TestSeederTest extends TestCase
 {
     use RefreshDatabase;
 

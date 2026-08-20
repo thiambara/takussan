@@ -1,11 +1,10 @@
 "use client"
 
 import * as React from "react"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-
-const DESKTOP_NAV_LABEL = "Navigation latérale"
 
 /**
  * Sidebar — generic vertical navigation shell.
@@ -59,14 +58,15 @@ export function Sidebar({
   children,
   open,
   onOpenChange,
-  mobileTitle = "Navigation",
+  mobileTitle,
 }: SidebarProps) {
+  const t = useTranslations("layout.nav")
   const mobileTitleId = React.useId()
   return (
     <>
       {/* Desktop */}
       <aside className={cn("hidden md:block", className)}>
-        <SidebarSurface ariaLabel={DESKTOP_NAV_LABEL}>{children}</SidebarSurface>
+        <SidebarSurface ariaLabel={t("sidebarAria")}>{children}</SidebarSurface>
       </aside>
 
       {/* Mobile */}
@@ -76,7 +76,7 @@ export function Sidebar({
             id={mobileTitleId}
             className="border-b border-border px-4 py-3 text-sm font-semibold text-foreground"
           >
-            {mobileTitle}
+            {mobileTitle ?? t("aria")}
           </h2>
           <SidebarSurface
             className="w-full border-r-0"

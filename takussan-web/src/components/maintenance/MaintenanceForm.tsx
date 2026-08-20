@@ -15,6 +15,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { Controller } from 'react-hook-form';
 
@@ -37,13 +38,6 @@ import {
 import { MAINTENANCE_CATEGORIES } from '@/types/maintenance';
 import { MaintenancePrioritySelector } from './MaintenancePrioritySelector';
 
-import { MAINTENANCE_CATEGORY_LABEL } from './labels';
-
-const CATEGORY_OPTIONS = MAINTENANCE_CATEGORIES.map((c) => ({
-  value: c,
-  label: MAINTENANCE_CATEGORY_LABEL[c],
-}));
-
 /**
  * Report-a-problem form. Submits the request, then — if the user
  * attached photos — calls `/photos` with `collection=photos`.
@@ -58,6 +52,9 @@ export function MaintenanceForm({
   readonly propertyId: number;
   readonly leaseId?: number | null;
 }) {
+  const t = useTranslations('maintenance.form');
+  const tCategory = useTranslations('maintenance.category');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const create = useCreateMaintenanceRequest();
   const uploadPhotos = useUploadMaintenancePhotos();
@@ -102,16 +99,16 @@ export function MaintenanceForm({
       <FormInput
         name="title"
         control={form.control}
-        label="Titre"
-        placeholder="ex. Fuite sous l'évier cuisine"
+        label={t('title_label')}
+        placeholder={t('title_placeholder')}
         required
       />
 
       <FormTextarea
         name="description"
         control={form.control}
-        label="Description"
-        placeholder="Décrivez le problème en détail"
+        label={t('description_label')}
+        placeholder={t('description_placeholder')}
         rows={5}
         required
       />
@@ -121,15 +118,19 @@ export function MaintenanceForm({
           <FormSelect
             name="category"
             control={form.control}
-            options={CATEGORY_OPTIONS}
-            label="Catégorie"
+            options={MAINTENANCE_CATEGORIES.map((c) => ({
+              value: c,
+              label: tCategory(c),
+            }))}
+            label={t('category_label')}
             required
           />
         </div>
         
         <div>
           <label className="mb-2 block text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-            Priorité <span className="text-muted-foreground font-normal">(Normale par défaut)</span>
+            {t('priority_label')}{' '}
+            <span className="text-muted-foreground font-normal">{t('priority_hint')}</span>
           </label>
           <Controller
             control={form.control}
@@ -147,7 +148,7 @@ export function MaintenanceForm({
 
       <div>
         <label htmlFor="maintenance-photos" className="mb-1.5 block text-sm font-medium">
-          Photos (optionnel)
+          {t('photos_label')}
         </label>
         <input
           id="maintenance-photos"
@@ -160,18 +161,17 @@ export function MaintenanceForm({
         />
         {photos.length > 0 ? (
           <p className="mt-1 text-xs text-app-ink-muted">
-            {photos.length} photo{photos.length > 1 ? 's' : ''} sélectionnée
-            {photos.length > 1 ? 's' : ''}.
+            {t('photos_selected', { count: photos.length })}
           </p>
         ) : null}
       </div>
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="outline" onClick={() => router.back()}>
-          Annuler
+          {tCommon('actions.cancel')}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Envoi…' : 'Signaler le problème'}
+          {isSubmitting ? t('submitting') : t('submit')}
         </Button>
       </div>
     </form>

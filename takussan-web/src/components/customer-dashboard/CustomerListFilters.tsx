@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, Tag, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Input } from '@/components/ui/input';
 import {
@@ -13,10 +14,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  CUSTOMER_STATUS_OPTIONS,
-  PIPELINE_STAGE_OPTIONS,
-} from '@/components/customer-form/options';
+  customerStatusValues,
+  pipelineStageValues,
+} from '@/lib/schemas/customer';
 import type { Tag as TagType } from '@/types/tag';
+import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 
 /**
  * CRM filters bar. Same rules as the property filters: every filter is
@@ -31,6 +33,9 @@ interface Props {
 }
 
 export function CustomerListFilters({ crmTags = [] }: Props) {
+  const t = useTranslations('crm.filters');
+  const tStage = useTranslations('crm.pipeline.stage');
+  const tStatus = useTranslations('crm.customerStatus');
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.get('search') ?? '';
@@ -40,11 +45,9 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
 
   const activeTags = currentTagsParam ? currentTagsParam.split(',').filter(Boolean) : [];
 
-  const [searchInput, setSearchInput] = useState(currentSearch);
-
-  useEffect(() => {
-    setSearchInput(currentSearch);
-  }, [currentSearch]);
+  // TCK-316 — resynchronisé sur l'URL SANS `useEffect` : l'effet rendait, puis
+  // peignait l'ancienne valeur, puis re-rendait. Cf. `useStateSyncedWith`.
+  const [searchInput, setSearchInput] = useStateSyncedWith(currentSearch);
 
   const updateParam = useCallback(
     (key: string, value: string | null) => {
@@ -86,7 +89,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
     <div className="flex flex-col gap-3 rounded-xl bg-app-surface-1 p-4 md:flex-row md:items-center">
       <form onSubmit={onSearchSubmit} className="flex-1">
         <label htmlFor="customer-search" className="sr-only">
-          Rechercher un client
+          {t('searchLabel')}
         </label>
         <div className="relative">
           <Search
@@ -95,7 +98,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
           />
           <Input
             id="customer-search"
-            placeholder="Nom, prénom, e-mail, téléphone…"
+            placeholder={t('searchPlaceholder')}
             className="pl-9"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -114,19 +117,19 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
         <FilterSelect
           value={currentPipeline || ALL_VALUE}
           onChange={(v) => updateParam('pipeline_stage', v === ALL_VALUE ? null : v)}
-          placeholder="Pipeline"
+          placeholder={t('pipelinePlaceholder')}
           options={[
-            { value: ALL_VALUE, label: 'Tous' },
-            ...PIPELINE_STAGE_OPTIONS,
+            { value: ALL_VALUE, label: t('all') },
+            ...pipelineStageValues.map((v) => ({ value: v, label: tStage(v) })),
           ]}
         />
         <FilterSelect
           value={currentStatus || ALL_VALUE}
           onChange={(v) => updateParam('status', v === ALL_VALUE ? null : v)}
-          placeholder="Statut"
+          placeholder={t('statusPlaceholder')}
           options={[
-            { value: ALL_VALUE, label: 'Tous' },
-            ...CUSTOMER_STATUS_OPTIONS,
+            { value: ALL_VALUE, label: t('all') },
+            ...customerStatusValues.map((v) => ({ value: v, label: tStatus(v) })),
           ]}
         />
       </div>
@@ -145,6 +148,7 @@ function TagFilter({
   onToggle: (name: string) => void;
   onClear: () => void;
 }) {
+  const t = useTranslations('crm.filters');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -171,13 +175,13 @@ function TagFilter({
         <Tag className="size-3.5" aria-hidden="true" />
         {activeTags.length > 0 ? (
           <span>
-            Tags
+            {t('tags')}
             <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground">
               {activeTags.length}
             </span>
           </span>
         ) : (
-          'Filtrer par tags'
+          t('filterByTags')
         )}
       </button>
 
@@ -185,7 +189,7 @@ function TagFilter({
         <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-app-surface-3 bg-white py-1.5 shadow-md">
           <div className="px-3 pb-1.5 pt-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
-              Tags clients
+              {t('customerTags')}
             </p>
           </div>
           <ul className="max-h-52 overflow-y-auto">
@@ -230,7 +234,7 @@ function TagFilter({
                 className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
               >
                 <X className="size-3.5" />
-                Tout effacer
+                {t('clearAll')}
               </button>
             </>
           )}

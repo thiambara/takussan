@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl';
+
 import type { ChartData } from './types';
 
 const PADDING = { top: 16, right: 16, bottom: 28, left: 40 };
@@ -16,6 +18,8 @@ type Props = {
  * `components/charts/README.md` for the library-choice rationale.
  */
 export function LineChart({ data, title, unit, className }: Props) {
+  // Le hook se place AVANT la sortie anticipée (React Compiler, ADR-0015).
+  const t = useTranslations('charts');
   const { labels, series } = data;
   if (labels.length === 0 || series.length === 0) {
     return (
@@ -23,7 +27,7 @@ export function LineChart({ data, title, unit, className }: Props) {
         className={className}
         data-testid="chart-empty"
       >
-        <p className="text-sm text-app-ink-muted">Aucune donnée à afficher.</p>
+        <p className="text-sm text-app-ink-muted">{t('empty')}</p>
       </div>
     );
   }
@@ -60,7 +64,7 @@ export function LineChart({ data, title, unit, className }: Props) {
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         className="h-full w-full"
         role="img"
-        aria-label={title ?? 'Graphique linéaire'}
+        aria-label={title ?? t('lineAria')}
       >
         {/* Gridlines + y-axis labels */}
         {gridLines.map((g, i) => (

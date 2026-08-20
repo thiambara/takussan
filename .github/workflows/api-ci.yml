@@ -16,6 +16,14 @@ on:
 
 jobs:
   lint-and-test:
+    # TCK-320 — `contents: write` pour le step « Régénérer la carte d'impact » : il pousse un
+    # commit sur `dev` après coup. `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
+    # repos/thiambara/takussan/branches/dev/protection` → 404), le push direct est donc possible.
+    # Déclarer `permissions` sur le job REMPLACE les scopes par défaut du token — le reste du job
+    # (checkout, upload-artifact) ne lit et n'écrit rien d'autre que `contents`, donc rien n'est
+    # perdu qu'on utilisait déjà.
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,18 +40,31 @@ jobs:
           - 7700:7700
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           extensions: mbstring, pdo, pdo_sqlite, sqlite3, bcmath, intl, gd, zip
-          coverage: none
+          # TCK-302 — `coverage: none` vivait ici, et le bloc `<source>` de `phpunit.xml`
+          # n'alimentait donc AUCUN rapport : ni seuil, ni tendance, ni garde-fou contre
+          # l'érosion. Une couverture qu'on ne mesure pas ne baisse jamais — elle baisse
+          # sans qu'on le voie, ce qui n'est pas la même chose.
+          #
+          # PCOV et pas Xdebug : c'est le pilote de couverture à faible surcoût (Xdebug
+          # instrumente chaque opcode, PCOV se contente des lignes exécutables). Le job
+          # ne fait pas de pas-à-pas, il compte des lignes.
+          coverage: pcov
+          # `pcov.directory` restreint la COLLECTE à `app/`. Sans lui, PCOV instrumente
+          # aussi `vendor/` (~100 paquets) pour un résultat que `<source>` de
+          # `phpunit.xml` filtre de toute façon à l'arrivée : on paierait la collecte
+          # d'un rapport qu'on jette.
+          ini-values: pcov.directory=${{ github.workspace }}/takussan-api/app, memory_limit=1G
           tools: composer:v2
 
       - name: Cache composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: takussan-api/vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('takussan-api/composer.lock') }}
@@ -51,7 +72,51 @@ jobs:
             ${{ runner.os }}-composer-
 
       - name: Install composer dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
+        # ─── POURQUOI `--prefer-dist` A DISPARU D'ICI ────────────────────────────────────────
+        #
+        # Mesuré le 2026-08-17 : API CI est tombée TROIS fois de suite sur `4bd5aa71`, jamais
+        # sur une ligne du dépôt. `codeload.github.com` rendait **429** sur des dizaines de
+        # paquets — `intervention/image`, `symfony/polyfill-mbstring`, `psr/container`,
+        # `sebastian/exporter`, `phpunit/php-invoker`, `theseer/tokenizer`… La première fois,
+        # le job est mort en **26 secondes**, avant le premier test, sur un `composer.lock`
+        # parfaitement valide.
+        #
+        # Composer nommait lui-même la sortie, et on ne l'écoutait pas :
+        #
+        #     Failed to download intervention/image from dist: … (HTTP/2 429 )
+        #     Source fallback is disabled. Not trying alternative sources.
+        #
+        # `--prefer-dist` est ce qui désactive ce repli. Sans lui, Composer prend toujours
+        # l'archive en premier — c'est son défaut pour une version stable — mais un échec de
+        # téléchargement retombe sur `git clone` au lieu d'abandonner le job. Vérifié que le
+        # repli est viable depuis un poste : `git ls-remote https://github.com/symfony/polyfill-mbstring.git`
+        # rend `d3d318ba…`, la référence exacte que `codeload` refusait au même instant.
+        # Le protocole git n'est pas soumis à la même limite que l'hôte d'archives.
+        #
+        # Ce que la relance ne pouvait pas régler, et c'est mesuré : `actions/cache` ne stocke
+        # son cache que si le job RÉUSSIT (`post-if: success()`). Un job tombé à l'installation
+        # repart à froid à chaque tentative. Trois tentatives, trois fois le même mur.
+        #
+        # ─── ET POURQUOI `COMPOSER_AUTH` NE SUFFIT PAS, CONTRAIREMENT À CE QU'ON CROIT ───────
+        #
+        # Le jeton est utile — il authentifie les appels de MÉTADONNÉES à `api.github.com`, qui
+        # ont leur propre limite — mais il ne touche PAS le chemin qui échoue ici, et il ne
+        # faut pas le croire tel. Lu dans `AuthHelper::addAuthenticationHeader` du phar
+        # installé (Composer 2.8) plutôt que supposé :
+        #
+        #     } elseif ('github.com' === $origin && 'x-oauth-basic' === $auth['password']) {
+        #         if (Preg::isMatch('{^https?://api\.github\.com/}', $url)) {
+        #             $headers[] = 'Authorization: token '.$auth['username'];
+        #
+        # L'en-tête n'est ajouté QUE pour les URL `api.github.com`. Un téléchargement
+        # `codeload.github.com` part donc anonyme, jeton ou pas.
+        #
+        # Accessoirement, `codeload` est difficile sur le schéma : mesuré deux fois de suite,
+        # `Authorization: token <tok>` rend 200, tandis que `Bearer` et l'auth basic rendent
+        # **429**. Une « amélioration » qui passerait le jeton en Bearer aggraverait la panne.
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: composer install --no-interaction --no-progress
 
       - name: Prepare environment
         run: |
@@ -83,29 +148,311 @@ jobs:
           done
           echo "::error::Meilisearch did not become healthy in time."; exit 1
 
-      - name: Sync Meilisearch index settings
-        # SCOUT_PREFIX doit valoir CE QUE LA SUITE UTILISE. `phpunit.xml` force `testing_`, donc
-        # `searchableAs()` rend `testing_properties` en test ; sans ce préfixe ici, cette étape
-        # configurait `properties` — un index qu'aucun test ne lit. La garde poussait des
-        # réglages dans le vide, et le premier test filtrant écrit sans le trait d'amorçage
-        # échouerait sur « Attribute `status` is not filterable », en accusant le code.
-        env:
-          SCOUT_DRIVER: meilisearch
-          MEILISEARCH_HOST: http://127.0.0.1:7700
-          MEILISEARCH_KEY: masterKey
-          SCOUT_PREFIX: testing_
-        run: php artisan scout:sync-index-settings
-
-      - name: Run tests
+      # ⚠ L'ÉTAPE « Sync Meilisearch index settings » A ÉTÉ SUPPRIMÉE, et c'est une conséquence
+      # directe du préfixe d'index rendu unique par processus de test.
+      #
+      # Elle exportait `SCOUT_PREFIX: testing_` pour viser exactement les index que la suite
+      # allait lire. Ce préfixe est désormais engendré à l'amorçage de PHPUnit
+      # (`tests/bootstrap.php` → `Tests\Support\TestSearchIndex`) et n'est donc PAS connaissable
+      # depuis un step antérieur : maintenue, cette étape serait redevenue ce qu'elle avait déjà
+      # été une fois — une garde qui pousse des réglages dans le vide, sur un index qu'aucun test
+      # ne lit. Un step qui ne peut plus faire son travail et reste vert est pire qu'absent.
+      #
+      # La synchronisation n'est pas perdue : `InteractsWithMeilisearch` appelle
+      # `scout:sync-index-settings` une fois par processus, DANS le processus, donc sur le bon
+      # préfixe par construction. C'est la seule place où l'accord est structurellement garanti.
+      #
+      # ─── LE SEUIL DE COUVERTURE EST UN CLIQUET, PAS UN OBJECTIF (TCK-302) ───────────────────
+      #
+      # MESURE DU 2026-08-16, suite complète (2313 tests, 7136 assertions, 0 échec), PCOV 1.0.12,
+      # périmètre `app/` (768 fichiers) tel que le définit le `<source>` de `phpunit.xml` :
+      #
+      #     Lignes   : 86,16 %  (21 148 / 24 544)   ← c'est CE nombre que `--min` compare
+      #     Méthodes : 66,87 %  ( 1 821 /  2 723)
+      #     Classes  : 43,81 %  (   301 /    687)
+      #
+      # Reproduction : `XDEBUG_MODE=coverage php artisan test --coverage`, ou en PCOV
+      # `php -d pcov.directory=app vendor/phpunit/phpunit/phpunit --coverage-text=-`.
+      # Les trois chiffres du clover et ceux du rapport texte de PHPUnit concordent — vérifié.
+      #
+      # `--min=86` est le seuil, c'est-à-dire la mesure de LIGNES **en CI** arrondie vers le bas.
+      # Un seuil au-dessus de la mesure casse la CI sans rien améliorer ;
+      # un seuil en dessous ne garde rien. Ce nombre dit « on ne redescend pas ». Il ne dit
+      # **pas** « 85 % suffit », et il ne dit pas non plus que les 66,87 % de méthodes ou les
+      # 43,81 % de classes seraient acceptables — ils ne sont simplement pas ce que ce cliquet
+      # tient.
+      #
+      # ⚠ Ce que le seuil ne dit pas non plus : qu'un test assert quoi que ce soit. TCK-285 a
+      # trouvé quatre défauts en ÉCRIVANT les tests, aucun en mesurant leur couverture. Une
+      # méthode traversée sans assertion compte pour couverte. Le cliquet garde contre
+      # l'ÉROSION ; il ne remplace ni la revue ni l'écriture de tests.
+      #
+      # À quoi sert la marge : un fichier de ~100 lignes ajouté sans test coûte ~0,35 point.
+      #
+      # ✅ **RESSERRÉ À 86 LE 2026-08-16, comme prévu.** La consigne écrite ici était « si la
+      # première exécution en CI confirme 86,x, resserrer à 86 » — elle a rendu **86,3 %**
+      # (run 31959304170, PR #176), ce qui confirme la mesure locale de 86,16 % et lève le doute
+      # sur l'écart entre le PCOV compilé à la main et celui de `shivammathur/setup-php`.
+      #
+      # Marge restante : **0,3 point**, soit ~74 lignes non testées avant de rougir. C'est serré
+      # DÉLIBÉRÉMENT — un cliquet trop lâche ne cliquette pas, et c'est tout ce qu'on lui demande.
+      # Un refactor légitime qui le fait rougir se traite en re-mesurant puis en reposant le
+      # seuil sur la nouvelle valeur, avec sa date : **jamais en desserrant pour faire passer**.
+      # Desserrer sans re-mesurer, c'est transformer le cliquet en décoration.
+      # ⚠ LE CLIQUET N'EST PLUS ÉVALUÉ PAR `--min` DE COLLISION, ET C'EST TOUT L'OBJET DE
+      # TCK-331. Il l'est par `bin/coverage-gate.php`, qui lit le CLOVER. Raison mesurée :
+      # `--min` n'est évalué que si Collision a pu relire son propre rapport
+      # `--coverage-php`, option qu'il passe à PHPUnit dans le dos de l'appelant. Le jour
+      # où le workflow l'a passée une seconde fois, PHPUnit l'a écartée, le rapport ne
+      # s'est jamais matérialisé, `--min` n'a rien eu à évaluer, et le step est sorti en
+      # **1 sans imprimer un chiffre** — sur une suite verte à 86,33 %.
+      - name: Run tests (avec couverture — cliquet TCK-302)
         env:
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
           SCOUT_DRIVER: meilisearch
           MEILISEARCH_HOST: http://127.0.0.1:7700
           MEILISEARCH_KEY: masterKey
-          # Doit rester ALIGNÉ sur `phpunit.xml` et sur l'étape de synchronisation ci-dessus.
-          SCOUT_PREFIX: testing_
-        run: php artisan test
+          # ⚠ Ne PAS réintroduire `SCOUT_PREFIX` ici : `tests/bootstrap.php` l'écrase de toute
+          # façon, et le déclarer laisserait croire qu'il pilote encore quelque chose.
+        run: |
+          mkdir -p storage/coverage
+          # Surcoût de PCOV MESURÉ le 2026-08-16, comparaison appariée sur la suite entière,
+          # machine quasi au repos (load 4-8 sur 8 cœurs), Xdebug coupé des deux côtés :
+          #     sans couverture           83 s
+          #     avec PCOV + clover + HTML 113 s   →  +36 %
+          # Sous la limite de 50 % que TCK-302 s'était fixée (AC4). Le chrono reste affiché :
+          # une mesure prise une fois est une mesure qui vieillit, et c'est l'historique du job
+          # qui dira si ce +36 % dérive.
+          #
+          # ─── POURQUOI PHPUNIT DIRECTEMENT, ET PAS `artisan test --coverage` (TCK-331) ────
+          #
+          # Il faut TROIS sorties de couverture de la MÊME exécution : le clover (le cliquet
+          # et la série d'artefacts), le HTML (le détail à la ligne, les jours rouges) et
+          # `cov.php` (la carte d'impact, qui a besoin de l'attribution test → lignes que le
+          # clover ne porte pas). `artisan test --coverage` ne peut pas les rendre toutes les
+          # trois : il consomme lui-même `--coverage-php`, et une seconde occurrence en ligne
+          # de commande est ÉCARTÉE par PHPUnit.
+          #
+          # Prouvé PAR ABLATION le 2026-08-20, même sous-ensemble, une seule variable, en
+          # local (PHP 8.4.6 + Xdebug 3.4.2) :
+          #
+          #   php artisan test --coverage --min=0 --filter=… --coverage-clover=…
+          #     → « Total: 0.8 % », sortie 0
+          #   … la même, + --coverage-php=…
+          #     → « WARN  Option --coverage-php cannot be used more than once »,
+          #       AUCUNE ligne « Total: », sortie 1 — avec --min=0.
+          #
+          # Ce n'était PAS la mémoire (`cov.php` était écrit en entier, 104 Mo sur la suite
+          # complète), PAS un seuil (86,33 % mesuré sur le clover de l'exécution ROUGE), et
+          # PAS un effet de taille de suite : l'option n'avait jamais tourné avec succès.
+          #
+          # ⚠ SECOND DÉFAUT, MESURÉ AU PASSAGE ET QUI À LUI SEUL JUSTIFIE LE CHANGEMENT.
+          # `artisan test` appelle `ignoreValidationErrors()` : la première option que
+          # Symfony ne connaît pas INTERROMPT l'analyse, et toutes les suivantes sont
+          # perdues SILENCIEUSEMENT. Mesuré :
+          #
+          #   php artisan test --testsuite=Unit --coverage --min=0 --coverage-clover=…
+          #     → suite verte, clover écrit, et AUCUNE table de couverture : `--coverage`
+          #       n'a jamais été vu, parce qu'il suivait `--testsuite=Unit`.
+          #
+          # Le cliquet dépendait donc de l'ORDRE DES ARGUMENTS. Personne ne l'avait écrit
+          # nulle part, et rien ne l'aurait signalé. PHPUnit, lui, refuse une option qu'il
+          # ne connaît pas.
+          #
+          # ─── `--coverage-php` N'EST PRODUIT QUE LÀ OÙ IL EST CONSOMMÉ ───────────────────
+          #
+          # Il a exactement UN consommateur — `bin/build-impact-map.php`, au step
+          # « Régénérer la carte d'impact », conditionné à `push` + `refs/heads/dev`. Sur
+          # une pull request, ce fichier d'environ 100 Mo serait écrit pour personne.
+          COV_PHP=()
+          if [ "${{ github.event_name }}" = 'push' ] && [ "${{ github.ref }}" = 'refs/heads/dev' ]; then
+            COV_PHP=(--coverage-php=storage/coverage/cov.php)
+            echo "carte d'impact : cov.php sera produit (push vers dev)."
+          else
+            echo "carte d'impact : cov.php n'est PAS produit (ce n'est pas un push vers dev)."
+          fi
+
+          debut=$(date +%s)
+          # `set +e` : le shell par défaut d'un step est `bash -e`, qui interromprait le step
+          # à l'échec de la commande — donc AVANT que la durée ne soit affichée. Or c'est
+          # exactement l'exécution qui rougit dont on veut connaître la durée.
+          #
+          # `set -o pipefail` : le journal est dupliqué dans un fichier pour être RELU juste
+          # après (les avertissements de PHPUnit), et sans pipefail `$?` rendrait le code de
+          # `tee`, c'est-à-dire 0 quoi qu'il arrive. C'est exactement le mécanisme qui a rendu
+          # le `WARN` invisible pendant deux exécutions : un `| tail` rend le code de `tail`.
+          set +e
+          set -o pipefail
+          php vendor/phpunit/phpunit/phpunit \
+            "${COV_PHP[@]}" \
+            --coverage-clover=storage/coverage/clover.xml \
+            --coverage-html=storage/coverage/html \
+            2>&1 | tee storage/coverage/phpunit.log
+          code=$?
+          set -e
+          echo "Durée de la suite AVEC couverture : $(( $(date +%s) - debut )) s"
+
+          # Un avertissement du lanceur PHPUnit — option inconnue, option en double, fichier
+          # de configuration ignoré — ne se perd plus dans le défilement : il est REMONTÉ en
+          # annotation, là où on le lit. PHPUnit sort déjà en 1 dans ce cas ; l'annotation
+          # dit POURQUOI, ce qui est précisément ce qui manquait.
+          if grep -q 'PHPUnit test runner warning' storage/coverage/phpunit.log; then
+            echo "::error::PHPUnit a émis des avertissements de lanceur — voir le journal ci-dessus."
+            sed -n '/PHPUnit test runner warning/,/^$/p' storage/coverage/phpunit.log
+          fi
+
+          if [ "$code" -ne 0 ]; then
+            echo "::error::La suite est sortie en $code — le cliquet n'est PAS évalué. Une couverture mesurée sur une suite rouge ne dit rien."
+            exit "$code"
+          fi
+
+          # ⚠ LE CLIQUET, ET LE SEUL ENDROIT OÙ IL VIT DÉSORMAIS.
+          #
+          # Il rend LE MÊME NOMBRE que la table de Collision, à la décimale — vérifié par
+          # mesure APPARIÉE le 2026-08-20, sur le clover d'une seule et même exécution
+          # (`--testsuite=Unit`, 315 tests) :
+          #     Collision      → « Total: 7.9 % »
+          #     coverage-gate  → « Total: 7.9 % (1975 / 24966 lignes exécutables) »
+          #
+          # Et il garde ce que `--min` ne gardait pas : un rapport qui n'a mesuré AUCUNE
+          # ligne exécutable est un ÉCHEC, jamais un 100 %. Le jour où PCOV disparaît du
+          # runner, ce step rougit au lieu de laisser passer en silence.
+          php bin/coverage-gate.php storage/coverage/clover.xml --min=86
+
+      # DEUX artefacts, et la coupure n'est pas un détail de rangement : les deux formats ne
+      # répondent pas à la même question, et ne coûtent pas le même prix.
+      #
+      #   · `clover.xml` — 1,9 Mo, forme machine, la SÉRIE dont se lit une tendance. Publié à
+      #     CHAQUE exécution : une tendance a besoin de tous ses points, y compris ceux des
+      #     builds rouges.
+      #   · `html/` — **150 Mo décompressés, mesuré le 2026-08-16** (768 fichiers). C'est le
+      #     détail À LA LIGNE, ce qu'on ouvre le jour où le cliquet a sauté pour savoir QUOI
+      #     est retombé. Le publier à chaque exécution, ce serait payer 150 Mo par build pour
+      #     un rapport qu'on ouvre quelques fois par an.
+      #
+      # D'où `if: failure()` sur le second : il est produit exactement le jour où il sert, et
+      # PHPUnit écrit ses rapports même quand des tests rougissent, donc il existe bien à ce
+      # moment-là.
+      #
+      # ⚠ Et c'est précisément pour ces jours-là qu'il faut les DEUX artefacts, pas seulement le
+      # journal : `collision` n'affiche son tableau par dossier — et n'évalue `--min` — que si
+      # la suite est VERTE (`TestCommand.php:130`, `if ($exitCode === 0 && …)`). Sur une suite
+      # rouge, le journal ne dit donc rien de la couverture ; les fichiers, eux, sont là.
+      - name: Publier la couverture (clover — la série)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: couverture-api-clover
+          path: takussan-api/storage/coverage/clover.xml
+          retention-days: 30
+          # `warn` et non `error` : si un step ANTÉRIEUR a échoué (Pint, par exemple), le
+          # fichier n'existe pas et un second rouge masquerait le premier. Le garde-fou contre
+          # une couverture silencieusement cassée, c'est `--min`, pas ce step.
+          if-no-files-found: warn
+
+      - name: Publier la couverture (HTML — seulement quand ça rougit)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: couverture-api-html
+          path: takussan-api/storage/coverage/html
+          retention-days: 14
+          if-no-files-found: warn
+
+      # ────────────────────────────────────────────────────────────────────────
+      # La carte d'impact — régénérée sur push vers `dev`, JAMAIS sur une PR.
+      #
+      # Pourquoi pas sur PR : le fichier serait réécrit par chaque branche et
+      # deviendrait un aimant à conflits de merge, pour une donnée que personne ne
+      # relit. Sur `dev`, il n'y a qu'un seul écrivain.
+      #
+      # `[skip ci]` n'est pas une politesse : sans lui, ce push relancerait API CI
+      # (le déclencheur couvre `takussan-api/**`, et la carte vit sous
+      # `takussan-api/tests/`), qui régénérerait la carte, qui repousserait — une
+      # boucle qui ne s'arrête pas toute seule.
+      #
+      # `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
+      # repos/thiambara/takussan/branches/dev/protection` → 404). Le jour où elle le
+      # devient, ce step échouera au push et devra passer par une PR.
+      # Node n'est PAS installé par ce job — c'est un job PHP. `ubuntu-latest` en fournit
+      # un par défaut, mais s'appuyer dessus ferait dépendre une garde d'une version que
+      # personne ici n'a choisie, et qui change avec l'image du runner. On épingle la même
+      # que `repo-ci.yml`, et seulement quand le step suivant tourne réellement.
+      - uses: actions/setup-node@v7
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        with:
+          node-version: '24'
+
+      # ⚠ TCK-331 — RÉACTIVÉ le 2026-08-20, après avoir été désactivé quelques heures.
+      #
+      # Il consomme `storage/coverage/cov.php`, que le step de test produit de nouveau — sur
+      # push vers `dev` uniquement, et via une invocation DIRECTE de PHPUnit, la seule qui
+      # accepte les trois sorties de couverture à la fois.
+      #
+      # ⚠ CE QU'IL FAUT SAVOIR EN LISANT L'HISTORIQUE DU JOB : ce step n'avait JAMAIS tourné
+      # avec succès avant cette date. Les deux seules exécutions qui ont produit `cov.php`
+      # ont échoué toutes les deux, AVANT lui, sur la sortie 1 muette du step de test —
+      # `tests/impact-map.json` est donc restée figée à sa construction manuelle
+      # (`eafab606`) depuis le 2026-08-17. C'est ce qui a fait repasser l'AC7 de TCK-320 à
+      # NON TENU : il avait été coché en LISANT ce bloc, sur du code qui ne s'était jamais
+      # exécuté. **Ne jamais déduire l'état d'un environnement de la configuration qui le
+      # vise.**
+      #
+      # La chaîne complète — PHPUnit direct → `cov.php` → `build-impact-map.php` →
+      # `check-impact-map.mjs` — a été jouée en local le 2026-08-20 sur un sous-ensemble
+      # (`--filter='Tests\Unit\Rules'`) : 4 classes de test, 10 fichiers couverts sur 932
+      # scannés, carte valide. Ce qui reste à observer ici, et NE PEUT l'être qu'ici, c'est
+      # le commit automatique sur `dev`.
+      - name: Régénérer la carte d'impact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        run: |
+          # Pas de `-f` silencieux : si `cov.php` manque alors que la condition ci-dessus est
+          # vraie, c'est que le step de test a menti sur ce qu'il produit. On le DIT.
+          if [ ! -f storage/coverage/cov.php ]; then
+            echo "::error::storage/coverage/cov.php absent alors que ce step tourne — le step de test ne produit pas ce qu'il annonce."
+            exit 1
+          fi
+
+          php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
+
+          # ⚠ LA CARTE EST VALIDÉE PAR CELUI QUI LA PRODUIT, ET C'EST LE SEUL MOMENT OÙ
+          # ELLE PEUT L'ÊTRE. `repo-ci.yml` déclenche bien `check-impact-map.mjs` sur ce
+          # fichier — mais le commit ci-dessous porte `[skip ci]`, qui saute TOUS les
+          # workflows sur ce commit, Repo CI compris ; et aucune PR ne touche la carte,
+          # puisqu'elle n'est réécrite que sur `dev`. Le déclencheur ajouté là-bas ne
+          # s'exerce donc jamais sur le cas qu'il vise : une carte corrompue sortirait
+          # « sur la PR de quelqu'un d'autre », exactement l'issue que son commentaire dit
+          # éviter. Ici, en revanche, l'échec appartient à celui qui l'a causé.
+          #
+          # Pas de `|| exit 0` : une carte structurellement fausse ne se pousse pas. C'est
+          # la SEULE chose de ce step qui fasse rougir le job — sa fraîcheur, non (cf. plus
+          # bas), sa validité, oui.
+          node ../scripts/check-impact-map.mjs --report
+
+          # `git diff` SEUL compare l'arbre de travail à l'INDEX, pour des chemins déjà
+          # suivis — un fichier jamais commité (ou redevenu absent du suivi) n'y apparaît
+          # jamais comme « changé », même s'il vient d'être créé. On stage donc D'ABORD,
+          # puis on compare l'index au dernier commit (`--cached`) : ça couvre la création
+          # ET la modification. Sans ce détour, une carte pas encore trackée se ferait dire
+          # « inchangée » à chaque exécution — le mécanisme censé la créer ne la créerait
+          # jamais, en silence.
+          git add tests/impact-map.json
+          if git diff --cached --quiet -- tests/impact-map.json; then
+            echo "carte inchangée — rien à pousser"
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(tests): régénérer la carte d'impact [skip ci]"
+
+          # Une seule tentative de rebase : si un autre push est arrivé entretemps, on
+          # se replace dessus. Au-delà, on abandonne SANS faire rougir le job — la
+          # carte est un index, sa fraîcheur n'est pas une garde (cf.
+          # scripts/check-impact-map.mjs).
+          git pull --rebase --quiet origin dev || { echo "⚠ rebase impossible — carte non poussée"; exit 0; }
+          git push origin HEAD:dev || echo "⚠ push refusé — carte non poussée"
 
   # ────────────────────────────────────────────────────────────────────────────
   # Les migrations rejouées sur MySQL 8.0 — le moteur MESURÉ de la production (cf. le bloc
@@ -182,18 +529,42 @@ jobs:
           --health-retries 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           extensions: mbstring, pdo, pdo_mysql, mysqli, bcmath, intl, gd, zip
+          # TCK-302 — `coverage: none` RESTE ici, délibérément, et ce n'est pas l'oubli que
+          # c'était dans l'autre job : ce job-ci n'exécute AUCUN test. Il joue du DDL
+          # (`migrate` / `migrate:rollback`). Y installer un pilote de couverture coûterait
+          # le temps d'installation pour ne mesurer rien. Le second `coverage: none` du
+          # fichier n'est donc pas le même défaut que le premier.
           coverage: none
           tools: composer:v2
 
+      # Ce job n'avait AUCUN cache, quand l'autre en a un depuis toujours. Ce n'était pas un
+      # choix : il retéléchargeait l'intégralité des dépendances à chaque exécution, et c'est
+      # ce qui l'a fait tomber le 2026-08-17 en même temps que son voisin (429 sur `codeload`,
+      # cf. le commentaire du step d'installation de `lint-and-test`).
+      - name: Cache composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: takussan-api/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('takussan-api/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
       - name: Install composer dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
+        # Mêmes deux raisons que dans `lint-and-test`, où elles sont détaillées : `--prefer-dist`
+        # retiré pour rendre le repli `git clone` possible sur un 429 de `codeload`, et
+        # `COMPOSER_AUTH` posé pour les métadonnées `api.github.com` — en sachant qu'il ne
+        # couvre PAS les téléchargements d'archives. Ce job n'exécute aucun test, mais il
+        # installe les mêmes ~100 paquets, et il est tombé au même endroit le 2026-08-17.
+        env:
+          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+        run: composer install --no-interaction --no-progress
 
       - name: Prepare environment
         run: |

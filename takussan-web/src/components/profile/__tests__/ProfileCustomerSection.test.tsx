@@ -2,12 +2,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProfileCustomerSection } from '../ProfileCustomerSection';
+import { withIntl } from '@/test/intl';
 import type { User } from '@/types/user';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
 }));
-vi.mock('next-intl', () => ({ useLocale: () => 'fr' }));
 
 function mockFetch(payload: unknown) {
   const fakeResponse = {
@@ -45,11 +45,11 @@ function renderSection(user: User) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  return render(withIntl(
     <QueryClientProvider client={queryClient}>
       <ProfileCustomerSection user={user} />
     </QueryClientProvider>,
-  );
+  ));
 }
 
 afterEach(() => {

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, Info, ShieldAlert, X } from 'lucide-react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { dismissAnnouncement, fetchActiveAnnouncements, localizedAnnouncementText } from '@/lib/queries/announcements';
 import { useAuth } from '@/context/AuthContext';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ const ICONS = {
 };
 
 export function GlobalAnnouncementBanner() {
+  const t = useTranslations('announcements');
   const locale = useLocale();
   const queryClient = useQueryClient();
   // `/api/announcements/active` is auth-only (auth:sanctum). Don't fetch for
@@ -62,7 +63,7 @@ export function GlobalAnnouncementBanner() {
             variant="ghost"
             size="icon"
             className="size-8 shrink-0 text-current hover:bg-white/10"
-            aria-label="Masquer l'annonce"
+            aria-label={t('dismissAria')}
             onClick={() => mutation.mutate(announcement.id)}
             disabled={mutation.isPending}
           >

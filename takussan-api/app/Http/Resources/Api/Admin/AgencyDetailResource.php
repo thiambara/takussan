@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources\Api\Admin;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class AgencyDetailResource extends JsonResource
+class AgencyDetailResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -18,7 +18,7 @@ class AgencyDetailResource extends JsonResource
             'slug' => $this->slug,
             'status' => $this->status?->value,
             'is_verified' => (bool) $this->is_verified,
-            'verified_at' => $this->verified_at?->toIso8601String(),
+            'verified_at' => $this->iso($this->verified_at),
             'license_number' => $this->license_number,
             'email' => $this->email,
             'phone' => $this->phone,
@@ -26,8 +26,8 @@ class AgencyDetailResource extends JsonResource
             'description' => $this->description,
             'commission_rate' => $this->commission_rate !== null ? (float) $this->commission_rate : null,
             'currency' => $this->currency?->value,
-            'founded_at' => $this->founded_at?->toDateString(),
-            'created_at' => $this->created_at?->toIso8601String(),
+            'founded_at' => $this->calendarDate($this->founded_at),
+            'created_at' => $this->iso($this->created_at),
             'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
             'public_url' => "/agencies/{$this->slug}",
             'primary_admin' => $primaryAdmin ? [

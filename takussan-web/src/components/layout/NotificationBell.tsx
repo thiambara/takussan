@@ -14,7 +14,9 @@ import type {
   NotificationsResponse,
 } from '@/lib/notifications';
 import { Button } from '@/components/ui/button';
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 const QUERY_KEY = ['notifications', 'feed'] as const;
 
@@ -22,8 +24,8 @@ function notificationBody(notification: AppNotification): string | null {
   return notification.body ?? notification.content ?? null;
 }
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('fr-SN', {
+function formatDate(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(`${locale}-SN`, {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(new Date(value));
@@ -56,6 +58,9 @@ function patchNotification(
 }
 
 export function NotificationBell() {
+  const t = useTranslations('nav.notifications');
+  const messageErreur = useMessageErreurApi();
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -93,7 +98,7 @@ export function NotificationBell() {
       );
       setLocalError(null);
     },
-    onError: (err) => setLocalError(err.message),
+    onError: (err) => setLocalError(messageErreur(err)),
   });
 
   const markUnread = useMutation({
@@ -108,7 +113,7 @@ export function NotificationBell() {
       );
       setLocalError(null);
     },
-    onError: (err) => setLocalError(err.message),
+    onError: (err) => setLocalError(messageErreur(err)),
   });
 
   const markAll = useMutation({
@@ -133,14 +138,14 @@ export function NotificationBell() {
       );
       setLocalError(null);
     },
-    onError: (err) => setLocalError(err.message),
+    onError: (err) => setLocalError(messageErreur(err)),
   });
 
   return (
     <div className="relative">
       <button
         type="button"
-        aria-label="Notifications"
+        aria-label={t('label')}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         className="relative inline-flex size-9 items-center justify-center rounded-md text-white/85 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
@@ -155,15 +160,13 @@ export function NotificationBell() {
 
       {open ? (
         <section
-          aria-label="Centre de notifications"
+          aria-label={t('center')}
           className="absolute right-0 top-11 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-app-surface-3 bg-white text-app-ink shadow-xl"
         >
           <header className="flex items-center justify-between gap-3 border-b border-app-surface-3 px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold">Notifications</h2>
-              <p className="text-xs text-app-ink-muted">
-                {unread} non lue{unread > 1 ? 's' : ''}
-              </p>
+              <h2 className="text-sm font-semibold">{t('label')}</h2>
+              <p className="text-xs text-app-ink-muted">{t('unread', { count: unread })}</p>
             </div>
             <Button
               type="button"
@@ -173,7 +176,7 @@ export function NotificationBell() {
               onClick={() => markAll.mutate()}
             >
               <CheckCheck className="size-4" aria-hidden="true" />
-              Tout lire
+              {t('markAllRead')}
             </Button>
           </header>
 
@@ -184,19 +187,17 @@ export function NotificationBell() {
           ) : null}
 
           {query.isLoading ? (
-            <p className="px-4 py-6 text-sm text-app-ink-muted">Chargement...</p>
+            <p className="px-4 py-6 text-sm text-app-ink-muted">{t('loading')}</p>
           ) : null}
 
           {query.isError ? (
             <p role="alert" className="px-4 py-6 text-sm text-red-600">
-              {query.error.message}
+              {messageErreur(query.error)}
             </p>
           ) : null}
 
           {!query.isLoading && !query.isError && notifications.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-app-ink-muted">
-              Aucune notification.
-            </p>
+            <p className="px-4 py-6 text-sm text-app-ink-muted">{t('empty')}</p>
           ) : null}
 
           {notifications.length > 0 ? (
@@ -222,7 +223,7 @@ export function NotificationBell() {
                           </p>
                         ) : null}
                         <p className="mt-2 text-[11px] text-app-ink-muted">
-                          {formatDate(notification.created_at)}
+                          {formatDate(notification.created_at, locale)}
                         </p>
                       </div>
                       <button
@@ -235,7 +236,7 @@ export function NotificationBell() {
                             : markUnread.mutate(notification.id)
                         }
                       >
-                        {unreadItem ? 'Marquer lu' : 'Marquer non lu'}
+                        {unreadItem ? t('markRead') : t('markUnread')}
                       </button>
                     </div>
                   </li>

@@ -7,8 +7,12 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchServiceProviders } from '@/lib/queries/service-providers';
 import { ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
 import { isAdmin } from '@/lib/roles';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = { title: 'Carnet prestataires' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.providers');
+  return { title: t('metaTitle') };
+}
 export const dynamic = 'force-dynamic';
 
 /**

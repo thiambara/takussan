@@ -1,13 +1,15 @@
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ChevronRight } from 'lucide-react';
 import type { PropertyDetail } from '@/types/property';
 
 export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
-  const contractLabel = property.contract_type === 'rent' ? 'Louer' : 'Acheter';
+  const t = useTranslations('property.detail');
+  const contractLabel = t(property.contract_type === 'rent' ? 'breadcrumb.rent' : 'breadcrumb.buy');
   const contractHref = property.contract_type === 'rent' ? '/properties?contract_type=rent' : '/properties?contract_type=sale';
 
   const crumbs: Array<{ label: string; href?: string }> = [
-    { label: 'Accueil', href: '/' },
+    { label: t('breadcrumb.home'), href: '/' },
     { label: contractLabel, href: contractHref },
   ];
   if (property.location.city) {
@@ -24,7 +26,7 @@ export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
   }
 
   return (
-    <nav aria-label="Fil d'Ariane" className="flex items-center gap-1 text-sm text-stone-500">
+    <nav aria-label={t('breadcrumbAria')} className="flex items-center gap-1 text-sm text-stone-500">
       {crumbs.map((c, i) => (
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <ChevronRight className="size-3.5" aria-hidden />}

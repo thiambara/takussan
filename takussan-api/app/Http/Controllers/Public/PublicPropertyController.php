@@ -4,6 +4,16 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\ListSimilarPropertiesRequest;
+use App\Http\Requests\Public\BookingRequestPublicPropertyRequest;
+use App\Http\Requests\Public\ByIdsPublicPropertyRequest;
+use App\Http\Requests\Public\ComparePublicPropertyRequest;
+use App\Http\Requests\Public\ContactLeadPublicPropertyRequest;
+use App\Http\Requests\Public\ContactMessagePublicPropertyRequest;
+use App\Http\Requests\Public\HomepageDiscoveryRequest;
+use App\Http\Requests\Public\MapPublicPropertyRequest;
+use App\Http\Requests\Public\ReportPublicPropertyRequest;
+use App\Http\Requests\Public\SearchPublicPropertyRequest;
+use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
 use App\Http\Resources\BookingResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertyResource;
@@ -29,12 +39,14 @@ use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
+use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
@@ -82,32 +94,49 @@ class PublicPropertyController extends Controller
         return PropertyResource::collection($properties);
     }
 
-    public function search(Request $request, PropertySearchService $service): array
+    /**
+     * TCK-247 — the four homepage discovery rows in a single round-trip.
+     *
+     * GET /api/public/properties/discovery?near_city=…&per_row=…
+     *
+     * `near` carries the city it actually used plus a `fallback` flag: when the
+     * visitor's geolocated city is too thin to fill a row, the row switches
+     * wholesale to the reference city and the frontend retitles it from that
+     * data rather than guessing. The API emits codes and data, never labels
+     * (root CLAUDE.md, non-negotiable #5).
+     */
+    public function discovery(HomepageDiscoveryRequest $request, HomepageDiscoveryService $service): JsonResponse
     {
-        $validated = $request->validate([
-            'q' => 'nullable|string|max:200',
-            'search' => 'nullable|string|max:200',
-            'location' => 'nullable|string|max:100',
-            'city' => 'nullable|string|max:100',
-            'price_min' => 'nullable|numeric|min:0',
-            'price_max' => 'nullable|numeric|min:0',
-            'bedrooms' => 'nullable|integer|min:0|max:50',
-            'bathrooms' => 'nullable|integer|min:0|max:50',
-            'type' => 'nullable|string|max:500',
-            'contract_type' => 'nullable|in:sale,rent',
-            'rent_period' => 'nullable|string',
-            'furnished' => 'nullable|boolean',
-            'tags' => 'nullable|string',
-            'lat_min' => 'nullable|numeric',
-            'lat_max' => 'nullable|numeric',
-            'lng_min' => 'nullable|numeric',
-            'lng_max' => 'nullable|numeric',
-            'sort' => 'nullable|in:relevance,price_asc,price_desc,created_desc',
-            'floor_number' => 'nullable|integer|min:0|max:200',
-            'available_from' => 'nullable|date|after_or_equal:today',
-            'page' => 'nullable|integer|min:1',
-            'per_page' => 'nullable|integer|min:1|max:100',
+        $rows = $service->discover($request->nearCity(), $request->perRow());
+
+        $items = fn (Collection $properties) => PropertyResource::collection($properties)->toArray($request);
+
+        return $this->json([
+            'data' => [
+                'near' => [
+                    'items' => $items($rows['near']['items']),
+                    'city' => $rows['near']['city'],
+                    'requested_city' => $rows['near']['requested_city'],
+                    'fallback' => $rows['near']['fallback'],
+                ],
+                'rent' => ['items' => $items($rows['rent']['items'])],
+                'featured' => ['items' => $items($rows['featured']['items'])],
+                'latest' => ['items' => $items($rows['latest']['items'])],
+            ],
+            // `discovery` ne pagine pas : quatre rangées bornées, pas une liste. Elle n'a donc
+            // aucune enveloppe de pagination à émettre (TCK-304).
+            'meta' => ['per_row' => $request->perRow()],
+        ], 200, [
+            // Safe to share: the list shape of PropertyResource pins its labels
+            // to `fr` and reads nothing off `$request->user()`. Keep it that way
+            // — see the warning in HomepageDiscoveryService::baseQuery().
+            'Cache-Control' => 'public, max-age=60, s-maxage=300',
         ]);
+    }
+
+    public function search(SearchPublicPropertyRequest $request, PropertySearchService $service): array
+    {
+        $validated = $request->validated();
 
         return $service->search($validated);
     }
@@ -120,11 +149,9 @@ class PublicPropertyController extends Controller
      * comparison grid. Unknown or unpublished ids are silently dropped so
      * the frontend can render a "no longer available" placeholder for them.
      */
-    public function compare(Request $request): JsonResponse
+    public function compare(ComparePublicPropertyRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'ids' => ['required', 'string', 'max:200'],
-        ]);
+        $validated = $request->validated();
 
         $ids = collect(explode(',', (string) $validated['ids']))
             ->map(fn ($v) => (int) trim($v))
@@ -172,11 +199,9 @@ class PublicPropertyController extends Controller
      * ids are silently dropped so the frontend can purge ghost entries from
      * its local store.
      */
-    public function byIds(Request $request): JsonResponse
+    public function byIds(ByIdsPublicPropertyRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'ids' => ['required', 'string', 'max:300'],
-        ]);
+        $validated = $request->validated();
 
         $ids = collect(explode(',', (string) $validated['ids']))
             ->map(fn ($v) => (int) trim($v))
@@ -214,38 +239,9 @@ class PublicPropertyController extends Controller
         ]);
     }
 
-    public function map(Request $request): JsonResponse
+    public function map(MapPublicPropertyRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'bounds' => [
-                'required',
-                'string',
-                function (string $attribute, mixed $value, \Closure $fail) {
-                    $parts = explode(',', (string) $value);
-                    if (count($parts) !== 4) {
-                        $fail(__('validation.bounds_format'));
-
-                        return;
-                    }
-                    foreach ($parts as $p) {
-                        if (! is_numeric(trim($p))) {
-                            $fail(__('validation.bounds_format'));
-
-                            return;
-                        }
-                    }
-                    [$swLat, $swLng, $neLat, $neLng] = array_map('floatval', $parts);
-                    if ($swLat < -90 || $swLat > 90 || $neLat < -90 || $neLat > 90
-                        || $swLng < -180 || $swLng > 180 || $neLng < -180 || $neLng > 180) {
-                        $fail(__('validation.bounds_format'));
-                    }
-                },
-            ],
-            'type' => ['nullable', 'string', 'max:100'],
-            'contract_type' => ['nullable', 'in:sale,rent'],
-            'price_min' => ['nullable', 'numeric', 'min:0'],
-            'price_max' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         [$swLat, $swLng, $neLat, $neLng] = array_map('floatval', explode(',', $validated['bounds']));
         $minLat = min($swLat, $neLat);
@@ -370,18 +366,14 @@ class PublicPropertyController extends Controller
 
         return $this->json([
             'data' => ReviewResource::collection($paginated)->toArray($request),
-            'meta' => [
-                'total' => $paginated->total(),
-                'current_page' => $paginated->currentPage(),
-                'per_page' => $paginated->perPage(),
-                'last_page' => $paginated->lastPage(),
+            'meta' => $this->paginationMeta($paginated, [
                 'average' => $avg,
                 'distribution' => $distribution,
-            ],
+            ]),
         ]);
     }
 
-    public function report(Request $request, string $slug): JsonResponse
+    public function report(ReportPublicPropertyRequest $request, string $slug): JsonResponse
     {
         $property = Property::query()
             ->public()
@@ -389,10 +381,7 @@ class PublicPropertyController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $data = $request->validate([
-            'reason' => ['required', Rule::in(['spam', 'misleading', 'fraud', 'inappropriate_content', 'other'])],
-            'details' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $data = $request->validated();
 
         PropertyReport::create([
             'property_id' => $property->id,
@@ -405,33 +394,11 @@ class PublicPropertyController extends Controller
         return $this->json(null, 204);
     }
 
-    public function visitRequest(Request $request, string $slug): JsonResponse
+    public function visitRequest(VisitRequestPublicPropertyRequest $request, string $slug): JsonResponse
     {
-        $property = Property::query()
-            ->public()
-            ->whereNot('status', PropertyStatus::Draft)
-            ->where('slug', $slug)
-            ->firstOrFail();
-
+        $property = $request->property();
         $user = $request->user();
-
-        $rules = [
-            'scheduled_at' => ['required', 'date', 'after:now'],
-            'type' => ['nullable', Rule::enum(VisitType::class)],
-            'duration_minutes' => ['nullable', 'integer', 'min:15', 'max:240'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-        ];
-        if (! $user) {
-            $rules['visitor_name'] = ['required', 'string', 'max:120'];
-            $rules['visitor_email'] = ['required', 'email'];
-            $rules['visitor_phone'] = ['required', 'string', 'max:30'];
-        } else {
-            $rules['visitor_name'] = ['nullable', 'string', 'max:120'];
-            $rules['visitor_email'] = ['nullable', 'email'];
-            $rules['visitor_phone'] = ['nullable', 'string', 'max:30'];
-        }
-
-        $data = $request->validate($rules);
+        $data = $request->validated();
 
         $visit = PropertyVisit::create([
             'property_id' => $property->id,
@@ -511,35 +478,18 @@ class PublicPropertyController extends Controller
         ]);
     }
 
-    public function bookingRequest(Request $request, CustomerService $customers, string $slug): JsonResponse
+    public function bookingRequest(BookingRequestPublicPropertyRequest $request, CustomerService $customers, string $slug): JsonResponse
     {
-        $property = Property::query()
-            ->public()
-            ->whereNot('status', PropertyStatus::Draft)
-            ->where('slug', $slug)
-            ->firstOrFail();
+        $property = $request->property();
 
         // TCK-176 — for a sale property the booking is actually a *purchase
         // offer*: collect `offer_amount` + `offer_expires_at` + `terms_accepted`
         // instead of dates/guests; for a rent property keep the original
-        // booking-request payload.
+        // booking-request payload. The rule set that follows from it lives in
+        // BookingRequestPublicPropertyRequest (TCK-305).
         $isSale = $property->contract_type?->value === 'sale';
 
-        $rules = $isSale
-            ? [
-                'offer_amount' => ['required', 'numeric', 'min:1'],
-                'offer_expires_at' => ['required', 'date', 'after:today'],
-                'terms_accepted' => ['required', 'accepted'],
-                'message' => ['nullable', 'string', 'max:1000'],
-            ]
-            : [
-                'start_date' => ['required', 'date', 'after_or_equal:today'],
-                'end_date' => ['required', 'date', 'after:start_date'],
-                'guests' => ['required', 'integer', 'min:1', 'max:50'],
-                'message' => ['nullable', 'string', 'max:1000'],
-            ];
-
-        $data = $request->validate($rules);
+        $data = $request->validated();
 
         $user = $request->user();
         abort_if($user === null, 401);
@@ -598,7 +548,7 @@ class PublicPropertyController extends Controller
         ], 201);
     }
 
-    public function contactMessage(Request $request, NotificationService $notifications, string $slug): JsonResponse
+    public function contactMessage(ContactMessagePublicPropertyRequest $request, NotificationService $notifications, string $slug): JsonResponse
     {
         $property = Property::query()
             ->with('owner', 'collaborators.user')
@@ -607,9 +557,7 @@ class PublicPropertyController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
-        $data = $request->validate([
-            'message' => ['required', 'string', 'max:2000'],
-        ]);
+        $data = $request->validated();
 
         $user = $request->user();
         abort_if($user === null, 401);
@@ -684,15 +632,9 @@ class PublicPropertyController extends Controller
      * existing notification channel. A filled honeypot returns 201 silently
      * — bots get a normal-looking success without polluting the database.
      */
-    public function contactLead(Request $request, NotificationService $notifications, string $slug): JsonResponse
+    public function contactLead(ContactLeadPublicPropertyRequest $request, NotificationService $notifications, string $slug): JsonResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'email' => ['required', 'email:rfc', 'max:180'],
-            'phone' => ['nullable', 'string', 'max:32'],
-            'message' => ['required', 'string', 'min:5', 'max:2000'],
-            'company' => ['nullable', 'string', 'max:120'], // honeypot
-        ]);
+        $data = $request->validated();
 
         if (! empty($data['company'])) {
             return $this->json(['data' => ['accepted' => true]], 201);

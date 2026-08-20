@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\StoreDocumentShareLinkRequest;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
 use App\Services\Model\DocumentShareLinkService;
@@ -46,15 +47,10 @@ class DocumentShareLinkController extends Controller
         ]);
     }
 
-    public function store(Request $request, Document $document): JsonResponse
+    public function store(StoreDocumentShareLinkRequest $request, Document $document): JsonResponse
     {
-        $this->authorizeDocument($request, $document);
 
-        $data = $request->validate([
-            'expires_at' => ['nullable', 'date', 'after:now'],
-            'max_downloads' => ['nullable', 'integer', 'min:1'],
-            'password' => ['nullable', 'string', 'min:4'],
-        ]);
+        $data = $request->validated();
 
         $link = $this->shareLinks->create($document, $request->user(), $data);
 
@@ -74,7 +70,10 @@ class DocumentShareLinkController extends Controller
                     'id' => $document->id,
                     'name' => $document->name,
                     'type' => $document->type?->value ?? $document->type,
-                    'size' => $document->getFirstMedia('files')?->size,
+                    // TCK-285 — la collection est `file` au singulier (Document.php:71,
+                    // écrite par DocumentController.php:92). Ce contrôleur lisait `files` :
+                    // la taille était donc TOUJOURS nulle, et le téléchargement toujours 404.
+                    'size' => $document->getFirstMedia('file')?->size,
                 ],
                 'expires_at' => $link->expires_at?->toISOString(),
                 'downloads_count' => $link->downloads_count,
@@ -88,7 +87,7 @@ class DocumentShareLinkController extends Controller
         $password = $request->input('password');
         $link = $this->shareLinks->validate($token, $password);
 
-        $media = $link->document->getFirstMedia('files');
+        $media = $link->document->getFirstMedia('file');
         abort_unless($media !== null, 404, 'No file attached to this document.');
 
         $this->shareLinks->recordDownload($link);

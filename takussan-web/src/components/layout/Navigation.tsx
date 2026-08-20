@@ -17,6 +17,7 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { User, UserRole } from '@/types/user';
 import { isAdmin, isAgent, isCustomer, isOwner, isServiceProvider } from '@/lib/roles';
 import { cn } from '@/lib/utils';
@@ -27,6 +28,24 @@ export interface NavigationItem {
   readonly icon?: LucideIcon;
   readonly emphasized?: boolean;
 }
+
+/**
+ * TCK-292 — les deux fabriques ci-dessous sont des fonctions PURES appelées hors composant :
+ * `useTranslations` n'y est pas appelable. Elles reçoivent donc le traducteur, déjà borné à
+ * l'espace de noms annoncé ici — même patron que `components/property-form/options.ts`.
+ *
+ * ```tsx
+ * const t = useTranslations(NAVIGATION_NAMESPACES.dashboard);
+ * const items = buildDashboardNavItems(user, t);
+ * ```
+ */
+export const NAVIGATION_NAMESPACES = {
+  dashboard: 'nav.sidebar',
+  public: 'common.navigation',
+} as const;
+
+/** Un traducteur DÉJÀ borné à son espace de noms — la valeur rendue par `useTranslations(ns)`. */
+export type Traducteur = (cle: string) => string;
 
 export interface NavigationProps {
   readonly items: readonly NavigationItem[];
@@ -51,13 +70,14 @@ export function Navigation({
   orientation = 'vertical',
   onNavigate,
   className,
-  ariaLabel = 'Navigation',
+  ariaLabel,
 }: NavigationProps) {
   const pathname = usePathname();
+  const tLayout = useTranslations('layout.nav');
 
   return (
     <nav
-      aria-label={ariaLabel}
+      aria-label={ariaLabel ?? tLayout('aria')}
       className={cn(
         orientation === 'vertical' ? 'flex flex-col gap-1' : 'flex flex-row items-center gap-4',
         className,
@@ -96,55 +116,61 @@ export function Navigation({
 /**
  * Navigation items for the authenticated dashboard, computed from the
  * user's roles. Mirrors the layout used by `AppSidebar`.
+ *
+ * ⚠ `t` doit être borné à {@link NAVIGATION_NAMESPACES.dashboard} — les clés employées ici sont
+ * exactement celles que `AppSidebar.buildNavItems` consomme déjà, aucune n'a été créée.
  */
-export function buildDashboardNavItems(user: User | null): NavigationItem[] {
+export function buildDashboardNavItems(user: User | null, t: Traducteur): NavigationItem[] {
   if (!user) return [];
   const roles: UserRole[] = user.roles;
   const items: NavigationItem[] = [];
 
-  items.push({ href: '/app', label: 'Tableau de bord', icon: LayoutDashboard });
+  items.push({ href: '/app', label: t('dashboard'), icon: LayoutDashboard });
 
   if (isOwner(roles) || isAgent(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/properties', label: 'Mes biens', icon: Building2 });
+    items.push({ href: '/app/properties', label: t('myProperties'), icon: Building2 });
   }
   if (isAgent(roles) || isAdmin(roles)) {
     items.push({
       href: '/app/properties/new',
-      label: 'Publier un bien',
+      label: t('publishProperty'),
       icon: PlusCircle,
       emphasized: true,
     });
+    // « CRM » est un sigle, identique en fr/en/wo — pas de clé, comme « CSV » ou « XLSX »
+    // ailleurs. Il diffère volontairement de `nav.sidebar.crm` (« Clients (CRM) »), que
+    // `AppSidebar` affiche : ne pas les confondre changerait un libellé (AC3 de TCK-292).
     items.push({ href: '/app/customers', label: 'CRM', icon: Users });
   }
 
   if (isCustomer(roles)) {
-    items.push({ href: '/app/bookings', label: 'Mes réservations', icon: CalendarCheck });
-    items.push({ href: '/app/leases', label: 'Mes baux', icon: FileText });
-    items.push({ href: '/app/payments', label: 'Paiements', icon: CreditCard });
+    items.push({ href: '/app/bookings', label: t('myBookings'), icon: CalendarCheck });
+    items.push({ href: '/app/leases', label: t('myLeases'), icon: FileText });
+    items.push({ href: '/app/payments', label: t('payments'), icon: CreditCard });
   } else if (isOwner(roles)) {
-    items.push({ href: '/app/bookings', label: 'Réservations', icon: CalendarCheck });
-    items.push({ href: '/app/leases', label: 'Baux', icon: FileText });
-    items.push({ href: '/app/payments', label: 'Finances', icon: CreditCard });
+    items.push({ href: '/app/bookings', label: t('bookings'), icon: CalendarCheck });
+    items.push({ href: '/app/leases', label: t('leases'), icon: FileText });
+    items.push({ href: '/app/payments', label: t('finances'), icon: CreditCard });
   } else if (isAgent(roles) || isAdmin(roles)) {
-    items.push({ href: '/app/bookings', label: 'Réservations', icon: CalendarCheck });
-    items.push({ href: '/app/leases', label: 'Baux', icon: FileText });
+    items.push({ href: '/app/bookings', label: t('bookings'), icon: CalendarCheck });
+    items.push({ href: '/app/leases', label: t('leases'), icon: FileText });
   }
 
   if (isAgent(roles) || isAdmin(roles) || isServiceProvider(roles)) {
     items.push({
       href: '/app/maintenance',
-      label: isServiceProvider(roles) ? 'Interventions' : 'Maintenance',
+      label: isServiceProvider(roles) ? t('interventions') : t('maintenance'),
       icon: Wrench,
     });
   }
 
-  items.push({ href: '/app/messages', label: 'Messagerie', icon: MessageSquare });
-  items.push({ href: '/app/documents', label: 'Documents', icon: FolderOpen });
+  items.push({ href: '/app/messages', label: t('messaging'), icon: MessageSquare });
+  items.push({ href: '/app/documents', label: t('documents'), icon: FolderOpen });
 
   if (isAdmin(roles)) {
     items.push({
       href: '/admin',
-      label: 'Administration',
+      label: t('administration'),
       icon: ShieldCheck,
       emphasized: true,
     });
@@ -160,10 +186,12 @@ export function buildDashboardNavItems(user: User | null): NavigationItem[] {
 
 /**
  * Minimal public navigation items (used in the generic `Header`).
+ *
+ * ⚠ `t` doit être borné à {@link NAVIGATION_NAMESPACES.public}.
  */
-export function buildPublicNavItems(): NavigationItem[] {
+export function buildPublicNavItems(t: Traducteur): NavigationItem[] {
   return [
-    { href: '/', label: 'Accueil', icon: Home },
-    { href: '/properties', label: 'Rechercher' },
+    { href: '/', label: t('home'), icon: Home },
+    { href: '/properties', label: t('search') },
   ];
 }

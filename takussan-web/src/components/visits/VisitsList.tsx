@@ -2,20 +2,27 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { CalendarClock } from 'lucide-react';
 import { useVisits } from '@/lib/queries/visits';
 import { formatDateTime } from '@/lib/format';
+import { EmptyState } from '@/components/feedback';
+import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PropertyVisit, VisitStatus, VisitType } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
 
-const STATUS_LABEL: Record<VisitStatus, string> = {
-  scheduled: 'Demandée',
-  confirmed: 'Confirmée',
-  completed: 'Terminée',
-  cancelled: 'Annulée',
-  no_show: 'Absence',
+/**
+ * TCK-292 — tables hors composant : elles transportent la CLÉ (relative au namespace `visits`),
+ * le rendu la résout. Patron posé par TCK-286 dans `data/navigation.ts`.
+ */
+const STATUS_LABEL_KEY: Record<VisitStatus, string> = {
+  scheduled: 'status.scheduled',
+  confirmed: 'status.confirmed',
+  completed: 'status.completed',
+  cancelled: 'status.cancelled',
+  no_show: 'status.no_show',
 };
 
 const STATUS_VARIANT: Record<VisitStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -26,11 +33,11 @@ const STATUS_VARIANT: Record<VisitStatus, 'default' | 'secondary' | 'outline' | 
   no_show: 'destructive',
 };
 
-const TYPE_LABEL: Record<VisitType, string> = {
-  in_person: 'En personne',
-  virtual: 'Virtuelle',
-  self_guided: 'Autonome',
-  hybrid: 'Hybride',
+const TYPE_LABEL_KEY: Record<VisitType, string> = {
+  in_person: 'type.in_person',
+  virtual: 'type.virtual',
+  self_guided: 'type.self_guided',
+  hybrid: 'type.hybrid',
 };
 
 type TabKey = 'requested' | 'confirmed' | 'past' | 'cancelled';
@@ -41,6 +48,7 @@ type TabKey = 'requested' | 'confirmed' | 'past' | 'cancelled';
  */
 export function VisitsList() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('visits');
   const [tab, setTab] = useState<TabKey>('requested');
 
   const nowIso = useMemo(() => new Date().toISOString(), []);
@@ -71,11 +79,11 @@ export function VisitsList() {
     per_page: 30,
   });
 
-  const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits>; emptyLabel: string }> = [
-    { value: 'requested', label: 'Demandées', query: requested, emptyLabel: 'Aucune visite demandée.' },
-    { value: 'confirmed', label: 'Confirmées', query: confirmed, emptyLabel: 'Aucune visite confirmée.' },
-    { value: 'past', label: 'Passées', query: past, emptyLabel: 'Aucune visite passée.' },
-    { value: 'cancelled', label: 'Annulées', query: cancelled, emptyLabel: 'Aucune visite annulée.' },
+  const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits> }> = [
+    { value: 'requested', label: t('list.tabs.requested'), query: requested },
+    { value: 'confirmed', label: t('list.tabs.confirmed'), query: confirmed },
+    { value: 'past', label: t('list.tabs.past'), query: past },
+    { value: 'cancelled', label: t('list.tabs.cancelled'), query: cancelled },
   ];
 
   return (
@@ -93,7 +101,7 @@ export function VisitsList() {
 
       {tabs.map((t) => (
         <TabsContent key={t.value} value={t.value} className="mt-4">
-          <VisitsListBody query={t.query} locale={locale} emptyLabel={t.emptyLabel} />
+          <VisitsListBody query={t.query} locale={locale} tab={t.value} />
         </TabsContent>
       ))}
     </Tabs>
@@ -105,49 +113,47 @@ type QueryLike = ReturnType<typeof useVisits>;
 function VisitsListBody({
   query,
   locale,
-  emptyLabel,
+  tab,
 }: {
   query: QueryLike;
   locale: Locale;
-  emptyLabel: string;
+  tab: TabKey;
 }) {
-  if (query.isLoading) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
-        ))}
-      </div>
-    );
-  }
-
-  if (query.isError) {
-    return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger vos visites.
-      </p>
-    );
-  }
-
-  const visits = query.data?.data ?? [];
-  if (visits.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-stone-200 bg-white p-8 text-center text-sm text-stone-500">
-        {emptyLabel}
-      </div>
-    );
-  }
+  const t = useTranslations('visits.list');
 
   return (
-    <ul className="space-y-3">
-      {visits.map((visit) => (
-        <VisitRow key={visit.id} visit={visit} locale={locale} />
+    <QueryBoundary
+      query={query}
+      loadingFallback={[0, 1, 2].map((i) => (
+        <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
       ))}
-    </ul>
+    >
+      {(data) => {
+        const visits = data.data ?? [];
+        if (visits.length === 0) {
+          return (
+            <EmptyState
+              icon={<CalendarClock className="size-8" aria-hidden="true" />}
+              title={t(`empty.${tab}`)}
+              description={t('empty_description')}
+            />
+          );
+        }
+
+        return (
+          <ul className="space-y-3">
+            {visits.map((visit) => (
+              <VisitRow key={visit.id} visit={visit} locale={locale} />
+            ))}
+          </ul>
+        );
+      }}
+    </QueryBoundary>
   );
 }
 
 function VisitRow({ visit, locale }: { visit: PropertyVisit; locale: Locale }) {
+  const t = useTranslations('visits');
   const status = visit.status ?? 'scheduled';
   const type = visit.type ?? 'in_person';
   return (
@@ -160,15 +166,15 @@ function VisitRow({ visit, locale }: { visit: PropertyVisit; locale: Locale }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="truncate text-sm font-semibold text-stone-900">
-                {visit.property?.title ?? `Visite #${visit.id}`}
+                {visit.property?.title ?? t('fallbackTitle', { id: String(visit.id) })}
               </h3>
-              <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
-              <Badge variant="outline">{TYPE_LABEL[type]}</Badge>
+              <Badge variant={STATUS_VARIANT[status]}>{t(STATUS_LABEL_KEY[status])}</Badge>
+              <Badge variant="outline">{t(TYPE_LABEL_KEY[type])}</Badge>
             </div>
             <p className="mt-1 text-xs text-stone-500">
               {formatDateTime(visit.scheduled_at, locale)}
               {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
-                <> · {visit.duration_minutes} min</>
+                <> · {visit.duration_minutes} {t('minutesUnit')}</>
               )}
             </p>
           </div>

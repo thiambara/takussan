@@ -12,9 +12,11 @@ import {
   DASHBOARD_CUSTOMER_FIELDS,
   fetchDashboardCustomers,
   validateCustomerDocumentFile,
+  CUSTOMER_DOCUMENT_REJECTION_NAMESPACE,
 } from '../customers';
 
 import { boundsToString, propertiesQueryKeys } from '@/lib/queries/properties';
+import fr from '@/messages/fr.json';
 
 function mockFetch(response: unknown, ok = true, status = 200) {
   const fakeResponse = {
@@ -153,12 +155,28 @@ describe('validateCustomerDocumentFile', () => {
 
   it('rejects files larger than 10 Mo', () => {
     const file = makeFile(11 * 1024 * 1024, 'application/pdf');
-    expect(validateCustomerDocumentFile(file)).toMatch(/10 Mo/);
+    expect(validateCustomerDocumentFile(file)).toBe('tooLarge');
   });
 
   it('rejects unsupported mime types', () => {
     const file = makeFile(1024, 'application/zip');
-    expect(validateCustomerDocumentFile(file)).toMatch(/Type/);
+    expect(validateCustomerDocumentFile(file)).toBe('unsupportedType');
+  });
+
+  /**
+   * TCK-292 — le validateur rend un JETON ; c'est le dictionnaire qui porte le libellé. Un jeton
+   * sans entrée rendrait la clé brute à l'écran, sans erreur ni test rouge. Ce test garde donc
+   * l'accord, et fige les libellés français d'avant la conversion (AC3).
+   */
+  it('every rejection token resolves to its pre-conversion French label', () => {
+    const table = (
+      fr as unknown as { serverActions: { customerDocuments: Record<string, string> } }
+    ).serverActions.customerDocuments;
+    expect(CUSTOMER_DOCUMENT_REJECTION_NAMESPACE).toBe('serverActions.customerDocuments');
+    expect(table).toEqual({
+      tooLarge: 'Le fichier dépasse 10 Mo.',
+      unsupportedType: 'Type de fichier non autorisé (images ou PDF uniquement).',
+    });
   });
 
   it('accepts PDFs and images within the limit', () => {

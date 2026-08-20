@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -16,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '@/lib/api';
 import { useRenewLease, type RenewLeasePayload } from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface LeaseRenewalDialogProps {
   readonly open: boolean;
@@ -71,6 +73,7 @@ export function LeaseRenewalDialog({
   onRenewed,
 }: LeaseRenewalDialogProps) {
   const t = useTranslations('lease.renewal');
+  const messageErreur = useMessageErreurApi();
   const renew = useRenewLease(parent.id);
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState<string | null>(null);
@@ -144,7 +147,7 @@ export function LeaseRenewalDialog({
       reset();
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.displayMessage);
+        setError(messageErreur(err));
       } else {
         setError(t('error_generic'));
       }
@@ -183,11 +186,7 @@ export function LeaseRenewalDialog({
           ))}
         </ol>
 
-        {error && (
-          <div role="alert" className="mb-3 rounded-md bg-red-50 p-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <ErrorState className="mb-3" message={error} />}
 
         {step === 1 && (
           <div className="space-y-4">

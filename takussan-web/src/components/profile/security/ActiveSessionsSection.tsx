@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,6 +9,7 @@ import {
   revokeSessionAction,
 } from '@/app/actions/security';
 import type { ActiveSession } from '@/lib/security';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-069 — Sessions actives. Lists Sanctum personal access tokens for the
@@ -20,6 +22,9 @@ import type { ActiveSession } from '@/lib/security';
 const SESSIONS_KEY = ['security', 'sessions'] as const;
 
 export function ActiveSessionsSection() {
+  const t = useTranslations('profile.security.sessions');
+  const tCommon = useTranslations('common.status');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -46,23 +51,23 @@ export function ActiveSessionsSection() {
       setError(null);
       startTransition(() => {
         revoke.mutate(sessionId, {
-          onError: (err) => setError(err.message),
+          onError: (err) => setError(messageErreur(err)),
         });
       });
     },
-    [revoke],
+    [revoke, messageErreur],
   );
 
   const sessions = query.data ?? null;
   const loading = query.isPending;
-  const queryError = query.error?.message ?? null;
+  const queryError = query.error ? messageErreur(query.error) : null;
 
   return (
     <div className="rounded-2xl border border-app-surface-3 bg-white p-6">
       <div>
-        <h3 className="text-base font-semibold text-app-ink">Sessions actives</h3>
+        <h3 className="text-base font-semibold text-app-ink">{t('title')}</h3>
         <p className="mt-1 text-sm text-app-ink-muted">
-          Appareils et applications actuellement connectés à votre compte.
+          {t('description')}
         </p>
       </div>
 
@@ -73,9 +78,9 @@ export function ActiveSessionsSection() {
       ) : null}
 
       {loading ? (
-        <p className="mt-4 text-sm text-app-ink-muted">Chargement…</p>
+        <p className="mt-4 text-sm text-app-ink-muted">{tCommon('loading')}</p>
       ) : !sessions || sessions.length === 0 ? (
-        <p className="mt-4 text-sm text-app-ink-muted">Aucune session active.</p>
+        <p className="mt-4 text-sm text-app-ink-muted">{t('empty')}</p>
       ) : (
         <ul className="mt-4 space-y-2">
           {sessions.map((session) => (
@@ -85,21 +90,21 @@ export function ActiveSessionsSection() {
             >
               <div>
                 <p className="text-sm font-semibold text-app-ink">
-                  {session.name || 'Session sans nom'}
+                  {session.name || t('unnamed')}
                   {session.current ? (
                     <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                      Session courante
+                      {t('current')}
                     </span>
                   ) : null}
                 </p>
                 <p className="text-xs text-app-ink-muted">
-                  Dernière activité :{' '}
+                  {t('lastActivity')}{' '}
                   {session.last_used_at
                     ? new Date(session.last_used_at).toLocaleString('fr-FR')
-                    : 'inconnue'}
+                    : t('unknown')}
                 </p>
                 {session.ip ? (
-                  <p className="text-xs text-app-ink-muted">IP : {session.ip}</p>
+                  <p className="text-xs text-app-ink-muted">{t('ip', { ip: session.ip })}</p>
                 ) : null}
               </div>
               <Button
@@ -109,7 +114,7 @@ export function ActiveSessionsSection() {
                 onClick={() => handleRevoke(session.id)}
                 className={session.current ? '' : 'text-red-600 hover:text-red-700'}
               >
-                {session.current ? 'Courante' : 'Révoquer'}
+                {session.current ? t('currentShort') : t('revoke')}
               </Button>
             </li>
           ))}

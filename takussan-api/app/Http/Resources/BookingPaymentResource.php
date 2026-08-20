@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class BookingPaymentResource extends JsonResource
+class BookingPaymentResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -25,10 +25,10 @@ class BookingPaymentResource extends JsonResource
             'refund_reason' => $this->refund_reason,
             'paid_amount' => (float) $this->paid_amount,
             'remaining_amount' => (float) $this->remaining_amount,
-            'paid_at' => $this->paid_at?->toISOString(),
+            'paid_at' => $this->iso($this->paid_at),
             'transaction_id' => $this->transaction_id,
             'notes' => $this->notes,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

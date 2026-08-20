@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select';
 import type { ThresholdAlert } from '@/lib/queries/alerts';
 import { createThresholdAlertAction, deleteThresholdAlertAction } from '@/app/actions/alerts';
+import { useTranslations } from 'next-intl';
 
 const OPERATOR_OPTIONS = [
   { value: '>', label: '>' },
@@ -38,6 +39,7 @@ type Props = {
 };
 
 export function AlertList({ initialAlerts }: Props) {
+  const t = useTranslations('dashboard.alerts');
   const [alerts, setAlerts] = useState(initialAlerts);
   const [metric, setMetric] = useState<(typeof ALERT_METRICS)[number]>('unpaid_rate_percent');
   const [operator, setOperator] = useState<'>' | '<' | '>=' | '<='>('>');
@@ -52,7 +54,7 @@ export function AlertList({ initialAlerts }: Props) {
     startTransition(async () => {
       const parsed = Number(threshold);
       if (Number.isNaN(parsed)) {
-        setError('Seuil invalide.');
+        setError(t('invalidThreshold'));
         return;
       }
       const res = await createThresholdAlertAction({
@@ -63,7 +65,7 @@ export function AlertList({ initialAlerts }: Props) {
         cooldown_hours: Number(cooldownHours) || 24,
       });
       if (!res.ok) {
-        setError(res.message || 'Erreur lors de la création.');
+        setError(res.message || t('createError'));
         return;
       }
       setAlerts((prev) => [res.data, ...prev]);
@@ -80,10 +82,10 @@ export function AlertList({ initialAlerts }: Props) {
   return (
     <div className="space-y-6">
       <section className="max-w-2xl space-y-3 rounded-2xl bg-card p-6">
-        <h2 className="text-sm font-semibold text-foreground">Ajouter une alerte</h2>
+        <h2 className="text-sm font-semibold text-foreground">{t('addTitle')}</h2>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">Métrique</span>
+            <span className="mb-1 block font-medium text-foreground">{t('metric')}</span>
             <Select
               value={metric}
               onValueChange={(value) => setMetric((value ?? metric) as (typeof ALERT_METRICS)[number])}
@@ -100,7 +102,7 @@ export function AlertList({ initialAlerts }: Props) {
             </Select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">Opérateur</span>
+            <span className="mb-1 block font-medium text-foreground">{t('operator')}</span>
             <Select
               value={operator}
               onValueChange={(value) => setOperator((value ?? operator) as typeof operator)}
@@ -117,7 +119,7 @@ export function AlertList({ initialAlerts }: Props) {
             </Select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">Seuil</span>
+            <span className="mb-1 block font-medium text-foreground">{t('threshold')}</span>
             <input
               type="number"
               value={threshold}
@@ -126,7 +128,7 @@ export function AlertList({ initialAlerts }: Props) {
             />
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">Sévérité</span>
+            <span className="mb-1 block font-medium text-foreground">{t('severity')}</span>
             <Select
               value={severity}
               onValueChange={(value) => setSeverity((value ?? severity) as typeof severity)}
@@ -143,7 +145,7 @@ export function AlertList({ initialAlerts }: Props) {
             </Select>
           </label>
           <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">Cooldown (h)</span>
+            <span className="mb-1 block font-medium text-foreground">{t('cooldown')}</span>
             <input
               type="number"
               min="1"
@@ -160,15 +162,15 @@ export function AlertList({ initialAlerts }: Props) {
           disabled={isPending}
           className="rounded-md bg-app-topbar px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
-          Créer l&apos;alerte
+          {t('create')}
         </button>
         {error && <p className="text-xs text-rose-600">{error}</p>}
       </section>
 
       <section className="rounded-2xl bg-card p-6">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Alertes actives</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">{t('activeTitle')}</h2>
         {alerts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Aucune alerte configurée.</p>
+          <p className="text-sm text-muted-foreground">{t('empty')}</p>
         ) : (
           <ul className="divide-y divide-app-surface-3">
             {alerts.map((a) => (
@@ -187,7 +189,7 @@ export function AlertList({ initialAlerts }: Props) {
                   onClick={() => removeAlert(a.id)}
                   className="text-xs text-rose-600 hover:underline"
                 >
-                  Supprimer
+                  {t('delete')}
                 </button>
               </li>
             ))}

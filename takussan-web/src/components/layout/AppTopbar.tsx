@@ -8,6 +8,7 @@ import { ProfileSwitcher } from '@/components/profile/ProfileSwitcher';
 import { UserMenu } from './UserMenu';
 import { NotificationBell } from './NotificationBell';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 interface AppTopbarProps {
@@ -16,19 +17,22 @@ interface AppTopbarProps {
 }
 
 export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
+  const t = useTranslations('nav');
+  const tCommon = useTranslations('common');
+
   return (
     <header className={cn('flex h-14 shrink-0 items-center gap-3 bg-app-topbar px-4')}>
       <button
         type="button"
         onClick={onMenuToggle}
-        aria-label="Ouvrir le menu"
+        aria-label={t('openMenu')}
         className="inline-flex size-9 items-center justify-center rounded-md text-white/80 hover:bg-white/10 md:hidden"
       >
         <Menu className="size-5" />
       </button>
 
       <Link href="/" className="text-lg font-bold tracking-tighter text-white">
-        Takussan
+        {tCommon('appName')}
       </Link>
 
       <SearchAutocomplete

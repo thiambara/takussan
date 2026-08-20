@@ -3,6 +3,9 @@
 import { Building2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ModerationProperty } from '@/lib/queries/property-moderation';
+import { useLocale, useTranslations } from 'next-intl';
+import { formatDate } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 
 interface PropertyModerationQueueListProps {
   readonly properties: ModerationProperty[];
@@ -15,6 +18,8 @@ export function PropertyModerationQueueList({
   selectedId,
   onSelect,
 }: PropertyModerationQueueListProps) {
+  const t = useTranslations('admin.moderation');
+  const locale = useLocale() as Locale;
   return (
     <ul className="max-h-[70vh] overflow-y-auto rounded-xl bg-app-surface-1">
       {properties.map((property) => {
@@ -53,18 +58,24 @@ export function PropertyModerationQueueList({
                   </p>
                 </div>
                 <span className="flex-shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                  En attente
+                  {t('status.pending')}
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs text-app-ink-muted">
                 <span className="flex items-center gap-1">
                   <Building2 className="size-3" />
-                  {property.owner?.name ?? 'Agent inconnu'}
+                  {property.owner?.name ?? t('unknownAgent')}
                 </span>
                 {property.submitted_at ? (
                   <span className="ml-auto flex items-center gap-1">
                     <Calendar className="size-3" />
-                    {new Date(property.submitted_at).toLocaleDateString('fr-FR')}
+                    {/* TCK-292 — la locale ACTIVE, plus `fr-FR` en dur. */}
+                    {formatDate(property.submitted_at, locale, {
+                      dateStyle: undefined,
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })}
                   </span>
                 ) : null}
               </div>

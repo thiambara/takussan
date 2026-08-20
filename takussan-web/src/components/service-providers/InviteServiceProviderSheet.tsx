@@ -38,6 +38,7 @@ import {
   type InviteServiceProviderResponse,
 } from '@/lib/queries/service-providers';
 import { MAINTENANCE_CATEGORIES } from '@/types/maintenance';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export type InviteServiceProviderSheetProps = {
   readonly open: boolean;
@@ -100,8 +101,10 @@ export function InviteServiceProviderSheet({
   fromMaintenanceRequestId,
   onInvited,
 }: InviteServiceProviderSheetProps) {
+  const tErr = useTranslations('errors');
   const t = useTranslations('serviceProviders.invite');
   const tCategories = useTranslations('serviceProviders.invite.trades');
+  const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
@@ -117,7 +120,7 @@ export function InviteServiceProviderSheet({
   >({
     mutationFn: (payload) => {
       if (!token) {
-        throw new ApiError(401, { message: 'no token' });
+        throw new ApiError(401, { message: tErr('missingToken') });
       }
       return inviteServiceProvider(token, agencyId, payload);
     },
@@ -148,7 +151,7 @@ export function InviteServiceProviderSheet({
           ? t('errors.already_member')
           : error.status === 403
             ? t('errors.forbidden')
-            : error.displayMessage;
+            : messageErreur(error);
       toast.add({ title: t('toasts.error_title'), description, type: 'error' });
     },
   });

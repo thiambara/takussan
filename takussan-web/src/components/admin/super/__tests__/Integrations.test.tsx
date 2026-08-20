@@ -1,5 +1,4 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
 import type React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -11,6 +10,7 @@ import {
 } from '@/lib/queries/super-admin';
 import type { AdminIntegration } from '@/types/super-admin';
 import { IntegrationEditDialog, IntegrationTestButton } from '../integrations';
+import { withIntl } from '@/test/intl';
 
 vi.mock('@/lib/queries/super-admin', () => ({
   fetchAdminIntegrationSchema: vi.fn(),
@@ -37,11 +37,9 @@ function renderWithQuery(node: React.ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  return render(
-    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
-      <QueryClientProvider client={queryClient}>{node}</QueryClientProvider>
-    </NextIntlClientProvider>,
-  );
+  return render(withIntl(
+    <QueryClientProvider client={queryClient}>{node}</QueryClientProvider>,
+  ));
 }
 
 describe('super-admin integrations UI', () => {

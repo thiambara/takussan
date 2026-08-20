@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { formatPrice } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
@@ -20,6 +21,7 @@ export function PropertyCardCompact({
   index = 0,
   priority = false,
 }: PropertyCardCommonProps) {
+  const t = useTranslations('property.cards');
   const photo = property.main_photo_url ?? FALLBACK_IMAGE;
   const quarter = property.location.quarter || property.location.city || null;
 
@@ -74,7 +76,7 @@ export function PropertyCardCompact({
           <div className="flex items-center gap-1.5 pt-0.5 text-[10px] font-medium text-muted-foreground">
             {property.bedrooms != null && property.bedrooms > 0 && (
               <>
-                <span>{property.bedrooms} ch</span>
+                <span>{t('bedroomsShort', { count: property.bedrooms })}</span>
                 <span className="text-border">•</span>
               </>
             )}

@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react';
+import { Building2, Search } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { fetchAdminAgencies } from '@/lib/queries/super-admin';
 import { AgencyModerationCard } from '@/components/admin/super/AgencyModerationCard';
 import { AgencyOnboardingDialog } from '@/components/admin/super/AgencyOnboardingDialog';
 import { Pagination } from '@/components/super-admin/Pagination';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
@@ -19,34 +20,44 @@ import {
 } from '@/components/ui/select';
 import type { AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 const ALL = '__all__';
 
+/**
+ * Patron « la donnée porte la clé » (TCK-286) : tables hors composant, donc hors de portée
+ * de `useTranslations`. Elles transportent une clé, le rendu la résout.
+ */
 const STATUS_OPTIONS = [
-  { value: ALL, label: 'Tous statuts' },
-  { value: 'active', label: 'Actives' },
-  { value: 'inactive', label: 'Inactives' },
-  { value: 'suspended', label: 'Suspendues' },
+  { value: ALL, labelKey: 'statuses.all' },
+  { value: 'active', labelKey: 'statuses.active' },
+  { value: 'inactive', labelKey: 'statuses.inactive' },
+  { value: 'suspended', labelKey: 'statuses.suspended' },
 ];
 
 const SORT_OPTIONS = [
-  { value: '-created_at', label: 'Création récente' },
-  { value: 'created_at', label: 'Création ancienne' },
-  { value: 'name', label: 'Nom A-Z' },
-  { value: '-name', label: 'Nom Z-A' },
-  { value: '-members_count', label: 'Équipe élevée' },
-  { value: '-properties_count', label: 'Portefeuille élevé' },
+  { value: '-created_at', labelKey: 'sorts.createdDesc' },
+  { value: 'created_at', labelKey: 'sorts.createdAsc' },
+  { value: 'name', labelKey: 'sorts.nameAsc' },
+  { value: '-name', labelKey: 'sorts.nameDesc' },
+  { value: '-members_count', labelKey: 'sorts.membersDesc' },
+  { value: '-properties_count', labelKey: 'sorts.propertiesDesc' },
 ] as const;
 
 type SortValue = (typeof SORT_OPTIONS)[number]['value'];
 
 export default function SuperAdminAgenciesPage() {
+  const t = useTranslations('superAdmin.agencies');
+  const tPage = useTranslations('superAdmin.pages.agencies');
+  const messageErreur = useMessageErreurApi();
   const [status, setStatus] = useState(ALL);
   const [search, setSearch] = useState('');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
   const [sort, setSort] = useState<SortValue>('-created_at');
   const [page, setPage] = useState(1);
+  const statusOptions = STATUS_OPTIONS.map((o) => ({ value: o.value, label: tPage(o.labelKey) }));
+  const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value as string, label: tPage(o.labelKey) }));
 
   const params = {
     status: status === ALL ? undefined : status,
@@ -68,10 +79,8 @@ export default function SuperAdminAgenciesPage() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Agences</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Modération cross-tenant — vérification, suspension, retrait de vérification.
-          </p>
+          <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
         </div>
         <AgencyOnboardingDialog />
       </header>
@@ -83,13 +92,13 @@ export default function SuperAdminAgenciesPage() {
             setStatus((next ?? ALL) as string);
             setPage(1);
           }}
-          items={STATUS_OPTIONS}
+          items={statusOptions}
         >
-          <SelectTrigger aria-label="Statut" className="h-10">
+          <SelectTrigger aria-label={tPage('statusAria')} className="h-10">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_OPTIONS.map((o) => (
+            {statusOptions.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
@@ -109,7 +118,7 @@ export default function SuperAdminAgenciesPage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Rechercher (nom, slug, email)"
+            placeholder={tPage('searchPlaceholder')}
             className="h-10 pl-9"
           />
         </div>
@@ -120,7 +129,7 @@ export default function SuperAdminAgenciesPage() {
             setCreatedFrom(value);
             setPage(1);
           }}
-          aria-label="Créée à partir du"
+          aria-label={tPage('createdFromAria')}
           buttonClassName="h-10"
           className="w-44"
         />
@@ -130,7 +139,7 @@ export default function SuperAdminAgenciesPage() {
             setCreatedTo(value);
             setPage(1);
           }}
-          aria-label="Créée jusqu’au"
+          aria-label={tPage('createdToAria')}
           buttonClassName="h-10"
           className="w-44"
         />
@@ -141,13 +150,13 @@ export default function SuperAdminAgenciesPage() {
             setSort((next ?? '-created_at') as SortValue);
             setPage(1);
           }}
-          items={SORT_OPTIONS as readonly { value: string; label: string }[]}
+          items={sortOptions}
         >
-          <SelectTrigger aria-label="Tri" className="h-10">
+          <SelectTrigger aria-label={tPage('sortAria')} className="h-10">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {SORT_OPTIONS.map((o) => (
+            {sortOptions.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
@@ -167,15 +176,13 @@ export default function SuperAdminAgenciesPage() {
           ))}
         </div>
       ) : isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
-          Erreur de chargement. {error?.displayMessage}
-        </div>
+        <ErrorState message={messageErreur(error, t('error'))} />
       ) : !data || data.data.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-center text-sm text-muted-foreground">
-            Aucune agence à afficher pour les filtres courants.
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<Building2 className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2">

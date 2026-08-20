@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { cancelMaintenance, scheduleMaintenance } from '@/lib/queries/super-admin';
 import type { MaintenanceStatus } from '@/types/super-admin';
+import { withIntl } from '@/test/intl';
 import { MaintenanceScheduler } from '../maintenance';
 
 vi.mock('@/lib/queries/super-admin', () => ({
@@ -45,11 +46,11 @@ function renderScheduler(status = emptyStatus) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
-  render(
+  render(withIntl(
     <QueryClientProvider client={queryClient}>
       <MaintenanceScheduler status={status} />
     </QueryClientProvider>,
-  );
+  ));
 }
 
 describe('<MaintenanceScheduler>', () => {

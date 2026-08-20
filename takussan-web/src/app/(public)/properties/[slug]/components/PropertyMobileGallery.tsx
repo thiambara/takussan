@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PropertyPhoto } from '@/types/property';
@@ -12,6 +13,7 @@ interface PropertyMobileGalleryProps {
 }
 
 export function PropertyMobileGallery({ photos, title, onOpenLightbox }: PropertyMobileGalleryProps) {
+  const t = useTranslations('property.detail');
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false });
   const [selected, setSelected] = useState(0);
 
@@ -34,7 +36,7 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
   if (photos.length === 0) {
     return (
       <div className="aspect-[4/3] bg-stone-100 flex items-center justify-center text-stone-400">
-        Aucune photo
+        {t('gallery.noPhoto')}
       </div>
     );
   }
@@ -49,11 +51,11 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
               type="button"
               onClick={() => onOpenLightbox(i)}
               className="relative flex-[0_0_100%] aspect-[4/3]"
-              aria-label={`Ouvrir la photo ${i + 1}`}
+              aria-label={t('gallery.openPhoto', { index: i + 1 })}
             >
               <Image
                 src={photo.preview}
-                alt={`${title} - photo ${i + 1}`}
+                alt={t('gallery.photoAlt', { title, index: i + 1 })}
                 fill
                 sizes="100vw"
                 className="object-cover"
@@ -69,7 +71,7 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
           <button
             type="button"
             onClick={() => emblaApi?.scrollPrev()}
-            aria-label="Photo précédente"
+            aria-label={t('gallery.previousPhoto')}
             className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-md disabled:opacity-50"
             disabled={selected === 0}
           >
@@ -78,7 +80,7 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
           <button
             type="button"
             onClick={() => emblaApi?.scrollNext()}
-            aria-label="Photo suivante"
+            aria-label={t('gallery.nextPhoto')}
             className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-md disabled:opacity-50"
             disabled={selected === photos.length - 1}
           >

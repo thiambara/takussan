@@ -17,7 +17,7 @@ use Mockery;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 use Throwable;
 
 /**
@@ -28,7 +28,7 @@ use Throwable;
  * path through the HTTP approve endpoint + the implicit feature unlock
  * (agent invitation policy reads `Agency.kind`).
  */
-class AgencyKindFlipTest extends BaseTestCase
+class AgencyKindFlipTest extends TestCase
 {
     use RefreshDatabase;
 

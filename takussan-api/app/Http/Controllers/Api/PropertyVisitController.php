@@ -3,6 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Api\CancelPropertyVisitRequest;
+use App\Http\Requests\Api\CompletePropertyVisitRequest;
+use App\Http\Requests\Api\FeedbackPropertyVisitRequest;
+use App\Http\Requests\Api\StorePropertyVisitRequest;
+use App\Http\Requests\Api\UpdatePropertyVisitRequest;
 use App\Http\Resources\PropertyVisitResource;
 use App\Models\Enums\VisitStatus;
 use App\Models\Enums\VisitType;
@@ -17,7 +22,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Validation\Rule;
 
 class PropertyVisitController extends Controller
 {
@@ -41,35 +45,21 @@ class PropertyVisitController extends Controller
             ->defaultSort('-scheduled_at')
             ->paginate();
 
-        return $this->json([
-            'data' => PropertyVisitResource::collection($paginator)->toArray($request),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, PropertyVisitResource::collection($paginator)->toArray($request));
     }
 
     public function show(Request $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeAccess($request, $visit);
+        $this->authorize('view', $visit);
 
         return $this->json([
             'data' => PropertyVisitResource::make($visit->load(['property', 'agent', 'visitor', 'customer']))->toArray($request),
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StorePropertyVisitRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'property_id' => ['required', 'exists:properties,id'],
-            'customer_id' => ['nullable', 'exists:customers,id'],
-            'agent_id' => ['nullable', 'exists:users,id'],
-            'scheduled_at' => ['required', 'date', 'after:now'],
-            'type' => ['nullable', Rule::enum(VisitType::class)],
-            'duration_minutes' => ['nullable', 'integer', 'min:5'],
-            'visitor_name' => ['nullable', 'string'],
-            'visitor_phone' => ['nullable', 'string'],
-            'visitor_email' => ['nullable', 'email'],
-            'notes' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $property = Property::findOrFail($data['property_id']);
         $user = $request->user();
@@ -102,9 +92,8 @@ class PropertyVisitController extends Controller
         ], 201);
     }
 
-    public function update(Request $request, PropertyVisit $visit): JsonResponse
+    public function update(UpdatePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeManage($request, $visit);
         abort_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
@@ -119,13 +108,7 @@ class PropertyVisitController extends Controller
         // Allowing free-form PATCH on `status` would let clients jump
         // from scheduled → completed without populating `completed_at`,
         // which silently breaks the feedback-window lockout.
-        $data = $request->validate([
-            'scheduled_at' => ['sometimes', 'date'],
-            'agent_id' => ['sometimes', 'nullable', 'exists:users,id'],
-            'duration_minutes' => ['sometimes', 'nullable', 'integer', 'min:5'],
-            'notes' => ['sometimes', 'nullable', 'string'],
-            'type' => ['sometimes', Rule::enum(VisitType::class)],
-        ]);
+        $data = $request->validated();
 
         // Reschedule of a confirmed visit must re-check overlap on the
         // new slot before persisting.
@@ -147,7 +130,7 @@ class PropertyVisitController extends Controller
 
     public function confirm(Request $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeManage($request, $visit);
+        $this->authorize('update', $visit);
 
         // TCK-075 AC2 — source-state check, overlap guard and status
         // flip happen inside a single DB transaction with row-level
@@ -161,19 +144,15 @@ class PropertyVisitController extends Controller
         return $this->json(['data' => PropertyVisitResource::make($visit)->toArray($request)]);
     }
 
-    public function complete(Request $request, PropertyVisit $visit): JsonResponse
+    public function complete(CompletePropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeManage($request, $visit);
         abort_unless(
             in_array($visit->status, [VisitStatus::Scheduled, VisitStatus::Confirmed], true),
             422,
             'Visit cannot be completed in its current state.'
         );
 
-        $data = $request->validate([
-            'feedback' => ['nullable', 'string'],
-            'rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
-        ]);
+        $data = $request->validated();
 
         $visit->update(array_merge($data, [
             'status' => VisitStatus::Completed,
@@ -183,18 +162,15 @@ class PropertyVisitController extends Controller
         return $this->json(['data' => PropertyVisitResource::make($visit->refresh())->toArray($request)]);
     }
 
-    public function cancel(Request $request, PropertyVisit $visit): JsonResponse
+    public function cancel(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeAccess($request, $visit);
         abort_if(
             in_array($visit->status, [VisitStatus::Completed, VisitStatus::Cancelled], true),
             422,
             'Visit cannot be cancelled in its current state.'
         );
 
-        $data = $request->validate([
-            'reason' => ['nullable', 'string'],
-        ]);
+        $data = $request->validated();
 
         $visit->update([
             'status' => VisitStatus::Cancelled,
@@ -209,8 +185,11 @@ class PropertyVisitController extends Controller
      * DELETE /api/property-visits/{visit}: mirrors {@see cancel} so clients
      * that prefer REST verbs can cancel with a single call.
      */
-    public function destroy(Request $request, PropertyVisit $visit): JsonResponse
+    public function destroy(CancelPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
+        // TCK-305 — `destroy` reçoit le MÊME FormRequest que `cancel` : c'est la même action,
+        // sous un autre verbe. Lui laisser un `Request` nu produisait un TypeError à l'appel
+        // interne — le typage a signalé ce que le miroir de routes cachait.
         return $this->cancel($request, $visit);
     }
 
@@ -224,9 +203,8 @@ class PropertyVisitController extends Controller
      * giving both parties time to reflect without letting feedback
      * trickle in weeks later.
      */
-    public function feedback(Request $request, PropertyVisit $visit): JsonResponse
+    public function feedback(FeedbackPropertyVisitRequest $request, PropertyVisit $visit): JsonResponse
     {
-        $this->authorizeAccess($request, $visit);
 
         abort_unless(
             $visit->status === VisitStatus::Completed,
@@ -242,11 +220,7 @@ class PropertyVisitController extends Controller
             'Feedback window has closed for this visit.'
         );
 
-        $data = $request->validate([
-            'role' => ['required', 'in:customer,agent'],
-            'rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
-            'comment' => ['nullable', 'string', 'max:2000'],
-        ]);
+        $data = $request->validated();
 
         $user = $request->user();
         $role = $data['role'];
@@ -343,31 +317,5 @@ class PropertyVisitController extends Controller
         }
 
         return $recipients;
-    }
-
-    protected function authorizeAccess(Request $request, PropertyVisit $visit): void
-    {
-        $user = $request->user();
-        $property = $visit->property;
-        $ok = $user->isSuperAdmin()
-            || $visit->visitor_id === $user->id
-            || $visit->agent_id === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id)
-            || ($visit->customer && $visit->customer->user_id === $user->id);
-
-        abort_unless($ok, 403);
-    }
-
-    protected function authorizeManage(Request $request, PropertyVisit $visit): void
-    {
-        $user = $request->user();
-        $property = $visit->property;
-        $ok = $user->isSuperAdmin()
-            || $visit->agent_id === $user->id
-            || ($property && $property->user_id === $user->id)
-            || ($user->agency_id && $property && $property->agency_id === $user->agency_id);
-
-        abort_unless($ok, 403);
     }
 }

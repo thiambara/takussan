@@ -1,0 +1,126 @@
+# Dependabot — où sont réellement les manifestes de ce dépôt.
+#
+# ## Pourquoi ce fichier existe
+#
+# Mesuré le 2026-08-16 : le tableau de bord GitHub affichait **3 alertes** (1 haute,
+# 2 modérées) là où `npm audit` en trouvait **23** — 5 dans `takussan-api` (dont 2
+# CRITIQUES : `shell-quote`, `concurrently`) et 18 dans `takussan-web` (11 hautes,
+# dont `next` lui-même). Un écart de 3 contre 23 n'est pas un retard d'indexation,
+# c'est un angle mort.
+#
+# Les trois alertes visibles portaient `manifest_path: "package.json"` — un chemin NU.
+# Or **aucun `package.json` n'a jamais existé à la racine** de ce dépôt
+# (`git log --all -- package.json` ne rend rien). Les manifestes réels sont
+# `takussan-api/package.json` et `takussan-web/package.json`. Les alertes étaient donc
+# ancrées sur un fichier inexistant : Dependabot ne pouvait ni les réévaluer, ni les
+# fermer quand la dépendance a été corrigée. Créées les 2026-04-07 et 2026-06-20, elles
+# n'avaient jamais été mises à jour depuis.
+#
+# ⚠️ **Et elles disaient vrai à moitié, ce qui est le pire cas.** Leur plage affichée
+# (`vite <= 6.4.2`) faisait croire à un faux positif, puisque le dépôt tourne sur vite 8.
+# `npm audit` a montré qu'il existe une plage PARALLÈLE, `8.0.0 - 8.0.15`, et que la
+# version installée y tombait. *Lire l'avis ne remplace pas mesurer l'arbre de
+# dépendances* — c'est la règle maison « ne jamais déduire l'état d'une chose de la
+# documentation qui la décrit », appliquée aux avis de sécurité.
+#
+# ## Ce que ce fichier change, et ce qu'il ne change pas
+#
+# Il déclare les quatre écosystèmes réels, chacun à son emplacement. Les alertes futures
+# seront ancrées sur des manifestes qui existent, donc réévaluables et refermables.
+#
+# Il ne remplace PAS une vérification périodique : `npm audit` reste la mesure de
+# référence, et il voit ce que le tableau de bord n'a pas vu. Cf. ardoise D-00 et D-53.
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ⏸️  EN PAUSE DEPUIS LE 2026-08-16 — `open-pull-requests-limit: 0`
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# ## Ce que la pause fait, et ce qu'elle ne fait pas
+#
+# `0` suspend les mises à jour de VERSION. Les mises à jour de SÉCURITÉ
+# continuent d'être ouvertes : Dependabot les traite hors de ce plafond, et
+# c'est exactement le partage qu'on veut — on met en pause le confort, pas la
+# sécurité. Cf. D-00 et D-53 : c'est `npm audit` qui reste la mesure de
+# référence, pas ce fichier.
+#
+# ## Pourquoi, et ce que la limite masquait
+#
+# MESURÉ le 2026-08-16. Après avoir mergé les PR #154 → #176 (22 mergées),
+# Dependabot a ouvert **14 nouvelles PR en 81 secondes** (#177 → #190,
+# 21:12:51 → 21:14:12), et les deux écosystèmes concernés se sont remplis
+# EXACTEMENT à leur plafond :
+#
+#     composer /takussan-api :  5 ouvertes  ← limite 5
+#     npm      /takussan-web : 10 ouvertes  ← limite 10
+#
+# Les mêmes chiffres qu'avant. Autrement dit : la série mergée n'était pas
+# « toutes les mises à jour en attente », c'était **la fenêtre visible**. La
+# limite ne réduit pas la profondeur de la file, elle la CACHE — et rien dans
+# l'interface ne dit combien attendent derrière.
+#
+# *Un plafond qui masque ce qu'il retient se lit comme un compteur à zéro.*
+#
+# ## Ce qui a motivé la pause plutôt qu'un simple élargissement
+#
+# Trois des 14 sont des montées MAJEURES (typescript 5.9→7.0, maatwebsite/excel
+# 3→4, intervention/image 3→4). Une majeure qui ne passe pas bloque la file
+# derrière elle — c'est ce que #172 (eslint 9→10) venait de faire, et il a fallu
+# 13 corrections de code pour la débloquer. Rouvrir le robinet avant d'avoir
+# vidé le bac reproduit la situation.
+#
+# ## Comment reprendre
+#
+# Remettre les valeurs d'origine, conservées en commentaire sous chaque bloc,
+# puis surveiller la file. Ne pas rouvrir tant que des majeures sont en attente.
+
+version: 2
+updates:
+  # ── Backend PHP ────────────────────────────────────────────────────────────
+  - package-ecosystem: composer
+    directory: /takussan-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0   # ⏸️ en pause — valeur d'origine : 5
+    commit-message:
+      prefix: 'chore(deps)'
+
+  # ── Chaîne d'assets du backend (Vite/Tailwind pour `welcome.blade.php`) ─────
+  # Petite mais réelle : c'est ici que vivaient les deux vulnérabilités CRITIQUES
+  # (`shell-quote` via `concurrently`), dans des devDependencies que le déploiement
+  # installe pourtant, puisque `deploy.sh` lance `npm ci` puis `npm run build`.
+  - package-ecosystem: npm
+    directory: /takussan-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0   # ⏸️ en pause — valeur d'origine : 5
+    commit-message:
+      prefix: 'chore(deps)'
+
+  # ── Frontend Next.js ───────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /takussan-web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0   # ⏸️ en pause — valeur d'origine : 10
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      # `next`, `eslint-config-next` et `@next/*` se montent ENSEMBLE ou pas du tout :
+      # les monter séparément produit un état intermédiaire qui ne compile pas.
+      next:
+        patterns:
+          - next
+          - eslint-config-next
+          - '@next/*'
+
+  # ── Actions GitHub ─────────────────────────────────────────────────────────
+  # Une action épinglée sur une version obsolète est une dépendance comme une autre,
+  # et elle s'exécute avec les secrets du dépôt.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0   # ⏸️ en pause — pas de limite déclarée à l'origine
+    commit-message:
+      prefix: 'chore(ci)'

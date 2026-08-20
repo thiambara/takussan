@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import type { User } from '@/types/user';
 import {
@@ -24,6 +25,7 @@ function pickDefault(searches: SavedSearch[]): SavedSearch | null {
 }
 
 export function ProfileCustomerSection({ user }: ProfileCustomerSectionProps) {
+  const t = useTranslations('profile.customer');
   const query = useSavedSearchesQuery();
   const emailVerified = Boolean(user.email_verified_at);
 
@@ -35,10 +37,9 @@ export function ProfileCustomerSection({ user }: ProfileCustomerSectionProps) {
   return (
     <section className="space-y-4 rounded-2xl bg-app-surface-1 p-6">
       <div>
-        <h2 className="text-lg font-bold text-app-ink">Préférences de recherche</h2>
+        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
         <p className="text-sm text-app-ink-muted">
-          Définissez vos critères favoris pour être alerté dès qu&apos;un
-          nouveau bien correspond.
+          {t('description')}
         </p>
       </div>
 
@@ -48,7 +49,7 @@ export function ProfileCustomerSection({ user }: ProfileCustomerSectionProps) {
           data-testid="customer-prefs-loading"
         >
           <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-          Chargement de vos préférences…
+          {t('loading')}
         </div>
       ) : query.isError ? (
         <div
@@ -56,7 +57,7 @@ export function ProfileCustomerSection({ user }: ProfileCustomerSectionProps) {
           role="alert"
           data-testid="customer-prefs-error"
         >
-          Impossible de charger vos préférences pour le moment.
+          {t('error')}
         </div>
       ) : (
         <SearchPreferencesForm initial={initial} emailVerified={emailVerified} />

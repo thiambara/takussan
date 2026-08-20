@@ -1,6 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { ListTree } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { useQuery } from '@tanstack/react-query';
 import {
   EnumList,
@@ -10,8 +13,13 @@ import {
 import { fetchBusinessEnums } from '@/lib/queries/super-admin';
 import type { BusinessEnumsResponse, BusinessEnumValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export default function SuperAdminEnumsPage() {
+  const t = useTranslations('superAdmin.enums');
+  const tPage = useTranslations('superAdmin.pages.enums');
+  const tShared = useTranslations('superAdmin.pages.shared');
+  const messageErreur = useMessageErreurApi();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [editing, setEditing] = useState<BusinessEnumValue | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -32,22 +40,20 @@ export default function SuperAdminEnumsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Enums métier</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Gérez les libellés FR / EN / WO et les valeurs métier non techniques.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
       </header>
 
       {/* Warning banner: amber Tailwind kept as documented exception (TCK-245) — no `--warning` DS token available. */}
       <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
-        Les enums techniques comme paiements, rôles et statuts internes restent verrouillés dans le code.
+        {tPage('lockedNotice')}
       </div>
 
       {query.isLoading ? (
         <div className="h-48 animate-pulse rounded-xl bg-muted" />
       ) : query.isError ? (
         <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
-          Erreur de chargement. {query.error.displayMessage}
+          {tShared('loadError')} {messageErreur(query.error)}
         </div>
       ) : selected ? (
         <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -71,9 +77,11 @@ export default function SuperAdminEnumsPage() {
           />
         </div>
       ) : (
-        <div className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground ring-1 ring-border">
-          Aucun enum métier éditable.
-        </div>
+        <EmptyState
+          icon={<ListTree className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       )}
     </div>
   );

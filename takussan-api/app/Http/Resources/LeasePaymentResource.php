@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class LeasePaymentResource extends JsonResource
+class LeasePaymentResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -19,17 +19,17 @@ class LeasePaymentResource extends JsonResource
             'currency' => $this->currency?->value,
             'payment_method' => $this->payment_method?->value,
             'payment_type' => $this->payment_type?->value,
-            'period_start' => $this->period_start?->toDateString(),
-            'period_end' => $this->period_end?->toDateString(),
-            'due_date' => $this->due_date?->toDateString(),
-            'paid_at' => $this->paid_at?->toISOString(),
+            'period_start' => $this->calendarDate($this->period_start),
+            'period_end' => $this->calendarDate($this->period_end),
+            'due_date' => $this->calendarDate($this->due_date),
+            'paid_at' => $this->iso($this->paid_at),
             'status' => $this->status?->value,
             'paid_amount' => (float) $this->paid_amount,
             'remaining_amount' => (float) $this->remaining_amount,
             'late_fee_amount' => $this->late_fee_amount !== null ? (float) $this->late_fee_amount : null,
-            'late_fee_applied_at' => $this->late_fee_applied_at?->toISOString(),
+            'late_fee_applied_at' => $this->iso($this->late_fee_applied_at),
             'notes' => $this->notes,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

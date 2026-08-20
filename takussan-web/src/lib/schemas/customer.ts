@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { requiredStringSchema } from './common';
+import { msgValidation } from './messages';
 
 /**
  * Customer (CRM) Zod schemas — TCK-042. Source of truth:
@@ -36,49 +37,49 @@ export const idTypeValues = ['id_card', 'passport', 'driving_license'] as const;
  */
 export const customerFormSchema = z
   .object({
-    first_name: requiredStringSchema('Le prénom est requis.').max(
+    first_name: requiredStringSchema(msgValidation('common.firstNameRequired')).max(
       100,
-      'Le prénom est trop long.',
+      msgValidation('common.firstNameTooLong'),
     ),
-    last_name: requiredStringSchema('Le nom est requis.').max(
+    last_name: requiredStringSchema(msgValidation('common.lastNameRequired')).max(
       100,
-      'Le nom est trop long.',
+      msgValidation('common.lastNameTooLong'),
     ),
     email: z
       .string()
-      .max(255, 'L’adresse e-mail est trop longue.')
+      .max(255, msgValidation('common.emailTooLong'))
       .refine(
         (v) => v.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()),
-        'Adresse e-mail invalide.',
+        msgValidation('common.emailInvalid'),
       ),
     phone: z
       .string()
       .refine(
         (v) => v.trim() === '' || /^\+?[0-9\s().-]{8,20}$/.test(v.trim()),
-        'Numéro de téléphone invalide. Exemple : +221 77 123 45 67.',
+        msgValidation('common.phoneInvalid'),
       ),
-    occupation: z.string().max(120, 'La profession est trop longue.'),
+    occupation: z.string().max(120, msgValidation('customer.occupationTooLong')),
     pipeline_stage: z.enum(pipelineStageValues),
     status: z.enum(customerStatusValues),
     id_type: z.string().refine(
       (v) => v === '' || (idTypeValues as readonly string[]).includes(v),
-      'Type de pièce invalide.',
+      msgValidation('customer.idTypeInvalid'),
     ),
-    id_number: z.string().max(64, 'Le numéro est trop long.'),
+    id_number: z.string().max(64, msgValidation('customer.idNumberTooLong')),
   })
   .superRefine((data, ctx) => {
     if (!data.email.trim() && !data.phone.trim()) {
       ctx.addIssue({
         code: 'custom',
         path: ['email'],
-        message: 'Renseignez au moins un e-mail ou un téléphone.',
+        message: msgValidation('customer.emailOrPhone'),
       });
     }
     if (data.id_type && !data.id_number.trim()) {
       ctx.addIssue({
         code: 'custom',
         path: ['id_number'],
-        message: 'Numéro requis lorsqu’un type de pièce est sélectionné.',
+        message: msgValidation('customer.idNumberRequired'),
       });
     }
   });
@@ -129,9 +130,9 @@ export function normaliseCustomerForm(
  * modifiables après création. The form only captures the body.
  */
 export const customerNoteSchema = z.object({
-  body: requiredStringSchema('La note ne peut pas être vide.').max(
+  body: requiredStringSchema(msgValidation('customer.noteRequired')).max(
     5_000,
-    'La note est trop longue (5000 caractères max).',
+    msgValidation('customer.noteTooLong'),
   ),
 });
 

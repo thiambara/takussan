@@ -12,6 +12,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -42,15 +43,12 @@ import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 
 import {
-  CONTRACT_TYPE_LABELS,
-  CURRENCY_OPTIONS,
-  PROPERTY_TYPE_LABELS,
-  RENT_PERIOD_OPTIONS,
+  PROPERTY_ENUM_NAMESPACES,
+  contractTypeOptions as fabriqueContractTypeOptions,
+  currencyOptions as fabriqueCurrencyOptions,
+  propertyTypeOptions as fabriquePropertyTypeOptions,
+  rentPeriodOptions as fabriqueRentPeriodOptions,
 } from './options';
-import {
-  contractTypeValues,
-  propertyTypeValues,
-} from '@/lib/schemas/property';
 
 const MAX_PHOTOS = 10;
 
@@ -128,15 +126,18 @@ function toPropertyCrudPayload(payload: PropertyFormPayload): PropertyFormPayloa
 }
 
 export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
+  const t = useTranslations('property.form');
+  // TCK-292 — les six vocabulaires d'enum viennent du dictionnaire ; `./options` ne porte plus que
+  // l'espace de noms et la fabrique. Les hooks sont posés AVANT toute sortie anticipée.
+  const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
+  const tContractType = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
+  const tCurrency = useTranslations(PROPERTY_ENUM_NAMESPACES.currency);
+  const tRentPeriod = useTranslations(PROPERTY_ENUM_NAMESPACES.rentPeriod);
   const router = useRouter();
-  const propertyTypeOptions = propertyTypeValues.map((v) => ({
-    value: v,
-    label: PROPERTY_TYPE_LABELS[v],
-  }));
-  const contractTypeOptions = contractTypeValues.map((v) => ({
-    value: v,
-    label: CONTRACT_TYPE_LABELS[v],
-  }));
+  const propertyTypeOptions = fabriquePropertyTypeOptions(tType);
+  const contractTypeOptions = fabriqueContractTypeOptions(tContractType);
+  const currencyOptions = fabriqueCurrencyOptions(tCurrency);
+  const rentPeriodOptions = fabriqueRentPeriodOptions(tRentPeriod);
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -189,7 +190,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
         if (!result?.id) {
           if (mode === 'create') {
             throw new ApiError(500, {
-              message: "Le bien a été créé, mais l'identifiant serveur est absent.",
+              message: t('missingIdError'),
             });
           }
           router.push('/app/properties');
@@ -239,10 +240,10 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
         }
 
         if (mode === 'create') {
-          setSuccessMessage('Bien créé. Ouverture de la fiche…');
+          setSuccessMessage(t('created'));
           router.push(`/app/properties/${pid}`);
         } else {
-          setSuccessMessage('Modifications enregistrées.');
+          setSuccessMessage(t('updated'));
           router.push('/app/properties');
         }
         router.refresh();
@@ -257,27 +258,26 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const lng = watch('longitude') as number | null | undefined;
   const tagIds = (watch('tag_ids') ?? []) as number[];
 
-  const handleLocationChange = useCallback(
-    (newLat: number, newLng: number) => {
-      setValue('latitude', newLat, { shouldDirty: true });
-      setValue('longitude', newLng, { shouldDirty: true });
-    },
-    [setValue],
-  );
+  // Ces deux gestionnaires sont passés en props à des enfants, et ils ne sont PAS enveloppés dans
+  // un `useCallback` : le React Compiler s'en charge (ADR-0015). Les `useCallback` qui s'y
+  // trouvaient faisaient ABANDONNER la compilation de tout ce composant —
+  // `react-hooks/preserve-manual-memoization` les signalait, et son correctif est de retirer la
+  // mémoïsation manuelle, pas de l'ajuster.
+  const handleLocationChange = (newLat: number, newLng: number) => {
+    setValue('latitude', newLat, { shouldDirty: true });
+    setValue('longitude', newLng, { shouldDirty: true });
+  };
 
-  const toggleTag = useCallback(
-    (tagId: number) => {
-      const current = (form.getValues('tag_ids') ?? []) as number[];
-      setValue(
-        'tag_ids',
-        current.includes(tagId)
-          ? current.filter((id) => id !== tagId)
-          : [...current, tagId],
-        { shouldDirty: true },
-      );
-    },
-    [form, setValue],
-  );
+  const toggleTag = (tagId: number) => {
+    const current = (form.getValues('tag_ids') ?? []) as number[];
+    setValue(
+      'tag_ids',
+      current.includes(tagId)
+        ? current.filter((id) => id !== tagId)
+        : [...current, tagId],
+      { shouldDirty: true },
+    );
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8" noValidate>
@@ -290,7 +290,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
               onClick={clearGlobalError}
               className="text-xs underline"
             >
-              Fermer
+              {t('close')}
             </button>
           </span>
         ) : null}
@@ -307,31 +307,29 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       {/* ── Section 1 : Informations générales ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">Informations générales</h2>
-          <p className="text-xs text-app-ink-muted">
-            Titre, type et contrat définissent la fiche publique du bien.
-          </p>
+          <h2 className="text-base font-semibold text-app-ink">{t('general.title')}</h2>
+          <p className="text-xs text-app-ink-muted">{t('general.hint')}</p>
         </header>
         <FormInput
           control={control}
           name="title"
-          label="Titre"
+          label={t('fields.title')}
           required
-          placeholder="Villa avec piscine à Almadies"
+          placeholder={t('fields.titlePlaceholder')}
           maxLength={200}
         />
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect
             control={control}
             name="type"
-            label="Type de bien"
+            label={t('fields.type')}
             required
             options={propertyTypeOptions}
           />
           <FormSelect
             control={control}
             name="contract_type"
-            label="Type de contrat"
+            label={t('fields.contract')}
             required
             options={contractTypeOptions}
           />
@@ -341,18 +339,16 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       {/* ── Section 2 : Prix ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">Prix</h2>
+          <h2 className="text-base font-semibold text-app-ink">{t('price.title')}</h2>
           <p className="text-xs text-app-ink-muted">
-            {contractType === 'rent'
-              ? 'Loyer périodique. Indiquez aussi la fréquence.'
-              : 'Prix de vente total.'}
+            {t(contractType === 'rent' ? 'price.hintRent' : 'price.hintSale')}
           </p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
             control={control}
             name="price"
-            label="Prix"
+            label={t('fields.price')}
             required
             type="number"
             inputMode="numeric"
@@ -362,16 +358,16 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           <FormSelect
             control={control}
             name="currency"
-            label="Devise"
-            options={CURRENCY_OPTIONS}
+            label={t('fields.currency')}
+            options={currencyOptions}
           />
           {contractType === 'rent' ? (
             <FormSelect
               control={control}
               name="rent_period"
-              label="Fréquence"
-              options={RENT_PERIOD_OPTIONS}
-              placeholder="Mensuel"
+              label={t('fields.period')}
+              options={rentPeriodOptions}
+              placeholder={t('fields.periodPlaceholder')}
             />
           ) : (
             <div />
@@ -382,56 +378,54 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       {/* ── Section 3 : Localisation / Adresse ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">Localisation</h2>
-          <p className="text-xs text-app-ink-muted">
-            La ville est obligatoire. Cliquez sur la carte pour placer le marqueur GPS.
-          </p>
+          <h2 className="text-base font-semibold text-app-ink">{t('location.title')}</h2>
+          <p className="text-xs text-app-ink-muted">{t('location.hintFull')}</p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
             control={control}
             name="city"
-            label="Ville"
+            label={t('fields.city')}
             required
-            placeholder="Dakar"
+            placeholder={t('fields.cityPlaceholder')}
           />
           <FormInput
             control={control}
             name="quarter"
-            label="Quartier"
-            placeholder="Almadies"
+            label={t('fields.quarter')}
+            placeholder={t('fields.quarterPlaceholder')}
           />
           <FormInput
             control={control}
             name="region"
-            label="Région"
-            placeholder="Dakar"
+            label={t('fields.region')}
+            placeholder={t('fields.regionPlaceholder')}
           />
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
             control={control}
             name="street"
-            label="Rue / adresse"
-            placeholder="12 Rue des Jacarandas"
+            label={t('fields.street')}
+            placeholder={t('fields.streetPlaceholder')}
           />
           <FormInput
             control={control}
             name="postal_code"
-            label="Code postal"
+            label={t('fields.postalCode')}
             placeholder="10700"
           />
           <FormInput
             control={control}
             name="country"
-            label="Pays (code ISO)"
-            placeholder="SN"
+            label={t('fields.country')}
+            placeholder={t('fields.countryPlaceholder')}
             maxLength={2}
           />
         </div>
         <div className="space-y-2">
           <p className="text-xs font-medium text-app-ink-muted">
-            Coordonnées GPS{' '}
+            {t('location.gps')}{' '}
             {lat != null && lng != null && (
               <span className="text-app-ink">
                 ({lat.toFixed(5)}, {lng.toFixed(5)})
@@ -439,25 +433,21 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             )}
           </p>
           <LocationPickerMapLoader lat={lat} lng={lng} onChange={handleLocationChange} />
-          <p className="text-xs text-app-ink-muted">
-            Cliquez sur la carte ou faites glisser le marqueur pour ajuster la position.
-          </p>
+          <p className="text-xs text-app-ink-muted">{t('location.mapHint')}</p>
         </div>
       </section>
 
       {/* ── Section 4 : Caractéristiques ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">Caractéristiques</h2>
-          <p className="text-xs text-app-ink-muted">
-            Optionnel. Renseigner les informations accessibles aux locataires / acheteurs.
-          </p>
+          <h2 className="text-base font-semibold text-app-ink">{t('features.title')}</h2>
+          <p className="text-xs text-app-ink-muted">{t('features.hintFull')}</p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
             control={control}
             name="area"
-            label="Superficie (m²)"
+            label={t('fields.area')}
             type="number"
             inputMode="numeric"
             min={0}
@@ -465,7 +455,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           <FormInput
             control={control}
             name="bedrooms"
-            label="Chambres"
+            label={t('fields.bedrooms')}
             type="number"
             inputMode="numeric"
             min={0}
@@ -473,7 +463,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           <FormInput
             control={control}
             name="bathrooms"
-            label="Salles de bain"
+            label={t('fields.bathrooms')}
             type="number"
             inputMode="numeric"
             min={0}
@@ -483,7 +473,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           <FormInput
             control={control}
             name="year_built"
-            label="Année de construction"
+            label={t('fields.yearBuilt')}
             type="number"
             inputMode="numeric"
             min={1800}
@@ -493,33 +483,31 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           <FormInput
             control={control}
             name="parking_spaces"
-            label="Places de parking"
+            label={t('fields.parking')}
             type="number"
             inputMode="numeric"
             min={0}
             placeholder="2"
           />
         </div>
-        <FormCheckbox control={control} name="furnished" label="Meublé" />
+        <FormCheckbox control={control} name="furnished" label={t('fields.furnished')} />
       </section>
 
       {/* ── Section 5 : Description ── */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">Description</h2>
-          <p className="text-xs text-app-ink-muted">
-            Soyez concret : état, commodités, voisinage.
-          </p>
+          <h2 className="text-base font-semibold text-app-ink">{t('description.title')}</h2>
+          <p className="text-xs text-app-ink-muted">{t('description.hint')}</p>
         </header>
         <FormTextarea
           control={control}
           name="description"
-          label="Description"
+          label={t('fields.description')}
           rows={6}
-          placeholder="Décrivez le bien, son environnement, ses atouts."
+          placeholder={t('fields.descriptionPlaceholder')}
         />
         <p className="text-right text-xs text-app-ink-muted">
-          {description.length} / 10 000 caractères
+          {t('description.counter', { count: description.length })}
         </p>
       </section>
 
@@ -527,10 +515,8 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       {tags.length > 0 && (
         <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
           <header>
-            <h2 className="text-base font-semibold text-app-ink">Équipements</h2>
-            <p className="text-xs text-app-ink-muted">
-              Sélectionnez les équipements et commodités disponibles.
-            </p>
+            <h2 className="text-base font-semibold text-app-ink">{t('amenities.title')}</h2>
+            <p className="text-xs text-app-ink-muted">{t('amenities.hint')}</p>
           </header>
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => {
@@ -560,10 +546,8 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       {mode === 'create' && (
         <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
           <header>
-            <h2 className="text-base font-semibold text-app-ink">Photos</h2>
-            <p className="text-xs text-app-ink-muted">
-              Glissez-déposez ou sélectionnez les photos (max {MAX_PHOTOS}).
-            </p>
+            <h2 className="text-base font-semibold text-app-ink">{t('photos.title')}</h2>
+            <p className="text-xs text-app-ink-muted">{t('photos.hint', { max: MAX_PHOTOS })}</p>
           </header>
           <MediaDropzone
             onChange={onPhotosChange}
@@ -572,7 +556,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             maxFiles={MAX_PHOTOS}
           />
           <p className="text-xs text-app-ink-muted">
-            {pendingPhotos.length} / {MAX_PHOTOS} photo{pendingPhotos.length !== 1 ? 's' : ''}
+            {t('photos.counter', { count: pendingPhotos.length, max: MAX_PHOTOS })}
           </p>
           {photoError ? (
             <p className="text-xs text-destructive" role="alert">
@@ -585,10 +569,8 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <p className="text-xs text-app-ink-muted" aria-live="polite">
           {mode === 'edit' && dirtyCount > 0
-            ? `${dirtyCount} champ${dirtyCount > 1 ? 's' : ''} modifié${dirtyCount > 1 ? 's' : ''} · non enregistré${dirtyCount > 1 ? 's' : ''}`
-            : mode === 'edit'
-              ? 'Aucune modification.'
-              : 'Tous les champs requis sont marqués d’un *.'}
+            ? t('footer.dirty', { count: dirtyCount })
+            : t(mode === 'edit' ? 'footer.noChanges' : 'footer.requiredHint')}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button
@@ -598,7 +580,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             onClick={() => router.back()}
             disabled={isSubmitting || photoUploading}
           >
-            Annuler
+            {t('footer.cancel')}
           </Button>
           {mode === 'create' && (
             <Button
@@ -608,7 +590,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
               variant="outline"
               onClick={() => selectSubmitIntent('draft')}
             >
-              Enregistrer en brouillon
+              {t('footer.saveDraft')}
             </Button>
           )}
           <Button
@@ -620,11 +602,11 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             {isSubmitting || photoUploading ? (
               <>
                 <Loader2 className="animate-spin" aria-hidden="true" />
-                <span>Enregistrement…</span>
+                <span>{t('footer.saving')}</span>
               </>
             ) : (
               <span>
-                {mode === 'create' ? 'Soumettre à publication' : 'Enregistrer les modifications'}
+                {t(mode === 'create' ? 'footer.submit' : 'footer.saveChanges')}
               </span>
             )}
           </Button>

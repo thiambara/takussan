@@ -23,9 +23,10 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  *
  *  - Agences éligibles : `standard` ET `individual` (un host individual a
  *    aussi besoin de ses prestataires) — cf. TCK-248.
- *  - Permission spatie `invite_service_provider` scoped sur l'agency
- *    team_id (default-granted à `agency_admin`, déléguable à un agent
- *    via {@see RoleDelegation}).
+ *  - Porte `invite_service_provider`, scopée à l'agence (TCK-278 — check
+ *    profile-based, plus une permission spatie sur un team_id : le paquet
+ *    est désinstallé, ADR-0002). Détenue par `agency_admin`, déléguable à
+ *    un agent via {@see RoleDelegation}.
  *  - Pré-crée un `ServiceProviderProfile` en `draft` + une
  *    `ServiceProviderAgencyCollaboration` en `paused`. La collab
  *    bascule à `active` lors du wizard post-acceptation (TCK-261).

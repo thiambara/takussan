@@ -3,9 +3,14 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 
-export const metadata: Metadata = { title: 'Fiche client' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.customerDetail');
+  return { title: t('metaTitle') };
+}
 import { getToken } from '@/lib/session';
 import { ApiError } from '@/lib/api';
 import {
@@ -15,14 +20,20 @@ import {
   fetchDashboardCustomer,
 } from '@/lib/queries/customers';
 import { assertCanReachAgentArea } from '@/lib/auth/guards';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import {
-  CUSTOMER_STATUS_LABELS,
-  PIPELINE_STAGE_LABELS,
+  CUSTOMER_ENUM_NAMESPACES,
+  enumLabel,
 } from '@/components/customer-form/options';
+import {
+  customerStatusValues,
+  pipelineStageValues,
+} from '@/lib/schemas/customer';
 import type { CustomerDocument } from '@/types/customer';
 
 /**
@@ -46,12 +57,18 @@ export default async function Page({ params }: { params: Params }) {
   const token = await getToken();
   if (!token) redirect('/app');
 
+  const t = await getTranslations('crm.customerDetail');
+  const tPage = await getTranslations('dashboard.pages.customerDetail');
+  const tStatus = await getTranslations(CUSTOMER_ENUM_NAMESPACES.status);
+  const tStage = await getTranslations(CUSTOMER_ENUM_NAMESPACES.pipelineStage);
+
   const customerId = Number.parseInt(id, 10);
   if (!Number.isFinite(customerId)) {
     return (
-      <CustomerDetailError
-        title="Fiche client introuvable"
-        message="L'identifiant demandé ne correspond à aucun client exploitable."
+      <CustomerDetailUnavailable
+        title={t('not_found_title')}
+        message={t('invalid_id_message')}
+        backLabel={t('back_cta')}
       />
     );
   }
@@ -70,17 +87,19 @@ export default async function Page({ params }: { params: Params }) {
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) {
       return (
-        <CustomerDetailError
-          title="Fiche client introuvable"
-          message="Ce client n'existe plus ou n'appartient pas à votre périmètre CRM."
+        <CustomerDetailUnavailable
+          title={t('not_found_title')}
+          message={t('not_found_message')}
+          backLabel={t('back_cta')}
         />
       );
     }
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       return (
-        <CustomerDetailError
-          title="Accès client refusé"
-          message="Votre profil actif ne permet pas d'ouvrir cette fiche client."
+        <CustomerDetailUnavailable
+          title={t('forbidden_title')}
+          message={t('forbidden_message')}
+          backLabel={t('back_cta')}
         />
       );
     }
@@ -91,16 +110,16 @@ export default async function Page({ params }: { params: Params }) {
   const initialTags = (customer as { tags?: { id: number; name: string; slug: string; color: string | null }[] }).tags ?? [];
 
   const pipelineLabel = customer.pipeline_stage
-    ? PIPELINE_STAGE_LABELS[customer.pipeline_stage]
+    ? enumLabel(tStage, pipelineStageValues, customer.pipeline_stage)
     : null;
-  const statusLabel = CUSTOMER_STATUS_LABELS[customer.status] ?? customer.status;
+  const statusLabel = enumLabel(tStatus, customerStatusValues, customer.status);
 
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Client · #{customer.id}
+            {tPage('eyebrow', { id: customer.id })}
           </p>
           <h1 className="font-display text-2xl font-bold text-foreground">
             {customer.first_name} {customer.last_name}
@@ -135,26 +154,31 @@ export default async function Page({ params }: { params: Params }) {
   );
 }
 
-function CustomerDetailError({
+/**
+ * `CustomerDetailError` était son nom, et il décrivait mal ce qu'il fait : les trois cas qu'il
+ * rend — identifiant invalide, 404, 403 — ne sont pas des erreurs à réessayer mais une fiche
+ * qu'on ne peut pas ouvrir. C'est un état vide, pas un bloc d'erreur : d'où `EmptyState` et non
+ * `ErrorState`, et d'où le nom (TCK-291).
+ */
+function CustomerDetailUnavailable({
   title,
   message,
+  backLabel,
 }: {
   readonly title: string;
   readonly message: string;
+  readonly backLabel: string;
 }) {
   return (
-    <div className="rounded-xl bg-card p-8 text-center">
-      <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-primary">
-        <AlertTriangle className="size-6" aria-hidden="true" />
-      </div>
-      <h1 className="mt-4 font-display text-2xl font-bold text-foreground">{title}</h1>
-      <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">{message}</p>
-      <Link
-        href="/app/customers"
-        className="mt-5 inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-      >
-        Revenir au CRM
-      </Link>
-    </div>
+    <EmptyState
+      icon={<AlertTriangle className="size-8" aria-hidden="true" />}
+      title={title}
+      description={message}
+      action={
+        <Link href="/app/customers" className={buttonVariants()}>
+          {backLabel}
+        </Link>
+      }
+    />
   );
 }

@@ -38,6 +38,13 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0010](0010-auth-token-sanctum-en-cookie.md) | Auth par token Sanctum porté par un cookie httpOnly, pas le mode SPA stateful | Accepté |
 | [0011](0011-environnement-de-dev-conteneurise.md) | L'environnement de développement est conteneurisé et calqué sur la production | Accepté |
 | [0012](0012-index-du-backlog-genere.md) | L'index du backlog est généré, jamais maintenu à la main | Accepté |
+| [0013](0013-un-seul-back-office-en-nextjs.md) | Il n'y a qu'un back-office, et il est en Next.js — Filament supprimé | Accepté |
+| [0014](0014-catalogue-code-defini-materialise-et-reconcilie.md) | Un catalogue défini en code et matérialisé en base se réconcilie ; il ne se lit pas à deux endroits | Accepté |
+| [0015](0015-react-compiler-active.md) | Le React Compiler est activé, et la mémoïsation manuelle devient l'exception | Accepté |
+| [0016](0016-role-agence-du-prestataire-porte-par-la-collaboration.md) | Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil | Accepté |
+| [0017](0017-deploiement-du-front-pilote-par-vercel.md) | Le déploiement du front reste piloté par Vercel ; le dépôt le relève et le garde | Accepté |
+| [0018](0018-format-des-dates-sur-le-fil.md) | L'API émet deux types de date : instant `…T12:34:56+00:00`, date calendaire `YYYY-MM-DD` | Accepté |
+| [0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) | L'erreur d'API porte un code, la surface de rendu porte le texte | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
@@ -60,7 +67,6 @@ ouvert.
 | Flux de branches `dev` → `preview` → `master` | les seuls déclencheurs de workflows — cf. ardoise D-04 |
 | Trilingue fr/en/wo propagé par `Accept-Language` | `docs/configuration.md` §3, partiellement |
 | Design system : shadcn style `base-nova` sur `@base-ui/react`, **aucun Radix**, palette « Lin » | `docs/design-guidelines.md` |
-| Filament v4 conservé pour une seule ressource, sans middleware de garde | nulle part — cf. ardoise D-41 |
 
 ## Format
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 
 interface PaginationProps {
@@ -11,11 +12,15 @@ interface PaginationProps {
 }
 
 export function Pagination({ page, lastPage, onChange, className }: PaginationProps) {
+  // Le hook se place AVANT la sortie anticipée : après, ce serait un hook conditionnel,
+  // que le React Compiler (ADR-0015) refuse.
+  const t = useTranslations('superAdmin.pages.pagination');
+
   if (lastPage <= 1) return null;
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t('aria')}
       className={
         'flex items-center justify-between gap-3 text-sm text-muted-foreground' +
         (className ? ` ${className}` : '')
@@ -29,10 +34,10 @@ export function Pagination({ page, lastPage, onChange, className }: PaginationPr
         onClick={() => onChange(Math.max(1, page - 1))}
       >
         <ChevronLeft aria-hidden />
-        Précédent
+        {t('previous')}
       </Button>
       <span aria-live="polite">
-        Page {page} sur {lastPage}
+        {t('position', { page: String(page), lastPage: String(lastPage) })}
       </span>
       <Button
         type="button"
@@ -41,7 +46,7 @@ export function Pagination({ page, lastPage, onChange, className }: PaginationPr
         disabled={page >= lastPage}
         onClick={() => onChange(Math.min(lastPage, page + 1))}
       >
-        Suivant
+        {t('next')}
         <ChevronRight aria-hidden />
       </Button>
     </nav>

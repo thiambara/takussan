@@ -2,17 +2,17 @@
 
 use App\Http\Controllers\Api\Auth\AccountDeletionController;
 use App\Http\Controllers\Api\Auth\AppleOAuthController;
+use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Auth\EmailVerificationController;
 use App\Http\Controllers\Api\Auth\FacebookOAuthController;
+use App\Http\Controllers\Api\Auth\OAuthController;
+use App\Http\Controllers\Api\Auth\OAuthProviderController;
+use App\Http\Controllers\Api\Auth\PasswordResetController;
+use App\Http\Controllers\Api\Auth\PhoneVerificationController;
+use App\Http\Controllers\Api\Auth\SessionController;
 use App\Http\Controllers\Api\Auth\SuperAdminTwoFactorController;
+use App\Http\Controllers\Api\Auth\TwoFactorController;
 use App\Http\Controllers\Api\UserAdminController;
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\EmailVerificationController;
-use App\Http\Controllers\Auth\OAuthController;
-use App\Http\Controllers\Auth\OAuthProviderController;
-use App\Http\Controllers\Auth\PasswordResetController;
-use App\Http\Controllers\Auth\PhoneVerificationController;
-use App\Http\Controllers\Auth\SessionController;
-use App\Http\Controllers\Auth\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -90,6 +90,13 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
     // Creating a request revokes ALL Sanctum tokens, so the throttle on POST
     // is generous; DELETE/GET stay on the default API throttle.
     Route::get('/me/deletion-request', [AccountDeletionController::class, 'show']);
+    // TCK-272 — émission du code e-mail de step-up pour les comptes sans mot
+    // de passe utilisable. Déclarée AVANT `/me/deletion-request` par respect
+    // de la convention du fichier (littéral d'abord) même si aucune des deux
+    // n'est paramétrée. Limiteur NOMMÉ : il n'y a pas de `throttle:api`
+    // global, et un envoi d'e-mail non borné est un canal d'abus.
+    Route::post('/me/deletion-request/step-up', [AccountDeletionController::class, 'sendStepUpCode'])
+        ->middleware('throttle:account-deletion-step-up');
     Route::post('/me/deletion-request', [AccountDeletionController::class, 'store'])
         ->middleware('throttle:5,10');
     Route::delete('/me/deletion-request', [AccountDeletionController::class, 'destroy']);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   ChevronDown,
   ChevronUp,
@@ -14,6 +15,7 @@ import {
   Clock,
 } from 'lucide-react';
 
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -30,6 +32,7 @@ import {
   DOCUMENT_MIME_ACCEPT,
 } from '@/lib/queries/documents';
 import type { DocumentVersion } from '@/types/document';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -63,6 +66,9 @@ interface UploadVersionModalProps {
 }
 
 function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionModalProps) {
+  const t = useTranslations('documents.versions');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const [file, setFile] = useState<File | null>(null);
   const [comment, setComment] = useState('');
   const [fileError, setFileError] = useState<string | null>(null);
@@ -73,12 +79,12 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
     if (!list || list.length === 0) return;
     const picked = list[0];
     if (picked.size > DOCUMENT_MAX_SIZE_BYTES) {
-      setFileError('Le fichier dépasse 10 Mo.');
+      setFileError(t('too_large'));
       return;
     }
     setFileError(null);
     setFile(picked);
-  }, []);
+  }, [t]);
 
   const reset = useCallback(() => {
     setFile(null);
@@ -97,7 +103,7 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) {
-      setFileError('Veuillez sélectionner un fichier.');
+      setFileError(t('select_file_error'));
       return;
     }
     await upload.mutateAsync({ document_id: documentId, file, comment: comment || undefined });
@@ -109,17 +115,14 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Ajouter une version</DialogTitle>
-          <DialogDescription>
-            La version précédente sera archivée mais restera accessible dans
-            l&apos;historique.
-          </DialogDescription>
+          <DialogTitle>{t('add_title')}</DialogTitle>
+          <DialogDescription>{t('add_description')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           {upload.error ? (
             <p role="alert" className="rounded bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {upload.error.message ?? 'Une erreur est survenue.'}
+              {messageErreur(upload.error, t('generic_error'))}
             </p>
           ) : null}
 
@@ -146,7 +149,7 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
                       setFile(null);
                       if (inputRef.current) inputRef.current.value = '';
                     }}
-                    aria-label="Retirer le fichier"
+                    aria-label={t('remove_file_aria')}
                   >
                     <X className="size-4" aria-hidden="true" />
                   </button>
@@ -157,9 +160,9 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
               <>
                 <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
                 <span className="text-sm font-medium text-app-ink">
-                  Glissez-déposez ou cliquez pour sélectionner
+                  {t('dropzone_title')}
                 </span>
-                <span className="text-xs">PDF, image ou bureautique · 10 Mo max</span>
+                <span className="text-xs">{t('dropzone_hint')}</span>
               </>
             )}
             <input
@@ -183,7 +186,8 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
               htmlFor="version-comment"
               className="block text-sm font-medium text-app-ink"
             >
-              Commentaire <span className="text-app-ink-muted">(facultatif)</span>
+              {t('comment_label')}{' '}
+              <span className="text-app-ink-muted">{t('comment_optional')}</span>
             </label>
             <textarea
               id="version-comment"
@@ -191,17 +195,17 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
               onChange={(e) => setComment(e.target.value)}
               maxLength={500}
               rows={2}
-              placeholder="Ex: Contrat corrigé après relecture"
+              placeholder={t('comment_placeholder')}
               className="w-full resize-none rounded-md border border-app-surface-3 bg-app-surface-2 px-3 py-2 text-sm text-app-ink placeholder-app-ink-muted focus:outline-none focus:ring-2 focus:ring-app-accent/40"
             />
           </div>
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => handleClose(false)}>
-              Annuler
+              {tCommon('actions.cancel')}
             </Button>
             <Button type="submit" disabled={upload.isPending || !file}>
-              {upload.isPending ? 'Envoi…' : 'Téléverser'}
+              {upload.isPending ? t('submitting') : t('submit')}
             </Button>
           </div>
         </form>
@@ -222,6 +226,9 @@ interface RestoreConfirmProps {
 }
 
 function RestoreConfirmDialog({ open, version, documentId, onOpenChange }: RestoreConfirmProps) {
+  const t = useTranslations('documents.versions');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const restore = useRestoreDocumentVersion();
 
   const handleConfirm = async () => {
@@ -234,28 +241,33 @@ function RestoreConfirmDialog({ open, version, documentId, onOpenChange }: Resto
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Restaurer la version {version?.version_number}</DialogTitle>
+          <DialogTitle>
+            {t('restore_title', { version: version?.version_number ?? '' })}
+          </DialogTitle>
           <DialogDescription>
-            Le fichier&nbsp;
-            <span className="font-medium text-app-ink">{version?.file_name}</span>
-            &nbsp;deviendra la version active. L&apos;historique complet est conservé.
+            {t.rich('restore_body', {
+              name: version?.file_name ?? '',
+              nom: (chunks) => (
+                <span className="font-medium text-app-ink">{chunks}</span>
+              ),
+            })}
           </DialogDescription>
         </DialogHeader>
         {restore.error ? (
           <p role="alert" className="rounded bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            {restore.error.message ?? 'Erreur lors de la restauration.'}
+            {messageErreur(restore.error, t('restore_error'))}
           </p>
         ) : null}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Annuler
+            {tCommon('actions.cancel')}
           </Button>
           <Button
             type="button"
             onClick={() => void handleConfirm()}
             disabled={restore.isPending}
           >
-            {restore.isPending ? 'Restauration…' : 'Confirmer'}
+            {restore.isPending ? t('restoring') : tCommon('actions.confirm')}
           </Button>
         </div>
       </DialogContent>
@@ -274,6 +286,8 @@ interface VersionRowProps {
 }
 
 function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
+  const t = useTranslations('documents.versions');
+
   return (
     <li className="flex items-start gap-3 rounded-lg border border-app-surface-3 bg-app-surface-2 px-4 py-3">
       {/* Version badge */}
@@ -287,7 +301,7 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
           {version.is_active ? (
             <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
               <CheckCircle2 className="size-3" aria-hidden="true" />
-              Actif
+              {t('active')}
             </span>
           ) : null}
         </div>
@@ -298,7 +312,9 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
           </span>
           <span>{formatBytes(version.size)}</span>
           {version.comment ? (
-            <span className="italic">&ldquo;{version.comment}&rdquo;</span>
+            <span className="italic">
+              {t('comment_quoted', { comment: version.comment })}
+            </span>
           ) : null}
         </div>
       </div>
@@ -311,7 +327,7 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex size-8 items-center justify-center rounded-md text-app-ink-muted transition-colors hover:bg-app-surface-3 hover:text-app-ink"
-            aria-label="Télécharger cette version"
+            aria-label={t('download_aria')}
           >
             <Download className="size-4" aria-hidden="true" />
           </a>
@@ -321,7 +337,7 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
             type="button"
             onClick={() => onRestoreClick(version)}
             className="inline-flex size-8 items-center justify-center rounded-md text-app-ink-muted transition-colors hover:bg-app-surface-3 hover:text-app-ink"
-            aria-label={`Restaurer la version ${version.version_number}`}
+            aria-label={t('restore_aria', { version: version.version_number })}
           >
             <RotateCcw className="size-4" aria-hidden="true" />
           </button>
@@ -357,13 +373,14 @@ export function DocumentVersionsList({
   canManage = false,
   defaultOpen = false,
 }: DocumentVersionsListProps) {
+  const t = useTranslations('documents.versions');
+  const tCommon = useTranslations('common');
   const [expanded, setExpanded] = useState(defaultOpen);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<DocumentVersion | null>(null);
 
-  const { data, isLoading, isError } = useDocumentVersions(
-    expanded ? documentId : null,
-  );
+  const versionsQuery = useDocumentVersions(expanded ? documentId : null);
+  const { data, isLoading, isError } = versionsQuery;
 
   const versions: DocumentVersion[] = data?.data ?? [];
   const count = versions.length;
@@ -380,7 +397,7 @@ export function DocumentVersionsList({
         >
           <History className="size-4 text-app-accent" aria-hidden="true" />
           <span className="flex-1 text-left">
-            Historique des versions
+            {t('heading')}
             {count > 0 ? (
               <span className="ml-1.5 rounded-full bg-app-accent/10 px-1.5 py-0.5 text-xs font-semibold text-app-accent">
                 {count}
@@ -395,10 +412,10 @@ export function DocumentVersionsList({
                 setUploadOpen(true);
               }}
               className="flex items-center gap-1 rounded-md bg-app-accent px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
-              aria-label="Ajouter une version"
+              aria-label={t('add_title')}
             >
               <UploadCloud className="size-3" aria-hidden="true" />
-              Nouvelle version
+              {t('new_version')}
             </button>
           ) : null}
           {expanded ? (
@@ -413,26 +430,30 @@ export function DocumentVersionsList({
       {expanded ? (
         <div className="px-4 pb-4">
           {isLoading ? (
-            <p className="py-4 text-center text-sm text-app-ink-muted">Chargement…</p>
-          ) : isError ? (
-            <p className="py-4 text-center text-sm text-destructive">
-              Impossible de charger les versions.
-            </p>
-          ) : versions.length === 0 ? (
             <p className="py-4 text-center text-sm text-app-ink-muted">
-              Aucune version uploadée.{' '}
-              {canManage ? (
-                <button
-                  type="button"
-                  className="underline hover:text-app-accent"
-                  onClick={() => setUploadOpen(true)}
-                >
-                  Ajouter la première version
-                </button>
-              ) : null}
+              {tCommon('status.loading')}
             </p>
+          ) : isError ? (
+            <ErrorState
+              message={t('error')}
+              onRetry={() => void versionsQuery.refetch()}
+              retryLabel={tCommon('actions.retry')}
+            />
+          ) : versions.length === 0 ? (
+            <EmptyState
+              icon={<History className="size-8" aria-hidden="true" />}
+              title={t('empty_title')}
+              description={t('empty_description')}
+              action={
+                canManage ? (
+                  <Button type="button" variant="outline" onClick={() => setUploadOpen(true)}>
+                    {t('empty_cta')}
+                  </Button>
+                ) : undefined
+              }
+            />
           ) : (
-            <ul className="space-y-2 pt-1" aria-label="Liste des versions">
+            <ul className="space-y-2 pt-1" aria-label={t('list_aria')}>
               {versions.map((v) => (
                 <VersionRow
                   key={v.id}

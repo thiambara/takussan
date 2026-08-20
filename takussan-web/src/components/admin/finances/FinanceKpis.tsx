@@ -1,6 +1,6 @@
 'use client';
 
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { AlertCircle, FileText, Send, TrendingUp } from 'lucide-react';
 import type { ReactNode } from 'react';
 
@@ -44,6 +44,7 @@ interface FinanceKpisProps {
 }
 
 export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
+  const t = useTranslations('admin.finances');
   const locale = useLocale() as Locale;
 
   const dashboardQuery = useApiQuery<DashboardAgencyResponse>(
@@ -64,7 +65,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
     >
       <KpiTile
         icon={<TrendingUp className="size-5" aria-hidden="true" />}
-        label="Encaissements (30 j)"
+        label={t('kpis.collections30d')}
         value={
           summary
             ? formatCurrency(summary.finance.revenue_month, locale, { currency })
@@ -74,7 +75,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
       />
       <KpiTile
         icon={<AlertCircle className="size-5" aria-hidden="true" />}
-        label="Impayés en cours"
+        label={t('kpis.overdue')}
         value={
           summary
             ? formatCurrency(summary.finance.overdue_amount, locale, { currency })
@@ -82,7 +83,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
         }
         hint={
           summary
-            ? `${summary.finance.overdue_count} bail${summary.finance.overdue_count > 1 ? 's' : ''} concerné${summary.finance.overdue_count > 1 ? 's' : ''}`
+            ? t('kpis.overdueHint', { count: summary.finance.overdue_count })
             : null
         }
         tone={summary && summary.finance.overdue_amount > 0 ? 'danger' : 'default'}
@@ -90,7 +91,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
       />
       <KpiTile
         icon={<Send className="size-5" aria-hidden="true" />}
-        label="Reversements en attente"
+        label={t('kpis.pendingPayouts')}
         value={
           payoutsCountQuery.data
             ? String(payoutsCountQuery.data.meta.total)
@@ -100,7 +101,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
       />
       <KpiTile
         icon={<FileText className="size-5" aria-hidden="true" />}
-        label="Factures à émettre"
+        label={t('kpis.invoicesToIssue')}
         value={
           invoicesCountQuery.data
             ? String(invoicesCountQuery.data.meta.total)

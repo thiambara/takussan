@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
+import { withIntl } from '@/test/intl';
 
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
@@ -46,12 +46,14 @@ function renderDetail() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
+  // TCK-292 : `messages={{}}` rendrait la CLÉ et non le libellé — `withIntl` charge le VRAI
+  // `fr.json`, ce qui laisse les assertions françaises de ce fichier inchangées.
   return render(
-    <NextIntlClientProvider locale="fr" messages={{}}>
+    withIntl(
       <QueryClientProvider client={client}>
         <VisitDetail id={1} />
-      </QueryClientProvider>
-    </NextIntlClientProvider>,
+      </QueryClientProvider>,
+    ),
   );
 }
 

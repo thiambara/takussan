@@ -13,6 +13,7 @@ export interface FooterProps {
 export function Footer({ className }: FooterProps) {
   const [email, setEmail] = useState('');
   const t = useTranslations('footer');
+  const tCommon = useTranslations('common');
   const year = new Date().getFullYear();
 
   return (
@@ -20,7 +21,7 @@ export function Footer({ className }: FooterProps) {
       <div className="max-w-[1440px] mx-auto px-8 md:px-16 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 mb-12">
           <div className="lg:col-span-2">
-            <h3 className="text-2xl font-bold tracking-tighter mb-4">Takussan</h3>
+            <h3 className="text-2xl font-bold tracking-tighter mb-4">{tCommon('appName')}</h3>
             <p className="text-slate-400 mb-6 max-w-sm">{t('tagline')}</p>
 
             <div className="flex gap-2">
@@ -41,12 +42,12 @@ export function Footer({ className }: FooterProps) {
             <h4 className="font-bold text-lg mb-4">{t('discoverHeading')}</h4>
             <ul className="space-y-3">
               {footerLinks.discover.map((link) => (
-                <li key={link.label}>
+                <li key={link.labelKey}>
                   <a
                     href={link.href}
                     className="text-slate-400 hover:text-white transition-colors"
                   >
-                    {link.label}
+                    {t(`discover.${link.labelKey}`)}
                   </a>
                 </li>
               ))}

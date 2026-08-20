@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocale, useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import {
   Sheet,
@@ -14,9 +15,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { UserRolesEditor } from './UserRolesEditor';
+import { MemberAgencyRoleSelect } from '@/components/admin/roles/MemberAgencyRoleSelect';
 import { postUserAction } from '@/lib/queries/admin-users';
+import { formatDate as formatDateIntl } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
+import type { AgencyRoleAssignment } from '@/types/agency-role';
 import { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface UserDetailDrawerProps {
   user: AdminAgencyUserRow | null;
@@ -24,19 +30,40 @@ interface UserDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   onRemove?: (user: AdminAgencyUserRow) => void;
   isRemoving?: boolean;
+  /** TCK-279 — l'agence dont on administre l'équipe. */
+  agencyId?: number;
+  /**
+   * TCK-279 (AC11) — les profils de ce membre DANS cette agence, avec le
+   * rôle que chacun porte. Une LISTE : rien n'interdit d'être agent et
+   * propriétaire dans la même agence, et ces deux profils ont chacun leur
+   * rôle. Un sélecteur par profil, donc.
+   */
+  assignments?: readonly AgencyRoleAssignment[];
+  /**
+   * AC12 — `team.assign_role`, résolu par capacité et non par type de
+   * profil. ⚠️ Masquer le sélecteur n'autorise rien : `AgencyRolePolicy`
+   * décide, ceci évite seulement d'offrir un geste qui rendra 403.
+   */
+  canAssignRole?: boolean;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Actif',
-  inactive: 'Inactif',
-  banned: 'Bloqué',
-};
+/** TCK-292 — libellés résolus sous `admin.users.status.*` ; une valeur inconnue
+ * du dictionnaire retombe sur la valeur brute de l'API, comme auparavant. */
+const KNOWN_STATUSES = new Set(['active', 'inactive', 'banned']);
 
-function formatDate(value: string | null): string {
+/** TCK-292 — la locale ACTIVE, plus `fr-FR` en dur (options inchangées). */
+function formatDate(value: string | null, locale: Locale): string {
   if (!value) return '—';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  // `formatDate` pose `dateStyle: 'medium'` par défaut, et Intl REFUSE `dateStyle`
+  // mêlé à des champs explicites — on le neutralise.
+  return formatDateIntl(d, locale, {
+    dateStyle: undefined,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 function getInitials(u: AdminAgencyUserRow): string {
@@ -54,8 +81,15 @@ export function UserDetailDrawer({
   onOpenChange,
   onRemove,
   isRemoving = false,
+  agencyId,
+  assignments = [],
+  canAssignRole = false,
 }: UserDetailDrawerProps) {
   const queryClient = useQueryClient();
+  const t = useTranslations('admin.users');
+  const locale = useLocale() as Locale;
+  const agencyRoleHeading = useTranslations('admin.roles')('assign.heading');
+  const messageErreur = useMessageErreurApi();
 
   const blockMutation = useMutation({
     mutationFn: () => postUserAction(user!.id, 'block'),
@@ -100,7 +134,7 @@ export function UserDetailDrawer({
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge variant="outline">
-                  {STATUS_LABEL[user.status] ?? user.status}
+                  {KNOWN_STATUSES.has(user.status) ? t(`status.${user.status}`) : user.status}
                 </Badge>
                 {user.roles?.map((r) => {
                   // TCK-278 — l'API peut retourner soit une string (UserResource)
@@ -117,20 +151,38 @@ export function UserDetailDrawer({
 
             <div className="flex-1 overflow-y-auto px-6 py-5">
               <dl className="grid grid-cols-1 gap-3 text-sm">
-                <Field label="Téléphone" value={user.phone ?? '—'} />
-                <Field label="Dernière connexion" value={formatDate(user.last_login_at)} />
-                <Field label="Compte créé" value={formatDate(user.created_at)} />
+                <Field label={t('drawer.phone')} value={user.phone ?? '—'} />
+                <Field label={t('drawer.lastLogin')} value={formatDate(user.last_login_at, locale)} />
+                <Field label={t('drawer.createdAt')} value={formatDate(user.created_at, locale)} />
               </dl>
 
               <Separator className="my-5" />
 
               <UserRolesEditor user={user} />
+
+              {canAssignRole && typeof agencyId === 'number' && assignments.length > 0 ? (
+                <>
+                  <Separator className="my-5" />
+                  <div className="space-y-4" data-testid="member-agency-roles">
+                    <p className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
+                      {agencyRoleHeading}
+                    </p>
+                    {assignments.map((assignment) => (
+                      <MemberAgencyRoleSelect
+                        key={`${assignment.profile_type}-${assignment.profile_id}`}
+                        agencyId={agencyId}
+                        assignment={assignment}
+                      />
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
 
             <div className="border-t border-app-surface-2 p-6">
               {lastError ? (
                 <p className="mb-3 text-xs text-destructive" role="alert">
-                  {lastError.displayMessage}
+                  {messageErreur(lastError)}
                 </p>
               ) : null}
               <div className="flex flex-col gap-2">
@@ -141,7 +193,7 @@ export function UserDetailDrawer({
                     onClick={() => activateMutation.mutate()}
                   >
                     {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                    Réactiver le compte
+                    {t('drawer.reactivateAccount')}
                   </Button>
                 ) : (
                   <Button
@@ -152,7 +204,7 @@ export function UserDetailDrawer({
                     data-testid="block-user-button"
                   >
                     {isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                    Bloquer le compte
+                    {t('drawer.blockAccount')}
                   </Button>
                 )}
                 {onRemove ? (
@@ -164,13 +216,13 @@ export function UserDetailDrawer({
                     data-testid="remove-user-button"
                   >
                     {isRemoving ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-                    Retirer de l&apos;agence
+                    {t('drawer.removeFromAgency')}
                   </Button>
                 ) : null}
               </div>
               {isSelf ? (
                 <p className="mt-2 text-center text-xs text-app-ink-muted">
-                  Vous ne pouvez pas modifier le statut de votre propre compte.
+                  {t('drawer.selfNotice')}
                 </p>
               ) : null}
             </div>

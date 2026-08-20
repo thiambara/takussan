@@ -2,6 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { Share2, Check, Copy } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 /**
  * Lightweight share trigger — Wave 3 / TCK-047.
@@ -28,8 +29,12 @@ export function ShareButton({
   text,
   className = '',
   size = 'md',
-  label = 'Partager',
+  label,
 }: ShareButtonProps) {
+  const t = useTranslations('share');
+  // `label` était par défaut « Partager » dans la signature — un libellé par défaut est du texte
+  // affiché comme un autre, et une valeur par défaut ne peut pas appeler un hook.
+  const libelle = label ?? t('share');
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -64,13 +69,13 @@ export function ShareButton({
       type="button"
       onClick={handleShare}
       disabled={busy}
-      aria-label={label}
+      aria-label={libelle}
       className={`inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white ${sizeClasses} font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition ${className}`}
     >
       {copied ? (
         <>
           <Check className="w-4 h-4 text-emerald-600" />
-          <span>Lien copié</span>
+          <span>{t('linkCopied')}</span>
         </>
       ) : (
         <>
@@ -79,7 +84,7 @@ export function ShareButton({
           ) : (
             <Share2 className="w-4 h-4" />
           )}
-          <span>{label}</span>
+          <span>{libelle}</span>
         </>
       )}
     </button>

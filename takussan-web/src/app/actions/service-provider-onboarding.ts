@@ -2,9 +2,10 @@
 
 import { cookies } from 'next/headers';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
+import { getTranslations } from 'next-intl/server';
 import {
   completeSpOnboarding,
   fetchSpAgencies,
@@ -28,17 +29,29 @@ export type ActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
 
-function failure(err: unknown, fallback: string): ActionResult<never> {
+/** Clés de repli de `serverActions.serviceProviderOnboarding` — l'union tient lieu de contrôle de frappe. */
+type CleRepli = 'tradesFailed' | 'availabilityFailed' | 'completeFailed' | 'agenciesFailed';
+
+async function failure(err: unknown, cleRepli: CleRepli): Promise<ActionResult<never>> {
+  // Module `'use server'` : le texte se compose ICI, avec `getTranslations`. Voir `src/lib/api.ts`.
+  const [tRacine, t] = await Promise.all([getTranslations(), getTranslations('serverActions.serviceProviderOnboarding')]);
+  const repli = t(cleRepli);
   if (err instanceof ApiError) {
     const data = err.data as { errors?: Record<string, string[]>; message?: string } | null;
     return {
       ok: false,
       status: err.status,
-      message: err.displayMessage,
+      message: messageErreurApi(err, tRacine, repli),
       errors: data?.errors,
     };
   }
-  return { ok: false, message: fallback };
+  return { ok: false, message: repli };
+}
+
+/** Repli commun aux quatre actions : le jeton manque, rien n'a été tenté. */
+async function nonConnecte(): Promise<ActionResult<never>> {
+  const t = await getTranslations('serverActions.shared');
+  return { ok: false, status: 401, message: t('mustBeSignedIn') };
 }
 
 export async function spPatchTradesAction(
@@ -46,13 +59,13 @@ export async function spPatchTradesAction(
   payload: TradesPayload,
 ): Promise<ActionResult<{ id: number }>> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Vous devez être connecté.' };
+  if (!token) return nonConnecte();
 
   try {
     const res = await patchSpTrades(token, spProfileId, payload);
     return { ok: true, data: { id: res.data.id } };
   } catch (err) {
-    return failure(err, 'Impossible de sauvegarder vos métiers.');
+    return failure(err, 'tradesFailed');
   }
 }
 
@@ -61,13 +74,13 @@ export async function spPatchAvailabilityAction(
   slots: AvailabilitySlot[],
 ): Promise<ActionResult<{ id: number }>> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Vous devez être connecté.' };
+  if (!token) return nonConnecte();
 
   try {
     const res = await patchSpAvailability(token, spProfileId, { available_slots: slots });
     return { ok: true, data: { id: res.data.id } };
   } catch (err) {
-    return failure(err, 'Impossible de sauvegarder vos disponibilités.');
+    return failure(err, 'availabilityFailed');
   }
 }
 
@@ -76,7 +89,7 @@ export async function spOnboardCompleteAction(
   otpCode?: string,
 ): Promise<ActionResult<OnboardCompleteResponse['data']>> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Vous devez être connecté.' };
+  if (!token) return nonConnecte();
 
   try {
     const res = await completeSpOnboarding(token, {
@@ -97,7 +110,7 @@ export async function spOnboardCompleteAction(
 
     return { ok: true, data: res.data };
   } catch (err) {
-    return failure(err, 'Impossible de finaliser votre onboarding prestataire.');
+    return failure(err, 'completeFailed');
   }
 }
 
@@ -110,12 +123,12 @@ export async function getSpAgenciesAction(): Promise<
   ActionResult<ServiceProviderAgenciesResponse>
 > {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Vous devez être connecté.' };
+  if (!token) return nonConnecte();
 
   try {
     const res = await fetchSpAgencies(token);
     return { ok: true, data: res };
   } catch (err) {
-    return failure(err, 'Impossible de charger vos agences partenaires.');
+    return failure(err, 'agenciesFailed');
   }
 }

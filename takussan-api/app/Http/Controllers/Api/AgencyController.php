@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\AgencyUpdateRequest;
+use App\Http\Requests\Api\AddAgentAgencyRequest;
+use App\Http\Requests\Api\StoreAgencyRequest;
 use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
@@ -19,23 +21,23 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 
 class AgencyController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $paginator = Agency::buildQuery($this->visibleAgencyQuery($request->user()), $request)
-            ->defaultSort('-created_at')
+        // TCK-281 — `defaultSortsWithRelevance()` doit être évalué APRÈS
+        // `buildQuery()`, qui est ce qui interroge Meilisearch.
+        $query = Agency::buildQuery($this->visibleAgencyQuery($request->user()), $request);
+
+        $paginator = $query
+            ->defaultSorts(...Agency::defaultSortsWithRelevance('-created_at'))
             ->paginate();
 
-        return $this->json([
-            'data' => AgencyResource::collection($paginator)->toArray($request),
-            'meta' => ['total' => $paginator->total(), 'current_page' => $paginator->currentPage()],
-        ]);
+        return $this->paginated($paginator, AgencyResource::collection($paginator)->toArray($request));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreAgencyRequest $request): JsonResponse
     {
         $user = $request->user();
 
@@ -46,17 +48,7 @@ class AgencyController extends Controller
             'You already administer an agency.'
         );
 
-        $data = $request->validate([
-            'name' => ['required', 'string'],
-            'license_number' => ['nullable', 'string'],
-            'description' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
-            'phone' => ['nullable', 'string'],
-            'website' => ['nullable', 'url'],
-            'commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'currency' => ['nullable', Rule::enum(Currency::class)],
-            'status' => ['nullable', Rule::enum(AgencyStatus::class)],
-        ]);
+        $data = $request->validated();
 
         $agency = Agency::create(array_merge($data, [
             'primary_admin_id' => $user->id,
@@ -76,16 +68,17 @@ class AgencyController extends Controller
 
     public function update(AgencyUpdateRequest $request, Agency $agency): JsonResponse
     {
-        $user = $request->user();
-        abort_unless(
-            $user->isSuperAdmin()
-            || $agency->primary_admin_id === $user->id
-            || (
-                $request->activeProfile()?->agency_id === $agency->id
-                && $user->isAgencyAdminAt((int) $agency->id)
-            ),
-            403
-        );
+        // TCK-290 — la règle vit désormais dans `AgencyPolicy::update`, une
+        // seule fois, partagée avec `MediaController::authorizeAttach` (upload
+        // du logo). Elle était écrite ici et dans `authorizeAdmin()`, et nulle
+        // part où une policy pouvait la lire.
+        //
+        // `abort_unless(can(), 403)` plutôt que `Gate::authorize()` : ce
+        // dernier remplacerait le corps `{"message":""}` par
+        // `{"message":"This action is unauthorized."}` — une phrase ANGLAISE
+        // que le front affiche telle quelle (`ApiError::displayMessage`) dans
+        // une UI française. Dédupliquer ne doit rien changer d'observable.
+        abort_unless($request->user()->can('update', $agency), 403);
 
         $data = $request->validated();
 
@@ -109,9 +102,14 @@ class AgencyController extends Controller
     }
 
     /**
-     * List members of an agency. Supports spatie filters (role, search) and
-     * sparse fieldsets. The `role` filter is honoured post-query because
-     * spatie roles live on a separate pivot.
+     * List members of an agency. Supports spatie/laravel-query-builder
+     * filters (role, search) and sparse fieldsets.
+     *
+     * TCK-278 — the `role` filter is honoured post-query because a role is a
+     * polymorphic PROFILE (`OwnerProfile` / `AgentProfile` / …), not a column
+     * on `users`. It used to read « because spatie roles live on a separate
+     * pivot » — that pivot was dropped with `spatie/laravel-permission`
+     * (ADR-0002); the post-query step survived it for a different reason.
      */
     public function listMembers(Request $request, Agency $agency): JsonResponse
     {
@@ -124,8 +122,11 @@ class AgencyController extends Controller
             $q->whereHas('agentProfiles', fn ($qq) => $qq->where('agency_id', $agency->id))
                 ->orWhereHas('ownerProfiles', fn ($qq) => $qq->where('agency_id', $agency->id));
         });
-        $query = User::buildQuery($base, $request)
-            ->defaultSort('-created_at');
+        $query = User::buildQuery($base, $request);
+        // TCK-281 — la recherche des membres bascule sur Meilisearch avec ce
+        // ticket (le front lui envoie déjà `filter[search]`) : elle hérite
+        // donc du classement par pertinence, comme la liste des agences.
+        $query->defaultSorts(...User::defaultSortsWithRelevance('-created_at'));
 
         // TCK-278 — Filtre `?filter[role]=...` désormais résolu via les
         // profils polymorphes plutôt que la table spatie `roles`.
@@ -143,25 +144,15 @@ class AgencyController extends Controller
 
         return $this->json([
             'data' => UserResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
+            'meta' => $this->paginationMeta($paginator),
         ]);
     }
 
-    public function addAgent(Request $request, Agency $agency): JsonResponse
+    public function addAgent(AddAgentAgencyRequest $request, Agency $agency): JsonResponse
     {
-        $this->authorizeAdmin($request, $agency);
         app(QuotaResolver::class)->assertCanAddAgent($agency);
 
-        $data = $request->validate([
-            'user_id' => ['nullable', 'integer', 'exists:users,id', 'required_without:email'],
-            'email' => ['nullable', 'email', 'required_without:user_id'],
-            'role' => ['nullable', 'string', Rule::in(['agent', 'agency_admin'])],
-        ]);
+        $data = $request->validated();
 
         $target = isset($data['user_id'])
             ? User::findOrFail($data['user_id'])
@@ -233,21 +224,15 @@ class AgencyController extends Controller
         return $this->json(['data' => ['user_id' => $user->id, 'removed' => true]]);
     }
 
+    /**
+     * TCK-290 — troisième copie de la même expression, supprimée. La règle
+     * (dont la correspondance STRICTE du profil actif, qui empêche un
+     * `agency_admin` de Y d'administrer X au motif qu'il y est membre) est
+     * dans `AgencyPolicy::update`.
+     */
     protected function authorizeAdmin(Request $request, Agency $agency): void
     {
-        $user = $request->user();
-        // Strict active-profile match prevents an actor who is agency_admin
-        // at agency Y (active) from administering agency X just because they
-        // hold a member profile there — they must switch profile first.
-        abort_unless(
-            $user->isSuperAdmin()
-            || $agency->primary_admin_id === $user->id
-            || (
-                $request->activeProfile()?->agency_id === $agency->id
-                && $user->isAgencyAdminAt((int) $agency->id)
-            ),
-            403,
-        );
+        abort_unless($request->user()->can('update', $agency), 403);
     }
 
     private function visibleAgencyQuery(User $user): Builder

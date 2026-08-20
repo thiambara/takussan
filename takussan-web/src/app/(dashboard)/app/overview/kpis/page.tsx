@@ -1,39 +1,35 @@
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
-import { getToken } from '@/lib/session';
-import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchKpiConfigs, fetchKpiMetricsCatalog } from '@/lib/queries/kpis';
 import { KpiConfigList } from './KpiConfigList';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-032 P3 — KPI customisation per agency.
+ *
+ * TCK-284 — **pas de restriction `kind`.** Cette page a porté un
+ * `redirect('/app')` sur les agences `individual` du 2026-05-12 au
+ * 2026-08-15, introduit par un commit intitulé « gate standard-only
+ * features » sans qu'aucun ticket ni aucune spec ne le demande :
+ * `docs/features.md` §1.12 donne une liste FERMÉE des restrictions d'une
+ * agence `individual`, les KPI n'y sont pas, et la clause résiduelle les
+ * rend explicitement disponibles. Le back ne l'a d'ailleurs jamais appliquée
+ * (`KpiConfigController` ne regarde pas le `kind`) : la restriction n'a
+ * jamais été un comportement, seulement un écran refusé.
  */
 export default async function KpisPage() {
+  const t = await getTranslations('dashboard.pages.kpis');
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/app/overview');
-
-  // Pro-only — bounce individual agencies back to dashboard. Super-admins
-  // have no `agency_id` and are passed through.
-  if (user.agency_id) {
-    const token = await getToken();
-    const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview/kpis', 'decision') : null;
-    // FAIL-CLOSED : `!agency` redirige AUSSI. `fetchAgency` avale son erreur en `null`
-    // (`.catch(() => null)`), donc `if (agency && …)` laissait passer une API en panne :
-    // l'écran pro s'affichait pour une agence `individual` dès que la requête échouait.
-    // Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
-    if (!agency || agency.kind !== 'standard') redirect('/app');
-  }
 
   const [configs, catalog] = await Promise.all([fetchKpiConfigs(), fetchKpiMetricsCatalog()]);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">KPIs personnalisés</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Choisissez les indicateurs à mettre en avant sur le tableau de bord de votre agence.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('subtitleFull')}</p>
       </div>
       <KpiConfigList
         initialConfigs={configs?.data ?? []}

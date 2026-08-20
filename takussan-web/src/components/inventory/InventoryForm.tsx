@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 import {
   FormGlobalError,
@@ -20,21 +21,7 @@ import {
   INVENTORY_TYPES,
 } from '@/types/inventory';
 
-import {
-  INVENTORY_CONDITION_LABEL,
-  INVENTORY_TYPE_LABEL,
-} from './labels';
 import { RoomEditor } from './RoomEditor';
-
-const TYPE_OPTIONS = INVENTORY_TYPES.map((t) => ({
-  value: t,
-  label: INVENTORY_TYPE_LABEL[t],
-}));
-
-const CONDITION_OPTIONS = INVENTORY_CONDITIONS.map((c) => ({
-  value: c,
-  label: INVENTORY_CONDITION_LABEL[c],
-}));
 
 /**
  * Creation form for an inventory (entrée / sortie). `leaseId` must be
@@ -43,8 +30,18 @@ const CONDITION_OPTIONS = INVENTORY_CONDITIONS.map((c) => ({
  * a property independently.
  */
 export function InventoryForm({ leaseId }: { readonly leaseId: number }) {
+  const t = useTranslations('inventory.form');
+  const tTypes = useTranslations('inventory.types');
+  const tConditions = useTranslations('inventory.conditions');
+  const tCommon = useTranslations('common');
   const router = useRouter();
   const create = useCreateInventory();
+
+  const typeOptions = INVENTORY_TYPES.map((value) => ({ value, label: tTypes(value) }));
+  const conditionOptions = INVENTORY_CONDITIONS.map((value) => ({
+    value,
+    label: tConditions(value),
+  }));
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     InventoryCreateInput,
@@ -73,28 +70,28 @@ export function InventoryForm({ leaseId }: { readonly leaseId: number }) {
         <FormSelect
           name="type"
           control={form.control}
-          options={TYPE_OPTIONS}
-          label="Type d'état des lieux"
+          options={typeOptions}
+          label={t('type')}
           required
         />
         <FormSelect
           name="general_condition"
           control={form.control}
-          options={CONDITION_OPTIONS}
-          label="État général"
+          options={conditionOptions}
+          label={t('generalCondition')}
           required
         />
         <FormDateTimePicker
           name="conducted_at"
           control={form.control}
-          label="Date de réalisation"
+          label={t('conductedAt')}
         />
       </div>
 
       <FormTextarea
         name="notes"
         control={form.control}
-        label="Notes générales"
+        label={t('notes')}
         rows={3}
       />
 
@@ -102,10 +99,10 @@ export function InventoryForm({ leaseId }: { readonly leaseId: number }) {
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="outline" onClick={() => router.back()}>
-          Annuler
+          {tCommon('actions.cancel')}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Enregistrement…' : "Enregistrer le brouillon"}
+          {isSubmitting ? t('saving') : t('submit')}
         </Button>
       </div>
     </form>

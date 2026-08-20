@@ -12,7 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-088 — HTTP layer for `POST/GET /api/leases/{lease}/deposit-refund`.
@@ -20,7 +20,7 @@ use Tests\BaseTestCase;
  * exceeds-remaining, 403 from a tenant-side caller, GET state shape, and
  * media attachments transferred onto `lease_deposit_refund`.
  */
-class LeaseDepositRefundEndpointTest extends BaseTestCase
+class LeaseDepositRefundEndpointTest extends TestCase
 {
     use RefreshDatabase;
 

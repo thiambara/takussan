@@ -1,8 +1,13 @@
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import { Building2 } from 'lucide-react';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { TeamConsole } from '@/components/admin/TeamConsole';
+import { EmptyState } from '@/components/feedback';
 import { PageHeader } from '@/components/layout/PageHeader';
+import { buttonVariants } from '@/components/ui/button';
 import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 /**
@@ -15,19 +20,26 @@ import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
  * bounced to `/app` by `ensureStandardAgencyOrRedirect`.
  */
 export default async function TeamPage() {
+  const tPage = await getTranslations('admin.pages.team');
   const user = await getMeAction();
   if (!isAdmin(user.roles)) redirect('/admin');
   await ensureStandardAgencyOrRedirect(user);
 
   if (!user.agency_id) {
+    const t = await getTranslations('team.page');
     return (
       <div className="space-y-6">
-        <PageHeader title="Équipe" subtitle="Gestion des membres de l'agence" />
-        <div className="rounded-xl bg-card p-8 text-sm text-muted-foreground">
-          Vous n&apos;êtes rattaché à aucune agence. Rendez-vous dans la
-          section « Configuration de l&apos;agence » pour en créer une ou en
-          rejoindre une.
-        </div>
+        <PageHeader title={tPage('shortTitle')} subtitle={tPage('shortSubtitle')} />
+        <EmptyState
+          icon={<Building2 className="size-8" aria-hidden="true" />}
+          title={t('no_agency_title')}
+          description={t('no_agency_description')}
+          action={
+            <Link href="/admin/agency" className={buttonVariants()}>
+              {t('no_agency_cta')}
+            </Link>
+          }
+        />
       </div>
     );
   }
@@ -35,8 +47,8 @@ export default async function TeamPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Équipe"
-        subtitle="Gérez tous les membres de votre agence : agents, administrateurs, propriétaires. Invitez, attribuez des rôles, suspendez ou retirez un accès."
+        title={tPage('title')}
+        subtitle={tPage('subtitle')}
       />
       <TeamConsole agencyId={user.agency_id} currentUserId={user.id} />
     </div>

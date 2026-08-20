@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class FavoriteResource extends JsonResource
+class FavoriteResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -15,7 +15,7 @@ class FavoriteResource extends JsonResource
             'user_id' => $this->user_id,
             'notes' => $this->notes,
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

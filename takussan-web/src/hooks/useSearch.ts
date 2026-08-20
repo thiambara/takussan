@@ -1,5 +1,5 @@
 'use client';
-import { useReducer, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import type { SearchFilters, SearchResult } from '@/types/search';
@@ -106,14 +106,22 @@ export function useSearch() {
 
   const [state, dispatch] = useReducer(reducer, { status: 'idle' });
 
-  const currentFilters = filtersFromSearchParams(searchParams);
+  // TCK-316 — `searchParams.toString()` était un APPEL dans le tableau de
+  // dépendances, ce que React ne sait pas comparer (`react-hooks/use-memo`), et
+  // un `eslint-disable-next-line` masquait le tout. La chaîne est hoistée : elle
+  // est une dépendance simple, stable, et `currentFilters` en dérive — donc les
+  // deux `useCallback` ci-dessous n'ont plus besoin de dérogation.
+  const searchParamsKey = searchParams.toString();
+  const currentFilters = useMemo(
+    () => filtersFromSearchParams(new URLSearchParams(searchParamsKey)),
+    [searchParamsKey],
+  );
 
   const search = useCallback((filters: Partial<SearchFilters>) => {
     const merged = { ...currentFilters, ...filters, page: 1 };
     const qs = filtersToParams(merged).toString();
     router.replace(`${pathname}${qs ? '?' + qs : ''}`);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router, pathname, searchParams.toString()]);
+  }, [router, pathname, currentFilters]);
 
   const setPage = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());

@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class MessageResource extends JsonResource
+class MessageResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -15,7 +15,7 @@ class MessageResource extends JsonResource
             'sender_id' => $this->sender_id,
             'type' => $this->type?->value,
             'content' => $this->content,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

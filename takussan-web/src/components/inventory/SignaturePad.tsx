@@ -9,6 +9,7 @@ import {
   forwardRef,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 
@@ -42,15 +43,22 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   {
     onConfirm,
     disabled = false,
-    label = 'Signez ici',
-    helperText = 'Tracez votre signature avec le doigt ou la souris.',
-    confirmLabel = 'Confirmer ma signature',
-    clearLabel = 'Effacer',
+    label: labelProp,
+    helperText: helperTextProp,
+    confirmLabel: confirmLabelProp,
+    clearLabel: clearLabelProp,
     pending = false,
     errorMessage = null,
   },
   ref,
 ) {
+  // Les valeurs par défaut vivaient dans la signature de la fonction, en français dur.
+  // Elles viennent désormais du dictionnaire — le rendu est identique, l'origine du texte non.
+  const t = useTranslations('inventory.signaturePad');
+  const label = labelProp ?? t('label');
+  const helperText = helperTextProp ?? t('helperText');
+  const confirmLabel = confirmLabelProp ?? t('confirmLabel');
+  const clearLabel = clearLabelProp ?? t('clearLabel');
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const [hasInk, setHasInk] = useState(false);
@@ -169,7 +177,7 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
           disabled={disabled || pending || !hasInk}
           onClick={handleConfirm}
         >
-          {pending ? 'Enregistrement…' : confirmLabel}
+          {pending ? t('saving') : confirmLabel}
         </Button>
         {errorMessage ? (
           <span className="text-xs text-destructive">{errorMessage}</span>

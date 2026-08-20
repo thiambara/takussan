@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class CustomerResource extends JsonResource
+class CustomerResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -27,8 +27,8 @@ class CustomerResource extends JsonResource
             'added_by_id' => $this->added_by_id,
             'metadata' => $this->metadata,
             'notes' => $this->notes,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
+            'updated_at' => $this->iso($this->updated_at),
             'tasks_count' => $this->whenCounted('tasks'),
             'added_by' => $this->when(
                 $this->relationLoaded('addedBy'),
@@ -54,7 +54,7 @@ class CustomerResource extends JsonResource
                     'id' => $d->id,
                     'name' => $d->name,
                     'type' => $d->type?->value,
-                    'created_at' => $d->created_at?->toISOString(),
+                    'created_at' => $this->iso($d->created_at),
                 ])->values(),
             ),
         ];

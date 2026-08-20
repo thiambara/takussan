@@ -3,7 +3,10 @@ import { notFound, redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 
-export const metadata: Metadata = { title: 'Fiche bien' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.propertyDetail');
+  return { title: t('metaTitle') };
+}
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
@@ -14,6 +17,7 @@ import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyH
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
 import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
 import { PropertyModerationBanner } from '@/components/property-form/PropertyModerationBanner';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-041 — page d'édition d'un bien existant.
@@ -24,6 +28,7 @@ export const dynamic = 'force-dynamic';
 type Params = Promise<{ id: string }>;
 
 export default async function Page({ params }: { params: Params }) {
+  const t = await getTranslations('dashboard.pages.propertyDetail');
   const user = await getMeAction();
   assertCanReachAgentArea(user.roles);
 
@@ -50,7 +55,7 @@ export default async function Page({ params }: { params: Params }) {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Bien · {property.reference_number ?? `#${property.id}`}
+            {t('eyebrow', { reference: property.reference_number ?? `#${property.id}` })}
           </p>
           <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground">
             {property.title}

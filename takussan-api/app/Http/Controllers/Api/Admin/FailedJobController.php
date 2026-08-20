@@ -18,15 +18,7 @@ class FailedJobController extends Controller
             (int) $request->input('per_page', 20),
         );
 
-        return $this->json([
-            'data' => $paginator->items(),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, $paginator->items());
     }
 
     public function show(int $id): JsonResponse

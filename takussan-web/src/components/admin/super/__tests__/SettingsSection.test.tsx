@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { patchPlatformSettings } from '@/lib/queries/super-admin';
 import type { PlatformSetting } from '@/types/super-admin';
+import { withIntl } from '@/test/intl';
 import { SettingsSection } from '../platform-settings';
 
 vi.mock('@/lib/queries/super-admin', () => ({
@@ -15,11 +16,11 @@ function renderSection(settings: PlatformSetting[]) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  return render(
+  return render(withIntl(
     <QueryClientProvider client={queryClient}>
       <SettingsSection title="Frais plateforme" settings={settings} />
     </QueryClientProvider>,
-  );
+  ));
 }
 
 const feeSetting: PlatformSetting = {

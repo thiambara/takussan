@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Bases\BaseResource;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\JsonResource;
 
-class PayoutResource extends JsonResource
+class PayoutResource extends BaseResource
 {
     public function toArray(Request $request): array
     {
@@ -18,8 +18,8 @@ class PayoutResource extends JsonResource
             'landlord_id' => $this->landlord_id,
             'issued_by_id' => $this->issued_by_id,
             'status' => $this->status?->value,
-            'period_start' => $this->period_start?->toDateString(),
-            'period_end' => $this->period_end?->toDateString(),
+            'period_start' => $this->calendarDate($this->period_start),
+            'period_end' => $this->calendarDate($this->period_end),
             'gross_amount' => (float) $this->gross_amount,
             'commission_amount' => (float) $this->commission_amount,
             'fees_amount' => $this->fees_amount !== null ? (float) $this->fees_amount : null,
@@ -27,11 +27,11 @@ class PayoutResource extends JsonResource
             'currency' => $this->currency?->value,
             'payment_method' => $this->payment_method?->value,
             'transaction_id' => $this->transaction_id,
-            'scheduled_at' => $this->scheduled_at?->toISOString(),
-            'processed_at' => $this->processed_at?->toISOString(),
+            'scheduled_at' => $this->iso($this->scheduled_at),
+            'processed_at' => $this->iso($this->processed_at),
             'failed_reason' => $this->failed_reason,
             'notes' => $this->notes,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

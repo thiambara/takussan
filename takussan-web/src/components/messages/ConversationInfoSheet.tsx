@@ -23,6 +23,7 @@ import {
 } from '@/lib/queries/conversations';
 import { useAuth } from '@/context/AuthContext';
 import type { Conversation, ConversationParticipant } from '@/types/message';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface ConversationInfoSheetProps {
   readonly open: boolean;
@@ -43,6 +44,7 @@ export function ConversationInfoSheet({
   currentMute,
 }: ConversationInfoSheetProps) {
   const t = useTranslations('messaging.group.info');
+  const messageErreur = useMessageErreurApi();
   const { user } = useAuth();
   const conversationId = conversation?.id ?? 0;
 
@@ -70,7 +72,7 @@ export function ConversationInfoSheet({
     rename.mutate(
       { subject: subject.trim() },
       {
-        onError: (err) => setError(err instanceof Error ? err.message : t('renameFailed')),
+        onError: (err) => setError(messageErreur(err, t('renameFailed'))),
       },
     );
   }
@@ -86,7 +88,7 @@ export function ConversationInfoSheet({
       { user_ids: [id] },
       {
         onSuccess: () => setNewParticipantId(''),
-        onError: (err) => setError(err instanceof Error ? err.message : t('addFailed')),
+        onError: (err) => setError(messageErreur(err, t('addFailed'))),
       },
     );
   }

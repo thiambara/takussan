@@ -17,31 +17,10 @@ import { useBookingRequest } from '@/hooks/useBookingRequest';
 import { submitPurchaseOffer } from '@/app/actions/property';
 import { formatCurrency } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
+import { useTranslations } from 'next-intl';
+
 import type { PropertyDetail } from '@/types/property';
 
-const COPY: Record<
-  'offer' | 'reserve' | 'apply',
-  { dialogTitle: string; loginTitle: string; loginBody: string; submit: string }
-> = {
-  offer: {
-    dialogTitle: 'Faire une offre',
-    loginTitle: 'Connectez-vous pour faire une offre',
-    loginBody: 'Vous devez être connecté pour soumettre une offre.',
-    submit: 'Envoyer l’offre',
-  },
-  reserve: {
-    dialogTitle: 'Réserver ce bien',
-    loginTitle: 'Connectez-vous pour réserver',
-    loginBody: 'Vous devez être connecté pour faire une demande de réservation.',
-    submit: 'Envoyer la demande',
-  },
-  apply: {
-    dialogTitle: 'Postuler à ce bien',
-    loginTitle: 'Connectez-vous pour postuler',
-    loginBody: 'Vous devez être connecté pour soumettre votre dossier de location.',
-    submit: 'Envoyer ma candidature',
-  },
-};
 
 interface PropertyReservationDialogProps {
   property: PropertyDetail;
@@ -60,28 +39,28 @@ export function PropertyReservationDialog({
   onOpenChange,
   onSuccess,
 }: PropertyReservationDialogProps) {
+  const t = useTranslations('property.reservation');
   const { user } = useAuth();
   const action = getPrimaryCtaForProperty(property).action;
   const isOfferFlow = action === 'offer';
-  const copy = COPY[action];
 
   if (!user) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{copy.loginTitle}</DialogTitle>
-            <DialogDescription>{copy.loginBody}</DialogDescription>
+            <DialogTitle>{t(`${action}.loginTitle`)}</DialogTitle>
+            <DialogDescription>{t(`${action}.loginBody`)}</DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {t('cancel')}
             </Button>
             <Link
               href={`/auth/login?redirect=/properties/${property.slug}`}
               className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
             >
-              Se connecter
+              {t('signIn')}
             </Link>
           </div>
         </DialogContent>
@@ -97,16 +76,16 @@ export function PropertyReservationDialog({
             property={property}
             onClose={() => onOpenChange(false)}
             onSuccess={onSuccess}
-            submitLabel={copy.submit}
-            title={copy.dialogTitle}
+            submitLabel={t(`${action}.submit`)}
+            title={t(`${action}.dialogTitle`)}
           />
         ) : (
           <ReservationForm
             property={property}
             onClose={() => onOpenChange(false)}
             onSuccess={onSuccess}
-            submitLabel={copy.submit}
-            title={copy.dialogTitle}
+            submitLabel={t(`${action}.submit`)}
+            title={t(`${action}.dialogTitle`)}
           />
         )}
       </DialogContent>
@@ -124,6 +103,7 @@ interface InnerFormProps {
 }
 
 function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: InnerFormProps) {
+  const t = useTranslations('property.reservation');
   const { submit, submitting, error } = useBookingRequest(property.slug);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -161,35 +141,33 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
     <>
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>
-          Précisez vos dates et le nombre d&apos;invités. Le propriétaire confirmera votre demande.
-        </DialogDescription>
+        <DialogDescription>{t('booking.description')}</DialogDescription>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <label className="space-y-1 text-sm">
-            <span className="text-stone-700">Arrivée</span>
+            <span className="text-stone-700">{t('booking.checkIn')}</span>
             <DatePicker
               required
               value={startDate}
               onValueChange={setStartDate}
               min={new Date().toISOString().slice(0, 10)}
-              placeholder="Date d'arrivée"
+              placeholder={t('booking.checkInPlaceholder')}
             />
           </label>
           <label className="space-y-1 text-sm">
-            <span className="text-stone-700">Départ</span>
+            <span className="text-stone-700">{t('booking.checkOut')}</span>
             <DatePicker
               required
               value={endDate}
               onValueChange={setEndDate}
               min={startDate || new Date().toISOString().slice(0, 10)}
-              placeholder="Date de départ"
+              placeholder={t('booking.checkOutPlaceholder')}
             />
           </label>
         </div>
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">Invités</span>
+          <span className="text-stone-700">{t('booking.guests')}</span>
           <Input
             type="number"
             required
@@ -200,11 +178,11 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
           />
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">Message (optionnel)</span>
+          <span className="text-stone-700">{t('booking.message')}</span>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Présentez-vous, expliquez votre projet…"
+            placeholder={t('booking.messagePlaceholder')}
             rows={3}
           />
         </label>
@@ -212,12 +190,15 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
           <div className="rounded-md bg-stone-50 p-3 text-sm space-y-1">
             <div className="flex justify-between">
               <span className="text-stone-600">
-                {formatPrice(property.price, property.currency)} × {nights} nuit{nights > 1 ? 's' : ''}
+                {t('booking.nightsLine', {
+                  price: formatPrice(property.price, property.currency),
+                  count: nights,
+                })}
               </span>
               <span className="text-stone-900">{formatPrice(total, property.currency)}</span>
             </div>
             <div className="flex justify-between font-semibold pt-1 border-t border-stone-200">
-              <span>Total estimé</span>
+              <span>{t('booking.estimatedTotal')}</span>
               <span>{formatPrice(total, property.currency)}</span>
             </div>
           </div>
@@ -225,10 +206,10 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Annuler
+            {t('cancel')}
           </Button>
           <Button type="submit" disabled={submitting}>
-            {submitting ? 'Envoi…' : submitLabel}
+            {submitting ? t('sending') : submitLabel}
           </Button>
         </div>
       </form>
@@ -238,6 +219,7 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
 
 // ─── Offer form (sale) — TCK-176 ────────────────────────────────────────────
 function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFormProps) {
+  const t = useTranslations('property.reservation');
   const [offerAmount, setOfferAmount] = useState('');
   const [offerExpiresAt, setOfferExpiresAt] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -258,7 +240,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
     try {
       const amount = Number(offerAmount.replace(/\s+/g, ''));
       if (!Number.isFinite(amount) || amount <= 0) {
-        setError('Montant invalide.');
+        setError(t('offerForm.invalidAmount'));
         return;
       }
       const res = await submitPurchaseOffer(property.slug, {
@@ -283,13 +265,16 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>
-          Prix d&apos;affichage : {formatPrice(property.price, property.currency)}. Le propriétaire
-          examinera votre offre avant son expiration.
+          {t('offerForm.description', {
+            price: formatPrice(property.price, property.currency),
+          })}
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">Montant proposé ({property.currency ?? 'XOF'})</span>
+          <span className="text-stone-700">
+            {t('offerForm.amount', { currency: property.currency ?? 'XOF' })}
+          </span>
           <Input
             type="number"
             required
@@ -301,21 +286,21 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
           />
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">Validité de l&apos;offre</span>
+          <span className="text-stone-700">{t('offerForm.validity')}</span>
           <DatePicker
             required
             value={offerExpiresAt}
             onValueChange={setOfferExpiresAt}
             min={minExpiry}
-            placeholder="Date d'expiration"
+            placeholder={t('offerForm.expiryPlaceholder')}
           />
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">Message (optionnel)</span>
+          <span className="text-stone-700">{t('offerForm.message')}</span>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Précisez les conditions ou le contexte de votre offre…"
+            placeholder={t('offerForm.messagePlaceholder')}
             rows={3}
           />
         </label>
@@ -328,20 +313,20 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
             className="mt-1"
           />
           <span>
-            J&apos;ai lu et j&apos;accepte les{' '}
+            {t('offerForm.termsBefore')}{' '}
             <Link href="/legal/cgu" className="text-app-accent underline">
-              conditions générales
+              {t('offerForm.termsLink')}
             </Link>
-            {' '}d&apos;utilisation pour la soumission d&apos;une offre d&apos;achat.
+            {' '}{t('offerForm.termsAfter')}
           </span>
         </label>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
-            Annuler
+            {t('cancel')}
           </Button>
           <Button type="submit" disabled={submitting || !termsAccepted}>
-            {submitting ? 'Envoi…' : submitLabel}
+            {submitting ? t('sending') : submitLabel}
           </Button>
         </div>
       </form>

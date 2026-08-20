@@ -1,7 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { Wrench } from 'lucide-react';
 import { useLeases, type LeaseWithRelations } from '@/lib/queries/leases';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MaintenanceForm } from './MaintenanceForm';
 
@@ -27,7 +30,10 @@ interface MaintenanceNewLauncherProps {
 export function MaintenanceNewLauncher({
   initialPropertyId = null,
 }: MaintenanceNewLauncherProps) {
-  const { data, isLoading, isError } = useLeases({ status: 'active', per_page: 50 });
+  const t = useTranslations('maintenance.launcher');
+  const tCommon = useTranslations('common');
+  const leasesQuery = useLeases({ status: 'active', per_page: 50 });
+  const { data, isLoading, isError } = leasesQuery;
 
   const options = useMemo(() => {
     const leases = (data?.data ?? []) as LeaseWithRelations[];
@@ -38,9 +44,9 @@ export function MaintenanceNewLauncher({
       .map((l) => ({
         propertyId: l.property.id,
         leaseId: l.id,
-        label: l.property.title ?? `Bien #${l.property.id}`,
+        label: l.property.title ?? t('property_fallback', { id: l.property.id }),
       }));
-  }, [data]);
+  }, [data, t]);
 
   const [manualPropertyId, setManualPropertyId] = useState<number | null>(null);
 
@@ -61,17 +67,21 @@ export function MaintenanceNewLauncher({
 
   if (isError) {
     return (
-      <p className="rounded-xl bg-app-surface-1 p-6 text-sm text-red-600">
-        Impossible de charger vos baux. Réessayez ou contactez le support.
-      </p>
+      <ErrorState
+        message={t('error')}
+        onRetry={() => void leasesQuery.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 
   if (options.length === 0) {
     return (
-      <div className="rounded-2xl bg-app-surface-1 p-8 text-center text-sm text-app-ink-muted">
-        Vous n&apos;avez aucun bail actif. Pour signaler un problème, contactez votre agence.
-      </div>
+      <EmptyState
+        icon={<Wrench className="size-8" aria-hidden="true" />}
+        title={t('empty_title')}
+        description={t('empty_description')}
+      />
     );
   }
 
@@ -79,7 +89,7 @@ export function MaintenanceNewLauncher({
     <div className="space-y-5">
       <div className="rounded-xl border border-stone-200 bg-white p-5">
         <label htmlFor="maintenance-property" className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-          Bien concerné
+          {t('property_label')}
         </label>
         <div className="mt-2">
           <Select
@@ -91,7 +101,7 @@ export function MaintenanceNewLauncher({
             items={options.map((o) => ({ value: String(o.propertyId), label: o.label }))}
           >
             <SelectTrigger id="maintenance-property" className="w-full">
-              <SelectValue placeholder="Sélectionnez le bien à signaler" />
+              <SelectValue placeholder={t('property_placeholder')} />
             </SelectTrigger>
             <SelectContent>
               {options.map((o) => (

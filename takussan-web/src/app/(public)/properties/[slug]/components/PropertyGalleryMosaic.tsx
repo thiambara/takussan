@@ -1,5 +1,6 @@
 'use client';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Grid3x3 } from 'lucide-react';
 import type { PropertyPhoto } from '@/types/property';
 
@@ -39,10 +40,12 @@ function Tile({ photo, alt, index, sizes, priority, className, onOpen }: TilePro
 }
 
 export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: PropertyGalleryMosaicProps) {
+  const t = useTranslations('property.detail');
+
   if (photos.length === 0) {
     return (
       <div className="aspect-[16/7] rounded-xl bg-stone-100 flex items-center justify-center text-stone-400">
-        Aucune photo disponible
+        {t('gallery.noPhotoAvailable')}
       </div>
     );
   }
@@ -159,7 +162,7 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
         className="absolute bottom-4 right-4 hidden md:inline-flex items-center gap-2 rounded-md bg-white/95 px-4 py-2 text-sm font-medium text-stone-900 shadow-md backdrop-blur hover:bg-white transition-colors"
       >
         <Grid3x3 className="size-4" aria-hidden />
-        Voir toutes les photos ({photos.length})
+        {t('gallery.viewAll', { count: photos.length })}
       </button>
     </div>
   );

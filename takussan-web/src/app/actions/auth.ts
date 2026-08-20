@@ -2,21 +2,30 @@
 
 import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import { getMe, logout, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
 import { clearToken, getActiveProfileId, getToken } from '@/lib/session';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import type { User } from '@/types/user';
 
 export async function resendVerificationEmailAction(): Promise<{ ok: boolean; message?: string }> {
   const token = await getToken();
-  if (!token) return { ok: false, message: 'Not authenticated.' };
+  if (!token) {
+    // Les deux littéraux de cette action étaient en anglais, et rendus tels quels (TCK-292, lot K).
+    const tErr = await getTranslations('errors');
+    return { ok: false, message: tErr('missingToken') };
+  }
 
   try {
-    const result = await resendVerification(token);
-    return { ok: true, message: result.message };
+    // Le `message` de l'API n'était pas rendu : `verify-email/page.tsx` ne lit que `result.ok`.
+    // Le relayer revenait à faire traverser à une prose non traduite toute la frontière serveur
+    // pour être jetée à l'arrivée. Retiré — la garde de ce module refuse désormais la forme.
+    await resendVerification(token);
+    return { ok: true };
   } catch {
-    return { ok: false, message: 'Failed to resend verification email.' };
+    const t = await getTranslations('serverActions.auth');
+    return { ok: false, message: t('resendFailed') };
   }
 }
 
@@ -41,7 +50,10 @@ export async function updateProfileAction(
   formData: FormData,
 ): Promise<UpdateProfileResult> {
   const token = await getToken();
-  if (!token) return { ok: false, message: 'Not authenticated.' };
+  if (!token) {
+    const tErr = await getTranslations('errors');
+    return { ok: false, message: tErr('missingToken') };
+  }
 
   const payload: UpdateProfilePayload = {
     first_name: formData.get('first_name') as string,
@@ -68,10 +80,17 @@ export async function updateProfileAction(
     revalidatePath('/app');
     return { ok: true, user };
   } catch (err) {
+    const [tRacine, t] = await Promise.all([
+      getTranslations(),
+      getTranslations('serverActions.auth'),
+    ]);
+    const repli = t('updateProfileFailed');
     if (err instanceof ApiError) {
-      return { ok: false, message: err.displayMessage || 'Failed to update profile.' };
+      // ⚠️ REPLI MORT corrigé : `err.displayMessage || repli` ne prenait JAMAIS la branche droite,
+      // `displayMessage` rendant une clé i18n — et une clé est *truthy*.
+      return { ok: false, message: messageErreurApi(err, tRacine, repli) };
     }
-    return { ok: false, message: 'Failed to update profile.' };
+    return { ok: false, message: repli };
   }
 }
 

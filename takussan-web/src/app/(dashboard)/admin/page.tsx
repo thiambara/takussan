@@ -8,13 +8,15 @@ import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
 import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
+import { getTranslations } from 'next-intl/server';
 
 export default async function Page() {
+  const t = await getTranslations('admin.pages.home');
   const user = await getMeAction();
 
   // TCK-115: super_admin without an agency context cannot scope the report.
   if (isSuperAdmin(user.roles) && !user.agency_id) {
-    return <NoAgencyState title="Tableau de bord agence" />;
+    return <NoAgencyState title={t('noAgency')} />;
   }
 
   await ensureStandardAgencyOrRedirect(user);
@@ -24,8 +26,8 @@ export default async function Page() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Tableau de bord agence"
-        subtitle="Vue d'ensemble de l'agence"
+        title={t('title')}
+        subtitle={t('subtitle')}
       />
 
       {payload ? (

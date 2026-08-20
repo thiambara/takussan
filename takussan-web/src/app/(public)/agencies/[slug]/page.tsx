@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { Building2, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
@@ -71,18 +72,22 @@ async function loadAgency(slug: string): Promise<AgencyDto | null> {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const t = await getTranslations('agency.publicPage');
   const agency = await loadAgency(slug);
   if (!agency) {
-    return { title: 'Agence introuvable' };
+    return { title: t('notFound') };
   }
   const summary = agency.stats
-    ? `${agency.portfolio_count} bien${agency.portfolio_count > 1 ? 's' : ''}${agency.city ? ` à ${agency.city}` : ''}`
+    ? agency.city
+      ? t('metaSummaryInCity', { count: agency.portfolio_count, city: agency.city })
+      : t('metaSummary', { count: agency.portfolio_count })
     : null;
+  const title = t('metaTitle', { name: agency.name });
   return {
-    title: `${agency.name} — Agence immobilière`,
+    title,
     description: agency.description ?? summary ?? undefined,
     openGraph: {
-      title: `${agency.name} — Agence immobilière`,
+      title,
       description: agency.description ?? summary ?? undefined,
       images: agency.logo_url ? [agency.logo_url] : undefined,
     },
@@ -99,6 +104,7 @@ function getInitials(name: string): string {
 }
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const t = await getTranslations('agency.publicPage');
   const { slug } = await params;
   const agency = await loadAgency(slug);
   if (!agency) notFound();
@@ -110,10 +116,10 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
   const statsItems = stats
     ? [
-        { label: 'Biens à louer', value: stats.rent_count },
-        { label: 'Biens à vendre', value: stats.sale_count },
-        { label: 'Villes', value: stats.cities },
-        { label: 'Agents', value: stats.agents },
+        { label: t('statsRent'), value: stats.rent_count },
+        { label: t('statsSale'), value: stats.sale_count },
+        { label: t('statsCities'), value: stats.cities },
+        { label: t('statsAgents'), value: stats.agents },
       ]
     : [];
 
@@ -163,7 +169,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 {agency.license_number && (
                   <address className="not-italic mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground">
                     <ShieldCheck className="size-4" aria-hidden />
-                    <span>Licence n° {agency.license_number}</span>
+                    <span>{t('license', { number: agency.license_number })}</span>
                   </address>
                 )}
               </div>
@@ -181,7 +187,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 name={agency.name}
                 email={agency.email}
                 phone={agency.phone}
-                subject={`Contact via Takussan — ${agency.name}`}
+                subject={t('contactSubject', { name: agency.name })}
               />
             </div>
           </div>
@@ -194,13 +200,13 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         {agency.agents.length > 0 && (
           <section aria-labelledby="team-heading">
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              L&apos;équipe
+              {t('teamEyebrow')}
             </p>
             <h2
               id="team-heading"
               className="mt-2 font-display text-2xl md:text-3xl font-semibold text-foreground"
             >
-              {agency.agents.length}&nbsp;agent{agency.agents.length > 1 ? 's' : ''}&nbsp;pour&nbsp;t&apos;accompagner
+              {t('teamHeading', { count: agency.agents.length })}
             </h2>
 
             <div className="mt-6">
@@ -212,24 +218,20 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         {/* Portefeuille avec onglets */}
         <section aria-labelledby="portfolio-heading">
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-            Portefeuille
+            {t('portfolioEyebrow')}
           </p>
           <h2
             id="portfolio-heading"
             className="mt-2 mb-6 font-display text-2xl md:text-3xl font-semibold text-foreground"
           >
-            Biens à l&apos;affiche
+            {t('portfolioHeading')}
           </h2>
 
           {agency.portfolio.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card p-10 text-center">
               <Building2 className="mx-auto size-6 text-muted-foreground" aria-hidden />
-              <p className="mt-3 font-display text-xl text-foreground">
-                Pas encore de bien à présenter
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Cette agence prépare ses prochaines annonces — reviens bientôt.
-              </p>
+              <p className="mt-3 font-display text-xl text-foreground">{t('emptyTitle')}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{t('emptyBody')}</p>
             </div>
           ) : (
             <PortfolioTabs

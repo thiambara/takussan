@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use PragmaRX\Google2FA\Google2FA;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 
 /**
  * TCK-264 — Peer-to-peer super-admin cooptation with mandatory 2FA.
@@ -33,7 +33,7 @@ use Tests\BaseTestCase;
  *  - Listing endpoint surfaces both active and pending entries.
  *  - Invalid TOTP code keeps the spatie role detached.
  */
-class SuperAdminCooptationTest extends BaseTestCase
+class SuperAdminCooptationTest extends TestCase
 {
     use RefreshDatabase;
 

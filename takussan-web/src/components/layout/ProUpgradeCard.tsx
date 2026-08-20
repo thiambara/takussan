@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { Sparkles, Clock3 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 interface ProUpgradeCardProps {
@@ -12,12 +13,11 @@ interface ProUpgradeCardProps {
 const UPGRADE_HREF = '/app/settings/agency/upgrade';
 
 export function ProUpgradeCard({ pending = false, onNavigate }: ProUpgradeCardProps) {
+  const t = useTranslations('nav.proUpgrade');
   const Icon = pending ? Clock3 : Sparkles;
-  const title = pending ? 'Demande en cours' : 'Passer en pro';
-  const body = pending
-    ? 'Validation par notre équipe sous 48h.'
-    : "Équipe, multi-admins et plus d'outils dédiés aux agences pro.";
-  const cta = pending ? 'Voir le détail' : 'En savoir plus';
+  const title = pending ? t('pendingTitle') : t('title');
+  const body = pending ? t('pendingBody') : t('body');
+  const cta = pending ? t('pendingCta') : t('cta');
 
   return (
     <Link

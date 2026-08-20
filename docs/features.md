@@ -266,7 +266,26 @@ Gestion de la structure organisationnelle.
 Une agence porte un **`kind`** :
 
 - **`standard`** — agence professionnelle multi-membres : peut inviter des collaborateurs internes (agents, autres admins), créer des rôles personnalisés, assigner biens/leads aux agents, accéder au reporting cross-équipe, customiser les tags/enums plateforme. Créée via le parcours super-admin (§2.9 → §2.1).
-- **`individual`** — agence individuelle (host solo) auto-créée par n'importe quel user via la CTA "Publier" (pattern Airbnb). Le user devient simultanément `agency_admin` + `owner` de cette agence. Restrictions par rapport à `standard` : pas d'invitation de collaborateurs internes, un seul `agency_admin`, pas de rôles personnalisés, pas d'assignation de biens/leads à un agent, pas de reporting cross-équipe, pas de customisation des tags/enums plateforme. Toutes les autres capacités (publication de biens, baux, encaissements, branding, sous-domaine, devise, intégrations, invitation de prestataires externes `ServiceProvider`) restent disponibles. Pas de quota MVP — la monétisation future est `pay-per-listing`.
+- **`individual`** — agence individuelle (host solo) auto-créée par n'importe quel user via la CTA "Publier" (pattern Airbnb). Le user devient simultanément `agency_admin` + `owner` de cette agence. Restrictions par rapport à `standard` : pas d'invitation de collaborateurs internes, un seul `agency_admin`, pas de rôles personnalisés, pas d'assignation de biens/leads à un agent, pas de reporting cross-équipe, **pas de carnet de propriétaires** — ni consultation de la liste, ni invitation d'autres bailleurs : dans une agence individuelle, le propriétaire est le créateur du compte lui-même (TCK-256, confirmé par TCK-284) —, pas de customisation des tags/enums plateforme. Toutes les autres capacités (publication de biens, baux, encaissements, branding, sous-domaine, devise, intégrations, invitation de prestataires externes `ServiceProvider`) restent disponibles. Pas de quota MVP — la monétisation future est `pay-per-listing`.
+
+> **Deux précisions nommées plutôt que déduites (TCK-295).** La liste ci-dessus est **fermée**, et
+> la phrase « toutes les autres capacités restent disponibles » suffit logiquement à répondre pour
+> tout le reste. Elle n'a pourtant pas suffi en pratique : c'est exactement par ce silence qu'un
+> commit (`5d40dd31`) a cadenassé deux écrans qu'aucun ticket ne demandait, et qu'une restriction
+> décidée et livrée par TCK-256 a coexisté des mois avec une clause résiduelle qui la niait
+> (levé par TCK-284). *Une règle que la spec ne nomme pas finit par être appliquée — ou retirée —
+> par quelqu'un qui lit la spec.* D'où ces deux lignes explicites :
+>
+> - **Les KPI personnalisables et les alertes de seuil de [§2.5](#25-reporting--tableaux-de-bord)
+>   sont DISPONIBLES en agence `individual`** — arbitrage produit tranché par TCK-284 le
+>   2026-08-15. Ils ne figurent pas dans `PRO_ROUTES`
+>   (`takussan-web/src/lib/access/pro-features.ts`), et `scripts/check-pro-routes.mjs` tient
+>   l'accord entre cette phrase et le code.
+> - **« Reporting cross-équipe » ci-dessus et « Dashboard agence » en §2.5 désignent le même
+>   écran** (`/app/overview/agency`), et il est bien restreint. Les deux sections le nommaient
+>   différemment sans le dire : §2.5 le liste en P1 sans mention de restriction, et seul un lecteur
+>   qui sait déjà qu'il s'agit du même écran pouvait relier les deux. La restriction tient à sa
+>   raison d'être — un reporting *cross-équipe* n'a pas d'objet là où il n'y a qu'un collaborateur.
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
@@ -317,7 +336,7 @@ Une **identité = un User**, qui peut porter plusieurs **profils métier** chez 
 | P0 | Tous | Sélection du **profil actif** pour la session (`PATCH /api/me/active-profile`) |
 | P0 | Tous | Bascule automatique du profil actif si l'utilisateur n'a qu'un seul profil |
 | P0 | Tous | Switch de profil exposé en UI (header / menu compte) — change l'agence et les permissions sans nouvelle authentification |
-| P0 | 🛡️ | Toute permission spatie est résolue dans le scope du profil actif (`team_id = profile.agency_id`) |
+| P0 | 🛡️ | Toute capacité est résolue dans le scope du profil actif — pour un couple *(utilisateur, agence)*, jamais globalement ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P1 | Tous | KYC distinct par profil (pièces d'identité, RIB, license, assurance — un dossier par profil) |
 | P1 | 🛡️ | Création/désactivation d'un profil par un agency_admin (ex. nouvel agent recruté) |
 | P2 | Tous | Indication visuelle de "profil actif" sur toutes les vues authentifiées |
@@ -341,16 +360,18 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 
 ### 2.2 Rôles & permissions
 
-> **TCK-138 → TCK-142.** Les rôles spatie sont **scopés par profil** : `team_id = profile.agency_id`. La nature métier (owner / agent / broker / service_provider) est portée par le profil actif ; les permissions par les rôles spatie attachés à ce profil. Plus aucun scoping direct par `users.agency_id`.
+> **TCK-138 → TCK-142, puis TCK-278.** La nature métier (owner / agent / broker / service_provider) est portée par le **profil actif**, et les permissions en **découlent** : `spatie/laravel-permission` a été désinstallé, il n'y a plus ni table de rôles, ni `team_id`. Un « rôle » est un **profil polymorphe** ([ADR-0002](adr/0002-role-est-un-profil-polymorphe.md), [Règle 5 de `models-spec.md`](models-spec.md#règle-5--profil--rôle)) ; une « permission » est un cas de l'enum `Capability` (`<domaine>.<verbe>`), résolu par `MembershipCapabilityResolver` pour un couple *(utilisateur, agence)* et additif entre profils ([ADR-0003](adr/0003-capacites-enum-code-defined.md)). Plus aucun scoping direct par `users.agency_id` — la colonne n'existe plus en base.
+>
+> ⚠️ **Cette section décrivait le mécanisme spatie au présent jusqu'au 2026-08-15**, plusieurs mois après sa suppression, alors qu'une garde CI casse déjà sur tout import `Spatie\Permission\`. Le **quoi** ci-dessous — rôles prédéfinis, permissions granulaires, éditeur de rôles réservé aux agences — est tranché et n'a pas bougé ; seul le **comment** était périmé. Si une ligne de ce tableau contredit le code, c'est le code qui a raison.
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P0 | 🛡️ | Rôles prédéfinis : `super_admin` (global, sans `team_id`) ; `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` (scopés via le profil actif → `team_id = profile.agency_id`) |
+| P0 | 🛡️ | Rôles prédéfinis : `super_admin` (porté par `PlatformProfile`, hors agence) ; `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` (portés par le profil polymorphe correspondant, scopés par son agence) |
 | P0 | 🛡️ | Permissions granulaires par ressource (view, create, update, delete, update_all…) |
 | P0 | 🛡️ | Distinction « mes ressources » vs « toutes les ressources » |
 | P0 | 🛡️ | Résolution des permissions au runtime selon le **profil actif** de la requête (header `X-Profile-Id`, cookie ou auto-bascule) |
 | P1 | 🛡️ | Attribution et retrait de rôles à un profil (et non à un user global) |
-| P1 | 🛡️ | Éditeur de rôles personnalisés scopé par agence (via teams spatie/permission) |
+| P1 | 🛡️ | Éditeur de rôles personnalisés scopé par agence (réservé aux agences `standard`) — un « rôle personnalisé » est un ensemble de `Capability` nommé, porté par l'agence ; le mécanisme reste à concevoir, `Capability` étant défini en code ([ADR-0003](adr/0003-capacites-enum-code-defined.md)) |
 | P2 | 🛡️ | Délégation temporaire de permissions |
 | P3 | 🛡️ | Règles conditionnelles (policies dynamiques) |
 
@@ -398,7 +419,7 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
-| P1 | 🛡️ | Dashboard agence (biens, vues, revenus, impayés) |
+| P1 | 🛡️ | Dashboard agence (biens, vues, revenus, impayés) — **agences `standard` uniquement** : c'est le « reporting cross-équipe » restreint en [§1.12](#112-agence--équipe), sous un autre nom (TCK-295) |
 | P1 | 🏢 | Dashboard bailleur (portefeuille, cashflow, occupation) |
 | P1 | 🧑‍💼 | Dashboard agent (pipeline, commissions, tâches) |
 | P1 | 🏠 | Dashboard locataire (prochaines échéances, documents) |
@@ -406,8 +427,8 @@ Canal de notification **WhatsApp sortant** qui remplace certains SMS pour les fa
 | P2 | 🛡️ | Export PDF (quittances, factures, rapports) |
 | P2 | 🛡️ | Graphiques temporels (revenus, occupation) |
 | P2 | 🛡️ | Reporting plateforme cross-tenant (croissance agences/users/listings, MRR/ARR, cohortes de rétention, funnel) — strictement super_admin |
-| P3 | 🛡️ | KPI personnalisables par agence |
-| P3 | 🛡️ | Alertes sur seuils (taux d'impayés, vacance) |
+| P3 | 🛡️ | KPI personnalisables par agence — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) |
+| P3 | 🛡️ | Alertes sur seuils (taux d'impayés, vacance) — **disponibles aussi en agence `individual`** (arbitrage TCK-284, écrit en [§1.12](#112-agence--équipe)) |
 
 ### 2.6 Audit & traçabilité
 

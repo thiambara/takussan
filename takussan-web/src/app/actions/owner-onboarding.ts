@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import {
   completeOwnerOnboarding,
   fetchOwnerProperties,
@@ -13,6 +13,7 @@ import {
 } from '@/lib/owner-onboarding';
 import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-257 — server actions consumed by `<OwnerOnboardingWizard>`.
@@ -26,30 +27,42 @@ export type ActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
 
-function failure(err: unknown, fallback: string): ActionResult<never> {
+/** Clés de repli de `serverActions.ownerOnboarding` — l'union tient lieu de contrôle de frappe. */
+type CleRepli = 'kycFailed' | 'completeFailed' | 'propertiesFailed';
+
+async function failure(err: unknown, cleRepli: CleRepli): Promise<ActionResult<never>> {
+  // Module `'use server'` : le texte se compose ICI, avec `getTranslations`. Voir `src/lib/api.ts`.
+  const [tRacine, t] = await Promise.all([getTranslations(), getTranslations('serverActions.ownerOnboarding')]);
+  const repli = t(cleRepli);
   if (err instanceof ApiError) {
     const data = err.data as { errors?: Record<string, string[]>; message?: string } | null;
     return {
       ok: false,
       status: err.status,
-      message: err.displayMessage,
+      message: messageErreurApi(err, tRacine, repli),
       errors: data?.errors,
     };
   }
-  return { ok: false, message: fallback };
+  return { ok: false, message: repli };
+}
+
+/** Repli commun aux quatre actions : le jeton manque, rien n'a été tenté. */
+async function nonConnecte(): Promise<ActionResult<never>> {
+  const t = await getTranslations('serverActions.shared');
+  return { ok: false, status: 401, message: t('mustBeSignedIn') };
 }
 
 export async function ownerSubmitKycAction(
   ownerProfileId: number,
 ): Promise<ActionResult<OwnerKycSubmitResponse['data']>> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Vous devez être connecté.' };
+  if (!token) return nonConnecte();
 
   try {
     const res = await submitOwnerKyc(token, ownerProfileId);
     return { ok: true, data: res.data };
   } catch (err) {
-    return failure(err, "Impossible de soumettre votre dossier KYC.");
+    return failure(err, 'kycFailed');
   }
 }
 
@@ -58,7 +71,7 @@ export async function ownerOnboardCompleteAction(
   otpCode?: string,
 ): Promise<ActionResult<OwnerOnboardCompleteResponse['data']>> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Vous devez être connecté.' };
+  if (!token) return nonConnecte();
 
   try {
     const res = await completeOwnerOnboarding(token, {
@@ -78,7 +91,7 @@ export async function ownerOnboardCompleteAction(
 
     return { ok: true, data: res.data };
   } catch (err) {
-    return failure(err, "Impossible de finaliser votre onboarding.");
+    return failure(err, 'completeFailed');
   }
 }
 
@@ -86,12 +99,12 @@ export async function getOwnerPropertiesAction(
   ownerProfileId: number,
 ): Promise<ActionResult<OwnerPropertiesResponse>> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Vous devez être connecté.' };
+  if (!token) return nonConnecte();
 
   try {
     const res = await fetchOwnerProperties(token, ownerProfileId);
     return { ok: true, data: res };
   } catch (err) {
-    return failure(err, 'Impossible de charger vos biens.');
+    return failure(err, 'propertiesFailed');
   }
 }

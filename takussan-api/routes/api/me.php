@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\Me\AgentProfileController as MeAgentProfileController;
 use App\Http\Controllers\Api\Me\DataExportController;
+use App\Http\Controllers\Api\Me\MeCapabilityController;
 use App\Http\Controllers\Api\Me\MeController;
 use App\Http\Controllers\Api\Me\MeProfilesController;
 use App\Http\Controllers\Api\Me\OwnerProfileController as MeOwnerProfileController;
@@ -26,6 +27,12 @@ Route::middleware('auth:sanctum')->prefix('me')->group(function () {
     // Differs from PUT /api/auth/profile which requires first/last name on
     // every call; this endpoint is purely opt-in personalisation.
     Route::patch('/', [MeController::class, 'update'])->name('me.update');
+
+    // TCK-279 — ce que l'utilisateur peut faire dans l'agence courante. Sert
+    // au hook `useCan()` du front pour ne pas proposer un bouton qui rendra
+    // 403. ⚠️ C'est de l'AFFICHAGE, jamais une autorisation : la décision
+    // reste entière dans les policies côté serveur.
+    Route::get('capabilities', [MeCapabilityController::class, 'index'])->name('me.capabilities.index');
 
     Route::get('profiles', [MeProfilesController::class, 'index'])->name('me.profiles.index');
     Route::patch('active-profile', [MeProfilesController::class, 'updateActive'])->name('me.active-profile.update');

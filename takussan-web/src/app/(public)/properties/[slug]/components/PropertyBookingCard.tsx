@@ -1,4 +1,5 @@
 'use client';
+import { useTranslations } from 'next-intl';
 import { Calendar, KeyRound, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/format/currency';
@@ -24,6 +25,7 @@ export function PropertyBookingCard({
   onRequestBooking,
   onMessage,
 }: PropertyBookingCardProps) {
+  const t = useTranslations('property.detail');
   const isRent = property.contract_type === 'rent';
   const periodLabel = property.rent_period_label ?? (isRent ? 'mois' : null);
   const primaryCta = getPrimaryCtaForProperty(property);
@@ -45,20 +47,20 @@ export function PropertyBookingCard({
       <div className="space-y-2">
         <Button type="button" className="w-full gap-2" onClick={onRequestBooking}>
           <KeyRound className="size-4" aria-hidden />
-          {primaryCta.label}
+          {t(`primaryCta.${primaryCta.action}`)}
         </Button>
         <Button type="button" variant="outline" className="w-full gap-2" onClick={onRequestVisit}>
           <Calendar className="size-4" aria-hidden />
-          Demander une visite
+          {t('requestVisit')}
         </Button>
         <Button type="button" variant="ghost" className="w-full gap-2" onClick={onMessage}>
           <MessageCircle className="size-4" aria-hidden />
-          Envoyer un message
+          {t('sendMessage')}
         </Button>
       </div>
 
       <p className="text-xs text-stone-500 text-center">
-        Vous ne serez pas débité avant la confirmation.
+        {t('noChargeNotice')}
       </p>
     </aside>
   );

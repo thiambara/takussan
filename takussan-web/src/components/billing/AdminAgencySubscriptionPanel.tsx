@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Save, XCircle } from 'lucide-react';
-import { ApiError } from '@/lib/api';
+
 import { assignAdminAgencySubscription, cancelAdminAgencySubscription, fetchAdminAgencySubscription, fetchAdminPlans } from '@/lib/queries/super-admin';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,8 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import { SubscriptionSummary } from './SubscriptionSummary';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export function AdminAgencySubscriptionPanel({ agencyId }: { agencyId: number }) {
+  const t = useTranslations('billing.agencySubscription');
+  const tBilling = useTranslations('billing');
+  const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
   const [planId, setPlanId] = useState('');
@@ -34,19 +39,19 @@ export function AdminAgencySubscriptionPanel({ agencyId }: { agencyId: number })
       },
     }),
     onSuccess: async () => {
-      toast.add({ title: 'Abonnement mis à jour', type: 'success' });
+      toast.add({ title: t('toast.assigned'), type: 'success' });
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'agency', agencyId, 'subscription'] });
     },
-    onError: (error) => toast.add({ title: 'Assignation impossible', description: messageFor(error), type: 'error' }),
+    onError: (error) => toast.add({ title: t('toast.assignFailed'), description: messageErreur(error, tBilling('retryLater')), type: 'error' }),
   });
 
   const cancelMutation = useMutation({
     mutationFn: () => cancelAdminAgencySubscription(agencyId),
     onSuccess: async () => {
-      toast.add({ title: 'Abonnement clôturé', type: 'success' });
+      toast.add({ title: t('toast.closed'), type: 'success' });
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'agency', agencyId, 'subscription'] });
     },
-    onError: (error) => toast.add({ title: 'Clôture impossible', description: messageFor(error), type: 'error' }),
+    onError: (error) => toast.add({ title: t('toast.closeFailed'), description: messageErreur(error, tBilling('retryLater')), type: 'error' }),
   });
 
   if (subscriptionQuery.isLoading || plansQuery.isLoading) return <Skeleton className="h-72 rounded-xl" />;
@@ -56,12 +61,12 @@ export function AdminAgencySubscriptionPanel({ agencyId }: { agencyId: number })
       <SubscriptionSummary subscription={subscriptionQuery.data?.data ?? null} />
       <Card>
         <CardHeader>
-          <CardTitle>Changer de plan</CardTitle>
+          <CardTitle>{t('changePlan')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <Select value={planId} onValueChange={(value) => setPlanId(value ?? '')}>
             <SelectTrigger>
-              <SelectValue placeholder="Choisir un plan" />
+              <SelectValue placeholder={t('choosePlan')} />
             </SelectTrigger>
             <SelectContent>
               {(plansQuery.data?.data ?? []).map((plan) => (
@@ -69,16 +74,16 @@ export function AdminAgencySubscriptionPanel({ agencyId }: { agencyId: number })
               ))}
             </SelectContent>
           </Select>
-          <Input type="number" placeholder="Commission override (%)" value={fee} onChange={(event) => setFee(event.target.value)} />
-          <Input type="number" placeholder="Quota biens actifs override" value={maxListings} onChange={(event) => setMaxListings(event.target.value)} />
+          <Input type="number" placeholder={t('feeOverride')} value={fee} onChange={(event) => setFee(event.target.value)} />
+          <Input type="number" placeholder={t('listingsOverride')} value={maxListings} onChange={(event) => setMaxListings(event.target.value)} />
           <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="outline" disabled={!planId || assignMutation.isPending} onClick={() => assignMutation.mutate()}>
               <Save className="mr-2 size-4" aria-hidden="true" />
-              Assigner
+              {t('assign')}
             </Button>
             <Button type="button" variant="destructive" disabled={!subscriptionQuery.data?.data || cancelMutation.isPending} onClick={() => cancelMutation.mutate()}>
               <XCircle className="mr-2 size-4" aria-hidden="true" />
-              Clôturer
+              {t('close')}
             </Button>
           </div>
         </CardContent>
@@ -87,6 +92,3 @@ export function AdminAgencySubscriptionPanel({ agencyId }: { agencyId: number })
   );
 }
 
-function messageFor(error: unknown): string {
-  return error instanceof ApiError ? error.displayMessage : 'Réessayez dans quelques instants.';
-}

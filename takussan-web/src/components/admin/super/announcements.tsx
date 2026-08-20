@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Megaphone, PauseCircle, Plus } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,13 +18,16 @@ import {
 } from '@/lib/queries/super-admin';
 import type { Announcement, AnnouncementPayload, AnnouncementSeverity } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-const SEVERITIES: Array<{ value: AnnouncementSeverity; label: string }> = [
-  { value: 'info', label: 'Info' },
-  { value: 'success', label: 'Succès' },
-  { value: 'warning', label: 'Alerte' },
-  { value: 'critical', label: 'Critique' },
-];
+/** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.announcements.severities.*`). */
+const SEVERITIES: AnnouncementSeverity[] = ['info', 'success', 'warning', 'critical'];
+
+/**
+ * TCK-292 — valeur d'EXEMPLE composée d'identifiants de rôle de l'API : ce n'est pas du texte
+ * affiché à traduire.
+ */
+const ROLE_SLUGS_PLACEHOLDER = 'agency_admin,agent';
 
 const EMPTY_FORM = {
   titleFr: '',
@@ -41,6 +46,8 @@ const EMPTY_FORM = {
 };
 
 export function AnnouncementsConsole() {
+  const t = useTranslations('superAdmin.announcements');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +65,7 @@ export function AnnouncementsConsole() {
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'announcements'] });
       queryClient.invalidateQueries({ queryKey: ['announcements', 'active'] });
     },
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
   return (
@@ -66,21 +73,21 @@ export function AnnouncementsConsole() {
       <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg font-semibold text-stone-950">Annonces diffusées</h2>
-            <p className="text-sm text-stone-600">Broadcasts actifs, programmés ou expirés.</p>
+            <h2 className="font-display text-lg font-semibold text-stone-950">{t('title')}</h2>
+            <p className="text-sm text-stone-600">{t('subtitle')}</p>
           </div>
-          <Badge variant="outline">{query.data?.meta?.total ?? 0} annonces</Badge>
+          <Badge variant="outline">{t('countBadge', { count: query.data?.meta?.total ?? 0 })}</Badge>
         </div>
 
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full divide-y divide-stone-200 text-sm">
             <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
               <tr>
-                <th className="px-3 py-2">Titre</th>
-                <th className="px-3 py-2">Sévérité</th>
-                <th className="px-3 py-2">Segment</th>
-                <th className="px-3 py-2">Fenêtre</th>
-                <th className="px-3 py-2"><span className="sr-only">Actions</span></th>
+                <th className="px-3 py-2">{t('colTitle')}</th>
+                <th className="px-3 py-2">{t('colSeverity')}</th>
+                <th className="px-3 py-2">{t('colSegment')}</th>
+                <th className="px-3 py-2">{t('colWindow')}</th>
+                <th className="px-3 py-2"><span className="sr-only">{t('colActions')}</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -89,8 +96,13 @@ export function AnnouncementsConsole() {
               ))}
               {!query.isLoading && (query.data?.data ?? []).length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-sm text-stone-500">
-                    Aucune annonce pour le moment.
+                  <td colSpan={5} className="p-0">
+                    <EmptyState
+                      className="border-0"
+                      icon={<Megaphone className="size-8" aria-hidden="true" />}
+                      title={t('empty_title')}
+                      description={t('empty_description')}
+                    />
                   </td>
                 </tr>
               ) : null}
@@ -102,7 +114,7 @@ export function AnnouncementsConsole() {
       <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
         <div className="flex items-center gap-2">
           <Megaphone className="size-5 text-primary" aria-hidden="true" />
-          <h2 className="font-display text-lg font-semibold text-stone-950">Composer</h2>
+          <h2 className="font-display text-lg font-semibold text-stone-950">{t('compose')}</h2>
         </div>
 
         <div className="mt-4 grid gap-4">
@@ -110,11 +122,11 @@ export function AnnouncementsConsole() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5">
-              <Label htmlFor="announcement-start">Début</Label>
+              <Label htmlFor="announcement-start">{t('start')}</Label>
               <DateTimePicker id="announcement-start" value={form.startsAt} onValueChange={(value) => setForm({ ...form, startsAt: value })} />
             </label>
             <label className="space-y-1.5">
-              <Label htmlFor="announcement-end">Fin</Label>
+              <Label htmlFor="announcement-end">{t('end')}</Label>
               <DateTimePicker id="announcement-end" value={form.endsAt} onValueChange={(value) => setForm({ ...form, endsAt: value })} />
             </label>
           </div>
@@ -122,27 +134,27 @@ export function AnnouncementsConsole() {
           <div className="flex flex-wrap gap-2">
             {SEVERITIES.map((severity) => (
               <Button
-                key={severity.value}
+                key={severity}
                 type="button"
-                variant={form.severity === severity.value ? 'default' : 'outline'}
-                onClick={() => setForm({ ...form, severity: severity.value })}
+                variant={form.severity === severity ? 'default' : 'outline'}
+                onClick={() => setForm({ ...form, severity })}
               >
-                {severity.label}
+                {t(`severities.${severity}`)}
               </Button>
             ))}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="space-y-1.5">
-              <Label htmlFor="announcement-roles">Rôles</Label>
-              <Input id="announcement-roles" value={form.roles} onChange={(event) => setForm({ ...form, roles: event.target.value })} placeholder="agency_admin,agent" />
+              <Label htmlFor="announcement-roles">{t('roles')}</Label>
+              <Input id="announcement-roles" value={form.roles} onChange={(event) => setForm({ ...form, roles: event.target.value })} placeholder={ROLE_SLUGS_PLACEHOLDER} />
             </label>
             <label className="space-y-1.5">
-              <Label htmlFor="announcement-agencies">Agences</Label>
+              <Label htmlFor="announcement-agencies">{t('agencies')}</Label>
               <Input id="announcement-agencies" value={form.agencyIds} onChange={(event) => setForm({ ...form, agencyIds: event.target.value })} placeholder="12,18" />
             </label>
             <label className="space-y-1.5">
-              <Label htmlFor="announcement-rollout">Rollout %</Label>
+              <Label htmlFor="announcement-rollout">{t('rollout')}</Label>
               <Input id="announcement-rollout" type="number" min={0} max={100} value={form.rollout} onChange={(event) => setForm({ ...form, rollout: event.target.value })} />
             </label>
           </div>
@@ -151,7 +163,7 @@ export function AnnouncementsConsole() {
 
           <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
             <Plus className="size-4" aria-hidden="true" />
-            Publier l&apos;annonce
+            {t('publish')}
           </Button>
         </div>
       </section>
@@ -160,6 +172,7 @@ export function AnnouncementsConsole() {
 }
 
 function AnnouncementRow({ announcement }: { announcement: Announcement }) {
+  const t = useTranslations('superAdmin.announcements');
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: () => deactivateAdminAnnouncement(announcement.id),
@@ -168,7 +181,7 @@ function AnnouncementRow({ announcement }: { announcement: Announcement }) {
       queryClient.invalidateQueries({ queryKey: ['announcements', 'active'] });
     },
   });
-  const segment = useMemo(() => describeSegment(announcement), [announcement]);
+  const segment = useMemo(() => describeSegment(announcement, t), [announcement, t]);
 
   return (
     <tr>
@@ -185,10 +198,10 @@ function AnnouncementRow({ announcement }: { announcement: Announcement }) {
         {announcement.is_active ? (
           <Button type="button" variant="outline" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
             <PauseCircle className="size-4" aria-hidden="true" />
-            Désactiver
+            {t('deactivate')}
           </Button>
         ) : (
-          <Badge variant="outline">Inactive</Badge>
+          <Badge variant="outline">{t('inactive')}</Badge>
         )}
       </td>
     </tr>
@@ -196,6 +209,7 @@ function AnnouncementRow({ announcement }: { announcement: Announcement }) {
 }
 
 function LocaleFields({ form, setForm }: { form: typeof EMPTY_FORM; setForm: (value: typeof EMPTY_FORM) => void }) {
+  const t = useTranslations('superAdmin.announcements');
   return (
     <div className="grid gap-4">
       {[
@@ -205,8 +219,8 @@ function LocaleFields({ form, setForm }: { form: typeof EMPTY_FORM; setForm: (va
       ].map(([, label, titleKey, bodyKey]) => (
         <div key={label} className="grid gap-2 rounded-lg border border-stone-200 p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">{label}</p>
-          <Input value={form[titleKey as keyof typeof EMPTY_FORM] as string} onChange={(event) => setForm({ ...form, [titleKey]: event.target.value })} placeholder="Titre" />
-          <Textarea value={form[bodyKey as keyof typeof EMPTY_FORM] as string} onChange={(event) => setForm({ ...form, [bodyKey]: event.target.value })} placeholder="Message" rows={3} />
+          <Input value={form[titleKey as keyof typeof EMPTY_FORM] as string} onChange={(event) => setForm({ ...form, [titleKey]: event.target.value })} placeholder={t('titlePlaceholder')} />
+          <Textarea value={form[bodyKey as keyof typeof EMPTY_FORM] as string} onChange={(event) => setForm({ ...form, [bodyKey]: event.target.value })} placeholder={t('bodyPlaceholder')} rows={3} />
         </div>
       ))}
     </div>
@@ -231,11 +245,14 @@ function toPayload(form: typeof EMPTY_FORM): AnnouncementPayload {
   };
 }
 
-function describeSegment(announcement: Announcement): string {
+function describeSegment(
+  announcement: Announcement,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
   const segment = announcement.segment ?? {};
   const parts = [];
-  if (segment.roles?.length) parts.push(`Rôles: ${segment.roles.join(', ')}`);
-  if (segment.agency_ids?.length) parts.push(`Agences: ${segment.agency_ids.join(', ')}`);
+  if (segment.roles?.length) parts.push(t('segmentRoles', { list: segment.roles.join(', ') }));
+  if (segment.agency_ids?.length) parts.push(t('segmentAgencies', { list: segment.agency_ids.join(', ') }));
   if (segment.rollout_percentage) parts.push(`${segment.rollout_percentage}%`);
-  return parts.length > 0 ? parts.join(' · ') : 'Tous';
+  return parts.length > 0 ? parts.join(' · ') : t('segmentAll');
 }

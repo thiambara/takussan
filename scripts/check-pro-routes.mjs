@@ -364,22 +364,26 @@ for (const [r] of nues) {
 
 if (erreurs.length === 0) {
   // ⚠ « côté SSR », et pas « côté serveur » : la nuance est tout ce qui sépare une redirection
-  // d'une autorisation.
+  // d'une autorisation. Cette garde lit les PAGES Next ; elle ne mesure RIEN de l'API.
   //
-  // Cette garde lit les PAGES Next. Elle ne dit rien des endpoints qu'elles appellent, et le
-  // dépôt a l'écart mesuré : `AgencyKindGuard` n'est invoqué que dans quatre contrôleurs, tous
-  // sous `/admin/*`. Les APIs derrière les quatre entrées `/app/*` — `KpiConfigController`,
-  // `ThresholdAlertController`, les propriétaires, `DashboardController@agency` — n'ont AUCUNE
-  // restriction de `kind`. Un `agency_admin` d'une agence `individual` est bien renvoyé par le
-  // rendu serveur, et lit quand même tout au `curl`, avec son propre jeton.
+  // L'avertissement imprimé ici a longtemps affirmé que les quatre endpoints derrière `/app/*`
+  // — dont « `DashboardController@agency` » — n'avaient AUCUNE restriction de `kind`. C'était
+  // faux depuis le 2026-05-12, et doublement : le contrôleur qui sert cette route s'appelle
+  // `DashboardAgencyController` (cf. `takussan-api/routes/api/dashboard.php`), et il abort en
+  // 403 sur `kind !== Standard`, avec un test qui le prouve. L'affirmation venait d'un grep sur
+  // la CHAÎNE `AgencyKindGuard` — le faux négatif par recherche de jeton que ce fichier passe
+  // quarante lignes à documenter, commis dans son propre message de succès, et réimprimé à
+  // chaque exécution verte. *Une garde ne mesure pas ce qu'elle affirme dans sa sortie ; les
+  // deux se relisent séparément.*
   //
-  // C'est TCK-284, encore `doing`, et ce n'est pas à cette garde de le refermer. Mais une ligne
-  // verte disant « gardées côté serveur » se lit comme la preuve d'une restriction qui s'arrête
-  // au navigateur. *Une garde qui nomme mal ce qu'elle mesure devient la source du malentendu
-  // qu'elle devait dissiper.*
+  // Ce qui est écrit ci-dessous est donc DÉLIBÉRÉMENT une portée, pas un constat : ce script ne
+  // sait rien de l'API, et il le dit — au lieu d'énumérer un état qu'il n'a pas mesuré et qui
+  // périme sans lui. La garde `kind` côté API se lit dans les tests backend
+  // (`DashboardAgencyTest`, `OwnerProfileListingTest`), pas ici.
   console.log(`✓ surfaces pro : ${gardees.length}/${routes.length} routes redirigées côté SSR ET fail-closed, ${ECARTS_ASSUMES.size} écart(s) assumé(s).`);
-  console.log('  ⚠ SSR seulement. Les endpoints derrière /app/* n\'ont pas de garde `kind` côté API');
-  console.log('    (AgencyKindGuard : 4 contrôleurs, tous /admin/*). Un curl passe — cf. TCK-284.');
+  console.log('  ⚠ PORTÉE : pages Next seulement. Ce script ne lit AUCUN contrôleur Laravel et');
+  console.log('    ne dit donc rien des endpoints appelés — une redirection SSR n\'est pas une');
+  console.log('    autorisation. La garde `kind` côté API se prouve par les tests backend.');
   process.exit(0);
 }
 

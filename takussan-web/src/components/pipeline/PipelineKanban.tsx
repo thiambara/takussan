@@ -27,6 +27,7 @@ import { PipelineColumn } from './PipelineColumn';
 import { PipelineStatsBar } from './PipelineStatsBar';
 import { ReasonDialog } from './ReasonDialog';
 import { PIPELINE_STAGES, TERMINAL_STAGES } from './constants';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface PendingReason {
   customerId: number;
@@ -37,6 +38,7 @@ interface PendingReason {
 
 export function PipelineKanban() {
   const t = useTranslations('crm.pipeline');
+  const messageErreur = useMessageErreurApi();
   const locale = useLocale();
   const { token } = useAuth();
   const stageMutation = useCustomerStageMutation();
@@ -134,7 +136,7 @@ export function PipelineKanban() {
       { customerId, from, to, reason },
       {
         onError: (err) => {
-          setErrorMessage(err.displayMessage ?? t('errors.moveFailed'));
+          setErrorMessage(messageErreur(err, t('errors.moveFailed')));
           setTimeout(() => setErrorMessage(null), 4000);
         },
       },

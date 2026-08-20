@@ -1,9 +1,8 @@
+import { useTranslations } from 'next-intl';
+
 import { cn } from '@/lib/utils';
 import type { MaintenanceStatus } from '@/types/maintenance';
-import {
-  maintenanceStatusBadgeClass,
-  MAINTENANCE_STATUS_LABEL,
-} from './labels';
+import { maintenanceStatusBadgeClass } from './labels';
 
 export { MaintenancePriorityBadge } from './MaintenancePriorityBadge';
 
@@ -14,6 +13,8 @@ export function MaintenanceStatusBadge({
   readonly status: MaintenanceStatus;
   readonly className?: string;
 }) {
+  const t = useTranslations('maintenance.status');
+
   return (
     <span
       className={cn(
@@ -22,7 +23,7 @@ export function MaintenanceStatusBadge({
         className,
       )}
     >
-      {MAINTENANCE_STATUS_LABEL[status]}
+      {t(status)}
     </span>
   );
 }

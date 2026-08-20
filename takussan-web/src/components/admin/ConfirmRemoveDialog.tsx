@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -31,21 +32,24 @@ export function ConfirmRemoveDialog<T extends MinimalMember>({
   onConfirm,
   isPending,
 }: ConfirmRemoveDialogProps<T>) {
+  const t = useTranslations('admin.team');
   const open = member !== null;
   return (
     <Dialog open={open} onOpenChange={(next) => (!next ? onCancel() : undefined)}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Retirer ce membre&nbsp;?</DialogTitle>
+          <DialogTitle>{t('removeDialog.title')}</DialogTitle>
           <DialogDescription>
             {member
-              ? `${member.full_name || `${member.first_name} ${member.last_name}`} perdra l'accès aux ressources de l'agence. Cette action est réversible en l'invitant à nouveau.`
+              ? t('removeDialog.description', {
+                name: member.full_name || `${member.first_name} ${member.last_name}`,
+              })
               : null}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={onCancel} disabled={isPending}>
-            Annuler
+            {t('removeDialog.cancel')}
           </Button>
           <Button
             variant="destructive"
@@ -53,7 +57,7 @@ export function ConfirmRemoveDialog<T extends MinimalMember>({
             disabled={isPending}
           >
             {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-            Retirer
+            {t('removeDialog.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

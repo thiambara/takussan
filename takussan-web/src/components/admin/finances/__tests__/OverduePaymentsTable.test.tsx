@@ -2,14 +2,11 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { withIntl } from '@/test/intl';
 import { OverduePaymentsTable } from '../OverduePaymentsTable';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
-}));
-
-vi.mock('next-intl', () => ({
-  useLocale: () => 'fr',
 }));
 
 vi.mock('next/navigation', () => ({
@@ -36,9 +33,11 @@ function renderTable() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <OverduePaymentsTable />
-    </QueryClientProvider>,
+    withIntl(
+      <QueryClientProvider client={queryClient}>
+        <OverduePaymentsTable />
+      </QueryClientProvider>,
+    ),
   );
 }
 

@@ -21,14 +21,6 @@ class SearchDocumentController extends Controller
             $request->validated(),
         );
 
-        return $this->json([
-            'data' => DocumentResource::collection($paginator)->toArray($request),
-            'meta' => [
-                'total' => $paginator->total(),
-                'current_page' => $paginator->currentPage(),
-                'last_page' => $paginator->lastPage(),
-                'per_page' => $paginator->perPage(),
-            ],
-        ]);
+        return $this->paginated($paginator, DocumentResource::collection($paginator)->toArray($request));
     }
 }

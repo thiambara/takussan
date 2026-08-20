@@ -223,9 +223,9 @@ trait HasProfiles
 
     /**
      * TCK-278 — Vrai si l'utilisateur dispose d'un PlatformProfile
-     * `super_admin` actif. Source de vérité unique à terme ; cohabite en
-     * P1/P2 avec le check spatie historique (`User::isSuperAdmin`) jusqu'au
-     * cutover P3.
+     * `super_admin` actif. **Source de vérité unique** : le cutover P3 est
+     * fait, il n'y a plus de cohabitation avec un check spatie historique.
+     * `User::isSuperAdmin()` délègue désormais ici.
      */
     public function hasActiveSuperAdminProfile(): bool
     {

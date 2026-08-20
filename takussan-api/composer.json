@@ -8,9 +8,7 @@
     "require": {
         "php": "^8.4",
         "bacon/bacon-qr-code": "^3.1",
-        "filament/filament": "^4.0",
-        "filament/spatie-laravel-media-library-plugin": "^4.0",
-        "intervention/image": "^3.7",
+        "intervention/image": "^4.2",
         "laravel/framework": "^13.0",
         "laravel/sanctum": "^4.3",
         "laravel/scout": "^11.1",
@@ -18,7 +16,7 @@
         "laravel/tinker": "^3.0",
         "league/csv": "^9.16",
         "lemonsqueezy/laravel": "^1.9",
-        "maatwebsite/excel": "^3.1",
+        "maatwebsite/excel": "^4.0",
         "meilisearch/meilisearch-php": "^1.16",
         "pragmarx/google2fa": "^9.0",
         "socialiteproviders/apple": "^5.10",
@@ -29,6 +27,7 @@
         "spatie/laravel-query-builder": "^7.2"
     },
     "require-dev": {
+        "brianium/paratest": "^7.20",
         "dompdf/dompdf": "^3.0",
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.5",
@@ -68,8 +67,7 @@
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php artisan package:discover --ansi",
-            "@php artisan filament:upgrade"
+            "@php artisan package:discover --ansi"
         ],
         "post-update-cmd": [
             "@php artisan vendor:publish --tag=laravel-assets --ansi --force"

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { getAccountDeletionRequestAction } from '@/app/actions/account-deletion';
@@ -21,13 +22,16 @@ import { ToastProvider, Toaster } from '@/components/ui/toast';
  *
  * SEO: noindex for every dashboard page — these are authenticated, private.
  */
-export const metadata: Metadata = {
-  title: {
-    template: '%s — Takussan',
-    default: 'Tableau de bord — Takussan',
-  },
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.dashboard');
+  return {
+    title: {
+      template: '%s — Takussan',
+      default: t('title'),
+    },
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function DashboardGroupLayout({
   children,

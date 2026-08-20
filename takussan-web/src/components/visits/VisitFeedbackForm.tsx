@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSubmitVisitFeedback } from '@/lib/queries/visits';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface Props {
   visitId: number;
@@ -19,6 +21,8 @@ interface Props {
  * can co-exist on the same visit.
  */
 export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
+  const t = useTranslations('visits.feedbackForm');
+  const messageErreur = useMessageErreurApi();
   const mutation = useSubmitVisitFeedback(visitId);
   const [rating, setRating] = useState<number>(5);
   const [comment, setComment] = useState<string>('');
@@ -37,7 +41,7 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
       setSuccess(true);
       onSubmitted?.();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur lors de l’envoi du feedback.';
+      const message = messageErreur(err, t('error'));
       setError(message);
     }
   }
@@ -45,7 +49,7 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
   if (success) {
     return (
       <p className="text-sm text-emerald-600">
-        Merci ! Votre retour {role === 'customer' ? 'visiteur' : 'agent'} a bien été enregistré.
+        {t('success', { role: role === 'customer' ? t('roleVisitor') : t('roleAgent') })}
       </p>
     );
   }
@@ -53,10 +57,10 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <p className="text-sm font-medium text-stone-900">
-        {role === 'customer' ? 'Votre retour visiteur' : 'Retour agent'}
+        {role === 'customer' ? t('titleCustomer') : t('titleAgent')}
       </p>
       <label className="block space-y-1 text-sm">
-        <span className="text-stone-700">Note (1 à 5)</span>
+        <span className="text-stone-700">{t('ratingLabel')}</span>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
@@ -68,7 +72,7 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
                   ? 'border-amber-500 bg-amber-100 text-amber-700'
                   : 'border-stone-200 bg-white text-stone-500'
               }`}
-              aria-label={`${n} étoiles`}
+              aria-label={t('starsAria', { count: String(n) })}
             >
               {n}
             </button>
@@ -76,21 +80,19 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
         </div>
       </label>
       <label className="block space-y-1 text-sm">
-        <span className="text-stone-700">Commentaire (optionnel)</span>
+        <span className="text-stone-700">{t('commentLabel')}</span>
         <Textarea
           rows={3}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           placeholder={
-            role === 'customer'
-              ? 'Ce que vous avez pensé du bien…'
-              : 'Retour sur le déroulement de la visite…'
+            role === 'customer' ? t('placeholderCustomer') : t('placeholderAgent')
           }
         />
       </label>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <Button type="submit" disabled={mutation.isPending}>
-        {mutation.isPending ? 'Envoi…' : 'Envoyer le feedback'}
+        {mutation.isPending ? t('submitting') : t('submit')}
       </Button>
     </form>
   );

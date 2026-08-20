@@ -10,10 +10,10 @@ use App\Services\Privacy\DataExportBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
-use Tests\BaseTestCase;
+use Tests\TestCase;
 use ZipArchive;
 
-class DataExportTest extends BaseTestCase
+class DataExportTest extends TestCase
 {
     use RefreshDatabase;
 

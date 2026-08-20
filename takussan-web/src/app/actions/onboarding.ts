@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import {
   hostIndividualOnboard,
   type HostIndividualOnboardPayload,
@@ -10,6 +10,7 @@ import {
 } from '@/lib/onboarding';
 import { ACTIVE_PROFILE_COOKIE } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
+import { getTranslations } from 'next-intl/server';
 
 /**
  * TCK-255 — Server action consumed by `<HostIndividualWizard>`.
@@ -26,9 +27,10 @@ export type HostIndividualOnboardActionResult =
 export async function hostIndividualOnboardAction(
   payload: HostIndividualOnboardPayload,
 ): Promise<HostIndividualOnboardActionResult> {
+  const t = await getTranslations('serverActions.hostOnboarding');
   const token = await getToken();
   if (!token) {
-    return { ok: false, status: 401, message: 'Vous devez être connecté pour continuer.' };
+    return { ok: false, status: 401, message: t('mustBeSignedInToContinue') };
   }
 
   try {
@@ -50,13 +52,14 @@ export async function hostIndividualOnboardAction(
       return {
         ok: false,
         status: err.status,
-        message: err.displayMessage,
+        // Module `'use server'` : traduction explicite, sinon la CLÉ `errors.api.*` part à l'écran.
+        message: messageErreurApi(err, await getTranslations(), t('completeFailed')),
         errors: data?.errors,
       };
     }
     return {
       ok: false,
-      message: 'Impossible de finaliser la création de votre espace. Réessayez.',
+      message: t('completeFailed'),
     };
   }
 }

@@ -15,8 +15,12 @@ export type EventPalette = {
   pill: string;
   /** Utilisé sur le bandeau latéral du slide-over. */
   accent: string;
-  /** Texte sur fond coloré (pour s'assurer d'un contraste WCAG AA). */
-  label: string;
+  /**
+   * Clé i18n du texte affiché sur fond coloré (contraste WCAG AA), relative au namespace
+   * `calendar`. TCK-292 : ce module n'est pas un composant, il ne peut pas appeler
+   * `useTranslations` — la donnée porte la CLÉ, le rendu la résout.
+   */
+  labelKey: string;
 };
 
 export function paletteFor(event: Pick<CalendarEvent, 'type' | 'status'>): EventPalette {
@@ -26,33 +30,34 @@ export function paletteFor(event: Pick<CalendarEvent, 'type' | 'status'>): Event
     return {
       pill: 'bg-stone-100 text-stone-700 border-stone-300',
       accent: 'bg-stone-400',
-      label: 'En attente',
+      labelKey: 'eventStatus.pending',
     };
   }
   if (event.type === 'booking') {
     return {
       pill: 'bg-blue-100 text-blue-800 border-blue-300',
       accent: 'bg-blue-500',
-      label: 'Confirmée',
+      labelKey: 'eventStatus.confirmed',
     };
   }
   if (event.type === 'lease') {
     return {
       pill: 'bg-emerald-100 text-emerald-800 border-emerald-300',
       accent: 'bg-emerald-500',
-      label: 'Bail',
+      labelKey: 'eventStatus.lease',
     };
   }
   // visit
   return {
     pill: 'bg-violet-100 text-violet-800 border-violet-300',
     accent: 'bg-violet-500',
-    label: 'Confirmée',
+    labelKey: 'eventStatus.confirmed',
   };
 }
 
-export function typeLabel(type: CalendarEvent['type']): string {
-  if (type === 'booking') return 'Réservation';
-  if (type === 'lease') return 'Bail';
-  return 'Visite';
+/** Clé i18n du type d'événement, relative au namespace `calendar` (cf. `labelKey`). */
+export function typeLabelKey(type: CalendarEvent['type']): string {
+  if (type === 'booking') return 'eventType.booking';
+  if (type === 'lease') return 'eventType.lease';
+  return 'eventType.visit';
 }

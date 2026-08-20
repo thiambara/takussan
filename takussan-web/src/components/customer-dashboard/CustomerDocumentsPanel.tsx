@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRef, useState, useTransition } from 'react';
 import { FileText, Loader2, UploadCloud } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 
 import { Button } from '@/components/ui/button';
 import { uploadCustomerDocumentAction } from '@/app/actions/dashboard-customers';
@@ -31,6 +32,7 @@ export function CustomerDocumentsPanel({
 }: CustomerDocumentsPanelProps) {
   const router = useRouter();
   const locale = useLocale() as Locale;
+  const t = useTranslations('crm.customerDetail.documents');
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -64,10 +66,10 @@ export function CustomerDocumentsPanel({
             <UploadCloud className="size-5 text-app-accent" aria-hidden="true" />
           )}
           <span className="text-sm font-medium text-app-ink">
-            Téléverser un document
+            {t('upload')}
           </span>
           <span className="text-xs">
-            Images ou PDF · 10 Mo maximum
+            {t('uploadHint')}
           </span>
           <input
             id="customer-document-input"
@@ -87,9 +89,11 @@ export function CustomerDocumentsPanel({
       </div>
 
       {documents.length === 0 ? (
-        <p className="rounded-xl bg-app-surface-1 px-4 py-6 text-center text-sm text-app-ink-muted">
-          Aucun document associé.
-        </p>
+        <EmptyState
+          icon={<FileText className="size-8" aria-hidden="true" />}
+          title={t('empty_title')}
+          description={t('empty_description')}
+        />
       ) : (
         <ul className="space-y-2">
           {documents.map((doc) => (
@@ -105,14 +109,14 @@ export function CustomerDocumentsPanel({
                   </p>
                   <p className="text-xs text-app-ink-muted">
                     {formatDateTime(doc.uploaded_at, locale)} ·{' '}
-                    {(doc.size / (1024 * 1024)).toFixed(2)} Mo
+                    {t('sizeMb', { size: (doc.size / (1024 * 1024)).toFixed(2) })}
                   </p>
                 </div>
               </div>
               <Button
                 render={
                   <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                    Ouvrir
+                    {t('open')}
                   </a>
                 }
                 variant="outline"

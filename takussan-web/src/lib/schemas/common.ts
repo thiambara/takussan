@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Shared Zod schemas aligned with the backend `FormRequest` validation
@@ -19,9 +20,9 @@ import { z } from 'zod';
 export const emailSchema = z
   .string()
   .trim()
-  .min(1, 'L’adresse e-mail est requise.')
-  .email('Adresse e-mail invalide.')
-  .max(255, 'L’adresse e-mail est trop longue.')
+  .min(1, msgValidation('common.emailRequired'))
+  .email(msgValidation('common.emailInvalid'))
+  .max(255, msgValidation('common.emailTooLong'))
   .transform((v) => v.toLowerCase());
 
 /**
@@ -31,11 +32,11 @@ export const emailSchema = z
  */
 export const passwordSchema = z
   .string()
-  .min(1, 'Le mot de passe est requis.')
-  .min(8, 'Le mot de passe doit contenir au moins 8 caractères.')
-  .max(72, 'Le mot de passe ne doit pas dépasser 72 caractères.')
-  .regex(/[A-Za-z]/, 'Le mot de passe doit contenir au moins une lettre.')
-  .regex(/\d/, 'Le mot de passe doit contenir au moins un chiffre.');
+  .min(1, msgValidation('common.passwordRequired'))
+  .min(8, msgValidation('common.passwordMin'))
+  .max(72, msgValidation('common.passwordMax'))
+  .regex(/[A-Za-z]/, msgValidation('common.passwordLetter'))
+  .regex(/\d/, msgValidation('common.passwordDigit'));
 
 /**
  * Phone — Senegal-friendly E.164-ish: optional `+`, country code then 8+
@@ -47,20 +48,39 @@ export const phoneSchema = z
   .trim()
   .regex(
     /^\+?[0-9\s().-]{8,20}$/,
-    'Numéro de téléphone invalide. Exemple : +221 77 123 45 67.',
+    msgValidation('common.phoneInvalid'),
   );
 
 /**
- * Optional phone — accepts empty string and returns `undefined`.
+ * Optional phone — accepts empty string, absent key, or `undefined`, and
+ * returns `undefined` for all three.
+ *
+ * ⚠️ Le `.optional()` FINAL n'est pas redondant avec celui de `phoneSchema`
+ * à l'intérieur du `pipe`, et son absence était un défaut : un `pipe` porte
+ * le type de son ENTRÉE, ici `string`. Le champ était donc **obligatoire**
+ * dans tout objet qui l'utilisait — ce que son nom dit exactement l'inverse.
+ *
+ * zod ≤ 4.3.6 masquait la faute : il jugeait l'optionalité d'une clé d'objet
+ * sur le type de SORTIE du pipe (`string | undefined`), et acceptait donc la
+ * clé absente. zod 4.4 la juge sur l'entrée, ce qui est correct, et
+ * `guarantorSchema.safeParse({ first_name, last_name })` s'est mis à rendre
+ * « expected string, received undefined » sur `phone`.
+ *
+ * Ce n'était donc pas une régression de zod : c'est notre schéma qui était
+ * faux, et une mise à jour de dépendance qui l'a rendu visible. Le
+ * `.optional()` de tête court-circuite le pipe sur `undefined` ; l'empilement
+ * des deux couvre les trois entrées, et un numéro réellement invalide
+ * continue de rougir.
  */
 export const optionalPhoneSchema = z
   .string()
   .trim()
   .transform((v) => (v.length === 0 ? undefined : v))
-  .pipe(phoneSchema.optional());
+  .pipe(phoneSchema.optional())
+  .optional();
 
 /**
  * Non-empty string with trim.
  */
-export const requiredStringSchema = (message = 'Ce champ est requis.') =>
+export const requiredStringSchema = (message = msgValidation('common.required')) =>
   z.string().trim().min(1, message);
