@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -19,25 +20,30 @@ interface BookingPaymentDialogProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-const PAYMENT_METHOD_OPTIONS = [
-  { value: 'cash', label: 'Espèces' },
-  { value: 'bank_transfer', label: 'Virement bancaire' },
-  { value: 'mobile_money', label: 'Mobile Money' },
-  { value: 'card', label: 'Carte bancaire' },
-] as const;
-
-const PAYMENT_TYPE_OPTIONS = [
-  { value: 'deposit', label: 'Acompte' },
-  { value: 'advance', label: 'Avance' },
-  { value: 'fee', label: 'Frais' },
-] as const;
+/**
+ * TCK-292 — les deux tables transportent la CLÉ (relative à `bookings.paymentDialog`) ;
+ * le composant les résout en libellés au rendu.
+ */
+const PAYMENT_METHOD_VALUES = ['cash', 'bank_transfer', 'mobile_money', 'card'] as const;
+const PAYMENT_TYPE_VALUES = ['deposit', 'advance', 'fee'] as const;
 
 export function BookingPaymentDialog({
   bookingId,
   open,
   onOpenChange,
 }: BookingPaymentDialogProps) {
+  const t = useTranslations('bookings.paymentDialog');
+  const tCommon = useTranslations('common');
   const createPayment = useCreateBookingPayment(bookingId);
+
+  const paymentMethodOptions = PAYMENT_METHOD_VALUES.map((value) => ({
+    value,
+    label: t(`methods.${value}`),
+  }));
+  const paymentTypeOptions = PAYMENT_TYPE_VALUES.map((value) => ({
+    value,
+    label: t(`types.${value}`),
+  }));
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     BookingPaymentFormValues,
@@ -65,10 +71,8 @@ export function BookingPaymentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Enregistrer un paiement</DialogTitle>
-          <DialogDescription>
-            Acompte, avance ou frais liés à cette réservation.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -81,7 +85,7 @@ export function BookingPaymentDialog({
             control={form.control}
             name="amount"
             type="number"
-            label="Montant"
+            label={t('fields.amount')}
             required
             min={0}
             step={100}
@@ -89,32 +93,32 @@ export function BookingPaymentDialog({
           <FormSelect<BookingPaymentFormValues>
             control={form.control}
             name="payment_type"
-            label="Type"
-            options={PAYMENT_TYPE_OPTIONS}
+            label={t('fields.type')}
+            options={paymentTypeOptions}
           />
           <FormSelect<BookingPaymentFormValues>
             control={form.control}
             name="payment_method"
-            label="Moyen de paiement"
-            options={PAYMENT_METHOD_OPTIONS}
+            label={t('fields.method')}
+            options={paymentMethodOptions}
           />
           <FormInput<BookingPaymentFormValues>
             control={form.control}
             name="transaction_id"
-            label="ID transaction (optionnel)"
+            label={t('fields.transactionId')}
           />
           <FormTextarea<BookingPaymentFormValues>
             control={form.control}
             name="notes"
-            label="Notes"
+            label={t('fields.notes')}
             rows={2}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {tCommon('actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Enregistrement…' : 'Enregistrer'}
+              {isSubmitting ? t('submitting') : tCommon('actions.save')}
             </Button>
           </div>
         </form>

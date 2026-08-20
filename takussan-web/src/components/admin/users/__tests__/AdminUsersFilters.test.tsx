@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { withIntl } from '@/test/intl';
 import { AdminUsersFilters } from '../AdminUsersFilters';
 
 const mockReplace = vi.fn();
@@ -23,7 +24,7 @@ describe('<AdminUsersFilters>', () => {
   });
 
   it('renders status and role selects (no agency filter — scope is server-side)', () => {
-    render(<AdminUsersFilters />);
+    render(withIntl(<AdminUsersFilters />));
     expect(screen.getByLabelText('Statut')).toBeTruthy();
     expect(screen.getByLabelText('Rôle')).toBeTruthy();
     expect(screen.queryByLabelText('Agence')).toBeNull();
@@ -31,7 +32,7 @@ describe('<AdminUsersFilters>', () => {
 
   it('writes filter[role] to the URL when a role is picked', async () => {
     const user = userEvent.setup();
-    render(<AdminUsersFilters />);
+    render(withIntl(<AdminUsersFilters />));
 
     // The role filter is a Base UI Select — open the popup, pick "Agent".
     await user.click(screen.getByLabelText('Rôle'));
@@ -46,7 +47,7 @@ describe('<AdminUsersFilters>', () => {
   it('resets pagination when changing a filter', async () => {
     mockSearchParams.toString.mockReturnValue('page=4');
     const user = userEvent.setup();
-    render(<AdminUsersFilters />);
+    render(withIntl(<AdminUsersFilters />));
 
     await user.click(screen.getByLabelText('Statut'));
     const bannedOption = await screen.findByRole('option', { name: /Bloqu/i });
@@ -58,7 +59,7 @@ describe('<AdminUsersFilters>', () => {
   });
 
   it('debounces search via form submit so each keystroke does not refetch', () => {
-    render(<AdminUsersFilters />);
+    render(withIntl(<AdminUsersFilters />));
     const input = screen.getByPlaceholderText(/Rechercher/);
     fireEvent.change(input, { target: { value: 'amadou' } });
     expect(mockReplace).not.toHaveBeenCalled();

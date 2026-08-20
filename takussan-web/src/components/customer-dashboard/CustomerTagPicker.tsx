@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import {
   attachCustomerTagsAction,
@@ -50,6 +51,7 @@ export function CustomerTagPicker({
   suggestions = [],
   onTagClick,
 }: Props) {
+  const t = useTranslations('crm.tags');
   const [tags, setTags] = useState<TagChip[]>(initialTags);
   const [input, setInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -141,7 +143,7 @@ export function CustomerTagPicker({
               {tag.name}
               <button
                 type="button"
-                aria-label={`Retirer le tag ${tag.name}`}
+                aria-label={t('removeAria', { tag: tag.name })}
                 className="ml-0.5 rounded-full p-0.5 hover:bg-black/10"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -159,7 +161,7 @@ export function CustomerTagPicker({
       <div className="relative">
         <input
           type="text"
-          placeholder={tags.length >= 10 ? 'Max 10 tags' : 'Ajouter un tag…'}
+          placeholder={tags.length >= 10 ? t('maxReachedPlaceholder') : t('addPlaceholder')}
           disabled={tags.length >= 10 || isPending}
           value={input}
           onChange={(e) => {

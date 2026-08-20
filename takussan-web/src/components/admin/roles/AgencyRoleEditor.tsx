@@ -13,6 +13,7 @@ import { CapabilityMatrix } from './CapabilityMatrix';
 import { useSyncRoleCapabilities, useUpdateAgencyRole } from '@/lib/queries/agency-roles';
 import { useCapabilityCatalogue } from '@/lib/queries/capabilities';
 import type { AgencyRole, CapabilityValue } from '@/types/agency-role';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface AgencyRoleEditorProps {
   readonly agencyId: number;
@@ -53,6 +54,7 @@ function sameSet(a: readonly string[], b: readonly string[]): boolean {
 export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorProps) {
   const t = useTranslations('admin.roles');
   const tCommon = useTranslations('common.actions');
+  const messageErreur = useMessageErreurApi();
 
   const readOnly = role.is_system || !canEdit;
 
@@ -179,7 +181,7 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
           <div className="h-40 animate-pulse rounded-xl bg-muted" aria-hidden="true" />
         ) : catalogueQuery.isError || !catalogueQuery.data ? (
           <ErrorState
-            message={catalogueQuery.error?.displayMessage ?? t('errors.load')}
+            message={messageErreur(catalogueQuery.error, t('errors.load'))}
             onRetry={() => void catalogueQuery.refetch()}
             retryLabel={tCommon('retry')}
           />
@@ -195,7 +197,7 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
 
       {error ? (
         <p className="text-sm text-destructive" role="alert">
-          {error.displayMessage}
+          {messageErreur(error)}
         </p>
       ) : null}
       {saved && !dirty ? (

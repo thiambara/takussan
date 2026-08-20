@@ -15,9 +15,10 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
-import { ApiError } from '@/lib/api';
+
 import { revokeAgencyUpgradeRequest } from '@/lib/queries/agency-upgrade';
 import type { AgencyUpgradeRequest } from '@/types/agency-upgrade';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export type UpgradeRequestStatusProps = {
   readonly agencyId: number;
@@ -40,6 +41,7 @@ export function UpgradeRequestStatus({
   request,
 }: UpgradeRequestStatusProps) {
   const t = useTranslations('agency.upgrade.status');
+  const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const toast = useToast();
   const router = useRouter();
@@ -64,7 +66,7 @@ export function UpgradeRequestStatus({
       router.refresh();
     } catch (error) {
       const description =
-        error instanceof ApiError ? error.displayMessage : t('toasts.error');
+        messageErreur(error, t('toasts.error'));
       toast.add({ title: t('toasts.error'), description, type: 'error' });
     } finally {
       setRevoking(false);

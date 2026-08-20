@@ -18,8 +18,8 @@ class UserResource extends BaseResource
             'phone' => $this->phone,
             'bio' => $this->bio,
             'avatar_url' => $this->getFirstMediaUrl('avatar') ?: null,
-            'email_verified_at' => $this->email_verified_at?->toIso8601String(),
-            'phone_verified_at' => $this->phone_verified_at?->toIso8601String(),
+            'email_verified_at' => $this->iso($this->email_verified_at),
+            'phone_verified_at' => $this->iso($this->phone_verified_at),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,
             // TCK-272 — le front ne DEVINE pas le mode de step-up : le
             // backend le dit. `false` = le hash en base est une valeur
@@ -55,7 +55,7 @@ class UserResource extends BaseResource
             // Always returned as an object (possibly empty) so clients can
             // assume the shape without null-checks.
             'preferences' => is_array($this->preferences) ? $this->preferences : (object) [],
-            'created_at' => $this->created_at?->toIso8601String(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

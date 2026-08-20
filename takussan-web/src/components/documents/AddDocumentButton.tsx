@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -25,18 +26,19 @@ interface AddDocumentButtonProps {
 export function AddDocumentButton({
   documentableType,
   documentableId,
-  label = 'Ajouter un document',
+  label,
   size = 'sm',
   variant = 'outline',
   displayLabel,
 }: AddDocumentButtonProps) {
+  const t = useTranslations('documents.actions');
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button type="button" size={size} variant={variant} onClick={() => setOpen(true)}>
         <Plus className="mr-1 size-4" aria-hidden="true" />
-        {label}
+        {label ?? t('add_document')}
       </Button>
       <DocumentUploadDialog
         open={open}

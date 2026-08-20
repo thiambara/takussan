@@ -1,15 +1,20 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { CreditCard, Gauge, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AgencySubscription } from '@/types/super-admin';
 
 export function SubscriptionSummary({ subscription }: { subscription: AgencySubscription | null }) {
+  // Le hook se place AVANT la sortie anticipée : un `useTranslations` posé après serait un hook
+  // conditionnel, refusé par le React Compiler (ADR-0015).
+  const t = useTranslations('billing.subscription');
+
   if (!subscription) {
     return (
       <Card>
-        <CardContent className="p-6 text-sm text-muted-foreground">Aucun abonnement actif.</CardContent>
+        <CardContent className="p-6 text-sm text-muted-foreground">{t('none')}</CardContent>
       </Card>
     );
   }
@@ -30,9 +35,17 @@ export function SubscriptionSummary({ subscription }: { subscription: AgencySubs
           </span>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
-          <Metric icon={ShieldCheck} label="Commission plateforme" value={`${subscription.effective_platform_fee_pct}%`} />
-          <Metric icon={Gauge} label="Biens actifs" value={displayLimit(subscription.effective_limits.max_active_listings)} />
-          <Metric icon={Gauge} label="Agents" value={displayLimit(subscription.effective_limits.max_agents)} />
+          <Metric icon={ShieldCheck} label={t('platformFee')} value={`${subscription.effective_platform_fee_pct}%`} />
+          <Metric
+            icon={Gauge}
+            label={t('activeListings')}
+            value={displayLimit(subscription.effective_limits.max_active_listings, t('unlimited'))}
+          />
+          <Metric
+            icon={Gauge}
+            label={t('agents')}
+            value={displayLimit(subscription.effective_limits.max_agents, t('unlimited'))}
+          />
         </div>
       </CardContent>
     </Card>
@@ -51,8 +64,9 @@ function Metric({ icon: Icon, label, value }: { icon: typeof Gauge; label: strin
   );
 }
 
-function displayLimit(value?: number): string {
-  return value === undefined ? 'Illimité' : String(value);
+/** Le libellé « illimité » arrive de l'appelant : cette fonction vit hors composant (TCK-292). */
+function displayLimit(value: number | undefined, unlimitedLabel: string): string {
+  return value === undefined ? unlimitedLabel : String(value);
 }
 
 function formatDate(value: string | null): string {

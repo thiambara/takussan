@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,25 +15,28 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-import { PAYMENT_STATUS_LABEL } from './constants';
+import { PAYMENT_STATUS_VALUES } from './constants';
 
 const ANY = '__any__';
 
-const STATUS_OPTIONS = Object.entries(PAYMENT_STATUS_LABEL).map(([value, label]) => ({
-  value,
-  label,
-}));
-
-const ENTITY_OPTIONS = [
-  { value: 'property', label: 'Bien' },
-  { value: 'lease', label: 'Bail' },
-  { value: 'booking', label: 'Réservation' },
-  { value: 'customer', label: 'Client' },
-];
+/** Les valeurs d'enum sont la donnée ; le libellé se résout au rendu (TCK-292). */
+const ENTITY_VALUES = ['property', 'lease', 'booking', 'customer'] as const;
 
 export function PaymentsHistoryFilters() {
   const router = useRouter();
+  const t = useTranslations('payments.history.filters');
+  const tStatus = useTranslations('payments.status');
+  const tEntity = useTranslations('payments.history.filters.entities');
   const searchParams = useSearchParams();
+
+  const statusOptions = PAYMENT_STATUS_VALUES.map((value) => ({
+    value,
+    label: tStatus(value),
+  }));
+  const entityOptions = ENTITY_VALUES.map((value) => ({
+    value,
+    label: tEntity(value),
+  }));
 
   const update = useCallback(
     (key: string, value: string | null) => {
@@ -53,19 +57,19 @@ export function PaymentsHistoryFilters() {
     <div className="grid gap-3 sm:grid-cols-5">
       <div>
         <Label htmlFor="payments-status" className="mb-1.5 block text-xs font-medium">
-          Statut
+          {t('status')}
         </Label>
         <Select
           value={searchParams.get('status') ?? ANY}
           onValueChange={(v) => update('status', v === ANY ? null : v)}
-          items={[{ value: ANY, label: 'Tous' }, ...STATUS_OPTIONS]}
+          items={[{ value: ANY, label: t('allStatuses') }, ...statusOptions]}
         >
           <SelectTrigger id="payments-status" className="w-full">
-            <SelectValue placeholder="Tous" />
+            <SelectValue placeholder={t('allStatuses')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ANY}>Tous</SelectItem>
-            {STATUS_OPTIONS.map((o) => (
+            <SelectItem value={ANY}>{t('allStatuses')}</SelectItem>
+            {statusOptions.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
@@ -76,19 +80,19 @@ export function PaymentsHistoryFilters() {
 
       <div>
         <Label htmlFor="payments-entity" className="mb-1.5 block text-xs font-medium">
-          Type d&apos;entité
+          {t('entityType')}
         </Label>
         <Select
           value={searchParams.get('entity_type') ?? ANY}
           onValueChange={(v) => update('entity_type', v === ANY ? null : v)}
-          items={[{ value: ANY, label: 'Toutes' }, ...ENTITY_OPTIONS]}
+          items={[{ value: ANY, label: t('allEntities') }, ...entityOptions]}
         >
           <SelectTrigger id="payments-entity" className="w-full">
-            <SelectValue placeholder="Toutes" />
+            <SelectValue placeholder={t('allEntities')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ANY}>Toutes</SelectItem>
-            {ENTITY_OPTIONS.map((o) => (
+            <SelectItem value={ANY}>{t('allEntities')}</SelectItem>
+            {entityOptions.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
@@ -99,13 +103,13 @@ export function PaymentsHistoryFilters() {
 
       <div>
         <Label htmlFor="payments-entity-id" className="mb-1.5 block text-xs font-medium">
-          ID entité
+          {t('entityId')}
         </Label>
         <Input
           id="payments-entity-id"
           type="number"
           min={1}
-          placeholder="Ex: 42"
+          placeholder={t('entityIdPlaceholder')}
           defaultValue={searchParams.get('entity_id') ?? ''}
           onBlur={(e) => update('entity_id', e.currentTarget.value || null)}
         />
@@ -113,7 +117,7 @@ export function PaymentsHistoryFilters() {
 
       <div>
         <Label htmlFor="payments-from" className="mb-1.5 block text-xs font-medium">
-          Du
+          {t('from')}
         </Label>
         <DatePicker
           id="payments-from"
@@ -124,7 +128,7 @@ export function PaymentsHistoryFilters() {
 
       <div>
         <Label htmlFor="payments-to" className="mb-1.5 block text-xs font-medium">
-          Au
+          {t('to')}
         </Label>
         <DatePicker
           id="payments-to"

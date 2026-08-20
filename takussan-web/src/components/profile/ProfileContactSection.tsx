@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -27,6 +28,8 @@ type Feedback = { ok: boolean; message: string };
  * state mirrors this so the badge flips immediately on save.
  */
 export function ProfileContactSection({ user }: ProfileContactSectionProps) {
+  const t = useTranslations('profile.contact');
+  const tCommon = useTranslations('common.actions');
   const { setUser, user: contextUser } = useAuth();
   const [bio, setBio] = useState(user.bio ?? '');
   const [phone, setPhone] = useState(user.phone ?? '');
@@ -63,7 +66,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
     const result = await updateProfileAction(fd);
     setLoading(false);
     if (!result.ok) {
-      setFeedback({ ok: false, message: result.message ?? 'Échec de la mise à jour du profil.' });
+      setFeedback({ ok: false, message: result.message ?? t('saveError') });
       return;
     }
     setSavedPhone(result.user.phone ?? '');
@@ -76,7 +79,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
     // from `useAuth()` (notably `ProfileSecuritySection`) reflect the
     // new phone + reset verification status without a page reload.
     setUser({ ...(contextUser ?? user), ...result.user });
-    setFeedback({ ok: true, message: 'Modifications enregistrées.' });
+    setFeedback({ ok: true, message: t('saved') });
   }
 
   function handleSendOtp() {
@@ -91,8 +94,8 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
       setOtpFeedback({
         ok: true,
         message: result.data.debug_code
-          ? `Code envoyé. (Debug : ${result.data.debug_code})`
-          : "Code envoyé. Vérifiez votre SMS (peut prendre jusqu'à 60s).",
+          ? t('otpSentDebug', { code: result.data.debug_code })
+          : t('otpSent'),
       });
     });
   }
@@ -108,7 +111,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
       setPhoneVerified(true);
       setOtpSent(false);
       setOtpCode('');
-      setOtpFeedback({ ok: true, message: 'Téléphone vérifié avec succès.' });
+      setOtpFeedback({ ok: true, message: t('phoneVerifiedOk') });
       // Mirror the verified status to the auth context so the security
       // section and any other consumer pick it up immediately.
       const base = contextUser ?? user;
@@ -121,12 +124,12 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   return (
     <section className="space-y-4 rounded-2xl bg-app-surface-1 p-6">
       <div>
-        <h2 className="text-lg font-bold text-app-ink">Coordonnées</h2>
-        <p className="text-sm text-app-ink-muted">Gérez vos informations de contact.</p>
+        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
+        <p className="text-sm text-app-ink-muted">{t('subtitle')}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-app-ink-muted">Email</label>
+          <label className="text-xs font-semibold text-app-ink-muted">{t('emailLabel')}</label>
           <div className="flex items-center gap-2">
             <Input value={user.email} disabled className="bg-white/60" />
             <span
@@ -137,13 +140,13 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                   : 'bg-white text-app-accent')
               }
             >
-              {emailVerified ? 'Vérifié' : 'Non vérifié'}
+              {emailVerified ? t('verified') : t('notVerified')}
             </span>
           </div>
         </div>
         <div className="space-y-1">
           <label htmlFor="phone" className="text-xs font-semibold text-app-ink-muted">
-            Téléphone
+            {t('phoneLabel')}
           </label>
           <div className="flex items-center gap-2">
             <Input
@@ -167,17 +170,17 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                     : 'bg-amber-100 text-amber-800')
                 }
               >
-                {phoneVerified ? 'Vérifié' : 'Non vérifié'}
+                {phoneVerified ? t('verified') : t('notVerified')}
               </span>
             ) : null}
           </div>
           {!phoneFormatValid ? (
             <p id="phone-error" role="alert" className="text-xs text-red-600">
-              Format E.164 attendu : `+`, indicatif pays, puis chiffres (ex : +221770000000).
+              {t('phoneFormatError')}
             </p>
           ) : (
             <p className="text-xs text-app-ink-muted">
-              Format international (E.164). Modifier le numéro réinitialise sa vérification.
+              {t('phoneHint')}
             </p>
           )}
         </div>
@@ -188,7 +191,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3"
           >
             <p className="text-xs text-amber-900">
-              Vérifiez votre numéro pour recevoir des notifications par SMS.
+              {t('verifyPrompt')}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -200,10 +203,10 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                 data-testid="phone-otp-send"
               >
                 {otpPending && !otpSent
-                  ? 'Envoi…'
+                  ? t('sending')
                   : otpSent
-                    ? 'Renvoyer le code'
-                    : 'Vérifier'}
+                    ? t('resendCode')
+                    : t('verify')}
               </Button>
               {otpSent ? (
                 <div className="flex flex-wrap items-center gap-2">
@@ -223,7 +226,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                     }}
                     placeholder="123456"
                     autoComplete="one-time-code"
-                    aria-label="Code à 6 chiffres"
+                    aria-label={t('otpCodeAria')}
                     data-testid="phone-otp-code"
                     className="max-w-[8rem]"
                   />
@@ -234,7 +237,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                     disabled={otpPending || otpCode.length !== 6}
                     data-testid="phone-otp-verify"
                   >
-                    {otpPending ? 'Vérification…' : 'Confirmer'}
+                    {otpPending ? t('verifying') : tCommon('confirm')}
                   </Button>
                 </div>
               ) : null}
@@ -252,7 +255,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
 
         <div className="space-y-1">
           <label htmlFor="contact-bio" className="text-xs font-semibold text-app-ink-muted">
-            Bio
+            {t('bioLabel')}
           </label>
           <Textarea
             id="contact-bio"
@@ -260,7 +263,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             onChange={(e) => setBio(e.target.value)}
             maxLength={500}
             rows={3}
-            placeholder="Parlez-nous un peu de vous..."
+            placeholder={t('bioPlaceholder')}
           />
           <p className="text-right text-xs text-app-ink-muted">{bio.length}/500</p>
         </div>
@@ -274,7 +277,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         ) : null}
         <div className="flex justify-end">
           <Button type="submit" disabled={!canSubmit} data-testid="contact-save">
-            {loading ? 'Enregistrement…' : 'Enregistrer'}
+            {loading ? t('saving') : tCommon('save')}
           </Button>
         </div>
       </form>

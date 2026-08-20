@@ -7,7 +7,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 async function forward(request: NextRequest, segments: string[]): Promise<NextResponse> {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  if (!token) return NextResponse.json({ message: 'Unauthenticated.' }, { status: 401 });
+  if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const url = `${API_URL}/api/announcements/${segments.join('/')}${request.nextUrl.search}`;
   const headers: Record<string, string> = {

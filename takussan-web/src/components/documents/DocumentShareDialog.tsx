@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { useLocale } from 'next-intl';
+import { useCallback, useMemo, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
 import { Copy, Link2, Trash2, Check } from 'lucide-react';
 
 import {
@@ -30,14 +30,16 @@ import {
   useRevokeShareLink,
 } from '@/lib/queries/documents';
 import type { Document, DocumentShareLink } from '@/types/document';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type TTLOption = '1h' | '24h' | '7d' | '30d';
 
-const TTL_OPTIONS: readonly { value: TTLOption; label: string; ms: number }[] = [
-  { value: '1h', label: '1 heure', ms: 1 * 60 * 60 * 1000 },
-  { value: '24h', label: '24 heures', ms: 24 * 60 * 60 * 1000 },
-  { value: '7d', label: '7 jours', ms: 7 * 24 * 60 * 60 * 1000 },
-  { value: '30d', label: '30 jours', ms: 30 * 24 * 60 * 60 * 1000 },
+/** La donnée porte la CLÉ (`documents.share.ttl.<value>`) ; le rendu la résout. */
+const TTL_OPTIONS: readonly { value: TTLOption; ms: number }[] = [
+  { value: '1h', ms: 1 * 60 * 60 * 1000 },
+  { value: '24h', ms: 24 * 60 * 60 * 1000 },
+  { value: '7d', ms: 7 * 24 * 60 * 60 * 1000 },
+  { value: '30d', ms: 30 * 24 * 60 * 60 * 1000 },
 ];
 
 function ttlToExpiresAt(ttl: TTLOption): string {
@@ -71,6 +73,14 @@ export function DocumentShareDialog({
   document,
 }: DocumentShareDialogProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('documents.share');
+  const tTtl = useTranslations('documents.share.ttl');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
+  const ttlItems = useMemo(
+    () => TTL_OPTIONS.map((o) => ({ value: o.value, label: tTtl(o.value) })),
+    [tTtl],
+  );
   const [ttl, setTtl] = useState<TTLOption>('24h');
   const [maxDownloads, setMaxDownloads] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -110,12 +120,12 @@ export function DocumentShareDialog({
       setLinks((prev) => [res.data, ...prev]);
     } catch (e) {
       if (e instanceof ApiError) {
-        setError(e.displayMessage);
+        setError(messageErreur(e));
       } else {
-        setError('Impossible de générer le lien.');
+        setError(t('create_error'));
       }
     }
-  }, [document, ttl, maxDownloads, password, createLink]);
+  }, [document, ttl, maxDownloads, password, createLink, t, messageErreur]);
 
   const onRevoke = useCallback(
     async (linkId: number) => {
@@ -129,13 +139,13 @@ export function DocumentShareDialog({
         setLinks((prev) => prev.filter((l) => l.id !== linkId));
       } catch (e) {
         if (e instanceof ApiError) {
-          setError(e.displayMessage);
+          setError(messageErreur(e));
         } else {
-          setError('Impossible de révoquer le lien.');
+          setError(t('revoke_error'));
         }
       }
     },
-    [document, revokeLink],
+    [document, revokeLink, t, messageErreur],
   );
 
   const onCopy = useCallback(async (token: string) => {
@@ -153,11 +163,11 @@ export function DocumentShareDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Partager le document</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
             {document?.name
-              ? `Génère un lien temporaire pour "${document.name}".`
-              : 'Génère un lien temporaire pour ce document.'}
+              ? t('description_named', { name: document.name })
+              : t('description_generic')}
           </DialogDescription>
         </DialogHeader>
 
@@ -167,16 +177,16 @@ export function DocumentShareDialog({
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <Label htmlFor="share-ttl" className="mb-1.5 block text-sm font-medium">
-                Durée
+                {t('duration_label')}
               </Label>
-              <Select value={ttl} onValueChange={(v) => setTtl(v as TTLOption)} items={TTL_OPTIONS}>
+              <Select value={ttl} onValueChange={(v) => setTtl(v as TTLOption)} items={ttlItems}>
                 <SelectTrigger id="share-ttl" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {TTL_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
+                      {tTtl(opt.value)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -184,26 +194,26 @@ export function DocumentShareDialog({
             </div>
             <div>
               <Label htmlFor="share-max-downloads" className="mb-1.5 block text-sm font-medium">
-                Usages max
+                {t('max_downloads_label')}
               </Label>
               <Input
                 id="share-max-downloads"
                 type="number"
                 min={1}
                 max={1000}
-                placeholder="Illimité"
+                placeholder={t('max_downloads_placeholder')}
                 value={maxDownloads}
                 onChange={(e) => setMaxDownloads(e.target.value)}
               />
             </div>
             <div>
               <Label htmlFor="share-password" className="mb-1.5 block text-sm font-medium">
-                Mot de passe
+                {t('password_label')}
               </Label>
               <Input
                 id="share-password"
                 type="password"
-                placeholder="Optionnel"
+                placeholder={t('password_placeholder')}
                 minLength={4}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -217,7 +227,7 @@ export function DocumentShareDialog({
               disabled={createLink.isPending || !document}
             >
               <Link2 className="mr-1 size-4" aria-hidden="true" />
-              {createLink.isPending ? 'Génération…' : 'Générer un lien'}
+              {createLink.isPending ? t('creating') : t('create')}
             </Button>
           </div>
         </div>
@@ -225,7 +235,7 @@ export function DocumentShareDialog({
         {links.length > 0 ? (
           <div className="space-y-2">
             <h4 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
-              Liens créés dans cette session
+              {t('session_links')}
             </h4>
             <ul className="space-y-2">
               {links.map((link) => {
@@ -239,14 +249,14 @@ export function DocumentShareDialog({
                       readOnly
                       value={url}
                       className="h-8 min-w-0 flex-1 font-mono text-[11px]"
-                      aria-label="URL du lien de partage"
+                      aria-label={t('url_aria')}
                     />
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
                       onClick={() => void onCopy(link.token)}
-                      aria-label="Copier le lien"
+                      aria-label={t('copy_aria')}
                     >
                       {copiedToken === link.token ? (
                         <Check className="size-4" aria-hidden="true" />
@@ -259,22 +269,29 @@ export function DocumentShareDialog({
                       size="sm"
                       variant="outline"
                       onClick={() => void onRevoke(link.id)}
-                      aria-label="Révoquer le lien"
+                      aria-label={t('revoke_aria')}
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
                     </Button>
                     <div className="flex basis-full gap-3 text-[11px] text-app-ink-muted">
                       {link.expires_at ? (
-                        <span>Expire le {formatDateTime(link.expires_at, locale)}</span>
+                        <span>
+                          {t('expires_at', {
+                            date: formatDateTime(link.expires_at, locale),
+                          })}
+                        </span>
                       ) : (
-                        <span>Sans expiration</span>
+                        <span>{t('no_expiry')}</span>
                       )}
                       {link.max_downloads ? (
                         <span>
-                          {link.downloads_count}/{link.max_downloads} usages
+                          {t('usages', {
+                            count: link.downloads_count,
+                            max: link.max_downloads,
+                          })}
                         </span>
                       ) : null}
-                      {link.has_password ? <span>Protégé par mot de passe</span> : null}
+                      {link.has_password ? <span>{t('password_protected')}</span> : null}
                     </div>
                   </li>
                 );
@@ -285,7 +302,7 @@ export function DocumentShareDialog({
 
         <div className="flex justify-end">
           <Button variant="ghost" type="button" onClick={() => handleOpenChange(false)}>
-            Fermer
+            {tCommon('actions.close')}
           </Button>
         </div>
       </DialogContent>

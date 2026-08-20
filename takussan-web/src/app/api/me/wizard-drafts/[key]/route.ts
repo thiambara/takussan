@@ -38,7 +38,8 @@ export async function GET(_req: NextRequest, ctx: { params: Params }): Promise<N
     if (err instanceof ApiError) {
       return NextResponse.json(err.data, { status: err.status });
     }
-    return NextResponse.json({ message: 'Failed to load draft.' }, { status: 500 });
+    console.error('[BFF] Failed to load draft.', err);
+    return NextResponse.json({ code: 'server_error' }, { status: 500 });
   }
 }
 
@@ -51,7 +52,7 @@ export async function PUT(req: NextRequest, ctx: { params: Params }): Promise<Ne
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ message: 'Invalid JSON body.' }, { status: 400 });
+    return NextResponse.json({ code: 'invalid_json_body' }, { status: 400 });
   }
 
   try {
@@ -65,7 +66,8 @@ export async function PUT(req: NextRequest, ctx: { params: Params }): Promise<Ne
     if (err instanceof ApiError) {
       return NextResponse.json(err.data, { status: err.status });
     }
-    return NextResponse.json({ message: 'Failed to save draft.' }, { status: 500 });
+    console.error('[BFF] Failed to save draft.', err);
+    return NextResponse.json({ code: 'server_error' }, { status: 500 });
   }
 }
 
@@ -81,6 +83,7 @@ export async function DELETE(_req: NextRequest, ctx: { params: Params }): Promis
     if (err instanceof ApiError) {
       return NextResponse.json(err.data, { status: err.status });
     }
-    return NextResponse.json({ message: 'Failed to delete draft.' }, { status: 500 });
+    console.error('[BFF] Failed to delete draft.', err);
+    return NextResponse.json({ code: 'server_error' }, { status: 500 });
   }
 }

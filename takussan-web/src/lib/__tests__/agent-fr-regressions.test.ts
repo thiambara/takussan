@@ -3,8 +3,6 @@ import { describe, expect, it } from 'vitest';
 import frMessages from '@/messages/fr.json';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { localeDisplayLabel } from '@/i18n/config';
-import { statusFilterLabel } from '@/components/leases/LeasesList';
-import { MAINTENANCE_PRIORITY_LABEL } from '@/components/maintenance/labels';
 
 function normalizeSpaces(value: string): string {
   return value.replace(/[\u00a0\u202f]/g, ' ');
@@ -44,15 +42,21 @@ describe('agent French i18n regressions', () => {
   });
 
   it('does not expose technical lease and maintenance enum values', () => {
-    expect(statusFilterLabel('all')).toBe('Tous les statuts');
-    expect(statusFilterLabel('active')).toBe('Actif');
-    expect(Object.values(MAINTENANCE_PRIORITY_LABEL)).toEqual([
-      'Faible',
-      'Normale',
-      'Élevée',
-      'Urgente',
-    ]);
-    expect(Object.values(MAINTENANCE_PRIORITY_LABEL)).not.toEqual(
+    // TCK-292 — la garde portait sur `statusFilterLabel`, une fonction de `LeasesList` qui rendait
+    // du français EN DUR. Le libellé vient désormais du dictionnaire : la garde le suit à sa
+    // nouvelle source, avec les mêmes chaînes attendues.
+    expect(frMessages.lease.list.allStatuses).toBe('Tous les statuts');
+    expect(frMessages.lease.status.active).toBe('Actif');
+    // Idem pour `MAINTENANCE_PRIORITY_LABEL` (lot I) : la table a quitté
+    // `components/maintenance/labels.ts` pour `maintenance.priority`. Mêmes chaînes, même ordre,
+    // même garde — seule la SOURCE a bougé.
+    expect([
+      frMessages.maintenance.priority.low,
+      frMessages.maintenance.priority.normal,
+      frMessages.maintenance.priority.high,
+      frMessages.maintenance.priority.urgent,
+    ]).toEqual(['Faible', 'Normale', 'Élevée', 'Urgente']);
+    expect(Object.values(frMessages.maintenance.priority)).not.toEqual(
       expect.arrayContaining(['Low', 'High', 'Normal']),
     );
   });

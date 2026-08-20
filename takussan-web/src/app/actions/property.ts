@@ -1,7 +1,8 @@
 'use server';
 
-import { ApiError, apiRequest } from '@/lib/api';
+import { ApiError, apiRequest, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { getTranslations } from 'next-intl/server';
 import type {
   BookingRequestPayload,
   OfferRequestPayload,
@@ -13,16 +14,32 @@ type ActionResult<T = undefined> =
   | { ok: true; data?: T }
   | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
 
-function errorFromApi(e: unknown): { status?: number; message: string; errors?: Record<string, string[]> } {
+async function errorFromApi(
+  e: unknown,
+): Promise<{ status?: number; message: string; errors?: Record<string, string[]> }> {
+  const [tRacine, t] = await Promise.all([
+    getTranslations(),
+    getTranslations('serverActions.properties'),
+  ]);
   if (e instanceof ApiError) {
     const data = (e.data ?? {}) as { message?: string; errors?: Record<string, string[]> };
     return {
       status: e.status,
-      message: data.message ?? `Erreur (${e.status}).`,
+      // ⚠️ C'était `data.message ?? t('apiError', …)`, et `data.message` relayait TEL QUEL le
+      // « Unauthenticated. » anglais de Laravel — le cas le plus fréquent d'un 401. Le repli
+      // `Erreur (404).` est un gabarit interpolé, donc invisible au scanner de check-i18n ;
+      // il s'affichait bien (TCK-292, lot K).
+      message: messageErreurApi(e, tRacine, t('apiError', { status: String(e.status) })),
       errors: data.errors,
     };
   }
-  return { message: 'Erreur réseau.' };
+  return { message: t('networkError') };
+}
+
+/** Le jeton manque : aucune requête n'est partie. */
+async function authRequise(): Promise<ActionResult<never>> {
+  const t = await getTranslations('serverActions.shared');
+  return { ok: false, status: 401, message: t('authRequired') };
 }
 
 export async function submitPropertyReport(
@@ -36,7 +53,7 @@ export async function submitPropertyReport(
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -53,7 +70,7 @@ export async function submitVisitRequest(
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -62,7 +79,7 @@ export async function submitBookingRequest(
   payload: BookingRequestPayload,
 ): Promise<ActionResult> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  if (!token) return authRequise();
   try {
     await apiRequest(`/api/public/properties/${slug}/booking-request`, {
       method: 'POST',
@@ -71,7 +88,7 @@ export async function submitBookingRequest(
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -110,7 +127,7 @@ export async function submitPurchaseOffer(
   payload: OfferRequestPayload,
 ): Promise<ActionResult> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  if (!token) return authRequise();
   try {
     await apiRequest(`/api/public/properties/${slug}/booking-request`, {
       method: 'POST',
@@ -119,7 +136,7 @@ export async function submitPurchaseOffer(
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -128,7 +145,7 @@ export async function submitContactMessage(
   message: string,
 ): Promise<ActionResult<{ conversation_id: number; redirect_to: string }>> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  if (!token) return authRequise();
   try {
     const res = await apiRequest<{ data: { conversation_id: number; redirect_to: string } }>(
       `/api/public/properties/${slug}/contact-message`,
@@ -136,7 +153,7 @@ export async function submitContactMessage(
     );
     return { ok: true, data: res.data };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -156,7 +173,7 @@ export async function submitContactLead(
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -165,7 +182,7 @@ export async function submitReview(
   payload: { rating: number; title?: string; content?: string },
 ): Promise<ActionResult> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  if (!token) return authRequise();
   try {
     await apiRequest(`/api/properties/${propertyId}/reviews`, {
       method: 'POST',
@@ -174,7 +191,7 @@ export async function submitReview(
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -183,7 +200,7 @@ export async function reportReview(
   reason: string,
 ): Promise<ActionResult> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  if (!token) return authRequise();
   try {
     await apiRequest(`/api/reviews/${reviewId}/report`, {
       method: 'POST',
@@ -192,7 +209,7 @@ export async function reportReview(
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -206,7 +223,7 @@ export async function submitReviewReply(
   replyContent: string,
 ): Promise<ActionResult> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  if (!token) return authRequise();
   try {
     await apiRequest(`/api/reviews/${reviewId}/reply`, {
       method: 'POST',
@@ -215,7 +232,7 @@ export async function submitReviewReply(
     });
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }
 
@@ -224,7 +241,7 @@ export async function toggleFavoriteAction(
   currentFavoriteId: number | null,
 ): Promise<ActionResult<{ favorite_id: number | null }>> {
   const token = await getToken();
-  if (!token) return { ok: false, status: 401, message: 'Authentification requise.' };
+  if (!token) return authRequise();
   try {
     if (currentFavoriteId) {
       await apiRequest(`/api/favorites/${currentFavoriteId}`, { method: 'DELETE', token });
@@ -237,6 +254,6 @@ export async function toggleFavoriteAction(
     });
     return { ok: true, data: { favorite_id: res.data.id } };
   } catch (e) {
-    return { ok: false, ...errorFromApi(e) };
+    return { ok: false, ...(await errorFromApi(e)) };
   }
 }

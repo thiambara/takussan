@@ -1,0 +1,71 @@
+{
+  "_lisez_moi": "Relevé MESURÉ du déploiement de takussan-web/. Source unique du mapping branche → environnement front. Prose et raisonnement : docs/infra/frontend-deploiement.md. Décision : docs/adr/0017-deploiement-du-front-pilote-par-vercel.md. Gardé par .github/workflows/front-deploy-map.yml — ne pas recopier ces valeurs ailleurs.",
+
+  "mesure": {
+    "date": "2026-08-20",
+    "par": "API GitHub (Deployments) + sondes HTTP/DNS publiques — AUCUN accès au tableau de bord Vercel",
+    "commande_mapping": "gh api --paginate 'repos/thiambara/takussan/deployments?per_page=100' -q '.[] | [.environment, .ref, .created_at, .creator.login] | @tsv'",
+    "commande_variables": "curl -sS https://www.takussan.com/ | grep -o '/_next/static/[^\"]*\\.js' | sort -u  # puis grep de NEXT_PUBLIC_* dans les chunks téléchargés"
+  },
+
+  "projet_vercel": "thiambaras-projects/takussan",
+  "mecanisme": "integration-git-vercel",
+  "workflow_du_depot": null,
+
+  "branche_production": "master",
+
+  "branches": [
+    {
+      "branche": "master",
+      "environnement": "Production",
+      "mesure": "3 déploiements d'environnement « Production » au 2026-08-20, et leurs 3 refs sont EXACTEMENT les 3 derniers commits de `git log --first-parent origin/master` : fefe2c87 (2026-08-15), 71d4de34 (2026-05-18), 70342b9c (2026-05-04)",
+      "alias_public": "https://takussan.vercel.app/ → 200",
+      "domaine": "www.takussan.com"
+    },
+    {
+      "branche": "preview",
+      "environnement": "Preview",
+      "mesure": "la pointe 5b922b00 (2026-08-13) a produit le déploiement 5886843367, environnement « Preview », état success",
+      "alias_public": "https://takussan-git-preview-thiambaras-projects.vercel.app/ → 302 vers vercel.com/sso-api (protection de déploiement active)",
+      "domaine": "NON MESURÉ — preview.takussan.com pointe sur Vercel et exige le SSO ; le dépôt ne peut pas prouver à quelle branche ce domaine est attaché"
+    },
+    {
+      "branche": "dev",
+      "environnement": "Preview",
+      "mesure": "212 déploiements « Preview » au 2026-08-20, dont celui de la pointe f39f2449 (2026-08-20T11:51Z) ; AUCUN déploiement « Production » sur un commit absent de master",
+      "alias_public": "https://takussan-git-dev-thiambaras-projects.vercel.app/ → 302 vers vercel.com/sso-api",
+      "domaine": null
+    }
+  ],
+
+  "domaines": [
+    { "hote": "takussan.com", "mesure_2026_08_20": "307 → https://www.takussan.com/", "serveur": "Vercel" },
+    { "hote": "www.takussan.com", "mesure_2026_08_20": "200, x-powered-by: Next.js, server: Vercel", "serveur": "Vercel" },
+    { "hote": "preview.takussan.com", "mesure_2026_08_20": "302 → vercel.com/sso-api", "serveur": "Vercel" },
+    { "hote": "app.takussan.com", "mesure_2026_08_20": "ne résout pas (dig +short vide)", "serveur": null }
+  ],
+
+  "variables_build": [
+    {
+      "cle": "NEXT_PUBLIC_API_URL",
+      "obligatoire": true,
+      "usages_dans_src": 39,
+      "declaree_dans": "takussan-web/.env.example",
+      "valeur_dev": "http://127.0.0.1:8002",
+      "valeur_production_mesuree": "https://api.takussan.com",
+      "preuve": "chaîne inlinée dans le bundle client servi par www.takussan.com : `let e=\"https://api.takussan.com\".replace(/\\/api$/,\"\"),s=`${e}/api`` — NEXT_PUBLIC_* est substitué à la compilation, la valeur du build est donc lisible sans accès à Vercel",
+      "alerte": "https://api.takussan.com/up rend 404 et https://api.takussan.com/api/properties rend un 404 nginx au 2026-08-20 : le front de production appelle une API qui n'a JAMAIS été déployée (D-04, TCK-288)"
+    }
+  ],
+
+  "non_mesure": [
+    "L'attribution du domaine preview.takussan.com à une branche : elle vit dans le tableau de bord Vercel et le SSO empêche de la lire de l'extérieur.",
+    "Le « Root Directory » du projet Vercel : le dépôt est un monorepo et rien de public ne dit que Vercel construit takussan-web/ plutôt que la racine. Le résultat prouve qu'il construit bien le front (Next.js servi), pas le réglage qui le décide.",
+    "Les variables d'environnement NON préfixées NEXT_PUBLIC_ : elles ne sont pas inlinées dans le bundle. Mesuré côté dépôt : le code de takussan-web/ n'en lit AUCUNE en dehors de NODE_ENV, que Next pose lui-même."
+  ],
+
+  "filtre_de_chemins": {
+    "presence": false,
+    "mesure": "le commit 6f38de67 (2026-08-20) ne touche qu'un seul fichier, docs/backlog/tickets/TCK-320-selection-des-tests-par-impact.md, et il a produit le déploiement Preview 6001431629. L'intégration reconstruit donc le front à chaque commit, y compris ceux qui ne touchent que la documentation ou l'API."
+  }
+}

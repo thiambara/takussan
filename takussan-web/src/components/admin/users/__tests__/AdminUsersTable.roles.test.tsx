@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import { withIntl } from '@/test/intl';
 import { AdminUsersTable } from '../AdminUsersTable';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
@@ -28,14 +29,16 @@ function renderTable(
   assignmentsByUser?: ReadonlyMap<number, readonly AgencyRoleAssignment[]>,
 ) {
   render(
-    <AdminUsersTable
-      rows={ROWS}
-      total={1}
-      currentUserId={99}
-      assignmentsByUser={assignmentsByUser}
-      onSelect={vi.fn()}
-      onQuickAction={vi.fn()}
-    />,
+    withIntl(
+      <AdminUsersTable
+        rows={ROWS}
+        total={1}
+        currentUserId={99}
+        assignmentsByUser={assignmentsByUser}
+        onSelect={vi.fn()}
+        onQuickAction={vi.fn()}
+      />,
+    ),
   );
   return screen.getByTestId('admin-user-row-12');
 }

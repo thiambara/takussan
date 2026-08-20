@@ -1,3 +1,7 @@
+'use client';
+
+import { useTranslations } from 'next-intl';
+
 import { cn } from '@/lib/utils';
 import type {
   InventoryElementState,
@@ -5,9 +9,6 @@ import type {
   InventoryType,
 } from '@/types/inventory';
 import {
-  INVENTORY_ELEMENT_STATE_LABEL,
-  INVENTORY_STATUS_LABEL,
-  INVENTORY_TYPE_LABEL,
   inventoryElementStateBadgeClass,
   inventoryStatusBadgeClass,
   inventoryTypeBadgeClass,
@@ -22,9 +23,10 @@ export function InventoryStatusBadge({
   readonly status: InventoryStatus;
   readonly className?: string;
 }) {
+  const t = useTranslations('inventory.status');
   return (
     <span className={cn(BASE_BADGE, inventoryStatusBadgeClass(status), className)}>
-      {INVENTORY_STATUS_LABEL[status]}
+      {t(status)}
     </span>
   );
 }
@@ -36,9 +38,10 @@ export function InventoryTypeBadge({
   readonly type: InventoryType;
   readonly className?: string;
 }) {
+  const t = useTranslations('inventory.types');
   return (
     <span className={cn(BASE_BADGE, inventoryTypeBadgeClass(type), className)}>
-      {INVENTORY_TYPE_LABEL[type]}
+      {t(type)}
     </span>
   );
 }
@@ -50,9 +53,10 @@ export function InventoryElementStateBadge({
   readonly state: InventoryElementState;
   readonly className?: string;
 }) {
+  const t = useTranslations('inventory.elementStates');
   return (
     <span className={cn(BASE_BADGE, inventoryElementStateBadgeClass(state), className)}>
-      {INVENTORY_ELEMENT_STATE_LABEL[state]}
+      {t(state)}
     </span>
   );
 }

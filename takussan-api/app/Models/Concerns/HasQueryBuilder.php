@@ -184,10 +184,18 @@ trait HasQueryBuilder
                 // (typo-tolerant, relevance-ranked). The resulting whereIn
                 // composes with any access-control scope already applied to
                 // the query, so tenant isolation is preserved. Non-Searchable
-                // models keep the SQL LIKE fallback. Inlined here rather than
-                // delegating to BaseModelTrait::withSearch() because
-                // HasQueryBuilder is also used by models without that trait
-                // (e.g. User).
+                // models keep the SQL LIKE fallback.
+                //
+                // TCK-326 — ce bloc était inline plutôt que délégué à
+                // `BaseModelTrait::scopeWithSearch()`, parce que
+                // `HasQueryBuilder` sert aussi des modèles sans ce trait
+                // (`User`). Ce scope-là n'existe plus : il n'avait aucun
+                // appelant hors du test qui le testait, et il PERDAIT l'ordre
+                // de pertinence que les lignes ci-dessous restituent. C'est
+                // désormais le SEUL chemin de recherche du backend, et
+                // `scripts/check-filtering-single-mechanism.mjs` (contrôle D)
+                // refuse d'en voir réapparaître un second, y compris sous un
+                // autre nom.
                 if (in_array(Searchable::class, class_uses_recursive($model), true)) {
                     $ids = $model::search($value)->take(static::SEARCH_ID_CAP)->keys()->all();
                     $q->whereIn($model->getQualifiedKeyName(), $ids);

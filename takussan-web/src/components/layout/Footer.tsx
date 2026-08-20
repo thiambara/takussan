@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslations } from "next-intl"
 
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
@@ -18,6 +19,8 @@ export interface FooterProps {
 }
 
 export function Footer({ className, children }: FooterProps) {
+  // next-intl 4 : appelable en composant serveur tant que le composant n'est pas `async`.
+  const t = useTranslations()
   const year = new Date().getFullYear()
   return (
     <footer
@@ -36,8 +39,8 @@ export function Footer({ className, children }: FooterProps) {
           </>
         ) : null}
         <div className="flex flex-col items-start justify-between gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center">
-          <p>Takussan — Immobilier au Sénégal</p>
-          <p>© {year} Takussan. Tous droits réservés.</p>
+          <p>{t("layout.footer.brandLine")}</p>
+          <p>{t("footer.copyright", { year })}</p>
         </div>
       </div>
     </footer>

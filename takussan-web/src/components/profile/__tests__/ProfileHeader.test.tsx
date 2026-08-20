@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
 import { ProfileHeader } from '../ProfileHeader';
+import { withIntl } from '@/test/intl';
 import type { User } from '@/types/user';
 
 const updateProfileMock = vi.fn();
@@ -41,14 +41,7 @@ describe('<ProfileHeader>', () => {
   });
 
   function renderHeader() {
-    return render(
-      <NextIntlClientProvider
-        locale="fr"
-        messages={{ common: { actions: { close: 'Fermer' } } }}
-      >
-        <ProfileHeader user={user} />
-      </NextIntlClientProvider>,
-    );
+    return render(withIntl(<ProfileHeader user={user} />));
   }
 
   it('updates the displayed name immediately after save', async () => {

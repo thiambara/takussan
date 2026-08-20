@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { FormInput, FormGlobalError } from '@/components/forms';
@@ -8,17 +9,22 @@ import { useApiForm } from '@/hooks/useApiForm';
 import { useSubmitMaintenanceQuote } from '@/lib/queries/maintenance';
 import type { MaintenanceRequest } from '@/types/maintenance';
 
-const schema = z.object({
-  amount: z.coerce.number().positive('Le montant doit être positif'),
-  currency: z.string().optional(),
-});
+/** Cf. `QuoteRejectionModal` : le message vient du dictionnaire, donc le schéma naît dans le composant. */
+function construireSchema(t: (cle: string) => string) {
+  return z.object({
+    amount: z.coerce.number().positive(t('amount_positive')),
+    currency: z.string().optional(),
+  });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof construireSchema>>;
 
 export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequest }) {
+  const t = useTranslations('maintenance.quote.submit');
   const mutation = useSubmitMaintenanceQuote(request.id);
   const [attachments, setAttachments] = useState<File[]>([]);
-  
+  const schema = useMemo(() => construireSchema(t), [t]);
+
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<FormValues, unknown>({
     schema,
     defaultValues: {
@@ -43,10 +49,8 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
 
   return (
     <div className="rounded-2xl bg-app-surface-1 p-5">
-      <h3 className="text-sm font-semibold text-app-ink">Soumettre un devis</h3>
-      <p className="mb-4 mt-1 text-xs text-app-ink-muted">
-        Veuillez indiquer le montant estimé pour cette intervention.
-      </p>
+      <h3 className="text-sm font-semibold text-app-ink">{t('title')}</h3>
+      <p className="mb-4 mt-1 text-xs text-app-ink-muted">{t('intro')}</p>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <FormGlobalError>{globalError}</FormGlobalError>
@@ -55,7 +59,7 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
           <FormInput
             name="amount"
             control={form.control}
-            label="Montant"
+            label={t('amount_label')}
             type="number"
             step="0.01"
             placeholder="0.00"
@@ -63,14 +67,14 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
           <FormInput
             name="currency"
             control={form.control}
-            label="Devise (optionnel)"
-            placeholder="XOF, EUR..."
+            label={t('currency_label')}
+            placeholder={t('currency_placeholder')}
           />
         </div>
 
         <div>
           <label className="mb-1.5 block text-sm font-medium">
-            Fichiers joints (Devis PDF, photos, etc.)
+            {t('attachments_label')}
           </label>
           <input
             type="file"
@@ -80,14 +84,14 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
           />
           {attachments.length > 0 && (
             <p className="mt-1 text-xs text-app-ink-muted">
-              {attachments.length} fichier{attachments.length > 1 ? 's' : ''} sélectionné{attachments.length > 1 ? 's' : ''}.
+              {t('attachments_selected', { count: attachments.length })}
             </p>
           )}
         </div>
 
         <div className="flex justify-end pt-2">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Envoi...' : 'Envoyer le devis'}
+            {isSubmitting ? t('submitting') : t('submit')}
           </Button>
         </div>
       </form>

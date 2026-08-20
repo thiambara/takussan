@@ -1,5 +1,6 @@
 'use client';
 import { useReducer, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api';
 import type { PaginatedProperties } from '@/types/property';
 
@@ -37,6 +38,7 @@ export type UsePropertiesParams = {
 
 export function useProperties(params: UsePropertiesParams = {}) {
   const { page = 1, perPage = 12, featured, sort, transaction, type, city, query } = params;
+  const t = useTranslations('property.list');
 
   const [state, dispatch] = useReducer(reducer, { status: 'loading', data: null });
 
@@ -65,10 +67,10 @@ export function useProperties(params: UsePropertiesParams = {}) {
 
     apiFetch<PaginatedProperties>(`${path}?${qs.toString()}`)
       .then(data => { if (!cancelled) dispatch({ type: 'FETCH_SUCCESS', payload: data }); })
-      .catch(() => { if (!cancelled) dispatch({ type: 'FETCH_ERROR', message: 'Impossible de charger les annonces.' }); });
+      .catch(() => { if (!cancelled) dispatch({ type: 'FETCH_ERROR', message: t('loadError') }); });
 
     return () => { cancelled = true; };
-  }, [page, perPage, featured, sort, transaction, type, city, query]);
+  }, [page, perPage, featured, sort, transaction, type, city, query, t]);
 
   return {
     data: state.data,

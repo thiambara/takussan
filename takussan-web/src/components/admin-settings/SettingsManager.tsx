@@ -51,15 +51,15 @@ interface SettingsManagerProps {
   readonly canManageGlobal: boolean;
 }
 
-const SCOPE_LABELS: Record<SettingScope, string> = {
-  global: 'Globaux',
-  agency: 'Agence',
-};
-
+/**
+ * TCK-292 — les libellés de portée vivent sous `adminSettings.settings.scopes.*` :
+ * la donnée porte la clé (`global` / `agency`), le rendu la résout.
+ */
 const SENSITIVE_KEYS = new Set(['maintenance_mode', 'feature_flags']);
 
 export function SettingsManager({ initialSettings, canManageGlobal }: SettingsManagerProps) {
   const t = useTranslations('adminSettings.settings');
+  const tCommon = useTranslations('common.actions');
   const [settings, setSettings] = useState<Setting[]>(initialSettings);
   const [scopeFilter, setScopeFilter] = useState<'all' | SettingScope>('all');
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -91,9 +91,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
   const commitEdit = useCallback(
     (setting: Setting) => {
       if (SENSITIVE_KEYS.has(setting.key)) {
-        const ok = window.confirm(
-          `Le paramètre « ${setting.key} » a un impact global. Confirmer la modification ?`,
-        );
+        const ok = window.confirm(t('confirmSensitive', { key: setting.key }));
         if (!ok) return;
       }
       const payload = parseSettingRawValue(editingValue);
@@ -106,15 +104,15 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
         setSettings((prev) =>
           prev.map((s) => (s.id === setting.id ? (result.data ?? s) : s)),
         );
-        setBanner({ kind: 'success', message: `Paramètre « ${setting.key} » mis à jour.` });
+        setBanner({ kind: 'success', message: t('updated', { key: setting.key }) });
         cancelEdit();
       });
     },
-    [editingValue, cancelEdit],
+    [editingValue, cancelEdit, t],
   );
 
   const handleDelete = useCallback((setting: Setting) => {
-    const ok = window.confirm(`Supprimer le paramètre « ${setting.key} » ?`);
+    const ok = window.confirm(t('confirmDelete', { key: setting.key }));
     if (!ok) return;
     startTransition(async () => {
       const result = await deleteSettingAction(setting.id);
@@ -123,9 +121,9 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
         return;
       }
       setSettings((prev) => prev.filter((s) => s.id !== setting.id));
-      setBanner({ kind: 'success', message: `Paramètre « ${setting.key} » supprimé.` });
+      setBanner({ kind: 'success', message: t('deleted', { key: setting.key }) });
     });
-  }, []);
+  }, [t]);
 
   const handleCreate = useCallback(
     async (
@@ -149,10 +147,10 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
           return [result.data as Setting, ...prev];
         });
       }
-      setBanner({ kind: 'success', message: `Paramètre « ${values.key} » enregistré.` });
+      setBanner({ kind: 'success', message: t('saved', { key: values.key }) });
       return { ok: true as const };
     },
-    [],
+    [t],
   );
 
   return (
@@ -162,7 +160,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
           <span className="flex items-center justify-between gap-4">
             <span>{banner.message}</span>
             <button type="button" onClick={() => setBanner(null)} className="text-xs underline">
-              Fermer
+              {tCommon('close')}
             </button>
           </span>
         </FormSuccess>
@@ -172,7 +170,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
       ) : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filtrer par portée">
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label={t('filterByScope')}>
           {(['all', 'global', 'agency'] as const).map((opt) => {
             const active = scopeFilter === opt;
             return (
@@ -188,14 +186,14 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
                     : 'border-input text-muted-foreground hover:bg-muted'
                 }`}
               >
-                {opt === 'all' ? 'Tous' : SCOPE_LABELS[opt as SettingScope]}
+                {t(`scopes.${opt}`)}
               </button>
             );
           })}
         </div>
         <Button type="button" onClick={() => setCreateOpen(true)}>
           <Plus aria-hidden="true" />
-          <span>Nouveau paramètre</span>
+          <span>{t('new')}</span>
         </Button>
       </div>
 
@@ -203,10 +201,10 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
         <table className="min-w-full text-sm">
           <thead className="bg-app-surface-2 text-left text-xs uppercase tracking-wider text-app-ink-muted">
             <tr>
-              <th scope="col" className="px-4 py-3 font-semibold">Clé</th>
-              <th scope="col" className="px-4 py-3 font-semibold">Portée</th>
-              <th scope="col" className="px-4 py-3 font-semibold">Valeur</th>
-              <th scope="col" className="px-4 py-3 font-semibold text-right">Actions</th>
+              <th scope="col" className="px-4 py-3 font-semibold">{t('columns.key')}</th>
+              <th scope="col" className="px-4 py-3 font-semibold">{t('columns.scope')}</th>
+              <th scope="col" className="px-4 py-3 font-semibold">{t('columns.value')}</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-right">{t('columns.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-input">
@@ -230,7 +228,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
                     <td className="px-4 py-3 font-mono text-xs">{setting.key}</td>
                     <td className="px-4 py-3 text-xs">
                       <span className="rounded-full bg-muted px-2 py-0.5">
-                        {SCOPE_LABELS[setting.scope]}
+                        {t(`scopes.${setting.scope}`)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs">
@@ -260,7 +258,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
                             disabled={isPending}
                           >
                             <Save aria-hidden="true" />
-                            <span>Enregistrer</span>
+                            <span>{tCommon('save')}</span>
                           </Button>
                           <Button
                             type="button"
@@ -278,7 +276,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
                             type="button"
                             variant="ghost"
                             size="sm"
-                            aria-label={`Modifier ${setting.key}`}
+                            aria-label={t('actions.edit', { key: setting.key })}
                             onClick={() => beginEdit(setting)}
                             disabled={!canEdit || isPending}
                           >
@@ -288,7 +286,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
                             type="button"
                             variant="ghost"
                             size="sm"
-                            aria-label={`Supprimer ${setting.key}`}
+                            aria-label={t('actions.delete', { key: setting.key })}
                             onClick={() => handleDelete(setting)}
                             disabled={!canEdit || isPending}
                           >
@@ -330,6 +328,8 @@ function CreateSettingDialog({
   canManageGlobal,
   onSubmit,
 }: CreateSettingDialogProps) {
+  const t = useTranslations('adminSettings.settings');
+  const tCommon = useTranslations('common.actions');
   const [values, setValues] = useState<SettingFormValues>({
     key: '',
     scope: canManageGlobal ? 'global' : 'agency',
@@ -342,7 +342,7 @@ function CreateSettingDialog({
     e.preventDefault();
     setError(null);
     if (values.key.trim() === '') {
-      setError('La clé est requise.');
+      setError(t('keyRequired'));
       return;
     }
     setSubmitting(true);
@@ -360,34 +360,31 @@ function CreateSettingDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouveau paramètre</DialogTitle>
-          <DialogDescription>
-            Les paramètres acceptent n’importe quelle valeur JSON. Les scalaires simples
-            (texte, nombre, booléen) sont encapsulés automatiquement.
-          </DialogDescription>
+          <DialogTitle>{t('new')}</DialogTitle>
+          <DialogDescription>{t('create.description')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           {error ? <FormGlobalError>{error}</FormGlobalError> : null}
           <div>
             <label htmlFor="setting-key" className="mb-1.5 block text-sm font-medium">
-              Clé <span className="text-destructive">*</span>
+              {t('columns.key')} <span className="text-destructive">*</span>
             </label>
             <Input
               id="setting-key"
               value={values.key}
               onChange={(e) => setValues((v) => ({ ...v, key: e.target.value }))}
-              placeholder="ex : maintenance_mode"
+              placeholder={t('create.keyPlaceholder')}
               required
             />
           </div>
           <div>
             <label htmlFor="setting-scope" className="mb-1.5 block text-sm font-medium">
-              Portée <span className="text-destructive">*</span>
+              {t('columns.scope')} <span className="text-destructive">*</span>
             </label>
             <Select
               value={values.scope}
               onValueChange={(value) => setValues((v) => ({ ...v, scope: (value ?? v.scope) as SettingScope }))}
-              items={settingScopeValues.map((s) => ({ value: s, label: SCOPE_LABELS[s] }))}
+              items={settingScopeValues.map((s) => ({ value: s, label: t(`scopes.${s}`) }))}
             >
               <SelectTrigger id="setting-scope" className="w-full">
                 <SelectValue />
@@ -395,7 +392,7 @@ function CreateSettingDialog({
               <SelectContent>
                 {settingScopeValues.map((s) => (
                   <SelectItem key={s} value={s} disabled={s === 'global' && !canManageGlobal}>
-                    {SCOPE_LABELS[s]}
+                    {t(`scopes.${s}`)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -403,14 +400,14 @@ function CreateSettingDialog({
           </div>
           <div>
             <label htmlFor="setting-value" className="mb-1.5 block text-sm font-medium">
-              Valeur
+              {t('columns.value')}
             </label>
             <Textarea
               id="setting-value"
               value={values.value}
               onChange={(e) => setValues((v) => ({ ...v, value: e.target.value }))}
               rows={4}
-              placeholder={'true  •  42  •  "bonjour"  •  {"enabled": true}'}
+              placeholder={t('valuePlaceholder')}
               className="font-mono text-xs"
             />
           </div>
@@ -421,16 +418,16 @@ function CreateSettingDialog({
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
-              Annuler
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="animate-spin" aria-hidden="true" />
-                  <span>Enregistrement…</span>
+                  <span>{t('create.saving')}</span>
                 </>
               ) : (
-                <span>Enregistrer</span>
+                <span>{tCommon('save')}</span>
               )}
             </Button>
           </DialogFooter>

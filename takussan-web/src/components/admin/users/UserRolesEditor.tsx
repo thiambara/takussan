@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +16,7 @@ import { putUserRole } from '@/lib/queries/admin-users';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { UserRole } from '@/types/user';
 import { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-278 — seuls les rôles qui matérialisent réellement un profil
@@ -29,10 +31,10 @@ import { ApiError } from '@/lib/api';
  * Ces trois qualités s'obtiennent par leurs flux dédiés : invitation
  * prestataire, booking, bail.
  */
-export const ROLE_CHOICES: { value: UserRole; label: string }[] = [
-  { value: 'agency_admin', label: 'Administrateur' },
-  { value: 'agent', label: 'Agent' },
-  { value: 'owner', label: 'Bailleur' },
+export const ROLE_CHOICES: { value: UserRole }[] = [
+  { value: 'agency_admin' },
+  { value: 'agent' },
+  { value: 'owner' },
 ];
 
 interface UserRolesEditorProps {
@@ -50,6 +52,12 @@ interface UserRolesEditorProps {
  * invariant of the profile mutation, not of a role table.
  */
 export function UserRolesEditor({ user }: UserRolesEditorProps) {
+  const t = useTranslations('admin.users');
+  const tCommon = useTranslations('common.actions');
+  const messageErreur = useMessageErreurApi();
+  // TCK-292 — la donnée porte la clé (`ROLE_CHOICES` ne transporte plus que la
+  // valeur d'API), le rendu la résout sous `admin.users.roles.*`.
+  const roleOptions = ROLE_CHOICES.map((c) => ({ value: c.value, label: t(`roles.${c.value}`) }));
   const queryClient = useQueryClient();
   // TCK-278 — `roles[0]` peut être une string (UserResource) ou `{name}`
   // (UserDetailResource). Normalise pour récupérer le rôle.
@@ -67,7 +75,7 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
       queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] });
     },
     onError: (err: ApiError) => {
-      setError(err.displayMessage);
+      setError(messageErreur(err));
       setSelected(baselineRole);
     },
   });
@@ -77,19 +85,19 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
   return (
     <div className="space-y-3">
       <p className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
-        Rôle
+        {t('rolesEditor.heading')}
       </p>
       <Select
         value={selected || ''}
         onValueChange={(value) => setSelected((value ?? '') as UserRole)}
         disabled={mutation.isPending}
-        items={ROLE_CHOICES as unknown as Array<{ value: string; label: string }>}
+        items={roleOptions}
       >
-        <SelectTrigger className="w-full" aria-label="Rôle de l'utilisateur">
-          <SelectValue placeholder="Choisir un rôle" />
+        <SelectTrigger className="w-full" aria-label={t('rolesEditor.selectAria')}>
+          <SelectValue placeholder={t('rolesEditor.placeholder')} />
         </SelectTrigger>
         <SelectContent>
-          {ROLE_CHOICES.map((opt) => (
+          {roleOptions.map((opt) => (
             <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
           ))}
         </SelectContent>
@@ -106,7 +114,7 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
           onClick={() => selected && mutation.mutate(selected)}
         >
           {mutation.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
-          Mettre à jour
+          {t('rolesEditor.update')}
         </Button>
         {dirty ? (
           <Button
@@ -115,7 +123,7 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
             onClick={() => setSelected(baselineRole)}
             disabled={mutation.isPending}
           >
-            Annuler
+            {tCommon('cancel')}
           </Button>
         ) : null}
       </div>

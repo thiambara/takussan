@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface PropertyReviewReplyFormProps {
   reviewId: number;
@@ -29,6 +30,7 @@ export function PropertyReviewReplyForm({
 }: PropertyReviewReplyFormProps) {
   const t = useTranslations('property.reviews.replyForm');
   const tForm = useTranslations('property.reviews.form');
+  const messageErreur = useMessageErreurApi();
   const [content, setContent] = useState(initialContent ?? '');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -39,7 +41,7 @@ export function PropertyReviewReplyForm({
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     if (tooShort) {
-      setError(`Votre réponse doit contenir au moins ${REPLY_MIN} caractères.`);
+      setError(t('contentTooShort', { min: REPLY_MIN }));
       return;
     }
     setError(null);
@@ -47,7 +49,7 @@ export function PropertyReviewReplyForm({
     try {
       await onSubmit(reviewId, trimmed);
     } catch (err) {
-      setError(err instanceof Error ? err.message : tForm('sendError'));
+      setError(messageErreur(err, tForm('sendError')));
     } finally {
       setPending(false);
     }

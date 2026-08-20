@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { UploadCloud, FileText, X } from 'lucide-react';
 
 import {
@@ -31,8 +32,8 @@ import {
 import type { DocumentableType } from '@/types/document';
 
 import {
-  DOCUMENT_TYPE_OPTIONS,
-  DOCUMENTABLE_TYPE_LABEL,
+  DOCUMENT_TYPE_ORDER,
+  DOCUMENTABLE_UPLOAD_ORDER,
 } from './constants';
 
 interface DocumentUploadDialogProps {
@@ -49,21 +50,15 @@ interface DocumentUploadDialogProps {
   };
 }
 
-const DOCUMENTABLE_OPTIONS: readonly { value: DocumentableType; label: string }[] = [
-  { value: 'property', label: DOCUMENTABLE_TYPE_LABEL.property },
-  { value: 'lease', label: DOCUMENTABLE_TYPE_LABEL.lease },
-  { value: 'booking', label: DOCUMENTABLE_TYPE_LABEL.booking },
-  { value: 'customer', label: DOCUMENTABLE_TYPE_LABEL.customer },
-  { value: 'inventory', label: DOCUMENTABLE_TYPE_LABEL.inventory },
-  { value: 'agency', label: DOCUMENTABLE_TYPE_LABEL.agency },
-  { value: 'user', label: DOCUMENTABLE_TYPE_LABEL.user },
-];
-
 export function DocumentUploadDialog({
   open,
   onOpenChange,
   defaultDocumentable,
 }: DocumentUploadDialogProps) {
+  const t = useTranslations('documents.upload');
+  const tTypes = useTranslations('documents.types');
+  const tEntities = useTranslations('documents.entities');
+  const tCommon = useTranslations('common');
   const uploadDocument = useUploadDocument();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -84,7 +79,7 @@ export function DocumentUploadDialog({
     },
     onSubmit: async (values) => {
       if (!file) {
-        throw new Error('Veuillez choisir un fichier à téléverser.');
+        throw new Error(t('no_file_error'));
       }
       await uploadDocument.mutateAsync({
         file,
@@ -128,7 +123,7 @@ export function DocumentUploadDialog({
       if (!list || list.length === 0) return;
       const picked = list[0];
       if (picked.size > DOCUMENT_MAX_SIZE_BYTES) {
-        setFileError('Le fichier dépasse 10 Mo.');
+        setFileError(t('too_large'));
         return;
       }
       setFileError(null);
@@ -137,7 +132,7 @@ export function DocumentUploadDialog({
         form.setValue('name', picked.name.replace(/\.[^.]+$/, ''));
       }
     },
-    [form],
+    [form, t],
   );
 
   const onDrop = useCallback(
@@ -154,11 +149,11 @@ export function DocumentUploadDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Téléverser un document</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
             {defaultDocumentable?.label
-              ? `Associé à ${defaultDocumentable.label}.`
-              : 'Associez le fichier à une entité pour le retrouver ensuite.'}
+              ? t('description_named', { label: defaultDocumentable.label })
+              : t('description_generic')}
           </DialogDescription>
         </DialogHeader>
 
@@ -166,7 +161,7 @@ export function DocumentUploadDialog({
           onSubmit={(e) => {
             if (!file) {
               e.preventDefault();
-              setFileError('Veuillez sélectionner un fichier.');
+              setFileError(t('select_file_error'));
               return;
             }
             void handleSubmit(e);
@@ -196,22 +191,22 @@ export function DocumentUploadDialog({
                       setFile(null);
                       if (inputRef.current) inputRef.current.value = '';
                     }}
-                    aria-label="Retirer le fichier"
+                    aria-label={t('remove_file_aria')}
                   >
                     <X className="size-4" aria-hidden="true" />
                   </button>
                 </div>
                 <span className="text-xs">
-                  {(file.size / (1024 * 1024)).toFixed(2)} Mo
+                  {t('size_mo', { size: (file.size / (1024 * 1024)).toFixed(2) })}
                 </span>
               </>
             ) : (
               <>
                 <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
                 <span className="text-sm font-medium text-app-ink">
-                  Glissez-déposez ou cliquez pour sélectionner
+                  {t('dropzone_title')}
                 </span>
-                <span className="text-xs">PDF, image ou document bureautique · 10 Mo maximum</span>
+                <span className="text-xs">{t('dropzone_hint')}</span>
               </>
             )}
             <input
@@ -232,22 +227,25 @@ export function DocumentUploadDialog({
           <FormInput<DocumentUploadFormValues>
             control={form.control}
             name="name"
-            label="Nom du document"
+            label={t('name_label')}
             required
-            placeholder="Ex: Contrat de bail signé"
+            placeholder={t('name_placeholder')}
           />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <FormSelect<DocumentUploadFormValues>
               control={form.control}
               name="type"
-              label="Catégorie"
-              options={DOCUMENT_TYPE_OPTIONS.map((o) => ({ ...o }))}
+              label={t('category_label')}
+              options={DOCUMENT_TYPE_ORDER.map((value) => ({
+                value,
+                label: tTypes(value),
+              }))}
             />
             <FormDatePicker<DocumentUploadFormValues>
               control={form.control}
               name="expiry_date"
-              label="Date d'expiration"
+              label={t('expiry_label')}
             />
           </div>
 
@@ -255,14 +253,17 @@ export function DocumentUploadDialog({
             <FormSelect<DocumentUploadFormValues>
               control={form.control}
               name="documentable_type"
-              label="Associé à"
-              options={DOCUMENTABLE_OPTIONS.map((o) => ({ ...o }))}
+              label={t('attached_to_label')}
+              options={DOCUMENTABLE_UPLOAD_ORDER.map((value) => ({
+                value,
+                label: tEntities(value),
+              }))}
               disabled={disableTargetType}
             />
             <FormInput<DocumentUploadFormValues>
               control={form.control}
               name="documentable_id"
-              label="ID de l'entité"
+              label={t('entity_id_label')}
               type="number"
               required
               disabled={disableTargetType}
@@ -272,16 +273,16 @@ export function DocumentUploadDialog({
           <FormTextarea<DocumentUploadFormValues>
             control={form.control}
             name="description"
-            label="Description"
+            label={t('description_label')}
             rows={2}
           />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
-              Annuler
+              {tCommon('actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting || !file}>
-              {isSubmitting ? 'Envoi…' : 'Téléverser'}
+              {isSubmitting ? t('submitting') : t('submit')}
             </Button>
           </div>
         </form>

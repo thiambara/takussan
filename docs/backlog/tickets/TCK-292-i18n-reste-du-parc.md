@@ -137,11 +137,20 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
 
 - [ ] AC1 — pour chaque lot livré, `node scripts/check-i18n.mjs` sort en **0** et la baseline ne
       contient plus aucun fichier de ce lot.
-- [ ] AC2 — `en` reste à **0 clé manquante** (la garde le tient déjà), et `PLAFONDS_PARITE.wo` a
+- [x] AC2 — `en` reste à **0 clé manquante** (la garde le tient déjà), et `PLAFONDS_PARITE.wo` a
       strictement baissé à chaque lot qui touche un sous-arbre concerné.
+      **Tenu, et dépassé : `PLAFONDS_PARITE.wo` vaut désormais 0.** 70 → 27 (vague B–H) → **0**
+      (fin de chantier), sur 4984 clés `fr`. Les 27 dernières étaient des `common.*`, lues partout
+      donc possédées par aucun lot : elles ne pouvaient tomber qu'à la fin. Le plafond n'est plus
+      un cliquet qu'on desserre — toute clé française ajoutée sans son wolof fait rougir.
+      ⚠ La garde est EXACTE sur la présence d'une clé et MUETTE sur sa justesse : cf. la réserve
+      sur le wolof au § *Vague du 2026-08-20*.
 - [ ] AC3 — aucun libellé affiché n'a changé de formulation : un test de rendu existant qui
       assertait un texte français continue de passer **sans modification de son assertion**.
-- [ ] AC4 — `npx tsc --noEmit`, `npm run lint`, `npm run test` et `npm run build` verts.
+- [x] AC4 — `npx tsc --noEmit`, `npm run lint`, `npm run test` et `npm run build` verts.
+      **Mesuré le 2026-08-20, sur exécution** (cf. § *Vague du 2026-08-20*) : `tsc` sortie 0 ·
+      `lint` **0 erreur** (37 avertissements, contre 59 au début de la vague) ·
+      `npm run test` **173 fichiers, 1160 tests, 0 échec** · `npm run build` sortie 0.
 
 > **Aucune case n'est cochée, et c'est exact — mais elles ne sont pas toutes au même stade.**
 > État mesuré au 2026-08-17, sur les lots B, C et D :
@@ -357,3 +366,81 @@ lots suivants : le motif « garde d'entrée en première instruction » est fré
 ailleurs. Traduire les libellés ne corrige pas ça : un anglophone lira des libellés anglais et des
 nombres au format français. Le scanner ne le voit pas (ce n'est pas du texte) et ce n'est pas dans
 le Delta. **Ça vaut un ticket.**
+
+
+## Vague du 2026-08-20 — les douze lots traités, et ce qu'ils ont coûté
+
+**Mesuré aux mêmes commandes au départ et à l'arrivée** (`node scripts/check-i18n.mjs --report`
+depuis `takussan-web/`), machine à 8 cœurs :
+
+| | 2026-08-17 | 2026-08-20 |
+|---|---:|---:|
+| fichiers portant du texte en dur | 291 | **40** |
+| occurrences | 2 761 | **91** |
+| clés `wo` manquantes | 70 | **0** |
+| clés `fr` au dictionnaire | 2 332 | **4 984** |
+| tests front | ~810 | **1 160** |
+
+Les douze lots (A → L) ont été traités. **Le compte de 91 n'est pas un reste à traduire** : c'est
+ce que le cliquet **heuristique** compte encore — clés techniques, classes CSS, identifiants,
+valeurs d'API, texte de test. Le tri fichier par fichier est dans les rapports de vague ; il vaut
+plus que dix conversions de plus, parce que c'est lui qui permettra de clore.
+
+### Trois rendus ont changé, et il faut les nommer — l'AC3 n'est donc pas tenu à la lettre
+
+L'AC3 dit « aucun libellé affiché n'a changé de formulation ». Trois écarts, tous **mesurés**, tous
+**délibérés**, aucun découvert par l'agent qui l'a produit — les trois viennent de vérifications
+adverses :
+
+1. **`shop` : « Boutique » → « Commerce » · `resort` : « Resort » → « Complexe ».** Ce n'est pas un
+   dérapage : **ce ticket avait tranché** la divergence `nav.categories.*` ↔ `property.types.*`
+   (§ *La divergence du vocabulaire des types de bien*) en donnant l'emplacement à `property.types`
+   et les **valeurs** à `nav.categories`. Le lot C a appliqué la décision. 2 entrées sur 16
+   diffèrent ; 4 sites de rendu (cartes et filtres du tableau de bord).
+   *C'est un choix produit, et il se révoque en deux lignes de dictionnaire.*
+   ⚠ **Pourquoi le contrôle « littéral supprimé ↔ dictionnaire » ne pouvait pas le voir** : ces deux
+   mots n'ont jamais été des littéraux des fichiers convertis — ils vivaient dans une table
+   importée. **Ce n'est pas le texte qui a bougé, c'est sa SOURCE.** Toute vérification qui ne
+   regarde que les diffs rate cette classe entière ; il faut comparer les deux TABLES, entrée par
+   entrée.
+2. **Pluriels ICU à partir de 1000.** `{count, plural, …}` formate `#` avec `Intl.NumberFormat`,
+   qui insère en français une espace fine insécable (U+202F) : `1000 biens` → `1 000 biens`.
+   Mesuré sur `agency.publicPage.metaSummary` et sur `superAdmin.properties.table.totalCount` —
+   ce dernier compte les biens **toutes agences confondues**, donc franchir 1000 n'est pas une
+   hypothèse d'école. **Conservé : c'est la typographie française juste.**
+3. **Fuseau horaire.** Les composants qui appelaient `new Date(x).toLocaleString('fr-FR', …)`
+   rendaient dans le fuseau du **navigateur** ; passés à `formatDate`, ils rendent dans
+   `Africa/Dakar` (`src/i18n/config.ts`). Sous `TZ=Europe/Paris` : `11:07` → `09:07`.
+   **Conservé, et c'est l'ancien comportement qui était l'exception** : mesuré, **61 fichiers**
+   passaient déjà par `@/lib/format` avant cette branche, contre 9 qui ne le faisaient pas. Un
+   journal d'audit à l'heure du navigateur pendant que 61 autres écrans affichaient l'heure de
+   Dakar était une incohérence, pas une fonctionnalité.
+
+### Ce que les vérifications adverses ont trouvé, et que personne n'a vu en relisant
+
+- **18 messages de validation rendus en CLÉ BRUTE** (`validation.tag.nameRequired` au lieu de
+  « Le libellé est requis. »). Le lot J avait posé le bon patron, mais son inventaire
+  (`grep -rn zodResolver`) était **structurellement aveugle** aux consommateurs qui appellent
+  `safeParse()` et rendent le message directement. **Aucun test ne parcourait ces chemins** : la
+  régression était invisible en CI.
+- **Puis le même défaut, déplacé** : le correctif suivant a fait dépendre le libellé d'un traducteur
+  rangé dans une variable de module enregistrée par un composant `'use client'`, alors que
+  **17 modules `'use server'`** le lisent. On avait troqué de l'anglais contre une clé brute.
+  Ce défaut a traversé **trois vagues d'agents et deux vérifications** avant qu'un vérificateur
+  l'exécute depuis le bon contexte. Cause supprimée : **ADR-0019**.
+- **42 messages en prose dans 25 des 31 route handlers BFF**, dont 19 × `Not authenticated.`,
+  affichés verbatim en interface française à l'expiration d'une session. Le vérificateur en
+  annonçait « au moins 9 » ; l'inventaire mesuré en a trouvé **4,6 fois plus**.
+- **Cinq chaînes françaises destinées à l'écran dans des fichiers déclarés FINIS**, invisibles du
+  scanner (gabarits interpolés, props de composants maison), plus les en-têtes de colonnes du
+  calendrier (`WEEKDAY_SHORT_FR`) — du texte affiché tous les jours.
+
+### La réserve qui reste, et qu'aucune garde ne peut lever
+
+**Le wolof est écrit, il n'est pas relu.** La parité est exacte (0 manquante sur 4984), et elle est
+**muette sur la justesse** : une valeur wolof recopiée du français passe au vert. Un vérificateur a
+mesuré **42 valeurs `wo` identiques à leur `fr` dans un seul lot**, dont une trentaine seulement
+étaient déclarées comme emprunts assumés. Une passe de relecture a trié l'inventaire complet et
+corrigé ce qui avait déjà une traduction établie ailleurs dans `wo.json` ; le reste est listé, clé
+par clé, dans les rapports de vague. **C'est une relecture par un locuteur qu'il faut là, pas une
+garde** — et ce ticket ne peut pas la fournir.

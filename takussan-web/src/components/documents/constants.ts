@@ -1,46 +1,45 @@
 import type { DocumentType, DocumentableType } from '@/types/document';
 
 /**
- * Stable display labels for each document `type` enum. Mirrors the backend
- * `DocumentType` cases (TCK-021). Centralised here so the list page, the
- * upload form and any future fiche can share them.
+ * ⚠ Les LIBELLÉS ont quitté ce module (TCK-292, lot I). Ils vivent sous
+ * `documents.types.*` et `documents.entities.*` dans `src/messages/{fr,en,wo}.json`.
+ *
+ * Ce module ne porte plus que l'ORDRE d'affichage — patron « la donnée transporte la clé,
+ * le rendu la résout », posé par TCK-286. Les valeurs de l'enum SONT les clés : un nouveau
+ * cas backend se voit donc immédiatement, la clé manquante rendant son propre nom.
  */
-export const DOCUMENT_TYPE_LABEL: Record<DocumentType, string> = {
-  id_card: "Pièce d'identité",
-  passport: 'Passeport',
-  lease_contract: 'Contrat de bail',
-  receipt: 'Reçu',
-  invoice: 'Facture',
-  insurance: 'Assurance',
-  inventory_report: "État des lieux",
-  photo: 'Photo',
-  other: 'Autre',
-};
 
-export const DOCUMENT_TYPE_OPTIONS: readonly {
-  value: DocumentType;
-  label: string;
-}[] = [
-  { value: 'lease_contract', label: DOCUMENT_TYPE_LABEL.lease_contract },
-  { value: 'invoice', label: DOCUMENT_TYPE_LABEL.invoice },
-  { value: 'receipt', label: DOCUMENT_TYPE_LABEL.receipt },
-  { value: 'id_card', label: DOCUMENT_TYPE_LABEL.id_card },
-  { value: 'passport', label: DOCUMENT_TYPE_LABEL.passport },
-  { value: 'insurance', label: DOCUMENT_TYPE_LABEL.insurance },
-  { value: 'inventory_report', label: DOCUMENT_TYPE_LABEL.inventory_report },
-  { value: 'photo', label: DOCUMENT_TYPE_LABEL.photo },
-  { value: 'other', label: DOCUMENT_TYPE_LABEL.other },
+/** Ordre d'affichage du sélecteur de catégorie et du regroupement de la bibliothèque. */
+export const DOCUMENT_TYPE_ORDER: readonly DocumentType[] = [
+  'lease_contract',
+  'invoice',
+  'receipt',
+  'id_card',
+  'passport',
+  'insurance',
+  'inventory_report',
+  'photo',
+  'other',
 ];
 
-export const DOCUMENTABLE_TYPE_LABEL: Record<DocumentableType, string> = {
-  property: 'Bien',
-  lease: 'Bail',
-  booking: 'Réservation',
-  customer: 'Client',
-  user: 'Utilisateur',
-  agency: 'Agence',
-  inventory: 'État des lieux',
-};
+/**
+ * Entités proposées au FILTRE de la bibliothèque. `user` en est délibérément absent :
+ * on ne filtre pas la bibliothèque sur les pièces d'un utilisateur.
+ */
+export const DOCUMENTABLE_FILTER_ORDER: readonly DocumentableType[] = [
+  'property',
+  'lease',
+  'booking',
+  'customer',
+  'inventory',
+  'agency',
+];
+
+/** Entités proposées au TÉLÉVERSEMENT — les mêmes, plus `user`. */
+export const DOCUMENTABLE_UPLOAD_ORDER: readonly DocumentableType[] = [
+  ...DOCUMENTABLE_FILTER_ORDER,
+  'user',
+];
 
 /**
  * Laravel returns the FQCN for `documentable_type` (e.g. `App\\Models\\Lease`).

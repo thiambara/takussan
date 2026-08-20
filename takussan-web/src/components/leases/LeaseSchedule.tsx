@@ -34,16 +34,10 @@ function displayStatus(p: LeasePayment): 'paid' | 'late' | 'pending' | 'other' {
   return 'other';
 }
 
-const STATUS_LABEL: Record<ReturnType<typeof displayStatus>, string> = {
-  paid: 'Payé',
-  late: 'En retard',
-  pending: 'À venir',
-  other: 'Autre',
-};
-
 export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('lease.schedule');
+  const tScheduleStatus = useTranslations('lease.schedule.status');
   const tCommon = useTranslations('common');
   const paymentsQuery = useLeasePayments(leaseId);
   const { data, isLoading, isError } = paymentsQuery;
@@ -78,11 +72,11 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
       <table className="w-full text-sm">
         <thead className="bg-stone-50 text-left text-xs uppercase text-stone-500">
           <tr>
-            <th className="px-4 py-2 font-medium">Période</th>
-            <th className="px-4 py-2 font-medium">Échéance</th>
-            <th className="px-4 py-2 font-medium">Montant</th>
-            <th className="px-4 py-2 font-medium">Statut</th>
-            <th className="px-4 py-2 font-medium" aria-label="Actions" />
+            <th className="px-4 py-2 font-medium">{t('colPeriod')}</th>
+            <th className="px-4 py-2 font-medium">{t('colDueDate')}</th>
+            <th className="px-4 py-2 font-medium">{t('colAmount')}</th>
+            <th className="px-4 py-2 font-medium">{t('colStatus')}</th>
+            <th className="px-4 py-2 font-medium" aria-label={t('colActions')} />
           </tr>
         </thead>
         <tbody className="divide-y divide-stone-100">
@@ -121,7 +115,7 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
                           : 'outline'
                     }
                   >
-                    {STATUS_LABEL[st]}
+                    {tScheduleStatus(st)}
                   </Badge>
                 </td>
                 <td className="px-4 py-2 text-right">

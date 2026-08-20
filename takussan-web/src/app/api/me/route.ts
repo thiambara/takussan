@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ message: 'Invalid JSON body.' }, { status: 400 });
+    return NextResponse.json({ code: 'invalid_json_body' }, { status: 400 });
   }
 
   try {
@@ -41,6 +41,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
     if (err instanceof ApiError) {
       return NextResponse.json(err.data, { status: err.status });
     }
-    return NextResponse.json({ message: 'Failed to update profile.' }, { status: 500 });
+    console.error('[BFF] Failed to update profile.', err);
+    return NextResponse.json({ code: 'server_error' }, { status: 500 });
   }
 }

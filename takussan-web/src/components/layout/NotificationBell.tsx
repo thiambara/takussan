@@ -16,6 +16,7 @@ import type {
 import { Button } from '@/components/ui/button';
 import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 const QUERY_KEY = ['notifications', 'feed'] as const;
 
@@ -58,6 +59,7 @@ function patchNotification(
 
 export function NotificationBell() {
   const t = useTranslations('nav.notifications');
+  const messageErreur = useMessageErreurApi();
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -96,7 +98,7 @@ export function NotificationBell() {
       );
       setLocalError(null);
     },
-    onError: (err) => setLocalError(err.message),
+    onError: (err) => setLocalError(messageErreur(err)),
   });
 
   const markUnread = useMutation({
@@ -111,7 +113,7 @@ export function NotificationBell() {
       );
       setLocalError(null);
     },
-    onError: (err) => setLocalError(err.message),
+    onError: (err) => setLocalError(messageErreur(err)),
   });
 
   const markAll = useMutation({
@@ -136,7 +138,7 @@ export function NotificationBell() {
       );
       setLocalError(null);
     },
-    onError: (err) => setLocalError(err.message),
+    onError: (err) => setLocalError(messageErreur(err)),
   });
 
   return (
@@ -190,7 +192,7 @@ export function NotificationBell() {
 
           {query.isError ? (
             <p role="alert" className="px-4 py-6 text-sm text-red-600">
-              {query.error.message}
+              {messageErreur(query.error)}
             </p>
           ) : null}
 

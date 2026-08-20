@@ -72,19 +72,22 @@ async function loadAgency(slug: string): Promise<AgencyDto | null> {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const t = await getTranslations('agency.publicPage');
   const agency = await loadAgency(slug);
   if (!agency) {
-    const t = await getTranslations('agency.publicPage');
     return { title: t('notFound') };
   }
   const summary = agency.stats
-    ? `${agency.portfolio_count} bien${agency.portfolio_count > 1 ? 's' : ''}${agency.city ? ` à ${agency.city}` : ''}`
+    ? agency.city
+      ? t('metaSummaryInCity', { count: agency.portfolio_count, city: agency.city })
+      : t('metaSummary', { count: agency.portfolio_count })
     : null;
+  const title = t('metaTitle', { name: agency.name });
   return {
-    title: `${agency.name} — Agence immobilière`,
+    title,
     description: agency.description ?? summary ?? undefined,
     openGraph: {
-      title: `${agency.name} — Agence immobilière`,
+      title,
       description: agency.description ?? summary ?? undefined,
       images: agency.logo_url ? [agency.logo_url] : undefined,
     },
@@ -184,7 +187,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 name={agency.name}
                 email={agency.email}
                 phone={agency.phone}
-                subject={`Contact via Takussan — ${agency.name}`}
+                subject={t('contactSubject', { name: agency.name })}
               />
             </div>
           </div>

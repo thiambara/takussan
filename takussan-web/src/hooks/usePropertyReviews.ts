@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api';
 import { reportReview, submitReview, submitReviewReply } from '@/app/actions/property';
 import type { PropertyReviewsResponse } from '@/types/review';
@@ -11,6 +12,7 @@ type State = {
 };
 
 export function usePropertyReviews(slug: string, propertyId: number) {
+  const t = useTranslations('property.reviews');
   const [state, setState] = useState<State>({ data: null, loading: true, error: null });
   const [reloadTick, setReloadTick] = useState(0);
 
@@ -23,12 +25,12 @@ export function usePropertyReviews(slug: string, propertyId: number) {
       })
       .catch(() => {
         if (!cancelled)
-          setState({ data: null, loading: false, error: 'Impossible de charger les avis.' });
+          setState({ data: null, loading: false, error: t('loadError') });
       });
     return () => {
       cancelled = true;
     };
-  }, [slug, reloadTick]);
+  }, [slug, reloadTick, t]);
 
   const refetch = useCallback(() => setReloadTick((t) => t + 1), []);
 

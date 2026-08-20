@@ -52,6 +52,132 @@ export type RequestOptions = {
   activeProfileId?: string;
 };
 
+/**
+ * Codes d'erreur émis par les **route handlers BFF** de `src/app/api/**` (TCK-292, AC7).
+ *
+ * ⚠️ **Un route handler n'a pas le droit d'émettre de la prose destinée à l'écran.** C'est le
+ * principe non négociable n°5 du dépôt — *« le front possède le texte affiché ; l'API émet des
+ * codes et des données »* — et le BFF EST du front. Il émettait pourtant 42 messages en anglais
+ * répartis sur 22 de ses 31 fichiers, dont 18 « Unauthenticated. » / « Not authenticated. » sur
+ * le chemin 401. Une session qui expirait pendant un téléversement KYC — un événement ordinaire —
+ * affichait donc **« Not authenticated. »** en bannière ET en toast, dans une interface française.
+ *
+ * Le handler émet désormais `{ code }` et rien d'autre ; c'est le front qui choisit le libellé,
+ * via {@link CLE_I18N_ERREUR_BFF}. Le détail de la panne, lui, part au **journal serveur**
+ * (`console.error` dans le handler) — il est utile au développeur, jamais à l'utilisateur.
+ */
+export const CODES_ERREUR_BFF = [
+  'unauthenticated',
+  'invalid_profile_id',
+  'invalid_json_body',
+  'profile_id_required',
+  'unknown_entity',
+  'server_error',
+] as const;
+
+export type CodeErreurBff = (typeof CODES_ERREUR_BFF)[number];
+
+/** Chemin de dictionnaire (next-intl, racine) pour chaque code du BFF. */
+export const CLE_I18N_ERREUR_BFF: Record<CodeErreurBff, string> = {
+  unauthenticated: 'errors.api.unauthenticated',
+  invalid_profile_id: 'errors.api.invalidProfileId',
+  invalid_json_body: 'errors.api.invalidJsonBody',
+  profile_id_required: 'errors.api.profileIdRequired',
+  unknown_entity: 'errors.api.unknownEntity',
+  server_error: 'errors.api.serverError',
+};
+
+/** Clé du libellé générique, quand rien de plus précis n'est connu. */
+export const CLE_I18N_ERREUR_INCONNUE = 'errors.api.unknown';
+
+function estCodeBff(valeur: unknown): valeur is CodeErreurBff {
+  return typeof valeur === 'string' && (CODES_ERREUR_BFF as readonly string[]).includes(valeur);
+}
+
+/**
+ * Les codes que la SURFACE DE RENDU sait traduire : ceux qu'émet le BFF, plus ceux qu'on déduit
+ * du statut HTTP quand le serveur n'a rien dit d'exploitable.
+ *
+ * C'est une **donnée**, pas un libellé. Un `ApiError` traverse trois contextes qui n'accèdent pas
+ * au dictionnaire de la même façon — composant client (`useTranslations`), module `'use server'`
+ * (`getTranslations` de `next-intl/server`), gestionnaire de requête React Query — et aucun objet
+ * d'erreur ne peut savoir dans lequel il sera lu. Il porte donc le code ; le texte est choisi au
+ * point de rendu, par celui qui tient un traducteur.
+ */
+export const CODES_ERREUR_API = [
+  ...CODES_ERREUR_BFF,
+  'too_many_requests',
+  'network',
+  'unknown',
+] as const;
+
+export type CodeErreurApi = (typeof CODES_ERREUR_API)[number];
+
+/** Chemin de dictionnaire (next-intl, racine) pour chaque code de {@link CODES_ERREUR_API}. */
+export const CLE_I18N_ERREUR_API: Record<CodeErreurApi, string> = {
+  ...CLE_I18N_ERREUR_BFF,
+  too_many_requests: 'errors.api.tooManyRequests',
+  network: 'errors.api.network',
+  unknown: 'errors.api.unknown',
+};
+
+/**
+ * Les chaînes anglaises que Laravel laisse passer NON TRADUITES, une par famille : le 401
+ * (`AuthenticationException`), la 5xx de production (`APP_DEBUG=false`) et le 429
+ * (`ThrottleRequests`). Le titre disait « la seule chaîne … sur un 401 » alors que la table en
+ * portait déjà trois : c'est la faute d'origine de cette famille — un docblock qui décrit l'état
+ * d'avant — recommise dans le correctif qui la répare. Ajouter une entrée, c'est amender ceci.
+ *
+ * ⚠️ **Corriger le BFF ne suffisait pas, et c'est la moitié du défaut qu'on aurait manquée.** Un
+ * route handler proxifie la réponse du backend telle quelle dès que la requête sort de son propre
+ * chemin d'erreur. Or Laravel rend `{"message":"Unauthenticated."}` — la valeur par défaut de
+ * `AuthenticationException`, jamais passée par `lang/` — et `EnsureSuperAdmin` la recopie à la
+ * main (`app/Http/Middleware/EnsureSuperAdmin.php:30`). C'est même le cas le PLUS probable du
+ * scénario « la session expire pendant un téléversement » : le cookie est encore là, c'est le
+ * jeton qui ne vaut plus rien, donc le BFF ne voit pas d'erreur — il relaie celle du backend.
+ *
+ * On ne peut pas neutraliser tout 401 : celui de l'écran de connexion porte, lui, un message
+ * correctement localisé (`__('auth.failed')` → « Ces identifiants ne correspondent pas. »), et
+ * l'écraser serait une régression. On ne neutralise donc QUE cette sentinelle-là.
+ */
+const SENTINELLES_FRAMEWORK: Readonly<Record<string, CodeErreurApi>> = {
+  // `AuthenticationException` — jamais passée par `lang/`, et recopiée à la main par
+  // `app/Http/Middleware/EnsureSuperAdmin.php:30`.
+  'Unauthenticated.': 'unauthenticated',
+  // Le corps que Laravel rend en PRODUCTION pour toute 5xx non gérée (`APP_DEBUG=false`).
+  // Sans cette entrée, la règle « la prose l'emporte » (cf. {@link ApiError.codeErreur}) ferait
+  // afficher « Server Error » en anglais — le défaut même qu'on répare, une chaîne plus loin.
+  'Server Error': 'server_error',
+  // `ThrottleRequests`, constante du framework.
+  'Too Many Attempts.': 'too_many_requests',
+};
+
+/**
+ * Le `message` natif d'{@link ApiError} — `API error 401` — plus le gabarit d'{@link apiFetch}
+ * (`API error 404: /public/properties/x`). Aucun des deux n'a jamais eu vocation à s'afficher,
+ * et les deux l'ont fait : `{query.error.message}` était rendu tel quel dans six écrans.
+ */
+const FORME_TECHNIQUE = /^API error \d+/;
+
+/** Le code de la sentinelle non traduisible que porte ce message, s'il en est une. */
+function codeSentinelle(message: string): CodeErreurApi | undefined {
+  return SENTINELLES_FRAMEWORK[message.trim()];
+}
+
+/** Le message est-il une sentinelle de framework, à ne jamais afficher telle quelle ? */
+function estSentinelleFramework(message: string): boolean {
+  return codeSentinelle(message) !== undefined;
+}
+
+/** Le `message` du corps, tel quel, sans jugement — `undefined` s'il n'y en a pas. */
+function messageBrut(data: unknown): string | undefined {
+  if (data && typeof data === 'object' && 'message' in data) {
+    const brut = (data as { message?: unknown }).message;
+    if (typeof brut === 'string' && brut.length > 0) return brut;
+  }
+  return undefined;
+}
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -61,15 +187,102 @@ export class ApiError extends Error {
   }
 
   /**
-   * Convenience — returns the server-provided message when available,
-   * otherwise a generic fallback. Useful for toasts.
+   * Le code émis par un route handler BFF, quand c'en est un.
+   *
+   * `undefined` pour toute réponse venue de Laravel : le backend, lui, renvoie de la prose déjà
+   * localisée (`Accept-Language` est forwardé par {@link apiRequest}), et c'est légitime.
    */
-  get displayMessage(): string {
-    if (this.data && typeof this.data === 'object' && 'message' in this.data) {
-      const raw = (this.data as { message?: unknown }).message;
-      if (typeof raw === 'string' && raw.length > 0) return raw;
+  get code(): CodeErreurBff | undefined {
+    if (this.data && typeof this.data === 'object' && 'code' in this.data) {
+      const brut = (this.data as { code?: unknown }).code;
+      if (estCodeBff(brut)) return brut;
     }
-    return `API error ${this.status}`;
+    return undefined;
+  }
+
+  /**
+   * **La prose DÉJÀ LOCALISÉE renvoyée par Laravel**, quand il y en a une.
+   *
+   * `undefined` dans les deux cas où il n'y a rien d'affichable : corps sans `message`, et
+   * sentinelle anglaise du 401 — qui n'est traduite nulle part et ne doit jamais atteindre l'écran.
+   */
+  get proseServeur(): string | undefined {
+    const brut = messageBrut(this.data);
+    if (brut === undefined || estSentinelleFramework(brut)) return undefined;
+    return brut;
+  }
+
+  /**
+   * **Le code stable de cette erreur — une DONNÉE, à traduire au point de rendu.**
+   *
+   * `undefined` dans deux cas, et l'appelant les traite pareil (il prend son repli, ou
+   * {@link proseServeur}) : quand Laravel a fourni de la prose déjà localisée, et quand le corps
+   * ne dit **rien** d'exploitable — auquel cas le libellé métier de l'appelant est plus utile que
+   * le générique `errors.api.unknown`.
+   *
+   * ```ts
+   * const t = useTranslations();                    // ou `await getTranslations()` côté serveur
+   * const texte = messageErreurApi(err, t, repli);  // fait la composition pour vous
+   * ```
+   */
+  get codeErreur(): CodeErreurApi | undefined {
+    const bff = this.code;
+    if (bff) return bff;
+
+    // ⚠️ L'ORDRE DES TROIS TESTS SUIVANTS EST MESURÉ, pas esthétique — chacun a un test qui le
+    // fixe, et les intervertir en casse un.
+    //
+    // 1. **429 d'abord, AVANT la prose.** Le corps d'un 429 vient du limiteur de Laravel, jamais
+    //    de `lang/` : c'est une constante du framework (« Too Many Attempts. »), au même titre que
+    //    la sentinelle du 401. Et la limitation de débit n'a qu'un sens possible — l'application
+    //    n'a rien de plus utile à dire que « trop de tentatives ».
+    //    (`src/hooks/__tests__/useApiForm.test.tsx:24`)
+    if (this.status === 429) return 'too_many_requests';
+
+    // 2. **La prose ensuite, AVANT le code déduit du statut.** Un 500 portant « Panne serveur »
+    //    doit afficher « Panne serveur », et non le générique « Le serveur a rencontré une
+    //    erreur » : le message applicatif est plus précis que le statut.
+    //    (`src/components/admin/roles/__tests__/DeleteRoleDialog.test.tsx:104`)
+    const brut = messageBrut(this.data);
+    if (brut !== undefined) return codeSentinelle(brut);
+
+    // 3. Enfin seulement, le code déduit du statut — quand le serveur n'a rien dit d'affichable.
+    if (this.status >= 500) return 'server_error';
+    return undefined;
+  }
+
+  /**
+   * Prose serveur affichable, ou `undefined` — **alias de {@link proseServeur}**.
+   *
+   * ⚠️ **Ce que cet accesseur ne fait PLUS, et pourquoi.** Il rendait autrefois un libellé pour
+   * tous les cas, en traduisant lui-même les codes via un **traducteur rangé dans une variable de
+   * module**, enregistré par `QueryProvider`. Deux défauts, tous deux mesurés :
+   *
+   * 1. `QueryProvider` est `'use client'`. Les 16 modules `'use server'` de `src/app/actions/`
+   *    lisent `err.displayMessage` et renvoient le résultat au client pour affichage — sans que
+   *    personne n'ait jamais enregistré quoi que ce soit dans LEUR processus. Un 401 y rendait
+   *    donc la chaîne `errors.api.unauthenticated`, **la clé i18n brute, à l'écran**, sur le
+   *    chemin de chaque soumission de formulaire.
+   * 2. Même enregistré, un global de processus Node est **partagé entre requêtes concurrentes** :
+   *    le server action d'un francophone aurait rendu la locale du dernier rendu SSR passé par ce
+   *    worker.
+   *
+   * Le type est désormais `string | undefined`, et c'est le cœur du correctif : **il n'existe plus
+   * aucune valeur de retour capable de porter une clé.** Les appelants de la forme
+   * `err.displayMessage ?? t('…')` deviennent justes par construction — leur repli, jusqu'ici mort
+   * (une clé est *truthy*), redevient vivant.
+   *
+   * ⚠️ **Cet accesseur n'a plus AUCUN lecteur de production** (mesuré : les seules occurrences de
+   * `.displayMessage` hors commentaire sont dans les tests et dans le motif de la garde
+   * `src/app/actions/__tests__/erreurs-traduites.test.ts`). Une version de ce docblock annonçait
+   * « ~90 appelants » au présent, et le rapport de correctif « ~50 lecteurs restants » : les deux
+   * décrivaient la population d'AVANT la conversion. Il ne subsiste donc que pour compatibilité —
+   * le supprimer serait sans risque, et se compte en zéro site d'appel, pas en cinquante.
+   *
+   * Préférer {@link messageErreurApi}, qui compose code et prose avec le traducteur de l'appelant.
+   */
+  get displayMessage(): string | undefined {
+    return this.proseServeur;
   }
 
   /**
@@ -87,6 +300,88 @@ export class ApiError extends Error {
     }
     return undefined;
   }
+}
+
+/**
+ * Signature minimale d'un traducteur next-intl **à la racine** du dictionnaire.
+ *
+ * ⚠️ Racine, et non un espace de noms : les clés de {@link CLE_I18N_ERREUR_BFF} sont des chemins
+ * absolus (`errors.api.unauthenticated`). Un composant qui tient déjà un
+ * `useTranslations('agents.onboarding.kyc')` ne peut donc PAS s'en servir ici — il lui faut, en
+ * plus, un `useTranslations()` sans argument.
+ */
+export type TraducteurRacine = (cle: string) => string;
+
+/**
+ * Traduit une erreur réseau en libellé affichable, dans la langue de l'utilisateur.
+ *
+ * C'est LA fonction à appeler depuis un composant : contrairement à
+ * {@link ApiError.displayMessage}, elle rend l'anglais et le wolof.
+ *
+ * @param erreur  ce qu'a levé `fetch` / `apiRequest` / un `jsonOrThrow`.
+ * @param t       un `useTranslations()` **sans argument** (racine du dictionnaire).
+ * @param repli   libellé métier de l'appelant, déjà traduit, utilisé quand rien de plus précis
+ *                n'est disponible — p. ex. « Une erreur est survenue. Réessayez. » de l'écran KYC.
+ */
+export function messageErreurApi(
+  erreur: unknown,
+  t: TraducteurRacine,
+  repli: string,
+): string {
+  if (erreur instanceof ApiError) {
+    const code = erreur.codeErreur;
+    if (code) return t(CLE_I18N_ERREUR_API[code]);
+
+    // Pas de code : Laravel a renvoyé de la prose déjà localisée — on la préfère au repli.
+    return erreur.proseServeur ?? repli;
+  }
+
+  // `fetch` ne lève un `TypeError` que lorsque la requête n'a pas abouti du tout.
+  if (erreur instanceof Error && erreur.name === 'TypeError') return t(CLE_I18N_ERREUR_API.network);
+
+  if (erreur instanceof Error) {
+    // Un `Error` NU sert ici de transport à un message DÉJÀ traduit : plusieurs hooks font
+    // `throw new Error(res.message)` sur le résultat d'un server action, dont le `message` est
+    // français (`src/hooks/usePropertyReviews.ts:40`, `NotificationPreferencesMatrix.tsx:98`).
+    // On le laisse donc passer — SAUF les deux formes techniques qui ne doivent jamais s'afficher.
+    const brut = erreur.message.trim();
+    if (brut.length > 0 && !FORME_TECHNIQUE.test(brut) && !estSentinelleFramework(brut)) return brut;
+  }
+
+  return repli;
+}
+
+/**
+ * Même chose, à partir d'un corps de réponse JSON déjà lu — pour les appelants qui font un `fetch`
+ * nu vers le BFF et n'ont pas construit d'{@link ApiError}.
+ *
+ * Un route handler de `src/app/api/**` **proxifie la réponse de Laravel telle quelle** dès que la
+ * requête sort de son propre chemin d'erreur. Le corps peut donc porter, au choix :
+ *
+ * - un `code` que CE dépôt a émis → on le traduit ;
+ * - un `message` que LARAVEL a émis → on l'affiche, il est déjà localisé (`Accept-Language`) ;
+ * - ni l'un ni l'autre → le repli de l'appelant.
+ */
+export function messageCorpsErreurBff(
+  corps: unknown,
+  t: TraducteurRacine,
+  repli: string,
+): string {
+  if (corps && typeof corps === 'object') {
+    if ('code' in corps) {
+      const brut = (corps as { code?: unknown }).code;
+      if (estCodeBff(brut)) return t(CLE_I18N_ERREUR_BFF[brut]);
+    }
+    if ('message' in corps) {
+      const brut = (corps as { message?: unknown }).message;
+      if (typeof brut === 'string' && brut.length > 0) {
+        const sentinelle = codeSentinelle(brut);
+        if (sentinelle) return t(CLE_I18N_ERREUR_API[sentinelle]);
+        return brut;
+      }
+    }
+  }
+  return repli;
 }
 
 /**

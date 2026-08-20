@@ -1,26 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
+import { withIntl } from '@/test/intl';
 import { ConfirmActionDialog } from '../ConfirmActionDialog';
 
 describe('<ConfirmActionDialog>', () => {
   it('disables the confirm button until the phrase is typed exactly', async () => {
     const onConfirm = vi.fn();
-    render(
-      <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
-        <ConfirmActionDialog
-          open
-          onOpenChange={() => {}}
-          title="Suspendre"
-          description="confirm"
-          confirmPhrase="SUSPENDRE"
-          confirmLabel="Suspendre"
-          destructive
-          onConfirm={onConfirm}
-        />
-      </NextIntlClientProvider>,
-    );
+    render(withIntl(
+      <ConfirmActionDialog
+        open
+        onOpenChange={() => {}}
+        title="Suspendre"
+        description="confirm"
+        confirmPhrase="SUSPENDRE"
+        confirmLabel="Suspendre"
+        destructive
+        onConfirm={onConfirm}
+      />,
+    ));
 
     const submit = screen.getByTestId('confirm-action-submit');
     expect(submit).toBeDisabled();

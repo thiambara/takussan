@@ -29,11 +29,6 @@ import {
 } from '@/types/maintenance';
 
 import {
-  MAINTENANCE_CATEGORY_LABEL,
-  MAINTENANCE_PRIORITY_LABEL,
-  MAINTENANCE_STATUS_LABEL,
-} from './labels';
-import {
   MaintenancePriorityBadge,
   MaintenanceStatusBadge,
 } from './MaintenanceStatusBadge';
@@ -45,6 +40,9 @@ import {
 export function MaintenanceList() {
   const locale = useLocale() as Locale;
   const t = useTranslations('maintenance.list');
+  const tStatus = useTranslations('maintenance.status');
+  const tPriority = useTranslations('maintenance.priority');
+  const tCategory = useTranslations('maintenance.category');
   const [status, setStatus] = useState<'' | MaintenanceStatus>('');
   const [priority, setPriority] = useState<'' | MaintenancePriority>('');
 
@@ -60,40 +58,46 @@ export function MaintenanceList() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex w-56 flex-col">
           <label htmlFor="maintenance-filter-status" className="mb-1.5 text-sm font-medium">
-            Statut
+            {t('status_label')}
           </label>
           <Select
             value={status || '__all__'}
             onValueChange={(value) => setStatus(value === '__all__' ? '' : ((value ?? '') as '' | MaintenanceStatus))}
-            items={[{ value: '__all__', label: 'Tous les statuts' }, ...MAINTENANCE_STATUSES.map((s) => ({ value: s, label: MAINTENANCE_STATUS_LABEL[s] }))]}
+            items={[
+              { value: '__all__', label: t('all_statuses') },
+              ...MAINTENANCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),
+            ]}
           >
             <SelectTrigger id="maintenance-filter-status" className="h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Tous les statuts</SelectItem>
+              <SelectItem value="__all__">{t('all_statuses')}</SelectItem>
               {MAINTENANCE_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>{MAINTENANCE_STATUS_LABEL[s]}</SelectItem>
+                <SelectItem key={s} value={s}>{tStatus(s)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex w-56 flex-col">
           <label htmlFor="maintenance-filter-priority" className="mb-1.5 text-sm font-medium">
-            Priorité
+            {t('priority_label')}
           </label>
           <Select
             value={priority || '__all__'}
             onValueChange={(value) => setPriority(value === '__all__' ? '' : ((value ?? '') as '' | MaintenancePriority))}
-            items={[{ value: '__all__', label: 'Toutes les priorités' }, ...MAINTENANCE_PRIORITIES.map((p) => ({ value: p, label: MAINTENANCE_PRIORITY_LABEL[p] }))]}
+            items={[
+              { value: '__all__', label: t('all_priorities') },
+              ...MAINTENANCE_PRIORITIES.map((p) => ({ value: p, label: tPriority(p) })),
+            ]}
           >
             <SelectTrigger id="maintenance-filter-priority" className="h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Toutes les priorités</SelectItem>
+              <SelectItem value="__all__">{t('all_priorities')}</SelectItem>
               {MAINTENANCE_PRIORITIES.map((p) => (
-                <SelectItem key={p} value={p}>{MAINTENANCE_PRIORITY_LABEL[p]}</SelectItem>
+                <SelectItem key={p} value={p}>{tPriority(p)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -103,7 +107,7 @@ export function MaintenanceList() {
             href="/app/maintenance/new"
             className={buttonVariants({ variant: 'default' })}
           >
-            Nouvelle demande
+            {t('new_request')}
           </Link>
         </div>
       </div>
@@ -144,10 +148,14 @@ export function MaintenanceList() {
                         {request.title}
                       </p>
                       <p className="mt-1 text-xs text-app-ink-muted">
-                        {MAINTENANCE_CATEGORY_LABEL[request.category]} ·{' '}
+                        {tCategory(request.category)} ·{' '}
                         {formatDate(request.created_at, locale, { dateStyle: 'medium' })}
                         {request.scheduled_at
-                          ? ` · Prévu ${formatDate(request.scheduled_at, locale, { dateStyle: 'short' })}`
+                          ? ` · ${t('scheduled', {
+                              date: formatDate(request.scheduled_at, locale, {
+                                dateStyle: 'short',
+                              }),
+                            })}`
                           : null}
                       </p>
                     </div>
@@ -166,7 +174,7 @@ export function MaintenanceList() {
               {urgentRequests.length > 0 && (
                 <div className="space-y-3">
                   <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
-                    Urgences prioritaires
+                    {t('urgent_heading')}
                   </h2>
                   {renderList(urgentRequests)}
                 </div>
@@ -176,7 +184,7 @@ export function MaintenanceList() {
                 <div className="space-y-3">
                   {urgentRequests.length > 0 && (
                     <h2 className="text-sm font-bold uppercase tracking-wider text-app-ink-muted">
-                      Autres demandes
+                      {t('other_heading')}
                     </h2>
                   )}
                   {renderList(otherRequests)}
@@ -185,7 +193,11 @@ export function MaintenanceList() {
 
               {data.meta.last_page > 1 ? (
                 <div className="pt-3 text-center text-xs text-app-ink-muted">
-                  Page {data.meta.current_page} / {data.meta.last_page} — {data.meta.total} demandes
+                  {t('pagination', {
+                    current: data.meta.current_page,
+                    last: data.meta.last_page,
+                    total: data.meta.total,
+                  })}
                 </div>
               ) : null}
             </div>

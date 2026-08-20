@@ -12,9 +12,13 @@ import {
 import { fetchNotificationTemplates } from '@/lib/queries/super-admin';
 import type { NotificationTemplateChannel, NotificationTemplatesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export default function SuperAdminTemplatesPage() {
   const t = useTranslations('superAdmin.templates');
+  const tPage = useTranslations('superAdmin.pages.templates');
+  const tShared = useTranslations('superAdmin.pages.shared');
+  const messageErreur = useMessageErreurApi();
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<NotificationTemplateChannel>('email');
   const query = useQuery<NotificationTemplatesResponse, ApiError>({
@@ -31,16 +35,14 @@ export default function SuperAdminTemplatesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Templates de notification</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Contenus localisés FR / EN / WO pour les notifications email, SMS et push.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
       </header>
       {query.isLoading ? (
         <div className="h-48 animate-pulse rounded-xl bg-muted" />
       ) : query.isError ? (
         <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
-          Erreur de chargement. {query.error.displayMessage}
+          {tShared('loadError')} {messageErreur(query.error)}
         </div>
       ) : selected ? (
         <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">

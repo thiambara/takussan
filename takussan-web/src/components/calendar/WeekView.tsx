@@ -1,11 +1,14 @@
 'use client';
 
+import { useLocale, useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 import {
   eventTouchesDay,
   isSameDay,
   parseServerDate,
-  WEEKDAY_SHORT_FR,
+  WEEKDAY_SHORT_KEYS,
   weekDays,
 } from '@/lib/calendar-date';
 import { paletteFor } from './event-colors';
@@ -18,6 +21,8 @@ export interface WeekViewProps {
 }
 
 export function WeekView({ focus, events, onSelect }: WeekViewProps) {
+  const t = useTranslations('calendar');
+  const locale = useLocale() as Locale;
   const days = weekDays(focus);
   const today = new Date();
 
@@ -30,7 +35,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
   return (
     <div
       role="grid"
-      aria-label="Vue semaine"
+      aria-label={t('gridAria.week')}
       className="overflow-hidden rounded-xl border border-stone-200 bg-white"
     >
       <div className="grid grid-cols-7 border-b border-stone-200 bg-stone-50">
@@ -43,7 +48,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
               className="px-3 py-2 text-center"
             >
               <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-                {WEEKDAY_SHORT_FR[idx]}
+                {t(`weekdaysShort.${WEEKDAY_SHORT_KEYS[idx]}`)}
               </div>
               <div
                 className={cn(
@@ -73,8 +78,10 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
                 {dayEvents.map(({ event, start }) => {
                   const palette = paletteFor(event);
                   const timeLabel = event.all_day
-                    ? 'Journée'
-                    : start.toLocaleTimeString('fr-FR', {
+                    ? t('allDay')
+                    // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur.
+                    : formatDate(start, locale, {
+                        dateStyle: undefined,
                         hour: '2-digit',
                         minute: '2-digit',
                       });

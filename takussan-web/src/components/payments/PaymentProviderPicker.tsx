@@ -17,18 +17,21 @@ import {
   type GatewayPaymentType,
   type GatewayProvider,
 } from '@/hooks/useInitiatePayment';
-import { ApiError } from '@/lib/api';
+
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface ProviderOption {
   readonly id: GatewayProvider;
-  readonly label: string;
+  /** Clé sous `payments.gateway.picker.providers.*` — le libellé se résout au rendu (TCK-292). */
+  readonly labelKey: GatewayProvider;
+  /** Codes ISO de devise : ce n'est PAS du texte traduisible. */
   readonly hint: string;
 }
 
 const PROVIDERS: readonly ProviderOption[] = [
-  { id: 'wave', label: 'Wave', hint: 'XOF' },
-  { id: 'orange_money', label: 'Orange Money', hint: 'XOF' },
-  { id: 'lemon_squeezy', label: 'Carte (Lemon Squeezy)', hint: 'USD/EUR' },
+  { id: 'wave', labelKey: 'wave', hint: 'XOF' },
+  { id: 'orange_money', labelKey: 'orange_money', hint: 'XOF' },
+  { id: 'lemon_squeezy', labelKey: 'lemon_squeezy', hint: 'USD/EUR' },
 ] as const;
 
 interface PaymentProviderPickerProps {
@@ -63,6 +66,7 @@ export function PaymentProviderPicker({
   availableProviders,
 }: PaymentProviderPickerProps) {
   const t = useTranslations('payments.gateway');
+  const messageErreur = useMessageErreurApi();
   // Derive an initial preference from localStorage (set once at mount of the
   // component instance — the parent uses `open` to mount/unmount the modal,
   // so each open builds a fresh instance with the current preference).
@@ -105,8 +109,7 @@ export function PaymentProviderPicker({
         window.location.href = url;
       }
     } catch (e) {
-      const message = e instanceof ApiError ? e.displayMessage : t('error.generic');
-      setError(message);
+      setError(messageErreur(e, t('error.generic')));
     }
   }
 
@@ -129,7 +132,7 @@ export function PaymentProviderPicker({
                 disabled={!enabled}
                 onClick={() => enabled && setSelected(provider.id)}
                 aria-pressed={isSelected}
-                aria-label={`${t('picker.select')} ${provider.label}`}
+                aria-label={`${t('picker.select')} ${t(`picker.providers.${provider.labelKey}`)}`}
                 title={enabled ? undefined : t('picker.unavailable')}
                 className={[
                   'flex items-center justify-between rounded-xl border p-4 text-left transition',
@@ -138,7 +141,9 @@ export function PaymentProviderPicker({
                 ].join(' ')}
               >
                 <div>
-                  <p className="font-medium text-stone-900">{provider.label}</p>
+                  <p className="font-medium text-stone-900">
+                    {t(`picker.providers.${provider.labelKey}`)}
+                  </p>
                   <p className="text-xs text-stone-500">{provider.hint}</p>
                 </div>
                 {!enabled && (

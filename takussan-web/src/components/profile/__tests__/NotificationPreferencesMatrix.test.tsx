@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NotificationPreferencesMatrix } from '../NotificationPreferencesMatrix';
+import { withIntl } from '@/test/intl';
 
 const getMock = vi.fn();
 const updateMock = vi.fn();
@@ -73,7 +74,7 @@ function buildGrid(overrides: Array<{ event: string; channel: string; enabled?: 
 
 function wrap(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
+  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 describe('<NotificationPreferencesMatrix>', () => {

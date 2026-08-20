@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Messaging-related schemas (TCK-045).
@@ -12,8 +13,8 @@ export const sendMessageSchema = z.object({
   content: z
     .string()
     .trim()
-    .min(1, 'Le message ne peut pas être vide.')
-    .max(MAX_BODY, `Message trop long (${MAX_BODY} caractères max).`),
+    .min(1, msgValidation('message.bodyRequired'))
+    .max(MAX_BODY, msgValidation('message.bodyTooLong', { max: String(MAX_BODY) })),
 });
 
 export type SendMessageFormValues = z.infer<typeof sendMessageSchema>;
@@ -31,7 +32,7 @@ export const createConversationSchema = z.object({
   initial_message: z
     .string()
     .trim()
-    .min(1, 'Le message initial est requis.')
+    .min(1, msgValidation('message.initialRequired'))
     .max(MAX_BODY),
 });
 

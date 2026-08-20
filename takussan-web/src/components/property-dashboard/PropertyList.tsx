@@ -31,11 +31,15 @@ import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
 import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
 import {
-  CONTRACT_TYPE_LABELS,
-  PROPERTY_STATUS_LABELS,
-  PROPERTY_TYPE_LABELS,
-  PROPERTY_VISIBILITY_LABELS,
+  PROPERTY_ENUM_NAMESPACES,
+  enumLabel,
 } from '@/components/property-form/options';
+import {
+  contractTypeValues,
+  propertyStatusValues,
+  propertyTypeValues,
+  propertyVisibilityValues,
+} from '@/lib/schemas/property';
 import {
   assignPropertyAgentAction,
   updatePropertyStatusAction,
@@ -62,6 +66,9 @@ export function PropertyList({
   currentUserId,
   agentOptions = [],
 }: PropertyListProps) {
+  const t = useTranslations('property.dashboard.list');
+  const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
+  const tContract = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: properties } = page;
@@ -114,7 +121,7 @@ export function PropertyList({
       const results = await Promise.all(selectedIds.map((id) => action(id)));
       const failed = results.find((result) => !result.ok);
       if (failed) {
-        setBulkError(failed.message ?? 'Action en lot impossible.');
+        setBulkError(failed.message ?? t('bulkError'));
         return;
       }
       setSelectedIds([]);
@@ -136,17 +143,19 @@ export function PropertyList({
               <th className="w-10 px-4 py-3 font-semibold">
                 <input
                   type="checkbox"
-                  aria-label="Sélectionner tous les biens"
+                  aria-label={t('selectAll')}
                   checked={allVisibleSelected}
                   onChange={toggleAll}
                   className="size-4 rounded border-stone-300"
                 />
               </th>
-              <th className="px-4 py-3 font-semibold">Bien</th>
-              <th className="px-4 py-3 font-semibold">Prix</th>
-              <th className="px-4 py-3 font-semibold">Activité</th>
-              <th className="px-4 py-3 font-semibold">Statut</th>
-              <th className="px-4 py-3 font-semibold text-right">Actions</th>
+              <th className="px-4 py-3 font-semibold">{t('headers.property')}</th>
+              <th className="px-4 py-3 font-semibold">{t('headers.price')}</th>
+              <th className="px-4 py-3 font-semibold">{t('headers.activity')}</th>
+              <th className="px-4 py-3 font-semibold">{t('headers.status')}</th>
+              <th className="px-4 py-3 font-semibold text-right">
+                {t('headers.actions')}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-app-surface-2/60">
@@ -161,7 +170,7 @@ export function PropertyList({
                 <td className="px-4 py-4">
                   <input
                     type="checkbox"
-                    aria-label={`Sélectionner ${property.title}`}
+                    aria-label={t('selectOne', { title: property.title })}
                     checked={selectedIds.includes(property.id)}
                     onChange={() => toggleOne(property.id)}
                     className="size-4 rounded border-stone-300"
@@ -209,7 +218,7 @@ export function PropertyList({
                 <PropertyThumbnail property={property} size={96} />
                 <input
                   type="checkbox"
-                  aria-label={`Sélectionner ${property.title}`}
+                  aria-label={t('selectOne', { title: property.title })}
                   checked={isSelected}
                   onChange={() => toggleOne(property.id)}
                   className="absolute left-1 top-1 size-4 rounded border-white/80 bg-white/80"
@@ -223,7 +232,7 @@ export function PropertyList({
                   {property.title}
                 </Link>
                 <p className="truncate text-xs text-app-ink-muted">
-                  {PROPERTY_TYPE_LABELS[property.type] ?? property.type}
+                  {enumLabel(tType, propertyTypeValues, property.type)}
                   {property.location?.city ? ` · ${property.location.city}` : ''}
                   {property.reference_number ? ` · ${property.reference_number}` : ''}
                 </p>
@@ -243,7 +252,7 @@ export function PropertyList({
                   </span>
                   {property.contract_type ? (
                     <span className="text-xs text-app-ink-muted">
-                      {CONTRACT_TYPE_LABELS[property.contract_type]}
+                      {enumLabel(tContract, contractTypeValues, property.contract_type)}
                     </span>
                   ) : null}
                 </div>
@@ -291,19 +300,19 @@ export function PropertyList({
           onArchive={() =>
             runBulk(
               (id) => updatePropertyStatusAction(id, 'archived'),
-              'Biens archivés.',
+              t('bulkArchived'),
             )
           }
           onUnpublish={() =>
             runBulk(
               (id) => updatePropertyVisibilityAction(id, 'private'),
-              'Biens dépubliés.',
+              t('bulkUnpublished'),
             )
           }
           onAssign={() =>
             runBulk(
               (id) => assignPropertyAgentAction(id, Number(bulkAgentId)),
-              'Agent assigné mis à jour.',
+              t('bulkAssigned'),
             )
           }
           onClear={() => {
@@ -325,6 +334,8 @@ function BienCell({
   readonly property: PropertyListItem;
   readonly currentUserId?: number;
 }) {
+  const t = useTranslations('property.dashboard.list');
+  const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const showAgent =
     currentUserId !== undefined &&
     property.owner &&
@@ -340,13 +351,13 @@ function BienCell({
           {property.title}
         </Link>
         <p className="truncate text-xs text-app-ink-muted">
-          {PROPERTY_TYPE_LABELS[property.type] ?? property.type}
+          {enumLabel(tType, propertyTypeValues, property.type)}
           {property.location?.city ? ` · ${property.location.city}` : ''}
           {property.reference_number ? ` · ${property.reference_number}` : ''}
         </p>
         {showAgent ? (
           <p className="mt-1 truncate text-xs text-app-ink-muted">
-            <span className="text-app-ink-muted/70">Agent :</span>{' '}
+            <span className="text-app-ink-muted/70">{t('agentPrefix')}</span>{' '}
             <span className="font-medium text-app-ink">{property.owner?.name}</span>
           </p>
         ) : null}
@@ -356,6 +367,7 @@ function BienCell({
 }
 
 function PriceCell({ property }: { readonly property: PropertyListItem }) {
+  const tContract = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
   const isRent = property.contract_type === 'rent';
   return (
     <div className="space-y-0.5">
@@ -373,7 +385,7 @@ function PriceCell({ property }: { readonly property: PropertyListItem }) {
       </div>
       {property.contract_type ? (
         <div className="text-xs text-app-ink-muted">
-          {CONTRACT_TYPE_LABELS[property.contract_type]}
+          {enumLabel(tContract, contractTypeValues, property.contract_type)}
         </div>
       ) : null}
     </div>
@@ -381,17 +393,18 @@ function PriceCell({ property }: { readonly property: PropertyListItem }) {
 }
 
 function ActivityCell({ property }: { readonly property: PropertyListItem }) {
+  const t = useTranslations('property.dashboard.list');
   return (
     <div className="space-y-0.5 text-xs text-app-ink-muted">
       <div className="text-app-ink">
         <RelativeDate value={property.created_at} />
       </div>
       <div className="flex items-center gap-3">
-        <span className="inline-flex items-center gap-1" title="Vues">
+        <span className="inline-flex items-center gap-1" title={t('viewsTitle')}>
           <EyeIcon className="size-3" aria-hidden="true" />
           {property.views_count ?? 0}
         </span>
-        <span className="inline-flex items-center gap-1" title="Favoris">
+        <span className="inline-flex items-center gap-1" title={t('favoritesTitle')}>
           <Heart className="size-3" aria-hidden="true" />
           {property.favorites_count ?? 0}
         </span>
@@ -509,8 +522,11 @@ function formatRelative(date: Date): string {
 }
 
 function StatusBadge({ status }: { status: string | null }) {
-  const key = (status ?? 'available') as keyof typeof PROPERTY_STATUS_LABELS;
-  const label = PROPERTY_STATUS_LABELS[key] ?? status ?? '—';
+  const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
+  const key = status ?? 'available';
+  const label = propertyStatusValues.includes(key as never)
+    ? tStatus(key)
+    : (status ?? '—');
   return (
     <Badge
       className={cn(
@@ -530,8 +546,11 @@ function StatusBadge({ status }: { status: string | null }) {
 }
 
 function VisibilityBadge({ visibility }: { visibility: string | null }) {
-  const key = (visibility ?? 'private') as keyof typeof PROPERTY_VISIBILITY_LABELS;
-  const label = PROPERTY_VISIBILITY_LABELS[key] ?? visibility ?? '—';
+  const tVisibility = useTranslations(PROPERTY_ENUM_NAMESPACES.visibility);
+  const key = visibility ?? 'private';
+  const label = propertyVisibilityValues.includes(key as never)
+    ? tVisibility(key)
+    : (visibility ?? '—');
   const isPublic = visibility === 'public';
   return (
     <Badge
@@ -611,19 +630,22 @@ function BulkActionBar({
   readonly onAssign: () => void;
   readonly onClear: () => void;
 }) {
+  const t = useTranslations('property.dashboard.list');
   const items = agentOptions.map((agent) => ({
     value: String(agent.id),
-    label: agent.id === currentUserId ? `${agent.name} (moi)` : agent.name,
+    label:
+      agent.id === currentUserId
+        ? t('agentSelf', { name: agent.name })
+        : agent.name,
   }));
   return (
     <div
       role="region"
-      aria-label="Actions groupées"
+      aria-label={t('bulkAria')}
       className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-app-topbar/95 px-3 py-2.5 text-sm text-white shadow-lg backdrop-blur md:inset-x-auto md:right-6"
     >
       <span className="font-semibold">
-        {selectedCount} bien{selectedCount > 1 ? 's' : ''} sélectionné
-        {selectedCount > 1 ? 's' : ''}
+        {t('bulkSelected', { count: selectedCount })}
       </span>
       <span className="hidden h-4 w-px bg-white/20 md:inline-block" aria-hidden="true" />
       <Button
@@ -639,7 +661,7 @@ function BulkActionBar({
         ) : (
           <Archive aria-hidden="true" />
         )}
-        Archiver
+        {t('bulkArchive')}
       </Button>
       <Button
         type="button"
@@ -649,7 +671,7 @@ function BulkActionBar({
         disabled={pending}
         onClick={onUnpublish}
       >
-        Dépublier
+        {t('bulkUnpublish')}
       </Button>
       {agentOptions.length > 0 ? (
         <div className="flex items-center gap-2">
@@ -660,7 +682,7 @@ function BulkActionBar({
               items={items}
             >
               <SelectTrigger className="h-9 border-white/30 bg-white/10 text-white">
-                <SelectValue placeholder="Réassigner à…" />
+                <SelectValue placeholder={t('bulkReassignPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
                 {items.map((opt) => (
@@ -679,7 +701,7 @@ function BulkActionBar({
             disabled={pending || !bulkAgentId}
             onClick={onAssign}
           >
-            Assigner
+            {t('bulkAssign')}
           </Button>
         </div>
       ) : null}
@@ -696,7 +718,7 @@ function BulkActionBar({
       <button
         type="button"
         onClick={onClear}
-        aria-label="Tout désélectionner"
+        aria-label={t('bulkClear')}
         className="ml-auto inline-flex size-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
       >
         <X aria-hidden="true" className="size-4" />

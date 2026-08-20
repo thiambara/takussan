@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 import { useImpersonationSession, useStopImpersonation } from '@/hooks/useImpersonation';
 
@@ -11,6 +12,9 @@ import { useImpersonationSession, useStopImpersonation } from '@/hooks/useImpers
  * TCK-144 notes for the dual-token rationale.
  */
 export function ImpersonationBanner() {
+  // TCK-292 — hook posé AVANT la sortie anticipée `if (!session) return null` : un
+  // `useTranslations` placé après serait un hook conditionnel, refusé par le React Compiler.
+  const t = useTranslations('superAdmin.impersonation');
   const session = useImpersonationSession();
   const stopMutation = useStopImpersonation();
 
@@ -19,7 +23,7 @@ export function ImpersonationBanner() {
   const expiresAt = new Date(session.expires_at);
   const expiresLabel = Number.isFinite(expiresAt.getTime())
     ? expiresAt.toLocaleString()
-    : 'inconnu';
+    : t('unknownExpiry');
 
   return (
     <div
@@ -30,8 +34,10 @@ export function ImpersonationBanner() {
       <div className="flex items-center gap-2">
         <AlertTriangle className="size-4" aria-hidden="true" />
         <span>
-          Vous agissez en tant que {session.target_label ?? `utilisateur #${session.target_user_id}`}
-          {' '}— session jusqu&apos;à {expiresLabel}.
+          {t('banner', {
+            target: session.target_label ?? t('fallbackUser', { id: session.target_user_id }),
+            expires: expiresLabel,
+          })}
         </span>
       </div>
       <button
@@ -40,7 +46,7 @@ export function ImpersonationBanner() {
         disabled={stopMutation.isPending}
         className="inline-flex items-center rounded-md bg-stone-900 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-800 disabled:opacity-60"
       >
-        {stopMutation.isPending ? 'Arrêt…' : 'Arrêter l’impersonation'}
+        {stopMutation.isPending ? t('stopping') : t('stop')}
       </button>
     </div>
   );

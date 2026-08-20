@@ -5,15 +5,22 @@ import {
   type DefaultValues,
   type FieldValues,
   type Path,
+  type Resolver,
+  type ResolverResult,
   type SubmitHandler,
   type UseFormProps,
   useForm,
   type UseFormReturn,
 } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useTranslations } from 'next-intl';
 import type { ZodType } from 'zod';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi, type TraducteurRacine } from '@/lib/api';
+import {
+  type Traducteur,
+  traduireMessageValidation,
+} from '@/lib/schemas/messages';
 
 /**
  * Options for {@link useApiForm}.
@@ -122,21 +129,103 @@ export function mapValidationErrorsToForm<TValues extends FieldValues>(
 
 /**
  * Pick a human-readable message out of an arbitrary error.
+ *
+ * ⚠️ **Passer `t` dès qu'on en a un.** Sans traducteur, cette fonction ne sait rendre que du
+ * FRANÇAIS — les trois chaînes ci-dessous étaient écrites en dur, et le repli d'`ApiError` valait
+ * `API error 401`, affiché tel quel. Avec `t` (un `useTranslations()` **sans argument**), tout
+ * passe par le dictionnaire et rend donc aussi l'anglais et le wolof.
+ *
+ * Le paramètre est optionnel pour ne pas casser les appelants qui n'ont pas de hook sous la main ;
+ * ce n'est pas une invitation à s'en passer.
  */
-export function extractApiErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    if (error.status === 429) {
-      return 'Trop de tentatives. Réessayez dans quelques minutes.';
-    }
-    if (error.status >= 500) {
-      return 'Le serveur a rencontré une erreur. Réessayez dans un instant.';
-    }
-    return error.displayMessage || fallback;
+export function extractApiErrorMessage(
+  error: unknown,
+  fallback: string,
+  t: TraducteurRacine,
+): string {
+  return messageErreurApi(error, t, fallback);
+}
+
+/**
+ * Le traducteur à la RACINE du dictionnaire, sous la signature minimale que consomment les
+ * fonctions de `src/lib/schemas/messages.ts`.
+ *
+ * ⚠️ **Racine, et non un espace de noms** : les clés portées par les schémas sont des chemins
+ * absolus (`validation.tag.nameRequired`). Un composant qui a déjà un `useTranslations('admin.tags')`
+ * sous la main ne peut donc PAS s'en servir pour traduire une erreur de schéma — il lui faut
+ * celui-ci, en plus.
+ *
+ * Existe pour que les trois écrans qui rendent un message de schéma sans passer par
+ * react-hook-form n'aient pas à recopier le cast — le recopier, c'est se donner l'occasion de le
+ * faire à moitié.
+ */
+export function useTraducteurValidation(): Traducteur {
+  return useTranslations() as unknown as Traducteur;
+}
+
+/**
+ * Traduit EN PROFONDEUR les messages d'un arbre d'erreurs react-hook-form qui portent une clé de
+ * `src/lib/schemas/messages.ts` (TCK-292, lot J).
+ *
+ * **Ce qui est traduit** : toute chaîne préfixée de `validation.` — donc `message`, mais aussi les
+ * entrées de `types` quand `criteriaMode: 'all'` est demandé, et les messages d'un champ de tableau
+ * (`items.0.quantity`). **Ce qui traverse intact** : tout le reste, à commencer par les messages
+ * 422 de Laravel que {@link mapValidationErrorsToForm} repose sur les champs — ils sont déjà
+ * rédigés, et les retraduire n'aurait aucun sens.
+ *
+ * `ref` porte le nœud DOM du champ : il est recopié tel quel, jamais parcouru.
+ *
+ * Exportée pour le test unitaire, et parce qu'un consommateur qui monte son propre résolveur peut
+ * s'en servir directement.
+ */
+export function traduireErreursValidation<T>(noeud: T, t: Traducteur): T {
+  if (Array.isArray(noeud)) {
+    return noeud.map((enfant) => traduireErreursValidation(enfant, t)) as unknown as T;
   }
-  if (error instanceof Error && error.name === 'TypeError') {
-    return 'La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.';
+  if (!noeud || typeof noeud !== 'object') return noeud;
+
+  const sortie: Record<string, unknown> = {};
+  for (const [cle, valeur] of Object.entries(noeud as Record<string, unknown>)) {
+    if (cle === 'ref') {
+      sortie[cle] = valeur;
+      continue;
+    }
+    if (typeof valeur === 'string') {
+      sortie[cle] = traduireMessageValidation(valeur, t);
+      continue;
+    }
+    sortie[cle] = traduireErreursValidation(valeur, t);
   }
-  return fallback;
+  return sortie as T;
+}
+
+/**
+ * Le résolveur zod de ce dépôt — `zodResolver`, plus la résolution des clés de message.
+ *
+ * ⚠️ **C'est CE résolveur qu'il faut monter, pas `zodResolver` nu.** Les schémas de
+ * `src/lib/schemas/` portent une clé et non un libellé (voir l'en-tête de
+ * `src/lib/schemas/messages.ts` pour la raison) : un `zodResolver(schema)` direct afficherait
+ * `validation.property.titleRequired` à l'utilisateur. {@link useApiForm} l'emploie déjà ; les
+ * formulaires qui appellent `useForm` eux-mêmes doivent le substituer.
+ */
+export function useResolveurValidation<TValues extends FieldValues>(
+  schema: ZodType<TValues>,
+): Resolver<TValues> {
+  const t = useTraducteurValidation();
+
+  return async (values, context, options) => {
+    // zodResolver's typings for zod v4 require a looser cast here; the
+    // runtime still validates via the provided schema.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const base = zodResolver(schema as unknown as any) as unknown as Resolver<TValues>;
+    const resultat = await base(values, context, options);
+    // Le cast rétablit l'union discriminée que l'étalement efface : la FORME du résultat est
+    // inchangée — seules les chaînes `message` sont remplacées par leur traduction.
+    return {
+      ...resultat,
+      errors: traduireErreursValidation(resultat.errors, t),
+    } as ResolverResult<TValues>;
+  };
 }
 
 /**
@@ -164,12 +253,13 @@ export function useApiForm<
   onError,
   formOptions,
 }: UseApiFormOptions<TValues, TResult>): UseApiFormReturn<TValues> {
+  const resolver = useResolveurValidation(schema);
+  // Traducteur à la RACINE — les clés d'erreur réseau sont des chemins absolus (`errors.api.…`).
+  const tRacine = useTranslations();
+
   const form = useForm<TValues>({
     ...(formOptions ?? {}),
-    // zodResolver's typings for zod v4 require a looser cast here; the
-    // runtime still validates via the provided schema.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(schema as unknown as any),
+    resolver,
     defaultValues,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any) as UseFormReturn<TValues>;
@@ -205,7 +295,11 @@ export function useApiForm<
             form.setError('root.serverError', { type: 'server', message });
           }
         } else {
-          const message = extractApiErrorMessage(err, 'La soumission a échoué. Réessayez.');
+          const message = extractApiErrorMessage(
+            err,
+            tRacine('errors.api.submitFailed'),
+            tRacine,
+          );
           setGlobalError(message);
           form.setError('root.serverError', { type: 'server', message });
           if (onError && err instanceof Error) onError(err);
@@ -214,7 +308,7 @@ export function useApiForm<
         setIsSubmitting(false);
       }
     },
-    [defaultValues, form, onSubmit, onSuccess, onError],
+    [defaultValues, form, onSubmit, onSuccess, onError, tRacine],
   );
 
   // ⚠ `await` puis rien : le retour est délibérément JETÉ, et ce n'est pas

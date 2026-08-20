@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useReducer } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiFetch, buildQueryString } from '@/lib/api';
 import { idsToCsv } from '@/lib/compare';
 import type { PropertyCompareResponse, PropertyDetail } from '@/types/property';
@@ -64,6 +65,7 @@ const COMPARE_FIELDS = [
 ] as const;
 
 export function useCompare(ids: readonly number[]) {
+  const t = useTranslations('compare');
   const [state, dispatch] = useReducer(reducer, { status: 'idle', data: null });
 
   useEffect(() => {
@@ -97,7 +99,7 @@ export function useCompare(ids: readonly number[]) {
         if (cancelled) return;
         dispatch({
           type: 'ERROR',
-          message: 'Impossible de charger le comparatif.',
+          message: t('loadError'),
         });
       });
 
@@ -106,7 +108,7 @@ export function useCompare(ids: readonly number[]) {
     };
     // We depend on the *serialized* list so identical arrays don't re-fetch.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsToCsv(ids)]);
+  }, [idsToCsv(ids), t]);
 
   return {
     status: state.status,

@@ -45,6 +45,7 @@ interface SetupPayload {
 export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWizardProps) {
   const router = useRouter();
   const t = useTranslations('auth.twoFactor');
+  const tWizard = useTranslations('superAdmin.onboarding');
   const [stage, setStage] = useState<Stage>('intro');
   const [setup, setSetup] = useState<SetupPayload | null>(null);
   const [code, setCode] = useState('');
@@ -115,11 +116,9 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
       <header className="space-y-2 text-center">
         <ShieldCheck className="mx-auto size-10 text-primary" aria-hidden="true" />
         <h1 className="text-2xl font-semibold text-app-ink">
-          Activation super-admin{firstName ? `, ${firstName}` : ''}
+          {firstName ? tWizard('titleWithName', { name: firstName }) : tWizard('title')}
         </h1>
-        <p className="text-sm text-app-ink-muted">
-          La double authentification est obligatoire avant d’accéder à la console super-admin.
-        </p>
+        <p className="text-sm text-app-ink-muted">{tWizard('subtitle')}</p>
       </header>
 
       <section className="space-y-4 rounded-2xl border border-app-surface-3 bg-white p-6 shadow-sm">
@@ -226,9 +225,7 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
           <div className="space-y-4 text-center">
             <ShieldCheck className="mx-auto size-12 text-emerald-600" aria-hidden="true" />
             <h2 className="text-base font-semibold text-app-ink">{t('success.title')}</h2>
-            <p className="text-sm text-app-ink-muted">
-              Le rôle super-admin vient d’être attaché à votre compte.
-            </p>
+            <p className="text-sm text-app-ink-muted">{tWizard('successBody')}</p>
             <Button onClick={handleFinish}>{t('success.cta')}</Button>
           </div>
         ) : null}

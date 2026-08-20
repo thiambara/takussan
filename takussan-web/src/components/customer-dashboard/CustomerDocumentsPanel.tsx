@@ -66,10 +66,10 @@ export function CustomerDocumentsPanel({
             <UploadCloud className="size-5 text-app-accent" aria-hidden="true" />
           )}
           <span className="text-sm font-medium text-app-ink">
-            Téléverser un document
+            {t('upload')}
           </span>
           <span className="text-xs">
-            Images ou PDF · 10 Mo maximum
+            {t('uploadHint')}
           </span>
           <input
             id="customer-document-input"
@@ -109,14 +109,14 @@ export function CustomerDocumentsPanel({
                   </p>
                   <p className="text-xs text-app-ink-muted">
                     {formatDateTime(doc.uploaded_at, locale)} ·{' '}
-                    {(doc.size / (1024 * 1024)).toFixed(2)} Mo
+                    {t('sizeMb', { size: (doc.size / (1024 * 1024)).toFixed(2) })}
                   </p>
                 </div>
               </div>
               <Button
                 render={
                   <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                    Ouvrir
+                    {t('open')}
                   </a>
                 }
                 variant="outline"

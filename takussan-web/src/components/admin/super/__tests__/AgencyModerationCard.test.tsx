@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { withIntl } from '@/test/intl';
 import { AgencyModerationCard } from '../AgencyModerationCard';
 import type { AdminAgency } from '@/types/super-admin';
 
@@ -9,11 +10,11 @@ function renderCard(agency: AdminAgency) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  return render(
+  return render(withIntl(
     <QueryClientProvider client={queryClient}>
       <AgencyModerationCard agency={agency} />
     </QueryClientProvider>,
-  );
+  ));
 }
 
 describe('AgencyModerationCard', () => {

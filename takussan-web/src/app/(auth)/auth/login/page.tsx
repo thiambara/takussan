@@ -15,10 +15,12 @@ import { login, isTwoFactorChallenge, type LoginResponse } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { useTranslations } from 'next-intl';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 function LoginForm() {
   const t = useTranslations('auth.login');
   const t2fa = useTranslations('auth.twoFactorChallenge');
+  const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const { setUser } = useAuth();
   const locale = useCurrentLocale();
@@ -93,11 +95,9 @@ function LoginForm() {
       setUser(result.user);
       router.push(redirectTo);
     } catch (err) {
-      setChallengeError(
-        err instanceof Error && 'displayMessage' in err
-          ? (err as { displayMessage: string }).displayMessage
-          : t2fa('invalidCode'),
-      );
+      // Le test structurel `'displayMessage' in err` rendait la CLÉ i18n quand l'erreur en
+      // portait une : `messageErreur` traduit le code avec le dictionnaire du client.
+      setChallengeError(messageErreur(err, t2fa('invalidCode')));
     } finally {
       setChallengePending(false);
     }

@@ -1,7 +1,8 @@
 'use server';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { getTranslations } from 'next-intl/server';
 import {
   superAdminTwoFactorConfirm,
   superAdminTwoFactorEnroll,
@@ -17,17 +18,38 @@ import {
  * second round-trip.
  */
 
-function requireToken(token: string | null | undefined): asserts token is string {
-  if (!token) throw new ApiError(401, { message: 'Not authenticated.' });
+/**
+ * Le jeton manque. Le littéral d'origine était l'anglais « Not authenticated. », affiché tel quel
+ * à un utilisateur francophone (TCK-292, lot K) ; `errors.missingToken` est la formulation déjà
+ * retenue pour ce cas ailleurs dans le parc.
+ */
+async function jetonManquant(): Promise<string> {
+  const tErr = await getTranslations('errors');
+  return tErr('missingToken');
+}
+
+function requireToken(
+  token: string | null | undefined,
+  messageSiAbsent: string,
+): asserts token is string {
+  if (!token) throw new ApiError(401, { message: messageSiAbsent });
 }
 
 type ActionResult<T> = { ok: true; data: T } | { ok: false; message: string };
 
-function failure(err: unknown, fallback: string): { ok: false; message: string } {
+/** Clés de repli de `serverActions.superAdminCooptation`. */
+type CleRepli = 'enrollFailed' | 'invalidTotp';
+
+async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+  const t = await getTranslations('serverActions.superAdminCooptation');
+  const repli = t(cleRepli);
   if (err instanceof ApiError) {
-    return { ok: false, message: err.displayMessage || fallback };
+    // ⚠️ C'était `err.displayMessage || repli`, et le repli était MORT : `displayMessage` rendait
+    // une clé i18n, et une clé est *truthy*. Un module `'use server'` traduit avec
+    // `getTranslations`, jamais en lisant un libellé pré-calculé sur l'erreur.
+    return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
   }
-  return { ok: false, message: fallback };
+  return { ok: false, message: repli };
 }
 
 export async function superAdminTwoFactorEnrollAction(): Promise<
@@ -35,11 +57,11 @@ export async function superAdminTwoFactorEnrollAction(): Promise<
 > {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     const data = await superAdminTwoFactorEnroll(token);
     return { ok: true, data };
   } catch (err) {
-    return failure(err, "Impossible d'initialiser la 2FA super-admin.");
+    return failure(err, 'enrollFailed');
   }
 }
 
@@ -48,10 +70,10 @@ export async function superAdminTwoFactorConfirmAction(
 ): Promise<ActionResult<SuperAdminTwoFactorConfirmResponse>> {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     const data = await superAdminTwoFactorConfirm(token, code);
     return { ok: true, data };
   } catch (err) {
-    return failure(err, 'Code TOTP invalide.');
+    return failure(err, 'invalidTotp');
   }
 }

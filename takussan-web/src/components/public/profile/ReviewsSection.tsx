@@ -1,4 +1,5 @@
 import { Star } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export interface PublicReview {
   readonly id: number;
@@ -27,35 +28,40 @@ function relativeDate(iso: string | null): string {
   }
 }
 
-function anonymize(name: string): string {
+/** Le repli n'est plus un littéral : l'appelant — un composant — résout la clé et le transmet. */
+function anonymize(name: string, fallback: string): string {
   const parts = name.trim().split(/\s+/);
-  if (parts.length === 0) return 'Anonyme';
+  if (parts.length === 0) return fallback;
   const first = parts[0];
   const initial = parts.length > 1 ? `${parts[parts.length - 1].charAt(0)}.` : '';
   return [first, initial].filter(Boolean).join(' ');
 }
 
 export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps) {
+  // Le hook se place AVANT la sortie anticipée : un `useTranslations` posé après serait un hook
+  // conditionnel, que le React Compiler refuse (ADR-0015).
+  const t = useTranslations('publicProfile.reviews');
+
   if (count === 0 || reviews.length === 0) return null;
 
   return (
     <section aria-labelledby="reviews-heading">
       <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-        Avis &amp; témoignages
+        {t('eyebrow')}
       </p>
       <div className="mt-2 flex flex-wrap items-baseline justify-between gap-3">
         <h2
           id="reviews-heading"
           className="font-display text-2xl md:text-3xl font-semibold text-foreground"
         >
-          Ce que disent les clients
+          {t('heading')}
         </h2>
         {average !== null && (
           <p className="inline-flex items-center gap-2 text-sm text-foreground">
             <Star className="size-4 fill-primary text-primary" aria-hidden />
             <span className="font-display text-lg font-semibold">{average.toFixed(1)}</span>
             <span className="text-muted-foreground">
-              · {count} avis
+              {t('count', { count: String(count) })}
             </span>
           </p>
         )}
@@ -67,7 +73,7 @@ export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps)
             key={r.id}
             className="rounded-2xl border border-border bg-card p-5"
           >
-            <div className="flex items-center gap-1 text-primary" aria-label={`${r.rating} étoiles sur 5`}>
+            <div className="flex items-center gap-1 text-primary" aria-label={t('ratingAria', { rating: String(r.rating) })}>
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star
                   key={i}
@@ -85,7 +91,7 @@ export function ReviewsSection({ average, count, reviews }: ReviewsSectionProps)
               </p>
             )}
             <p className="mt-4 text-xs text-muted-foreground">
-              {r.author ? anonymize(r.author.name) : 'Anonyme'}
+              {r.author ? anonymize(r.author.name, t('anonymous')) : t('anonymous')}
               {r.created_at && ` · ${relativeDate(r.created_at)}`}
             </p>
           </li>

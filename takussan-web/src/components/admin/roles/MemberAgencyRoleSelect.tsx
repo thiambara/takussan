@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useAgencyRoles, useAssignAgencyRole } from '@/lib/queries/agency-roles';
 import type { AgencyRole, AgencyRoleAssignment } from '@/types/agency-role';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface MemberAgencyRoleSelectProps {
   readonly agencyId: number;
@@ -39,6 +40,7 @@ interface MemberAgencyRoleSelectProps {
  */
 export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRoleSelectProps) {
   const t = useTranslations('admin.roles');
+  const messageErreur = useMessageErreurApi();
   const rolesQuery = useAgencyRoles(agencyId);
   const assign = useAssignAgencyRole(assignment.profile_id);
 
@@ -100,7 +102,7 @@ export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRol
 
       {assign.error ? (
         <p className="text-xs text-destructive" role="alert">
-          {assign.error.displayMessage}
+          {messageErreur(assign.error)}
         </p>
       ) : null}
 

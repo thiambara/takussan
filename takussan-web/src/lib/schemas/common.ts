@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Shared Zod schemas aligned with the backend `FormRequest` validation
@@ -19,9 +20,9 @@ import { z } from 'zod';
 export const emailSchema = z
   .string()
   .trim()
-  .min(1, 'L’adresse e-mail est requise.')
-  .email('Adresse e-mail invalide.')
-  .max(255, 'L’adresse e-mail est trop longue.')
+  .min(1, msgValidation('common.emailRequired'))
+  .email(msgValidation('common.emailInvalid'))
+  .max(255, msgValidation('common.emailTooLong'))
   .transform((v) => v.toLowerCase());
 
 /**
@@ -31,11 +32,11 @@ export const emailSchema = z
  */
 export const passwordSchema = z
   .string()
-  .min(1, 'Le mot de passe est requis.')
-  .min(8, 'Le mot de passe doit contenir au moins 8 caractères.')
-  .max(72, 'Le mot de passe ne doit pas dépasser 72 caractères.')
-  .regex(/[A-Za-z]/, 'Le mot de passe doit contenir au moins une lettre.')
-  .regex(/\d/, 'Le mot de passe doit contenir au moins un chiffre.');
+  .min(1, msgValidation('common.passwordRequired'))
+  .min(8, msgValidation('common.passwordMin'))
+  .max(72, msgValidation('common.passwordMax'))
+  .regex(/[A-Za-z]/, msgValidation('common.passwordLetter'))
+  .regex(/\d/, msgValidation('common.passwordDigit'));
 
 /**
  * Phone — Senegal-friendly E.164-ish: optional `+`, country code then 8+
@@ -47,7 +48,7 @@ export const phoneSchema = z
   .trim()
   .regex(
     /^\+?[0-9\s().-]{8,20}$/,
-    'Numéro de téléphone invalide. Exemple : +221 77 123 45 67.',
+    msgValidation('common.phoneInvalid'),
   );
 
 /**
@@ -81,5 +82,5 @@ export const optionalPhoneSchema = z
 /**
  * Non-empty string with trim.
  */
-export const requiredStringSchema = (message = 'Ce champ est requis.') =>
+export const requiredStringSchema = (message = msgValidation('common.required')) =>
   z.string().trim().min(1, message);

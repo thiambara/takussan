@@ -3,6 +3,7 @@
 import { CSSProperties } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Calendar, ListTodo } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
 import type { PipelineCustomerCard } from '@/types/pipeline';
@@ -36,6 +37,7 @@ export function PipelineCard({
   onSelect,
   isDragging,
 }: PipelineCardProps) {
+  const t = useTranslations('crm.pipeline.card');
   const { attributes, listeners, setNodeRef, transform, isDragging: localDragging } =
     useDraggable({ id: customer.id, data: { customer } });
 
@@ -83,7 +85,7 @@ export function PipelineCard({
           </p>
           {addedByName ? (
             <p className="mt-0.5 truncate text-xs text-app-ink-muted">
-              <span className="opacity-70">par</span> {addedByName}
+              <span className="opacity-70">{t('addedBy')}</span> {addedByName}
             </p>
           ) : null}
           <div className="mt-2 flex items-center gap-3 text-xs text-app-ink-muted">
@@ -94,7 +96,7 @@ export function PipelineCard({
             {(customer.tasks_count ?? 0) > 0 ? (
               <span
                 className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-700 dark:text-amber-300"
-                title="Tâches en cours"
+                title={t('openTasks')}
               >
                 <ListTodo className="size-3.5" aria-hidden />
                 {customer.tasks_count}

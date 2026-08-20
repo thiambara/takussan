@@ -19,19 +19,15 @@ import {
 import type { Locale } from '@/i18n/config';
 
 import {
-  PAYMENT_STATUS_LABEL,
   PAYMENT_STATUS_VARIANT,
   type PaymentStatus,
 } from './constants';
 
-const SOURCE_LABEL: Record<'booking' | 'lease', string> = {
-  booking: 'Réservation',
-  lease: 'Bail',
-};
-
 export function PaymentsHistoryTable() {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.history');
+  const tTable = useTranslations('payments.history.table');
+  const tStatus = useTranslations('payments.status');
   const searchParams = useSearchParams();
 
   const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
@@ -86,22 +82,22 @@ export function PaymentsHistoryTable() {
             <table className="w-full text-left text-sm">
               <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
                 <tr>
-                  <th className="px-3 py-2">Référence</th>
-                  <th className="px-3 py-2">Source</th>
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Montant</th>
-                  <th className="px-3 py-2">Statut</th>
-                  <th className="px-3 py-2">Méthode</th>
-                  <th className="px-3 py-2">Entité</th>
+                  <th className="px-3 py-2">{tTable('reference')}</th>
+                  <th className="px-3 py-2">{tTable('source')}</th>
+                  <th className="px-3 py-2">{tTable('date')}</th>
+                  <th className="px-3 py-2">{tTable('amount')}</th>
+                  <th className="px-3 py-2">{tTable('status')}</th>
+                  <th className="px-3 py-2">{tTable('method')}</th>
+                  <th className="px-3 py-2">{tTable('entity')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {rows.map((row) => {
                   const status = (row.status ?? 'pending') as PaymentStatus;
                   const entityLabel = row.lease_id
-                    ? `Bail #${row.lease_id}`
+                    ? tTable('entityLease', { id: String(row.lease_id) })
                     : row.booking_id
-                      ? `Réservation #${row.booking_id}`
+                      ? tTable('entityBooking', { id: String(row.booking_id) })
                       : '—';
                   const entityHref = row.lease_id
                     ? `/app/leases/${row.lease_id}`
@@ -114,7 +110,7 @@ export function PaymentsHistoryTable() {
                       <td className="px-3 py-2 font-mono text-xs text-app-ink-muted">
                         {row.reference_number ?? `#${row.id}`}
                       </td>
-                      <td className="px-3 py-2 text-xs">{SOURCE_LABEL[row.source]}</td>
+                      <td className="px-3 py-2 text-xs">{tTable(`sources.${row.source}`)}</td>
                       <td className="px-3 py-2 text-xs">
                         {row.date ? formatDate(row.date, locale) : '—'}
                       </td>
@@ -124,15 +120,17 @@ export function PaymentsHistoryTable() {
                         })}
                         {row.remaining_amount > 0 && row.remaining_amount < row.amount ? (
                           <span className="ml-1 text-xs font-normal text-app-ink-muted">
-                            ({formatCurrency(row.paid_amount, locale, {
-                              currency: row.currency || 'XOF',
-                            })} payé)
+                            {tTable('paidAmount', {
+                              amount: formatCurrency(row.paid_amount, locale, {
+                                currency: row.currency || 'XOF',
+                              }),
+                            })}
                           </span>
                         ) : null}
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant={PAYMENT_STATUS_VARIANT[status] ?? 'outline'}>
-                          {PAYMENT_STATUS_LABEL[status] ?? status}
+                          {tStatus(status)}
                         </Badge>
                       </td>
                       <td className="px-3 py-2 text-xs capitalize">
@@ -157,30 +155,30 @@ export function PaymentsHistoryTable() {
           {totals ? (
             <dl className="grid gap-2 rounded-xl bg-app-surface-1 p-3 text-xs text-app-ink-muted sm:grid-cols-4">
               <div>
-                <dt>Total</dt>
+                <dt>{tTable('total')}</dt>
                 <dd className="text-sm font-semibold text-app-ink">
                   {formatCurrency(totals.amount, locale)}
                 </dd>
               </div>
               <div>
-                <dt>Payé</dt>
+                <dt>{tTable('paid')}</dt>
                 <dd className="text-sm font-semibold text-app-ink">
                   {formatCurrency(totals.paid_amount, locale)}
                 </dd>
               </div>
               <div>
-                <dt>Restant</dt>
+                <dt>{tTable('remaining')}</dt>
                 <dd className="text-sm font-semibold text-app-ink">
                   {formatCurrency(totals.remaining_amount, locale)}
                 </dd>
               </div>
               <div>
-                <dt>Lignes</dt>
+                <dt>{tTable('rows')}</dt>
                 <dd className="text-sm font-semibold text-app-ink">
                   {totals.count}
                   {data.meta.truncated ? (
                     <span className="ml-1 text-[11px] font-normal text-app-ink-muted">
-                      (plafond {data.meta.limit})
+                      {tTable('cap', { limit: String(data.meta.limit) })}
                     </span>
                   ) : null}
                 </dd>

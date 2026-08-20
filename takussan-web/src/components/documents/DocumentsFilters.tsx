@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { Input } from '@/components/ui/input';
 import {
@@ -11,37 +12,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { DocumentType, DocumentableType } from '@/types/document';
+import type { DocumentType } from '@/types/document';
 
 import {
-  DOCUMENT_TYPE_OPTIONS,
-  DOCUMENTABLE_TYPE_LABEL,
+  DOCUMENT_TYPE_ORDER,
+  DOCUMENTABLE_FILTER_ORDER,
 } from './constants';
-
-const DOCUMENTABLE_FILTER_OPTIONS: readonly { value: DocumentableType; label: string }[] = [
-  { value: 'property', label: DOCUMENTABLE_TYPE_LABEL.property },
-  { value: 'lease', label: DOCUMENTABLE_TYPE_LABEL.lease },
-  { value: 'booking', label: DOCUMENTABLE_TYPE_LABEL.booking },
-  { value: 'customer', label: DOCUMENTABLE_TYPE_LABEL.customer },
-  { value: 'inventory', label: DOCUMENTABLE_TYPE_LABEL.inventory },
-  { value: 'agency', label: DOCUMENTABLE_TYPE_LABEL.agency },
-];
 
 const ANY_VALUE = '__any__';
 
-const DOC_TYPE_ITEMS = [
-  { value: ANY_VALUE, label: 'Toutes catégories' },
-  ...DOCUMENT_TYPE_OPTIONS,
-] as const;
-
-const DOC_ENTITY_ITEMS = [
-  { value: ANY_VALUE, label: 'Toutes entités' },
-  ...DOCUMENTABLE_FILTER_OPTIONS,
-] as const;
-
 export function DocumentsFilters() {
+  const t = useTranslations('documents.filters');
+  const tTypes = useTranslations('documents.types');
+  const tEntities = useTranslations('documents.entities');
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const typeItems = useMemo(
+    () => [
+      { value: ANY_VALUE, label: t('all_types') },
+      ...DOCUMENT_TYPE_ORDER.map((value) => ({ value, label: tTypes(value) })),
+    ],
+    [t, tTypes],
+  );
+
+  const entityItems = useMemo(
+    () => [
+      { value: ANY_VALUE, label: t('all_entities') },
+      ...DOCUMENTABLE_FILTER_ORDER.map((value) => ({ value, label: tEntities(value) })),
+    ],
+    [t, tEntities],
+  );
 
   const currentSearch = searchParams.get('search') ?? '';
   const currentType = searchParams.get('type') ?? ANY_VALUE;
@@ -66,12 +67,12 @@ export function DocumentsFilters() {
     <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_180px]">
       <div>
         <label htmlFor="documents-search" className="sr-only">
-          Recherche
+          {t('search_label')}
         </label>
         <Input
           id="documents-search"
           type="search"
-          placeholder="Rechercher par nom, description…"
+          placeholder={t('search_placeholder')}
           defaultValue={currentSearch}
           onBlur={(e) => update('search', e.currentTarget.value.trim() || null)}
           onKeyDown={(e) => {
@@ -84,21 +85,21 @@ export function DocumentsFilters() {
       </div>
       <div>
         <label htmlFor="documents-type" className="sr-only">
-          Catégorie
+          {t('type_label')}
         </label>
         <Select
           value={currentType}
           onValueChange={(v) => update('type', v === ANY_VALUE ? null : v)}
-          items={DOC_TYPE_ITEMS}
+          items={typeItems}
         >
           <SelectTrigger id="documents-type" className="w-full">
-            <SelectValue placeholder="Toutes catégories" />
+            <SelectValue placeholder={t('all_types')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ANY_VALUE}>Toutes catégories</SelectItem>
-            {DOCUMENT_TYPE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value as DocumentType}>
-                {opt.label}
+            <SelectItem value={ANY_VALUE}>{t('all_types')}</SelectItem>
+            {DOCUMENT_TYPE_ORDER.map((value) => (
+              <SelectItem key={value} value={value as DocumentType}>
+                {tTypes(value)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -106,23 +107,23 @@ export function DocumentsFilters() {
       </div>
       <div>
         <label htmlFor="documents-entity" className="sr-only">
-          Type d&apos;entité
+          {t('entity_label')}
         </label>
         <Select
           value={currentEntity}
           onValueChange={(v) =>
             update('documentable_type', v === ANY_VALUE ? null : v)
           }
-          items={DOC_ENTITY_ITEMS}
+          items={entityItems}
         >
           <SelectTrigger id="documents-entity" className="w-full">
-            <SelectValue placeholder="Toutes entités" />
+            <SelectValue placeholder={t('all_entities')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ANY_VALUE}>Toutes entités</SelectItem>
-            {DOCUMENTABLE_FILTER_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
+            <SelectItem value={ANY_VALUE}>{t('all_entities')}</SelectItem>
+            {DOCUMENTABLE_FILTER_ORDER.map((value) => (
+              <SelectItem key={value} value={value}>
+                {tEntities(value)}
               </SelectItem>
             ))}
           </SelectContent>

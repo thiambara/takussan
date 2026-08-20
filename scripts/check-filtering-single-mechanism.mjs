@@ -38,6 +38,24 @@
  *     2026-08-17 : **0 des 33 fichiers portant un scope** ne déclare un scope à paramètre
  *     `array`, donc ce contrôle n'a aucun faux positif à absoudre aujourd'hui.
  *
+ *   · **D — RECHERCHE (TCK-326).** Aucun scope Eloquent de `app/` ne rebranche la RECHERCHE
+ *     plein-texte hors de `HasQueryBuilder`. Deux formes, pour la même raison que B et C :
+ *     un contrôle de NOM (`scopeWithSearch`, `scopeSearch`, `scopeScout`, `scopeFullText`…) qui
+ *     attrape le copier-coller, et un contrôle de FORME qui survit au renommage — un scope dont
+ *     le corps appelle Scout (`::search(`) *et* recompose le résultat dans la requête Eloquent
+ *     (`whereIn` / `whereRaw` / `->keys()`).
+ *
+ *     **Pourquoi D ne se déduit pas de C.** `BaseModelTrait::scopeWithSearch(Builder, ?string,
+ *     int)` a survécu à TCK-307 précisément parce que C ne pouvait pas le voir : il ne prend pas
+ *     de tableau et ne déroule pas de `where()` en boucle. Il était pourtant le même motif un
+ *     cran plus loin — et **pire** : `whereIn` sans restitution d'ordre, là où le chemin
+ *     `filter[search]` restitue la pertinence Meilisearch depuis TCK-281
+ *     (`$searchRelevanceIds` → `SearchRelevanceSort`). Son propre docblock l'avouait ; l'appelant
+ *     ne lit pas le docblock, il lit la liste des méthodes disponibles. *Un doublon inférieur
+ *     coûte plus cher qu'un doublon inerte : celui qui le choisit obtient un résultat plausible
+ *     et faux.* Mesuré le 2026-08-17 puis le 2026-08-20 : **zéro appelant** hors du test qui le
+ *     testait. Supprimé par TCK-326.
+ *
  * **Ce que la garde NE couvre PAS, et le dit dans sa sortie.** Elle ne regarde que les *scopes
  * Eloquent* de `app/`. Un contrôleur qui lit `$request->input('filter')` et empile des `where()`
  * à la main lui échappe — il y en a plusieurs dans ce dépôt (`PaymentController`,
@@ -83,6 +101,29 @@ const PLANCHER_SCOPES = 10;
 const NOMS_INTERDITS = /^(Filter|Filters|ApplyFilters|WithFilters|FilterBy|Filtered|RequestFilters)$/;
 
 /**
+ * Noms de scope de RECHERCHE interdits (contrôle D, TCK-326) — la famille de `scopeWithSearch`.
+ * `scopeSearchable` n'en est pas : ce serait un scope de sélection, pas un chemin de recherche ;
+ * le motif exige donc que `Search` soit terminal ou suivi de `By`/`Term`/`Text`.
+ */
+const NOMS_RECHERCHE_INTERDITS = /^(With)?(Search(By|Term|Text)?|Scout|FullText(Search)?|TextSearch)$/;
+
+/**
+ * Contrôle D — forme : le corps entre par Scout, puis recompose le résultat dans la requête
+ * Eloquent. C'est ce second membre qui distingue un scope de recherche d'un simple passe-plat.
+ *
+ * ⚠ **`whereIntegerInRaw` et `pluck` ont été ajoutés à la vérification par mutation du
+ * 2026-08-20.** La première version du motif ne listait que `whereIn|whereRaw|whereKey|keys` :
+ * un scope nommé innocemment qui récoltait les ids par `->get()->pluck('id')` puis les
+ * recomposait par `->whereIntegerInRaw(…)` — deux méthodes Laravel parfaitement ordinaires —
+ * traversait le contrôle D au VERT, alors que c'est exactement le mécanisme supprimé. Le membre
+ * `ENTREE_SCOUT` reste le discriminant : un scope qui n'appelle pas Scout n'est jamais jugé
+ * ici, donc élargir la recomposition n'ouvre pas de faux positif.
+ */
+const ENTREE_SCOUT = /(::|->)search\s*\(/;
+const RECOMPOSITION_ELOQUENT =
+  /->(whereIn|whereIntegerInRaw|whereRaw|whereKey)\s*\(|->(keys|pluck)\s*\(/;
+
+/**
  * Exclusions JUSTIFIÉES, et chacune doit l'être par écrit — même convention que
  * `check-models-spec.mjs`. Vide, et c'est l'état sain.
  */
@@ -124,11 +165,34 @@ if (!existsSync(HAS_QUERY_BUILDER)) {
     `A — ${relative(ROOT, HAS_QUERY_BUILDER)} est introuvable.\n` +
       `    C'est le mécanisme SURVIVANT. S'il a disparu, ce n'est plus « un seul mécanisme », c'est aucun.`,
   );
-} else if (!/public static function buildQuery\s*\(/.test(readFileSync(HAS_QUERY_BUILDER, 'utf8'))) {
-  erreurs.push(
-    `A — ${relative(ROOT, HAS_QUERY_BUILDER)} ne déclare plus \`public static function buildQuery(\`.\n` +
-      `    Le point d'entrée unique du filtrage a été renommé ou retiré : la garde ne sait plus ce qu'elle garde.`,
-  );
+} else {
+  const sourceHqb = readFileSync(HAS_QUERY_BUILDER, 'utf8');
+
+  if (!/public static function buildQuery\s*\(/.test(sourceHqb)) {
+    erreurs.push(
+      `A — ${relative(ROOT, HAS_QUERY_BUILDER)} ne déclare plus \`public static function buildQuery(\`.\n` +
+        `    Le point d'entrée unique du filtrage a été renommé ou retiré : la garde ne sait plus ce qu'elle garde.`,
+    );
+  }
+
+  // Non-vacuité DU CONTRÔLE D (TCK-326). D interdit tout chemin de recherche hors d'ici ; si le
+  // chemin survivant disparaît ou est renommé, D passerait au vert en n'interdisant plus qu'un
+  // mécanisme qui n'existe nulle part. Ce n'est pas « un seul mécanisme », c'est aucun.
+  if (!/AllowedFilter::callback\(\s*'search'/.test(sourceHqb)) {
+    erreurs.push(
+      `A — ${relative(ROOT, HAS_QUERY_BUILDER)} ne déclare plus le filtre \`AllowedFilter::callback('search', …)\`.\n` +
+        `    C'est le chemin de recherche SURVIVANT (TCK-280/281), celui au nom duquel le contrôle D\n` +
+        `    refuse tous les autres. Sans lui, D ne garde plus rien.`,
+    );
+  }
+
+  if (!/in_array\(\s*Searchable::class/.test(sourceHqb)) {
+    erreurs.push(
+      `A — ${relative(ROOT, HAS_QUERY_BUILDER)} ne route plus les modèles \`Searchable\` vers Scout.\n` +
+        `    Le contrôle D interdit de rebrancher la recherche ailleurs : ce routage est la\n` +
+        `    contrepartie de cette interdiction.`,
+    );
+  }
 }
 
 if (!existsSync(ABSTRACT_MODEL)) {
@@ -189,10 +253,37 @@ for (const fichier of fichiers) {
       continue;
     }
 
+    const corps = corpsDeMethode(source, m.index + m[0].length);
+
+    // ── D — RECHERCHE (TCK-326) ─────────────────────────────────────────────────────────────
+    // `HasQueryBuilder` est le mécanisme survivant : un chemin de recherche déclaré DANS ce
+    // fichier est le chemin autorisé, pas une réintroduction.
+    if (fichier !== HAS_QUERY_BUILDER) {
+      if (NOMS_RECHERCHE_INTERDITS.test(nom)) {
+        erreurs.push(
+          `D — ${cle} porte un nom de la famille du chemin de recherche supprimé par TCK-326.\n` +
+            `    La recherche plein-texte passe par HasQueryBuilder : \`filter[search]=…\`, qui route\n` +
+            `    les modèles Searchable vers Scout ET RESTITUE la pertinence Meilisearch (TCK-281).\n` +
+            `    Un scope maison rend un whereIn sans ordre : tolérant aux fautes, classé par date.`,
+        );
+        continue;
+      }
+
+      if (ENTREE_SCOUT.test(corps) && RECOMPOSITION_ELOQUENT.test(corps)) {
+        erreurs.push(
+          `D — ${cle} a la FORME d'un chemin de recherche : il entre par Scout (\`::search(\`) et\n` +
+            `    recompose le résultat dans la requête Eloquent (whereIn/whereIntegerInRaw/\n` +
+            `    whereRaw/whereKey/keys/pluck). Le nom a\n` +
+            `    changé, le mécanisme est celui que TCK-326 a supprimé — et il PERD l'ordre de\n` +
+            `    pertinence que HasQueryBuilder restitue depuis TCK-281.`,
+        );
+        continue;
+      }
+    }
+
     const prendTableau = /\barray\b[^,)]*\$/.test(signature);
     if (!prendTableau) continue;
 
-    const corps = corpsDeMethode(source, m.index + m[0].length);
     if (/\bforeach\b/.test(corps) && /->where\s*\(/.test(corps)) {
       erreurs.push(
         `C — ${cle} a la FORME du DSL supprimé : un scope qui reçoit un tableau et en\n` +

@@ -13,12 +13,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { PropertyVisit, VisitStatus, VisitType } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
 
-const STATUS_LABEL: Record<VisitStatus, string> = {
-  scheduled: 'Demandée',
-  confirmed: 'Confirmée',
-  completed: 'Terminée',
-  cancelled: 'Annulée',
-  no_show: 'Absence',
+/**
+ * TCK-292 — tables hors composant : elles transportent la CLÉ (relative au namespace `visits`),
+ * le rendu la résout. Patron posé par TCK-286 dans `data/navigation.ts`.
+ */
+const STATUS_LABEL_KEY: Record<VisitStatus, string> = {
+  scheduled: 'status.scheduled',
+  confirmed: 'status.confirmed',
+  completed: 'status.completed',
+  cancelled: 'status.cancelled',
+  no_show: 'status.no_show',
 };
 
 const STATUS_VARIANT: Record<VisitStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -29,11 +33,11 @@ const STATUS_VARIANT: Record<VisitStatus, 'default' | 'secondary' | 'outline' | 
   no_show: 'destructive',
 };
 
-const TYPE_LABEL: Record<VisitType, string> = {
-  in_person: 'En personne',
-  virtual: 'Virtuelle',
-  self_guided: 'Autonome',
-  hybrid: 'Hybride',
+const TYPE_LABEL_KEY: Record<VisitType, string> = {
+  in_person: 'type.in_person',
+  virtual: 'type.virtual',
+  self_guided: 'type.self_guided',
+  hybrid: 'type.hybrid',
 };
 
 type TabKey = 'requested' | 'confirmed' | 'past' | 'cancelled';
@@ -44,6 +48,7 @@ type TabKey = 'requested' | 'confirmed' | 'past' | 'cancelled';
  */
 export function VisitsList() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('visits');
   const [tab, setTab] = useState<TabKey>('requested');
 
   const nowIso = useMemo(() => new Date().toISOString(), []);
@@ -75,10 +80,10 @@ export function VisitsList() {
   });
 
   const tabs: ReadonlyArray<{ value: TabKey; label: string; query: ReturnType<typeof useVisits> }> = [
-    { value: 'requested', label: 'Demandées', query: requested },
-    { value: 'confirmed', label: 'Confirmées', query: confirmed },
-    { value: 'past', label: 'Passées', query: past },
-    { value: 'cancelled', label: 'Annulées', query: cancelled },
+    { value: 'requested', label: t('list.tabs.requested'), query: requested },
+    { value: 'confirmed', label: t('list.tabs.confirmed'), query: confirmed },
+    { value: 'past', label: t('list.tabs.past'), query: past },
+    { value: 'cancelled', label: t('list.tabs.cancelled'), query: cancelled },
   ];
 
   return (
@@ -148,6 +153,7 @@ function VisitsListBody({
 }
 
 function VisitRow({ visit, locale }: { visit: PropertyVisit; locale: Locale }) {
+  const t = useTranslations('visits');
   const status = visit.status ?? 'scheduled';
   const type = visit.type ?? 'in_person';
   return (
@@ -160,15 +166,15 @@ function VisitRow({ visit, locale }: { visit: PropertyVisit; locale: Locale }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="truncate text-sm font-semibold text-stone-900">
-                {visit.property?.title ?? `Visite #${visit.id}`}
+                {visit.property?.title ?? t('fallbackTitle', { id: String(visit.id) })}
               </h3>
-              <Badge variant={STATUS_VARIANT[status]}>{STATUS_LABEL[status]}</Badge>
-              <Badge variant="outline">{TYPE_LABEL[type]}</Badge>
+              <Badge variant={STATUS_VARIANT[status]}>{t(STATUS_LABEL_KEY[status])}</Badge>
+              <Badge variant="outline">{t(TYPE_LABEL_KEY[type])}</Badge>
             </div>
             <p className="mt-1 text-xs text-stone-500">
               {formatDateTime(visit.scheduled_at, locale)}
               {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
-                <> · {visit.duration_minutes} min</>
+                <> · {visit.duration_minutes} {t('minutesUnit')}</>
               )}
             </p>
           </div>

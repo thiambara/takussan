@@ -17,12 +17,12 @@ class BankStatementResource extends BaseResource
             'file_hash' => $this->file_hash,
             'bank_name' => $this->bank_name,
             'account_iban_masked' => $this->account_iban_masked,
-            'period_start' => $this->period_start?->toDateString(),
-            'period_end' => $this->period_end?->toDateString(),
+            'period_start' => $this->calendarDate($this->period_start),
+            'period_end' => $this->calendarDate($this->period_end),
             'lines_count' => $this->lines_count,
             'status' => $this->status?->value,
             'status_label' => $this->status ? __("reconciliation.status.{$this->status->value}") : null,
-            'finalized_at' => $this->finalized_at?->toIso8601String(),
+            'finalized_at' => $this->iso($this->finalized_at),
             'reconciled_ratio' => $this->reconciled_ratio,
             'uploaded_by' => $this->whenLoaded('uploadedBy', fn () => [
                 'id' => $this->uploadedBy->id,
@@ -34,8 +34,8 @@ class BankStatementResource extends BaseResource
                 'first_name' => $this->finalizedBy->first_name,
                 'last_name' => $this->finalizedBy->last_name,
             ]),
-            'created_at' => $this->created_at?->toIso8601String(),
-            'updated_at' => $this->updated_at?->toIso8601String(),
+            'created_at' => $this->iso($this->created_at),
+            'updated_at' => $this->iso($this->updated_at),
         ];
     }
 }

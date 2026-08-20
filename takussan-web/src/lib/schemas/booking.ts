@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Booking-related schemas (TCK-043).
@@ -11,8 +12,8 @@ import { z } from 'zod';
 const isoDate = z
   .string()
   .trim()
-  .min(1, 'La date est requise.')
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide.');
+  .min(1, msgValidation('common.dateRequired'))
+  .regex(/^\d{4}-\d{2}-\d{2}$/, msgValidation('common.dateInvalid'));
 
 /**
  * Single-step source data — the full tunnel is validated section by section
@@ -24,14 +25,14 @@ export const bookingRequestSchema = z
     start_date: isoDate,
     end_date: isoDate,
     guests: z
-      .number({ error: 'Le nombre de personnes est requis.' })
-      .int('Le nombre de personnes doit être un entier.')
-      .min(1, 'Au moins 1 personne.')
-      .max(20, 'Maximum 20 personnes.'),
+      .number({ error: msgValidation('booking.guestsRequired') })
+      .int(msgValidation('booking.guestsInteger'))
+      .min(1, msgValidation('booking.guestsMin'))
+      .max(20, msgValidation('booking.guestsMax')),
     notes: z
       .string()
       .trim()
-      .max(1000, 'Le message est trop long (1000 caractères max).')
+      .max(1000, msgValidation('booking.notesTooLong'))
       .optional()
       .or(z.literal('').transform(() => undefined)),
     accept_terms: z.boolean(),
@@ -45,7 +46,7 @@ export const bookingRequestSchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['end_date'],
-          message: 'La date de fin doit être postérieure à la date de début.',
+          message: msgValidation('common.endDateAfterStart'),
         });
       }
     }
@@ -53,7 +54,7 @@ export const bookingRequestSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['accept_terms'],
-        message: 'Vous devez accepter les conditions.',
+        message: msgValidation('booking.acceptTerms'),
       });
     }
   });
@@ -61,7 +62,7 @@ export const bookingRequestSchema = z
 export type BookingRequestFormValues = z.infer<typeof bookingRequestSchema>;
 
 export const bookingPaymentSchema = z.object({
-  amount: z.number().positive('Le montant doit être supérieur à 0.'),
+  amount: z.number().positive(msgValidation('common.amountPositive')),
   payment_method: z.enum(['cash', 'bank_transfer', 'mobile_money', 'card']),
   payment_type: z.enum(['deposit', 'advance', 'fee']),
   transaction_id: z

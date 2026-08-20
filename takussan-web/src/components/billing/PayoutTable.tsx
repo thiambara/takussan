@@ -1,18 +1,15 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { PlatformPayout, PlatformPayoutStatus } from '@/types/super-admin';
 
-const STATUS_LABEL: Record<PlatformPayoutStatus, string> = {
-  pending: 'En attente',
-  approved: 'Approuvé',
-  processing: 'En cours',
-  paid: 'Payé',
-  failed: 'Échec',
-  cancelled: 'Annulé',
-};
-
+/**
+ * ⚠ La table de LIBELLÉS qui vivait ici a été retirée par TCK-292 : les statuts se résolvent sous
+ * `billing.platformPayouts.status.*`, la clé étant la valeur d'enum. Ce qui reste est la TEINTE,
+ * qui n'est pas du texte.
+ */
 const STATUS_TONE: Record<PlatformPayoutStatus, string> = {
   pending: 'bg-amber-50 text-amber-800 ring-amber-200',
   approved: 'bg-blue-50 text-blue-800 ring-blue-200',
@@ -23,9 +20,10 @@ const STATUS_TONE: Record<PlatformPayoutStatus, string> = {
 };
 
 export function PayoutStatusPill({ status }: { status: PlatformPayoutStatus }) {
+  const tStatus = useTranslations('billing.platformPayouts.status');
   return (
     <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_TONE[status]}`}>
-      {STATUS_LABEL[status]}
+      {tStatus(status)}
     </span>
   );
 }
@@ -49,13 +47,16 @@ export function PayoutTable({
   onSelect?: (payout: PlatformPayout) => void;
   emptyHint?: string;
 }) {
+  // Hooks AVANT toute sortie anticipée (React Compiler, ADR-0015).
+  const t = useTranslations('billing.platformPayouts.table');
+
   if (isLoading) return <Skeleton className="h-60 rounded-xl" />;
 
   if (payouts.length === 0) {
     return (
       <Card>
         <CardContent className="p-6 text-sm text-muted-foreground">
-          {emptyHint ?? 'Aucun reversement enregistré pour le moment.'}
+          {emptyHint ?? t('empty')}
         </CardContent>
       </Card>
     );
@@ -68,13 +69,13 @@ export function PayoutTable({
           <table className="w-full text-sm">
             <thead className="border-b border-border/60 bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-4 py-2 text-left font-medium">Période</th>
-                <th className="px-4 py-2 text-left font-medium">Agence</th>
-                <th className="px-4 py-2 text-right font-medium">Brut</th>
-                <th className="px-4 py-2 text-right font-medium">Commission</th>
-                <th className="px-4 py-2 text-right font-medium">Net</th>
-                <th className="px-4 py-2 text-left font-medium">Statut</th>
-                <th className="px-4 py-2 text-left font-medium">Versé le</th>
+                <th className="px-4 py-2 text-left font-medium">{t('period')}</th>
+                <th className="px-4 py-2 text-left font-medium">{t('agency')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('gross')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('commission')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('net')}</th>
+                <th className="px-4 py-2 text-left font-medium">{t('status')}</th>
+                <th className="px-4 py-2 text-left font-medium">{t('paidOn')}</th>
               </tr>
             </thead>
             <tbody>

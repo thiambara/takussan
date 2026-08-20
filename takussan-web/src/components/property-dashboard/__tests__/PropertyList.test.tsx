@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
-import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PropertyList } from '@/components/property-dashboard/PropertyList';
+import { withIntl } from '@/test/intl';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
 
@@ -72,16 +72,31 @@ function makePage(property: PropertyListItem): PaginatedResponse<PropertyListIte
 
 describe('PropertyList', () => {
   it('renders human labels for draft status instead of raw enum values', () => {
-    render(
-      <NextIntlClientProvider
-        locale="fr"
-        messages={{ common: { actions: { close: 'Fermer' } } }}
-      >
-        <PropertyList page={makePage(makeProperty())} />
-      </NextIntlClientProvider>,
-    );
+    // TCK-292 — le provider montait `messages={{ common: … }}`, ce qui fait rendre la CLÉ et non
+    // le libellé dès que l'écran passe au dictionnaire. `withIntl` charge le VRAI `fr.json` :
+    // l'assertion française ci-dessous est INCHANGÉE, et c'est la forme vérifiable de l'AC3.
+    render(withIntl(<PropertyList page={makePage(makeProperty())} />));
 
     expect(screen.getAllByText('Brouillon').length).toBeGreaterThan(0);
     expect(screen.queryByText('draft')).not.toBeInTheDocument();
+  });
+
+  /**
+   * TCK-292 — la garde contre le mode d'échec principal du chantier.
+   *
+   * `src/i18n/request.ts` deep-merge `fr` sous TOUTE locale ≠ `fr` : une clé sans anglais
+   * s'affiche EN FRANÇAIS, sans erreur, sans avertissement et sans test rouge. Ce test est le
+   * seul endroit où ce silence devient bruyant — il rougit dès qu'une des clés anglaises de
+   * `property.{status,visibility,dashboard.list}` disparaît, parce que le français reparaît alors
+   * à l'écran anglais.
+   */
+  it('rend l’anglais en locale en — aucun libellé français ne subsiste', () => {
+    render(withIntl(<PropertyList page={makePage(makeProperty())} />, 'en'));
+
+    expect(screen.getAllByText('Draft').length).toBeGreaterThan(0);
+    expect(screen.getByText('Property')).toBeInTheDocument();
+    expect(screen.getByText('Activity')).toBeInTheDocument();
+    expect(screen.queryByText('Brouillon')).not.toBeInTheDocument();
+    expect(screen.queryByText('Activité')).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import type { User, UserRole } from '@/types/user';
 import { getPrimaryRole } from '@/lib/roles';
 import { buttonVariants } from '@/components/ui/button';
@@ -7,29 +8,32 @@ interface ProfileAdminSectionProps {
   user: User;
 }
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  customer: 'Locataire / Acheteur',
-  tenant: 'Locataire',
-  agent: 'Agent immobilier',
-  owner: 'Propriétaire bailleur',
-  agency_admin: 'Admin agence',
-  super_admin: 'Super administrateur',
-  service_provider: 'Prestataire',
+/** La donnée porte la CLÉ de `profile.roles.*` ; le libellé est résolu au rendu. */
+const ROLE_KEYS: Record<UserRole, string> = {
+  customer: 'customer',
+  tenant: 'tenant',
+  agent: 'agent',
+  owner: 'owner',
+  agency_admin: 'agency_admin',
+  super_admin: 'super_admin',
+  service_provider: 'service_provider',
 };
 
-export function ProfileAdminSection({ user }: ProfileAdminSectionProps) {
+export async function ProfileAdminSection({ user }: ProfileAdminSectionProps) {
+  const t = await getTranslations('profile.admin');
+  const tRoles = await getTranslations('profile.roles');
   const primaryRole = getPrimaryRole(user.roles);
 
   return (
     <section className="space-y-4 rounded-2xl bg-app-surface-3 p-6">
       <div>
-        <h2 className="text-lg font-bold text-app-ink">Administration</h2>
-        <p className="text-sm text-app-ink-muted">Outils de gestion réservés aux administrateurs.</p>
+        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
+        <p className="text-sm text-app-ink-muted">{t('subtitle')}</p>
       </div>
       <div className="space-y-1">
-        <p className="text-xs font-semibold text-app-ink-muted">Rôle admin</p>
+        <p className="text-xs font-semibold text-app-ink-muted">{t('roleLabel')}</p>
         <p className="text-sm font-semibold text-app-ink">
-          {primaryRole ? ROLE_LABELS[primaryRole] : '—'}
+          {primaryRole ? tRoles(ROLE_KEYS[primaryRole]) : '—'}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -37,16 +41,16 @@ export function ProfileAdminSection({ user }: ProfileAdminSectionProps) {
           href="/admin/agency"
           className={buttonVariants({ variant: 'outline', className: 'rounded-md' })}
         >
-          Gérer l&apos;agence
+          {t('manageAgency')}
         </Link>
         <Link
           href="/admin/audit"
           className={buttonVariants({ variant: 'outline', className: 'rounded-md' })}
         >
-          Journal d&apos;audit
+          {t('auditLog')}
         </Link>
         <Link href="/admin" className={buttonVariants({ className: 'rounded-md' })}>
-          Espace administration
+          {t('adminSpace')}
         </Link>
       </div>
     </section>

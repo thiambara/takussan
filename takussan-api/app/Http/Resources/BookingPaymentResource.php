@@ -25,10 +25,10 @@ class BookingPaymentResource extends BaseResource
             'refund_reason' => $this->refund_reason,
             'paid_amount' => (float) $this->paid_amount,
             'remaining_amount' => (float) $this->remaining_amount,
-            'paid_at' => $this->paid_at?->toISOString(),
+            'paid_at' => $this->iso($this->paid_at),
             'transaction_id' => $this->transaction_id,
             'notes' => $this->notes,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

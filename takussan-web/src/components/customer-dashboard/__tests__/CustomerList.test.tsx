@@ -6,6 +6,7 @@ import { CustomerList } from '@/components/customer-dashboard/CustomerList';
 import fr from '@/messages/fr.json';
 import type { PaginatedResponse } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
+import { withIntl } from '@/test/intl';
 
 function makePage(customer: CustomerListItem): PaginatedResponse<CustomerListItem> {
   return {
@@ -22,7 +23,7 @@ function makePage(customer: CustomerListItem): PaginatedResponse<CustomerListIte
 
 describe('CustomerList', () => {
   it('links existing customers to their CRM detail page', () => {
-    render(
+    render(withIntl(
       <CustomerList
         page={makePage({
           id: 424,
@@ -36,7 +37,7 @@ describe('CustomerList', () => {
           created_at: '2026-05-06T10:00:00.000Z',
         })}
       />,
-    );
+    ));
 
     expect(screen.getByRole('link', { name: 'Awa Ndiaye' })).toHaveAttribute(
       'href',

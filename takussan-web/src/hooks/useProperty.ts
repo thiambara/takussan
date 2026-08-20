@@ -1,5 +1,6 @@
 'use client';
 import { useReducer, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api';
 import type { PropertyDetail } from '@/types/property';
 
@@ -22,6 +23,7 @@ function reducer(_state: State, action: Action): State {
 }
 
 export function useProperty(slug: string) {
+  const t = useTranslations('property.detail');
   const [state, dispatch] = useReducer(reducer, { status: 'loading' });
 
   useEffect(() => {
@@ -31,12 +33,16 @@ export function useProperty(slug: string) {
       .then(res => { if (!cancelled) dispatch({ type: 'SUCCESS', data: res.data }); })
       .catch((err: unknown) => {
         if (cancelled) return;
+        // ⚠️ SEUL usage légitime d'`err.message` du dépôt : il est INSPECTÉ, jamais affiché.
+        // `apiFetch` lève `Error('API error 404: /public/properties/x')` — une chaîne technique
+        // qui sert ici à distinguer un 404 d'une autre panne. Le libellé rendu, lui, sort du
+        // dictionnaire (`t('notFound')`) deux lignes plus bas.
         const msg = err instanceof Error ? err.message : '';
         const notFound = /\b404\b/.test(msg);
-        dispatch({ type: 'ERROR', message: notFound ? 'NOT_FOUND' : 'Bien introuvable.' });
+        dispatch({ type: 'ERROR', message: notFound ? 'NOT_FOUND' : t('notFound') });
       });
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [slug, t]);
 
   return {
     data:    state.status === 'success' ? state.data : null,

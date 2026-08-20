@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,10 +10,11 @@ import type { AdminAgency } from '@/types/super-admin';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Active',
-  inactive: 'Inactive',
-  suspended: 'Suspendue',
+/** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
+const STATUS_KEY: Record<string, string> = {
+  active: 'active',
+  inactive: 'inactive',
+  suspended: 'suspended',
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -27,30 +29,40 @@ interface AgencyModerationCardProps {
 
 type Action = 'verify' | 'suspend' | 'unverify';
 
-const ACTION_META: Record<Action, { title: string; description: string; phrase: string; label: string; destructive?: boolean }> = {
-  verify: {
-    title: 'Vérifier l’agence',
-    description: 'L’agence passera en statut Active et sera marquée comme vérifiée.',
-    phrase: 'VERIFIER',
-    label: 'Vérifier',
-  },
-  suspend: {
-    title: 'Suspendre l’agence',
-    description: 'L’agence sera bloquée. Ses utilisateurs perdent l’accès aux fonctionnalités produits.',
-    phrase: 'SUSPENDRE',
-    label: 'Suspendre',
-    destructive: true,
-  },
-  unverify: {
-    title: 'Retirer la vérification',
-    description: 'L’agence reviendra en statut Inactive et perdra son badge vérifié.',
-    phrase: 'DEVERIFIER',
-    label: 'Déverifier',
-    destructive: true,
-  },
-};
+type ActionMeta = { title: string; description: string; phrase: string; label: string; destructive?: boolean };
+
+/**
+ * TCK-292 — fabrique plutôt que table figée : les libellés viennent du dictionnaire, la phrase de
+ * confirmation reste un jeton technique (elle est comparée à la frappe, elle ne se traduit pas).
+ */
+function actionMeta(t: (key: string) => string): Record<Action, ActionMeta> {
+  return {
+    verify: {
+      title: t('actions.verify.title'),
+      description: t('actions.verify.description'),
+      phrase: 'VERIFIER',
+      label: t('actions.verify.label'),
+    },
+    suspend: {
+      title: t('actions.suspend.title'),
+      description: t('actions.suspend.description'),
+      phrase: 'SUSPENDRE',
+      label: t('actions.suspend.label'),
+      destructive: true,
+    },
+    unverify: {
+      title: t('actions.unverify.title'),
+      description: t('actions.unverify.description'),
+      phrase: 'DEVERIFIER',
+      label: t('actions.unverify.label'),
+      destructive: true,
+    },
+  };
+}
 
 export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
+  const t = useTranslations('superAdmin.agencyCard');
+  const tStatus = useTranslations('superAdmin.agencyStatus');
   const [pending, setPending] = useState<Action | null>(null);
   const queryClient = useQueryClient();
 
@@ -65,7 +77,8 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
   });
 
   const status = agency.status ?? 'inactive';
-  const meta = pending ? ACTION_META[pending] : null;
+  const statusKey = STATUS_KEY[status];
+  const meta = pending ? actionMeta(t)[pending] : null;
 
   return (
     <article
@@ -99,11 +112,11 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
         </div>
         <div className="flex items-center gap-2">
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.inactive}`}>
-            {STATUS_LABEL[status] ?? status}
+            {statusKey ? tStatus(statusKey) : status}
           </span>
           {agency.is_verified ? (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-              Vérifiée
+              {t('verified')}
             </span>
           ) : null}
         </div>
@@ -111,43 +124,43 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
 
       <dl className="grid grid-cols-2 gap-2 text-xs text-stone-600 lg:grid-cols-3">
         <div>
-          <dt className="font-semibold text-stone-700">Email</dt>
+          <dt className="font-semibold text-stone-700">{t('email')}</dt>
           <dd className="truncate">{agency.email ?? '—'}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">License</dt>
+          <dt className="font-semibold text-stone-700">{t('license')}</dt>
           <dd>{agency.license_number ?? '—'}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">Membres</dt>
+          <dt className="font-semibold text-stone-700">{t('members')}</dt>
           <dd className="tabular-nums">{agency.members_count}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">Biens</dt>
+          <dt className="font-semibold text-stone-700">{t('properties')}</dt>
           <dd className="tabular-nums">{agency.properties_count}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">Créée le</dt>
+          <dt className="font-semibold text-stone-700">{t('createdAt')}</dt>
           <dd>{formatDate(agency.created_at)}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">Dernière activité</dt>
+          <dt className="font-semibold text-stone-700">{t('lastActivity')}</dt>
           <dd>{formatDate(agency.last_activity_at)}</dd>
         </div>
       </dl>
 
       <div className="flex flex-wrap gap-2">
         <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={`/super-admin/agencies/${agency.id}`}>
-          Ouvrir
+          {t('open')}
         </Link>
         <Button size="sm" variant="default" onClick={() => setPending('verify')} disabled={mutation.isPending}>
-          Vérifier
+          {t('actions.verify.label')}
         </Button>
         <Button size="sm" variant="destructive" onClick={() => setPending('suspend')} disabled={mutation.isPending}>
-          Suspendre
+          {t('actions.suspend.label')}
         </Button>
         <Button size="sm" variant="outline" onClick={() => setPending('unverify')} disabled={mutation.isPending}>
-          Déverifier
+          {t('actions.unverify.label')}
         </Button>
       </div>
 

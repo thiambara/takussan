@@ -33,15 +33,15 @@ class RoleDelegationResource extends BaseResource
             'role_label' => $this->translateRole($this->resource->role),
             'status' => $this->resource->status?->value,
             'status_label' => $this->translateStatus($this->resource->status?->value),
-            'starts_at' => $this->resource->starts_at?->toIso8601String(),
-            'ends_at' => $this->resource->ends_at?->toIso8601String(),
+            'starts_at' => $this->iso($this->resource->starts_at),
+            'ends_at' => $this->iso($this->resource->ends_at),
             'reason' => $this->resource->reason,
-            'activated_at' => $this->resource->activated_at?->toIso8601String(),
-            'expired_at' => $this->resource->expired_at?->toIso8601String(),
-            'revoked_at' => $this->resource->revoked_at?->toIso8601String(),
+            'activated_at' => $this->iso($this->resource->activated_at),
+            'expired_at' => $this->iso($this->resource->expired_at),
+            'revoked_at' => $this->iso($this->resource->revoked_at),
             'revoked_by' => $this->whenLoaded('revokedBy', fn () => $this->resource->revokedBy?->id),
-            'created_at' => $this->resource->created_at?->toIso8601String(),
-            'updated_at' => $this->resource->updated_at?->toIso8601String(),
+            'created_at' => $this->iso($this->resource->created_at),
+            'updated_at' => $this->iso($this->resource->updated_at),
         ];
     }
 

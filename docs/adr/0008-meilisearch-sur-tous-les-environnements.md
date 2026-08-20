@@ -51,14 +51,23 @@ alignée sur la CI ; **la production reste non versionnée** (ardoise D-09).
 `Message`. TCK-281, qui devait en ajouter quatre (clients, maintenance, agences, utilisateurs), vit
 sur une branche non mergée.
 
-**Un caveat de conception, écrit dans le code.** `BaseModelTrait::scopeWithSearch()` compose Scout
-et Eloquent par un `whereIn` sur les identifiants : **l'ordre de pertinence de Scout n'est pas
-préservé**. Ne rien promettre de tel sur ce chemin.
+**Un caveat de conception, écrit dans le code — et SOLDÉ depuis.** `BaseModelTrait::scopeWithSearch()`
+composait Scout et Eloquent par un `whereIn` sur les identifiants : **l'ordre de pertinence de Scout
+n'était pas préservé**. Deux tickets ont refermé le trou par les deux bouts. **TCK-281** a fait
+restituer l'ordre sur le chemin d'API (`HasQueryBuilder::$searchRelevanceIds` →
+`App\Sorts\SearchRelevanceSort`, rejoué via `defaultSortsWithRelevance()`). **TCK-326** a supprimé
+le chemin qui, lui, ne le restituait pas : ré-inventorié le 2026-08-20 sur le dépôt entier, il
+n'avait **aucun appelant hors du test qui le testait**. Le trait, devenu vide, a disparu avec lui.
+
+Il n'y a donc plus qu'un chemin, et il classe par pertinence. `scripts/check-filtering-single-mechanism.mjs`
+(contrôle D) refuse d'en voir réapparaître un second, y compris sous un autre nom.
 
 ## Application
 
 - `.github/workflows/api-ci.yml` — service `meilisearch`, attente du health, `scout:sync-index-settings`.
 - `takussan-api/phpunit.xml` — `SCOUT_DRIVER=meilisearch`, sans repli.
 - `docker-compose.yml` — service `meilisearch` en `v1.16`, port 7701.
-- `app/Models/Bases/Traits/BaseModelTrait.php:52-60` — le caveat sur l'ordre de pertinence.
+- `app/Models/Concerns/HasQueryBuilder.php` — le SEUL chemin qui compose Scout et Eloquent depuis
+  TCK-326, et il restitue l'ordre de pertinence (TCK-281). L'ancien
+  `app/Models/Bases/Traits/BaseModelTrait.php`, qui portait le caveat, n'existe plus.
 - `docs/configuration.md` §3.6 — **qui se contredit avec ses §1 et §5.1** (ardoise D-25).

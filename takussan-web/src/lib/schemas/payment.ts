@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Invoice & payout form schemas — TCK-063.
@@ -10,8 +11,8 @@ import { z } from 'zod';
 const isoDate = z
   .string()
   .trim()
-  .min(1, 'La date est requise.')
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (AAAA-MM-JJ).');
+  .min(1, msgValidation('common.dateRequired'))
+  .regex(/^\d{4}-\d{2}-\d{2}$/, msgValidation('payment.dateInvalid'));
 
 export const invoiceCurrencySchema = z
   .enum(['XOF', 'XAF', 'EUR', 'USD'])
@@ -19,16 +20,16 @@ export const invoiceCurrencySchema = z
 
 export const invoiceItemSchema = z.object({
   description: z
-    .string({ error: 'La description est requise.' })
+    .string({ error: msgValidation('payment.itemDescriptionRequired') })
     .trim()
-    .min(1, 'La description est requise.')
+    .min(1, msgValidation('payment.itemDescriptionRequired'))
     .max(500),
   quantity: z
-    .number({ error: 'Quantité requise.' })
-    .positive('La quantité doit être supérieure à 0.'),
+    .number({ error: msgValidation('payment.quantityRequired') })
+    .positive(msgValidation('payment.quantityPositive')),
   unit_price: z
-    .number({ error: 'Prix unitaire requis.' })
-    .nonnegative('Le prix doit être ≥ 0.'),
+    .number({ error: msgValidation('payment.unitPriceRequired') })
+    .nonnegative(msgValidation('payment.unitPriceNonNegative')),
 });
 
 export type InvoiceItemFormValues = z.infer<typeof invoiceItemSchema>;
@@ -36,9 +37,9 @@ export type InvoiceItemFormValues = z.infer<typeof invoiceItemSchema>;
 export const createInvoiceSchema = z
   .object({
     customer_id: z
-      .number({ error: 'Client requis.' })
+      .number({ error: msgValidation('payment.customerRequired') })
       .int()
-      .positive('Client requis.'),
+      .positive(msgValidation('payment.customerRequired')),
     invoiceable_type: z.enum(['lease', 'booking']).optional(),
     invoiceable_id: z
       .number()
@@ -49,11 +50,11 @@ export const createInvoiceSchema = z
     due_date: isoDate.optional().or(z.literal('').transform(() => undefined)),
     items: z
       .array(invoiceItemSchema)
-      .min(1, 'Au moins une ligne est requise.'),
+      .min(1, msgValidation('payment.itemsMin')),
     tax_rate: z
       .number()
-      .min(0, 'La TVA doit être ≥ 0.')
-      .max(100, 'La TVA doit être ≤ 100.')
+      .min(0, msgValidation('payment.taxMin'))
+      .max(100, msgValidation('payment.taxMax'))
       .optional(),
     currency: invoiceCurrencySchema,
     notes: z.string().trim().max(5000).optional().or(z.literal('')),
@@ -65,14 +66,14 @@ export const createInvoiceSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['invoiceable_id'],
-        message: 'Fournir à la fois le type et l\'identifiant de l\'entité, ou aucun.',
+        message: msgValidation('payment.invoiceableBoth'),
       });
     }
     if (data.due_date && data.issue_date && data.due_date < data.issue_date) {
       ctx.addIssue({
         code: 'custom',
         path: ['due_date'],
-        message: "L'échéance doit être postérieure ou égale à la date d'émission.",
+        message: msgValidation('payment.dueDateAfterIssue'),
       });
     }
   });
@@ -93,28 +94,28 @@ export const payoutPaymentMethodSchema = z.enum([
 export const createPayoutSchema = z
   .object({
     landlord_id: z
-      .number({ error: 'Bailleur requis.' })
+      .number({ error: msgValidation('payment.landlordRequired') })
       .int()
-      .positive('Bailleur requis.'),
+      .positive(msgValidation('payment.landlordRequired')),
     lease_id: z.number().int().positive().optional(),
     booking_id: z.number().int().positive().optional(),
     period_start: isoDate.optional().or(z.literal('').transform(() => undefined)),
     period_end: isoDate.optional().or(z.literal('').transform(() => undefined)),
     gross_amount: z
-      .number({ error: 'Montant brut requis.' })
-      .positive('Le montant brut doit être supérieur à 0.'),
+      .number({ error: msgValidation('payment.grossRequired') })
+      .positive(msgValidation('payment.grossPositive')),
     commission_rate: z
       .number()
-      .min(0, 'La commission doit être ≥ 0.')
-      .max(100, 'La commission doit être ≤ 100.')
+      .min(0, msgValidation('payment.commissionMin'))
+      .max(100, msgValidation('payment.commissionMax'))
       .optional(),
     commission_amount: z
       .number()
-      .nonnegative('La commission doit être ≥ 0.')
+      .nonnegative(msgValidation('payment.commissionMin'))
       .optional(),
     fees_amount: z
       .number()
-      .nonnegative('Les frais doivent être ≥ 0.')
+      .nonnegative(msgValidation('payment.feesMin'))
       .optional(),
     currency: invoiceCurrencySchema,
     payment_method: payoutPaymentMethodSchema.optional(),
@@ -126,7 +127,7 @@ export const createPayoutSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['period_end'],
-        message: 'La fin de période doit être postérieure au début.',
+        message: msgValidation('payment.periodEndAfterStart'),
       });
     }
     const commission = data.commission_amount ?? 0;
@@ -136,7 +137,7 @@ export const createPayoutSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['gross_amount'],
-        message: 'Le montant net doit être supérieur à 0.',
+        message: msgValidation('payment.netPositive'),
       });
     }
   });

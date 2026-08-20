@@ -41,7 +41,9 @@ export function ConfirmRemoveDialog<T extends MinimalMember>({
           <DialogTitle>{t('removeDialog.title')}</DialogTitle>
           <DialogDescription>
             {member
-              ? `${member.full_name || `${member.first_name} ${member.last_name}`} perdra l'accès aux ressources de l'agence. Cette action est réversible en l'invitant à nouveau.`
+              ? t('removeDialog.description', {
+                name: member.full_name || `${member.first_name} ${member.last_name}`,
+              })
               : null}
           </DialogDescription>
         </DialogHeader>

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { FileText, Send } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,6 +29,7 @@ interface PaymentsTabsProps {
 }
 
 export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
+  const t = useTranslations('payments');
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab: TabValue = isTabValue(searchParams.get('tab'))
@@ -59,18 +61,18 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList>
-            <TabsTrigger value="history">Historique</TabsTrigger>
-            <TabsTrigger value="invoices">Factures</TabsTrigger>
-            <TabsTrigger value="payouts">Payouts</TabsTrigger>
+            <TabsTrigger value="history">{t('tabs.history')}</TabsTrigger>
+            <TabsTrigger value="invoices">{t('tabs.invoices')}</TabsTrigger>
+            <TabsTrigger value="payouts">{t('tabs.payouts')}</TabsTrigger>
           </TabsList>
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
               <FileText className="mr-1 size-4" aria-hidden="true" />
-              Générer une facture
+              {t('actions.createInvoice')}
             </Button>
             <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
               <Send className="mr-1 size-4" aria-hidden="true" />
-              Créer un reversement
+              {t('actions.createPayout')}
             </Button>
           </div>
         </div>

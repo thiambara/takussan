@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -13,9 +14,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  PROPERTY_STATUS_OPTIONS,
-  PROPERTY_TYPE_OPTIONS,
-  PROPERTY_VISIBILITY_OPTIONS,
+  PROPERTY_ENUM_NAMESPACES,
+  propertyStatusOptions,
+  propertyTypeOptions,
+  propertyVisibilityOptions,
 } from '@/components/property-form/options';
 
 const ALL = '__all__';
@@ -36,6 +38,12 @@ interface SuperAdminPropertiesFiltersProps {
  * — never on the already-loaded page.
  */
 export function SuperAdminPropertiesFilters({ agencies }: SuperAdminPropertiesFiltersProps) {
+  const t = useTranslations('superAdmin.properties.filters');
+  // TCK-292 — les trois vocabulaires d'enum viennent du dictionnaire ; `property-form/options` ne
+  // porte plus que l'espace de noms et la fabrique. Hooks posés AVANT toute sortie anticipée.
+  const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
+  const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
+  const tVisibility = useTranslations(PROPERTY_ENUM_NAMESPACES.visibility);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -78,7 +86,7 @@ export function SuperAdminPropertiesFilters({ agencies }: SuperAdminPropertiesFi
     >
       <form onSubmit={onSearchSubmit} className="flex-1">
         <label htmlFor="super-admin-properties-search" className="sr-only">
-          Rechercher un bien
+          {t('searchLabel')}
         </label>
         <div className="relative">
           <Search
@@ -90,7 +98,7 @@ export function SuperAdminPropertiesFilters({ agencies }: SuperAdminPropertiesFi
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Rechercher (titre, référence, description)"
+            placeholder={t('searchPlaceholder')}
             className="h-10 pl-9"
           />
         </div>
@@ -98,31 +106,31 @@ export function SuperAdminPropertiesFilters({ agencies }: SuperAdminPropertiesFi
 
       <div className="flex flex-wrap gap-2">
         <FilterSelect
-          label="Agence"
+          label={t('agency')}
           value={currentAgency || ALL}
           onChange={(v) => updateParam('filter[agency_id]', v === ALL ? null : v)}
           options={[
-            { value: ALL, label: 'Toutes agences' },
+            { value: ALL, label: t('allAgencies') },
             ...agencies.map((a) => ({ value: String(a.id), label: a.name })),
           ]}
         />
         <FilterSelect
-          label="Statut"
+          label={t('status')}
           value={currentStatus || ALL}
           onChange={(v) => updateParam('filter[status]', v === ALL ? null : v)}
-          options={[{ value: ALL, label: 'Tous statuts' }, ...PROPERTY_STATUS_OPTIONS]}
+          options={[{ value: ALL, label: t('allStatuses') }, ...propertyStatusOptions(tStatus)]}
         />
         <FilterSelect
-          label="Type"
+          label={t('type')}
           value={currentType || ALL}
           onChange={(v) => updateParam('filter[type]', v === ALL ? null : v)}
-          options={[{ value: ALL, label: 'Tous types' }, ...PROPERTY_TYPE_OPTIONS]}
+          options={[{ value: ALL, label: t('allTypes') }, ...propertyTypeOptions(tType)]}
         />
         <FilterSelect
-          label="Publication"
+          label={t('visibility')}
           value={currentVisibility || ALL}
           onChange={(v) => updateParam('filter[visibility]', v === ALL ? null : v)}
-          options={[{ value: ALL, label: 'Toute visibilité' }, ...PROPERTY_VISIBILITY_OPTIONS]}
+          options={[{ value: ALL, label: t('allVisibilities') }, ...propertyVisibilityOptions(tVisibility)]}
         />
       </div>
     </div>

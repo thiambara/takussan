@@ -13,6 +13,7 @@ import { DeleteRoleDialog } from './DeleteRoleDialog';
 import { useAgencyRoles } from '@/lib/queries/agency-roles';
 import { useCanAll } from '@/hooks/useCan';
 import type { AgencyRole } from '@/types/agency-role';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * Références figées hors composant : `useCanAll` mémoïse sur la RÉFÉRENCE du
@@ -48,6 +49,7 @@ interface AgencyRolesConsoleProps {
 export function AgencyRolesConsole({ agencyId }: AgencyRolesConsoleProps) {
   const t = useTranslations('admin.roles');
   const tCommon = useTranslations('common.actions');
+  const messageErreur = useMessageErreurApi();
   const rolesQuery = useAgencyRoles(agencyId);
 
   const { can: canCreate } = useCanAll(CAP_CREATE, { agencyId });
@@ -87,7 +89,7 @@ export function AgencyRolesConsole({ agencyId }: AgencyRolesConsoleProps) {
   if (rolesQuery.isError) {
     return (
       <ErrorState
-        message={rolesQuery.error?.displayMessage ?? t('errors.load')}
+        message={messageErreur(rolesQuery.error, t('errors.load'))}
         onRetry={() => void rolesQuery.refetch()}
         retryLabel={tCommon('retry')}
       />

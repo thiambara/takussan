@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -44,36 +45,47 @@ import { ConfirmActionDialog } from './ConfirmActionDialog';
 type Action = 'verify' | 'suspend' | 'unverify';
 type Tab = 'kyc' | 'subscription' | 'team' | 'properties' | 'transactions';
 
-const ACTION_META: Record<Action, { title: string; description: string; phrase: string; label: string; destructive?: boolean }> = {
-  verify: {
-    title: 'Vérifier l’agence',
-    description: 'L’agence passera en statut Active et sera marquée comme vérifiée.',
-    phrase: 'VERIFIER',
-    label: 'Vérifier',
-  },
-  suspend: {
-    title: 'Suspendre l’agence',
-    description: 'L’agence sera suspendue dans toute la plateforme.',
-    phrase: 'SUSPENDRE',
-    label: 'Suspendre',
-    destructive: true,
-  },
-  unverify: {
-    title: 'Retirer la vérification',
-    description: 'L’agence perdra son badge vérifié et repassera inactive.',
-    phrase: 'DEVERIFIER',
-    label: 'Déverifier',
-    destructive: true,
-  },
-};
+type ActionMeta = { title: string; description: string; phrase: string; label: string; destructive?: boolean };
 
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Active',
-  inactive: 'Inactive',
-  suspended: 'Suspendue',
+/**
+ * TCK-292 — fabrique plutôt que table figée. Les descriptions diffèrent VOLONTAIREMENT de celles
+ * d'`AgencyModerationCard` (deux écrans, deux formulations) : ne pas fusionner les deux jeux.
+ * La phrase de confirmation reste un jeton technique — elle est comparée à la frappe.
+ */
+function actionMeta(t: (key: string) => string): Record<Action, ActionMeta> {
+  return {
+    verify: {
+      title: t('actions.verify.title'),
+      description: t('actions.verify.description'),
+      phrase: 'VERIFIER',
+      label: t('actions.verify.label'),
+    },
+    suspend: {
+      title: t('actions.suspend.title'),
+      description: t('actions.suspend.description'),
+      phrase: 'SUSPENDRE',
+      label: t('actions.suspend.label'),
+      destructive: true,
+    },
+    unverify: {
+      title: t('actions.unverify.title'),
+      description: t('actions.unverify.description'),
+      phrase: 'DEVERIFIER',
+      label: t('actions.unverify.label'),
+      destructive: true,
+    },
+  };
+}
+
+/** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
+const STATUS_KEY: Record<string, string> = {
+  active: 'active',
+  inactive: 'inactive',
+  suspended: 'suspended',
 };
 
 export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
+  const t = useTranslations('superAdmin.agencyDetail');
   const [activeTab, setActiveTab] = useState<Tab>('kyc');
   const [detailQuery, healthQuery, teamQuery, propertiesQuery, kycQuery] = useQueries({
     queries: [
@@ -117,7 +129,7 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
     return (
       <Card>
         <CardContent className="p-6 text-sm text-destructive">
-          Impossible de charger cette agence.
+          {t('loadError')}
         </CardContent>
       </Card>
     );
@@ -134,19 +146,19 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
 
       <div className="flex flex-wrap gap-2">
         <TabButton active={activeTab === 'kyc'} onClick={() => setActiveTab('kyc')} icon={ShieldCheck}>
-          KYC
+          {t('tabs.kyc')}
         </TabButton>
         <TabButton active={activeTab === 'subscription'} onClick={() => setActiveTab('subscription')} icon={CreditCard}>
-          Abonnement
+          {t('tabs.subscription')}
         </TabButton>
         <TabButton active={activeTab === 'team'} onClick={() => setActiveTab('team')} icon={Users}>
-          Équipe
+          {t('tabs.team')}
         </TabButton>
         <TabButton active={activeTab === 'properties'} onClick={() => setActiveTab('properties')} icon={Home}>
-          Biens
+          {t('tabs.properties')}
         </TabButton>
         <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={CreditCard}>
-          Transactions
+          {t('tabs.transactions')}
         </TabButton>
       </div>
 
@@ -170,6 +182,7 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
 }
 
 export function AgencyKycTab({ dossier, loading, agencyId }: { dossier?: KycDossier; loading: boolean; agencyId: number }) {
+  const t = useTranslations('superAdmin.agencyDetail');
   if (loading) {
     return <Skeleton className="h-72 rounded-xl" />;
   }
@@ -178,7 +191,7 @@ export function AgencyKycTab({ dossier, loading, agencyId }: { dossier?: KycDoss
     return (
       <Card>
         <CardContent className="p-6 text-sm text-destructive">
-          Impossible de charger le dossier KYC.
+          {t('kycLoadError')}
         </CardContent>
       </Card>
     );
@@ -193,7 +206,10 @@ export function AgencyKycTab({ dossier, loading, agencyId }: { dossier?: KycDoss
 }
 
 export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
+  const t = useTranslations('superAdmin.agencyDetail');
+  const tStatus = useTranslations('superAdmin.agencyStatus');
   const status = agency.status ?? 'inactive';
+  const statusKey = STATUS_KEY[status];
   const address = [agency.address?.city, agency.address?.region, agency.address?.country]
     .filter(Boolean)
     .join(', ');
@@ -212,28 +228,28 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
           </div>
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
-              Agence cross-tenant
+              {t('crossTenant')}
             </p>
             <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-stone-950">
               {agency.name}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-stone-600">
-              <Badge variant="secondary">{STATUS_LABEL[status] ?? status}</Badge>
+              <Badge variant="secondary">{statusKey ? tStatus(statusKey) : status}</Badge>
               {agency.is_verified ? (
                 <Badge className="gap-1 bg-emerald-100 text-emerald-900 hover:bg-emerald-100">
                   <BadgeCheck className="size-3" aria-hidden="true" />
-                  Vérifiée
+                  {t('verified')}
                 </Badge>
               ) : (
-                <Badge variant="outline">Non vérifiée</Badge>
+                <Badge variant="outline">{t('notVerified')}</Badge>
               )}
-              <span>Inscrite le {formatDate(agency.created_at)}</span>
+              <span>{t('registeredOn', { date: formatDate(agency.created_at) })}</span>
               {address ? <span>{address}</span> : null}
             </div>
           </div>
         </div>
         <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={agency.public_url}>
-          Profil public
+          {t('publicProfile')}
           <ExternalLink className="ml-2 size-4" aria-hidden="true" />
         </Link>
       </div>
@@ -242,6 +258,7 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
 }
 
 export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDetail }) {
+  const t = useTranslations('superAdmin.agencyDetail');
   const [pending, setPending] = useState<Action | null>(null);
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -254,26 +271,26 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
       setPending(null);
     },
   });
-  const meta = pending ? ACTION_META[pending] : null;
+  const meta = pending ? actionMeta(t)[pending] : null;
 
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-stone-950 p-4 text-white">
       <div>
-        <h2 className="font-display text-base font-semibold">Actions de modération</h2>
-        <p className="text-sm text-stone-300">Chaque action demande une double confirmation.</p>
+        <h2 className="font-display text-base font-semibold">{t('moderationTitle')}</h2>
+        <p className="text-sm text-stone-300">{t('moderationSubtitle')}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => setPending('verify')} disabled={mutation.isPending}>
           <CheckCircle2 className="mr-2 size-4" aria-hidden="true" />
-          Vérifier
+          {t('actions.verify.label')}
         </Button>
         <Button size="sm" variant="destructive" onClick={() => setPending('suspend')} disabled={mutation.isPending}>
           <Ban className="mr-2 size-4" aria-hidden="true" />
-          Suspendre
+          {t('actions.suspend.label')}
         </Button>
         <Button size="sm" variant="outline" onClick={() => setPending('unverify')} disabled={mutation.isPending}>
           <ShieldOff className="mr-2 size-4" aria-hidden="true" />
-          Déverifier
+          {t('actions.unverify.label')}
         </Button>
       </div>
       {meta ? (
@@ -294,13 +311,14 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
 }
 
 export function AgencyHealthStrip({ health, loading }: { health?: AdminAgencyHealth; loading: boolean }) {
+  const t = useTranslations('superAdmin.agencyDetail.health');
   const items = [
-    { label: 'Biens actifs', value: health?.active_properties, icon: Home },
-    { label: 'En modération', value: health?.properties_in_moderation, icon: AlertTriangle },
-    { label: 'Transactions 30j', value: health?.transactions_30d, icon: CreditCard },
-    { label: 'Revenu 30j', value: health ? formatCurrency(health.revenue_30d) : undefined, icon: ArrowUpRight },
-    { label: 'Dernier paiement', value: health?.last_platform_payment_at ? formatDate(health.last_platform_payment_at) : '—', icon: Clock },
-    { label: 'Plaintes ouvertes', value: health?.open_complaints, icon: AlertTriangle },
+    { label: t('activeProperties'), value: health?.active_properties, icon: Home },
+    { label: t('inModeration'), value: health?.properties_in_moderation, icon: AlertTriangle },
+    { label: t('transactions30d'), value: health?.transactions_30d, icon: CreditCard },
+    { label: t('revenue30d'), value: health ? formatCurrency(health.revenue_30d) : undefined, icon: ArrowUpRight },
+    { label: t('lastPayment'), value: health?.last_platform_payment_at ? formatDate(health.last_platform_payment_at) : '—', icon: Clock },
+    { label: t('openComplaints'), value: health?.open_complaints, icon: AlertTriangle },
   ];
 
   return (
@@ -328,14 +346,15 @@ export function AgencyHealthStrip({ health, loading }: { health?: AdminAgencyHea
 }
 
 export function AgencyTeamTab({ members, loading }: { members: AdminAgencyTeamMember[]; loading: boolean }) {
+  const t = useTranslations('superAdmin.agencyDetail.team');
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Équipe</CardTitle>
+        <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
-        {!loading && members.length === 0 ? <p className="text-sm text-stone-500">Aucun membre rattaché.</p> : null}
+        {!loading && members.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
         {members.map((member) => (
           <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3">
             <div>
@@ -355,14 +374,15 @@ export function AgencyTeamTab({ members, loading }: { members: AdminAgencyTeamMe
 }
 
 export function AgencyPropertiesTab({ properties, loading }: { properties: AdminPropertyRow[]; loading: boolean }) {
+  const t = useTranslations('superAdmin.agencyDetail.properties');
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Portefeuille</CardTitle>
+        <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
-        {!loading && properties.length === 0 ? <p className="text-sm text-stone-500">Aucun bien à afficher.</p> : null}
+        {!loading && properties.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
         {properties.map((property) => (
           <div key={property.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3">
             <div>
@@ -380,19 +400,20 @@ export function AgencyPropertiesTab({ properties, loading }: { properties: Admin
 }
 
 export function AgencyTransactionsTab({ health, loading }: { health?: AdminAgencyHealth; loading: boolean }) {
+  const t = useTranslations('superAdmin.agencyDetail.transactions');
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Transactions</CardTitle>
+        <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-3">
         {loading ? (
           <Skeleton className="h-24 md:col-span-3" />
         ) : (
           <>
-            <Metric label="Transactions 30 jours" value={String(health?.transactions_30d ?? 0)} />
-            <Metric label="Revenu 30 jours" value={formatCurrency(health?.revenue_30d ?? 0)} />
-            <Metric label="Dernier paiement" value={health?.last_platform_payment_at ? formatDate(health.last_platform_payment_at) : '—'} />
+            <Metric label={t('count30d')} value={String(health?.transactions_30d ?? 0)} />
+            <Metric label={t('revenue30d')} value={formatCurrency(health?.revenue_30d ?? 0)} />
+            <Metric label={t('lastPayment')} value={health?.last_platform_payment_at ? formatDate(health.last_platform_payment_at) : '—'} />
           </>
         )}
       </CardContent>

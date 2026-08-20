@@ -3,10 +3,11 @@
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
-import { ApiError } from '@/lib/api';
+
 import { useToast } from '@/components/ui/toast';
 import { useCancelEarlyTermination } from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface EarlyTerminationBannerProps {
   readonly lease: Lease;
@@ -40,6 +41,7 @@ function daysFromTodayTo(iso: string): number {
  */
 export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTerminationBannerProps) {
   const t = useTranslations('lease.early_termination');
+  const messageErreur = useMessageErreurApi();
   const cancel = useCancelEarlyTermination(lease.id);
   const toast = useToast();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
@@ -65,7 +67,7 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
     } catch (err) {
       toast.add({
         title: t('cancel_failed_title'),
-        description: err instanceof ApiError ? err.displayMessage : t('error_generic'),
+        description: messageErreur(err, t('error_generic')),
         type: 'error',
       });
     } finally {

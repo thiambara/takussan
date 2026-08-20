@@ -2,17 +2,11 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
+import { withIntl } from '@/test/intl';
 import { OverduePaymentsTable } from '../OverduePaymentsTable';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
-}));
-
-vi.mock('next-intl', () => ({
-  useLocale: () => 'fr',
-  // `QueryBoundary` et l'état vide passent par next-intl depuis TCK-291 : ce mock rend la CLÉ,
-  // ce qui suffit ici — les assertions portent sur les `data-testid`, pas sur les libellés.
-  useTranslations: () => (key: string) => key,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -39,9 +33,11 @@ function renderTable() {
     defaultOptions: { queries: { retry: false } },
   });
   return render(
-    <QueryClientProvider client={queryClient}>
-      <OverduePaymentsTable />
-    </QueryClientProvider>,
+    withIntl(
+      <QueryClientProvider client={queryClient}>
+        <OverduePaymentsTable />
+      </QueryClientProvider>,
+    ),
   );
 }
 

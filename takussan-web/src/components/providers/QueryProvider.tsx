@@ -16,6 +16,17 @@ import { createQueryClient } from '@/lib/query-client';
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [client] = useState(() => createQueryClient());
 
+  // ⚠️ NE RIEN ENREGISTRER ICI. Une version précédente y prêtait le traducteur de l'application
+  // à une variable de module de `src/lib/api.ts`, pour que `ApiError.displayMessage` puisse
+  // traduire. C'était faux deux fois : ce composant est `'use client'`, donc les 16 modules
+  // `'use server'` de `src/app/actions/` n'étaient jamais couverts et rendaient la CLÉ i18n brute
+  // à l'écran ; et un global de processus Node est partagé entre requêtes concurrentes, donc la
+  // locale du dernier rendu SSR aurait fuité d'un visiteur à l'autre.
+  //
+  // `ApiError` porte désormais un CODE (`codeErreur`), et chaque surface le traduit avec le
+  // traducteur qu'elle sait obtenir : `useTranslations` côté client, `getTranslations` de
+  // `next-intl/server` dans un module `'use server'`. Voir `src/lib/api.ts` (TCK-292, AC7).
+
   return (
     <QueryClientProvider client={client}>
       {children}

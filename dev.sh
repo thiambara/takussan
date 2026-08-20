@@ -614,6 +614,38 @@ if [ "$MODE" = "doctor" ]; then
   echo
   bold "▸ Front"
   if [ -d "$WEB/node_modules" ]; then ok "takussan-web/node_modules présent"; else avert "takussan-web : 'npm install' n'a jamais tourné"; fi
+  # ── L'écart qui ne produit AUCUN rouge : le front servi sur un hôte que Next 16 refuse.
+  #
+  # `allowedDevOrigins` absent de `next.config.ts` → toute page ouverte ailleurs que sur
+  # `localhost` rend son HTML, affiche son CSS, et **ne s'hydrate jamais** : 403 sur les
+  # chunks `/_next/*`, WebSocket HMR en échec, formulaires soumis en GET natif. Le serveur
+  # de développement le dit — dans SA sortie, que personne ne relit quand le symptôme est
+  # « le bouton ne fait rien ». (TCK-328, ardoise D-57.)
+  #
+  # ⚠ SONDE TEXTUELLE, et il faut le savoir : elle LIT le fichier, elle ne l'ÉVALUE pas.
+  # Un `allowedDevOrigins` construit dynamiquement, ou déclaré ailleurs que dans ce fichier,
+  # lui échapperait. Elle attrape le seul cas qui s'est produit — la ligne retirée — et
+  # c'est tout ce qu'elle prétend faire. Évaluer `next.config.ts` demanderait de charger
+  # TypeScript : un diagnostic ne doit pas coûter un compilateur.
+  #
+  # ⚠⚠ Le `grep -v '^\s*//'` n'est PAS une élégance : sans lui, la sonde était VERTE pendant
+  # son propre test d'ablation. Le bloc qui documente l'option dans `next.config.ts` cite
+  # `allowedDevOrigins` ET `127.0.0.1` en toutes lettres — la sonde lisait donc sa propre
+  # documentation et concluait que la configuration était là, la ligne venant d'être retirée.
+  # *Une sonde qui ne distingue pas le code du commentaire mesure le commentaire.* Constaté
+  # par ablation le 2026-08-20, pas déduit.
+  #
+  # Silencieuse quand tout va bien : `doctor` ne félicite pas, il signale.
+  if [ -f "$WEB/next.config.ts" ]; then
+    if ! grep -v '^[[:space:]]*//' "$WEB/next.config.ts" \
+         | awk '/allowedDevOrigins/,/\]/' | grep -q "127\.0\.0\.1"; then
+      avert "takussan-web/next.config.ts ne déclare pas 127.0.0.1 dans allowedDevOrigins."
+      avert "  Next 16 bloquera alors ses ressources de dev (/_next/*) pour cet hôte : la page"
+      avert "  s'affichera SANS S'HYDRATER, et le formulaire de connexion se soumettra en GET"
+      avert "  natif — le mot de passe dans l'URL. Le chemin nominal (l'URL imprimée par"
+      avert "  ./dev.sh, en localhost) n'est pas touché : c'est ce qui rend l'écart muet."
+    fi
+  fi
   echo
   exit 0
 fi
@@ -791,6 +823,19 @@ fi
 
 echo
 bold "▸ Takussan — environnement de développement"
+# ⚠ `localhost` ICI, et `127.0.0.1` sur les quatre lignes qui suivent : la différence est
+# PORTEUSE, elle n'est pas une inconstance de style.
+#
+# Next 16 bloque ses ressources de développement (`/_next/*`, `/__nextjs*`) pour tout hôte
+# absent d'`allowedDevOrigins`, dont la valeur par défaut ne contient que `localhost`. Servi
+# sur `http://127.0.0.1:<port>`, le front rendait son HTML puis **ne s'hydratait jamais** :
+# 403 sur les chunks, HMR mort, et le formulaire de connexion soumis en GET natif — mot de
+# passe dans l'URL. Mesuré le 2026-08-20 (TCK-328, ardoise D-57).
+#
+# `takussan-web/next.config.ts` déclare désormais la boucle locale, donc les DEUX hôtes
+# marchent. Cette ligne reste en `localhost` parce que c'est l'hôte que Next autorise sans
+# aucune configuration : si `allowedDevOrigins` disparaît un jour, le chemin nominal — celui
+# que ce script imprime — continue de fonctionner. `./dev.sh doctor` nomme alors l'écart.
 [ -n "$WEB_PORT" ] && lien "Front (Next.js)" "http://localhost:$WEB_PORT"
 lien "API (Laravel)" "http://127.0.0.1:$API_PORT/api"
 # Pas de lien « Filament (admin) » : le panel monté sur `/admin` du domaine de

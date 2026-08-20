@@ -27,6 +27,7 @@ import type {
   AdminUserRoleFilter,
   AdminUserStatusFilter,
 } from '@/types/admin-users';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 const TAB_VALUES = ['tous', 'agents', 'admins', 'proprietaires'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
@@ -62,7 +63,9 @@ interface TeamConsoleProps {
  */
 export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
   const t = useTranslations('team.page');
+  const tConsole = useTranslations('admin.team.console');
   const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -143,7 +146,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
       setActionError(null);
       invalidateList();
     },
-    onError: (err: ApiError) => setActionError(err.displayMessage),
+    onError: (err: ApiError) => setActionError(messageErreur(err)),
   });
 
   const removeMutation = useMutation({
@@ -155,7 +158,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
       invalidateList();
     },
     onError: (err) =>
-      setActionError(err instanceof ApiError ? err.displayMessage : 'Une erreur est survenue.'),
+      setActionError(messageErreur(err, tConsole('genericError'))),
   });
 
   const setTab = useCallback(
@@ -179,14 +182,14 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList>
-            <TabsTrigger value="tous">Tous</TabsTrigger>
-            <TabsTrigger value="agents">Agents</TabsTrigger>
-            <TabsTrigger value="admins">Administrateurs</TabsTrigger>
-            <TabsTrigger value="proprietaires">Propriétaires</TabsTrigger>
+            <TabsTrigger value="tous">{tConsole('tabs.all')}</TabsTrigger>
+            <TabsTrigger value="agents">{tConsole('tabs.agents')}</TabsTrigger>
+            <TabsTrigger value="admins">{tConsole('tabs.admins')}</TabsTrigger>
+            <TabsTrigger value="proprietaires">{tConsole('tabs.owners')}</TabsTrigger>
           </TabsList>
           <Button onClick={() => setInviteOpen(true)} size="sm">
             <UserPlus className="mr-1 size-4" aria-hidden="true" />
-            Inviter
+            {tConsole('invite')}
           </Button>
         </div>
       </Tabs>
@@ -207,7 +210,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
         </div>
       ) : usersQuery.isError ? (
         <ErrorState
-          message={usersQuery.error?.displayMessage ?? t('error')}
+          message={messageErreur(usersQuery.error, t('error'))}
           onRetry={() => void usersQuery.refetch()}
           retryLabel={tCommon('actions.retry')}
         />
@@ -279,6 +282,7 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
 }
 
 function Pagination({ page, lastPage }: { page: number; lastPage: number }) {
+  const t = useTranslations('admin.team.console.pagination');
   const router = useRouter();
   const searchParams = useSearchParams();
   if (lastPage <= 1) return null;
@@ -291,7 +295,7 @@ function Pagination({ page, lastPage }: { page: number; lastPage: number }) {
 
   return (
     <nav
-      aria-label="Pagination"
+      aria-label={t('label')}
       className="flex items-center justify-between text-sm text-muted-foreground"
     >
       <button
@@ -300,18 +304,16 @@ function Pagination({ page, lastPage }: { page: number; lastPage: number }) {
         disabled={page <= 1}
         className="rounded-md border border-input bg-background px-3 py-1 disabled:opacity-50"
       >
-        Précédent
+        {t('previous')}
       </button>
-      <span>
-        Page {page} sur {lastPage}
-      </span>
+      <span>{t('pageOf', { current: String(page), last: String(lastPage) })}</span>
       <button
         type="button"
         onClick={() => goTo(Math.min(lastPage, page + 1))}
         disabled={page >= lastPage}
         className="rounded-md border border-input bg-background px-3 py-1 disabled:opacity-50"
       >
-        Suivant
+        {t('next')}
       </button>
     </nav>
   );

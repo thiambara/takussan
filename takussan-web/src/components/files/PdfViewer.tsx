@@ -1,6 +1,7 @@
 'use client';
 
 import { Download, FileText } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -24,6 +25,9 @@ export interface PdfViewerProps {
 }
 
 export function PdfViewer({ url, filename, className, height = 480 }: PdfViewerProps) {
+  // Le hook se place AVANT la sortie anticipée (React Compiler, ADR-0015).
+  const t = useTranslations('files.pdfViewer');
+
   if (!url) {
     return (
       <div
@@ -34,7 +38,7 @@ export function PdfViewer({ url, filename, className, height = 480 }: PdfViewerP
         role="status"
       >
         <FileText className="size-5 shrink-0 text-stone-400" aria-hidden="true" />
-        <span>Aucun fichier joint.</span>
+        <span>{t('noFile')}</span>
       </div>
     );
   }
@@ -56,7 +60,7 @@ export function PdfViewer({ url, filename, className, height = 480 }: PdfViewerP
           className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
         >
           <Download className="mr-1 size-3.5" aria-hidden="true" />
-          Télécharger
+          {t('download')}
         </a>
       </header>
       <object
@@ -64,17 +68,17 @@ export function PdfViewer({ url, filename, className, height = 480 }: PdfViewerP
         type="application/pdf"
         className="block w-full bg-white"
         style={{ height }}
-        aria-label={`Aperçu de ${safeName}`}
+        aria-label={t('previewAria', { name: safeName })}
       >
         <div className="flex h-40 flex-col items-center justify-center gap-2 p-4 text-center text-sm text-stone-600">
-          <p>Aperçu indisponible dans ce navigateur.</p>
+          <p>{t('unavailable')}</p>
           <a
             href={url}
             target="_blank"
             rel="noopener noreferrer"
             className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}
           >
-            Ouvrir le fichier
+            {t('open')}
           </a>
         </div>
       </object>

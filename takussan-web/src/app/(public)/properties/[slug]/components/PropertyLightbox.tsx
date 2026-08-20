@@ -69,7 +69,7 @@ export function PropertyLightbox({ photos, open, startIndex, onClose, title }: P
           <div className="relative flex-1">
             <Image
               src={current.original}
-              alt={`${title} - photo ${index + 1}`}
+              alt={t('gallery.photoAlt', { title, index: index + 1 })}
               fill
               sizes="100vw"
               className="object-contain"

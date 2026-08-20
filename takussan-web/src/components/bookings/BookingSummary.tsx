@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import type { PropertyDetail } from '@/types/property';
@@ -37,8 +37,12 @@ export function BookingSummary({
   depositAmount,
 }: BookingSummaryProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('bookings.summary');
+  // `property.rentPeriodsShort.monthly` existe déjà et vaut « mois » : on la réemploie
+  // plutôt que d'en créer une jumelle (TCK-292).
+  const tPeriods = useTranslations('property.rentPeriodsShort');
   const isRent = property.contract_type === 'rent';
-  const periodLabel = property.rent_period_label ?? (isRent ? 'mois' : null);
+  const periodLabel = property.rent_period_label ?? (isRent ? tPeriods('monthly') : null);
 
   return (
     <aside className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm space-y-4 lg:sticky lg:top-24">
@@ -66,7 +70,7 @@ export function BookingSummary({
 
       <div className="space-y-2 border-t border-stone-100 pt-4 text-sm">
         <div className="flex justify-between">
-          <span className="text-stone-500">Prix affiché</span>
+          <span className="text-stone-500">{t('price')}</span>
           <span className="font-medium text-stone-900">
             {formatCurrency(property.price, locale)}
             {periodLabel && <span className="ml-1 text-xs text-stone-500">/ {periodLabel}</span>}
@@ -75,44 +79,40 @@ export function BookingSummary({
 
         {startDate && (
           <div className="flex justify-between">
-            <span className="text-stone-500">Arrivée</span>
+            <span className="text-stone-500">{t('checkIn')}</span>
             <span className="text-stone-900">{formatDate(startDate, locale)}</span>
           </div>
         )}
         {endDate && (
           <div className="flex justify-between">
-            <span className="text-stone-500">Départ</span>
+            <span className="text-stone-500">{t('checkOut')}</span>
             <span className="text-stone-900">{formatDate(endDate, locale)}</span>
           </div>
         )}
 
         {typeof nights === 'number' && nights > 0 && (
           <div className="flex justify-between text-xs text-stone-500">
-            <span>Durée</span>
-            <span>
-              {nights} nuit{nights > 1 ? 's' : ''}
-            </span>
+            <span>{t('duration')}</span>
+            <span>{t('nights', { count: nights })}</span>
           </div>
         )}
 
         {typeof totalAmount === 'number' && totalAmount > 0 && (
           <div className="flex justify-between border-t border-stone-100 pt-2 text-base font-semibold text-stone-900">
-            <span>Total estimé</span>
+            <span>{t('total')}</span>
             <span>{formatCurrency(totalAmount, locale)}</span>
           </div>
         )}
 
         {typeof depositAmount === 'number' && depositAmount > 0 && (
           <div className="flex justify-between text-xs text-stone-500">
-            <span>Acompte attendu</span>
+            <span>{t('deposit')}</span>
             <span>{formatCurrency(depositAmount, locale)}</span>
           </div>
         )}
       </div>
 
-      <p className="text-xs text-stone-500">
-        Vous ne serez pas débité avant confirmation par le propriétaire ou l&apos;agent.
-      </p>
+      <p className="text-xs text-stone-500">{t('noChargeNotice')}</p>
     </aside>
   );
 }

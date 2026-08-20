@@ -24,13 +24,34 @@ class StoreSavedSearchRequest extends BaseFormRequest
         return true;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * TCK-330 — `notification_frequency` porte `sometimes`, JAMAIS `nullable`.
+     *
+     * La colonne est `string()->default('daily')`, donc **NOT NULL**
+     * (`2026_04_17_160021_create_saved_searches_table.php:16`). `nullable` acceptait le `null`
+     * que `ConvertEmptyStringsToNull` (middleware global) fabrique à partir d'un `""`, et
+     * `SavedSearch::create()` allait alors mourir sur la contrainte d'intégrité — **500** là où
+     * la mise à jour rendait déjà 422 pour la même saisie.
+     *
+     * Décision produite par TCK-330 : « pas d'alerte » et « champ non renseigné » sont deux
+     * états DISTINCTS. Le premier a déjà sa sentinelle, `off` — c'est elle que le client envoie
+     * pour couper l'alerte, et le front l'envoie déjà
+     * (`takussan-web/src/lib/schemas/search.ts`). Le second est l'ABSENCE de la clé, et la
+     * colonne retombe alors sur son défaut. Le vide, lui, n'est ni l'un ni l'autre : il est
+     * refusé.
+     *
+     * `sometimes` plutôt que rien : la règle est écrite à l'identique dans
+     * `UpdateSavedSearchRequest`, pour que les deux requêtes ne puissent plus diverger en
+     * silence.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
             'name' => ['required', 'string'],
             'criteria' => ['required', 'array'],
-            'notification_frequency' => ['nullable', 'in:off,daily,weekly,instant'],
+            'notification_frequency' => ['sometimes', 'in:off,daily,weekly,instant'],
         ];
     }
 }

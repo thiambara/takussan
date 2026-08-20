@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { User, UserRole } from '@/types/user';
 import { getPrimaryRole } from '@/lib/roles';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,14 +18,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { updateProfileAction } from '@/app/actions/auth';
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  customer: 'Locataire / Acheteur',
-  tenant: 'Locataire',
-  agent: 'Agent immobilier',
-  owner: 'Propriétaire bailleur',
-  agency_admin: 'Admin agence',
-  super_admin: 'Super administrateur',
-  service_provider: 'Prestataire',
+/** La donnée porte la CLÉ de `profile.roles.*` ; le libellé est résolu au rendu. */
+const ROLE_KEYS: Record<UserRole, string> = {
+  customer: 'customer',
+  tenant: 'tenant',
+  agent: 'agent',
+  owner: 'owner',
+  agency_admin: 'agency_admin',
+  super_admin: 'super_admin',
+  service_provider: 'service_provider',
 };
 
 interface ProfileHeaderProps {
@@ -32,6 +34,9 @@ interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ user }: ProfileHeaderProps) {
+  const t = useTranslations('profile.header');
+  const tRoles = useTranslations('profile.roles');
+  const tCommon = useTranslations('common.actions');
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState(user);
   const [open, setOpen] = useState(false);
@@ -73,13 +78,13 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     }
 
     if (!file.type.startsWith('image/')) {
-      setAvatarError('Le fichier doit être une image valide.');
+      setAvatarError(t('invalidImage'));
       event.target.value = '';
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setAvatarError('L’image ne doit pas dépasser 2 Mo.');
+      setAvatarError(t('imageTooLarge'));
       event.target.value = '';
       return;
     }
@@ -102,7 +107,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     const result = await updateProfileAction(fd);
     setLoading(false);
     if (!result.ok) {
-      setError(result.message ?? 'Échec de la mise à jour du profil.');
+      setError(result.message ?? t('saveError'));
       return;
     }
     setCurrentUser(result.user);
@@ -126,7 +131,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
         <p className="text-sm text-app-ink-muted">{currentUser.email}</p>
         {primaryRole ? (
           <span className="inline-block rounded-full bg-app-surface-1 px-3 py-1 text-xs font-semibold text-app-topbar">
-            {ROLE_LABELS[primaryRole]}
+            {tRoles(ROLE_KEYS[primaryRole])}
           </span>
         ) : null}
       </div>
@@ -141,18 +146,18 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
         <DialogTrigger
           render={
             <Button variant="outline" className="rounded-md">
-              Modifier le profil
+              {t('edit')}
             </Button>
           }
         />
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Modifier le profil</DialogTitle>
+            <DialogTitle>{t('edit')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
               <label htmlFor="avatar" className="text-xs font-semibold text-app-ink-muted">
-                Avatar
+                {t('avatarLabel')}
               </label>
               <Input
                 id="avatar"
@@ -175,7 +180,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-xs text-app-ink-muted">
-                      {avatar ? avatar.name : 'Avatar actuel'}
+                      {avatar ? avatar.name : t('currentAvatar')}
                     </span>
                   </div>
                   <Button
@@ -188,14 +193,14 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                       setRemoveAvatar(true);
                     }}
                   >
-                    Supprimer
+                    {tCommon('delete')}
                   </Button>
                 </div>
               ) : null}
             </div>
             <div className="space-y-1">
               <label htmlFor="first_name" className="text-xs font-semibold text-app-ink-muted">
-                Prénom
+                {t('firstName')}
               </label>
               <Input
                 id="first_name"
@@ -206,7 +211,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
             </div>
             <div className="space-y-1">
               <label htmlFor="last_name" className="text-xs font-semibold text-app-ink-muted">
-                Nom
+                {t('lastName')}
               </label>
               <Input
                 id="last_name"
@@ -217,7 +222,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
             </div>
             <div className="space-y-1">
               <label htmlFor="bio" className="text-xs font-semibold text-app-ink-muted">
-                Bio
+                {t('bioLabel')}
               </label>
               <Textarea
                 id="bio"
@@ -242,10 +247,10 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                 }}
                 disabled={loading}
               >
-                Annuler
+                {tCommon('cancel')}
               </Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Enregistrement…' : 'Enregistrer'}
+                {loading ? t('saving') : tCommon('save')}
               </Button>
             </div>
           </form>

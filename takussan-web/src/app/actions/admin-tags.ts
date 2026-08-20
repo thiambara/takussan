@@ -1,8 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { getTranslations } from 'next-intl/server';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import {
   createTag,
@@ -23,19 +24,27 @@ type ActionResult<T = void> =
   | { ok: true; data?: T }
   | { ok: false; status?: number; message: string; errors?: Record<string, string[]> };
 
-function mapError(e: unknown): {
+async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
-} {
+}> {
+  // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
+  // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
+  // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.
+  const [tRacine, t] = await Promise.all([
+    getTranslations(),
+    getTranslations('serverActions.shared'),
+  ]);
+  const repli = t('networkErrorRetry');
   if (e instanceof ApiError) {
     return {
       status: e.status,
-      message: e.displayMessage,
+      message: messageErreurApi(e, tRacine, repli),
       errors: e.validationErrors,
     };
   }
-  return { message: 'Erreur réseau. Réessayez.' };
+  return { message: repli };
 }
 
 async function requireToken(): Promise<
@@ -43,9 +52,10 @@ async function requireToken(): Promise<
 > {
   const token = await getToken();
   if (!token) {
+    const t = await getTranslations('serverActions.shared');
     return {
       ok: false,
-      result: { ok: false, status: 401, message: 'Authentification requise.' },
+      result: { ok: false, status: 401, message: t('authRequired') },
     };
   }
   return { ok: true, token };
@@ -60,7 +70,7 @@ export async function fetchTagsAction(
     const data = await fetchTags(auth.token, params);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -74,7 +84,7 @@ export async function createTagAction(
     revalidatePath('/super-admin/tags');
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -89,7 +99,7 @@ export async function updateTagAction(
     revalidatePath('/super-admin/tags');
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -101,6 +111,6 @@ export async function deleteTagAction(tagId: number): Promise<ActionResult<void>
     revalidatePath('/super-admin/tags');
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }

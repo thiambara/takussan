@@ -1,9 +1,11 @@
 'use client';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { submitContactMessage } from '@/app/actions/property';
 import { useTriggerMinimalProfileOnce } from '@/hooks/useTriggerMinimalProfileOnce';
 
 export function useContactMessage(slug: string) {
+  const t = useTranslations('property.detail');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // TCK-253 — Contacting an agent counts as a sensitive action — same
@@ -18,7 +20,7 @@ export function useContactMessage(slug: string) {
     try {
       const res = await submitContactMessage(slug, message);
       if (!res.ok || !res.data) {
-        const msg = !res.ok ? res.message : 'Réponse invalide.';
+        const msg = !res.ok ? res.message : t('contactInvalidResponse');
         setError(msg);
         throw new Error(msg);
       }

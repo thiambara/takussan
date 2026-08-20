@@ -27,9 +27,13 @@ import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDeta
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import {
-  CUSTOMER_STATUS_LABELS,
-  PIPELINE_STAGE_LABELS,
+  CUSTOMER_ENUM_NAMESPACES,
+  enumLabel,
 } from '@/components/customer-form/options';
+import {
+  customerStatusValues,
+  pipelineStageValues,
+} from '@/lib/schemas/customer';
 import type { CustomerDocument } from '@/types/customer';
 
 /**
@@ -55,6 +59,8 @@ export default async function Page({ params }: { params: Params }) {
 
   const t = await getTranslations('crm.customerDetail');
   const tPage = await getTranslations('dashboard.pages.customerDetail');
+  const tStatus = await getTranslations(CUSTOMER_ENUM_NAMESPACES.status);
+  const tStage = await getTranslations(CUSTOMER_ENUM_NAMESPACES.pipelineStage);
 
   const customerId = Number.parseInt(id, 10);
   if (!Number.isFinite(customerId)) {
@@ -104,9 +110,9 @@ export default async function Page({ params }: { params: Params }) {
   const initialTags = (customer as { tags?: { id: number; name: string; slug: string; color: string | null }[] }).tags ?? [];
 
   const pipelineLabel = customer.pipeline_stage
-    ? PIPELINE_STAGE_LABELS[customer.pipeline_stage]
+    ? enumLabel(tStage, pipelineStageValues, customer.pipeline_stage)
     : null;
-  const statusLabel = CUSTOMER_STATUS_LABELS[customer.status] ?? customer.status;
+  const statusLabel = enumLabel(tStatus, customerStatusValues, customer.status);
 
   return (
     <div className="space-y-6">

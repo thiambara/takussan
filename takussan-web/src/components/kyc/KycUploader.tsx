@@ -6,6 +6,7 @@ import { Check, Loader2, UploadCloud, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
+import { messageCorpsErreurBff } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 /**
@@ -55,6 +56,9 @@ export function KycUploader({
   i18nNamespace = 'serviceProviders.onboarding.kyc',
 }: KycUploaderProps) {
   const t = useTranslations(i18nNamespace);
+  // Traducteur à la RACINE : les clés d'erreur du BFF sont des chemins absolus
+  // (`errors.api.…`), que `t` — porté par `i18nNamespace` — ne peut pas résoudre.
+  const tRacine = useTranslations();
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [pending, startTransition] = useTransition();
@@ -83,10 +87,11 @@ export function KycUploader({
             credentials: 'same-origin',
           });
           if (!res.ok) {
-            const body = (await res.json().catch(() => null)) as
-              | { message?: string }
-              | null;
-            const message = body?.message ?? t('errors.uploadFailed');
+            const body: unknown = await res.json().catch(() => null);
+            // Le corps ne porte plus de prose fabriquée par le BFF (TCK-292, AC7) : soit un code
+            // que ce dépôt traduit, soit un message de Laravel déjà localisé. Lu tel quel, il
+            // affichait « Not authenticated. » en français dès qu'une session expirait.
+            const message = messageCorpsErreurBff(body, tRacine, t('errors.uploadFailed'));
             setError(message);
             toast.add({ title: t('errors.title'), description: message, type: 'error' });
             return;
@@ -108,7 +113,7 @@ export function KycUploader({
         }
       });
     },
-    [endpoint, kind, onUploaded, profileId, t, toast],
+    [endpoint, kind, onUploaded, profileId, t, tRacine, toast],
   );
 
   const handlePick = () => inputRef.current?.click();

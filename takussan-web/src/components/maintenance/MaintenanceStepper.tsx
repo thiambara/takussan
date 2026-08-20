@@ -1,22 +1,25 @@
 'use client';
 
 import { CheckCircle2, Circle, Clock } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { MaintenanceRequest, MaintenanceStatus } from '@/types/maintenance';
 
+/** `id` EST la clé sous `maintenance.stepper.*` — la donnée porte la clé, le rendu la résout. */
 const STEPS = [
-  { id: 'created', label: 'Demande créée', statuses: ['open', 'acknowledged', 'assigned'] },
-  { id: 'quote', label: 'Devis', statuses: ['quote_requested', 'quote_submitted', 'rejected', 'approved'] },
-  { id: 'progress', label: 'En cours', statuses: ['in_progress'] },
-  { id: 'completed', label: 'Terminée', statuses: ['completed', 'closed'] },
-];
+  { id: 'created', statuses: ['open', 'acknowledged', 'assigned'] },
+  { id: 'quote', statuses: ['quote_requested', 'quote_submitted', 'rejected', 'approved'] },
+  { id: 'progress', statuses: ['in_progress'] },
+  { id: 'completed', statuses: ['completed', 'closed'] },
+] as const;
 
 export function MaintenanceStepper({ request }: { readonly request: MaintenanceRequest }) {
+  const t = useTranslations('maintenance.stepper');
   const currentStatus = request.status;
   
   // Find current step index
   let currentStepIndex = 0;
   for (let i = 0; i < STEPS.length; i++) {
-    if (STEPS[i].statuses.includes(currentStatus)) {
+    if ((STEPS[i].statuses as readonly MaintenanceStatus[]).includes(currentStatus)) {
       currentStepIndex = i;
       break;
     }
@@ -28,7 +31,7 @@ export function MaintenanceStepper({ request }: { readonly request: MaintenanceR
       <div className="rounded-2xl bg-app-surface-1 p-5 border border-destructive/20 bg-destructive/5">
         <div className="flex items-center gap-3 text-destructive">
           <Circle className="h-5 w-5 fill-current" />
-          <span className="font-semibold">Demande annulée</span>
+          <span className="font-semibold">{t('cancelled')}</span>
         </div>
       </div>
     );
@@ -56,7 +59,7 @@ export function MaintenanceStepper({ request }: { readonly request: MaintenanceR
                   )}
                 </span>
                 <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-medium text-app-ink-muted">
-                  {step.label}
+                  {t(step.id)}
                 </span>
               </li>
             );

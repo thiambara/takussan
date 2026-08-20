@@ -3,12 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SearchPreferencesForm } from '../SearchPreferencesForm';
+import { withIntl } from '@/test/intl';
 import type { SavedSearch } from '@/lib/queries/saved-searches';
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({ token: 'test-token' }),
 }));
-vi.mock('next-intl', () => ({ useLocale: () => 'fr' }));
 
 function mockFetch(response: { ok?: boolean; status?: number; payload: unknown }) {
   const fakeResponse = {
@@ -29,11 +29,11 @@ function renderForm(props: {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  return render(withIntl(
     <QueryClientProvider client={queryClient}>
       <SearchPreferencesForm {...props} />
     </QueryClientProvider>,
-  );
+  ));
 }
 
 const SAMPLE: SavedSearch = {

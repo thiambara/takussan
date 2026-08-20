@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
@@ -17,6 +17,7 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ selectedId, onSelect }: ConversationListProps) {
+  const t = useTranslations('messaging');
   const locale = useLocale() as Locale;
   const { user } = useAuth();
   // List polls every 10 s to surface new conversations / unread badges.
@@ -34,7 +35,7 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
   if (isError) {
     return (
       <p className="p-4 text-sm text-red-600">
-        Impossible de charger les conversations.
+        {t('list.loadError')}
       </p>
     );
   }
@@ -44,7 +45,7 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
   if (conversations.length === 0) {
     return (
       <div className="p-6 text-center text-sm text-stone-500">
-        Pas encore de conversation.
+        {t('list.empty')}
       </div>
     );
   }
@@ -78,6 +79,7 @@ function ConversationRow({
   locale: Locale;
   currentUserId?: number;
 }) {
+  const t = useTranslations('messaging');
   const unread = conversation.unread_count ?? 0;
   const isGroup = conversation.type === 'group';
   const myParticipant = conversation.participants?.find(
@@ -132,7 +134,7 @@ function ConversationRow({
             >
               {conversation.subject ||
                 conversation.property?.title ||
-                `Conversation #${conversation.id}`}
+                t('conversationTitleFallback', { id: String(conversation.id) })}
             </p>
             {conversation.last_message_at && (
               <span className="text-[10px] text-stone-400">
@@ -143,11 +145,11 @@ function ConversationRow({
           <div className="mt-0.5 flex items-center gap-1.5">
             {isGroup && (
               <Badge variant="secondary" className="h-4 px-1.5 text-[9px] uppercase">
-                Groupe
+                {t('list.groupBadge')}
               </Badge>
             )}
             {isMuted && (
-              <span className="text-[10px]" aria-label="muted" title="muted">
+              <span className="text-[10px]" aria-label={t('list.muted')} title={t('list.muted')}>
                 🔕
               </span>
             )}

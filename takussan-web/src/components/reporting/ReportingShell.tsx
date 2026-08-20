@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Activity, Layers3, Repeat, TrendingUp } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 import { CohortHeatmap } from './CohortHeatmap';
 import { FunnelChart } from './FunnelChart';
@@ -10,14 +11,16 @@ import { RevenueChart } from './RevenueChart';
 
 type Tab = 'growth' | 'revenue' | 'cohorts' | 'funnel';
 
-const TABS: { id: Tab; label: string; icon: typeof TrendingUp }[] = [
-  { id: 'growth', label: 'Croissance', icon: TrendingUp },
-  { id: 'revenue', label: 'Revenu', icon: Activity },
-  { id: 'cohorts', label: 'Cohortes', icon: Layers3 },
-  { id: 'funnel', label: 'Funnel', icon: Repeat },
+/** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
+const TABS: { id: Tab; icon: typeof TrendingUp }[] = [
+  { id: 'growth', icon: TrendingUp },
+  { id: 'revenue', icon: Activity },
+  { id: 'cohorts', icon: Layers3 },
+  { id: 'funnel', icon: Repeat },
 ];
 
 export function ReportingShell() {
+  const t = useTranslations('reporting.tabs');
   const [tab, setTab] = useState<Tab>('growth');
 
   return (
@@ -39,7 +42,7 @@ export function ReportingShell() {
                 }`}
               >
                 <Icon className="size-4" aria-hidden="true" />
-                {entry.label}
+                {t(entry.id)}
               </button>
             );
           })}

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
 
+import { withIntl } from '@/test/intl';
 import { InventorySignatures } from '../InventorySignatures';
 import type { Inventory } from '@/types/inventory';
 
@@ -45,13 +45,14 @@ function drawStroke(canvas: HTMLElement) {
   fireEvent.pointerUp(canvas, { clientX: 40, clientY: 40, pointerId: 1 });
 }
 
+/**
+ * ⚠ Ce harnais montait `messages={{}}`, ce qui fait rendre la CLÉ et non le libellé : à la
+ * conversion i18n (TCK-292) tous les `getByText` français cassaient. `withIntl` alimente le
+ * provider avec le VRAI `fr.json` — les assertions ci-dessous sont donc INCHANGÉES.
+ */
 function wrap(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return (
-    <NextIntlClientProvider locale="fr" messages={{}}>
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-    </NextIntlClientProvider>
-  );
+  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 function buildInventory(overrides: Partial<Inventory> = {}): Inventory {

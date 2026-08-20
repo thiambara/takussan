@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ApiError } from '@/lib/api';
+import { getTranslations } from 'next-intl/server';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import {
   attachCustomerTags,
@@ -11,6 +12,7 @@ import {
   updateCustomer,
   uploadCustomerDocument,
   validateCustomerDocumentFile,
+  CUSTOMER_DOCUMENT_REJECTION_NAMESPACE,
 } from '@/lib/queries/customers';
 import type { CustomerFormPayload } from '@/lib/schemas/customer';
 import type { CustomerDetail, CustomerNote, CustomerDocument } from '@/types/customer';
@@ -29,19 +31,27 @@ type ActionResult<T = void> =
       errors?: Record<string, string[]>;
     };
 
-function mapError(e: unknown): {
+async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
-} {
+}> {
+  // `messageErreurApi` compose le CODE de l'erreur avec un traducteur que CE contexte sait
+  // obtenir. Ce module est `'use server'` : `getTranslations` de `next-intl/server` est la seule
+  // primitive correcte ici. Lire `e.displayMessage` seul rendait la clé i18n brute à l'écran.
+  const [tRacine, t] = await Promise.all([
+    getTranslations(),
+    getTranslations('serverActions.shared'),
+  ]);
+  const repli = t('networkErrorRetry');
   if (e instanceof ApiError) {
     return {
       status: e.status,
-      message: e.displayMessage,
+      message: messageErreurApi(e, tRacine, repli),
       errors: e.validationErrors,
     };
   }
-  return { message: 'Erreur réseau. Réessayez.' };
+  return { message: repli };
 }
 
 async function requireToken(): Promise<
@@ -49,9 +59,10 @@ async function requireToken(): Promise<
 > {
   const token = await getToken();
   if (!token) {
+    const t = await getTranslations('serverActions.shared');
     return {
       ok: false,
-      result: { ok: false, status: 401, message: 'Authentification requise.' },
+      result: { ok: false, status: 401, message: t('authRequired') },
     };
   }
   return { ok: true, token };
@@ -67,7 +78,7 @@ export async function createCustomerAction(
     revalidatePath('/app/customers');
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -83,7 +94,7 @@ export async function updateCustomerAction(
     revalidatePath(`/app/customers/${customerId}`);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -95,14 +106,15 @@ export async function createCustomerNoteAction(
   if (!auth.ok) return auth.result;
   const trimmed = body.trim();
   if (trimmed.length === 0) {
-    return { ok: false, message: 'La note ne peut pas être vide.' };
+    const t = await getTranslations('serverActions.customers');
+    return { ok: false, message: t('emptyNote') };
   }
   try {
     const data = await createCustomerNote(auth.token, customerId, trimmed);
     revalidatePath(`/app/customers/${customerId}`);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -118,7 +130,7 @@ export async function attachCustomerTagsAction(
     revalidatePath('/app/customers');
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -134,7 +146,7 @@ export async function detachCustomerTagAction(
     revalidatePath('/app/customers');
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -146,17 +158,19 @@ export async function uploadCustomerDocumentAction(
   if (!auth.ok) return auth.result;
   const file = formData.get('file');
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, message: 'Aucun fichier sélectionné.' };
+    const t = await getTranslations('serverActions.shared');
+    return { ok: false, message: t('noFileSelected') };
   }
-  const validationError = validateCustomerDocumentFile(file);
-  if (validationError) {
-    return { ok: false, message: validationError };
+  const rejection = validateCustomerDocumentFile(file);
+  if (rejection) {
+    const tRejection = await getTranslations(CUSTOMER_DOCUMENT_REJECTION_NAMESPACE);
+    return { ok: false, message: tRejection(rejection) };
   }
   try {
     const data = await uploadCustomerDocument(auth.token, customerId, file);
     revalidatePath(`/app/customers/${customerId}`);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }

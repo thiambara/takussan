@@ -283,9 +283,68 @@ Une seule variable applicative : **`NEXT_PUBLIC_API_URL`** (39 lectures), plus `
 > `SANCTUM_STATEFUL_DOMAINS=localhost:3000`, le front pointe sur `127.0.0.1:8002`. **Du point de vue
 > des cookies, `localhost` et `127.0.0.1` sont deux origines distinctes.**
 
+> ⚠️ **Autre défaut, autre axe — ne pas le confondre avec celui du dessus.** Celui-ci porte sur
+> l'origine à laquelle **le front lui-même** est servi, pas sur celle de l'API qu'il appelle.
+>
+> **Next 16 bloque ses ressources de développement pour tout hôte absent d'`allowedDevOrigins`,
+> dont la valeur par défaut ne contient que `localhost` et `**.localhost`.** Servi sur
+> `http://127.0.0.1:<port>`, le front rendait son HTML, affichait son CSS… et **React ne
+> s'hydratait jamais** : 13 × 403 sur `/_next/static/chunks/*`, WebSocket HMR en échec, et le
+> formulaire de connexion soumis en **GET natif** — mesuré le 2026-08-20, le mot de passe part
+> alors dans l'URL (`/auth/login?email=…&password=…`).
+>
+> `next.config.ts` déclare désormais `allowedDevOrigins: ['127.0.0.1', '[::1]']` (TCK-328,
+> ardoise D-57), donc les deux hôtes marchent. Ce qu'il faut retenir :
+>
+> - **La panne est MUETTE** : la page s'affiche, rien ne casse visiblement, c'est
+>   l'interactivité qui manque — partout à la fois. Le premier réflexe est de chercher dans le
+>   composant.
+> - **`[::1]` s'écrit avec ses crochets** : Next compare `new URL(origin).hostname`, qui rend
+>   `"[::1]"`. Écrit `'::1'`, l'entrée ne matche rien — mesuré.
+> - **Restreint à la boucle locale, délibérément.** Ni IP de LAN, ni joker : ces ressources
+>   n'ont pas à être atteignables depuis le réseau.
+> - `./dev.sh doctor` nomme l'écart si la ligne disparaît, et ne dit rien quand elle est là.
+
 `next.config.ts` branche le plugin next-intl sur `./src/i18n/request.ts` et autorise en
 `remotePatterns` picsum/placehold/unsplash + `api.takussan.com` + `preview.api.takussan.com` +
-`127.0.0.1:8002` + `localhost:8002`, avec `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP`.
+`127.0.0.1:8002` + `localhost:8002`, avec `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP`. Il
+déclare aussi `reactCompiler: true` ([ADR-0015](../docs/adr/0015-react-compiler-active.md)) et
+`allowedDevOrigins` (ci-dessus).
+
+## Déploiement — ce dossier EST en production, et publiquement
+
+> ⚠️ **Aucun workflow de ce dépôt ne déploie ce dossier, et pourtant il est déployé.** L'absence de
+> `deploy` dans `.github/workflows/` pour `takussan-web/` a longtemps été lue comme « le front
+> n'est pas déployé ». C'était une déduction, et elle était fausse : le déclencheur est
+> l'**intégration Git du projet Vercel** `thiambaras-projects/takussan`, qui publie son activité sur
+> GitHub. *Une absence dans le dépôt ne prouve rien sur le monde ; elle prouve seulement que le
+> dépôt ne le fait pas.*
+
+| Branche | Environnement | Ce qu'on atteint | Public ? |
+|---|---|---|---|
+| `master` | **Production** | `www.takussan.com` (200 au 2026-08-20 ; `takussan.com` y redirige en 307) | **oui** |
+| `dev`, `preview`, toute PR | Preview | une URL par déploiement | non — SSO Vercel |
+
+**Ce que cela change concrètement pour qui travaille ici : un merge vers `master` met CE code en
+ligne, devant des utilisateurs.** Ce n'est pas un rangement de branche, c'est une action sortante.
+
+⚠️ **Et la production appelle une API qui n'existe pas.** Le bundle servi par `www.takussan.com`
+porte `NEXT_PUBLIC_API_URL = https://api.takussan.com`, hôte qui rend **404** au 2026-08-20 (là où
+`preview.api.takussan.com/up` rend 200). Mesuré dans le bundle lui-même — la valeur est inlinée à
+la compilation, elle se lit sans accès à Vercel :
+
+```js
+let e = "https://api.takussan.com".replace(/\/api$/, ""), s = `${e}/api`
+```
+
+→ [TCK-332](../docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md), ardoise D-04
+et D-10.
+
+**Source unique du relevé** : [`docs/infra/frontend-deploiement.json`](../docs/infra/frontend-deploiement.json)
+— ne pas recopier ces valeurs ailleurs. La prose et les commandes de re-mesure :
+[`frontend-deploiement.md`](../docs/infra/frontend-deploiement.md). La décision :
+[ADR-0017](../docs/adr/0017-deploiement-du-front-pilote-par-vercel.md). La garde :
+`.github/workflows/front-deploy-map.yml`, qui vérifie et ne déploie rien.
 
 ## À ne pas croire
 
@@ -294,3 +353,13 @@ Une seule variable applicative : **`NEXT_PUBLIC_API_URL`** (39 lectures), plus `
 - Les constantes de navigation vivent dans `src/data/navigation.ts` — **pas** dans un fichier
   nommé « mock ». Elles y étaient, mêlées à ~300 lignes d'annonces factices sans usage, et un
   nom pareil finit par faire supprimer par mégarde des données que la production consomme.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

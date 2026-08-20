@@ -1,13 +1,13 @@
 ---
 id: TCK-328
 title: "Le front servi sur `127.0.0.1` ne s'hydrate pas — Next 16 bloque ses ressources de dev, en silence"
-status: todo
+status: doing
 phase: P2
 family: technique
 estimate: S
 wave: null
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-20
 depends_on: []
 blocks: []
 spec_refs:
@@ -43,32 +43,38 @@ Aucune donnée, aucun endpoint. Deux fichiers seulement :
 
 ## Delta à produire
 
-- [ ] `takussan-web/next.config.ts` : déclarer `allowedDevOrigins` couvrant la boucle locale
+- [x] `takussan-web/next.config.ts` : déclarer `allowedDevOrigins` couvrant la boucle locale
       (`127.0.0.1`), avec un commentaire qui dit **ce que le silence coûtait** — pas seulement ce
       que l'option fait.
-- [ ] `dev.sh` : commentaire sur la ligne 794 expliquant pourquoi le lien du front est en
+- [x] `dev.sh` : commentaire sur la ligne 794 expliquant pourquoi le lien du front est en
       `localhost` quand ceux de l'API, Meilisearch, MySQL et Redis sont en `127.0.0.1` (lignes 795
       et 801-802). Aujourd'hui rien ne dit que cette différence est porteuse.
-- [ ] `./dev.sh doctor` : nommer le cas, sur le modèle exact de ce que TCK-301 a fait pour D-48 —
+- [x] `./dev.sh doctor` : nommer le cas, sur le modèle exact de ce que TCK-301 a fait pour D-48 —
       la sonde ne corrige rien, elle affiche. Ici elle peut faire mieux que pour D-48, cf. « une
       différence avec D-48 » ci-dessous.
-- [ ] `takussan-web/CLAUDE.md` : ajouter le piège au § *Environnement*, **à côté** de la note
+- [x] `takussan-web/CLAUDE.md` : ajouter le piège au § *Environnement*, **à côté** de la note
       d'incohérence d'hôte existante et non dedans — ce sont deux défauts distincts (cf. ⑵).
-- [ ] Entrée d'ardoise **D-56**, texte proposé en bas de ce ticket.
-- [ ] Vérification par **ablation** : retirer `allowedDevOrigins`, recharger sur `127.0.0.1`,
+- [x] Entrée d'ardoise ~~**D-56**~~ → **D-57** — **ÉCRITE le 2026-08-20**, `docs/ardoise.md:907`,
+      dans la section *🟠 Environnement, CI et gardes*, juste après D-48 dont elle se distingue.
+      Elle n'avait pas pu l'être à l'implémentation, pour deux raisons consignées dans les Notes :
+      le numéro D-56 était déjà pris (TCK-322, `docs/ardoise.md:1985`) et `docs/ardoise.md` était
+      tenu par un autre agent au même moment. Vérifié après écriture :
+      `grep -n '^### D-57' docs/ardoise.md` → une ligne, et `node scripts/check-doc-links.mjs`
+      sort en 0.
+- [x] Vérification par **ablation** : retirer `allowedDevOrigins`, recharger sur `127.0.0.1`,
       constater le retour des 403 et de la non-hydratation. Un correctif d'environnement qu'on n'a
       pas vu échouer sans lui n'est pas vérifié.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Le front servi par `npm run dev` et ouvert sur `http://127.0.0.1:<port>` **s'hydrate** :
+- [x] AC1 — Le front servi par `npm run dev` et ouvert sur `http://127.0.0.1:<port>` **s'hydrate** :
       un formulaire soumis déclenche le gestionnaire React, pas une navigation GET native.
-- [ ] AC2 — Aucun `Blocked cross-origin request to Next.js dev resource` dans la sortie du serveur
+- [x] AC2 — Aucun `Blocked cross-origin request to Next.js dev resource` dans la sortie du serveur
       de développement, et aucun 403 sur `/_next/*` dans la console du navigateur, pour cet hôte.
-- [ ] AC3 — Le comportement sur `http://localhost:<port>` est inchangé.
-- [ ] AC4 — `./dev.sh doctor` nomme l'écart quand il subsiste, et **ne bruite pas** le cas nominal
+- [x] AC3 — Le comportement sur `http://localhost:<port>` est inchangé.
+- [x] AC4 — `./dev.sh doctor` nomme l'écart quand il subsiste, et **ne bruite pas** le cas nominal
       (0 ligne quand tout va bien) — même exigence que la vérification par ablation de TCK-301.
-- [ ] AC5 — L'ablation d'AC1 est constatée et consignée : sans le correctif, la panne revient.
+- [x] AC5 — L'ablation d'AC1 est constatée et consignée : sans le correctif, la panne revient.
 
 ## Hors périmètre
 
@@ -158,38 +164,197 @@ faire disparaître la panne pour tout le monde, sur tous les postes, sans qu'auc
 à toucher un fichier local. La sonde `doctor` reste utile — elle couvre le cas d'un
 `allowedDevOrigins` retiré ou d'un hôte tiers — mais elle est ici le **second** filet, pas le seul.
 
-## Entrée d'ardoise proposée — D-56
+## Entrée d'ardoise proposée — ~~D-56~~ **D-57**
 
-> **À insérer dans `docs/ardoise.md`, à la suite de D-55. Ce ticket ne l'écrit pas :
-> `writing-specs` produit une fiche, pas une modification de l'ardoise.**
+> **À insérer dans `docs/ardoise.md`. Ce ticket ne l'écrit pas : `writing-specs` produit une fiche,
+> pas une modification de l'ardoise — et l'implémentation ne l'a pas écrite non plus, `ardoise.md`
+> étant hors de son périmètre et tenu par un autre agent (cf. Notes d'implémentation).**
+>
+> ⚠️ **Le numéro a changé.** Ce ticket proposait `D-56` le 2026-08-17 ; `docs/ardoise.md:1985` porte
+> depuis un `D-56` (TCK-322, exécutions `--parallel` simultanées). Le bloc ci-dessous est renuméroté
+> **D-57**, et récrit à l'état SOLDÉ — le correctif est livré, mesuré et ablaté.
 
 ```markdown
-### D-56 — Le front servi sur `127.0.0.1` ne s'hydrate pas, et rien ne le dit 🟠 *mesurée le 2026-08-17 (vérification navigateur de TCK-279)* → [TCK-328](backlog/tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md)
+### D-57 — Le front servi sur `127.0.0.1` ne s'hydratait pas, et rien ne le disait ✅ *mesurée le 2026-08-17 (vérification navigateur de TCK-279), soldée le 2026-08-20* → [TCK-328](backlog/tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md)
 
-Next 16 bloque par défaut ses ressources de développement (`/_next/hmr`, `/__nextjs_font/…`) quand
-la page est servie depuis un hôte absent d'`allowedDevOrigins`. `takussan-web/next.config.ts` n'en
-déclare aucun. Ouvert sur `http://127.0.0.1:<port>`, le front rend son HTML, puis **React ne
-s'hydrate jamais** : les formulaires se soumettent en GET natif — le mot de passe de connexion part
-dans l'URL.
+Next 16 bloque par défaut ses ressources de développement (`/_next/*`, `/__nextjs*`) quand la page
+est servie depuis un hôte absent d'`allowedDevOrigins`, dont la valeur par défaut ne contient que
+`localhost` et `**.localhost`. `takussan-web/next.config.ts` n'en déclarait aucun. Ouvert sur
+`http://127.0.0.1:<port>`, le front rendait son HTML, puis **React ne s'hydratait jamais** : les
+formulaires se soumettaient en GET natif — le mot de passe de connexion partait dans l'URL.
 
-| Ce que le dépôt dit majoritairement | Ce qui marche réellement |
+| Ce que le dépôt dit majoritairement | Ce qui marchait réellement |
 |---|---|
-| `dev.sh` annonce `127.0.0.1` pour l'API, Meilisearch, MySQL, Redis ; `.env.example` livre `NEXT_PUBLIC_API_URL=http://127.0.0.1:8002` | le front n'est joignable que sur `localhost` (`dev.sh:794`), et **rien ne dit pourquoi** |
+| `dev.sh` annonce `127.0.0.1` pour l'API, Meilisearch, MySQL, Redis ; `.env.example` livre `NEXT_PUBLIC_API_URL=http://127.0.0.1:8002` | le front n'était joignable que sur `localhost`, et **rien ne disait pourquoi** |
 
-**Preuve** : sortie `npm run dev` → `Blocked cross-origin request to Next.js dev resource /_next/hmr
-from "127.0.0.1"` · console → 403 × 13 · sonde d'hydratation
-`Object.keys(document.querySelector('form')).some(k => k.startsWith('__react'))` → `false` sur
-`127.0.0.1`, `true` sur `localhost`, même serveur · `grep -rn allowedDevOrigins` sur le dépôt → 0.
+**Preuve, re-jouée le 2026-08-20** : sortie `npm run dev` → **14** `Blocked cross-origin request to
+Next.js dev resource … from "127.0.0.1"` · console → **403 × 13** + WebSocket HMR en échec · sonde
+d'hydratation `Object.keys(document.querySelector('form')).some(k => k.startsWith('__react'))` →
+`false` sur `127.0.0.1`, `true` sur `localhost`, même serveur, même instant · soumission réelle du
+formulaire → `Page navigated to /auth/login?email=…&password=motdepasse-sonde`.
+
+**Correctif** : `allowedDevOrigins: ['127.0.0.1', '[::1]']` dans `takussan-web/next.config.ts` —
+versionné, donc valable pour tout poste sans geste local. Après : 0 message bloqué, 36 requêtes
+`/_next/*` en 200, hydratation `true`, URL propre après soumission. Le LAN
+(`192.168.1.181`) et un hôte tiers restent **403** : la surface n'est pas élargie.
+
+⚠ **`[::1]` s'écrit avec ses crochets.** Next compare `new URL(origin).hostname`, qui rend `"[::1]"`.
+La première version écrivait `'::1'` et laissait l'IPv6 en 403 — trouvé par sonde `Origin`, pas par
+lecture.
+
+**Second filet** : `./dev.sh doctor` nomme l'écart si la ligne disparaît, et se tait quand elle est
+là (ablation jouée). Sa première version restait verte pendant sa propre ablation — elle lisait le
+bloc de commentaire qui cite `allowedDevOrigins` et `127.0.0.1`, et mesurait donc sa propre
+documentation.
 
 **À ne pas confondre avec** l'incohérence d'hôte du § *Environnement* de `takussan-web/CLAUDE.md`,
 qui porte sur l'origine de l'**API** (port 8002) et sur les cookies. Axes différents, symptômes
-différents. L'hypothèse « même cause » a été posée puis **écartée** : `dev.sh:794` imprime bien
-`localhost` pour le front, donc le chemin nominal n'est pas atteint par ce défaut-ci.
+différents. L'hypothèse « même cause » a été posée puis **écartée** : `dev.sh` imprime bien
+`localhost` pour le front, donc le chemin nominal n'était pas atteint par ce défaut-ci.
 
-**Différence avec D-48** : cette dette-là, le dépôt **peut** la corriger — `next.config.ts` est
+**Différence avec D-48** : cette dette-là, le dépôt **pouvait** la corriger — `next.config.ts` est
 versionné. D-48 vivait dans un fichier ignoré par git et ne pouvait qu'être affichée.
 ```
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+_Implémenté le 2026-08-20. Toutes les mesures ci-dessous ont été prises sur cette machine
+(8 cœurs, `load average` ~6 au départ), serveur de développement `PORT=3021 npm run dev`, Chrome
+piloté par CDP. **Le serveur a été tué à la fin** — aucune commande longue n'a été laissée en vie._
+
+### Prémisse : TENUE, et re-mesurée avant d'écrire une ligne
+
+```
+$ grep -rn "allowedDevOrigins" --include='*.ts' --include='*.js' --include='*.mjs' . | grep -v node_modules
+(aucun résultat hors docs/ et docs/backlog/)
+$ node -p "require('./takussan-web/node_modules/next/package.json').version"
+16.3.1
+```
+
+**Panne reproduite avant tout correctif**, sur le même serveur et au même instant :
+
+| URL | sonde `Object.keys(document.querySelector('form')).some(k => k.startsWith('__react'))` |
+|---|---|
+| `http://127.0.0.1:3021/auth/login` | **`false`** |
+| `http://localhost:3021/auth/login` | **`true`** |
+
+Console : `403 (Forbidden)` **× 13**, plus `WebSocket connection to 'ws://127.0.0.1:3021/_next/hmr…'
+failed`. Sortie du serveur : **14** `Blocked cross-origin request to Next.js dev resource … from
+"127.0.0.1"`.
+
+### La panne, montrée plutôt que décrite (formulaire réellement soumis)
+
+Sans le correctif, formulaire de connexion rempli puis « Sign in » cliqué — le navigateur navigue :
+
+```
+Page navigated to http://127.0.0.1:3021/auth/login?email=sonde-tck328%40example.test&password=motdepasse-sonde
+```
+
+**Le mot de passe est dans l'URL.** Avec le correctif, même geste : `location.href` reste
+`http://127.0.0.1:3021/auth/login`, `location.search` vide, `motDePasseDansURL: false`.
+
+### Ce que la mesure a corrigé dans le correctif lui-même : `[::1]`, pas `::1`
+
+Première version écrite : `allowedDevOrigins: ['127.0.0.1', '::1']`. Sonde par en-tête `Origin`
+sur `/_next/*` (403 = bloqué, 404 = laissé passer jusqu'au routeur) :
+
+```
+http://127.0.0.1:3021        -> 404
+http://localhost:3021        -> 404
+http://[::1]:3021            -> 403     ← l'entrée '::1' ne matchait RIEN
+http://192.168.1.181:3021    -> 403
+http://evil.example          -> 403
+```
+
+Cause, lue dans le code de Next et non déduite
+(`node_modules/next/dist/server/app-render/csrf-protection.js`) : la comparaison porte sur
+`new URL(origin).hostname`, et `node -e "new URL('http://[::1]:3021').hostname"` rend `"[::1]"`,
+crochets compris. Corrigé en `'[::1]'` :
+
+```
+http://127.0.0.1:3021        -> 404
+http://localhost:3021        -> 404
+http://[::1]:3021            -> 404
+http://192.168.1.181:3021    -> 403     ← surface NON élargie : le LAN reste bloqué
+http://evil.example          -> 403
+```
+
+### Ablation d'AC1/AC5 — deux cycles complets, les deux sens constatés
+
+| | `allowedDevOrigins` | `formHydrated` sur `127.0.0.1` | `Blocked cross-origin` (serveur) | `Origin: http://127.0.0.1:3021` sur `/_next/*` |
+|---|---|---|---|---|
+| avant correctif | absent | **`false`** | 14 | 403 |
+| après correctif | `['127.0.0.1', '[::1]']` | **`true`** | **0** | 404 |
+| ablation ① | ligne retirée | **`false`** | 15 | **403** |
+| restauration ① | restaurée (`diff` vide) | **`true`** | 0 | 404 |
+| ablation ② | ligne retirée | soumission → **mot de passe dans l'URL** | — | — |
+| restauration ② | restaurée (`diff` vide) | **`true`**, URL propre | 0 | 404 |
+
+Toutes les requêtes `/_next/static/chunks/*` et `/_next/static/media/*.woff2` rendent **200** après
+correctif (36 requêtes listées, aucune en 403) → **AC2**.
+
+### AC3 — `localhost` inchangé
+
+`formHydrated: true` sur `http://localhost:3021/auth/login` **avant** comme **après** le correctif,
+et `Origin: http://localhost:3021` n'est jamais bloqué (404, jamais 403) dans les deux états.
+
+### AC4 — la sonde `doctor`, et le piège qu'elle a failli reproduire
+
+```
+=== 1. NOMINAL (correctif en place) ===
+▸ Front
+  ✓ takussan-web/node_modules présent
+                                            ← 0 ligne de la nouvelle sonde
+
+=== 2. ABLATION (ligne allowedDevOrigins retirée) ===
+▸ Front
+  ✓ takussan-web/node_modules présent
+  ! takussan-web/next.config.ts ne déclare pas 127.0.0.1 dans allowedDevOrigins.
+  !   Next 16 bloquera alors ses ressources de dev (/_next/*) pour cet hôte : la page
+  !   s'affichera SANS S'HYDRATER, et le formulaire de connexion se soumettra en GET
+  !   natif — le mot de passe dans l'URL. Le chemin nominal (l'URL imprimée par
+  !   ./dev.sh, en localhost) n'est pas touché : c'est ce qui rend l'écart muet.
+
+=== 3. RESTAURATION ===
+▸ Front
+  ✓ takussan-web/node_modules présent
+```
+
+⚠ **La première version de cette sonde est restée VERTE pendant sa propre ablation.** Elle lisait
+`awk '/allowedDevOrigins/,/\]/' next.config.ts | grep 127.0.0.1` — or le bloc de commentaire qui
+documente l'option, juste au-dessus, cite `allowedDevOrigins` **et** `127.0.0.1` en toutes lettres.
+La sonde mesurait sa propre documentation. Le `grep -v '^[[:space:]]*//'` ajouté devant n'est donc
+pas une élégance : c'est le correctif d'un faux vert que **seule l'ablation** pouvait montrer.
+*Une garde qu'on n'a pas vue rougir n'est pas une garde.*
+
+### Ce qui n'a PAS été fait, et pourquoi
+
+- **L'entrée d'ardoise.** Deux obstacles, aucun contournable depuis ce périmètre :
+  1. **Le numéro D-56 proposé par ce ticket est déjà pris** — `docs/ardoise.md:1985` porte
+     « D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage »
+     (TCK-322, 2026-08-17), écrit *après* la rédaction de ce ticket. Le prochain libre est **D-57**
+     (`grep -c '^### D-' docs/ardoise.md` → 50, plus haut numéro → 56). Le texte proposé plus haut
+     s'insère tel quel en changeant `D-56` → `D-57`.
+  2. `docs/ardoise.md` était **modifié par un autre agent** au moment de l'implémentation
+     (TCK-326 y solde D-34bis, TCK-327 y soldera D-36bis) : hors périmètre, non touché.
+- **Les numéros de ligne du « Contrat de données »** (`dev.sh:794`) ont bougé : le lien du front est
+  désormais à `dev.sh:839`, précédé de son commentaire. *(Corrigé en vérification : la première
+  rédaction annonçait `807`, obtenu en n'ajoutant que les 13 lignes du commentaire aux 794 d'origine
+  et en oubliant les 32 lignes de la sonde `doctor` insérées plus haut dans le MÊME diff. Mesuré :
+  `grep -n 'lien "Front (Next.js)"' dev.sh` → 839. Un numéro de ligne recalculé de tête est faux dès
+  qu'il y a deux hunks.)*
+
+### Deux constats de côté, mesurés au passage (aucun n'est traité ici)
+
+1. **`babel-plugin-react-compiler` manquait de `takussan-web/node_modules`** alors qu'il est déclaré
+   en `devDependency` et présent dans `package-lock.json`. Conséquence mesurée : `npm run dev` rendait
+   **500 sur toutes les pages** (`Failed to resolve package babel-plugin-react-compiler`), pendant que
+   `./dev.sh doctor` imprimait `✓ takussan-web/node_modules présent`. Installé pour la mesure par
+   `npm install --no-save babel-plugin-react-compiler@1.0.0` — `package.json` et `package-lock.json`
+   sont inchangés.
+2. **`next dev` ÉCRIT dans `takussan-web/CLAUDE.md`** : il y appose un bloc
+   `<!-- BEGIN:nextjs-agent-rules -->` à chaque démarrage
+   (`node_modules/next/dist/server/lib/generate-agent-files.js`). Tout `./dev.sh` salit donc l'arbre
+   de travail. `agentRules: false` dans `next.config.ts` le désactive — c'est une décision à prendre,
+   pas à glisser dans ce ticket-ci.
+

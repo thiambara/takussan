@@ -1,8 +1,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { UserDetailPage } from '@/components/admin/super/user-detail';
 
-export const metadata: Metadata = { title: 'Détail utilisateur' };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('superAdmin.pages.userDetail');
+  return { title: t('metaTitle') };
+}
 
 type Params = Promise<{ id: string }>;
 

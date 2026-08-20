@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api';
 import type { PropertyListItem } from '@/types/property';
 
@@ -10,6 +11,7 @@ type State = {
 };
 
 export function useSimilarProperties(slug: string) {
+  const t = useTranslations('property.detail');
   const [state, setState] = useState<State>({ data: [], loading: true, error: null });
 
   useEffect(() => {
@@ -21,12 +23,12 @@ export function useSimilarProperties(slug: string) {
       })
       .catch(() => {
         if (!cancelled)
-          setState({ data: [], loading: false, error: 'Impossible de charger les biens similaires.' });
+          setState({ data: [], loading: false, error: t('similarError') });
       });
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, t]);
 
   return state;
 }

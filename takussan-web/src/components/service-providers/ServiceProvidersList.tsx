@@ -31,6 +31,7 @@ import {
 } from '@/lib/queries/service-providers';
 import type { PaginatedResponse } from '@/types/api';
 import { InviteServiceProviderSheet } from './InviteServiceProviderSheet';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type Props = {
   readonly agencyId: number;
@@ -53,6 +54,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const t = useTranslations('serviceProviders');
   const tInvite = useTranslations('serviceProviders.invite');
   const tList = useTranslations('serviceProviders.list');
+  const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
@@ -83,7 +85,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
     onError: (error) => {
       toast.add({
         title: tInvite('toasts.error_title'),
-        description: error.displayMessage,
+        description: messageErreur(error),
         type: 'error',
       });
     },
@@ -103,7 +105,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
     onError: (error) => {
       toast.add({
         title: tInvite('toasts.error_title'),
-        description: error.displayMessage,
+        description: messageErreur(error),
         type: 'error',
       });
     },

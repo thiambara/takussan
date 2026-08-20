@@ -31,7 +31,15 @@ class UpdateSavedSearchRequest extends BaseFormRequest
         return $this->route('savedSearch')?->user_id === $this->user()?->id;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * ⚠ TCK-330 — `notification_frequency` doit rester ÉCRITE À L'IDENTIQUE dans
+     * `StoreSavedSearchRequest`. C'est leur divergence (`nullable` à la création,
+     * `sometimes` ici) qui produisait un 500 d'un côté et un 422 de l'autre pour la même
+     * saisie vide. `SavedSearchTest::test_store_and_update_agree_on_the_same_empty_notification_frequency`
+     * compare les deux statuts entre eux et rougit si l'une des deux règles bouge seule.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [

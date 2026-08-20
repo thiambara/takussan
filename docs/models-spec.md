@@ -1138,7 +1138,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | user_id | FK users | | | Utilisateur |
 | name | string | | | Nom donné à la recherche (ex: "3 pièces Dakar < 200k") |
 | criteria | json | | | Critères de recherche (type, prix min/max, surface, localisation, etc.) |
-| notification_frequency | string | | 'daily' | Fréquence d'alerte (instant, daily, weekly, none) |
+| notification_frequency | string | | 'daily' | Fréquence d'alerte (`instant`, `daily`, `weekly`, `off`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
 | is_active | boolean | | true | Alerte active |
 | last_notified_at | datetime | oui | null | Dernière notification envoyée |
 | results_count | integer | | 0 | Nombre de résultats actuels (cache — mettre à jour via job planifié, pas à la volée) |

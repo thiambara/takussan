@@ -76,28 +76,42 @@ class BaseFormRequestNormalizationTest extends ApiTestCase
     }
 
     /**
-     * ⚠️ Le cas que ce fichier a mis au jour, et qui n'est PAS une régression de TCK-305.
+     * ⚠️ Le cas que ce fichier a mis au jour, et que **TCK-330 a tranché**.
      *
-     * `saved_searches.notification_frequency` est `string()->default('daily')` — donc **NOT NULL**
-     * — alors que la règle de validation est `nullable`. Un client qui envoie `""` obtient un
-     * `null` normalisé, puis un **500** sur la contrainte d'intégrité. Vérifié identique dans le
-     * contrôleur d'avant le déplacement (`git show ad007231:…SavedSearchController.php`) : mêmes
-     * règles, même `create(array_merge($data, …))`. Le middleware global convertissait déjà `""`
-     * en `null` avant TCK-305 ; le défaut préexiste et n'a pas été introduit ici.
+     * `saved_searches.notification_frequency` est `string()->default('daily')` — donc **NOT
+     * NULL** — alors que la règle de CRÉATION disait `nullable`. Un client qui envoyait `""`
+     * obtenait un `null` normalisé, puis un **500** sur la contrainte d'intégrité, quand la même
+     * saisie sur la mise à jour rendait déjà 422. Défaut préexistant à TCK-305, vérifié contre
+     * `ad007231` ; TCK-305 l'a seulement rendu visible.
      *
-     * Ce test le **fige tel quel** plutôt que de le corriger : corriger la colonne ou la règle est
-     * une décision produite (« absent » et « off » sont-ils la même chose ?) qui n'appartient pas à
-     * TCK-305. Le jour où quelqu'un la prend, ce test rougira et le lui dira.
+     * **Ce test figeait ce 500 tel quel**, avec pour consigne explicite de rougir le jour où la
+     * décision produite serait prise. Elle l'a été (TCK-330) : « pas d'alerte » et « champ non
+     * renseigné » sont deux états distincts, la sentinelle `off` porte le premier, et le vide
+     * n'est plus une valeur — il est refusé à la porte. Le `assertStatus(500)` d'hier a donc
+     * bien rougi, et il est remplacé ici par le contrat inverse, pas supprimé : le trou qu'il
+     * gardait — *une règle `nullable` posée sur une colonne NOT NULL* — reste gardé, mais du
+     * bon côté.
+     *
+     * L'assertion sur la base compte autant que celle sur le statut : elle interdit qu'un futur
+     * correctif « rende le 422 » en écrivant tout de même une ligne dégradée.
      */
-    public function test_a_nullable_rule_over_a_not_null_column_still_fails_and_it_predates_this_ticket(): void
+    public function test_a_normalized_empty_string_over_a_not_null_column_is_refused_at_the_door(): void
     {
-        $this->apiActingAsRole('agent');
+        $user = $this->apiActingAsRole('agent');
 
         $this->postJson('/api/saved-searches', [
             'name' => 'Villa Dakar',
             'criteria' => ['city' => 'Dakar'],
             'notification_frequency' => '',
-        ])->assertStatus(500);
+        ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['notification_frequency']);
+
+        $this->assertSame(
+            0,
+            SavedSearch::where('user_id', $user->id)->count(),
+            'un refus de validation ne doit laisser aucune ligne derrière lui'
+        );
     }
 
     /**

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import { CustomerListFilters } from '../CustomerListFilters';
+import { withIntl } from '@/test/intl';
 
 const mockReplace = vi.fn();
 const mockSearchParams = {
@@ -22,28 +23,28 @@ describe('CustomerListFilters', () => {
   });
 
   it('renders without tag filter when no crmTags provided', () => {
-    render(<CustomerListFilters />);
+    render(withIntl(<CustomerListFilters />));
     expect(screen.queryByRole('button', { name: /Filtrer par tags/i })).toBeNull();
   });
 
   it('renders tag filter button when crmTags provided', () => {
-    render(
+    render(withIntl(
       <CustomerListFilters
         crmTags={[
           { id: 1, name: 'vip', color: null },
           { id: 2, name: 'prospect', color: null },
         ]}
       />,
-    );
+    ));
     expect(screen.getByRole('button', { name: /Filtrer par tags/i })).toBeTruthy();
   });
 
   it('opens the tag popover on button click', () => {
-    render(
+    render(withIntl(
       <CustomerListFilters
         crmTags={[{ id: 1, name: 'vip', color: null }]}
       />,
-    );
+    ));
     const btn = screen.getByRole('button', { name: /Filtrer par tags/i });
     fireEvent.click(btn);
     expect(screen.getByText('Tags clients')).toBeTruthy();
@@ -51,11 +52,11 @@ describe('CustomerListFilters', () => {
   });
 
   it('calls router.replace with tags param when a tag is toggled', () => {
-    render(
+    render(withIntl(
       <CustomerListFilters
         crmTags={[{ id: 1, name: 'vip', color: null }]}
       />,
-    );
+    ));
     fireEvent.click(screen.getByRole('button', { name: /Filtrer par tags/i }));
     fireEvent.click(screen.getByText('vip'));
     expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining('tags=vip'));
@@ -65,14 +66,14 @@ describe('CustomerListFilters', () => {
     mockSearchParams.get.mockImplementation((key: string) =>
       key === 'tags' ? 'vip,prospect' : null,
     );
-    render(
+    render(withIntl(
       <CustomerListFilters
         crmTags={[
           { id: 1, name: 'vip', color: null },
           { id: 2, name: 'prospect', color: null },
         ]}
       />,
-    );
+    ));
     expect(screen.getByText('2')).toBeTruthy();
   });
 
@@ -80,11 +81,11 @@ describe('CustomerListFilters', () => {
     mockSearchParams.get.mockImplementation((key: string) =>
       key === 'tags' ? 'vip' : null,
     );
-    render(
+    render(withIntl(
       <CustomerListFilters
         crmTags={[{ id: 1, name: 'vip', color: null }]}
       />,
-    );
+    ));
     fireEvent.click(screen.getByRole('button', { name: /Tags/i }));
     expect(screen.getByText('Tout effacer')).toBeTruthy();
   });

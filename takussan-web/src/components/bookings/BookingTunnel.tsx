@@ -3,16 +3,20 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import type { ZodType } from 'zod';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { FormInput, FormTextarea, FormCheckbox, FormGlobalError, FormDatePicker } from '@/components/forms';
 import { useAuth } from '@/context/AuthContext';
 import { useCreateBooking } from '@/lib/queries/bookings';
 import { ApiError } from '@/lib/api';
-import { extractApiErrorMessage, mapValidationErrorsToForm } from '@/hooks/useApiForm';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import {
+  mapValidationErrorsToForm,
+  useResolveurValidation,
+} from '@/hooks/useApiForm';
 import { bookingRequestSchema, type BookingRequestFormValues } from '@/lib/schemas/booking';
 import { formatCurrency } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -28,12 +32,12 @@ interface BookingTunnelProps {
   readonly property: PropertyDetail;
 }
 
-const STEPS: readonly BookingStep[] = [
-  { key: 'dates', label: 'Dates' },
-  { key: 'review', label: 'Récapitulatif' },
-  { key: 'terms', label: 'Conditions' },
-  { key: 'done', label: 'Confirmation' },
-];
+/**
+ * TCK-292 — la table hors composant transporte la CLÉ (relative à `bookings.tunnel`) ;
+ * `BookingStepper` reçoit des libellés déjà résolus.
+ */
+const STEP_KEYS = ['dates', 'review', 'terms', 'done'] as const;
+const STEP_COUNT = STEP_KEYS.length;
 
 const FIELDS_PER_STEP: Record<number, readonly (keyof BookingRequestFormValues)[]> = {
   0: ['start_date', 'end_date', 'guests'],
@@ -53,13 +57,26 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const locale = useLocale() as Locale;
+  const t = useTranslations('bookings.tunnel');
+  const messageErreur = useMessageErreurApi();
+  const tBookings = useTranslations('bookings');
   const [stepIndex, setStepIndex] = useState(0);
   const [createdBooking, setCreatedBooking] = useState<Booking | null>(null);
   const [globalError, setGlobalError] = useState<string | null>(null);
 
+  // Le cast reproduit celui que portait `zodResolver` ici même : `bookingRequestSchema` a des
+  // champs à `.default()`, donc son `z.input` diffère de son `z.output` et ne s'unifie pas avec
+  // `BookingRequestFormValues`. Il porte sur l'ARGUMENT, jamais sur le paramètre de type — sans quoi le
+  // résolveur retomberait sur `FieldValues` et `useForm` refuserait le branchement.
+  const resolver = useResolveurValidation<BookingRequestFormValues>(
+    bookingRequestSchema as unknown as ZodType<BookingRequestFormValues>,
+  );
   const form = useForm<BookingRequestFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(bookingRequestSchema as unknown as any),
+    // `useResolveurValidation`, PAS `zodResolver` nu : les schémas de `src/lib/schemas/` portent
+    // une clé (`validation.…`) et non un libellé. Ce fichier montait `zodResolver` directement et
+    // rendait donc la clé brute à l'utilisateur — l'inventaire du lot J l'avait manqué alors même
+    // qu'il cherchait `zodResolver` (TCK-292, lot L).
+    resolver,
     defaultValues: {
       property_id: property.id,
       start_date: '',
@@ -72,6 +89,11 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
   });
 
   const createBooking = useCreateBooking();
+
+  const steps: readonly BookingStep[] = STEP_KEYS.map((key) => ({
+    key,
+    label: t(`steps.${key}`),
+  }));
 
   const watched = form.watch();
   const startDate = watched.start_date;
@@ -98,7 +120,7 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
     const valid = await form.trigger(fields as Parameters<typeof form.trigger>[0]);
     if (!valid) return;
 
-    if (stepIndex < STEPS.length - 2) {
+    if (stepIndex < STEP_COUNT - 2) {
       setStepIndex(stepIndex + 1);
       return;
     }
@@ -120,7 +142,7 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
         notes: values.notes,
       });
       setCreatedBooking(result.data);
-      setStepIndex(STEPS.length - 1);
+      setStepIndex(STEP_COUNT - 1);
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.validationErrors) {
         const known = Object.keys(form.getValues()) as (keyof BookingRequestFormValues)[];
@@ -139,7 +161,7 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
           if (owner) setStepIndex(Number(owner[0]));
         }
       } else {
-        setGlobalError(extractApiErrorMessage(err, 'La réservation a échoué. Réessayez.'));
+        setGlobalError(messageErreur(err, t('error')));
       }
     }
   }
@@ -155,24 +177,22 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
     return (
       <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
         <h2 className="text-lg font-semibold text-stone-900">
-          Connectez-vous pour réserver
+          {t('auth.title')}
         </h2>
-        <p className="mt-2 text-sm text-stone-600">
-          Vous devez être connecté pour finaliser la demande de réservation.
-        </p>
+        <p className="mt-2 text-sm text-stone-600">{t('auth.description')}</p>
         <div className="mt-6 flex justify-center gap-2">
           <Button
             variant="outline"
             nativeButton={false}
             render={<Link href={`/properties/${property.slug}`} />}
           >
-            Retour au bien
+            {t('backToProperty')}
           </Button>
           <Button
             nativeButton={false}
             render={<Link href={`/auth/login?redirect=${encodeURIComponent(redirect)}`} />}
           >
-            Se connecter
+            {t('auth.login')}
           </Button>
         </div>
       </div>
@@ -180,26 +200,28 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
   }
 
   // Success screen
-  if (stepIndex === STEPS.length - 1 && createdBooking) {
+  if (stepIndex === STEP_COUNT - 1 && createdBooking) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-8 text-center">
         <CheckCircle2 className="mx-auto size-12 text-emerald-600" aria-hidden />
         <h2 className="mt-4 text-xl font-semibold text-emerald-900">
-          Demande envoyée !
+          {t('success.title')}
         </h2>
         <p className="mt-2 text-sm text-emerald-800">
-          Votre demande de réservation pour <strong>{property.title}</strong> a bien été
-          enregistrée. Le propriétaire ou l&apos;agent vous recontactera sous 48h.
+          {t.rich('success.body', {
+            title: property.title,
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
         </p>
         <dl className="mx-auto mt-4 max-w-sm space-y-1 text-sm text-emerald-900">
           {createdBooking.reference_number && (
             <div className="flex justify-between">
-              <dt className="text-emerald-700">Référence</dt>
+              <dt className="text-emerald-700">{t('success.reference')}</dt>
               <dd className="font-mono">{createdBooking.reference_number}</dd>
             </div>
           )}
           <div className="flex justify-between">
-            <dt className="text-emerald-700">Total estimé</dt>
+            <dt className="text-emerald-700">{t('success.total')}</dt>
             <dd className="font-semibold">{formatCurrency(totalAmount, locale)}</dd>
           </div>
         </dl>
@@ -209,13 +231,13 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
             nativeButton={false}
             render={<Link href={`/properties/${property.slug}`} />}
           >
-            Retour au bien
+            {t('backToProperty')}
           </Button>
           <Button
             nativeButton={false}
             render={<Link href={`/app/bookings/${createdBooking.id}`} />}
           >
-            Voir ma réservation
+            {t('success.viewBooking')}
           </Button>
         </div>
       </div>
@@ -225,39 +247,37 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div>
-        <BookingStepper steps={STEPS} currentIndex={stepIndex} />
+        <BookingStepper steps={steps} currentIndex={stepIndex} />
         <div className="mt-6 rounded-xl border border-stone-200 bg-white p-6">
           <FormGlobalError>{globalError}</FormGlobalError>
 
           {stepIndex === 0 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-stone-900">Vos dates</h2>
-              <p className="text-sm text-stone-600">
-                Sélectionnez votre période et le nombre de voyageurs.
-              </p>
+              <h2 className="text-lg font-semibold text-stone-900">{t('step1.title')}</h2>
+              <p className="text-sm text-stone-600">{t('step1.description')}</p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormDatePicker<BookingRequestFormValues>
                   control={form.control}
                   name="start_date"
-                  label="Arrivée"
+                  label={t('fields.startDate')}
                   required
                   min={new Date().toISOString().slice(0, 10)}
-                  placeholder="Date d'arrivée"
+                  placeholder={t('fields.startDatePlaceholder')}
                 />
                 <FormDatePicker<BookingRequestFormValues>
                   control={form.control}
                   name="end_date"
-                  label="Départ"
+                  label={t('fields.endDate')}
                   required
                   min={startDate || new Date().toISOString().slice(0, 10)}
-                  placeholder="Date de départ"
+                  placeholder={t('fields.endDatePlaceholder')}
                 />
               </div>
               <FormInput<BookingRequestFormValues>
                 control={form.control}
                 name="guests"
                 type="number"
-                label="Nombre de personnes"
+                label={t('fields.guests')}
                 required
                 min={1}
                 max={20}
@@ -267,56 +287,51 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
 
           {stepIndex === 1 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-stone-900">Récapitulatif</h2>
-              <p className="text-sm text-stone-600">
-                Vérifiez les montants et ajoutez un message au propriétaire si besoin.
-              </p>
+              <h2 className="text-lg font-semibold text-stone-900">{t('steps.review')}</h2>
+              <p className="text-sm text-stone-600">{t('step2.description')}</p>
               <div className="rounded-lg bg-stone-50 p-4 text-sm space-y-2">
                 <div className="flex justify-between">
                   <span className="text-stone-600">
                     {formatCurrency(property.price, locale)}
-                    {isRent && nights > 0 && ` × ${nights} nuit${nights > 1 ? 's' : ''}`}
+                    {isRent && nights > 0 && ` × ${tBookings('summary.nights', { count: nights })}`}
                   </span>
                   <span className="text-stone-900">{formatCurrency(totalAmount, locale)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-stone-600">
-                  <span>Personnes</span>
+                  <span>{t('guestsLabel')}</span>
                   <span>{guests}</span>
                 </div>
                 <div className="flex justify-between border-t border-stone-200 pt-2 font-semibold">
-                  <span>Acompte (30 %)</span>
+                  <span>{t('depositLabel')}</span>
                   <span>{formatCurrency(depositAmount, locale)}</span>
                 </div>
               </div>
               <FormTextarea<BookingRequestFormValues>
                 control={form.control}
                 name="notes"
-                label="Message (optionnel)"
+                label={t('notesLabel')}
                 rows={4}
-                placeholder="Présentez-vous, expliquez votre projet…"
+                placeholder={t('notesPlaceholder')}
               />
             </div>
           )}
 
           {stepIndex === 2 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-stone-900">Conditions</h2>
+              <h2 className="text-lg font-semibold text-stone-900">{t('steps.terms')}</h2>
               <div className="rounded-lg border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700 space-y-2">
+                <p>{t('terms.body')}</p>
                 <p>
-                  En soumettant votre demande, vous acceptez que le propriétaire ou l&apos;agent
-                  vous contacte pour confirmer la disponibilité. Aucun paiement n&apos;est
-                  prélevé tant que la réservation n&apos;est pas confirmée.
-                </p>
-                <p>
-                  Un acompte de{' '}
-                  <strong>{formatCurrency(depositAmount, locale)}</strong> pourra être
-                  demandé à la confirmation.
+                  {t.rich('terms.deposit', {
+                    amount: formatCurrency(depositAmount, locale),
+                    strong: (chunks) => <strong>{chunks}</strong>,
+                  })}
                 </p>
               </div>
               <FormCheckbox<BookingRequestFormValues>
                 control={form.control}
                 name="accept_terms"
-                label="J'accepte les conditions de réservation Takussan et la politique d'annulation."
+                label={t('terms.accept')}
                 required
               />
             </div>
@@ -329,7 +344,7 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
               onClick={handleBack}
               disabled={stepIndex === 0 || createBooking.isPending}
             >
-              Retour
+              {t('actions.back')}
             </Button>
             <Button
               type="button"
@@ -337,10 +352,10 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
               disabled={createBooking.isPending}
             >
               {createBooking.isPending
-                ? 'Envoi…'
-                : stepIndex === STEPS.length - 2
-                  ? 'Soumettre la demande'
-                  : 'Continuer'}
+                ? t('actions.submitting')
+                : stepIndex === STEP_COUNT - 2
+                  ? t('actions.submit')
+                  : t('actions.continue')}
             </Button>
           </div>
         </div>

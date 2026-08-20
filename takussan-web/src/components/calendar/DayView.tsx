@@ -6,7 +6,7 @@ import { CalendarDays } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
 import { cn } from '@/lib/utils';
 import { eventTouchesDay, parseServerDate } from '@/lib/calendar-date';
-import { paletteFor, typeLabel } from './event-colors';
+import { paletteFor, typeLabelKey } from './event-colors';
 import type { CalendarEvent } from '@/types/calendar';
 
 export interface DayViewProps {
@@ -17,6 +17,7 @@ export interface DayViewProps {
 
 export function DayView({ focus, events, onSelect }: DayViewProps) {
   const t = useTranslations('calendar.day');
+  const tCal = useTranslations('calendar');
   const parsed = events
     .map((e) => ({
       event: e,
@@ -50,7 +51,7 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
           {parsed.map(({ event, start }) => {
             const palette = paletteFor(event);
             const timeLabel = event.all_day
-              ? 'Journée'
+              ? tCal('allDay')
               : start.toLocaleTimeString('fr-FR', {
                   hour: '2-digit',
                   minute: '2-digit',
@@ -70,7 +71,7 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold uppercase text-stone-500">
-                        {typeLabel(event.type)}
+                        {tCal(typeLabelKey(event.type))}
                       </span>
                       <span className="text-xs font-medium text-stone-600">{timeLabel}</span>
                     </div>

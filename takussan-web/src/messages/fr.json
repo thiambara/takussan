@@ -27,7 +27,8 @@
       "messages": "Messages",
       "dashboard": "Tableau de bord",
       "profile": "Profil",
-      "settings": "Paramètres"
+      "settings": "Paramètres",
+      "search": "Rechercher"
     },
     "languageSwitcher": {
       "label": "Langue",
@@ -249,6 +250,12 @@
     "propertyMissing": {
       "title": "Bien introuvable",
       "description": "Ce bien n'est plus disponible sur Takussan."
+    },
+    "property": {
+      "descriptionFallback": "{type} à {quarter}, {city}."
+    },
+    "dashboard": {
+      "title": "Tableau de bord — Takussan"
     }
   },
   "auth": {
@@ -413,7 +420,8 @@
   "property": {
     "list": {
       "title": "Biens disponibles",
-      "empty": "Aucun bien ne correspond à vos critères."
+      "empty": "Aucun bien ne correspond à vos critères.",
+      "loadError": "Impossible de charger les annonces."
     },
     "fields": {
       "price": "Prix",
@@ -428,7 +436,14 @@
       "available": "Disponible",
       "rented": "Loué",
       "sold": "Vendu",
-      "pending": "En attente"
+      "pending": "En attente",
+      "draft": "Brouillon",
+      "under_maintenance": "En maintenance",
+      "unavailable": "Indisponible",
+      "archived": "Archivé",
+      "published": "Publié",
+      "pending_review": "En revue",
+      "rejected": "Refusé"
     },
     "types": {
       "land": "Terrain",
@@ -565,11 +580,21 @@
         "nextPhoto": "Photo suivante",
         "noPhoto": "Aucune photo",
         "noPhotoAvailable": "Aucune photo disponible",
-        "viewAll": "Voir toutes les photos ({count})"
+        "viewAll": "Voir toutes les photos ({count})",
+        "openPhoto": "Ouvrir la photo {index}",
+        "photoAlt": "{title} - photo {index}"
       },
       "bottomBar": {
         "visit": "Visiter",
         "offer": "Offre",
+        "reserve": "Réserver",
+        "apply": "Postuler"
+      },
+      "notFound": "Bien introuvable.",
+      "similarError": "Impossible de charger les biens similaires.",
+      "contactInvalidResponse": "Réponse invalide.",
+      "primaryCta": {
+        "offer": "Faire une offre",
         "reserve": "Réserver",
         "apply": "Postuler"
       }
@@ -594,7 +619,8 @@
         "thanks": "Merci pour votre retour.",
         "contentTooShort": "Votre commentaire doit contenir au moins {min} caractères.",
         "contentPlaceholder": "Votre avis (min. {min} caractères)",
-        "charsLeft": "{count, plural, =1 {Encore # caractère minimum.} other {Encore # caractères minimum.}}"
+        "charsLeft": "{count, plural, =1 {Encore # caractère minimum.} other {Encore # caractères minimum.}}",
+        "starsAria": "{count, plural, one {# étoile} other {# étoiles}}"
       },
       "replyForm": {
         "editTitle": "Modifier ma réponse",
@@ -606,8 +632,10 @@
         "cancel": "Annuler",
         "publish": "Publier la réponse",
         "sending": "Envoi…",
-        "save": "Enregistrer"
-      }
+        "save": "Enregistrer",
+        "contentTooShort": "Votre réponse doit contenir au moins {min} caractères."
+      },
+      "loadError": "Impossible de charger les avis."
     },
     "report": {
       "reasons": {
@@ -857,7 +885,127 @@
         "loading": "Chargement…",
         "title": "Photos du bien",
         "hint": "Glissez pour réorganiser — la première photo devient la couverture."
+      },
+      "list": {
+        "headers": {
+          "property": "Bien",
+          "price": "Prix",
+          "activity": "Activité",
+          "status": "Statut",
+          "actions": "Actions"
+        },
+        "selectAll": "Sélectionner tous les biens",
+        "selectOne": "Sélectionner {title}",
+        "agentPrefix": "Agent :",
+        "viewsTitle": "Vues",
+        "favoritesTitle": "Favoris",
+        "agentSelf": "{name} (moi)",
+        "bulkAria": "Actions groupées",
+        "bulkSelected": "{count, plural, =1 {# bien sélectionné} other {# biens sélectionnés}}",
+        "bulkArchive": "Archiver",
+        "bulkUnpublish": "Dépublier",
+        "bulkReassignPlaceholder": "Réassigner à…",
+        "bulkAssign": "Assigner",
+        "bulkClear": "Tout désélectionner",
+        "bulkError": "Action en lot impossible.",
+        "bulkArchived": "Biens archivés.",
+        "bulkUnpublished": "Biens dépubliés.",
+        "bulkAssigned": "Agent assigné mis à jour."
+      },
+      "filters": {
+        "searchLabel": "Rechercher un bien",
+        "searchPlaceholder": "Rechercher par titre, référence, description…",
+        "sortLabel": "Tri",
+        "sortPlaceholder": "Tri",
+        "sort": {
+          "newest": "Plus récents",
+          "oldest": "Plus anciens",
+          "priceAsc": "Prix croissant",
+          "priceDesc": "Prix décroissant",
+          "viewsDesc": "Vues décroissantes",
+          "viewsAsc": "Vues croissantes"
+        },
+        "toggleMine": "Mes biens",
+        "toggleArchived": "Archivés",
+        "advanced": "Filtres avancés",
+        "removeChip": "Retirer le filtre {label}",
+        "resetAll": "Tout réinitialiser",
+        "cityAria": "Ville",
+        "cityPlaceholder": "Ville",
+        "priceMinAria": "Prix minimum",
+        "priceMinPlaceholder": "Prix min",
+        "priceMaxAria": "Prix maximum",
+        "priceMaxPlaceholder": "Prix max",
+        "apply": "Appliquer",
+        "statusLabel": "Statut",
+        "statusAll": "Tous statuts",
+        "typeLabel": "Type",
+        "typeAll": "Tous types",
+        "contractLabel": "Contrat",
+        "contractAll": "Vente & location",
+        "visibilityLabel": "Visibilité",
+        "visibilityAll": "Toutes",
+        "agentLabel": "Agent assigné",
+        "agentAll": "Tous agents",
+        "createdFrom": "Créé après",
+        "createdTo": "Créé avant",
+        "chips": {
+          "search": "Recherche",
+          "status": "Statut",
+          "type": "Type",
+          "contract": "Contrat",
+          "visibility": "Visibilité",
+          "city": "Ville",
+          "priceMin": "Prix min",
+          "priceMax": "Prix max",
+          "createdFrom": "Créé après",
+          "createdTo": "Créé avant",
+          "agent": "Agent"
+        }
+      },
+      "actions": {
+        "error": "Action impossible. Réessayez.",
+        "published": "Bien publié.",
+        "unpublished": "Bien dépublié.",
+        "statusUpdated": "Statut mis à jour.",
+        "archived": "Bien archivé.",
+        "duplicateFailed": "Duplication impossible.",
+        "deleteFailed": "Suppression impossible.",
+        "edit": "Modifier",
+        "viewPublic": "Voir la fiche publique",
+        "more": "Plus d’actions",
+        "quickActions": "Actions rapides",
+        "unpublish": "Dépublier",
+        "publish": "Publier",
+        "duplicate": "Dupliquer",
+        "statusHeading": "Statut",
+        "archive": "Archiver",
+        "delete": "Supprimer",
+        "deleteTitle": "Supprimer ce bien ?",
+        "deleteBodyRow": "Le bien <b>{title}</b> sera archivé (soft-delete). Vous pourrez le restaurer depuis l’administration.",
+        "deleteBodyDetail": "Le bien <b>{title}</b> sera supprimé de votre portefeuille agent. L’enregistrement reste restaurable côté administration.",
+        "cancel": "Annuler"
       }
+    },
+    "visibility": {
+      "public": "Publié",
+      "private": "Brouillon"
+    },
+    "visibilityScope": {
+      "public": "Public",
+      "private": "Privé"
+    },
+    "rentPeriodUnits": {
+      "daily": "Jour",
+      "weekly": "Semaine",
+      "monthly": "Mois",
+      "yearly": "Année"
+    },
+    "currencies": {
+      "XOF": "FCFA (XOF)",
+      "XAF": "FCFA (XAF)",
+      "EUR": "Euro (EUR)",
+      "USD": "Dollar (USD)"
     }
   },
   "dashboard": {
@@ -1212,6 +1360,76 @@
       "upgrade": {
         "metaTitle": "Passer en pro"
       }
+    },
+    "empty": {
+      "adminTitle": "Aucune métrique à afficher pour le moment",
+      "userTitle": "Aucune activité pour le moment",
+      "adminBody": "Configurez votre agence depuis l'administration pour faire apparaître les indicateurs.",
+      "userBody": "Explorez les biens disponibles ou complétez votre profil pour commencer.",
+      "adminCta": "Aller à l'administration",
+      "userCta": "Explorer les biens"
+    },
+    "shortcuts": {
+      "heading": "Raccourcis",
+      "myCrm": "Mon CRM",
+      "myPayments": "Mes paiements"
+    },
+    "me": {
+      "properties": "Biens",
+      "activeLeases": "Baux actifs",
+      "revenueMonth": "Revenus du mois",
+      "overdue": "Impayés",
+      "portfolio": "Portefeuille",
+      "cashflowMonth": "Cashflow du mois",
+      "managed": "Biens gérés",
+      "pipeline": "Pipeline",
+      "openTasks": "Tâches ouvertes",
+      "overdueTasksHint": "{count} en retard",
+      "commissionsMonth": "Commissions du mois",
+      "nextDue": "Prochaine échéance",
+      "recentDocs": "Documents récents"
+    },
+    "agencyDegraded": {
+      "title": "Indicateurs masqués",
+      "body": "Vous n'avez pas la permission de consulter les rapports de cette agence. Contactez un administrateur si vous pensez qu'il s'agit d'une erreur."
+    },
+    "agencyKpis": {
+      "properties": "Biens",
+      "publishedHint": "{count} publiés",
+      "activeLeases": "Baux actifs",
+      "occupancyRate": "Taux d'occupation",
+      "occupancyHint": "{rented} loués / {total}",
+      "revenueMonth": "Revenus du mois",
+      "overdue": "Impayés",
+      "overdueHint": "{count} échéances",
+      "unpaidRate": "Taux d'impayés"
+    },
+    "agencyActivity": {
+      "heading": "Activité récente",
+      "items": {
+        "bookings": {
+          "label": "Réservations en attente",
+          "cta": "Traiter les demandes"
+        },
+        "maintenance": {
+          "label": "Interventions ouvertes",
+          "cta": "Voir les tickets"
+        },
+        "customers": {
+          "label": "Clients (CRM)",
+          "cta": "Gérer le CRM"
+        },
+        "team": {
+          "label": "Membres de l'agence",
+          "cta": "Gérer l'équipe"
+        }
+      }
+    },
+    "agencyRevenue": {
+      "heading": "Revenus — 12 derniers mois",
+      "empty": "Pas encore de données à afficher.",
+      "total": "Total :",
+      "seriesName": "Revenus"
     }
   },
   "errors": {
@@ -1250,7 +1468,19 @@
       "title": "En cours de développement"
     },
     "missingToken": "Votre session a expiré. Reconnectez-vous.",
-    "noPendingInvitation": "Aucune invitation en attente pour ce contact."
+    "noPendingInvitation": "Aucune invitation en attente pour ce contact.",
+    "api": {
+      "unauthenticated": "Votre session a expiré. Reconnectez-vous.",
+      "invalidProfileId": "Ce profil est introuvable.",
+      "invalidJsonBody": "La requête est invalide. Réessayez.",
+      "profileIdRequired": "Aucun profil n'a été sélectionné.",
+      "unknownEntity": "Ce type d'export n'existe pas.",
+      "serverError": "Le serveur a rencontré une erreur. Réessayez dans un instant.",
+      "tooManyRequests": "Trop de tentatives. Réessayez dans quelques minutes.",
+      "network": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
+      "submitFailed": "La soumission a échoué. Réessayez.",
+      "unknown": "Une erreur est survenue. Veuillez réessayer."
+    }
   },
   "agency": {
     "currency": {
@@ -1284,7 +1514,13 @@
       "leaseReference": "Bail {reference}",
       "signedAt": "Signé le {date}",
       "missing": "Il reste : {items}",
-      "daysOpen": "{count, plural, =0 {aujourd'hui} one {# jour} other {# jours}}"
+      "daysOpen": "{count, plural, =0 {aujourd'hui} one {# jour} other {# jours}}",
+      "items": {
+        "welcome_seen_at": "Welcome",
+        "inventory_completed_at": "EDL",
+        "first_payment_at": "Premier paiement",
+        "documents_acknowledged_at": "Documents"
+      }
     },
     "standardWelcome": {
       "title": "Bienvenue dans votre agence",
@@ -1403,7 +1639,11 @@
       "portfolioEyebrow": "Portefeuille",
       "portfolioHeading": "Biens à l'affiche",
       "emptyTitle": "Pas encore de bien à présenter",
-      "emptyBody": "Cette agence prépare ses prochaines annonces — reviens bientôt."
+      "emptyBody": "Cette agence prépare ses prochaines annonces — reviens bientôt.",
+      "metaTitle": "{name} — Agence immobilière",
+      "metaSummary": "{count, plural, one {# bien} other {# biens}}",
+      "metaSummaryInCity": "{count, plural, one {# bien} other {# biens}} à {city}",
+      "contactSubject": "Contact via Takussan — {name}"
     }
   },
   "compare": {
@@ -1465,7 +1705,8 @@
       "add": "Ajouter au comparateur",
       "maxTitle": "Maximum {max} biens",
       "addedBody": "{count} / {max} biens sélectionnés."
-    }
+    },
+    "loadError": "Impossible de charger le comparatif."
   },
   "crm": {
     "pipeline": {
@@ -1522,32 +1763,108 @@
       },
       "errors": {
         "moveFailed": "Impossible de déplacer la carte. Réessayez."
+      },
+      "card": {
+        "addedBy": "par",
+        "openTasks": "Tâches en cours"
       }
     },
     "list": {
       "empty_title": "Votre CRM est vide",
       "empty_description": "Ajoutez vos premiers contacts pour suivre leurs interactions et qualifier leurs intérêts.",
-      "empty_cta": "Ajouter un client"
+      "empty_cta": "Ajouter un client",
+      "columns": {
+        "client": "Client",
+        "contact": "Contact",
+        "tags": "Tags",
+        "pipeline": "Pipeline",
+        "status": "Statut"
+      },
+      "pagination": "{total, plural, one {# client} other {# clients}} — page {page} sur {pages}"
     },
     "customerDetail": {
       "relationships": {
         "empty_title": "Aucune relation enregistrée",
-        "empty_description": "Reliez ce contact à un conjoint, un garant ou une société pour retrouver son entourage."
+        "empty_description": "Reliez ce contact à un conjoint, un garant ou une société pour retrouver son entourage.",
+        "since": "Depuis le {date}",
+        "until": " jusqu'au {date}",
+        "primaryContact": " · contact principal",
+        "statusSuffix": " · statut {status}"
       },
       "documents": {
         "empty_title": "Aucun document associé",
-        "empty_description": "Déposez une pièce d'identité ou un justificatif pour compléter le dossier."
+        "empty_description": "Déposez une pièce d'identité ou un justificatif pour compléter le dossier.",
+        "upload": "Téléverser un document",
+        "uploadHint": "Images ou PDF · 10 Mo maximum",
+        "sizeMb": "{size} Mo",
+        "open": "Ouvrir"
       },
       "notes": {
         "empty_title": "Aucune note pour ce contact",
-        "empty_description": "Démarrez l'historique en ajoutant une première note ci-dessus."
+        "empty_description": "Démarrez l'historique en ajoutant une première note ci-dessus.",
+        "emptyBody": "La note ne peut pas être vide.",
+        "add": "Ajouter une note",
+        "placeholder": "Compte rendu d'appel, besoins identifiés, prochaine étape…",
+        "publish": "Publier",
+        "pinnedAria": "Note épinglée"
       },
       "not_found_title": "Fiche client introuvable",
       "not_found_message": "Ce client n'existe plus ou n'appartient pas à votre périmètre CRM.",
       "invalid_id_message": "L'identifiant demandé ne correspond à aucun client exploitable.",
       "forbidden_title": "Accès client refusé",
       "forbidden_message": "Votre profil actif ne permet pas d'ouvrir cette fiche client.",
-      "back_cta": "Revenir au CRM"
+      "back_cta": "Revenir au CRM",
+      "tabs": {
+        "overview": "Aperçu",
+        "notes": "Notes ({count})",
+        "documents": "Documents ({count})",
+        "relationships": "Relations ({count})"
+      }
+    },
+    "customerStatus": {
+      "active": "Actif",
+      "inactive": "Inactif",
+      "blocked": "Bloqué",
+      "deleted": "Archivé"
+    },
+    "idTypes": {
+      "id_card": "Carte d’identité",
+      "passport": "Passeport",
+      "driving_license": "Permis de conduire"
+    },
+    "form": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "E-mail",
+      "phone": "Téléphone",
+      "occupation": "Profession",
+      "occupationPlaceholder": "Enseignant, commerçant, etc.",
+      "crmSection": "Suivi CRM",
+      "pipelineStage": "Étape du pipeline",
+      "status": "Statut",
+      "idSection": "Pièce d'identité",
+      "idType": "Type de pièce",
+      "idTypePlaceholder": "Non renseigné",
+      "idNumber": "Numéro",
+      "saving": "Enregistrement…",
+      "create": "Créer le client"
+    },
+    "filters": {
+      "searchLabel": "Rechercher un client",
+      "searchPlaceholder": "Nom, prénom, e-mail, téléphone…",
+      "pipelinePlaceholder": "Pipeline",
+      "statusPlaceholder": "Statut",
+      "all": "Tous",
+      "tags": "Tags",
+      "filterByTags": "Filtrer par tags",
+      "customerTags": "Tags clients",
+      "clearAll": "Tout effacer"
+    },
+    "tags": {
+      "sectionTitle": "Tags",
+      "addPlaceholder": "Ajouter un tag…",
+      "maxReachedPlaceholder": "Max 10 tags",
+      "removeAria": "Retirer le tag {tag}"
     }
   },
   "account": {
@@ -1627,7 +1944,18 @@
       "dateSeparator": {
         "today": "Aujourd'hui",
         "yesterday": "Hier"
-      }
+      },
+      "attachmentRejected": "Fichier refusé.",
+      "uploadFailed": "Upload échoué.",
+      "participants": "{count} participants",
+      "viewProperty": "Voir le bien",
+      "groupInfoAria": "Group info",
+      "loadError": "Impossible de charger les messages.",
+      "empty": "Pas encore de messages. Envoyez le premier !",
+      "loadingMore": "Chargement…",
+      "attachAria": "Joindre un fichier",
+      "placeholder": "Écrivez un message…",
+      "sendAria": "Envoyer"
     },
     "group": {
       "create": {
@@ -1677,6 +2005,13 @@
         "lastAdminLeaveHint": "Promouvez un autre membre admin avant de partir.",
         "invalidId": "ID invalide."
       }
+    },
+    "conversationTitleFallback": "Conversation #{id}",
+    "list": {
+      "loadError": "Impossible de charger les conversations.",
+      "empty": "Pas encore de conversation.",
+      "groupBadge": "Groupe",
+      "muted": "muted"
     }
   },
   "payments": {
@@ -1692,7 +2027,12 @@
         "contactAdmin": "Contacter l’admin",
         "cancel": "Annuler",
         "confirm": "Continuer",
-        "redirecting": "Redirection…"
+        "redirecting": "Redirection…",
+        "providers": {
+          "wave": "Wave",
+          "orange_money": "Orange Money",
+          "lemon_squeezy": "Carte (Lemon Squeezy)"
+        }
       },
       "return": {
         "success": {
@@ -1727,15 +2067,207 @@
     },
     "invoices": {
       "empty_title": "Aucune facture pour le moment",
-      "empty_description": "Les factures émises apparaîtront ici dès la première échéance."
+      "empty_description": "Les factures émises apparaîtront ici dès la première échéance.",
+      "table": {
+        "reference": "Référence",
+        "issuedOn": "Émise le",
+        "dueDate": "Échéance",
+        "amount": "Montant",
+        "status": "Statut",
+        "actions": "Actions",
+        "open": "Ouvrir"
+      }
     },
     "payouts": {
       "empty_title": "Aucun reversement pour le moment",
-      "empty_description": "Les reversements aux bailleurs apparaîtront ici après le premier encaissement."
+      "empty_description": "Les reversements aux bailleurs apparaîtront ici après le premier encaissement.",
+      "table": {
+        "reference": "Référence",
+        "landlord": "Bailleur",
+        "period": "Période",
+        "gross": "Brut",
+        "net": "Net",
+        "status": "Statut",
+        "actions": "Actions",
+        "open": "Ouvrir"
+      }
     },
     "history": {
       "empty_title": "Aucun paiement ne correspond à ces filtres",
-      "empty_description": "Élargissez la période ou retirez un filtre pour voir plus de lignes."
+      "empty_description": "Élargissez la période ou retirez un filtre pour voir plus de lignes.",
+      "filters": {
+        "status": "Statut",
+        "allStatuses": "Tous",
+        "entityType": "Type d'entité",
+        "allEntities": "Toutes",
+        "entityId": "ID entité",
+        "entityIdPlaceholder": "Ex: 42",
+        "from": "Du",
+        "to": "Au",
+        "entities": {
+          "property": "Bien",
+          "lease": "Bail",
+          "booking": "Réservation",
+          "customer": "Client"
+        }
+      },
+      "table": {
+        "reference": "Référence",
+        "source": "Source",
+        "date": "Date",
+        "amount": "Montant",
+        "status": "Statut",
+        "method": "Méthode",
+        "entity": "Entité",
+        "paidAmount": "({amount} payé)",
+        "total": "Total",
+        "paid": "Payé",
+        "remaining": "Restant",
+        "rows": "Lignes",
+        "cap": "(plafond {limit})",
+        "sources": {
+          "booking": "Réservation",
+          "lease": "Bail"
+        },
+        "entityLease": "Bail #{id}",
+        "entityBooking": "Réservation #{id}"
+      }
+    },
+    "status": {
+      "pending": "En attente",
+      "paid": "Payé",
+      "late": "En retard",
+      "partially_paid": "Partiellement payé",
+      "failed": "Échec",
+      "refunded": "Remboursé"
+    },
+    "invoiceStatus": {
+      "draft": "Brouillon",
+      "sent": "Envoyée",
+      "paid": "Payée",
+      "overdue": "En retard",
+      "cancelled": "Annulée",
+      "void": "Annulée"
+    },
+    "payoutStatus": {
+      "pending": "En attente",
+      "scheduled": "Planifié",
+      "processing": "En cours",
+      "completed": "Effectué",
+      "failed": "Échoué",
+      "cancelled": "Annulé"
+    },
+    "methods": {
+      "cash": "Espèces",
+      "bank_transfer": "Virement bancaire",
+      "mobile_money": "Mobile Money",
+      "wave": "Wave",
+      "orange_money": "Orange Money",
+      "free_money": "Free Money",
+      "check": "Chèque",
+      "card": "Carte bancaire",
+      "none": "—"
+    },
+    "tabs": {
+      "history": "Historique",
+      "invoices": "Factures",
+      "payouts": "Payouts"
+    },
+    "actions": {
+      "createInvoice": "Générer une facture",
+      "createPayout": "Créer un reversement"
+    },
+    "invoiceDialog": {
+      "title": "Générer une facture",
+      "description": "Sélectionnez un client, ajoutez des lignes et l'échéance.",
+      "customerId": "ID client",
+      "currency": "Devise",
+      "linkedTo": "Lié à",
+      "linkedId": "ID (bail ou réservation)",
+      "issueDate": "Date d'émission",
+      "dueDate": "Échéance",
+      "linked": {
+        "none": "Aucun",
+        "lease": "Bail",
+        "booking": "Réservation"
+      },
+      "lines": "Lignes",
+      "addLine": "Ajouter",
+      "descriptionPlaceholder": "Description",
+      "quantityPlaceholder": "Qté",
+      "unitPricePlaceholder": "Prix unitaire",
+      "removeLine": "Supprimer la ligne",
+      "taxRate": "TVA (%)",
+      "notes": "Notes",
+      "subtotal": "Sous-total",
+      "tax": "TVA",
+      "total": "Total",
+      "cancel": "Annuler",
+      "creating": "Création…",
+      "submit": "Créer la facture"
+    },
+    "invoiceDetail": {
+      "title": "Facture {reference}",
+      "description": "Statut et transitions de la facture.",
+      "notFound": "Facture introuvable.",
+      "issuedOn": "Émise le {date}",
+      "customer": "Client",
+      "dueDate": "Échéance",
+      "subtotal": "Sous-total",
+      "total": "Total",
+      "tax": "TVA",
+      "taxValue": "{rate}% ({amount})",
+      "sending": "Envoi…",
+      "send": "Envoyer",
+      "working": "…",
+      "markPaid": "Marquer payée",
+      "cancelInvoice": "Annuler la facture",
+      "close": "Fermer"
+    },
+    "payoutDialog": {
+      "title": "Créer un reversement",
+      "description": "Calcule automatiquement le montant net à verser au bailleur après commission.",
+      "landlordId": "ID bailleur",
+      "currency": "Devise",
+      "leaseId": "ID bail (optionnel)",
+      "bookingId": "ID réservation (optionnel)",
+      "periodStart": "Début de période",
+      "periodEnd": "Fin de période",
+      "grossAmount": "Montant brut",
+      "commissionRate": "Taux commission (%)",
+      "commission": "Commission",
+      "fees": "Frais",
+      "method": "Méthode",
+      "scheduledAt": "Prévu le",
+      "notes": "Notes",
+      "gross": "Brut",
+      "net": "Net",
+      "cancel": "Annuler",
+      "creating": "Création…",
+      "submit": "Créer le reversement"
+    },
+    "payoutDetail": {
+      "title": "Reversement {reference}",
+      "description": "Transitions de statut du payout.",
+      "notFound": "Reversement introuvable.",
+      "createdOn": "Créé le {date}",
+      "landlord": "Bailleur",
+      "period": "Période",
+      "gross": "Brut",
+      "commission": "Commission",
+      "fees": "Frais",
+      "net": "Net",
+      "method": "Méthode",
+      "processedOn": "Effectué le",
+      "failedReason": "Raison de l'échec",
+      "transactionId": "Référence de transaction (optionnelle)",
+      "transactionIdPlaceholder": "Ex: TX-2025-0001",
+      "working": "…",
+      "markProcessed": "Marquer effectué",
+      "failedReasonPlaceholder": "Ex: Compte bancaire invalide",
+      "markFailed": "Marquer échoué",
+      "cancel": "Annuler",
+      "close": "Fermer"
     }
   },
   "lease": {
@@ -1831,15 +2363,178 @@
       "empty_cta": "Nouveau bail",
       "empty_filtered_title": "Aucun bail ne correspond à ces filtres",
       "empty_filtered_description": "Élargissez la sélection de statut ou de bien pour retrouver vos baux.",
-      "error": "Impossible de charger les baux. Vérifiez votre connexion, puis réessayez."
+      "error": "Impossible de charger les baux. Vérifiez votre connexion, puis réessayez.",
+      "allStatuses": "Tous les statuts",
+      "allProperties": "Tous les biens",
+      "filterByStatus": "Filtrer par statut",
+      "filterByProperty": "Filtrer par bien"
     },
     "detail": {
-      "error": "Bail introuvable."
+      "error": "Bail introuvable.",
+      "backToList": "Retour aux baux",
+      "latePayments": "{count} en retard",
+      "generateSchedule": "Générer l’échéancier",
+      "generating": "Génération…",
+      "activate": "Activer le bail",
+      "activating": "Activation…",
+      "reviewRent": "Réviser le loyer",
+      "recordPayment": "Enregistrer un paiement reçu",
+      "downloadContract": "Télécharger le contrat PDF",
+      "duration": "Durée",
+      "openEnded": "indéterminée",
+      "price": "Prix",
+      "rent": "Loyer",
+      "deposit": "Caution",
+      "schedule": "Échéancier",
+      "activateBeforeSchedule": "Activez le bail avant de générer l’échéancier.",
+      "depositInitialAmount": "Montant initial :",
+      "depositRefundedOn": "Remboursée le {date}",
+      "depositNoRefund": "Aucun remboursement enregistré",
+      "clauses": "Clauses",
+      "activatedToastTitle": "Bail activé",
+      "activatedToastBody": "L’échéancier peut maintenant être généré ou consulté.",
+      "rentPromptAmount": "Nouveau loyer mensuel",
+      "rentPromptReason": "Motif de révision du loyer",
+      "rentReviewedToastTitle": "Loyer révisé",
+      "rentReviewedToastBody": "La révision est journalisée dans l’historique du bail.",
+      "reviewContextActive": "Votre bail est en cours.",
+      "reviewContextEnded": "Votre bail est terminé."
     },
     "schedule": {
       "error": "Impossible de charger l'échéancier.",
       "empty_title": "Aucun paiement pour l'instant",
-      "empty_description": "Générez l'échéancier pour créer automatiquement les échéances du bail."
+      "empty_description": "Générez l'échéancier pour créer automatiquement les échéances du bail.",
+      "colPeriod": "Période",
+      "colDueDate": "Échéance",
+      "colAmount": "Montant",
+      "colStatus": "Statut",
+      "colActions": "Actions",
+      "status": {
+        "paid": "Payé",
+        "late": "En retard",
+        "pending": "À venir",
+        "other": "Autre"
+      }
+    },
+    "fallbackReference": "Bail #{id}",
+    "perMonth": "/ mois",
+    "salePrice": "Prix de vente",
+    "terms": "Conditions générales",
+    "specialConditions": "Conditions particulières",
+    "status": {
+      "draft": "Brouillon",
+      "pending_signature": "À signer",
+      "active": "Actif",
+      "expired": "Expiré",
+      "terminating": "Résiliation en cours",
+      "terminated": "Résilié",
+      "renewed": "Renouvelé"
+    },
+    "types": {
+      "residential_rent": "Bail d’habitation",
+      "commercial_rent": "Bail commercial",
+      "seasonal_rent": "Location saisonnière",
+      "sale": "Vente"
+    },
+    "form": {
+      "parties": "Parties",
+      "property": "Bien",
+      "loadingProperties": "Chargement des biens…",
+      "selectProperty": "Sélectionner un bien",
+      "tenant": "Locataire",
+      "tenantSearchPlaceholder": "Rechercher par nom, email ou téléphone",
+      "searching": "Recherche…",
+      "selectTenant": "Sélectionner un locataire",
+      "selectedProperty": "Bien sélectionné",
+      "noPropertySelected": "Aucun bien sélectionné",
+      "selectedTenant": "Locataire sélectionné",
+      "noTenantSelected": "Aucun locataire sélectionné",
+      "activeLandlord": "Bailleur actif : {name}",
+      "loadingLandlord": "Bailleur actif en cours de chargement",
+      "guarantorsHint": "Les garants pourront être ajoutés sur la fiche du bail une fois le brouillon créé.",
+      "financialTerms": "Conditions financières",
+      "contractType": "Type de contrat",
+      "startDate": "Date de début",
+      "endDate": "Date de fin (optionnel)",
+      "salePrice": "Prix de vente",
+      "monthlyRent": "Loyer mensuel",
+      "deposit": "Caution",
+      "currency": "Devise",
+      "frequency": "Fréquence",
+      "paymentDay": "Jour du paiement",
+      "clauses": "Clauses",
+      "creating": "Création…",
+      "submit": "Créer le bail",
+      "typeOptions": {
+        "residential_rent": "Location résidentielle",
+        "commercial_rent": "Location commerciale",
+        "seasonal_rent": "Location saisonnière",
+        "sale": "Vente"
+      },
+      "frequencyOptions": {
+        "monthly": "Mensuel",
+        "quarterly": "Trimestriel",
+        "yearly": "Annuel"
+      },
+      "customerFallback": "Customer #{id}"
+    },
+    "payment": {
+      "title": "Enregistrer un paiement",
+      "description": "Loyer, charges ou régularisation pour ce bail.",
+      "amount": "Montant",
+      "type": "Type",
+      "method": "Moyen",
+      "periodStart": "Période début",
+      "periodEnd": "Période fin",
+      "effectiveDate": "Date effective",
+      "reference": "Référence / Reçu",
+      "notes": "Notes",
+      "saving": "Enregistrement…",
+      "methods": {
+        "cash": "Espèces",
+        "bank_transfer": "Virement bancaire",
+        "mobile_money": "Mobile Money",
+        "check": "Chèque",
+        "card": "Carte bancaire"
+      },
+      "types": {
+        "rent": "Loyer",
+        "charges": "Charges",
+        "deposit": "Caution",
+        "deposit_refund": "Remboursement caution",
+        "regularization": "Régularisation",
+        "penalty": "Pénalité"
+      }
+    },
+    "guarantor": {
+      "title": "Garants",
+      "max": "Maximum {max} garants par bail.",
+      "maxReached": "Maximum {max} garants atteint",
+      "add": "Ajouter un garant",
+      "name": "Nom",
+      "phone": "Téléphone",
+      "email": "Email",
+      "relationship": "Lien",
+      "empty": "Aucun garant attaché à ce bail.",
+      "dialogDescription": "Documents justificatifs (CNI, fiche de paie) uploadables depuis la fiche garant après création.",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "idType": "Pièce d'identité",
+      "idTypePlaceholder": "Choisir…",
+      "idNumber": "Numéro de pièce",
+      "occupation": "Profession",
+      "employer": "Employeur",
+      "monthlyIncome": "Revenu mensuel",
+      "relationshipToTenant": "Lien avec le locataire",
+      "relationshipPlaceholder": "Parent, conjoint, employeur…",
+      "notes": "Notes (optionnel)",
+      "adding": "Ajout…",
+      "submit": "Ajouter",
+      "idTypes": {
+        "id_card": "CNI",
+        "passport": "Passeport",
+        "driving_license": "Permis de conduire"
+      }
     }
   },
   "maintenance": {
@@ -1852,16 +2547,137 @@
     "list": {
       "empty_title": "Aucune demande de maintenance",
       "empty_description": "Aucune demande ne correspond à ces filtres. Créez-en une pour signaler un problème sur un bien.",
-      "empty_cta": "Nouvelle demande"
+      "empty_cta": "Nouvelle demande",
+      "status_label": "Statut",
+      "all_statuses": "Tous les statuts",
+      "priority_label": "Priorité",
+      "all_priorities": "Toutes les priorités",
+      "new_request": "Nouvelle demande",
+      "urgent_heading": "Urgences prioritaires",
+      "other_heading": "Autres demandes",
+      "scheduled": "Prévu {date}",
+      "pagination": "Page {current} / {last} — {total} demandes"
     },
     "launcher": {
       "error": "Impossible de charger vos baux. Réessayez ou contactez le support.",
       "empty_title": "Vous n'avez aucun bail actif",
-      "empty_description": "Pour signaler un problème, contactez votre agence."
+      "empty_description": "Pour signaler un problème, contactez votre agence.",
+      "property_label": "Bien concerné",
+      "property_placeholder": "Sélectionnez le bien à signaler",
+      "property_fallback": "Bien #{id}"
     },
     "history": {
       "empty_title": "Aucune intervention enregistrée",
-      "empty_description": "Les demandes de maintenance sur ce bien apparaîtront ici."
+      "empty_description": "Les demandes de maintenance sur ce bien apparaîtront ici.",
+      "completed_at": "Terminée le {date}"
+    },
+    "status": {
+      "open": "Ouverte",
+      "acknowledged": "Prise en compte",
+      "quote_requested": "Devis demandé",
+      "quote_submitted": "Devis soumis",
+      "approved": "Devis approuvé",
+      "rejected": "Devis rejeté",
+      "assigned": "Assignée",
+      "in_progress": "En cours",
+      "completed": "Terminée",
+      "closed": "Clôturée",
+      "cancelled": "Annulée"
+    },
+    "category": {
+      "plumbing": "Plomberie",
+      "electrical": "Électricité",
+      "structural": "Structure",
+      "appliance": "Électroménager",
+      "painting": "Peinture",
+      "cleaning": "Nettoyage",
+      "pest_control": "Nuisibles",
+      "locksmith": "Serrurerie",
+      "other": "Autre"
+    },
+    "detail": {
+      "created_at": "Créée le {date}",
+      "property": "Bien",
+      "property_missing": "Bien non chargé",
+      "requester": "Demandeur",
+      "requester_missing": "Demandeur non chargé",
+      "assignee": "Assigné à",
+      "unassigned": "Non assignée",
+      "scheduled_for": "Prévu le",
+      "actual_cost": "Coût réel",
+      "resolution_notes": "Notes de résolution",
+      "completed_at": "Terminée le {date}",
+      "terminal": "Cette demande est dans un état terminal ({status}). Aucune transition n'est possible.",
+      "change_status": "Changer le statut",
+      "transition_error": "La transition a échoué. Vérifiez les permissions et réessayez."
+    },
+    "stepper": {
+      "created": "Demande créée",
+      "quote": "Devis",
+      "progress": "En cours",
+      "completed": "Terminée",
+      "cancelled": "Demande annulée"
+    },
+    "form": {
+      "title_label": "Titre",
+      "title_placeholder": "ex. Fuite sous l'évier cuisine",
+      "description_label": "Description",
+      "description_placeholder": "Décrivez le problème en détail",
+      "category_label": "Catégorie",
+      "priority_label": "Priorité",
+      "priority_hint": "(Normale par défaut)",
+      "photos_label": "Photos (optionnel)",
+      "photos_selected": "{count, plural, =1 {# photo sélectionnée.} other {# photos sélectionnées.}}",
+      "submitting": "Envoi…",
+      "submit": "Signaler le problème"
+    },
+    "complete": {
+      "title": "Clôturer l'intervention",
+      "notes_label": "Rapport d'intervention",
+      "notes_placeholder": "Décrivez ce qui a été fait",
+      "cost_label": "Coût réel",
+      "photos_label": "Photos après intervention",
+      "photos_selected": "{count, plural, =1 {# photo sélectionnée.} other {# photos sélectionnées.}}",
+      "submitting": "Clôture…",
+      "submit": "Marquer terminé"
+    },
+    "quote": {
+      "requested_title": "Devis demandé",
+      "requested_body": "En attente de soumission du devis par le prestataire.",
+      "title": "Devis",
+      "amount": "Montant",
+      "submitted_at": "Soumis le",
+      "decision": "Décision",
+      "decision_at": "Date décision",
+      "decided_by": "Décision par {name}.",
+      "unknown_user": "utilisateur identifié",
+      "rejection_reason": "Motif du rejet",
+      "decisions": {
+        "rejected": "Refusé",
+        "approved": "Approuvé",
+        "pending": "En attente de décision",
+        "requested": "Devis demandé",
+        "not_applicable": "Non applicable"
+      },
+      "submit": {
+        "title": "Soumettre un devis",
+        "intro": "Veuillez indiquer le montant estimé pour cette intervention.",
+        "amount_label": "Montant",
+        "amount_positive": "Le montant doit être positif",
+        "currency_label": "Devise (optionnel)",
+        "currency_placeholder": "XOF, EUR...",
+        "attachments_label": "Fichiers joints (Devis PDF, photos, etc.)",
+        "attachments_selected": "{count, plural, =1 {# fichier sélectionné.} other {# fichiers sélectionnés.}}",
+        "submitting": "Envoi...",
+        "submit": "Envoyer le devis"
+      },
+      "reject": {
+        "title": "Rejeter le devis",
+        "reason_label": "Motif du rejet",
+        "reason_placeholder": "Veuillez expliquer pourquoi ce devis est refusé...",
+        "reason_min": "Le motif doit contenir au moins 5 caractères",
+        "confirm": "Confirmer le rejet"
+      }
     }
   },
   "homepage": {
@@ -1943,7 +2759,8 @@
       "empty_cta": "Lancer une recherche",
       "error": "Impossible de charger vos recherches. Vérifiez votre connexion, puis réessayez.",
       "noCriteria": "Aucun critère",
-      "relaunch": "Relancer"
+      "relaunch": "Relancer",
+      "deleteAria": "Supprimer {name}"
     },
     "results": {
       "empty_title": "Aucun bien trouvé",
@@ -2315,7 +3132,8 @@
       "success": {
         "title": "Bienvenue !",
         "body": "Votre profil propriétaire est actif."
-      }
+      },
+      "metaTitle": "Onboarding propriétaire"
     }
   },
   "ownerWelcome": {
@@ -2463,7 +3281,8 @@
       "success": {
         "title": "Bienvenue !",
         "body": "Votre profil agent est actif."
-      }
+      },
+      "metaTitle": "Onboarding agent"
     },
     "publicPage": {
       "notFound": "Agent introuvable",
@@ -2475,7 +3294,12 @@
       "portfolioEyebrow": "Portefeuille",
       "portfolioHeading": "Biens à l'affiche",
       "emptyTitle": "Pas encore de bien à présenter",
-      "emptyBody": "Cet agent prépare ses prochaines annonces — reviens bientôt."
+      "emptyBody": "Cet agent prépare ses prochaines annonces — reviens bientôt.",
+      "metaTitle": "{name} — Agent immobilier",
+      "metaSummary": "{count, plural, one {# bien} other {# biens}}",
+      "metaSummaryInCity": "{count, plural, one {# bien} other {# biens}} à {city}",
+      "experience": "{count, plural, one {# an} other {# ans}} d'expérience",
+      "contactSubject": "Contact via Takussan — {name}"
     }
   },
   "agentWelcome": {
@@ -2773,7 +3597,10 @@
             "body": "Une demande d'intervention a déclenché votre invitation. Vous pourrez la voir dès la fin du wizard."
           }
         }
-      }
+      },
+      "metaTitle": "Onboarding prestataire",
+      "pageTitle": "Bienvenue dans votre espace prestataire",
+      "pageSubtitle": "Quatre étapes guidées pour vérifier votre identité, déclarer vos métiers et planifier votre semaine."
     },
     "multiAgency": {
       "welcomeAgency": "Bienvenue chez {agency}",
@@ -2948,14 +3775,26 @@
             "label": "J'accepte les <link>conditions générales d'utilisation</link>."
           }
         }
-      }
+      },
+      "metaTitle": "Publier mon premier bien",
+      "pageTitle": "Publier votre premier bien",
+      "pageSubtitle": "Quelques étapes pour créer votre espace et vérifier votre numéro — vous serez ensuite redirigé vers le formulaire de mise en ligne."
     }
   },
   "inventory": {
     "list": {
       "empty_title": "Aucun état des lieux",
       "empty_description": "Un état des lieux part toujours d'un bail actif. Ouvrez le bail concerné pour en démarrer un.",
-      "empty_cta": "Voir mes baux"
+      "empty_cta": "Voir mes baux",
+      "type": "Type",
+      "allTypes": "Tous les types",
+      "statusLabel": "Statut",
+      "allStatuses": "Tous les statuts",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pagination": "Page {current} / {last} — {total} entrées",
+      "conductedOn": "Réalisé le {date}",
+      "createdOn": "Créé le {date}"
     },
     "new": {
       "no_lease_title": "Aucun bail sélectionné",
@@ -2968,11 +3807,113 @@
     },
     "detail": {
       "empty_rooms_title": "Aucune pièce enregistrée",
-      "empty_rooms_description": "Ce brouillon ne décrit encore aucune pièce — complétez-le avant de le soumettre."
+      "empty_rooms_description": "Ce brouillon ne décrit encore aucune pièce — complétez-le avant de le soumettre.",
+      "viewProperty": "Voir le bien",
+      "propertyFallback": "Bien #{id}",
+      "generalCondition": "État général",
+      "conductedAt": "Réalisé le",
+      "tenant": "Locataire",
+      "landlord": "Bailleur",
+      "pending": "En attente",
+      "signedOn": "Signé le {date}",
+      "rooms": "Pièces ({count})",
+      "roomCondition": "État : {condition}",
+      "sending": "Envoi…",
+      "sendPhotos": "Envoyer les photos",
+      "uploadFailed": "L'envoi a échoué. Réessayez.",
+      "terminalState": "Cet état des lieux est dans un état terminal ({status}).",
+      "submitting": "Envoi…",
+      "submitForSignature": "Soumettre pour signature",
+      "cancelDispute": "Annuler le litige",
+      "dispute": "Contester",
+      "disputeReason": "Motif du litige",
+      "disputeReasonPlaceholder": "Expliquez le point contesté",
+      "sendDispute": "Envoyer le litige"
     },
     "roomEditor": {
       "empty_title": "Aucune pièce",
-      "empty_description": "Cliquez sur « Ajouter une pièce » pour commencer l'état des lieux."
+      "empty_description": "Cliquez sur « Ajouter une pièce » pour commencer l'état des lieux.",
+      "title": "Pièces",
+      "addRoom": "Ajouter une pièce",
+      "room": "Pièce #{n}",
+      "remove": "Retirer",
+      "roomName": "Nom de la pièce",
+      "roomNamePlaceholder": "Salon, Cuisine, Chambre…",
+      "condition": "État général",
+      "notes": "Notes (optionnel)",
+      "elements": "Éléments",
+      "addElement": "Ajouter un élément",
+      "noElements": "Aucun élément détaillé pour cette pièce.",
+      "element": "Élément",
+      "state": "État",
+      "elementPlaceholder": "Canapé, Réfrigérateur…",
+      "elementNotes": "Notes"
+    },
+    "fallbackReference": "État des lieux #{id}",
+    "types": {
+      "move_in": "Entrée",
+      "move_out": "Sortie"
+    },
+    "status": {
+      "draft": "Brouillon",
+      "pending_signature": "En attente de signature",
+      "signed": "Signé",
+      "disputed": "En litige"
+    },
+    "conditions": {
+      "excellent": "Excellent",
+      "good": "Bon",
+      "fair": "Correct",
+      "poor": "Mauvais"
+    },
+    "elementStates": {
+      "bon": "Bon",
+      "usé": "Usé",
+      "endommagé": "Endommagé",
+      "manquant": "Manquant"
+    },
+    "form": {
+      "type": "Type d'état des lieux",
+      "generalCondition": "État général",
+      "conductedAt": "Date de réalisation",
+      "notes": "Notes générales",
+      "saving": "Enregistrement…",
+      "submit": "Enregistrer le brouillon"
+    },
+    "signatures": {
+      "title": "Signatures des parties",
+      "immutableNotice": "Une signature est <strong>immuable</strong> une fois posée. L'inventaire est figé dès que les deux parties ont signé.",
+      "roles": {
+        "tenant": "Locataire",
+        "landlord": "Bailleur"
+      },
+      "rolesLower": {
+        "tenant": "locataire",
+        "landlord": "bailleur"
+      },
+      "signed": "Signé",
+      "signedOn": "Signé le {date}",
+      "notSigned": "Non signé",
+      "awaiting": "En attente de la signature de {role}.",
+      "toSign": "À signer",
+      "fingerprint": "Empreinte",
+      "signAs": "Signer comme {role}",
+      "confirmAs": "Signer en tant que {role}",
+      "helper": "Tracez votre signature puis confirmez — l'action est définitive.",
+      "signFailed": "Signature impossible. Réessayez."
+    },
+    "signaturePad": {
+      "label": "Signez ici",
+      "helperText": "Tracez votre signature avec le doigt ou la souris.",
+      "confirmLabel": "Confirmer ma signature",
+      "clearLabel": "Effacer",
+      "saving": "Enregistrement…"
+    },
+    "pdf": {
+      "download": "Télécharger le PDF",
+      "downloading": "Téléchargement…",
+      "failed": "Téléchargement impossible.",
+      "unavailable": "PDF indisponible ({status})."
     }
   },
   "admin": {
@@ -2992,13 +3933,69 @@
         "rejected": "Rejeté"
       },
       "emptyReview": "Avis sans contenu",
-      "unknownAgent": "Agent inconnu"
+      "unknownAgent": "Agent inconnu",
+      "workspace": {
+        "status": {
+          "all": "Tous les statuts",
+          "pending": "En attente",
+          "flagged": "Signalés",
+          "approved": "Approuvés",
+          "rejected": "Rejetés"
+        },
+        "statusAria": "Filtrer par statut",
+        "subjects": {
+          "all": "Tous les sujets",
+          "property": "Biens",
+          "agency": "Agences",
+          "user": "Utilisateurs"
+        },
+        "subjectAria": "Type de sujet",
+        "reportedOnly": "Signalés uniquement",
+        "queued": "{count} en file d'attente",
+        "loading": "Chargement de la file de modération…",
+        "loadError": "Impossible de charger la file."
+      },
+      "detail": {
+        "genericError": "Une erreur est survenue.",
+        "reasonRequired": "Une raison est requise.",
+        "reviewNumber": "Avis #{id}",
+        "untitled": "Avis sans titre",
+        "anonymous": "Anonyme",
+        "byAuthor": "Par {author} — note {rating}/5",
+        "approve": "Approuver",
+        "hide": "Masquer",
+        "delete": "Supprimer",
+        "ignoreReports": "Ignorer les signalements",
+        "noComment": "Aucun commentaire.",
+        "reportsHeading": "Signalements ({count})",
+        "reporterFallback": "Utilisateur",
+        "confirmDelete": "Confirmer la suppression de cet avis ? Cette action est irréversible.",
+        "confirmHide": "Masquer cet avis ?",
+        "confirmIgnore": "Ignorer les signalements ?",
+        "reasonLabel": "Raison (consignée dans le journal d'audit)",
+        "reasonPlaceholder": "Motif visible dans le journal d'audit"
+      }
     },
     "finances": {
       "overdue": {
         "empty_title": "Aucun impayé en cours",
         "empty_description": "Bonne nouvelle : toutes les échéances sont réglées.",
-        "count": "{count, plural, =1 {# impayé} other {# impayés}}"
+        "count": "{count, plural, =1 {# impayé} other {# impayés}}",
+        "table": {
+          "reference": "Référence",
+          "source": "Source",
+          "dueDate": "Échéance",
+          "amount": "Montant",
+          "remaining": "Restant dû",
+          "status": "Statut",
+          "entity": "Entité",
+          "sources": {
+            "booking": "Réservation",
+            "lease": "Bail"
+          },
+          "leaseEntity": "Bail #{id}",
+          "bookingEntity": "Réservation #{id}"
+        }
       },
       "denied": {
         "title": "Accès aux finances non autorisé",
@@ -3016,13 +4013,52 @@
         "collections30d": "Encaissements (30 j)",
         "overdue": "Impayés en cours",
         "pendingPayouts": "Reversements en attente",
-        "invoicesToIssue": "Factures à émettre"
+        "invoicesToIssue": "Factures à émettre",
+        "overdueHint": "{count, plural, one {# bail concerné} other {# bails concernés}}"
       }
     },
     "audit": {
       "empty_title": "Aucune entrée pour ces filtres",
       "empty_description": "Élargissez la période ou retirez un filtre pour voir plus d'actions.",
-      "error": "Impossible de charger le journal d'audit."
+      "error": "Impossible de charger le journal d'audit.",
+      "subjects": {
+        "property": "Bien immobilier",
+        "booking": "Réservation",
+        "lease": "Bail",
+        "invoice": "Facture",
+        "customer": "Client",
+        "user": "Utilisateur"
+      },
+      "filters": {
+        "anyAction": "Toutes les actions",
+        "anySubject": "Tous les objets",
+        "from": "Du",
+        "to": "Au",
+        "action": "Action",
+        "actionAria": "Filtrer par action",
+        "subject": "Type d'objet",
+        "subjectAria": "Filtrer par type d'objet",
+        "search": "Recherche",
+        "searchPlaceholder": "Description…"
+      },
+      "export": {
+        "label": "Exporter",
+        "pending": "Export en préparation, téléchargement imminent…",
+        "largeTitle": "Export volumineux",
+        "largeBody": "Vous recevrez un email avec le lien de téléchargement.",
+        "error": "Erreur lors de l'export"
+      },
+      "columns": {
+        "date": "Date",
+        "user": "Utilisateur",
+        "action": "Action",
+        "subject": "Objet",
+        "description": "Description"
+      },
+      "entries": "{count, plural, =1 {{total} entrée} other {{total} entrées}}",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pageOf": "Page {current} / {last}"
     },
     "roles": {
       "page": {
@@ -3268,14 +4304,160 @@
       "removeDialog": {
         "title": "Retirer ce membre ?",
         "cancel": "Annuler",
-        "confirm": "Retirer"
+        "confirm": "Retirer",
+        "description": "{name} perdra l'accès aux ressources de l'agence. Cette action est réversible en l'invitant à nouveau."
+      },
+      "console": {
+        "genericError": "Une erreur est survenue.",
+        "tabs": {
+          "all": "Tous",
+          "agents": "Agents",
+          "admins": "Administrateurs",
+          "owners": "Propriétaires"
+        },
+        "invite": "Inviter",
+        "pagination": {
+          "label": "Pagination",
+          "previous": "Précédent",
+          "next": "Suivant",
+          "pageOf": "Page {current} sur {last}"
+        }
       }
     },
     "propertyModeration": {
       "searchPlaceholder": "Rechercher un bien…",
       "pendingCount": "{count, plural, =1 {# bien en attente} other {# biens en attente}}",
       "loading": "Chargement de la file de modération…",
-      "loadError": "Impossible de charger la file."
+      "loadError": "Impossible de charger la file.",
+      "detail": {
+        "genericError": "Une erreur est survenue.",
+        "reasonTooShort": "La raison doit contenir au moins 20 caractères.",
+        "agent": "Agent",
+        "price": "Prix",
+        "type": "Type",
+        "submittedAt": "Soumis le",
+        "rejectReasonLabel": "Raison du rejet (obligatoire, min. 20 caractères)",
+        "rejectReasonPlaceholder": "Expliquez clairement pourquoi ce bien est refusé…",
+        "confirmReject": "Confirmer le rejet",
+        "approve": "Approuver",
+        "reject": "Rejeter"
+      }
+    },
+    "agencyConfig": {
+      "successSaved": "Modifications enregistrées.",
+      "logoUpdated": "Logo mis à jour.",
+      "identity": {
+        "title": "Identité",
+        "description": "Nom commercial, licence professionnelle et description publique."
+      },
+      "contact": {
+        "title": "Contact",
+        "description": "Coordonnées utilisées dans les e-mails transactionnels et sur les fiches biens publiées."
+      },
+      "logo": {
+        "title": "Logo",
+        "description": "JPG, PNG ou WEBP — 2 Mo maximum. Le logo est affiché dans l’espace agent et sur les documents générés.",
+        "alt": "Logo {name}",
+        "empty": "Aucun logo",
+        "uploading": "Envoi en cours…",
+        "change": "Changer de logo",
+        "add": "Ajouter un logo"
+      },
+      "business": {
+        "title": "Paramètres métier",
+        "description": "Appliqués par défaut aux nouveaux biens et aux calculs de commission."
+      },
+      "fields": {
+        "name": "Nom de l’agence",
+        "slug": "Identifiant URL (non modifiable)",
+        "license": "Numéro de licence",
+        "licensePlaceholder": "ex : SEN-IMMO-2024",
+        "description": "Description",
+        "descriptionPlaceholder": "Quelques mots sur votre agence, affichés sur le site public.",
+        "email": "E-mail",
+        "phone": "Téléphone",
+        "website": "Site internet",
+        "commission": "Commission par défaut (%)",
+        "timezone": "Fuseau horaire",
+        "timezonePlaceholder": "Africa/Dakar",
+        "websitePlaceholder": "https://votre-agence.sn"
+      },
+      "moderation": {
+        "label": "Modération obligatoire avant publication",
+        "hint": "Quand cette option est activée, tout nouveau bien soumis par un agent sera en statut « En attente de validation » jusqu'à l'approbation d'un administrateur, avant d'être visible publiquement."
+      },
+      "submit": {
+        "saving": "Enregistrement…"
+      }
+    },
+    "inviteMember": {
+      "title": "Inviter un membre",
+      "description": "Saisissez l'email d'un utilisateur déjà inscrit. Il sera ajouté à votre agence avec le rôle choisi.",
+      "email": "Email",
+      "emailPlaceholder": "jane@exemple.sn",
+      "emailInvalid": "Email invalide.",
+      "role": "Rôle",
+      "roles": {
+        "agent": "Agent",
+        "agency_admin": "Administrateur"
+      },
+      "submit": "Inviter"
+    },
+    "users": {
+      "status": {
+        "active": "Actif",
+        "inactive": "Inactif",
+        "banned": "Bloqué"
+      },
+      "roles": {
+        "agency_admin": "Administrateur",
+        "agent": "Agent",
+        "owner": "Bailleur",
+        "tenant": "Locataire",
+        "customer": "Client",
+        "service_provider": "Prestataire",
+        "super_admin": "Super admin",
+        "admin": "Admin"
+      },
+      "filters": {
+        "searchLabel": "Rechercher un utilisateur",
+        "searchPlaceholder": "Rechercher (nom, email, téléphone)",
+        "status": "Statut",
+        "allStatuses": "Tous statuts",
+        "role": "Rôle",
+        "allRoles": "Tous rôles"
+      },
+      "table": {
+        "member": "Membre",
+        "email": "Email",
+        "role": "Rôle",
+        "status": "Statut",
+        "lastLogin": "Dernière connexion",
+        "createdAt": "Créé le",
+        "actions": "Actions",
+        "you": "Vous",
+        "actionsAria": "Actions pour {name}",
+        "viewDetail": "Voir le détail",
+        "reactivate": "Réactiver",
+        "block": "Bloquer",
+        "removeFromAgency": "Retirer de l'agence",
+        "count": "{count, plural, one {{total} utilisateur} other {{total} utilisateurs}}"
+      },
+      "drawer": {
+        "phone": "Téléphone",
+        "lastLogin": "Dernière connexion",
+        "createdAt": "Compte créé",
+        "reactivateAccount": "Réactiver le compte",
+        "blockAccount": "Bloquer le compte",
+        "removeFromAgency": "Retirer de l'agence",
+        "selfNotice": "Vous ne pouvez pas modifier le statut de votre propre compte."
+      },
+      "rolesEditor": {
+        "heading": "Rôle",
+        "selectAria": "Rôle de l'utilisateur",
+        "placeholder": "Choisir un rôle",
+        "update": "Mettre à jour"
+      }
     }
   },
   "documents": {
@@ -3285,13 +4467,152 @@
       "drop_title": "Déposez votre fichier",
       "drop_description": "Relâchez pour téléverser ce fichier.",
       "upload_cta": "Téléverser un document",
-      "error": "Impossible de charger les documents."
+      "error": "Impossible de charger les documents.",
+      "count": "{count} document(s)",
+      "delete_error": "Suppression impossible.",
+      "verified": "Vérifié",
+      "versions": "Versions",
+      "download": "Télécharger",
+      "share": "Partager",
+      "delete_aria": "Supprimer"
     },
     "versions": {
       "error": "Impossible de charger les versions.",
       "empty_title": "Aucune version uploadée",
       "empty_description": "Chaque dépôt crée une version : l'historique reste consultable et restaurable.",
-      "empty_cta": "Ajouter la première version"
+      "empty_cta": "Ajouter la première version",
+      "heading": "Historique des versions",
+      "list_aria": "Liste des versions",
+      "new_version": "Nouvelle version",
+      "add_title": "Ajouter une version",
+      "add_description": "La version précédente sera archivée mais restera accessible dans l'historique.",
+      "generic_error": "Une erreur est survenue.",
+      "too_large": "Le fichier dépasse 10 Mo.",
+      "select_file_error": "Veuillez sélectionner un fichier.",
+      "remove_file_aria": "Retirer le fichier",
+      "dropzone_title": "Glissez-déposez ou cliquez pour sélectionner",
+      "dropzone_hint": "PDF, image ou bureautique · 10 Mo max",
+      "comment_label": "Commentaire",
+      "comment_optional": "(facultatif)",
+      "comment_placeholder": "Ex: Contrat corrigé après relecture",
+      "submitting": "Envoi…",
+      "submit": "Téléverser",
+      "restore_title": "Restaurer la version {version}",
+      "restore_body": "Le fichier <nom>{name}</nom> deviendra la version active. L'historique complet est conservé.",
+      "restore_error": "Erreur lors de la restauration.",
+      "restoring": "Restauration…",
+      "active": "Actif",
+      "comment_quoted": "“{comment}”",
+      "download_aria": "Télécharger cette version",
+      "restore_aria": "Restaurer la version {version}"
+    },
+    "types": {
+      "id_card": "Pièce d'identité",
+      "passport": "Passeport",
+      "lease_contract": "Contrat de bail",
+      "receipt": "Reçu",
+      "invoice": "Facture",
+      "insurance": "Assurance",
+      "inventory_report": "État des lieux",
+      "photo": "Photo",
+      "other": "Autre"
+    },
+    "entities": {
+      "property": "Bien",
+      "lease": "Bail",
+      "booking": "Réservation",
+      "customer": "Client",
+      "user": "Utilisateur",
+      "agency": "Agence",
+      "inventory": "État des lieux"
+    },
+    "actions": {
+      "add_document": "Ajouter un document"
+    },
+    "filters": {
+      "search_label": "Recherche",
+      "search_placeholder": "Rechercher par nom, description…",
+      "type_label": "Catégorie",
+      "all_types": "Toutes catégories",
+      "entity_label": "Type d'entité",
+      "all_entities": "Toutes entités"
+    },
+    "detail": {
+      "loading": "Chargement du document…",
+      "not_found": "Document introuvable.",
+      "back": "Documents",
+      "expiry": "Expiration: {date}",
+      "verified": "Vérifié",
+      "not_verified": "Non vérifié",
+      "active_version": "Version active",
+      "comment_quoted": "“{comment}”"
+    },
+    "primer": {
+      "title": "Aucun document propriétaire",
+      "body": "Ajoutez les fichiers utiles à votre portefeuille et rattachez-les au bien, au bail ou à votre profil propriétaire concerné.",
+      "examples_heading": "Exemples de catégories",
+      "targets_heading": "Rattachement conseillé",
+      "examples": {
+        "land_title": "Titre foncier",
+        "signed_lease": "Bail signé",
+        "receipt": "Quittance",
+        "invoice": "Devis ou facture",
+        "owner_id": "Pièce propriétaire"
+      },
+      "targets": {
+        "property_helper": "titre foncier, photos, assurance",
+        "lease_helper": "contrat signé, quittances, état des lieux",
+        "user_helper": "pièce propriétaire ou passeport"
+      }
+    },
+    "share": {
+      "title": "Partager le document",
+      "description_named": "Génère un lien temporaire pour \"{name}\".",
+      "description_generic": "Génère un lien temporaire pour ce document.",
+      "create_error": "Impossible de générer le lien.",
+      "revoke_error": "Impossible de révoquer le lien.",
+      "duration_label": "Durée",
+      "ttl": {
+        "1h": "1 heure",
+        "24h": "24 heures",
+        "7d": "7 jours",
+        "30d": "30 jours"
+      },
+      "max_downloads_label": "Usages max",
+      "max_downloads_placeholder": "Illimité",
+      "password_label": "Mot de passe",
+      "password_placeholder": "Optionnel",
+      "creating": "Génération…",
+      "create": "Générer un lien",
+      "session_links": "Liens créés dans cette session",
+      "url_aria": "URL du lien de partage",
+      "copy_aria": "Copier le lien",
+      "revoke_aria": "Révoquer le lien",
+      "expires_at": "Expire le {date}",
+      "no_expiry": "Sans expiration",
+      "usages": "{count}/{max} usages",
+      "password_protected": "Protégé par mot de passe"
+    },
+    "upload": {
+      "title": "Téléverser un document",
+      "description_named": "Associé à {label}.",
+      "description_generic": "Associez le fichier à une entité pour le retrouver ensuite.",
+      "no_file_error": "Veuillez choisir un fichier à téléverser.",
+      "select_file_error": "Veuillez sélectionner un fichier.",
+      "too_large": "Le fichier dépasse 10 Mo.",
+      "remove_file_aria": "Retirer le fichier",
+      "size_mo": "{size} Mo",
+      "dropzone_title": "Glissez-déposez ou cliquez pour sélectionner",
+      "dropzone_hint": "PDF, image ou document bureautique · 10 Mo maximum",
+      "name_label": "Nom du document",
+      "name_placeholder": "Ex: Contrat de bail signé",
+      "category_label": "Catégorie",
+      "expiry_label": "Date d'expiration",
+      "attached_to_label": "Associé à",
+      "entity_id_label": "ID de l'entité",
+      "description_label": "Description",
+      "submitting": "Envoi…",
+      "submit": "Téléverser"
     }
   },
   "bookings": {
@@ -3303,10 +4624,88 @@
         "cancelled": "Aucune réservation annulée",
         "expired": "Aucune réservation expirée"
       },
-      "empty_description": "Parcourez le catalogue pour envoyer une demande de réservation."
+      "empty_description": "Parcourez le catalogue pour envoyer une demande de réservation.",
+      "depositPaid": "Acompte payé",
+      "tabs": {
+        "pending": "En attente",
+        "confirmed": "Confirmées",
+        "rejected": "Refusées",
+        "cancelled": "Annulées",
+        "expired": "Expirées"
+      }
     },
     "detail": {
-      "error": "Réservation introuvable."
+      "error": "Réservation introuvable.",
+      "back": "← Retour aux réservations",
+      "dates": "Dates",
+      "createdAt": "Créée le",
+      "expiresAt": "Expire le",
+      "total": "Total",
+      "deposit": "Acompte",
+      "message": "Message",
+      "payments": "Paiements",
+      "receipt": "Quittance PDF",
+      "noPayments": "Aucun paiement enregistré pour l'instant.",
+      "reviewContext": "Votre séjour est terminé.",
+      "actions": {
+        "accept": "Accepter",
+        "reject": "Refuser",
+        "cancel": "Annuler la réservation"
+      },
+      "toasts": {
+        "accepted": {
+          "title": "Réservation acceptée",
+          "description": "Le statut est maintenant confirmé."
+        },
+        "rejected": {
+          "title": "Réservation refusée",
+          "description": "Le motif est enregistré pour le client."
+        },
+        "cancelled": {
+          "title": "Réservation annulée",
+          "description": "Le motif est enregistré dans l’historique."
+        }
+      },
+      "payCta": {
+        "deposit": "Payer l’acompte",
+        "balance": "Payer le solde",
+        "notice": "Vous serez redirigé vers la passerelle de paiement (Wave, Orange Money, carte)."
+      },
+      "timeline": {
+        "title": "Historique",
+        "created": "Créée",
+        "confirmed": "Confirmée",
+        "depositPaid": "Acompte payé",
+        "settled": "Soldée",
+        "cancelled": "Annulée",
+        "rejected": "Refusée",
+        "expired": "Expirée"
+      },
+      "decision": {
+        "reasonRequired": "Un motif est requis pour cette action.",
+        "processing": "Traitement…",
+        "confirm": {
+          "title": "Accepter la réservation",
+          "description": "Le client recevra la confirmation via le workflow de réservation.",
+          "label": "Message au client (optionnel)",
+          "placeholder": "Ex. Votre réservation est confirmée, nous vous attendons.",
+          "submit": "Accepter"
+        },
+        "reject": {
+          "title": "Refuser la réservation",
+          "description": "Expliquez clairement pourquoi la demande ne peut pas être acceptée.",
+          "label": "Motif du refus",
+          "placeholder": "Ex. Le logement n’est plus disponible sur ces dates.",
+          "submit": "Refuser"
+        },
+        "cancel": {
+          "title": "Annuler la réservation",
+          "description": "Cette action annule une demande ouverte ou confirmée.",
+          "label": "Motif d’annulation",
+          "placeholder": "Ex. Indisponibilité exceptionnelle du logement.",
+          "submit": "Annuler la réservation"
+        }
+      }
     },
     "public": {
       "no_property_title": "Aucun bien sélectionné",
@@ -3318,6 +4717,121 @@
       "metaDescription": "Tunnel de réservation sécurisé Takussan.",
       "title": "Réserver ce bien",
       "subtitle": "Quelques étapes rapides pour envoyer votre demande."
+    },
+    "fallbackTitle": "Réservation #{id}",
+    "reference": "Réf.",
+    "status": {
+      "pending": "En attente",
+      "confirmed": "Confirmée",
+      "rejected": "Refusée",
+      "cancelled": "Annulée",
+      "expired": "Expirée",
+      "completed": "Terminée"
+    },
+    "paymentType": {
+      "deposit": "Acompte",
+      "advance": "Solde",
+      "fee": "Frais"
+    },
+    "paymentStatus": {
+      "pending": "En attente",
+      "paid": "Payé",
+      "partially_paid": "Partiel",
+      "refunded": "Remboursé",
+      "cancelled": "Annulé"
+    },
+    "paymentMethod": {
+      "cash": "Espèces",
+      "bank_transfer": "Virement",
+      "mobile_money": "Mobile money",
+      "card": "Carte"
+    },
+    "stepper": {
+      "aria": "Étapes de réservation"
+    },
+    "summary": {
+      "price": "Prix affiché",
+      "checkIn": "Arrivée",
+      "checkOut": "Départ",
+      "duration": "Durée",
+      "nights": "{count, plural, =1 {# nuit} other {# nuits}}",
+      "total": "Total estimé",
+      "deposit": "Acompte attendu",
+      "noChargeNotice": "Vous ne serez pas débité avant confirmation par le propriétaire ou l'agent."
+    },
+    "paymentDialog": {
+      "title": "Enregistrer un paiement",
+      "description": "Acompte, avance ou frais liés à cette réservation.",
+      "submitting": "Enregistrement…",
+      "fields": {
+        "amount": "Montant",
+        "type": "Type",
+        "method": "Moyen de paiement",
+        "transactionId": "ID transaction (optionnel)",
+        "notes": "Notes"
+      },
+      "methods": {
+        "cash": "Espèces",
+        "bank_transfer": "Virement bancaire",
+        "mobile_money": "Mobile Money",
+        "card": "Carte bancaire"
+      },
+      "types": {
+        "deposit": "Acompte",
+        "advance": "Avance",
+        "fee": "Frais"
+      }
+    },
+    "tunnel": {
+      "error": "La réservation a échoué. Réessayez.",
+      "backToProperty": "Retour au bien",
+      "guestsLabel": "Personnes",
+      "depositLabel": "Acompte (30 %)",
+      "notesLabel": "Message (optionnel)",
+      "notesPlaceholder": "Présentez-vous, expliquez votre projet…",
+      "steps": {
+        "dates": "Dates",
+        "review": "Récapitulatif",
+        "terms": "Conditions",
+        "done": "Confirmation"
+      },
+      "auth": {
+        "title": "Connectez-vous pour réserver",
+        "description": "Vous devez être connecté pour finaliser la demande de réservation.",
+        "login": "Se connecter"
+      },
+      "success": {
+        "title": "Demande envoyée !",
+        "body": "Votre demande de réservation pour <strong>{title}</strong> a bien été enregistrée. Le propriétaire ou l'agent vous recontactera sous 48h.",
+        "reference": "Référence",
+        "total": "Total estimé",
+        "viewBooking": "Voir ma réservation"
+      },
+      "step1": {
+        "title": "Vos dates",
+        "description": "Sélectionnez votre période et le nombre de voyageurs."
+      },
+      "step2": {
+        "description": "Vérifiez les montants et ajoutez un message au propriétaire si besoin."
+      },
+      "fields": {
+        "startDate": "Arrivée",
+        "startDatePlaceholder": "Date d'arrivée",
+        "endDate": "Départ",
+        "endDatePlaceholder": "Date de départ",
+        "guests": "Nombre de personnes"
+      },
+      "terms": {
+        "body": "En soumettant votre demande, vous acceptez que le propriétaire ou l'agent vous contacte pour confirmer la disponibilité. Aucun paiement n'est prélevé tant que la réservation n'est pas confirmée.",
+        "deposit": "Un acompte de <strong>{amount}</strong> pourra être demandé à la confirmation.",
+        "accept": "J'accepte les conditions de réservation Takussan et la politique d'annulation."
+      },
+      "actions": {
+        "back": "Retour",
+        "submitting": "Envoi…",
+        "submit": "Soumettre la demande",
+        "continue": "Continuer"
+      }
     }
   },
   "visits": {
@@ -3328,10 +4842,95 @@
         "past": "Aucune visite passée",
         "cancelled": "Aucune visite annulée"
       },
-      "empty_description": "Demandez une visite depuis la fiche d'un bien pour la retrouver ici."
+      "empty_description": "Demandez une visite depuis la fiche d'un bien pour la retrouver ici.",
+      "tabs": {
+        "requested": "Demandées",
+        "confirmed": "Confirmées",
+        "past": "Passées",
+        "cancelled": "Annulées"
+      }
     },
     "detail": {
-      "error": "Impossible de charger cette visite."
+      "error": "Impossible de charger cette visite.",
+      "back": "← Toutes les visites",
+      "slot": "Créneau",
+      "notes": "Notes",
+      "cancellationReason": "Motif d’annulation",
+      "support": "Accompagnement",
+      "assignedAgent": "Agent assigné",
+      "prompts": {
+        "newSlot": "Nouveau créneau (format YYYY-MM-DD HH:mm)"
+      },
+      "toasts": {
+        "confirmed": {
+          "title": "Visite confirmée",
+          "description": "Le créneau est confirmé et les rappels restent gérés par le workflow existant."
+        },
+        "completed": {
+          "title": "Visite marquée effectuée",
+          "description": "Le suivi post-visite est maintenant disponible."
+        },
+        "cancelled": {
+          "title": "Visite annulée",
+          "description": "Le motif est enregistré sur la demande."
+        },
+        "rescheduled": {
+          "title": "Visite replanifiée",
+          "description": "Le nouveau créneau est enregistré."
+        }
+      },
+      "actions": {
+        "confirm": "Confirmer la visite",
+        "complete": "Marquer effectuée",
+        "reschedule": "Replanifier",
+        "viewProperty": "Voir le bien"
+      },
+      "requester": {
+        "label": "Demandeur",
+        "crmLink": "Fiche CRM",
+        "crmFallbackName": "Client CRM #{id}",
+        "crmNoContact": "Aucun contact renseigné sur la fiche CRM.",
+        "userFallbackName": "Utilisateur inscrit",
+        "userNoContact": "Aucun contact renseigné sur le compte utilisateur.",
+        "anonymousName": "Visiteur anonyme",
+        "anonymousNoContact": "Coordonnées anonymes incomplètes."
+      },
+      "feedback": {
+        "locked": "La fenêtre de feedback est fermée pour cette visite.",
+        "title": "Feedback post-visite",
+        "window": "Vous avez {hours}h après la visite pour laisser votre retour.",
+        "restricted": "Seuls le visiteur et l’agent peuvent laisser un retour sur cette visite."
+      }
+    },
+    "minutesUnit": "min",
+    "fallbackTitle": "Visite #{id}",
+    "status": {
+      "scheduled": "Demandée",
+      "confirmed": "Confirmée",
+      "completed": "Terminée",
+      "cancelled": "Annulée",
+      "no_show": "Absence"
+    },
+    "type": {
+      "in_person": "En personne",
+      "virtual": "Virtuelle",
+      "self_guided": "Autonome",
+      "hybrid": "Hybride"
+    },
+    "feedbackForm": {
+      "error": "Erreur lors de l’envoi du feedback.",
+      "success": "Merci ! Votre retour {role} a bien été enregistré.",
+      "roleVisitor": "visiteur",
+      "roleAgent": "agent",
+      "titleCustomer": "Votre retour visiteur",
+      "titleAgent": "Retour agent",
+      "ratingLabel": "Note (1 à 5)",
+      "starsAria": "{count} étoiles",
+      "commentLabel": "Commentaire (optionnel)",
+      "placeholderCustomer": "Ce que vous avez pensé du bien…",
+      "placeholderAgent": "Retour sur le déroulement de la visite…",
+      "submitting": "Envoi…",
+      "submit": "Envoyer le feedback"
     }
   },
   "superAdmin": {
@@ -3342,21 +4941,138 @@
     },
     "enums": {
       "empty_title": "Aucun enum métier éditable",
-      "empty_description": "Les listes de valeurs métier apparaîtront ici dès qu'une sera déclarée."
+      "empty_description": "Les listes de valeurs métier apparaîtront ici dès qu'une sera déclarée.",
+      "navLabel": "Enums éditables",
+      "valuesCount": "{count} valeurs",
+      "addValue": "Ajouter une valeur",
+      "editValue": "Modifier la valeur",
+      "value": "Valeur",
+      "localeFr": "FR",
+      "localeEn": "EN",
+      "localeWo": "WO",
+      "usage": "Usage",
+      "actions": "Actions",
+      "editValueAria": "Modifier {value}",
+      "deactivateValueAria": "Désactiver {value}",
+      "warning": "Les statuts techniques et rôles ne sont pas éditables ici."
     },
     "moderation": {
       "empty_title": "Aucun item de modération",
       "empty_description": "Rien ne correspond aux filtres courants — la file est à jour.",
-      "error": "Erreur de chargement de la file de modération."
+      "error": "Erreur de chargement de la file de modération.",
+      "typesAria": "Types de modération",
+      "status": "Statut",
+      "agency": "Agence",
+      "allAgencies": "Toutes agences",
+      "age": "Ancienneté",
+      "colSubject": "Sujet",
+      "colType": "Type",
+      "colAgency": "Agence",
+      "colReporter": "Rapporteur",
+      "colReason": "Raison",
+      "colAge": "Âge",
+      "colAction": "Action",
+      "subjectUnavailable": "Sujet indisponible",
+      "typeProperty": "Bien",
+      "typeReview": "Avis",
+      "statusFlagged": "Signalé",
+      "statusPending": "En attente",
+      "noAgency": "Sans agence",
+      "anonymous": "Anonyme",
+      "process": "Traiter",
+      "selectRow": "Sélectionnez une ligne pour afficher les décisions disponibles.",
+      "decisionTitle": "Décision",
+      "decisionReason": "Raison de décision",
+      "decisionReasonPlaceholder": "Motif visible dans l'audit",
+      "statTotalPage": "Total page",
+      "statProperties": "Biens",
+      "statReviews": "Avis",
+      "staleWarning": "{count, plural, one {# item} other {# items}} de cette page attendent depuis plus de 7 jours.",
+      "ageToday": "Aujourd'hui",
+      "ageOneDay": "1 jour",
+      "ageDays": "{days} jours",
+      "types": {
+        "all": "Tous",
+        "property": "Biens",
+        "review": "Avis"
+      },
+      "statuses": {
+        "all": "Tous statuts",
+        "pending": "En attente",
+        "flagged": "Signalés"
+      },
+      "sorts": {
+        "newest": "Plus récents",
+        "oldest": "Plus anciens"
+      },
+      "decisions": {
+        "approve": "Approuver",
+        "hide": "Masquer",
+        "reject": "Rejeter",
+        "remove": "Supprimer"
+      }
     },
     "properties": {
       "empty_title": "Aucun bien à afficher",
       "empty_description": "Aucun bien ne correspond aux filtres courants. Élargissez la recherche.",
-      "error": "Erreur de chargement des biens."
+      "error": "Erreur de chargement des biens.",
+      "filters": {
+        "searchLabel": "Rechercher un bien",
+        "searchPlaceholder": "Rechercher (titre, référence, description)",
+        "agency": "Agence",
+        "allAgencies": "Toutes agences",
+        "status": "Statut",
+        "allStatuses": "Tous statuts",
+        "type": "Type",
+        "allTypes": "Tous types",
+        "visibility": "Publication",
+        "allVisibilities": "Toute visibilité"
+      },
+      "table": {
+        "selectedCount": "{count, plural, one {# bien sélectionné} other {# biens sélectionnés}}.",
+        "unpublish": "Dépublier",
+        "archive": "Archiver",
+        "publish": "Publier",
+        "selectAll": "Tout sélectionner",
+        "colProperty": "Bien",
+        "colAgency": "Agence",
+        "colCity": "Ville",
+        "colType": "Type",
+        "colPrice": "Prix",
+        "colStatus": "Statut",
+        "colPublication": "Publication",
+        "colUpdated": "Mis à jour",
+        "colActions": "Actions",
+        "selectRowAria": "Sélectionner {title}",
+        "rowActionsAria": "Actions pour {title}",
+        "sortByAria": "Trier par {label}",
+        "viewPublic": "Voir détail public",
+        "openBackOffice": "Ouvrir dans le back-office",
+        "totalCount": "{count, plural, one {# bien} other {# biens}} au total · agences confondues.",
+        "confirm": {
+          "archiveTitle": "Archiver {count, plural, one {# bien} other {# biens}}",
+          "deleteTitle": "Supprimer {count, plural, one {# bien} other {# biens}}",
+          "unpublishTitle": "Dépublier {count, plural, one {# bien} other {# biens}}",
+          "archiveDescription": "Les biens archivés sortent du portefeuille actif. Cette action est auditée.",
+          "deleteDescription": "La suppression est un soft-delete. Les biens disparaissent des listes mais peuvent être restaurés depuis l'admin.",
+          "unpublishDescription": "Les biens dépubliés repassent en brouillon et ne sont plus visibles publiquement.",
+          "archiveLabel": "Confirmer l'archivage",
+          "deleteLabel": "Confirmer la suppression",
+          "unpublishLabel": "Confirmer la dépublication"
+        }
+      }
     },
     "templates": {
       "empty_title": "Aucun template éditable",
-      "empty_description": "Les gabarits de notification apparaîtront ici dès qu'un événement sera déclaré."
+      "empty_description": "Les gabarits de notification apparaîtront ici dès qu'un événement sera déclaré.",
+      "eventsNav": "Événements notification",
+      "active": "Actif",
+      "inactive": "Inactif",
+      "preview": "Prévisualiser",
+      "subject": "Sujet",
+      "body": "Corps",
+      "smsSegments": "{count} segment(s)",
+      "previewTitle": "Prévisualisation"
     },
     "users": {
       "empty_title": "Aucun utilisateur trouvé",
@@ -3366,45 +5082,866 @@
     "audit": {
       "empty_title": "Aucune entrée d'audit",
       "empty_description": "Aucune action ne correspond à ces filtres. Élargissez la période.",
-      "error": "Erreur de chargement du journal d'audit."
+      "error": "Erreur de chargement du journal d'audit.",
+      "eventPlaceholder": "Événement (ex. super_admin_agency_verified)",
+      "causerPlaceholder": "ID du causer",
+      "dateFromAria": "Date depuis",
+      "dateToAria": "Date jusqu'à",
+      "colDate": "Date",
+      "colEvent": "Événement",
+      "colCauser": "Causer",
+      "colSubject": "Sujet",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "pagination": "Page {current} sur {last} · {total} entrées"
     },
     "announcements": {
       "empty_title": "Aucune annonce pour le moment",
-      "empty_description": "Publiez une annonce pour informer les utilisateurs de la plateforme."
+      "empty_description": "Publiez une annonce pour informer les utilisateurs de la plateforme.",
+      "title": "Annonces diffusées",
+      "subtitle": "Broadcasts actifs, programmés ou expirés.",
+      "countBadge": "{count} annonces",
+      "colTitle": "Titre",
+      "colSeverity": "Sévérité",
+      "colSegment": "Segment",
+      "colWindow": "Fenêtre",
+      "colActions": "Actions",
+      "compose": "Composer",
+      "start": "Début",
+      "end": "Fin",
+      "roles": "Rôles",
+      "agencies": "Agences",
+      "rollout": "Rollout %",
+      "publish": "Publier l'annonce",
+      "deactivate": "Désactiver",
+      "inactive": "Inactive",
+      "titlePlaceholder": "Titre",
+      "bodyPlaceholder": "Message",
+      "segmentRoles": "Rôles: {list}",
+      "segmentAgencies": "Agences: {list}",
+      "segmentAll": "Tous",
+      "severities": {
+        "info": "Info",
+        "success": "Succès",
+        "warning": "Alerte",
+        "critical": "Critique"
+      }
     },
     "scheduler": {
       "empty_title": "Aucun run capturé",
-      "empty_description": "Les tâches planifiées apparaîtront ici après leur première exécution."
+      "empty_description": "Les tâches planifiées apparaîtront ici après leur première exécution.",
+      "title": "Tâches planifiées",
+      "subtitle": "Dernières exécutions observées par le scheduler Laravel.",
+      "colTask": "Tâche",
+      "colLastRun": "Dernier run",
+      "colAvgDuration": "Durée moyenne"
     },
     "systemHealth": {
       "failedJobs": {
         "empty_title": "Aucun job échoué",
-        "empty_description": "La file de jobs tourne sans erreur."
-      }
+        "empty_description": "La file de jobs tourne sans erreur.",
+        "title": "Jobs échoués",
+        "subtitle": "Payload tronqué dans la liste.",
+        "retryAll": "Rejouer tout",
+        "retry": "Rejouer",
+        "colQueue": "Queue",
+        "colPayload": "Payload",
+        "colFailedAt": "Échec",
+        "colActions": "Actions"
+      },
+      "queuePending": "En attente",
+      "queueProcessing": "En cours",
+      "queueFailed24h": "Échecs 24h"
     },
     "integrations": {
       "webhooks": {
         "empty_title": "Aucun webhook récent",
-        "empty_description": "Les appels reçus de ce provider apparaîtront ici."
-      }
+        "empty_description": "Les appels reçus de ce provider apparaîtront ici.",
+        "title": "Webhooks {label}",
+        "retention": "Trail conservé 30 jours.",
+        "closeAria": "Fermer les webhooks",
+        "colEvent": "Événement",
+        "colStatus": "Statut",
+        "colPayload": "Payload",
+        "colReceived": "Reçu"
+      },
+      "edit": "Éditer",
+      "webhooksAction": "Webhooks",
+      "test": "Tester",
+      "testFailure": "Échec",
+      "editIntegration": "Éditer {label}",
+      "editGeneric": "Éditer une intégration",
+      "maskedHint": "Les valeurs existantes restent masquées. Remplissez uniquement les champs à remplacer."
     },
     "metrics": {
-      "error": "Impossible de charger les KPIs plateforme."
+      "error": "Impossible de charger les KPIs plateforme.",
+      "agenciesTotal": "Agences (total)",
+      "verified": "Vérifiées",
+      "verificationRate": "{rate} % de vérification",
+      "agenciesActive": "Actives",
+      "agenciesSuspended": "Suspendues",
+      "activeUsers": "Utilisateurs actifs",
+      "outOfTotal": "sur {total}",
+      "publishedProperties": "Biens publiés",
+      "pendingReview": "En modération",
+      "platformRevenue": "Revenu plateforme",
+      "cumulativeRents": "Loyers encaissés cumulés"
+    },
+    "impersonation": {
+      "banner": "Vous agissez en tant que {target} — session jusqu'à {expires}.",
+      "fallbackUser": "utilisateur #{id}",
+      "unknownExpiry": "inconnu",
+      "stopping": "Arrêt…",
+      "stop": "Arrêter l’impersonation"
+    },
+    "confirmDialog": {
+      "typePrompt": "Pour confirmer, tapez",
+      "pending": "En cours…"
+    },
+    "agencyStatus": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "suspended": "Suspendue"
+    },
+    "agencyCard": {
+      "verified": "Vérifiée",
+      "email": "Email",
+      "license": "License",
+      "members": "Membres",
+      "properties": "Biens",
+      "createdAt": "Créée le",
+      "lastActivity": "Dernière activité",
+      "open": "Ouvrir",
+      "actions": {
+        "verify": {
+          "title": "Vérifier l’agence",
+          "description": "L’agence passera en statut Active et sera marquée comme vérifiée.",
+          "label": "Vérifier"
+        },
+        "suspend": {
+          "title": "Suspendre l’agence",
+          "description": "L’agence sera bloquée. Ses utilisateurs perdent l’accès aux fonctionnalités produits.",
+          "label": "Suspendre"
+        },
+        "unverify": {
+          "title": "Retirer la vérification",
+          "description": "L’agence reviendra en statut Inactive et perdra son badge vérifié.",
+          "label": "Déverifier"
+        }
+      }
+    },
+    "agencyDetail": {
+      "loadError": "Impossible de charger cette agence.",
+      "kycLoadError": "Impossible de charger le dossier KYC.",
+      "crossTenant": "Agence cross-tenant",
+      "verified": "Vérifiée",
+      "notVerified": "Non vérifiée",
+      "registeredOn": "Inscrite le {date}",
+      "publicProfile": "Profil public",
+      "moderationTitle": "Actions de modération",
+      "moderationSubtitle": "Chaque action demande une double confirmation.",
+      "tabs": {
+        "kyc": "KYC",
+        "subscription": "Abonnement",
+        "team": "Équipe",
+        "properties": "Biens",
+        "transactions": "Transactions"
+      },
+      "actions": {
+        "verify": {
+          "title": "Vérifier l’agence",
+          "description": "L’agence passera en statut Active et sera marquée comme vérifiée.",
+          "label": "Vérifier"
+        },
+        "suspend": {
+          "title": "Suspendre l’agence",
+          "description": "L’agence sera suspendue dans toute la plateforme.",
+          "label": "Suspendre"
+        },
+        "unverify": {
+          "title": "Retirer la vérification",
+          "description": "L’agence perdra son badge vérifié et repassera inactive.",
+          "label": "Déverifier"
+        }
+      },
+      "health": {
+        "activeProperties": "Biens actifs",
+        "inModeration": "En modération",
+        "transactions30d": "Transactions 30j",
+        "revenue30d": "Revenu 30j",
+        "lastPayment": "Dernier paiement",
+        "openComplaints": "Plaintes ouvertes"
+      },
+      "team": {
+        "title": "Équipe",
+        "empty": "Aucun membre rattaché."
+      },
+      "properties": {
+        "title": "Portefeuille",
+        "empty": "Aucun bien à afficher."
+      },
+      "transactions": {
+        "title": "Transactions",
+        "count30d": "Transactions 30 jours",
+        "revenue30d": "Revenu 30 jours",
+        "lastPayment": "Dernier paiement"
+      }
+    },
+    "pages": {
+      "shared": {
+        "loadError": "Erreur de chargement."
+      },
+      "home": {
+        "metaTitle": "Console Takussan",
+        "title": "Console Takussan",
+        "subtitle": "Vue plateforme — agences, utilisateurs, modération et revenu."
+      },
+      "agencyDetail": {
+        "metaTitle": "Détail agence"
+      },
+      "userDetail": {
+        "metaTitle": "Détail utilisateur"
+      },
+      "announcements": {
+        "title": "Annonces in-app",
+        "subtitle": "Messages transverses ciblés par rôle, agence ou rollout progressif."
+      },
+      "audit": {
+        "metaTitle": "Audit cross-tenant — Console Takussan",
+        "title": "Audit cross-tenant",
+        "subtitle": "Toutes les actions sensibles enregistrées par le journal d'activité plateforme."
+      },
+      "payouts": {
+        "title": "Reversements plateforme",
+        "subtitle": "Clôture des périodes, approbation et marquage des virements vers les agences."
+      },
+      "plans": {
+        "title": "Plans plateforme",
+        "subtitle": "Catalogue SaaS, commissions et quotas agence."
+      },
+      "reports": {
+        "title": "Reporting plateforme",
+        "subtitle": "Croissance, MRR/ARR, cohortes de rétention agences et funnel de conversion. Lecture seule super-admin."
+      },
+      "systemHealth": {
+        "title": "Healthcheck",
+        "subtitle": "Dépendances, queues et échecs jobs avec rafraîchissement automatique."
+      },
+      "scheduler": {
+        "title": "Scheduler",
+        "subtitle": "Tâches planifiées et dernières exécutions connues."
+      },
+      "alerts": {
+        "title": "Alertes sensibles",
+        "subtitle": "Envoyez des alertes asynchrones pour les actions critiques de la plateforme.",
+        "newRule": "Nouvelle règle"
+      },
+      "enums": {
+        "title": "Enums métier",
+        "subtitle": "Gérez les libellés FR / EN / WO et les valeurs métier non techniques.",
+        "lockedNotice": "Les enums techniques comme paiements, rôles et statuts internes restent verrouillés dans le code."
+      },
+      "featureFlags": {
+        "title": "Feature flags",
+        "subtitle": "Contrôlez les rollouts globaux, par segment et par override de session."
+      },
+      "integrations": {
+        "title": "Intégrations tierces",
+        "subtitle": "Configurez les providers de paiement, messagerie et email sans exposer les secrets.",
+        "criticalDown": "{count} intégration paiement critique en panne."
+      },
+      "settings": {
+        "title": "Paramètres plateforme",
+        "subtitle": "Réglez les devises, formats, frais et limites globales sans redéploiement.",
+        "sensitiveNotice": "Les paramètres marqués comme sensibles peuvent nécessiter un redémarrage de queue ou un vidage de cache applicatif."
+      },
+      "templates": {
+        "title": "Templates de notification",
+        "subtitle": "Contenus localisés FR / EN / WO pour les notifications email, SMS et push."
+      },
+      "tags": {
+        "title": "Tags & amenités",
+        "subtitle": "Référentiel global utilisé par toutes les agences pour qualifier biens et clients.",
+        "loadError": "Impossible de charger les tags :"
+      },
+      "pagination": {
+        "aria": "Pagination",
+        "previous": "Précédent",
+        "next": "Suivant",
+        "position": "Page {page} sur {lastPage}",
+        "positionSlash": "Page {page} / {lastPage}"
+      },
+      "system": {
+        "metaTitle": "Système — Console Takussan",
+        "title": "Système",
+        "subtitle": "Mesures plateforme et paramètres globaux.",
+        "globalSettings": {
+          "title": "Paramètres globaux",
+          "body": "Les devises, formats, frais et limites techniques se règlent dans la page paramètres dédiée. Intégrations tierces, mode maintenance et feature flags arriveront avec les tickets dédiés.",
+          "openSettings": "Ouvrir les paramètres",
+          "maintenance": "Mode maintenance",
+          "healthcheck": "Healthcheck",
+          "scheduler": "Scheduler"
+        }
+      },
+      "maintenance": {
+        "title": "Mode maintenance",
+        "subtitle": "Programmez une fenêtre, prévenez les utilisateurs et gardez le contrôle depuis la console."
+      },
+      "moderation": {
+        "title": "Modération",
+        "subtitle": "File plateforme cross-tenant pour les biens et avis en attente ou signalés."
+      },
+      "properties": {
+        "title": "Biens",
+        "subtitle": "Catalogue cross-tenant — filtrer, trier et agir sur les biens de toutes les agences."
+      },
+      "kyc": {
+        "title": "File KYC",
+        "subtitle": "Dossiers agence soumis, triés du plus ancien au plus récent.",
+        "submittedFiles": "Dossiers soumis",
+        "empty": "Aucun dossier soumis.",
+        "agency": "Agence #{id}",
+        "submittedOn": "Soumis le {date}",
+        "open": "Ouvrir"
+      },
+      "users": {
+        "title": "Utilisateurs",
+        "subtitle": "Recherche cross-tenant et impersonation pour le support.",
+        "searchPlaceholder": "Nom, email, ID, téléphone",
+        "roleAria": "Rôle",
+        "agencyIdPlaceholder": "ID agence",
+        "statusAria": "Statut",
+        "emailAria": "Email vérifié",
+        "twoFactorAria": "2FA",
+        "rolesLabel": "Rôles :",
+        "agenciesLabel": "Agences :",
+        "summary": "Statut : {status} · Email {email} · 2FA {twoFactor} · Dernière connexion {lastLogin}",
+        "emailVerified": "vérifié",
+        "emailUnverified": "non vérifié",
+        "twoFactorOn": "activée",
+        "twoFactorOff": "inactive",
+        "open": "Ouvrir",
+        "impersonate": "Impersonifier",
+        "impersonateTitle": "Impersonifier {name}",
+        "impersonateDescription": "Vous obtiendrez un token éphémère (≤ 1h) pour agir en tant que cet utilisateur. Toutes les actions sont auditées.",
+        "impersonateConfirmLabel": "Lancer l’impersonation",
+        "roles": {
+          "all": "Tous rôles",
+          "super_admin": "Super-admin",
+          "agency_admin": "Admin agence",
+          "agent": "Agent",
+          "owner": "Propriétaire",
+          "customer": "Client",
+          "tenant": "Locataire",
+          "service_provider": "Prestataire"
+        },
+        "statuses": {
+          "all": "Tous statuts",
+          "active": "Actif",
+          "blocked": "Bloqué",
+          "inactive": "Inactif",
+          "banned": "Banni"
+        },
+        "emailFilter": {
+          "all": "Email : tous",
+          "verified": "Email vérifié",
+          "unverified": "Email non vérifié"
+        },
+        "twoFactorFilter": {
+          "all": "2FA : tous",
+          "on": "2FA activée",
+          "off": "2FA inactive"
+        }
+      },
+      "agencies": {
+        "title": "Agences",
+        "subtitle": "Modération cross-tenant — vérification, suspension, retrait de vérification.",
+        "statusAria": "Statut",
+        "sortAria": "Tri",
+        "searchPlaceholder": "Rechercher (nom, slug, email)",
+        "createdFromAria": "Créée à partir du",
+        "createdToAria": "Créée jusqu’au",
+        "statuses": {
+          "all": "Tous statuts",
+          "active": "Actives",
+          "inactive": "Inactives",
+          "suspended": "Suspendues"
+        },
+        "sorts": {
+          "createdDesc": "Création récente",
+          "createdAsc": "Création ancienne",
+          "nameAsc": "Nom A-Z",
+          "nameDesc": "Nom Z-A",
+          "membersDesc": "Équipe élevée",
+          "propertiesDesc": "Portefeuille élevé"
+        }
+      },
+      "superAdmins": {
+        "title": "Super-admins",
+        "subtitle": "Cooptation entre pairs : invitez un nouveau super-admin avec activation 2FA obligatoire.",
+        "invite": "Inviter un super-admin",
+        "loading": "Chargement…",
+        "loadError": "Impossible de charger la liste :",
+        "unknownError": "Erreur inconnue",
+        "activeSection": "Actifs ({count})",
+        "noActive": "Aucun super-admin actif.",
+        "pendingSection": "Invitations en attente ({count})",
+        "noPending": "Aucune invitation en attente.",
+        "invitedOn": "Invité le {date}",
+        "invitedBadge": "Invité",
+        "badgePending2fa": "En attente 2FA",
+        "badgeActive": "Actif",
+        "badgeActiveNo2fa": "Actif (2FA off)"
+      },
+      "upgradeRequests": {
+        "title": "Demandes d'upgrade",
+        "subtitle": "Revue des demandes <code>individual → standard</code>. Triées de la plus récente à la plus ancienne.",
+        "filtersTitle": "Filtres",
+        "totalRequests": "{total} demandes",
+        "statusLabel": "Statut",
+        "submittedFrom": "Soumise depuis",
+        "submittedTo": "Soumise jusqu'à",
+        "listTitle": "Demandes",
+        "loadError": "Impossible de charger les demandes pour le moment.",
+        "empty": "Aucune demande ne correspond aux filtres.",
+        "review": "Examiner",
+        "agencyFallback": "Agence #{id}",
+        "agencyRef": "#{id}",
+        "plannedAgents": " · {count} agent(s) prévu(s)",
+        "userFallback": "User #{id}",
+        "columns": {
+          "agency": "Agence",
+          "submittedBy": "Soumis par",
+          "date": "Date",
+          "status": "Statut",
+          "delay": "Délai"
+        },
+        "filters": {
+          "all": "Tous",
+          "pending": "En attente",
+          "approved": "Approuvées",
+          "rejected": "Rejetées",
+          "revoked": "Révoquées"
+        },
+        "status": {
+          "pending": "En attente",
+          "approved": "Approuvée",
+          "rejected": "Rejetée",
+          "revoked": "Révoquée"
+        },
+        "delay": {
+          "today": "Aujourd'hui",
+          "oneDay": "1 jour",
+          "days": "{count} jours"
+        },
+        "pagination": {
+          "previous": "Précédent",
+          "next": "Suivant",
+          "position": "Page {page} / {lastPage}"
+        }
+      },
+      "upgradeRequestDetail": {
+        "invalidId": "Identifiant de demande invalide.",
+        "loadError": "Impossible de charger cette demande pour le moment.",
+        "requestNumber": "Demande #{id}",
+        "submittedOn": "Soumise le {date}",
+        "back": "Retour aux demandes",
+        "recap": {
+          "title": "Récap demande",
+          "legalName": "Raison sociale",
+          "fiscalAddress": "Adresse fiscale",
+          "rc": "RC",
+          "ninea": "NINEA",
+          "ribPro": "RIB pro",
+          "plannedAgents": "Agents prévus",
+          "legalDocs": "Statuts juridiques ({count})",
+          "noDocument": "Aucun document attaché."
+        },
+        "history": {
+          "title": "Historique agence",
+          "currentKind": "Type actuel",
+          "createdOn": "Créée le",
+          "publishedProperties": "Biens publiés",
+          "otherRequests": "Autres demandes",
+          "openAgency": "Ouvrir la fiche agence"
+        },
+        "decision": {
+          "title": "Décision",
+          "approve": "Approuver",
+          "reject": "Rejeter",
+          "decidedOn": "Décidée le",
+          "by": "Par",
+          "comment": "Commentaire",
+          "userFallback": "User #{id}"
+        },
+        "status": {
+          "pending": "En attente",
+          "approved": "Approuvée",
+          "rejected": "Rejetée",
+          "revoked": "Révoquée"
+        }
+      }
+    },
+    "featureFlags": {
+      "colFlag": "Flag",
+      "colState": "État",
+      "colSegments": "Segments",
+      "colActions": "Actions",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "global": "Global",
+      "configure": "Configurer",
+      "configureFlag": "Configurer {label}",
+      "configureGeneric": "Configurer un flag",
+      "enabledGlobally": "Activé globalement",
+      "disabledGlobally": "Désactivé globalement",
+      "targetRoles": "Rôles ciblés",
+      "rollout": "Rollout %",
+      "test": "Tester",
+      "testing": "Vous testez"
+    },
+    "alerts": {
+      "colEvent": "Événement",
+      "colChannels": "Canaux",
+      "colFailures": "Échecs",
+      "colActions": "Actions",
+      "edit": "Éditer",
+      "editRule": "Modifier la règle",
+      "newRule": "Nouvelle règle",
+      "emails": "Emails",
+      "webhooks": "Webhooks",
+      "test": "Tester",
+      "testSent": "Test envoyé"
+    },
+    "inviteModal": {
+      "title": "Coopter un super-admin",
+      "description": "Le destinataire recevra un email d’activation. La configuration 2FA sera obligatoire avant l’attribution du rôle.",
+      "email": "Email",
+      "emailPlaceholder": "moussa@takussan.app",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "cancel": "Annuler",
+      "sending": "Envoi…",
+      "submit": "Envoyer l’invitation",
+      "toastTitle": "Invitation envoyée",
+      "toastDescription": "Une invitation a été adressée à {email}.",
+      "sendError": "Impossible d’envoyer l’invitation."
+    },
+    "reviewModal": {
+      "approveTitle": "Approuver la demande",
+      "rejectTitle": "Rejeter la demande",
+      "approveDescription": "L'agence passera en mode professionnel. Cette action est définitive.",
+      "rejectDescription": "Le demandeur recevra le motif par email et pourra soumettre une nouvelle demande.",
+      "commentLabel": "Commentaire (optionnel)",
+      "reasonLabel": "Motif du rejet",
+      "commentPlaceholder": "Ex. Statuts vérifiés, RIB cohérent.",
+      "reasonPlaceholder": "Ex. Statuts juridiques illisibles — merci de transmettre une version PDF non-scannée.",
+      "charCount": "{count} / 2000 caractères",
+      "charMinimum": "(minimum {min})",
+      "cancel": "Annuler",
+      "sending": "Envoi…",
+      "confirmApprove": "Confirmer l’approbation",
+      "confirmReject": "Confirmer le rejet",
+      "toastApprovedTitle": "Demande approuvée",
+      "toastRejectedTitle": "Demande rejetée",
+      "toastApprovedBody": "L'agence sera notifiée de la décision.",
+      "toastRejectedBody": "Le motif a été transmis au demandeur.",
+      "genericError": "Une erreur est survenue. Réessayez.",
+      "minCharsError": "Le motif doit faire au moins {min} caractères."
+    },
+    "onboarding": {
+      "title": "Activation super-admin",
+      "titleWithName": "Activation super-admin, {name}",
+      "subtitle": "La double authentification est obligatoire avant d’accéder à la console super-admin.",
+      "successBody": "Le rôle super-admin vient d’être attaché à votre compte."
+    },
+    "maintenance": {
+      "currentState": "État courant",
+      "active": "Maintenance active",
+      "scheduled": "Maintenance programmée",
+      "windowRange": "Du {start} au {end}",
+      "modeValue": "Mode : {mode}",
+      "noWindow": "Aucune fenêtre programmée.",
+      "cancelWindow": "Annuler la fenêtre",
+      "scheduleWindow": "Programmer une fenêtre",
+      "start": "Début",
+      "end": "Fin",
+      "mode": "Mode",
+      "severity": "Sévérité",
+      "messageFr": "Message FR",
+      "messageEn": "Message EN",
+      "messageWo": "Message WO",
+      "schedule": "Programmer",
+      "modes": {
+        "banner": "Bandeau",
+        "read_only": "Lecture seule",
+        "down": "Hors ligne"
+      },
+      "severities": {
+        "info": "Info",
+        "scheduled": "Planifiée",
+        "interruption": "Interruption"
+      },
+      "defaultMessages": {
+        "fr": "Maintenance planifiée. Certaines actions peuvent être indisponibles.",
+        "en": "Scheduled maintenance. Some actions may be unavailable."
+      }
+    },
+    "platformSettings": {
+      "restartWarning": "Une modification peut nécessiter un redémarrage de queue ou un vidage de cache.",
+      "reset": "Réinitialiser",
+      "saved": "Paramètres enregistrés.",
+      "updatedBy": "Modifié par {name}",
+      "updatedByOn": "Modifié par {name} le {date}",
+      "defaultValue": "Valeur par défaut",
+      "errors": {
+        "xofRequired": "XOF doit rester dans les devises supportées.",
+        "feeRange": "Le frais plateforme doit rester entre 0,00 et 100,00 %.",
+        "feeDecimals": "Le frais plateforme accepte deux décimales maximum."
+      },
+      "categories": {
+        "currency": "Devises",
+        "format": "Formats & i18n",
+        "transaction": "Frais plateforme",
+        "limits": "Limites techniques"
+      }
+    },
+    "agencyOnboarding": {
+      "toastCreatedTitle": "Agence créée",
+      "toastCreatedDescription": "Invitation envoyée à {email}.",
+      "errorEmailConflict": "Un compte existe déjà avec cet email admin.",
+      "errorGeneric": "Création impossible.",
+      "newAgency": "Nouvelle agence",
+      "dialogTitle": "Créer une agence",
+      "dialogDescription": "Provisionnez l’agence et son admin initial dans une seule opération auditée.",
+      "currencyAria": "Devise par défaut de l’agence",
+      "recapAdmin": "Admin initial : {firstName} {lastName} · {email}",
+      "recapCurrency": "Devise par défaut :",
+      "openAgency": "Ouvrir la fiche agence",
+      "back": "Retour",
+      "next": "Continuer",
+      "creating": "Création…",
+      "created": "Créée",
+      "submit": "Créer et inviter l’admin",
+      "steps": {
+        "agency": "Agence",
+        "admin": "Admin initial",
+        "recap": "Récap"
+      },
+      "fields": {
+        "name": "Nom de l’agence",
+        "currency": "Devise",
+        "slug": "Slug",
+        "type": "Type",
+        "contactEmail": "Email contact",
+        "phone": "Téléphone",
+        "address": "Adresse",
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "adminEmail": "Email admin",
+        "language": "Langue"
+      },
+      "currencies": {
+        "XOF": "XOF — F CFA (UEMOA)",
+        "XAF": "XAF — F CFA (CEMAC)",
+        "EUR": "EUR — Euro",
+        "USD": "USD — US Dollar"
+      }
+    },
+    "userDetail": {
+      "loadError": "Impossible de charger cet utilisateur.",
+      "crossTenant": "Utilisateur cross-tenant",
+      "roleTeam": "· agence {id}",
+      "mfaActive": "MFA active",
+      "toastActionDone": "Action support exécutée",
+      "toastExportRequested": "Export RGPD demandé",
+      "toastSessionRevoked": "Session révoquée",
+      "gdprExport": "Export RGPD",
+      "support": {
+        "forcePasswordReset": {
+          "label": "Forcer reset password",
+          "description": "Envoie un email de reset et révoque tous les tokens de l’utilisateur."
+        },
+        "unlock": {
+          "label": "Débloquer le compte",
+          "description": "Efface le verrouillage support stocké sur le compte."
+        },
+        "reset2fa": {
+          "label": "Réinitialiser 2FA",
+          "description": "Désactive la 2FA et force une reconfiguration au prochain login."
+        },
+        "revokeSessions": {
+          "label": "Révoquer sessions",
+          "description": "Révoque les sessions actives de l’utilisateur cible."
+        }
+      },
+      "export": {
+        "title": "Demander un export RGPD",
+        "description": "La demande est auditée et l'archive sera notifiée à l'utilisateur cible.",
+        "pending": "Demande…",
+        "submit": "Demander",
+        "reasons": {
+          "support": "Support",
+          "legal_request": "Réquisition",
+          "user_inquiry": "Demande utilisateur",
+          "other": "Autre"
+        }
+      },
+      "profiles": {
+        "title": "Profils & agences",
+        "empty": "Aucun profil agence.",
+        "agencyFallback": "Agence {id}",
+        "agencyLink": "Agence",
+        "broker": "Broker",
+        "serviceProvider": "Service provider"
+      },
+      "sessions": {
+        "title": "Sessions actives",
+        "empty": "Aucune session active.",
+        "revoke": "Révoquer",
+        "lastActivity": "Dernière activité : {date}",
+        "expiry": "Expiration : {date}",
+        "revokeTitle": "Révoquer {name}",
+        "revokeDescription": "Révoque uniquement ce token Sanctum."
+      },
+      "activity": {
+        "title": "Activité",
+        "viewInAudit": "Voir dans l’audit",
+        "empty": "Aucune activité récente.",
+        "fallbackLabel": "Activité"
+      },
+      "supportDialog": {
+        "reasonLabel": "Raison support",
+        "reasonPlaceholder": "Décrivez la raison auditée",
+        "pending": "Exécution…"
+      }
     }
   },
   "adminSettings": {
     "integrations": {
       "empty_title": "Aucune intégration configurée",
-      "empty_description": "Ajoutez-en une pour activer les paiements Wave, Orange Money, Stripe, etc."
+      "empty_description": "Ajoutez-en une pour activer les paiements Wave, Orange Money, Stripe, etc.",
+      "intro": "Connectez les providers externes (paiement, SMS, e-mail). Les secrets ne sont jamais ré-affichés après enregistrement.",
+      "add": "Ajouter une intégration",
+      "statusActive": "Active",
+      "statusInactive": "Désactivée",
+      "lastTest": " • dernier test : {date}",
+      "deactivate": "Désactiver",
+      "activate": "Activer",
+      "testing": "Test en cours…",
+      "test": "Tester la connexion",
+      "configure": "Configurer",
+      "deleteAria": "Supprimer {provider}",
+      "secret": {
+        "reveal": "Afficher",
+        "hide": "Masquer"
+      },
+      "artp": "<b>Conformité ARTP / Sénégal :</b> souscription business soumise à la fourniture du <b>NINEA</b> et du <b>RCCM</b> (Loi 2018-28, Art. 36, en vigueur depuis janvier 2025). Les SMS sont interdits entre 22h et 06h Africa/Dakar sauf 2FA / OTP / alertes de sécurité.",
+      "dialog": {
+        "createTitle": "Nouvelle intégration",
+        "editTitle": "Configurer {provider}",
+        "description": "Les identifiants sont stockés chiffrés côté serveur. Laissez les champs secrets vides en édition pour conserver la valeur actuelle.",
+        "submitCreate": "Ajouter",
+        "saving": "Enregistrement…"
+      },
+      "fields": {
+        "provider": "Fournisseur",
+        "secretUnchanged": "•••••••• (inchangé)",
+        "apiKey": "Clé API",
+        "apiSecret": "Secret",
+        "webhook": "URL de webhook",
+        "notes": "Notes (interne)",
+        "notesPlaceholder": "ex : compte de prod, rotation le 15/04",
+        "isActive": "Intégration active",
+        "clientId": "Client ID",
+        "clientSecret": "Client secret",
+        "senderAddress": "Sender address (SIM Orange SN)",
+        "senderName": "Sender name (≤ 11, whitelist Orange)",
+        "username": "Username",
+        "password": "Password",
+        "senderIdMtarget": "Sender ID (≤ 11, alphanum)",
+        "serviceId": "Service ID (optionnel)",
+        "accountId": "Account ID",
+        "senderIdLam": "Sender ID (≤ 11, ne doit pas commencer par un chiffre)",
+        "hostLam": "Host LAMPUSH (optionnel — override par défaut)",
+        "webhookPlaceholder": "https://exemple.sn/webhook"
+      },
+      "confirmDelete": "Supprimer l'intégration « {provider} » ? Cette action est irréversible."
     },
     "settings": {
       "empty_title": "Aucun paramètre pour ce filtre",
-      "empty_description": "Changez de portée ou effacez la recherche pour voir les autres clés."
+      "empty_description": "Changez de portée ou effacez la recherche pour voir les autres clés.",
+      "filterByScope": "Filtrer par portée",
+      "scopes": {
+        "all": "Tous",
+        "global": "Globaux",
+        "agency": "Agence"
+      },
+      "new": "Nouveau paramètre",
+      "columns": {
+        "key": "Clé",
+        "scope": "Portée",
+        "value": "Valeur",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Modifier {key}",
+        "delete": "Supprimer {key}"
+      },
+      "confirmSensitive": "Le paramètre « {key} » a un impact global. Confirmer la modification ?",
+      "confirmDelete": "Supprimer le paramètre « {key} » ?",
+      "updated": "Paramètre « {key} » mis à jour.",
+      "deleted": "Paramètre « {key} » supprimé.",
+      "saved": "Paramètre « {key} » enregistré.",
+      "keyRequired": "La clé est requise.",
+      "create": {
+        "description": "Les paramètres acceptent n’importe quelle valeur JSON. Les scalaires simples (texte, nombre, booléen) sont encapsulés automatiquement.",
+        "keyPlaceholder": "ex : maintenance_mode",
+        "saving": "Enregistrement…"
+      },
+      "valuePlaceholder": "true  •  42  •  \"bonjour\"  •  '{'\"enabled\": true'}'"
     }
   },
   "adminTags": {
     "empty_title": "Aucun tag pour cette recherche",
-    "empty_description": "Effacez la recherche ou créez un tag pour commencer à classer."
+    "empty_description": "Effacez la recherche ou créez un tag pour commencer à classer.",
+    "types": {
+      "all": "Tous",
+      "amenity": "Commodités",
+      "feature": "Caractéristiques",
+      "label": "Étiquettes",
+      "crm": "CRM"
+    },
+    "deleteConflict": "Ce tag est utilisé par un ou plusieurs biens. Envisagez de le renommer ou de le retirer des biens concernés avant suppression.",
+    "filterByType": "Filtrer par type",
+    "searchLabel": "Rechercher un tag",
+    "searchPlaceholder": "Rechercher…",
+    "new": "Nouveau tag",
+    "columns": {
+      "name": "Nom",
+      "slug": "Slug",
+      "type": "Type",
+      "color": "Couleur",
+      "actions": "Actions"
+    },
+    "actions": {
+      "rename": "Renommer {name}",
+      "edit": "Modifier {name}",
+      "delete": "Supprimer {name}"
+    },
+    "create": {
+      "description": "Le slug est généré automatiquement à partir du libellé et ne pourra plus être modifié.",
+      "submitting": "Création…",
+      "submit": "Créer le tag"
+    },
+    "form": {
+      "name": "Libellé",
+      "namePlaceholder": "ex : Piscine",
+      "type": "Type",
+      "icon": "Icône (nom Lucide)",
+      "color": "Couleur (hex)"
+    }
   },
   "calendar": {
     "day": {
@@ -3415,13 +5952,384 @@
       "empty_title": "Aucun événement dans la période affichée",
       "empty_description": "Changez de période ou de filtre pour voir d'autres événements."
     },
-    "error": "Impossible de charger le calendrier."
+    "error": "Impossible de charger le calendrier.",
+    "allDay": "Journée",
+    "allProperties": "Tous les biens",
+    "propertyFallback": "Bien #{id}",
+    "dayViewCta": "Vue jour",
+    "selectedDayEmpty": "Aucun événement sur cette journée.",
+    "eventCount": "{count, plural, one {# événement} other {# événements}}",
+    "moreEvents": "+{count, plural, one {# autre} other {# autres}}",
+    "viewSwitcherAria": "Vue du calendrier",
+    "typeFilterAria": "Filtrer par type d'événement",
+    "dayDetailAria": "Voir le détail du {date}",
+    "eventPillAria": "{type} {title}",
+    "views": {
+      "month": "Mois",
+      "week": "Semaine",
+      "day": "Jour",
+      "list": "Liste"
+    },
+    "gridAria": {
+      "month": "Vue mois",
+      "week": "Vue semaine"
+    },
+    "types": {
+      "booking": "Réservations",
+      "visit": "Visites",
+      "lease": "Baux"
+    },
+    "eventType": {
+      "booking": "Réservation",
+      "visit": "Visite",
+      "lease": "Bail"
+    },
+    "eventStatus": {
+      "pending": "En attente",
+      "confirmed": "Confirmée",
+      "lease": "Bail"
+    },
+    "nav": {
+      "previous": "Précédent",
+      "next": "Suivant",
+      "today": "Aujourd'hui"
+    },
+    "focus": {
+      "week": "Semaine du {date}",
+      "list": "30 prochains jours"
+    },
+    "activeFilters": {
+      "title": "Filtres actifs",
+      "property": "Bien : {label} x",
+      "types": "Types : {list}"
+    },
+    "legend": {
+      "aria": "Légende du calendrier",
+      "pendingNote": "Les événements en gris indiquent une demande ou une signature encore en attente.",
+      "helper": {
+        "booking": "Séjours et demandes courte durée confirmés",
+        "visit": "Créneaux de visite programmés",
+        "lease": "Périodes longues quand exposées par le calendrier"
+      }
+    },
+    "range": {
+      "fromTo": "Du {from} au {to}",
+      "dateAtTime": "{date} à {time}"
+    },
+    "detail": {
+      "title": "Détail de l'événement",
+      "reference": "Référence",
+      "duration": "Durée",
+      "minutesUnit": "min",
+      "property": "Bien",
+      "viewProperty": "Voir la fiche du bien",
+      "open": "Ouvrir {resource}",
+      "resource": {
+        "booking": "la réservation",
+        "lease": "le bail",
+        "visit": "la visite"
+      }
+    },
+    "weekdaysShort": {
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam",
+      "sun": "Dim"
+    }
   },
   "profile": {
     "reviews": {
       "empty_title": "Aucun avis reçu pour ces critères",
       "empty_description": "Les nouveaux avis approuvés apparaîtront ici.",
-      "error": "Impossible de charger les avis reçus."
+      "error": "Impossible de charger les avis reçus.",
+      "postedTitle": "Avis postés",
+      "postedEmpty": "Vous n'avez pas encore publié d'avis.",
+      "postedError": "Impossible de charger vos avis postés.",
+      "unknownDate": "Date inconnue",
+      "noComment": "Sans commentaire.",
+      "targetFallback": "Cible supprimée ou indisponible",
+      "opportunitiesTitle": "Avis à laisser",
+      "opportunitiesEmpty": "Aucun séjour ni bail ouvert à évaluer pour l'instant.",
+      "opportunitiesError": "Impossible de charger vos opportunités de dépôt d’avis.",
+      "receivedTitle": "Avis reçus",
+      "loadingAria": "Chargement",
+      "stayCompleted": "Séjour terminé",
+      "leaseActive": "Bail en cours",
+      "leaseEnded": "Bail terminé",
+      "details": "Détails",
+      "filterByProperty": "Filtrer par bien",
+      "allProperties": "Tous les biens",
+      "filterByReply": "Filtrer par réponse",
+      "replyFilterPlaceholder": "Réponse",
+      "allReviews": "Tous les avis",
+      "unreplied": "Sans réponse",
+      "replied": "Répondus",
+      "replyPrompt": "Votre réponse publique",
+      "replyToastTitle": "Réponse publiée",
+      "replyToastDescription": "Votre réponse est visible sous l’avis.",
+      "reportPrompt": "Motif du signalement",
+      "reportToastTitle": "Avis signalé",
+      "reportToastDescription": "La modération peut maintenant examiner cet avis.",
+      "yourReply": "Votre réponse",
+      "editReply": "Modifier la réponse",
+      "reply": "Répondre",
+      "report": "Signaler",
+      "status": {
+        "pending": "En attente",
+        "approved": "Approuvé",
+        "reported": "Signalé",
+        "rejected": "Rejeté"
+      }
+    },
+    "contact": {
+      "title": "Coordonnées",
+      "subtitle": "Gérez vos informations de contact.",
+      "emailLabel": "Email",
+      "verified": "Vérifié",
+      "notVerified": "Non vérifié",
+      "phoneLabel": "Téléphone",
+      "phoneFormatError": "Format E.164 attendu : `+`, indicatif pays, puis chiffres (ex : +221770000000).",
+      "phoneHint": "Format international (E.164). Modifier le numéro réinitialise sa vérification.",
+      "verifyPrompt": "Vérifiez votre numéro pour recevoir des notifications par SMS.",
+      "sending": "Envoi…",
+      "resendCode": "Renvoyer le code",
+      "verify": "Vérifier",
+      "otpCodeAria": "Code à 6 chiffres",
+      "verifying": "Vérification…",
+      "bioLabel": "Bio",
+      "bioPlaceholder": "Parlez-nous un peu de vous...",
+      "saving": "Enregistrement…",
+      "saveError": "Échec de la mise à jour du profil.",
+      "saved": "Modifications enregistrées.",
+      "otpSent": "Code envoyé. Vérifiez votre SMS (peut prendre jusqu'à 60s).",
+      "otpSentDebug": "Code envoyé. (Debug : {code})",
+      "phoneVerifiedOk": "Téléphone vérifié avec succès."
+    },
+    "searchPreferences": {
+      "defaultName": "Mes préférences",
+      "saved": "Préférences enregistrées.",
+      "saveError": "Échec de la sauvegarde.",
+      "typeLabel": "Type de bien préféré",
+      "budgetLabel": "Budget max (FCFA)",
+      "budgetPlaceholder": "ex: 200000",
+      "citiesLabel": "Villes favorites",
+      "citiesPlaceholder": "Dakar, Saly, Thiès",
+      "citiesHint": "Séparez les villes par une virgule.",
+      "alertsTitle": "Alertes email",
+      "alertsDescription": "Recevez un email dès qu'un nouveau bien correspond à vos critères.",
+      "alertsUnverified": "Vérifiez votre adresse email pour activer les alertes.",
+      "verifyEmailCta": "Vérifier mon email",
+      "alertsToggleAria": "Activer les alertes email",
+      "enabled": "Activées",
+      "disabled": "Désactivées",
+      "frequencyAria": "Fréquence des alertes",
+      "manageSavedSearches": "Gérer toutes mes recherches sauvegardées",
+      "frequency": {
+        "instant": "Instantané",
+        "daily": "Quotidien",
+        "weekly": "Hebdomadaire"
+      }
+    },
+    "security": {
+      "twoFactor": {
+        "title": "Authentification à deux facteurs (TOTP)",
+        "description": "Protégez votre compte avec une application d'authentification (Google Authenticator, 1Password, Authy…).",
+        "enabled": "Activée",
+        "disabled": "Désactivée",
+        "initializing": "Initialisation…",
+        "enable": "Activer la 2FA",
+        "qrAlt": "QR code à scanner",
+        "scanHint": "Scannez le QR code ou saisissez manuellement cette clé dans votre application :",
+        "confirmHint": "Ensuite, entrez le code à 6 chiffres généré pour confirmer.",
+        "codeLabel": "Code à 6 chiffres",
+        "verifying": "Vérification…",
+        "confirmAndEnable": "Confirmer et activer",
+        "recoveryTitle": "Codes de récupération",
+        "recoveryHint": "Sauvegardez ces codes dans un gestionnaire sécurisé — ils ne seront plus jamais affichés. Chaque code permet une connexion d'urgence si vous perdez l'accès à votre application.",
+        "copyAll": "Copier tous les codes",
+        "regenerate": "Régénérer les codes de récupération",
+        "disable": "Désactiver la 2FA",
+        "passwordPlaceholder": "Mot de passe",
+        "confirmDisable": "Confirmer la désactivation"
+      },
+      "title": "Sécurité",
+      "description": "Gérez l'accès à votre compte et les appareils connectés.",
+      "emailTitle": "Email",
+      "emailVerified": "Votre email est vérifié.",
+      "emailNotVerified": "Votre email n'est pas encore vérifié. Consultez votre boîte de réception.",
+      "verified": "Vérifié",
+      "notVerified": "Non vérifié",
+      "phone": {
+        "title": "Vérification du téléphone",
+        "descriptionWithPhone": "Code SMS à usage unique envoyé au {phone}.",
+        "descriptionNoPhone": "Ajoutez d'abord un numéro de téléphone dans la section « Coordonnées ».",
+        "sendCode": "Envoyer le code"
+      },
+      "sessions": {
+        "title": "Sessions actives",
+        "description": "Appareils et applications actuellement connectés à votre compte.",
+        "empty": "Aucune session active.",
+        "unnamed": "Session sans nom",
+        "current": "Session courante",
+        "currentShort": "Courante",
+        "revoke": "Révoquer",
+        "lastActivity": "Dernière activité :",
+        "unknown": "inconnue",
+        "ip": "IP : {ip}"
+      }
+    },
+    "types": {
+      "agency_admin": "Administrateur",
+      "owner": "Propriétaire",
+      "agent": "Agent",
+      "broker": "Courtier",
+      "service_provider": "Prestataire"
+    },
+    "roles": {
+      "customer": "Locataire / Acheteur",
+      "tenant": "Locataire",
+      "agent": "Agent immobilier",
+      "owner": "Propriétaire bailleur",
+      "agency_admin": "Admin agence",
+      "super_admin": "Super administrateur",
+      "service_provider": "Prestataire"
+    },
+    "switcher": {
+      "adminLabel": "Admin Takussan",
+      "changeAria": "Changer de profil",
+      "choose": "Choisir un profil",
+      "switched": "Espace basculé sur {name}",
+      "switchFailed": "Impossible de basculer de profil",
+      "fallbackLabel": "profil"
+    },
+    "myProfiles": {
+      "title": "Mes profils",
+      "error": "Impossible de charger vos profils.",
+      "empty": "Aucun profil métier rattaché à votre compte.",
+      "description": "Une carte par profil avec ses informations KYC propres.",
+      "activeProfile": "· Profil actif",
+      "kyc": {
+        "owner": {
+          "rib": {
+            "label": "RIB",
+            "help": "Iban / BIC pour le versement des loyers."
+          },
+          "taxId": {
+            "label": "Identifiant fiscal (tax_id)",
+            "help": "Pour les retenues à la source."
+          }
+        },
+        "agent": {
+          "license": {
+            "label": "Numéro de licence",
+            "help": "Carte professionnelle agence — license_number."
+          }
+        },
+        "broker": {
+          "license": {
+            "label": "Numéro de licence",
+            "help": "Carte professionnelle de courtier indépendant."
+          }
+        },
+        "serviceProvider": {
+          "certifications": {
+            "label": "Certifications",
+            "help": "Liste des certifications métiers (PDF + champ libre)."
+          },
+          "insurance": {
+            "label": "Attestation d’assurance",
+            "help": "Responsabilité civile professionnelle."
+          }
+        }
+      }
+    },
+    "header": {
+      "edit": "Modifier le profil",
+      "avatarLabel": "Avatar",
+      "currentAvatar": "Avatar actuel",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "bioLabel": "Bio",
+      "saving": "Enregistrement…",
+      "invalidImage": "Le fichier doit être une image valide.",
+      "imageTooLarge": "L’image ne doit pas dépasser 2 Mo.",
+      "saveError": "Échec de la mise à jour du profil."
+    },
+    "admin": {
+      "title": "Administration",
+      "subtitle": "Outils de gestion réservés aux administrateurs.",
+      "roleLabel": "Rôle admin",
+      "manageAgency": "Gérer l'agence",
+      "auditLog": "Journal d'audit",
+      "adminSpace": "Espace administration"
+    },
+    "agent": {
+      "title": "Profil professionnel",
+      "subtitle": "Vos informations d'agent immobilier.",
+      "bioLabel": "Bio professionnelle",
+      "bioPlaceholder": "Décrivez votre expertise et vos spécialités",
+      "specialtiesLabel": "Spécialisations",
+      "comingSoon": "Bientôt disponible",
+      "licenseLabel": "Numéro de licence",
+      "licensePlaceholder": "Ex: AGC-2025-0001",
+      "agencyLabel": "Agence liée",
+      "noAgency": "Non affilié"
+    },
+    "owner": {
+      "title": "Espace bailleur",
+      "subtitle": "Vue d'ensemble de votre activité propriétaire.",
+      "typeLabel": "Type de bailleur",
+      "comingSoon": "Bientôt disponible",
+      "properties": "Biens",
+      "activeTenants": "Locataires actifs",
+      "goToProperties": "Accéder à mes biens"
+    },
+    "customer": {
+      "title": "Préférences de recherche",
+      "description": "Définissez vos critères favoris pour être alerté dès qu'un nouveau bien correspond.",
+      "loading": "Chargement de vos préférences…",
+      "error": "Impossible de charger vos préférences pour le moment."
+    },
+    "notifications": {
+      "smsDisabled": "Les notifications SMS sont désactivées tant que votre téléphone n'est pas vérifié.",
+      "verifyPhone": "Vérifier mon téléphone",
+      "saved": "Préférences enregistrées.",
+      "eventColumn": "Événement",
+      "refresh": "Rafraîchir",
+      "toggleAria": "{event} — {channel}",
+      "events": {
+        "message_received": "Nouveau message",
+        "booking_request": "Demande de réservation",
+        "booking_status_changed": "Réservation — statut modifié",
+        "lease_payment_due": "Loyer — échéance",
+        "lease_payment_overdue": "Loyer — retard",
+        "maintenance_status_changed": "Maintenance — statut",
+        "review_received": "Nouvel avis",
+        "saved_search_match": "Recherche sauvegardée",
+        "visit_reminder": "Rappel de visite",
+        "threshold_alert": "Alerte seuil KPI"
+      },
+      "channels": {
+        "inapp": "In-app",
+        "email": "Email",
+        "push": "Push",
+        "sms": "SMS"
+      },
+      "groups": {
+        "messages": "Messages",
+        "bookings": "Réservations",
+        "leases": "Baux",
+        "maintenance": "Maintenance",
+        "reviews": "Avis",
+        "alerts": "Alertes"
+      },
+      "reasons": {
+        "inappAlwaysOn": "Toujours actif pour ne rien manquer.",
+        "phoneNotVerified": "Téléphone non vérifié."
+      }
     }
   },
   "contact": {
@@ -3443,6 +6351,590 @@
       "body": "Votre retour aide les prochains locataires à choisir en confiance.",
       "forProperty": "Avis pour",
       "action": "Laisser un avis"
+    }
+  },
+  "billing": {
+    "retryLater": "Réessayez dans quelques instants.",
+    "subscription": {
+      "none": "Aucun abonnement actif.",
+      "platformFee": "Commission plateforme",
+      "activeListings": "Biens actifs",
+      "agents": "Agents",
+      "unlimited": "Illimité",
+      "loadFailed": "Impossible de charger l'abonnement."
+    },
+    "agencySubscription": {
+      "changePlan": "Changer de plan",
+      "choosePlan": "Choisir un plan",
+      "feeOverride": "Commission override (%)",
+      "listingsOverride": "Quota biens actifs override",
+      "assign": "Assigner",
+      "close": "Clôturer",
+      "toast": {
+        "assigned": "Abonnement mis à jour",
+        "assignFailed": "Assignation impossible",
+        "closed": "Abonnement clôturé",
+        "closeFailed": "Clôture impossible"
+      }
+    },
+    "plans": {
+      "newPlan": "Nouveau plan",
+      "codePlaceholder": "code",
+      "labelPlaceholder": "libellé",
+      "pricePlaceholder": "prix XOF",
+      "feePlaceholder": "fee %",
+      "create": "Créer",
+      "save": "Enregistrer",
+      "delete": "Supprimer",
+      "toast": {
+        "created": "Plan créé",
+        "createFailed": "Création impossible",
+        "updated": "Plan mis à jour",
+        "updateFailed": "Mise à jour impossible",
+        "deleted": "Plan supprimé",
+        "deleteFailed": "Suppression impossible"
+      }
+    },
+    "platformPayouts": {
+      "status": {
+        "pending": "En attente",
+        "approved": "Approuvé",
+        "processing": "En cours",
+        "paid": "Payé",
+        "failed": "Échec",
+        "cancelled": "Annulé"
+      },
+      "filters": {
+        "allStatuses": "Tous statuts",
+        "agencyPlaceholder": "Filtrer par agence (id)",
+        "agencyAria": "Filtrer par agence",
+        "statusAria": "Filtrer par statut"
+      },
+      "count": "{total} {count, plural, one {reversement} other {reversements}} — tri par fin de période décroissante.",
+      "table": {
+        "empty": "Aucun reversement enregistré pour le moment.",
+        "period": "Période",
+        "agency": "Agence",
+        "gross": "Brut",
+        "commission": "Commission",
+        "net": "Net",
+        "status": "Statut",
+        "paidOn": "Versé le",
+        "emptyForAgency": "Aucun reversement plateforme reçu pour le moment."
+      },
+      "close": {
+        "title": "Clôturer une période",
+        "periodEndAria": "Période fin",
+        "agencyPlaceholder": "Agence (vide = toutes)",
+        "agencyAria": "Agence",
+        "submit": "Clôturer",
+        "toastNone": "Aucun paiement éligible",
+        "toastCreated": "{total} {count, plural, one {payout créé} other {payouts créés}}",
+        "toastFailed": "Clôture impossible"
+      },
+      "detail": {
+        "notFound": "Reversement introuvable.",
+        "title": "Reversement #{id}",
+        "agency": "Agence",
+        "period": "Période",
+        "currency": "Devise",
+        "gross": "Brut",
+        "commission": "Commission",
+        "net": "Net",
+        "breakdown": "Breakdown",
+        "bookings": "Réservations",
+        "leases": "Baux",
+        "breakdownLine": "<count>{count}</count> paiements · <gross>{gross}</gross> brut · <fees>-{fees}</fees> com.",
+        "approve": "Approuver",
+        "processedAtAria": "Date de traitement",
+        "bankRefPlaceholder": "Référence bancaire (optionnel)",
+        "markPaid": "Marquer payé",
+        "cancelReasonPlaceholder": "Raison de l'annulation",
+        "cancel": "Annuler",
+        "toast": {
+          "approved": "Reversement approuvé",
+          "approveFailed": "Approbation impossible",
+          "markedPaid": "Reversement marqué payé",
+          "markFailed": "Marquage impossible",
+          "cancelled": "Reversement annulé",
+          "cancelFailed": "Annulation impossible"
+        },
+        "breakdownRow": "<qty>{count}</qty> paiements · <amount>{gross}</amount> brut · <fee>-{fees}</fee> com."
+      }
+    }
+  },
+  "serverActions": {
+    "shared": {
+      "authRequired": "Authentification requise.",
+      "networkErrorRetry": "Erreur réseau. Réessayez.",
+      "noFileSelected": "Aucun fichier sélectionné.",
+      "mustBeSignedIn": "Vous devez être connecté."
+    },
+    "accountDeletion": {
+      "loadFailed": "Impossible de récupérer la demande de suppression.",
+      "submitFailed": "Impossible de soumettre la demande de suppression.",
+      "sendCodeFailed": "Impossible d'envoyer le code de confirmation.",
+      "cancelFailed": "Impossible d'annuler la demande de suppression."
+    },
+    "agentOnboarding": {
+      "kycFailed": "Impossible de soumettre votre dossier KYC.",
+      "specializationFailed": "Impossible d’enregistrer votre spécialisation.",
+      "firstLeadFailed": "Impossible de charger votre premier lead.",
+      "completeFailed": "Impossible de finaliser votre onboarding."
+    },
+    "ownerOnboarding": {
+      "kycFailed": "Impossible de soumettre votre dossier KYC.",
+      "completeFailed": "Impossible de finaliser votre onboarding.",
+      "propertiesFailed": "Impossible de charger vos biens."
+    },
+    "serviceProviderOnboarding": {
+      "tradesFailed": "Impossible de sauvegarder vos métiers.",
+      "availabilityFailed": "Impossible de sauvegarder vos disponibilités.",
+      "completeFailed": "Impossible de finaliser votre onboarding prestataire.",
+      "agenciesFailed": "Impossible de charger vos agences partenaires."
+    },
+    "hostOnboarding": {
+      "mustBeSignedInToContinue": "Vous devez être connecté pour continuer.",
+      "completeFailed": "Impossible de finaliser la création de votre espace. Réessayez."
+    },
+    "notificationPreferences": {
+      "loadFailed": "Impossible de charger les préférences.",
+      "updateFailed": "Impossible de mettre à jour les préférences."
+    },
+    "notifications": {
+      "notAuthenticated": "Non authentifié.",
+      "loadFailed": "Impossible de charger les notifications.",
+      "markReadFailed": "Impossible de marquer la notification comme lue.",
+      "markUnreadFailed": "Impossible de marquer la notification comme non lue.",
+      "markAllReadFailed": "Impossible de marquer toutes les notifications comme lues."
+    },
+    "customers": {
+      "emptyNote": "La note ne peut pas être vide."
+    },
+    "properties": {
+      "noPhotoSelected": "Aucune photo sélectionnée.",
+      "networkError": "Erreur réseau.",
+      "apiError": "Erreur ({status})."
+    },
+    "security": {
+      "enableFailed": "Impossible d'activer la 2FA.",
+      "invalidCode": "Code invalide.",
+      "disableFailed": "Impossible de désactiver la 2FA.",
+      "regenerateFailed": "Impossible de régénérer les codes de récupération.",
+      "sendOtpFailed": "Impossible d'envoyer le code.",
+      "invalidOrExpiredCode": "Code invalide ou expiré.",
+      "sessionsFailed": "Impossible de charger les sessions actives.",
+      "revokeSessionFailed": "Impossible de révoquer cette session."
+    },
+    "superAdminCooptation": {
+      "enrollFailed": "Impossible d'initialiser la 2FA super-admin.",
+      "invalidTotp": "Code TOTP invalide."
+    },
+    "auth": {
+      "resendFailed": "Impossible de renvoyer l’e-mail de vérification.",
+      "updateProfileFailed": "Impossible de mettre à jour votre profil."
+    },
+    "profiles": {
+      "loadFailed": "Impossible de charger vos profils.",
+      "switchFailed": "Impossible de changer de profil."
+    },
+    "customerDocuments": {
+      "tooLarge": "Le fichier dépasse 10 Mo.",
+      "unsupportedType": "Type de fichier non autorisé (images ou PDF uniquement)."
+    }
+  },
+  "validation": {
+    "agency": {
+      "nameRequired": "Le nom est requis.",
+      "nameTooLong": "Le nom est trop long.",
+      "licenseTooLong": "Le numéro de licence est trop long.",
+      "descriptionTooLong": "La description est trop longue (2000 caractères max).",
+      "websiteInvalid": "URL invalide. Exemple : https://exemple.sn",
+      "commissionRange": "La commission doit être comprise entre 0 et 100.",
+      "currencyInvalid": "Code devise invalide (ex : XOF, EUR).",
+      "timezoneTooLong": "Fuseau horaire trop long."
+    },
+    "common": {
+      "emailTooLong": "L’adresse e-mail est trop longue.",
+      "emailInvalid": "Adresse e-mail invalide.",
+      "phoneInvalid": "Numéro de téléphone invalide. Exemple : +221 77 123 45 67.",
+      "passwordRequired": "Le mot de passe est requis.",
+      "firstNameRequired": "Le prénom est requis.",
+      "firstNameTooLong": "Le prénom est trop long.",
+      "lastNameRequired": "Le nom est requis.",
+      "lastNameTooLong": "Le nom est trop long.",
+      "dateRequired": "La date est requise.",
+      "dateInvalid": "Format de date invalide.",
+      "endDateAfterStart": "La date de fin doit être postérieure à la date de début.",
+      "amountPositive": "Le montant doit être supérieur à 0.",
+      "emailRequired": "L’adresse e-mail est requise.",
+      "passwordMin": "Le mot de passe doit contenir au moins 8 caractères.",
+      "passwordMax": "Le mot de passe ne doit pas dépasser 72 caractères.",
+      "passwordLetter": "Le mot de passe doit contenir au moins une lettre.",
+      "passwordDigit": "Le mot de passe doit contenir au moins un chiffre.",
+      "required": "Ce champ est requis."
+    },
+    "auth": {
+      "passwordConfirmationRequired": "La confirmation est requise.",
+      "acceptTerms": "Vous devez accepter les conditions générales.",
+      "passwordMismatch": "Les mots de passe ne correspondent pas."
+    },
+    "booking": {
+      "guestsRequired": "Le nombre de personnes est requis.",
+      "guestsInteger": "Le nombre de personnes doit être un entier.",
+      "guestsMin": "Au moins 1 personne.",
+      "guestsMax": "Maximum 20 personnes.",
+      "notesTooLong": "Le message est trop long (1000 caractères max).",
+      "acceptTerms": "Vous devez accepter les conditions."
+    },
+    "customer": {
+      "occupationTooLong": "La profession est trop longue.",
+      "idTypeInvalid": "Type de pièce invalide.",
+      "idNumberTooLong": "Le numéro est trop long.",
+      "emailOrPhone": "Renseignez au moins un e-mail ou un téléphone.",
+      "idNumberRequired": "Numéro requis lorsqu’un type de pièce est sélectionné.",
+      "noteRequired": "La note ne peut pas être vide.",
+      "noteTooLong": "La note est trop longue (5000 caractères max)."
+    },
+    "document": {
+      "nameRequired": "Le nom est requis.",
+      "nameTooLong": "Le nom doit faire 255 caractères au maximum.",
+      "relatedRequired": "Entité liée requise.",
+      "expiryInvalid": "Date d'expiration invalide.",
+      "maxDownloadsInteger": "Doit être un entier positif.",
+      "maxDownloadsMin": "Minimum 1 téléchargement.",
+      "passwordTooShort": "Mot de passe trop court."
+    },
+    "inventory": {
+      "elementLabelRequired": "L'intitulé de l'élément est requis.",
+      "roomNameRequired": "Le nom de la pièce est requis.",
+      "leaseRequired": "Sélectionnez un bail.",
+      "roomsMin": "Ajoutez au moins une pièce.",
+      "disputeReasonRequired": "Motif du litige requis."
+    },
+    "lease": {
+      "propertyRequired": "Bien requis.",
+      "tenantRequired": "Locataire requis.",
+      "landlordRequired": "Bailleur requis.",
+      "rentRequired": "Loyer mensuel requis.",
+      "rentPositive": "Le loyer doit être supérieur à 0.",
+      "depositRequired": "Caution requise.",
+      "depositNonNegative": "La caution doit être ≥ 0.",
+      "paymentDayInvalid": "Jour invalide (1–28).",
+      "salePriceRequired": "Le prix de vente est requis pour un contrat de vente.",
+      "monthlyRentRequired": "Le loyer mensuel est requis pour une location.",
+      "emailInvalid": "Email invalide.",
+      "refundExceedsDeposit": "Le montant dépasse la caution restante.",
+      "refundReasonRequired": "Un motif est obligatoire pour un remboursement partiel."
+    },
+    "maintenance": {
+      "propertyRequired": "Sélectionnez un bien.",
+      "titleRequired": "Le titre est requis.",
+      "titleTooLong": "Le titre est trop long.",
+      "descriptionRequired": "La description est requise.",
+      "costNonNegative": "Le coût ne peut pas être négatif."
+    },
+    "message": {
+      "bodyRequired": "Le message ne peut pas être vide.",
+      "initialRequired": "Le message initial est requis.",
+      "bodyTooLong": "Message trop long ({max} caractères max)."
+    },
+    "payment": {
+      "dateInvalid": "Format de date invalide (AAAA-MM-JJ).",
+      "itemDescriptionRequired": "La description est requise.",
+      "quantityRequired": "Quantité requise.",
+      "quantityPositive": "La quantité doit être supérieure à 0.",
+      "unitPriceRequired": "Prix unitaire requis.",
+      "unitPriceNonNegative": "Le prix doit être ≥ 0.",
+      "customerRequired": "Client requis.",
+      "itemsMin": "Au moins une ligne est requise.",
+      "taxMin": "La TVA doit être ≥ 0.",
+      "taxMax": "La TVA doit être ≤ 100.",
+      "invoiceableBoth": "Fournir à la fois le type et l'identifiant de l'entité, ou aucun.",
+      "dueDateAfterIssue": "L'échéance doit être postérieure ou égale à la date d'émission.",
+      "landlordRequired": "Bailleur requis.",
+      "grossRequired": "Montant brut requis.",
+      "grossPositive": "Le montant brut doit être supérieur à 0.",
+      "commissionMin": "La commission doit être ≥ 0.",
+      "commissionMax": "La commission doit être ≤ 100.",
+      "feesMin": "Les frais doivent être ≥ 0.",
+      "periodEndAfterStart": "La fin de période doit être postérieure au début.",
+      "netPositive": "Le montant net doit être supérieur à 0."
+    },
+    "property": {
+      "titleRequired": "Le titre est requis.",
+      "titleTooLong": "Le titre est trop long (200 caractères max).",
+      "typeRequired": "Le type de bien est requis.",
+      "contractTypeRequired": "Le type de contrat est requis.",
+      "priceRequired": "Le prix est requis.",
+      "pricePositive": "Le prix doit être supérieur à 0.",
+      "priceUnrealistic": "Le prix est irréaliste.",
+      "cityRequired": "La ville est requise.",
+      "cityTooLong": "La ville est trop longue.",
+      "quarterTooLong": "Le quartier est trop long.",
+      "regionTooLong": "La région est trop longue.",
+      "streetTooLong": "La rue est trop longue.",
+      "postalCodeTooLong": "Le code postal est trop long.",
+      "countryLength": "Le code pays doit être sur 2 caractères (ex: SN).",
+      "latitudeInvalid": "Latitude invalide.",
+      "longitudeInvalid": "Longitude invalide.",
+      "areaInteger": "La superficie doit être un entier.",
+      "areaPositive": "La superficie doit être supérieure à 0.",
+      "areaUnrealistic": "La superficie est irréaliste.",
+      "integerExpected": "Nombre entier attendu.",
+      "valueInvalid": "Valeur invalide.",
+      "valueUnrealistic": "Valeur irréaliste.",
+      "yearInvalid": "Année invalide.",
+      "descriptionTooLong": "La description est trop longue.",
+      "statusInvalid": "Statut invalide."
+    },
+    "search": {
+      "savedSearchNameRequired": "Donnez un nom à cette recherche."
+    },
+    "setting": {
+      "keyRequired": "La clé est requise.",
+      "keyTooLong": "La clé est trop longue.",
+      "keyPattern": "Caractères invalides (alphanumériques, \".\", \"_\" et \"-\").",
+      "providerRequired": "Le fournisseur est requis.",
+      "providerTooLong": "Le nom du fournisseur est trop long.",
+      "webhookUrlInvalid": "URL invalide. Exemple : https://exemple.sn/webhook",
+      "notesTooLong": "Note trop longue.",
+      "smsSenderAddress": "Format attendu : tel:+221XXXXXXXXX (numéro Orange SN).",
+      "smsSenderNameOrange": "Sender name ≤ 11 caractères alphanumériques (whitelist Orange).",
+      "smsSenderId": "Sender ID ≤ 11 caractères alphanumériques.",
+      "smsHostInvalid": "Host invalide. Exemple : https://lampush-tls.lafricamobile.com",
+      "lamSenderIdDigit": "LAfricaMobile : le sender ID ne doit pas commencer par un chiffre."
+    },
+    "tag": {
+      "nameRequired": "Le libellé est requis.",
+      "nameTooLong": "Le libellé est trop long (100 caractères max).",
+      "iconTooLong": "Nom d’icône trop long.",
+      "colorInvalid": "Couleur hexadécimale invalide (ex : #2563eb).",
+      "descriptionTooLong": "Description trop longue."
+    }
+  },
+  "media": {
+    "title": "Médias",
+    "upload_error": "Erreur lors de l’envoi.",
+    "reorder_error": "Impossible de sauvegarder le nouvel ordre.",
+    "delete_error": "Suppression impossible.",
+    "max_files_batch": "Maximum {max} fichiers par envoi.",
+    "max_files": "Maximum {max} fichiers.",
+    "unsupported_type": "Type non supporté ({type}). Formats acceptés : JPG, PNG ou WebP.",
+    "unknown_mime": "inconnu",
+    "too_large": "Le fichier dépasse {size}.",
+    "photo_count": "{count, plural, =1 {# photo} other {# photos}} · 1<sup>ère</sup> = photo principale",
+    "dropzone_title": "Glissez-déposez vos photos ici",
+    "dropzone_hint": "ou cliquez pour sélectionner — {size} max, jusqu'à {max} fichiers.",
+    "dropzone_hint_short": "ou cliquez — {size} max, jusqu'à {max} fichiers.",
+    "cover": "Couverture",
+    "delete_photo_aria": "Supprimer cette photo",
+    "remove_file_aria": "Retirer {name}"
+  },
+  "ui": {
+    "datePicker": {
+      "placeholder": "Choisir une date"
+    },
+    "dateTimePicker": {
+      "placeholder": "Choisir une date et une heure",
+      "timeLabel": "Heure"
+    },
+    "toast": {
+      "close": "Fermer la notification"
+    }
+  },
+  "reporting": {
+    "tabs": {
+      "growth": "Croissance",
+      "revenue": "Revenu",
+      "cohorts": "Cohortes",
+      "funnel": "Funnel"
+    },
+    "filters": {
+      "periodAria": "Période",
+      "metricAria": "Métrique"
+    },
+    "periods": {
+      "30d": "30 jours",
+      "90d": "90 jours",
+      "3m": "3 mois",
+      "6m": "6 mois",
+      "12m": "12 mois"
+    },
+    "metrics": {
+      "agencies": "Agences",
+      "users": "Utilisateurs",
+      "listings": "Annonces"
+    },
+    "growth": {
+      "total": "Total:"
+    },
+    "funnel": {
+      "conversion": "Conversion globale:",
+      "stages": {
+        "listings_published": "Annonces publiées",
+        "bookings_requested": "Réservations demandées",
+        "bookings_confirmed": "Réservations confirmées",
+        "leases_signed": "Baux signés"
+      }
+    },
+    "revenue": {
+      "mrrCurrent": "MRR courant",
+      "arrCurrent": "ARR courant",
+      "activeSubscriptions": "Souscriptions actives",
+      "table": {
+        "period": "Période",
+        "mrr": "MRR",
+        "arr": "ARR"
+      }
+    },
+    "cohorts": {
+      "caption": "Cohortes d'agences par mois d'inscription · profondeur 12 mois.",
+      "cohort": "Cohorte",
+      "size": "Taille"
+    },
+    "export": {
+      "csv": "Exporter CSV",
+      "downloadedTitle": "Export téléchargé",
+      "downloadedBody": "Le fichier CSV est prêt.",
+      "requestedTitle": "Export demandé",
+      "requestedBody": "Les exports volumineux sont notifiés par email.",
+      "errorTitle": "Export impossible",
+      "errorBody": "Réessayez dans quelques instants."
+    }
+  },
+  "kyc": {
+    "loadError": "Impossible de charger le dossier KYC.",
+    "documents": {
+      "rccm": "RCCM",
+      "ninea": "NINEA",
+      "director_id": "Pièce dirigeant"
+    },
+    "status": {
+      "pending": "À compléter",
+      "submitted": "Soumis",
+      "verified": "Vérifié",
+      "rejected": "Rejeté"
+    },
+    "timeline": {
+      "title": "Timeline KYC",
+      "reasonAvailable": "Motif disponible",
+      "steps": {
+        "created": "Création",
+        "submitted": "Soumission",
+        "decision": "Décision",
+        "rejection": "Rejet"
+      }
+    },
+    "uploader": {
+      "title": "Pièces justificatives",
+      "provided": "Fourni",
+      "missing": "Manquant",
+      "add": "Ajouter",
+      "submit": "Soumettre le dossier",
+      "toasts": {
+        "documentAdded": "Pièce ajoutée",
+        "uploadFailed": "Upload impossible",
+        "submitted": "Dossier soumis",
+        "submitFailed": "Soumission impossible"
+      }
+    },
+    "review": {
+      "title": "Instruction super-admin",
+      "reasonPlaceholder": "Motif de rejet",
+      "verify": "Vérifier",
+      "reject": "Rejeter",
+      "toasts": {
+        "verified": "Dossier vérifié",
+        "rejected": "Dossier rejeté",
+        "failed": "Décision impossible"
+      }
+    },
+    "errors": {
+      "generic": "Réessayez dans quelques instants."
+    }
+  },
+  "publicProfile": {
+    "contact": {
+      "email": "Envoyer un email",
+      "call": "Appeler",
+      "contact": "Contacter",
+      "sheetDescription": "Choisis ton canal pour entrer en contact."
+    },
+    "portfolio": {
+      "filterAria": "Filtrer le portefeuille",
+      "tabs": {
+        "all": "Tous",
+        "rent": "À louer",
+        "sale": "À vendre"
+      },
+      "empty": {
+        "all": "Pas encore de bien à présenter",
+        "rent": "Pas encore de bien à louer",
+        "sale": "Pas encore de bien à vendre"
+      },
+      "emptyHint": "Reviens bientôt — les annonces se renouvellent régulièrement.",
+      "loadMoreAria": "Charger plus de biens",
+      "loading": "Chargement…",
+      "loadMore": "Voir plus de biens ({count} restants)"
+    },
+    "reviews": {
+      "eyebrow": "Avis & témoignages",
+      "heading": "Ce que disent les clients",
+      "count": "· {count} avis",
+      "ratingAria": "{rating} étoiles sur 5",
+      "anonymous": "Anonyme"
+    },
+    "team": {
+      "propertiesCount": "{count, plural, one {# bien} other {# biens}}",
+      "prevAria": "Voir les agents précédents",
+      "nextAria": "Voir les agents suivants"
+    }
+  },
+  "privacy": {
+    "dataExports": {
+      "title": "Mes données",
+      "subtitle": "Archive ZIP de portabilité personnelle.",
+      "request": "Demander mon export",
+      "empty": "Aucun export demandé.",
+      "rowTitle": "Export #{id}",
+      "requestedAt": "Demandé le {date}",
+      "expiresAt": " · expire le {date}",
+      "download": "Télécharger"
+    }
+  },
+  "charts": {
+    "empty": "Aucune donnée à afficher.",
+    "barAria": "Graphique barres",
+    "lineAria": "Graphique linéaire"
+  },
+  "files": {
+    "pdfViewer": {
+      "noFile": "Aucun fichier joint.",
+      "download": "Télécharger",
+      "previewAria": "Aperçu de {name}",
+      "unavailable": "Aperçu indisponible dans ce navigateur.",
+      "open": "Ouvrir le fichier"
+    }
+  },
+  "announcements": {
+    "dismissAria": "Masquer l'annonce"
+  },
+  "publishRedirect": {
+    "title": "Préparation de votre annonce…",
+    "body": "Nous vous emmenons au bon endroit pour publier votre bien."
+  },
+  "layout": {
+    "nav": {
+      "aria": "Navigation",
+      "mainNav": "Navigation principale",
+      "sidebarAria": "Navigation latérale"
+    },
+    "header": {
+      "brandHome": "Retour à l'accueil Takussan"
+    },
+    "footer": {
+      "brandLine": "Takussan — Immobilier au Sénégal"
     }
   }
 }

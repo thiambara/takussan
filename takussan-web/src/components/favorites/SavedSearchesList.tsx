@@ -111,7 +111,7 @@ function SavedSearchRow({
           size="sm"
           onClick={() => onDelete(search.id)}
           disabled={deleting}
-          aria-label={`Supprimer ${search.name}`}
+          aria-label={t('deleteAria', { name: search.name })}
           className="text-stone-500 hover:text-red-600"
         >
           {deleting ? (

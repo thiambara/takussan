@@ -12,6 +12,7 @@ import { SuperAdminPropertiesTable } from '@/components/admin/super/SuperAdminPr
 import { Pagination } from '@/components/super-admin/Pagination';
 import type { AdminPropertiesResponse, AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-132 — `/super-admin/properties` cross-tenant catalog. The server-side
@@ -21,6 +22,8 @@ import type { ApiError } from '@/lib/api';
  */
 export default function SuperAdminPropertiesPage() {
   const t = useTranslations('superAdmin.properties');
+  const tPage = useTranslations('superAdmin.pages.properties');
+  const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -66,10 +69,8 @@ export default function SuperAdminPropertiesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Biens</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Catalogue cross-tenant — filtrer, trier et agir sur les biens de toutes les agences.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
       </header>
 
       <SuperAdminPropertiesFilters agencies={agencyOptions} />
@@ -85,7 +86,7 @@ export default function SuperAdminPropertiesPage() {
           ))}
         </div>
       ) : propertiesQuery.isError ? (
-        <ErrorState message={propertiesQuery.error?.displayMessage ?? t('error')} />
+        <ErrorState message={messageErreur(propertiesQuery.error, t('error'))} />
       ) : !propertiesQuery.data || propertiesQuery.data.data.length === 0 ? (
         <EmptyState
           data-testid="properties-empty"

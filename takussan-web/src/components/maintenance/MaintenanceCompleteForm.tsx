@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 import {
   FormGlobalError,
@@ -31,6 +32,8 @@ export function MaintenanceCompleteForm({
   readonly id: number;
   readonly onClose: () => void;
 }) {
+  const t = useTranslations('maintenance.complete');
+  const tCommon = useTranslations('common');
   const complete = useCompleteMaintenanceRequest(id);
   const uploadPhotos = useUploadMaintenancePhotos();
   const [photos, setPhotos] = useState<File[]>([]);
@@ -71,9 +74,9 @@ export function MaintenanceCompleteForm({
       noValidate
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-app-ink">Clôturer l&apos;intervention</h3>
+        <h3 className="text-sm font-semibold text-app-ink">{t('title')}</h3>
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-          Annuler
+          {tCommon('actions.cancel')}
         </Button>
       </div>
 
@@ -82,15 +85,15 @@ export function MaintenanceCompleteForm({
       <FormTextarea
         name="resolution_notes"
         control={form.control}
-        label="Rapport d'intervention"
-        placeholder="Décrivez ce qui a été fait"
+        label={t('notes_label')}
+        placeholder={t('notes_placeholder')}
         rows={4}
       />
 
       <FormInput
         name="actual_cost"
         control={form.control}
-        label="Coût réel"
+        label={t('cost_label')}
         type="number"
         min={0}
         step="100"
@@ -102,7 +105,7 @@ export function MaintenanceCompleteForm({
           htmlFor="completion-photos"
           className="mb-1.5 block text-sm font-medium"
         >
-          Photos après intervention
+          {t('photos_label')}
         </label>
         <input
           id="completion-photos"
@@ -114,15 +117,14 @@ export function MaintenanceCompleteForm({
         />
         {photos.length > 0 ? (
           <p className="mt-1 text-xs text-app-ink-muted">
-            {photos.length} photo{photos.length > 1 ? 's' : ''} sélectionnée
-            {photos.length > 1 ? 's' : ''}.
+            {t('photos_selected', { count: photos.length })}
           </p>
         ) : null}
       </div>
 
       <div className="flex justify-end gap-2 pt-1">
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Clôture…' : 'Marquer terminé'}
+          {isSubmitting ? t('submitting') : t('submit')}
         </Button>
       </div>
     </form>

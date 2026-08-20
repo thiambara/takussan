@@ -12,10 +12,12 @@ import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation'
 import type { ModerationProperty } from '@/lib/queries/property-moderation';
 import { PropertyModerationQueueList } from './PropertyModerationQueueList';
 import { PropertyModerationDetail } from './PropertyModerationDetail';
-import { ApiError } from '@/lib/api';
+
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export function PropertyModerationWorkspace() {
   const t = useTranslations('admin.propertyModeration');
+  const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -63,7 +65,7 @@ export function PropertyModerationWorkspace() {
         </div>
       ) : isError ? (
         <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-sm text-destructive">
-          {error instanceof ApiError ? error.displayMessage : t('loadError')}
+          {messageErreur(error, t('loadError'))}
         </div>
       ) : properties.length === 0 ? (
         <PropertyModerationEmpty />

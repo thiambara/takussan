@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Compass, ShieldCheck } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { buttonVariants } from '@/components/ui/button';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function DashboardEmpty({ roles }: Props) {
+  const t = useTranslations('dashboard.empty');
   const isAdminLike = isAdmin(roles) || isSuperAdmin(roles);
 
   return (
@@ -20,18 +22,16 @@ export function DashboardEmpty({ roles }: Props) {
         <Compass className="size-10 text-app-accent" />
       )}
       <p className="text-sm font-semibold text-app-ink">
-        {isAdminLike ? 'Aucune métrique à afficher pour le moment' : 'Aucune activité pour le moment'}
+        {isAdminLike ? t('adminTitle') : t('userTitle')}
       </p>
       <p className="text-xs text-app-ink-muted">
-        {isAdminLike
-          ? "Configurez votre agence depuis l'administration pour faire apparaître les indicateurs."
-          : 'Explorez les biens disponibles ou complétez votre profil pour commencer.'}
+        {isAdminLike ? t('adminBody') : t('userBody')}
       </p>
       <Link
         href={isAdminLike ? '/admin' : '/properties'}
         className={buttonVariants({ variant: 'outline' })}
       >
-        {isAdminLike ? "Aller à l'administration" : 'Explorer les biens'}
+        {isAdminLike ? t('adminCta') : t('userCta')}
       </Link>
     </div>
   );

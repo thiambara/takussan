@@ -126,7 +126,68 @@ démarrer**. Sur une installation neuve suivie à la lettre, l'application ne bo
 **Preuve** : `docs/infra/deploy-preview.html` (ligne `apt install`) confrontée aux `require` de
 `composer.lock`.
 
-### D-04 — La production n'a **jamais** été déployée 🔴 → [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md)
+### D-04 — La production de l'API n'a jamais SERVI — et depuis le 2026-08-15 ce n'est plus faute d'avoir essayé 🔴 → [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md) · [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md)
+
+> ## ⚠️ RE-MESURÉE LE 2026-08-20 — LE DIAGNOSTIC A CHANGÉ UNE SECONDE FOIS
+>
+> **Tout le corps de cette entrée date du 2026-08-12 et six de ses affirmations ne tiennent plus.**
+> Il est conservé sous ce cartouche — pas récrit — parce que l'écart entre les deux dates *est* la
+> leçon : cette entrée avait DÉJÀ été corrigée une fois pour avoir déduit l'état du serveur de la
+> configuration, et sa correction a vieilli de la même manière, en devenant une liste de chiffres
+> sans date qu'on a recopiés.
+>
+> | Écrit le 2026-08-12 | Mesuré le 2026-08-20 |
+> |---|---|
+> | « `deploy.yml` n'a **jamais** tourné » | **il a tourné DEUX FOIS**, le 2026-08-15, et les deux ont **échoué** |
+> | « `deploy.yml` n'existe pas sur `master` » | `git cat-file -e origin/master:.github/workflows/deploy.yml` → **présent** |
+> | « `master` figé au 2026-05-18 » | **`fefe2c87`, 2026-08-15 14:56:07 +0000** (*Merge pull request #151 from thiambara/dev*) |
+> | « 31 commits derrière `dev` » | `git rev-list --count origin/master..origin/dev` → **273** |
+> | « le blocage est circulaire : la branche par défaut est `master` » | branche par défaut = **`dev`** (`gh api repos/thiambara/takussan -q .default_branch`). Le blocage est **dénoué**, et le `workflow_dispatch` du 2026-08-15 le prouve : il a démarré |
+> | « une production jamais déployée, **sans utilisateur exposé** » | **il y en a un** : `www.takussan.com` → 200, public, et son bundle appelle `https://api.takussan.com` → 404 (cf. D-10, TCK-332) |
+>
+> **Ce qui a réellement échoué, et c'est un fait neuf.** Les deux exécutions vont jusqu'au bout de
+> `composer install` sur le serveur, puis meurent sur les **identifiants de base de production** :
+>
+> ```
+> $ gh run list --workflow=deploy.yml --limit 10
+> completed  failure  Deploy Laravel API         master  workflow_dispatch  31894037166  53s  2026-08-15T15:54:29Z
+> completed  failure  Merge pull request #151 …  master  push               31891294106  48s  2026-08-15T14:56:11Z
+>
+> $ gh run view 31891294106 --log-failed
+>   In Connector.php line 67:
+>     SQLSTATE[HY000] [1045] Access denied for user 'takussan_prod'@'localhost' (using password: YES)
+>   ERROR: Deployment failed (exit code: 1). Rolling back...
+>   Removing failed release: /var/www/takussan/releases/20260815165630
+>   Rollback complete.
+> ```
+>
+> **Le déploiement se déroule proprement en arrière** — c'est pour cela que le serveur est resté
+> dans l'état où D-04 le décrivait, et c'est aussi pour cela que rien n'a signalé la tentative.
+> `api.takussan.com/up` rend toujours **404** (mesuré le 2026-08-20) quand
+> `preview.api.takussan.com/up` rend **200**.
+>
+> **Ce que cela change pour la suite.** L'obstacle n'est plus une politique de branche ni un
+> blocage GitHub : ceux-là sont levés, et le `workflow_dispatch` qui a démarré le prouve. Ce qui
+> arrête le déploiement est désormais **l'authentification MySQL du compte `takussan_prod` sur le
+> serveur**, à l'étape `php artisan migrate --force`.
+>
+> ⚠ **Ce qu'on NE SAIT PAS, et qu'il ne faut pas déduire.** Le message `Access denied … (using
+> password: YES)` dit qu'un mot de passe a été présenté et refusé. Il ne dit **pas** de quel côté
+> est l'écart : le secret `ENV_FILE` peut porter un mot de passe périmé, ou le compte MySQL peut ne
+> pas exister / ne pas être *granté* sur `localhost`, ou la base visée peut avoir changé de nom.
+> **Les trois se ressemblent dans ce journal.** Trancher exige de regarder le serveur — c'est la
+> première chose que TCK-288 doit faire, et c'est précisément le geste que cette entrée a déjà
+> manqué deux fois. TCK-288 repart de là, et non du texte ci-dessous.
+>
+> **Ce qui n'a PAS changé, et c'est le seul point qui ait tenu** : `master` reste un ancêtre strict
+> de `dev` (`git rev-list --count origin/dev..origin/master` → **0**) ; un merge serait un
+> *fast-forward*. Et la décision d'un premier déploiement de production reste **une action
+> sortante qui appartient à une personne**.
+>
+> *Une mesure sans sa date devient une croyance. Toutes celles de ce cartouche portent la leur.*
+
+<details>
+<summary><strong>Corps du 2026-08-12 — conservé pour l'historique, PÉRIMÉ sur les six points ci-dessus</strong></summary>
 
 > **DIAGNOSTIC CORRIGÉ le 2026-08-12.** L'entrée d'origine disait *« la production ne reçoit plus
 > rien depuis trois mois »*, ce qui suppose qu'elle en recevait. **Elle n'en a jamais reçu.**
@@ -178,6 +239,8 @@ aucune alerte, aucun badge ne le signale ; la configuration du dépôt continue 
 **Trancher** : soit `master` redevient la branche de production et on l'y amène, soit le déclencheur
 suit `dev`. L'état actuel — une branche de production abandonnée qui reste le déclencheur — est le
 seul qui ne soit défendable d'aucune façon.
+
+</details>
 
 ### D-05 — Aucune garde MySQL, alors que les pièges sont documentés ✅ *soldé le 2026-08-12*
 
@@ -609,17 +672,69 @@ Trois environnements, trois piles différentes, aucune épinglée. `docker-compo
 la moitié dev (MySQL 8.0 aligné sur la production **mesurée**, Meilisearch v1.16 alignée sur la CI,
 Redis 8) — la production, elle, reste posée par `apt` sans version épinglée dans le dépôt.
 
-### D-10 — Le déploiement du frontend est entièrement hors dépôt 🟠 → [TCK-299](backlog/tickets/TCK-299-deploiement-frontend-hors-depot.md)
+### D-10 — Le déploiement du frontend est entièrement hors dépôt ✅ *REQUALIFIÉE et partiellement soldée le 2026-08-20 — l'ignorance est levée, l'extériorité est ASSUMÉE, et deux conséquences restent ouvertes* → [TCK-299](backlog/tickets/TCK-299-deploiement-frontend-hors-depot.md) · [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md) · [TCK-333](backlog/tickets/TCK-333-vercel-sans-filtre-de-chemins.md)
 
-> **Confirmé le 2026-08-16, et resserré :** `deploy.yml` et `deploy-preview.yml` citent **zéro**
-> fichier de `takussan-web/` — les deux ne déploient que l'API. `web-ci.yml` existe depuis D-06 mais
-> **teste**, il ne déploie pas.
+> **Relecture du 2026-08-20 : « ✅ soldé » tout court était trop généreux, et c'est exactement le
+> défaut que ce fichier existe pour empêcher.** TCK-299 n'a pas ramené le déploiement du front dans
+> le dépôt — il a établi *qui* le fait, l'a **décidé** en ADR, en a écrit le relevé et l'a gardé.
+> Trois choses distinctes, et le titre de cette entrée n'en couvre qu'une.
+>
+> | Ce que D-10 nommait | Verdict au 2026-08-20 |
+> |---|---|
+> | *« impossible de savoir quelle branche déploie quel environnement »* — le **coût** | ✅ **soldé** : le mapping est mesuré, écrit dans `frontend-deploiement.json` et rejoué par `front-deploy-map.yml` à chaque PR touchant le front |
+> | *« entièrement hors dépôt »* — l'**état** | **inchangé, et désormais ASSUMÉ** : aucun workflow de ce dépôt ne déploie le front, et [ADR-0017](adr/0017-deploiement-du-front-pilote-par-vercel.md) décide que ce sera ainsi. Ce n'est plus une dette, c'est une décision — mais l'écrire « soldé » laissait croire que l'état avait changé |
+> | ce que la mesure a **découvert au passage** | ❌ **non soldé**, et l'un des deux est P0 → TCK-332, TCK-333 (cf. ci-dessous) |
+>
+> *Une dette dont on lève l'ignorance sans changer l'état n'est pas soldée : elle est requalifiée.*
+> La distinction n'est pas de vocabulaire — « soldé » range l'entrée hors du champ de vision, et
+> les deux tickets ouverts par cette mesure seraient partis avec elle.
 
-L'application Next.js — 875 fichiers, 111 pages — n'est déployée par **aucun** workflow ni script du
-dépôt. Pas de `vercel.json`, pas de mapping branche→environnement documenté. La seule trace de
-Vercel dans le dépôt est une regex d'origine CORS côté Laravel.
+> **Le fait tenait, la conclusion non — mesuré le 2026-08-20.** Il restait vrai que `deploy.yml`,
+> `deploy-preview.yml` et `web-ci.yml` ne déploient pas le front. Mais cette entrée en tirait
+> *« impossible de savoir quelle branche déploie quel environnement »*, et cela se mesurait **sans
+> compte Vercel** : Vercel publie son activité sur GitHub.
+>
+> ```
+> $ gh api --paginate "repos/thiambara/takussan/deployments?per_page=100" \
+>     -q '.[] | [.environment, .creator.login] | @tsv' | sort | uniq -c | sort -rn
+>  212 Preview     vercel[bot]
+>    3 Production  vercel[bot]
+> ```
+>
+> 215 déploiements depuis le 2026-05-04, tous par `vercel[bot]`. Les 3 « Production » sont
+> **exactement** les 3 derniers commits de `git log --first-parent origin/master`. Le mapping :
+> **`master` → Production (`www.takussan.com`, public)**, `dev` et `preview` → Preview derrière le
+> SSO Vercel.
+>
+> *C'est D-04 dans l'autre sens : on avait déduit l'inexistence d'un déploiement de l'ABSENCE de
+> configuration. Une absence dans le dépôt ne prouve rien sur le monde.*
+>
+> Soldé par [ADR-0017](adr/0017-deploiement-du-front-pilote-par-vercel.md) (la décision : Vercel
+> garde le déploiement, le dépôt le relève et le garde),
+> [`docs/infra/frontend-deploiement.md`](infra/frontend-deploiement.md) + son relevé JSON, et
+> `.github/workflows/front-deploy-map.yml` (qui vérifie et ne déploie rien).
 
-Il est donc **impossible de savoir, depuis le code, quelle branche déploie quel environnement front**.
+**❌ Ce que cette mesure a découvert au passage, et qui n'est PAS soldé — P0 → [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md).**
+Le front de production est en ligne, **public**, et son bundle porte
+`NEXT_PUBLIC_API_URL = https://api.takussan.com` — un hôte qui rend **404**. Re-mesuré le
+2026-08-20 :
+
+```
+$ curl -s -o /dev/null -w '%{http_code}' https://www.takussan.com/           → 200
+$ curl -s -o /dev/null -w '%{http_code}' https://takussan.com/               → 307 (vers www)
+$ curl -s -o /dev/null -w '%{http_code}' https://api.takussan.com/up         → 404
+$ curl -s -o /dev/null -w '%{http_code}' https://preview.api.takussan.com/up → 200
+```
+
+D-04 décrivait une production jamais déployée **sans utilisateur exposé**. Il y en a un. Cela ne
+change pas le périmètre de TCK-299, cela change la **priorité de TCK-288**.
+
+**❌ Reste ouvert, plus petit — P3 → [TCK-333](backlog/tickets/TCK-333-vercel-sans-filtre-de-chemins.md).**
+L'intégration Vercel n'a aucun filtre de chemins : `6f38de67`, qui ne touche qu'un fichier de
+`docs/backlog/`, a produit le déploiement Preview `6001431629`. Chaque commit de documentation
+reconstruit donc le front entier. Correctif : un `ignoreCommand` dans `takussan-web/vercel.json`,
+hors périmètre de TCK-299 — et ADR-0017 explique pourquoi ce fichier ne doit *pas* naître pour une
+autre raison que celle-là.
 
 ### D-11 — Le guide de déploiement contredit les `.env` réellement livrés ✅ *soldé le 2026-08-16* → [TCK-300](backlog/tickets/TCK-300-guides-deploiement-contredisent-env-livres.md)
 
@@ -876,6 +991,63 @@ possible est de l'afficher au démarrage.
 > imprimait un ✓ vert sur chacun, et le bloc « Services » un second ✓ (« vise des services HORS de
 > ce docker-compose » — vrai, et légitime pour un poste natif). Rien n'était faux ; il manquait
 > seulement la phrase qui relie les deux.
+
+---
+
+### D-57 — Le front servi sur `127.0.0.1` ne s'hydratait pas, et rien ne le disait ✅ *mesurée le 2026-08-17 (vérification navigateur de TCK-279), soldée le 2026-08-20* → [TCK-328](backlog/tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md)
+
+Next 16 bloque par défaut ses ressources de développement (`/_next/*`, `/__nextjs*`) quand la page
+est servie depuis un hôte absent d'`allowedDevOrigins`, dont la valeur par défaut ne contient que
+`localhost` et `**.localhost`. `takussan-web/next.config.ts` n'en déclarait aucun. Ouvert sur
+`http://127.0.0.1:<port>`, le front rendait son HTML, puis **React ne s'hydratait jamais** : les
+formulaires se soumettaient en GET natif — le mot de passe de connexion partait dans l'URL.
+
+| Ce que le dépôt dit majoritairement | Ce qui marchait réellement |
+|---|---|
+| `dev.sh` annonce `127.0.0.1` pour l'API, Meilisearch, MySQL, Redis ; `.env.example` livre `NEXT_PUBLIC_API_URL=http://127.0.0.1:8002` | le front n'était joignable que sur `localhost`, et **rien ne disait pourquoi** |
+
+**Preuve, mesurée le 2026-08-20 (TCK-328)** : sortie `npm run dev` → **14** `Blocked cross-origin
+request to Next.js dev resource … from "127.0.0.1"` · console → **403 × 13** + WebSocket HMR en
+échec · sonde d'hydratation
+`Object.keys(document.querySelector('form')).some(k => k.startsWith('__react'))` → `false` sur
+`127.0.0.1`, `true` sur `localhost`, même serveur, même instant · soumission réelle du formulaire →
+`Page navigated to /auth/login?email=…&password=motdepasse-sonde`.
+
+**Correctif** : `allowedDevOrigins: ['127.0.0.1', '[::1]']` dans `takussan-web/next.config.ts` —
+versionné, donc valable pour tout poste sans geste local. Après : 0 message bloqué, 36 requêtes
+`/_next/*` en 200, hydratation `true`, URL propre après soumission. Le LAN (`192.168.1.181`) et un
+hôte tiers restent **403** : la surface n'est pas élargie.
+
+⚠ **`[::1]` s'écrit avec ses crochets.** Next compare `new URL(origin).hostname`, qui rend `"[::1]"`.
+La première version écrivait `'::1'` et laissait l'IPv6 en 403 — trouvé par sonde `Origin`, pas par
+lecture.
+
+**Second filet** : `./dev.sh doctor` nomme l'écart si la ligne disparaît, et se tait quand elle est
+là (ablation jouée). Sa première version restait verte pendant sa propre ablation — elle lisait le
+bloc de commentaire qui cite `allowedDevOrigins` et `127.0.0.1`, et mesurait donc sa propre
+documentation. *Une garde qu'on n'a pas vue rougir n'est pas une garde.*
+
+**À ne pas confondre avec** l'incohérence d'hôte du § *Environnement* de `takussan-web/CLAUDE.md`,
+qui porte sur l'origine de l'**API** (port 8002) et sur les cookies. Axes différents, symptômes
+différents. L'hypothèse « même cause » a été posée puis **écartée** : `dev.sh` imprime bien
+`localhost` pour le front, donc le chemin nominal n'était pas atteint par ce défaut-ci.
+
+**Différence avec D-48** : cette dette-là, le dépôt **pouvait** la corriger — `next.config.ts` est
+versionné. D-48 vivait dans un fichier ignoré par git et ne pouvait qu'être affichée.
+
+> **Consignée le 2026-08-20, trois jours après sa mesure, et l'écart est lui-même la leçon.** Le
+> numéro `D-57` était cité par **quatre** fichiers — `dev.sh:623`, `dev.sh:833`,
+> `takussan-web/CLAUDE.md:297`, `takussan-web/next.config.ts:43` — alors que
+> `grep -n '^### D-57' docs/ardoise.md` ne rendait **rien**. TCK-328 avait rédigé l'entrée dans son
+> propre corps sans pouvoir l'écrire ici : `docs/ardoise.md` était tenu par un autre agent au même
+> moment, et son premier numéro proposé (`D-56`) avait entre-temps été pris par TCK-322. *Un
+> pointeur vers une entrée qui n'existe pas coûte plus cher qu'une absence de pointeur : il envoie
+> chercher, et il donne l'autorité d'un document à ce qu'on ne trouvera pas.*
+>
+> **Re-vérifié avant d'écrire ces lignes** : `takussan-web/next.config.ts:44` porte bien
+> `allowedDevOrigins: ['127.0.0.1', '[::1]']`, et `dev.sh:641-642` porte bien la sonde `doctor`
+> avec son `grep -v '^[[:space:]]*//'`. Les mesures navigateur ci-dessus sont celles de TCK-328 et
+> n'ont pas été rejouées ici — elles exigent un serveur de développement et un navigateur piloté.
 
 ---
 
@@ -1782,6 +1954,24 @@ Le seuil `--min=86` est posé **au niveau mesuré des lignes, arrondi vers le ba
 marge (un fichier de ~100 lignes ajouté sans test coûte ~0,35 point ; la marge en absorbe trois). Un
 cliquet contre l'érosion, pas un objectif.
 
+> **Le seuil n'a pas bougé ; l'endroit où il est évalué, si — 2026-08-20 (TCK-331).** Il ne l'est
+> plus par `--min` de Collision, mais par `bin/coverage-gate.php`, qui lit le **clover**. Raison
+> mesurée : `--min` n'est évalué que si Collision a pu relire son propre rapport `--coverage-php`,
+> option qu'il passe à PHPUnit dans le dos de l'appelant. Le jour où le workflow l'a passée une
+> seconde fois, PHPUnit l'a écartée et le step est sorti en **1 sans imprimer un chiffre**, sur une
+> suite verte à 86,33 % — deux exécutions, deux échecs, zéro succès.
+>
+> Le nombre est le même **à la décimale**, vérifié par mesure appariée sur un seul et même clover
+> (`Total: 7.9 %` des deux côtés, 1975 / 24966 lignes). Ce qui change en plus du mécanisme :
+> **un rapport qui n'a mesuré AUCUNE ligne exécutable est désormais un ÉCHEC**, là où `0/0` se lit
+> « 100 % » dans la plupart des conventions. Le jour où PCOV disparaît du runner, la CI rougit au
+> lieu de laisser passer en silence.
+>
+> Au passage, un second défaut du même geste, qui n'était écrit nulle part : `artisan test` ignore
+> ses erreurs de validation, donc **la première option que Symfony ne connaît pas interrompt
+> l'analyse et fait perdre toutes les suivantes**. `--testsuite=Unit --coverage --min=86` sortait
+> en 0 sans avoir mesuré quoi que ce soit. *Le cliquet dépendait de l'ordre des arguments.*
+
 **Surcoût mesuré : +36 %** (83 s → 113 s, comparaison appariée sur la suite entière, machine quasi au
 repos, Xdebug coupé des deux côtés pour ne pas mesurer Xdebug à la place de PCOV). Sous la limite de
 50 % que le ticket s'était fixée. Le step de CI **affiche sa durée** à chaque exécution : une mesure
@@ -2073,6 +2263,30 @@ TCK-314).
 séquentiel supporte la simultanéité depuis D-44, et `bin/impacted-tests.php` (TCK-320) aussi — la
 boucle quotidienne n'est donc pas bloquée, c'est le rituel de fin de branche qui doit rester sériel.
 
+### Épilogue, 2026-08-20 — la paire sur la suite ENTIÈRE a été jouée, et elle rougit AILLEURS
+
+Machine au repos, 8 cœurs, load 3,39 au départ : `A = 38 erreurs`, `B = 37`, sur **2589 tests joués
+des deux côtés**. Contrôle immédiat, même arbre, même repos, une seule exécution : **0 échec, 108 s**.
+
+Trois constats, à ne pas confondre :
+
+1. **Le correctif de TCK-322 tient.** Les deux exécutions ont DÉMARRÉ ; `mkdir(): File exists` ne
+   s'est pas produit sur la suite entière. Ce que cette dette demandait est établi.
+2. **L'isolation de TCK-321 tient.** Jetons d'index distincts des deux côtés — pas une collision de
+   noms.
+3. **Une CINQUIÈME ressource partagée par machine apparaît** : la **file de tâches globale du
+   serveur Meilisearch**. Les 75 erreurs sont toutes des `MeilisearchNotIdleException`. L'isolation
+   du dépôt porte sur les *noms d'index* ; elle ne peut rien contre le *débit d'indexation* d'une
+   instance unique. → **TCK-334**.
+
+**Et c'est D-44 qui a rendu ce diagnostic possible** : l'ancienne barrière abandonnait en silence au
+bout de 10 s, laissait le test lire un index à moitié construit, et rougissait sur une assertion
+métier juste — en accusant le code applicatif. Ici elle lève, compte les tâches en attente index par
+index, et nomme la cause probable dans son propre message. *Une garde qui échoue bruyamment vaut son
+coût le jour où elle décrit la panne à ta place.*
+
+La restriction « un seul agent à la fois » reste donc écrite — avec, désormais, **la bonne raison**.
+
 </details>
 
 ---
@@ -2094,11 +2308,11 @@ pour le code neuf** ; l'existant reste à converger.
 | **D-31** | Enveloppe de pagination dupliquée à la main | ✅ **soldé le 2026-08-17** (TCK-304) — **57 contrôleurs + 1 service** convergés vers le point canonique unique ; gardé par `scripts/check-pagination-envelope.mjs`, **4 mutations rouges**. `takussan-web/src/types/api.ts` corrigé (`links` rendu optionnel) : suite front 888 tests, 0 échec. | les 4 clés canoniques | [TCK-304](backlog/tickets/TCK-304-enveloppe-pagination-dupliquee.md) |
 | **D-32** | Validation inline vs FormRequest | ✅ **soldé le 2026-08-17** (TCK-305) — **121 sites** convergés vers `BaseFormRequest` ; gardé par `scripts/check-inline-validation.mjs` (165 contrôleurs balayés, **0 validation en ligne**, 199 FormRequest), **5 mutations rouges**. ⚠ La convergence inversait **403 → 422 sur 67 instructions / 65 méthodes** — corrigé en portant l'autorisation dans `authorize()`, et **épinglé par 18 tests** dont l'ablation rend bien 422. | `BaseFormRequest` | [TCK-305](backlog/tickets/TCK-305-validation-inline-vers-formrequest.md) |
 | **D-33** | Policy vs helpers de contrôleur | ✅ **soldé le 2026-08-17** (TCK-306) — **25 contrôleurs / 88 appels** rattachés à leurs policies ; gardé par `scripts/check-controller-authorization.mjs`, **6 mutations rouges**. ⚠ **19 helpers restent hors périmètre**, comptés et bloqués contre toute addition — ticket de suite. | policy | [TCK-306](backlog/tickets/TCK-306-autorisation-controleurs-vers-policies.md) |
-| **D-34** | ~~Deux mécanismes de filtrage concurrents~~ → **code mort toujours branché** | ✅ **soldé le 2026-08-17** — `scopeFilter` supprimé de `BaseModelTrait`, avec `PropertyService` et `WizardDraftPolicy` (même famille). L'inventaire a couvert le dépôt entier et les invocations dynamiques : **0 appelant** hors du test qui le testait. `scripts/check-filtering-single-mechanism.mjs` (Repo CI) garde la suppression **y compris sous un autre nom**. ⚠ `scopeWithSearch()` subsiste — même motif, hors périmètre du ticket, cf. D-34bis | `buildQuery()` pour toute API | [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) |
-| **D-34bis** | `scopeWithSearch()` — le jumeau non traité de D-34 | **Trouvé le 2026-08-17 en soldant TCK-307**, et pas mesuré avant : le second scope du DSL maison (`BaseModelTrait::scopeWithSearch`) n'a **aucun appelant hors de `tests/Feature/Search/ScoutSearchTest.php`**, c'est-à-dire hors du test qui le teste — exactement le motif de D-34. Il était HORS PÉRIMÈTRE de TCK-307, dont le *Delta à produire* ne nomme que `scopeFilter`, et il n'a donc pas été supprimé : **le retirer changerait le compte de tests d'une suite que le ticket exigeait de ne réduire que du DSL nommé.** Un cran plus subtil que D-34 pourtant : son docblock avertit que la pertinence Scout est **perdue** sur ce chemin, alors que `HasQueryBuilder` la restitue depuis TCK-281 — donc ce n'est pas un doublon inerte, c'est un doublon **inférieur**. La garde `check-filtering-single-mechanism.mjs` ne le voit pas : il ne prend pas de tableau et ne boucle pas de `where()`. **À trancher : supprimer, ou écrire pourquoi il vit.** | `filter[search]` via `buildQuery()` | [TCK-326](backlog/tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) |
+| **D-34** | ~~Deux mécanismes de filtrage concurrents~~ → **code mort toujours branché** | ✅ **soldé le 2026-08-17** — `scopeFilter` supprimé de `BaseModelTrait`, avec `PropertyService` et `WizardDraftPolicy` (même famille). L'inventaire a couvert le dépôt entier et les invocations dynamiques : **0 appelant** hors du test qui le testait. `scripts/check-filtering-single-mechanism.mjs` (Repo CI) garde la suppression **y compris sous un autre nom**. Le jumeau `scopeWithSearch()` a suivi le 2026-08-20 (TCK-326, cf. D-34bis), et `BaseModelTrait` a disparu avec lui | `buildQuery()` pour toute API | [TCK-307](backlog/tickets/TCK-307-supprimer-dsl-scopefilter-mort.md) |
+| **D-34bis** | ~~`scopeWithSearch()` — le jumeau non traité de D-34~~ | ✅ **soldé le 2026-08-20** (TCK-326) — `scopeWithSearch` ET son helper `isSearchable` supprimés ; `BaseModelTrait`, devenu vide, supprimé avec son fichier ; `AbstractModel` = `Model` + `HasQueryBuilder`. **Ré-inventaire du dépôt entier avant suppression, invocations dynamiques comprises** (`->scopes([…])`, `call_user_func`, `->{$méthode}`, chaînes) : **0 appelant** en `app/`/`routes/`/`database/`/`bin/`/`config/`, **0** dans `takussan-web/src/`, les **5** seuls appels vivant dans `tests/Feature/Search/ScoutSearchTest.php` — le test qui le testait. `isSearchable` tranché **par sa propre mesure** et non par association : son unique appelant était le scope lui-même ; `HasQueryBuilder` ne l'emprunte pas, il refait le `in_array(Searchable::class, …)` en ligne, délibérément, parce qu'il sert aussi des modèles sans le trait (`User`). **−4 tests** dans `ScoutSearchTest` (9 → 5, 26 → 20 assertions), exactement les 4 méthodes `test_with_search_scope_*` — aucune assertion assouplie. La garde `scripts/check-filtering-single-mechanism.mjs` a gagné un **contrôle D** que le contrôle C ne pouvait pas rendre : C cherche un scope à paramètre `array` qui déroule des `where()`, or ce scope-ci prend une chaîne et ne boucle rien. D refuse un chemin de recherche hors `HasQueryBuilder` **par NOM et par FORME** (entrée Scout `::search(` + recomposition `whereIn`/`whereRaw`/`keys`), donc **il survit au renommage** — prouvé par mutation, sortie exacte dans le ticket. La non-vacuité a été étendue au nouveau contrôle : si `HasQueryBuilder` perd `AllowedFilter::callback('search', …)` ou son routage `Searchable`, la garde ROUGIT au lieu de passer au vert en ne gardant plus rien. ⚠ **Ce qui reste hors périmètre et n'a pas bougé** : le cap `SEARCH_ID_CAP` (5000) qui échoue en silence, et les consoles super-admin qui écrivent leur propre `LIKE` par choix assumé. | `filter[search]` via `buildQuery()`, pertinence restituée (TCK-281) | [TCK-326](backlog/tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) |
 | **D-35** | ~~`BasePolicy` morte par construction~~ → **piège latent, et le mélange est pire** | `properties.create`/`.delete` **existent**, `.view` non ; `leases.view`/`.update`/`.delete` non ; `media.` n'est pas même un préfixe de `Capability`. Les 15 sites d'appel ont été inventoriés : **aucun n'atteint une ability cassée aujourd'hui** — mais le premier `authorize('view', $lease)` refusera tout le monde sauf super-admin, en silence | — *(à corriger + garde)* | [TCK-297](backlog/tickets/TCK-297-basepolicy-capacites-inexistantes.md) |
-| **D-36** | `BaseResource` peu adoptée | ✅ **soldé le 2026-08-17** — les **44 ressources** l'étendent, gardé par `scripts/check-resources-extend-base.mjs` (Repo CI). Elles étaient 7, 7 puis **8** aux mesures des 12, 16 et 17/08 : le ticket annonçait « 7 sur 44 », il y en avait 8 — `AgencyRoleResource` est née entre-temps, et c'est exactement le profil d'une convention que rien ne mesure. Migration = **échange de parent, rien d'autre** (72 insertions / 72 suppressions, deux lignes par fichier), donc **aucun montant n'a changé de représentation, par construction** : `BaseResource` n'offre aucun helper de montant. ⚠ Reste ouvert : les dates sortent sous **trois** formats incompatibles dans ces mêmes fichiers (55 `toISOString`, 37 `toIso8601String`, 18 `toDateString`) — les unifier changerait le contrat du front, cf. D-36bis | `BaseResource` | [TCK-308](backlog/tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) |
-| **D-36bis** | Trois formats de date sur la même API | **Mesuré le 2026-08-17 en soldant TCK-308**, et jamais avant : `app/Http/Resources/` émet des dates sous **55** `toISOString()` (`2026-08-17T12:34:56.000000Z`), **37** `toIso8601String()` (`2026-08-17T12:34:56+00:00`) et **18** `toDateString()` (`2026-08-17`). Les trois cohabitent parfois dans le MÊME fichier. C'est précisément ce que l'*Objectif utilisateur* de TCK-308 visait — « qu'une date se sérialise de la même façon sur toute l'API » — et ce que ce ticket **n'a pas livré**, à raison : `BaseResource::iso()` rend la deuxième forme, donc unifier reviendrait à changer la valeur émise sur le fil pour 73 champs, sans qu'aucun test ni typage du front ne le signale. **Une rupture de contrat ne se fait pas en passant.** À trancher : quel format gagne, et qui balaie le front — le ticket exige un ADR AVANT toute conversion. | *(ADR à écrire)* | [TCK-327](backlog/tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) |
+| **D-36** | `BaseResource` peu adoptée | ✅ **soldé le 2026-08-17** — les **44 ressources** l'étendent, gardé par `scripts/check-resources-extend-base.mjs` (Repo CI). Elles étaient 7, 7 puis **8** aux mesures des 12, 16 et 17/08 : le ticket annonçait « 7 sur 44 », il y en avait 8 — `AgencyRoleResource` est née entre-temps, et c'est exactement le profil d'une convention que rien ne mesure. Migration = **échange de parent, rien d'autre** (72 insertions / 72 suppressions, deux lignes par fichier), donc **aucun montant n'a changé de représentation, par construction** : `BaseResource` n'offre aucun helper de montant. Les **dates**, restées ouvertes ici, sont soldées par D-36bis. Restent non gardés : `enumValue`, `enumLabel`, `mediaUrl` | `BaseResource` | [TCK-308](backlog/tickets/TCK-308-baseresource-adoptee-par-7-sur-44.md) |
+| **D-36bis** | Trois formats de date sur la même API | ✅ **soldé le 2026-08-20** (TCK-327, ADR-0018). **Re-mesuré ce jour-là par inventaire dérivé** — les casts lus dans le conteneur Laravel, pas déduits d'un grep : **138 lignes**, quatre appels pour trois chaînes — 55 `toISOString()` (`…T12:34:56.000000Z`), 37 `toIso8601String()`, 28 `$this->iso(…)` et 18 `toDateString()`. Les comptes du 2026-08-17 tenaient à l'unité. **L'inventaire a trouvé ce que le comptage ne montrait pas** : `PlatformPayout::period_start` est casté `date` — une période comptable, sans heure — et sortait en `2026-08-17T00:00:00+00:00`, quand `PayoutResource` et `BankStatementResource` émettaient le **même champ, sur le même cast**, en `2026-08-17`. Le même concept, deux contrats, invisible de tout test. **Décision** : la forme se déduit du CAST — `datetime` → `iso()` (`…T12:34:56+00:00`, désormais normalisé UTC **en code** et non par `config/app.php`), `date` → `calendarDate()` (`YYYY-MM-DD`). Les 18 dates calendaires ne sont **pas** converties, et c'est écrit : deux appelants du front les comparent littéralement (`schemas/payment.ts:71`, `LeaseRenewalDialog.tsx:97-98`). 57 champs changent de valeur sur le fil. Gardé par `scripts/check-resource-date-format.mjs` (prouvée par 6 mutations, dont deux de non-vacuité), figé par `tests/Unit/Http/Resources/DateRepresentationTest.php` (23 tests) et `takussan-web/src/lib/__tests__/api-date-forms.test.ts` (7 tests). ⚠ **Portée** : `app/Http/Resources/` seulement — les dates composées à la main dans un contrôleur (`AgencyStatsController:72`, `CalendarController:143`) restent hors garde | [ADR-0018](adr/0018-format-des-dates-sur-le-fil.md) | [TCK-327](backlog/tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) |
 | **D-37** | Trois classes de base de test | ✅ **soldé le 2026-08-17** (TCK-309) — `BaseTestCase` **fondue dans `Tests\TestCase`** et supprimée, 49 classes migrées. **Trois** bases demeurent, et c'est délibéré : `PHPUnit\Framework\TestCase` (10 tests unitaires purs qui ne démarrent pas l'application), `Tests\TestCase` (304), `Tests\ApiTestCase` (38) — trois USAGES distincts. Règle écrite dans `takussan-api/CLAUDE.md`, gardée par `scripts/check-test-base-classes.mjs`. | `ApiTestCase` pour l'API | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
 | **D-38** | Deux préfixes de commandes plateforme | ✅ **soldé le 2026-08-17** (TCK-309) — `platform:create-super-admin`, avec **alias déprécié conservé** parce que `docs/features.md` §2.1 prescrit encore l'ancien nom : le renommer sec aurait laissé la spec pointer une commande inexistante, le jour de l'installation d'un environnement. ⚠ **Correction du diagnostic** : les deux commandes ne font PAS le même travail — `create` provisionne l'opérateur (user + 2FA + 8 codes de secours), `grant` promeut un compte existant. Seul le **préfixe** était dédoublé. | `platform:` | [TCK-309](backlog/tickets/TCK-309-conventions-mineures-dedoublees.md) |
 | **D-39** | ~~`NotificationPreference` n'étend pas `AbstractModel`~~ | ✅ **soldé le 2026-08-12** — il l'étend désormais ; 106 tests notifications verts | ✅ | — |
@@ -2269,9 +2483,13 @@ Fermé par TCK-289.
 Il est dérivé de ce qu'on peut **mesurer depuis le dépôt** : fichiers, historique git, exécution des
 suites, configuration. Il ne dit rien de :
 
-- **la production réelle** — à une exception près (le moteur de base, mesuré le 2026-08-13, cf.
-  D-43), aucune de ses métriques n'a été consultée. D-01 à D-04 sont déduits de scripts et de
-  guides, pas d'un serveur observé — et D-43 montre ce que cette déduction coûte ;
+- **la production réelle**, pour l'essentiel — et les exceptions se comptent, chacune datée :
+  le moteur de base (mesuré sur le démon le 2026-08-13, D-43), l'API de production (sondes HTTP +
+  journaux de `deploy.yml`, le 2026-08-20, D-04) et le front de production (sondes HTTP + bundle
+  servi + API GitHub *Deployments*, le 2026-08-20, D-10). Tout le reste — D-01, D-02, D-03 — est
+  encore **déduit de scripts et de guides, pas d'un serveur observé**, et D-43 comme D-04 montrent
+  ce que cette déduction coûte : les deux ont dû être corrigées après mesure, dans un sens qu'aucune
+  lecture n'aurait donné ;
 - **ce que le produit devrait faire** — la question fonctionnelle appartient à `docs/features.md` ;
 - **l'ergonomie et l'accessibilité** — aucune campagne navigateur n'a été menée dans ce chantier ;
 - **une fiche codée sans le dire** — un ticket implémenté dont le frontmatter n'a jamais bougé reste

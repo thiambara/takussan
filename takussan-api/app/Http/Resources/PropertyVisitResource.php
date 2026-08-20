@@ -20,9 +20,9 @@ class PropertyVisitResource extends BaseResource
             'visitor_email' => $this->visitor_email,
             'type' => $this->type?->value,
             'status' => $this->status?->value,
-            'scheduled_at' => $this->scheduled_at?->toISOString(),
-            'completed_at' => $this->completed_at?->toISOString(),
-            'cancelled_at' => $this->cancelled_at?->toISOString(),
+            'scheduled_at' => $this->iso($this->scheduled_at),
+            'completed_at' => $this->iso($this->completed_at),
+            'cancelled_at' => $this->iso($this->cancelled_at),
             'cancellation_reason' => $this->cancellation_reason,
             'duration_minutes' => $this->duration_minutes,
             'feedback' => $this->feedback,
@@ -54,7 +54,7 @@ class PropertyVisitResource extends BaseResource
                 'email' => $this->customer->email,
                 'phone' => $this->customer->phone,
             ] : null),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

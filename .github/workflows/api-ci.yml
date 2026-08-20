@@ -199,6 +199,13 @@ jobs:
       # Un refactor légitime qui le fait rougir se traite en re-mesurant puis en reposant le
       # seuil sur la nouvelle valeur, avec sa date : **jamais en desserrant pour faire passer**.
       # Desserrer sans re-mesurer, c'est transformer le cliquet en décoration.
+      # ⚠ LE CLIQUET N'EST PLUS ÉVALUÉ PAR `--min` DE COLLISION, ET C'EST TOUT L'OBJET DE
+      # TCK-331. Il l'est par `bin/coverage-gate.php`, qui lit le CLOVER. Raison mesurée :
+      # `--min` n'est évalué que si Collision a pu relire son propre rapport
+      # `--coverage-php`, option qu'il passe à PHPUnit dans le dos de l'appelant. Le jour
+      # où le workflow l'a passée une seconde fois, PHPUnit l'a écartée, le rapport ne
+      # s'est jamais matérialisé, `--min` n'a rien eu à évaluer, et le step est sorti en
+      # **1 sans imprimer un chiffre** — sur une suite verte à 86,33 %.
       - name: Run tests (avec couverture — cliquet TCK-302)
         env:
           DB_CONNECTION: sqlite
@@ -217,61 +224,101 @@ jobs:
           # Sous la limite de 50 % que TCK-302 s'était fixée (AC4). Le chrono reste affiché :
           # une mesure prise une fois est une mesure qui vieillit, et c'est l'historique du job
           # qui dira si ce +36 % dérive.
+          #
+          # ─── POURQUOI PHPUNIT DIRECTEMENT, ET PAS `artisan test --coverage` (TCK-331) ────
+          #
+          # Il faut TROIS sorties de couverture de la MÊME exécution : le clover (le cliquet
+          # et la série d'artefacts), le HTML (le détail à la ligne, les jours rouges) et
+          # `cov.php` (la carte d'impact, qui a besoin de l'attribution test → lignes que le
+          # clover ne porte pas). `artisan test --coverage` ne peut pas les rendre toutes les
+          # trois : il consomme lui-même `--coverage-php`, et une seconde occurrence en ligne
+          # de commande est ÉCARTÉE par PHPUnit.
+          #
+          # Prouvé PAR ABLATION le 2026-08-20, même sous-ensemble, une seule variable, en
+          # local (PHP 8.4.6 + Xdebug 3.4.2) :
+          #
+          #   php artisan test --coverage --min=0 --filter=… --coverage-clover=…
+          #     → « Total: 0.8 % », sortie 0
+          #   … la même, + --coverage-php=…
+          #     → « WARN  Option --coverage-php cannot be used more than once »,
+          #       AUCUNE ligne « Total: », sortie 1 — avec --min=0.
+          #
+          # Ce n'était PAS la mémoire (`cov.php` était écrit en entier, 104 Mo sur la suite
+          # complète), PAS un seuil (86,33 % mesuré sur le clover de l'exécution ROUGE), et
+          # PAS un effet de taille de suite : l'option n'avait jamais tourné avec succès.
+          #
+          # ⚠ SECOND DÉFAUT, MESURÉ AU PASSAGE ET QUI À LUI SEUL JUSTIFIE LE CHANGEMENT.
+          # `artisan test` appelle `ignoreValidationErrors()` : la première option que
+          # Symfony ne connaît pas INTERROMPT l'analyse, et toutes les suivantes sont
+          # perdues SILENCIEUSEMENT. Mesuré :
+          #
+          #   php artisan test --testsuite=Unit --coverage --min=0 --coverage-clover=…
+          #     → suite verte, clover écrit, et AUCUNE table de couverture : `--coverage`
+          #       n'a jamais été vu, parce qu'il suivait `--testsuite=Unit`.
+          #
+          # Le cliquet dépendait donc de l'ORDRE DES ARGUMENTS. Personne ne l'avait écrit
+          # nulle part, et rien ne l'aurait signalé. PHPUnit, lui, refuse une option qu'il
+          # ne connaît pas.
+          #
           # ─── `--coverage-php` N'EST PRODUIT QUE LÀ OÙ IL EST CONSOMMÉ ───────────────────
           #
-          # Il a exactement UN consommateur dans tout le dépôt — `bin/build-impact-map.php`,
-          # au step « Régénérer la carte d'impact » — et ce step est conditionné à
-          # `push` + `refs/heads/dev`. Sur une pull request, ce fichier d'environ 95 Mo était
-          # donc écrit pour personne, à chaque exécution.
-          #
-          # ⚠ C'est aussi une DICHOTOMIE, et il faut le savoir en lisant l'historique du job.
-          # Le 2026-08-17 (run 32056442777, PR #199), ce step est sorti en **1** alors que
-          # la suite était verte — 2441 passés, 2 ignorés, 7540 assertions — et que la
-          # couverture ne PEUT PAS être en cause : le clover de cette exécution, mesuré,
-          # rend **86,33 %**, au-dessus du cliquet. Signature exacte : rien n'est imprimé
-          # après `Duration:`, pas de table par fichier, pas de ligne `Total:` — alors que
-          # le dernier run vert (32014693898) les imprimait — puis 3,66 s de silence, puis
-          # sortie 1. Le clover est écrit (2,0 Mo, il parse) et le rapport HTML est COMPLET
-          # (1107 fichiers, `index.html` et le dernier répertoire alphabétique inclus).
-          # Ce qui meurt est donc APRÈS ces deux écrivains.
-          #
-          # Si les exécutions de PR redeviennent vertes ici, le coupable est ce
-          # `--coverage-php` ; si elles rougissent encore, il est dans le rendu de la table
-          # ou l'évaluation de `--min`, et il faudra le chercher là. Une seule variable
-          # change à la fois, exprès : `memory_limit` n'est PAS touché dans le même geste.
-          # ⚠ TCK-331 — `--coverage-php` est RETIRÉ PARTOUT, y compris sur `push` vers `dev`.
-          #
-          # `artisan test --coverage` le passe DÉJÀ à PHPUnit en interne : c'est ainsi qu'il
-          # construit sa table par fichier et qu'il évalue `--min`. L'ajouter explicitement le
-          # rend présent DEUX FOIS, PHPUnit l'écarte, le rapport d'artisan ne se matérialise
-          # jamais, `--min` n'a rien à évaluer, et la commande sort en 1 — sur une suite
-          # entièrement verte. Le message existe et se perd dans un pipe :
-          #
-          #     WARN  Option --coverage-php cannot be used more than once
-          #
-          # Prouvé PAR ABLATION, même sous-ensemble, une seule variable :
-          #   sans l'option → `Total: 0.7 %`, sortie 0
-          #   avec l'option → pas de `Total:`, sortie 1 sous `--min=86`
-          #
-          # Ce n'est PAS la mémoire : `cov.php` était écrit EN ENTIER (104 Mo sur la suite
-          # complète). Ce n'est PAS un seuil : l'option n'avait jamais tourné avec succès,
-          # deux exécutions, deux échecs. La couverture n'a pas bougé : 86,33 % mesuré sur le
-          # clover de l'exécution ROUGE.
+          # Il a exactement UN consommateur — `bin/build-impact-map.php`, au step
+          # « Régénérer la carte d'impact », conditionné à `push` + `refs/heads/dev`. Sur
+          # une pull request, ce fichier d'environ 100 Mo serait écrit pour personne.
+          COV_PHP=()
+          if [ "${{ github.event_name }}" = 'push' ] && [ "${{ github.ref }}" = 'refs/heads/dev' ]; then
+            COV_PHP=(--coverage-php=storage/coverage/cov.php)
+            echo "carte d'impact : cov.php sera produit (push vers dev)."
+          else
+            echo "carte d'impact : cov.php n'est PAS produit (ce n'est pas un push vers dev)."
+          fi
 
           debut=$(date +%s)
           # `set +e` : le shell par défaut d'un step est `bash -e`, qui interromprait le step
           # à l'échec de la commande — donc AVANT que la durée ne soit affichée. Or c'est
           # exactement l'exécution qui rougit dont on veut connaître la durée.
+          #
+          # `set -o pipefail` : le journal est dupliqué dans un fichier pour être RELU juste
+          # après (les avertissements de PHPUnit), et sans pipefail `$?` rendrait le code de
+          # `tee`, c'est-à-dire 0 quoi qu'il arrive. C'est exactement le mécanisme qui a rendu
+          # le `WARN` invisible pendant deux exécutions : un `| tail` rend le code de `tail`.
           set +e
-          php artisan test \
-            --coverage \
-            --min=86 \
+          set -o pipefail
+          php vendor/phpunit/phpunit/phpunit \
+            "${COV_PHP[@]}" \
             --coverage-clover=storage/coverage/clover.xml \
-            --coverage-html=storage/coverage/html
+            --coverage-html=storage/coverage/html \
+            2>&1 | tee storage/coverage/phpunit.log
           code=$?
           set -e
           echo "Durée de la suite AVEC couverture : $(( $(date +%s) - debut )) s"
-          exit "$code"
+
+          # Un avertissement du lanceur PHPUnit — option inconnue, option en double, fichier
+          # de configuration ignoré — ne se perd plus dans le défilement : il est REMONTÉ en
+          # annotation, là où on le lit. PHPUnit sort déjà en 1 dans ce cas ; l'annotation
+          # dit POURQUOI, ce qui est précisément ce qui manquait.
+          if grep -q 'PHPUnit test runner warning' storage/coverage/phpunit.log; then
+            echo "::error::PHPUnit a émis des avertissements de lanceur — voir le journal ci-dessus."
+            sed -n '/PHPUnit test runner warning/,/^$/p' storage/coverage/phpunit.log
+          fi
+
+          if [ "$code" -ne 0 ]; then
+            echo "::error::La suite est sortie en $code — le cliquet n'est PAS évalué. Une couverture mesurée sur une suite rouge ne dit rien."
+            exit "$code"
+          fi
+
+          # ⚠ LE CLIQUET, ET LE SEUL ENDROIT OÙ IL VIT DÉSORMAIS.
+          #
+          # Il rend LE MÊME NOMBRE que la table de Collision, à la décimale — vérifié par
+          # mesure APPARIÉE le 2026-08-20, sur le clover d'une seule et même exécution
+          # (`--testsuite=Unit`, 315 tests) :
+          #     Collision      → « Total: 7.9 % »
+          #     coverage-gate  → « Total: 7.9 % (1975 / 24966 lignes exécutables) »
+          #
+          # Et il garde ce que `--min` ne gardait pas : un rapport qui n'a mesuré AUCUNE
+          # ligne exécutable est un ÉCHEC, jamais un 100 %. Le jour où PCOV disparaît du
+          # runner, ce step rougit au lieu de laisser passer en silence.
+          php bin/coverage-gate.php storage/coverage/clover.xml --min=86
 
       # DEUX artefacts, et la coupure n'est pas un détail de rangement : les deux formats ne
       # répondent pas à la même question, et ne coûtent pas le même prix.
@@ -337,30 +384,36 @@ jobs:
         with:
           node-version: '24'
 
-      # ⚠ TCK-331 — DÉSACTIVÉ, et ce n'est pas un oubli.
+      # ⚠ TCK-331 — RÉACTIVÉ le 2026-08-20, après avoir été désactivé quelques heures.
       #
-      # Ce step consomme `storage/coverage/cov.php`, que le step de test ne produit plus (l'option
-      # était passée en double et faisait sortir PHPUnit en 1 — cf. le bloc plus haut). Il n'a
-      # d'ailleurs JAMAIS tourné avec succès : les deux seules exécutions qui ont produit `cov.php`
-      # ont échoué toutes les deux.
+      # Il consomme `storage/coverage/cov.php`, que le step de test produit de nouveau — sur
+      # push vers `dev` uniquement, et via une invocation DIRECTE de PHPUnit, la seule qui
+      # accepte les trois sorties de couverture à la fois.
       #
-      # Il est désactivé plutôt que laissé en place, parce qu'un step qui échoue est bruyant tandis
-      # qu'un step qui ne fait rien en silence est exactement ce qui a coûté une journée ici :
-      # l'AC7 de TCK-320 a été coché en LISANT ce bloc, sur du code qui ne s'était jamais exécuté.
+      # ⚠ CE QU'IL FAUT SAVOIR EN LISANT L'HISTORIQUE DU JOB : ce step n'avait JAMAIS tourné
+      # avec succès avant cette date. Les deux seules exécutions qui ont produit `cov.php`
+      # ont échoué toutes les deux, AVANT lui, sur la sortie 1 muette du step de test —
+      # `tests/impact-map.json` est donc restée figée à sa construction manuelle
+      # (`eafab606`) depuis le 2026-08-17. C'est ce qui a fait repasser l'AC7 de TCK-320 à
+      # NON TENU : il avait été coché en LISANT ce bloc, sur du code qui ne s'était jamais
+      # exécuté. **Ne jamais déduire l'état d'un environnement de la configuration qui le
+      # vise.**
       #
-      # ⚠ Conséquence à connaître : `tests/impact-map.json` est FIGÉE à sa construction manuelle
-      # (`eafab606`). Elle ne ment pas — elle s'émousse : un fichier absent de la carte impose la
-      # suite entière, et la réparation de péremption ajoute toute classe de test modifiée depuis.
-      # La sélection devient plus large et plus lente, jamais plus permissive.
+      # La chaîne complète — PHPUnit direct → `cov.php` → `build-impact-map.php` →
+      # `check-impact-map.mjs` — a été jouée en local le 2026-08-20 sur un sous-ensemble
+      # (`--filter='Tests\Unit\Rules'`) : 4 classes de test, 10 fichiers couverts sur 932
+      # scannés, carte valide. Ce qui reste à observer ici, et NE PEUT l'être qu'ici, c'est
+      # le commit automatique sur `dev`.
       - name: Régénérer la carte d'impact
-        # TCK-331 — condition mise à `false` plutôt qu'une SECONDE clé `if:` ajoutée au-dessus :
-        # deux `if:` sur un même step font rejeter le workflow ENTIER par GitHub, qui n'exécute
-        # alors aucun job. Et `yaml.safe_load` l'accepte sans broncher — une clé dupliquée écrase
-        # silencieusement la précédente — donc la validation locale passe sur un fichier invalide.
-        # La condition d'origine est conservée ci-dessous en commentaire, pour la restauration.
-        #   if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-        if: false
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
         run: |
+          # Pas de `-f` silencieux : si `cov.php` manque alors que la condition ci-dessus est
+          # vraie, c'est que le step de test a menti sur ce qu'il produit. On le DIT.
+          if [ ! -f storage/coverage/cov.php ]; then
+            echo "::error::storage/coverage/cov.php absent alors que ce step tourne — le step de test ne produit pas ce qu'il annonce."
+            exit 1
+          fi
+
           php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
 
           # ⚠ LA CARTE EST VALIDÉE PAR CELUI QUI LA PRODUIT, ET C'EST LE SEUL MOMENT OÙ

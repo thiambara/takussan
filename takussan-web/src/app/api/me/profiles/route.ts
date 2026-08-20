@@ -18,6 +18,7 @@ export async function GET(): Promise<NextResponse> {
     if (err instanceof ApiError) {
       return NextResponse.json(err.data, { status: err.status });
     }
-    return NextResponse.json({ message: 'Failed to load profiles.' }, { status: 500 });
+    console.error('[BFF] Failed to load profiles.', err);
+    return NextResponse.json({ code: 'server_error' }, { status: 500 });
   }
 }

@@ -19,17 +19,17 @@ class BookingResource extends BaseResource
             'total_amount' => (float) $this->total_amount,
             'deposit_amount' => $this->deposit_amount !== null ? (float) $this->deposit_amount : null,
             'currency' => $this->currency?->value,
-            'start_date' => $this->start_date?->toDateString(),
-            'end_date' => $this->end_date?->toDateString(),
-            'confirmed_at' => $this->confirmed_at?->toISOString(),
-            'cancelled_at' => $this->cancelled_at?->toISOString(),
-            'expires_at' => $this->expires_at?->toISOString(),
+            'start_date' => $this->calendarDate($this->start_date),
+            'end_date' => $this->calendarDate($this->end_date),
+            'confirmed_at' => $this->iso($this->confirmed_at),
+            'cancelled_at' => $this->iso($this->cancelled_at),
+            'expires_at' => $this->iso($this->expires_at),
             'cancellation_by' => $this->cancellation_by?->value,
             'cancellation_reason' => $this->cancellation_reason,
             'notes' => $this->notes,
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
             'customer' => $this->whenLoaded('customer', fn () => CustomerResource::make($this->customer)),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

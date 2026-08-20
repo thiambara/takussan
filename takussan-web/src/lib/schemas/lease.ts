@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { optionalPhoneSchema } from './common';
+import { msgValidation } from './messages';
 
 /**
  * Lease-related schemas (TCK-044).
@@ -11,8 +12,8 @@ import { optionalPhoneSchema } from './common';
 const isoDate = z
   .string()
   .trim()
-  .min(1, 'La date est requise.')
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide.');
+  .min(1, msgValidation('common.dateRequired'))
+  .regex(/^\d{4}-\d{2}-\d{2}$/, msgValidation('common.dateInvalid'));
 
 export const leaseTypeSchema = z.enum([
   'residential_rent',
@@ -26,36 +27,36 @@ export const paymentFrequencySchema = z.enum(['monthly', 'quarterly', 'yearly'])
 export const createLeaseSchema = z
   .object({
     property_id: z
-      .number({ error: 'Bien requis.' })
+      .number({ error: msgValidation('lease.propertyRequired') })
       .int()
-      .positive('Bien requis.'),
+      .positive(msgValidation('lease.propertyRequired')),
     tenant_id: z
-      .number({ error: 'Locataire requis.' })
+      .number({ error: msgValidation('lease.tenantRequired') })
       .int()
-      .positive('Locataire requis.'),
+      .positive(msgValidation('lease.tenantRequired')),
     landlord_id: z
-      .number({ error: 'Bailleur requis.' })
+      .number({ error: msgValidation('lease.landlordRequired') })
       .int()
-      .positive('Bailleur requis.'),
+      .positive(msgValidation('lease.landlordRequired')),
     agency_id: z.number().int().positive().optional(),
     type: leaseTypeSchema,
     start_date: isoDate,
     end_date: isoDate.optional().or(z.literal('').transform(() => undefined)),
     monthly_rent: z
-      .number({ error: 'Loyer mensuel requis.' })
-      .positive('Le loyer doit être supérieur à 0.')
+      .number({ error: msgValidation('lease.rentRequired') })
+      .positive(msgValidation('lease.rentPositive'))
       .optional(),
     sale_price: z.number().positive().optional(),
     deposit_amount: z
-      .number({ error: 'Caution requise.' })
-      .nonnegative('La caution doit être ≥ 0.'),
+      .number({ error: msgValidation('lease.depositRequired') })
+      .nonnegative(msgValidation('lease.depositNonNegative')),
     currency: z.enum(['XOF', 'XAF', 'EUR', 'USD']).default('XOF'),
     payment_frequency: paymentFrequencySchema.default('monthly'),
     payment_day: z
       .number()
       .int()
-      .min(1, 'Jour invalide (1–28).')
-      .max(28, 'Jour invalide (1–28).')
+      .min(1, msgValidation('lease.paymentDayInvalid'))
+      .max(28, msgValidation('lease.paymentDayInvalid'))
       .optional(),
     terms: z.string().trim().max(5000).optional(),
     special_conditions: z.string().trim().max(5000).optional(),
@@ -66,7 +67,7 @@ export const createLeaseSchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['sale_price'],
-          message: 'Le prix de vente est requis pour un contrat de vente.',
+          message: msgValidation('lease.salePriceRequired'),
         });
       }
     } else {
@@ -74,7 +75,7 @@ export const createLeaseSchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['monthly_rent'],
-          message: 'Le loyer mensuel est requis pour une location.',
+          message: msgValidation('lease.monthlyRentRequired'),
         });
       }
     }
@@ -85,7 +86,7 @@ export const createLeaseSchema = z
         ctx.addIssue({
           code: 'custom',
           path: ['end_date'],
-          message: 'La date de fin doit être postérieure à la date de début.',
+          message: msgValidation('common.endDateAfterStart'),
         });
       }
     }
@@ -94,7 +95,7 @@ export const createLeaseSchema = z
 export type CreateLeaseFormValues = z.infer<typeof createLeaseSchema>;
 
 export const leasePaymentSchema = z.object({
-  amount: z.number().positive('Le montant doit être supérieur à 0.'),
+  amount: z.number().positive(msgValidation('common.amountPositive')),
   payment_method: z.enum(['cash', 'bank_transfer', 'mobile_money', 'check', 'card']),
   payment_type: z.enum(['rent', 'charges', 'deposit', 'deposit_refund', 'regularization', 'penalty']).default('rent'),
   period_start: isoDate,
@@ -117,13 +118,13 @@ export const leasePaymentSchema = z.object({
 export type LeasePaymentFormValues = z.infer<typeof leasePaymentSchema>;
 
 export const guarantorSchema = z.object({
-  first_name: z.string().trim().min(1, 'Le prénom est requis.').max(100),
-  last_name: z.string().trim().min(1, 'Le nom est requis.').max(100),
+  first_name: z.string().trim().min(1, msgValidation('common.firstNameRequired')).max(100),
+  last_name: z.string().trim().min(1, msgValidation('common.lastNameRequired')).max(100),
   phone: optionalPhoneSchema,
   email: z
     .string()
     .trim()
-    .email('Email invalide.')
+    .email(msgValidation('lease.emailInvalid'))
     .optional()
     .or(z.literal('').transform(() => undefined)),
   id_type: z.enum(['id_card', 'passport', 'driving_license']).optional(),
@@ -175,7 +176,7 @@ export type GenerateScheduleFormValues = z.infer<typeof generateScheduleSchema>;
 export function buildDepositRefundSchema(depositRemaining: number) {
   return z
     .object({
-      amount: z.number().positive('Le montant doit être supérieur à 0.'),
+      amount: z.number().positive(msgValidation('common.amountPositive')),
       reason: z
         .string()
         .trim()
@@ -189,7 +190,7 @@ export function buildDepositRefundSchema(depositRemaining: number) {
         ctx.addIssue({
           code: 'custom',
           path: ['amount'],
-          message: 'Le montant dépasse la caution restante.',
+          message: msgValidation('lease.refundExceedsDeposit'),
         });
       }
       const isPartial = values.amount + 0.001 < depositRemaining;
@@ -197,7 +198,7 @@ export function buildDepositRefundSchema(depositRemaining: number) {
         ctx.addIssue({
           code: 'custom',
           path: ['reason'],
-          message: 'Un motif est obligatoire pour un remboursement partiel.',
+          message: msgValidation('lease.refundReasonRequired'),
         });
       }
     });

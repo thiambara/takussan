@@ -100,12 +100,41 @@ une preuve dégradée : au repos, l'ancienne version passait aussi.
 
 **La couverture est mesurée et gardée depuis le 2026-08-16** — elle ne l'avait jamais été. Sur `app/`
 (768 fichiers) : **lignes 86,16 %** (21 148 / 24 544), **méthodes 66,87 %**, **classes 43,81 %**. La CI
-pose un **cliquet** à `--min=86`, pour un surcoût mesuré de **+36 %** (83 s → 113 s), et publie le
+pose un **cliquet à 86 %**, pour un surcoût mesuré de **+36 %** (83 s → 113 s), et publie le
 clover en artefact à chaque exécution. Le seuil a été **resserré de 85 à 86 le 2026-08-16**, la CI ayant confirmé **86,3 %** au premier
 passage (PR #176) — la marge de 85 couvrait un doute sur le PCOV du runner, ce doute est levé. Il
 reste 0,3 point, soit ~74 lignes non testées : c'est serré délibérément. Le seuil garde contre
 l'**érosion** ; il ne dit pas que 86 %
 suffit, et une méthode traversée sans assertion y compte pour couverte.
+
+⚠️ **Le cliquet n'est PLUS le `--min` de `artisan test`, depuis TCK-331 (2026-08-20).** La CI
+invoque **PHPUnit directement** et évalue le seuil dans un step à part,
+`php bin/coverage-gate.php storage/coverage/clover.xml --min=86`, qui lit le **clover**. Deux
+raisons mesurées, et la seconde est la plus coûteuse : `artisan test --coverage` passe déjà
+`--coverage-php` à PHPUnit en interne (une seconde occurrence est écartée, le rapport ne se
+matérialise jamais, `--min` n'a rien à évaluer et la commande sort en **1 sans imprimer un
+chiffre**, sur une suite verte à 86,33 %) ; et `artisan test` appelle `ignoreValidationErrors()`,
+si bien que **toute option placée après une option que Symfony ne connaît pas est perdue en
+silence**. Le cliquet lit désormais un fichier, pas un code de sortie — et un rapport qui n'a
+mesuré **aucune** ligne exécutable y est un échec, jamais un 100 %.
+
+Ce second défaut n'est pas théorique et il ne se limite pas à `--testsuite`. **Re-mesuré le
+2026-08-20 sur le drapeau que ce fichier documente lui-même deux lignes plus haut, `--filter`** —
+même test, même pilote Xdebug, une seule variable, l'ordre :
+
+```
+$ XDEBUG_MODE=coverage php artisan test --coverage --min=86 --filter=CurrencyRuleTest
+    Total: 0.7 %
+    FAIL  Code coverage below expected: 0.7 %. Minimum: 86.0 %.        → sortie 1
+
+$ XDEBUG_MODE=coverage php artisan test --filter=CurrencyRuleTest --coverage --min=86
+    Tests: 2 passed (11 assertions)
+    (aucune ligne « Total: », aucune table)                            → sortie 0
+```
+
+**La seconde forme dit « vert » en n'ayant rien mesuré.** Retenir la signature plutôt que la
+règle : *une commande de couverture qui sort en 0 sans imprimer de ligne `Total:` n'a pas mesuré
+la couverture* — quelle que soit l'option qui l'a avalée.
 
 **`--parallel` a été refusé le 2026-08-16, puis REPRIS et validé le 2026-08-17** (TCK-321). Les
 deux causes du refus sont soldées — le test dépendant de l'ordre (TCK-314) et les gardes d'isolation,
@@ -127,9 +156,25 @@ séquentiel à load 3,74 → **64,90 s** à load 6,11, 8 cœurs).
 
    **Mesuré le 2026-08-17, 8 cœurs : cinq paires simultanées à 0 échec des deux côtés** (`load`
    21-94), une paire compilant du Blade verte à `load` 215, et l'ablation du correctif fait
-   remourir l'une des deux. **Toutes sur des sous-ensembles** — la paire sur la suite ENTIÈRE reste
-   à jouer. Jusque-là : un seul agent à la fois sur `--parallel` en suite entière. Le mode
-   séquentiel et `bin/impacted-tests.php` supportent la simultanéité depuis D-44.
+   remourir l'une des deux.
+
+   ⚠️ **La paire sur la suite ENTIÈRE a été jouée le 2026-08-20, et elle ROUGIT — mais pas pour
+   cette raison-là.** Machine au repos (load 3,39 sur 8 cœurs) : `A = 38 erreurs`, `B = 37`, sur
+   2589 tests chacune. **Les deux ont DÉMARRÉ** — le correctif ci-dessus tient, `mkdir(): File
+   exists` ne s'est pas produit — et les jetons d'index sont bien distincts. Les 75 erreurs sont
+   *toutes* des `MeilisearchNotIdleException` : **une CINQUIÈME ressource partagée par machine, la
+   file de tâches globale du serveur Meilisearch.** Contrôle joué juste après, même arbre, même
+   repos : **une seule exécution rend 2589 tests, 0 échec, en 108 s**. C'est donc la simultanéité,
+   pas l'arbre ni la charge.
+
+   **Donc : un seul agent à la fois sur `--parallel` en suite entière** — la restriction ne change
+   pas, sa RAISON change, et c'est TCK-334 qui la porte désormais. Le mode séquentiel et
+   `bin/impacted-tests.php` supportent la simultanéité depuis D-44.
+
+   *À lire deux fois : c'est le correctif D-44 qui a rendu ce diagnostic possible.* L'ancienne
+   version abandonnait en silence au bout de 10 s et rougissait sur une assertion métier juste, en
+   accusant le code applicatif. Ici la barrière lève, compte les tâches en attente index par index,
+   et nomme elle-même la cause probable dans son message. **Le diagnostic était dans l'erreur.**
 2. **Pas activé en CI — et c'est désormais un RÉSULTAT, plus un défaut** (TCK-324, mesuré le
    2026-08-18 sur le runner `ubuntu-latest`, `nproc` **4**, AMD EPYC 7763, load 1,05 au départ) :
 
@@ -186,14 +231,19 @@ php artisan test --parallel          # ×3,2 sur la meilleure mesure (208,80 s s
                                     #   c'est MESURÉ (TCK-324, 2026-08-18, runner à 4 cœurs) :
                                     #   206 s séquentiel → 83 s en parallèle, gain ×2,48. Le gain
                                     #   est réel ; il est INUTILISABLE, parce qu'une seule
-                                    #   exécution porte les tests ET le cliquet --min=86, et que
+                                    #   exécution porte les tests ET la couverture qui alimente
+                                    #   le cliquet à 86 % (par le clover depuis TCK-331), et que
                                     #   PCOV agrège mal entre processus (cf. D-30).
                                     #   ⚠⚠ La mort au démarrage de deux --parallel simultanés
                                     #   (« mkdir(): File exists ») est CORRIGÉE par TCK-322 :
                                     #   les vues compilées sont enracinées par exécution. Cinq
                                     #   paires simultanées à 0 échec, mais sur des SOUS-ENSEMBLES
-                                    #   — la paire sur la suite entière reste à jouer, donc on
-                                    #   garde « un seul agent à la fois » pour celle-ci. Le
+                                    #   La paire sur la suite ENTIÈRE a été jouée le 2026-08-20
+                                    #   et elle ROUGIT — 38 et 37 erreurs, TOUTES Meilisearch,
+                                    #   alors qu'une seule exécution rend 0 échec en 108 s au
+                                    #   même repos. Cinquième ressource partagée : la file de
+                                    #   tâches du serveur (TCK-334). On garde donc « un seul
+                                    #   agent à la fois » pour celle-ci, pour une AUTRE raison. Le
                                     #   séquentiel et impacted-tests.php supportent la
                                     #   simultanéité. Pour le quotidien :
                                     #   php bin/impacted-tests.php --run
@@ -206,15 +256,34 @@ php bin/impacted-tests.php --run     # ← LA commande du quotidien : ne lance q
                                     #   ⚠ Un vert ici NE DIT RIEN de la suite : c'est une boucle
                                     #   de retour, pas une garde. La CI et le rituel de fin de
                                     #   branche jouent la suite entière, toujours.
-XDEBUG_MODE=coverage php artisan test --coverage --min=86
-                                    # couverture de lignes de app/ — le CLIQUET de la CI (TCK-302).
+XDEBUG_MODE=coverage php vendor/phpunit/phpunit/phpunit \
+  --coverage-clover=storage/coverage/clover.xml
+php bin/coverage-gate.php storage/coverage/clover.xml --min=86
+                                    # couverture de lignes de app/ — le CLIQUET de la CI (TCK-302),
+                                    #   dans la forme EXACTE qu'elle emploie depuis TCK-331.
                                     #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.
-                                    #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…` :
-                                    #   `artisan test` relance PHPUnit dans un SOUS-PROCESSUS, où
-                                    #   un `-d` posé sur l'artisan ne se propage pas — la commande
-                                    #   sortirait alors sur « Code coverage driver not available ».
+                                    #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…`.
                                     #   Le seuil est posé au niveau MESURÉ ; il ne dit pas
-                                    #   « 85 % suffit », il dit « on ne redescend pas ».
+                                    #   « 86 % suffit », il dit « on ne redescend pas ».
+                                    #   ⚠⚠ `php artisan test --coverage --min=86` N'EST PLUS la
+                                    #   forme de la CI, et il ne faut pas s'en servir pour juger
+                                    #   du cliquet — DEUX défauts mesurés le 2026-08-20 :
+                                    #   (a) `artisan test --coverage` passe DÉJÀ `--coverage-php`
+                                    #       à PHPUnit ; l'ajouter le rend présent deux fois,
+                                    #       PHPUnit l'écarte, `--min` n'a plus rien à évaluer, et
+                                    #       la commande sort en 1 SANS IMPRIMER UN CHIFFRE, sur
+                                    #       une suite entièrement verte (TCK-331) ;
+                                    #   (b) `artisan test` ignore ses erreurs de validation : la
+                                    #       PREMIÈRE option que Symfony ne connaît pas interrompt
+                                    #       l'analyse et fait perdre TOUTES les suivantes en
+                                    #       silence. `--testsuite=Unit --coverage --min=86` sort
+                                    #       en 0 sans avoir mesuré quoi que ce soit. Le cliquet
+                                    #       dépendait de l'ORDRE DES ARGUMENTS.
+                                    #   `coverage-gate.php` lit le clover, rend le MÊME nombre
+                                    #   à la décimale (mesure appariée), et fait ÉCHOUER
+                                    #   bruyamment un rapport absent, tronqué, ou qui n'a mesuré
+                                    #   aucune ligne — `0/0` n'est pas 100 %, c'est une mesure
+                                    #   absente.
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
 php artisan migrate
@@ -344,21 +413,86 @@ absent ne produit aucune erreur lisible — l'API démarre, et c'est la premièr
 
 ## Workflow git
 
-**`dev` est la branche d'intégration**, et c'est désormais aussi la branche par défaut du dépôt.
-Toutes les PR la ciblent — 7 des 10 dernières mergées, plus de 24 au total. `master` est **figé au
-2026-05-18, 31 commits derrière `dev`**, et ne contient même pas la chaîne de déploiement.
+**`dev` est la branche d'intégration**, et c'est aussi la branche par défaut du dépôt (mesuré :
+`gh api repos/thiambara/takussan -q .default_branch` → `dev`). Toutes les PR la ciblent — **les 10
+dernières fusionnées, sans exception**, plus de 24 au total.
 
-**La production n'a jamais été déployée.** Pas « plus depuis trois mois » — *jamais* : `deploy.yml`
-ne se déclenchait que sur un push vers `master`, et `gh run list` montre qu'il n'a **pas tourné une
-seule fois**. `api.takussan.com/up` rend 404 quand `preview.api.takussan.com/up` rend 200, sur le
-même serveur (dette D-04, TCK-288).
+**`master` n'est pas décorative : c'est elle qui sert le site public.** Un merge vers `master`
+déploie le front en production, via l'intégration Git Vercel — pas via un workflow de ce dépôt
+([ADR-0017](docs/adr/0017-deploiement-du-front-pilote-par-vercel.md),
+[`docs/infra/frontend-deploiement.md`](docs/infra/frontend-deploiement.md), qui portent le relevé
+mesuré et sa garde). Y pousser est donc une **action sortante** ; ce n'est pas un rangement de
+branche.
 
-> Une version de ce paragraphe écrivait « la production ne reçoit plus rien depuis trois mois ».
-> Elle avait été déduite de la **configuration** du workflow, pas de son historique d'exécution :
-> le YAML dit ce qui *devrait* se produire, `gh run list` dit ce qui *s'est* produit. La différence
-> entre « le déploiement s'est arrêté » et « le déploiement n'a jamais commencé » change tout ce
-> qu'on croit savoir de l'état du serveur. **Ne jamais déduire l'état d'un environnement de la
-> configuration qui le vise.**
+⚠️ **Trois chiffres de ce paragraphe étaient faux, et ils l'étaient dans le sens qui rassure.
+Re-mesurés le 2026-08-20 :**
+
+| Ce que ce fichier écrivait | Mesuré le 2026-08-20 |
+|---|---|
+| `master` « figé au **2026-05-18** » | `git log -1 --format='%h %ad' --date=iso origin/master` → **`fefe2c87 2026-08-15 14:56:07 +0000`** (*Merge pull request #151 from thiambara/dev*) |
+| « **31 commits** derrière `dev` » | `git rev-list --count origin/master..origin/dev` → **273** |
+| « ne contient même pas la chaîne de déploiement » | `git cat-file -e origin/master:.github/workflows/deploy.yml` → **présent** |
+
+`master` reste un **ancêtre strict** de `dev` (`git rev-list --count origin/dev..origin/master` →
+**0**) : elle n'a aucun commit propre, un merge serait un *fast-forward*. C'est le seul point de
+l'ancien paragraphe qui ait tenu.
+
+**« La production n'a jamais été déployée » : vrai de l'API, FAUX du front — et il faut désormais
+les distinguer.**
+
+- **Le front EST en production, et il est public.** `https://www.takussan.com/` → **200**,
+  `https://takussan.com/` → **307** vers `www`. Vercel a produit **3 déploiements d'environnement
+  « Production »** (et 212 « Preview »), tous par `vercel[bot]`, et les 3 refs de Production sont
+  exactement les 3 derniers commits de `git log --first-parent origin/master`.
+- **L'API, elle, n'a jamais servi en production** — mais la raison a changé, et c'est le point
+  neuf. Ce n'est plus « `deploy.yml` n'a jamais tourné » : **il a tourné deux fois le 2026-08-15,
+  et les deux ont ÉCHOUÉ.**
+
+  ```
+  $ gh run list --workflow=deploy.yml --limit 10
+  completed  failure  Deploy Laravel API              master  workflow_dispatch  31894037166  53s  2026-08-15T15:54:29Z
+  completed  failure  Merge pull request #151 …       master  push               31891294106  48s  2026-08-15T14:56:11Z
+  $ gh run view 31891294106 --log-failed
+    SQLSTATE[HY000] [1045] Access denied for user 'takussan_prod'@'localhost' (using password: YES)
+    ERROR: Deployment failed (exit code: 1). Rolling back...
+    Removing failed release: /var/www/takussan/releases/20260815165630
+  ```
+
+  Le déploiement va jusqu'à `composer install` sur le serveur, meurt à `php artisan migrate --force`
+  sur l'**authentification MySQL du compte `takussan_prod`**, et **se déroule proprement en
+  arrière**. D'où le 404 : `https://api.takussan.com/up` → **404** quand
+  `https://preview.api.takussan.com/up` → **200**, sur le même serveur (dette D-04, TCK-288).
+  ⚠ Ce journal ne dit **pas** de quel côté est l'écart — secret périmé, compte absent, *grant*
+  manquant : les trois se ressemblent ici. Ne pas le deviner ; l'ardoise D-04 le pose comme la
+  première mesure à prendre.
+
+**Et c'est cette combinaison qui coûte, pas chacun des deux faits.** Le front de production est
+public et son bundle porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` — l'hôte qui rend 404.
+Re-mesuré le 2026-08-20 en téléchargeant les chunks servis par `www.takussan.com` — la valeur est
+inlinée à la compilation, elle est donc lisible sans accès à Vercel :
+
+```js
+let e = "https://api.takussan.com".replace(/\/api$/, ""), s = `${e}/api`
+```
+
+Il y a donc un utilisateur exposé devant une API absente, ce que D-04 décrivait comme n'existant
+pas. C'est l'objet de [TCK-332](docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md),
+et cela relève la priorité de TCK-288.
+
+> **Pourquoi ce paragraphe est réécrit et non corrigé chiffre par chiffre.** Il a déjà servi une
+> fois de leçon : sa version précédente écrivait « la production ne reçoit plus rien depuis trois
+> mois », déduite du **YAML** du workflow et non de son historique d'exécution, et la correction
+> concluait *« ne jamais déduire l'état d'un environnement de la configuration qui le vise »*.
+> **La correction elle-même a vieilli exactement de la même façon** : ses chiffres — 2026-05-18,
+> 31 commits, `deploy.yml` absent de `master` — ont été mesurés une fois, le 2026-08-12, puis
+> recopiés comme s'ils étaient une propriété du dépôt. **Ils sont devenus faux TROIS JOURS plus
+> tard** : le 2026-08-15, `master` recevait `fefe2c87`, la chaîne de déploiement, deux tentatives
+> de déploiement et un site public. Cinq jours de plus, et **rien dans ce fichier ne pouvait le
+> signaler** — la phrase gardait l'aplomb du jour où elle avait été juste.
+>
+> *Une mesure sans sa date devient une croyance.* Chaque affirmation ci-dessus porte donc sa
+> commande et son 2026-08-20 : c'est ce qui permettra de savoir, la prochaine fois, ce qui est
+> périmé plutôt que de le supposer juste.
 
 Messages de commit en français, préfixés du type conventionnel, citant le ticket quand il y en a un
 (`feat(api): … (TCK-280)`). Ne jamais merger ni pousser sans demande explicite.

@@ -14,11 +14,20 @@ on:
     paths:
       - 'takussan-web/**'
       - '.github/workflows/web-ci.yml'
+      # `src/types/__tests__/profile-types.parity.test.ts` (TCK-329) compare `PROFILE_TYPES` aux
+      # clés de `ActiveProfileResolver::TYPE_MAP`. C'est une garde à DEUX côtés, et le second
+      # n'était couvert par aucune ligne : une PR qui n'ajoute un type de profil QUE côté back —
+      # exactement la dérive que la garde existe pour voir — ne déclenchait pas ce workflow, et
+      # la garde restait muette. Même règle qu'en tête de `repo-ci.yml` : *les deux côtés qu'une
+      # garde compare doivent la déclencher.*
+      - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
   push:
     branches: [dev, master]
     paths:
       - 'takussan-web/**'
       - '.github/workflows/web-ci.yml'
+      # Mêmes motifs qu'au déclencheur `pull_request`, et pour la même raison.
+      - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
 
 jobs:
   quality:

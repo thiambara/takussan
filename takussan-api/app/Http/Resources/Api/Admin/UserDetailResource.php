@@ -22,11 +22,11 @@ class UserDetailResource extends BaseResource
             'status' => $this->status?->value,
             'preferred_language' => $this->preferred_language,
             'timezone' => $this->timezone,
-            'email_verified_at' => $this->email_verified_at?->toIso8601String(),
-            'phone_verified_at' => $this->phone_verified_at?->toIso8601String(),
-            'last_login_at' => $this->last_login_at?->toIso8601String(),
+            'email_verified_at' => $this->iso($this->email_verified_at),
+            'phone_verified_at' => $this->iso($this->phone_verified_at),
+            'last_login_at' => $this->iso($this->last_login_at),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,
-            'created_at' => $this->created_at?->toIso8601String(),
+            'created_at' => $this->iso($this->created_at),
             // TCK-278 — `roles` est désormais dérivé des profils polymorphes.
             // `admin_role_rows` (legacy) peut encore alimenter ce champ pour
             // les vues admin qui exposent un détail par-agence.

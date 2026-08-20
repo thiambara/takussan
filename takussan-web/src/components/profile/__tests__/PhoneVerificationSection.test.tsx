@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhoneVerificationSection } from '../security/PhoneVerificationSection';
+import { withIntl } from '@/test/intl';
 
 const sendMock = vi.fn();
 const verifyMock = vi.fn();
@@ -18,7 +19,7 @@ describe('<PhoneVerificationSection>', () => {
   });
 
   it('tells users to fill in a phone when none is on file', () => {
-    render(<PhoneVerificationSection phone={null} phoneVerified={false} />);
+    render(withIntl(<PhoneVerificationSection phone={null} phoneVerified={false} />));
     expect(
       screen.getByText(/ajoutez d'abord un numéro de téléphone/i),
     ).toBeInTheDocument();
@@ -30,9 +31,9 @@ describe('<PhoneVerificationSection>', () => {
   it('sends an OTP and then reveals the verification form', async () => {
     const user = userEvent.setup();
     sendMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '999999' } });
-    render(
+    render(withIntl(
       <PhoneVerificationSection phone="+221771234567" phoneVerified={false} />,
-    );
+    ));
 
     await user.click(screen.getByRole('button', { name: /envoyer le code/i }));
     await waitFor(() =>
@@ -45,9 +46,9 @@ describe('<PhoneVerificationSection>', () => {
     const user = userEvent.setup();
     sendMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '123456' } });
     verifyMock.mockResolvedValue({ ok: true, data: null });
-    render(
+    render(withIntl(
       <PhoneVerificationSection phone="+221771234567" phoneVerified={false} />,
-    );
+    ));
 
     await user.click(screen.getByRole('button', { name: /envoyer le code/i }));
     await waitFor(() => screen.getByLabelText(/code à 6 chiffres/i));
@@ -63,9 +64,9 @@ describe('<PhoneVerificationSection>', () => {
       ok: false,
       message: 'Please wait before requesting another code.',
     });
-    render(
+    render(withIntl(
       <PhoneVerificationSection phone="+221771234567" phoneVerified={false} />,
-    );
+    ));
     await user.click(screen.getByRole('button', { name: /envoyer le code/i }));
 
     await waitFor(() =>
