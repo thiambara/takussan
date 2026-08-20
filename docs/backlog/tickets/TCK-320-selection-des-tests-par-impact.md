@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 41
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-20
 depends_on: []
 blocks: []
 spec_refs:
@@ -121,9 +121,28 @@ le rituel de fin de branche exige déjà la suite entière.
 - **AC6** — `scripts/check-impact-map.mjs` échoue sur un défaut **structurel** (index hors bornes,
   clé de `files` absente de `scanned`, version inattendue) et **avertit** sur la péremption.
   Vérifié par ablation dans les deux sens.
-- **AC7** — ❌ **NON TENU — correction datée du 2026-08-17, le soir.** La CI régénère la carte
-  **sur push vers `dev` uniquement**, avec `[skip ci]` pour ne pas boucler. `dev` n'est pas protégée
-  (vérifié le 2026-08-17).
+- **AC7** — ❌ **NON TENU — correction datée du 2026-08-17, le soir ; complétée le 2026-08-20.**
+  La CI régénère la carte **sur push vers `dev` uniquement**, avec `[skip ci]` pour ne pas boucler.
+  `dev` n'est pas protégée (vérifié le 2026-08-17).
+
+  > **Complément du 2026-08-20 — la chaîne a désormais TOURNÉ, et l'AC reste NON TENU.** Les deux
+  > phrases ne se contredisent pas, et la distinction est tout le sujet de cet AC.
+  >
+  > Ce qui a tourné : la cause de l'échec est corrigée ([TCK-331](TCK-331-coverage-php-en-double-casse-le-cliquet.md)),
+  > et la session principale a joué la chaîne entière en local — suite complète sous couverture,
+  > `2589 tests, 8210 assertions, 0 échec`, puis `Total: 86.6 %`, `✓ cliquet tenu`, puis
+  > `carte écrite : 357 classes de test · 801 fichiers couverts`. La carte, gelée depuis le
+  > 2026-08-17, est passée de **667 à 801 fichiers couverts** (+143, −9).
+  >
+  > Ce qui n'a toujours pas tourné : **le step de CI lui-même, et son commit automatique sur `dev`.**
+  > Une exécution locale de la même commande n'est pas une exécution de CI — c'est très exactement
+  > la substitution qui a fait cocher cet AC à tort la première fois. Aggravant, mesuré : aucun run
+  > GitHub Actions n'est créé pour ce dépôt depuis le **2026-08-18T00:28Z**, donc la preuve exigée
+  > n'est pas seulement absente, elle est présentement **inaccessible**.
+  >
+  > *La dérive mesurée confirme en revanche ce que la correction du 2026-08-17 avançait sans
+  > preuve : la carte gelée s'émousse sans mentir. Un fichier absent de la carte fait retomber
+  > `bin/impacted-tests.php` sur la suite entière — coûteux, jamais faux.*
 
   > **Cet AC a été coché le 2026-08-17 après-midi sur une LECTURE du workflow**, pas sur une
   > exécution : la condition `if: github.event_name == 'push' && github.ref == 'refs/heads/dev'`, le
@@ -164,6 +183,25 @@ le rituel de fin de branche exige déjà la suite entière.
   > confondant « la configuration dit que » et « cela s'est produit » — la faute exacte que
   > `CLAUDE.md` documente sur le moteur de base de données et sur la chaîne de déploiement. Effacer
   > la trace effacerait aussi la leçon.
+  >
+  > ─────────────────────────────────────────────────────────────────────────────────────
+  >
+  > **ADDENDUM DU 2026-08-20 — la CAUSE est corrigée, l'AC RESTE non tenu.** Les deux choses
+  > sont distinctes, et les confondre serait refaire la faute d'origine un cran plus loin.
+  >
+  > Ce qui a changé ([TCK-331](TCK-331-coverage-php-en-double-casse-le-cliquet.md)) : le step
+  > de test n'appelle plus `artisan test --coverage`, mais **PHPUnit directement** — la seule
+  > invocation qui accepte les trois sorties de couverture à la fois — et le cliquet est
+  > évalué par `bin/coverage-gate.php` **sur le clover**. Le step « Régénérer la carte
+  > d'impact » est réactivé. La chaîne entière a été jouée en local, de bout en bout, et
+  > l'ablation refait revenir la sortie 1 muette.
+  >
+  > Ce qui n'a PAS changé : **aucune exécution de CI n'a encore régénéré la carte.** Il n'y a
+  > toujours, à cette date, aucun commit `chore(tests): régénérer la carte d'impact` dans
+  > l'historique, et `takussan-api/tests/impact-map.json` est toujours celle de `eafab606`.
+  > Un correctif prouvé en local est un correctif prouvé en local ; cet AC porte sur un
+  > comportement de la CI, et il ne se cochera que sur une exécution observée — pas sur la
+  > lecture du workflow corrigé, pas davantage que sur celle du workflow d'origine.
 - **AC8** — `takussan-api/CLAUDE.md` et le `CLAUDE.md` racine documentent la commande **et sa
   limite** : un vert ici ne dit rien de la suite.
 - **AC9** — Le gain réel est **mesuré et reporté dans ce ticket**, avec `uptime` et `hw.ncpu` à côté
