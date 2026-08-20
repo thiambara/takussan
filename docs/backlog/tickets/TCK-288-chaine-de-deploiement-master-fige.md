@@ -8,7 +8,7 @@ estimate: M
 wave: null
 created: 2026-08-12
 updated: 2026-08-12
-depends_on: [TCK-296, TCK-299, TCK-300]
+depends_on: [TCK-296, TCK-299, TCK-300, TCK-332]
 blocks: []
 spec_refs:
   features: []
