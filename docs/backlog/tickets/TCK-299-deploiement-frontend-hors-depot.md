@@ -1,7 +1,7 @@
 ---
 id: TCK-299
 title: "Le déploiement du frontend n'existe dans aucun workflow ni script du dépôt"
-status: doing
+status: done
 phase: P1
 family: technique
 estimate: M

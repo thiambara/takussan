@@ -131,9 +131,16 @@ indépendantes, et les confondre ferait chercher le défaut au mauvais endroit.
       > qu'ailleurs, puisqu'il ferme la question pour tous ceux qui liront ensuite.*
 - [x] AC3 — l'inventaire des appelants front est consigné, et chaque dépendance à la forme exacte
       est soit adaptée, soit écrite comme non concernée
-- [ ] AC4 — la suite backend reste verte, **sans assertion assouplie** ; les tests qui comparaient
-      une chaîne exacte comparent toujours une chaîne exacte
-- [ ] AC5 — la suite frontend reste verte, et `npx tsc --noEmit` reste propre
+- [x] AC4 — la suite backend reste verte, **sans assertion assouplie** ; les tests qui comparaient
+      une chaîne exacte comparent toujours une chaîne exacte.
+      **Fermé le 2026-08-20 par la session principale** (un agent délégué ne peut pas lancer la
+      suite entière) : local `Tests: 2589, Assertions: 8210, Skipped: 2`, 0 échec ; CI, job
+      `lint-and-test` de la PR #206, `pass` en 5 min 12 s. `DateRepresentationTest` fige la
+      correspondance cast ↔ forme émise champ par champ — les comparaisons sont plus strictes
+      qu'avant, pas moins.
+- [x] AC5 — la suite frontend reste verte, et `npx tsc --noEmit` reste propre.
+      Mesuré le 2026-08-20 : `tsc` sortie 0 · `npm run test` **173 fichiers, 1160 tests, 0 échec**
+      · `npm run build` sortie 0 · job `Web (ESLint + tsc + Vitest + build)` de la CI, `pass`.
 - [x] AC6 — émettre une date hors format fait échouer la CI, **prouvé par mutation**, y compris le
       cas où la garde ne trouve plus sa cible
 
@@ -509,3 +516,39 @@ lecture.
 déléguante, une fois, à la fin. `php bin/impacted-tests.php` répond d'ailleurs `SUITE ENTIÈRE`, mais
 à cause d'un fichier du **lot précédent** (`StoreSavedSearchRequest.php`), pas des changements de
 cette reprise. AC4 et AC5 restent donc décochés, pour le même motif qu'au § 8.
+
+
+## Reste sur dev
+
+**Le delta est mergé ; AC2 reste NON TENU, et il ne peut pas l'être sous la forme où il est écrit.**
+
+AC2 exige que « **toute** date émise par `app/Http/Resources/` respecte le format retenu ». Ce que
+la garde établit réellement est plus faible, et il faut le dire tel quel : elle reconnaît une date à
+son **NOM de clé** (`*_at`, `*_date`, `*_since`, `period_start`…). C'est un **plancher, jamais un
+inventaire** — le dépôt en porte la preuve dans le ticket lui-même : `member_since` échappait à
+l'heuristique jusqu'à ce qu'on ajoute `_since`, et rien ne dit qu'il n'en reste pas.
+
+*Une garde qui ne peut pas énumérer sa cible ne peut pas établir un « toutes ».*
+
+Ce qui EST établi, et qui est déjà beaucoup :
+
+- 146 clés de date dans 45 fichiers, **145 conformes, 1 exception écrite** ;
+- la garde retournée en **inventaire positif** (elle ne cherche plus des appels interdits, elle
+  exige que chaque date émise passe par le helper), prouvée par **8 mutations** en sortie 1, dont
+  l'attribut Carbon brut, la chaîne SQL brute et une clé de date ajoutée sans helper ;
+- deux trous refermés après coup, mesurés : le repérage ignorait les **guillemets doubles**
+  (`"confirmed_at" =>`, un caractère de différence, laissait la garde verte), et les planchers
+  valaient 100 pour 146 clés réelles — 46 pouvaient disparaître en silence. Ce sont désormais des
+  cliquets posés au niveau mesuré.
+
+**Deux issues possibles, et c'est une décision, pas un oubli :**
+
+1. **Reformuler AC2** en ce que la garde peut tenir (« toute date reconnue par l'heuristique de nom
+   respecte le format, ou figure dans la liste d'exceptions ; l'heuristique est un plancher
+   documenté ») et clore le ticket.
+2. **Ouvrir un ticket** pour un inventaire qui ne dépende plus du nom — lire les `$casts` dans le
+   conteneur Laravel et confronter au `toArray()` de chaque ressource. C'est faisable, c'est plus
+   cher, et ça vaut d'être décidé plutôt que subi.
+
+En attendant, le ticket reste `doing` : son delta est livré, son AC2 ne l'est pas, et le premier ne
+rachète pas le second.

@@ -7,7 +7,7 @@ family: front
 estimate: XL
 wave: null
 created: 2026-08-15
-updated: 2026-08-17
+updated: 2026-08-20
 depends_on: [TCK-286]
 blocks: []
 spec_refs:
@@ -189,11 +189,38 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
 
 ## Reste sur dev
 
+> ⚠️ **Le paragraphe ci-dessous décrit l'état du 2026-08-17 et il est PÉRIMÉ.** Il est conservé
+> parce que la trace de ce qu'on croyait a de la valeur ; l'état courant est juste après.
+
 **Rien de ce ticket n'est sur `dev`** — le travail vit sur la branche `wave3/i18n` (7 commits,
 non poussée). Le statut est `doing` pour une raison plus forte que la non-fusion : **le ticket est
 un XL et il n'est pas fini**. 3 lots sur 12 sont entamés, 2 le sont substantiellement.
 
 *Un `done` ici mentirait sur 2 761 occurrences restantes.*
+
+### État courant — 2026-08-20, après le merge de la PR #206
+
+**Les douze lots (A → L) sont traités et mergés sur `dev`.** Le compte est passé de
+**291 fichiers / 2 761 occurrences à 40 / 91**, le wolof de **70 clés manquantes à 0**, et la suite
+front de ~810 à **1 160 tests**. Le détail, les mesures et les trois rendus qui ont changé sont au
+§ *Vague du 2026-08-20*.
+
+**Le ticket reste `doing`, et pour DEUX raisons — aucune n'est « il reste du travail de traduction » :**
+
+1. **AC1 ne peut pas être tenu sous la forme où il est écrit**, et ce ticket l'a lui-même établi :
+   il exige qu'un lot soit « à zéro sur tous ses fichiers », or les 91 occurrences restantes sont,
+   par construction, celles que le cliquet **heuristique** compte sans qu'elles doivent être
+   traduites — clés techniques, classes CSS, identifiants, valeurs d'API, texte de test. Le tri
+   fichier par fichier existe ; ce qu'il faut, c'est **reformuler l'AC**, pas traduire davantage.
+2. **AC3 est violé par TROIS rendus, délibérément** (les deux libellés de type de bien, le
+   séparateur de milliers ICU, le fuseau `Africa/Dakar`). Ils sont mesurés, motivés et écrits — mais
+   l'AC dit « aucun libellé n'a changé », et il a changé. **Cocher serait mentir ; supprimer l'AC
+   serait pire.** Le premier des trois est une décision produit qui appartient au relecteur.
+
+*Un `done` ici ne mentirait plus sur le volume — il mentirait sur ces deux points-là.*
+
+**Et une réserve qu'aucune garde ne lèvera : le wolof est écrit, il n'est pas relu.** La parité est
+exacte sur 4 984 clés et **muette sur la justesse**. Il faut un locuteur.
 
 ### Le compte, d'un coup d'œil
 
