@@ -19,10 +19,10 @@ class UserListResource extends BaseResource
             'email' => $this->email,
             'phone' => $this->phone,
             'status' => $this->status?->value,
-            'email_verified_at' => $this->email_verified_at?->toIso8601String(),
+            'email_verified_at' => $this->iso($this->email_verified_at),
             'two_factor_enabled' => (bool) $this->two_factor_enabled,
-            'last_login_at' => $this->last_login_at?->toIso8601String(),
-            'created_at' => $this->created_at?->toIso8601String(),
+            'last_login_at' => $this->iso($this->last_login_at),
+            'created_at' => $this->iso($this->created_at),
             'roles' => collect($this->admin_role_rows ?? [])->values()->all(),
             'agencies' => $this->profileAgencies(),
         ];

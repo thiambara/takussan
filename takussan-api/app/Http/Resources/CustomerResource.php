@@ -27,8 +27,8 @@ class CustomerResource extends BaseResource
             'added_by_id' => $this->added_by_id,
             'metadata' => $this->metadata,
             'notes' => $this->notes,
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
+            'updated_at' => $this->iso($this->updated_at),
             'tasks_count' => $this->whenCounted('tasks'),
             'added_by' => $this->when(
                 $this->relationLoaded('addedBy'),
@@ -54,7 +54,7 @@ class CustomerResource extends BaseResource
                     'id' => $d->id,
                     'name' => $d->name,
                     'type' => $d->type?->value,
-                    'created_at' => $d->created_at?->toISOString(),
+                    'created_at' => $this->iso($d->created_at),
                 ])->values(),
             ),
         ];

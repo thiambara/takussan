@@ -15,7 +15,7 @@ class MessageResource extends BaseResource
             'sender_id' => $this->sender_id,
             'type' => $this->type?->value,
             'content' => $this->content,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

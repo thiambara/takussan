@@ -21,7 +21,7 @@ class BankStatementLineResource extends BaseResource
         return [
             'id' => $this->id,
             'bank_statement_id' => $this->bank_statement_id,
-            'posted_at' => $this->posted_at?->toDateString(),
+            'posted_at' => $this->calendarDate($this->posted_at),
             'amount' => $this->amount,
             'direction' => $this->direction?->value,
             'currency' => $this->currency,
@@ -35,9 +35,9 @@ class BankStatementLineResource extends BaseResource
                 : null,
             'matched_payment_id' => $this->matched_payment_id,
             'match_confidence' => $this->match_confidence,
-            'confirmed_at' => $this->confirmed_at?->toIso8601String(),
+            'confirmed_at' => $this->iso($this->confirmed_at),
             'confirmed_by' => $this->confirmed_by,
-            'created_at' => $this->created_at?->toIso8601String(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

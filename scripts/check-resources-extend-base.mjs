@@ -32,13 +32,15 @@
  *     est déduite du chemin, pas d'une liste.
  *
  * **Ce que la garde NE prouve PAS, et le dit dans sa sortie.** Étendre `BaseResource` ne veut pas
- * dire *employer* ses quatre helpers. La convergence de la SÉRIALISATION est un autre sujet, et
- * il est ouvert : mesuré le 2026-08-17, les dates sont émises sous **trois formats incompatibles**
- * dans ces mêmes fichiers — 55 `toISOString()` (`…T12:34:56.000000Z`), 37 `toIso8601String()`
- * (`…T12:34:56+00:00`, ce que rend `BaseResource::iso()`) et 18 `toDateString()`. Les remplacer
- * par `iso()` CHANGERAIT la forme émise sur le fil, donc le contrat du front : c'est une décision
- * de produit, pas un nettoyage, et elle n'appartient pas à cette garde. Celle-ci pose le socle —
- * les helpers deviennent disponibles partout — elle ne décrète pas leur emploi.
+ * dire *employer* ses helpers. Celle-ci pose le socle — ils deviennent disponibles partout — elle
+ * ne décrète pas leur emploi.
+ *
+ * **Un des quatre est désormais gardé, trois ne le sont pas.** Les DATES le sont depuis TCK-327 :
+ * `check-resource-date-format.mjs` refuse toute conversion écrite à la main dans ces mêmes
+ * fichiers, et ADR-0018 fixe les deux formes émises. C'était la convergence la plus coûteuse à
+ * laisser ouverte — 138 lignes, quatre appels, trois chaînes distinctes, parfois dans le même
+ * fichier. `enumValue`, `enumLabel` et `mediaUrl` restent, eux, disponibles et non exigés : même
+ * famille, mais chacun a son propre coût de contrat.
  *
  * Usage :
  *   node scripts/check-resources-extend-base.mjs            # garde, sort en 1 au moindre écart
@@ -163,10 +165,10 @@ if (REPORT) {
   }
   console.log('');
   console.log("Portée : l'HÉRITAGE, pas l'EMPLOI. Étendre BaseResource ne veut pas dire employer ses");
-  console.log('  quatre helpers. Les dates restent émises sous trois formats incompatibles dans ces');
-  console.log('  fichiers (55 toISOString, 37 toIso8601String, 18 toDateString au 2026-08-17) — les');
-  console.log("  unifier changerait la forme sur le fil, donc le contrat du front. C'est une décision,");
-  console.log("  pas un nettoyage, et elle n'appartient pas à cette garde.");
+  console.log('  helpers. Les DATES sont gardées depuis TCK-327 par check-resource-date-format.mjs');
+  console.log('  (ADR-0018 : instant `…T12:34:56+00:00`, jour `YYYY-MM-DD`). Les trois autres —');
+  console.log('  enumValue, enumLabel, mediaUrl — restent disponibles et non exigés : même famille,');
+  console.log("  mais chacun a son propre coût de contrat.");
   console.log('');
 }
 

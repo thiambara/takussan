@@ -16,7 +16,7 @@ class SettingResource extends BaseResource
             'scope' => $this->scope,
             'scope_id' => $this->scope_id,
             'updated_by_id' => $this->updated_by_id,
-            'updated_at' => $this->updated_at,
+            'updated_at' => $this->iso($this->updated_at),
         ];
     }
 }

@@ -35,7 +35,7 @@ class AgencyResource extends BaseResource
             'metadata' => $this->metadata ?? null,
             'moderation_required' => (bool) ($this->moderation_required ?? false),
             'primary_admin_id' => $this->primary_admin_id,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

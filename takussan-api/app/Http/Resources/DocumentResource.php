@@ -30,8 +30,8 @@ class DocumentResource extends BaseResource
             'description' => $this->description,
             'is_verified' => (bool) $this->is_verified,
             'verified_by' => $this->verified_by,
-            'verified_at' => $this->verified_at?->toISOString(),
-            'expiry_date' => $this->expiry_date?->toDateString(),
+            'verified_at' => $this->iso($this->verified_at),
+            'expiry_date' => $this->calendarDate($this->expiry_date),
             // Legacy single-file collection.
             'file_url' => $file?->getFullUrl(),
             'file_name' => $file?->file_name,
@@ -48,7 +48,7 @@ class DocumentResource extends BaseResource
                     ->values()
                 )->toArray($request)
                 : null,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

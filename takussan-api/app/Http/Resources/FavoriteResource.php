@@ -15,7 +15,7 @@ class FavoriteResource extends BaseResource
             'user_id' => $this->user_id,
             'notes' => $this->notes,
             'property' => $this->whenLoaded('property', fn () => PropertyResource::make($this->property)),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

@@ -38,8 +38,8 @@ class ReviewResource extends BaseResource
             'status' => $this->status?->value,
             'reported_count' => (int) ($this->reported_count ?? 0),
             'reply_content' => $this->reply_content,
-            'replied_at' => $this->replied_at?->toISOString(),
-            'created_at' => $this->created_at?->toISOString(),
+            'replied_at' => $this->iso($this->replied_at),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 

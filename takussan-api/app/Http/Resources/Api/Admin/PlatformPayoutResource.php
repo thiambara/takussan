@@ -12,8 +12,11 @@ class PlatformPayoutResource extends BaseResource
         return [
             'id' => $this->id,
             'agency_id' => $this->agency_id,
-            'period_start' => $this->iso($this->period_start),
-            'period_end' => $this->iso($this->period_end),
+            // Castés « date » sur le modèle : une période comptable n'a pas d'heure (ADR-0018).
+            // Ils sortaient en `2026-08-17T00:00:00+00:00` quand PayoutResource et
+            // BankStatementResource émettaient `2026-08-17` sur exactement le même cast.
+            'period_start' => $this->calendarDate($this->period_start),
+            'period_end' => $this->calendarDate($this->period_end),
             'gross_amount' => (float) $this->gross_amount,
             'platform_fee_amount' => (float) $this->platform_fee_amount,
             'net_amount' => (float) $this->net_amount,

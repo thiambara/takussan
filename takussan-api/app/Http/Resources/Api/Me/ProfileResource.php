@@ -35,7 +35,7 @@ class ProfileResource extends BaseResource
                 'slug' => $this->resource->agency->slug,
             ]),
             'status' => $this->statusValue(),
-            'created_at' => $this->resource->created_at?->toIso8601String(),
+            'created_at' => $this->iso($this->resource->created_at),
         ];
     }
 

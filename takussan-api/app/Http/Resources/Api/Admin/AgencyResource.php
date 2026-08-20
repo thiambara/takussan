@@ -22,7 +22,7 @@ class AgencyResource extends BaseResource
             'slug' => $this->slug,
             'status' => $this->status?->value,
             'is_verified' => (bool) $this->is_verified,
-            'verified_at' => $this->verified_at?->toIso8601String(),
+            'verified_at' => $this->iso($this->verified_at),
             'primary_admin_id' => $this->primary_admin_id,
             'license_number' => $this->license_number,
             'email' => $this->email,
@@ -31,9 +31,9 @@ class AgencyResource extends BaseResource
             'properties_count' => (int) ($this->properties_count ?? 0),
             'members_count' => (int) ($this->members_count ?? 0),
             'last_activity_at' => $this->last_activity_at
-                ? Carbon::parse($this->last_activity_at)->toIso8601String()
+                ? $this->iso(Carbon::parse($this->last_activity_at))
                 : null,
-            'created_at' => $this->created_at?->toIso8601String(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

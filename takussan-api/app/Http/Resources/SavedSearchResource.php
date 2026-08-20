@@ -17,7 +17,7 @@ class SavedSearchResource extends BaseResource
             'notification_frequency' => $this->notification_frequency,
             'is_active' => (bool) $this->is_active,
             'results_count' => $this->results_count,
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->iso($this->created_at),
         ];
     }
 }

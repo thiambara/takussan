@@ -395,11 +395,33 @@ jobs:
         # sous-unité). `tests/Unit/Http/Resources/AmountRepresentationTest.php` fige ce point pour
         # l'avenir, et il a été vérifié par ablation.
         #
-        # ⚠ La garde couvre l'HÉRITAGE, pas l'EMPLOI, et l'écrit dans sa sortie : les dates restent
-        # émises sous trois formats incompatibles dans ces mêmes fichiers (55 `toISOString`, 37
-        # `toIso8601String`, 18 `toDateString`). Les unifier changerait la forme sur le fil, donc le
-        # contrat du front : c'est une décision de produit, pas un nettoyage.
+        # ⚠ La garde couvre l'HÉRITAGE, pas l'EMPLOI. L'emploi des helpers de DATE est gardé par
+        # l'étape suivante depuis TCK-327 ; celui des trois autres (`enumValue`, `enumLabel`,
+        # `mediaUrl`) ne l'est toujours pas.
         run: node scripts/check-resources-extend-base.mjs --report
+
+      - name: Toute date d'API passe par BaseResource (ADR-0018)
+        # Mesuré le 2026-08-20, AVANT conversion : 138 lignes de `app/Http/Resources/` émettaient
+        # une date sous QUATRE appels distincts pour TROIS chaînes distinctes — 55 `toISOString()`
+        # (`…T12:34:56.000000Z`), 37 `toIso8601String()`, 28 `$this->iso(…)` et 18
+        # `toDateString()`. Les trois cohabitaient parfois dans le même fichier.
+        #
+        # Le défaut n'était pas cosmétique : `PlatformPayout::period_start` est casté `date` — une
+        # période comptable, sans heure — et sortait en `2026-08-17T00:00:00+00:00`, quand les DEUX
+        # autres ressources portant le même couple de champs sur le même cast sortaient
+        # `2026-08-17`. Le même concept, le même cast, deux contrats.
+        #
+        # ⚠ C'est le profil exact de la RÉGRESSION SILENCIEUSE DES DEUX CÔTÉS : les trois formes
+        # sont des `string`, `new Date(…)` les parse toutes, aucun typage TypeScript ne les
+        # distingue, aucun lint du front ne s'en émeut. Un test seul ne suffit pas — il ne couvre
+        # que les champs qu'on a pensé à lui donner. La garde, elle, lit TOUS les fichiers ; le test
+        # (`tests/Unit/Http/Resources/DateRepresentationTest.php`) connaît la valeur. Les deux.
+        #
+        # Prouvée par mutation, y compris le cas où elle perd sa cible : dossier renommé, arbre
+        # fondu à 3 fichiers, helper renommé, `->utc()` retiré. Ce dernier l'a laissée VERTE à la
+        # première tentative — le docblock d'`iso()` cite `->utc()` et satisfaisait le motif. Elle
+        # dénude désormais les commentaires avant de lire.
+        run: node scripts/check-resource-date-format.mjs --report
       - name: Aucun document normatif ne cite un chemin markdown mort
         # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
         # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »
