@@ -1,0 +1,194 @@
+# Garde du DÉPLOIEMENT DU FRONT — et elle ne déploie rien.
+#
+# Ce fichier est le seul du dépôt qui parle du déploiement de `takussan-web/`, et il en parle pour
+# le VÉRIFIER, jamais pour le déclencher. La décision est écrite en ADR-0017 : le front est déployé
+# par l'intégration Git de Vercel, hors du dépôt. Y ajouter un workflow de déploiement créerait un
+# second déclencheur en course avec le premier, sur un projet qui n'a qu'un seul jeu de domaines.
+#
+# ── POURQUOI UNE GARDE PLUTÔT QU'UN SIMPLE DOCUMENT ────────────────────────────────────────────
+#
+# TCK-299 avait été écrit sur une déduction : « aucun workflow ne cite `takussan-web/` DONC le
+# front n'est déployé par rien ». Faux. Mesuré le 2026-08-20 : 215 déploiements GitHub créés par
+# `vercel[bot]`, dont 3 en environnement « Production ». Le mécanisme existait, il vivait
+# simplement hors du dépôt — et rien dans le dépôt ne pouvait le contredire ni le confirmer.
+#
+# Un document qui écrirait « master → Production » serait juste aujourd'hui et muet le jour où
+# quelqu'un change la branche de production dans le tableau de bord Vercel. C'est le défaut que
+# `INDEX.md` a payé sur 213 de ses 266 entrées. Le mapping est donc RELEVÉ dans
+# `docs/infra/frontend-deploiement.json` et RE-MESURÉ ici contre l'API GitHub.
+#
+# ── CE QU'ELLE NE PEUT PAS FAIRE ───────────────────────────────────────────────────────────────
+#
+# Elle ne lit pas le tableau de bord Vercel : elle n'a aucun jeton Vercel, et n'en veut aucun. Elle
+# observe ce que Vercel PUBLIE sur GitHub (l'API Deployments) — c'est-à-dire le résultat, pas le
+# réglage. L'attribution du domaine `preview.takussan.com` à une branche reste donc non mesurable
+# depuis ici, et le relevé le dit en toutes lettres dans son champ `non_mesure`.
+name: Front — garde du mapping de déploiement
+
+on:
+  pull_request:
+    paths:
+      - 'docs/infra/frontend-deploiement.json'
+      - 'docs/infra/frontend-deploiement.md'
+      - 'takussan-web/**'
+      - '.github/workflows/front-deploy-map.yml'
+  # La dérive du mapping ne se produit PAS dans une PR : elle se produit dans le tableau de bord
+  # Vercel, un jour où personne ne pousse. Une garde qui ne tourne qu'en PR ne l'attraperait
+  # qu'après coup, et par hasard.
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: read
+
+concurrency:
+  group: front-deploy-map-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  variables:
+    name: Variables du build front déclarées dans le dépôt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: NEXT_PUBLIC_* lues par le front ⊆ déclarées ET relevées
+        # `NEXT_PUBLIC_*` est SUBSTITUÉE À LA COMPILATION : une clé absente de l'environnement de
+        # build ne casse pas le build, elle produit `undefined` dans le bundle livré, et le défaut
+        # ne se voit qu'à l'exécution, en production, sur une requête qui part vers
+        # `undefined/api/...`. C'est exactement le genre d'écart qu'aucun test ne rattrape.
+        run: |
+          # `-e` est DEJA pose par le runner (`bash -e {0}`) : l'ecrire ici rend le script
+          # identique en CI et en local, au lieu de deux comportements pour un meme fichier.
+          set -euo pipefail
+          RELEVE=docs/infra/frontend-deploiement.json
+
+          # `|| true` sur CHAQUE grep, et le vide traité comme un résultat : un grep sans
+          # correspondance sort en 1, et sous `set -e` la garde mourrait AVANT sa première ligne —
+          # muette, et verte à l'œil de qui parcourt les logs. C'est le défaut D-44 transposé ici.
+          utilisees=$(grep -rhoE 'process\.env\.NEXT_PUBLIC_[A-Za-z0-9_]+' \
+                        takussan-web/src takussan-web/next.config.ts 2>/dev/null \
+                      | sed 's/^process\.env\.//' | sort -u || true)
+          declarees=$(grep -oE '^[A-Za-z0-9_]+' takussan-web/.env.example 2>/dev/null | sort -u || true)
+          relevees=$(jq -r '.variables_build[].cle' "$RELEVE" 2>/dev/null | sort -u || true)
+
+          echo "· lues par le code front   : ${utilisees:-<aucune>}" | tr '\n' ' '; echo
+          echo "· déclarées (.env.example) : ${declarees:-<aucune>}" | tr '\n' ' '; echo
+          echo "· relevées (relevé JSON)   : ${relevees:-<aucune>}" | tr '\n' ' '; echo
+
+          statut=0
+          if [ -z "$utilisees" ]; then
+            echo "✗ aucune variable NEXT_PUBLIC_* trouvée dans takussan-web/src : la garde ne mesure plus rien."
+            echo "  (elle en a mesuré une, NEXT_PUBLIC_API_URL, à 39 usages le 2026-08-20 — une"
+            echo "   disparition totale est un déplacement de fichiers, pas un progrès.)"
+            exit 1
+          fi
+
+          manquantes=$(comm -23 <(printf '%s\n' "$utilisees") <(printf '%s\n' "$declarees"))
+          if [ -n "$manquantes" ]; then
+            statut=1
+            echo "✗ lues par le build mais ABSENTES de takussan-web/.env.example :"
+            printf '    %s\n' $manquantes
+            echo "  → le build Vercel les prendra a undefined sans le dire. Déclarer la clé."
+          fi
+
+          hors_releve=$(comm -23 <(printf '%s\n' "$utilisees") <(printf '%s\n' "$relevees"))
+          if [ -n "$hors_releve" ]; then
+            statut=1
+            echo "✗ lues par le build mais ABSENTES de $RELEVE :"
+            printf '    %s\n' $hors_releve
+            echo "  → la valeur servie en Production/Preview n'est consignée nulle part dans le dépôt."
+          fi
+
+          if [ "$statut" -eq 0 ]; then
+            echo "✓ toute variable NEXT_PUBLIC_* lue par le front est déclarée ET relevée"
+          fi
+          exit "$statut"
+
+  mapping:
+    name: Le mapping branche → environnement tient encore
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # `git rev-list --first-parent` sur toute l'histoire de la branche de production :
+          # la profondeur 1 par défaut rendrait la garde muette, pas rouge.
+          fetch-depth: 0
+
+      - name: Les déploiements « Production » sortent bien de la branche relevée
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RELEVE=docs/infra/frontend-deploiement.json
+          DEPOT="${GITHUB_REPOSITORY:-thiambara/takussan}"
+
+          branche=$(jq -r '.branche_production' "$RELEVE")
+          if [ -z "$branche" ] || [ "$branche" = "null" ]; then
+            echo "✗ $RELEVE ne déclare pas de branche_production."
+            exit 1
+          fi
+          echo "· relevé : la production front est servie par la branche « $branche »"
+
+          git fetch --quiet origin "$branche" 2>/dev/null || true
+          if ! git rev-parse --verify --quiet "origin/$branche^{commit}" >/dev/null; then
+            echo "✗ origin/$branche n'existe pas : le relevé nomme une branche disparue."
+            exit 1
+          fi
+
+          # PREMIER PARENT, et surtout PAS « ancêtre de ».
+          #
+          # La première version de cette garde testait `git merge-base --is-ancestor <ref>
+          # origin/<branche>`. Elle a été ABLATÉE le 2026-08-20 en remplaçant `master` par `dev`
+          # dans le relevé : elle est restée VERTE sur les trois déploiements Production. C'est
+          # mécanique — `dev` contient tout `master`, donc tout commit de `master` est aussi un
+          # ancêtre de `dev`, et le test ne pouvait distinguer la branche de production d'aucune
+          # de ses descendantes. Elle aurait été livrée verte sur un relevé faux.
+          #
+          # Vercel déploie la POINTE de la branche de production à chaque push, et une pointe est
+          # toujours sur l'historique en premier parent de SA branche. Mesuré le 2026-08-20 sur
+          # les 3 refs Production : 3/3 sur origin/master, 0/3 sur origin/dev, 0/3 sur
+          # origin/preview.
+          git rev-list --first-parent "origin/$branche" > "${RUNNER_TEMP:-/tmp}/first-parent.txt"
+
+          prod=$(gh api --paginate "repos/$DEPOT/deployments?per_page=100" \
+                   --jq '.[] | select(.environment=="Production") | [.ref, .created_at] | @tsv' || true)
+
+          if [ -z "$prod" ]; then
+            echo "✗ l'API GitHub ne rend AUCUN déploiement d'environnement « Production » pour $DEPOT."
+            echo "  Soit le mécanisme a changé, soit la requête a échoué — dans les deux cas la garde"
+            echo "  ne peut rien affirmer, et une garde qui ne mesure pas ne passe pas."
+            exit 1
+          fi
+
+          statut=0
+          n=0
+          while IFS="$(printf '\t')" read -r ref date; do
+            [ -n "$ref" ] || continue
+            n=$((n + 1))
+            if ! git cat-file -e "${ref}^{commit}" 2>/dev/null; then
+              statut=1
+              echo "✗ $date  $ref — commit introuvable ici (Production sur un ref inconnu du dépôt)"
+            elif grep -qx "$ref" "${RUNNER_TEMP:-/tmp}/first-parent.txt"; then
+              echo "✓ $date  ${ref:0:8} — pointe de origin/$branche"
+            else
+              statut=1
+              echo "✗ $date  ${ref:0:8} — PAS sur l'historique en premier parent de origin/$branche"
+            fi
+          done <<EOF
+          $prod
+          EOF
+
+          echo "· $n déploiement(s) « Production » examiné(s)"
+          if [ "$statut" -ne 0 ]; then
+            echo "  → le mapping du relevé ne décrit plus la réalité. RE-MESURER, puis corriger"
+            echo "     $RELEVE et docs/infra/frontend-deploiement.md — jamais l'inverse."
+            echo "  → un re-déploiement manuel d'un vieux commit depuis le tableau de bord Vercel"
+            echo "     produit le même rouge sans qu'aucun mapping n'ait changé : le vérifier avant"
+            echo "     de conclure."
+          else
+            echo "✓ le mapping branche → environnement de $RELEVE tient encore"
+          fi
+          exit "$statut"
