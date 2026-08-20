@@ -46,10 +46,19 @@ Resources codent en dur leur jeu de clés complet** : `PropertyResource::toArray
 trentaine de clés quel que soit le `fields[]` demandé. Le sparse fieldset agit sur le SQL, pas sur la
 sérialisation — l'économie est réelle en base et partielle sur le fil (ardoise, §dette de code).
 
-**Un second mécanisme concurrent existe.** Le DSL maison `scopeFilter()`/`scopeWithSearch()` de
-`BaseModelTrait` est monté sur le même `AbstractModel`, donc disponible sur 67 modèles. Aucun
-document n'arbitrait. **`takussan-api/CLAUDE.md` tranche désormais** : `buildQuery()` pour toute
-surface d'API, `scopeFilter` pour les usages internes (jobs, commandes, services).
+**~~Un second mécanisme concurrent existe.~~ — plus depuis le 2026-08-20.** Ce paragraphe disait :
+« Le DSL maison `scopeFilter()`/`scopeWithSearch()` de `BaseModelTrait` est monté sur le même
+`AbstractModel`, donc disponible sur 67 modèles. Aucun document n'arbitrait. `takussan-api/CLAUDE.md`
+tranche désormais : `buildQuery()` pour toute surface d'API, `scopeFilter` pour les usages
+internes (jobs, commandes, services). »
+
+Il était faux sur son arbitrage même. Mesuré le 2026-08-17 (TCK-307) puis le 2026-08-20 (TCK-326) :
+les deux scopes n'avaient **aucun usage interne — ils n'avaient aucun usage**, hors des tests qui les
+testaient. « Réservé aux usages internes » ne décrivait pas un usage, il en inventait un pour
+justifier de garder du code mort. Les deux scopes sont supprimés, `BaseModelTrait` avec eux, et
+`AbstractModel` = `Model` + `HasQueryBuilder`. Il n'y a plus de second mécanisme à arbitrer, et
+`scripts/check-filtering-single-mechanism.mjs` (contrôles C et D) refuse qu'il en réapparaisse un,
+y compris sous un autre nom.
 
 ## Application
 
@@ -60,4 +69,7 @@ surface d'API, `scopeFilter` pour les usages internes (jobs, commandes, services
 - `src/lib/api.ts:182-230` — `buildQueryString()`, le sérialiseur canonique côté front.
 - `src/lib/queries/` — **32 constantes `*_FIELDS`** qui matérialisent les fieldsets par vue.
 - `docs/spatie-query-builder.md` — la référence complète.
+- `scripts/check-filtering-single-mechanism.mjs` — la garde d'unicité du mécanisme (TCK-307,
+  TCK-326). Elle ne couvre que les **scopes Eloquent** de `app/`, pas le filtrage ad hoc en
+  contrôleur, et elle le dit dans sa sortie.
 - **Aucune garde** ne vérifie qu'un appel front passe bien un `fields[]`.

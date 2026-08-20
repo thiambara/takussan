@@ -57,7 +57,7 @@ tenable côté front.
 
 > ✅ **Il n'y a plus qu'un mécanisme de filtrage** (TCK-307). Le DSL maison
 > `BaseModelTrait::scopeFilter(Builder, array)` coexistait avec spatie sur les **mêmes** modèles —
-> `AbstractModel` compose les deux traits — et une version de ce paragraphe le réservait « aux
+> `AbstractModel` composait les deux traits — et une version de ce paragraphe le réservait « aux
 > usages internes (jobs, commandes, services) ». Mesuré le 2026-08-17 : **zéro appelant** dans tout
 > le dépôt, contre **46 `buildQuery()`** dans les seuls contrôleurs. Il n'avait pas d'usage interne,
 > il n'avait aucun usage — sauf le test qui le testait. Il est supprimé.
@@ -71,15 +71,18 @@ tenable côté front.
 > des `where()` en boucle. ⚠ Il ne voit **pas** le filtrage ad hoc en contrôleur ; il y en a, et
 > certains sont délibérés (TCK-281, « Hors périmètre »).
 >
-> `scopeWithSearch()` **subsiste** dans `BaseModelTrait` — hors périmètre de TCK-307 — mais ses
-> seuls appelants sont ceux de `tests/Feature/Search/ScoutSearchTest.php`, c'est-à-dire son propre
-> test. C'est le même motif, non traité.
+> `scopeWithSearch()`, le second scope du même trait, a **subsisté** à TCK-307 — hors de son
+> périmètre — et a été supprimé par **TCK-326** le 2026-08-20, avec le trait devenu vide. Même
+> motif, un cran plus coûteux : il n'était pas un doublon inerte mais un doublon **inférieur**
+> (pertinence perdue). Détail au § *Recherche*. La garde a gagné un **contrôle D** pour lui.
 
 ## Modèles — `AbstractModel`
 
-`app/Models/Bases/AbstractModel.php` = `Model` + `BaseModelTrait` + `HasQueryBuilder`. **68 modèles
-sur 70 l'étendent.** Les deux exceptions sont justifiées par leur classe parente : `User` (extends
-`Authenticatable`) et `ConversationParticipant` (extends `Pivot`).
+`app/Models/Bases/AbstractModel.php` = `Model` + `HasQueryBuilder`, **et rien d'autre depuis
+TCK-326** : le second trait, `BaseModelTrait`, ne portait plus que du code mort et a été supprimé
+avec son fichier (cf. § *Recherche*). **68 modèles sur 70 l'étendent.** Les deux exceptions sont
+justifiées par leur classe parente : `User` (extends `Authenticatable`) et
+`ConversationParticipant` (extends `Pivot`).
 
 Il y en avait une troisième — `NotificationPreference` étendait `Model` **sans justification**, et
 perdait donc tout le pipeline. Elle a été ramenée sur `AbstractModel`. Un écart non documenté ne
@@ -307,8 +310,16 @@ le paginateur fait foi.
 ## Ressources — `BaseResource`
 
 `app/Http/Resources/Bases/BaseResource.php` fournit `iso(?DateTimeInterface)`,
-`enumValue(?BackedEnum)`, `enumLabel(?BackedEnum, $group, $locale)` et `mediaUrl($collection,
-?$conversion)`.
+`calendarDate(?DateTimeInterface)`, `enumValue(?BackedEnum)`, `enumLabel(?BackedEnum, $group,
+$locale)` et `mediaUrl($collection, ?$conversion)`.
+
+**Les dates : deux types, deux helpers, et la forme se déduit du CAST du modèle** (ADR-0018,
+TCK-327). Un attribut casté `datetime` — `created_at`, `signed_at` — passe par `iso()` et sort en
+`2026-08-17T12:34:56+00:00`. Un attribut casté `date` — `due_date`, `period_start`, `issue_date` —
+passe par `calendarDate()` et sort en `2026-08-17`. Rien d'autre :
+`scripts/check-resource-date-format.mjs` (Repo CI) refuse `toISOString`, `toIso8601String`,
+`toDateString`, `toDateTimeString` **et `->format(`** dans ces fichiers, et
+`tests/Unit/Http/Resources/DateRepresentationTest.php` fige les chaînes exactes.
 
 **Les 44 ressources l'étendent** (TCK-308), et `scripts/check-resources-extend-base.mjs` (Repo CI)
 casse sur la première qui ne le ferait plus. Elles n'étaient que **7, puis 7, puis 8** aux mesures
@@ -318,7 +329,7 @@ violée par malveillance, elle était **invisible** au moment d'écrire le fichi
 *Une convention sans garde ne converge pas, elle stagne.*
 
 > ⚠️ **La garde couvre l'HÉRITAGE, pas l'EMPLOI — et l'écart est réel, pas théorique.** Étendre
-> `BaseResource` ne veut pas dire employer ses quatre helpers, et la migration a été un **échange de
+> `BaseResource` ne veut pas dire employer ses cinq helpers, et la migration a été un **échange de
 > parent, rien d'autre** : 72 insertions, 72 suppressions, deux lignes par fichier, aucun corps de
 > `toArray()` touché. C'est délibéré, et c'est ce qui rend l'opération sûre sur le point le plus
 > cher du dépôt — `BaseResource` n'offre **aucun helper de montant**, il ne peut donc pas en changer
@@ -326,11 +337,16 @@ violée par malveillance, elle était **invisible** au moment d'écrire le fichi
 > `tests/Unit/Http/Resources/AmountRepresentationTest.php` fige ce point pour l'avenir, et il a été
 > vérifié par ablation (un `× 100` glissé dans une ressource le fait rougir).
 >
-> **Ce qui reste ouvert** : mesuré le 2026-08-17, les dates sortent de ces mêmes fichiers sous
-> **trois formats incompatibles** — 55 `toISOString()` (`…T12:34:56.000000Z`), 37
-> `toIso8601String()` (`…T12:34:56+00:00`, ce que rend `iso()`) et 18 `toDateString()`. Les unifier
-> **changerait la forme sur le fil**, donc le contrat du front : c'est une décision de produit, pas
-> un nettoyage, et elle n'appartient ni à ce ticket ni à cette garde.
+> **Ce que TCK-327 a soldé, et ce qui reste.** Les dates sortaient de ces mêmes fichiers sous
+> **trois chaînes distinctes** — mesuré le 2026-08-20 : 138 lignes, 55 `toISOString()`
+> (`…T12:34:56.000000Z`), 37 `toIso8601String()`, 28 `iso()` et 18 `toDateString()`. Le défaut
+> n'était pas cosmétique : `PlatformPayout::period_start`, casté `date`, sortait en
+> `2026-08-17T00:00:00+00:00` quand `PayoutResource` et `BankStatementResource` émettaient le
+> **même champ, sur le même cast**, en `2026-08-17`. C'est converti, décidé en ADR-0018, gardé par
+> `check-resource-date-format.mjs` et figé par `DateRepresentationTest.php`.
+>
+> **Restent non gardés** : `enumValue`, `enumLabel` et `mediaUrl`. Même famille, mais chacun a son
+> propre coût de contrat, et aucun n'a encore été mesuré.
 
 Pour du code neuf : `BaseResource`, et employer ses helpers plutôt que refaire la conversion.
 
@@ -402,14 +418,33 @@ app/Models`). Le driver est `SCOUT_DRIVER` (`meilisearch` en développement dock
 production ; `collection` est un défaut historique qui ne prouve rien — il filtre en PHP sur une
 collection Eloquent).
 
-**Deux chemins composent Scout et Eloquent, et ils ne se valent PAS :**
+> ✅ **Il n'y a plus qu'UN chemin qui compose Scout et Eloquent** (TCK-326). Ils étaient deux, et
+> ils ne se valaient pas :
+>
+> | Chemin | Ordre de pertinence | Sort |
+> |---|---|---|
+> | `BaseModelTrait::scopeWithSearch()` — le DSL maison | **perdu** (`whereIn`, aveu dans son propre docblock) | **supprimé** (TCK-326) |
+> | `HasQueryBuilder` `filter[search]` — toute surface d'API | **restitué** (TCK-281) | seul survivant |
+>
+> Ce n'était pas un doublon inerte comme `scopeFilter` (TCK-307), c'était un doublon
+> **INFÉRIEUR** : monté sur les 68 modèles d'`AbstractModel`, également disponible, et rendant
+> une recherche tolérante aux fautes mais **classée par date** — exactement le défaut que TCK-281
+> a corrigé sur l'autre chemin. Le docblock l'avertissait ; *l'appelant ne lit pas le docblock, il
+> lit la liste des méthodes disponibles.*
+>
+> Ré-inventorié le 2026-08-20 sur le dépôt entier avant suppression : **0 appelant** en `app/`,
+> `routes/`, `database/`, `bin/`, `config/`, **0** côté `takussan-web/`, **0** invocation
+> dynamique (`->scopes([…])`, `call_user_func`, `->{$méthode}`) — les 5 seuls appels vivaient dans
+> `tests/Feature/Search/ScoutSearchTest.php`, c'est-à-dire dans le test qui le testait. Son helper
+> `isSearchable()` n'avait qu'un appelant : le scope lui-même. `BaseModelTrait` est donc devenu
+> vide et a été supprimé avec eux ; `AbstractModel` = `Model` + `HasQueryBuilder`.
+>
+> `scripts/check-filtering-single-mechanism.mjs` **contrôle D** garde la suppression, et par
+> FORME autant que par nom : un scope de `app/` qui entre par Scout (`::search(`) et recompose
+> dans Eloquent (`whereIn`/`whereRaw`/`keys`) casse la CI, **même renommé**. Prouvé par mutation,
+> cf. l'en-tête de la garde.
 
-| Chemin | Ordre de pertinence |
-|---|---|
-| `BaseModelTrait::scopeWithSearch()` — le DSL maison ; **aucun appelant hors de son propre test** (mesuré le 2026-08-17) | **perdu** (`whereIn`, docblock) |
-| `HasQueryBuilder` `filter[search]` — toute surface d'API | **restitué** (TCK-281) |
-
-Sur le second chemin, le callback mémorise l'ordre des ids rendus par Meilisearch
+Sur le chemin survivant, le callback mémorise l'ordre des ids rendus par Meilisearch
 (`HasQueryBuilder::$searchRelevanceIds`) et le contrôleur le rejoue via
 `Model::defaultSortsWithRelevance('-created_at')` → `App\Sorts\SearchRelevanceSort`, un `CASE`
 portable SQLite/MySQL (`FIELD()` n'existe pas en SQLite). **Le résultat se passe à `defaultSorts()`,
@@ -623,7 +658,27 @@ répond `SUITE ENTIÈRE`, elle a raison — c'est le comportement voulu, pas un 
 La carte (`tests/impact-map.json`) est **dérivée, jamais éditée à la main** — même règle que
 `docs/backlog/INDEX.md`. `scripts/check-impact-map.mjs` garde sa cohérence structurelle (Repo CI) ;
 elle se régénère avec `php bin/build-impact-map.php <rapport-de-couverture> tests/impact-map.json`
-à partir d'un rapport `--coverage-php` produit par `php artisan test`.
+à partir d'un rapport `--coverage-php` produit par **PHPUnit invoqué directement** :
+
+```bash
+XDEBUG_MODE=coverage php vendor/phpunit/phpunit/phpunit --coverage-php=/tmp/cov.php
+php bin/build-impact-map.php /tmp/cov.php tests/impact-map.json
+node ../scripts/check-impact-map.mjs --report
+```
+
+⚠ **PHPUnit directement, et pas `php artisan test --coverage-php=…`** : `artisan test --coverage`
+passe déjà cette option en interne, et une seconde occurrence est écartée par PHPUnit — la commande
+sort alors en 1 sans un mot (TCK-331). Sans le drapeau `--coverage`, `artisan test --coverage-php=…`
+fonctionne encore, mais il n'y a plus aucune raison de passer par lui.
+
+⚠ **Le clover ne peut PAS remplacer `cov.php` pour la carte.** La carte a besoin de l'attribution
+**test → lignes** ; le clover ne porte que des compteurs par fichier. Une carte dérivée du clover
+serait structurellement *cohérente* — donc validée par la garde — et fonctionnellement fausse.
+Le clover sert au CLIQUET (`bin/coverage-gate.php`), jamais à la carte.
+
+⚠ **Une carte dérivée d'un SOUS-ENSEMBLE de la suite est pire qu'une carte périmée.** Une carte
+gelée s'émousse vers *plus* de tests ; une carte partielle sélectionne *moins* de tests, en silence.
+Ne régénérer qu'à partir d'un passage sur la suite entière.
 Détail : [`docs/plans/2026-08-17-temps-d-execution-des-tests.md`](../docs/plans/2026-08-17-temps-d-execution-des-tests.md).
 
 ## Style
