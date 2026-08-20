@@ -299,3 +299,19 @@ Aucun test PHP ni Vitest n'a été lancé : ce ticket ne touche ni `takussan-api
 - **Trois inconnues assumées** (attribution de `preview.takussan.com`, Root Directory Vercel,
   variables non `NEXT_PUBLIC_`) : elles exigeraient un jeton d'API Vercel en secret de CI. Elles
   sont déclarées dans `non_mesure`, pas devinées.
+
+
+## Le workflow a tourné — 2026-08-20, PR #206
+
+Le seul point bloquant de cette fiche était de **faire tourner le workflow une fois**, et il ne
+pouvait pas l'être au moment de l'écrire : aucun run GitHub Actions n'était créé pour ce dépôt
+depuis le 2026-08-18T00:28Z. **Cette prémisse a cessé d'être vraie**, et c'est la PR #206 qui l'a
+montré — pas un raisonnement.
+
+```
+Le mapping branche → environnement tient encore        pass  6s
+Variables du build front déclarées dans le dépôt       pass  7s
+```
+
+Les deux jobs de `front-deploy-map.yml` ont été **exécutés** et sont verts. Ce qui était coché sur
+une lecture du YAML l'est désormais sur une sortie.

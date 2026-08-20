@@ -125,10 +125,13 @@ une dette sérieuse plutôt que comme une urgence : la garde ne ment pas, elle s
 
 ## Critères d'acceptation
 
-- [ ] AC1 — La suite CI sort en **0** sur `push` vers `dev`, avec sa table et son `Total:`.
-      *NON COCHÉ DÉLIBÉRÉMENT : aucune exécution CI n'a encore eu lieu avec ce correctif. La forme
-      exacte du step a été jouée en local sur un sous-ensemble, sortie 0 avec sa ligne `Total:`
-      (cf. notes) — ce n'est pas la même chose et ça ne le remplace pas.*
+- [x] AC1 — La suite CI sort en **0**, avec sa table et son `Total:`. **OBSERVÉ le 2026-08-20**
+      sur la PR #206, job `lint-and-test`, 5 min 12 s, `pass` :
+      `Total: 86.6 % (21597 / 24930 lignes exécutables)` puis `✓ cliquet tenu.`
+      ⚠ **Nuance à ne pas gommer** : l'AC écrivait « sur `push` vers `dev` », et ce run est un
+      `pull_request`. Le step de couverture et le cliquet sont les MÊMES ; le step de régénération
+      de la carte, lui, est conditionné au push vers `dev` et n'a donc PAS tourné (cf. AC2 et
+      TCK-320 AC7). La case est cochée sur ce qui a été exécuté, pas sur ce qui lui ressemble.
 - [ ] AC2 — `tests/impact-map.json` est régénérée par une exécution **observée**, et le commit
       automatique apparaît dans l'historique.
       *MOITIÉ TENUE, et la moitié qui reste ne peut pas l'être ici. La régénération a EU LIEU :
@@ -142,6 +145,17 @@ une dette sérieuse plutôt que comme une urgence : la garde ne ment pas, elle s
       **Mesure appariée, un seul et même clover** (`--testsuite=Unit`, 315 tests, 2026-08-20) :
       Collision affiche `Total: 7.9 %`, `bin/coverage-gate.php` affiche
       `Total: 7.9 % (1975 / 24966 lignes exécutables)`.
+
+      **Et sur la suite ENTIÈRE, avec DEUX pilotes de couverture différents — c'est l'appariement
+      que cette fiche revendiquait au départ sans l'avoir :**
+
+      | | pilote | mesure |
+      |---|---|---|
+      | local (session principale) | Xdebug | `Total: 86.6 % (21594 / 24930)` |
+      | CI, PR #206 | PCOV | `Total: 86.6 % (21597 / 24930)` |
+
+      **Le même chiffre à la décimale**, 3 lignes d'écart sur 21 597 entre Xdebug et PCOV. Le
+      cliquet ne dépend donc ni du pilote ni de la machine.
 - [x] AC4 — L'ablation est écrite : retirer le correctif fait revenir la sortie 1 muette.
 - [x] AC5 — L'encadré daté de TCK-320 existe et dit pourquoi l'AC7 n'était pas tenu.
 
