@@ -1,7 +1,7 @@
 ---
 id: TCK-329
 title: "Le type `ProfileType` du front ignore `agency_admin` — la barre supérieure affiche « undefined · <agence> »"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S

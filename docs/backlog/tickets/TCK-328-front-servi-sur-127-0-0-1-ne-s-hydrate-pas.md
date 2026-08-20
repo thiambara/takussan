@@ -1,7 +1,7 @@
 ---
 id: TCK-328
 title: "Le front servi sur `127.0.0.1` ne s'hydrate pas — Next 16 bloque ses ressources de dev, en silence"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**316 tickets** — 14 ouverts, 301 livrés.
+**316 tickets** — 8 ouverts, 307 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 5 |
-| 🚧 Doing | 9 |
+| 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 301 |
+| ✅ Done | 307 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -42,14 +42,8 @@
 ## 🚧 Doing
 
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
-- [TCK-299](tickets/TCK-299-deploiement-frontend-hors-depot.md) — Le déploiement du frontend n'existe dans aucun workflow ni script du dépôt `M · P1 · technique`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
-- [TCK-326](tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) — Supprimer `scopeWithSearch` — le jumeau de `scopeFilter`, et un doublon INFÉRIEUR `S · P2 · technique`
 - [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
-- [TCK-328](tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md) — Le front servi sur `127.0.0.1` ne s'hydrate pas — Next 16 bloque ses ressources de dev, en silence `S · P2 · technique`
-- [TCK-329](tickets/TCK-329-profiletype-front-ignore-agency-admin.md) — Le type `ProfileType` du front ignore `agency_admin` — la barre supérieure affiche « undefined · <agence> » `S · P2 · front`
-- [TCK-330](tickets/TCK-330-saved-search-frequence-nulle-500.md) — Créer une recherche sauvegardée avec une fréquence d'alerte vide rend 500 `S · P1 · bug`
-- [TCK-331](tickets/TCK-331-coverage-php-en-double-casse-le-cliquet.md) — `--coverage-php` est passé DEUX FOIS — le cliquet sort en 1 sans un mot, et la carte d'impact n'a jamais été régénérée `M · P2 · technique`
 
 ## 👀 Review
 
@@ -61,15 +55,16 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 301
+## ✅ Done — 307
 
 <details>
-<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 4 tickets</summary>
+<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 5 tickets</summary>
 
 - [TCK-320](tickets/TCK-320-selection-des-tests-par-impact.md) — Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests `M · P2 · technique`
 - [TCK-321](tickets/TCK-321-parallel-en-ci.md) — Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé `M · P2 · technique`
 - [TCK-324](tickets/TCK-324-mesurer-parallel-sur-le-runner-ci.md) — Mesurer `--parallel` sur le runner CI, puis trancher — la décision actuelle est un défaut, pas un résultat `S · P2 · technique`
 - [TCK-325](tickets/TCK-325-garde-des-declencheurs-durs-du-selecteur.md) — Garder la liste des déclencheurs durs du sélecteur d'impact — elle est recopiée à la main et avait dérivé le jour de son écriture `S · P2 · technique`
+- [TCK-331](tickets/TCK-331-coverage-php-en-double-casse-le-cliquet.md) — `--coverage-php` est passé DEUX FOIS — le cliquet sort en 1 sans un mot, et la carte d'impact n'a jamais été régénérée `M · P2 · technique`
 
 </details>
 
@@ -83,7 +78,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 10 tickets</summary>
+<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 11 tickets</summary>
 
 - [TCK-304](tickets/TCK-304-enveloppe-pagination-dupliquee.md) — Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes `L · P2 · technique`
 - [TCK-305](tickets/TCK-305-validation-inline-vers-formrequest.md) — 120 validations inline contre 65 FormRequest — deux conventions sur le même geste `L · P2 · technique`
@@ -95,13 +90,15 @@ _(aucun)_
 - [TCK-317](tickets/TCK-317-roles-systeme-derivent-par-date-de-creation.md) — Les rôles système dérivent par date de création d'agence — une capacité ajoutée à l'enum n'atteint jamais les agences existantes `M · P2 · back`
 - [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
 - [TCK-319](tickets/TCK-319-porter-watermarkservice-sur-intervention-image-4.md) — Porter `WatermarkService` sur intervention/image 4 — `place()` devient `insert()`, et l'opacité change d'unité `S · P3 · back`
+- [TCK-326](tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) — Supprimer `scopeWithSearch` — le jumeau de `scopeFilter`, et un doublon INFÉRIEUR `S · P2 · technique`
 
 </details>
 
 <details>
-<summary><strong>Vague 38 — Évacuation dette — infra du dépôt : versions, déploiement front, environnement (2026-08-16)</strong> — 7 tickets</summary>
+<summary><strong>Vague 38 — Évacuation dette — infra du dépôt : versions, déploiement front, environnement (2026-08-16)</strong> — 8 tickets</summary>
 
 - [TCK-298](tickets/TCK-298-versions-infra-production-non-epinglees.md) — Les versions d'infrastructure de production ne sont épinglées nulle part dans le dépôt `S · P2 · technique`
+- [TCK-299](tickets/TCK-299-deploiement-frontend-hors-depot.md) — Le déploiement du frontend n'existe dans aucun workflow ni script du dépôt `M · P1 · technique`
 - [TCK-300](tickets/TCK-300-guides-deploiement-contredisent-env-livres.md) — Les guides de déploiement prescrivent des drivers que les `.env` livrés contredisent `S · P2 · technique`
 - [TCK-301](tickets/TCK-301-pieges-muets-environnement-developpement.md) — Les pièges muets de l'environnement de développement : seeding, PDF, et un `.env` qui vise le natif `S · P2 · technique`
 - [TCK-302](tickets/TCK-302-couverture-non-mesuree-suite-non-parallelisee.md) — Aucune mesure de couverture, aucune parallélisation — ~2050 tests en 313 s et pas de garde-fou `M · P2 · technique`
@@ -553,7 +550,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 10 tickets</summary>
+<summary><strong>Sans vague</strong> — 13 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -565,6 +562,9 @@ _(aucun)_
 - [TCK-294](tickets/TCK-294-mtarget-api-pulling-dlr.md) — Mtarget — basculer les accusés de livraison sur l'API Pulling plutôt qu'un webhook non signé `M · P2 · technique`
 - [TCK-295](tickets/TCK-295-kpi-alertes-restriction-agence-individual.md) — §1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard` `S · P3 · technique`
 - [TCK-323](tickets/TCK-323-typescript-7-casse-le-cliquet-i18n.md) — TypeScript 7 n'exporte plus l'API compilateur côté Node — le cliquet i18n en dépend, et le bump PR #182 le casse `M · P2 · technique`
+- [TCK-328](tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md) — Le front servi sur `127.0.0.1` ne s'hydrate pas — Next 16 bloque ses ressources de dev, en silence `S · P2 · technique`
+- [TCK-329](tickets/TCK-329-profiletype-front-ignore-agency-admin.md) — Le type `ProfileType` du front ignore `agency_admin` — la barre supérieure affiche « undefined · <agence> » `S · P2 · front`
+- [TCK-330](tickets/TCK-330-saved-search-frequence-nulle-500.md) — Créer une recherche sauvegardée avec une fréquence d'alerte vide rend 500 `S · P1 · bug`
 
 </details>
 

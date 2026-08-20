@@ -1,7 +1,7 @@
 ---
 id: TCK-330
 title: "Créer une recherche sauvegardée avec une fréquence d'alerte vide rend 500"
-status: doing
+status: done
 phase: P1
 family: bug
 estimate: S
@@ -144,7 +144,13 @@ C'est la première branche du ticket : le vide est **refusé à la validation**,
       cf. Notes d'implémentation), puis remplacé — pas supprimé — par
       `test_a_normalized_empty_string_over_a_not_null_column_is_refused_at_the_door`, qui garde le
       même trou du bon côté et ajoute qu'aucune ligne n'est écrite lors du refus.
-- [ ] AC5 — la suite backend reste verte, sans assertion assouplie
+- [x] AC5 — la suite backend reste verte, sans assertion assouplie.
+      **Fermé le 2026-08-20 par la session principale, puis par la CI** — l'agent ne pouvait pas
+      le faire, la règle du dépôt lui interdit la suite entière :
+      · local, suite entière : `Tests: 2589, Assertions: 8210, Skipped: 2` — 0 échec ;
+      · CI, job `lint-and-test` de la PR #206 : `pass`, 5 min 12 s.
+      Aucune assertion assouplie : la seule modifiée est celle d'AC4, et elle a été RENFORCÉE
+      (le test figeait un 500, il exige désormais un 422 **et** qu'aucune ligne ne soit écrite).
       → **non vérifiable depuis cette branche déléguée** : la règle du dépôt interdit à un agent
       délégué de lancer la suite entière. 40 tests verts sur les 4 classes qui touchent
       `saved-searches` (détail ci-dessous). La suite entière appartient au rituel de fin de

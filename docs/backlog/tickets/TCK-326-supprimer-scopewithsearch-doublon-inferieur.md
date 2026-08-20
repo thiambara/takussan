@@ -1,7 +1,7 @@
 ---
 id: TCK-326
 title: "Supprimer `scopeWithSearch` — le jumeau de `scopeFilter`, et un doublon INFÉRIEUR"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S

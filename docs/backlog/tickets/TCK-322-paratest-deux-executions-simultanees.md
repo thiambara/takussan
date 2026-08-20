@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: 41
 created: 2026-08-17
-updated: 2026-08-17
+updated: 2026-08-20
 depends_on: [TCK-321]
 blocks: []
 spec_refs:
@@ -133,6 +133,20 @@ les binaires (`vendor/phpunit/phpunit/phpunit`) chargent l'autoload de leur prop
 et deux autoloaders se percutent sur `Cannot redeclare ComposerAutoloaderInit…`.
 
 ## Reste sur dev
+
+> ⚠️ **CETTE PAIRE A ÉTÉ JOUÉE LE 2026-08-20, et elle rougit — pour une raison que ce ticket ne
+> pouvait pas connaître.** Le détail, les chiffres et le contrôle à une seule exécution sont au
+> § *La paire a été jouée le 2026-08-20*. Ce qui reste vrai, et ce qui a changé :
+>
+> - **Le correctif de ce ticket est PROUVÉ sur la suite entière** : les deux exécutions ont
+>   démarré, `mkdir(): File exists` ne s'est pas produit. C'est ce que le ticket devait établir.
+> - **AC2 reste NON TENU et n'est plus atteignable ici** : les 75 erreurs sont toutes des
+>   `MeilisearchNotIdleException` — une **cinquième** ressource partagée par machine, la file de
+>   tâches globale du serveur. Elle est hors du périmètre de ce ticket, qui traitait les vues
+>   compilées. → **TCK-334**.
+> - **La restriction « un seul agent à la fois » reste écrite** dans les deux `CLAUDE.md` et dans
+>   l'ardoise, avec désormais **sa vraie raison**. C'est l'AC5 pris à la lettre : elle ne disparaît
+>   pas avant d'avoir cessé d'être vraie, et elle n'a pas cessé de l'être.
 
 **Une seule chose, et elle ne peut pas être faite par un agent délégué : jouer la paire de
 `php artisan test --parallel` simultanés sur la suite ENTIÈRE, et vérifier 0 échec des deux côtés.**

@@ -1,7 +1,7 @@
 ---
 id: TCK-331
 title: "`--coverage-php` est passé DEUX FOIS — le cliquet sort en 1 sans un mot, et la carte d'impact n'a jamais été régénérée"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -132,8 +132,14 @@ une dette sérieuse plutôt que comme une urgence : la garde ne ment pas, elle s
       `pull_request`. Le step de couverture et le cliquet sont les MÊMES ; le step de régénération
       de la carte, lui, est conditionné au push vers `dev` et n'a donc PAS tourné (cf. AC2 et
       TCK-320 AC7). La case est cochée sur ce qui a été exécuté, pas sur ce qui lui ressemble.
-- [ ] AC2 — `tests/impact-map.json` est régénérée par une exécution **observée**, et le commit
-      automatique apparaît dans l'historique.
+- [x] AC2 — `tests/impact-map.json` est régénérée par une exécution **observée**, et le commit
+      automatique apparaît dans l'historique. **FERMÉ LE 2026-08-20, sur l'événement exigé.**
+      Le merge de la PR #206 a produit un `push` vers `dev` ; le run API CI `32412458952` est
+      `success`, son step « Régénérer la carte d'impact » a tourné (`carte écrite :
+      tests/impact-map.json`), et le commit automatique est dans l'historique :
+      `50b45c15 chore(tests): régénérer la carte d'impact [skip ci]`.
+      *C'est la case qui exigeait un `push` vers `dev`, et c'est un `push` vers `dev` qui l'a
+      fermée — pas un `pull_request` qui lui ressemblait.*
       *MOITIÉ TENUE, et la moitié qui reste ne peut pas l'être ici. La régénération a EU LIEU :
       la session principale a joué la suite entière sous couverture le 2026-08-20 (cf. complément
       en fin de fiche), la carte est passée de 667 à 801 fichiers couverts. Ce qui manque encore

@@ -121,7 +121,21 @@ le rituel de fin de branche exige déjà la suite entière.
 - **AC6** — `scripts/check-impact-map.mjs` échoue sur un défaut **structurel** (index hors bornes,
   clé de `files` absente de `scanned`, version inattendue) et **avertit** sur la péremption.
   Vérifié par ablation dans les deux sens.
-- **AC7** — ❌ **NON TENU — correction datée du 2026-08-17, le soir ; complétée le 2026-08-20.**
+- **AC7** — ✅ **TENU — le 2026-08-20 à 20h1x, sur l'événement exigé.** Trois dates pour un seul
+  AC, et c'est l'histoire qui a de la valeur : coché à tort sur une LECTURE le 2026-08-17
+  après-midi, décoché le soir même, corrigé au fond par TCK-331, et enfin **exécuté**.
+
+  > **Ce qui l'a fermé, et rien d'autre :** le merge de la PR #206 a produit un `push` vers `dev`.
+  > Run API CI `32412458952`, `success`. Le step « Régénérer la carte d'impact » — conditionné à
+  > `push` + `refs/heads/dev`, donc jamais atteint par un `pull_request` — a tourné et imprimé
+  > `carte écrite : tests/impact-map.json`. Le commit automatique est dans l'historique de `dev` :
+  > `50b45c15 chore(tests): régénérer la carte d'impact [skip ci]`.
+  >
+  > *Il aura fallu trois jours et deux corrections pour que cette case soit cochée sur ce qu'elle
+  > demandait. C'est le coût d'une case cochée sur une lecture, et il se paie toujours plus tard.*
+
+- **AC7 — la trace de ce qu'on croyait** (conservée : correction datée du 2026-08-17, le soir ;
+  complétée le 2026-08-20).
   La CI régénère la carte **sur push vers `dev` uniquement**, avec `[skip ci]` pour ne pas boucler.
   `dev` n'est pas protégée (vérifié le 2026-08-17).
 
