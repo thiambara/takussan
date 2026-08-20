@@ -51,11 +51,11 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
               type="button"
               onClick={() => onOpenLightbox(i)}
               className="relative flex-[0_0_100%] aspect-[4/3]"
-              aria-label={`Ouvrir la photo ${i + 1}`}
+              aria-label={t('gallery.openPhoto', { index: i + 1 })}
             >
               <Image
                 src={photo.preview}
-                alt={`${title} - photo ${i + 1}`}
+                alt={t('gallery.photoAlt', { title, index: i + 1 })}
                 fill
                 sizes="100vw"
                 className="object-cover"

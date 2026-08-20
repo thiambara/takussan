@@ -88,10 +88,25 @@ const UPDATE = process.argv.includes('--update');
  * AUCUN consommateur et AUCUN wolof. Il faisait doublon avec `nav.categories.*`, qui traduisait le
  * même enum backend dans les trois langues et que le `Navbar` lisait vraiment. Fusionner les deux
  * a résolu les 18 d'un coup — le doublon était la dette, pas la traduction manquante.
+ *
+ * 70 → 27 à la vague B–H de TCK-292 (2026-08-20), et cette fois par de vraies traductions : les 43
+ * clés résorbées sont celles dont TOUS les consommateurs tombaient dans un lot converti — `nav.*`,
+ * `footer.*`, `map.*`, `publicContact.*`, `meta.*`, plus les sous-arbres des surfaces réservations,
+ * baux et finances.
+ *
+ * 27 → **0** à la fin de TCK-292, le même jour. Les 27 dernières étaient des `common.*`, lues
+ * partout, donc possédées par aucun lot : elles ne pouvaient tomber qu'à la fin. **Le plafond vaut
+ * désormais zéro dans les deux langues**, et ce n'est plus un cliquet qu'on desserre : toute clé
+ * française ajoutée sans son wolof fait rougir, comme c'était déjà le cas pour l'anglais.
+ *
+ * ⚠ Ce cliquet est EXACT sur la PRÉSENCE d'une clé et MUET sur sa JUSTESSE : une valeur wolof
+ * recopiée du français le passe sans broncher. La vague B–H l'a payé — un vérificateur a mesuré
+ * 42 valeurs `wo` identiques à leur `fr` dans un seul lot, dont une trentaine seulement étaient
+ * déclarées. C'est une relecture humaine qu'il faut là, pas une garde.
  */
 const PLAFONDS_PARITE = {
   en: 0,
-  wo: 70,
+  wo: 0,
 };
 
 // ── Parcours ──────────────────────────────────────────────────────────────────────────────────

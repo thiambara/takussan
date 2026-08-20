@@ -1,7 +1,8 @@
 'use server';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
+import { getTranslations } from 'next-intl/server';
 import {
   listActiveSessions,
   phoneSendOtp,
@@ -22,21 +23,48 @@ import {
  * than throwing — the UI renders the error message directly.
  */
 
+/**
+ * Le jeton manque. Le littéral d'origine était l'anglais « Not authenticated. », affiché tel quel
+ * à un utilisateur francophone (TCK-292, lot K) ; `errors.missingToken` est la formulation déjà
+ * retenue pour ce cas ailleurs dans le parc.
+ */
+async function jetonManquant(): Promise<string> {
+  const tErr = await getTranslations('errors');
+  return tErr('missingToken');
+}
+
 function requireToken(
   token: string | null | undefined,
+  messageSiAbsent: string,
 ): asserts token is string {
-  if (!token) throw new ApiError(401, { message: 'Not authenticated.' });
+  if (!token) throw new ApiError(401, { message: messageSiAbsent });
 }
 
 type ActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; message: string };
 
-function failure(err: unknown, fallback: string): { ok: false; message: string } {
+/** Clés de repli de `serverActions.security` — l'union tient lieu de contrôle de frappe. */
+type CleRepli =
+  | 'enableFailed'
+  | 'invalidCode'
+  | 'disableFailed'
+  | 'regenerateFailed'
+  | 'sendOtpFailed'
+  | 'invalidOrExpiredCode'
+  | 'sessionsFailed'
+  | 'revokeSessionFailed';
+
+async function failure(err: unknown, cleRepli: CleRepli): Promise<{ ok: false; message: string }> {
+  const t = await getTranslations('serverActions.security');
+  const repli = t(cleRepli);
   if (err instanceof ApiError) {
-    return { ok: false, message: err.displayMessage || fallback };
+    // ⚠️ C'était `err.displayMessage || repli`, et le repli était MORT : `displayMessage` rendait
+    // une clé i18n, et une clé est *truthy*. Un module `'use server'` traduit avec
+    // `getTranslations`, jamais en lisant un libellé pré-calculé sur l'erreur.
+    return { ok: false, message: messageErreurApi(err, await getTranslations(), repli) };
   }
-  return { ok: false, message: fallback };
+  return { ok: false, message: repli };
 }
 
 export async function twoFactorEnableAction(): Promise<
@@ -44,11 +72,11 @@ export async function twoFactorEnableAction(): Promise<
 > {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     const data = await twoFactorEnable(token);
     return { ok: true, data };
   } catch (err) {
-    return failure(err, "Impossible d'activer la 2FA.");
+    return failure(err, 'enableFailed');
   }
 }
 
@@ -57,11 +85,11 @@ export async function twoFactorConfirmAction(
 ): Promise<ActionResult<TwoFactorConfirmResponse>> {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     const data = await twoFactorConfirm(token, code);
     return { ok: true, data };
   } catch (err) {
-    return failure(err, 'Code invalide.');
+    return failure(err, 'invalidCode');
   }
 }
 
@@ -71,11 +99,11 @@ export async function twoFactorDisableAction(payload: {
 }): Promise<ActionResult<null>> {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     await twoFactorDisable(token, payload);
     return { ok: true, data: null };
   } catch (err) {
-    return failure(err, 'Impossible de désactiver la 2FA.');
+    return failure(err, 'disableFailed');
   }
 }
 
@@ -84,11 +112,11 @@ export async function twoFactorRegenerateAction(): Promise<
 > {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     const codes = await twoFactorRegenerateRecoveryCodes(token);
     return { ok: true, data: { recovery_codes: codes } };
   } catch (err) {
-    return failure(err, 'Impossible de régénérer les codes de récupération.');
+    return failure(err, 'regenerateFailed');
   }
 }
 
@@ -97,11 +125,11 @@ export async function phoneSendOtpAction(
 ): Promise<ActionResult<{ sent: boolean; debug_code?: string }>> {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     const data = await phoneSendOtp(token, phone);
     return { ok: true, data };
   } catch (err) {
-    return failure(err, "Impossible d'envoyer le code.");
+    return failure(err, 'sendOtpFailed');
   }
 }
 
@@ -110,11 +138,11 @@ export async function phoneVerifyOtpAction(
 ): Promise<ActionResult<null>> {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     await phoneVerifyOtp(token, code);
     return { ok: true, data: null };
   } catch (err) {
-    return failure(err, 'Code invalide ou expiré.');
+    return failure(err, 'invalidOrExpiredCode');
   }
 }
 
@@ -123,11 +151,11 @@ export async function listActiveSessionsAction(): Promise<
 > {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     const data = await listActiveSessions(token);
     return { ok: true, data };
   } catch (err) {
-    return failure(err, 'Impossible de charger les sessions actives.');
+    return failure(err, 'sessionsFailed');
   }
 }
 
@@ -136,10 +164,10 @@ export async function revokeSessionAction(
 ): Promise<ActionResult<null>> {
   try {
     const token = await getToken();
-    requireToken(token);
+    requireToken(token, await jetonManquant());
     await revokeSession(token, sessionId);
     return { ok: true, data: null };
   } catch (err) {
-    return failure(err, 'Impossible de révoquer cette session.');
+    return failure(err, 'revokeSessionFailed');
   }
 }

@@ -30,40 +30,40 @@ import { DayView } from './DayView';
 import { ListView } from './ListView';
 import { EventDetailSheet } from './EventDetailSheet';
 
-const VIEW_LABELS: Record<CalendarView, string> = {
-  month: 'Mois',
-  week: 'Semaine',
-  day: 'Jour',
-  list: 'Liste',
-};
+/**
+ * TCK-292 — ces tables sont hors composant : elles transportent la CLÉ, le rendu la résout
+ * (patron posé par TCK-286 dans `data/navigation.ts`). Les clés sont relatives au namespace
+ * `calendar`.
+ */
+const VIEWS: readonly CalendarView[] = ['month', 'week', 'day', 'list'];
 
-const TYPE_OPTIONS: { value: CalendarEventType; label: string }[] = [
-  { value: 'booking', label: 'Réservations' },
-  { value: 'visit', label: 'Visites' },
+const TYPE_OPTIONS: { value: CalendarEventType; labelKey: string }[] = [
+  { value: 'booking', labelKey: 'types.booking' },
+  { value: 'visit', labelKey: 'types.visit' },
 ];
 
 const LEGEND_ITEMS: {
   type: CalendarEventType;
-  label: string;
-  helper: string;
+  labelKey: string;
+  helperKey: string;
   className: string;
 }[] = [
   {
     type: 'booking',
-    label: 'Réservations',
-    helper: 'Séjours et demandes courte durée confirmés',
+    labelKey: 'types.booking',
+    helperKey: 'legend.helper.booking',
     className: 'bg-blue-100 text-blue-800 border-blue-300',
   },
   {
     type: 'visit',
-    label: 'Visites',
-    helper: 'Créneaux de visite programmés',
+    labelKey: 'types.visit',
+    helperKey: 'legend.helper.visit',
     className: 'bg-violet-100 text-violet-800 border-violet-300',
   },
   {
     type: 'lease',
-    label: 'Baux',
-    helper: 'Périodes longues quand exposées par le calendrier',
+    labelKey: 'types.lease',
+    helperKey: 'legend.helper.lease',
     className: 'bg-emerald-100 text-emerald-800 border-emerald-300',
   },
 ];
@@ -109,10 +109,10 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
       }
     }
     if (propertyId && !seen.has(propertyId)) {
-      seen.set(propertyId, `Bien #${propertyId}`);
+      seen.set(propertyId, t('propertyFallback', { id: String(propertyId) }));
     }
     return Array.from(seen.entries()).map(([id, label]) => ({ id, label }));
-  }, [events, propertyId]);
+  }, [events, propertyId, t]);
 
   const selectedPropertyLabel =
     propertyOptions.find((option) => option.id === propertyId)?.label ?? null;
@@ -156,10 +156,9 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
       return focus.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     }
     if (view === 'week') {
-      return `Semaine du ${range.start.toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'short',
-      })}`;
+      return t('focus.week', {
+        date: range.start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+      });
     }
     if (view === 'day') {
       return focus.toLocaleDateString('fr-FR', {
@@ -168,20 +167,20 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
         month: 'long',
       });
     }
-    return '30 prochains jours';
-  }, [view, focus, range.start]);
+    return t('focus.list');
+  }, [view, focus, range.start, t]);
 
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate(-1)} aria-label="Précédent">
+          <Button variant="outline" size="sm" onClick={() => navigate(-1)} aria-label={t('nav.previous')}>
             <ChevronLeft className="size-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => navigate(0)}>
-            Aujourd&apos;hui
+            {t('nav.today')}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(1)} aria-label="Suivant">
+          <Button variant="outline" size="sm" onClick={() => navigate(1)} aria-label={t('nav.next')}>
             <ChevronRight className="size-4" />
           </Button>
           <h2 className="ml-2 text-lg font-semibold capitalize text-stone-900" data-testid="calendar-focus-label">
@@ -193,10 +192,10 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
           {/* Segmented control vues */}
           <div
             role="radiogroup"
-            aria-label="Vue du calendrier"
+            aria-label={t('viewSwitcherAria')}
             className="inline-flex overflow-hidden rounded-lg border border-stone-200 bg-white"
           >
-            {(Object.keys(VIEW_LABELS) as CalendarView[]).map((v) => (
+            {VIEWS.map((v) => (
               <button
                 key={v}
                 type="button"
@@ -211,14 +210,14 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                     : 'text-stone-700 hover:bg-stone-50',
                 )}
               >
-                {VIEW_LABELS[v]}
+                {t(`views.${v}`)}
               </button>
             ))}
           </div>
 
           {/* Segmented control types */}
           <div
-            aria-label="Filtrer par type d'événement"
+            aria-label={t('typeFilterAria')}
             className="inline-flex overflow-hidden rounded-lg border border-stone-200 bg-white"
           >
             {TYPE_OPTIONS.map((opt) => {
@@ -239,7 +238,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                       : 'text-stone-500 hover:bg-stone-50',
                   )}
                 >
-                  {opt.label}
+                  {t(opt.labelKey)}
                 </button>
               );
             })}
@@ -250,13 +249,13 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
             <Select
               value={propertyId === null ? '__all__' : String(propertyId)}
               onValueChange={(value) => setPropertyId(value === '__all__' || !value ? null : Number(value))}
-              items={[{ value: '__all__', label: 'Tous les biens' }, ...propertyOptions.map((p) => ({ value: String(p.id), label: p.label }))]}
+              items={[{ value: '__all__', label: t('allProperties') }, ...propertyOptions.map((p) => ({ value: String(p.id), label: p.label }))]}
             >
               <SelectTrigger data-testid="calendar-property-filter" className="min-w-44">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">Tous les biens</SelectItem>
+                <SelectItem value="__all__">{t('allProperties')}</SelectItem>
                 {propertyOptions.map((p) => (
                   <SelectItem key={p.id} value={String(p.id)}>{p.label}</SelectItem>
                 ))}
@@ -273,19 +272,25 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
           className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"
           data-testid="calendar-active-filters"
         >
-          <span className="font-semibold">Filtres actifs</span>
+          <span className="font-semibold">{t('activeFilters.title')}</span>
           {propertyId && (
             <button
               type="button"
               onClick={() => setPropertyId(null)}
               className="rounded-md bg-white px-2 py-1 text-amber-900 shadow-sm hover:bg-amber-100"
             >
-              Bien : {selectedPropertyLabel ?? `#${propertyId}`} x
+              {t('activeFilters.property', {
+                label: selectedPropertyLabel ?? `#${propertyId}`,
+              })}
             </button>
           )}
           {selectedTypes.length < TYPE_OPTIONS.length && (
             <span className="rounded-md bg-white px-2 py-1 shadow-sm">
-              Types : {TYPE_OPTIONS.filter((type) => selectedTypes.includes(type.value)).map((type) => type.label).join(', ')}
+              {t('activeFilters.types', {
+                list: TYPE_OPTIONS.filter((type) => selectedTypes.includes(type.value))
+                  .map((type) => t(type.labelKey))
+                  .join(', '),
+              })}
             </span>
           )}
         </div>
@@ -345,9 +350,10 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
 }
 
 function CalendarLegend() {
+  const t = useTranslations('calendar');
   return (
     <section
-      aria-label="Légende du calendrier"
+      aria-label={t('legend.aria')}
       className="grid gap-2 rounded-xl border border-stone-200 bg-white p-3 sm:grid-cols-3"
       data-testid="calendar-legend"
     >
@@ -358,16 +364,14 @@ function CalendarLegend() {
             aria-hidden="true"
           />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-stone-900">{item.label}</p>
-            <p className="text-xs text-stone-500">{item.helper}</p>
+            <p className="text-sm font-medium text-stone-900">{t(item.labelKey)}</p>
+            <p className="text-xs text-stone-500">{t(item.helperKey)}</p>
           </div>
         </div>
       ))}
       <div className="flex items-start gap-2 sm:col-span-3">
         <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full border border-stone-300 bg-stone-100" aria-hidden="true" />
-        <p className="text-xs text-stone-500">
-          Les événements en gris indiquent une demande ou une signature encore en attente.
-        </p>
+        <p className="text-xs text-stone-500">{t('legend.pendingNote')}</p>
       </div>
     </section>
   );
@@ -384,6 +388,7 @@ function SelectedDayPanel({
   onSelect: (event: CalendarEvent) => void;
   onOpenDay: () => void;
 }) {
+  const t = useTranslations('calendar');
   const label = day.toLocaleDateString('fr-FR', {
     weekday: 'long',
     day: 'numeric',
@@ -395,25 +400,23 @@ function SelectedDayPanel({
       <header className="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
         <div>
           <h3 className="text-sm font-semibold capitalize text-stone-900">{label}</h3>
-          <p className="text-xs text-stone-500">
-            {events.length} événement{events.length > 1 ? 's' : ''}
-          </p>
+          <p className="text-xs text-stone-500">{t('eventCount', { count: events.length })}</p>
         </div>
         <button
           type="button"
           onClick={onOpenDay}
           className="rounded-md border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
         >
-          Vue jour
+          {t('dayViewCta')}
         </button>
       </header>
       {events.length === 0 ? (
-        <p className="p-4 text-sm text-stone-500">Aucun événement sur cette journée.</p>
+        <p className="p-4 text-sm text-stone-500">{t('selectedDayEmpty')}</p>
       ) : (
         <ul className="divide-y divide-stone-100">
           {events.map(({ event, start }) => {
             const timeLabel = event.all_day
-              ? 'Journée'
+              ? t('allDay')
               : start.toLocaleTimeString('fr-FR', {
                   hour: '2-digit',
                   minute: '2-digit',

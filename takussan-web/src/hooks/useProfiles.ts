@@ -2,10 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export const profilesKeys = {
   all: ['me', 'profiles'] as const,
@@ -34,8 +36,13 @@ async function patchActiveProfileViaProxy(profileId: string): Promise<{ data: Pr
   return res.json();
 }
 
-function profileLabel(profile: Profile | undefined): string {
-  if (!profile) return 'profil';
+/**
+ * Libellé d'un espace. `secours` est le repli quand le profil n'a pas encore été chargé — il
+ * arrive traduit de l'appelant, ce module n'ayant pas accès aux hooks (patron TCK-286 : la donnée
+ * porte la clé, le rendu la résout).
+ */
+function profileLabel(profile: Profile | undefined, secours: string): string {
+  if (!profile) return secours;
   if (profile.agency?.name) return profile.agency.name;
   return profile.type;
 }
@@ -59,6 +66,8 @@ export function useSwitchActiveProfile() {
   const { refreshUser } = useAuth();
   const router = useRouter();
   const toast = useToast();
+  const t = useTranslations('profile.switcher');
+  const messageErreur = useMessageErreurApi();
 
   return useMutation<{ data: Profile }, ApiError, string, SwitchContext>({
     mutationFn: patchActiveProfileViaProxy,
@@ -80,7 +89,7 @@ export function useSwitchActiveProfile() {
       const profiles = queryClient.getQueryData<MyProfilesResponse>(profilesKeys.all);
       const switched = profiles?.data.find((p) => p.id === profileId);
       toast.add({
-        title: `Espace basculé sur ${profileLabel(switched)}`,
+        title: t('switched', { name: profileLabel(switched, t('fallbackLabel')) }),
         type: 'success',
       });
       // Re-render server components with the new cookie context so dashboard
@@ -92,8 +101,8 @@ export function useSwitchActiveProfile() {
         queryClient.setQueryData(profilesKeys.all, context.previousProfiles);
       }
       toast.add({
-        title: 'Impossible de basculer de profil',
-        description: err.displayMessage,
+        title: t('switchFailed'),
+        description: messageErreur(err, t('switchFailed')),
         type: 'error',
       });
     },

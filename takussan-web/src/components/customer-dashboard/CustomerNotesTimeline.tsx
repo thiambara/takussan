@@ -41,7 +41,7 @@ export function CustomerNotesTimeline({
     e.preventDefault();
     const trimmed = body.trim();
     if (trimmed.length === 0) {
-      setError('La note ne peut pas être vide.');
+      setError(t('emptyBody'));
       return;
     }
     setError(null);
@@ -71,7 +71,7 @@ export function CustomerNotesTimeline({
           htmlFor="customer-note-body"
           className="text-sm font-medium text-app-ink"
         >
-          Ajouter une note
+          {t('add')}
         </label>
         <Textarea
           id="customer-note-body"
@@ -79,7 +79,7 @@ export function CustomerNotesTimeline({
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           maxLength={5000}
-          placeholder="Compte rendu d'appel, besoins identifiés, prochaine étape…"
+          placeholder={t('placeholder')}
           disabled={pending}
         />
         {error ? (
@@ -94,7 +94,7 @@ export function CustomerNotesTimeline({
             ) : (
               <Send aria-hidden="true" />
             )}
-            Publier
+            {t('publish')}
           </Button>
         </div>
       </form>
@@ -121,7 +121,7 @@ export function CustomerNotesTimeline({
                   {formatDateTime(note.created_at, locale)}
                 </p>
                 {note.pinned ? (
-                  <Pin className="size-3 text-primary" aria-label="Note épinglée" />
+                  <Pin className="size-3 text-primary" aria-label={t('pinnedAria')} />
                 ) : null}
               </div>
               <p className="whitespace-pre-line text-sm text-app-ink">{note.body}</p>

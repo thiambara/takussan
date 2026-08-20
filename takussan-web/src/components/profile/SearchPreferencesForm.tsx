@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -12,7 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { PROPERTY_TYPE_LABELS } from '@/components/property-form/options';
+import {
+  PROPERTY_ENUM_NAMESPACES,
+  enumLabel,
+} from '@/components/property-form/options';
+import { propertyTypeValues } from '@/lib/schemas/property';
 import {
   useCreateSavedSearchMutation,
   useUpdateSavedSearchMutation,
@@ -21,14 +26,11 @@ import {
 } from '@/lib/queries/saved-searches';
 import type { PropertyType } from '@/types/property';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-const FREQUENCY_OPTIONS = [
-  { value: 'instant', label: 'Instantané' },
-  { value: 'daily', label: 'Quotidien' },
-  { value: 'weekly', label: 'Hebdomadaire' },
-] as const;
+/** La donnée porte la CLÉ ; le libellé est résolu au rendu (patron TCK-286). */
+const FREQUENCY_VALUES = ['instant', 'daily', 'weekly'] as const;
 
-const DEFAULT_NAME = 'Mes préférences';
 const ENABLED_FREQUENCY: SavedSearchNotificationFrequency = 'daily';
 const DISABLED_FREQUENCY: SavedSearchNotificationFrequency = 'off';
 
@@ -107,7 +109,16 @@ export function SearchPreferencesForm({
   initial,
   emailVerified,
 }: SearchPreferencesFormProps) {
+  const t = useTranslations('profile.searchPreferences');
+  const tCommon = useTranslations('common.actions');
+  // TCK-292 — le vocabulaire des types de bien vient du dictionnaire, pas d'une table locale.
+  const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
+  const messageErreur = useMessageErreurApi();
   const baseline = useMemo(() => readInitial(initial), [initial]);
+  const frequencyOptions = FREQUENCY_VALUES.map((value) => ({
+    value,
+    label: t(`frequency.${value}`),
+  }));
   const [values, setValues] = useState<FormValues>(baseline);
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string } | null>(null);
 
@@ -147,17 +158,17 @@ export function SearchPreferencesForm({
         });
       } else {
         await createMutation.mutateAsync({
-          name: DEFAULT_NAME,
+          name: t('defaultName'),
           criteria,
           notification_frequency: effectiveFreq,
         });
       }
-      setFeedback({ ok: true, message: 'Préférences enregistrées.' });
+      setFeedback({ ok: true, message: t('saved') });
     } catch (err) {
       const apiErr = err as ApiError;
       setFeedback({
         ok: false,
-        message: apiErr?.displayMessage ?? 'Échec de la sauvegarde.',
+        message: messageErreur(apiErr, t('saveError')),
       });
     }
   }
@@ -167,7 +178,7 @@ export function SearchPreferencesForm({
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2 md:col-span-2">
           <span className="text-xs font-semibold text-app-ink-muted">
-            Type de bien préféré
+            {t('typeLabel')}
           </span>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {PREFERRED_PROPERTY_TYPES.map((type) => {
@@ -189,7 +200,7 @@ export function SearchPreferencesForm({
                     onChange={(e) => toggleType(type, e.target.checked)}
                     data-testid={`pref-type-${type}`}
                   />
-                  <span>{PROPERTY_TYPE_LABELS[type] ?? type}</span>
+                  <span>{enumLabel(tType, propertyTypeValues, type)}</span>
                 </label>
               );
             })}
@@ -201,7 +212,7 @@ export function SearchPreferencesForm({
             htmlFor="pref-budget"
             className="text-xs font-semibold text-app-ink-muted"
           >
-            Budget max (FCFA)
+            {t('budgetLabel')}
           </label>
           <Input
             id="pref-budget"
@@ -212,7 +223,7 @@ export function SearchPreferencesForm({
             onChange={(e) =>
               setValues((v) => ({ ...v, budget: e.target.value }))
             }
-            placeholder="ex: 200000"
+            placeholder={t('budgetPlaceholder')}
             data-testid="pref-budget"
           />
         </div>
@@ -222,7 +233,7 @@ export function SearchPreferencesForm({
             htmlFor="pref-cities"
             className="text-xs font-semibold text-app-ink-muted"
           >
-            Villes favorites
+            {t('citiesLabel')}
           </label>
           <Input
             id="pref-cities"
@@ -230,10 +241,10 @@ export function SearchPreferencesForm({
             onChange={(e) =>
               setValues((v) => ({ ...v, cities: e.target.value }))
             }
-            placeholder="Dakar, Saly, Thiès"
+            placeholder={t('citiesPlaceholder')}
             data-testid="pref-cities"
           />
-          <p className="text-xs text-app-ink-muted">Séparez les villes par une virgule.</p>
+          <p className="text-xs text-app-ink-muted">{t('citiesHint')}</p>
         </div>
       </div>
 
@@ -242,20 +253,19 @@ export function SearchPreferencesForm({
         data-testid="pref-alerts-block"
       >
         <div>
-          <p className="text-sm font-semibold text-app-ink">Alertes email</p>
+          <p className="text-sm font-semibold text-app-ink">{t('alertsTitle')}</p>
           {emailVerified ? (
             <p className="text-xs text-app-ink-muted">
-              Recevez un email dès qu&apos;un nouveau bien correspond à vos
-              critères.
+              {t('alertsDescription')}
             </p>
           ) : (
             <p className="text-xs text-app-accent" data-testid="pref-alerts-unverified">
-              Vérifiez votre adresse email pour activer les alertes.{' '}
+              {t('alertsUnverified')}{' '}
               <Link
                 href="/auth/verify-email"
                 className="font-semibold underline"
               >
-                Vérifier mon email
+                {t('verifyEmailCta')}
               </Link>
             </p>
           )}
@@ -269,11 +279,11 @@ export function SearchPreferencesForm({
               checked={values.alertsEnabled && emailVerified}
               disabled={!emailVerified}
               onChange={(e) => handleAlertsToggle(e.target.checked)}
-              aria-label="Activer les alertes email"
+              aria-label={t('alertsToggleAria')}
               data-testid="pref-alerts-toggle"
             />
             <span className="text-app-ink">
-              {values.alertsEnabled && emailVerified ? 'Activées' : 'Désactivées'}
+              {values.alertsEnabled && emailVerified ? t('enabled') : t('disabled')}
             </span>
           </label>
           {values.alertsEnabled && emailVerified ? (
@@ -285,16 +295,16 @@ export function SearchPreferencesForm({
                   frequency: (value ?? v.frequency) as SavedSearchNotificationFrequency,
                 }))
               }
-              items={FREQUENCY_OPTIONS as unknown as Array<{ value: string; label: string }>}
+              items={frequencyOptions as unknown as Array<{ value: string; label: string }>}
             >
               <SelectTrigger
-                aria-label="Fréquence des alertes"
+                aria-label={t('frequencyAria')}
                 data-testid="pref-alerts-frequency"
               >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FREQUENCY_OPTIONS.map((opt) => (
+                {frequencyOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -320,7 +330,7 @@ export function SearchPreferencesForm({
           href="/app/saved-searches"
           className="text-xs font-semibold text-app-ink-muted underline-offset-2 hover:underline"
         >
-          Gérer toutes mes recherches sauvegardées
+          {t('manageSavedSearches')}
         </Link>
         <Button type="submit" size="sm" disabled={isSubmitting} data-testid="pref-save">
           {isSubmitting ? (
@@ -328,7 +338,7 @@ export function SearchPreferencesForm({
           ) : (
             <Save aria-hidden="true" className="mr-1 h-4 w-4" />
           )}
-          Enregistrer
+          {tCommon('save')}
         </Button>
       </div>
     </form>

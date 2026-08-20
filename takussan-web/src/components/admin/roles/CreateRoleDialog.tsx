@@ -19,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCreateAgencyRole } from '@/lib/queries/agency-roles';
 import { ASSIGNABLE_BASE_TYPES } from '@/types/agency-role';
 import type { AgencyRole, AgencyRoleBaseType } from '@/types/agency-role';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface CreateRoleDialogProps {
   readonly agencyId: number;
@@ -59,6 +60,7 @@ export function CreateRoleDialog({
 }: CreateRoleDialogProps) {
   const t = useTranslations('admin.roles');
   const tCommon = useTranslations('common.actions');
+  const messageErreur = useMessageErreurApi();
   const create = useCreateAgencyRole(agencyId);
 
   const [name, setName] = useState('');
@@ -189,7 +191,7 @@ export function CreateRoleDialog({
 
           {create.error ? (
             <p className="text-sm text-destructive" role="alert">
-              {create.error.displayMessage}
+              {messageErreur(create.error)}
             </p>
           ) : null}
         </div>

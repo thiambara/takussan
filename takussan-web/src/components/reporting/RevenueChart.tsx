@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
@@ -15,14 +16,13 @@ import { fetchAdminReportRevenue } from '@/lib/queries/super-admin';
 import type { ReportPeriod } from '@/types/super-admin';
 import { ReportExportButton } from './ReportExportButton';
 
-const PERIODS: { value: ReportPeriod; label: string }[] = [
-  { value: '3m', label: '3 mois' },
-  { value: '6m', label: '6 mois' },
-  { value: '12m', label: '12 mois' },
-];
+/** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
+const PERIODS: readonly ReportPeriod[] = ['3m', '6m', '12m'];
 
 export function RevenueChart() {
+  const t = useTranslations('reporting');
   const [period, setPeriod] = useState<ReportPeriod>('12m');
+  const periodes = PERIODS.map((value) => ({ value, label: t(`periods.${value}`) }));
 
   const query = useQuery({
     queryKey: ['super-admin', 'reports', 'revenue', period],
@@ -38,20 +38,20 @@ export function RevenueChart() {
           <Select
             value={period}
             onValueChange={(value) => setPeriod((value ?? period) as ReportPeriod)}
-            items={PERIODS as unknown as Array<{ value: string; label: string }>}
+            items={periodes as unknown as Array<{ value: string; label: string }>}
           >
-            <SelectTrigger className="h-9" aria-label="Période">
+            <SelectTrigger className="h-9" aria-label={t('filters.periodAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PERIODS.map((option) => (
+              {periodes.map((option) => (
                 <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <KpiPill label="MRR courant" value={`${formatXof(totals.latest_mrr)}`} />
-          <KpiPill label="ARR courant" value={`${formatXof(totals.latest_arr)}`} />
-          <KpiPill label="Souscriptions actives" value={String(totals.latest_active_subscriptions ?? 0)} />
+          <KpiPill label={t('revenue.mrrCurrent')} value={`${formatXof(totals.latest_mrr)}`} />
+          <KpiPill label={t('revenue.arrCurrent')} value={`${formatXof(totals.latest_arr)}`} />
+          <KpiPill label={t('revenue.activeSubscriptions')} value={String(totals.latest_active_subscriptions ?? 0)} />
           <ReportExportButton report="revenue" params={{ period, granularity: 'month' }} />
         </CardContent>
       </Card>
@@ -71,16 +71,18 @@ function KpiPill({ label, value }: { label: string; value: string }) {
 }
 
 function RevenueTable({ rows }: { rows: { bucket: string; mrr: number; arr: number; active_subscriptions: number }[] }) {
+  const t = useTranslations('reporting.revenue');
+
   return (
     <Card>
       <CardContent className="p-0">
         <table className="w-full text-sm">
           <thead className="border-b border-border/60 bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-2 text-left font-medium">Période</th>
-              <th className="px-4 py-2 text-right font-medium">MRR</th>
-              <th className="px-4 py-2 text-right font-medium">ARR</th>
-              <th className="px-4 py-2 text-right font-medium">Souscriptions actives</th>
+              <th className="px-4 py-2 text-left font-medium">{t('table.period')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('table.mrr')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('table.arr')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('activeSubscriptions')}</th>
             </tr>
           </thead>
           <tbody>

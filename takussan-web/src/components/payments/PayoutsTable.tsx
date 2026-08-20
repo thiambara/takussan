@@ -14,10 +14,7 @@ import { usePayouts, type UsePayoutsParams } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
 import type { PayoutStatus } from '@/types/invoice';
 
-import {
-  PAYOUT_STATUS_LABEL,
-  PAYOUT_STATUS_VARIANT,
-} from './constants';
+import { PAYOUT_STATUS_VARIANT } from './constants';
 
 interface PayoutsTableProps {
   readonly onSelect: (payoutId: number) => void;
@@ -26,6 +23,8 @@ interface PayoutsTableProps {
 export function PayoutsTable({ onSelect }: PayoutsTableProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.payouts');
+  const tTable = useTranslations('payments.payouts.table');
+  const tStatus = useTranslations('payments.payoutStatus');
   const searchParams = useSearchParams();
   const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
 
@@ -65,13 +64,13 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
               <table className="w-full text-left text-sm">
                 <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
                   <tr>
-                    <th className="px-3 py-2">Référence</th>
-                    <th className="px-3 py-2">Bailleur</th>
-                    <th className="px-3 py-2">Période</th>
-                    <th className="px-3 py-2">Brut</th>
-                    <th className="px-3 py-2">Net</th>
-                    <th className="px-3 py-2">Statut</th>
-                    <th className="px-3 py-2" aria-label="Actions" />
+                    <th className="px-3 py-2">{tTable('reference')}</th>
+                    <th className="px-3 py-2">{tTable('landlord')}</th>
+                    <th className="px-3 py-2">{tTable('period')}</th>
+                    <th className="px-3 py-2">{tTable('gross')}</th>
+                    <th className="px-3 py-2">{tTable('net')}</th>
+                    <th className="px-3 py-2">{tTable('status')}</th>
+                    <th className="px-3 py-2" aria-label={tTable('actions')} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
@@ -104,7 +103,7 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
                         </td>
                         <td className="px-3 py-2">
                           <Badge variant={PAYOUT_STATUS_VARIANT[status] ?? 'outline'}>
-                            {PAYOUT_STATUS_LABEL[status] ?? status}
+                            {tStatus(status)}
                           </Badge>
                         </td>
                         <td className="px-3 py-2 text-right">
@@ -113,7 +112,7 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
                             className="text-xs font-medium text-app-accent hover:underline"
                             onClick={() => onSelect(payout.id)}
                           >
-                            Ouvrir
+                            {tTable('open')}
                           </button>
                         </td>
                       </tr>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,6 +28,8 @@ interface TwoFactorSectionProps {
 }
 
 export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionProps) {
+  const t = useTranslations('profile.security.twoFactor');
+  const tCommon = useTranslations('common.actions');
   const [enabled, setEnabled] = useState(initialEnabled);
   const [setup, setSetup] = useState<{
     secret: string;
@@ -114,11 +117,10 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-app-ink">
-            Authentification à deux facteurs (TOTP)
+            {t('title')}
           </h3>
           <p className="mt-1 text-sm text-app-ink-muted">
-            Protégez votre compte avec une application d&apos;authentification
-            (Google Authenticator, 1Password, Authy…).
+            {t('description')}
           </p>
         </div>
         <span
@@ -127,7 +129,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
             (enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-app-surface-1 text-app-ink-muted')
           }
         >
-          {enabled ? 'Activée' : 'Désactivée'}
+          {enabled ? t('enabled') : t('disabled')}
         </span>
       </div>
 
@@ -140,7 +142,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
       {!enabled && !setup ? (
         <div className="mt-4">
           <Button onClick={handleEnable} disabled={pending}>
-            {pending ? 'Initialisation…' : 'Activer la 2FA'}
+            {pending ? t('initializing') : t('enable')}
           </Button>
         </div>
       ) : null}
@@ -151,7 +153,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
             {qrImageSrc ? (
               <img
                 src={qrImageSrc}
-                alt="QR code à scanner"
+                alt={t('qrAlt')}
                 width={200}
                 height={200}
                 className="rounded-md border border-app-surface-3"
@@ -159,20 +161,20 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
             ) : null}
             <div className="space-y-2 text-sm">
               <p className="text-app-ink-muted">
-                Scannez le QR code ou saisissez manuellement cette clé dans votre application :
+                {t('scanHint')}
               </p>
               <code className="block break-all rounded-md bg-app-surface-1 px-2 py-1 font-mono text-xs">
                 {setup.secret}
               </code>
               <p className="text-xs text-app-ink-muted">
-                Ensuite, entrez le code à 6 chiffres généré pour confirmer.
+                {t('confirmHint')}
               </p>
             </div>
           </div>
 
           <div className="space-y-1">
             <label htmlFor="totp-code" className="text-xs font-semibold text-app-ink-muted">
-              Code à 6 chiffres
+              {t('codeLabel')}
             </label>
             <Input
               id="totp-code"
@@ -189,7 +191,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
 
           <div className="flex gap-2">
             <Button type="submit" disabled={pending || code.length !== 6}>
-              {pending ? 'Vérification…' : 'Confirmer et activer'}
+              {pending ? t('verifying') : t('confirmAndEnable')}
             </Button>
             <Button
               type="button"
@@ -200,7 +202,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
               }}
               disabled={pending}
             >
-              Annuler
+              {tCommon('cancel')}
             </Button>
           </div>
         </form>
@@ -211,11 +213,9 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
           role="status"
           className="mt-4 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
         >
-          <p className="font-semibold">Codes de récupération</p>
+          <p className="font-semibold">{t('recoveryTitle')}</p>
           <p className="mt-1 text-xs">
-            Sauvegardez ces codes dans un gestionnaire sécurisé — ils ne seront plus
-            jamais affichés. Chaque code permet une connexion d&apos;urgence si vous
-            perdez l&apos;accès à votre application.
+            {t('recoveryHint')}
           </p>
           <ul className="mt-2 grid grid-cols-2 gap-1 font-mono text-sm">
             {recoveryCodes.map((c) => (
@@ -227,7 +227,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
             onClick={() => navigator.clipboard?.writeText(recoveryCodes.join('\n'))}
             className="mt-3 rounded-md bg-amber-200 px-3 py-1 text-xs font-semibold hover:bg-amber-300"
           >
-            Copier tous les codes
+            {t('copyAll')}
           </button>
         </div>
       ) : null}
@@ -235,7 +235,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
       {enabled && !setup ? (
         <div className="mt-4 flex flex-wrap gap-2">
           <Button variant="outline" onClick={handleRegenerate} disabled={pending}>
-            Régénérer les codes de récupération
+            {t('regenerate')}
           </Button>
           {!showDisable ? (
             <Button
@@ -244,20 +244,20 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
               className="text-red-600 hover:text-red-700"
               disabled={pending}
             >
-              Désactiver la 2FA
+              {t('disable')}
             </Button>
           ) : (
             <form onSubmit={handleDisable} className="flex w-full flex-col gap-2 sm:flex-row">
               <Input
                 type="password"
-                placeholder="Mot de passe"
+                placeholder={t('passwordPlaceholder')}
                 value={disablePassword}
                 onChange={(e) => setDisablePassword(e.target.value)}
                 required
                 autoComplete="current-password"
               />
               <Button type="submit" variant="outline" disabled={pending || !disablePassword}>
-                Confirmer la désactivation
+                {t('confirmDisable')}
               </Button>
               <Button
                 type="button"
@@ -268,7 +268,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
                 }}
                 disabled={pending}
               >
-                Annuler
+                {tCommon('cancel')}
               </Button>
             </form>
           )}

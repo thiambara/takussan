@@ -13,13 +13,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Booking, BookingStatus } from '@/types/booking';
 import type { Locale } from '@/i18n/config';
 
-const STATUS_LABEL: Record<BookingStatus, string> = {
-  pending: 'En attente',
-  confirmed: 'Confirmée',
-  rejected: 'Refusée',
-  cancelled: 'Annulée',
-  expired: 'Expirée',
-  completed: 'Terminée',
+/**
+ * TCK-292 — table hors composant : elle transporte la CLÉ (relative au namespace `bookings`),
+ * le rendu la résout. Mêmes clés que `BookingDetail.tsx` : un seul vocabulaire de statut.
+ */
+const STATUS_LABEL_KEY: Record<BookingStatus, string> = {
+  pending: 'status.pending',
+  confirmed: 'status.confirmed',
+  rejected: 'status.rejected',
+  cancelled: 'status.cancelled',
+  expired: 'status.expired',
+  completed: 'status.completed',
 };
 
 const STATUS_VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
@@ -33,12 +37,12 @@ const STATUS_VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'outline' 
 
 type TabKey = 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'expired';
 
-const TABS: ReadonlyArray<{ value: TabKey; label: string }> = [
-  { value: 'pending', label: 'En attente' },
-  { value: 'confirmed', label: 'Confirmées' },
-  { value: 'rejected', label: 'Refusées' },
-  { value: 'cancelled', label: 'Annulées' },
-  { value: 'expired', label: 'Expirées' },
+const TABS: ReadonlyArray<{ value: TabKey; labelKey: string }> = [
+  { value: 'pending', labelKey: 'list.tabs.pending' },
+  { value: 'confirmed', labelKey: 'list.tabs.confirmed' },
+  { value: 'rejected', labelKey: 'list.tabs.rejected' },
+  { value: 'cancelled', labelKey: 'list.tabs.cancelled' },
+  { value: 'expired', labelKey: 'list.tabs.expired' },
 ];
 
 /**
@@ -47,21 +51,22 @@ const TABS: ReadonlyArray<{ value: TabKey; label: string }> = [
  */
 export function BookingsList() {
   const locale = useLocale() as Locale;
+  const t = useTranslations('bookings');
   const [tab, setTab] = useState<TabKey>('pending');
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab((v as TabKey) ?? 'pending')}>
       <TabsList>
-        {TABS.map((t) => (
-          <TabsTrigger key={t.value} value={t.value}>
-            {t.label}
+        {TABS.map((tab) => (
+          <TabsTrigger key={tab.value} value={tab.value}>
+            {t(tab.labelKey)}
           </TabsTrigger>
         ))}
       </TabsList>
 
-      {TABS.map((t) => (
-        <TabsContent key={t.value} value={t.value} className="mt-4">
-          <BookingsListBody status={t.value} locale={locale} />
+      {TABS.map((tab) => (
+        <TabsContent key={tab.value} value={tab.value} className="mt-4">
+          <BookingsListBody status={tab.value} locale={locale} />
         </TabsContent>
       ))}
     </Tabs>
@@ -112,6 +117,7 @@ function BookingsListBody({
 }
 
 function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
+  const t = useTranslations('bookings');
   return (
     <li>
       <Link
@@ -122,10 +128,10 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <h3 className="truncate text-sm font-semibold text-stone-900">
-                {booking.property?.title ?? `Réservation #${booking.id}`}
+                {booking.property?.title ?? t('fallbackTitle', { id: String(booking.id) })}
               </h3>
               <Badge variant={STATUS_VARIANT[booking.status]}>
-                {STATUS_LABEL[booking.status]}
+                {t(STATUS_LABEL_KEY[booking.status])}
               </Badge>
             </div>
             <p className="mt-1 text-xs text-stone-500">
@@ -136,7 +142,7 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
               ) : (
                 formatDate(booking.created_at, locale)
               )}
-              {booking.reference_number && <> · Réf. {booking.reference_number}</>}
+              {booking.reference_number && <> · {t('reference')} {booking.reference_number}</>}
             </p>
           </div>
           {typeof booking.total_amount === 'number' && (
@@ -145,7 +151,7 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
                 {formatCurrency(booking.total_amount, locale)}
               </p>
               {booking.deposit_paid && (
-                <p className="text-xs text-emerald-600">Acompte payé</p>
+                <p className="text-xs text-emerald-600">{t('list.depositPaid')}</p>
               )}
             </div>
           )}

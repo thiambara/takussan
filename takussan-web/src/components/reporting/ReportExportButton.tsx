@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
-import { ApiError } from '@/lib/api';
+
 import { exportAdminReport } from '@/lib/queries/super-admin';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export function ReportExportButton({
   report,
@@ -14,6 +16,8 @@ export function ReportExportButton({
   report: 'growth' | 'revenue' | 'cohorts' | 'funnel';
   params: Record<string, string | number>;
 }) {
+  const t = useTranslations('reporting.export');
+  const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const [isPending, setPending] = useState(false);
 
@@ -22,16 +26,16 @@ export function ReportExportButton({
     try {
       const result = await exportAdminReport(report, params);
       toast.add({
-        title: result.status === 'downloaded' ? 'Export téléchargé' : 'Export demandé',
+        title: result.status === 'downloaded' ? t('downloadedTitle') : t('requestedTitle'),
         description: result.status === 'downloaded'
-          ? 'Le fichier CSV est prêt.'
-          : 'Les exports volumineux sont notifiés par email.',
+          ? t('downloadedBody')
+          : t('requestedBody'),
         type: 'success',
       });
     } catch (error) {
       toast.add({
-        title: 'Export impossible',
-        description: error instanceof ApiError ? error.displayMessage : 'Réessayez dans quelques instants.',
+        title: t('errorTitle'),
+        description: messageErreur(error, t('errorBody')),
         type: 'error',
       });
     } finally {
@@ -42,7 +46,7 @@ export function ReportExportButton({
   return (
     <Button type="button" variant="outline" disabled={isPending} onClick={handleExport}>
       {isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : <Download className="mr-2 size-4" aria-hidden="true" />}
-      Exporter CSV
+      {t('csv')}
     </Button>
   );
 }

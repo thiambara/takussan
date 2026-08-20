@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { ApiError } from '@/lib/api';
 import { useRenewLease, type RenewLeasePayload } from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface LeaseRenewalDialogProps {
   readonly open: boolean;
@@ -72,6 +73,7 @@ export function LeaseRenewalDialog({
   onRenewed,
 }: LeaseRenewalDialogProps) {
   const t = useTranslations('lease.renewal');
+  const messageErreur = useMessageErreurApi();
   const renew = useRenewLease(parent.id);
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState<string | null>(null);
@@ -145,7 +147,7 @@ export function LeaseRenewalDialog({
       reset();
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.displayMessage);
+        setError(messageErreur(err));
       } else {
         setError(t('error_generic'));
       }

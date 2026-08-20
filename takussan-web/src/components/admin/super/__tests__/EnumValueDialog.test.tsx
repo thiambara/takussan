@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
 import { postBusinessEnumValue } from '@/lib/queries/super-admin';
 import { EnumValueDialog } from '../business-enums';
+import { withIntl } from '@/test/intl';
 
 vi.mock('@/lib/queries/super-admin', () => ({
   postBusinessEnumValue: vi.fn(),
@@ -15,13 +15,11 @@ function renderDialog() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  return render(
-    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
-      <QueryClientProvider client={queryClient}>
-        <EnumValueDialog enumKey="property_type" value={null} open onOpenChange={vi.fn()} />
-      </QueryClientProvider>
-    </NextIntlClientProvider>,
-  );
+  return render(withIntl(
+    <QueryClientProvider client={queryClient}>
+      <EnumValueDialog enumKey="property_type" value={null} open onOpenChange={vi.fn()} />
+    </QueryClientProvider>,
+  ));
 }
 
 describe('<EnumValueDialog>', () => {

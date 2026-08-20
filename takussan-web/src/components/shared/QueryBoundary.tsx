@@ -4,8 +4,9 @@ import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ApiError } from '@/lib/api';
+
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type QueryBoundaryState<T> = {
   isLoading: boolean;
@@ -58,6 +59,7 @@ export function QueryBoundary<T>({
   className,
 }: QueryBoundaryProps<T>) {
   const t = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
 
   if (query.isLoading) {
     return (
@@ -80,10 +82,7 @@ export function QueryBoundary<T>({
     if (errorFallback) {
       return <div className={className}>{errorFallback({ error: query.error, retry })}</div>;
     }
-    const message =
-      query.error instanceof ApiError
-        ? query.error.displayMessage
-        : t('status.error');
+    const message = messageErreur(query.error, t('status.error'));
     // Le bloc d'erreur n'est plus écrit ici : `ErrorState` est L'UNIQUE bloc d'erreur inline du
     // produit (TCK-246), et cette copie-ci portait son propre `role="alert"` et son propre bouton
     // de reprise. Deux implémentations d'une même chose divergent — celle-ci utilisait

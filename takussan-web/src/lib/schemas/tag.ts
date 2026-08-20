@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Tag (admin) schemas — TCK-066.
@@ -14,18 +15,18 @@ export const tagFormSchema = z.object({
   name: z
     .string()
     .trim()
-    .min(1, 'Le libellé est requis.')
-    .max(100, 'Le libellé est trop long (100 caractères max).'),
+    .min(1, msgValidation('tag.nameRequired'))
+    .max(100, msgValidation('tag.nameTooLong')),
   type: z.enum(tagTypeValues),
-  icon: z.string().trim().max(60, 'Nom d’icône trop long.'),
+  icon: z.string().trim().max(60, msgValidation('tag.iconTooLong')),
   color: z
     .string()
     .trim()
     .refine(
       (v) => v === '' || /^#?[0-9a-fA-F]{3,8}$/.test(v),
-      'Couleur hexadécimale invalide (ex : #2563eb).',
+      msgValidation('tag.colorInvalid'),
     ),
-  description: z.string().trim().max(500, 'Description trop longue.'),
+  description: z.string().trim().max(500, msgValidation('tag.descriptionTooLong')),
 });
 
 export type TagFormValues = z.infer<typeof tagFormSchema>;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Dialog,
   DialogContent,
@@ -29,11 +30,8 @@ interface GuarantorSectionProps {
   readonly canManage?: boolean;
 }
 
-const ID_TYPE_OPTIONS = [
-  { value: 'id_card', label: 'CNI' },
-  { value: 'passport', label: 'Passeport' },
-  { value: 'driving_license', label: 'Permis de conduire' },
-];
+/** Valeurs d'enum ; les libellés vivent sous `lease.guarantor.idTypes.*`. */
+const ID_TYPES = ['id_card', 'passport', 'driving_license'] as const;
 
 const MAX_GUARANTORS = 3;
 
@@ -43,6 +41,9 @@ export function GuarantorSection({
   guarantorsCount = 0,
   canManage = true,
 }: GuarantorSectionProps) {
+  // ⚠ Les hooks précèdent la sortie anticipée ci-dessous : posés après, ce seraient des hooks
+  // conditionnels, refusés par le React Compiler (ADR-0015).
+  const t = useTranslations('lease.guarantor');
   const [open, setOpen] = useState(false);
   const disabled = guarantorsCount >= MAX_GUARANTORS;
 
@@ -53,9 +54,9 @@ export function GuarantorSection({
     <section className="rounded-xl border border-stone-200 bg-white p-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-stone-900">Garants</h2>
+          <h2 className="text-sm font-semibold text-stone-900">{t('title')}</h2>
           <p className="mt-1 text-xs text-stone-500">
-            Maximum {MAX_GUARANTORS} garants par bail.
+            {t('max', { max: String(MAX_GUARANTORS) })}
           </p>
         </div>
         {canManage && (
@@ -64,9 +65,9 @@ export function GuarantorSection({
             variant="outline"
             onClick={() => setOpen(true)}
             disabled={disabled}
-            title={disabled ? 'Maximum 3 garants atteint' : undefined}
+            title={disabled ? t('maxReached', { max: String(MAX_GUARANTORS) }) : undefined}
           >
-            Ajouter un garant
+            {t('add')}
           </Button>
         )}
       </div>
@@ -74,31 +75,31 @@ export function GuarantorSection({
       {guarantor ? (
         <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs uppercase tracking-wide text-stone-500">Nom</dt>
+            <dt className="text-xs uppercase tracking-wide text-stone-500">{t('name')}</dt>
             <dd className="text-stone-900">{guarantor.full_name}</dd>
           </div>
           {guarantor.phone && (
             <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Téléphone</dt>
+              <dt className="text-xs uppercase tracking-wide text-stone-500">{t('phone')}</dt>
               <dd className="text-stone-900">{guarantor.phone}</dd>
             </div>
           )}
           {guarantor.email && (
             <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Email</dt>
+              <dt className="text-xs uppercase tracking-wide text-stone-500">{t('email')}</dt>
               <dd className="text-stone-900">{guarantor.email}</dd>
             </div>
           )}
           {guarantor.relationship_to_tenant && (
             <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">Lien</dt>
+              <dt className="text-xs uppercase tracking-wide text-stone-500">{t('relationship')}</dt>
               <dd className="text-stone-900">{guarantor.relationship_to_tenant}</dd>
             </div>
           )}
         </dl>
       ) : (
         <p className="mt-4 text-sm text-stone-500">
-          Aucun garant attaché à ce bail.
+          {t('empty')}
         </p>
       )}
 
@@ -120,7 +121,11 @@ function GuarantorDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const t = useTranslations('lease.guarantor');
+  const tCommon = useTranslations('common');
   const createGuarantor = useCreateGuarantor(leaseId);
+
+  const idTypeOptions = ID_TYPES.map((value) => ({ value, label: t(`idTypes.${value}`) }));
 
   const { form, handleSubmit, isSubmitting, globalError } = useApiForm<
     GuarantorFormValues,
@@ -153,10 +158,9 @@ function GuarantorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Ajouter un garant</DialogTitle>
+          <DialogTitle>{t('add')}</DialogTitle>
           <DialogDescription>
-            Documents justificatifs (CNI, fiche de paie) uploadables
-            depuis la fiche garant après création.
+            {t('dialogDescription')}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -170,13 +174,13 @@ function GuarantorDialog({
             <FormInput<GuarantorFormValues>
               control={form.control}
               name="first_name"
-              label="Prénom"
+              label={t('firstName')}
               required
             />
             <FormInput<GuarantorFormValues>
               control={form.control}
               name="last_name"
-              label="Nom"
+              label={t('lastName')}
               required
             />
           </div>
@@ -184,39 +188,39 @@ function GuarantorDialog({
             <FormInput<GuarantorFormValues>
               control={form.control}
               name="phone"
-              label="Téléphone"
+              label={t('phone')}
             />
             <FormInput<GuarantorFormValues>
               control={form.control}
               name="email"
               type="email"
-              label="Email"
+              label={t('email')}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormSelect<GuarantorFormValues>
               control={form.control}
               name="id_type"
-              label="Pièce d'identité"
-              placeholder="Choisir…"
-              options={ID_TYPE_OPTIONS}
+              label={t('idType')}
+              placeholder={t('idTypePlaceholder')}
+              options={idTypeOptions}
             />
             <FormInput<GuarantorFormValues>
               control={form.control}
               name="id_number"
-              label="Numéro de pièce"
+              label={t('idNumber')}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormInput<GuarantorFormValues>
               control={form.control}
               name="occupation"
-              label="Profession"
+              label={t('occupation')}
             />
             <FormInput<GuarantorFormValues>
               control={form.control}
               name="employer"
-              label="Employeur"
+              label={t('employer')}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -224,28 +228,28 @@ function GuarantorDialog({
               control={form.control}
               name="monthly_income"
               type="number"
-              label="Revenu mensuel"
+              label={t('monthlyIncome')}
               min={0}
             />
             <FormInput<GuarantorFormValues>
               control={form.control}
               name="relationship_to_tenant"
-              label="Lien avec le locataire"
-              placeholder="Parent, conjoint, employeur…"
+              label={t('relationshipToTenant')}
+              placeholder={t('relationshipPlaceholder')}
             />
           </div>
           <FormTextarea<GuarantorFormValues>
             control={form.control}
             name="notes"
-            label="Notes (optionnel)"
+            label={t('notes')}
             rows={2}
           />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {tCommon('actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Ajout…' : 'Ajouter'}
+              {isSubmitting ? t('adding') : t('submit')}
             </Button>
           </div>
         </form>

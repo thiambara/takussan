@@ -152,4 +152,19 @@ export function eventTouchesDay(
   return start <= dayEnd && end >= dayStart;
 }
 
-export const WEEKDAY_SHORT_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] as const;
+/**
+ * En-têtes de colonnes des grilles mois et semaine, **du lundi au dimanche**.
+ *
+ * TCK-292 — la donnée transporte la CLÉ, le rendu la résout (patron posé par
+ * TCK-286). Ce tableau s'appelait `WEEKDAY_SHORT_FR` et portait
+ * `['Lun', 'Mar', …]` en dur : un anglophone sur `/app/calendar` lisait
+ * « Lun Mar Mer… » sur les deux vues, sans qu'aucune garde ne puisse le voir
+ * — ce n'étaient pas des littéraux de `MonthView`/`WeekView`, mais d'un module
+ * `lib/` qu'aucun scan de composant n'inspecte.
+ *
+ * Les libellés vivent désormais sous `calendar.weekdaysShort.*` dans les trois
+ * dictionnaires. L'ordre est significatif : `mondayFirstIndex()` indexe ici.
+ */
+export const WEEKDAY_SHORT_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+
+export type WeekdayKey = (typeof WEEKDAY_SHORT_KEYS)[number];

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +19,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/toast';
 import { ApiError } from '@/lib/api';
 import { inviteSuperAdmin } from '@/lib/queries/super-admin';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-264 — Cooptation invite modal.
@@ -34,6 +36,8 @@ export interface InviteSuperAdminModalProps {
 }
 
 export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteSuperAdminModalProps) {
+  const t = useTranslations('superAdmin.inviteModal');
+  const messageErreur = useMessageErreurApi();
   const [email, setEmail] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -44,8 +48,8 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
     mutationFn: () => inviteSuperAdmin({ email, first_name: firstName, last_name: lastName }),
     onSuccess: () => {
       toast.add({
-        title: 'Invitation envoyée',
-        description: `Une invitation a été adressée à ${email}.`,
+        title: t('toastTitle'),
+        description: t('toastDescription', { email }),
         type: 'success',
       });
       setEmail('');
@@ -56,9 +60,9 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
     },
     onError: (e) => {
       if (e instanceof ApiError) {
-        setError(e.displayMessage ?? 'Impossible d’envoyer l’invitation.');
+        setError(messageErreur(e, t('sendError')));
       } else {
-        setError('Impossible d’envoyer l’invitation.');
+        setError(t('sendError'));
       }
     },
   });
@@ -73,16 +77,13 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Coopter un super-admin</DialogTitle>
-          <DialogDescription>
-            Le destinataire recevra un email d’activation. La configuration 2FA sera obligatoire
-            avant l’attribution du rôle.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="super-admin-invite-email">Email</Label>
+            <Label htmlFor="super-admin-invite-email">{t('email')}</Label>
             <Input
               id="super-admin-invite-email"
               type="email"
@@ -90,12 +91,12 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="moussa@takussan.app"
+              placeholder={t('emailPlaceholder')}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="super-admin-invite-first-name">Prénom</Label>
+              <Label htmlFor="super-admin-invite-first-name">{t('firstName')}</Label>
               <Input
                 id="super-admin-invite-first-name"
                 required
@@ -105,7 +106,7 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="super-admin-invite-last-name">Nom</Label>
+              <Label htmlFor="super-admin-invite-last-name">{t('lastName')}</Label>
               <Input
                 id="super-admin-invite-last-name"
                 required
@@ -124,16 +125,16 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  <span>Envoi…</span>
+                  <span>{t('sending')}</span>
                 </>
               ) : (
-                <span>Envoyer l’invitation</span>
+                <span>{t('submit')}</span>
               )}
             </Button>
           </DialogFooter>

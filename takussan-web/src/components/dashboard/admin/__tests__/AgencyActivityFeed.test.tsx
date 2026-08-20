@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
+import { withIntl } from '@/test/intl';
+
 import type { DashboardAgencySummary } from '@/lib/queries/dashboard-agency';
 import { AgencyActivityFeed } from '../AgencyActivityFeed';
 
@@ -28,7 +30,7 @@ function buildSummary(overrides: Partial<DashboardAgencySummary> = {}): Dashboar
 
 describe('<AgencyActivityFeed>', () => {
   it('lists the four operational counters with deep links', () => {
-    const { container } = render(<AgencyActivityFeed summary={buildSummary()} />);
+    const { container } = render(withIntl(<AgencyActivityFeed summary={buildSummary()} />));
 
     expect(screen.getByRole('heading', { name: 'Activité récente' })).toBeInTheDocument();
     expect(screen.getByText('Réservations en attente')).toBeInTheDocument();

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import { NextIntlClientProvider } from 'next-intl';
+import { withIntl } from '@/test/intl';
 import { MaintenanceDetail } from '../MaintenanceDetail';
 import type { MaintenanceRequest } from '@/types/maintenance';
 
@@ -34,28 +34,14 @@ vi.mock('@/lib/queries/maintenance', async () => {
   };
 });
 
+/**
+ * ⚠ TCK-292 (lot I) — ce test montait un jeu de messages STUB de six clés. Tout l'écran étant
+ * passé au dictionnaire, un stub rendrait désormais des CLÉS et non des libellés : le harnais
+ * `withIntl` charge le VRAI `fr.json`, donc les assertions françaises ci-dessous portent sur ce
+ * que l'utilisateur lit. Aucune d'elles n'a été modifiée.
+ */
 function wrap(ui: React.ReactElement) {
-  return (
-    <NextIntlClientProvider
-      locale="fr"
-      messages={{
-        common: {
-          status: { loading: 'Chargement', error: 'Erreur' },
-          actions: { retry: 'Réessayer', close: 'Fermer' },
-        },
-        maintenance: {
-          priority: {
-            low: 'Faible',
-            normal: 'Normale',
-            high: 'Élevée',
-            urgent: 'Urgente',
-          },
-        },
-      }}
-    >
-      {ui}
-    </NextIntlClientProvider>
-  );
+  return withIntl(ui);
 }
 
 function makeRequest(overrides: Partial<MaintenanceRequest> = {}): MaintenanceRequest {

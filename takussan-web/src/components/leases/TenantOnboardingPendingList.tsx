@@ -26,13 +26,6 @@ type Props = { agencyId: number };
 
 type Row = TenantOnboardingChecklist & { lease?: { reference_number: string | null; signed_at: string | null } | null };
 
-const ITEM_LABELS: Record<keyof typeof CHECK_FIELDS, string> = {
-  welcome_seen_at: 'Welcome',
-  inventory_completed_at: 'EDL',
-  first_payment_at: 'Premier paiement',
-  documents_acknowledged_at: 'Documents',
-};
-
 const CHECK_FIELDS = {
   welcome_seen_at: true,
   inventory_completed_at: true,
@@ -48,10 +41,14 @@ function daysSince(iso: string | null | undefined): number {
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
 
-function missingItems(row: Row): string[] {
+/**
+ * La donnée porte la CLÉ (`agency.tenantOnboardingPending.items.*`), le rendu la résout — patron
+ * posé par TCK-286. Une table de libellés hors composant ne peut pas appeler `useTranslations`.
+ */
+function missingItems(row: Row, label: (field: string) => string): string[] {
   return (Object.keys(CHECK_FIELDS) as Array<keyof typeof CHECK_FIELDS>)
     .filter((field) => row[field as keyof TenantOnboardingChecklist] == null)
-    .map((field) => ITEM_LABELS[field]);
+    .map((field) => label(field));
 }
 
 export function TenantOnboardingPendingList({ agencyId }: Props) {
@@ -83,7 +80,7 @@ export function TenantOnboardingPendingList({ agencyId }: Props) {
           <ul className="space-y-3">
             {rows.map((row) => {
               const days = daysSince(row.created_at);
-              const missing = missingItems(row);
+              const missing = missingItems(row, (field) => t(`items.${field}`));
               const reference = row.lease?.reference_number ?? `#${row.lease_id}`;
               const signedAt = row.lease?.signed_at ?? row.created_at;
 

@@ -240,12 +240,25 @@ export const CUSTOMER_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const CUSTOMER_DOCUMENT_ACCEPT =
   'image/jpeg,image/png,image/webp,image/gif,application/pdf';
 
-export function validateCustomerDocumentFile(file: File): string | null {
+/**
+ * Motif de refus d'un document client — un JETON, pas un libellé (TCK-292).
+ *
+ * Ce module est importé par une *server action* (`app/actions/dashboard-customers.ts`) comme par
+ * du code client : `useTranslations` n'y est pas appelable, et `getTranslations` ferait de tout
+ * appelant une fonction asynchrone. La donnée porte donc la clé, et le rendu la résout — même
+ * patron que `property-form/options.ts` et `lib/property-cta.ts`.
+ */
+export type CustomerDocumentRejection = 'tooLarge' | 'unsupportedType';
+
+/** Espace de noms où vivent les deux libellés de refus. */
+export const CUSTOMER_DOCUMENT_REJECTION_NAMESPACE = 'serverActions.customerDocuments' as const;
+
+export function validateCustomerDocumentFile(file: File): CustomerDocumentRejection | null {
   if (file.size > CUSTOMER_DOCUMENT_MAX_BYTES) {
-    return 'Le fichier dépasse 10 Mo.';
+    return 'tooLarge';
   }
   if (!/^(image\/(jpe?g|png|webp|gif)|application\/pdf)$/.test(file.type)) {
-    return 'Type de fichier non autorisé (images ou PDF uniquement).';
+    return 'unsupportedType';
   }
   return null;
 }

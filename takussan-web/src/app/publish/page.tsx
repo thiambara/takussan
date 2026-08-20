@@ -17,11 +17,13 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { usePublishIntent } from '@/hooks/usePublishIntent';
 import { clearPublishIntent } from '@/lib/publish-intent';
 
 export default function PublishPage() {
+  const t = useTranslations('publishRedirect');
   const router = useRouter();
   const decision = usePublishIntent();
 
@@ -39,10 +41,10 @@ export default function PublishPage() {
       <div className="flex flex-col items-center gap-4 text-center">
         <Loader2 className="size-8 animate-spin text-primary" aria-hidden="true" />
         <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-          Préparation de votre annonce…
+          {t('title')}
         </h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Nous vous emmenons au bon endroit pour publier votre bien.
+          {t('body')}
         </p>
       </div>
     </main>

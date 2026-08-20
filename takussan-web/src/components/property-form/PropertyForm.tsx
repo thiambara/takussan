@@ -43,15 +43,12 @@ import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 
 import {
-  CONTRACT_TYPE_LABELS,
-  CURRENCY_OPTIONS,
-  PROPERTY_TYPE_LABELS,
-  RENT_PERIOD_OPTIONS,
+  PROPERTY_ENUM_NAMESPACES,
+  contractTypeOptions as fabriqueContractTypeOptions,
+  currencyOptions as fabriqueCurrencyOptions,
+  propertyTypeOptions as fabriquePropertyTypeOptions,
+  rentPeriodOptions as fabriqueRentPeriodOptions,
 } from './options';
-import {
-  contractTypeValues,
-  propertyTypeValues,
-} from '@/lib/schemas/property';
 
 const MAX_PHOTOS = 10;
 
@@ -130,15 +127,17 @@ function toPropertyCrudPayload(payload: PropertyFormPayload): PropertyFormPayloa
 
 export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const t = useTranslations('property.form');
+  // TCK-292 — les six vocabulaires d'enum viennent du dictionnaire ; `./options` ne porte plus que
+  // l'espace de noms et la fabrique. Les hooks sont posés AVANT toute sortie anticipée.
+  const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
+  const tContractType = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
+  const tCurrency = useTranslations(PROPERTY_ENUM_NAMESPACES.currency);
+  const tRentPeriod = useTranslations(PROPERTY_ENUM_NAMESPACES.rentPeriod);
   const router = useRouter();
-  const propertyTypeOptions = propertyTypeValues.map((v) => ({
-    value: v,
-    label: PROPERTY_TYPE_LABELS[v],
-  }));
-  const contractTypeOptions = contractTypeValues.map((v) => ({
-    value: v,
-    label: CONTRACT_TYPE_LABELS[v],
-  }));
+  const propertyTypeOptions = fabriquePropertyTypeOptions(tType);
+  const contractTypeOptions = fabriqueContractTypeOptions(tContractType);
+  const currencyOptions = fabriqueCurrencyOptions(tCurrency);
+  const rentPeriodOptions = fabriqueRentPeriodOptions(tRentPeriod);
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -260,7 +259,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const tagIds = (watch('tag_ids') ?? []) as number[];
 
   // Ces deux gestionnaires sont passés en props à des enfants, et ils ne sont PAS enveloppés dans
-  // un `useCallback` : le React Compiler s'en charge (ADR-0033). Les `useCallback` qui s'y
+  // un `useCallback` : le React Compiler s'en charge (ADR-0015). Les `useCallback` qui s'y
   // trouvaient faisaient ABANDONNER la compilation de tout ce composant —
   // `react-hooks/preserve-manual-memoization` les signalait, et son correctif est de retirer la
   // mémoïsation manuelle, pas de l'ajuster.
@@ -360,14 +359,14 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             control={control}
             name="currency"
             label={t('fields.currency')}
-            options={CURRENCY_OPTIONS}
+            options={currencyOptions}
           />
           {contractType === 'rent' ? (
             <FormSelect
               control={control}
               name="rent_period"
               label={t('fields.period')}
-              options={RENT_PERIOD_OPTIONS}
+              options={rentPeriodOptions}
               placeholder={t('fields.periodPlaceholder')}
             />
           ) : (

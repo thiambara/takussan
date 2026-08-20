@@ -2,9 +2,11 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Download, FileSpreadsheet, FileText, Loader2, ScrollText, Search, ShieldAlert } from 'lucide-react';
 import { EmptyState, ErrorState } from '@/components/feedback';
+import { formatDate as formatDateIntl } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/toast';
@@ -32,26 +34,22 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 const KNOWN_EVENTS = ['created', 'updated', 'deleted', 'exported'] as const;
 
-const KNOWN_SUBJECT_TYPES: { label: string; value: string }[] = [
-  { label: 'Bien immobilier', value: 'App\\Models\\Property' },
-  { label: 'Réservation', value: 'App\\Models\\Booking' },
-  { label: 'Bail', value: 'App\\Models\\Lease' },
-  { label: 'Facture', value: 'App\\Models\\Invoice' },
-  { label: 'Client', value: 'App\\Models\\Customer' },
-  { label: 'Utilisateur', value: 'App\\Models\\User' },
+/**
+ * TCK-292 — la DONNÉE porte la clé, le rendu la résout : la liste des types
+ * d'objet transporte le FQCN (valeur d'API) et une clé de libellé résolue sous
+ * `admin.audit.subjects.*`. Les noms d'événements (`created`, `updated`, …) sont
+ * des valeurs d'API affichées telles quelles — elles ne se traduisent pas.
+ */
+const KNOWN_SUBJECT_TYPES: { key: string; value: string }[] = [
+  { key: 'property', value: 'App\\Models\\Property' },
+  { key: 'booking', value: 'App\\Models\\Booking' },
+  { key: 'lease', value: 'App\\Models\\Lease' },
+  { key: 'invoice', value: 'App\\Models\\Invoice' },
+  { key: 'customer', value: 'App\\Models\\Customer' },
+  { key: 'user', value: 'App\\Models\\User' },
 ];
 
 const ANY = '__any__';
-
-const EVENT_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: ANY, label: 'Toutes les actions' },
-  ...KNOWN_EVENTS.map((ev) => ({ value: ev, label: ev })),
-];
-
-const SUBJECT_TYPE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: ANY, label: 'Tous les objets' },
-  ...KNOWN_SUBJECT_TYPES.map((st) => ({ value: st.value, label: st.label })),
-];
 
 function today(): string {
   return new Date().toISOString().split('T')[0];
@@ -78,8 +76,15 @@ function shortSubjectType(fqcn: string | null): string {
   return fqcn.split('\\').pop() ?? fqcn;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('fr-FR', {
+/**
+ * TCK-292 — la locale ACTIVE, plus `fr-FR` en dur. Les options sont celles de
+ * l'ancienne version, à l'identique : le rendu français ne bouge pas.
+ */
+function formatDate(iso: string, locale: Locale): string {
+  return formatDateIntl(iso, locale, {
+    // `formatDate` pose `dateStyle: 'medium'` par défaut, et Intl REFUSE
+    // `dateStyle` mêlé à des champs explicites — on le neutralise.
+    dateStyle: undefined,
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -87,6 +92,14 @@ function formatDate(iso: string): string {
 
 export function AuditTrail() {
   const t = useTranslations('admin.audit');
+  const eventOptions: ReadonlyArray<{ value: string; label: string }> = [
+    { value: ANY, label: t('filters.anyAction') },
+    ...KNOWN_EVENTS.map((ev) => ({ value: ev, label: ev })),
+  ];
+  const subjectTypeOptions: ReadonlyArray<{ value: string; label: string }> = [
+    { value: ANY, label: t('filters.anySubject') },
+    ...KNOWN_SUBJECT_TYPES.map((st) => ({ value: st.value, label: t(`subjects.${st.key}`) })),
+  ];
   const { token } = useAuth();
   const toast = useToast();
 
@@ -124,7 +137,7 @@ export function AuditTrail() {
     setExportLoading(true);
 
     toast.add({
-      title: 'Export en préparation, téléchargement imminent…',
+      title: t('export.pending'),
       type: 'info',
     });
 
@@ -145,15 +158,15 @@ export function AuditTrail() {
 
       if (res.status === 202) {
         toast.add({
-          title: 'Export volumineux',
-          description: 'Vous recevrez un email avec le lien de téléchargement.',
+          title: t('export.largeTitle'),
+          description: t('export.largeBody'),
           type: 'info',
         });
         return;
       }
 
       if (!res.ok) {
-        toast.add({ title: 'Erreur lors de l\'export', type: 'error' });
+        toast.add({ title: t('export.error'), type: 'error' });
         return;
       }
 
@@ -171,18 +184,18 @@ export function AuditTrail() {
       document.body.removeChild(a);
       URL.revokeObjectURL(objectUrl);
     } catch {
-      toast.add({ title: 'Erreur lors de l\'export', type: 'error' });
+      toast.add({ title: t('export.error'), type: 'error' });
     } finally {
       setExportLoading(false);
     }
-  }, [token, dateFrom, dateTo, event, subjectType, search, toast]);
+  }, [token, dateFrom, dateTo, event, subjectType, search, toast, t]);
 
   return (
     <div className="space-y-4">
       {/* ─── Sticky filter bar ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-10 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">Du</label>
+          <label className="text-xs font-medium text-app-ink-muted">{t('filters.from')}</label>
           <DatePicker
             value={dateFrom}
             max={dateTo || today()}
@@ -192,7 +205,7 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">Au</label>
+          <label className="text-xs font-medium text-app-ink-muted">{t('filters.to')}</label>
           <DatePicker
             value={dateTo}
             min={dateFrom}
@@ -203,17 +216,17 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">Action</label>
+          <label className="text-xs font-medium text-app-ink-muted">{t('filters.action')}</label>
           <Select
             value={event || ANY}
             onValueChange={(next) => { setEvent(next === ANY ? '' : (next ?? '')); setPage(1); }}
-            items={EVENT_OPTIONS}
+            items={eventOptions}
           >
-            <SelectTrigger className="h-9" aria-label="Filtrer par action">
+            <SelectTrigger className="h-9" aria-label={t('filters.actionAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {EVENT_OPTIONS.map((opt) => (
+              {eventOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -221,17 +234,17 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">Type d&apos;objet</label>
+          <label className="text-xs font-medium text-app-ink-muted">{t('filters.subject')}</label>
           <Select
             value={subjectType || ANY}
             onValueChange={(next) => { setSubjectType(next === ANY ? '' : (next ?? '')); setPage(1); }}
-            items={SUBJECT_TYPE_OPTIONS}
+            items={subjectTypeOptions}
           >
-            <SelectTrigger className="h-9" aria-label="Filtrer par type d'objet">
+            <SelectTrigger className="h-9" aria-label={t('filters.subjectAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {SUBJECT_TYPE_OPTIONS.map((opt) => (
+              {subjectTypeOptions.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
@@ -239,13 +252,13 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">Recherche</label>
+          <label className="text-xs font-medium text-app-ink-muted">{t('filters.search')}</label>
           <div className="relative">
             <Search className="absolute left-2.5 top-2 h-4 w-4 text-app-ink-muted" />
             <Input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Description…"
+              placeholder={t('filters.searchPlaceholder')}
               className="h-9 pl-8"
             />
           </div>
@@ -263,7 +276,7 @@ export function AuditTrail() {
               {exportLoading
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <Download className="h-4 w-4" />}
-              Exporter
+              {t('export.label')}
             </Button>
 
             {showExportMenu && (
@@ -309,11 +322,11 @@ export function AuditTrail() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-stone-50 text-left">
-                <th className="px-4 py-3 font-medium text-app-ink-muted">Date</th>
-                <th className="px-4 py-3 font-medium text-app-ink-muted">Utilisateur</th>
-                <th className="px-4 py-3 font-medium text-app-ink-muted">Action</th>
-                <th className="px-4 py-3 font-medium text-app-ink-muted">Objet</th>
-                <th className="px-4 py-3 font-medium text-app-ink-muted">Description</th>
+                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.date')}</th>
+                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.user')}</th>
+                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.action')}</th>
+                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.subject')}</th>
+                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.description')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -328,7 +341,7 @@ export function AuditTrail() {
       {/* ─── Pagination ────────────────────────────────────────────────── */}
       {meta && meta.last_page > 1 && (
         <div className="flex items-center justify-between text-sm text-app-ink-muted">
-          <span>{meta.total} entrée{meta.total !== 1 ? 's' : ''}</span>
+          <span>{t('entries', { count: meta.total, total: String(meta.total) })}</span>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -336,10 +349,13 @@ export function AuditTrail() {
               disabled={page <= 1}
               onClick={() => setPage((p) => p - 1)}
             >
-              Précédent
+              {t('previous')}
             </Button>
             <span className="flex items-center px-2">
-              Page {meta.current_page} / {meta.last_page}
+              {t('pageOf', {
+                current: String(meta.current_page),
+                last: String(meta.last_page),
+              })}
             </span>
             <Button
               variant="outline"
@@ -347,7 +363,7 @@ export function AuditTrail() {
               disabled={page >= meta.last_page}
               onClick={() => setPage((p) => p + 1)}
             >
-              Suivant
+              {t('next')}
             </Button>
           </div>
         </div>
@@ -357,13 +373,14 @@ export function AuditTrail() {
 }
 
 function AuditRow({ log }: { log: ActivityLogEntry }) {
+  const locale = useLocale() as Locale;
   const causerName = log.causer?.name ?? log.causer?.email ?? 'system';
   const subjType = shortSubjectType(log.subject_type);
 
   return (
     <tr className="transition-colors hover:bg-stone-50">
       <td className="whitespace-nowrap px-4 py-3 tabular-nums text-app-ink-muted">
-        {formatDate(log.created_at)}
+        {formatDate(log.created_at, locale)}
       </td>
       <td className="px-4 py-3">
         <span className="font-medium text-app-ink">{causerName}</span>

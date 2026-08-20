@@ -1,6 +1,6 @@
 'use server';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import {
   ACTIVE_PROFILE_COOKIE,
   fetchMyProfiles,
@@ -8,6 +8,7 @@ import {
 } from '@/lib/profiles';
 import { getToken } from '@/lib/session';
 import { cookies } from 'next/headers';
+import { getTranslations } from 'next-intl/server';
 import type { MyProfilesResponse, Profile } from '@/types/profile';
 
 export type ProfilesActionResult =
@@ -20,7 +21,11 @@ export type SwitchProfileActionResult =
 
 export async function getMyProfilesAction(): Promise<ProfilesActionResult> {
   const token = await getToken();
-  if (!token) return { ok: false, message: 'Not authenticated.' };
+  if (!token) {
+    // Les quatre littéraux de ce module étaient en anglais, et rendus tels quels (TCK-292, lot K).
+    const tErr = await getTranslations('errors');
+    return { ok: false, message: tErr('missingToken') };
+  }
 
   const cookieStore = await cookies();
   const active = cookieStore.get(ACTIVE_PROFILE_COOKIE)?.value;
@@ -29,10 +34,16 @@ export async function getMyProfilesAction(): Promise<ProfilesActionResult> {
     const data = await fetchMyProfiles(token, active);
     return { ok: true, data };
   } catch (err) {
+    const [tRacine, t] = await Promise.all([
+      getTranslations(),
+      getTranslations('serverActions.profiles'),
+    ]);
+    const repli = t('loadFailed');
     if (err instanceof ApiError) {
-      return { ok: false, message: err.displayMessage };
+      // Module `'use server'` : `err.displayMessage` seul rendait ici la CLÉ `errors.api.*`.
+      return { ok: false, message: messageErreurApi(err, tRacine, repli) };
     }
-    return { ok: false, message: 'Failed to load profiles.' };
+    return { ok: false, message: repli };
   }
 }
 
@@ -40,7 +51,10 @@ export async function switchActiveProfileAction(
   profileId: string,
 ): Promise<SwitchProfileActionResult> {
   const token = await getToken();
-  if (!token) return { ok: false, message: 'Not authenticated.' };
+  if (!token) {
+    const tErr = await getTranslations('errors');
+    return { ok: false, message: tErr('missingToken') };
+  }
 
   try {
     const res = await patchActiveProfile(token, profileId);
@@ -54,9 +68,15 @@ export async function switchActiveProfileAction(
     });
     return { ok: true, data: res.data };
   } catch (err) {
+    const [tRacine, t] = await Promise.all([
+      getTranslations(),
+      getTranslations('serverActions.profiles'),
+    ]);
+    const repli = t('switchFailed');
     if (err instanceof ApiError) {
-      return { ok: false, message: err.displayMessage };
+      // Module `'use server'` : `err.displayMessage` seul rendait ici la CLÉ `errors.api.*`.
+      return { ok: false, message: messageErreurApi(err, tRacine, repli) };
     }
-    return { ok: false, message: 'Failed to switch profile.' };
+    return { ok: false, message: repli };
   }
 }

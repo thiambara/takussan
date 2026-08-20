@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import {
   IntegrationCard,
   IntegrationEditDialog,
@@ -12,8 +13,12 @@ import { fetchAdminIntegrations, fetchIntegrationWebhooks } from '@/lib/queries/
 import type { AdminIntegration, AdminIntegrationsResponse, IntegrationWebhooksResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { DestructiveBanner } from '@/components/ui/destructive-banner';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export default function SuperAdminIntegrationsPage() {
+  const t = useTranslations('superAdmin.pages.integrations');
+  const tShared = useTranslations('superAdmin.pages.shared');
+  const messageErreur = useMessageErreurApi();
   const [editing, setEditing] = useState<AdminIntegration | null>(null);
   const [webhookIntegration, setWebhookIntegration] = useState<AdminIntegration | null>(null);
   const query = useQuery<AdminIntegrationsResponse, ApiError>({
@@ -37,15 +42,13 @@ export default function SuperAdminIntegrationsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Intégrations tierces</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configurez les providers de paiement, messagerie et email sans exposer les secrets.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
       </header>
 
       {criticalDown.length > 0 ? (
         <DestructiveBanner>
-          {criticalDown.length} intégration paiement critique en panne.
+          {t('criticalDown', { count: String(criticalDown.length) })}
         </DestructiveBanner>
       ) : null}
 
@@ -53,7 +56,7 @@ export default function SuperAdminIntegrationsPage() {
         <div className="h-48 animate-pulse rounded-xl bg-muted" />
       ) : query.isError ? (
         <DestructiveBanner>
-          Erreur de chargement. {query.error.displayMessage}
+          {tShared('loadError')} {messageErreur(query.error)}
         </DestructiveBanner>
       ) : (
         <div className="space-y-5">
@@ -84,7 +87,7 @@ export default function SuperAdminIntegrationsPage() {
           integration={webhookIntegration}
           logs={webhooks.data?.data ?? []}
           loading={webhooks.isLoading}
-          error={webhooks.error?.displayMessage ?? null}
+          error={webhooks.error ? messageErreur(webhooks.error) : null}
           onClose={() => setWebhookIntegration(null)}
         />
       ) : null}

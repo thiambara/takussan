@@ -23,6 +23,7 @@ import { useImpersonate } from '@/hooks/useImpersonation';
 import type { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type SuperAdminUser = Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'status'> & {
   full_name?: string | null;
@@ -41,35 +42,39 @@ type UsersResponse = {
 
 const ALL = '__all__';
 
-const ROLE_OPTIONS: { value: string; label: string }[] = [
-  { value: ALL, label: 'Tous rôles' },
-  { value: 'super_admin', label: 'Super-admin' },
-  { value: 'agency_admin', label: 'Admin agence' },
-  { value: 'agent', label: 'Agent' },
-  { value: 'owner', label: 'Propriétaire' },
-  { value: 'customer', label: 'Client' },
-  { value: 'tenant', label: 'Locataire' },
-  { value: 'service_provider', label: 'Prestataire' },
+/**
+ * Patron « la donnée porte la clé » (TCK-286) : ces tables sont hors composant, donc
+ * hors de portée de `useTranslations`. Elles transportent une clé, le rendu la résout.
+ */
+const ROLE_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: ALL, labelKey: 'roles.all' },
+  { value: 'super_admin', labelKey: 'roles.super_admin' },
+  { value: 'agency_admin', labelKey: 'roles.agency_admin' },
+  { value: 'agent', labelKey: 'roles.agent' },
+  { value: 'owner', labelKey: 'roles.owner' },
+  { value: 'customer', labelKey: 'roles.customer' },
+  { value: 'tenant', labelKey: 'roles.tenant' },
+  { value: 'service_provider', labelKey: 'roles.service_provider' },
 ];
 
-const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: ALL, label: 'Tous statuts' },
-  { value: 'active', label: 'Actif' },
-  { value: 'blocked', label: 'Bloqué' },
-  { value: 'inactive', label: 'Inactif' },
-  { value: 'banned', label: 'Banni' },
+const STATUS_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: ALL, labelKey: 'statuses.all' },
+  { value: 'active', labelKey: 'statuses.active' },
+  { value: 'blocked', labelKey: 'statuses.blocked' },
+  { value: 'inactive', labelKey: 'statuses.inactive' },
+  { value: 'banned', labelKey: 'statuses.banned' },
 ];
 
-const EMAIL_OPTIONS: { value: string; label: string }[] = [
-  { value: ALL, label: 'Email : tous' },
-  { value: '1', label: 'Email vérifié' },
-  { value: '0', label: 'Email non vérifié' },
+const EMAIL_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: ALL, labelKey: 'emailFilter.all' },
+  { value: '1', labelKey: 'emailFilter.verified' },
+  { value: '0', labelKey: 'emailFilter.unverified' },
 ];
 
-const TWOFA_OPTIONS: { value: string; label: string }[] = [
-  { value: ALL, label: '2FA : tous' },
-  { value: '1', label: '2FA activée' },
-  { value: '0', label: '2FA inactive' },
+const TWOFA_OPTIONS: { value: string; labelKey: string }[] = [
+  { value: ALL, labelKey: 'twoFactorFilter.all' },
+  { value: '1', labelKey: 'twoFactorFilter.on' },
+  { value: '0', labelKey: 'twoFactorFilter.off' },
 ];
 
 type UsersParams = {
@@ -129,6 +134,8 @@ function getInitials(name: string): string {
 
 export default function SuperAdminUsersPage() {
   const t = useTranslations('superAdmin.users');
+  const tPage = useTranslations('superAdmin.pages.users');
+  const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
@@ -142,6 +149,10 @@ export default function SuperAdminUsersPage() {
   const [page, setPage] = useState(1);
   const [target, setTarget] = useState<SuperAdminUser | null>(null);
   const impersonate = useImpersonate();
+  const roleOptions = ROLE_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
+  const statusOptions = STATUS_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
+  const emailOptions = EMAIL_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
+  const twoFactorOptions = TWOFA_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
   const params = {
     search,
     role: role === ALL ? '' : role,
@@ -178,10 +189,8 @@ export default function SuperAdminUsersPage() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">Utilisateurs</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Recherche cross-tenant et impersonation pour le support.
-        </p>
+        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
       </header>
 
       <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
@@ -197,20 +206,20 @@ export default function SuperAdminUsersPage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Nom, email, ID, téléphone"
+            placeholder={tPage('searchPlaceholder')}
             className="h-10 pl-9"
           />
         </div>
         <Select
           value={role}
           onValueChange={(next) => handleRoleChange((next ?? ALL) as string)}
-          items={ROLE_OPTIONS}
+          items={roleOptions}
         >
-          <SelectTrigger aria-label="Rôle" className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('roleAria')} className="h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ROLE_OPTIONS.map((opt) => (
+            {roleOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -225,7 +234,7 @@ export default function SuperAdminUsersPage() {
             setAgencyId(e.target.value);
             setPage(1);
           }}
-          placeholder="ID agence"
+          placeholder={tPage('agencyIdPlaceholder')}
           className="h-10"
         />
         <Select
@@ -234,13 +243,13 @@ export default function SuperAdminUsersPage() {
             setStatus((next ?? ALL) as string);
             setPage(1);
           }}
-          items={STATUS_OPTIONS}
+          items={statusOptions}
         >
-          <SelectTrigger aria-label="Statut" className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('statusAria')} className="h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_OPTIONS.map((opt) => (
+            {statusOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -253,13 +262,13 @@ export default function SuperAdminUsersPage() {
             setEmailVerified((next ?? ALL) as string);
             setPage(1);
           }}
-          items={EMAIL_OPTIONS}
+          items={emailOptions}
         >
-          <SelectTrigger aria-label="Email vérifié" className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('emailAria')} className="h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {EMAIL_OPTIONS.map((opt) => (
+            {emailOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -272,13 +281,13 @@ export default function SuperAdminUsersPage() {
             setTwoFactor((next ?? ALL) as string);
             setPage(1);
           }}
-          items={TWOFA_OPTIONS}
+          items={twoFactorOptions}
         >
-          <SelectTrigger aria-label="2FA" className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('twoFactorAria')} className="h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {TWOFA_OPTIONS.map((opt) => (
+            {twoFactorOptions.map((opt) => (
               <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
@@ -298,7 +307,7 @@ export default function SuperAdminUsersPage() {
           ))}
         </div>
       ) : isError ? (
-        <ErrorState message={error?.displayMessage ?? t('error')} />
+        <ErrorState message={messageErreur(error, t('error'))} />
       ) : !data || data.data.length === 0 ? (
         <EmptyState
           icon={<Users className="size-8" aria-hidden="true" />}
@@ -329,7 +338,7 @@ export default function SuperAdminUsersPage() {
                         {u.phone ? ` · ${u.phone}` : ''}
                       </p>
                       <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">Rôles :</span>
+                        <span className="font-medium text-foreground">{tPage('rolesLabel')}</span>
                         {roles.length
                           ? roles.map((roleName) => (
                               <span
@@ -342,16 +351,22 @@ export default function SuperAdminUsersPage() {
                           : '—'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Agences :{' '}
+                        {tPage('agenciesLabel')}{' '}
                         {u.agencies?.length
                           ? u.agencies.map((agency) => agency.name).join(', ')
                           : '—'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Statut : {u.status ?? '—'} · Email{' '}
-                        {u.email_verified_at ? 'vérifié' : 'non vérifié'} · 2FA{' '}
-                        {u.two_factor_enabled ? 'activée' : 'inactive'} · Dernière connexion{' '}
-                        {formatDateTime(u.last_login_at)}
+                        {tPage('summary', {
+                          status: u.status ?? '—',
+                          email: u.email_verified_at
+                            ? tPage('emailVerified')
+                            : tPage('emailUnverified'),
+                          twoFactor: u.two_factor_enabled
+                            ? tPage('twoFactorOn')
+                            : tPage('twoFactorOff'),
+                          lastLogin: formatDateTime(u.last_login_at),
+                        })}
                       </p>
                     </div>
                   </div>
@@ -360,7 +375,7 @@ export default function SuperAdminUsersPage() {
                       className={buttonVariants({ size: 'sm', variant: 'outline' })}
                       href={`/super-admin/users/${u.id}`}
                     >
-                      Ouvrir
+                      {tPage('open')}
                     </Link>
                     <Button
                       size="sm"
@@ -368,7 +383,7 @@ export default function SuperAdminUsersPage() {
                       onClick={() => setTarget(u)}
                       disabled={impersonate.isPending}
                     >
-                      Impersonifier
+                      {tPage('impersonate')}
                     </Button>
                   </div>
                 </CardContent>
@@ -390,10 +405,10 @@ export default function SuperAdminUsersPage() {
         <ConfirmActionDialog
           open={target !== null}
           onOpenChange={(open) => !open && setTarget(null)}
-          title={`Impersonifier ${getUserDisplayName(target)}`}
-          description="Vous obtiendrez un token éphémère (≤ 1h) pour agir en tant que cet utilisateur. Toutes les actions sont auditées."
+          title={tPage('impersonateTitle', { name: getUserDisplayName(target) })}
+          description={tPage('impersonateDescription')}
           confirmPhrase="IMPERSONIFIER"
-          confirmLabel="Lancer l’impersonation"
+          confirmLabel={tPage('impersonateConfirmLabel')}
           destructive
           pending={impersonate.isPending}
           onConfirm={() => {

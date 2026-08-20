@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
@@ -15,21 +16,17 @@ import { fetchAdminReportGrowth } from '@/lib/queries/super-admin';
 import type { GrowthMetric, ReportPeriod } from '@/types/super-admin';
 import { ReportExportButton } from './ReportExportButton';
 
-const METRICS: { value: GrowthMetric; label: string }[] = [
-  { value: 'agencies', label: 'Agences' },
-  { value: 'users', label: 'Utilisateurs' },
-  { value: 'listings', label: 'Annonces' },
-];
+/** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
+const METRICS: readonly GrowthMetric[] = ['agencies', 'users', 'listings'];
 
-const PERIODS: { value: ReportPeriod; label: string }[] = [
-  { value: '3m', label: '3 mois' },
-  { value: '6m', label: '6 mois' },
-  { value: '12m', label: '12 mois' },
-];
+const PERIODS: readonly ReportPeriod[] = ['3m', '6m', '12m'];
 
 export function GrowthChart() {
+  const t = useTranslations('reporting');
   const [metric, setMetric] = useState<GrowthMetric>('agencies');
   const [period, setPeriod] = useState<ReportPeriod>('12m');
+  const metriques = METRICS.map((value) => ({ value, label: t(`metrics.${value}`) }));
+  const periodes = PERIODS.map((value) => ({ value, label: t(`periods.${value}`) }));
 
   const query = useQuery({
     queryKey: ['super-admin', 'reports', 'growth', metric, period],
@@ -43,13 +40,13 @@ export function GrowthChart() {
           <Select
             value={metric}
             onValueChange={(value) => setMetric((value ?? metric) as GrowthMetric)}
-            items={METRICS as unknown as Array<{ value: string; label: string }>}
+            items={metriques as unknown as Array<{ value: string; label: string }>}
           >
-            <SelectTrigger className="h-9" aria-label="Métrique">
+            <SelectTrigger className="h-9" aria-label={t('filters.metricAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {METRICS.map((option) => (
+              {metriques.map((option) => (
                 <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
               ))}
             </SelectContent>
@@ -57,19 +54,19 @@ export function GrowthChart() {
           <Select
             value={period}
             onValueChange={(value) => setPeriod((value ?? period) as ReportPeriod)}
-            items={PERIODS as unknown as Array<{ value: string; label: string }>}
+            items={periodes as unknown as Array<{ value: string; label: string }>}
           >
-            <SelectTrigger className="h-9" aria-label="Période">
+            <SelectTrigger className="h-9" aria-label={t('filters.periodAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {PERIODS.map((option) => (
+              {periodes.map((option) => (
                 <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           <span className="ml-auto text-xs text-muted-foreground">
-            Total: <span className="font-semibold text-foreground">{query.data?.data.totals.total ?? 0}</span>
+            {t('growth.total')} <span className="font-semibold text-foreground">{query.data?.data.totals.total ?? 0}</span>
           </span>
           <ReportExportButton report="growth" params={{ metric, period, granularity: 'month' }} />
         </CardContent>

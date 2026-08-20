@@ -22,19 +22,23 @@ import { VisitFeedbackForm } from './VisitFeedbackForm';
 import type { PropertyVisit, VisitStatus, VisitType } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
 
-const STATUS_LABEL: Record<VisitStatus, string> = {
-  scheduled: 'Demandée',
-  confirmed: 'Confirmée',
-  completed: 'Terminée',
-  cancelled: 'Annulée',
-  no_show: 'Absence',
+/**
+ * TCK-292 — tables hors composant : elles transportent la CLÉ (relative au namespace `visits`),
+ * le rendu la résout. Mêmes clés que `VisitsList.tsx` : un seul vocabulaire de statut.
+ */
+const STATUS_LABEL_KEY: Record<VisitStatus, string> = {
+  scheduled: 'status.scheduled',
+  confirmed: 'status.confirmed',
+  completed: 'status.completed',
+  cancelled: 'status.cancelled',
+  no_show: 'status.no_show',
 };
 
-const TYPE_LABEL: Record<VisitType, string> = {
-  in_person: 'En personne',
-  virtual: 'Virtuelle',
-  self_guided: 'Autonome',
-  hybrid: 'Hybride',
+const TYPE_LABEL_KEY: Record<VisitType, string> = {
+  in_person: 'type.in_person',
+  virtual: 'type.virtual',
+  self_guided: 'type.self_guided',
+  hybrid: 'type.hybrid',
 };
 
 const FEEDBACK_WINDOW_HOURS = 24;
@@ -44,6 +48,7 @@ export function VisitDetail({ id }: { id: number }) {
   const { data, isLoading, isError } = visitQuery;
   const locale = useLocale() as Locale;
   const t = useTranslations('visits.detail');
+  const tVisits = useTranslations('visits');
   const tCommon = useTranslations('common');
   const { user } = useAuth();
   const router = useRouter();
@@ -91,8 +96,8 @@ export function VisitDetail({ id }: { id: number }) {
   async function handleConfirm() {
     await confirm.mutateAsync();
     toast.add({
-      title: 'Visite confirmée',
-      description: 'Le créneau est confirmé et les rappels restent gérés par le workflow existant.',
+      title: t('toasts.confirmed.title'),
+      description: t('toasts.confirmed.description'),
       type: 'success',
     });
   }
@@ -100,19 +105,19 @@ export function VisitDetail({ id }: { id: number }) {
   async function handleComplete() {
     await complete.mutateAsync({});
     toast.add({
-      title: 'Visite marquée effectuée',
-      description: 'Le suivi post-visite est maintenant disponible.',
+      title: t('toasts.completed.title'),
+      description: t('toasts.completed.description'),
       type: 'success',
     });
   }
 
   async function handleCancel() {
-    const reason = window.prompt('Motif d’annulation')?.trim();
+    const reason = window.prompt(t('cancellationReason'))?.trim();
     if (!reason) return;
     await cancel.mutateAsync({ reason });
     toast.add({
-      title: 'Visite annulée',
-      description: 'Le motif est enregistré sur la demande.',
+      title: t('toasts.cancelled.title'),
+      description: t('toasts.cancelled.description'),
       type: 'success',
     });
     router.push('/app/visits');
@@ -120,15 +125,15 @@ export function VisitDetail({ id }: { id: number }) {
 
   async function handleReschedule() {
     const nextSlot = window.prompt(
-      'Nouveau créneau (format YYYY-MM-DD HH:mm)',
+      t('prompts.newSlot'),
       visit.scheduled_at?.slice(0, 16).replace('T', ' ') ?? '',
     )?.trim();
     if (!nextSlot) return;
     const iso = new Date(nextSlot.replace(' ', 'T')).toISOString();
     await updateVisit.mutateAsync({ scheduled_at: iso });
     toast.add({
-      title: 'Visite replanifiée',
-      description: 'Le nouveau créneau est enregistré.',
+      title: t('toasts.rescheduled.title'),
+      description: t('toasts.rescheduled.description'),
       type: 'success',
     });
   }
@@ -137,52 +142,52 @@ export function VisitDetail({ id }: { id: number }) {
     <div className="space-y-6">
       <div>
         <Link href="/app/visits" className="text-xs text-app-ink-muted hover:underline">
-          ← Toutes les visites
+          {t('back')}
         </Link>
       </div>
 
       <div className="rounded-xl border border-stone-200 bg-white p-6 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-lg font-semibold text-stone-900">
-            {visit.property?.title ?? `Visite #${visit.id}`}
+            {visit.property?.title ?? tVisits('fallbackTitle', { id: String(visit.id) })}
           </h1>
-          <Badge variant="outline">{STATUS_LABEL[status]}</Badge>
-          <Badge variant="outline">{TYPE_LABEL[type]}</Badge>
+          <Badge variant="outline">{tVisits(STATUS_LABEL_KEY[status])}</Badge>
+          <Badge variant="outline">{tVisits(TYPE_LABEL_KEY[type])}</Badge>
         </div>
 
         <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-stone-500">Créneau</dt>
+            <dt className="text-stone-500">{t('slot')}</dt>
             <dd className="font-medium text-stone-900">
               {formatDateTime(visit.scheduled_at, locale)}
               {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
-                <> · {visit.duration_minutes} min</>
+                <> · {visit.duration_minutes} {tVisits('minutesUnit')}</>
               )}
             </dd>
           </div>
           {visit.notes && (
             <div className="sm:col-span-2">
-              <dt className="text-stone-500">Notes</dt>
+              <dt className="text-stone-500">{t('notes')}</dt>
               <dd className="text-stone-900">{visit.notes}</dd>
             </div>
           )}
           {visit.cancellation_reason && (
             <div className="sm:col-span-2">
-              <dt className="text-stone-500">Motif d’annulation</dt>
+              <dt className="text-stone-500">{t('cancellationReason')}</dt>
               <dd className="text-stone-900">{visit.cancellation_reason}</dd>
             </div>
           )}
           <div>
-            <dt className="text-stone-500">Demandeur</dt>
+            <dt className="text-stone-500">{t('requester.label')}</dt>
             <dd className="text-stone-900">
               <RequesterSummary visit={visit} />
             </dd>
           </div>
           {visit.agent ? (
             <div>
-              <dt className="text-stone-500">Accompagnement</dt>
+              <dt className="text-stone-500">{t('support')}</dt>
               <dd className="font-medium text-stone-900">
-                {formatUserName(visit.agent) || 'Agent assigné'}
+                {formatUserName(visit.agent) || t('assignedAgent')}
               </dd>
             </div>
           ) : null}
@@ -191,17 +196,17 @@ export function VisitDetail({ id }: { id: number }) {
         <div className="flex flex-wrap gap-2 pt-2">
           {canConfirm && (
             <Button onClick={handleConfirm} disabled={confirm.isPending}>
-              Confirmer la visite
+              {t('actions.confirm')}
             </Button>
           )}
           {canComplete && (
             <Button onClick={handleComplete} disabled={complete.isPending} variant="outline">
-              Marquer effectuée
+              {t('actions.complete')}
             </Button>
           )}
           {canReschedule && (
             <Button onClick={handleReschedule} disabled={updateVisit.isPending} variant="outline">
-              Replanifier
+              {t('actions.reschedule')}
             </Button>
           )}
           {canCancel && (
@@ -211,7 +216,7 @@ export function VisitDetail({ id }: { id: number }) {
               variant="ghost"
               className="text-red-600 hover:text-red-700"
             >
-              Annuler
+              {tCommon('actions.cancel')}
             </Button>
           )}
           {visit.property?.slug && (
@@ -219,7 +224,7 @@ export function VisitDetail({ id }: { id: number }) {
               href={`/properties/${visit.property.slug}`}
               className="inline-flex h-9 items-center justify-center rounded-md border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 hover:bg-stone-50"
             >
-              Voir le bien
+              {t('actions.viewProperty')}
             </Link>
           )}
         </div>
@@ -246,7 +251,8 @@ function formatUserName(user: {
 }
 
 function RequesterSummary({ visit }: { visit: PropertyVisit }) {
-  const requester = resolveRequester(visit);
+  const t = useTranslations('visits.detail');
+  const requester = resolveRequester(visit, t);
 
   return (
     <div className="space-y-1">
@@ -257,7 +263,7 @@ function RequesterSummary({ visit }: { visit: PropertyVisit }) {
             href={`/app/customers/${requester.customerId}`}
             className="text-xs font-semibold text-primary hover:underline"
           >
-            Fiche CRM
+            {t('requester.crmLink')}
           </Link>
         ) : null}
       </div>
@@ -281,7 +287,11 @@ function RequesterSummary({ visit }: { visit: PropertyVisit }) {
   );
 }
 
-function resolveRequester(visit: PropertyVisit): {
+/**
+ * `t` est passé en paramètre : cette fonction vit hors composant, elle ne peut pas appeler
+ * `useTranslations` elle-même (TCK-292).
+ */
+function resolveRequester(visit: PropertyVisit, t: ReturnType<typeof useTranslations>): {
   name: string;
   email: string | null;
   phone: string | null;
@@ -290,32 +300,32 @@ function resolveRequester(visit: PropertyVisit): {
 } {
   if (visit.customer) {
     return {
-      name: formatUserName(visit.customer) || `Client CRM #${visit.customer.id}`,
+      name: formatUserName(visit.customer) || t('requester.crmFallbackName', { id: String(visit.customer.id) }),
       email: visit.customer.email ?? null,
       phone: visit.customer.phone ?? null,
       customerId: visit.customer.id,
-      fallback: 'Aucun contact renseigné sur la fiche CRM.',
+      fallback: t('requester.crmNoContact'),
     };
   }
 
   if (visit.visitor) {
     return {
-      name: formatUserName(visit.visitor) || 'Utilisateur inscrit',
+      name: formatUserName(visit.visitor) || t('requester.userFallbackName'),
       email: visit.visitor.email ?? null,
       phone: visit.visitor.phone ?? null,
       customerId: null,
-      fallback: 'Aucun contact renseigné sur le compte utilisateur.',
+      fallback: t('requester.userNoContact'),
     };
   }
 
-  const anonymousName = visit.visitor_name?.trim() || 'Visiteur anonyme';
+  const anonymousName = visit.visitor_name?.trim() || t('requester.anonymousName');
 
   return {
     name: anonymousName,
     email: visit.visitor_email ?? null,
     phone: visit.visitor_phone ?? null,
     customerId: null,
-    fallback: 'Coordonnées anonymes incomplètes.',
+    fallback: t('requester.anonymousNoContact'),
   };
 }
 
@@ -330,12 +340,13 @@ function FeedbackSection({
   canCustomer: boolean;
   canAgent: boolean;
 }) {
+  const t = useTranslations('visits.detail');
   const [submittedRole, setSubmittedRole] = useState<'customer' | 'agent' | null>(null);
 
   if (locked) {
     return (
       <div className="rounded-xl border border-stone-200 bg-white p-6 text-sm text-stone-500">
-        La fenêtre de feedback est fermée pour cette visite.
+        {t('feedback.locked')}
       </div>
     );
   }
@@ -343,9 +354,9 @@ function FeedbackSection({
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-6 space-y-4">
       <div>
-        <h3 className="text-base font-semibold text-stone-900">Feedback post-visite</h3>
+        <h3 className="text-base font-semibold text-stone-900">{t('feedback.title')}</h3>
         <p className="text-xs text-stone-500">
-          Vous avez {FEEDBACK_WINDOW_HOURS}h après la visite pour laisser votre retour.
+          {t('feedback.window', { hours: String(FEEDBACK_WINDOW_HOURS) })}
         </p>
       </div>
       {canCustomer && submittedRole !== 'customer' && (
@@ -364,7 +375,7 @@ function FeedbackSection({
       )}
       {!canCustomer && !canAgent && (
         <p className="text-sm text-stone-500">
-          Seuls le visiteur et l’agent peuvent laisser un retour sur cette visite.
+          {t('feedback.restricted')}
         </p>
       )}
     </div>

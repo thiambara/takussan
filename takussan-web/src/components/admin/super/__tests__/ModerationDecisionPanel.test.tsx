@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { postModerationDecision } from '@/lib/queries/super-admin';
 import type { AdminModerationItem } from '@/types/super-admin';
 import { ModerationDecisionPanel } from '../moderation';
+import { withIntl } from '@/test/intl';
 
 vi.mock('@/lib/queries/super-admin', () => ({
   postModerationDecision: vi.fn(),
@@ -35,11 +36,11 @@ function renderPanel(onDone = vi.fn()) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  render(
+  render(withIntl(
     <QueryClientProvider client={queryClient}>
       <ModerationDecisionPanel item={item} onDone={onDone} />
     </QueryClientProvider>,
-  );
+  ));
 
   return { onDone };
 }

@@ -10,7 +10,6 @@ import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import { useMaintenanceHistoryForProperty } from '@/lib/queries/maintenance';
 
-import { MAINTENANCE_CATEGORY_LABEL } from './labels';
 import {
   MaintenancePriorityBadge,
   MaintenanceStatusBadge,
@@ -28,6 +27,7 @@ export function MaintenanceHistoryByProperty({
 }) {
   const locale = useLocale() as Locale;
   const t = useTranslations('maintenance.history');
+  const tCategory = useTranslations('maintenance.category');
   const query = useMaintenanceHistoryForProperty(propertyId);
 
   return (
@@ -53,10 +53,12 @@ export function MaintenanceHistoryByProperty({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-app-ink">{r.title}</p>
                     <p className="text-xs text-app-ink-muted">
-                      {MAINTENANCE_CATEGORY_LABEL[r.category]} ·{' '}
+                      {tCategory(r.category)} ·{' '}
                       {formatDate(r.created_at, locale)}
                       {r.completed_at
-                        ? ` · Terminée le ${formatDate(r.completed_at, locale)}`
+                        ? ` · ${t('completed_at', {
+                            date: formatDate(r.completed_at, locale),
+                          })}`
                         : null}
                     </p>
                   </div>

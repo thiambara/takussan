@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { savedSearchPayloadSchema } from '@/lib/schemas/search';
+import { traduireMessageValidation } from '@/lib/schemas/messages';
+import { useTraducteurValidation } from '@/hooks/useApiForm';
 import { useTranslations } from 'next-intl';
 
 /**
@@ -72,6 +74,9 @@ export function SaveSearchButton({
   className = '',
 }: SaveSearchButtonProps) {
   const t = useTranslations('search.saveSearch');
+  // À la RACINE du dictionnaire : `t` ci-dessus est cantonné à `search.saveSearch` et ne peut pas
+  // résoudre un `validation.search.…`.
+  const tValidation = useTraducteurValidation();
   const tContract = useTranslations('property.contractTypes');
   const tTypes = useTranslations('property.types');
   const router = useRouter();
@@ -111,7 +116,12 @@ export function SaveSearchButton({
     };
     const parsed = savedSearchPayloadSchema.safeParse(payload);
     if (!parsed.success) {
-      setNameError(parsed.error.issues[0]?.message ?? t('invalidName'));
+      // `issues[0].message` porte une CLÉ (`validation.search.…`), pas un libellé : sans cette
+      // résolution, l'utilisateur lit `validation.search.savedSearchNameRequired` (TCK-292, lot L).
+      setNameError(
+        traduireMessageValidation(parsed.error.issues[0]?.message, tValidation)
+        ?? t('invalidName'),
+      );
       return;
     }
     setNameError(null);

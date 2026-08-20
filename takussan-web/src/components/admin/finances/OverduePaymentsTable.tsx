@@ -15,15 +15,7 @@ import {
   type UsePaymentsHistoryParams,
 } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
-import {
-  PAYMENT_STATUS_LABEL,
-  PAYMENT_STATUS_VARIANT,
-} from '@/components/payments/constants';
-
-const SOURCE_LABEL: Record<'booking' | 'lease', string> = {
-  booking: 'Réservation',
-  lease: 'Bail',
-};
+import { PAYMENT_STATUS_VARIANT } from '@/components/payments/constants';
 
 /**
  * TCK-134 — "Impayés" tab on `/admin/finances`. Re-uses the consolidated
@@ -38,6 +30,8 @@ const SOURCE_LABEL: Record<'booking' | 'lease', string> = {
 export function OverduePaymentsTable() {
   const locale = useLocale() as Locale;
   const t = useTranslations('admin.finances.overdue');
+  const tTable = useTranslations('admin.finances.overdue.table');
+  const tStatus = useTranslations('payments.status');
   const searchParams = useSearchParams();
 
   const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
@@ -82,22 +76,22 @@ export function OverduePaymentsTable() {
             <table className="w-full text-left text-sm" data-testid="overdue-payments-table">
               <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
                 <tr>
-                  <th className="px-3 py-2">Référence</th>
-                  <th className="px-3 py-2">Source</th>
-                  <th className="px-3 py-2">Échéance</th>
-                  <th className="px-3 py-2">Montant</th>
-                  <th className="px-3 py-2">Restant dû</th>
-                  <th className="px-3 py-2">Statut</th>
-                  <th className="px-3 py-2">Entité</th>
+                  <th className="px-3 py-2">{tTable('reference')}</th>
+                  <th className="px-3 py-2">{tTable('source')}</th>
+                  <th className="px-3 py-2">{tTable('dueDate')}</th>
+                  <th className="px-3 py-2">{tTable('amount')}</th>
+                  <th className="px-3 py-2">{tTable('remaining')}</th>
+                  <th className="px-3 py-2">{tTable('status')}</th>
+                  <th className="px-3 py-2">{tTable('entity')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {rows.map((row) => {
                   const dueDate = row.due_date ?? row.period_start ?? row.date ?? null;
                   const entityLabel = row.lease_id
-                    ? `Bail #${row.lease_id}`
+                    ? tTable('leaseEntity', { id: String(row.lease_id) })
                     : row.booking_id
-                      ? `Réservation #${row.booking_id}`
+                      ? tTable('bookingEntity', { id: String(row.booking_id) })
                       : '—';
                   const entityHref = row.lease_id
                     ? `/app/leases/${row.lease_id}`
@@ -110,7 +104,7 @@ export function OverduePaymentsTable() {
                       <td className="px-3 py-2 font-mono text-xs text-app-ink-muted">
                         {row.reference_number ?? `#${row.id}`}
                       </td>
-                      <td className="px-3 py-2 text-xs">{SOURCE_LABEL[row.source]}</td>
+                      <td className="px-3 py-2 text-xs">{tTable(`sources.${row.source}`)}</td>
                       <td className="px-3 py-2 text-xs">
                         {dueDate ? formatDate(dueDate, locale) : '—'}
                       </td>
@@ -123,9 +117,7 @@ export function OverduePaymentsTable() {
                         })}
                       </td>
                       <td className="px-3 py-2">
-                        <Badge variant={PAYMENT_STATUS_VARIANT.late}>
-                          {PAYMENT_STATUS_LABEL.late}
-                        </Badge>
+                        <Badge variant={PAYMENT_STATUS_VARIANT.late}>{tStatus('late')}</Badge>
                       </td>
                       <td className="px-3 py-2 text-xs">
                         {entityHref ? (

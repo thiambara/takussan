@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Zod schemas for search-related payloads.
@@ -52,7 +53,7 @@ export type SearchFiltersParsed = z.output<typeof searchFiltersSchema>;
  * controls digest emails (default: 'off').
  */
 export const savedSearchPayloadSchema = z.object({
-  name: z.string().trim().min(1, 'Donnez un nom à cette recherche.').max(100),
+  name: z.string().trim().min(1, msgValidation('search.savedSearchNameRequired')).max(100),
   criteria: z.record(z.string(), z.unknown()),
   notification_frequency: z
     .enum(['off', 'daily', 'weekly', 'instant'])

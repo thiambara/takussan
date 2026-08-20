@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, RotateCcw, Save, TriangleAlert } from 'lucide-react';
 import { ErrorState } from '@/components/feedback';
@@ -18,18 +19,22 @@ import { patchPlatformSettings } from '@/lib/queries/super-admin';
 import type { PlatformSetting, PlatformSettingCategory } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type SettingValue = string | number | string[];
 type Draft = Record<string, SettingValue>;
 
 export const categoryOrder: PlatformSettingCategory[] = ['currency', 'format', 'transaction', 'limits'];
 
-export const categoryTitle: Record<PlatformSettingCategory, string> = {
-  currency: 'Devises',
-  format: 'Formats & i18n',
-  transaction: 'Frais plateforme',
-  limits: 'Limites techniques',
-};
+/**
+ * TCK-292 — la donnée porte la CLÉ, le rendu la résout.
+ *
+ * La table portait les quatre titres en français. Elle est lue par
+ * `app/(super-admin)/super-admin/settings/page.tsx`, qui est un composant : c'est LUI qui résout,
+ * via `useTranslations(CATEGORY_TITLE_NAMESPACE)`. Ici ne reste que le nom de l'espace de noms —
+ * la clé de chaque catégorie est la catégorie elle-même.
+ */
+export const CATEGORY_TITLE_NAMESPACE = 'superAdmin.platformSettings.categories' as const;
 
 export function SettingsSection({
   title,
@@ -38,6 +43,9 @@ export function SettingsSection({
   title: string;
   settings: PlatformSetting[];
 }) {
+  const t = useTranslations('superAdmin.platformSettings');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const initialDraft = useMemo(
     () => Object.fromEntries(settings.map((setting) => [setting.key, setting.value])) as Draft,
@@ -47,7 +55,7 @@ export function SettingsSection({
   const [error, setError] = useState<string | null>(null);
   const requiresRestart = settings.some((setting) => setting.requires_restart);
   const hasChanges = settings.some((setting) => JSON.stringify(draft[setting.key]) !== JSON.stringify(setting.value));
-  const clientError = validateSection(settings, draft);
+  const clientError = validateSection(settings, draft, t);
 
   const mutation = useMutation({
     mutationFn: () => patchPlatformSettings(draft),
@@ -60,7 +68,7 @@ export function SettingsSection({
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'platform-settings'] });
     },
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
   return (
@@ -71,7 +79,7 @@ export function SettingsSection({
           {requiresRestart ? (
             <p className="mt-1 flex items-center gap-2 text-sm text-amber-700">
               <TriangleAlert className="size-4" aria-hidden="true" />
-              Une modification peut nécessiter un redémarrage de queue ou un vidage de cache.
+              {t('restartWarning')}
             </p>
           ) : null}
         </div>
@@ -83,7 +91,7 @@ export function SettingsSection({
             disabled={!hasChanges || mutation.isPending}
           >
             <RotateCcw className="size-4" aria-hidden="true" />
-            Réinitialiser
+            {t('reset')}
           </Button>
           <Button
             type="button"
@@ -91,7 +99,7 @@ export function SettingsSection({
             disabled={!hasChanges || mutation.isPending || clientError !== null}
           >
             <Save className="size-4" aria-hidden="true" />
-            Enregistrer
+            {tCommon('actions.save')}
           </Button>
         </div>
       </div>
@@ -112,7 +120,7 @@ export function SettingsSection({
       ) : mutation.isSuccess ? (
         <div className="m-4 flex items-center gap-2 rounded-md bg-stone-50 px-3 py-2 text-sm text-stone-700 ring-1 ring-stone-200">
           <Check className="size-4 text-accent" aria-hidden="true" />
-          Paramètres enregistrés.
+          {t('saved')}
         </div>
       ) : null}
     </section>
@@ -128,6 +136,7 @@ export function SettingField({
   value: SettingValue;
   onChange: (value: SettingValue) => void;
 }) {
+  const t = useTranslations('superAdmin.platformSettings');
   return (
     <div className="grid gap-3 p-4 md:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)_minmax(180px,0.7fr)] md:items-center">
       <div>
@@ -192,23 +201,27 @@ export function SettingField({
         ) : null}
       </div>
       <p className="text-sm text-stone-500">
-        {setting.updated_by ? (
-          <>
-            Modifié par {setting.updated_by.name}
-            {setting.updated_at ? ` le ${new Date(setting.updated_at).toLocaleDateString('fr-SN')}` : ''}
-          </>
-        ) : (
-          'Valeur par défaut'
-        )}
+        {setting.updated_by
+          ? setting.updated_at
+            ? t('updatedByOn', {
+              name: setting.updated_by.name,
+              date: new Date(setting.updated_at).toLocaleDateString('fr-SN'),
+            })
+            : t('updatedBy', { name: setting.updated_by.name })
+          : t('defaultValue')}
       </p>
     </div>
   );
 }
 
-function validateSection(settings: PlatformSetting[], draft: Draft): string | null {
+function validateSection(
+  settings: PlatformSetting[],
+  draft: Draft,
+  t: (key: string) => string,
+): string | null {
   const supportedCurrencies = draft['currency.supported'];
   if (Array.isArray(supportedCurrencies) && !supportedCurrencies.includes('XOF')) {
-    return 'XOF doit rester dans les devises supportées.';
+    return t('errors.xofRequired');
   }
 
   for (const setting of settings) {
@@ -216,10 +229,10 @@ function validateSection(settings: PlatformSetting[], draft: Draft): string | nu
     const raw = draft[setting.key];
     const numeric = Number(raw);
     if (!Number.isFinite(numeric) || numeric < 0 || numeric > 100) {
-      return 'Le frais plateforme doit rester entre 0,00 et 100,00 %.';
+      return t('errors.feeRange');
     }
     if (!/^\d+(\.\d{1,2})?$/.test(String(raw))) {
-      return 'Le frais plateforme accepte deux décimales maximum.';
+      return t('errors.feeDecimals');
     }
   }
 

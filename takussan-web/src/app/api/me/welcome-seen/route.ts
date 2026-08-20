@@ -30,7 +30,8 @@ export async function GET(): Promise<NextResponse> {
     if (err instanceof ApiError) {
       return NextResponse.json(err.data, { status: err.status });
     }
-    return NextResponse.json({ message: 'Failed to load welcome views.' }, { status: 500 });
+    console.error('[BFF] Failed to load welcome views.', err);
+    return NextResponse.json({ code: 'server_error' }, { status: 500 });
   }
 }
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ message: 'Invalid JSON body.' }, { status: 400 });
+    return NextResponse.json({ code: 'invalid_json_body' }, { status: 400 });
   }
 
   try {
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (err instanceof ApiError) {
       return NextResponse.json(err.data, { status: err.status });
     }
-    return NextResponse.json({ message: 'Failed to mark welcome as seen.' }, { status: 500 });
+    console.error('[BFF] Failed to mark welcome as seen.', err);
+    return NextResponse.json({ code: 'server_error' }, { status: 500 });
   }
 }

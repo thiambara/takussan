@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/ui/toast';
 import { postAgencyOnboarding } from '@/lib/queries/super-admin';
+import { withIntl } from '@/test/intl';
 import { AgencyOnboardingDialog } from '../AgencyOnboardingDialog';
 
 vi.mock('@/lib/queries/super-admin', () => ({
@@ -16,15 +16,13 @@ function renderDialog() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  return render(
+  return render(withIntl(
     <ToastProvider>
-      <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
-        <QueryClientProvider client={queryClient}>
-          <AgencyOnboardingDialog />
-        </QueryClientProvider>
-      </NextIntlClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <AgencyOnboardingDialog />
+      </QueryClientProvider>
     </ToastProvider>,
-  );
+  ));
 }
 
 describe('<AgencyOnboardingDialog>', () => {

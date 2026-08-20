@@ -18,6 +18,7 @@ import {
   useCreateGroupConversation,
   type CreateGroupConversationPayload,
 } from '@/lib/queries/conversations';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface NewGroupDialogProps {
   readonly open: boolean;
@@ -44,6 +45,7 @@ export function NewGroupDialog({
   defaultLeaseId,
 }: NewGroupDialogProps) {
   const t = useTranslations('messaging.group.create');
+  const messageErreur = useMessageErreurApi();
   const create = useCreateGroupConversation();
   const [step, setStep] = useState<1 | 2>(1);
   const [participants, setParticipants] = useState<number[]>([]);
@@ -125,7 +127,7 @@ export function NewGroupDialog({
       onCreated?.(res.data.id);
       handleClose();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('createFailed');
+      const msg = messageErreur(err, t('createFailed'));
       setError(msg);
     }
   }

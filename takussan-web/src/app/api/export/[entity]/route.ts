@@ -14,13 +14,14 @@ export async function GET(
   const { entity } = await params;
 
   if (!ALLOWED_ENTITIES.has(entity)) {
-    return NextResponse.json({ message: `Unknown entity: ${entity}` }, { status: 404 });
+    console.error('[BFF] export : entité inconnue', entity);
+    return NextResponse.json({ code: 'unknown_entity' }, { status: 404 });
   }
 
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
   if (!token) {
-    return NextResponse.json({ message: 'Not authenticated' }, { status: 401 });
+    return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
   }
 
   const upstream = new URL(`${API_URL}/api/export/${entity}`);

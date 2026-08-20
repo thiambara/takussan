@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { NextIntlClientProvider } from 'next-intl';
+import { withIntl } from '@/test/intl';
 import { VisitFeedbackForm } from '../VisitFeedbackForm';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -19,11 +19,9 @@ function wrap(ui: React.ReactElement) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return (
-    <NextIntlClientProvider locale="fr" messages={{}}>
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
-    </NextIntlClientProvider>
-  );
+  // TCK-292 : `messages={{}}` rendrait la CLÉ et non le libellé — `withIntl` charge le VRAI
+  // `fr.json`, ce qui laisse les assertions françaises de ce fichier inchangées.
+  return withIntl(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }
 
 describe('<VisitFeedbackForm>', () => {

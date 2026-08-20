@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Edit3, Plus, Power } from 'lucide-react';
 import { ErrorState } from '@/components/feedback';
@@ -16,6 +17,7 @@ import {
 import type { BusinessEnum, BusinessEnumValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export function EnumList({
   enums,
@@ -26,8 +28,9 @@ export function EnumList({
   selectedKey: string;
   onSelect: (key: string) => void;
 }) {
+  const t = useTranslations('superAdmin.enums');
   return (
-    <nav className="rounded-xl bg-white p-2 ring-1 ring-stone-200" aria-label="Enums éditables">
+    <nav className="rounded-xl bg-white p-2 ring-1 ring-stone-200" aria-label={t('navLabel')}>
       {enums.map((item) => (
         <Button
           key={item.key}
@@ -38,7 +41,7 @@ export function EnumList({
         >
           <span>
             <span className="block">{item.name}</span>
-            <span className="block text-xs opacity-75">{item.values.length} valeurs</span>
+            <span className="block text-xs opacity-75">{t('valuesCount', { count: item.values.length })}</span>
           </span>
         </Button>
       ))}
@@ -55,6 +58,8 @@ export function EnumValueTable({
   onEdit: (value: BusinessEnumValue) => void;
   onAdd: () => void;
 }) {
+  const t = useTranslations('superAdmin.enums');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const deactivate = useMutation({
@@ -63,7 +68,7 @@ export function EnumValueTable({
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'business-enums'] });
     },
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
   return (
@@ -75,7 +80,7 @@ export function EnumValueTable({
         </div>
         <Button type="button" onClick={onAdd}>
           <Plus className="size-4" aria-hidden="true" />
-          Ajouter une valeur
+          {t('addValue')}
         </Button>
       </div>
       {error ? <ErrorState className="m-4" message={error} /> : null}
@@ -83,12 +88,12 @@ export function EnumValueTable({
         <table className="min-w-full divide-y divide-stone-200 text-xs sm:text-sm">
           <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
             <tr>
-              <th className="px-2 py-2 sm:px-4">Valeur</th>
-              <th className="px-2 py-2 sm:px-4">FR</th>
-              <th className="px-2 py-2 sm:px-4">EN</th>
-              <th className="px-2 py-2 sm:px-4">WO</th>
-              <th className="px-2 py-2 sm:px-4">Usage</th>
-              <th className="px-2 py-2 sm:px-4"><span className="sr-only">Actions</span></th>
+              <th className="px-2 py-2 sm:px-4">{t('value')}</th>
+              <th className="px-2 py-2 sm:px-4">{t('localeFr')}</th>
+              <th className="px-2 py-2 sm:px-4">{t('localeEn')}</th>
+              <th className="px-2 py-2 sm:px-4">{t('localeWo')}</th>
+              <th className="px-2 py-2 sm:px-4">{t('usage')}</th>
+              <th className="px-2 py-2 sm:px-4"><span className="sr-only">{t('actions')}</span></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-stone-100">
@@ -105,14 +110,14 @@ export function EnumValueTable({
                 </td>
                 <td className="px-2 py-2 sm:px-4 sm:py-3">
                   <div className="flex justify-end gap-1">
-                    <Button type="button" variant="ghost" size="icon-sm" aria-label={`Modifier ${value.value}`} onClick={() => onEdit(value)}>
+                    <Button type="button" variant="ghost" size="icon-sm" aria-label={t('editValueAria', { value: value.value })} onClick={() => onEdit(value)}>
                       <Edit3 className="size-4" aria-hidden="true" />
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label={`Désactiver ${value.value}`}
+                      aria-label={t('deactivateValueAria', { value: value.value })}
                       onClick={() => deactivate.mutate(value.value)}
                       disabled={deactivate.isPending || !value.is_active}
                     >
@@ -161,6 +166,9 @@ function EnumValueDialogForm({
   value: BusinessEnumValue | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations('superAdmin.enums');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [rawValue, setRawValue] = useState(value?.value ?? '');
   const [fr, setFr] = useState(value?.labels.fr ?? '');
@@ -177,34 +185,34 @@ function EnumValueDialogForm({
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'business-enums'] });
       onOpenChange(false);
     },
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
   return (
     <DialogContent className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>{editing ? 'Modifier la valeur' : 'Ajouter une valeur'}</DialogTitle>
+        <DialogTitle>{editing ? t('editValue') : t('addValue')}</DialogTitle>
       </DialogHeader>
       <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200">
         <AlertTriangle className="mr-2 inline size-4" aria-hidden="true" />
-        Les statuts techniques et rôles ne sont pas éditables ici.
+        {t('warning')}
       </div>
       <div className="space-y-3">
         <label className="block text-sm font-medium">
-          <span className="mb-1 block">Valeur</span>
+          <span className="mb-1 block">{t('value')}</span>
           <Input value={rawValue} onChange={(event) => setRawValue(event.target.value)} disabled={editing} />
         </label>
         <div className="grid gap-3 md:grid-cols-3">
           <label className="block text-sm font-medium">
-            <span className="mb-1 block">FR</span>
+            <span className="mb-1 block">{t('localeFr')}</span>
             <Input value={fr} onChange={(event) => setFr(event.target.value)} required />
           </label>
           <label className="block text-sm font-medium">
-            <span className="mb-1 block">EN</span>
+            <span className="mb-1 block">{t('localeEn')}</span>
             <Input value={en} onChange={(event) => setEn(event.target.value)} />
           </label>
           <label className="block text-sm font-medium">
-            <span className="mb-1 block">WO</span>
+            <span className="mb-1 block">{t('localeWo')}</span>
             <Input value={wo} onChange={(event) => setWo(event.target.value)} />
           </label>
         </div>
@@ -212,10 +220,10 @@ function EnumValueDialogForm({
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-          Annuler
+          {tCommon('actions.cancel')}
         </Button>
         <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending || fr.trim() === '' || rawValue.trim() === ''}>
-          Enregistrer
+          {tCommon('actions.save')}
         </Button>
       </DialogFooter>
     </DialogContent>

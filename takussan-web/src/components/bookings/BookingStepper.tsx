@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,8 +22,9 @@ interface BookingStepperProps {
  * hidden status so screen readers announce progress on change.
  */
 export function BookingStepper({ steps, currentIndex }: BookingStepperProps) {
+  const t = useTranslations('bookings.stepper');
   return (
-    <ol className="flex items-center gap-2" aria-label="Étapes de réservation">
+    <ol className="flex items-center gap-2" aria-label={t('aria')}>
       {steps.map((step, index) => {
         const isCompleted = index < currentIndex;
         const isCurrent = index === currentIndex;

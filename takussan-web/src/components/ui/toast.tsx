@@ -3,6 +3,8 @@
 import * as React from "react"
 import { Toast as ToastPrimitive } from "@base-ui/react/toast"
 
+import { useTranslations } from "next-intl"
+
 import { X } from "@/components/icons"
 import { cn } from "@/lib/utils"
 
@@ -56,6 +58,7 @@ function Toaster({
   className,
   ...props
 }: Omit<ToastPrimitive.Viewport.Props, "children">) {
+  const t = useTranslations("ui.toast")
   const { toasts } = ToastPrimitive.useToastManager<ToastData>()
   return (
     <ToastPrimitive.Portal>
@@ -87,7 +90,7 @@ function Toaster({
               </div>
             )}
             <ToastPrimitive.Close
-              aria-label="Fermer la notification"
+              aria-label={t("close")}
               className="absolute top-2 right-2 inline-flex size-6 items-center justify-center rounded-md opacity-60 outline-none transition-opacity hover:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50"
             >
               <X className="size-3.5" />

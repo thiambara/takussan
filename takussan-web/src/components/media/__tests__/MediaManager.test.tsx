@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { withIntl } from '@/test/intl';
 import {
   MediaDropzone,
   MediaManager,
@@ -29,7 +30,7 @@ describe('<MediaDropzone>', () => {
   it('accepts a batch of valid images and emits via onChange', async () => {
     const onChange = vi.fn();
     const onRemove = vi.fn();
-    render(<MediaDropzone files={[]} onChange={onChange} onRemove={onRemove} />);
+    render(withIntl(<MediaDropzone files={[]} onChange={onChange} onRemove={onRemove} />));
 
     const input = screen.getByTestId('media-dropzone-input') as HTMLInputElement;
     const files = [
@@ -47,7 +48,7 @@ describe('<MediaDropzone>', () => {
   it('rejects an unsupported MIME with a visible error and does not emit', () => {
     const onChange = vi.fn();
     const onRemove = vi.fn();
-    render(<MediaDropzone files={[]} onChange={onChange} onRemove={onRemove} />);
+    render(withIntl(<MediaDropzone files={[]} onChange={onChange} onRemove={onRemove} />));
 
     const input = screen.getByTestId('media-dropzone-input') as HTMLInputElement;
     // Bypass `userEvent.upload`, which filters on the `accept` attribute
@@ -63,13 +64,12 @@ describe('<MediaDropzone>', () => {
   it('rejects a file larger than maxSize', () => {
     const onChange = vi.fn();
     const onRemove = vi.fn();
-    render(
-      <MediaDropzone
+    render(withIntl(<MediaDropzone
         files={[]}
         onChange={onChange}
         onRemove={onRemove}
         maxSize={10}
-      />,
+      />),
     );
 
     const input = screen.getByTestId('media-dropzone-input') as HTMLInputElement;
@@ -97,13 +97,12 @@ describe('<MediaManager>', () => {
   ];
 
   it('renders the grid and flags the first tile as cover', () => {
-    render(
-      <MediaManager
+    render(withIntl(<MediaManager
         items={items}
         onUpload={vi.fn()}
         onReorder={vi.fn()}
         onDelete={vi.fn()}
-      />,
+      />),
     );
     const tiles = screen.getAllByTestId('media-tile');
     expect(tiles).toHaveLength(3);
@@ -116,13 +115,12 @@ describe('<MediaManager>', () => {
       .fn<(files: File[]) => Promise<MediaItem[]>>()
       .mockResolvedValue([{ id: 99, thumbnail: 'new' }]);
 
-    render(
-      <MediaManager
+    render(withIntl(<MediaManager
         items={[]}
         onUpload={onUpload}
         onReorder={vi.fn()}
         onDelete={vi.fn()}
-      />,
+      />),
     );
 
     const input = screen.getByTestId('media-manager-input') as HTMLInputElement;
@@ -153,13 +151,12 @@ describe('<MediaManager>', () => {
   it('reorders tiles via native drag-drop and calls onReorder with the new id list', async () => {
     vi.useRealTimers(); // drag/drop test doesn't need fake timers
     const onReorder = vi.fn().mockResolvedValue(undefined);
-    render(
-      <MediaManager
+    render(withIntl(<MediaManager
         items={items}
         onUpload={vi.fn()}
         onReorder={onReorder}
         onDelete={vi.fn()}
-      />,
+      />),
     );
 
     const tiles = screen.getAllByTestId('media-tile');

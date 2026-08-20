@@ -13,11 +13,11 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   try {
     payload = await request.json();
   } catch {
-    return NextResponse.json({ message: 'Invalid JSON body.' }, { status: 400 });
+    return NextResponse.json({ code: 'invalid_json_body' }, { status: 400 });
   }
 
   if (typeof payload.profile_id !== 'string' || payload.profile_id.length === 0) {
-    return NextResponse.json({ message: 'profile_id is required.' }, { status: 422 });
+    return NextResponse.json({ code: 'profile_id_required' }, { status: 422 });
   }
 
   try {
@@ -35,6 +35,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     if (err instanceof ApiError) {
       return NextResponse.json(err.data, { status: err.status });
     }
-    return NextResponse.json({ message: 'Failed to switch profile.' }, { status: 500 });
+    console.error('[BFF] Failed to switch profile.', err);
+    return NextResponse.json({ code: 'server_error' }, { status: 500 });
   }
 }

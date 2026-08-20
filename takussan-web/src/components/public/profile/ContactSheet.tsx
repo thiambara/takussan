@@ -1,6 +1,7 @@
 'use client';
 
 import { Mail, MessageSquareText, Phone } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -19,6 +20,7 @@ interface ContactSheetProps {
 }
 
 export function ContactSheet({ name, email, phone, subject }: ContactSheetProps) {
+  const t = useTranslations('publicProfile.contact');
   const mailHref = email
     ? `mailto:${email}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`
     : null;
@@ -31,7 +33,7 @@ export function ContactSheet({ name, email, phone, subject }: ContactSheetProps)
         {mailHref && (
           <Button size="lg" nativeButton={false} render={<a href={mailHref} />}>
             <Mail aria-hidden />
-            Envoyer un email
+            {t('email')}
           </Button>
         )}
         {telHref && (
@@ -42,7 +44,7 @@ export function ContactSheet({ name, email, phone, subject }: ContactSheetProps)
             render={<a href={telHref} />}
           >
             <Phone aria-hidden />
-            Appeler
+            {t('call')}
           </Button>
         )}
       </div>
@@ -54,7 +56,7 @@ export function ContactSheet({ name, email, phone, subject }: ContactSheetProps)
             render={
               <Button size="lg" className="w-full">
                 <MessageSquareText aria-hidden />
-                Contacter
+                {t('contact')}
               </Button>
             }
           />
@@ -62,7 +64,7 @@ export function ContactSheet({ name, email, phone, subject }: ContactSheetProps)
             <SheetHeader>
               <SheetTitle className="font-display text-2xl">{name}</SheetTitle>
               <SheetDescription>
-                Choisis ton canal pour entrer en contact.
+                {t('sheetDescription')}
               </SheetDescription>
             </SheetHeader>
             <div className="mt-6 flex flex-col gap-3 px-4">
@@ -75,7 +77,7 @@ export function ContactSheet({ name, email, phone, subject }: ContactSheetProps)
                 >
                   <Mail aria-hidden className="size-5" />
                   <span className="flex flex-col items-start leading-tight">
-                    <span>Envoyer un email</span>
+                    <span>{t('email')}</span>
                     <span className="text-xs font-normal opacity-80">{email}</span>
                   </span>
                 </Button>
@@ -90,7 +92,7 @@ export function ContactSheet({ name, email, phone, subject }: ContactSheetProps)
                 >
                   <Phone aria-hidden className="size-5" />
                   <span className="flex flex-col items-start leading-tight">
-                    <span>Appeler</span>
+                    <span>{t('call')}</span>
                     <span className="text-xs font-normal opacity-80">{phone}</span>
                   </span>
                 </Button>

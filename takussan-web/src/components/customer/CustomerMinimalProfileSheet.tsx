@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-253 — Deferred minimal-profile sheet for Customers.
@@ -61,6 +62,7 @@ export function CustomerMinimalProfileSheet({
   onSave,
 }: CustomerMinimalProfileSheetProps) {
   const t = useTranslations('customer.minimalProfile');
+  const messageErreur = useMessageErreurApi();
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
   const [intent, setIntent] = useState<SearchIntent | ''>('');
@@ -96,7 +98,7 @@ export function CustomerMinimalProfileSheet({
         }
         onClose();
       } catch (err) {
-        setError(err instanceof Error ? err.message : t('saveError'));
+        setError(messageErreur(err, t('saveError')));
       }
     });
   };

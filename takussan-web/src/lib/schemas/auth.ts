@@ -4,6 +4,7 @@ import {
   passwordSchema,
   requiredStringSchema,
 } from './common';
+import { msgValidation } from './messages';
 
 /**
  * Auth-related Zod schemas, aligned with the Laravel FormRequest rules
@@ -12,24 +13,24 @@ import {
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, 'Le mot de passe est requis.'),
+  password: z.string().min(1, msgValidation('common.passwordRequired')),
 });
 
 export type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const registerSchema = z
   .object({
-    first_name: requiredStringSchema('Le prénom est requis.').max(
+    first_name: requiredStringSchema(msgValidation('common.firstNameRequired')).max(
       100,
-      'Le prénom est trop long.',
+      msgValidation('common.firstNameTooLong'),
     ),
-    last_name: requiredStringSchema('Le nom est requis.').max(
+    last_name: requiredStringSchema(msgValidation('common.lastNameRequired')).max(
       100,
-      'Le nom est trop long.',
+      msgValidation('common.lastNameTooLong'),
     ),
     email: emailSchema,
     password: passwordSchema,
-    password_confirmation: z.string().min(1, 'La confirmation est requise.'),
+    password_confirmation: z.string().min(1, msgValidation('auth.passwordConfirmationRequired')),
     accept_cgu: z.boolean(),
   })
   .superRefine((data, ctx) => {
@@ -37,14 +38,14 @@ export const registerSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['accept_cgu'],
-        message: 'Vous devez accepter les conditions générales.',
+        message: msgValidation('auth.acceptTerms'),
       });
     }
     if (data.password !== data.password_confirmation) {
       ctx.addIssue({
         code: 'custom',
         path: ['password_confirmation'],
-        message: 'Les mots de passe ne correspondent pas.',
+        message: msgValidation('auth.passwordMismatch'),
       });
     }
   });

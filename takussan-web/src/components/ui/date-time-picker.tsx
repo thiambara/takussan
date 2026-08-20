@@ -4,6 +4,7 @@ import * as React from "react";
 import { CalendarIcon } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -64,7 +65,7 @@ export function DateTimePicker({
   onValueChange,
   id,
   name,
-  placeholder = "Choisir une date et une heure",
+  placeholder,
   min,
   max,
   disabled,
@@ -76,6 +77,7 @@ export function DateTimePicker({
   "aria-label": ariaLabel,
   "data-testid": dataTestId,
 }: DateTimePickerProps) {
+  const t = useTranslations("ui.dateTimePicker");
   const selected = toDateTime(value);
   const minDate = toDateTime(min);
   const maxDate = toDateTime(max);
@@ -150,7 +152,7 @@ export function DateTimePicker({
               <span className="truncate">
                 {selected
                   ? format(selected, "d MMMM yyyy 'à' HH:mm", { locale: fr })
-                  : placeholder}
+                  : (placeholder ?? t("placeholder"))}
               </span>
               <CalendarIcon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
             </button>
@@ -171,7 +173,7 @@ export function DateTimePicker({
                 htmlFor={`${id ?? "datetime"}-time`}
                 className="text-xs font-medium text-muted-foreground"
               >
-                Heure
+                {t("timeLabel")}
               </label>
               <Input
                 id={`${id ?? "datetime"}-time`}

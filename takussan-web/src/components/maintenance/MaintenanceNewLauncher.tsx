@@ -44,9 +44,9 @@ export function MaintenanceNewLauncher({
       .map((l) => ({
         propertyId: l.property.id,
         leaseId: l.id,
-        label: l.property.title ?? `Bien #${l.property.id}`,
+        label: l.property.title ?? t('property_fallback', { id: l.property.id }),
       }));
-  }, [data]);
+  }, [data, t]);
 
   const [manualPropertyId, setManualPropertyId] = useState<number | null>(null);
 
@@ -89,7 +89,7 @@ export function MaintenanceNewLauncher({
     <div className="space-y-5">
       <div className="rounded-xl border border-stone-200 bg-white p-5">
         <label htmlFor="maintenance-property" className="text-xs font-semibold uppercase tracking-wide text-stone-500">
-          Bien concerné
+          {t('property_label')}
         </label>
         <div className="mt-2">
           <Select
@@ -101,7 +101,7 @@ export function MaintenanceNewLauncher({
             items={options.map((o) => ({ value: String(o.propertyId), label: o.label }))}
           >
             <SelectTrigger id="maintenance-property" className="w-full">
-              <SelectValue placeholder="Sélectionnez le bien à signaler" />
+              <SelectValue placeholder={t('property_placeholder')} />
             </SelectTrigger>
             <SelectContent>
               {options.map((o) => (

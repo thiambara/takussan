@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { msgValidation } from './messages';
 
 /**
  * Agency (admin config) schemas — TCK-064.
@@ -8,40 +9,40 @@ import { z } from 'zod';
  */
 
 export const agencyFormSchema = z.object({
-  name: z.string().trim().min(1, 'Le nom est requis.').max(255, 'Le nom est trop long.'),
+  name: z.string().trim().min(1, msgValidation('agency.nameRequired')).max(255, msgValidation('agency.nameTooLong')),
   license_number: z
     .string()
     .trim()
-    .max(100, 'Le numéro de licence est trop long.')
+    .max(100, msgValidation('agency.licenseTooLong'))
     .optional()
     .or(z.literal('')),
   description: z
     .string()
     .trim()
-    .max(2_000, 'La description est trop longue (2000 caractères max).')
+    .max(2_000, msgValidation('agency.descriptionTooLong'))
     .optional()
     .or(z.literal('')),
   email: z
     .string()
     .trim()
-    .max(255, 'L’adresse e-mail est trop longue.')
+    .max(255, msgValidation('common.emailTooLong'))
     .refine(
       (v) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v),
-      'Adresse e-mail invalide.',
+      msgValidation('common.emailInvalid'),
     ),
   phone: z
     .string()
     .trim()
     .refine(
       (v) => v === '' || /^\+?[0-9\s().-]{8,20}$/.test(v),
-      'Numéro de téléphone invalide. Exemple : +221 77 123 45 67.',
+      msgValidation('common.phoneInvalid'),
     ),
   website: z
     .string()
     .trim()
     .refine(
       (v) => v === '' || /^https?:\/\/[^\s]+$/.test(v),
-      'URL invalide. Exemple : https://exemple.sn',
+      msgValidation('agency.websiteInvalid'),
     ),
   commission_rate: z
     .string()
@@ -52,16 +53,16 @@ export const agencyFormSchema = z.object({
         const n = Number(v);
         return Number.isFinite(n) && n >= 0 && n <= 100;
       },
-      'La commission doit être comprise entre 0 et 100.',
+      msgValidation('agency.commissionRange'),
     ),
   currency: z
     .string()
     .trim()
     .refine(
       (v) => v === '' || /^[A-Z]{3}$/.test(v),
-      'Code devise invalide (ex : XOF, EUR).',
+      msgValidation('agency.currencyInvalid'),
     ),
-  timezone: z.string().trim().max(64, 'Fuseau horaire trop long.'),
+  timezone: z.string().trim().max(64, msgValidation('agency.timezoneTooLong')),
   moderation_required: z.boolean(),
 });
 

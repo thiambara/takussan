@@ -14,10 +14,7 @@ import { useInvoices, type UseInvoicesParams } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
 import type { InvoiceStatus } from '@/types/invoice';
 
-import {
-  INVOICE_STATUS_LABEL,
-  INVOICE_STATUS_VARIANT,
-} from './constants';
+import { INVOICE_STATUS_VARIANT } from './constants';
 
 interface InvoicesTableProps {
   readonly onSelect: (invoiceId: number) => void;
@@ -26,6 +23,8 @@ interface InvoicesTableProps {
 export function InvoicesTable({ onSelect }: InvoicesTableProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('payments.invoices');
+  const tTable = useTranslations('payments.invoices.table');
+  const tStatus = useTranslations('payments.invoiceStatus');
   const searchParams = useSearchParams();
 
   const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
@@ -66,12 +65,12 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
               <table className="w-full text-left text-sm">
                 <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
                   <tr>
-                    <th className="px-3 py-2">Référence</th>
-                    <th className="px-3 py-2">Émise le</th>
-                    <th className="px-3 py-2">Échéance</th>
-                    <th className="px-3 py-2">Montant</th>
-                    <th className="px-3 py-2">Statut</th>
-                    <th className="px-3 py-2" aria-label="Actions" />
+                    <th className="px-3 py-2">{tTable('reference')}</th>
+                    <th className="px-3 py-2">{tTable('issuedOn')}</th>
+                    <th className="px-3 py-2">{tTable('dueDate')}</th>
+                    <th className="px-3 py-2">{tTable('amount')}</th>
+                    <th className="px-3 py-2">{tTable('status')}</th>
+                    <th className="px-3 py-2" aria-label={tTable('actions')} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-100">
@@ -95,7 +94,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
                         </td>
                         <td className="px-3 py-2">
                           <Badge variant={INVOICE_STATUS_VARIANT[status] ?? 'outline'}>
-                            {INVOICE_STATUS_LABEL[status] ?? status}
+                            {tStatus(status)}
                           </Badge>
                         </td>
                         <td className="px-3 py-2 text-right">
@@ -104,7 +103,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
                             className="text-xs font-medium text-app-accent hover:underline"
                             onClick={() => onSelect(invoice.id)}
                           >
-                            Ouvrir
+                            {tTable('open')}
                           </button>
                         </td>
                       </tr>

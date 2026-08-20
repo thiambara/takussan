@@ -13,9 +13,10 @@ import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Textarea } from '@/components/ui/textarea';
-import { ApiError } from '@/lib/api';
+
 import { useRequestEarlyTermination } from '@/lib/queries/leases';
 import type { Lease } from '@/types/lease';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface EarlyTerminationDialogProps {
   readonly open: boolean;
@@ -59,6 +60,7 @@ export function EarlyTerminationDialog({
   onSubmitted,
 }: EarlyTerminationDialogProps) {
   const t = useTranslations('lease.early_termination');
+  const messageErreur = useMessageErreurApi();
   const noticeDays = lease.notice_period_days ?? DEFAULT_NOTICE_DAYS;
   const minDate = useMemo(() => todayPlusDays(noticeDays), [noticeDays]);
 
@@ -101,7 +103,7 @@ export function EarlyTerminationDialog({
       onOpenChange(false);
       reset();
     } catch (err) {
-      setError(err instanceof ApiError ? err.displayMessage : t('error_generic'));
+      setError(messageErreur(err, t('error_generic')));
     }
   }
 

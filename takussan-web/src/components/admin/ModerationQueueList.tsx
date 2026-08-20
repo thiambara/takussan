@@ -70,7 +70,7 @@ export function ModerationQueueList({
                 {review.title || review.content || t('emptyReview')}
               </p>
               <div className="flex items-center justify-between text-xs text-app-ink-muted">
-                <span className="truncate">{review.author?.name ?? 'Anonyme'}</span>
+                <span className="truncate">{review.author?.name ?? t('detail.anonymous')}</span>
                 <span>{new Date(review.created_at).toLocaleDateString(locale)}</span>
               </div>
             </button>

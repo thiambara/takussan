@@ -31,6 +31,7 @@ import {
 } from '@/lib/queries/owners';
 import type { PaginatedResponse } from '@/types/api';
 import { InviteOwnerSheet } from './InviteOwnerSheet';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 type Props = {
   readonly agencyId: number;
@@ -49,6 +50,7 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
   const tErr = useTranslations('errors');
   const t = useTranslations('owners');
   const tInvite = useTranslations('owners.invite');
+  const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
@@ -79,7 +81,7 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
     onError: (error) => {
       toast.add({
         title: tInvite('toasts.error_title'),
-        description: error.displayMessage,
+        description: messageErreur(error),
         type: 'error',
       });
     },
@@ -99,7 +101,7 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
     onError: (error) => {
       toast.add({
         title: tInvite('toasts.error_title'),
-        description: error.displayMessage,
+        description: messageErreur(error),
         type: 'error',
       });
     },

@@ -9,6 +9,7 @@ import {
   type InventoryType,
 } from '@/types/inventory';
 import { requiredStringSchema } from './common';
+import { msgValidation } from './messages';
 
 /**
  * Zod schemas for the `Inventory` domain. Mirror
@@ -38,13 +39,13 @@ const optionalNullableString = z
   .optional();
 
 export const inventoryElementSchema = z.object({
-  label: requiredStringSchema("L'intitulé de l'élément est requis.").max(255),
+  label: requiredStringSchema(msgValidation('inventory.elementLabelRequired')).max(255),
   state: elementStateEnum,
   notes: optionalNullableString,
 });
 
 export const inventoryRoomSchema = z.object({
-  name: requiredStringSchema('Le nom de la pièce est requis.').max(255),
+  name: requiredStringSchema(msgValidation('inventory.roomNameRequired')).max(255),
   condition: conditionEnum,
   notes: optionalNullableString,
   elements: z.array(inventoryElementSchema).optional().default([]),
@@ -56,9 +57,9 @@ export const inventoryRoomSchema = z.object({
  */
 export const inventoryCreateSchema = z.object({
   lease_id: z.coerce
-    .number({ error: 'Sélectionnez un bail.' })
+    .number({ error: msgValidation('inventory.leaseRequired') })
     .int()
-    .positive('Sélectionnez un bail.'),
+    .positive(msgValidation('inventory.leaseRequired')),
   type: typeEnum,
   general_condition: conditionEnum,
   conducted_at: z
@@ -69,7 +70,7 @@ export const inventoryCreateSchema = z.object({
   notes: optionalString,
   rooms: z
     .array(inventoryRoomSchema)
-    .min(1, 'Ajoutez au moins une pièce.'),
+    .min(1, msgValidation('inventory.roomsMin')),
 });
 
 export type InventoryCreateInput = z.infer<typeof inventoryCreateSchema>;
@@ -87,13 +88,13 @@ export const inventoryUpdateSchema = z.object({
     .transform((v) => (v.length === 0 ? undefined : v))
     .optional(),
   notes: optionalString,
-  rooms: z.array(inventoryRoomSchema).min(1, 'Ajoutez au moins une pièce.').optional(),
+  rooms: z.array(inventoryRoomSchema).min(1, msgValidation('inventory.roomsMin')).optional(),
 });
 
 export type InventoryUpdateInput = z.infer<typeof inventoryUpdateSchema>;
 
 export const inventoryDisputeSchema = z.object({
-  reason: requiredStringSchema('Motif du litige requis.'),
+  reason: requiredStringSchema(msgValidation('inventory.disputeReasonRequired')),
 });
 
 export type InventoryDisputeInput = z.infer<typeof inventoryDisputeSchema>;

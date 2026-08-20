@@ -1,9 +1,18 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useMyProfiles } from '@/hooks/useProfiles';
 import type { Profile, ProfileType } from '@/types/profile';
 import { ProfileBadge, profileTypeLabel } from './ProfileBadge';
 
+/**
+ * Les types affichés dans « Mes profils » — délibérément SANS `agency_admin`.
+ *
+ * ⚠ Cette liste n'est pas dérivée de `PROFILE_TYPES` : c'est un choix éditorial
+ * de cette section, pas un inventaire du fil. La contrepartie est qu'elle ne
+ * signalera pas un nouveau type — assumé, parce qu'un type non listé y est
+ * simplement absent d'une carte, jamais rendu comme `undefined`.
+ */
 const DISPLAY_TYPES: ReadonlySet<ProfileType> = new Set([
   'owner',
   'agent',
@@ -11,26 +20,37 @@ const DISPLAY_TYPES: ReadonlySet<ProfileType> = new Set([
   'service_provider',
 ]);
 
-const KYC_FIELDS: Record<ProfileType, { label: string; help: string }[]> = {
+/**
+ * `Record<ProfileType, …>` complet — l'ajout d'`agency_admin` à `PROFILE_TYPES`
+ * a fait échouer `tsc --noEmit` ICI (TS2741, mesuré le 2026-08-20), et c'est le
+ * signal que TCK-329 AC5 demande : un type de profil ajouté côté back ne peut
+ * plus traverser le front en silence.
+ */
+const KYC_FIELDS: Record<ProfileType, { labelKey: string; helpKey: string }[]> = {
+  // Un `agency_admin` n'a aucun champ KYC propre : il est administrateur d'une
+  // agence, pas un profil métier avec des pièces à fournir. La liste vide est
+  // le contenu JUSTE, pas un trou — et `DISPLAY_TYPES` l'écarte de toute façon
+  // de cette section.
+  agency_admin: [],
   owner: [
-    { label: 'RIB', help: 'Iban / BIC pour le versement des loyers.' },
-    { label: 'Identifiant fiscal (tax_id)', help: 'Pour les retenues à la source.' },
+    { labelKey: 'kyc.owner.rib.label', helpKey: 'kyc.owner.rib.help' },
+    { labelKey: 'kyc.owner.taxId.label', helpKey: 'kyc.owner.taxId.help' },
   ],
   agent: [
-    { label: 'Numéro de licence', help: 'Carte professionnelle agence — license_number.' },
+    { labelKey: 'kyc.agent.license.label', helpKey: 'kyc.agent.license.help' },
   ],
   broker: [
-    { label: 'Numéro de licence', help: 'Carte professionnelle de courtier indépendant.' },
+    { labelKey: 'kyc.broker.license.label', helpKey: 'kyc.broker.license.help' },
   ],
   service_provider: [
-    { label: 'Certifications', help: 'Liste des certifications métiers (PDF + champ libre).' },
-    { label: 'Attestation d’assurance', help: 'Responsabilité civile professionnelle.' },
+    { labelKey: 'kyc.serviceProvider.certifications.label', helpKey: 'kyc.serviceProvider.certifications.help' },
+    { labelKey: 'kyc.serviceProvider.insurance.label', helpKey: 'kyc.serviceProvider.insurance.help' },
   ],
 };
 
-function profileTitle(profile: Profile): string {
+function profileTitle(profile: Profile, tTypes: (cle: string) => string): string {
   if (profile.agency?.name) return profile.agency.name;
-  return profileTypeLabel(profile.type);
+  return profileTypeLabel(profile.type, tTypes);
 }
 
 /**
@@ -39,14 +59,17 @@ function profileTitle(profile: Profile): string {
  * ticket (creation / suspension by agency_admin — see TCK-143 hors-périmètre).
  */
 export function MyProfilesSection() {
+  const t = useTranslations('profile.myProfiles');
+  const tTypes = useTranslations('profile.types');
+  const tCommon = useTranslations('common.status');
   const { data, isLoading, isError } = useMyProfiles();
 
   if (isLoading) {
     return (
       <section className="space-y-3 rounded-2xl bg-app-surface-1 p-6">
         <header>
-          <h2 className="text-lg font-bold text-app-ink">Mes profils</h2>
-          <p className="text-sm text-app-ink-muted">Chargement…</p>
+          <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
+          <p className="text-sm text-app-ink-muted">{tCommon('loading')}</p>
         </header>
         <div className="h-24 animate-pulse rounded-xl bg-app-surface-2" aria-hidden="true" />
       </section>
@@ -57,8 +80,8 @@ export function MyProfilesSection() {
     return (
       <section className="space-y-3 rounded-2xl bg-app-surface-1 p-6">
         <header>
-          <h2 className="text-lg font-bold text-app-ink">Mes profils</h2>
-          <p className="text-sm text-app-ink-muted">Impossible de charger vos profils.</p>
+          <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
+          <p className="text-sm text-app-ink-muted">{t('error')}</p>
         </header>
       </section>
     );
@@ -67,17 +90,23 @@ export function MyProfilesSection() {
   // Backend `/api/me/profiles` ships `agency_admin` profiles alongside the
   // four métier profiles (used by ActiveProfileResolver for team scoping),
   // but they share an agency with the user's owner/agent row and would
-  // surface as a second "ghost" card with no KYC fields. Mirror the
-  // ProfileSwitcher's filter and keep only métier profiles here.
+  // surface as a second "ghost" card with no KYC fields. Keep only métier
+  // profiles here.
+  //
+  // ⚠ Ce commentaire disait « Mirror the ProfileSwitcher's filter ». Ce n'est
+  // PLUS vrai depuis TCK-329 : le sélecteur groupe désormais `agency_admin`
+  // (AC3), parce qu'il sert à CHANGER de profil actif et qu'un `agency_admin`
+  // en est un de plein droit. Le filtre de cette section-ci ne concerne que
+  // l'affichage des cartes KYC — les deux listes ont divergé volontairement.
   const profiles = data.data.filter((p) => DISPLAY_TYPES.has(p.type));
 
   if (profiles.length === 0) {
     return (
       <section className="space-y-3 rounded-2xl bg-app-surface-1 p-6">
         <header>
-          <h2 className="text-lg font-bold text-app-ink">Mes profils</h2>
+          <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
           <p className="text-sm text-app-ink-muted">
-            Aucun profil métier rattaché à votre compte.
+            {t('empty')}
           </p>
         </header>
       </section>
@@ -87,9 +116,9 @@ export function MyProfilesSection() {
   return (
     <section className="space-y-4 rounded-2xl bg-app-surface-1 p-6" data-testid="my-profiles-section">
       <header>
-        <h2 className="text-lg font-bold text-app-ink">Mes profils</h2>
+        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
         <p className="text-sm text-app-ink-muted">
-          Une carte par profil avec ses informations KYC propres.
+          {t('description')}
         </p>
       </header>
       <ul className="space-y-3">
@@ -104,21 +133,21 @@ export function MyProfilesSection() {
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="space-y-1">
-                  <p className="text-base font-semibold text-app-ink">{profileTitle(profile)}</p>
+                  <p className="text-base font-semibold text-app-ink">{profileTitle(profile, tTypes)}</p>
                   <div className="flex items-center gap-2 text-xs text-app-ink-muted">
                     <ProfileBadge profile={profile} />
                     {profile.status ? <span>· {profile.status}</span> : null}
                     {isActive ? (
-                      <span className="font-medium text-emerald-700">· Profil actif</span>
+                      <span className="font-medium text-emerald-700">{t('activeProfile')}</span>
                     ) : null}
                   </div>
                 </div>
               </div>
               <dl className="grid gap-2 sm:grid-cols-2">
                 {fields.map((field) => (
-                  <div key={field.label} className="space-y-0.5">
-                    <dt className="text-xs font-semibold text-app-ink-muted">{field.label}</dt>
-                    <dd className="text-sm text-app-ink-muted">{field.help}</dd>
+                  <div key={field.labelKey} className="space-y-0.5">
+                    <dt className="text-xs font-semibold text-app-ink-muted">{t(field.labelKey)}</dt>
+                    <dd className="text-sm text-app-ink-muted">{t(field.helpKey)}</dd>
                   </div>
                 ))}
               </dl>

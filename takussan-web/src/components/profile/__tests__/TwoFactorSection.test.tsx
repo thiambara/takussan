@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TwoFactorSection } from '../security/TwoFactorSection';
+import { withIntl } from '@/test/intl';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 const enableMock = vi.fn();
@@ -26,7 +27,7 @@ describe('<TwoFactorSection>', () => {
   });
 
   it('shows the enable CTA when 2FA is disabled', () => {
-    render(<TwoFactorSection enabled={false} />);
+    render(withIntl(<TwoFactorSection enabled={false} />));
     expect(screen.getByText('Désactivée')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: /activer la 2fa/i }),
@@ -39,7 +40,7 @@ describe('<TwoFactorSection>', () => {
       ok: true,
       data: { secret: 'ABCDEFGH', qr_url: 'otpauth://totp/x' },
     });
-    render(<TwoFactorSection enabled={false} />);
+    render(withIntl(<TwoFactorSection enabled={false} />));
 
     await user.click(screen.getByRole('button', { name: /activer la 2fa/i }));
 
@@ -57,7 +58,7 @@ describe('<TwoFactorSection>', () => {
       ok: true,
       data: { enabled: true, recovery_codes: ['AAAAA-BBBBB', 'CCCCC-DDDDD'] },
     });
-    render(<TwoFactorSection enabled={false} />);
+    render(withIntl(<TwoFactorSection enabled={false} />));
 
     await user.click(screen.getByRole('button', { name: /activer la 2fa/i }));
     await waitFor(() => screen.getByPlaceholderText('123456'));
@@ -73,7 +74,7 @@ describe('<TwoFactorSection>', () => {
   it('renders the disable flow when 2FA is already enabled', async () => {
     const user = userEvent.setup();
     disableMock.mockResolvedValue({ ok: true, data: null });
-    render(<TwoFactorSection enabled={true} />);
+    render(withIntl(<TwoFactorSection enabled={true} />));
 
     expect(screen.getByText('Activée')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /désactiver la 2fa/i }));
@@ -92,7 +93,7 @@ describe('<TwoFactorSection>', () => {
   it('surfaces error messages returned from the server action', async () => {
     const user = userEvent.setup();
     enableMock.mockResolvedValue({ ok: false, message: 'Boom.' });
-    render(<TwoFactorSection enabled={false} />);
+    render(withIntl(<TwoFactorSection enabled={false} />));
 
     await user.click(screen.getByRole('button', { name: /activer la 2fa/i }));
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/context/AuthContext';
 import { TwoFactorSection } from './security/TwoFactorSection';
 import { PhoneVerificationSection } from './security/PhoneVerificationSection';
@@ -16,26 +17,25 @@ import { AccountDeletionSection } from './security/AccountDeletionSection';
  * TCK-080 — Suppression de compte (RGPD) avec délai de grâce.
  */
 export function ProfileSecuritySection() {
+  const t = useTranslations('profile.security');
   const { user } = useAuth();
   const emailVerified = Boolean(user?.email_verified_at);
 
   return (
     <section className="space-y-4 rounded-2xl bg-app-surface-1 p-6">
       <div>
-        <h2 className="text-lg font-bold text-app-ink">Sécurité</h2>
+        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
         <p className="text-sm text-app-ink-muted">
-          Gérez l&apos;accès à votre compte et les appareils connectés.
+          {t('description')}
         </p>
       </div>
 
       <div className="rounded-2xl border border-app-surface-3 bg-white p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-base font-semibold text-app-ink">Email</h3>
+            <h3 className="text-base font-semibold text-app-ink">{t('emailTitle')}</h3>
             <p className="mt-1 text-sm text-app-ink-muted">
-              {emailVerified
-                ? 'Votre email est vérifié.'
-                : "Votre email n'est pas encore vérifié. Consultez votre boîte de réception."}
+              {emailVerified ? t('emailVerified') : t('emailNotVerified')}
             </p>
           </div>
           <span
@@ -46,7 +46,7 @@ export function ProfileSecuritySection() {
                 : 'bg-app-surface-1 text-app-accent')
             }
           >
-            {emailVerified ? 'Vérifié' : 'Non vérifié'}
+            {emailVerified ? t('verified') : t('notVerified')}
           </span>
         </div>
       </div>

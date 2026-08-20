@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useState, useTransition } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2, Plug, Plus, Trash2, XCircle } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
+import { formatDate } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +19,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { FormError, FormGlobalError } from '@/components/forms';
+import { traduireChampsErreurs } from '@/lib/schemas/messages';
+import { useTraducteurValidation } from '@/hooks/useApiForm';
 import {
   integrationFormSchema,
   isSmsProvider,
@@ -79,6 +83,10 @@ function emptyForm(): IntegrationFormValues {
 
 export function IntegrationsManager({ initialIntegrations }: IntegrationsManagerProps) {
   const t = useTranslations('adminSettings.integrations');
+  // À la RACINE du dictionnaire : `t` est cantonné à `adminSettings.integrations` et ne peut pas
+  // résoudre un `validation.setting.…`.
+  const tValidation = useTraducteurValidation();
+  const locale = useLocale() as Locale;
   const [integrations, setIntegrations] = useState<Integration[]>(initialIntegrations);
   const [testResults, setTestResults] = useState<
     Record<number, { kind: 'success' | 'error'; message: string } | 'loading' | undefined>
@@ -134,9 +142,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
   }, []);
 
   const handleDelete = useCallback((integration: Integration) => {
-    const ok = window.confirm(
-      `Supprimer l'intégration « ${integration.provider} » ? Cette action est irréversible.`,
-    );
+    const ok = window.confirm(t('confirmDelete', { provider: integration.provider }));
     if (!ok) return;
     startTransition(async () => {
       const result = await deleteIntegrationAction(integration.id);
@@ -146,15 +152,20 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
       }
       setIntegrations((prev) => prev.filter((i) => i.id !== integration.id));
     });
-  }, []);
+  }, [t]);
 
   const handleCreate = useCallback(
     async (values: IntegrationFormValues) => {
       const parsed = integrationFormSchema.safeParse(values);
       if (!parsed.success) {
+        // `fieldErrors` porte des CLÉS (`validation.setting.…`), pas des libellés : sans cette
+        // résolution, `<FormError>` affiche `validation.setting.providerRequired` (TCK-292, lot L).
         return {
           ok: false as const,
-          errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+          errors: traduireChampsErreurs(
+            parsed.error.flatten().fieldErrors as Record<string, string[]>,
+            tValidation,
+          ),
         };
       }
       const payload = normaliseIntegrationForm(parsed.data, 'create');
@@ -168,16 +179,21 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
       if (result.data) setIntegrations((prev) => [result.data as Integration, ...prev]);
       return { ok: true as const };
     },
-    [],
+    [tValidation],
   );
 
   const handleEdit = useCallback(
     async (integration: Integration, values: IntegrationFormValues) => {
       const parsed = integrationFormSchema.safeParse(values);
       if (!parsed.success) {
+        // `fieldErrors` porte des CLÉS (`validation.setting.…`), pas des libellés : sans cette
+        // résolution, `<FormError>` affiche `validation.setting.providerRequired` (TCK-292, lot L).
         return {
           ok: false as const,
-          errors: parsed.error.flatten().fieldErrors as Record<string, string[]>,
+          errors: traduireChampsErreurs(
+            parsed.error.flatten().fieldErrors as Record<string, string[]>,
+            tValidation,
+          ),
         };
       }
       const payload = normaliseIntegrationForm(parsed.data, 'edit');
@@ -195,19 +211,16 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
       }
       return { ok: true as const };
     },
-    [],
+    [tValidation],
   );
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-app-ink-muted">
-          Connectez les providers externes (paiement, SMS, e-mail). Les secrets ne
-          sont jamais ré-affichés après enregistrement.
-        </p>
+        <p className="text-sm text-app-ink-muted">{t('intro')}</p>
         <Button type="button" onClick={() => setDialogMode('create')}>
           <Plus aria-hidden="true" />
-          <span>Ajouter une intégration</span>
+          <span>{t('add')}</span>
         </Button>
       </div>
 
@@ -234,8 +247,24 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                         {integration.provider.replace(/_/g, ' ')}
                       </h3>
                       <p className="text-xs text-app-ink-muted">
-                        {integration.is_active ? 'Active' : 'Désactivée'}
-                        {integration.last_used_at ? ` • dernier test : ${new Date(integration.last_used_at).toLocaleString('fr-FR')}` : null}
+                        {integration.is_active ? t('statusActive') : t('statusInactive')}
+                        {integration.last_used_at
+                          ? t('lastTest', {
+                            // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur : la date
+                            // s'affichait en français quelle que soit la langue choisie.
+                            date: formatDate(integration.last_used_at, locale, {
+                              // `formatDate` pose `dateStyle: 'medium'` par défaut, et
+                              // Intl REFUSE `dateStyle` mêlé à des champs explicites.
+                              dateStyle: undefined,
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              second: '2-digit',
+                            }),
+                          })
+                          : null}
                       </p>
                     </div>
                   </div>
@@ -246,14 +275,14 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                     onClick={() => handleToggle(integration)}
                     disabled={isPending}
                   >
-                    {integration.is_active ? 'Désactiver' : 'Activer'}
+                    {integration.is_active ? t('deactivate') : t('activate')}
                   </Button>
                 </header>
 
                 {testState === 'loading' ? (
                   <div className="flex items-center gap-2 text-xs text-app-ink-muted">
                     <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                    <span>Test en cours…</span>
+                    <span>{t('testing')}</span>
                   </div>
                 ) : testState ? (
                   <div
@@ -283,7 +312,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                     onClick={() => handleTest(integration)}
                     disabled={isPending}
                   >
-                    Tester la connexion
+                    {t('test')}
                   </Button>
                   <Button
                     type="button"
@@ -292,13 +321,13 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                     onClick={() => setDialogMode({ edit: integration })}
                     disabled={isPending}
                   >
-                    Configurer
+                    {t('configure')}
                   </Button>
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
-                    aria-label={`Supprimer ${integration.provider}`}
+                    aria-label={t('deleteAria', { provider: integration.provider })}
                     onClick={() => handleDelete(integration)}
                     disabled={isPending}
                   >
@@ -347,6 +376,8 @@ function IntegrationDialog({
   onCreate,
   onEdit,
 }: IntegrationDialogProps) {
+  const t = useTranslations('adminSettings.integrations');
+  const tCommon = useTranslations('common.actions');
   const [values, setValues] = useState<IntegrationFormValues>(() => {
     if (mode === 'edit' && integration) {
       const meta =
@@ -401,17 +432,16 @@ function IntegrationDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === 'create' ? 'Nouvelle intégration' : `Configurer ${integration?.provider}`}
+            {mode === 'create'
+              ? t('dialog.createTitle')
+              : t('dialog.editTitle', { provider: integration?.provider ?? '' })}
           </DialogTitle>
-          <DialogDescription>
-            Les identifiants sont stockés chiffrés côté serveur. Laissez les champs
-            secrets vides en édition pour conserver la valeur actuelle.
-          </DialogDescription>
+          <DialogDescription>{t('dialog.description')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label htmlFor="int-provider" className="mb-1.5 block text-sm font-medium">
-              Fournisseur <span className="text-destructive">*</span>
+              {t('fields.provider')} <span className="text-destructive">*</span>
             </label>
             <Input
               id="int-provider"
@@ -443,16 +473,16 @@ function IntegrationDialog({
               <div className="grid gap-4 md:grid-cols-2">
                 <SecretInput
                   id="int-api-key"
-                  label="Clé API"
-                  placeholder={mode === 'edit' ? '•••••••• (inchangé)' : ''}
+                  label={t('fields.apiKey')}
+                  placeholder={mode === 'edit' ? t('fields.secretUnchanged') : ''}
                   value={values.api_key}
                   onChange={(v) => setValues((current) => ({ ...current, api_key: v }))}
                   error={errors.api_key?.[0] ?? errors['credentials.api_key']?.[0]}
                 />
                 <SecretInput
                   id="int-api-secret"
-                  label="Secret"
-                  placeholder={mode === 'edit' ? '•••••••• (inchangé)' : ''}
+                  label={t('fields.apiSecret')}
+                  placeholder={mode === 'edit' ? t('fields.secretUnchanged') : ''}
                   value={values.api_secret}
                   onChange={(v) => setValues((current) => ({ ...current, api_secret: v }))}
                   error={errors.api_secret?.[0] ?? errors['credentials.api_secret']?.[0]}
@@ -460,14 +490,14 @@ function IntegrationDialog({
               </div>
               <div>
                 <label htmlFor="int-webhook" className="mb-1.5 block text-sm font-medium">
-                  URL de webhook
+                  {t('fields.webhook')}
                 </label>
                 <Input
                   id="int-webhook"
                   type="url"
                   value={values.webhook_url}
                   onChange={(e) => setValues((v) => ({ ...v, webhook_url: e.target.value }))}
-                  placeholder="https://exemple.sn/webhook"
+                  placeholder={t('fields.webhookPlaceholder')}
                 />
                 <FormError>{errors.webhook_url?.[0]}</FormError>
               </div>
@@ -475,14 +505,14 @@ function IntegrationDialog({
           ) : null}
           <div>
             <label htmlFor="int-notes" className="mb-1.5 block text-sm font-medium">
-              Notes (interne)
+              {t('fields.notes')}
             </label>
             <Textarea
               id="int-notes"
               value={values.notes}
               onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
               rows={2}
-              placeholder="ex : compte de prod, rotation le 15/04"
+              placeholder={t('fields.notesPlaceholder')}
             />
             <FormError>{errors.notes?.[0]}</FormError>
           </div>
@@ -493,21 +523,21 @@ function IntegrationDialog({
               onChange={(e) => setValues((v) => ({ ...v, is_active: e.target.checked }))}
               className="size-4 accent-primary"
             />
-            <span>Intégration active</span>
+            <span>{t('fields.isActive')}</span>
           </label>
           {errors.root?.[0] ? <FormGlobalError>{errors.root[0]}</FormGlobalError> : null}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>
-              Annuler
+              {tCommon('cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="animate-spin" aria-hidden="true" />
-                  <span>Enregistrement…</span>
+                  <span>{t('dialog.saving')}</span>
                 </>
               ) : (
-                <span>{mode === 'create' ? 'Ajouter' : 'Enregistrer'}</span>
+                <span>{mode === 'create' ? t('dialog.submitCreate') : tCommon('save')}</span>
               )}
             </Button>
           </DialogFooter>
@@ -542,24 +572,26 @@ function SmsProviderFieldset({
   errors,
   onChange,
 }: SmsProviderFieldsetProps) {
+  // TCK-292 — le hook se place AVANT la sortie anticipée : un `useTranslations`
+  // posé après le `return null` serait un hook conditionnel, refusé par le
+  // React Compiler (ADR-0015).
+  const t = useTranslations('adminSettings.integrations');
   if (!isSmsProvider(provider)) return null;
-  const editPlaceholder = mode === 'edit' ? '•••••••• (inchangé)' : '';
+  const editPlaceholder = mode === 'edit' ? t('fields.secretUnchanged') : '';
 
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-        <strong className="font-semibold">Conformité ARTP / Sénégal :</strong>{' '}
-        souscription business soumise à la fourniture du <strong>NINEA</strong>{' '}
-        et du <strong>RCCM</strong> (Loi 2018-28, Art. 36, en vigueur depuis
-        janvier 2025). Les SMS sont interdits entre 22h et 06h Africa/Dakar
-        sauf 2FA / OTP / alertes de sécurité.
+        {t.rich('artp', {
+          b: (chunks) => <strong className="font-semibold">{chunks}</strong>,
+        })}
       </div>
 
       {provider === 'sms_orange' ? (
         <div className="grid gap-4 md:grid-cols-2">
           <SecretInput
             id="int-orange-client-id"
-            label="Client ID"
+            label={t('fields.clientId')}
             placeholder={editPlaceholder}
             value={values.sms_client_id}
             onChange={(v) => onChange({ sms_client_id: v })}
@@ -567,7 +599,7 @@ function SmsProviderFieldset({
           />
           <SecretInput
             id="int-orange-client-secret"
-            label="Client secret"
+            label={t('fields.clientSecret')}
             placeholder={editPlaceholder}
             value={values.sms_client_secret}
             onChange={(v) => onChange({ sms_client_secret: v })}
@@ -575,7 +607,7 @@ function SmsProviderFieldset({
           />
           <div>
             <label htmlFor="int-orange-sender-address" className="mb-1.5 block text-sm font-medium">
-              Sender address (SIM Orange SN)
+              {t('fields.senderAddress')}
             </label>
             <Input
               id="int-orange-sender-address"
@@ -588,7 +620,7 @@ function SmsProviderFieldset({
           </div>
           <div>
             <label htmlFor="int-orange-sender-name" className="mb-1.5 block text-sm font-medium">
-              Sender name (≤ 11, whitelist Orange)
+              {t('fields.senderName')}
             </label>
             <Input
               id="int-orange-sender-name"
@@ -607,7 +639,7 @@ function SmsProviderFieldset({
         <div className="grid gap-4 md:grid-cols-2">
           <SecretInput
             id="int-mtarget-username"
-            label="Username"
+            label={t('fields.username')}
             placeholder={editPlaceholder}
             value={values.sms_username}
             onChange={(v) => onChange({ sms_username: v })}
@@ -615,7 +647,7 @@ function SmsProviderFieldset({
           />
           <SecretInput
             id="int-mtarget-password"
-            label="Password"
+            label={t('fields.password')}
             placeholder={editPlaceholder}
             value={values.sms_password}
             onChange={(v) => onChange({ sms_password: v })}
@@ -623,7 +655,7 @@ function SmsProviderFieldset({
           />
           <div>
             <label htmlFor="int-mtarget-sender-id" className="mb-1.5 block text-sm font-medium">
-              Sender ID (≤ 11, alphanum)
+              {t('fields.senderIdMtarget')}
             </label>
             <Input
               id="int-mtarget-sender-id"
@@ -637,7 +669,7 @@ function SmsProviderFieldset({
           </div>
           <div>
             <label htmlFor="int-mtarget-service-id" className="mb-1.5 block text-sm font-medium">
-              Service ID (optionnel)
+              {t('fields.serviceId')}
             </label>
             <Input
               id="int-mtarget-service-id"
@@ -654,7 +686,7 @@ function SmsProviderFieldset({
         <div className="grid gap-4 md:grid-cols-2">
           <SecretInput
             id="int-lam-accountid"
-            label="Account ID"
+            label={t('fields.accountId')}
             placeholder={editPlaceholder}
             value={values.sms_accountid}
             onChange={(v) => onChange({ sms_accountid: v })}
@@ -662,7 +694,7 @@ function SmsProviderFieldset({
           />
           <SecretInput
             id="int-lam-password"
-            label="Password"
+            label={t('fields.password')}
             placeholder={editPlaceholder}
             value={values.sms_password}
             onChange={(v) => onChange({ sms_password: v })}
@@ -670,7 +702,7 @@ function SmsProviderFieldset({
           />
           <div>
             <label htmlFor="int-lam-sender-id" className="mb-1.5 block text-sm font-medium">
-              Sender ID (≤ 11, ne doit pas commencer par un chiffre)
+              {t('fields.senderIdLam')}
             </label>
             <Input
               id="int-lam-sender-id"
@@ -684,7 +716,7 @@ function SmsProviderFieldset({
           </div>
           <div>
             <label htmlFor="int-lam-host" className="mb-1.5 block text-sm font-medium">
-              Host LAMPUSH (optionnel — override par défaut)
+              {t('fields.hostLam')}
             </label>
             <Input
               id="int-lam-host"
@@ -717,6 +749,7 @@ interface SecretInputProps {
  * (the backend marks credentials as hidden).
  */
 function SecretInput({ id, label, value, onChange, placeholder, error }: SecretInputProps) {
+  const t = useTranslations('adminSettings.integrations');
   const [reveal, setReveal] = useState(false);
   return (
     <div>
@@ -738,7 +771,7 @@ function SecretInput({ id, label, value, onChange, placeholder, error }: SecretI
           onClick={() => setReveal((r) => !r)}
           className="absolute inset-y-0 right-0 flex items-center pr-2 text-xs text-muted-foreground underline"
         >
-          {reveal ? 'Masquer' : 'Afficher'}
+          {reveal ? t('secret.hide') : t('secret.reveal')}
         </button>
       </div>
       <FormError>{error}</FormError>

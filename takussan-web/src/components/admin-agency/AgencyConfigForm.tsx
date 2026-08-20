@@ -85,6 +85,9 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const [logoError, setLogoError] = useState<string | null>(null);
   const [isUploadingLogo, startLogoTransition] = useTransition();
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const t = useTranslations('admin.agencyConfig');
+  const tCurrency = useTranslations('agency.currency');
+  const tCommon = useTranslations('common.actions');
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<AgencyFormValues, Agency>({
@@ -102,13 +105,12 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         return result.data as Agency;
       },
       onSuccess: () => {
-        setSuccessMessage('Modifications enregistrées.');
+        setSuccessMessage(t('successSaved'));
         router.refresh();
       },
     });
 
   const { control } = form;
-  const t = useTranslations('agency.currency');
   const selectedCurrency = (form.watch('currency') || 'XOF').toUpperCase() as CurrencyCode;
   const originalCurrency = (agency.currency ?? 'XOF').toUpperCase() as CurrencyCode;
   const currencyChanged = selectedCurrency !== originalCurrency;
@@ -136,7 +138,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         setLogoPreview(agency.logo_url);
       } else if (result.data) {
         setLogoPreview(result.data.logo_url);
-        setSuccessMessage('Logo mis à jour.');
+        setSuccessMessage(t('logoUpdated'));
         router.refresh();
       }
       if (ev.target) ev.target.value = '';
@@ -150,7 +152,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           <span className="flex items-center justify-between gap-4">
             <span>{globalError}</span>
             <button type="button" onClick={clearGlobalError} className="text-xs underline">
-              Fermer
+              {tCommon('close')}
             </button>
           </span>
         </FormGlobalError>
@@ -164,7 +166,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               onClick={() => setSuccessMessage(null)}
               className="text-xs underline"
             >
-              Fermer
+              {tCommon('close')}
             </button>
           </span>
         </FormSuccess>
@@ -173,19 +175,17 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
       {/* Identité */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-app-ink">Identité</h2>
-          <p className="mt-1 text-xs text-app-ink-muted">
-            Nom commercial, licence professionnelle et description publique.
-          </p>
+          <h2 className="text-base font-semibold text-app-ink">{t('identity.title')}</h2>
+          <p className="mt-1 text-xs text-app-ink-muted">{t('identity.description')}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput control={control} name="name" label="Nom de l’agence" required />
+          <FormInput control={control} name="name" label={t('fields.name')} required />
           <div>
             <label
               htmlFor="agency-slug"
               className="mb-1.5 block text-sm font-medium text-muted-foreground"
             >
-              Identifiant URL (non modifiable)
+              {t('fields.slug')}
             </label>
             <input
               id="agency-slug"
@@ -199,33 +199,30 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         <FormInput
           control={control}
           name="license_number"
-          label="Numéro de licence"
-          placeholder="ex : SEN-IMMO-2024"
+          label={t('fields.license')}
+          placeholder={t('fields.licensePlaceholder')}
         />
         <FormTextarea
           control={control}
           name="description"
-          label="Description"
+          label={t('fields.description')}
           rows={3}
-          placeholder="Quelques mots sur votre agence, affichés sur le site public."
+          placeholder={t('fields.descriptionPlaceholder')}
         />
       </section>
 
       {/* Contact */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-app-ink">Contact</h2>
-          <p className="mt-1 text-xs text-app-ink-muted">
-            Coordonnées utilisées dans les e-mails transactionnels et sur les fiches
-            biens publiées.
-          </p>
+          <h2 className="text-base font-semibold text-app-ink">{t('contact.title')}</h2>
+          <p className="mt-1 text-xs text-app-ink-muted">{t('contact.description')}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput control={control} name="email" label="E-mail" type="email" />
+          <FormInput control={control} name="email" label={t('fields.email')} type="email" />
           <FormInput
             control={control}
             name="phone"
-            label="Téléphone"
+            label={t('fields.phone')}
             type="tel"
             placeholder="+221 77 123 45 67"
           />
@@ -233,34 +230,31 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         <FormInput
           control={control}
           name="website"
-          label="Site internet"
+          label={t('fields.website')}
           type="url"
-          placeholder="https://votre-agence.sn"
+          placeholder={t('fields.websitePlaceholder')}
         />
       </section>
 
       {/* Logo */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-app-ink">Logo</h2>
-          <p className="mt-1 text-xs text-app-ink-muted">
-            JPG, PNG ou WEBP — 2 Mo maximum. Le logo est affiché dans l’espace
-            agent et sur les documents générés.
-          </p>
+          <h2 className="text-base font-semibold text-app-ink">{t('logo.title')}</h2>
+          <p className="mt-1 text-xs text-app-ink-muted">{t('logo.description')}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex size-20 items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted">
             {logoPreview ? (
               <Image
                 src={logoPreview}
-                alt={`Logo ${agency.name}`}
+                alt={t('logo.alt', { name: agency.name })}
                 width={80}
                 height={80}
                 className="size-full object-contain"
                 unoptimized
               />
             ) : (
-              <span className="text-xs text-muted-foreground">Aucun logo</span>
+              <span className="text-xs text-muted-foreground">{t('logo.empty')}</span>
             )}
           </div>
           <div>
@@ -282,12 +276,12 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               {isUploadingLogo ? (
                 <>
                   <Loader2 className="animate-spin" aria-hidden="true" />
-                  <span>Envoi en cours…</span>
+                  <span>{t('logo.uploading')}</span>
                 </>
               ) : (
                 <>
                   <Upload aria-hidden="true" />
-                  <span>{logoPreview ? 'Changer de logo' : 'Ajouter un logo'}</span>
+                  <span>{logoPreview ? t('logo.change') : t('logo.add')}</span>
                 </>
               )}
             </Button>
@@ -303,16 +297,14 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
       {/* Paramètres métier */}
       <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-app-ink">Paramètres métier</h2>
-          <p className="mt-1 text-xs text-app-ink-muted">
-            Appliqués par défaut aux nouveaux biens et aux calculs de commission.
-          </p>
+          <h2 className="text-base font-semibold text-app-ink">{t('business.title')}</h2>
+          <p className="mt-1 text-xs text-app-ink-muted">{t('business.description')}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
             control={control}
             name="commission_rate"
-            label="Commission par défaut (%)"
+            label={t('fields.commission')}
             inputMode="decimal"
             placeholder="5"
           />
@@ -320,27 +312,27 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             <FormSelect
               control={control}
               name="currency"
-              label={t('label')}
+              label={tCurrency('label')}
               options={CURRENCY_OPTIONS}
-              placeholder={t('placeholder')}
+              placeholder={tCurrency('placeholder')}
             />
             <p className="mt-1.5 text-xs text-app-ink-muted">
-              {t('preview', { example: formatCurrency(100_000, selectedCurrency) })}
+              {tCurrency('preview', { example: formatCurrency(100_000, selectedCurrency) })}
             </p>
             {currencyChanged ? (
               <p
                 role="alert"
                 className="mt-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900"
               >
-                {t('warningOnChange')}
+                {tCurrency('warningOnChange')}
               </p>
             ) : null}
           </div>
           <FormInput
             control={control}
             name="timezone"
-            label="Fuseau horaire"
-            placeholder="Africa/Dakar"
+            label={t('fields.timezone')}
+            placeholder={t('fields.timezonePlaceholder')}
           />
         </div>
 
@@ -357,13 +349,9 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               htmlFor="moderation_required"
               className="cursor-pointer text-sm font-medium text-app-ink"
             >
-              Modération obligatoire avant publication
+              {t('moderation.label')}
             </label>
-            <p className="mt-0.5 text-xs text-app-ink-muted">
-              Quand cette option est activée, tout nouveau bien soumis par un agent sera en statut
-              &laquo;&nbsp;En attente de validation&nbsp;&raquo; jusqu&apos;à l&apos;approbation d&apos;un
-              administrateur, avant d&apos;être visible publiquement.
-            </p>
+            <p className="mt-0.5 text-xs text-app-ink-muted">{t('moderation.hint')}</p>
           </div>
         </div>
       </section>
@@ -373,10 +361,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           {isSubmitting ? (
             <>
               <Loader2 className="animate-spin" aria-hidden="true" />
-              <span>Enregistrement…</span>
+              <span>{t('submit.saving')}</span>
             </>
           ) : (
-            <span>Enregistrer</span>
+            <span>{tCommon('save')}</span>
           )}
         </Button>
         <Button
@@ -385,7 +373,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           onClick={() => router.back()}
           disabled={isSubmitting}
         >
-          Annuler
+          {tCommon('cancel')}
         </Button>
       </div>
     </form>

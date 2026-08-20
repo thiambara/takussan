@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 
+import fr from '@/messages/fr.json';
 import {
-  DOCUMENT_TYPE_LABEL,
-  DOCUMENTABLE_TYPE_LABEL,
+  DOCUMENT_TYPE_ORDER,
+  DOCUMENTABLE_FILTER_ORDER,
+  DOCUMENTABLE_UPLOAD_ORDER,
   resolveDocumentableAlias,
   resolveDocumentableHref,
 } from '../constants';
@@ -41,18 +43,29 @@ describe('resolveDocumentableHref', () => {
   });
 });
 
+/**
+ * ⚠ TCK-292 (lot I) — les libellés ont quitté `constants.ts` pour
+ * `documents.types.*` / `documents.entities.*`. La garde d'origine vérifiait que la
+ * table locale couvrait bien tout l'enum ; elle vérifie désormais la MÊME chose à la
+ * nouvelle source. Sans ce déplacement, un ordre d'affichage pourrait citer une valeur
+ * sans clé, et l'écran rendrait le nom de la clé au lieu du libellé — en silence.
+ */
 describe('label dictionaries', () => {
-  it('covers every documentable type', () => {
-    for (const key of Object.keys(DOCUMENTABLE_TYPE_LABEL) as Array<
-      keyof typeof DOCUMENTABLE_TYPE_LABEL
-    >) {
-      expect(DOCUMENTABLE_TYPE_LABEL[key]).toBeTruthy();
+  it('covers every documentable type offered by the filter and the upload dialog', () => {
+    for (const value of DOCUMENTABLE_UPLOAD_ORDER) {
+      expect(fr.documents.entities[value]).toBeTruthy();
+    }
+    for (const value of DOCUMENTABLE_FILTER_ORDER) {
+      expect(DOCUMENTABLE_UPLOAD_ORDER).toContain(value);
     }
   });
 
   it('covers every document type', () => {
-    expect(DOCUMENT_TYPE_LABEL.lease_contract).toBeDefined();
-    expect(DOCUMENT_TYPE_LABEL.id_card).toBeDefined();
-    expect(DOCUMENT_TYPE_LABEL.other).toBeDefined();
+    for (const value of DOCUMENT_TYPE_ORDER) {
+      expect(fr.documents.types[value]).toBeTruthy();
+    }
+    expect(DOCUMENT_TYPE_ORDER).toContain('lease_contract');
+    expect(DOCUMENT_TYPE_ORDER).toContain('id_card');
+    expect(DOCUMENT_TYPE_ORDER).toContain('other');
   });
 });

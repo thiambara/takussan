@@ -83,7 +83,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
         }
         hint={
           summary
-            ? `${summary.finance.overdue_count} bail${summary.finance.overdue_count > 1 ? 's' : ''} concerné${summary.finance.overdue_count > 1 ? 's' : ''}`
+            ? t('kpis.overdueHint', { count: summary.finance.overdue_count })
             : null
         }
         tone={summary && summary.finance.overdue_amount > 0 ? 'danger' : 'default'}

@@ -9,6 +9,7 @@ import {
   type MaintenanceStatus,
 } from '@/types/maintenance';
 import { requiredStringSchema } from './common';
+import { msgValidation } from './messages';
 
 /**
  * Zod schemas for the `MaintenanceRequest` domain. Aligned with the
@@ -32,12 +33,12 @@ const nullableLeaseId = z.preprocess(
 
 export const maintenanceCreateSchema = z.object({
   property_id: z.coerce
-    .number({ error: 'Sélectionnez un bien.' })
+    .number({ error: msgValidation('maintenance.propertyRequired') })
     .int()
-    .positive('Sélectionnez un bien.'),
+    .positive(msgValidation('maintenance.propertyRequired')),
   lease_id: nullableLeaseId,
-  title: requiredStringSchema('Le titre est requis.').max(255, 'Le titre est trop long.'),
-  description: requiredStringSchema('La description est requise.'),
+  title: requiredStringSchema(msgValidation('maintenance.titleRequired')).max(255, msgValidation('maintenance.titleTooLong')),
+  description: requiredStringSchema(msgValidation('maintenance.descriptionRequired')),
   category: categoryEnum,
   priority: priorityEnum.optional(),
 });
@@ -64,7 +65,7 @@ export type MaintenanceStatusInput = z.infer<typeof maintenanceStatusSchema>;
  */
 const optionalNonNegativeNumber = z.preprocess(
   (v) => (v === '' || v === null || v === undefined ? undefined : v),
-  z.coerce.number().min(0, 'Le coût ne peut pas être négatif.').optional(),
+  z.coerce.number().min(0, msgValidation('maintenance.costNonNegative')).optional(),
 );
 
 export const maintenanceCompleteSchema = z.object({

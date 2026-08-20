@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
-
+import { withIntl } from '@/test/intl';
+import { attendAucuneCleBrute } from '@/test/cles-brutes';
 import { IntegrationsManager } from '../IntegrationsManager';
 
 const createMock = vi.fn();
@@ -42,11 +42,7 @@ afterEach(() => {
 });
 
 function renderWithIntl(ui: React.ReactElement) {
-  return render(
-    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
-      {ui}
-    </NextIntlClientProvider>,
-  );
+  return render(withIntl(ui));
 }
 
 describe('<IntegrationsManager />', () => {
@@ -153,5 +149,99 @@ describe('<IntegrationsManager />', () => {
     });
     // Generic credentials must not leak.
     expect(payload.credentials).not.toHaveProperty('api_key');
+  });
+  /**
+   * ══════════════════════════════════════════════════════════════════════════════════════════════
+   * TCK-292 (lot L) — les messages d'`integrationFormSchema` partaient en CLÉ BRUTE
+   * ══════════════════════════════════════════════════════════════════════════════════════════════
+   *
+   * Les sept tests ci-dessus n'auraient jamais pu le voir : tous passent par le chemin VALIDE.
+   * Aucun ne regardait ce que ce dialogue affiche quand il refuse — et c'est très exactement
+   * pourquoi neuf messages ont pu casser sans qu'un seul test ne rougisse.
+   *
+   * Les libellés attendus sont ceux d'AVANT la conversion, au caractère près (les `≤`, les espaces
+   * avant `:`, les guillemets droits de `keyPattern`) — relevés par
+   * `git show HEAD:takussan-web/src/lib/schemas/setting.ts`.
+   */
+  it('rend les libellés FRANÇAIS de validation générique, jamais la clé', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
+
+    await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+    const fournisseur = await screen.findByLabelText(/Fournisseur/);
+
+    // `fireEvent.change` pour les champs longs : `user.type` coûte ~4,5 ms par caractère.
+    fireEvent.change(screen.getByLabelText(/URL de webhook/), { target: { value: 'pas-une-url' } });
+    fireEvent.change(screen.getByLabelText(/Notes/), { target: { value: 'n'.repeat(501) } });
+    // `provider` reste VIDE → `providerRequired`. Le formulaire porte `noValidate`.
+    await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
+
+    expect(await screen.findByText('Le fournisseur est requis.')).toBeInTheDocument();
+    expect(screen.getByText('URL invalide. Exemple : https://exemple.sn/webhook')).toBeInTheDocument();
+    expect(screen.getByText('Note trop longue.')).toBeInTheDocument();
+    attendAucuneCleBrute();
+    expect(createMock).not.toHaveBeenCalled();
+
+    // `providerTooLong` : le `min` court-circuite le `max` sur le même champ, d'où un 2e passage.
+    fireEvent.change(fournisseur, { target: { value: 'p'.repeat(81) } });
+    await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
+    expect(await screen.findByText('Le nom du fournisseur est trop long.')).toBeInTheDocument();
+    attendAucuneCleBrute();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('rend les libellés FRANÇAIS de validation SMS Orange, jamais la clé', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
+
+    await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+    const fournisseur = await screen.findByLabelText(/Fournisseur/);
+    fireEvent.change(fournisseur, { target: { value: 'sms_orange' } });
+
+    fireEvent.change(screen.getByLabelText(/Sender address/), { target: { value: 'pas-un-tel' } });
+    fireEvent.change(screen.getByLabelText(/Sender name/), { target: { value: 'nom-trop-long-et-non-alphanum' } });
+    await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
+
+    expect(await screen.findByText('Format attendu : tel:+221XXXXXXXXX (numéro Orange SN).')).toBeInTheDocument();
+    expect(screen.getByText('Sender name ≤ 11 caractères alphanumériques (whitelist Orange).')).toBeInTheDocument();
+    attendAucuneCleBrute();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('rend les libellés FRANÇAIS de validation LAfricaMobile, jamais la clé', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
+
+    await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+    const fournisseur = await screen.findByLabelText(/Fournisseur/);
+    fireEvent.change(fournisseur, { target: { value: 'sms_lafricamobile' } });
+
+    fireEvent.change(screen.getByLabelText(/Host LAMPUSH/), { target: { value: 'pas-une-url' } });
+    // Un sender ID QUI COMMENCE PAR UN CHIFFRE : c'est le seul message posé par `superRefine`,
+    // donc le seul dont le chemin de traduction passe par `ctx.addIssue` et non par un `refine`.
+    fireEvent.change(screen.getByLabelText(/Sender ID/), { target: { value: '9ABC' } });
+    await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
+
+    expect(await screen.findByText('Host invalide. Exemple : https://lampush-tls.lafricamobile.com')).toBeInTheDocument();
+    expect(
+      screen.getByText('LAfricaMobile : le sender ID ne doit pas commencer par un chiffre.'),
+    ).toBeInTheDocument();
+    attendAucuneCleBrute();
+    expect(createMock).not.toHaveBeenCalled();
+  });
+
+  it('rend le libellé FRANÇAIS de `sms_sender_id` non alphanumérique (Mtarget)', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<IntegrationsManager initialIntegrations={[]} />);
+
+    await user.click(screen.getByRole('button', { name: /Ajouter une intégration/ }));
+    const fournisseur = await screen.findByLabelText(/Fournisseur/);
+    fireEvent.change(fournisseur, { target: { value: 'sms_mtarget' } });
+    fireEvent.change(screen.getByLabelText(/Sender ID/), { target: { value: 'id-avec-tirets' } });
+    await user.click(screen.getByRole('button', { name: /Ajouter$/ }));
+
+    expect(await screen.findByText('Sender ID ≤ 11 caractères alphanumériques.')).toBeInTheDocument();
+    attendAucuneCleBrute();
+    expect(createMock).not.toHaveBeenCalled();
   });
 });

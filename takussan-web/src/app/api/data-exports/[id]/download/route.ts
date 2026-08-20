@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(request: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
-  if (!token) return NextResponse.json({ message: 'Unauthenticated.' }, { status: 401 });
+  if (!token) return NextResponse.json({ code: 'unauthenticated' }, { status: 401 });
 
   const { id } = await ctx.params;
   const upstream = await fetch(`${API_URL}/api/data-exports/${id}/download`, {

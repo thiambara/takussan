@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Manrope, Inter, Bricolage_Grotesque, DM_Sans, Fraunces } from 'next/font/google';
 import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages } from 'next-intl/server';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { getMe } from '@/lib/auth';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { AuthProvider } from '@/context/AuthContext';
@@ -24,10 +24,10 @@ const bricolage = Bricolage_Grotesque({ subsets: ['latin'], variable: '--font-br
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans', weight: ['400', '500', '600', '700'] });
 const fraunces = Fraunces({ subsets: ['latin'], variable: '--font-fraunces', weight: ['400', '500', '600'], style: ['normal', 'italic'] });
 
-export const metadata: Metadata = {
-  title: 'Takussan — Immobilier au Sénégal',
-  description: 'Louez, achetez, vendez en toute confiance. Des milliers de biens au Sénégal vous attendent.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta.home');
+  return { title: t('title'), description: t('description') };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();

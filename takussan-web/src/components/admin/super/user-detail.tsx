@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { Activity, Clock, FileArchive, KeyRound, RotateCcwKey, ShieldCheck, ShieldOff, Unlock, UserRound, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -28,10 +29,12 @@ import {
   requestAdminUserDataExport,
   type UserSupportAction,
 } from '@/lib/queries/super-admin';
-import { ApiError } from '@/lib/api';
+
 import type { AdminUserDetail, AdminUserSession, AuditLogEntry } from '@/types/super-admin';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export function UserDetailPage({ userId }: { userId: number }) {
+  const t = useTranslations('superAdmin.userDetail');
   const [detailQuery, sessionsQuery, activityQuery] = useQueries({
     queries: [
       {
@@ -62,7 +65,7 @@ export function UserDetailPage({ userId }: { userId: number }) {
     return (
       <Card>
         <CardContent className="p-6 text-sm text-destructive">
-          Impossible de charger cet utilisateur.
+          {t('loadError')}
         </CardContent>
       </Card>
     );
@@ -93,6 +96,7 @@ export function UserDetailPage({ userId }: { userId: number }) {
 }
 
 export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
+  const t = useTranslations('superAdmin.userDetail');
   return (
     <header className="rounded-xl bg-white p-5 ring-1 ring-stone-200">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -102,7 +106,7 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
-              Utilisateur cross-tenant
+              {t('crossTenant')}
             </p>
             <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-stone-950">
               {user.full_name || user.email}
@@ -112,13 +116,13 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
               <Badge variant="secondary">{user.status ?? '—'}</Badge>
               {user.roles.map((role) => (
                 <Badge key={`${role.name}-${role.team_id ?? 'global'}`} variant="outline">
-                  {role.name}{role.team_id ? ` · agence ${role.team_id}` : ''}
+                  {role.name}{role.team_id ? ` ${t('roleTeam', { id: role.team_id })}` : ''}
                 </Badge>
               ))}
               {user.mfa_enabled ? (
                 <Badge className="gap-1 bg-emerald-100 text-emerald-900 hover:bg-emerald-100">
                   <ShieldCheck className="size-3" aria-hidden="true" />
-                  MFA active
+                  {t('mfaActive')}
                 </Badge>
               ) : null}
             </div>
@@ -130,43 +134,52 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
   );
 }
 
-const SUPPORT_ACTIONS: Array<{
+type SupportActionMeta = {
   action: UserSupportAction;
   label: string;
   description: string;
   icon: typeof RotateCcwKey;
   destructive?: boolean;
-}> = [
-  {
-    action: 'force-password-reset',
-    label: 'Forcer reset password',
-    description: 'Envoie un email de reset et révoque tous les tokens de l’utilisateur.',
-    icon: RotateCcwKey,
-    destructive: true,
-  },
-  {
-    action: 'unlock',
-    label: 'Débloquer le compte',
-    description: 'Efface le verrouillage support stocké sur le compte.',
-    icon: Unlock,
-  },
-  {
-    action: 'reset-2fa',
-    label: 'Réinitialiser 2FA',
-    description: 'Désactive la 2FA et force une reconfiguration au prochain login.',
-    icon: ShieldOff,
-    destructive: true,
-  },
-  {
-    action: 'revoke-sessions',
-    label: 'Révoquer sessions',
-    description: 'Révoque les sessions actives de l’utilisateur cible.',
-    icon: XCircle,
-    destructive: true,
-  },
-];
+};
+
+/**
+ * TCK-292 — fabrique plutôt que table figée : la donnée porte l'action (jeton d'API) et l'icône,
+ * le dictionnaire porte le libellé.
+ */
+function supportActions(t: (key: string) => string): SupportActionMeta[] {
+  return [
+    {
+      action: 'force-password-reset',
+      label: t('support.forcePasswordReset.label'),
+      description: t('support.forcePasswordReset.description'),
+      icon: RotateCcwKey,
+      destructive: true,
+    },
+    {
+      action: 'unlock',
+      label: t('support.unlock.label'),
+      description: t('support.unlock.description'),
+      icon: Unlock,
+    },
+    {
+      action: 'reset-2fa',
+      label: t('support.reset2fa.label'),
+      description: t('support.reset2fa.description'),
+      icon: ShieldOff,
+      destructive: true,
+    },
+    {
+      action: 'revoke-sessions',
+      label: t('support.revokeSessions.label'),
+      description: t('support.revokeSessions.description'),
+      icon: XCircle,
+      destructive: true,
+    },
+  ];
+}
 
 export function UserSupportActionsMenu({ userId }: { userId: number }) {
+  const t = useTranslations('superAdmin.userDetail');
   const [pendingAction, setPendingAction] = useState<UserSupportAction | null>(null);
   const [dataExportOpen, setDataExportOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -181,7 +194,7 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
         queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'sessions'] }),
         queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'activity'] }),
       ]);
-      toast.add({ title: 'Action support exécutée', type: 'success' });
+      toast.add({ title: t('toastActionDone'), type: 'success' });
       setPendingAction(null);
     },
   });
@@ -189,15 +202,16 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
     mutationFn: (reason: 'support' | 'legal_request' | 'user_inquiry' | 'other') => requestAdminUserDataExport(userId, reason),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'activity'] });
-      toast.add({ title: 'Export RGPD demandé', type: 'success' });
+      toast.add({ title: t('toastExportRequested'), type: 'success' });
       setDataExportOpen(false);
     },
   });
-  const meta = SUPPORT_ACTIONS.find((item) => item.action === pendingAction) ?? null;
+  const actions = supportActions(t);
+  const meta = actions.find((item) => item.action === pendingAction) ?? null;
 
   return (
     <div className="flex flex-wrap gap-2">
-      {SUPPORT_ACTIONS.map((item) => {
+      {actions.map((item) => {
         const Icon = item.icon;
         return (
           <Button
@@ -214,7 +228,7 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
       })}
       <Button type="button" variant="outline" size="sm" onClick={() => setDataExportOpen(true)}>
         <FileArchive className="mr-2 size-4" aria-hidden="true" />
-        Export RGPD
+        {t('gdprExport')}
       </Button>
       <DataExportReasonDialog
         open={dataExportOpen}
@@ -251,21 +265,24 @@ function DataExportReasonDialog({
   onOpenChange: (open: boolean) => void;
   onConfirm: (reason: 'support' | 'legal_request' | 'user_inquiry' | 'other') => void;
 }) {
+  const t = useTranslations('superAdmin.userDetail.export');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const [reason, setReason] = useState<'support' | 'legal_request' | 'user_inquiry' | 'other'>('support');
-  const message = error instanceof ApiError ? error.displayMessage : error?.message;
+  const message = messageErreur(error);
   const reasons: Array<{ value: typeof reason; label: string }> = [
-    { value: 'support', label: 'Support' },
-    { value: 'legal_request', label: 'Réquisition' },
-    { value: 'user_inquiry', label: 'Demande utilisateur' },
-    { value: 'other', label: 'Autre' },
+    { value: 'support', label: t('reasons.support') },
+    { value: 'legal_request', label: t('reasons.legal_request') },
+    { value: 'user_inquiry', label: t('reasons.user_inquiry') },
+    { value: 'other', label: t('reasons.other') },
   ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Demander un export RGPD</DialogTitle>
-          <DialogDescription>La demande est auditée et l&apos;archive sera notifiée à l&apos;utilisateur cible.</DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap gap-2">
           {reasons.map((item) => (
@@ -282,10 +299,10 @@ function DataExportReasonDialog({
         {message ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{message}</p> : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Annuler
+            {tCommon('actions.cancel')}
           </Button>
           <Button type="button" onClick={() => onConfirm(reason)} disabled={pending}>
-            {pending ? 'Demande…' : 'Demander'}
+            {pending ? t('pending') : t('submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -294,6 +311,7 @@ function DataExportReasonDialog({
 }
 
 export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
+  const t = useTranslations('superAdmin.userDetail.profiles');
   const profileRows = [
     ...user.profiles.agent.map((profile) => ({ type: 'Agent', ...profile })),
     ...user.profiles.owner.map((profile) => ({ type: 'Owner', ...profile, license_number: null })),
@@ -302,26 +320,26 @@ export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Profils & agences</CardTitle>
+        <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {profileRows.length === 0 ? <p className="text-sm text-stone-500">Aucun profil agence.</p> : null}
+        {profileRows.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
         {profileRows.map((profile) => (
           <div key={`${profile.type}-${profile.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3">
             <div>
               <p className="font-medium text-stone-950">{profile.type}</p>
-              <p className="text-sm text-stone-600">{profile.agency_name ?? `Agence ${profile.agency_id}`}</p>
+              <p className="text-sm text-stone-600">{profile.agency_name ?? t('agencyFallback', { id: profile.agency_id })}</p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{profile.status ?? '—'}</Badge>
               <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/agencies/${profile.agency_id}`}>
-                Agence
+                {t('agencyLink')}
               </Link>
             </div>
           </div>
         ))}
-        {user.profiles.broker ? <Badge variant="outline">Broker</Badge> : null}
-        {user.profiles.service_provider ? <Badge variant="outline">Service provider</Badge> : null}
+        {user.profiles.broker ? <Badge variant="outline">{t('broker')}</Badge> : null}
+        {user.profiles.service_provider ? <Badge variant="outline">{t('serviceProvider')}</Badge> : null}
       </CardContent>
     </Card>
   );
@@ -336,6 +354,8 @@ export function UserSessionsTable({
   sessions: AdminUserSession[];
   loading: boolean;
 }) {
+  const t = useTranslations('superAdmin.userDetail.sessions');
+  const tRoot = useTranslations('superAdmin.userDetail');
   const [sessionToRevoke, setSessionToRevoke] = useState<AdminUserSession | null>(null);
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -343,11 +363,11 @@ export function UserSessionsTable({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Sessions actives</CardTitle>
+        <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
-        {!loading && sessions.length === 0 ? <p className="text-sm text-stone-500">Aucune session active.</p> : null}
+        {!loading && sessions.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
         {sessions.map((session) => (
           <div key={session.id} className="rounded-lg border border-stone-200 p-3">
             <div className="flex items-center justify-between gap-2">
@@ -355,12 +375,12 @@ export function UserSessionsTable({
               <div className="flex items-center gap-2">
                 <KeyRound className="size-4 text-amber-700" aria-hidden="true" />
                 <Button type="button" size="sm" variant="outline" onClick={() => setSessionToRevoke(session)}>
-                  Révoquer
+                  {t('revoke')}
                 </Button>
               </div>
             </div>
-            <p className="mt-1 text-sm text-stone-600">Dernière activité : {formatDate(session.last_used_at)}</p>
-            <p className="text-xs text-stone-500">Expiration : {formatDate(session.expires_at)}</p>
+            <p className="mt-1 text-sm text-stone-600">{t('lastActivity', { date: formatDate(session.last_used_at) })}</p>
+            <p className="text-xs text-stone-500">{t('expiry', { date: formatDate(session.expires_at) })}</p>
           </div>
         ))}
       </CardContent>
@@ -372,7 +392,7 @@ export function UserSessionsTable({
           onSuccess={async () => {
             await queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'sessions'] });
             await queryClient.invalidateQueries({ queryKey: ['super-admin', 'user', userId, 'activity'] });
-            toast.add({ title: 'Session révoquée', type: 'success' });
+            toast.add({ title: tRoot('toastSessionRevoked'), type: 'success' });
             setSessionToRevoke(null);
           }}
         />
@@ -390,24 +410,25 @@ export function UserActivityTimeline({
   loading: boolean;
   userId: number;
 }) {
+  const t = useTranslations('superAdmin.userDetail.activity');
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
-        <CardTitle>Activité</CardTitle>
+        <CardTitle>{t('title')}</CardTitle>
         <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/audit?filter[causer_id]=${userId}`}>
-          Voir dans l’audit
+          {t('viewInAudit')}
         </Link>
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
-        {!loading && entries.length === 0 ? <p className="text-sm text-stone-500">Aucune activité récente.</p> : null}
+        {!loading && entries.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
         {entries.map((entry) => (
           <div key={entry.id} className="flex gap-3 rounded-lg border border-stone-200 p-3">
             <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-stone-100">
               <Activity className="size-4 text-stone-700" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-medium text-stone-950">{entry.event ?? entry.description ?? 'Activité'}</p>
+              <p className="font-medium text-stone-950">{entry.event ?? entry.description ?? t('fallbackLabel')}</p>
               <p className="text-sm text-stone-600">{entry.description}</p>
               <p className="mt-1 flex items-center gap-1 text-xs text-stone-500">
                 <Clock className="size-3" aria-hidden="true" />
@@ -443,8 +464,11 @@ function SupportReasonDialog({
   error: Error | null;
   onConfirm: (reason: string) => void;
 }) {
+  const t = useTranslations('superAdmin.userDetail.supportDialog');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const [reason, setReason] = useState('');
-  const message = error instanceof ApiError ? error.displayMessage : error?.message;
+  const message = messageErreur(error);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -454,17 +478,17 @@ function SupportReasonDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <Label>Raison support</Label>
+          <Label>{t('reasonLabel')}</Label>
           <Textarea
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="Décrivez la raison auditée"
+            placeholder={t('reasonPlaceholder')}
           />
         </div>
         {message ? <p className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{message}</p> : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Annuler
+            {tCommon('actions.cancel')}
           </Button>
           <Button
             type="button"
@@ -472,7 +496,7 @@ function SupportReasonDialog({
             disabled={reason.trim().length < 3 || pending}
             onClick={() => onConfirm(reason.trim())}
           >
-            {pending ? 'Exécution…' : 'Confirmer'}
+            {pending ? t('pending') : tCommon('actions.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -491,6 +515,7 @@ function SessionRevokeDialog({
   onOpenChange: (open: boolean) => void;
   onSuccess: () => Promise<void>;
 }) {
+  const t = useTranslations('superAdmin.userDetail.sessions');
   const mutation = useMutation({
     mutationFn: (reason: string) => deleteAdminUserSession(userId, session.id, reason),
     onSuccess,
@@ -500,8 +525,8 @@ function SessionRevokeDialog({
     <SupportReasonDialog
       open
       onOpenChange={onOpenChange}
-      title={`Révoquer ${session.name}`}
-      description="Révoque uniquement ce token Sanctum."
+      title={t('revokeTitle', { name: session.name })}
+      description={t('revokeDescription')}
       pending={mutation.isPending}
       error={mutation.error}
       onConfirm={(reason) => mutation.mutate(reason)}

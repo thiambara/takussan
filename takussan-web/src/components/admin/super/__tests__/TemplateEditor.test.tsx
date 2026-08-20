@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
+import { withIntl } from '@/test/intl';
 import { patchNotificationTemplate, previewNotificationTemplate } from '@/lib/queries/super-admin';
 import type { NotificationTemplateDetail } from '@/types/super-admin';
 import { TemplateEditor } from '../notification-templates';
@@ -32,13 +32,11 @@ function renderEditor() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
-  render(
-    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
-      <QueryClientProvider client={queryClient}>
-        <TemplateEditor detail={detail} onChannelSelect={vi.fn()} />
-      </QueryClientProvider>
-    </NextIntlClientProvider>,
-  );
+  render(withIntl(
+    <QueryClientProvider client={queryClient}>
+      <TemplateEditor detail={detail} onChannelSelect={vi.fn()} />
+    </QueryClientProvider>,
+  ));
 }
 
 describe('<TemplateEditor>', () => {

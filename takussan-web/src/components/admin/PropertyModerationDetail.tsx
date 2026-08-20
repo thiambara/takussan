@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
+import { useLocale, useTranslations } from 'next-intl';
 import { Check, X, Loader2 } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
@@ -11,7 +12,10 @@ import {
   type ModerationProperty,
 } from '@/lib/queries/property-moderation';
 import { Button } from '@/components/ui/button';
-import { ApiError } from '@/lib/api';
+
+import { formatDate, formatNumber } from '@/lib/format';
+import type { Locale } from '@/i18n/config';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface PropertyModerationDetailProps {
   readonly property: ModerationProperty;
@@ -22,6 +26,10 @@ export function PropertyModerationDetail({
   property,
   onModerated,
 }: PropertyModerationDetailProps) {
+  const t = useTranslations('admin.propertyModeration.detail');
+  const locale = useLocale() as Locale;
+  const tCommon = useTranslations('common.actions');
+  const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -34,7 +42,7 @@ export function PropertyModerationDetail({
       onModerated();
     },
     onError: (err) => {
-      setErrorMessage(err instanceof ApiError ? err.displayMessage : 'Une erreur est survenue.');
+      setErrorMessage(messageErreur(err, t('genericError')));
     },
   });
 
@@ -47,13 +55,13 @@ export function PropertyModerationDetail({
       onModerated();
     },
     onError: (err) => {
-      setErrorMessage(err instanceof ApiError ? err.displayMessage : 'Une erreur est survenue.');
+      setErrorMessage(messageErreur(err, t('genericError')));
     },
   });
 
   const handleReject = () => {
     if (rejectionReason.trim().length < 20) {
-      setErrorMessage('La raison doit contenir au moins 20 caractères.');
+      setErrorMessage(t('reasonTooShort'));
       return;
     }
     rejectMutation.mutate();
@@ -83,24 +91,33 @@ export function PropertyModerationDetail({
 
       <dl className="mb-6 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">Agent</dt>
+          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{t('agent')}</dt>
           <dd className="mt-1 text-app-ink">{property.owner?.name ?? '—'}</dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">Prix</dt>
+          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{t('price')}</dt>
           <dd className="mt-1 text-app-ink">
-            {property.price?.toLocaleString('fr-FR')} {property.currency ?? ''}
+            {/* TCK-292 — la locale ACTIVE, plus `fr-FR` en dur (montant et date). */}
+            {property.price !== null && property.price !== undefined
+              ? formatNumber(property.price, locale)
+              : ''}{' '}
+            {property.currency ?? ''}
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">Type</dt>
+          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{t('type')}</dt>
           <dd className="mt-1 text-app-ink">{property.type}</dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">Soumis le</dt>
+          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{t('submittedAt')}</dt>
           <dd className="mt-1 text-app-ink">
             {property.submitted_at
-              ? new Date(property.submitted_at).toLocaleDateString('fr-FR')
+              ? formatDate(property.submitted_at, locale, {
+                dateStyle: undefined,
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })
               : '—'}
           </dd>
         </div>
@@ -115,7 +132,7 @@ export function PropertyModerationDetail({
       {showRejectDialog ? (
         <div className="mb-4 rounded-xl border border-destructive/20 bg-destructive/5 p-4">
           <p className="mb-3 text-sm font-medium text-destructive">
-            Raison du rejet (obligatoire, min. 20 caractères)
+            {t('rejectReasonLabel')}
           </p>
           <textarea
             value={rejectionReason}
@@ -123,7 +140,7 @@ export function PropertyModerationDetail({
             rows={4}
             maxLength={1000}
             className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-app-ink outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            placeholder="Expliquez clairement pourquoi ce bien est refusé…"
+            placeholder={t('rejectReasonPlaceholder')}
           />
           <p className="mt-1 text-right text-xs text-app-ink-muted">
             {rejectionReason.length}/1000
@@ -140,7 +157,7 @@ export function PropertyModerationDetail({
               ) : (
                 <X className="mr-1.5 size-3.5" />
               )}
-              Confirmer le rejet
+              {t('confirmReject')}
             </Button>
             <Button
               size="sm"
@@ -152,7 +169,7 @@ export function PropertyModerationDetail({
               }}
               disabled={isBusy}
             >
-              Annuler
+              {tCommon('cancel')}
             </Button>
           </div>
         </div>
@@ -168,7 +185,7 @@ export function PropertyModerationDetail({
             ) : (
               <Check className="mr-1.5 size-4" />
             )}
-            Approuver
+            {t('approve')}
           </Button>
           <Button
             variant="destructive"
@@ -179,7 +196,7 @@ export function PropertyModerationDetail({
             disabled={isBusy}
           >
             <X className="mr-1.5 size-4" />
-            Rejeter
+            {t('reject')}
           </Button>
         </div>
       )}

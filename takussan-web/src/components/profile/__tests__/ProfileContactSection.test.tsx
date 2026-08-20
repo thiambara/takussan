@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProfileContactSection } from '../ProfileContactSection';
+import { withIntl } from '@/test/intl';
 import type { User } from '@/types/user';
 
 const { updateProfileMock, sendOtpMock, verifyOtpMock, setUserMock, currentUser } =
@@ -63,14 +64,14 @@ beforeEach(() => {
 
 describe('<ProfileContactSection>', () => {
   it('does not render the legacy "Bientôt disponible" placeholder', () => {
-    render(<ProfileContactSection user={BASE_USER} />);
+    render(withIntl(<ProfileContactSection user={BASE_USER} />));
     expect(screen.queryByText(/bientôt disponible/i)).not.toBeInTheDocument();
     expect(screen.getByTestId('phone-input')).not.toBeDisabled();
   });
 
   it('shows a live error for non-E.164 input', async () => {
     const user = userEvent.setup();
-    render(<ProfileContactSection user={BASE_USER} />);
+    render(withIntl(<ProfileContactSection user={BASE_USER} />));
     const input = screen.getByTestId('phone-input');
     await user.type(input, '0770000000');
     expect(await screen.findByRole('alert')).toHaveTextContent(/E\.164/);
@@ -84,7 +85,7 @@ describe('<ProfileContactSection>', () => {
       user: { ...BASE_USER, phone: '+221770000000', phone_verified_at: null },
     });
 
-    render(<ProfileContactSection user={BASE_USER} />);
+    render(withIntl(<ProfileContactSection user={BASE_USER} />));
     await user.type(screen.getByTestId('phone-input'), '+221770000000');
     await user.click(screen.getByTestId('contact-save'));
 
@@ -108,7 +109,7 @@ describe('<ProfileContactSection>', () => {
       user: { ...verifiedUser, phone: '+221780000000', phone_verified_at: null },
     });
 
-    render(<ProfileContactSection user={verifiedUser} />);
+    render(withIntl(<ProfileContactSection user={verifiedUser} />));
     expect(screen.getByTestId('phone-status-badge')).toHaveTextContent('Vérifié');
 
     const input = screen.getByTestId('phone-input');
@@ -126,11 +127,11 @@ describe('<ProfileContactSection>', () => {
     sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '123456' } });
     verifyOtpMock.mockResolvedValue({ ok: true, data: null });
 
-    render(
+    render(withIntl(
       <ProfileContactSection
         user={{ ...BASE_USER, phone: '+221770000000', phone_verified_at: null }}
       />,
-    );
+    ));
     await user.click(screen.getByTestId('phone-otp-send'));
     await waitFor(() =>
       expect(screen.getByTestId('phone-otp-code')).toBeInTheDocument(),
@@ -149,7 +150,7 @@ describe('<ProfileContactSection>', () => {
     const updated: User = { ...BASE_USER, phone: '+221770000000', phone_verified_at: null };
     updateProfileMock.mockResolvedValue({ ok: true, user: updated });
 
-    render(<ProfileContactSection user={BASE_USER} />);
+    render(withIntl(<ProfileContactSection user={BASE_USER} />));
     await user.type(screen.getByTestId('phone-input'), '+221770000000');
     await user.click(screen.getByTestId('contact-save'));
 
@@ -166,11 +167,11 @@ describe('<ProfileContactSection>', () => {
     sendOtpMock.mockResolvedValue({ ok: true, data: { sent: true, debug_code: '123456' } });
     verifyOtpMock.mockResolvedValue({ ok: true, data: null });
 
-    render(
+    render(withIntl(
       <ProfileContactSection
         user={{ ...BASE_USER, phone: '+221770000000', phone_verified_at: null }}
       />,
-    );
+    ));
     await user.click(screen.getByTestId('phone-otp-send'));
     await waitFor(() => screen.getByTestId('phone-otp-code'));
     await user.type(screen.getByTestId('phone-otp-code'), '123456');
@@ -183,11 +184,11 @@ describe('<ProfileContactSection>', () => {
 
   it('hides the verify block while a fresh phone edit is unsaved', async () => {
     const user = userEvent.setup();
-    render(
+    render(withIntl(
       <ProfileContactSection
         user={{ ...BASE_USER, phone: '+221770000000', phone_verified_at: null }}
       />,
-    );
+    ));
     expect(screen.getByTestId('phone-verify-block')).toBeInTheDocument();
 
     const input = screen.getByTestId('phone-input');

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Search } from 'lucide-react';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import {
@@ -14,20 +15,17 @@ import {
 
 const ALL = '__all__';
 
-const STATUS_OPTIONS: readonly { value: string; label: string }[] = [
-  { value: 'active', label: 'Actif' },
-  { value: 'inactive', label: 'Inactif' },
-  { value: 'banned', label: 'Bloqué' },
-];
+/** TCK-292 — la donnée porte la clé, le rendu la résout (`admin.users.*`). */
+const STATUS_VALUES = ['active', 'inactive', 'banned'] as const;
 
-const ROLE_OPTIONS: readonly { value: string; label: string }[] = [
-  { value: 'agency_admin', label: 'Administrateur' },
-  { value: 'agent', label: 'Agent' },
-  { value: 'owner', label: 'Bailleur' },
-  { value: 'tenant', label: 'Locataire' },
-  { value: 'customer', label: 'Client' },
-  { value: 'service_provider', label: 'Prestataire' },
-];
+const ROLE_VALUES = [
+  'agency_admin',
+  'agent',
+  'owner',
+  'tenant',
+  'customer',
+  'service_provider',
+] as const;
 
 interface AdminUsersFiltersProps {
   readonly hideRoleFilter?: boolean;
@@ -44,8 +42,11 @@ interface AdminUsersFiltersProps {
  * selection through its segmented tabs instead.
  */
 export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersProps = {}) {
+  const t = useTranslations('admin.users');
   const router = useRouter();
   const searchParams = useSearchParams();
+  const statusOptions = STATUS_VALUES.map((v) => ({ value: v, label: t(`status.${v}`) }));
+  const roleOptions = ROLE_VALUES.map((v) => ({ value: v, label: t(`roles.${v}`) }));
 
   const currentSearch = searchParams.get('filter[search]') ?? '';
   const currentStatus = searchParams.get('filter[status]') ?? '';
@@ -84,7 +85,7 @@ export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersP
     >
       <form onSubmit={onSearchSubmit} className="flex-1">
         <label htmlFor="admin-users-search" className="sr-only">
-          Rechercher un utilisateur
+          {t('filters.searchLabel')}
         </label>
         <div className="relative">
           <Search
@@ -96,7 +97,7 @@ export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersP
             type="search"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Rechercher (nom, email, téléphone)"
+            placeholder={t('filters.searchPlaceholder')}
             className="w-full rounded-md border border-input bg-background py-2 pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
           />
         </div>
@@ -104,17 +105,17 @@ export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersP
 
       <div className="flex flex-wrap gap-2">
         <FilterSelect
-          label="Statut"
+          label={t('filters.status')}
           value={currentStatus || ALL}
           onChange={(v) => updateParam('filter[status]', v === ALL ? null : v)}
-          options={[{ value: ALL, label: 'Tous statuts' }, ...STATUS_OPTIONS]}
+          options={[{ value: ALL, label: t('filters.allStatuses') }, ...statusOptions]}
         />
         {hideRoleFilter ? null : (
           <FilterSelect
-            label="Rôle"
+            label={t('filters.role')}
             value={currentRole || ALL}
             onChange={(v) => updateParam('filter[role]', v === ALL ? null : v)}
-            options={[{ value: ALL, label: 'Tous rôles' }, ...ROLE_OPTIONS]}
+            options={[{ value: ALL, label: t('filters.allRoles') }, ...roleOptions]}
           />
         )}
       </div>

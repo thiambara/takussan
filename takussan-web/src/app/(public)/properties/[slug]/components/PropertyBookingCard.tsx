@@ -47,7 +47,7 @@ export function PropertyBookingCard({
       <div className="space-y-2">
         <Button type="button" className="w-full gap-2" onClick={onRequestBooking}>
           <KeyRound className="size-4" aria-hidden />
-          {primaryCta.label}
+          {t(`primaryCta.${primaryCta.action}`)}
         </Button>
         <Button type="button" variant="outline" className="w-full gap-2" onClick={onRequestVisit}>
           <Calendar className="size-4" aria-hidden />

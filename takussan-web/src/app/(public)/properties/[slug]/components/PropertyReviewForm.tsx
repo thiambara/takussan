@@ -5,6 +5,7 @@ import { Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface PropertyReviewFormProps {
   onSubmit: (payload: { rating: number; title?: string; content?: string }) => Promise<void>;
@@ -16,6 +17,7 @@ export const REVIEW_CONTENT_MAX = 2000;
 
 export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormProps) {
   const t = useTranslations('property.reviews.form');
+  const messageErreur = useMessageErreurApi();
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState(0);
   const [title, setTitle] = useState('');
@@ -48,7 +50,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
       setTitle('');
       setContent('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('sendError'));
+      setError(messageErreur(err, t('sendError')));
     } finally {
       setPending(false);
     }
@@ -77,7 +79,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
               key={n}
               role="radio"
               aria-checked={rating === n}
-              aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
+              aria-label={t('starsAria', { count: n })}
               onMouseEnter={() => setHover(n)}
               onClick={() => setRating(n)}
               className="p-0.5"

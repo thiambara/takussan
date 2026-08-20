@@ -39,6 +39,7 @@ import {
   type InvitationSummary,
 } from '@/lib/queries/owners';
 import type { ApiResponse } from '@/types/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export type InviteOwnerSheetProps = {
   readonly open: boolean;
@@ -78,6 +79,7 @@ export function InviteOwnerSheet({
 }: InviteOwnerSheetProps) {
   const tErr = useTranslations('errors');
   const t = useTranslations('owners.invite');
+  const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
   const { token } = useAuth();
@@ -109,7 +111,7 @@ export function InviteOwnerSheet({
           ? t('errors.already_member')
           : error.status === 403
             ? t('errors.forbidden')
-            : error.displayMessage;
+            : messageErreur(error);
       toast.add({ title: t('toasts.error_title'), description, type: 'error' });
     },
   });

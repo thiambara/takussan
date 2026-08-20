@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
 
 import { ToastProvider } from '@/components/ui/toast';
+import { withIntl } from '@/test/intl';
 import { inviteSuperAdmin } from '@/lib/queries/super-admin';
 import { InviteSuperAdminModal } from '../InviteSuperAdminModal';
 
@@ -17,14 +17,16 @@ function renderModal(overrides: { onInvited?: () => void } = {}) {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
 
+  // `withIntl` charge le VRAI `fr.json` : la modale rend ses libellés via next-intl depuis
+  // TCK-292, et un provider à messages vides rendrait la CLÉ au lieu du libellé.
   return render(
-    <ToastProvider>
-      <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
+    withIntl(
+      <ToastProvider>
         <QueryClientProvider client={queryClient}>
           <InviteSuperAdminModal open onOpenChange={() => {}} onInvited={overrides.onInvited} />
         </QueryClientProvider>
-      </NextIntlClientProvider>
-    </ToastProvider>,
+      </ToastProvider>,
+    ),
   );
 }
 

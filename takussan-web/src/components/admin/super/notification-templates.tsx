@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Eye, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import type {
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 const CHANNELS: NotificationTemplateChannel[] = ['email', 'sms', 'push'];
 const LOCALES: NotificationTemplateLocale[] = ['fr', 'en', 'wo'];
@@ -29,6 +31,7 @@ export function NotificationEventList({
   selected: string;
   onSelect: (event: string) => void;
 }) {
+  const t = useTranslations('superAdmin.templates');
   const events = useMemo(() => {
     const map = new Map<string, NotificationTemplateDetail>();
     for (const item of items) if (!map.has(item.event)) map.set(item.event, item);
@@ -36,7 +39,7 @@ export function NotificationEventList({
   }, [items]);
 
   return (
-    <nav className="rounded-xl bg-white p-2 ring-1 ring-stone-200" aria-label="Événements notification">
+    <nav className="rounded-xl bg-white p-2 ring-1 ring-stone-200" aria-label={t('eventsNav')}>
       {events.map((item) => (
         <Button
           key={item.event}
@@ -62,6 +65,9 @@ export function TemplateEditor({
   detail: NotificationTemplateDetail;
   onChannelSelect: (channel: NotificationTemplateChannel) => void;
 }) {
+  const t = useTranslations('superAdmin.templates');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [locale, setLocale] = useState<NotificationTemplateLocale>('fr');
   const [templates, setTemplates] = useState(detail.templates);
@@ -75,13 +81,13 @@ export function TemplateEditor({
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'notification-templates'] });
     },
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
   const previewMutation = useMutation({
     mutationFn: () => previewNotificationTemplate(detail.event, detail.channel, locale),
     onSuccess: (data) => setPreview(data.data),
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
   const current = templates[locale];
@@ -101,15 +107,15 @@ export function TemplateEditor({
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant={isActive ? 'default' : 'outline'} onClick={() => setIsActive((v) => !v)}>
-            {isActive ? 'Actif' : 'Inactif'}
+            {isActive ? t('active') : t('inactive')}
           </Button>
           <Button type="button" variant="outline" onClick={() => previewMutation.mutate()}>
             <Eye className="size-4" aria-hidden="true" />
-            Prévisualiser
+            {t('preview')}
           </Button>
           <Button type="button" onClick={() => save.mutate()} disabled={save.isPending}>
             <Save className="size-4" aria-hidden="true" />
-            Enregistrer
+            {tCommon('actions.save')}
           </Button>
         </div>
       </div>
@@ -143,7 +149,7 @@ export function TemplateEditor({
         </div>
         {detail.channel === 'email' ? (
           <label className="block text-sm font-medium">
-            <span className="mb-1 block">Sujet</span>
+            <span className="mb-1 block">{t('subject')}</span>
             <Input
               value={current.subject ?? ''}
               onChange={(event) => setTemplates((prev) => ({
@@ -155,8 +161,8 @@ export function TemplateEditor({
         ) : null}
         <label className="block text-sm font-medium">
           <span className="mb-1 flex items-center justify-between">
-            Corps
-            {smsSegments ? <span className={cn('text-xs', smsSegments > 6 && 'text-destructive')}>{smsSegments} segment(s)</span> : null}
+            {t('body')}
+            {smsSegments ? <span className={cn('text-xs', smsSegments > 6 && 'text-destructive')}>{t('smsSegments', { count: smsSegments })}</span> : null}
           </span>
           <Textarea
             rows={detail.channel === 'email' ? 12 : 6}
@@ -181,11 +187,12 @@ export function TemplatePreviewDialog({
   preview: { subject: string; body: string } | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations('superAdmin.templates');
   return (
     <Dialog open={preview !== null} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Prévisualisation</DialogTitle>
+          <DialogTitle>{t('previewTitle')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 rounded-lg bg-stone-50 p-4 text-sm">
           {preview?.subject ? <p className="font-semibold text-stone-950">{preview.subject}</p> : null}

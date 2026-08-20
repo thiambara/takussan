@@ -6,7 +6,7 @@ import { CalendarRange } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
 import { cn } from '@/lib/utils';
 import { parseServerDate, startOfDay } from '@/lib/calendar-date';
-import { paletteFor, typeLabel } from './event-colors';
+import { paletteFor, typeLabelKey } from './event-colors';
 import type { CalendarEvent } from '@/types/calendar';
 
 export interface ListViewProps {
@@ -18,6 +18,7 @@ type Group = { key: string; label: string; items: { event: CalendarEvent; start:
 
 export function ListView({ events, onSelect }: ListViewProps) {
   const t = useTranslations('calendar.list');
+  const tCal = useTranslations('calendar');
   const groups: Group[] = (() => {
     const byDay = new Map<string, Group>();
     for (const e of events) {
@@ -61,7 +62,7 @@ export function ListView({ events, onSelect }: ListViewProps) {
               .map(({ event, start }) => {
                 const palette = paletteFor(event);
                 const timeLabel = event.all_day
-                  ? 'Journée'
+                  ? tCal('allDay')
                   : start.toLocaleTimeString('fr-FR', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -81,7 +82,7 @@ export function ListView({ events, onSelect }: ListViewProps) {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-semibold uppercase text-stone-500">
-                            {typeLabel(event.type)}
+                            {tCal(typeLabelKey(event.type))}
                           </span>
                           <span className="text-xs font-medium text-stone-600">{timeLabel}</span>
                         </div>

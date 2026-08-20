@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { NextIntlClientProvider } from 'next-intl';
-
+import { withIntl } from '@/test/intl';
+import { attendAucuneCleBrute } from '@/test/cles-brutes';
 import { TagsManager } from '../TagsManager';
 
 const createMock = vi.fn();
@@ -37,11 +37,7 @@ const initialTags = [
 ];
 
 function renderTagsManager() {
-  return render(
-    <NextIntlClientProvider locale="fr" messages={{ common: { actions: { close: 'Fermer' } } }}>
-      <TagsManager initialTags={initialTags} />
-    </NextIntlClientProvider>,
-  );
+  return render(withIntl(<TagsManager initialTags={initialTags} />));
 }
 
 beforeEach(() => {
@@ -107,5 +103,52 @@ describe('<TagsManager />', () => {
     expect(createMock).toHaveBeenCalledTimes(1);
     const payload = createMock.mock.calls[0][0];
     expect(payload).toMatchObject({ name: 'Climatisation', type: 'amenity' });
+  });
+  /**
+   * TCK-292 (lot L) — les cinq messages de `tagFormSchema` partaient en CLÉ BRUTE.
+   *
+   * Le test voisin (« opens the create dialog and calls createTagAction ») ne pouvait pas le voir :
+   * il ne passe QUE par le chemin valide. Rien dans cette suite n'avait jamais regardé ce que le
+   * formulaire affiche quand il refuse — d'où une régression invisible à la CI.
+   *
+   * Les libellés attendus sont ceux d'AVANT la conversion, au caractère près (apostrophe typographique
+   * de « Nom d’icône » comprise) — relevés par `git show HEAD:takussan-web/src/lib/schemas/tag.ts`.
+   *
+   * ⚠️ **Quatre des cinq messages, pas cinq.** `tagFormSchema` valide `description` (max 500), mais
+   * le dialogue ne rend AUCUN champ description : `validation.tag.descriptionTooLong` est
+   * inatteignable depuis cette interface. Il n'est donc pas assertable ici — et le balayage
+   * `attendAucuneCleBrute` le couvre le jour où un champ description apparaîtra.
+   */
+  it('rend les libellés FRANÇAIS de validation, jamais la clé (les 5 messages de tagFormSchema)', async () => {
+    const user = userEvent.setup();
+    renderTagsManager();
+    await user.click(screen.getByRole('button', { name: 'Nouveau tag' }));
+
+    const nom = await screen.findByLabelText(/Libellé/);
+    const icone = screen.getByLabelText(/Icône/);
+    const couleur = screen.getByLabelText(/Couleur/);
+
+    // `fireEvent.change` plutôt que `user.type` pour les champs longs : `userEvent` coûte ~4,5 ms
+    // par caractère, soit ~4,5 s pour 1000 caractères — et jusqu'à 17× cela sous charge.
+    fireEvent.change(icone, { target: { value: 'x'.repeat(61) } });
+    fireEvent.change(couleur, { target: { value: 'pas-une-couleur' } });
+    // `name` reste VIDE → `nameRequired`. Le formulaire porte `noValidate` : la soumission passe.
+    await user.click(screen.getByRole('button', { name: 'Créer le tag' }));
+
+    expect(await screen.findByText('Le libellé est requis.')).toBeInTheDocument();
+    expect(screen.getByText('Nom d’icône trop long.')).toBeInTheDocument();
+    expect(screen.getByText('Couleur hexadécimale invalide (ex : #2563eb).')).toBeInTheDocument();
+    attendAucuneCleBrute();
+    expect(createMock).not.toHaveBeenCalled();
+
+    // Second passage : le message de LONGUEUR du libellé, que le premier ne pouvait pas déclencher
+    // (`min` court-circuite `max` sur le même champ).
+    fireEvent.change(nom, { target: { value: 'n'.repeat(101) } });
+    fireEvent.change(couleur, { target: { value: '#2563eb' } });
+    await user.click(screen.getByRole('button', { name: 'Créer le tag' }));
+
+    expect(await screen.findByText('Le libellé est trop long (100 caractères max).')).toBeInTheDocument();
+    attendAucuneCleBrute();
+    expect(createMock).not.toHaveBeenCalled();
   });
 });

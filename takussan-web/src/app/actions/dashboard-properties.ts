@@ -1,7 +1,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { ApiError } from '@/lib/api';
+import { getTranslations } from 'next-intl/server';
+import { ApiError, messageErreurApi } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import {
   createProperty,
@@ -39,15 +40,19 @@ type ActionResult<T = void> =
       errors?: Record<string, string[]>;
     };
 
-function mapError(e: unknown): {
+async function mapError(e: unknown): Promise<{
   status?: number;
   message: string;
   errors?: Record<string, string[]>;
-} {
+}> {
+  // cf. `admin-agency.ts` — un module `'use server'` traduit avec `getTranslations`, jamais
+  // en lisant un libellé pré-calculé sur l'objet d'erreur.
+  const tRacine = await getTranslations();
   if (e instanceof ApiError) {
+    const t = await getTranslations('serverActions.shared');
     return {
       status: e.status,
-      message: e.displayMessage,
+      message: messageErreurApi(e, tRacine, t('networkErrorRetry')),
       errors: e.validationErrors,
     };
   }
@@ -58,7 +63,8 @@ function mapError(e: unknown): {
   } else {
     console.error('[dashboard-properties.action] non-Error:', String(e));
   }
-  return { message: 'Erreur réseau. Réessayez.' };
+  const t = await getTranslations('serverActions.shared');
+  return { message: t('networkErrorRetry') };
 }
 
 async function requireToken(): Promise<
@@ -66,9 +72,10 @@ async function requireToken(): Promise<
 > {
   const token = await getToken();
   if (!token) {
+    const t = await getTranslations('serverActions.shared');
     return {
       ok: false,
-      result: { ok: false, status: 401, message: 'Authentification requise.' },
+      result: { ok: false, status: 401, message: t('authRequired') },
     };
   }
   return { ok: true, token };
@@ -84,7 +91,7 @@ export async function createPropertyAction(
     revalidatePath('/app/properties');
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -100,7 +107,7 @@ export async function updatePropertyAction(
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -114,7 +121,7 @@ export async function deletePropertyAction(
     revalidatePath('/app/properties');
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -128,7 +135,7 @@ export async function duplicatePropertyAction(
     revalidatePath('/app/properties');
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -144,7 +151,7 @@ export async function updatePropertyStatusAction(
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -164,7 +171,7 @@ export async function updatePropertyVisibilityAction(
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -180,7 +187,7 @@ export async function assignPropertyAgentAction(
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -192,14 +199,15 @@ export async function uploadPropertyPhotosAction(
   if (!auth.ok) return auth.result;
   const files = formData.getAll('photos').filter((f): f is File => f instanceof File);
   if (files.length === 0) {
-    return { ok: false, message: 'Aucune photo sélectionnée.' };
+    const t = await getTranslations('serverActions.properties');
+    return { ok: false, message: t('noPhotoSelected') };
   }
   try {
     await uploadPropertyPhotos(auth.token, propertyId, files);
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -217,7 +225,7 @@ export async function setPropertyAddressAction(
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -234,7 +242,7 @@ export async function setPropertyTagsAction(
     await setPropertyTags(auth.token, propertyId, tagIds);
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -250,7 +258,7 @@ export async function fetchPropertyMediaAction(
     const data = await fetchPropertyMedia(auth.token, propertyId);
     return { ok: true, data };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -268,7 +276,7 @@ export async function deletePropertyMediaAction(
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }
 
@@ -286,6 +294,6 @@ export async function reorderPropertyMediaAction(
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true };
   } catch (e) {
-    return { ok: false, ...mapError(e) };
+    return { ok: false, ...(await mapError(e)) };
   }
 }

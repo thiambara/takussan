@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProfileSwitcher } from '../ProfileSwitcher';
 import type { User } from '@/types/user';
 import type { MyProfilesResponse } from '@/types/profile';
+import { withIntl } from '@/test/intl';
 
 const refreshUserMock = vi.fn();
 vi.mock('@/context/AuthContext', () => ({
@@ -53,11 +54,11 @@ function renderWithFetch(
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   vi.stubGlobal('fetch', fetchImpl);
-  render(
+  render(withIntl(
     <QueryClientProvider client={queryClient}>
       <ProfileSwitcher user={user} />
     </QueryClientProvider>,
-  );
+  ));
   return { queryClient };
 }
 
@@ -159,5 +160,67 @@ describe('<ProfileSwitcher>', () => {
       );
     });
     await waitFor(() => expect(refreshUserMock).toHaveBeenCalled());
+  });
+
+  // TCK-329 AC1 — le bug tel qu'il a été vu le 2026-08-17 : la barre supérieure
+  // affichait littéralement « undefined · Agence Teranga » à un admin d'agence.
+  it('AC1 — mono-profil agency_admin : le libellé ne contient jamais « undefined »', async () => {
+    const body: MyProfilesResponse = {
+      data: [
+        {
+          id: 'agency_admin:3',
+          type: 'agency_admin',
+          numeric_id: 3,
+          agency_id: 7,
+          agency: { id: 7, name: 'Agence Teranga', slug: 'teranga' },
+          status: 'active',
+          created_at: '2026-04-22T00:00:00Z',
+        },
+      ],
+      meta: { active_profile_id: 'agency_admin:3', count: 1 },
+    };
+    renderWithFetch(makeUser(), mockProfilesFetch(body));
+    const statique = await screen.findByTestId('profile-switcher-static');
+    expect(statique.textContent).not.toContain('undefined');
+    expect(statique.textContent).toContain('Administrateur · Agence Teranga');
+  });
+
+  // TCK-329 AC3 — `profileTypeLabel()` alimente l'`aria-label` du regroupement :
+  // un lecteur d'écran annonçait « undefined ». Le regroupement lui-même
+  // n'existait même pas, `TYPE_ORDER` omettant `agency_admin` : le profil était
+  // écarté du menu sans trace.
+  it('AC3 — le regroupement agency_admin existe et porte un aria-label lisible', async () => {
+    const body: MyProfilesResponse = {
+      data: [
+        {
+          id: 'agency_admin:3',
+          type: 'agency_admin',
+          numeric_id: 3,
+          agency_id: 7,
+          agency: { id: 7, name: 'Agence Teranga', slug: 'teranga' },
+          status: 'active',
+          created_at: '2026-04-22T00:00:00Z',
+        },
+        {
+          id: 'owner:9',
+          type: 'owner',
+          numeric_id: 9,
+          agency_id: 7,
+          agency: { id: 7, name: 'Agence Teranga', slug: 'teranga' },
+          status: 'active',
+          created_at: '2026-04-22T00:00:00Z',
+        },
+      ],
+      meta: { active_profile_id: 'owner:9', count: 2 },
+    };
+    renderWithFetch(makeUser(), mockProfilesFetch(body));
+    const declencheur = await screen.findByTestId('profile-switcher-trigger');
+    const u = userEvent.setup();
+    await u.click(declencheur);
+
+    const groupe = await screen.findByRole('group', { name: 'Administrateur' });
+    expect(groupe.getAttribute('aria-label')).not.toContain('undefined');
+    // Le profil admin est réellement PROPOSÉ, pas seulement étiqueté.
+    expect(await screen.findByTestId('profile-switcher-item-agency_admin:3')).toBeInTheDocument();
   });
 });

@@ -21,6 +21,7 @@ import type {
   IntegrationWebhookLog,
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export const categoryLabels: Record<string, string> = {
   payments: 'Paiements',
@@ -46,6 +47,7 @@ export function IntegrationCard({
   onEdit: (integration: AdminIntegration) => void;
   onWebhooks: (integration: AdminIntegration) => void;
 }) {
+  const t = useTranslations('superAdmin.integrations');
   return (
     <article className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
       <div className="flex items-start justify-between gap-3">
@@ -70,11 +72,11 @@ export function IntegrationCard({
         <IntegrationTestButton integrationId={integration.id} />
         <Button type="button" variant="outline" onClick={() => onEdit(integration)}>
           <PlugZap className="size-4" aria-hidden="true" />
-          Éditer
+          {t('edit')}
         </Button>
         <Button type="button" variant="ghost" onClick={() => onWebhooks(integration)}>
           <Webhook className="size-4" aria-hidden="true" />
-          Webhooks
+          {t('webhooksAction')}
         </Button>
       </div>
     </article>
@@ -82,12 +84,13 @@ export function IntegrationCard({
 }
 
 export function IntegrationTestButton({ integrationId }: { integrationId: number }) {
+  const t = useTranslations('superAdmin.integrations');
   const queryClient = useQueryClient();
   const [message, setMessage] = useState<string | null>(null);
   const mutation = useMutation({
     mutationFn: () => testAdminIntegration(integrationId),
     onSuccess: (response) => {
-      setMessage(response.data.success ? `${response.data.latency_ms} ms` : (response.data.error ?? 'Échec'));
+      setMessage(response.data.success ? `${response.data.latency_ms} ms` : (response.data.error ?? t('testFailure')));
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'integrations'] });
     },
   });
@@ -96,7 +99,7 @@ export function IntegrationTestButton({ integrationId }: { integrationId: number
     <div className="flex items-center gap-2">
       <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
         <TestTube2 className="size-4" aria-hidden="true" />
-        Tester
+        {t('test')}
       </Button>
       {message ? <span className="text-xs text-stone-500">{message}</span> : null}
     </div>
@@ -112,6 +115,9 @@ export function IntegrationEditDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const t = useTranslations('superAdmin.integrations');
+  const tCommon = useTranslations('common');
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const schema = useQuery<AdminIntegrationSchemaResponse, ApiError>({
     queryKey: ['super-admin', 'integrations', integration?.id, 'schema'],
@@ -133,14 +139,14 @@ export function IntegrationEditDialog({
       queryClient.invalidateQueries({ queryKey: ['super-admin', 'integrations'] });
       onOpenChange(false);
     },
-    onError: (err: ApiError) => setError(err.displayMessage),
+    onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>{integration ? `Éditer ${integration.label}` : 'Éditer une intégration'}</DialogTitle>
+          <DialogTitle>{integration ? t('editIntegration', { label: integration.label }) : t('editGeneric')}</DialogTitle>
         </DialogHeader>
         {schema.isLoading ? (
           <div className="h-32 animate-pulse rounded-lg bg-stone-200" />
@@ -159,14 +165,14 @@ export function IntegrationEditDialog({
               </div>
             ))}
             <p className="text-xs text-stone-500">
-              Les valeurs existantes restent masquées. Remplissez uniquement les champs à remplacer.
+              {t('maskedHint')}
             </p>
           </div>
         )}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
+            {tCommon('actions.cancel')}
           </Button>
           <Button
             type="button"
@@ -174,7 +180,7 @@ export function IntegrationEditDialog({
             disabled={mutation.isPending || Object.keys(payloadCredentials).length === 0}
           >
             <Save className="size-4" aria-hidden="true" />
-            Enregistrer
+            {tCommon('actions.save')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -201,10 +207,10 @@ export function WebhookTrailTable({
     <section className="rounded-xl bg-white ring-1 ring-stone-200">
       <div className="flex items-center justify-between border-b border-stone-200 p-4">
         <div>
-          <h2 className="font-display text-lg font-semibold text-stone-950">Webhooks {integration.label}</h2>
-          <p className="text-sm text-stone-500">Trail conservé 30 jours.</p>
+          <h2 className="font-display text-lg font-semibold text-stone-950">{t('title', { label: integration.label })}</h2>
+          <p className="text-sm text-stone-500">{t('retention')}</p>
         </div>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label="Fermer les webhooks" onClick={onClose}>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label={t('closeAria')} onClick={onClose}>
           <X className="size-4" aria-hidden="true" />
         </Button>
       </div>
@@ -217,10 +223,10 @@ export function WebhookTrailTable({
           <table className="min-w-full divide-y divide-stone-200 text-sm">
             <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
               <tr>
-                <th className="px-4 py-2">Événement</th>
-                <th className="px-4 py-2">Statut</th>
-                <th className="px-4 py-2">Payload</th>
-                <th className="px-4 py-2">Reçu</th>
+                <th className="px-4 py-2">{t('colEvent')}</th>
+                <th className="px-4 py-2">{t('colStatus')}</th>
+                <th className="px-4 py-2">{t('colPayload')}</th>
+                <th className="px-4 py-2">{t('colReceived')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">

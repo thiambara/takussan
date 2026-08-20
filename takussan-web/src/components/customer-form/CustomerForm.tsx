@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +14,10 @@ import { useApiForm } from '@/hooks/useApiForm';
 import { ApiError } from '@/lib/api';
 import {
   customerFormSchema,
+  customerStatusValues,
+  idTypeValues,
   normaliseCustomerForm,
+  pipelineStageValues,
   type CustomerFormValues,
 } from '@/lib/schemas/customer';
 import {
@@ -22,11 +26,6 @@ import {
 } from '@/app/actions/dashboard-customers';
 import type { CustomerDetail } from '@/types/customer';
 
-import {
-  CUSTOMER_STATUS_OPTIONS,
-  ID_TYPE_OPTIONS,
-  PIPELINE_STAGE_OPTIONS,
-} from './options';
 
 /**
  * Customer create / edit form — TCK-042.
@@ -72,7 +71,19 @@ export function CustomerForm({
   onSuccess,
   compact,
 }: CustomerFormProps) {
+  const t = useTranslations('crm.form');
+  const tCommon = useTranslations('common.actions');
+  const tStage = useTranslations('crm.pipeline.stage');
+  const tStatus = useTranslations('crm.customerStatus');
+  const tIdType = useTranslations('crm.idTypes');
   const router = useRouter();
+
+  // La donnée porte la CLÉ, le rendu la résout (patron TCK-286). Les tables
+  // françaises de `./options` restent en place tant que `app/(dashboard)/app/
+  // customers/[id]/page.tsx` — hors de ce lot — les importe.
+  const pipelineStageOptions = pipelineStageValues.map((v) => ({ value: v, label: tStage(v) }));
+  const customerStatusOptions = customerStatusValues.map((v) => ({ value: v, label: tStatus(v) }));
+  const idTypeOptions = idTypeValues.map((v) => ({ value: v, label: tIdType(v) }));
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<CustomerFormValues, CustomerDetail>({
@@ -111,7 +122,7 @@ export function CustomerForm({
           <span className="flex items-center justify-between gap-4">
             <span>{globalError}</span>
             <button type="button" onClick={clearGlobalError} className="text-xs underline">
-              Fermer
+              {tCommon('close')}
             </button>
           </span>
         ) : null}
@@ -119,21 +130,21 @@ export function CustomerForm({
 
       <div className={compact ? 'space-y-4' : 'rounded-xl bg-app-surface-1 p-6 space-y-4'}>
         <div className="grid gap-4 md:grid-cols-2">
-          <FormInput control={control} name="first_name" label="Prénom" required />
-          <FormInput control={control} name="last_name" label="Nom" required />
+          <FormInput control={control} name="first_name" label={t('firstName')} required />
+          <FormInput control={control} name="last_name" label={t('lastName')} required />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput
             control={control}
             name="email"
-            label="E-mail"
+            label={t('email')}
             type="email"
             autoComplete="email"
           />
           <FormInput
             control={control}
             name="phone"
-            label="Téléphone"
+            label={t('phone')}
             type="tel"
             autoComplete="tel"
             placeholder="+221 77 123 45 67"
@@ -142,44 +153,44 @@ export function CustomerForm({
         <FormInput
           control={control}
           name="occupation"
-          label="Profession"
-          placeholder="Enseignant, commerçant, etc."
+          label={t('occupation')}
+          placeholder={t('occupationPlaceholder')}
         />
       </div>
 
       <div className={compact ? 'space-y-4' : 'rounded-xl bg-app-surface-1 p-6 space-y-4'}>
         {!compact ? (
-          <h2 className="text-base font-semibold text-app-ink">Suivi CRM</h2>
+          <h2 className="text-base font-semibold text-app-ink">{t('crmSection')}</h2>
         ) : null}
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect
             control={control}
             name="pipeline_stage"
-            label="Étape du pipeline"
-            options={PIPELINE_STAGE_OPTIONS}
+            label={t('pipelineStage')}
+            options={pipelineStageOptions}
           />
           <FormSelect
             control={control}
             name="status"
-            label="Statut"
-            options={CUSTOMER_STATUS_OPTIONS}
+            label={t('status')}
+            options={customerStatusOptions}
           />
         </div>
       </div>
 
       <div className={compact ? 'space-y-4' : 'rounded-xl bg-app-surface-1 p-6 space-y-4'}>
         {!compact ? (
-          <h2 className="text-base font-semibold text-app-ink">Pièce d&apos;identité</h2>
+          <h2 className="text-base font-semibold text-app-ink">{t('idSection')}</h2>
         ) : null}
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect
             control={control}
             name="id_type"
-            label="Type de pièce"
-            options={ID_TYPE_OPTIONS}
-            placeholder="Non renseigné"
+            label={t('idType')}
+            options={idTypeOptions}
+            placeholder={t('idTypePlaceholder')}
           />
-          <FormInput control={control} name="id_number" label="Numéro" />
+          <FormInput control={control} name="id_number" label={t('idNumber')} />
         </div>
       </div>
 
@@ -188,10 +199,10 @@ export function CustomerForm({
           {isSubmitting ? (
             <>
               <Loader2 className="animate-spin" aria-hidden="true" />
-              <span>Enregistrement…</span>
+              <span>{t('saving')}</span>
             </>
           ) : (
-            <span>{mode === 'create' ? 'Créer le client' : 'Enregistrer'}</span>
+            <span>{mode === 'create' ? t('create') : tCommon('save')}</span>
           )}
         </Button>
         {!onSuccess ? (
@@ -201,7 +212,7 @@ export function CustomerForm({
             onClick={() => router.back()}
             disabled={isSubmitting}
           >
-            Annuler
+            {tCommon('cancel')}
           </Button>
         ) : null}
       </div>

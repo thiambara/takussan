@@ -1,12 +1,14 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchAdminReportCohorts } from '@/lib/queries/super-admin';
 import { ReportExportButton } from './ReportExportButton';
 
 export function CohortHeatmap() {
+  const t = useTranslations('reporting.cohorts');
   const query = useQuery({
     queryKey: ['super-admin', 'reports', 'cohorts', 12],
     queryFn: () => fetchAdminReportCohorts({ depth: 12 }),
@@ -22,7 +24,7 @@ export function CohortHeatmap() {
       <Card>
         <CardContent className="flex items-center gap-3 p-4">
           <p className="text-sm text-muted-foreground">
-            Cohortes d&apos;agences par mois d&apos;inscription · profondeur 12 mois.
+            {t('caption')}
           </p>
           <div className="ml-auto">
             <ReportExportButton report="cohorts" params={{ depth: 12 }} />
@@ -34,8 +36,8 @@ export function CohortHeatmap() {
           <table className="w-full text-xs">
             <thead className="border-b border-border/60 bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 text-left font-medium">Cohorte</th>
-                <th className="px-3 py-2 text-right font-medium">Taille</th>
+                <th className="px-3 py-2 text-left font-medium">{t('cohort')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('size')}</th>
                 {Array.from({ length: maxMonths }, (_, i) => (
                   <th key={i} className="px-2 py-2 text-center font-medium">M{i}</th>
                 ))}

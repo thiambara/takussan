@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export interface TeamAgent {
@@ -28,6 +29,7 @@ function getInitials(name: string): string {
 }
 
 export function TeamStrip({ agents }: TeamStripProps) {
+  const t = useTranslations('publicProfile.team');
   const scrollerRef = useRef<HTMLUListElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -83,7 +85,7 @@ export function TeamStrip({ agents }: TeamStripProps) {
                 )}
                 {typeof a.portfolio_count === 'number' && a.portfolio_count > 0 && (
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {a.portfolio_count} bien{a.portfolio_count > 1 ? 's' : ''}
+                    {t('propertiesCount', { count: a.portfolio_count })}
                   </p>
                 )}
               </div>
@@ -124,7 +126,7 @@ export function TeamStrip({ agents }: TeamStripProps) {
       {/* Flèches navigation — positionnées en dehors du strip */}
       <button
         type="button"
-        aria-label="Voir les agents précédents"
+        aria-label={t('prevAria')}
         onClick={() => scrollBy(-1)}
         disabled={!canScrollLeft}
         className="absolute right-full top-1/2 mr-3 -translate-y-1/2 hidden md:inline-flex size-10 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-all duration-150 ease-in-out hover:bg-muted hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-0"
@@ -133,7 +135,7 @@ export function TeamStrip({ agents }: TeamStripProps) {
       </button>
       <button
         type="button"
-        aria-label="Voir les agents suivants"
+        aria-label={t('nextAria')}
         onClick={() => scrollBy(1)}
         disabled={!canScrollRight}
         className="absolute left-full top-1/2 ml-3 -translate-y-1/2 hidden md:inline-flex size-10 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-all duration-150 ease-in-out hover:bg-muted hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-0"

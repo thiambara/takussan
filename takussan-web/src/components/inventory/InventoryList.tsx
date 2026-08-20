@@ -28,15 +28,14 @@ import {
   type InventoryType,
 } from '@/types/inventory';
 
-import {
-  INVENTORY_STATUS_LABEL,
-  INVENTORY_TYPE_LABEL,
-} from './labels';
 import { InventoryStatusBadge, InventoryTypeBadge } from './InventoryBadges';
 
 export function InventoryList() {
   const locale = useLocale() as Locale;
   const t = useTranslations('inventory.list');
+  const tRoot = useTranslations('inventory');
+  const tTypes = useTranslations('inventory.types');
+  const tStatus = useTranslations('inventory.status');
   const [type, setType] = useState<'' | InventoryType>('');
   const [status, setStatus] = useState<'' | InventoryStatus>('');
   const [page, setPage] = useState(1);
@@ -57,40 +56,40 @@ export function InventoryList() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="flex w-56 flex-col">
           <label htmlFor="inventory-filter-type" className="mb-1.5 text-sm font-medium">
-            Type
+            {t('type')}
           </label>
           <Select
             value={type || '__all__'}
             onValueChange={(value) => setType(value === '__all__' ? '' : ((value ?? '') as '' | InventoryType))}
-            items={[{ value: '__all__', label: 'Tous les types' }, ...INVENTORY_TYPES.map((t) => ({ value: t, label: INVENTORY_TYPE_LABEL[t] }))]}
+            items={[{ value: '__all__', label: t('allTypes') }, ...INVENTORY_TYPES.map((value) => ({ value, label: tTypes(value) }))]}
           >
             <SelectTrigger id="inventory-filter-type" className="h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Tous les types</SelectItem>
-              {INVENTORY_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>{INVENTORY_TYPE_LABEL[t]}</SelectItem>
+              <SelectItem value="__all__">{t('allTypes')}</SelectItem>
+              {INVENTORY_TYPES.map((value) => (
+                <SelectItem key={value} value={value}>{tTypes(value)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex w-56 flex-col">
           <label htmlFor="inventory-filter-status" className="mb-1.5 text-sm font-medium">
-            Statut
+            {t('statusLabel')}
           </label>
           <Select
             value={status || '__all__'}
             onValueChange={(value) => setStatus(value === '__all__' ? '' : ((value ?? '') as '' | InventoryStatus))}
-            items={[{ value: '__all__', label: 'Tous les statuts' }, ...INVENTORY_STATUSES.map((s) => ({ value: s, label: INVENTORY_STATUS_LABEL[s] }))]}
+            items={[{ value: '__all__', label: t('allStatuses') }, ...INVENTORY_STATUSES.map((value) => ({ value, label: tStatus(value) }))]}
           >
             <SelectTrigger id="inventory-filter-status" className="h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__all__">Tous les statuts</SelectItem>
-              {INVENTORY_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>{INVENTORY_STATUS_LABEL[s]}</SelectItem>
+              <SelectItem value="__all__">{t('allStatuses')}</SelectItem>
+              {INVENTORY_STATUSES.map((value) => (
+                <SelectItem key={value} value={value}>{tStatus(value)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -123,13 +122,13 @@ export function InventoryList() {
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-app-ink">
-                        {inv.property?.title ?? `État des lieux #${inv.id}`}
+                        {inv.property?.title ?? tRoot('fallbackReference', { id: String(inv.id) })}
                         {inv.lease?.reference_number ? ` · ${inv.lease.reference_number}` : ''}
                       </p>
                       <p className="mt-1 text-xs text-app-ink-muted">
                         {inv.conducted_at
-                          ? `Réalisé le ${formatDate(inv.conducted_at, locale)}`
-                          : `Créé le ${formatDate(inv.created_at, locale)}`}
+                          ? t('conductedOn', { date: formatDate(inv.conducted_at, locale) })
+                          : t('createdOn', { date: formatDate(inv.created_at, locale) })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -148,10 +147,14 @@ export function InventoryList() {
                     className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-app-ink hover:bg-app-surface-2 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="size-3.5" />
-                    Précédent
+                    {t('previous')}
                   </button>
                   <span className="text-xs text-app-ink-muted">
-                    Page {data.meta.current_page} / {data.meta.last_page} — {data.meta.total} entrées
+                    {t('pagination', {
+                      current: String(data.meta.current_page),
+                      last: String(data.meta.last_page),
+                      total: String(data.meta.total),
+                    })}
                   </span>
                   <button
                     type="button"
@@ -159,7 +162,7 @@ export function InventoryList() {
                     onClick={nextPage}
                     className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-app-ink hover:bg-app-surface-2 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    Suivant
+                    {t('next')}
                     <ChevronRight className="size-3.5" />
                   </button>
                 </li>

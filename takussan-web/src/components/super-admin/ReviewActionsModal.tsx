@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +23,7 @@ import {
   rejectAdminAgencyUpgradeRequest,
   type AdminAgencyUpgradeRequestRow,
 } from '@/lib/queries/super-admin';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
  * TCK-268 — Decision modal for the agency upgrade review console.
@@ -52,6 +54,8 @@ export function ReviewActionsModal({
   onOpenChange,
   onDecided,
 }: ReviewActionsModalProps) {
+  const t = useTranslations('superAdmin.reviewModal');
+  const messageErreur = useMessageErreurApi();
   const [comment, setComment] = useState('');
   const [error, setError] = useState<string | null>(null);
   const toast = useToast();
@@ -73,11 +77,11 @@ export function ReviewActionsModal({
         : rejectAdminAgencyUpgradeRequest(requestId, comment.trim()),
     onSuccess: (decision) => {
       toast.add({
-        title: mode === 'approve' ? 'Demande approuvée' : 'Demande rejetée',
+        title: mode === 'approve' ? t('toastApprovedTitle') : t('toastRejectedTitle'),
         description:
           mode === 'approve'
-            ? "L'agence sera notifiée de la décision."
-            : 'Le motif a été transmis au demandeur.',
+            ? t('toastApprovedBody')
+            : t('toastRejectedBody'),
         type: 'success',
       });
       onDecided?.(mode, decision);
@@ -85,9 +89,9 @@ export function ReviewActionsModal({
     },
     onError: (e) => {
       if (e instanceof ApiError) {
-        setError(e.displayMessage);
+        setError(messageErreur(e));
       } else {
-        setError('Une erreur est survenue. Réessayez.');
+        setError(t('genericError'));
       }
     },
   });
@@ -102,7 +106,7 @@ export function ReviewActionsModal({
     setError(null);
     if (mode === 'reject' && trimmedLength < REJECT_MIN_CHARS) {
       // Defensive — the disabled button should already prevent this.
-      setError(`Le motif doit faire au moins ${REJECT_MIN_CHARS} caractères.`);
+      setError(t('minCharsError', { min: String(REJECT_MIN_CHARS) }));
       return;
     }
     mutation.mutate();
@@ -118,19 +122,17 @@ export function ReviewActionsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className={`size-5 ${accent}`} aria-hidden="true" />
-            <span>{isApprove ? 'Approuver la demande' : 'Rejeter la demande'}</span>
+            <span>{isApprove ? t('approveTitle') : t('rejectTitle')}</span>
           </DialogTitle>
           <DialogDescription>
-            {isApprove
-              ? "L'agence passera en mode professionnel. Cette action est définitive."
-              : 'Le demandeur recevra le motif par email et pourra soumettre une nouvelle demande.'}
+            {isApprove ? t('approveDescription') : t('rejectDescription')}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="review-comment">
-              {isApprove ? 'Commentaire (optionnel)' : 'Motif du rejet'}
+              {isApprove ? t('commentLabel') : t('reasonLabel')}
               {isApprove ? null : <span className="ml-1 text-red-600">*</span>}
             </Label>
             <Textarea
@@ -141,16 +143,14 @@ export function ReviewActionsModal({
               rows={4}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder={
-                isApprove
-                  ? 'Ex. Statuts vérifiés, RIB cohérent.'
-                  : 'Ex. Statuts juridiques illisibles — merci de transmettre une version PDF non-scannée.'
-              }
+              placeholder={isApprove ? t('commentPlaceholder') : t('reasonPlaceholder')}
             />
             {!isApprove ? (
               <p className="text-xs text-stone-500">
-                {trimmedLength} / 2000 caractères{' '}
-                {trimmedLength < REJECT_MIN_CHARS ? `(minimum ${REJECT_MIN_CHARS})` : null}
+                {t('charCount', { count: String(trimmedLength) })}{' '}
+                {trimmedLength < REJECT_MIN_CHARS
+                  ? t('charMinimum', { min: String(REJECT_MIN_CHARS) })
+                  : null}
               </p>
             ) : null}
           </div>
@@ -163,7 +163,7 @@ export function ReviewActionsModal({
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
-              Annuler
+              {t('cancel')}
             </Button>
             <Button
               type="submit"
@@ -173,10 +173,10 @@ export function ReviewActionsModal({
               {mutation.isPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  <span>Envoi…</span>
+                  <span>{t('sending')}</span>
                 </>
               ) : (
-                <span>{isApprove ? 'Confirmer l’approbation' : 'Confirmer le rejet'}</span>
+                <span>{isApprove ? t('confirmApprove') : t('confirmReject')}</span>
               )}
             </Button>
           </DialogFooter>

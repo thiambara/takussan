@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { z } from 'zod';
 
 import { ApiError } from '@/lib/api';
+import { withIntl } from '@/test/intl';
+import fr from '@/messages/fr.json';
 import {
   useApiForm,
   mapValidationErrorsToForm,
@@ -18,29 +21,46 @@ type FormValues = z.infer<typeof schema>;
 
 const defaultValues: FormValues = { email: '', password: '' };
 
+/**
+ * Le traducteur RACINE, bâti sur le VRAI dictionnaire français.
+ *
+ * ⚠ Ces cinq cas passaient auparavant un `t` absent, et `extractApiErrorMessage` retombait alors
+ * sur des libellés français ÉCRITS EN DUR dans le hook. Ils gardaient donc une propriété vraie
+ * (« un 429 dit quelque chose sur les tentatives ») par le mauvais chemin : celui-là même qui
+ * rendait du français à un anglophone. Le traducteur est désormais OBLIGATOIRE — c'est le
+ * compilateur qui tient la propriété — et ces cas la vérifient à travers `fr.json`, donc plus
+ * fort qu'avant : une clé absente du dictionnaire les fait rougir.
+ */
+const tRacine = ((cle: string) => {
+  const valeur = cle
+    .split('.')
+    .reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], fr);
+  return typeof valeur === 'string' ? valeur : cle;
+}) as unknown as Parameters<typeof extractApiErrorMessage>[2];
+
 describe('extractApiErrorMessage', () => {
   it('returns a friendly message for 429', () => {
     const err = new ApiError(429, { message: 'Too many requests' });
-    expect(extractApiErrorMessage(err, 'fallback')).toMatch(/tentatives/i);
+    expect(extractApiErrorMessage(err, 'fallback', tRacine)).toMatch(/tentatives/i);
   });
 
   it('returns a friendly message for 5xx', () => {
     const err = new ApiError(500, null);
-    expect(extractApiErrorMessage(err, 'fallback')).toMatch(/serveur/i);
+    expect(extractApiErrorMessage(err, 'fallback', tRacine)).toMatch(/serveur/i);
   });
 
   it('returns the server message when available', () => {
     const err = new ApiError(400, { message: 'Email déjà utilisé' });
-    expect(extractApiErrorMessage(err, 'fallback')).toBe('Email déjà utilisé');
+    expect(extractApiErrorMessage(err, 'fallback', tRacine)).toBe('Email déjà utilisé');
   });
 
   it('returns a network message for TypeError (fetch failure)', () => {
     const err = new TypeError('fetch failed');
-    expect(extractApiErrorMessage(err, 'fallback')).toMatch(/connexion/i);
+    expect(extractApiErrorMessage(err, 'fallback', tRacine)).toMatch(/connexion/i);
   });
 
   it('returns the fallback for unknown errors', () => {
-    expect(extractApiErrorMessage('nope', 'fallback')).toBe('fallback');
+    expect(extractApiErrorMessage('nope', 'fallback', tRacine)).toBe('fallback');
   });
 });
 
@@ -116,6 +136,16 @@ describe('mapValidationErrorsToForm', () => {
   });
 });
 
+/**
+ * ⚠️ `useApiForm` appelle `useTranslations` depuis TCK-292 (lot J) : les schémas zod portent une
+ * CLÉ de message et c'est le résolveur du hook qui la résout. Sans provider, `useTranslations`
+ * LÈVE — d'où le harnais, qui charge les VRAIS dictionnaires plutôt qu'un `messages={{}}` (lequel
+ * rendrait la clé et ferait passer un test sur un affichage cassé).
+ */
+function wrapper({ children }: { children: ReactNode }) {
+  return withIntl(children);
+}
+
 describe('useApiForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -132,6 +162,7 @@ describe('useApiForm', () => {
         onSubmit,
         onSuccess,
       }),
+      { wrapper },
     );
 
     act(() => {
@@ -168,6 +199,7 @@ describe('useApiForm', () => {
         defaultValues,
         onSubmit,
       }),
+      { wrapper },
     );
 
     act(() => {
@@ -202,6 +234,7 @@ describe('useApiForm', () => {
         defaultValues,
         onSubmit,
       }),
+      { wrapper },
     );
 
     act(() => {
@@ -249,6 +282,7 @@ describe('useApiForm', () => {
         defaultValues,
         onSubmit,
       }),
+      { wrapper },
     );
 
     act(() => {
@@ -274,6 +308,7 @@ describe('useApiForm', () => {
         defaultValues,
         onSubmit,
       }),
+      { wrapper },
     );
 
     // Email is empty → Zod rejects before onSubmit is called.

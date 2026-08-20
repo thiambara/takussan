@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import {
   Dialog,
@@ -29,7 +29,7 @@ import type { Locale } from '@/i18n/config';
 
 import {
   CURRENCY_OPTIONS,
-  PAYMENT_METHOD_OPTIONS,
+  PAYMENT_METHOD_VALUES,
   commissionFromRate,
   computePayoutNet,
 } from './constants';
@@ -68,6 +68,8 @@ export function CreatePayoutDialog({
   defaultCommissionRate,
 }: CreatePayoutDialogProps) {
   const locale = useLocale() as Locale;
+  const t = useTranslations('payments.payoutDialog');
+  const tMethod = useTranslations('payments.methods');
   const createPayout = useCreatePayout();
 
   const defaultValues: CreatePayoutFormValues = useMemo(
@@ -125,7 +127,7 @@ export function CreatePayoutDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gross, rate]);
 
-  // Pas de `useMemo` ici, et pas d'oubli : le React Compiler mémoïse ce calcul (ADR-0033).
+  // Pas de `useMemo` ici, et pas d'oubli : le React Compiler mémoïse ce calcul (ADR-0015).
   // Le `useMemo` qui s'y trouvait faisait ABANDONNER la compilation de tout ce composant —
   // `react-hooks/preserve-manual-memoization` le signalait, et son correctif est de retirer la
   // mémoïsation manuelle, pas de l'ajuster.
@@ -143,10 +145,8 @@ export function CreatePayoutDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Créer un reversement</DialogTitle>
-          <DialogDescription>
-            Calcule automatiquement le montant net à verser au bailleur après commission.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <form
@@ -162,14 +162,14 @@ export function CreatePayoutDialog({
               control={form.control}
               name="landlord_id"
               type="number"
-              label="ID bailleur"
+              label={t('landlordId')}
               required
               min={1}
             />
             <FormSelect<CreatePayoutFormValues>
               control={form.control}
               name="currency"
-              label="Devise"
+              label={t('currency')}
               options={CURRENCY_OPTIONS.map((o) => ({ ...o }))}
             />
           </div>
@@ -179,14 +179,14 @@ export function CreatePayoutDialog({
               control={form.control}
               name="lease_id"
               type="number"
-              label="ID bail (optionnel)"
+              label={t('leaseId')}
               min={1}
             />
             <FormInput<CreatePayoutFormValues>
               control={form.control}
               name="booking_id"
               type="number"
-              label="ID réservation (optionnel)"
+              label={t('bookingId')}
               min={1}
             />
           </div>
@@ -195,12 +195,12 @@ export function CreatePayoutDialog({
             <FormDatePicker<CreatePayoutFormValues>
               control={form.control}
               name="period_start"
-              label="Début de période"
+              label={t('periodStart')}
             />
             <FormDatePicker<CreatePayoutFormValues>
               control={form.control}
               name="period_end"
-              label="Fin de période"
+              label={t('periodEnd')}
             />
           </div>
 
@@ -211,7 +211,7 @@ export function CreatePayoutDialog({
               type="number"
               min={0}
               step={100}
-              label="Montant brut"
+              label={t('grossAmount')}
               required
             />
             <FormInput<CreatePayoutFormValues>
@@ -221,7 +221,7 @@ export function CreatePayoutDialog({
               min={0}
               max={100}
               step={0.1}
-              label="Taux commission (%)"
+              label={t('commissionRate')}
             />
             <FormInput<CreatePayoutFormValues>
               control={form.control}
@@ -229,7 +229,7 @@ export function CreatePayoutDialog({
               type="number"
               min={0}
               step={100}
-              label="Commission"
+              label={t('commission')}
             />
           </div>
 
@@ -240,52 +240,55 @@ export function CreatePayoutDialog({
               type="number"
               min={0}
               step={100}
-              label="Frais"
+              label={t('fees')}
             />
             <FormSelect<CreatePayoutFormValues>
               control={form.control}
               name="payment_method"
-              label="Méthode"
+              label={t('method')}
               options={[
-                { value: '', label: '—' },
-                ...PAYMENT_METHOD_OPTIONS.map((o) => ({ ...o })),
+                { value: '', label: tMethod('none') },
+                ...PAYMENT_METHOD_VALUES.map((value) => ({
+                  value,
+                  label: tMethod(value),
+                })),
               ]}
             />
             <FormDatePicker<CreatePayoutFormValues>
               control={form.control}
               name="scheduled_at"
-              label="Prévu le"
+              label={t('scheduledAt')}
             />
           </div>
 
           <FormTextarea<CreatePayoutFormValues>
             control={form.control}
             name="notes"
-            label="Notes"
+            label={t('notes')}
             rows={2}
           />
 
           <dl className="grid gap-2 rounded-xl bg-app-surface-1 p-3 text-xs sm:grid-cols-4">
             <div>
-              <dt className="text-app-ink-muted">Brut</dt>
+              <dt className="text-app-ink-muted">{t('gross')}</dt>
               <dd className="text-sm font-semibold text-app-ink">
                 {formatCurrency(gross, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">Commission</dt>
+              <dt className="text-app-ink-muted">{t('commission')}</dt>
               <dd className="text-sm font-semibold text-app-ink">
                 {formatCurrency(manualCommission ?? 0, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">Frais</dt>
+              <dt className="text-app-ink-muted">{t('fees')}</dt>
               <dd className="text-sm font-semibold text-app-ink">
                 {formatCurrency(fees, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">Net</dt>
+              <dt className="text-app-ink-muted">{t('net')}</dt>
               <dd
                 className={`text-sm font-semibold ${
                   net <= 0 ? 'text-destructive' : 'text-app-ink'
@@ -298,10 +301,10 @@ export function CreatePayoutDialog({
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Annuler
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting || net <= 0}>
-              {isSubmitting ? 'Création…' : 'Créer le reversement'}
+              {isSubmitting ? t('creating') : t('submit')}
             </Button>
           </div>
         </form>

@@ -61,17 +61,20 @@ async function loadAgent(slug: string): Promise<AgentDto | null> {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const t = await getTranslations('agents.publicPage');
   const agent = await loadAgent(slug);
   if (!agent) {
-    const t = await getTranslations('agents.publicPage');
     return { title: t('notFound') };
   }
-  const summary = `${agent.portfolio_count} bien${agent.portfolio_count > 1 ? 's' : ''}${agent.city ? ` à ${agent.city}` : ''}`;
+  const summary = agent.city
+    ? t('metaSummaryInCity', { count: agent.portfolio_count, city: agent.city })
+    : t('metaSummary', { count: agent.portfolio_count });
+  const title = t('metaTitle', { name: agent.full_name });
   return {
-    title: `${agent.full_name} — Agent immobilier`,
+    title,
     description: agent.bio ?? summary,
     openGraph: {
-      title: `${agent.full_name} — Agent immobilier`,
+      title,
       description: agent.bio ?? summary,
       images: agent.avatar_url ? [agent.avatar_url] : undefined,
     },
@@ -100,9 +103,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   if (agent.city) eyebrowParts.push(agent.city);
   if (agent.specialty) eyebrowParts.push(agent.specialty);
   if (agent.years_of_experience && agent.years_of_experience > 0) {
-    eyebrowParts.push(
-      `${agent.years_of_experience} an${agent.years_of_experience > 1 ? 's' : ''} d'expérience`,
-    );
+    eyebrowParts.push(t('experience', { count: agent.years_of_experience }));
   }
 
   return (
@@ -201,7 +202,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                 name={agent.full_name}
                 email={agent.email}
                 phone={agent.phone}
-                subject={`Contact via Takussan — ${agent.full_name}`}
+                subject={t('contactSubject', { name: agent.full_name })}
               />
             </div>
           </div>

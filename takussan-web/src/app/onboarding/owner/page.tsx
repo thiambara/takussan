@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 
 import { getMyProfilesAction } from '@/app/actions/profiles';
 import { OwnerOnboardingWizard } from '@/components/onboarding/OwnerOnboardingWizard';
@@ -18,11 +19,13 @@ import { getToken } from '@/lib/session';
  */
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'Onboarding propriétaire',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('owners.onboarding');
+  return { title: t('metaTitle') };
+}
 
 export default async function OwnerOnboardingPage() {
+  const t = await getTranslations('owners.onboarding');
   const token = await getToken();
   if (!token) {
     redirect('/auth/login?redirect=%2Fonboarding%2Fowner');
@@ -43,11 +46,10 @@ export default async function OwnerOnboardingPage() {
       <div className="mx-auto max-w-3xl">
         <header className="mb-8 text-center">
           <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Bienvenue dans votre espace propriétaire
+            {t('pageTitle')}
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Quatre étapes guidées pour vérifier votre identité, transmettre vos
-            pièces et découvrir vos biens.
+            {t('pageSubtitle')}
           </p>
         </header>
 

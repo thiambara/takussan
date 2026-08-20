@@ -16,6 +16,7 @@ import {
 import { useDeleteAgencyRole } from '@/lib/queries/agency-roles';
 import type { ApiError } from '@/lib/api';
 import type { AgencyRole, BlockingProfile } from '@/types/agency-role';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface DeleteRoleDialogProps {
   readonly agencyId: number;
@@ -54,6 +55,7 @@ export function DeleteRoleDialog({
 }: DeleteRoleDialogProps) {
   const t = useTranslations('admin.roles');
   const tCommon = useTranslations('common.actions');
+  const messageErreur = useMessageErreurApi();
   const remove = useDeleteAgencyRole(agencyId);
   /**
    * Le refus est lu depuis l'objet d'erreur du callback, PAS depuis
@@ -115,7 +117,7 @@ export function DeleteRoleDialog({
 
         {failure && !blocking ? (
           <p className="text-sm text-destructive" role="alert">
-            {failure.displayMessage}
+            {messageErreur(failure)}
           </p>
         ) : null}
 

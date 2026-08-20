@@ -3,7 +3,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Dialog,
   DialogContent,
@@ -17,9 +16,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
+import { useResolveurValidation } from '@/hooks/useApiForm';
 import { apiRequest, ApiError } from '@/lib/api';
 import { buildDepositRefundSchema, type DepositRefundFormValues } from '@/lib/schemas/lease';
 import { useQueryClient } from '@tanstack/react-query';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface DepositRefundModalProps {
   readonly open: boolean;
@@ -48,6 +49,7 @@ export function DepositRefundModal({
   currency,
 }: DepositRefundModalProps) {
   const t = useTranslations('lease.deposit');
+  const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -57,6 +59,10 @@ export function DepositRefundModal({
 
   const schema = useMemo(() => buildDepositRefundSchema(depositRemaining), [depositRemaining]);
 
+  // TCK-292 (lot J) — `buildDepositRefundSchema` porte des CLÉS de message, pas des libellés :
+  // `zodResolver` nu afficherait `validation.lease.refundExceedsDeposit` à l'utilisateur.
+  const resolver = useResolveurValidation(schema);
+
   const {
     register,
     handleSubmit,
@@ -65,7 +71,7 @@ export function DepositRefundModal({
     setError,
     formState: { errors },
   } = useForm<DepositRefundFormValues>({
-    resolver: zodResolver(schema),
+    resolver,
     defaultValues: {
       amount: depositRemaining,
       reason: '',
@@ -113,10 +119,10 @@ export function DepositRefundModal({
             }
           }
           if (!validation.amount && !validation.reason) {
-            setGlobalError(err.displayMessage);
+            setGlobalError(messageErreur(err));
           }
         } else {
-          setGlobalError(err.displayMessage);
+          setGlobalError(messageErreur(err));
         }
       } else {
         setGlobalError(t('error_generic'));
