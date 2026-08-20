@@ -2263,6 +2263,30 @@ TCK-314).
 séquentiel supporte la simultanéité depuis D-44, et `bin/impacted-tests.php` (TCK-320) aussi — la
 boucle quotidienne n'est donc pas bloquée, c'est le rituel de fin de branche qui doit rester sériel.
 
+### Épilogue, 2026-08-20 — la paire sur la suite ENTIÈRE a été jouée, et elle rougit AILLEURS
+
+Machine au repos, 8 cœurs, load 3,39 au départ : `A = 38 erreurs`, `B = 37`, sur **2589 tests joués
+des deux côtés**. Contrôle immédiat, même arbre, même repos, une seule exécution : **0 échec, 108 s**.
+
+Trois constats, à ne pas confondre :
+
+1. **Le correctif de TCK-322 tient.** Les deux exécutions ont DÉMARRÉ ; `mkdir(): File exists` ne
+   s'est pas produit sur la suite entière. Ce que cette dette demandait est établi.
+2. **L'isolation de TCK-321 tient.** Jetons d'index distincts des deux côtés — pas une collision de
+   noms.
+3. **Une CINQUIÈME ressource partagée par machine apparaît** : la **file de tâches globale du
+   serveur Meilisearch**. Les 75 erreurs sont toutes des `MeilisearchNotIdleException`. L'isolation
+   du dépôt porte sur les *noms d'index* ; elle ne peut rien contre le *débit d'indexation* d'une
+   instance unique. → **TCK-334**.
+
+**Et c'est D-44 qui a rendu ce diagnostic possible** : l'ancienne barrière abandonnait en silence au
+bout de 10 s, laissait le test lire un index à moitié construit, et rougissait sur une assertion
+métier juste — en accusant le code applicatif. Ici elle lève, compte les tâches en attente index par
+index, et nomme la cause probable dans son propre message. *Une garde qui échoue bruyamment vaut son
+coût le jour où elle décrit la panne à ta place.*
+
+La restriction « un seul agent à la fois » reste donc écrite — avec, désormais, **la bonne raison**.
+
 </details>
 
 ---

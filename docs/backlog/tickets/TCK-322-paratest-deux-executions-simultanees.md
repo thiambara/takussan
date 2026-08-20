@@ -151,6 +151,66 @@ dans `CLAUDE.md` (racine et `takussan-api/`) et dans l'ardoise D-49 — c'est l'
 elle ne disparaît pas avant d'avoir cessé d'être vraie. Une ligne à changer dans chacun des trois le
 jour où la mesure sera prise.
 
+## La paire a été jouée le 2026-08-20 — et elle ROUGIT, pour une raison que ce ticket ne connaissait pas
+
+**Le correctif de ce ticket TIENT. L'AC2 n'est pas tenu. Les deux phrases sont vraies, et il faut les
+séparer.**
+
+### La mesure, machine au repos, 8 cœurs
+
+```
+départ  load 3,39 sur 8 cœurs (repos)          — deux `php artisan test --parallel` lancés ensemble
+A = 2   Tests: 2589, Assertions: 8117, Errors: 38, Skipped: 2
+B = 2   Tests: 2589, Assertions: 8116, Errors: 37, Skipped: 2
+arrivée load 114,89
+```
+
+**Contrôle joué juste après, même arbre, même commande, machine au repos** — sans lui, on ne
+saurait pas si c'est la simultanéité ou l'arbre qui casse :
+
+```
+départ  load 3,70 sur 8 cœurs
+UN SEUL Tests: 2589, Assertions: 8210, Skipped: 2   ← 0 ÉCHEC, en 108 s
+        real 108,09  user 448,45  sys 44,35
+```
+
+Même arbre, même commande, même machine, deux fois au repos. **C'est la simultanéité qui casse.**
+
+### Ce que ça établit — trois constats à ne pas confondre
+
+1. **Le correctif de CE ticket tient.** Les deux exécutions ont **démarré** et joué leurs 2589 tests
+   chacune. La mort au démarrage sur `mkdir(): File exists` — la quatrième ressource partagée que ce
+   ticket avait trouvée et enracinée par exécution — **ne s'est pas produite**. C'est ce que le
+   ticket devait prouver, et c'est prouvé sur la suite entière.
+2. **L'isolation de TCK-321 tient aussi.** Les index portent des jetons distincts
+   (`testing_2acdf5665a_8_…` contre `testing_2ace1470ae_8_…`) : ce n'est **pas** une collision de
+   noms d'index.
+3. **Mais une CINQUIÈME ressource partagée par machine apparaît, que personne n'avait nommée : la
+   file de tâches globale du serveur Meilisearch.** Les 75 erreurs sont *toutes* des
+   `MeilisearchNotIdleException` : deux suites parallèles saturent la file, la barrière de 10 s
+   expire, et le test **refuse** de lire un index à moitié construit.
+
+### Le correctif D-44 fonctionne exactement comme il devait
+
+C'est le point qui mérite d'être lu deux fois. **L'ancienne version de `waitForMeilisearch()` aurait
+abandonné en SILENCE** au bout de 10 s, laissé le test enchaîner sur un index à moitié construit, et
+rougi sur une assertion métier parfaitement juste — en accusant le code applicatif. Ici la barrière
+lève, nomme la file, compte les tâches en attente index par index, et écrit dans son propre message
+d'erreur : *« une autre exécution de la suite écrit dans la même instance »*.
+
+**Le diagnostic était dans l'erreur.** C'est très précisément ce que D-44 avait été écrite pour
+produire.
+
+### Conséquence
+
+- **L'AC2 reste NON TENU**, et il n'est pas atteignable en l'état : ce ticket a corrigé la ressource
+  partagée qu'il visait, il n'en corrige pas une cinquième découverte à sa dernière mesure.
+- **La restriction « un seul agent à la fois sur `--parallel` en suite entière » RESTE écrite** —
+  mais **sa raison change**, et c'est ce qu'il faut corriger dans la documentation : ce n'est plus le
+  démarrage, c'est Meilisearch.
+- La suite reste prise par **TCK-334**, qui porte la mesure et les options.
+
+
 ## Ce que ce ticket ne fait pas
 
 - Il ne remet pas en cause `--parallel` pour un agent seul : les cinq exécutions d'épreuve de

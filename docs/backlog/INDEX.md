@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**315 tickets** — 13 ouverts, 301 livrés.
+**316 tickets** — 14 ouverts, 301 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 4 |
+| 📋 Todo | 5 |
 | 🚧 Doing | 9 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -37,6 +37,7 @@
 - [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-332](tickets/TCK-332-front-public-appelle-une-api-absente.md) — Le front de production est public et appelle une API qui n'existe pas `S · P0 · technique`
 - [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
+- [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
 
 ## 🚧 Doing
 

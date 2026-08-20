@@ -156,9 +156,25 @@ séquentiel à load 3,74 → **64,90 s** à load 6,11, 8 cœurs).
 
    **Mesuré le 2026-08-17, 8 cœurs : cinq paires simultanées à 0 échec des deux côtés** (`load`
    21-94), une paire compilant du Blade verte à `load` 215, et l'ablation du correctif fait
-   remourir l'une des deux. **Toutes sur des sous-ensembles** — la paire sur la suite ENTIÈRE reste
-   à jouer. Jusque-là : un seul agent à la fois sur `--parallel` en suite entière. Le mode
-   séquentiel et `bin/impacted-tests.php` supportent la simultanéité depuis D-44.
+   remourir l'une des deux.
+
+   ⚠️ **La paire sur la suite ENTIÈRE a été jouée le 2026-08-20, et elle ROUGIT — mais pas pour
+   cette raison-là.** Machine au repos (load 3,39 sur 8 cœurs) : `A = 38 erreurs`, `B = 37`, sur
+   2589 tests chacune. **Les deux ont DÉMARRÉ** — le correctif ci-dessus tient, `mkdir(): File
+   exists` ne s'est pas produit — et les jetons d'index sont bien distincts. Les 75 erreurs sont
+   *toutes* des `MeilisearchNotIdleException` : **une CINQUIÈME ressource partagée par machine, la
+   file de tâches globale du serveur Meilisearch.** Contrôle joué juste après, même arbre, même
+   repos : **une seule exécution rend 2589 tests, 0 échec, en 108 s**. C'est donc la simultanéité,
+   pas l'arbre ni la charge.
+
+   **Donc : un seul agent à la fois sur `--parallel` en suite entière** — la restriction ne change
+   pas, sa RAISON change, et c'est TCK-334 qui la porte désormais. Le mode séquentiel et
+   `bin/impacted-tests.php` supportent la simultanéité depuis D-44.
+
+   *À lire deux fois : c'est le correctif D-44 qui a rendu ce diagnostic possible.* L'ancienne
+   version abandonnait en silence au bout de 10 s et rougissait sur une assertion métier juste, en
+   accusant le code applicatif. Ici la barrière lève, compte les tâches en attente index par index,
+   et nomme elle-même la cause probable dans son message. **Le diagnostic était dans l'erreur.**
 2. **Pas activé en CI — et c'est désormais un RÉSULTAT, plus un défaut** (TCK-324, mesuré le
    2026-08-18 sur le runner `ubuntu-latest`, `nproc` **4**, AMD EPYC 7763, load 1,05 au départ) :
 
@@ -222,8 +238,12 @@ php artisan test --parallel          # ×3,2 sur la meilleure mesure (208,80 s s
                                     #   (« mkdir(): File exists ») est CORRIGÉE par TCK-322 :
                                     #   les vues compilées sont enracinées par exécution. Cinq
                                     #   paires simultanées à 0 échec, mais sur des SOUS-ENSEMBLES
-                                    #   — la paire sur la suite entière reste à jouer, donc on
-                                    #   garde « un seul agent à la fois » pour celle-ci. Le
+                                    #   La paire sur la suite ENTIÈRE a été jouée le 2026-08-20
+                                    #   et elle ROUGIT — 38 et 37 erreurs, TOUTES Meilisearch,
+                                    #   alors qu'une seule exécution rend 0 échec en 108 s au
+                                    #   même repos. Cinquième ressource partagée : la file de
+                                    #   tâches du serveur (TCK-334). On garde donc « un seul
+                                    #   agent à la fois » pour celle-ci, pour une AUTRE raison. Le
                                     #   séquentiel et impacted-tests.php supportent la
                                     #   simultanéité. Pour le quotidien :
                                     #   php bin/impacted-tests.php --run

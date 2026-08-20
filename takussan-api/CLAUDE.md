@@ -590,9 +590,22 @@ rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
    (`load average` 21-94), plus une paire sur des tests qui compilent réellement du Blade, verte à
    `load average` 215 — et l'ablation du correctif fait immédiatement remourir l'une des deux sur
    `mkdir(): File exists`. Ces épreuves portent sur des SOUS-ENSEMBLES : la panne étant un démarrage
-   impossible, elle ne dépend pas des tests choisis, mais **la paire sur la suite ENTIÈRE reste à
-   jouer** par la session qui délègue (une commande de ce format ne peut pas l'être).
-   Jusque-là, garder la prudence : un seul agent à la fois sur la suite entière en `--parallel`.
+   impossible, elle ne dépend pas des tests choisis.
+
+   ⚠️ **La paire sur la suite ENTIÈRE a été jouée le 2026-08-20 par la session principale, et elle
+   ROUGIT — pour une CINQUIÈME ressource partagée, pas pour celle-ci.** Machine au repos (load 3,39
+   sur 8 cœurs) : `A = 38 erreurs`, `B = 37`, sur 2589 tests joués **des deux côtés** — donc les
+   deux ont bien DÉMARRÉ, et le correctif des vues compilées tient. Les jetons d'index sont
+   distincts (`testing_2acdf5665a_8_…` contre `testing_2ace1470ae_8_…`) : ce n'est pas une
+   collision de noms. Les 75 erreurs sont *toutes* des `MeilisearchNotIdleException` — **la file de
+   tâches du serveur Meilisearch est globale par machine**, et deux suites parallèles la saturent.
+
+   Contrôle immédiat, même arbre, même repos : **une seule exécution rend `Tests: 2589,
+   Assertions: 8210, Skipped: 2`, 0 échec, en 108 s** (`real 108,09 · user 448,45 · sys 44,35`).
+   La simultanéité est donc la cause, ni l'arbre ni la charge.
+
+   **Un seul agent à la fois sur la suite entière en `--parallel`** : la restriction est
+   inchangée, sa raison ne l'est pas. Suite dans **TCK-334**.
    Le mode séquentiel et `php bin/impacted-tests.php` supportent la simultanéité depuis D-44.
 
 ## Ne lancer que les tests que le diff touche
