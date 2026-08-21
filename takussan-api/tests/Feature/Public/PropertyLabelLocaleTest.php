@@ -59,19 +59,36 @@ class PropertyLabelLocaleTest extends ApiTestCase
     }
 
     /**
-     * TCK-335 — sans en-tête, les libellés suivent la locale de l'APPLICATION.
+     * TCK-335 — un `Accept-Language` que l'API ne sait pas servir retombe sur la locale
+     * de l'APPLICATION, et n'invente pas une quatrième langue.
      *
-     * Ce chemin n'était couvert par aucun test, et il est piégeux à épingler : le `.env`
-     * de cette machine porte `APP_LOCALE=en` quand `.env.example` — l'environnement de
-     * test de la CI — porte `fr`. Une assertion écrite en dur sur « À louer » serait donc
-     * verte d'un côté et rouge de l'autre. On épingle la PROPRIÉTÉ — « pas d'en-tête »
-     * rend la même chose que « en-tête = locale de l'application », et autre chose que
-     * n'importe quelle autre locale — sans jamais nommer laquelle des trois est configurée.
+     * ⚠️ **Ce test remplace un test « sans en-tête » qui ne pouvait pas exister** — il a
+     * cassé la CI de la PR #209, et sa cause est une propriété du harnais que rien ne
+     * documentait. Mesuré le 2026-08-21 :
      *
-     * (`config(['app.locale' => …])` ne survit pas à la requête dans ce harnais : la
-     * configuration est rechargée. C'est mesuré, et c'est la raison de cette forme.)
+     *     Illuminate\Http\Request::create('/x')->header('Accept-Language')
+     *     => "en-us,en;q=0.5"
+     *
+     * `Symfony\Component\HttpFoundation\Request::create()` — la fabrique qu'emploie
+     * `$this->getJson()` — injecte cet en-tête dans ses valeurs de serveur par défaut.
+     * **Aucun test HTTP de Laravel ne part donc sans `Accept-Language`**, et
+     * `array_replace` ne permet pas de le retirer par un argument. Le test précédent
+     * croyait mesurer la locale d'application ; il mesurait `en`, en toute circonstance.
+     *
+     * Il était vert en local (`.env` → `APP_LOCALE=en`, la valeur que le harnais injecte)
+     * et rouge en CI (`.env.example` → `fr`) : `À louer` attendu, `For Rent` rendu. Le
+     * commentaire qui l'accompagnait accusait `config(['app.locale' => …])` de ne pas
+     * survivre à la requête — une déduction, et elle était fausse.
+     *
+     * L'absence RÉELLE de l'en-tête se teste un cran plus bas, sur le middleware, où la
+     * requête peut être construite sans lui :
+     * `Tests\Unit\Http\Middleware\SetLocaleMiddlewareTest`.
+     *
+     * On épingle ici la PROPRIÉTÉ — « en-tête non négociable ≡ en-tête portant
+     * `app.locale`, et ≠ toute autre locale » — sans nommer laquelle des trois est
+     * configurée, puisque les deux environnements n'en déclarent pas la même.
      */
-    public function test_sans_accept_language_les_libelles_suivent_la_locale_de_l_application(): void
+    public function test_un_accept_language_non_supporte_retombe_sur_la_locale_de_l_application(): void
     {
         $property = Property::factory()->create([
             'status' => PropertyStatus::Available,
@@ -84,7 +101,12 @@ class PropertyLabelLocaleTest extends ApiTestCase
         $localeApplication = config('app.locale');
         $autreLocale = collect(['fr', 'en', 'wo'])->first(fn (string $l) => $l !== $localeApplication);
 
-        $sansEnTete = $this->getJson('/api/public/properties/'.$property->slug);
+        // `de` n'est pas dans les locales supportées : la négociation ne rend rien, et le
+        // middleware laisse la locale de l'application en place.
+        $nonNegociable = $this->getJson(
+            '/api/public/properties/'.$property->slug,
+            ['Accept-Language' => 'de-DE,de;q=0.9'],
+        );
         $avecLocaleApplication = $this->getJson(
             '/api/public/properties/'.$property->slug,
             ['Accept-Language' => $localeApplication],
@@ -94,17 +116,17 @@ class PropertyLabelLocaleTest extends ApiTestCase
             ['Accept-Language' => $autreLocale],
         );
 
-        $sansEnTete->assertOk();
-        $this->assertNotNull($sansEnTete->json('data.contract_type_label'));
+        $nonNegociable->assertOk();
+        $this->assertNotNull($nonNegociable->json('data.contract_type_label'));
         $this->assertSame(
             $avecLocaleApplication->json('data.contract_type_label'),
-            $sansEnTete->json('data.contract_type_label'),
-            "sans en-tête, le libellé doit suivre app.locale ({$localeApplication})",
+            $nonNegociable->json('data.contract_type_label'),
+            "un en-tête non supporté doit rendre app.locale ({$localeApplication})",
         );
         $this->assertNotSame(
             $avecAutreLocale->json('data.contract_type_label'),
-            $sansEnTete->json('data.contract_type_label'),
-            "le libellé sans en-tête ne doit pas coïncider avec la locale {$autreLocale}",
+            $nonNegociable->json('data.contract_type_label'),
+            "le libellé ne doit pas coïncider avec la locale {$autreLocale}",
         );
     }
 }

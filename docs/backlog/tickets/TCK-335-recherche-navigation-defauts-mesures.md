@@ -245,8 +245,11 @@ synonyme réécrit un terme de requête ; il ne crée pas un mot absent de l'ind
 - [x] **AC12a** *(réduit)* — le HTML de `/properties/{slug}`, **JavaScript désactivé**, contient le
       `<h1>` du titre, le prix et la description
 - [x] **AC13** — `Accept-Language: en` rend `For Rent` *(mesuré : en → For Rent, wo → Tëddé)*
-- [x] **AC13bis** *(nouveau)* — une requête **sans** `Accept-Language` rend la même chose qu'une
-      requête portant `app.locale`, et autre chose que n'importe quelle autre locale
+- [x] **AC13bis** *(nouveau, REFORMULÉ le 2026-08-21 — cf. « Gotchas payés »)* — une requête
+      dont l'`Accept-Language` n'est **pas négociable** rend la même chose qu'une requête portant
+      `app.locale`, et autre chose que n'importe quelle autre locale ; et l'absence **réelle** de
+      l'en-tête laisse la locale de l'application en place *(vérifié sur le middleware, seul
+      niveau où le cas est exprimable)*
 - [x] **AC15** — l'autocomplétion rend « Mermoz » sur la saisie `mrmoz`
 - [x] **AC16** — les deux suites restent vertes *(backend 2619 · front 1199, 0 échec)* et le
       cliquet de couverture tient : **86,7 %** (21 633 / 24 964 lignes exécutables), seuil 86 %
@@ -347,10 +350,30 @@ prescriptions et deux critères d'acceptation sont tombés :
 - `.next/dev/types/validator.ts` est un artefact **généré** : après la suppression de
   `[slug]/layout.tsx`, il continuait de déclarer `/properties/[slug]` comme route de layout et
   faisait échouer `next build` sur une erreur qui ne décrivait aucun code du dépôt. `rm -rf .next`.
-- `config(['app.locale' => …])` **ne survit pas à une requête HTTP** dans ce harnais de test : la
-  configuration est rechargée. Le test de locale par défaut épingle donc la *propriété* (« sans
-  en-tête ≡ en-tête portant `app.locale` ») et non l'une de ses trois valeurs — sans quoi il serait
-  vert en CI (`.env.example` → `fr`) et rouge en local (`.env` → `en`).
+- ⚠️ **« Une requête sans `Accept-Language` » ne s'exprime PAS en test HTTP Laravel — et cette
+  ligne disait autre chose, à tort.** Elle accusait `config(['app.locale' => …])` de ne pas survivre
+  à la requête. C'était une déduction, elle était fausse, et le test qu'elle justifiait **a cassé la
+  CI de la PR #209** : `À louer` attendu, `For Rent` rendu. Mesuré le 2026-08-21 :
+
+  ```php
+  Illuminate\Http\Request::create('/x')->header('Accept-Language')   // => "en-us,en;q=0.5"
+  ```
+
+  `Symfony\…\Request::create()` — la fabrique de `$this->getJson()` — injecte cet en-tête dans ses
+  valeurs de serveur par défaut, et `array_replace` ne sait pas le retirer par un argument. Le test
+  mesurait donc `en` en croyant mesurer `app.locale`. Il était vert en local (`.env` → `en`, la
+  valeur même que le harnais injecte) et rouge en CI (`.env.example` → `fr`) — **le sens inverse de
+  celui que cette note annonçait**, ce qui est le signe qu'elle n'avait rien mesuré.
+
+  Corrigé en deux temps : le test HTTP épingle désormais un en-tête **non négociable** (`de-DE`),
+  cas réel et exprimable ; l'absence **véritable** descend sur le middleware
+  (`tests/Unit/Http/Middleware/SetLocaleMiddlewareTest.php`), où la requête peut être dépouillée de
+  l'en-tête — `headers` **et** `server`, les deux le portent. Ce fichier épingle en outre la
+  propriété du harnais elle-même, pour que le prochain test « sans en-tête » écrit en HTTP échoue
+  là, avec son explication, plutôt que sur une machine dont le `.env` ne dit pas la même chose.
+
+  Les deux tests sont vérifiés par ablation *et* rejoués sous `APP_LOCALE=en|fr|wo` : ils sont verts
+  dans les trois, ce que le test remplacé n'était pas.
 - `mockTraductionsServeur` de `@/test/intl` **ignore les paramètres d'interpolation** : un test qui
   vérifiait qu'aucun « null » ne s'écrit dans une `<meta description>` y était vert avec ou sans le
   correctif. Découvert par ablation.
