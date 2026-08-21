@@ -1,7 +1,7 @@
 ---
 id: TCK-337
 title: "Le dictionnaire next-intl est inliné en entier dans chaque page"
-status: doing
+status: done
 phase: P3
 family: technique
 estimate: L

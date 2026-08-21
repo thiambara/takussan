@@ -193,3 +193,40 @@ Trois questions par ligne, dans cet ordre — la commande les imprime en pied de
 
 Les réponses se reportent dans les deux constantes de `Property`, **jamais dans `lang/`**, puis
 `php artisan scout:import "App\Models\Property"`.
+
+## Reste sur dev
+
+**La mécanique est fusionnée ; le vocabulaire ne l'est pas, et il ne le sera pas sans un locuteur.**
+`TYPE_SEARCH_ALIASES_WO` et `CONTRACT_SEARCH_ALIASES_WO` portent les 18 clés d'enum et **aucune
+valeur** — no-op prouvé contre les 795 documents de l'index. AC2 à AC6 sont fermés par
+`tests/Unit/PropertySearchableArrayTest.php`. **AC1 et AC7 restent ouverts** : ils demandent des
+mots, et qui les a validés.
+
+Ce qui les ferme, et rien d'autre :
+
+```bash
+cd takussan-api && php artisan search:wolof-review-sheet
+```
+
+18 lignes, dont la dernière colonne est vide. Chaque ligne porte déjà l'alias français indexé, le
+libellé wolof du back, celui du front, et — c'est là qu'est la valeur — **le nombre de biens que le
+mot atteint DÉJÀ**, avec leur répartition par type.
+
+**Deux mots ont ainsi été écartés avant même la séance**, et aucune revue purement lexicale ne les
+aurait vus :
+
+| mot | ce qu'il devait désigner | ce qu'il atteint réellement |
+|---|---|---|
+| `Magasin` | `warehouse` (libellé wolof du front) | **56 boutiques, 0 entrepôt** — le mot est déjà pris par l'alias français de `shop` |
+| `keur` | `house` | **40 biens de tous types** — *Cité Keur Gorgui* est un quartier |
+
+*Le risque de ce ticket n'est pas lexical, il est de corpus* : un mot juste en wolof peut être déjà
+occupé en français ou par une adresse. Un locuteur l'aurait validé sans hésiter.
+
+Une fois la feuille remplie, ajouter un alias est **une ligne de données**, et les invariants
+d'AC3 à AC6 la valident en CI.
+
+⚠ La séance porte sur **les deux tables à la fois** — alias de recherche *et* libellés d'affichage
+(cf. [TCK-342](TCK-342-libelles-wolof-divergents-back-front.md)) : ce sont les mêmes 18 mots, et
+faire revenir le locuteur deux fois est le seul coût réellement irréductible ici.
+

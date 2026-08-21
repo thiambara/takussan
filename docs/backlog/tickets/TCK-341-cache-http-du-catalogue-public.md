@@ -194,3 +194,31 @@ Fichiers touchés : `takussan-api/routes/api/public.php`,
 `scripts/check-heredocs.mjs` a refusé la première rédaction, backticks compris dans des
 lignes commençant par `#`. C'est le même piège qui a déjà fait exécuter une fonction en
 root depuis un commentaire de ce fichier.
+
+## Reste sur dev
+
+**Tout le delta versionnable est fusionné. Il reste UNE action, et elle n'est pas dans le dépôt.**
+
+AC1 à AC4 sont fermés par `tests/Feature/Public/CataloguePublicCacheTest.php` et par
+`scripts/check-cache-headers-auth.mjs`, rejouée à chaque PR. **AC5 ne peut pas être fermé depuis
+ici** : le bloc gzip est écrit dans `scripts/server-setup.sh`, et **aucun workflow de ce dépôt
+n'exécute ce script** — `deploy.yml` ne touche pas au vhost.
+
+Ce qui le ferme, sur le serveur de préproduction :
+
+```bash
+# relancer scripts/server-setup.sh (ou reporter son bloc gzip dans le vhost), puis
+nginx -t && systemctl reload nginx
+curl -sI -H 'Accept-Encoding: gzip' \
+  https://preview.api.takussan.com/api/public/properties/search?per_page=20 | grep -i content-encoding
+```
+
+La mesure d'AVANT est consignée pour qu'on puisse comparer : **21 300 octets identiques** en
+`identity`, `gzip` et `br`, aucun `Content-Encoding` — nginx/1.24.0, dont les défauts Ubuntu
+expliquent exactement le relevé (`gzip_types` vaut `text/html` seul, et `gzip_proxied off` écarte
+les réponses FastCGI). `gzip -6` sur le même corps rend **3 222 octets, soit 15,1 %**.
+
+*C'est le poste le plus rentable de tout le lot, et de loin* : il divise par ~6,6 ce que l'API met
+sur le fil, quand l'ETag n'économise que les octets d'une réponse déjà calculée et que les sparse
+fieldsets en valaient 123.
+

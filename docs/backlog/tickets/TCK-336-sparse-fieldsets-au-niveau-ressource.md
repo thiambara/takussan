@@ -1,7 +1,7 @@
 ---
 id: TCK-336
 title: "`PropertyResource` fabrique des valeurs pour les colonnes que `fields[]` n'a pas fait lire"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -82,9 +82,13 @@ Le gain qu'il visait vaut **123 octets gzippés** sur une réponse de détail de
       ablation
 - [x] [ADR-0021](../../adr/0021-sparse-fieldsets-au-niveau-ressource.md) — pose l'arbitrage et
       laisse ouverte la partie 2 (faut-il, en plus, filtrer par `fields[]` ?)
-- [ ] Étendre les listes `fields[]` du front à ce qu'elles lisent réellement (autre agent, même lot)
-- [ ] ~~`BaseResource::restreintAuxChampsDemandes()`~~ — **rejeté**, cf. ci-dessus
-- [ ] ~~`SearchPublicPropertyRequest::rules()` déclare `fields`~~ — sans objet une fois le filtre
+- [x] Les listes `fields[]` du front couvrent ce qu'elles lisent — **mesuré : aucun écart à
+      combler**, les 18 sites demandaient déjà toute colonne qu'ils affichent. Livré à la place :
+      `src/lib/queries/__tests__/property-fields.coverage.test.ts`, qui dérive les quatre sources
+      (colonnes de `$queryFields`, clés de `toArray()`, constantes de production, code des
+      composants) et rougit dès qu'un composant lit une clé que sa liste ne demande pas
+- [~] ~~`BaseResource::restreintAuxChampsDemandes()`~~ — **rejeté**, cf. ci-dessus
+- [~] ~~`SearchPublicPropertyRequest::rules()` déclare `fields`~~ — sans objet une fois le filtre
       rejeté
 
 ## Critères d'acceptation
@@ -94,24 +98,24 @@ ne le faisaient pas : AC1 (« rend exactement les clés demandées ») était co
 supprime les vignettes ; AC2 (« inchangée au caractère près ») était coché par un correctif qui ne
 fait rien du tout ; AC3 était vrai par construction sur sa moitié super-admin.
 
-- [ ] **AC1 — la fabrication n'a plus lieu, et l'ABSENCE est la preuve.** Sur
+- [x] **AC1 — la fabrication n'a plus lieu, et l'ABSENCE est la preuve.** Sur
       `GET /api/properties?fields[properties]=id,title`, les clés `price`, `furnished`, `featured`,
       `views_count`, `favorites_count`, `status`, `currency`, `bathrooms` sont **absentes de la
       réponse** — `assertArrayNotHasKey`, pas « valent 0 ». Un correctif qui les rendrait à `null`
       échoue cet AC.
-- [ ] **AC2 — « pas lu » et « lu et nul » restent distincts.** Sur
+- [x] **AC2 — « pas lu » et « lu et nul » restent distincts.** Sur
       `fields[properties]=id,title,floor_number,price` avec `floor_number = null` en base, la clé
       `floor_number` est **présente et vaut `null`**, et `price` vaut le vrai prix. Cet AC fait
       rougir tout garde bâti sur `isset()` / `whenNotNull()` / `array_filter()`.
-- [ ] **AC3 — ce que le client ne peut pas demander lui est servi quand même.** Sous
+- [x] **AC3 — ce que le client ne peut pas demander lui est servi quand même.** Sous
       `fields[properties]=id,title,type&include=address,owner`, les clés `location` (avec sa ville
       renseignée), `main_photo_url`, `type_label` (**non nul**) et `owner` (**non nul**) sont
       présentes. C'est l'AC qui refuse le filtre `array_intersect_key` : il le fait rougir.
-- [ ] **AC4 — sans `fields[]`, la réponse reste complète ET vraie.** Sur `GET /api/properties` sans
+- [x] **AC4 — sans `fields[]`, la réponse reste complète ET vraie.** Sur `GET /api/properties` sans
       sparse fieldset, les huit clés de l'AC1 sont présentes avec leurs valeurs réelles
       (`price = 42 500 000,50`, `furnished = true`, `status = available`). Sans cet AC, un correctif
       qui omettrait partout cocherait les trois précédents.
-- [ ] **AC5 — les deux compteurs restent dans la forme LISTE.** `views_count` et `favorites_count`
+- [x] **AC5 — les deux compteurs restent dans la forme LISTE.** `views_count` et `favorites_count`
       sont émis par `GET /api/properties`. La proposition de les passer derrière `$isDetail`
       (parce que `show()` incrémente `views_count` et change ainsi le corps de toute page de
       résultats) **est rejetée par mesure** : `DASHBOARD_PROPERTY_FIELDS` les demande, et

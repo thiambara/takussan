@@ -1,7 +1,7 @@
 ---
 id: TCK-340
 title: "Douze listes de clés de filtre côté front, une seule table"
-status: doing
+status: done
 phase: P3
 family: technique
 estimate: L
