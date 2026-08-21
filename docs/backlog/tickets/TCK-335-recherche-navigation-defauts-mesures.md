@@ -9,7 +9,7 @@ wave: 42
 created: 2026-08-21
 updated: 2026-08-21
 depends_on: []
-blocks: []
+blocks: [TCK-338, TCK-339, TCK-340]
 spec_refs:
   features:
     - docs/features.md#12-recherche--découverte-publique
@@ -206,6 +206,82 @@ synonyme réécrit un terme de requête ; il ne crée pas un mot absent de l'ind
       anglaise, `facetQuery=maison` rend `[]`. Basculer détruirait la localisation de la
       suggestion, dans le lot dont l'autre moitié répare la localisation
 - [ ] `SearchSuggestTest` doit porter `InteractsWithMeilisearch`, sinon il rendrait **vide**
+
+## Critères d'acceptation
+
+> **Deux critères de la première rédaction ne discriminaient pas un correctif d'une régression, et
+> c'est le reproche le plus grave qu'on ait fait à ce ticket.** AC4 (« rend 200 ») était satisfait
+> aussi bien par l'écrêtage que par le retrait sec d'`after_or_equal:today` — lequel fait passer une
+> recherche sauvegardée de **422 bruyant à 8 résultats sur 258**, de l'erreur au mensonge discret.
+> AC7 (« 5 caractères → 1 appel ») est coché par un anti-rebond posé dans `useSearch`, qui laisse
+> 5 aller-retours RSC et le défaut de saisie intact. *Un critère qui accepte la mauvaise solution
+> n'est pas un critère, c'est une case à cocher.* Les seize ci-dessous ont été relus avec cette
+> question-là.
+
+- [x] **AC1** — `?furnished=true` et `?furnished=false` rendent 200 et des comptes différents du
+      total sans filtre *(mesuré : 99 / 159 contre 258)*
+- [x] **AC2** — `?area_min=200&area_max=400` rend un compte strictement inférieur *(91)*, **et un
+      bien à `area` NULL n'y figure pas**
+- [x] **AC3** — `?featured=true` rend un compte strictement inférieur *(34)*, **et
+      `/public/properties?featured=true` rend le même** *(34)*
+- [x] **AC4** *(réécrit)* — une URL portant `available_from` à une date passée rend 200 **et le même
+      compte** qu'une URL portant la date du jour *(258, et non 8)*
+- [x] **AC5** — un 422 affiche un `ErrorState` nommant le filtre en cause ; ni « 0 biens trouvés »,
+      ni « Aucun bien trouvé », ni la prose de validation du serveur *(mesurée anglaise dans les
+      trois locales)* n'apparaissent
+- [x] **AC6** *(réécrit)* — les clés de `SearchFilters` et celles de
+      `SearchPublicPropertyRequest::rules()` coïncident, et la CI casse si un seul côté bouge
+- [ ] **AC7a** *(remplace AC7)* — 5 caractères dans « Ville » → **0** `onFilterChange` avant le
+      délai, **exactement 1** après
+- [ ] **AC7b** — pendant la frappe, `input.value` contient **toujours** le texte frappé
+- [ ] **AC7c** — cliquer une puce pendant qu'un brouillon est en attente conserve **les deux**
+- [ ] **AC8** — le retour depuis une fiche réaffiche la liste et **restaure la position de
+      défilement**
+- [ ] **AC9** *(précisé)* — un Précédent après un clic de puce revient à l'état précédent ; un
+      Précédent après un mot de 5 lettres revient à l'état d'**avant le mot**, pas d'avant la
+      dernière lettre
+- [ ] **AC11** — `q=louer` rend un ordre de grandeur comparable à `contract_type=rent`
+      *(aujourd'hui : 7 contre 204)*, et `q=meublé` à `furnished=1` *(21 contre 99)*
+- [ ] **AC12a** *(réduit)* — le HTML de `/properties/{slug}`, **JavaScript désactivé**, contient le
+      `<h1>` du titre, le prix et la description
+- [x] **AC13** — `Accept-Language: en` rend `For Rent` *(mesuré : en → For Rent, wo → Tëddé)*
+- [x] **AC13bis** *(nouveau)* — une requête **sans** `Accept-Language` rend la même chose qu'une
+      requête portant `app.locale`, et autre chose que n'importe quelle autre locale
+- [ ] **AC15** — l'autocomplétion rend « Mermoz » sur la saisie `mrmoz`
+- [ ] **AC16** — les deux suites restent vertes et le cliquet de couverture tient à 86 %
+- [ ] **AC17** *(nouveau)* — une fiche dont l'amont rend autre chose qu'un 404 ne rend **jamais**
+      200 avec « Bien introuvable ». *Mesuré en production le 2026-08-21 : c'est ce qui se passe
+      aujourd'hui, sur toute la surface indexable — un soft-404 servi en 200 aux moteurs.*
+- [ ] **AC20** *(nouveau)* — au moins un tiers des biens publics porte ≥ 1 tag, et aucun tag `crm`
+      n'est attaché à un bien *(préalable : sans données, `tags` searchable est invérifiable)*
+
+**Retirés :** AC10 (part avec TCK-338 — seul `matchingStrategy` peut le fermer, et c'est une
+décision d'ADR), AC12b (le `<h1>` de `/properties` n'existe dans aucun composant : le satisfaire
+exigerait d'ajouter un titre à l'écran, ce que la Direction UX de ce ticket interdit), AC14 (part
+avec TCK-336 — inatteignable tel qu'écrit : `whenHas` seul laisserait 7 à 8 clés, pas 2).
+
+## Hors périmètre
+
+Six sujets sortent de ce ticket, **chacun avec son ticket**, parce qu'aucun ne doit disparaître en
+silence — c'est exactement le défaut que ce ticket poursuit ailleurs :
+
+| Sujet | Ticket | Pourquoi il sort |
+|---|---|---|
+| `fields[properties]` honoré | **TCK-336** | Le diagnostic était faux (`/show` l'ignore aussi ; spatie ne touche que le `SELECT`), l'AC inatteignable, et le correctif casse cinq appelants front qui comptent sur la sur-livraison |
+| Découpage du dictionnaire next-intl | **TCK-337** | 4 à 6 jours pour ~45 Ko gzip au premier chargement, et une clé manquante ne casse ni le build ni le lint — elle produit un `MISSING_MESSAGE` en production |
+| Recherche conjonctive (`matchingStrategy`) | **TCK-338** | Décision structurelle : exige un ADR **avant** l'implémentation |
+| Alias wolof de recherche | **TCK-339** | Les libellés d'affichage donneraient un index **faux** (`sale => Jënd` = *acheter*) : exige une revue lexicale par un locuteur |
+| Réduire les 11 listes de clés front | **TCK-340** | Refactor de plusieurs jours sur quatre fichiers sans aucun test ; la moitié qui compte est déjà gardée |
+| `ETag` + `Cache-Control` sur `/search` | **TCK-341** | Était tombé du ticket **sans** passer par « hors périmètre ». Moins cher que le cache client et traite davantage la cause |
+
+Restent également hors périmètre, sans ticket :
+
+- L'analyse d'intention proprement dite (« villa à louer à Saly » → `type` + `contract_type` +
+  `city`) — un cran au-delà de TCK-338.
+- La recherche sémantique par embeddings et la recherche vocale (P3, spec §2.4 et §1.2).
+- L'activation de `SCOUT_QUEUE` en production.
+- [TCK-332](TCK-332-front-public-appelle-une-api-absente.md) : tant qu'il tient, aucune mesure de ce
+  ticket ne décrit ce que voit un vrai visiteur.
 
 ## Notes d'implémentation
 

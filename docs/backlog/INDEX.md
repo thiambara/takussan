@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**317 tickets** — 9 ouverts, 307 livrés.
+**323 tickets** — 15 ouverts, 307 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 5 |
+| 📋 Todo | 11 |
 | 🚧 Doing | 4 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -38,6 +38,12 @@
 - [TCK-332](tickets/TCK-332-front-public-appelle-une-api-absente.md) — Le front de production est public et appelle une API qui n'existe pas `S · P0 · technique`
 - [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
 - [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
+- [TCK-336](tickets/TCK-336-sparse-fieldsets-au-niveau-ressource.md) — Sparse fieldsets — `fields[table]` n'est honoré par AUCUNE ressource `L · P2 · technique`
+- [TCK-337](tickets/TCK-337-decoupage-du-dictionnaire-next-intl.md) — Le dictionnaire next-intl est inliné en entier dans chaque page `L · P3 · technique`
+- [TCK-338](tickets/TCK-338-recherche-conjonctive-tous-les-termes.md) — Une recherche à plusieurs mots doit les exiger tous `M · P1 · applicatif`
+- [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-340](tickets/TCK-340-listes-de-cles-de-filtre-front.md) — Onze listes de clés de filtre côté front, une seule source `L · P3 · technique`
+- [TCK-341](tickets/TCK-341-cache-http-du-catalogue-public.md) — Le catalogue public se recalcule pour chaque visiteur `S · P2 · technique`
 
 ## 🚧 Doing
 
