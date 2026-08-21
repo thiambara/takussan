@@ -134,10 +134,10 @@ son commentaire le dit maintenant.
 ## 7. Le temps de suite, machine au repos — et il a doublé
 
 ```
-2026-08-21 · 8 cœurs · load average 1,82 au départ, 3,86 à l'arrivée
-php artisan test → 641 s (10 min 41)
-                   332,51 s user + 29,42 s system, 56 % CPU
-Tests: 2662 passés, 0 ÉCHEC, 2 ignorés · 8610 assertions
+2026-08-21 · 8 cœurs · load average 2,93 au départ, 4,63 à l'arrivée
+php artisan test → 648 s (10 min 49)
+                   335,70 s user + 29,66 s system, 56 % CPU
+Tests: 2668 passés, 0 ÉCHEC, 2 ignorés · 8616 assertions
 ```
 
 > Une mesure intermédiaire, prise une passe plus tôt au même repos, rendait 622 s pour 2658 passés
@@ -160,3 +160,57 @@ C'était le risque n°2 nommé par la spec, et il s'est réalisé. Ce que ça to
 démontrée : `CREATE DATABASE … TEMPLATE`, c'est-à-dire migrer une base modèle une seule fois puis la
 cloner par processus, au lieu de rejouer les 135 migrations dans chacun. *On ne l'optimise pas
 avant d'avoir mesuré que ça gêne.*
+
+---
+
+## 8. Le cliquet de couverture, et ce que le clover a dit d'autre
+
+```bash
+XDEBUG_MODE=coverage php vendor/phpunit/phpunit/phpunit --coverage-clover=storage/coverage/clover.xml
+php bin/coverage-gate.php storage/coverage/clover.xml --min=86
+```
+
+**86,8 %** (21 893 / 25 218 lignes exécutables) — contre 86,16 % avant le chantier. Le cliquet à
+86 % tient, avec plus de marge qu'avant. Durée : **1414 s (23 min 34)** sous Xdebug.
+
+⚠ Le seuil **n'est pas resserré** : ce chiffre est pris sous Xdebug en local, quand la CI mesure
+sous PCOV. Les deux pilotes ne comptent pas exactement les mêmes lignes exécutables. Resserrer le
+cliquet sur une mesure prise par un autre pilote, c'est fabriquer un rouge de CI qui n'apprend rien.
+
+### Le critère d'acceptation n°4, et il n'est tenu qu'à 34/36
+
+Le critère exigeait que le clover montre des lignes **réellement exécutées** dans chacun des
+36 fichiers portant du SQL brut — *un vert global ne prouve pas qu'un chemin a été emprunté*, et
+`PipelineStatsService` en était la démonstration.
+
+Résultat : **34 fichiers sur 36** ont des lignes exécutées.
+`PipelineStatsService` passe à **74/93 (80 %)** et `UnifiedModerationService` à **184/192 (96 %)** —
+les deux fichiers les plus risqués du chantier sont donc bien exercés.
+
+**Deux ne le sont pas du tout**, et ce sont des fichiers VIVANTS, pas du code mort :
+
+| Fichier | Appelant | SQL brut |
+|---|---|---|
+| `app/Services/Model/SearchService.php` | `app/Jobs/SendSavedSearchAlerts.php` (tâche planifiée) | haversine — `acos`/`cos`/`radians`/`sin` sur `latitude`/`longitude` en `decimal(10,7)` |
+| `app/Sorts/MaintenancePrioritySort.php` | `MaintenanceRequest` — atteint par `sort=priority` | `CASE priority WHEN … END` |
+
+La suite ne pouvait donc RIEN prouver de leur compatibilité. Faute de test, les deux fragments ont
+été **exécutés directement contre PostgreSQL** :
+
+```sql
+-- haversine sur des colonnes numeric : PostgreSQL applique bien la conversion implicite
+SELECT count(*) FROM addresses WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+  AND (6371 * acos(cos(radians(14.7)) * cos(radians(latitude))
+     * cos(radians(longitude) - radians(-17.4)) + sin(radians(14.7)) * sin(radians(latitude)))) <= 50;
+-- → s'exécute, pas d'erreur
+
+SELECT count(*) FROM (SELECT id FROM maintenance_requests
+  ORDER BY CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3
+                         WHEN 'low' THEN 4 ELSE 5 END asc) t;
+-- → s'exécute, pas d'erreur
+```
+
+**C'est une vérification plus faible qu'un test, et il faut le dire ainsi** : elle prouve que le SQL
+est accepté, pas que le code qui le construit se comporte correctement. *Deux fichiers vivants
+portant du SQL brut sans un seul test qui les traverse, c'est une dette antérieure à cette
+migration — qui l'a seulement rendue visible.*

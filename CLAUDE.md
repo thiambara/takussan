@@ -107,6 +107,19 @@ reste 0,3 point, soit ~74 lignes non testées : c'est serré délibérément. Le
 l'**érosion** ; il ne dit pas que 86 %
 suffit, et une méthode traversée sans assertion y compte pour couverte.
 
+> **Remesurée sur PostgreSQL le 2026-08-21 : 86,8 %** (21 893 / 25 218 lignes exécutables), contre
+> 86,16 % sur SQLite. Le cliquet à 86 % tient, avec plus de marge qu'avant — le chantier ADR-0020 a
+> supprimé du code que rien n'exécutait (un branchement par driver mort, un garde-fou applicatif
+> injoignable) davantage qu'il n'en a ajouté.
+>
+> ⚠ **Le seuil n'est PAS resserré, et c'est délibéré.** Ce 86,8 % est pris sous **Xdebug en local**,
+> quand la CI mesure sous **PCOV** — les deux pilotes ne comptent pas exactement les mêmes lignes
+> exécutables. *Resserrer un cliquet sur une mesure prise par un autre pilote, c'est fabriquer un
+> rouge de CI qui n'apprend rien.* Le resserrement se décide sur un chiffre de CI, comme le
+> 2026-08-16.
+>
+> Durée sous Xdebug : **1414 s (23 min 34)**, contre 641 s sans couverture.
+
 ⚠️ **Le cliquet n'est PLUS le `--min` de `artisan test`, depuis TCK-331 (2026-08-20).** La CI
 invoque **PHPUnit directement** et évalue le seuil dans un step à part,
 `php bin/coverage-gate.php storage/coverage/clover.xml --min=86`, qui lit le **clover**. Deux
@@ -219,10 +232,10 @@ php artisan test                    # ⚠ TOURNE SUR POSTGRESQL depuis ADR-0020 
                                     #   ressource partagée par machine, et la seule que la
                                     #   migration a CRÉÉE : sous SQLite `:memory:` chaque processus
                                     #   avait la sienne gratuitement.
-                                    # ⚠⚠ LE TEMPS DE RÉFÉRENCE EST 641 s (10 min 41), mesuré le
-                                    #   2026-08-21 sur 2662 tests / 8610 assertions / 0 échec,
-                                    #   MACHINE AU REPOS : load average 1,82 au départ et 3,86 à
-                                    #   l'arrivée, 8 cœurs, 332,51 s user + 29,42 s system.
+                                    # ⚠⚠ LE TEMPS DE RÉFÉRENCE EST 648 s (10 min 49), mesuré le
+                                    #   2026-08-21 sur 2668 tests / 8616 assertions / 0 échec,
+                                    #   MACHINE AU REPOS : load average 2,93 au départ et 4,63 à
+                                    #   l'arrivée, 8 cœurs, 335,70 s user + 29,66 s system.
                                     #   C'est ~×2,8 la référence SQLite ci-dessous (204-235 s), et
                                     #   c'est le PRIX de la propriété achetée : ce que la suite
                                     #   éprouve est ce que la production exécutera. La piste si ce
