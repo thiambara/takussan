@@ -24,7 +24,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('key');
             $table->unsignedSmallInteger('step')->default(0);
-            $table->json('data')->nullable();
+            $table->jsonb('data')->nullable();
             $table->timestamps();
 
             $table->unique(['user_id', 'key']);

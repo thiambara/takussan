@@ -212,7 +212,21 @@ class AgencyController extends Controller
                     ->where('agency_id', $agency->id)
                     ->whereNull('deleted_at')
                     ->where('user_id', '!=', $user->id)
+                    // ⚠ `->get(…)->count()` et non `->count()` : PostgreSQL refuse
+                    // `FOR UPDATE` sur un agrégat (« FOR UPDATE is not allowed with
+                    // aggregate functions »), parce que les lignes à verrouiller y sont
+                    // ambiguës. On rapatrie donc les lignes — elles sont verrouillées,
+                    // ce qui est tout l'objet — et on les compte en PHP.
+                    //
+                    // L'invariant est préservé : ce sont EXACTEMENT les mêmes lignes qui
+                    // sont verrouillées, et c'est le `delete()` plus bas qui entre en
+                    // conflit avec le verrou de l'écrivain concurrent. Le compte n'a
+                    // jamais eu besoin d'être calculé côté serveur.
+                    //
+                    // Le volume est borné par le nombre d'administrateurs d'une agence :
+                    // rapatrier ces identifiants ne coûte rien.
                     ->lockForUpdate()
+                    ->get(['id'])
                     ->count();
                 abort_if($remainingAdmins === 0, 422, __('messages.cannot_remove_last_agency_admin'));
             }

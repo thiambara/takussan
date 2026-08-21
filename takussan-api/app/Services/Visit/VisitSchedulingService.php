@@ -154,7 +154,21 @@ class VisitSchedulingService
         }
 
         if ($lockForUpdate) {
-            $query->lockForUpdate();
+            // ⚠ Le verrou porte sur le BIEN, pas sur les visites — même correction, même
+            // raison que `PropertyCollaboratorController::assertCommissionWithinCapLocked()`.
+            //
+            // PostgreSQL refuse `FOR UPDATE` sur un agrégat (« FOR UPDATE is not allowed with
+            // aggregate functions »), ce qui a rendu le défaut visible. Mais le défaut n'était
+            // pas syntaxique : verrouiller les visites EXISTANTES ne ferme pas la course que ce
+            // quota garde. Deux demandes simultanées d'un même visiteur sur un bien à 2 visites
+            // actives lisent toutes deux 2, concluent toutes deux que 2 < 3, et le visiteur
+            // finit à 4. C'est un INSERT concurrent — aucun verrou de ligne existante ne le voit.
+            //
+            // Verrouiller la ligne du bien sérialise TOUS les écrivains de visites sur ce bien,
+            // insertions comprises, sur n'importe quel moteur. Plus large que nécessaire — le
+            // quota est par couple (bien, visiteur) — mais les demandes de visite sont rares et
+            // un seul patron vaut mieux que deux à retenir.
+            Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
         }
 
         abort_if(

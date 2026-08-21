@@ -27,7 +27,7 @@ return new class extends Migration
             $table->timestamp('last_triggered_at')->nullable();
             $table->decimal('last_value', 14, 4)->nullable();
             $table->unsignedSmallInteger('cooldown_hours')->default(24);
-            $table->json('settings')->nullable();
+            $table->jsonb('settings')->nullable();
             $table->timestamps();
 
             $table->index(['agency_id', 'is_enabled']);

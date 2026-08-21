@@ -24,7 +24,7 @@ return new class extends Migration
             $table->decimal('total_amount', 14, 2);
             $table->string('currency', 3)->default('XOF');
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

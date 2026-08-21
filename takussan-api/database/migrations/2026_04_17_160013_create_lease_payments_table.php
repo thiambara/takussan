@@ -26,7 +26,7 @@ return new class extends Migration
             $table->decimal('late_fee', 14, 2)->nullable();
             $table->string('transaction_id')->nullable();
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

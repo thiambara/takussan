@@ -21,7 +21,7 @@ return new class extends Migration
             $table->string('meta_template_name')->nullable()->after('body');
             $table->string('meta_category')->nullable()->after('meta_template_name');
             $table->string('meta_status')->nullable()->after('meta_category');
-            $table->json('meta_variables')->nullable()->after('meta_status');
+            $table->jsonb('meta_variables')->nullable()->after('meta_status');
         });
     }
 

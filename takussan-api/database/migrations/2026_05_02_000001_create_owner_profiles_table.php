@@ -20,7 +20,7 @@ return new class extends Migration
             $table->decimal('monthly_income', 14, 2)->nullable();
             $table->string('employer')->nullable();
             $table->foreignId('guarantor_user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

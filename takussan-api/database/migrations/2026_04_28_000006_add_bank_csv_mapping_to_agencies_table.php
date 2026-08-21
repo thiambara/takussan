@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('agencies', function (Blueprint $table) {
-            $table->json('bank_csv_mapping')->nullable()->after('settings');
+            $table->jsonb('bank_csv_mapping')->nullable()->after('settings');
         });
     }
 

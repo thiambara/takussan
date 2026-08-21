@@ -11,14 +11,14 @@ return new class extends Migration
         Schema::create('service_provider_profiles', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained('users')->restrictOnDelete();
-            $table->json('specialties')->nullable();
-            $table->json('service_areas')->nullable();
+            $table->jsonb('specialties')->nullable();
+            $table->jsonb('service_areas')->nullable();
             $table->string('insurance_policy_id')->nullable();
-            $table->json('certifications')->nullable();
+            $table->jsonb('certifications')->nullable();
             $table->decimal('hourly_rate_min', 10, 2)->nullable();
             $table->decimal('hourly_rate_max', 10, 2)->nullable();
             $table->date('active_until')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

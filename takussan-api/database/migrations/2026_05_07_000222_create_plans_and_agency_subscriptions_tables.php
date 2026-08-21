@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('monthly_price_xof', 12, 2)->default(0);
             $table->decimal('platform_fee_pct', 5, 2)->default(0);
             $table->unsignedSmallInteger('trial_days')->default(0);
-            $table->json('limits')->nullable();
+            $table->jsonb('limits')->nullable();
             $table->boolean('is_active')->default(true);
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
@@ -36,7 +36,7 @@ return new class extends Migration
             $table->timestamp('current_period_end');
             $table->timestamp('ended_at')->nullable();
             $table->decimal('platform_fee_pct_override', 5, 2)->nullable();
-            $table->json('limits_override')->nullable();
+            $table->jsonb('limits_override')->nullable();
             $table->timestamps();
 
             $table->index(['agency_id', 'ended_at']);

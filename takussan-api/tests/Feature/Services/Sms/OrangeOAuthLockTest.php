@@ -105,7 +105,18 @@ class OrangeOAuthLockTest extends TestCase
         // a *new* token in the cache to simulate a peer worker having
         // already refreshed; the 401 path must adopt that token rather
         // than calling OAuth again.
-        Cache::put('sms:orange:oauth_token:1', 'old-tok', 3600);
+        // ⚠ `{$agency->id}` et non le littéral `1` — c'est un défaut que seule PostgreSQL
+        // pouvait révéler. `nextval()` n'est PAS transactionnel : le `ROLLBACK` de
+        // `RefreshDatabase` en fin de test rend les lignes, jamais les numéros. Le second
+        // test de cette classe voyait donc une agence d'identifiant 2, quand la clé de
+        // cache restait figée sur 1 — le jeton pré-posé n'était plus jamais lu, et
+        // l'assertion « zéro appel OAuth » comptait 2 appels.
+        //
+        // Sous SQLite `:memory:`, le compteur de rowid repart de `max(rowid)+1` sur une
+        // table vidée : l'identifiant valait 1 à chaque test, et le littéral marchait par
+        // coïncidence. *Un identifiant écrit en dur dans un test n'affirme pas une valeur,
+        // il affirme une propriété du moteur.*
+        Cache::put("sms:orange:oauth_token:{$agency->id}", 'old-tok', 3600);
 
         $sendCalls = 0;
         Http::fake([
@@ -117,7 +128,7 @@ class OrangeOAuthLockTest extends TestCase
                 $sendCalls++;
                 if ($sendCalls === 1) {
                     // Peer worker refreshed mid-flight → swap cached token.
-                    Cache::put('sms:orange:oauth_token:1', 'peer-refreshed', 3600);
+                    Cache::put("sms:orange:oauth_token:{$agency->id}", 'peer-refreshed', 3600);
 
                     return Http::response(['error' => 'unauthorized'], 401);
                 }

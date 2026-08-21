@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
             $table->string('key');
-            $table->json('value');
+            $table->jsonb('value');
             $table->string('scope')->default('global');
             $table->unsignedBigInteger('scope_id')->nullable();
             $table->foreignId('updated_by_id')->nullable()->constrained('users')->nullOnDelete();

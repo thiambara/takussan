@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('alert_rules', function (Blueprint $table): void {
             $table->id();
             $table->string('event');
-            $table->json('channels_json');
-            $table->json('recipients_json');
+            $table->jsonb('channels_json');
+            $table->jsonb('recipients_json');
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_triggered_at')->nullable();
             $table->unsignedInteger('failure_count')->default(0);

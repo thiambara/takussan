@@ -20,7 +20,7 @@ return new class extends Migration
             $table->unsignedBigInteger('last_message_id')->nullable();
             $table->string('last_message_preview', 255)->nullable();
             $table->timestamp('last_message_at')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

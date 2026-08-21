@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('label');
             $table->string('reference')->nullable();
             $table->string('counterparty')->nullable();
-            $table->json('raw_payload');
+            $table->jsonb('raw_payload');
             $table->string('match_status')->default('unmatched');
             $table->string('matched_payment_type')->nullable();
             $table->unsignedBigInteger('matched_payment_id')->nullable();
