@@ -26,7 +26,7 @@ tenir à jour :
 |---|---|---|
 | Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
-| Données | 124 migrations · 38 factories · 11 seeders | — |
+| Données | 135 migrations · 38 factories · 48 fichiers de seeders | — |
 | Tests | ~307 fichiers · **~2050 tests, verts _au repos_** *(~2300 au 2026-08-16)* | ~143 fichiers · **~810 tests, verts _au repos_** |
 
 > Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
@@ -211,7 +211,19 @@ depuis le code. **La lire avant de planifier quoi que ce soit.**
 `takussan-api/` :
 
 ```bash
-php artisan test                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2026-08-16, deux
+php artisan test                    # ⚠ TOURNE SUR POSTGRESQL depuis ADR-0020 (2026-08-21), plus
+                                    #   sur SQLite : `phpunit.xml` force `pgsql` SANS REPLI, et
+                                    #   `docker compose up -d postgres` est un prérequis dur au
+                                    #   même titre que Meilisearch. La base est créée PAR PROCESSUS
+                                    #   (`Tests\Support\TestDatabase`) — c'est la cinquième
+                                    #   ressource partagée par machine, et la seule que la
+                                    #   migration a CRÉÉE : sous SQLite `:memory:` chaque processus
+                                    #   avait la sienne gratuitement.
+                                    # ⚠⚠ LE TEMPS DE RÉFÉRENCE CI-DESSOUS EST CELUI DE SQLITE et
+                                    #   n'a plus cours. Sur PostgreSQL, une exécution du 2026-08-21
+                                    #   a rendu 668 s pour 2663 tests — mais à load 9 sur 8 cœurs,
+                                    #   donc ce chiffre ne dit rien non plus. À remesurer au repos.
+                                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2026-08-16, deux
                                     #   mesures) — exige une instance Meilisearch (cf. D-08).
                                     #   Le temps ne se mesure QUE machine au repos : à load 200-258
                                     #   sur 8 cœurs, la même commande met ×11 plus longtemps.
@@ -287,7 +299,13 @@ php bin/coverage-gate.php storage/coverage/clover.xml --min=86
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
 php artisan migrate
-php artisan migrate:fresh --seed    # 38 seeders, ~450 biens. SANS médias par défaut :
+php artisan migrate:fresh --seed    # 48 fichiers de seeders. MESURÉ sur PostgreSQL le 2026-08-21 :
+                                    #   262 s, sortie 0, 836 biens / 305 utilisateurs / 4 agences,
+                                    #   0 erreur, et AUCUNE séquence désynchronisée (vérifié en
+                                    #   insérant une ligne applicative dans 5 tables semées : la
+                                    #   panne des séquences ne se voit qu'au PREMIER insert suivant,
+                                    #   pas au seed lui-même).
+                                    #   ~450 biens. SANS médias par défaut :
                                     #   SEED_DOWNLOAD_MEDIA=false des DEUX côtés (.env.example
                                     #   ET .env.docker) depuis TCK-301 — il valait `true`, et
                                     #   décidait pour tout nouveau clone de 1000 à 2700 requêtes
@@ -365,26 +383,36 @@ lance elle-même, puis redonne l'artefact à l'agent.
 
 ## Environnement de développement
 
-`docker-compose.yml` sert **MySQL 8.0, Meilisearch, Redis et Mailpit**. Chaque service couvre une
+`docker-compose.yml` sert **PostgreSQL 17 (avec pgvector), Meilisearch, Redis et Mailpit**. Chaque service couvre une
 divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée — le raisonnement, service
 par service, est dans l'en-tête du fichier.
 
-> **Le moteur de base a été MESURÉ le 2026-08-13**, et il n'était pas celui qu'on croyait. Le
-> compose et la CI tournaient sur `mariadb:11.4` parce qu'un commentaire affirmait que la prod
-> sortait d'un `apt install mariadb-server` — commande que personne n'avait exécutée. Sur le
-> serveur : `mysql-server 8.0.46`, `utf8mb4_0900_ai_ci`. Pas un écart de version, **le mauvais
-> moteur**. `scripts/check-db-engine.mjs` garde désormais l'accord entre le compose, le job
-> `migrations-mysql` et la valeur mesurée. *Ne jamais déduire l'état d'un environnement de la
-> configuration — ni de la commande d'installation — qui le vise.*
+> **Le moteur est PostgreSQL 17 depuis le 2026-08-21** ([ADR-0020](docs/adr/0020-postgresql-sur-tous-les-environnements.md)),
+> sur tous les environnements, **suite de tests comprise**. L'image est `pgvector/pgvector:pg17` et
+> non `postgres:17` — l'extension doit être *disponible* partout dès maintenant, alors qu'aucune
+> table ne l'utilise, sinon le motif se referme en silence le jour du chatbot (TCK-344). La base est
+> créée en `--encoding=UTF8 --locale=C` : collation **déterministe**, décision la plus lourde de
+> l'ADR, dont dépend le sens de six contraintes d'unicité sur texte.
+>
+> **La leçon qui a précédé cette décision survit, et elle vaut désormais DAVANTAGE.** Le compose et
+> la CI ont tourné sur `mariadb:11.4` du 2026-06-29 au 2026-08-13 parce qu'un commentaire affirmait
+> que la prod sortait d'un `apt install mariadb-server` — commande que personne n'avait exécutée.
+> Mesuré sur le serveur ce jour-là : `mysql-server 8.0.46`. Pas un écart de version, **le mauvais
+> moteur**. *Ne jamais déduire l'état d'un environnement de la configuration — ni de la commande
+> d'installation — qui le vise.*
+>
+> C'est pourquoi la constante de `scripts/check-db-engine.mjs` s'appelle désormais **`CIBLE` et non
+> `PROD`** : il n'existe **aucune** production PostgreSQL à mesurer (D-04), et une constante nommée
+> `PROD` inviterait à croire qu'elle a été relevée quelque part. Le jour où le serveur existe
+> (TCK-288), la première chose à faire est de le mesurer et de comparer.
 
-**Les ports sont décalés d'un cran** (3307, 7701, 6380, 1026/8026) : les ports canoniques étaient
+**Les ports sont décalés d'un cran** (5433, 7701, 6380, 1026/8026) : les ports canoniques étaient
 occupés par des installations natives brew et par un projet voisin. Le décalage rend les deux mondes
 simultanés au lieu d'exiger qu'on démonte l'existant.
 
 **`.env.docker` est l'environnement de développement, `.env.example` est le contrat des clés.**
-`.env.example` ne reproduit **aucun** environnement existant : il livre `DB_CONNECTION=sqlite` quand
-la production tourne sur MySQL 8, `SCOUT_DRIVER=collection` quand la CI et la production indexent sur
-Meilisearch, et `CACHE_STORE=redis` sans que **lui-même** fournisse Redis — un développeur qui suit
+`.env.example` ne reproduit **aucun** environnement existant : il livre `SCOUT_DRIVER=collection`
+quand la CI et la production indexent sur Meilisearch, et `CACHE_STORE=redis` sans que **lui-même** fournisse Redis — un développeur qui suit
 ce seul fichier, hors docker, obtient une application qui ne démarre pas. `.env.docker` aligne chaque
 driver sur celui de la production. `scripts/check-env-parity.mjs` garde la parité des **clés** entre
 les deux (jamais des valeurs — deux fichiers aux valeurs identiques n'auraient aucune raison d'être
@@ -405,10 +433,11 @@ natifs, **sonde ce que le `.env` déclare**, et nomme ce qui ne répond pas. Un 
 absent ne produit aucune erreur lisible — l'API démarre, et c'est la première requête qui meurt.
 
 > **`./dev.sh doctor` nomme aussi le cas inverse, depuis TCK-301** : un `.env` qui vise le port
-> CANONIQUE (3306 / 7700 / 6379 / 1025) alors que le dépôt publie le port décalé. Ce cas-là ne
+> CANONIQUE (5432 / 7700 / 6379 / 1025) alors que le dépôt publie le port décalé. Ce cas-là ne
 > produit *aucun* rouge — les services répondent, ce sont ceux de brew — mais rien de ce que
-> `docker-compose.yml` garantit ne s'applique alors : ni le moteur MySQL 8.0 mesuré en production,
-> ni l'isolation de l'index Meilisearch, ni Mailpit. `takussan-api/.env` est ignoré par git : aucun
+> `docker-compose.yml` garantit ne s'applique alors : ni PostgreSQL 17, ni `--locale=C` (dont dépend
+> le sens des contraintes d'unicité sur texte), ni la disponibilité de pgvector, ni l'isolation de
+> l'index Meilisearch, ni Mailpit. `takussan-api/.env` est ignoré par git : aucun
 > fichier de ce dépôt ne peut corriger l'écart, seulement l'afficher (dette D-48).
 
 ## Workflow git
@@ -590,47 +619,116 @@ Décidés délibérément. Les violer est une régression, pas un choix de style
    de sous-unité : chaque driver local doit re-diviser par 100. *Cette règle n'était écrite dans
    aucune spec — seulement dans un commentaire (dette D-22).*
 
-4. **Une migration se pense pour MySQL, jamais pour SQLite.** La suite de tests tourne sur SQLite
-   (permissif), la production sur **MySQL 8.0** (strict) — mesuré, cf. plus haut. Les quatre
-   familles de pièges sont ci-dessous.
-   Le job `migrations-mysql` d'`api-ci.yml` rejoue désormais les migrations sur MySQL 8.0 —
-   **l'aller en entier, le retour seulement au-dessus du cutover TCK-278** : le `down()` de la
-   migration de cutover est délibérément irréversible, on ne peut donc pas descendre plus bas.
-   Concrètement, **3 `down()` sur 124** sont exécutés, et ce sont les plus récents. Le job affiche
-   le compte à chaque exécution. Il a suffi à trouver un `down()` cassé sur trois tables dès sa
-   première (ardoise D-05) — mais ne pas le lire comme « les `down()` sont couverts ».
+4. **Une migration se pense pour PostgreSQL, et il n'y a plus qu'un moteur.**
+
+   ⚠ **Ce principe disait l'inverse jusqu'au 2026-08-21** — *« une migration se pense pour MySQL,
+   jamais pour SQLite »*, la suite tournant sur SQLite et la production sur MySQL 8.0. Il est
+   **révoqué par [ADR-0020](docs/adr/0020-postgresql-sur-tous-les-environnements.md)**, qui pose
+   PostgreSQL 17 sur *tous* les environnements, **suite de tests comprise**. SQLite et MySQL ne
+   sont plus des variantes supportées ; `phpunit.xml` force `pgsql` sans repli, comme il force
+   déjà `SCOUT_DRIVER`.
+
+   **Le gain principal n'est pas PostgreSQL, c'est que la base de test EST celle de la
+   production.** La divergence « tests permissifs, production stricte » que le bloc de pièges
+   ci-dessous existait pour compenser **n'existe plus** : ce que la suite éprouve est ce
+   que la production exécutera. Le job CI qui rejouait le DDL sur le moteur réel a donc changé de
+   raison d'être — il ne garde plus que les `down()` (voir plus bas).
 
    Écrire un `down()` juste n'est pas une politesse : c'est le seul code dont on ait besoin le jour
-   où un déploiement tourne mal, et **la suite de tests n'en exécute aucun**.
+   où un déploiement tourne mal, et **la suite de tests n'en exécute toujours aucun**. Le job
+   `migrations-pgsql` en couvre **15 sur 135** — ceux au-dessus de la borne TCK-278, dont le
+   `down()` est délibérément irréversible. *Ne pas lire ce job comme « les `down()` sont
+   couverts ».* Il affiche son compte à chaque exécution, et la ligne qui le recompte est dans son
+   propre commentaire.
 
 5. **Le front possède le texte affiché.** L'API émet des codes et des données ; les libellés passent
    par next-intl (`fr`/`en`/`wo`). *Tenu à 82 fichiers sur 875 : la règle est une intention, pas un
    état (dette D-24).*
 
-### Migrations — les pièges MySQL que SQLite ne voit pas
+### Migrations — les pièges PostgreSQL, et ceux qui ont disparu
 
-1. **`DEFAULT` sur type restreint.** MySQL refuse `DEFAULT` sur `JSON`, `BLOB`, `TEXT`, `LONGTEXT`,
-   `MEDIUMTEXT`, `TINYTEXT`, `GEOMETRY`, `POINT`.
-   ```php
-   ❌ $table->json('col')->default(json_encode([]));
-   ✓ $table->json('col')->nullable();   // + $attributes = ['col' => '[]'] dans le Model
+**Ce bloc a été entièrement remesuré le 2026-08-21, pendant la bascule.** Les pièges qu'il liste
+sont ceux que le chantier a réellement payés — pas une liste recopiée d'ailleurs. *Un piège qu'on
+n'a pas payé n'a pas sa place dans ce fichier : il fait perdre du temps à qui le lit sans jamais
+rien attraper.*
+
+1. **Une erreur ABANDONNE la transaction entière — et c'est le piège le plus coûteux.**
+   Après le moindre échec, PostgreSQL refuse toute commande jusqu'au `ROLLBACK` :
+   `SQLSTATE[25P02] current transaction is aborted, commands ignored until end of transaction
+   block`. MySQL et SQLite laissaient continuer.
+
+   Conséquence directe : **tout code qui attrape une exception SQL et poursuit dans la même
+   transaction est cassé.** Et comme `RefreshDatabase` enveloppe chaque test dans UNE transaction,
+   le message accuse la première requête innocente venue, jamais la coupable — dont l'erreur, elle,
+   n'apparaît que dans le journal du serveur :
+
+   ```bash
+   docker compose logs --since 2m postgres | grep ERROR | grep -v 25P02
    ```
 
-2. **`dropUnique`/`dropIndex` sur une colonne portant une FK.** MySQL refuse : l'index back la FK.
    ```php
-   ❌ $table->dropUnique('table_col_unique');   // si col a une FK
-   ✓ $table->dropForeign(['col']);
-     $table->dropUnique('table_col_unique');    // … puis re-add la FK plus tard
+   ❌ try { Modele::create($x); } catch (UniqueConstraintViolationException) { /* déjà là */ }
+   ✓ Modele::query()->insertOrIgnore($x + ['created_at' => $n, 'updated_at' => $n]);
    ```
 
-3. **Nom d'index/FK auto-généré > 64 caractères** (limite MySQL). Laravel concatène
-   `{table}_{col1}_{col2}_{suffix}`.
+   *Une exception attendue dans le cas NOMINAL n'est pas un mécanisme de contrôle.*
+
+2. **`FOR UPDATE` est refusé sur un agrégat.** `->lockForUpdate()->count()` et
+   `->lockForUpdate()->sum(…)` lèvent `SQLSTATE[0A000]`.
+
+   ⚠ **Ne pas corriger la syntaxe : corriger le verrou.** Verrouiller les lignes *existantes* ne
+   ferme aucune course d'INSERT concurrent — MySQL le faisait par un verrou d'intervalle en
+   REPEATABLE READ, effet de bord du moteur que personne n'avait écrit. Le point de sérialisation
+   portable est la **ligne parent** :
+
+   ```php
+   ❌ $total = $property->collaborators()->lockForUpdate()->sum('commission_share');
+   ✓ Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+     $total = $property->collaborators()->sum('commission_share');
+   ```
+
+3. **Nom d'index/FK auto-généré > 63 caractères** — et PostgreSQL ne REFUSE pas, il **tronque**,
+   avec un simple `NOTICE`. L'index existe alors sous un nom que Laravel ne calculera jamais, et
+   c'est le `dropIndex()` d'une migration future qui échouera, sur un index « introuvable » qui est
+   pourtant là. La limite était 64 sous MySQL : **un nom de 64 exactement passait et ne passe
+   plus.**
+
    ```php
    ✓ $table->index(['long_col_1', 'long_col_2'], 'short_explicit_name_idx');
    ✓ $table->foreignId('col')->constrained('table', 'id', 'short_fk_name');
    ```
 
-4. **Pas d'`enum()`** — `string()` + contrôle applicatif (portable, et facile à faire évoluer).
+4. **`jsonb`, jamais `json`.** Le type `json` de PostgreSQL n'a **aucun opérateur d'égalité** :
+   `DISTINCT`, `GROUP BY` et `UNION` y sont impossibles, et aucun index GIN ne s'y pose. Les 69
+   colonnes du dépôt sont en `jsonb` depuis ADR-0020. La conversion est gratuite tant que la table
+   est vide, et c'est un `ALTER` sous `ACCESS EXCLUSIVE` ensuite.
+
+5. **Une longueur de `VARCHAR` est APPLIQUÉE.** SQLite n'en appliquait aucune : un
+   `string('country', 2)` acceptait sept caractères, et un test pouvait asserter un comportement
+   que le schéma interdit. `SQLSTATE[22001] value too long`.
+
+6. **`nextval()` n'est pas transactionnel.** Le `ROLLBACK` de `RefreshDatabase` rend les lignes,
+   **jamais les numéros** : un identifiant ne repart pas à 1 au test suivant, contrairement à
+   SQLite. *Un identifiant écrit en dur dans un test n'affirme pas une valeur, il affirme une
+   propriété du moteur.*
+
+7. **Deux colonnes homonymes ne sont plus arbitrées en silence.** `select('t.*')` plus un
+   `withCount('relation')` dont l'alias porte le nom d'une colonne réelle rendent deux colonnes de
+   même nom : MySQL et SQLite en choisissaient une, PostgreSQL refuse
+   (`ORDER BY … is ambiguous`). Aliaser explicitement.
+
+8. **Une clé étrangère n'est PAS indexée automatiquement.** InnoDB créait un index sur toute
+   colonne portant une FK ; PostgreSQL non. Les 177 FK du dépôt étaient indexées gratuitement,
+   aucune ne l'est. À indexer **par mesure** (`EXPLAIN`) et non en masse — en commençant par les
+   colonnes `agency_id`, l'agence étant la frontière d'isolation. *C'est la contrepartie du piège
+   MySQL n°2 qui disparaît : plus rien ne refuse un `dropIndex`, et plus rien ne sert les
+   requêtes.*
+
+**Les pièges MySQL qui ont DISPARU** — ne plus les chercher : `DEFAULT` sur `JSON`/`TEXT` (accepté
+par PostgreSQL), `dropUnique`/`dropIndex` sur une colonne portant une FK (voir n°8), et la limite
+de 64 caractères (devenue 63, et silencieuse — voir n°3). L'interdiction d'`enum()` (ADR-0007)
+**reste**, mais pour sa raison propre : un `string()` plus un contrôle applicatif se fait évoluer,
+un type SQL énuméré non.
 
 ## Design & UI
 
