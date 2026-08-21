@@ -133,7 +133,10 @@ class ServiceProviderOnboardingTest extends TestCase
         ])->assertOk()->assertJsonPath('data.available_slots', $slots);
 
         $sp->refresh();
-        $this->assertSame($slots, data_get($sp->metadata, 'availability'));
+        // `jsonb` normalise l'ordre des clés (`from`/`to` reviennent inversés) : c'est
+        // l'ordre qui change, jamais la valeur. Cf. le docblock de l'assertion — elle
+        // reste STRICTE sur les types, ce qui est le point.
+        $this->assertSameIgnoringKeyOrder($slots, data_get($sp->metadata, 'availability'));
     }
 
     public function test_kyc_upload_accepts_cni_and_insurance(): void

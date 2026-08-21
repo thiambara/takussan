@@ -32,18 +32,16 @@ return new class extends Migration
 
         // One non-cancelled payout per (agency, period_end) — enforces idempotence
         // of close-period at the storage layer (matches AC: ré-exécution = 409).
-        $driver = DB::getDriverName();
-        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
-            DB::statement("CREATE UNIQUE INDEX platform_payouts_unique_open_period ON platform_payouts (agency_id, period_end) WHERE status <> 'cancelled'");
-        }
+        // ⚠ Plus de branchement par driver depuis ADR-0020 : il n'y a qu'un moteur.
+        // La condition disait « pgsql ou sqlite », et son absence d'`else` signifiait
+        // qu'aucun index n'était créé sur MySQL — l'invariant n'y était donc PAS garanti
+        // en base. Ce n'était pas une équivalence entre moteurs, c'était un trou.
+        DB::statement("CREATE UNIQUE INDEX platform_payouts_unique_open_period ON platform_payouts (agency_id, period_end) WHERE status <> 'cancelled'");
     }
 
     public function down(): void
     {
-        $driver = DB::getDriverName();
-        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
-            DB::statement('DROP INDEX IF EXISTS platform_payouts_unique_open_period');
-        }
+        DB::statement('DROP INDEX IF EXISTS platform_payouts_unique_open_period');
 
         Schema::dropIfExists('platform_payouts');
     }

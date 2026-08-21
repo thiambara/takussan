@@ -149,7 +149,6 @@ jobs:
         run: |
           cp .env.example .env || echo "APP_ENV=testing" > .env
           php artisan key:generate --force
-          touch database/database.sqlite
 
       - name: Run Laravel Pint (lint)
         run: ./vendor/bin/pint --test
