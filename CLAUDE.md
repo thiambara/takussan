@@ -27,7 +27,7 @@ tenir à jour :
 | Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
 | Données | 135 migrations · 38 factories · 48 fichiers de seeders | — |
-| Tests | ~307 fichiers · **~2050 tests, verts _au repos_** *(~2300 au 2026-08-16)* | ~143 fichiers · **~810 tests, verts _au repos_** |
+| Tests | ~310 fichiers · **~2660 tests, verts _au repos_ sur PostgreSQL** *(2026-08-21)* | ~190 fichiers · **~1290 tests, verts** *(2026-08-21)* |
 
 > Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
 > `.ts`/`.tsx` » — faux dans le commit qui l'écrivait, puisque ce même commit en supprimait sept.
@@ -219,10 +219,17 @@ php artisan test                    # ⚠ TOURNE SUR POSTGRESQL depuis ADR-0020 
                                     #   ressource partagée par machine, et la seule que la
                                     #   migration a CRÉÉE : sous SQLite `:memory:` chaque processus
                                     #   avait la sienne gratuitement.
-                                    # ⚠⚠ LE TEMPS DE RÉFÉRENCE CI-DESSOUS EST CELUI DE SQLITE et
-                                    #   n'a plus cours. Sur PostgreSQL, une exécution du 2026-08-21
-                                    #   a rendu 668 s pour 2663 tests — mais à load 9 sur 8 cœurs,
-                                    #   donc ce chiffre ne dit rien non plus. À remesurer au repos.
+                                    # ⚠⚠ LE TEMPS DE RÉFÉRENCE EST 641 s (10 min 41), mesuré le
+                                    #   2026-08-21 sur 2662 tests / 8610 assertions / 0 échec,
+                                    #   MACHINE AU REPOS : load average 1,82 au départ et 3,86 à
+                                    #   l'arrivée, 8 cœurs, 332,51 s user + 29,42 s system.
+                                    #   C'est ~×2,8 la référence SQLite ci-dessous (204-235 s), et
+                                    #   c'est le PRIX de la propriété achetée : ce que la suite
+                                    #   éprouve est ce que la production exécutera. La piste si ce
+                                    #   coût devient insupportable — NON empruntée, faute de
+                                    #   nécessité démontrée — est `CREATE DATABASE … TEMPLATE` :
+                                    #   migrer une base modèle une fois, la cloner par processus.
+                                    # L'ANCIENNE référence SQLite, conservée pour la comparaison :
                                     # ~2300 tests, 204-235 s MACHINE AU REPOS (2026-08-16, deux
                                     #   mesures) — exige une instance Meilisearch (cf. D-08).
                                     #   Le temps ne se mesure QUE machine au repos : à load 200-258

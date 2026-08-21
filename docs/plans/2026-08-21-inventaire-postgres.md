@@ -122,10 +122,41 @@ son commentaire le dit maintenant.
 - **Qu'un test vert a emprunté le chemin PostgreSQL.** `PipelineStatsService` en est la preuve : sa
   branche « sinon MySQL » n'était exercée par *rien*, et elle aurait cassé en production. Un vert
   global ne prouve pas la couverture d'un chemin ; seul le clover le dit.
-- **Le temps de suite.** Voir §2 : la seule exécution complète disponible ici a été prise sous
-  charge. La mesure au repos est faite séparément.
+- ~~Le temps de suite~~ — **mesuré depuis, et le chiffre compte** (voir §7).
 - **Que `--parallel` tient sur la suite entière.** Le droit `CREATEDB` est vérifié ; le
   comportement ne l'est pas. TCK-334 (la file Meilisearch) reste ouverte de toute façon.
 - **Quoi que ce soit de la production.** Elle n'existe pas (D-04). La cible PostgreSQL est
   *décidée*, jamais relevée sur un serveur — c'est pourquoi la constante de `check-db-engine.mjs`
   s'appelle `CIBLE` et non `PROD`.
+
+---
+
+## 7. Le temps de suite, machine au repos — et il a doublé
+
+```
+2026-08-21 · 8 cœurs · load average 1,82 au départ, 3,86 à l'arrivée
+php artisan test → 641 s (10 min 41)
+                   332,51 s user + 29,42 s system, 56 % CPU
+Tests: 2662 passés, 0 ÉCHEC, 2 ignorés · 8610 assertions
+```
+
+> Une mesure intermédiaire, prise une passe plus tôt au même repos, rendait 622 s pour 2658 passés
+> et **3 échoués** — les trois derniers défauts, tous corrigés depuis. Les deux chiffres décrivent
+> des arbres différents : ils ne se comparent pas, et c'est celui-ci qui fait référence.
+
+**Référence SQLite : 204-235 s au repos (2026-08-16).** Le rapport est donc d'environ **×2,8**.
+
+C'était le risque n°2 nommé par la spec, et il s'est réalisé. Ce que ça touche :
+
+- **`bin/impacted-tests.php` devient plus utile, pas moins** — c'est la boucle du quotidien, et
+  l'écart qu'elle évite vient de doubler.
+- **Le rituel de fin de branche coûte 10 minutes au lieu de 4.** C'est le prix de la propriété que
+  ce chantier achète : *ce que la suite éprouve est ce que la production exécutera.*
+- **Le cliquet de couverture** ajoutait +36 % sur SQLite. À remesurer sur cette base-là.
+- **La CI** : le job dépassera visiblement son temps antérieur. C'est attendu, et documenté ici pour
+  qu'on ne cherche pas une régression là où il n'y en a pas.
+
+**La piste si ce coût devient insupportable** — et elle n'a PAS été empruntée, faute de nécessité
+démontrée : `CREATE DATABASE … TEMPLATE`, c'est-à-dire migrer une base modèle une seule fois puis la
+cloner par processus, au lieu de rejouer les 135 migrations dans chacun. *On ne l'optimise pas
+avant d'avoir mesuré que ça gêne.*
