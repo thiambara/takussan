@@ -63,6 +63,34 @@ class PropertySearchService
     }
 
     /**
+     * Les clauses moteur qui decrivent le CATALOGUE PUBLIC, et rien d'autre —
+     * la transposition Meilisearch de `Property::scopePublic()`.
+     *
+     * TCK-335 — extraite parce qu'elle a un SECOND appelant : `SuggestService`
+     * interroge desormais `POST /indexes/{uid}/facet-search` pour les villes et
+     * les quartiers, et une facette comptee sous un filtre INCOMPLET rend un
+     * compte faux. Mesure le 2026-08-21 sur la base locale (836 biens, 258
+     * publics) : avec les trois premieres clauses seulement (visibility,
+     * is_test, published_at) la facette rend « Mermoz 29 » et « Dakar 462 » ;
+     * avec les quatre, « Mermoz 20 » et « Dakar 210 » — c'est-a-dire exactement
+     * ce que `/search?location=Mermoz` et `/search?city=Dakar` totalisent.
+     *
+     * ⚠ Ne PAS recopier ces quatre lignes chez l'appelant : deux copies
+     * divergent, et la divergence se lit comme un compte plausible.
+     *
+     * @return list<string>
+     */
+    public static function publicFilter(): array
+    {
+        return [
+            "visibility = 'public'",
+            'is_test = false',
+            'published_at IS NOT NULL',
+            'NOT status IN ['.self::quoteList(Property::NON_PUBLIC_STATUSES).']',
+        ];
+    }
+
+    /**
      * Build the Meilisearch filter — outer array is AND-joined, a nested array
      * is OR-joined. The first clauses reproduce `Property::scopePublic()` so a
      * draft / non-public listing can never surface here.
@@ -72,18 +100,13 @@ class PropertySearchService
      */
     private function buildFilter(array $p): array
     {
-        $filter = [
-            "visibility = 'public'",
-            'is_test = false',
-            'published_at IS NOT NULL',
-            'NOT status IN ['.$this->quoteList(Property::NON_PUBLIC_STATUSES).']',
-        ];
+        $filter = self::publicFilter();
 
         if (! empty($p['location'])) {
-            $filter[] = 'neighborhood = '.$this->quote((string) $p['location']);
+            $filter[] = 'neighborhood = '.self::quote((string) $p['location']);
         }
         if (! empty($p['city'])) {
-            $filter[] = 'city = '.$this->quote((string) $p['city']);
+            $filter[] = 'city = '.self::quote((string) $p['city']);
         }
         if (isset($p['price_min']) && is_numeric($p['price_min'])) {
             $filter[] = 'price >= '.(float) $p['price_min'];
@@ -127,14 +150,14 @@ class PropertySearchService
         if (! empty($p['type'])) {
             $types = array_filter(array_map('trim', explode(',', (string) $p['type'])));
             if ($types !== []) {
-                $filter[] = array_map(fn ($t) => 'type = '.$this->quote($t), array_values($types));
+                $filter[] = array_map(fn ($t) => 'type = '.self::quote($t), array_values($types));
             }
         }
         if (! empty($p['contract_type'])) {
-            $filter[] = 'contract_type = '.$this->quote((string) $p['contract_type']);
+            $filter[] = 'contract_type = '.self::quote((string) $p['contract_type']);
         }
         if (! empty($p['rent_period'])) {
-            $filter[] = 'rent_period = '.$this->quote((string) $p['rent_period']);
+            $filter[] = 'rent_period = '.self::quote((string) $p['rent_period']);
         }
         if (array_key_exists('furnished', $p) && $p['furnished'] !== null && $p['furnished'] !== '') {
             $filter[] = 'furnished = '.(filter_var($p['furnished'], FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false');
@@ -143,7 +166,7 @@ class PropertySearchService
             $tags = is_array($p['tags']) ? $p['tags'] : explode(',', (string) $p['tags']);
             $tags = array_filter(array_map('trim', $tags));
             if ($tags !== []) {
-                $filter[] = array_map(fn ($t) => 'tags = '.$this->quote($t), array_values($tags));
+                $filter[] = array_map(fn ($t) => 'tags = '.self::quote($t), array_values($tags));
             }
         }
         if (! empty($p['available_from'])) {
@@ -235,7 +258,7 @@ class PropertySearchService
         return true;
     }
 
-    private function quote(string $value): string
+    private static function quote(string $value): string
     {
         return "'".str_replace(['\\', "'"], ['\\\\', "\\'"], $value)."'";
     }
@@ -243,8 +266,8 @@ class PropertySearchService
     /**
      * @param  array<int,string>  $values
      */
-    private function quoteList(array $values): string
+    private static function quoteList(array $values): string
     {
-        return implode(', ', array_map(fn (string $v): string => $this->quote($v), $values));
+        return implode(', ', array_map(fn (string $v): string => self::quote($v), $values));
     }
 }

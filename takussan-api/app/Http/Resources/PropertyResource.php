@@ -114,12 +114,21 @@ class PropertyResource extends BaseResource
             'price_history' => $this->when($isDetail, fn () => $this->buildPriceHistory()),
             'published_at' => $this->iso($this->published_at),
             'created_at' => $this->iso($this->created_at),
-            // TCK-098 — moderation fields (always included so the agent dashboard
-            // can render the status banner without a second round-trip).
-            'rejection_reason' => $this->rejection_reason,
-            'submitted_at' => $this->iso($this->submitted_at),
-            'approved_at' => $this->iso($this->approved_at),
-            'rejected_at' => $this->iso($this->rejected_at),
+            // TCK-098 — moderation fields, so the agent dashboard can render the
+            // status banner without a second round-trip. TCK-335 — that dashboard
+            // is rendered from an AUTHENTICATED session, so gating them on
+            // `$request->user()` costs it nothing; the same key already masks a
+            // collaborator's email above. Anonymous callers were carrying 4 keys
+            // that are null by construction on any public property
+            // (`PropertyModerationService::approve()` clears `rejection_reason`
+            // and `rejected_at`; `rejected`/`pending_review` are in
+            // `NON_PUBLIC_STATUSES`) — 8.5% of the search payload, and a needless
+            // disclosure of the moderation machinery. Absent, not null: a missing
+            // key gets noticed, a null one gets believed.
+            'rejection_reason' => $this->when($request->user() !== null, fn () => $this->rejection_reason),
+            'submitted_at' => $this->when($request->user() !== null, fn () => $this->iso($this->submitted_at)),
+            'approved_at' => $this->when($request->user() !== null, fn () => $this->iso($this->approved_at)),
+            'rejected_at' => $this->when($request->user() !== null, fn () => $this->iso($this->rejected_at)),
         ];
     }
 

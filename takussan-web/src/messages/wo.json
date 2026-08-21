@@ -3573,7 +3573,9 @@
         "offer": "Joxe benn njaay",
         "reserve": "Réserwe",
         "apply": "Ñaan"
-      }
+      },
+      "unavailableTitle": "Këru bi amul ba tey",
+      "unavailableBody": "Mënunu jot katalog bi ci saa si. Këru bi mën na am ba tey — jéemaatal ci ay saa."
     },
     "reviews": {
       "title": "Xalaat yi",
@@ -6354,6 +6356,10 @@
     },
     "dashboard": {
       "title": "Tablo bi — Takussan"
+    },
+    "propertyUnavailable": {
+      "title": "Këru bi amul ba tey",
+      "description": "Këru bi mënul a wone ci saa si. Jéemaatal ci ay saa."
     }
   },
   "billing": {

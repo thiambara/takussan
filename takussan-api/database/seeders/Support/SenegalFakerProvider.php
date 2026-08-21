@@ -4,6 +4,8 @@ namespace Database\Seeders\Support;
 
 use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyType;
+use App\Models\Property;
+use Database\Seeders\Catalog\PropertySeeder;
 use Faker\Provider\Base;
 
 /**
@@ -36,14 +38,31 @@ class SenegalFakerProvider extends Base
         'Cité Keur Gorgui' => ['type' => 'residential', 'rent' => [600000, 2000000], 'sale' => [40000000, 140000000]],
     ];
 
-    /** Templates de titres de propriétés */
+    /**
+     * Templates de titres de propriétés.
+     *
+     * ⚠ AUCUN gabarit ne dit « meublé », et c'est une CONTRAINTE, pas un oubli
+     * (TCK-335, étape 7). Trois d'entre eux le disaient — « Appartement meublé
+     * F{bedrooms} », « Studio meublé », « Pièce meublée » — alors que la colonne
+     * `furnished` est tirée INDÉPENDAMMENT par {@see PropertySeeder},
+     * après le titre. Mesuré sur le jeu du 2026-08-21 : **12 des 21 biens publics
+     * dont le titre disait « meublé » portaient `furnished = false`** — 57 % de
+     * contradictions. Toute mesure de `q=meublé` jugeait donc une donnée fausse,
+     * et l'assertion « q=meublé ≈ furnished=1 » était inatteignable.
+     *
+     * Ce provider ne peut pas RENDRE le gabarit vrai : il reçoit le type, le
+     * nombre de chambres et le quartier, jamais `furnished`. Il s'interdit donc
+     * de l'écrire. Le chemin du mot « meublé » vers les biens meublés passe
+     * désormais par `furnished_label` ({@see Property::toSearchableArray()}),
+     * un champ DÉRIVÉ de la colonne, qui ne peut pas la contredire.
+     */
     protected static $propertyTitleTemplates = [
         PropertyType::Apartment->value => [
             'Appartement F{bedrooms} à {neighborhood}',
             'Studio moderne à {neighborhood}',
             'Bel appartement {bedrooms} chambres - {neighborhood}',
             'Résidence F{bedrooms} avec ascenseur - {neighborhood}',
-            'Appartement meublé F{bedrooms} à {neighborhood}',
+            'Appartement lumineux F{bedrooms} à {neighborhood}',
         ],
         PropertyType::House->value => [
             'Villa moderne à {neighborhood}',
@@ -54,7 +73,7 @@ class SenegalFakerProvider extends Base
         ],
         PropertyType::Studio->value => [
             'Studio économique à {neighborhood}',
-            'Studio meublé à {neighborhood}',
+            'Studio rénové à {neighborhood}',
             'Petit studio à {neighborhood}',
             'Studio moderne à {neighborhood}',
         ],
@@ -86,7 +105,7 @@ class SenegalFakerProvider extends Base
         ],
         PropertyType::Room->value => [
             'Chambre à louer à {neighborhood}',
-            'Pièce meublée à {neighborhood}',
+            'Pièce indépendante à {neighborhood}',
         ],
         PropertyType::Garage->value => [
             'Garage à {neighborhood}',

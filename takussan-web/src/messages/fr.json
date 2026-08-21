@@ -256,6 +256,10 @@
     },
     "dashboard": {
       "title": "Tableau de bord — Takussan"
+    },
+    "propertyUnavailable": {
+      "title": "Bien momentanément indisponible",
+      "description": "Ce bien ne peut pas être affiché pour le moment. Réessayez dans quelques instants."
     }
   },
   "auth": {
@@ -597,7 +601,9 @@
         "offer": "Faire une offre",
         "reserve": "Réserver",
         "apply": "Postuler"
-      }
+      },
+      "unavailableTitle": "Bien momentanément indisponible",
+      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants."
     },
     "reviews": {
       "title": "Avis",

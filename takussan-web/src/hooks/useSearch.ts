@@ -107,6 +107,14 @@ export function countActiveFilters(filters: SearchFilters): number {
     .length;
 }
 
+/** Comment le changement s'inscrit dans l'historique du navigateur. */
+export type Historique = 'push' | 'replace';
+
+export type OptionsNavigation = {
+  /** Défaut : `push`. Les commits de champ continu passent `replace` — cf. `search()`. */
+  historique?: Historique;
+};
+
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useSearch() {
@@ -127,21 +135,57 @@ export function useSearch() {
     [searchParamsKey],
   );
 
-  const search = useCallback((filters: Partial<SearchFilters>) => {
+  /**
+   * TCK-335, étape 5 — `push` ou `replace`, et le critère est le GESTE, pas le filtre.
+   *
+   * Tout passait par `router.replace`, si bien que l'historique ne grandissait jamais :
+   * un visiteur qui posait cinq filtres puis appuyait une fois sur Précédent ne revenait
+   * pas au filtre précédent, **il quittait la recherche** (mesuré : `history.length`
+   * inchangé à 2 après la saisie d'un filtre).
+   *
+   * Mais `push` partout serait PIRE que l'état d'origine, et c'est pour ça que cette
+   * étape dépendait de l'anti-rebond : sans lui, frapper « Dakar » empilerait cinq
+   * entrées et « 150000 » six — cinq Précédent pour défaire un mot.
+   *
+   * D'où la ligne de partage :
+   *
+   * | geste | exemples | méthode |
+   * |---|---|---|
+   * | **discret** — un geste = une intention | puce, bascule, tri, `per_page`, pagination, retrait de filtre, réinitialisation | `push` |
+   * | **continu** — la valeur transite par des états intermédiaires | les quatre champs texte et les quatre bornes numériques du panneau | `replace` |
+   *
+   * `SearchAutocomplete` employait déjà `router.push` pour entrer dans les résultats : la
+   * convention implicite du dépôt était donc *entrer empile, affiner écrase*. On la rend
+   * explicite plutôt que d'en inventer une autre.
+   */
+  const naviguer = useCallback((url: string, historique: Historique, defiler = false) => {
+    if (historique === 'push') {
+      router.push(url, { scroll: defiler });
+    } else {
+      router.replace(url, { scroll: defiler });
+    }
+  }, [router]);
+
+  const search = useCallback((
+    filters: Partial<SearchFilters>,
+    options: OptionsNavigation = {},
+  ) => {
     const merged = { ...currentFilters, ...filters, page: 1 };
     const qs = filtersToParams(merged).toString();
-    router.replace(`${pathname}${qs ? '?' + qs : ''}`);
-  }, [router, pathname, currentFilters]);
+    // `scroll: false` : affiner une recherche ne doit pas ramener l'œil en haut de page.
+    naviguer(`${pathname}${qs ? '?' + qs : ''}`, options.historique ?? 'push');
+  }, [naviguer, pathname, currentFilters]);
 
   const setPage = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', String(page));
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [router, pathname, searchParams]);
+    // Changer de page, EN REVANCHE, défile — la page suivante commence en haut.
+    naviguer(`${pathname}?${params.toString()}`, 'push', true);
+  }, [naviguer, pathname, searchParams]);
 
   const resetFilters = useCallback(() => {
-    router.replace(pathname);
-  }, [router, pathname]);
+    naviguer(pathname, 'push');
+  }, [naviguer, pathname]);
 
   const removeFilter = useCallback((key: keyof SearchFilters) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -151,8 +195,8 @@ export function useSearch() {
     // — un lien externe ou hérité suffit à l'atteindre.
     if (key === 'q') params.delete('search');
     params.set('page', '1');
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [router, pathname, searchParams]);
+    naviguer(`${pathname}?${params.toString()}`, 'push');
+  }, [naviguer, pathname, searchParams]);
 
   // Fetch whenever URL params change
   useEffect(() => {

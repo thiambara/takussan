@@ -148,10 +148,17 @@ export interface PropertyDetail extends PropertyListItem {
     latitude: number | null;
     longitude: number | null;
   };
-  rejection_reason: string | null;
-  submitted_at: string | null;
-  approved_at: string | null;
-  rejected_at: string | null;
+  /**
+   * TCK-335 — champs de modération : l'API ne les émet que pour un appelant
+   * AUTHENTIFIÉ (`PropertyResource`, `$request->user() !== null`). Un visiteur
+   * anonyme reçoit une charge utile où les quatre clés sont **absentes**, pas
+   * nulles — d'où l'optionalité. Le tableau de bord agent, lui, est rendu
+   * depuis une session : il continue de les recevoir.
+   */
+  rejection_reason?: string | null;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  rejected_at?: string | null;
 }
 
 export interface PaginatedProperties {

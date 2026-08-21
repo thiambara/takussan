@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
 const mockReplace = vi.fn();
+const mockPush = vi.fn();
 let parametres = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: mockReplace, push: vi.fn() }),
+  useRouter: () => ({ replace: mockReplace, push: mockPush }),
   usePathname: () => '/properties',
   useSearchParams: () => parametres,
 }));
@@ -26,6 +27,7 @@ function monte(url: string) {
 
 beforeEach(() => {
   mockReplace.mockClear();
+  mockPush.mockClear();
   mockApiFetch.mockReset();
   mockApiFetch.mockResolvedValue({ data: [], facets: {}, meta: { total: 0, per_page: 30, current_page: 1, last_page: 1 } });
 });
@@ -75,7 +77,8 @@ describe('TCK-335 — retrait du filtre texte', () => {
 
     act(() => { result.current.removeFilter('q'); });
 
-    const url = mockReplace.mock.calls.at(-1)?.[0] as string;
+    // `removeFilter` empile depuis l'étape 5 : le retrait d'un filtre est un geste discret.
+    const url = mockPush.mock.calls.at(-1)?.[0] as string;
     expect(url).not.toContain('search=villa');
     expect(url).not.toContain('q=villa');
   });
@@ -121,5 +124,45 @@ describe('TCK-335 — l’erreur est portée, pas jetée', () => {
     await waitFor(() => expect(result.current.error).toBeInstanceOf(ApiError));
     // Garder l'ancienne liste la présenterait comme le résultat du filtre demandé.
     expect(result.current.data).toBeNull();
+  });
+});
+
+describe('TCK-335 — taxonomie push / replace', () => {
+  /**
+   * Tout passait par `replace`, donc l'historique ne grandissait jamais : un visiteur qui
+   * posait cinq filtres puis appuyait une fois sur Précédent QUITTAIT la recherche.
+   * Mais `push` partout serait pire — sans l'anti-rebond de l'étape 3, « Dakar » empilerait
+   * cinq entrées. La ligne de partage est le GESTE, pas le filtre.
+   */
+  it('empile un geste discret', () => {
+    const { result } = monte('');
+    act(() => { result.current.search({ contract_type: 'rent' }); });
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('écrase sur un commit de champ continu', () => {
+    const { result } = monte('');
+    act(() => { result.current.search({ city: 'Dakar' }, { historique: 'replace' }); });
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it('empile la pagination, le retrait de filtre et la réinitialisation', () => {
+    const { result } = monte('city=Dakar');
+    act(() => { result.current.setPage(2); });
+    act(() => { result.current.removeFilter('city'); });
+    act(() => { result.current.resetFilters(); });
+    expect(mockPush).toHaveBeenCalledTimes(3);
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  /** Affiner ne doit pas ramener l'œil en haut ; changer de page, si. */
+  it('ne défile pas en affinant, défile en paginant', () => {
+    const { result } = monte('city=Dakar');
+    act(() => { result.current.search({ bedrooms: 3 }); });
+    expect(mockPush.mock.calls.at(-1)?.[1]).toEqual({ scroll: false });
+    act(() => { result.current.setPage(2); });
+    expect(mockPush.mock.calls.at(-1)?.[1]).toEqual({ scroll: true });
   });
 });

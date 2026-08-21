@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React from 'react';
 import { useTranslations } from 'next-intl';
 import { X, RotateCcw, Search, Star, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useDebouncedCallback } from '@/hooks/useDebouncedValue';
+import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import type { SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -51,21 +53,45 @@ function ChipGroup<T extends string | number>({
   );
 }
 
+/**
+ * Bornes numériques — **commit au `blur` et à `Enter`, jamais sur un timer** (TCK-335).
+ *
+ * Un anti-rebond court ne suffit PAS ici, et c'est mesuré : frapper « 150000 » avec une simple
+ * temporisation laisse toute pause de saisie déclencher `price_min=15`, qui rend **le catalogue
+ * entier** — 29 374 octets et une hydratation Eloquent complète, six fois de suite pour un seul
+ * prix (176 Ko). Les valeurs intermédiaires d'un champ libre (`city=Dak`) rendent 0 résultat et
+ * 126 octets ; celles d'une borne numérique rendent tout. Les deux familles ne peuvent donc pas
+ * partager la même règle.
+ *
+ * Pas de bouton « Appliquer » : la Direction UX de TCK-335 interdit de redessiner ce panneau, et
+ * aucune clé i18n n'existe pour un tel libellé.
+ */
 function RangeInputs({
   placeholderMin,
   placeholderMax,
   valueMin,
   valueMax,
   hint,
-  onChange,
+  onChangeMin,
+  onChangeMax,
+  onCommit,
 }: {
   placeholderMin: string;
   placeholderMax: string;
-  valueMin: number | undefined;
-  valueMax: number | undefined;
+  valueMin: string;
+  valueMax: string;
   hint?: string;
-  onChange: (min: number | undefined, max: number | undefined) => void;
+  onChangeMin: (v: string) => void;
+  onChangeMax: (v: string) => void;
+  onCommit: () => void;
 }) {
+  const surTouche = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onCommit();
+    }
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -79,8 +105,10 @@ function RangeInputs({
           type="number"
           min={0}
           placeholder={placeholderMin}
-          value={valueMin ?? ''}
-          onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined, valueMax)}
+          value={valueMin}
+          onChange={(e) => onChangeMin(e.target.value)}
+          onBlur={onCommit}
+          onKeyDown={surTouche}
           className="rounded-xl"
         />
         <span className="shrink-0 text-gray-400 text-sm">–</span>
@@ -88,8 +116,10 @@ function RangeInputs({
           type="number"
           min={0}
           placeholder={placeholderMax}
-          value={valueMax ?? ''}
-          onChange={(e) => onChange(valueMin, e.target.value ? Number(e.target.value) : undefined)}
+          value={valueMax}
+          onChange={(e) => onChangeMax(e.target.value)}
+          onBlur={onCommit}
+          onKeyDown={surTouche}
           className="rounded-xl"
         />
       </div>
@@ -125,17 +155,70 @@ const BATHROOM_OPTIONS = [
 
 const FLOOR_KEYS = ['ground', 'first', 'second', 'third', 'fourthPlus'] as const;
 
+/** Délai d'anti-rebond des champs LIBRES, en millisecondes. */
+const DEBOUNCE_CHAMPS_LIBRES_MS = 400;
+
+/** `''` → `undefined` : un filtre vide n'est pas un filtre, il ne doit pas partir dans l'URL. */
+function texteVersFiltre(v: string): string | undefined {
+  return v === '' ? undefined : v;
+}
+
+function nombreVersFiltre(v: string): number | undefined {
+  if (v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+function filtreVersTexte(v: number | undefined): string {
+  return v === undefined ? '' : String(v);
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export interface FilterSidebarProps {
   filters: SearchFilters;
-  onFilterChange: (patch: Partial<SearchFilters>) => void;
+  /**
+   * TCK-335, étape 5 — `continu: true` signale un commit dont la valeur a transité par des
+   * états intermédiaires (les quatre champs texte, les quatre bornes numériques). L'appelant
+   * l'inscrit alors dans l'historique par `replace` : sans quoi un mot de cinq lettres coûte
+   * cinq appuis sur Précédent pour être défait. Un geste discret — puce, bascule, date —
+   * n'a pas d'états intermédiaires et empile.
+   */
+  onFilterChange: (patch: Partial<SearchFilters>, options?: { continu?: boolean }) => void;
   onReset: () => void;
   activeCount: number;
   open: boolean;
   onClose: () => void;
+  /**
+   * Délai d'anti-rebond des champs libres. Injectable pour que les tests le réduisent à
+   * quelques millisecondes sans figer les timers (patron `WizardReprenable`) — jamais pour
+   * l'ajuster en production.
+   */
+  debounceMs?: number;
 }
 
+/**
+ * Panneau de filtres publics.
+ *
+ * ## L'anti-rebond est ICI, et les deux autres emplacements sont interdits (TCK-335, étape 3)
+ *
+ * Chaque champ de saisie tient un **brouillon local**, resynchronisé sur `filters` par
+ * `useStateSyncedWith` (TCK-316). Seul le *commit* vers `onFilterChange` est temporisé.
+ *
+ * Ce n'est pas une optimisation, c'est **un correctif de saisie**. Avant, l'input était contrôlé
+ * par `filters`, qui vient de l'URL. `router.replace` de l'App Router est une transition : l'URL
+ * n'atterrit qu'après l'aller-retour RSC. Entre-temps, `restoreStateOfTarget` du react-dom du
+ * dépôt (19.2.8) rappelle `updateInput` avec les props du dernier commit et **réécrit
+ * `element.value` à l'ancienne valeur** — le caractère frappé DISPARAÎT de l'écran, puis revient
+ * ~150 ms plus tard.
+ *
+ * Les deux emplacements écartés, et pourquoi :
+ *
+ * - **temporiser le fetch dans `useSearch`** : les 5 aller-retours RSC subsistent (c'est
+ *   `router.replace` qui les provoque, pas le fetch), et la saisie clignote toujours ;
+ * - **temporiser `router.replace`** : c'est exactement le scénario ci-dessus — l'input reste
+ *   contrôlé par une URL qui ne bouge pas, donc le caractère frappé disparaît.
+ */
 export function FilterSidebar({
   filters,
   onFilterChange,
@@ -143,25 +226,123 @@ export function FilterSidebar({
   activeCount,
   open,
   onClose,
+  debounceMs = DEBOUNCE_CHAMPS_LIBRES_MS,
 }: FilterSidebarProps) {
   const t = useTranslations('search.filters');
   const tTypes = useTranslations('property.types');
   const tContract = useTranslations('property.contractTypes');
   const tPeriods = useTranslations('property.rentPeriods');
 
-  const set = useCallback(
-    (patch: Partial<SearchFilters>) => onFilterChange({ ...patch, page: 1 }),
-    [onFilterChange]
-  );
+  // ── Brouillons : la valeur AFFICHÉE est locale et immédiate ; `filters` ne fait que la
+  //    resynchroniser quand l'URL change réellement (retour arrière, « Tout effacer », puce
+  //    retirée depuis la barre d'outils).
+  const [cityDraft, setCityDraft] = useStateSyncedWith(filters.city ?? '');
+  const [locationDraft, setLocationDraft] = useStateSyncedWith(filters.location ?? '');
+  const [tagsDraft, setTagsDraft] = useStateSyncedWith(filters.tags ?? '');
+  const [qDraft, setQDraft] = useStateSyncedWith(filters.q ?? '');
+  const [priceMinDraft, setPriceMinDraft] = useStateSyncedWith(filtreVersTexte(filters.price_min));
+  const [priceMaxDraft, setPriceMaxDraft] = useStateSyncedWith(filtreVersTexte(filters.price_max));
+  const [areaMinDraft, setAreaMinDraft] = useStateSyncedWith(filtreVersTexte(filters.area_min));
+  const [areaMaxDraft, setAreaMaxDraft] = useStateSyncedWith(filtreVersTexte(filters.area_max));
+
+  // ── Ce que la saisie en cours n'a pas encore envoyé. Recalculé à CHAQUE rendu : c'est ce qui
+  //    garantit qu'aucun commit ne parte avec une version périmée.
+  const brouillonEnAttente: Partial<SearchFilters> = {};
+  if (texteVersFiltre(cityDraft) !== filters.city) {
+    brouillonEnAttente.city = texteVersFiltre(cityDraft);
+  }
+  if (texteVersFiltre(locationDraft) !== filters.location) {
+    brouillonEnAttente.location = texteVersFiltre(locationDraft);
+  }
+  if (texteVersFiltre(tagsDraft) !== filters.tags) {
+    brouillonEnAttente.tags = texteVersFiltre(tagsDraft);
+  }
+  if (texteVersFiltre(qDraft) !== filters.q) {
+    brouillonEnAttente.q = texteVersFiltre(qDraft);
+  }
+  if (nombreVersFiltre(priceMinDraft) !== filters.price_min) {
+    brouillonEnAttente.price_min = nombreVersFiltre(priceMinDraft);
+  }
+  if (nombreVersFiltre(priceMaxDraft) !== filters.price_max) {
+    brouillonEnAttente.price_max = nombreVersFiltre(priceMaxDraft);
+  }
+  if (nombreVersFiltre(areaMinDraft) !== filters.area_min) {
+    brouillonEnAttente.area_min = nombreVersFiltre(areaMinDraft);
+  }
+  if (nombreVersFiltre(areaMaxDraft) !== filters.area_max) {
+    brouillonEnAttente.area_max = nombreVersFiltre(areaMaxDraft);
+  }
+  const aUnBrouillon = Object.keys(brouillonEnAttente).length > 0;
+
+  const commitBrouillon = () => {
+    if (!aUnBrouillon) return;
+    onFilterChange({ ...brouillonEnAttente, page: 1 }, { continu: true });
+  };
+
+  // `useDebouncedCallback` relit `commitBrouillon` au DÉCLENCHEMENT, jamais à l'armement : un
+  // `contract_type` posé entre la frappe et l'échéance n'est donc pas effacé.
+  const differe = useDebouncedCallback(commitBrouillon, debounceMs);
+
+  /**
+   * Commit d'un geste DISCRET (puce, bascule, date, retrait).
+   *
+   * ⚠️ Le brouillon en attente est fusionné dans le patch. Sans cela, cliquer une puce pendant
+   * que l'utilisateur tape EFFACE le texte en cours : `onFilterChange` ne recevrait que la puce,
+   * `filters` repartirait sans la ville, et `useStateSyncedWith` ramènerait l'input à vide. Le
+   * timer est annulé dans la foulée — ce commit-ci porte déjà le brouillon.
+   */
+  const set = (patch: Partial<SearchFilters>) => {
+    differe.cancel();
+    onFilterChange({ ...brouillonEnAttente, ...patch, page: 1 });
+  };
+
+  /** Champ LIBRE : on affiche tout de suite, on commite plus tard. */
+  const surSaisieLibre =
+    (setter: (v: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setter(e.target.value);
+      differe.call();
+    };
+
+  /**
+   * `blur` / `Enter` d'un champ libre : on ne fait pas attendre l'utilisateur qui a fini.
+   *
+   * Ce `flush` n'est pas cosmétique : `SaveSearchButton` vit HORS de ce panneau et lit `filters`,
+   * c'est-à-dire l'URL. Sans lui, l'utilisateur qui tape puis clique « Enregistrer la recherche »
+   * enregistre la recherche d'AVANT sa frappe.
+   */
+  const surFinSaisieLibre = () => differe.flush();
+
+  const surToucheLibre = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      differe.flush();
+    }
+  };
+
+  /**
+   * Commit SÉANCE TENANTE de tout ce qui est en attente.
+   *
+   * `flush()` ne suffit pas ici : il ne déclenche que ce qu'un timer avait armé, et les bornes
+   * numériques n'en arment jamais (cf. {@link RangeInputs}). C'est donc cette fonction que
+   * portent leur `blur`, leur `Enter`, et le bouton « Voir les résultats » du tiroir mobile.
+   */
+  const commitImmediat = () => {
+    differe.cancel();
+    commitBrouillon();
+  };
 
   const contractTypes = CONTRACT_TYPE_VALUES.map((v) => ({ label: tContract(v), value: v }));
   const rentPeriods = RENT_PERIOD_VALUES.map((v) => ({ label: tPeriods(v), value: v }));
   const floorOptions = FLOOR_KEYS.map((k, i) => ({ label: t(`floors.${k}`), value: i }));
 
+  // Le rappel suit le BROUILLON, pas l'URL : il doit décrire ce que l'utilisateur voit dans le
+  // champ, y compris avant que la borne ne soit validée.
   const priceHint = (() => {
-    const parts = [];
-    if (filters.price_min !== undefined) parts.push(`≥ ${filters.price_min.toLocaleString('fr-SN')} FCFA`);
-    if (filters.price_max !== undefined) parts.push(`≤ ${filters.price_max.toLocaleString('fr-SN')} FCFA`);
+    const parts: string[] = [];
+    const min = nombreVersFiltre(priceMinDraft);
+    const max = nombreVersFiltre(priceMaxDraft);
+    if (min !== undefined) parts.push(`≥ ${min.toLocaleString('fr-SN')} FCFA`);
+    if (max !== undefined) parts.push(`≤ ${max.toLocaleString('fr-SN')} FCFA`);
     return parts.join(' · ');
   })();
 
@@ -178,7 +359,10 @@ export function FilterSidebar({
         <div className="flex items-center gap-2">
           {activeCount > 0 && (
             <button
-              onClick={onReset}
+              onClick={() => {
+                differe.cancel();
+                onReset();
+              }}
               className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -252,15 +436,19 @@ export function FilterSidebar({
             <Input
               type="text"
               placeholder={t('cityPlaceholder')}
-              value={filters.city ?? ''}
-              onChange={(e) => set({ city: e.target.value || undefined })}
+              value={cityDraft}
+              onChange={surSaisieLibre(setCityDraft)}
+              onBlur={surFinSaisieLibre}
+              onKeyDown={surToucheLibre}
               className="rounded-xl"
             />
             <Input
               type="text"
               placeholder={t('quarterPlaceholder')}
-              value={filters.location ?? ''}
-              onChange={(e) => set({ location: e.target.value || undefined })}
+              value={locationDraft}
+              onChange={surSaisieLibre(setLocationDraft)}
+              onBlur={surFinSaisieLibre}
+              onKeyDown={surToucheLibre}
               className="rounded-xl"
             />
           </div>
@@ -271,10 +459,12 @@ export function FilterSidebar({
           <RangeInputs
             placeholderMin={t('min')}
             placeholderMax={t('max')}
-            valueMin={filters.price_min}
-            valueMax={filters.price_max}
+            valueMin={priceMinDraft}
+            valueMax={priceMaxDraft}
             hint={priceHint || undefined}
-            onChange={(min, max) => set({ price_min: min, price_max: max })}
+            onChangeMin={setPriceMinDraft}
+            onChangeMax={setPriceMaxDraft}
+            onCommit={commitImmediat}
           />
         </Section>
 
@@ -301,9 +491,11 @@ export function FilterSidebar({
           <RangeInputs
             placeholderMin={t('minArea')}
             placeholderMax={t('maxArea')}
-            valueMin={filters.area_min}
-            valueMax={filters.area_max}
-            onChange={(min, max) => set({ area_min: min, area_max: max })}
+            valueMin={areaMinDraft}
+            valueMax={areaMaxDraft}
+            onChangeMin={setAreaMinDraft}
+            onChangeMax={setAreaMaxDraft}
+            onCommit={commitImmediat}
           />
         </Section>
 
@@ -379,8 +571,10 @@ export function FilterSidebar({
             <Input
               type="text"
               placeholder={t('amenitiesPlaceholder')}
-              value={filters.tags ?? ''}
-              onChange={(e) => set({ tags: e.target.value || undefined })}
+              value={tagsDraft}
+              onChange={surSaisieLibre(setTagsDraft)}
+              onBlur={surFinSaisieLibre}
+              onKeyDown={surToucheLibre}
               className="rounded-xl pl-9"
             />
           </div>
@@ -394,8 +588,10 @@ export function FilterSidebar({
             <Input
               type="text"
               placeholder={t('advancedPlaceholder')}
-              value={filters.q ?? ''}
-              onChange={(e) => set({ q: e.target.value || undefined })}
+              value={qDraft}
+              onChange={surSaisieLibre(setQDraft)}
+              onBlur={surFinSaisieLibre}
+              onKeyDown={surToucheLibre}
               className="rounded-xl pl-9"
             />
           </div>
@@ -425,7 +621,10 @@ export function FilterSidebar({
             </div>
             <div className="px-5 py-4 border-t border-gray-100 bg-white shrink-0">
               <Button
-                onClick={onClose}
+                onClick={() => {
+                  commitImmediat();
+                  onClose();
+                }}
                 className="w-full rounded-full h-12 text-sm font-semibold"
               >
                 {t('showResults')}

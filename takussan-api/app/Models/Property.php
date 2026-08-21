@@ -158,6 +158,53 @@ class Property extends AbstractModel implements HasMedia
     ];
 
     /**
+     * Alias de recherche français par type de CONTRAT — indexés dans
+     * `contract_label` (TCK-335, étape 8), sur le modèle strict de
+     * {@see TYPE_SEARCH_ALIASES} : un mot d'INTENTION écrit en français
+     * atteint un bien dont la colonne dit `rent` / `sale`.
+     *
+     * ⚠ **Ce n'est délibérément pas un synonyme Meilisearch, et c'est mesuré.**
+     * Un synonyme réécrit un terme de REQUÊTE en un autre terme de requête ; il
+     * ne crée pas un mot absent de l'index. Or « vendre » et « vente »
+     * n'apparaissaient dans le texte d'AUCUN bien du catalogue public
+     * (mesuré le 2026-08-21 : `q=vente` → 0, `q=vendre` → 0, pour 54 biens en
+     * `contract_type=sale`) : déclarer `vente => vendre` aurait fait passer
+     * `q=vente` de 0 à 0. Poser `synonyms` aurait en outre installé un SECOND
+     * mécanisme parallèle à ces tables d'alias, exactement le défaut que
+     * `scripts/check-filtering-single-mechanism.mjs` existe pour refuser
+     * ailleurs. Note d'exploitation qui achève le débat : `PATCH /settings`
+     * n'efface PAS une clé retirée de la configuration — un synonyme posé une
+     * fois ne se retire plus de la production.
+     *
+     * Les jetons sont DÉDUPLIQUÉS : « à louer » et « à vendre » sont couverts
+     * sans les écrire, parce que « à » est un mot vide (`stopWords`,
+     * `config/scout.php`) et que le mot restant est présent. Un jeton répété
+     * dans un champ indexé ne change rien au filtrage Meilisearch.
+     *
+     * @var array<string,string>
+     */
+    public const CONTRACT_SEARCH_ALIASES = [
+        'rent' => 'louer location bail loyer',
+        'sale' => 'vendre vente achat acheter',
+    ];
+
+    /**
+     * Vocabulaire d'ameublement — indexé dans `furnished_label` quand, et
+     * seulement quand, `furnished` est vrai (TCK-335, étape 8).
+     *
+     * Ce champ est le SEUL chemin possible du mot « meublé » vers les biens
+     * meublés : ni un synonyme, ni {@see TYPE_SEARCH_ALIASES}, ni des tags
+     * searchable ne peuvent y mener. Et parce qu'il est DÉRIVÉ de la colonne,
+     * il ne peut pas la contredire — au contraire du gabarit de titre qui
+     * disait « meublé » sur 12 biens `furnished = false`
+     * (cf. `database/seeders/Support/SenegalFakerProvider.php`).
+     *
+     * Sans accents : Meilisearch normalise à l'indexation comme à la requête,
+     * `q=meublé` et `q=meuble` rendent déjà le même ensemble.
+     */
+    public const FURNISHED_SEARCH_LABEL = 'meuble equipe';
+
+    /**
      * Statuses excluded from the public search index filter — mirror of
      * {@see scopePublic()}. A property indexed by {@see shouldBeSearchable()}
      * but in one of these statuses must not surface on the public endpoint.
@@ -179,6 +226,11 @@ class Property extends AbstractModel implements HasMedia
             'description' => $this->description,
             'reference_number' => $this->reference_number,
             'type_label' => self::TYPE_SEARCH_ALIASES[$this->type?->value] ?? '',
+            // TCK-335 — deux champs DÉRIVÉS, jamais saisis. Leur POSITION dans
+            // `searchableAttributes` (config/scout.php) est une règle de
+            // classement, et elle est mesurée : ils y sont EN DERNIER.
+            'contract_label' => self::CONTRACT_SEARCH_ALIASES[$this->contract_type?->value] ?? '',
+            'furnished_label' => $this->furnished ? self::FURNISHED_SEARCH_LABEL : '',
             'type' => $this->type?->value,
             'contract_type' => $this->contract_type?->value,
             'rent_period' => $this->rent_period?->value,
