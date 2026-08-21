@@ -21,6 +21,13 @@ on:
       # la garde restait muette. Même règle qu'en tête de `repo-ci.yml` : *les deux côtés qu'une
       # garde compare doivent la déclencher.*
       - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
+      # `src/types/__tests__/search-filters.parity.test.ts` (TCK-335) compare les clés de
+      # `SearchFilters` à celles de `SearchPublicPropertyRequest::rules()`, et vérifie que
+      # `PropertySearchService` les consomme toutes. Même règle, deuxième occurrence : le
+      # défaut d'origine — trois filtres produits par l'interface et supprimés par
+      # `validated()` — a vécu parce que RIEN ne regardait les deux côtés ensemble.
+      - 'takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php'
+      - 'takussan-api/app/Services/Search/PropertySearchService.php'
   push:
     branches: [dev, master]
     paths:
@@ -28,6 +35,8 @@ on:
       - '.github/workflows/web-ci.yml'
       # Mêmes motifs qu'au déclencheur `pull_request`, et pour la même raison.
       - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
+      - 'takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php'
+      - 'takussan-api/app/Services/Search/PropertySearchService.php'
 
 jobs:
   quality:

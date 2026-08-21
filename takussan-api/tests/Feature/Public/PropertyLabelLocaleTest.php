@@ -57,4 +57,54 @@ class PropertyLabelLocaleTest extends ApiTestCase
         $this->assertSame($contratAttendu, $response->json('data.contract_type_label'));
         $this->assertSame($typeAttendu, $response->json('data.type_label'));
     }
+
+    /**
+     * TCK-335 — sans en-tête, les libellés suivent la locale de l'APPLICATION.
+     *
+     * Ce chemin n'était couvert par aucun test, et il est piégeux à épingler : le `.env`
+     * de cette machine porte `APP_LOCALE=en` quand `.env.example` — l'environnement de
+     * test de la CI — porte `fr`. Une assertion écrite en dur sur « À louer » serait donc
+     * verte d'un côté et rouge de l'autre. On épingle la PROPRIÉTÉ — « pas d'en-tête »
+     * rend la même chose que « en-tête = locale de l'application », et autre chose que
+     * n'importe quelle autre locale — sans jamais nommer laquelle des trois est configurée.
+     *
+     * (`config(['app.locale' => …])` ne survit pas à la requête dans ce harnais : la
+     * configuration est rechargée. C'est mesuré, et c'est la raison de cette forme.)
+     */
+    public function test_sans_accept_language_les_libelles_suivent_la_locale_de_l_application(): void
+    {
+        $property = Property::factory()->create([
+            'status' => PropertyStatus::Available,
+            'visibility' => PropertyVisibility::Public,
+            'contract_type' => ContractType::Rent,
+            'type' => PropertyType::Apartment,
+            'published_at' => now(),
+        ]);
+
+        $localeApplication = config('app.locale');
+        $autreLocale = collect(['fr', 'en', 'wo'])->first(fn (string $l) => $l !== $localeApplication);
+
+        $sansEnTete = $this->getJson('/api/public/properties/'.$property->slug);
+        $avecLocaleApplication = $this->getJson(
+            '/api/public/properties/'.$property->slug,
+            ['Accept-Language' => $localeApplication],
+        );
+        $avecAutreLocale = $this->getJson(
+            '/api/public/properties/'.$property->slug,
+            ['Accept-Language' => $autreLocale],
+        );
+
+        $sansEnTete->assertOk();
+        $this->assertNotNull($sansEnTete->json('data.contract_type_label'));
+        $this->assertSame(
+            $avecLocaleApplication->json('data.contract_type_label'),
+            $sansEnTete->json('data.contract_type_label'),
+            "sans en-tête, le libellé doit suivre app.locale ({$localeApplication})",
+        );
+        $this->assertNotSame(
+            $avecAutreLocale->json('data.contract_type_label'),
+            $sansEnTete->json('data.contract_type_label'),
+            "le libellé sans en-tête ne doit pas coïncider avec la locale {$autreLocale}",
+        );
+    }
 }

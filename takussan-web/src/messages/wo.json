@@ -1723,7 +1723,10 @@
       "empty_title": "Gisunu benn kër",
       "empty_description": "Yaatal say coobare walla dindil ay filtre — am na kër bu la war.",
       "empty_cta": "Faral filtre yépp",
-      "error": "Am na njuumte. Jéemaatal su la neexee."
+      "error": "Am na njuumte. Jéemaatal su la neexee.",
+      "error_invalid_filter": "Benn ci filtar yi ci seet bii baaxul.",
+      "error_invalid_filter_named": "Filtar bu « {filter} » baaxul.",
+      "error_retry": "Jéemaat"
     },
     "filters": {
       "title": "Tànneef",

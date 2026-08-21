@@ -1,25 +1,25 @@
 'use client';
 import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, ApiError } from '@/lib/api';
 import type { SearchFilters, SearchResult } from '@/types/search';
 
 type State =
   | { status: 'idle' }
   | { status: 'loading'; prev: SearchResult | null }
   | { status: 'success'; result: SearchResult }
-  | { status: 'error'; prev: SearchResult | null };
+  | { status: 'error'; erreur: Error; prev: SearchResult | null };
 
 type Action =
   | { type: 'LOADING'; prev: SearchResult | null }
   | { type: 'SUCCESS'; result: SearchResult }
-  | { type: 'ERROR'; prev: SearchResult | null };
+  | { type: 'ERROR'; erreur: Error; prev: SearchResult | null };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'LOADING': return { status: 'loading', prev: action.prev };
     case 'SUCCESS': return { status: 'success', result: action.result };
-    case 'ERROR':   return { status: 'error', prev: action.prev };
+    case 'ERROR':   return { status: 'error', erreur: action.erreur, prev: action.prev };
   }
 }
 
@@ -55,6 +55,13 @@ function filtersToParams(filters: SearchFilters): URLSearchParams {
   return params;
 }
 
+/** `true`/`false` si la valeur est reconnue, `undefined` sinon (paramètre absent ou illisible). */
+function booleenDUrl(brut: string | null): boolean | undefined {
+  if (brut === 'true' || brut === '1') return true;
+  if (brut === 'false' || brut === '0') return false;
+  return undefined;
+}
+
 function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
   const n = (key: string) => { const v = sp.get(key); return v ? Number(v) : undefined; };
   const s = (key: string) => sp.get(key) ?? undefined;
@@ -71,8 +78,16 @@ function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
     bathrooms:     n('bathrooms'),
     area_min:      n('area_min'),
     area_max:      n('area_max'),
-    furnished:     sp.has('furnished') ? (sp.get('furnished') === 'true') : undefined,
-    featured:      sp.has('featured') ? (sp.get('featured') === 'true') : undefined,
+    // TCK-335 — l'URL peut porter `1`/`0` aussi bien que `true`/`false` : le backend
+    // accepte les deux depuis que `furnished` a cessé de rendre 422. Ne lire que
+    // `=== 'true'` faisait afficher la puce « Non meublé » sur `?furnished=1`, une URL
+    // qui filtre POURTANT les biens meublés — l'interface annonçait l'inverse de ce
+    // que le serveur appliquait.
+    furnished:     booleenDUrl(sp.get('furnished')),
+    // `featured` est UNILATÉRAL côté serveur (aligné sur `PublicPropertyController::index()`) :
+    // `featured=false` ne filtre rien. Le lire comme `false` ferait afficher une puce
+    // « ★ En vedette » sur un résultat non filtré — la puce mentirait.
+    featured:      booleenDUrl(sp.get('featured')) === true ? true : undefined,
     floor_number:  n('floor_number'),
     available_from: s('available_from'),
     tags:          s('tags'),
@@ -98,11 +113,6 @@ export function useSearch() {
   const router   = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const prevResult = (): SearchResult | null => {
-    // keep previous data while loading to avoid flicker
-    return null;
-  };
 
   const [state, dispatch] = useReducer(reducer, { status: 'idle' });
 
@@ -136,6 +146,10 @@ export function useSearch() {
   const removeFilter = useCallback((key: keyof SearchFilters) => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete(String(key));
+    // TCK-335 — `filtersFromSearchParams` lit `q ?? search` : les deux alimentent la
+    // MÊME puce. N'en retirer qu'un rendait la puce irrémovable sur `/properties?search=villa`
+    // — un lien externe ou hérité suffit à l'atteindre.
+    if (key === 'q') params.delete('search');
     params.set('page', '1');
     router.replace(`${pathname}?${params.toString()}`);
   }, [router, pathname, searchParams]);
@@ -158,8 +172,18 @@ export function useSearch() {
 
     let cancelled = false;
     apiFetch<SearchResult>(`/public/properties/search?${apiParams.toString()}`)
-      .then(result  => { if (!cancelled) dispatch({ type: 'SUCCESS', result }); })
-      .catch(()     => { if (!cancelled) dispatch({ type: 'ERROR', prev }); });
+      .then(result => { if (!cancelled) dispatch({ type: 'SUCCESS', result }); })
+      .catch((erreur: unknown) => {
+        if (cancelled) return;
+        const erreurNormalisee = erreur instanceof Error ? erreur : new Error(String(erreur));
+        // TCK-335 — sur un 422, on JETTE le résultat précédent. Le garder afficherait
+        // les anciennes cartes et l'ancien total comme s'ils étaient courants, sous une
+        // puce de filtre qui n'a rien filtré : le mensonge est alors plus crédible que
+        // « 0 bien trouvé ». Un 5xx ou une panne réseau, eux, n'invalident pas ce qui
+        // était juste il y a une seconde — on le garde.
+        const filtreInvalide = erreurNormalisee instanceof ApiError && erreurNormalisee.status === 422;
+        dispatch({ type: 'ERROR', erreur: erreurNormalisee, prev: filtreInvalide ? null : prev });
+      });
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,7 +196,10 @@ export function useSearch() {
   return {
     data:           result,
     loading:        state.status === 'loading' || state.status === 'idle',
-    error:          state.status === 'error',
+    // TCK-335 — l'erreur elle-même, plus un booléen : c'est ce qui permet à la page de
+    // distinguer « ce filtre n'est pas valide » (422, réparable par l'utilisateur) d'une
+    // panne (5xx, réseau), et de nommer le filtre en cause via `validationErrors`.
+    error:          state.status === 'error' ? state.erreur : null,
     filters:        currentFilters,
     activeCount:    countActiveFilters(currentFilters),
     search,

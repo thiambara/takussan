@@ -86,118 +86,126 @@ faux. Deux intentions guident les choix front :
 
 ## Delta à produire
 
-### Lot 1 — les filtres qui n'atteignent pas le moteur (P0, correctif court)
+> ⚠️ **Ce plan est la SECONDE rédaction.** La première a été soumise à une revue adverse — sept
+> agents, un par lot, chargés de *reproduire le défaut avant d'attaquer la prescription*, puis une
+> synthèse. Elle a tenu sur le diagnostic (4/4 des filtres, 5/5 des mesures de recherche) et **cédé
+> sur trois prescriptions et deux critères d'acceptation**. Ce qui suit est le plan révisé ; les
+> raisons de chaque changement sont dans les notes d'implémentation.
 
-- [ ] `SearchPublicPropertyRequest` : `furnished` accepte la chaîne `"true"` / `"false"` (la
-      règle `boolean` de Laravel les refuse ; le front envoie exactement `"true"`)
-- [ ] `SearchPublicPropertyRequest` : ajouter `area_min`, `area_max`, `featured`
-- [ ] `PropertySearchService::buildFilter()` : consommer `area_min`, `area_max`, `featured`
-- [ ] `SearchPublicPropertyRequest` : `available_from` cesse de rendre 422 sur une date passée
-      (une recherche sauvegardée ou un lien partagé vieillit)
-- [ ] Tests : `PublicPropertySearchFilterTest` — un scénario par filtre, chacun vérifiant que
-      `meta.total` **diffère** du total sans filtre (une assertion « 200 » ne prouve rien ici)
+### Étape 0 — ✅ LIVRÉE — filtres publics et locale des libellés
 
-### Lot 2 — l'interface cesse d'affirmer ce qu'elle ne fait pas
+- [x] `furnished` accepte `"true"`/`"false"` — normalisation dans `prepareForValidation()`
+      (`parent::` d'abord), `FILTER_NULL_ON_FAILURE` pour que `?furnished=nimportequoi` rende
+      toujours 422 plutôt qu'un `false` silencieux
+- [x] `area_min`, `area_max`, `featured` ajoutés à `rules()` **et** consommés par `buildFilter()`
+- [x] `area` **exclut** les surfaces inconnues (motif `floor_number`/`price`, jamais le OR
+      `IS NULL` d'`available_from`), garde `isset() && is_numeric()` et non `! empty()`
+- [x] `featured` **unilatéral**, aligné sur `PublicPropertyController::index()`
+- [x] `available_from` **écrêté au jour même** — et non simplement libéré de `after_or_equal:today`
+- [x] `PropertyResource::translate()` supprimé au profit de `BaseResource::enumLabel()`, dont le
+      défaut `'fr'` figé était le même bug endormi
+- [x] `apiFetch` transmet `Accept-Language` ; les 4 appelants serveur passent la locale
+      explicitement (`clientLocaleCookie()` rend `undefined` en RSC, **en silence**)
 
-- [ ] `useSearch` : état d'erreur distinct de l'état vide ; un 422 n'affiche plus
-      « 0 bien trouvé »
-- [ ] `SearchToolbar` : la puce et le compteur ne comptent que des filtres réellement appliqués
-- [ ] Test front : `/properties?featured=true` ne rend pas le même compte que `/properties`
+### Étape 1 — ✅ LIVRÉE — une panne cesse de se présenter comme un résultat
 
-### Lot 3 — une requête par caractère frappé
+- [x] `apiFetch` lève `ApiError` (statut + corps) au lieu d'un `Error` nu
+- [x] `useSearch` porte l'erreur au lieu d'un booléen ; **jette `prev` sur 422 seulement**
+- [x] `ErrorState` (l'unique bloc d'erreur inline du produit) remplace le `<div>` gris maison
+- [x] état vide et état d'erreur **s'excluent** ; `total: number | null`, rien d'affiché sur erreur
+- [x] `min={0}` sur les bornes numériques — ferme la régression que l'étape 0 avait ouverte
+- [x] `furnished=1`/`0` lus correctement ; `featured=false` n'est plus un filtre actif
+- [x] `removeFilter('q')` retire aussi `search`
 
-- [ ] Anti-rebond sur les champs libres de `FilterSidebar` (ville, quartier, tags, mot-clé) et
-      sur les bornes numériques (prix, surface)
-- [ ] Test : frapper 5 caractères produit **1** appel à `/search`, pas 5
+### Étape 2 — ✅ LIVRÉE — la divergence front↔back devient détectable
 
-### Lot 4 — retour arrière et historique
+- [x] `src/types/__tests__/search-filters.parity.test.ts` — lit les **fichiers PHP**, compare
+      `SearchFilters` à `rules()` et vérifie que `PropertySearchService` consomme chaque clé
+- [x] `web-ci.yml` déclenche sur les deux fichiers PHP lus par la garde
+- [x] `searchFiltersSchema` supprimé — 18 clés contre 20, aucun consommateur de production
 
-- [ ] `useSearch` passe par TanStack Query (déjà présent, déjà employé par `useSuggest`) :
-      cache et déduplication, pour que le bouton Précédent n'ait rien à refaire
-- [ ] Idem `useProperty`
-- [ ] Les changements de filtre empilent l'historique au lieu de l'écraser (`router.replace`
-      actuel), et la position de défilement est restaurée au retour depuis une fiche
+### Étape 3 — anti-rebond de saisie
 
-### Lot 5 — vocabulaire du moteur
+**L'emplacement est imposé, et les deux autres sont interdits par mesure.**
 
-- [ ] `config/scout.php` : mots vides et synonymes sur l'index `properties` (transaction :
-      louer / location / à louer / vendre / vente / à vendre ; abréviations courantes)
-- [ ] `Property::TYPE_SEARCH_ALIASES` : couvrir le wolof, et les termes de transaction
-- [ ] Rendre `tags` **searchable** en plus de filtrable, pour que le vocabulaire d'équipement
-      soit atteignable par le texte
-- [ ] Seeders : rattacher des tags d'équipement à une part des biens — aujourd'hui les 6 tags
-      existent et **aucun bien n'en porte**, donc ni le filtre ni la facette ne sont exerçables
-- [ ] Tests : `PropertySearchVocabularyTest` — `q=louer` doit s'approcher de
-      `contract_type=rent`, `q=meublé` de `furnished=1`
+- [ ] `src/hooks/useDebouncedValue.ts` + `useDebouncedCallback(fn, ms) → { call, flush, cancel }`,
+      extraits de la copie locale de `useSuggest.ts` ; `useSuggest` devient le premier appelant
+- [ ] `FilterSidebar` : brouillon **local** par champ, resynchronisé par `useStateSyncedWith`
+      (hook existant, TCK-316). **Jamais** dans `useSearch` (5 aller-retours RSC subsistent),
+      **jamais** sur `router.replace` (l'input est contrôlé par l'URL : `restoreStateOfTarget` du
+      `react-dom` du dépôt réécrit le DOM à l'ancienne valeur, **le caractère frappé disparaît**)
+- [ ] champs libres : 400 ms, délai injectable en prop `debounceMs` ; **bornes numériques : commit
+      au `blur` et à `Enter`**, sans timer court — chaque frappe intermédiaire rend le catalogue
+      entier (176 Ko pour « 150000 »)
+- [ ] `set()` fusionne le brouillon en attente dans chaque patch, `flush()` au `blur` et à `Enter`
+- [ ] `FilterSidebar.test.tsx` — **sur le composant, pas sur la page** : au niveau de la page,
+      `useSearchParams` est figé par le mock, et le test serait vert sans le correctif
 
-### Lot 6 — rendu serveur et poids de page
+### Étape 4 — restauration du défilement
 
-- [ ] `/properties` : page serveur lisant `searchParams`, résultats rendus dans le HTML ;
-      `loading.tsx` ou `fallback` sur le `<Suspense>` (aujourd'hui vide)
-- [ ] `/properties/[slug]` : rendu serveur, et **réutiliser** le bien déjà récupéré par le
-      `generateMetadata` du layout au lieu de le redemander côté client
-- [ ] JSON-LD `RealEstateListing` sur la fiche
-- [ ] `src/i18n/request.ts` : découper le dictionnaire par espace de noms (266 Ko inlinés
-      aujourd'hui à chaque page)
+- [ ] `useScrollRestoration` — mémoriser `window.scrollY` par entrée d'historique, restaurer
+      **après commit des résultats**. La restauration native opère sur un document au tiers de sa
+      hauteur (10 squelettes contre 30 résultats) : les 1 200 px sont écrêtés à 0
 
-### Lot 7 — locale et conventions
+### Étape 5 — taxonomie `push` / `replace` *(dépend de l'étape 3)*
 
-- [ ] `PropertyResource::translate()` : `Lang::get($key, [], 'fr')` fige la locale en dur →
-      utiliser la locale active résolue par `SetLocaleMiddleware`
-- [ ] `apiFetch` transmet `Accept-Language` (comme `apiRequest`)
-- [ ] `/search` honore `fields[properties]` (règle non négociable du dépôt), et cesse d'exposer
-      `approved_at`, `submitted_at`, `rejection_reason` sur une surface publique
-- [ ] `SuggestService` : s'appuyer sur Meilisearch plutôt que sur `str_starts_with` (une faute
-      de frappe rend zéro suggestion), et écarter les quartiers à libellé vide
-- [ ] `src/data/navigation.ts` : les entrées `href: '#'` (« Vendre », « Services ») ne sont plus
-      présentées comme des liens
+- [ ] `search(filters, { historique })` : **`push`** pour les gestes discrets (puces, tri,
+      `per_page`, pagination, retrait de filtre), **`replace`** pour les commits de champ continu.
+      `push` livré sans l'étape 3 est **pire** que le `replace` actuel : « Dakar » empilerait cinq
+      entrées d'historique
 
-## Critères d'acceptation
+### Étape 6 — la fiche en rendu serveur
 
-- [ ] AC1 — `?furnished=true` et `?furnished=false` rendent 200 et des comptes **différents**
-      du total sans filtre
-- [ ] AC2 — `?area_min=200&area_max=400` rend un compte strictement inférieur au total sans
-      filtre
-- [ ] AC3 — `?featured=true` rend un compte strictement inférieur au total sans filtre, et le
-      lien « coups de cœur » du pied de page mène à ce résultat
-- [ ] AC4 — une URL portant `available_from` à une date passée rend 200
-- [ ] AC5 — un 422 de `/search` affiche un état d'erreur explicite, jamais « 0 bien trouvé »
-- [ ] AC6 — aucune puce de filtre actif ni incrément du compteur pour un filtre non appliqué
-- [ ] AC7 — frapper 5 caractères dans un champ du panneau produit 1 appel à `/search`
-- [ ] AC8 — le retour depuis une fiche réaffiche la liste sans nouvel appel réseau et restaure
-      la position de défilement
-- [ ] AC9 — après un changement de filtre, un « Précédent » revient à l'état de filtre
-      précédent et ne quitte pas la page
-- [ ] AC10 — `q=villa Saly` rend strictement moins de résultats que `q=villa` (aujourd'hui :
-      63 contre 63, mêmes ids, même ordre)
-- [ ] AC11 — `q=louer` rend un ordre de grandeur comparable à `contract_type=rent`
-      (aujourd'hui : 7 contre 204)
-- [ ] AC12 — le HTML servi de `/properties` et d'une fiche contient un `<h1>` et au moins une
-      annonce, sans exécution de JavaScript
-- [ ] AC13 — `Accept-Language: en` rend `"For Rent"` sur `contract_type_label` (aujourd'hui :
-      « À louer » dans les trois langues)
-- [ ] AC14 — `?fields[properties]=id,title` rend deux clés par bien, pas 36
-- [ ] AC15 — l'autocomplétion rend « Mermoz » sur la saisie `mrmoz`
-- [ ] AC16 — la suite backend et la suite front restent vertes, et le cliquet de couverture
-      tient à 86 %
+- [ ] extraire `PropertyDetailContent` ; `page.tsx` devient serveur et lui passe le bien en prop
+      (il l'accepte **déjà** en prop — le nombre de composants à convertir est **zéro**)
+- [ ] `getProperty = cache(...)` partagé entre `generateMetadata` et la page ; `layout.tsx`
+      passe-plat supprimé ; `useProperty` supprimé
+- [ ] `loading.tsx` sur `/properties` et `fallback` sur son `<Suspense>` (aujourd'hui vide)
+- [ ] JSON-LD `RealEstateListing` — **jamais `Product`/`Offer`** (balisage trompeur au sens des
+      règles Google) ; `price` décimal **jamais ×100** ; `geo` **omis** quand les coordonnées sont
+      nulles
+- [ ] **404 amont → `notFound()`**, toute autre panne → indisponibilité explicite +
+      `robots: { index: false }`. Le `try/catch → null` actuel sert un **soft-404 en HTTP 200**
+      aux moteurs, mesuré en production aujourd'hui
 
-## Hors périmètre
+### Étape 7 — le jeu de démonstration cesse de se contredire *(préalable de l'étape 8)*
 
-- **L'analyse d'intention proprement dite** (transformer « villa à louer à Saly » en
-  `type=villa&contract_type=rent&city=Saly` par un analyseur de requête) : c'est une décision
-  structurelle, elle exige un ADR **avant** implémentation. Le lot 5 ne traite que le
-  vocabulaire du moteur — synonymes, mots vides, alias indexés — qui relève de la
-  configuration. La recherche en langage naturel est d'ailleurs classée P3 dans la spec.
-- La recherche sémantique par embeddings (P3, §2.4).
-- La recherche vocale (P3, §1.2).
-- L'activation de `SCOUT_QUEUE` en production et la stratégie de réindexation au déploiement.
-- La compression HTTP côté serveur : l'audit note qu'elle n'a **pas** pu être vérifiée
-  (`artisan serve` ne compresse pas, la configuration du serveur n'est pas dans le dépôt).
-  À mesurer sur `preview.api.takussan.com` — ticket distinct si l'écart est confirmé.
-- Le fait que le front public appelle une API absente en production : c'est **TCK-332**, et il
-  reste la condition pour qu'un visiteur réel voie quoi que ce soit.
-- Le tri par popularité : `views_count` vaut 0 partout dans le jeu de démonstration, il ne peut
-  pas être exercé tant que le seeder ne l'alimente pas.
+- [ ] `SenegalFakerProvider` : le gabarit de titre « meublé » ne sort plus sur `furnished=false`
+      (mesuré : 12 biens publics sur 21)
+- [ ] `FilterCoverageSeeder` attache 1 à 4 tags par bien et une passe sur un tiers du catalogue —
+      **uniquement les tags `feature`/`amenity`**, jamais les 5 tags `crm` (ce sont des tags de
+      clients : un bien remonterait sur `q=étudiant`)
+
+### Étape 8 — vocabulaire injecté à l'indexation *(dépend de l'étape 7)*
+
+**Les synonymes Meilisearch sont la mauvaise mécanique**, et c'est mesuré : « vendre » et « vente »
+apparaissent dans le texte de **0** bien, donc `vente => vendre` fait passer `q=vente` de 0 à 0. Un
+synonyme réécrit un terme de requête ; il ne crée pas un mot absent de l'index.
+
+- [ ] `Property::CONTRACT_SEARCH_ALIASES` + champs `contract_label` et `furnished_label` dans
+      `toSearchableArray()`, sur le modèle strict de `type_label`
+- [ ] `config/scout.php` : les deux nouveaux champs **EN DERNIER** dans `searchableAttributes` —
+      position mesurée : en tête, n'importe quel bien en location passe devant le bien dont le
+      titre dit « location »
+- [ ] mots vides français ; `tags` ajouté à `searchableAttributes`
+- [ ] `PropertySearchVocabularyTest`, **avec ablation sur chaque assertion** : `q=louer` rend déjà
+      7 aujourd'hui par accident de gabarit de titre
+
+### Étape 9 — champs de modération conditionnés
+
+- [ ] `approved_at`, `submitted_at`, `rejected_at`, `rejection_reason` derrière
+      `$request->user()` (motif déjà présent dans le même fichier pour l'e-mail d'un
+      collaborateur). **Rendre les quatre optionnels dans `src/types/property.ts`** — sans quoi
+      `tsc --noEmit` rougit, et aucun script npm ne le lance
+
+### Étape 10 — suggestion tolérante à la faute *(villes et quartiers seulement)*
+
+- [ ] `SuggestService` : villes et quartiers par `POST /indexes/{uid}/facet-search`, **avec le
+      filtre public exact** — sans lui les comptes sont faux (Mermoz 29 au lieu de 20)
+- [ ] **`property_types` RESTE sur le chemin `trans()`** : `type` est indexé par sa valeur d'enum
+      anglaise, `facetQuery=maison` rend `[]`. Basculer détruirait la localisation de la
+      suggestion, dans le lot dont l'autre moitié répare la localisation
+- [ ] `SearchSuggestTest` doit porter `InteractsWithMeilisearch`, sinon il rendrait **vide**
 
 ## Notes d'implémentation
 

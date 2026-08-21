@@ -108,9 +108,13 @@ Meilisearch, qui tourne à côté, aurait rendu « Mermoz » sur `mrmoz`. La sug
 ailleurs **aucune annonce** (titre, référence) et **aucune combinaison** (« Appartement à Mermoz »)
 — or c'est exactement là que se joue « deviner ce que l'utilisateur veut ».
 
-Détail annexe : `resolveNeighborhoods()` filtre par `whereNotNull('neighborhood')`, ce qui laisse
-passer **40 lignes à chaîne vide** dans le jeu courant. Elles ne remontent pas en suggestion (le
-préfixe ne matche pas) mais apparaissent dans les facettes `locations`.
+~~Détail annexe : `resolveNeighborhoods()` filtre par `whereNotNull('neighborhood')`, ce qui laisse
+passer **40 lignes à chaîne vide**.~~ **INFIRMÉ le 2026-08-21** par deux contre-mesures
+indépendantes : sur cette même base, `neighborhood = ''` → **0**, `neighborhood IS NULL` → 125, et
+la requête exacte de `resolveNeighborhoods()` rend 20 lignes, 20 libellés distincts, aucun vide.
+Les 40 chaînes vides que j'avais relevées venaient de la facette `locations` **brute**, hors filtre
+public — pas de la liste de suggestion. *Une mesure prise sur un objet voisin ne vaut pas pour
+l'objet qu'on décrit.*
 
 ---
 
@@ -190,11 +194,22 @@ Mesuré au navigateur, page `/properties`, frappe simulée à 150 ms d'intervall
   total            : 12
 ```
 
-Chacune de ces requêtes intermédiaires est une vraie recherche Meilisearch **plus** une hydratation
-Eloquent de 30 biens **plus** une sérialisation `PropertyResource` complète — pour un résultat que
-personne ne verra. Coût mesuré d'une requête complète en local : **~90 ms** et **29 374 octets**.
-Frapper « Dakar » consomme donc ~450 ms de calcul serveur et ~120 Ko de réponse pour afficher un
-seul état utile.
+**⚠ Ce paragraphe portait deux chiffres faux ; re-mesuré le 2026-08-21.** J'écrivais que chacune
+de ces requêtes intermédiaires était « une recherche Meilisearch **plus** une hydratation Eloquent
+de 30 biens **plus** une sérialisation complète », pour « ~120 Ko » sur le champ Ville. C'est faux
+pour ce champ-là : `city=D` … `city=Daka` rendent **0 résultat**, donc **126 octets** et aucune
+hydratation. Total réel pour « Dakar » : **29 940 octets**, pas 120 Ko.
+
+Le gaspillage est réel, mais il est **sur les bornes numériques**, où j'avais mis le champ Ville
+en tête :
+
+```
+price_min=1 → 15 → 150 → 1500 → 15000 → 150000
+  chacune : 200, 29 374 octets, total = 258 — LE CATALOGUE ENTIER, hydraté et sérialisé
+  soit 176 Ko et six hydratations complètes pour frapper un prix
+```
+
+*Le champ le plus visible n'était pas le plus cher, et je l'avais classé premier.*
 
 **Il n'y a aucun anti-rebond dans cette chaîne.** `useSuggest` en a un (150 ms) ; l'autocomplétion
 de la barre est donc correcte. Mais les six champs texte et les quatre champs numériques du panneau
@@ -215,6 +230,11 @@ HTML servi par Next, scripts retirés :
 | `/` | 295 273 o | 34 372 o (12 %) | **aucun** | **0** |
 | `/properties` | 311 711 o | 47 608 o (15 %) | **aucun** | **0** |
 | `/properties/[slug]` | 329 597 o | 41 065 o (12 %) | **aucun** | **0** |
+
+**⚠ Ces trois lignes sont des chiffres de DÉVELOPPEMENT, et je ne l'avais pas écrit.** Re-mesuré
+le 2026-08-21 sur un build de production : **130 Ko et 63,6 % de scripts**, non 300 Ko et 88 %. Le
+fait qualitatif — aucune annonce, aucun `<h1>` dans le HTML — tient dans les deux modes ; les
+chiffres, non. *Un chiffre pris en développement décrit l'outillage, pas le produit.*
 
 Les trois pages sont des composants clients (`'use client'` sur `HomepageDiscovery`,
 `PropertiesDiscoveryPage`, et sur `properties/[slug]/page.tsx` lui-même) dont les données arrivent
@@ -293,11 +313,15 @@ précédent : il sort de la recherche.
 
 ## 6. Constats secondaires, tous mesurés
 
-- **`fields[properties]` est ignoré par `/search`.** La règle non négociable du dépôt (« sparse
-  fieldsets obligatoires ») ne peut pas s'appliquer à son endpoint le plus chaud :
-  `?fields[properties]=id,title` rend toujours **36 clés** par bien. `PropertySearchService`
-  construit la ressource directement, hors `HasQueryBuilder`. La liste transporte notamment
-  `approved_at`, `submitted_at`, `rejection_reason` sur une surface publique.
+- **`fields[properties]` est ignoré — et ma cause était fausse.** J'attribuais le défaut au fait
+  que `PropertySearchService` construit la ressource « hors `HasQueryBuilder` ». **Re-mesuré le
+  2026-08-21 : `/public/properties/{slug}`, qui n'emprunte pas ce service, l'ignore tout autant**
+  (47 clés avec ou sans `fields[]`), et une sonde tinker montre que même avec `HasQueryBuilder`
+  pleinement en jeu — `attributes = id,title` sur le modèle — la ressource émet **47 clés**.
+  Spatie ne restreint que le `SELECT` SQL ; il n'a aucune prise sur `toArray()`. **Le mécanisme
+  manquant est au niveau RESSOURCE, sur les 44 ressources du dépôt**
+  (`grep array_intersect_key app/Http/Resources/` → vide). C'est un chantier de dépôt, pas un
+  défaut de la recherche.
 - **Les libellés sont français en dur, quelle que soit la langue.**
   `PropertyResource::translate()` fait `Lang::get($key, [], 'fr')` — le troisième argument fige la
   locale. Mesuré : `Accept-Language: en`, `wo` et `fr` rendent tous `« À louer »`, alors que
@@ -316,6 +340,15 @@ précédent : il sort de la recherche.
 - **`views_count` vaut 0 partout** dans le jeu de démonstration (`favorites_count`, lui, remonte
   correctement — vérifié sur le bien 5). Le tri « popularité » n'est donc jamais exerçable en
   développement.
+- **⚠ « Fuite d'information » était le mauvais mot.** Les champs de modération
+  (`approved_at`, `submitted_at`, `rejected_at` — que j'avais oublié — et `rejection_reason`) sont
+  bien émis sans condition. Mais mesuré le 2026-08-21 : **0 bien public n'en porte un seul non
+  nul**, et c'est vrai *par construction* — `PropertyModerationService::approve()` remet
+  `rejection_reason` et `rejected_at` à `null` dans la transaction qui rend le bien disponible, et
+  `rejected`/`pending_review` sont dans `NON_PUBLIC_STATUSES`. C'est **8,5 % de charge utile
+  inutile** (2 700 octets sur 31 828 à `per_page=30`), pas un incident de sécurité. *Nommer un
+  défaut plus gravement qu'il ne l'est oriente vers un correctif urgent et grossier là où il en
+  faut un propre.*
 - **`hydrate()` réapplique `scopePublic()` après le moteur.** C'est une défense en profondeur
   légitime, mais elle peut rendre moins d'éléments que `per_page` sans que `meta.total` ne le
   reflète : si l'index diverge de la base, la page se creuse en silence.
@@ -363,3 +396,35 @@ précédent : il sort de la recherche.
 Les points 1, 2 et 4 sont des corrections d'une ligne à quelques lignes qui changent ce que
 l'utilisateur obtient. Le point 6 est le seul qui demande une vraie décision de conception (analyse
 d'intention côté service, ou vocabulaire injecté dans l'index, ou les deux) — il mérite un ADR.
+
+---
+
+## Corrections apportées à ce document — 2026-08-21
+
+Ce document a été **contre-mesuré lot par lot** avant d'implémenter TCK-335 : sept revues
+adverses, chacune chargée de reproduire le défaut avant d'attaquer la prescription. Cinq
+affirmations ci-dessus ont été corrigées en place (elles portent leur mention). Deux d'entre elles
+étaient fausses **dans le sens qui rassure**, et deux dans le sens qui alarme :
+
+| ce que j'écrivais | mesuré le 2026-08-21 |
+|---|---|
+| « ~120 Ko pour frapper Dakar », hydratation à chaque frappe | **29 940 o** ; les frappes intermédiaires rendent 0 résultat. Le vrai coût est sur les bornes numériques : **176 Ko, six hydratations** |
+| « 40 quartiers à libellé vide » | **0** — la mesure venait de la facette brute, pas de la liste de suggestion |
+| `fields[]` ignoré « parce que hors `HasQueryBuilder` » | faux : `/show` l'ignore aussi, et spatie ne touche que le `SELECT`. Défaut de dépôt, pas de la recherche |
+| « fuite d'information » sur les champs de modération | 0 bien public concerné, et impossible par construction. **8,5 % de bruit**, pas une fuite |
+| « ~300 Ko dont 88 % de scripts » | chiffre de développement ; **130 Ko / 63,6 %** en production |
+
+**Et une découverte que l'audit avait manquée, plus grave que tout ce qu'il listait** : la
+production sert aujourd'hui un **soft-404 en HTTP 200** sur toute la surface indexable.
+
+```
+$ curl -s -o /dev/null -w '%{http_code}' https://www.takussan.com/properties/studio-meuble-a-parcelles-assainies-5Kyslt
+200
+$ … | grep -o '<title>[^<]*'
+<title>Bien introuvable — Takussan
+```
+
+Le `try { … } catch { return null }` de `properties/[slug]/layout.tsx` — exactement le garde-fou
+qu'un correctif naïf aurait ajouté — transforme l'API absente (TCK-332) en page « introuvable »
+servie avec un code 200 aux moteurs de recherche. *Un repli silencieux ne supprime pas la panne :
+il la rend indexable.*

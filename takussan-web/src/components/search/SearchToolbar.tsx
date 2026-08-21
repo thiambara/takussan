@@ -60,7 +60,15 @@ function fabriqueEtiquettes(
 const HIDDEN_FROM_TAGS: (keyof SearchFilters)[] = ['sort', 'page', 'per_page'];
 
 export interface SearchToolbarProps {
-  total: number;
+  /**
+   * TCK-335 — `null` quand la recherche a ÉCHOUÉ : le compteur n'affiche alors rien.
+   *
+   * Il valait `meta?.total ?? 0`, si bien qu'un 422 sur un filtre affichait
+   * « 0 biens trouvés » — une réponse, là où il n'y avait pas de réponse. Accompagner
+   * ce zéro d'un bandeau d'erreur ne suffit pas : l'écran porterait alors deux
+   * affirmations contradictoires, et c'est le chiffre que l'œil lit en premier.
+   */
+  total: number | null;
   loading: boolean;
   filters: SearchFilters;
   activeCount: number;
@@ -118,7 +126,7 @@ export function SearchToolbar({
               <span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               {t('loading')}
             </span>
-          ) : (
+          ) : total === null ? null : (
             t('resultCount', { count: total })
           )}
         </p>

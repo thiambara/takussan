@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { apiFetch } from '@/lib/api';
 import type { PropertyDetail } from '@/types/property';
 
@@ -20,10 +20,15 @@ const fields = [
   'type_label',
 ].join(',');
 
-async function getProperty(slug: string): Promise<PropertyDetail | null> {
+async function getProperty(slug: string, locale: string): Promise<PropertyDetail | null> {
   try {
+    // TCK-335 — la locale est passée EXPLICITEMENT : `apiFetch` la déduit sinon du cookie
+    // du navigateur, qui n'existe pas en rendu serveur. Sans elle, `<title>` et
+    // `og:description` d'une fiche sortiraient dans la langue du serveur.
     const res = await apiFetch<{ data: PropertyDetail }>(
       `/public/properties/${slug}?fields[properties]=${fields}`,
+      undefined,
+      { locale },
     );
     return res.data;
   } catch {
@@ -33,7 +38,7 @@ async function getProperty(slug: string): Promise<PropertyDetail | null> {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const property = await getProperty(slug);
+  const property = await getProperty(slug, await getLocale());
 
   if (!property) {
     const t = await getTranslations('meta.propertyMissing');

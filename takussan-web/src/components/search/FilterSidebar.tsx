@@ -69,8 +69,15 @@ function RangeInputs({
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
+        {/*
+          `min={0}` — TCK-335. Les règles du serveur sont `numeric|min:0` : une valeur
+          négative rend 422, donc « 0 bien trouvé ». Le défaut existait déjà sur le prix
+          (`?price_min=-5` → 422) et l'ajout des bornes de surface le doublait. Le champ
+          refuse désormais le signe moins avant qu'il n'atteigne l'URL.
+        */}
         <Input
           type="number"
+          min={0}
           placeholder={placeholderMin}
           value={valueMin ?? ''}
           onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined, valueMax)}
@@ -79,6 +86,7 @@ function RangeInputs({
         <span className="shrink-0 text-gray-400 text-sm">–</span>
         <Input
           type="number"
+          min={0}
           placeholder={placeholderMax}
           value={valueMax ?? ''}
           onChange={(e) => onChange(valueMin, e.target.value ? Number(e.target.value) : undefined)}

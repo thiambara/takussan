@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { List, Map as MapIcon, SearchX } from 'lucide-react';
-import { EmptyState } from '@/components/feedback';
+import { ApiError } from '@/lib/api';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
@@ -31,6 +32,17 @@ import type { SearchFilters } from '@/types/search';
  */
 
 type View = 'list' | 'map';
+
+/**
+ * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider
+ * si un 422 désigne un filtre RÉPARABLE — la liste qui fait autorité vit côté serveur,
+ * et `search-filters.parity.test.ts` garde l'accord entre les deux.
+ */
+const FILTRES_CONNUS = new Set<keyof SearchFilters>([
+  'q', 'location', 'city', 'contract_type', 'type', 'rent_period',
+  'price_min', 'price_max', 'bedrooms', 'bathrooms', 'area_min', 'area_max',
+  'furnished', 'featured', 'floor_number', 'available_from', 'tags', 'sort',
+]);
 
 function CardSkeleton() {
   return (
@@ -130,6 +142,22 @@ export function PropertiesDiscoveryPage() {
   const properties = data?.data ?? [];
   const meta = data?.meta;
 
+  // TCK-335 — un 422 nomme le filtre en cause dans `errors.<champ>`. S'il en désigne
+  // UN SEUL et qu'il appartient bien à `SearchFilters`, on propose de retirer celui-là
+  // plutôt que d'effacer toute la recherche : l'utilisateur garde son travail.
+  //
+  // ⚠ On n'affiche JAMAIS la prose de validation du serveur ici. Mesuré : le 422 de
+  // `furnished` rend « The furnished field must be true or false. » sous `Accept-Language`
+  // fr, en ET wo — `lang/fr/validation.php` ne porte pas la clé `boolean`. Le libellé
+  // vient donc du dictionnaire du front, comme le veut le principe non négociable n°5.
+  const cleFautive = (() => {
+    if (!(error instanceof ApiError) || error.status !== 422) return null;
+    const champs = Object.keys(error.validationErrors ?? {});
+    if (champs.length !== 1) return null;
+    const champ = champs[0] as keyof SearchFilters;
+    return champ in filters || FILTRES_CONNUS.has(champ) ? champ : null;
+  })();
+
   const handleFilterChange = (patch: Partial<SearchFilters>) => {
     search({ ...filters, ...patch });
   };
@@ -162,7 +190,7 @@ export function PropertiesDiscoveryPage() {
 
           <main className="flex-1 min-w-0">
             <SearchToolbar
-              total={meta?.total ?? 0}
+              total={error ? null : (meta?.total ?? 0)}
               loading={loading}
               filters={filters}
               activeCount={activeCount}
@@ -195,9 +223,18 @@ export function PropertiesDiscoveryPage() {
             ) : (
               <>
                 {error && !loading && (
-                  <div className="py-16 text-center text-sm text-gray-400">
-                    {t('error')}
-                  </div>
+                  <ErrorState
+                    className="mb-6"
+                    message={
+                      error instanceof ApiError && error.status === 422
+                        ? cleFautive
+                          ? t('error_invalid_filter_named', { filter: cleFautive })
+                          : t('error_invalid_filter')
+                        : t('error')
+                    }
+                    onRetry={cleFautive ? () => removeFilter(cleFautive) : resetFilters}
+                    retryLabel={cleFautive ? t('error_retry') : t('empty_cta')}
+                  />
                 )}
 
                 <div
@@ -211,7 +248,11 @@ export function PropertiesDiscoveryPage() {
                     Array.from({ length: 10 }).map((_, i) => (
                       <CardSkeleton key={i} />
                     ))
-                  ) : properties.length === 0 && !loading ? (
+                  ) : properties.length === 0 && !loading && !error ? (
+                    // TCK-335 — `!error` : l'état vide et l'état d'erreur s'excluent.
+                    // Ils s'affichaient ensemble, si bien qu'un filtre invalide produisait
+                    // « 0 biens trouvés » ET « Aucun bien trouvé » ET « Une erreur est
+                    // survenue » sur le même écran — trois affirmations concurrentes.
                     <SearchEmpty onReset={resetFilters} />
                   ) : (
                     properties.map((property, i) => (

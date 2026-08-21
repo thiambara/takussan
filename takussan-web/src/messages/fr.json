@@ -2766,7 +2766,10 @@
       "empty_title": "Aucun bien trouvé",
       "empty_description": "Élargissez vos critères ou retirez quelques filtres — il y a sûrement un bien pour vous.",
       "empty_cta": "Effacer tous les filtres",
-      "error": "Une erreur est survenue. Veuillez réessayer."
+      "error": "Une erreur est survenue. Veuillez réessayer.",
+      "error_invalid_filter": "Un des filtres de cette recherche n'est pas valide.",
+      "error_invalid_filter_named": "Le filtre « {filter} » n'est pas valide.",
+      "error_retry": "Réessayer"
     },
     "filters": {
       "title": "Filtres",

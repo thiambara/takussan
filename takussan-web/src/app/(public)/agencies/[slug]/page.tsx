@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { Building2, ShieldCheck } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
@@ -63,6 +63,8 @@ async function loadAgency(slug: string): Promise<AgencyDto | null> {
   try {
     const res = await apiFetch<ApiEnvelope<AgencyDto>>(
       `/public/agencies/${encodeURIComponent(slug)}`,
+      undefined,
+      { locale: await getLocale() },
     );
     return res.data;
   } catch {
