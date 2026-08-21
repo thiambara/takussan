@@ -97,6 +97,30 @@ class PropertySearchService
         if (isset($p['bathrooms']) && is_numeric($p['bathrooms'])) {
             $filter[] = 'bathrooms = '.(int) $p['bathrooms'];
         }
+        // TCK-335 — `isset() && is_numeric()`, le motif de `price_min` juste au-dessus,
+        // et surtout PAS `! empty()` : `area_min=0` doit AGIR (donc ecarter une surface
+        // inconnue), pas etre relu comme « pas de filtre ».
+        //
+        // Et surtout PAS le motif OR `IS NULL` de la clause `available_from` plus bas :
+        // `area` est nullable, et Meilisearch exclut nativement les NULL d'une
+        // comparaison numerique. C'est le comportement voulu — un bien a surface
+        // inconnue ne peut pas satisfaire « au moins 200 m² », on ne le promet pas.
+        // C'est deja la regle de `floor_number` et de `price`, epinglee par
+        // `PublicPropertySearchFiltersTest::test_floor_number_filter_excludes_null_floor`.
+        if (isset($p['area_min']) && is_numeric($p['area_min'])) {
+            $filter[] = 'area >= '.(float) $p['area_min'];
+        }
+        if (isset($p['area_max']) && is_numeric($p['area_max'])) {
+            $filter[] = 'area <= '.(float) $p['area_max'];
+        }
+        // TCK-335 — UNILATERAL, par alignement sur `PublicPropertyController::index()`
+        // qui traite deja ce parametre par `$request->boolean('featured')` sur la meme
+        // surface publique. Deux endpoints qui portent le meme mot doivent rendre le
+        // meme compte. L'interface n'offre qu'une bascule « en vedette uniquement » :
+        // le « non-vedette » n'existe pas au produit.
+        if (array_key_exists('featured', $p) && filter_var($p['featured'], FILTER_VALIDATE_BOOLEAN)) {
+            $filter[] = 'featured = true';
+        }
         if (isset($p['floor_number']) && is_numeric($p['floor_number'])) {
             $filter[] = 'floor_number = '.(int) $p['floor_number'];
         }
