@@ -2777,6 +2777,13 @@
       "error_invalid_filter_named": "The “{filter}” filter is not valid.",
       "error_retry": "Try again"
     },
+    "widened": {
+      "unmatched": "{count, plural, =1 {No property matches “{terms}”.} other {No property matches these words: {terms}.}}",
+      "noIntersection": "No property matches all of your words.",
+      "showing": "{count, plural, =0 {No close match to show you.} =1 {Here is the only property matching part of your words.} other {Here are the # properties matching part of your words.}}",
+      "removeTerm": "Remove “{term}”",
+      "clearQuery": "Clear keywords"
+    },
     "filters": {
       "title": "Filters",
       "clearAll": "Clear all",

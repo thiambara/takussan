@@ -191,6 +191,39 @@ setup_nginx_vhost() {
         log "Creating nginx vhost ${name} (${server_name})..."
     fi
 
+    # ── Compression HTTP (TCK-341) ─────────────────────────────────────────────
+    #
+    # Cette prose vit ICI, et pas dans le heredoc quinze lignes plus bas, parce que
+    # `<<NGINX` n'est PAS quoté : bash y exécute les backticks, y compris dans une
+    # ligne qui commence par « # ». scripts/check-heredocs.mjs l'a refusée à
+    # l'écriture — un commentaire de ce fichier a déjà invoqué une fonction EN ROOT
+    # par ce chemin.
+    #
+    # Le vhost ne portait AUCUNE directive de compression, et le défaut de nginx est
+    # `gzip off`. Mesuré le 2026-08-21 sur la préproduction — nginx/1.24.0 (Ubuntu),
+    # `GET /api/public/properties/search?per_page=20` :
+    #
+    #   Accept-Encoding: identity   → 21 300 octets
+    #   Accept-Encoding: gzip       → 21 300 octets, AUCUN Content-Encoding
+    #   Accept-Encoding: gzip, br   → 21 300 octets, AUCUN Content-Encoding
+    #
+    # Le même corps passé à `gzip -6` rend 3 222 octets, soit 15,1 % : 85 % de la
+    # charge utile de recherche voyageait pour rien, sur un marché où le mobile
+    # domine. Ce n'est pas un réglage fin, c'est la directive absente.
+    #
+    # `gzip_vary on` n'est pas décoratif : sans lui, un cache partagé peut resservir
+    # une réponse compressée à un client qui ne l'accepte pas. `application/json`
+    # explicitement, parce que `gzip_types` ne couvre que `text/html` par défaut et
+    # que TOUTES les réponses de cette API sont du JSON. Le plancher à 1024 octets
+    # évite de compresser les enveloppes d'erreur, où l'en-tête gzip coûte plus que
+    # le gain.
+    #
+    # ⚠ ÉCRIRE CE BLOC NE LE DÉPLOIE PAS. Aucun workflow de ce dépôt n'exécute
+    # server-setup.sh — ni deploy.yml, ni la CI. Il faut le relancer à la main sur le
+    # serveur, puis `nginx -t` et `systemctl reload nginx`. La re-mesure d'après —
+    # celle qui prouvera qu'un `Content-Encoding: gzip` sort enfin — attend donc un
+    # humain, et TCK-341 la laisse ouverte plutôt que de la déclarer faite.
+
     # HTTP-only vhost. Certbot --nginx will add the 443 server block and a
     # 301 redirect on first run (see Next steps below).
     cat > "${vhost_file}" <<NGINX
@@ -203,6 +236,13 @@ server {
     index index.php;
 
     client_max_body_size 25M;
+
+    # Compression : voir le commentaire de setup_nginx_vhost, hors heredoc.
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_types application/json;
+    gzip_min_length 1024;
 
     access_log /var/log/nginx/${name}.access.log;
     error_log  /var/log/nginx/${name}.error.log;

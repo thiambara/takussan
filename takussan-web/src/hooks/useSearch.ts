@@ -2,7 +2,17 @@
 import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
-import type { SearchFilters, SearchResult } from '@/types/search';
+import {
+  CLES_DE_RECHERCHE,
+  CLES_DE_CONTROLE,
+  SEARCH_FILTER_KEYS,
+  definitionDe,
+  repliDeRecherche,
+  retirerTermeDeLaRequete,
+  type CleDeRechercheNom,
+  type SearchFilters,
+  type SearchResult,
+} from '@/types/search';
 
 type State =
   | { status: 'idle' }
@@ -25,85 +35,50 @@ function reducer(state: State, action: Action): State {
 
 // ─── Serialisation ──────────────────────────────────────────────────────────
 
-function filtersToParams(filters: SearchFilters): URLSearchParams {
+/**
+ * TCK-340 — sérialisation et lecture d'URL passent désormais par `SEARCH_FILTER_KEYS`.
+ *
+ * C'étaient DEUX énumérations distinctes des mêmes vingt clés, à quinze lignes l'une de l'autre,
+ * et rien ne pouvait dire laquelle avait raison si elles divergeaient : un filtre écrit par
+ * `filtersToParams` mais absent de `filtersFromSearchParams` disparaît au rechargement de la page,
+ * sans erreur ni trace.
+ */
+export function filtersToParams(filters: SearchFilters): URLSearchParams {
   const params = new URLSearchParams();
-  const entries: Array<[string, string | number | boolean | undefined]> = [
-    ['q',              filters.q],
-    ['location',       filters.location],
-    ['city',           filters.city],
-    ['contract_type',  filters.contract_type],
-    ['rent_period',    filters.rent_period],
-    ['price_min',      filters.price_min],
-    ['price_max',      filters.price_max],
-    ['bedrooms',       filters.bedrooms],
-    ['bathrooms',      filters.bathrooms],
-    ['area_min',       filters.area_min],
-    ['area_max',       filters.area_max],
-    ['furnished',      filters.furnished],
-    ['featured',       filters.featured],
-    ['floor_number',   filters.floor_number],
-    ['available_from', filters.available_from],
-    ['tags',           filters.tags],
-    ['sort',           filters.sort],
-    ['page',           filters.page],
-    ['per_page',       filters.per_page],
-  ];
-  for (const [k, v] of entries) {
-    if (v !== undefined && v !== '') params.set(k, String(v));
+  for (const cle of CLES_DE_RECHERCHE) {
+    const valeur = filters[cle];
+    if (valeur === undefined || valeur === '') continue;
+    const def = definitionDe(cle);
+    const brut = def.ecrire(valeur);
+    // `type: []` sérialise en chaîne vide : le filtre n'existe pas, on n'écrit rien.
+    if (brut === undefined || brut === '') continue;
+    params.set(def.params[0], brut);
   }
-  if (filters.type?.length) params.set('type', filters.type.join(','));
   return params;
 }
 
-/** `true`/`false` si la valeur est reconnue, `undefined` sinon (paramètre absent ou illisible). */
-function booleenDUrl(brut: string | null): boolean | undefined {
-  if (brut === 'true' || brut === '1') return true;
-  if (brut === 'false' || brut === '0') return false;
-  return undefined;
-}
-
-function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
-  const n = (key: string) => { const v = sp.get(key); return v ? Number(v) : undefined; };
-  const s = (key: string) => sp.get(key) ?? undefined;
-  return {
-    q:             s('q') ?? s('search'),
-    location:      s('location'),
-    city:          s('city'),
-    contract_type: s('contract_type') as SearchFilters['contract_type'],
-    type:          s('type') ? s('type')!.split(',').filter(Boolean) : undefined,
-    rent_period:   s('rent_period') as SearchFilters['rent_period'],
-    price_min:     n('price_min'),
-    price_max:     n('price_max'),
-    bedrooms:      n('bedrooms'),
-    bathrooms:     n('bathrooms'),
-    area_min:      n('area_min'),
-    area_max:      n('area_max'),
-    // TCK-335 — l'URL peut porter `1`/`0` aussi bien que `true`/`false` : le backend
-    // accepte les deux depuis que `furnished` a cessé de rendre 422. Ne lire que
-    // `=== 'true'` faisait afficher la puce « Non meublé » sur `?furnished=1`, une URL
-    // qui filtre POURTANT les biens meublés — l'interface annonçait l'inverse de ce
-    // que le serveur appliquait.
-    furnished:     booleenDUrl(sp.get('furnished')),
-    // `featured` est UNILATÉRAL côté serveur (aligné sur `PublicPropertyController::index()`) :
-    // `featured=false` ne filtre rien. Le lire comme `false` ferait afficher une puce
-    // « ★ En vedette » sur un résultat non filtré — la puce mentirait.
-    featured:      booleenDUrl(sp.get('featured')) === true ? true : undefined,
-    floor_number:  n('floor_number'),
-    available_from: s('available_from'),
-    tags:          s('tags'),
-    sort:          s('sort') as SearchFilters['sort'],
-    page:          n('page'),
-    per_page:      n('per_page'),
-  };
+export function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
+  const filtres: Record<string, unknown> = {};
+  for (const cle of CLES_DE_RECHERCHE) {
+    const valeur = definitionDe(cle).lire(sp);
+    if (valeur !== undefined) filtres[cle] = valeur;
+  }
+  return filtres as SearchFilters;
 }
 
 // ─── Count active filters (excluding sort, page) ────────────────────────────
 
-const IGNORED_KEYS: (keyof SearchFilters)[] = ['sort', 'page', 'per_page'];
+/**
+ * TCK-340 — dérivé de la table, plus écrit à la main.
+ *
+ * `SearchToolbar` en tenait une copie mot pour mot (`HIDDEN_FROM_TAGS`) : deux listes qui doivent
+ * TOUJOURS coïncider, puisqu'un filtre compté sans puce est un filtre qu'on ne peut pas retirer.
+ */
+export const IGNORED_KEYS: readonly CleDeRechercheNom[] = CLES_DE_CONTROLE;
 
 export function countActiveFilters(filters: SearchFilters): number {
-  return (Object.keys(filters) as (keyof SearchFilters)[])
-    .filter(k => !IGNORED_KEYS.includes(k) && filters[k] !== undefined && filters[k] !== '')
+  return (Object.keys(filters) as CleDeRechercheNom[])
+    .filter(k => SEARCH_FILTER_KEYS[k]?.role === 'filtre' && filters[k] !== undefined && filters[k] !== '')
     .length;
 }
 
@@ -189,14 +164,32 @@ export function useSearch() {
 
   const removeFilter = useCallback((key: keyof SearchFilters) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete(String(key));
-    // TCK-335 — `filtersFromSearchParams` lit `q ?? search` : les deux alimentent la
-    // MÊME puce. N'en retirer qu'un rendait la puce irrémovable sur `/properties?search=villa`
-    // — un lien externe ou hérité suffit à l'atteindre.
-    if (key === 'q') params.delete('search');
+    // TCK-335 — `q` alimente la MÊME puce depuis `q` ET depuis `search` : n'en retirer qu'un
+    // rendait la puce irrémovable sur `/properties?search=villa`, qu'un lien externe ou hérité
+    // suffit à atteindre. TCK-340 — ce cas particulier était écrit ici en dur (`if (key === 'q')`),
+    // seule liste de clés à vivre hors de la table ; il est désormais porté par `params`.
+    for (const nom of definitionDe(key).params) params.delete(nom);
     params.set('page', '1');
     naviguer(`${pathname}?${params.toString()}`, 'push');
   }, [naviguer, pathname, searchParams]);
+
+  /**
+   * TCK-338 — retirer UN terme de la requête texte, en gardant tout le reste.
+   *
+   * C'est le geste que le repli conjonctif rend nécessaire : sur `q=villa Saly`, le back a dû
+   * relâcher « Saly » pour rendre quelque chose, et l'écran l'annonce. Sans ce geste, l'unique
+   * issue serait de retirer la recherche ENTIÈRE (`removeFilter('q')`) — l'utilisateur perdrait
+   * « villa », c'est-à-dire la moitié de sa demande qui, elle, marchait.
+   *
+   * Passe par `search()` — donc `push`, comme tout geste discret (cf. son docblock) : le retour
+   * arrière ramène la requête complète, et c'est ce qui rend le geste sans risque.
+   */
+  const retirerTerme = useCallback((terme: string) => {
+    const restant = retirerTermeDeLaRequete(currentFilters.q ?? '', terme);
+    // `''` n'est pas écrit par `filtersToParams` : `q` disparaît de l'URL, et l'alias hérité
+    // `search=` avec lui, puisque l'URL est reconstruite depuis les filtres et non modifiée.
+    search({ q: restant });
+  }, [search, currentFilters.q]);
 
   // Fetch whenever URL params change
   useEffect(() => {
@@ -246,9 +239,13 @@ export function useSearch() {
     error:          state.status === 'error' ? state.erreur : null,
     filters:        currentFilters,
     activeCount:    countActiveFilters(currentFilters),
+    // TCK-338 — ce que le bloc `search` de la réponse oblige l'écran à dire, ou `null`.
+    // Il arrivait dans le JSON et mourait là : `SearchResult` ne le déclarait pas.
+    repli:          repliDeRecherche(result),
     search,
     setPage,
     resetFilters,
     removeFilter,
+    retirerTerme,
   };
 }

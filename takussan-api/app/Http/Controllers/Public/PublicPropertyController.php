@@ -127,10 +127,33 @@ class PublicPropertyController extends Controller
             // aucune enveloppe de pagination à émettre (TCK-304).
             'meta' => ['per_row' => $request->perRow()],
         ], 200, [
-            // Safe to share: the list shape of PropertyResource pins its labels
-            // to `fr` and reads nothing off `$request->user()`. Keep it that way
-            // — see the warning in HomepageDiscoveryService::baseQuery().
             'Cache-Control' => 'public, max-age=60, s-maxage=300',
+            // TCK-341 — le `Vary` est arrivé CINQ mois après le `public`, et le
+            // commentaire qui tenait sa place affirmait exactement l'inverse de
+            // ce que le code faisait : « the list shape of PropertyResource pins
+            // its labels to `fr` and reads nothing off `$request->user()` ».
+            // Les deux moitiés étaient fausses au moment où on les a lues.
+            //
+            //   · La LOCALE : `enumLabel()` traduit via le locale de la requête
+            //     depuis TCK-335. Mesuré le 2026-08-21 sur `per_row=3`, md5 du
+            //     corps : fr `2c3d8e8a…`, en `5b51577c…`, wo `858389fb…` —
+            //     trois corps distincts servis `public, s-maxage=300` sous UNE
+            //     seule entrée de cache. Un visiteur anglophone recevait la
+            //     page d'un francophone, et rien ne pouvait le signaler.
+            //   · L'APPELANT : `PropertyResource` émet quatre champs de
+            //     modération dès que `$request->user() !== null`, et
+            //     `ResolveActiveProfile` propage un porteur Bearer au garde par
+            //     défaut sur tout `api/*` (TCK-179) — y compris sur cette route,
+            //     qui ne porte pas `auth:sanctum`. Sans `Vary: Authorization`,
+            //     un cache partagé peut stocker la variante authentifiée et la
+            //     resservir anonymement, défaisant TCK-335 en silence.
+            //
+            // ⚠ `Origin` n'est PAS répété ici : le middleware CORS l'AJOUTE au
+            // `Vary` existant sur chaque réponse. L'écrire en dur reviendrait à
+            // parier sur cet ajout ; l'omettre du `set()` est ce qui garantit
+            // qu'on ne l'écrase pas. Vérifié par requête réelle : la réponse
+            // sort avec les trois valeurs.
+            'Vary' => 'Accept-Language, Authorization',
         ]);
     }
 

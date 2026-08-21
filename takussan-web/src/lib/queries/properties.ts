@@ -71,6 +71,17 @@ export {
 /**
  * Default sparse fieldset for property cards. Keep in sync with
  * {@link PropertyListItem} — only list columns the cards actually render.
+ *
+ * ⚠ TCK-336 — MESURÉ le 2026-08-21 : cette constante et `usePublicPropertiesQuery`
+ * ci-dessous n'ont **aucun appelant** dans `src/` (`grep -rn PROPERTY_CARD_FIELDS src/` →
+ * la déclaration et son propre exemple JSDoc ; `grep -rn usePublicPropertiesQuery src/` →
+ * la seule déclaration). La découverte publique passe par
+ * `/api/public/properties/search`, qui n'honore pas `fields[]`. Elle n'est donc PAS
+ * couverte par `__tests__/property-fields.coverage.test.ts` : on ne peut pas dériver les
+ * clés lues d'un consommateur qui n'existe pas.
+ *
+ * Le jour où on la branche, l'ajouter comme appelant dans cette garde AVANT de livrer —
+ * sinon la liste est décidée par ce commentaire, et un commentaire ne casse pas la CI.
  */
 export const PROPERTY_CARD_FIELDS = [
   'id',

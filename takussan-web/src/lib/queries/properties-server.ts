@@ -21,10 +21,29 @@ import type {
 } from '@/types/property';
 import type { PropertyFormPayload } from '@/lib/schemas/property';
 
-/** Columns the agent CRUD list view actually renders — keep this narrow. */
-// `main_photo_url` is a computed attribute exposed by PropertyResource (via
-// media library), not a real DB column — don't request it via fields[properties]
-// or spatie/laravel-query-builder rejects with InvalidFieldQuery (HTTP 400).
+/**
+ * Colonnes que la liste CRUD agent rend réellement — la garder étroite.
+ *
+ * ⚠ Cette liste ne couvre PAS tout ce que `PropertyList` affiche, et c'est délibéré :
+ * `location` et `main_photo_url` sont des attributs **calculés** (adresse jointe, media
+ * library), pas des colonnes. Spatie ne valide `fields[]` que contre
+ * `Property::$queryFields` et refuse tout le reste — mesuré le 2026-08-21 :
+ *
+ *     GET /api/properties?fields[properties]=id,title,main_photo_url  → 400 InvalidFieldQuery
+ *     GET /api/properties?fields[properties]=id,title,location        → 400 InvalidFieldQuery
+ *     GET /api/properties?fields[properties]=id,title                 → 200
+ *
+ * Le contrat de TCK-336 est donc à deux ensembles disjoints : ce qui se DEMANDE ici, et ce
+ * que `PropertyResource` sert INCONDITIONNELLEMENT. Le second est écrit, avec sa garde, dans
+ * `__tests__/property-fields.coverage.test.ts` — ne pas le déduire de ce commentaire.
+ *
+ * ⚠⚠ `user_id` est demandé alors qu'AUCUN composant ne le lit, et il ne s'agit pas d'un
+ * oubli — même raison que `agency_id` dans `ADMIN_PROPERTY_FIELDS` : Eloquent a besoin de
+ * la clé étrangère sur chaque ligne parente pour résoudre `include=owner`
+ * (`belongsTo(User::class)`). Le retirer rendrait `property.owner` nul partout, sans erreur
+ * TypeScript ni test rouge — mesuré : la ressource n'émet même pas `user_id`, donc le
+ * supprimer ne se voit dans aucune réponse, seulement dans la disparition de `owner`.
+ */
 export const DASHBOARD_PROPERTY_FIELDS = [
   'id',
   'user_id',
@@ -109,7 +128,25 @@ export async function fetchDashboardProperties(
   );
 }
 
-/** Columns needed by the edit form. */
+/**
+ * Colonnes dont le formulaire d'édition a besoin, en plus de celles de la liste.
+ *
+ * ⚠ `views_count` et `favorites_count` y figuraient une SECONDE fois : le spread
+ * `...DASHBOARD_PROPERTY_FIELDS` les apporte déjà, et la chaîne partait avec le doublon.
+ * Sans effet côté serveur, mais une liste qui se répète est une liste que personne ne relit.
+ *
+ * ⚠⚠ `description` n'est PAS dans `Property::$queryFields`. Ça tient uniquement parce que
+ * cette liste ne sert que la route SHOW, qui n'instancie pas `QueryBuilder` et ne valide donc
+ * pas `fields[]` — mesuré le 2026-08-21 :
+ *
+ *     GET /api/properties/131?fields[properties]=…,description  → 200
+ *     GET /api/properties?fields[properties]=id,title,description → 400 InvalidFieldQuery
+ *
+ * La retirer serait pire que la laisser : sous TCK-336 la ressource filtre sur les clés
+ * demandées, et le formulaire d'édition perdrait la description. Réemployer cette liste sur
+ * une route index rendrait en revanche 400 — `property-fields.coverage.test.ts` porte
+ * l'exemption nommément, pour qu'elle soit un choix et non un oubli.
+ */
 export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   ...DASHBOARD_PROPERTY_FIELDS,
   'description',
@@ -120,8 +157,6 @@ export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   'total_floors',
   'year_built',
   'parking_spaces',
-  'views_count',
-  'favorites_count',
 ] as const;
 
 export async function fetchDashboardProperty(

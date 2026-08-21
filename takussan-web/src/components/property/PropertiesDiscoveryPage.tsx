@@ -10,6 +10,7 @@ import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
 import { FilterSidebar } from '@/components/search/FilterSidebar';
 import { SearchToolbar } from '@/components/search/SearchToolbar';
+import { WidenedSearchNotice } from '@/components/search/WidenedSearchNotice';
 import { Pagination } from '@/components/search/Pagination';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { PropertyMap } from '@/components/map';
@@ -138,6 +139,8 @@ export function PropertiesDiscoveryPage() {
     setPage,
     resetFilters,
     removeFilter,
+    repli,
+    retirerTerme,
   } = useSearch();
 
   const properties = data?.data ?? [];
@@ -238,6 +241,28 @@ export function PropertiesDiscoveryPage() {
               <PropertyMap filters={mapFilters} />
             ) : (
               <>
+                {/*
+                  TCK-338 — l'étiquette du repli conjonctif, au-dessus des résultats qu'elle
+                  qualifie et sous le compteur qu'elle relativise.
+
+                  Trois conditions, et chacune écarte une affirmation concurrente :
+                  · `repli` est `null` sous le régime nominal — rien à dire, rien d'affiché ;
+                  · `!error` — un bandeau d'erreur et un « voici 63 biens proches » sur le même
+                    écran se contrediraient, comme l'état vide et l'erreur avant TCK-335 ;
+                  · vue LISTE seulement — `/map` est un autre endpoint, qui ne reçoit même pas
+                    `q` (cf. `mapFilters` ci-dessus) : l'étiquette y parlerait de résultats que
+                    la carte n'affiche pas.
+                */}
+                {repli && !error && (
+                  <WidenedSearchNotice
+                    className="mb-5"
+                    termesSansResultat={repli.termesSansResultat}
+                    totalElargi={repli.totalElargi}
+                    onRetirerTerme={retirerTerme}
+                    onEffacerRecherche={() => search({ q: '' })}
+                  />
+                )}
+
                 {error && !loading && (
                   <ErrorState
                     className="mb-6"

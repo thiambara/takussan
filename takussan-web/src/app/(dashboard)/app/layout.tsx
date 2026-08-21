@@ -3,6 +3,9 @@ import { AppShell } from '@/components/layout/AppShell';
 import { getToken } from '@/lib/session';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
+import { IntlProvider } from '@/i18n/IntlProvider';
+import { messagesPour } from '@/i18n/messages';
+
 
 /**
  * App dashboard layout — for end-users (customer, agent, owner,
@@ -13,6 +16,11 @@ import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
  * server-side so the sidebar's "Passer en pro" card can render in the right
  * state (visible / pending / hidden) without a client-side fetch on every
  * navigation. Other roles skip these calls entirely.
+ *
+ * i18n (TCK-337) : frontière de dictionnaire. C'est la plus large du produit — le tableau de bord
+ * end-user adresse à lui seul 38 espaces de noms — et c'est aussi la seule que le découpage par
+ * groupe de routes n'allège que d'un tiers. Descendre plus bas (par page) n'a PAS été fait : la
+ * mesure de TCK-337 donne 92 % du gain au grain du groupe pour 5 éditions au lieu de 113.
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await getMeAction();
@@ -45,12 +53,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <AppShell
-      user={user}
-      agencyIsStandard={agencyIsStandard}
-      hasPendingUpgrade={hasPendingUpgrade}
-    >
-      {children}
-    </AppShell>
+    <IntlProvider messages={await messagesPour('(dashboard)/app')}>
+      <AppShell
+        user={user}
+        agencyIsStandard={agencyIsStandard}
+        hasPendingUpgrade={hasPendingUpgrade}
+      >
+        {children}
+      </AppShell>
+    </IntlProvider>
   );
 }

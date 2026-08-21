@@ -10,54 +10,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { SearchFilters } from '@/types/search';
+import {
+  puceDeChaqueFiltreActif,
+  type SearchFilters,
+  type TraducteursDeFiltre,
+} from '@/types/search';
 
 const SORT_VALUES = ['relevance', 'price_asc', 'price_desc', 'created_desc'] as const;
 
-type Traducteur = (cle: string, valeurs?: Record<string, string | number>) => string;
-
 /**
- * Fabrique les étiquettes de filtre actif.
+ * TCK-340 — la table des libellés et la liste des clés masquées vivaient ICI, en double de
+ * `useSearch.ts`, et le lien entre les deux n'était pas vérifiable.
  *
- * C'était une table de module, donc un endroit où `useTranslations` n'est pas appelable — le
- * patron du dépôt (TCK-286) veut que la donnée porte une CLÉ et que le rendu la résolve. Ici la
- * « donnée » est une fonction par filtre : la fabrique reçoit donc les traducteurs et rend la
- * même table, construite dans le composant.
+ * Elles sont maintenant dans `SEARCH_FILTER_KEYS` (`types/search.ts`) : une clé de rôle
+ * `'filtre'` DOIT porter un libellé, sous peine d'erreur de compilation. Ce qui reste ici est
+ * le rendu — et rien d'autre.
+ *
+ * Ce que le déplacement supprime au passage : `FILTER_LABELS['type']!`, une assertion NON NULLE
+ * sur une table `Partial<…>`. Retirer l'entrée `type` de cette table faisait **planter la page**
+ * (`TypeError: labelFn is not a function`) — mesuré par ablation le 2026-08-21 — pendant que
+ * `tsc --noEmit` sortait en 0. L'objectif du ticket parlait d'une « puce muette » : il n'y en
+ * avait pas. Pour seize clés sur dix-sept, un libellé manquant rendait la valeur BRUTE
+ * (`furnished: true` → puce « true ») ; pour la dix-septième, il cassait l'écran.
  */
-function fabriqueEtiquettes(
-  t: Traducteur,
-  tTypes: Traducteur,
-  tContract: Traducteur,
-  tPeriods: Traducteur,
-): Partial<Record<keyof SearchFilters, (v: unknown) => string>> {
-  return {
-    contract_type: (v) => tContract(v === 'sale' ? 'sale' : 'rent'),
-    type: (v) => tTypes(String(v)),
-    rent_period: (v) => tPeriods(String(v)),
-    price_min: (v) => t('tags.priceMin', { value: Number(v).toLocaleString('fr-SN') }),
-    price_max: (v) => t('tags.priceMax', { value: Number(v).toLocaleString('fr-SN') }),
-    bedrooms: (v) => t('tags.bedrooms', { n: String(v) }),
-    bathrooms: (v) => t('tags.bathrooms', { n: String(v) }),
-    area_min: (v) => t('tags.areaMin', { value: String(v) }),
-    area_max: (v) => t('tags.areaMax', { value: String(v) }),
-    furnished: (v) => t(v ? 'tags.furnished' : 'tags.notFurnished'),
-    featured: () => t('tags.featured'),
-    floor_number: (v) =>
-      Number(v) === 0 ? t('tags.groundFloor') : t('tags.floor', { n: String(v) }),
-    available_from: (v) =>
-      t('tags.availableFrom', {
-        date: new Date(String(v)).toLocaleDateString('fr-SN', {
-          day: '2-digit', month: 'short', year: 'numeric',
-        }),
-      }),
-    city: (v) => String(v),
-    location: (v) => t('tags.quarter', { value: String(v) }),
-    q: (v) => `"${v}"`,
-    tags: (v) => t('tags.tags', { value: String(v) }),
-  };
-}
-
-const HIDDEN_FROM_TAGS: (keyof SearchFilters)[] = ['sort', 'page', 'per_page'];
 
 export interface SearchToolbarProps {
   /**
@@ -89,32 +64,21 @@ export function SearchToolbar({
   onOpenSidebar,
 }: SearchToolbarProps) {
   const t = useTranslations('search.toolbar');
-  const tTags = useTranslations('search');
-  const tTypes = useTranslations('property.types');
-  const tContract = useTranslations('property.contractTypes');
-  const tPeriods = useTranslations('property.rentPeriods');
   const tSort = useTranslations('search.sort');
+  const trads: TraducteursDeFiltre = {
+    tags: useTranslations('search'),
+    types: useTranslations('property.types'),
+    contract: useTranslations('property.contractTypes'),
+    periods: useTranslations('property.rentPeriods'),
+  };
 
-  const FILTER_LABELS = fabriqueEtiquettes(tTags, tTypes, tContract, tPeriods);
   const perPageOptions = [30, 40, 60, 70].map((n) => ({
     value: String(n),
     label: t('perPageOption', { count: n }),
   }));
   const sortOptions = SORT_VALUES.map((v) => ({ value: v, label: tSort(v) }));
 
-  const activeTags: { key: keyof SearchFilters; subKey?: string; label: string }[] = [];
-  (Object.keys(filters) as (keyof SearchFilters)[]).forEach(key => {
-    if (HIDDEN_FROM_TAGS.includes(key)) return;
-    const value = filters[key];
-    if (value === undefined || value === '') return;
-    if (key === 'type' && Array.isArray(value)) {
-      const labelFn = FILTER_LABELS['type']!;
-      value.forEach(v => activeTags.push({ key: 'type', subKey: v, label: labelFn(v) }));
-    } else {
-      const labelFn = FILTER_LABELS[key];
-      activeTags.push({ key, label: labelFn ? labelFn(value) : String(value) });
-    }
-  });
+  const activeTags = puceDeChaqueFiltreActif(filters, trads);
 
   return (
     <div className="mb-6 space-y-3">
@@ -186,13 +150,13 @@ export function SearchToolbar({
       {/* Active filter tags */}
       {activeTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {activeTags.map(({ key, subKey, label }) => (
+          {activeTags.map(({ cle, sousCle, libelle }) => (
             <button
-              key={subKey ? `${key}-${subKey}` : key}
-              onClick={() => onRemoveFilter(key, subKey)}
+              key={sousCle ? `${cle}-${sousCle}` : cle}
+              onClick={() => onRemoveFilter(cle, sousCle)}
               className="flex items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors group"
             >
-              {label}
+              {libelle}
               <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />
             </button>
           ))}

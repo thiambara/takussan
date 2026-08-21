@@ -4,6 +4,9 @@ import { getToken } from '@/lib/session';
 import { isSuperAdmin } from '@/lib/roles';
 import { SuperAdminShell } from '@/components/layout/SuperAdminShell';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
+import { IntlProvider } from '@/i18n/IntlProvider';
+import { messagesPour } from '@/i18n/messages';
+
 
 /**
  * Super-admin layout (TCK-145). Server-side guard: any user without the
@@ -15,6 +18,11 @@ import { ToastProvider, Toaster } from '@/components/ui/toast';
  * super-admin area lives under `/super-admin/*` to avoid collision; the
  * intent (dedicated namespace, distinct shell, server-side gate) is
  * preserved.
+ *
+ * i18n (TCK-337) : frontière de dictionnaire — ensemble CUMULÉ. ⚠ `property` y entre par une voie
+ * que le relevé littéral ne voit pas : `SuperAdminPropertiesFilters` passe
+ * `PROPERTY_ENUM_NAMESPACES.status` à `useTranslations`. C'est le repli de constantes de la garde
+ * qui l'a trouvé ; écrite à la main, la table aurait cassé cet écran-là.
  */
 export default async function SuperAdminLayout({
   children,
@@ -45,11 +53,13 @@ export default async function SuperAdminLayout({
   }
 
   return (
-    <ToastProvider>
-      <>
-        <SuperAdminShell user={user}>{children}</SuperAdminShell>
-        <Toaster />
-      </>
-    </ToastProvider>
+    <IntlProvider messages={await messagesPour('(super-admin)/super-admin')}>
+      <ToastProvider>
+        <>
+          <SuperAdminShell user={user}>{children}</SuperAdminShell>
+          <Toaster />
+        </>
+      </ToastProvider>
+    </IntlProvider>
   );
 }

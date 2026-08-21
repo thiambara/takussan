@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 
+import { IntlProvider } from '@/i18n/IntlProvider';
+import { messagesPour } from '@/i18n/messages';
+
 /**
  * Auth layout — centered form panel with a visual panel on desktop.
  *
@@ -28,7 +31,23 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function AuthLayout({ children }: { children: ReactNode }) {
+/**
+ * i18n (TCK-337) : frontière de dictionnaire du groupe `(auth)`.
+ *
+ * ⚠ Le layout exporté est `async` — il doit l'être pour attendre `messagesPour` — et le panneau
+ * visuel est extrait dans un composant SYNCHRONE juste en dessous. Ce n'est pas de la coquetterie :
+ * `useTranslations` de next-intl 4 est appelable dans un composant serveur **à la seule condition
+ * qu'il ne soit pas `async`**. Fusionner les deux rendrait le layout muet, sans erreur de type.
+ */
+export default async function AuthLayout({ children }: { children: ReactNode }) {
+  return (
+    <IntlProvider messages={await messagesPour('(auth)')}>
+      <AuthPanneau>{children}</AuthPanneau>
+    </IntlProvider>
+  );
+}
+
+function AuthPanneau({ children }: { children: ReactNode }) {
   const t = useTranslations('auth.layout');
   const tCommon = useTranslations('common');
 
