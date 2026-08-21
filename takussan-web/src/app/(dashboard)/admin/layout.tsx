@@ -4,6 +4,9 @@ import { isAdmin } from '@/lib/roles';
 import { AdminShell } from '@/components/layout/AdminShell';
 import { getToken } from '@/lib/session';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
+import { IntlProvider } from '@/i18n/IntlProvider';
+import { messagesPour } from '@/i18n/messages';
+
 
 /**
  * Admin dashboard layout — restricted to users with admin-level roles
@@ -12,6 +15,8 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
  *
  * Hydrate `agencyIsStandard` so the sidebar can padlock Standard-only items
  * for agency_admins still on `kind=individual` (mirroring AppLayout/AppShell).
+ *
+ * i18n (TCK-337) : frontière de dictionnaire — ensemble CUMULÉ, cf. `src/i18n/IntlProvider.tsx`.
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getMeAction();
@@ -31,8 +36,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <AdminShell user={user} agencyIsStandard={agencyIsStandard}>
-      {children}
-    </AdminShell>
+    <IntlProvider messages={await messagesPour('(dashboard)/admin')}>
+      <AdminShell user={user} agencyIsStandard={agencyIsStandard}>
+        {children}
+      </AdminShell>
+    </IntlProvider>
   );
 }

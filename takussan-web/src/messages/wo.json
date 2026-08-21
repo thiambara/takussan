@@ -1728,6 +1728,13 @@
       "error_invalid_filter_named": "Filtar bu « {filter} » baaxul.",
       "error_retry": "Jéemaat"
     },
+    "widened": {
+      "unmatched": "{count, plural, =1 {Gisunu benn kër ci « {terms} ».} other {Gisunu benn kër ci baat yii : {terms}.}}",
+      "noIntersection": "Gisunu benn kër bu boole say baat yépp.",
+      "showing": "{count, plural, =0 {Amul kër bu jege bu ñu la wone.} =1 {Kër gii rekk a jege ci say baat.} other {Kër yii # ñoo jege ci say baat.}}",
+      "removeTerm": "Dindil « {term} »",
+      "clearQuery": "Far baat yi"
+    },
     "filters": {
       "title": "Tànneef",
       "clearAll": "Far lépp",

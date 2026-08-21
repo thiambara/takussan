@@ -492,8 +492,10 @@ function FilterSelect({
  * Fabrique les puces de filtre actif.
  *
  * Fonction de module — donc un endroit où `useTranslations` n'est PAS appelable. Comme
- * `SearchToolbar.fabriqueEtiquettes` (TCK-292), elle reçoit les traducteurs déjà bornés à leur
- * espace de noms et les applique elle-même. Ce n'est pas un contournement : c'est la forme que
+ * `puceDeChaqueFiltreActif` (`src/types/search.ts`), elle reçoit les traducteurs déjà bornés à
+ * leur espace de noms et les applique elle-même. *(Ce docblock citait
+ * `SearchToolbar.fabriqueEtiquettes` (TCK-292) ; TCK-340 l'a fondue dans la table
+ * `SEARCH_FILTER_KEYS`, et le renvoi pointait vers un symbole disparu.)* Ce n'est pas un contournement : c'est la forme que
  * prend « la donnée porte la clé, le rendu la résout » quand la donnée est calculée.
  */
 function buildActiveChips(

@@ -2777,6 +2777,13 @@
       "error_invalid_filter_named": "Le filtre « {filter} » n'est pas valide.",
       "error_retry": "Réessayer"
     },
+    "widened": {
+      "unmatched": "{count, plural, =1 {Aucun bien ne correspond à « {terms} ».} other {Aucun bien ne correspond à ces mots : {terms}.}}",
+      "noIntersection": "Aucun bien ne réunit tous vos mots.",
+      "showing": "{count, plural, =0 {Aucun bien proche à vous proposer.} =1 {Voici le seul bien qui correspond à une partie de vos mots.} other {Voici les # biens qui correspondent à une partie de vos mots.}}",
+      "removeTerm": "Retirer « {term} »",
+      "clearQuery": "Effacer les mots-clés"
+    },
     "filters": {
       "title": "Filtres",
       "clearAll": "Tout effacer",

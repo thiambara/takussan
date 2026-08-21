@@ -5,7 +5,7 @@ import { BookmarkPlus, Check, Loader2 } from 'lucide-react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useCreateSavedSearchMutation } from '@/lib/queries/saved-searches';
-import type { SearchFilters } from '@/types/search';
+import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS, type SearchFilters } from '@/types/search';
 import {
   Dialog,
   DialogContent,
@@ -39,20 +39,40 @@ export interface SaveSearchButtonProps {
   readonly className?: string;
 }
 
-function filtersToCriteria(filters: SearchFilters): Record<string, unknown> {
+/**
+ * TCK-340 — troisième définition des clés à ignorer, et la seule des trois qui avait DÉRIVÉ.
+ *
+ * Elle écartait `page` et `per_page` mais gardait `sort` : le tri finissait donc dans le
+ * `criteria` d'une recherche sauvegardée, où il n'a rien à faire — ce n'est pas un critère,
+ * c'est une préférence d'affichage, et le digest de notification côté serveur l'apparie contre
+ * des biens neufs où l'ordre n'a aucun sens. Les deux autres définitions (`IGNORED_KEYS` et
+ * `HIDDEN_FROM_TAGS`) écartaient bien les trois.
+ *
+ * Le critère est maintenant le RÔLE déclaré dans la table, pas une liste recopiée.
+ */
+export function filtersToCriteria(filters: SearchFilters): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  (Object.keys(filters) as Array<keyof SearchFilters>).forEach((key) => {
+  for (const key of CLES_DE_RECHERCHE) {
+    if (SEARCH_FILTER_KEYS[key].role !== 'filtre') continue;
     const value = filters[key];
-    if (value === undefined || value === null || value === '') return;
-    if (key === 'page' || key === 'per_page') return;
+    if (value === undefined || value === null || value === '') continue;
+    if (Array.isArray(value) && value.length === 0) continue;
     out[key] = value;
-  });
+  }
   return out;
 }
 
 type Traducteur = (cle: string, valeurs?: Record<string, string | number>) => string;
 
-/** Hors composant : les libellés lui sont passés, il ne peut pas appeler de hook. */
+/**
+ * Hors composant : les libellés lui sont passés, il ne peut pas appeler de hook.
+ *
+ * ⚠ TCK-340 — **cette liste-ci n'est PAS unifiée, et c'est délibéré.** Elle ne cite que quatre
+ * clés sur dix-sept, ce qui ressemble à une divergence et n'en est pas : un nom suggéré est un
+ * RÉSUMÉ, pas un inventaire. Le dériver de la table produirait « Location · Dakar · Villa ·
+ * 3 ch. · ≥ 150 000 FCFA · ≤ 900 000 FCFA · ≥ 40 m² · Meublé · ★ En vedette · … » dans un champ
+ * plafonné à 100 caractères. La curation est la fonction ; l'unifier la supprimerait.
+ */
 function suggestName(
   filters: SearchFilters,
   t: Traducteur,

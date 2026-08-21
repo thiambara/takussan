@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**323 tickets** — 14 ouverts, 308 livrés.
+**324 tickets** — 15 ouverts, 308 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 11 |
-| 🚧 Doing | 3 |
+| 📋 Todo | 6 |
+| 🚧 Doing | 9 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 308 |
@@ -38,18 +38,19 @@
 - [TCK-332](tickets/TCK-332-front-public-appelle-une-api-absente.md) — Le front de production est public et appelle une API qui n'existe pas `S · P0 · technique`
 - [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
 - [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
-- [TCK-336](tickets/TCK-336-sparse-fieldsets-au-niveau-ressource.md) — Sparse fieldsets — `fields[table]` n'est honoré par AUCUNE ressource `L · P2 · technique`
-- [TCK-337](tickets/TCK-337-decoupage-du-dictionnaire-next-intl.md) — Le dictionnaire next-intl est inliné en entier dans chaque page `L · P3 · technique`
-- [TCK-338](tickets/TCK-338-recherche-conjonctive-tous-les-termes.md) — Une recherche à plusieurs mots doit les exiger tous `M · P1 · applicatif`
-- [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-340](tickets/TCK-340-listes-de-cles-de-filtre-front.md) — Onze listes de clés de filtre côté front, une seule source `L · P3 · technique`
-- [TCK-341](tickets/TCK-341-cache-http-du-catalogue-public.md) — Le catalogue public se recalcule pour chaque visiteur `S · P2 · technique`
+- [TCK-342](tickets/TCK-342-libelles-wolof-divergents-back-front.md) — Le même bien porte deux mots wolof différents selon l'écran `M · P3 · applicatif`
 
 ## 🚧 Doing
 
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 - [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
+- [TCK-336](tickets/TCK-336-sparse-fieldsets-au-niveau-ressource.md) — `PropertyResource` fabrique des valeurs pour les colonnes que `fields[]` n'a pas fait lire `M · P2 · technique`
+- [TCK-337](tickets/TCK-337-decoupage-du-dictionnaire-next-intl.md) — Le dictionnaire next-intl est inliné en entier dans chaque page `L · P3 · technique`
+- [TCK-338](tickets/TCK-338-recherche-conjonctive-tous-les-termes.md) — Une recherche à plusieurs mots doit les exiger tous `M · P1 · applicatif`
+- [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-340](tickets/TCK-340-listes-de-cles-de-filtre-front.md) — Douze listes de clés de filtre côté front, une seule table `L · P3 · technique`
+- [TCK-341](tickets/TCK-341-cache-http-du-catalogue-public.md) — Le catalogue public se recalcule pour chaque visiteur `S · P2 · technique`
 
 ## 👀 Review
 

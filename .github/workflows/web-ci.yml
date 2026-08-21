@@ -80,6 +80,21 @@ jobs:
         # libellé affiché d'une chaîne technique). Elle est donc ici, où `npm ci` a déjà tourné.
         run: npm run check:i18n
 
+      - name: i18n (découpage du dictionnaire par frontière de rendu)
+        # Garde SŒUR de la précédente, et non un doublon : celle-là compare les trois locales
+        # entre elles, celle-ci compare la table `src/i18n/namespaces.json` au GRAPHE D'IMPORTS
+        # dont elle est dérivée. Elle vit ici pour la même raison — `repo-ci.yml` n'exécute aucun
+        # `npm ci`.
+        #
+        # Elle a sa propre étape plutôt qu'une ligne dans la précédente parce que son échec se lit
+        # autrement : « la table ne suit plus le code », pas « une locale a pris du retard ».
+        #
+        # ⚠ Ce qu'elle garde ne casse RIEN d'autre. Un espace de noms oublié dans le découpage
+        # traverse `next build`, ESLint, `tsc --noEmit` et les ~810 tests sans un avertissement,
+        # puis peint le chemin de la clé à l'écran d'un utilisateur. Aucune des quatre étapes
+        # voisines ne peut le voir : c'est une donnée absente d'un objet, découverte au rendu.
+        run: npm run check:i18n-namespaces
+
       - name: Tests (Vitest)
         run: npm run test
 
