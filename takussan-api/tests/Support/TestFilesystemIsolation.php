@@ -20,8 +20,19 @@ namespace Tests\Support;
  * ⚠ On ne pose PAS `LARAVEL_PARALLEL_TESTING`. `ParallelTesting::inParallel()`
  * exige les deux, et c'est ce qui garde inactifs les rappels de
  * `TestDatabases`/`TestCaches`/`TestViews` : on veut la racine isolée, pas la
- * machinerie de `--parallel` (qui irait créer des bases suffixées par le
- * jeton alors que la suite tourne sur SQLite `:memory:`).
+ * machinerie de `--parallel`.
+ *
+ * ⚠⚠ LA JUSTIFICATION DE CE CHOIX A CHANGÉ AVEC ADR-0020, et il fallait le réécrire
+ * plutôt que le laisser vieillir. Elle disait : « qui irait créer des bases suffixées
+ * par le jeton alors que la suite tourne sur SQLite `:memory:` ». La suite ne tourne
+ * plus sur SQLite, et des bases suffixées sont désormais exactement ce qu'il FAUT.
+ *
+ * Ce qui reste vrai, c'est la conclusion — pour une autre raison : {@see TestDatabase}
+ * fait ce travail MIEUX que `TestDatabases`. Le rappel de Laravel n'isole que par
+ * WORKER (`test_1` … `test_N`), donc deux agents qui lancent `--parallel` en même
+ * temps redemandent les mêmes N noms ; `TestDatabase` isole par EXÉCUTION *puis* par
+ * worker, via le jeton composé de {@see TestProcessToken}. C'est le niveau
+ * « exécution » qui manquait, et c'est celui que D-44 a payé quatre fois.
  */
 final class TestFilesystemIsolation
 {

@@ -5,6 +5,7 @@ namespace Tests;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
 use Tests\Support\TestCompiledViews;
+use Tests\Support\TestDatabase;
 
 /**
  * Le SEUL point d'accroche du dépôt dans le processus PARENT de ParaTest.
@@ -42,6 +43,11 @@ trait CreatesApplication
         $app->make(Kernel::class)->bootstrap();
 
         TestCompiledViews::install($app['config']);
+        // AVANT `setUpTraits()`, donc avant que `RefreshDatabase` n'ouvre la première
+        // connexion : la base de CE processus doit exister à ce moment-là. C'est le seul
+        // point du dépôt qui s'exécute après la configuration de la connexion et avant
+        // que quiconque s'y connecte.
+        TestDatabase::ensureCreated($app['config']);
 
         return $app;
     }
