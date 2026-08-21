@@ -30,6 +30,9 @@ jobs:
         working-directory: takussan-api
 
     # TCK-280 — search runs on Meilisearch on every environment, CI included.
+    # ADR-0020 — et depuis, la BASE aussi : la suite tourne sur le moteur de production,
+    # plus sur SQLite. La divergence « tests sur SQLite, production sur autre chose »
+    # préexistait à la migration ; c'est elle que ce service ferme.
     services:
       meilisearch:
         image: getmeili/meilisearch:v1.16
@@ -39,6 +42,30 @@ jobs:
         ports:
           - 7700:7700
 
+      postgres:
+        # `pgvector/pgvector:pg17`, PAS `postgres:17` — la même image qu'en développement.
+        # L'extension `vector` doit être disponible partout, y compris ici : c'est le seul
+        # endroit où une divergence d'image se verrait avant la production.
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: takussan
+          POSTGRES_USER: takussan
+          POSTGRES_PASSWORD: takussan
+          # `--locale=C` comme le compose : collation DÉTERMINISTE. Une base de CI créée
+          # dans une autre collation n'éprouve pas les comparaisons de chaînes de la
+          # production — c'est exactement ce que l'ancienne garde de collation gardait
+          # pour MySQL, transposé.
+          POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+        ports:
+          # 5433 côté runner comme côté poste, pour que `phpunit.xml` n'ait pas deux
+          # valeurs selon l'endroit où il s'exécute.
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U takussan -d takussan"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
     steps:
       - uses: actions/checkout@v7
 
@@ -46,7 +73,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, pdo, pdo_sqlite, sqlite3, bcmath, intl, gd, zip
+          extensions: mbstring, pdo, pdo_pgsql, pgsql, bcmath, intl, gd, zip
           # TCK-302 — `coverage: none` vivait ici, et le bloc `<source>` de `phpunit.xml`
           # n'alimentait donc AUCUN rapport : ni seuil, ni tendance, ni garde-fou contre
           # l'érosion. Une couverture qu'on ne mesure pas ne baisse jamais — elle baisse
@@ -208,8 +235,16 @@ jobs:
       # **1 sans imprimer un chiffre** — sur une suite verte à 86,33 %.
       - name: Run tests (avec couverture — cliquet TCK-302)
         env:
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ':memory:'
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5433
+          DB_USERNAME: takussan
+          DB_PASSWORD: takussan
+          # ⚠ Ne PAS déclarer `DB_DATABASE` ici — il valait `:memory:`, et cette valeur
+          # donnait à chaque processus sa propre base SANS que personne ait eu à le
+          # décider. Sur PostgreSQL, `tests/bootstrap.php` engendre le nom par processus
+          # (`Tests\Support\TestDatabase`) ; un littéral ici serait écrasé, et laisserait
+          # croire qu'il pilote encore quelque chose. Même raison que `SCOUT_PREFIX`.
           SCOUT_DRIVER: meilisearch
           MEILISEARCH_HOST: http://127.0.0.1:7700
           MEILISEARCH_KEY: masterKey
@@ -455,75 +490,78 @@ jobs:
           git push origin HEAD:dev || echo "⚠ push refusé — carte non poussée"
 
   # ────────────────────────────────────────────────────────────────────────────
-  # Les migrations rejouées sur MySQL 8.0 — le moteur MESURÉ de la production (cf. le bloc
-  # « CE JOB A TOURNÉ SUR LE MAUVAIS MOTEUR » plus bas).
+  # Les migrations rejouées EN ARRIÈRE sur PostgreSQL — le seul code que rien d'autre n'exécute.
   #
-  # `CLAUDE.md` documente quatre familles de pièges « qui passent en CI mais cassent en prod » :
-  # DEFAULT sur JSON/TEXT, dropUnique sur une colonne portant une FK, nom d'index auto-généré au-delà
-  # de 64 caractères, et `enum()`. Le job ci-dessus ne peut en voir AUCUN : il tourne sur SQLite,
-  # qui les accepte tous. Et `scripts/deploy.sh:148` lance `php artisan migrate --force` directement
-  # sur la base de production — la première machine à exécuter ce DDL en conditions réelles était
-  # donc le serveur.
+  # ⚠ CE JOB A CHANGÉ DE RAISON D'ÊTRE AVEC ADR-0020, et le dire importe plus que le renommer.
   #
-  # Le dépôt a déjà payé ce défaut DEUX fois, et les correctifs sont dans son propre historique :
-  # `c473081b` (colonne JSON sans DEFAULT) et `9815694f` (nom d'index sous la limite des 64
-  # caractères). Une famille de pièges connue, documentée, rencontrée deux fois, et que rien
-  # n'attrapait : la documentation avait remplacé la garde.
+  # Il s'appelait `migrations-mysql` et il existait parce que le job de tests tournait sur SQLite :
+  # il était la SEULE machine du dépôt à exécuter le DDL sur le moteur de production. `CLAUDE.md`
+  # documentait quatre familles de pièges « qui passent en CI mais cassent en prod » — DEFAULT sur
+  # JSON/TEXT, dropUnique sous FK, nom d'index au-delà de 64 caractères, `enum()` — qu'aucun test
+  # ne pouvait voir. Le dépôt avait déjà payé ce défaut deux fois (`c473081b`, `9815694f`).
   #
-  # Ce job ne rejoue PAS la suite de tests — c'est le DDL qu'on éprouve, pas le code. Il tourne en
-  # moins d'une minute.
+  # **Cette raison-là est morte** : la suite entière tourne désormais sur PostgreSQL 17, donc
+  # l'ALLER des migrations est exécuté par le job de tests, à chaque exécution, sur le moteur
+  # cible. Un job qui rejouerait `migrate` ici ne prouverait plus rien de neuf.
   #
-  # ─── CE JOB A TOURNÉ SUR LE MAUVAIS MOTEUR (2026-06-29 → 2026-08-13) ────────────────────────
+  # Ce qui reste, et qui n'est couvert par RIEN d'autre, c'est le RETOUR. *Le `down()` d'une
+  # migration est le code le moins exécuté du dépôt — la suite de tests n'en exécute aucun — et
+  # c'est le seul dont on ait besoin le jour où un déploiement tourne mal.* C'est là, et nulle
+  # part ailleurs, que se déclare un `dropIndex` sur une colonne portant une FK : la version
+  # MySQL de ce job a trouvé le cas de `2026_06_18_000001` à sa PREMIÈRE exécution, sur trois
+  # tables à la fois (ardoise D-05).
   #
-  # Il tournait sur `mariadb:11.4`, et son commentaire justifiait ce choix par « c'est ce que
-  # `apt install mariadb-server` pose sur le serveur » — une phrase déduite de rien. Personne
-  # n'avait exécuté cette commande. Mesuré sur le serveur le 2026-08-13 :
+  # ─── Ce que ce job NE prouve pas, et il faut le lire avant de s'y fier ───────────────────────
   #
-  #     $ dpkg -l | grep -Ei 'mysql-server|mariadb-server'
-  #     ii  mysql-server  8.0.46-0ubuntu0.24.04.3
-  #     $ sudo mysql -e "SELECT VERSION(), @@collation_server, @@character_set_server;"
-  #     8.0.46-0ubuntu0.24.04.3 | utf8mb4_0900_ai_ci | utf8mb4
+  # On ne peut pas faire `migrate:refresh` : `2026_05_18_120000_drop_spatie_permission_tables` est
+  # DÉLIBÉRÉMENT irréversible (cutover TCK-278, son `down()` lève une RuntimeException assumée).
+  # On roule donc en arrière jusqu'à la marche juste au-dessus d'elle, et on CALCULE ce nombre
+  # plutôt que de l'écrire en dur.
   #
-  # Ce n'était donc pas un écart de version — c'était le mauvais MOTEUR. MariaDB 11 et MySQL 8
-  # ont divergé pour de bon : collation par défaut, contraintes `CHECK`, colonnes `JSON`
-  # (natives chez MySQL, alias de LONGTEXT chez MariaDB), noms d'index générés. Un DDL accepté
-  # par MariaDB 11.4 et refusé par MySQL 8 passait ce job et cassait quand même
-  # `migrate --force` au déploiement — l'échec exact que ce job existe pour empêcher.
+  # ⚠ LA COUVERTURE RÉELLE : **14 `down()` sur 134** au 2026-08-21 — et non « 3 sur 124 », chiffre
+  # que `CLAUDE.md` a porté longtemps après avoir cessé d'être vrai. Il se recompte d'une ligne :
+  #     ls database/migrations/*.php | xargs -n1 basename | sed 's/\.php$//' | sort \
+  #       | awk '$0 > "2026_05_18_120000"' | wc -l
+  # Les 120 autres — dont TOUTES les créations de tables, celles qu'il faudrait précisément pour
+  # dérouler une release ancienne — ne sont exécutées nulle part, ni ici ni dans la suite.
   #
-  # Et `utf8mb4_unicode_ci` (ce que posait le compose) ne compare pas les chaînes comme
-  # `utf8mb4_0900_ai_ci` (ce que fait la production) : unicité des e-mails, `LIKE` de recherche.
+  # Le chiffre est affiché à chaque exécution : il grandit d'une unité par migration ajoutée. Ne
+  # pas lire ce job comme « les down() sont couverts » — il couvre les down() RÉCENTS.
   #
-  # ⚠ La production n'ayant JAMAIS été déployée, ce job n'a rien cassé — mais il n'a rien
-  # prouvé non plus pendant six semaines, en l'annonçant à chaque exécution.
+  # ─── L'ancienne leçon de ce bloc, qui survit à la migration ──────────────────────────────────
   #
-  # *Un banc d'essai qui reproduit une hypothèse ne prouve rien de la production ; il prouve que
-  # l'hypothèse est cohérente avec elle-même.* Et : **ne jamais déduire l'état d'un environnement
-  # de la configuration qui le vise** — ici, d'une commande d'installation supposée.
+  # Ce job a tourné sur `mariadb:11.4` du 2026-06-29 au 2026-08-13, sur la foi d'un commentaire
+  # affirmant que « `apt install mariadb-server` » avait été lancé sur le serveur. Personne ne
+  # l'avait exécuté ; la mesure a rendu `mysql-server 8.0.46`. Ce n'était pas un écart de version,
+  # c'était le mauvais MOTEUR — et le job l'annonçait comme une preuve à chaque exécution.
   #
-  # `scripts/check-db-engine.mjs` garde désormais l'accord entre ce job, `docker-compose.yml` et
-  # la valeur mesurée : trois copies d'une version divergent, une garde ne les laisse pas faire.
+  # *Ne jamais déduire l'état d'un environnement de la configuration — ni de la commande
+  # d'installation — qui le vise.* Cette phrase s'applique DAVANTAGE aujourd'hui qu'hier : la
+  # cible PostgreSQL de ce job est DÉCIDÉE par ADR-0020, elle n'est mesurée sur aucun serveur,
+  # puisqu'aucune production PostgreSQL n'existe encore (D-04, TCK-288). `check-db-engine.mjs`
+  # porte cette distinction dans sa constante, qui s'appelle `CIBLE` et non `PROD`.
   # ────────────────────────────────────────────────────────────────────────────────────────────
-  migrations-mysql:
-    name: Migrations sur MySQL 8.0 (pièges que SQLite ne voit pas)
+  migrations-pgsql:
+    name: Rollback des migrations sur PostgreSQL 17 (le code que rien d'autre n'exécute)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: takussan-api
 
     services:
-      mysql:
-        # Le moteur, la version ET la collation de la production, mesurés le 2026-08-13.
-        # `docker-compose.yml` porte les mêmes ; `scripts/check-db-engine.mjs` le vérifie.
-        image: mysql:8.0
+      postgres:
+        # La MÊME image que le job de tests et que `docker-compose.yml`. Trois copies d'une
+        # version divergent ; `scripts/check-db-engine.mjs` ne les laisse pas faire.
+        image: pgvector/pgvector:pg17
         env:
-          MYSQL_DATABASE: takussan_ci
-          MYSQL_USER: takussan
-          MYSQL_PASSWORD: takussan
-          MYSQL_ROOT_PASSWORD: takussan
+          POSTGRES_DB: takussan_ci
+          POSTGRES_USER: takussan
+          POSTGRES_PASSWORD: takussan
+          POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
         ports:
-          - 3306:3306
+          - 5433:5432
         options: >-
-          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -ptakussan"
+          --health-cmd "pg_isready -U takussan -d takussan_ci"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 20
@@ -535,103 +573,63 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: mbstring, pdo, pdo_mysql, mysqli, bcmath, intl, gd, zip
-          # TCK-302 — `coverage: none` RESTE ici, délibérément, et ce n'est pas l'oubli que
-          # c'était dans l'autre job : ce job-ci n'exécute AUCUN test. Il joue du DDL
-          # (`migrate` / `migrate:rollback`). Y installer un pilote de couverture coûterait
-          # le temps d'installation pour ne mesurer rien. Le second `coverage: none` du
-          # fichier n'est donc pas le même défaut que le premier.
+          extensions: mbstring, pdo, pdo_pgsql, pgsql, bcmath, intl, gd, zip
           coverage: none
           tools: composer:v2
 
-      # Ce job n'avait AUCUN cache, quand l'autre en a un depuis toujours. Ce n'était pas un
-      # choix : il retéléchargeait l'intégralité des dépendances à chaque exécution, et c'est
-      # ce qui l'a fait tomber le 2026-08-17 en même temps que son voisin (429 sur `codeload`,
-      # cf. le commentaire du step d'installation de `lint-and-test`).
       - name: Cache composer dependencies
         uses: actions/cache@v6
         with:
           path: takussan-api/vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('takussan-api/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-composer-
+          restore-keys: ${{ runner.os }}-composer-
 
       - name: Install composer dependencies
-        # Mêmes deux raisons que dans `lint-and-test`, où elles sont détaillées : `--prefer-dist`
-        # retiré pour rendre le repli `git clone` possible sur un 429 de `codeload`, et
-        # `COMPOSER_AUTH` posé pour les métadonnées `api.github.com` — en sachant qu'il ne
-        # couvre PAS les téléchargements d'archives. Ce job n'exécute aucun test, mais il
-        # installe les mêmes ~100 paquets, et il est tombé au même endroit le 2026-08-17.
-        env:
-          COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
         run: composer install --no-interaction --no-progress
 
       - name: Prepare environment
         run: |
           cp .env.example .env
-          php artisan key:generate --force
+          php artisan key:generate
 
-      - name: Le moteur de CI est-il celui de la production ?
-        # Un conteneur de SERVICE n'accepte pas d'arguments de commande — impossible d'y passer
-        # `--collation-server` comme le fait `docker-compose.yml`. La collation de ce serveur est
-        # donc le DÉFAUT de l'image, et un défaut non vérifié est un défaut qui change sans
-        # qu'on le voie : `utf8mb4_general_ci` jusqu'à MySQL 5.7, `utf8mb4_0900_ai_ci` depuis 8.0.
-        #
-        # On MESURE donc au lieu de prescrire, et on compare à la production (2026-08-13,
-        # `sudo mysql -e "SELECT VERSION(), @@collation_server;"` → 8.0.46, utf8mb4_0900_ai_ci).
-        # Si l'image dérive, ce job le dit ici plutôt que de laisser le DDL passer sur un moteur
-        # qui n'est plus celui qu'on croit éprouver.
+      - name: Le moteur de CI est-il celui que le dépôt épingle ?
+        # MESURÉ, pas supposé — c'est toute la leçon du bloc ci-dessus. Le service de GitHub
+        # n'accepte pas d'arguments de serveur : sa collation ne peut être qu'observée, jamais
+        # imposée. On l'observe donc, et on ÉCHOUE sur un écart plutôt que de l'imprimer.
+        env:
+          PGPASSWORD: takussan
         run: |
-          mysql -h 127.0.0.1 -P 3306 -uroot -ptakussan -N -B \
-            -e "SELECT VERSION(), @@collation_server, @@character_set_server;" > /tmp/moteur.tsv
-          VERSION=$(cut -f1 /tmp/moteur.tsv)
-          COLLATION=$(cut -f2 /tmp/moteur.tsv)
-          CHARSET=$(cut -f3 /tmp/moteur.tsv)
-          echo "CI       : ${VERSION} · ${COLLATION} · ${CHARSET}"
-          echo "Attendu  : 8.0.* · utf8mb4_0900_ai_ci · utf8mb4  (production, mesurée le 2026-08-13)"
-          ecart=0
-          case "${VERSION}" in 8.0.*) ;; *) echo "::error::Version ${VERSION} — la production est en 8.0.x."; ecart=1 ;; esac
-          [ "${COLLATION}" = "utf8mb4_0900_ai_ci" ] || { echo "::error::Collation ${COLLATION} ≠ utf8mb4_0900_ai_ci (production)."; ecart=1; }
-          [ "${CHARSET}" = "utf8mb4" ] || { echo "::error::Jeu de caractères ${CHARSET} ≠ utf8mb4 (production)."; ecart=1; }
-          exit "${ecart}"
+          LU=$(psql -h 127.0.0.1 -p 5433 -U takussan -d takussan_ci -tAc \
+            "SELECT current_setting('server_version_num')::int / 10000 || '|' || datcollate || '|' \
+             || pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database();")
+          echo "Moteur du runner : $LU"
+          if [ "$LU" != "17|C|UTF8" ]; then
+            echo "::error::moteur inattendu « $LU » — attendu « 17|C|UTF8 ». Une base de CI dans une"
+            echo "::error::autre collation n'éprouve pas les comparaisons de chaînes du dépôt, et six"
+            echo "::error::contraintes d'unicité sur texte en dépendent (ADR-0020)."
+            exit 1
+          fi
+          # pgvector doit être DISPONIBLE ici aussi — c'est le seul endroit où une divergence
+          # d'image se verrait avant le jour du chatbot.
+          psql -h 127.0.0.1 -p 5433 -U takussan -d takussan_ci -tAc \
+            "SELECT 1 FROM pg_available_extensions WHERE name = 'vector';" | grep -q 1 \
+            || { echo "::error::extension vector indisponible — l'image n'est pas pgvector/pgvector."; exit 1; }
 
       - name: Migrate (aller)
         env:
-          DB_CONNECTION: mysql
+          DB_CONNECTION: pgsql
           DB_HOST: 127.0.0.1
-          DB_PORT: 3306
+          DB_PORT: 5433
           DB_DATABASE: takussan_ci
           DB_USERNAME: takussan
           DB_PASSWORD: takussan
         run: php artisan migrate --force --no-interaction
 
-      - name: Rollback des migrations AU-DESSUS de la borne TCK-278, puis re-migration (couverture partielle)
-        # Le `down()` d'une migration est le code le moins exécuté du dépôt — **la suite de tests
-        # n'en exécute aucun** — et c'est le seul dont on ait besoin le jour où un déploiement
-        # tourne mal. C'est là que « dropIndex sur une colonne portant une FK » se déclare, et
-        # nulle part ailleurs : ce job a trouvé le cas de `2026_06_18_000001` à sa PREMIÈRE
-        # exécution, sur les trois tables à la fois.
-        #
-        # On ne peut pas faire `migrate:refresh` : `2026_05_18_120000_drop_spatie_permission_tables`
-        # est **délibérément irréversible** (cutover TCK-278, son `down()` lève une RuntimeException
-        # assumée). On roule donc en arrière jusqu'à la marche juste au-dessus d'elle — et on
-        # CALCULE ce nombre plutôt que de l'écrire en dur, pour qu'il suive les migrations à venir
-        # sans que personne ait à y penser.
-        #
-        # ⚠ LA COUVERTURE RÉELLE, puisque le nom de ce job et `CLAUDE.md` disent « aller et
-        # retour » : **3 `down()` sur 124** aujourd'hui. La borne laisse au-dessus d'elle les
-        # seules migrations postérieures au cutover TCK-278. Les 121 autres — dont TOUTES les
-        # créations de tables, celles qu'il faudrait précisément pour dérouler une release
-        # ancienne — ne sont exécutées nulle part, ni ici ni dans la suite de tests.
-        #
-        # Le chiffre est affiché à chaque exécution (`Migrations réversibles au-dessus de …`) :
-        # il grandit d'une unité par migration ajoutée. Ne pas lire ce job comme « les down()
-        # sont couverts » — il couvre les down() RÉCENTS, ce qui est déjà ce dont on a besoin
-        # le jour où un déploiement tourne mal, mais pas davantage.
+      - name: Rollback des migrations AU-DESSUS de la borne TCK-278, puis re-migration
         env:
-          DB_CONNECTION: mysql
+          DB_CONNECTION: pgsql
           DB_HOST: 127.0.0.1
-          DB_PORT: 3306
+          DB_PORT: 5433
           DB_DATABASE: takussan_ci
           DB_USERNAME: takussan
           DB_PASSWORD: takussan

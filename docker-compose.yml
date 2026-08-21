@@ -74,42 +74,6 @@
 # passe sérieux n'a rien à faire sur l'interface publique d'un portable en wifi.
 
 services:
-  mysql:
-    # Épinglé sur le moteur MESURÉ en production le 2026-08-13 (cf. l'en-tête) : MySQL
-    # 8.0. Le tag `8.0` suit les correctifs de la branche sans changer de branche —
-    # `8.0.46` en production le jour de la mesure.
-    image: mysql:8.0
-    environment:
-      MYSQL_DATABASE: takussan
-      MYSQL_USER: takussan
-      MYSQL_PASSWORD: takussan
-      MYSQL_ROOT_PASSWORD: takussan
-    ports:
-      - '127.0.0.1:${TAKUSSAN_DB_PORT:-3307}:3306'
-    volumes:
-      - mysql-data:/var/lib/mysql
-      # Joué UNIQUEMENT à la première création du volume. Sur un volume existant,
-      # rejouer le script à la main : voir l'en-tête de docker/mysql-init.sql.
-      - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-    command:
-      # La collation SERVEUR de la production, à l'identique. Les migrations Laravel
-      # n'imposent pas de collation : elles héritent de celle de la base — et deux
-      # collations différentes entre dev et prod font diverger les comparaisons de
-      # chaînes (recherche insensible à la casse, unicité d'e-mail).
-      #
-      # `utf8mb4_0900_ai_ci` est le défaut de MySQL 8 ; on l'écrit quand même, parce
-      # qu'un défaut non écrit est un défaut qu'on ne remarque pas quand il change.
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_0900_ai_ci
-    healthcheck:
-      # `mysqladmin ping` avec des identifiants : sans eux, il rend « mysqld is alive »
-      # et sort en 1 sur un refus d'accès — un service déclaré malade alors qu'il
-      # répond, ou l'inverse selon la version du client.
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-ptakussan']
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
   postgres:
     # `pgvector/pgvector:pg17`, et surtout PAS `postgres:17`. L'extension `vector` doit
     # être DISPONIBLE sur tous les environnements dès maintenant, alors même qu'aucune
@@ -219,7 +183,6 @@ services:
       retries: 10
 
 volumes:
-  mysql-data:
   pgsql-data:
   meili-data:
   redis-data:

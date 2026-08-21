@@ -9,27 +9,47 @@
 -- ou, plus radical, `docker compose down -v` puis `up` — il n'y a aucune donnée à
 -- perdre en développement, `php artisan migrate:fresh --seed` la reconstruit.
 
--- ─── Le seul droit que l'image ne donne pas, et pourquoi il est indispensable ───────
+
+-- ─── CE QUE CE FICHIER FAIT VRAIMENT, ET IL FAUT LE DIRE EXACTEMENT ────────────────
 --
--- Le rôle `takussan` est créé par `POSTGRES_USER`. Ce script n'AJOUTE qu'une chose :
--- le droit de créer des bases.
+-- ⚠ La ligne ci-dessous est aujourd'hui un NO-OP, et sa première version prétendait le
+-- contraire. Elle était introduite par « le seul droit que l'image ne donne pas », ce
+-- qui était FAUX : `POSTGRES_USER` fait du rôle le SUPERUTILISATEUR de l'instance, et
+-- `CREATEDB` en découle. Mesuré le 2026-08-21, sur le conteneur qui tourne :
 --
--- La suite de tests crée UNE BASE PAR PROCESSUS (`Tests\Support\TestDatabase`). C'est
--- la CINQUIÈME ressource partagée par machine de ce dépôt, et la seule que la migration
--- vers PostgreSQL CRÉE au lieu de la révéler : sous SQLite `:memory:`, chaque processus
--- PHP avait sa base gratuitement, sans que personne ait eu à le décider. Sur PostgreSQL,
--- tous les processus de la machine parlent au même serveur — et sans base par processus,
--- le `migrate:fresh` de `RefreshDatabase` de l'un vide les tables sous l'autre, qui
--- rougit alors sur une assertion métier parfaitement juste.
+--     SELECT rolname, rolsuper, rolcreatedb FROM pg_roles WHERE rolname='takussan';
+--     takussan|t|t
 --
--- C'est la panne D-44, à l'identique, sur une autre ressource.
+-- La ligne était donc vraie sur le fond — le droit est bien indispensable — et fausse
+-- sur son sujet : elle ne l'accordait pas, elle le trouvait déjà là. *Un fichier qui
+-- s'attribue un effet qu'il n'a pas est pire qu'un fichier absent : on le croit.*
 --
--- `--parallel` en a besoin pour la même raison, un cran plus bas : ParaTest ouvre N
--- bases, une par worker.
+-- Elle est CONSERVÉE, et pour deux raisons qui ne sont pas de la politesse :
 --
--- ⚠ Ce droit est un droit de DÉVELOPPEMENT ET DE CI. Il ne doit PAS être accordé au
--- rôle applicatif de production : là-bas, personne ne crée de base à l'exécution.
+--   1. Elle rend l'exigence EXPLICITE. `Tests\Support\TestDatabase` crée une base par
+--      processus de test — la cinquième ressource partagée par machine, et la seule que
+--      la migration vers PostgreSQL CRÉE au lieu de la révéler : sous SQLite `:memory:`,
+--      chaque processus PHP avait sa base gratuitement. Sans base par processus, le
+--      `migrate:fresh` de `RefreshDatabase` de l'un vide les tables sous l'autre.
+--      Mesuré par ablation : deux exécutions simultanées de `DocumentVersionTest`
+--      rendent 10/10 avec l'isolation, et meurent TOUTES DEUX sans elle —
+--      `SQLSTATE[42P01] table "account_deletion_requests" does not exist` d'un côté,
+--      `relation "migrations" does not exist` de l'autre. C'est la panne D-44.
+--
+--   2. Elle survit au jour où l'image change. Le superutilisateur est une propriété de
+--      `docker-entrypoint.sh`, pas une garantie de PostgreSQL. Une instance managée, un
+--      rôle applicatif créé à la main, une image alternative : le droit disparaît, et
+--      `ALTER ROLE` cesse alors d'être un no-op au moment précis où il compte.
+--
+-- Ce qui NE DOIT PAS en être déduit : ce droit est un droit de DÉVELOPPEMENT ET DE CI.
+-- Il n'a rien à faire sur le rôle applicatif de production, où personne ne crée de base
+-- à l'exécution.
+--
+-- Et il n'a pas besoin de garde ici : si le droit manque, `TestDatabase` lève au lieu de
+-- se replier sur la base partagée. *Une isolation qui se désactive toute seule n'est pas
+-- une isolation.*
 ALTER ROLE takussan CREATEDB;
+
 
 -- ─── Ce que ce script ne fait PAS, délibérément ─────────────────────────────────────
 --
@@ -40,6 +60,7 @@ ALTER ROLE takussan CREATEDB;
 -- extension viendra avec le ticket qui en a besoin, et avec la migration qui l'installe :
 -- une extension créée « au cas où » est une dépendance que personne n'a décidée.
 --
--- Pour vérifier qu'elle est bien disponible sans l'installer :
+-- Vérifié le 2026-08-21 : `vector` est disponible en 0.8.6, et `pg_extension` ne contient
+-- que `plpgsql`. Pour le revérifier sans rien installer :
 --
 --     SELECT name, default_version FROM pg_available_extensions WHERE name = 'vector';
