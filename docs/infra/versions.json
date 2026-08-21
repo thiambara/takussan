@@ -7,7 +7,7 @@
   ],
   "_mesure_prod": {
     "acces": "Serveur Contabo, Ubuntu 24.04, accès SSH `deploy@`. Aucune de ces commandes n'écrit quoi que ce soit.",
-    "toutes_en_une": "ssh deploy@<serveur> 'mysql --version; /usr/bin/meilisearch --version; redis-server --version; php -v | head -1; node --version; cat /etc/takussan/php-version'",
+    "toutes_en_une": "ssh deploy@<serveur> 'psql --version; /usr/bin/meilisearch --version; redis-server --version; php -v | head -1; node --version; cat /etc/takussan/php-version'",
     "apres_mesure": "Reporter la valeur dans ce fichier, passer `etat` à `mesure`, renseigner `date` et `source`, puis relancer `node scripts/check-infra-versions.mjs --report`."
   },
   "services": {

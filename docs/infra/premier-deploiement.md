@@ -110,16 +110,64 @@ loin — c'est le seul environnement qui marche.
 
 Toujours sur le serveur :
 
+> ⚠️ **Cette étape a changé de NATURE le 2026-08-21, et c'est le point le plus lourd de ce
+> runbook.** Elle consistait à *relever* le moteur déjà présent. Depuis
+> [ADR-0020](../adr/0020-postgresql-sur-tous-les-environnements.md), le dépôt tourne sur
+> **PostgreSQL 17** sur tous les environnements — et **le serveur, lui, n'en a pas**. Ce qui y
+> était mesuré le 2026-08-13 était `mysql-server 8.0.46-0ubuntu0.24.04.3`. Il ne s'agit donc plus
+> de constater, mais de **provisionner**, et rien de ce dépôt ne le fait à votre place :
+> `server-setup.sh` n'a jamais posé de base de données, ni MySQL hier ni PostgreSQL aujourd'hui.
+
 ```sh
-# La base existe-t-elle, et sur quel moteur ? MESURÉ le 2026-08-13 :
-#   mysql-server 8.0.46-0ubuntu0.24.04.3 · utf8mb4_0900_ai_ci · utf8mb4
-# (le client s'appelle `mysql`, pas `mariadb` — le serveur tourne sur MySQL 8, cf. TCK-289)
-sudo mysql -e "SELECT VERSION(), @@collation_server, @@character_set_server;"
-sudo mysql -e "SHOW DATABASES;" | grep -i takussan
+# 1. Que sert le serveur AUJOURD'HUI ? (mesurer avant de poser quoi que ce soit)
+command -v psql >/dev/null && psql --version || echo 'psql absent'
+systemctl is-active postgresql 2>/dev/null || echo 'postgresql inactif/absent'
+# Pour mémoire, le moteur mesuré le 2026-08-13 et que l'API n'utilise PLUS :
+command -v mysql >/dev/null && sudo mysql -e "SELECT VERSION();" || echo 'mysql absent'
+
+# 2. Poser PostgreSQL 17 + pgvector. L'extension n'est utilisée par AUCUNE table à ce jour ;
+#    elle est posée quand même — ADR-0020 §2 : le motif se refermerait en silence le jour du
+#    chatbot (TCK-344), et ajouter une extension à un serveur qui sert est plus coûteux.
+sudo apt update && sudo apt install -y postgresql-17 postgresql-17-pgvector php8.4-pgsql
+sudo systemctl enable --now postgresql
+
+# 3. Créer le rôle et la base. ⚠ `--locale=C` n'est PAS cosmétique : la collation
+#    DÉTERMINISTE est la décision la plus lourde d'ADR-0020, et le sens de six contraintes
+#    d'unicité sur texte en dépend. Une base créée avec la locale par défaut du serveur les
+#    laisserait passer des doublons sans jamais lever.
+sudo -u postgres createuser --pwprompt takussan_prod
+sudo -u postgres createdb --owner=takussan_prod --encoding=UTF8 \
+     --locale=C --template=template0 takussan_prod
+
+# 4. Vérifier ce qui a RÉELLEMENT été créé — la commande, pas l'intention
+sudo -u postgres psql -Atc \
+  "SELECT datname, datcollate, datctype, pg_encoding_to_char(encoding)
+     FROM pg_database WHERE datname='takussan_prod';"
+# attendu : takussan_prod|C|C|UTF8
+# ⚠ `current_setting('lc_collate')` N'EXISTE PAS en PG 17 : la collation se lit dans
+#   pg_database, jamais dans un paramètre de session.
+
+# 5. L'extension doit être DISPONIBLE ; ne pas la créer tant qu'aucune table ne l'utilise
+sudo -u postgres psql -Atc \
+  "SELECT name, default_version, installed_version FROM pg_available_extensions
+    WHERE name='vector';"
+
+# 6. Le client PHP voit-il le pilote ? Sans `pdo_pgsql`, l'API ne se connecte pas du tout.
+#    `composer.json` le déclare depuis le 2026-08-21 et `deploy.sh` joue
+#    `check-platform-reqs` AVANT le `composer install` : un serveur sans le pilote fait
+#    désormais échouer le déploiement plutôt que de servir une application qui meurt à la
+#    première requête. Cette commande reste utile pour le savoir AVANT de lancer le workflow.
+php -m | grep -E 'pdo_pgsql|pgsql' || echo 'FATAL: pdo_pgsql absent'
 
 # Les répertoires que deploy.sh exige, sinon il sort en FATAL avant le clone
 ls -ld /var/www/takussan/shared /var/www/takussan/shared/storage
 ```
+
+**Ce que ça change pour D-04.** Les deux exécutions de `deploy.yml` du 2026-08-15 sont mortes sur
+`Access denied for user 'takussan_prod'@'localhost'` — une authentification MySQL que personne
+n'a réussi à réparer parce que le journal ne disait pas de quel côté était l'écart (secret périmé,
+compte absent, *grant* manquant : les trois se ressemblent). Cette question **disparaît** : il n'y
+a plus de compte hérité à réparer, il y a un rôle qu'on crée et dont on choisit le mot de passe.
 
 `deploy.sh` s'arrête net, avant tout clone, si `shared/` ou `shared/storage/` manque, ou si le
 `.env` écrit n'a pas d'`APP_KEY=base64:…`.
@@ -144,7 +192,17 @@ Puis, dans le secret `ENV_FILE` de production, s'assurer au minimum de :
 APP_ENV=production
 APP_DEBUG=false
 APP_KEY=base64:…                 # obligatoire — deploy.sh refuse de démarrer sans
-DB_CONNECTION=mysql              # .env.example livre sqlite : il n'est PAS un modèle de prod
+DB_CONNECTION=pgsql              # ADR-0020 (2026-08-21). Écrire `mysql` ici déploie une API
+                                 # qui ne démarre pas : plus aucun code du dépôt ne vise ce
+                                 # moteur, et `config/database.php` a `pgsql` pour défaut.
+DB_HOST=127.0.0.1
+DB_PORT=5432                     # ⚠ 5432, le port CANONIQUE — pas le 5433 des `.env` livrés.
+                                 # Le décalage d'un cran n'existe que pour laisser cohabiter
+                                 # le conteneur du dépôt avec les installations natives brew
+                                 # d'un poste de développement. Sur le serveur, rien à décaler.
+DB_DATABASE=takussan_prod
+DB_USERNAME=takussan_prod
+DB_PASSWORD=…                    # celui choisi au `createuser --pwprompt` de l'étape 1
 SCOUT_DRIVER=meilisearch         # TCK-280
 MEILISEARCH_HOST=http://127.0.0.1:7700
 MEILISEARCH_KEY=…                # LA MÊME que preview : une seule instance sert les deux
@@ -244,9 +302,15 @@ pas avant — c'est ce que dit l'en-tête de `deploy.yml`.
 
 - **TCK-284** — les endpoints derrière `/app/*` n'ont pas de garde `kind` : un `curl` passe. La
   garde `check-pro-routes` l'imprime à chaque exécution.
-- **TCK-289** — ✅ **soldé le 2026-08-13**. Le serveur tourne sur **MySQL 8.0.46**,
+- **TCK-289** — ✅ **soldé le 2026-08-13**. Le serveur tournait sur **MySQL 8.0.46**,
   `utf8mb4_0900_ai_ci` — pas sur MariaDB, contrairement à ce que le compose et la CI supposaient.
-  Corrigé partout, et gardé par `scripts/check-db-engine.mjs`. Reste ouvert : `server-setup.sh`
-  ne pose toujours pas le moteur (délibéré — cf. le ticket).
+  Gardé par `scripts/check-db-engine.mjs`. Reste ouvert : `server-setup.sh` ne pose toujours pas
+  le moteur (délibéré — cf. le ticket).
+
+  > ⚠ **La mesure reste vraie ; la cible a changé le 2026-08-21.** ADR-0020 pose PostgreSQL 17
+  > partout, et `check-db-engine.mjs` a suivi — sa constante s'appelle désormais **`CIBLE` et non
+  > `PROD`**, précisément parce qu'aucune production PostgreSQL n'a été relevée. La leçon de
+  > TCK-289 s'applique donc à elle-même : *ne pas déduire l'état du serveur de la configuration
+  > qui le vise*. Ce que ce runbook demande à l'étape 1 est une **mesure**, pas une confirmation.
 - **TCK-290** — upload du logo d'agence : 403 systématique, aucune `AgencyPolicy`. Aucun test ne
   couvre ce chemin.
