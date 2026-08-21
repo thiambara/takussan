@@ -12,7 +12,6 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Lang;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PropertyResource extends BaseResource
@@ -32,16 +31,16 @@ class PropertyResource extends BaseResource
             'price' => (float) $this->price,
             'currency' => $this->currency?->value,
             'type' => $this->type?->value,
-            'type_label' => $this->translate('type', $this->type?->value),
+            'type_label' => $this->enumLabel($this->type, 'properties.type'),
             'contract_type' => $this->contract_type?->value,
-            'contract_type_label' => $this->translate('contract_type', $this->contract_type?->value),
+            'contract_type_label' => $this->enumLabel($this->contract_type, 'properties.contract_type'),
             'rent_period' => $this->rent_period?->value,
-            'rent_period_label' => $this->translate('rent_period', $this->rent_period?->value),
+            'rent_period_label' => $this->enumLabel($this->rent_period, 'properties.rent_period'),
             'status' => $this->status?->value,
-            'status_label' => $this->translate('status', $this->status?->value),
+            'status_label' => $this->enumLabel($this->status, 'properties.status'),
             'visibility' => $this->visibility?->value,
             'title_type' => $this->title_type?->value,
-            'title_type_label' => $this->translate('title_type', $this->title_type?->value),
+            'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'location' => $this->buildLocation($address),
             'bedrooms' => $this->bedrooms,
             'bathrooms' => $this->bathrooms,
@@ -122,17 +121,6 @@ class PropertyResource extends BaseResource
             'approved_at' => $this->iso($this->approved_at),
             'rejected_at' => $this->iso($this->rejected_at),
         ];
-    }
-
-    private function translate(string $group, ?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-        $key = "properties.{$group}.{$value}";
-        $translation = Lang::get($key, [], 'fr');
-
-        return $translation === $key ? null : $translation;
     }
 
     /**

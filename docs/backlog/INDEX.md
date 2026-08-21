@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**316 tickets** — 8 ouverts, 307 livrés.
+**317 tickets** — 9 ouverts, 307 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 5 |
-| 🚧 Doing | 3 |
+| 🚧 Doing | 4 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 307 |
@@ -44,6 +44,7 @@
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 - [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
+- [TCK-335](tickets/TCK-335-recherche-navigation-defauts-mesures.md) — Recherche & navigation publiques — défauts mesurés de bout en bout `XL · P0 · full`
 
 ## 👀 Review
 

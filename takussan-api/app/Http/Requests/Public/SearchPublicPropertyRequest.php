@@ -18,6 +18,29 @@ class SearchPublicPropertyRequest extends BaseFormRequest
         return true;
     }
 
+    /**
+     * TCK-335 — le front serialise ses booleens avec `String(v)` et envoie donc la
+     * CHAINE « true ». La regle `boolean` de Laravel n'accepte que
+     * true/false/1/0/"1"/"0" : `?furnished=true` rendait 422 — sur le filtre le plus
+     * courant d'un marche locatif, et dans les DEUX sens. On normalise ici plutot que
+     * d'elargir la regle, pour que `?furnished=nimportequoi` continue de rendre 422
+     * au lieu d'etre lu comme `false`.
+     */
+    protected function prepareForValidation(): void
+    {
+        parent::prepareForValidation();
+
+        $furnished = $this->input('furnished');
+
+        if (is_string($furnished)) {
+            $normalise = filter_var($furnished, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            if ($normalise !== null) {
+                $this->merge(['furnished' => $normalise]);
+            }
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -41,7 +64,12 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             'lng_max' => 'nullable|numeric',
             'sort' => 'nullable|in:relevance,price_asc,price_desc,created_desc',
             'floor_number' => 'nullable|integer|min:0|max:200',
-            'available_from' => 'nullable|date|after_or_equal:today',
+            // TCK-335 — `after_or_equal:today` faisait POURRIR toute recherche sauvegardee
+            // et tout lien partage : le jour ou la date passait, l'URL rendait 422, et le
+            // front affichait « 0 bien trouve ». La borne n'a de sens qu'a la SAISIE, pas a
+            // la relecture d'une URL ecrite hier. `date` reste, elle garde le 422 sur
+            // `available_from=not-a-date` (PublicPropertySearchFiltersTest).
+            'available_from' => 'nullable|date',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ];
