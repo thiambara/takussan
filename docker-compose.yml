@@ -110,6 +110,61 @@ services:
       timeout: 3s
       retries: 20
 
+  postgres:
+    # `pgvector/pgvector:pg17`, et surtout PAS `postgres:17`. L'extension `vector` doit
+    # être DISPONIBLE sur tous les environnements dès maintenant, alors même qu'aucune
+    # table ne l'utilise encore (ADR-0020, §2) : le jour où le chatbot arrive, une
+    # instance qui refuse `CREATE EXTENSION vector` se découvre en production, six mois
+    # plus tard, et le motif de la migration se referme en silence.
+    #
+    # Le tag suit les correctifs de la branche 17 sans changer de branche — un passage
+    # en 18 doit rester une décision, pas un effet de bord d'un `docker pull`.
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: takussan
+      POSTGRES_USER: takussan
+      POSTGRES_PASSWORD: takussan
+      # L'encodage et la collation de la base, ÉCRITS plutôt que subis — même règle que
+      # le `--collation-server` que portait MySQL ici : un défaut non écrit est un défaut
+      # qu'on ne remarque pas quand il change.
+      #
+      # `--locale=C` est DÉLIBÉRÉ, et c'est la décision la plus lourde de l'ADR-0020 :
+      # comparaison et tri DÉTERMINISTES, sensibles à la casse et aux accents. On ne
+      # reproduit PAS l'`utf8mb4_0900_ai_ci` de l'ancienne production, et ce n'est pas un
+      # oubli : PostgreSQL REFUSE `LIKE` sur une collation non déterministe, et le dépôt
+      # en compte 21. Reproduire MySQL échangerait un problème visible — une comparaison
+      # devenue sensible à la casse — contre un problème obscur.
+      #
+      # Ce que ça met à découvert est écrit dans l'ADR : six contraintes d'unicité sur
+      # texte changent de sens, et une contrainte qui change de sens ne lève pas
+      # d'erreur — elle laisse passer un doublon en silence.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    ports:
+      # Décalé d'un cran comme les quatre autres (3307 / 7701 / 6380 / 1026) : une
+      # installation brew de PostgreSQL écoute sur 5432, et les deux mondes doivent
+      # cohabiter plutôt que l'un démonte l'autre.
+      #
+      # ⚠ On RÉUTILISE `TAKUSSAN_DB_PORT` plutôt que d'introduire un second nom :
+      # `dev.sh` compare cette variable à `DB_PORT` du `.env` — en 11 endroits — pour
+      # décider si l'environnement vise les conteneurs du dépôt. Une variable neuve
+      # aurait laissé cette comparaison porter sur un port mort, et `./dev.sh doctor`
+      # aurait répondu juste sur une question devenue fausse.
+      - '127.0.0.1:${TAKUSSAN_DB_PORT:-5433}:5432'
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data
+      # Joué UNIQUEMENT à la première création du volume. Sur un volume existant,
+      # rejouer le script à la main : voir l'en-tête de docker/pgsql-init.sql.
+      - ./docker/pgsql-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      # `pg_isready` avec l'utilisateur ET la base : sans eux il interroge la base
+      # `postgres` sous l'utilisateur du conteneur et déclare sain un serveur dont la
+      # base applicative n'est pas encore créée — un `dev.sh` qui démarre l'API sur une
+      # base absente, et c'est la première requête qui meurt.
+      test: ['CMD-SHELL', 'pg_isready -U takussan -d takussan']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   meilisearch:
     # Version alignée sur celle de la CI (`.github/workflows/api-ci.yml`) et sur le
     # contrainte composer `meilisearch/meilisearch-php: ^1.16`. Les trois bougent
@@ -165,5 +220,6 @@ services:
 
 volumes:
   mysql-data:
+  pgsql-data:
   meili-data:
   redis-data:

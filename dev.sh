@@ -60,8 +60,8 @@ avert() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 # ⚠ Le COMMENTAIRE EN LIGNE et les espaces sont retirés — phpdotenv les retire, ce script ne le
 # faisait pas, et l'écart se payait cher.
 #
-# `DB_PORT=3307  # conteneur du dépôt` est un `.env` parfaitement valide : Laravel lit `3307`.
-# Ce script lisait `3307  # conteneur du dépôt`, l'égalité avec `TAKUSSAN_DB_PORT` échouait,
+# `DB_PORT=5433  # conteneur du dépôt` est un `.env` parfaitement valide : Laravel lit `5433`.
+# Ce script lisait `5433  # conteneur du dépôt`, l'égalité avec `TAKUSSAN_DB_PORT` échouait,
 # `VISE_DOCKER` tombait à 0, aucun conteneur n'était démarré, et `php artisan migrate` mourait
 # sur un « Connection refused » — la panne mal imputée que tout ce fichier existe pour
 # supprimer, déclenchée par un commentaire que rien n'interdit d'écrire.
@@ -121,7 +121,7 @@ manquants=0
 #
 # Il y figurait, doublé d'un `docker info` qui posait `manquants=1` : le script sortait donc en
 # 69 sans démon docker, quatre-vingts lignes au-dessus de son propre commentaire « Ce script NE
-# FORCE PAS docker. Un poste peut très bien servir MySQL et Meilisearch nativement (brew) —
+# FORCE PAS docker. Un poste peut très bien servir PostgreSQL et Meilisearch nativement (brew) —
 # c'était le cas de celui où ce fichier a été écrit ». Toute la branche `VISE_DOCKER=0` existe
 # pour ce poste-là, et elle était inatteignable. Pire : `./dev.sh doctor` mourait à la même
 # ligne, alors que deux blocs de ce fichier défendent longuement l'idée qu'il est « le seul mode
@@ -216,7 +216,7 @@ fi
 
 
 # ───────────────────────────────────────────────────────────── quel backing store ?
-# Ce script NE FORCE PAS docker. Un poste peut très bien servir MySQL et Meilisearch
+# Ce script NE FORCE PAS docker. Un poste peut très bien servir PostgreSQL et Meilisearch
 # nativement (brew) — c'était le cas de celui où ce fichier a été écrit — et cette
 # installation-là marche. La question utile n'est donc pas « le .env est-il d'accord
 # avec le compose ? » mais **« ce que le .env déclare répond-il, et qui répond ? »**.
@@ -245,7 +245,7 @@ if [ -f "$ROOT/.env" ]; then
   # `|| [ -n "$ligne" ]` : sans lui, un fichier dont la DERNIÈRE ligne n'a pas de retour chariot
   # — ce que produit un `printf`, un here-string, ou certains éditeurs — la perd entièrement.
   # Mesuré : un `.env` de racine réduit à `TAKUSSAN_DB_PORT=3308` sans newline finale se lit
-  # comme ZÉRO ligne. `TAKUSSAN_DB_PORT` reste alors indéfini, le défaut 3307 s'applique face à
+  # comme ZÉRO ligne. `TAKUSSAN_DB_PORT` reste alors indéfini, le défaut 5433 s'applique face à
   # un `DB_PORT=3308`, `VISE_DOCKER` tombe à 0 — et le refus explicite posé plus bas est sauté
   # lui aussi, puisqu'il exige que la variable soit définie. Aucun conteneur ne démarre, tandis
   # que `docker compose` lit le MÊME fichier et publierait bien 3308.
@@ -281,7 +281,7 @@ MEILI_HOST_ENV="$(env_get "$API/.env" MEILISEARCH_HOST)"
 # Le `.env` vise-t-il les conteneurs de ce dépôt ? On le déduit du port de la base :
 # c'est le seul service dont le port ne peut pas être partagé par accident.
 VISE_DOCKER=0
-if [ "$DB_PORT_ENV" = "${TAKUSSAN_DB_PORT:-3307}" ]; then VISE_DOCKER=1; fi
+if [ "$DB_PORT_ENV" = "${TAKUSSAN_DB_PORT:-5433}" ]; then VISE_DOCKER=1; fi
 
 # Un `.env` de racine qui SURCHARGE un port est une intention explicite de viser les conteneurs.
 # S'il désaccorde avec `takussan-api/.env`, c'est une faute de frappe, pas un choix — et la faire
@@ -293,7 +293,7 @@ if [ "$DB_PORT_ENV" = "${TAKUSSAN_DB_PORT:-3307}" ]; then VISE_DOCKER=1; fi
 # vérifie et refuse de démarrer sur un désaccord ». Cette promesse n'était tenue par rien.
 if [ "$VISE_DOCKER" = "0" ] && [ -n "${TAKUSSAN_DB_PORT:-}" ] && [ -n "$DB_PORT_ENV" ]; then
   bold "▸ Ports incohérents"
-  ko "le .env de la racine publie MySQL sur ${TAKUSSAN_DB_PORT}, takussan-api/.env lit DB_PORT=${DB_PORT_ENV}."
+  ko "le .env de la racine publie PostgreSQL sur ${TAKUSSAN_DB_PORT}, takussan-api/.env lit DB_PORT=${DB_PORT_ENV}."
   echo "     Le .env de la racine surcharge un port du compose : c'est une intention de viser" >&2
   echo "     les conteneurs. Aligne DB_PORT dans takussan-api/.env, ou retire la surcharge." >&2
   echo "     (Sans ce refus, aucun conteneur n'aurait été démarré et 'migrate' serait mort sur" >&2
@@ -321,7 +321,7 @@ fi
 #
 # Un mode « diagnostic » qui modifie l'état qu'il observe n'est pas un diagnostic.
 if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "services" ]; }; then
-  bold "▸ Services docker (MySQL, Meilisearch, Redis, Mailpit)"
+  bold "▸ Services docker (PostgreSQL, Meilisearch, Redis, Mailpit)"
   # C'est ICI, et seulement ici, que docker est indispensable : on y entre parce que le `.env`
   # vise les conteneurs, ou parce que l'utilisateur les a demandés explicitement.
   if [ "$DOCKER_OK" != "1" ]; then
@@ -332,7 +332,7 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
   fi
   docker compose -f "$ROOT/docker-compose.yml" up -d
 
-  # On attend la SANTÉ, pas le démarrage : un conteneur « Up » dont MySQL initialise
+  # On attend la SANTÉ, pas le démarrage : un conteneur « Up » dont PostgreSQL initialise
   # encore son volume refuse les connexions, et `php artisan migrate` échoue sur une
   # course qu'on rejoue trois fois avant de comprendre.
   # On COMPTE les `healthy`, on ne se contente pas de l'absence de mauvaise nouvelle.
@@ -375,7 +375,7 @@ if [ "$MODE" != "doctor" ] && { [ "$VISE_DOCKER" = "1" ] || [ "$MODE" = "service
     printf '\n'
     ko "les services ne sont pas prêts après 120 s (${sains:-0}/$ATTENDUS sains) — rien n'a été lancé."
     echo "     'docker compose logs --tail=40' dira lequel bloque." >&2
-    echo "     Une première création du volume MySQL peut dépasser ce délai : relancer suffit." >&2
+    echo "     Une première création du volume PostgreSQL peut dépasser ce délai : relancer suffit." >&2
     exit 75
   fi
 elif [ "$MODE" = "doctor" ] && [ "$VISE_DOCKER" = "1" ] && [ "$DOCKER_OK" != "1" ]; then
@@ -457,8 +457,8 @@ sonde_tcp() {
 #   · `takussan-api/.env` est IGNORÉ PAR GIT : aucun fichier de ce dépôt ne peut
 #     corriger l'écart, et aucune revue ne peut le voir.
 #
-# Ce que le dépôt provisionne (docker-compose.yml : MySQL 8.0 — le moteur MESURÉ en
-# production le 2026-08-13 —, Meilisearch, Redis, Mailpit) n'est alors PAS ce que
+# Ce que le dépôt provisionne (docker-compose.yml : PostgreSQL 17 avec pgvector —
+# ADR-0020 —, Meilisearch, Redis, Mailpit) n'est alors PAS ce que
 # l'API utilise. Le moteur de base peut différer, l'index Meilisearch est celui d'un
 # autre projet, et le courrier de développement part dans le vide.
 #
@@ -501,12 +501,24 @@ if [ ! -f "$API/.env" ]; then
 else
 bold "▸ Ce que takussan-api/.env déclare, et qui répond"
 DB_CONNECTION_ENV="$(env_get "$API/.env" DB_CONNECTION)"
-if [ "$DB_CONNECTION_ENV" = "sqlite" ]; then
-  avert "DB_CONNECTION=sqlite — la production tourne sur MySQL 8.0 (mesuré le 2026-08-13)."
-  avert "  Les quatre pièges MySQL documentés dans CLAUDE.md sont INVISIBLES sur SQLite."
+# Depuis ADR-0020, il n'y a plus qu'UN moteur : PostgreSQL, sur tous les environnements,
+# suite de tests comprise. Tout autre `DB_CONNECTION` est un écart, pas une variante —
+# et il ne produit AUCUNE erreur lisible : l'application démarre, les migrations passent
+# peut-être, et c'est un comportement de comparaison de chaînes ou une fonction SQL
+# absente qui diverge, des semaines plus tard.
+if [ "$DB_CONNECTION_ENV" != "pgsql" ]; then
+  avert "DB_CONNECTION=$DB_CONNECTION_ENV — le dépôt tourne sur PostgreSQL 17 (ADR-0020)."
+  avert "  SQLite et MySQL ont été RETIRÉS : ils ne sont plus une variante supportée, et"
+  avert "  rien ne rougira si tu restes dessus — c'est précisément pourquoi c'est dit ici."
+  avert "  Pour t'aligner : cp takussan-api/.env.docker takussan-api/.env"
 else
   sonde_tcp "Base ($DB_CONNECTION_ENV)" "$(env_get "$API/.env" DB_HOST)" "$DB_PORT_ENV"
-  ecart_port_natif "MySQL" "$DB_PORT_ENV" "${TAKUSSAN_DB_PORT:-3307}" "3306"
+  # Le cas inverse, celui qui ne rougit JAMAIS : un `.env` qui vise :5432, le port
+  # canonique, servi par une installation brew de PostgreSQL. Tout répond — et rien de
+  # ce que docker-compose.yml garantit ne s'applique : ni la version 17, ni `--locale=C`
+  # (dont dépend le sens des six contraintes d'unicité sur texte), ni la disponibilité
+  # de pgvector. Le rattrapage de D-48, transposé du port 3306 au port 5432.
+  ecart_port_natif "PostgreSQL" "$DB_PORT_ENV" "${TAKUSSAN_DB_PORT:-5433}" "5432"
 fi
 
 SCOUT_ENV="$(env_get "$API/.env" SCOUT_DRIVER)"
@@ -577,7 +589,7 @@ if [ "$NB_ECARTS_NATIFS" -gt 0 ]; then
   avert "  Tous répondent : c'est pour cela que rien d'autre ne le signale. Mais ce que le dépôt"
   avert "  provisionne n'est alors pas ce que l'API utilise — autre moteur de base possible,"
   avert "  index Meilisearch partagé avec un autre projet, courrier hors de Mailpit."
-  avert "  Le décalage des ports (3307 / 7701 / 6380 / 1026) est DÉLIBÉRÉ : il rend les deux"
+  avert "  Le décalage des ports (5433 / 7701 / 6380 / 1026) est DÉLIBÉRÉ : il rend les deux"
   avert "  mondes simultanés. Un .env hérité qui vise les ports canoniques rate donc le dépôt."
   avert "  takussan-api/.env est ignoré par git : ce diagnostic est le seul endroit où l'écart"
   avert "  peut se voir. Pour basculer sur les conteneurs du dépôt :"
@@ -590,7 +602,7 @@ if [ "$MODE" = "services" ]; then
   echo
   lien "Mailpit (courrier de dev)" "http://localhost:${TAKUSSAN_MAILPIT_UI_PORT:-8026}"
   lien "Meilisearch" "http://127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}"
-  echo "  MySQL 127.0.0.1:${TAKUSSAN_DB_PORT:-3307} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
+  echo "  PostgreSQL 127.0.0.1:${TAKUSSAN_DB_PORT:-5433} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
   exit 0
 fi
 
@@ -844,7 +856,7 @@ lien "API (Laravel)" "http://127.0.0.1:$API_PORT/api"
 # faisant chercher une panne dans un panel qui n'existe plus.
 lien "Mailpit (courrier de dev)" "http://localhost:${TAKUSSAN_MAILPIT_UI_PORT:-8026}"
 lien "Meilisearch" "http://127.0.0.1:${TAKUSSAN_MEILI_PORT:-7701}"
-echo "  MySQL 127.0.0.1:${TAKUSSAN_DB_PORT:-3307} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
+echo "  PostgreSQL 127.0.0.1:${TAKUSSAN_DB_PORT:-5433} · Redis 127.0.0.1:${TAKUSSAN_REDIS_PORT:-6380}"
 echo "  File de jobs (queue:work) et scheduler (schedule:work) actifs"
 echo
 

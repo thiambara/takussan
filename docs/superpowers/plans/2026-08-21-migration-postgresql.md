@@ -228,13 +228,16 @@ ALTER ROLE takussan CREATEDB;
 ```bash
 docker compose up -d postgres
 docker compose ps postgres
-docker compose exec postgres psql -U takussan -d takussan -c \
-  "SELECT version(), current_setting('lc_collate'), current_setting('server_encoding');"
+# ⚠ PAS `current_setting('lc_collate')` : ce paramètre n'existe plus à l'exécution en
+# PostgreSQL 17 (« unrecognized configuration parameter »). La collation est une
+# propriété de la BASE, elle se lit dans `pg_database`.
+docker compose exec -T postgres psql -U takussan -d takussan -tAc \
+  "SELECT current_setting('server_version'), datcollate, datctype, pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database();"
 docker compose exec postgres psql -U takussan -d takussan -c \
   "SELECT rolcreatedb FROM pg_roles WHERE rolname = 'takussan';"
 ```
 
-Attendu : PostgreSQL 17.x · `lc_collate` = `C` · `server_encoding` = `UTF8` · `rolcreatedb` = `t`.
+Attendu : `17.x|C|C|UTF8` (mesuré le 2026-08-21 : `17.11 (Debian 17.11-1.pgdg12+2)|C|C|UTF8`) et `rolcreatedb` = `t`.
 
 - [ ] **Étape 4 — Vérifier que pgvector est bien disponible** *(sans l'installer)*
 
