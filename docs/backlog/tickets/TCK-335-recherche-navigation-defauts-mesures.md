@@ -1,7 +1,7 @@
 ---
 id: TCK-335
 title: "Recherche & navigation publiques — défauts mesurés de bout en bout"
-status: doing
+status: done
 phase: P0
 family: full
 estimate: XL

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**323 tickets** — 15 ouverts, 307 livrés.
+**323 tickets** — 14 ouverts, 308 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 11 |
-| 🚧 Doing | 4 |
+| 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 307 |
+| ✅ Done | 308 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -50,7 +50,6 @@
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
 - [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 - [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
-- [TCK-335](tickets/TCK-335-recherche-navigation-defauts-mesures.md) — Recherche & navigation publiques — défauts mesurés de bout en bout `XL · P0 · full`
 
 ## 👀 Review
 
@@ -62,7 +61,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 307
+## ✅ Done — 308
+
+<details>
+<summary><strong>Vague 42 — Recherche & navigation publiques — audit du 2026-08-21</strong> — 1 ticket</summary>
+
+- [TCK-335](tickets/TCK-335-recherche-navigation-defauts-mesures.md) — Recherche & navigation publiques — défauts mesurés de bout en bout `XL · P0 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 5 tickets</summary>
