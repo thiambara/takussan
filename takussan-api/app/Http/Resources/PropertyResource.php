@@ -24,39 +24,71 @@ class PropertyResource extends BaseResource
         $address = $this->resource->relationLoaded('address') ? $this->resource->address : null;
 
         return [
-            'id' => $this->id,
-            'reference_number' => $this->reference_number,
-            'title' => $this->title,
-            'slug' => $this->slug,
-            'price' => (float) $this->price,
-            'currency' => $this->currency?->value,
-            'type' => $this->type?->value,
+            // TCK-336 — `whenHas`, et surtout PAS un accès nu, sur TOUTE clé adossée à une
+            // COLONNE. Ces endpoints passent par `Property::buildQuery()`, donc par
+            // `fields[properties]=…` de spatie, qui restreint le SELECT — y compris celui
+            // d'un `include=property` imbriqué (mesuré : une Booking incluse avec
+            // `fields[properties]=id,title,slug,price,currency` rend un modèle à 5 colonnes).
+            // Un accès nu sur une colonne non sélectionnée ne rend pas « inconnu » : Eloquent
+            // rend `null`, et les casts d'ici transformaient ce `null` en VALEUR MESUREE —
+            // `price => 0`, `furnished => false`, `featured => false`, `views_count => 0`,
+            // `favorites_count => 0`. Un bien à 0 F CFA, non meublé, jamais consulté : six
+            // affirmations sur des colonnes dont la requête n'a rien lu.
+            //
+            // `whenHas` teste `array_key_exists(...getAttributes())` : une colonne
+            // SELECTIONNEE qui vaut `null` reste donc émise à `null` — la distinction porte sur
+            // « lue ou pas », jamais sur « nulle ou pas ». Même règle que
+            // `UserResource::has_usable_password` (TCK-272) et que
+            // `PaymentGatewayService::paymentAmount()` (ardoise D-51).
+            //
+            // ⚠ Les clés DÉRIVÉES restent inconditionnelles, et ce n'est pas un oubli :
+            // `location`, `main_photo_url`, les cinq `*_label`, `photos`, `tags`,
+            // `media_extra`, `average_rating`, `reviews_count`, `price_history`, `documents`
+            // et les relations d'`include=` ne sont PAS des colonnes — elles ne peuvent pas
+            // figurer dans `fields[properties]` (spatie rend 400 `InvalidFieldQuery`) et donc
+            // aucun appelant ne peut les demander. Les gager sur `fields[]` les ferait
+            // disparaître chez des appelants qui les affichent. L'arbitrage est posé dans
+            // ADR-0021.
+            //
+            // *Une clé absente se remarque ; une clé fausse se croit.*
+            'id' => $this->whenHas('id'),
+            'reference_number' => $this->whenHas('reference_number'),
+            'title' => $this->whenHas('title'),
+            'slug' => $this->whenHas('slug'),
+            'price' => $this->whenHas('price', fn ($valeur) => (float) $valeur),
+            'currency' => $this->whenHas('currency', fn ($valeur) => $valeur?->value),
+            'type' => $this->whenHas('type', fn ($valeur) => $valeur?->value),
             'type_label' => $this->enumLabel($this->type, 'properties.type'),
-            'contract_type' => $this->contract_type?->value,
+            'contract_type' => $this->whenHas('contract_type', fn ($valeur) => $valeur?->value),
             'contract_type_label' => $this->enumLabel($this->contract_type, 'properties.contract_type'),
-            'rent_period' => $this->rent_period?->value,
+            'rent_period' => $this->whenHas('rent_period', fn ($valeur) => $valeur?->value),
             'rent_period_label' => $this->enumLabel($this->rent_period, 'properties.rent_period'),
-            'status' => $this->status?->value,
+            'status' => $this->whenHas('status', fn ($valeur) => $valeur?->value),
             'status_label' => $this->enumLabel($this->status, 'properties.status'),
-            'visibility' => $this->visibility?->value,
-            'title_type' => $this->title_type?->value,
+            'visibility' => $this->whenHas('visibility', fn ($valeur) => $valeur?->value),
+            'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
             'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'location' => $this->buildLocation($address),
-            'bedrooms' => $this->bedrooms,
-            'bathrooms' => $this->bathrooms,
-            'area' => $this->area,
-            'floor_number' => $this->floor_number,
-            'total_floors' => $this->total_floors,
-            'year_built' => $this->year_built,
-            'parking_spaces' => $this->parking_spaces,
-            'furnished' => (bool) $this->furnished,
-            'featured' => (bool) $this->featured,
-            'views_count' => (int) ($this->views_count ?? 0),
-            'favorites_count' => (int) ($this->favorites_count ?? 0),
+            'bedrooms' => $this->whenHas('bedrooms'),
+            'bathrooms' => $this->whenHas('bathrooms'),
+            'area' => $this->whenHas('area'),
+            'floor_number' => $this->whenHas('floor_number'),
+            'total_floors' => $this->whenHas('total_floors'),
+            'year_built' => $this->whenHas('year_built'),
+            'parking_spaces' => $this->whenHas('parking_spaces'),
+            'furnished' => $this->whenHas('furnished', fn ($valeur) => (bool) $valeur),
+            'featured' => $this->whenHas('featured', fn ($valeur) => (bool) $valeur),
+            // ⚠ `views_count` / `favorites_count` restent dans la FORME LISTE, et c'est mesuré :
+            // `DASHBOARD_PROPERTY_FIELDS` (`takussan-web/src/lib/queries/properties-server.ts`)
+            // les demande explicitement, et `PropertyList.tsx` les rend dans chaque ligne du
+            // tableau de bord agent (lignes 267/272 en carte, 405/409 en tableau). Les passer
+            // derrière `$isDetail` viderait cette colonne sans erreur TypeScript ni test rouge.
+            'views_count' => $this->whenHas('views_count', fn ($valeur) => (int) ($valeur ?? 0)),
+            'favorites_count' => $this->whenHas('favorites_count', fn ($valeur) => (int) ($valeur ?? 0)),
             'average_rating' => $this->when($isDetail, fn () => $this->computeAverageRating()),
             'reviews_count' => $this->when($isDetail, fn () => $this->computeReviewsCount()),
             'main_photo_url' => ($m = $this->getFirstMedia('photos')) ? $this->urlFor($m, 'preview') : null,
-            'description' => $this->when($isDetail, $this->description),
+            'description' => $this->when($isDetail, fn () => $this->whenHas('description')),
             'photos' => $this->when(
                 $isDetail,
                 fn () => $this->getMedia('photos')->values()->map(fn (Media $media, int $index) => [
@@ -112,8 +144,8 @@ class PropertyResource extends BaseResource
             ),
             'documents' => $this->when($isDetail, fn () => $this->buildDocuments()),
             'price_history' => $this->when($isDetail, fn () => $this->buildPriceHistory()),
-            'published_at' => $this->iso($this->published_at),
-            'created_at' => $this->iso($this->created_at),
+            'published_at' => $this->whenHas('published_at', fn ($valeur) => $this->iso($valeur)),
+            'created_at' => $this->whenHas('created_at', fn ($valeur) => $this->iso($valeur)),
             // TCK-098 — moderation fields, so the agent dashboard can render the
             // status banner without a second round-trip. TCK-335 — that dashboard
             // is rendered from an AUTHENTICATED session, so gating them on
@@ -125,10 +157,22 @@ class PropertyResource extends BaseResource
             // `NON_PUBLIC_STATUSES`) — 8.5% of the search payload, and a needless
             // disclosure of the moderation machinery. Absent, not null: a missing
             // key gets noticed, a null one gets believed.
-            'rejection_reason' => $this->when($request->user() !== null, fn () => $this->rejection_reason),
-            'submitted_at' => $this->when($request->user() !== null, fn () => $this->iso($this->submitted_at)),
-            'approved_at' => $this->when($request->user() !== null, fn () => $this->iso($this->approved_at)),
-            'rejected_at' => $this->when($request->user() !== null, fn () => $this->iso($this->rejected_at)),
+            'rejection_reason' => $this->when(
+                $request->user() !== null,
+                fn () => $this->whenHas('rejection_reason'),
+            ),
+            'submitted_at' => $this->when(
+                $request->user() !== null,
+                fn () => $this->whenHas('submitted_at', fn ($valeur) => $this->iso($valeur)),
+            ),
+            'approved_at' => $this->when(
+                $request->user() !== null,
+                fn () => $this->whenHas('approved_at', fn ($valeur) => $this->iso($valeur)),
+            ),
+            'rejected_at' => $this->when(
+                $request->user() !== null,
+                fn () => $this->whenHas('rejected_at', fn ($valeur) => $this->iso($valeur)),
+            ),
         ];
     }
 

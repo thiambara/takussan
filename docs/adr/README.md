@@ -45,6 +45,8 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0017](0017-deploiement-du-front-pilote-par-vercel.md) | Le déploiement du front reste piloté par Vercel ; le dépôt le relève et le garde | Accepté |
 | [0018](0018-format-des-dates-sur-le-fil.md) | L'API émet deux types de date : instant `…T12:34:56+00:00`, date calendaire `YYYY-MM-DD` | Accepté |
 | [0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) | L'erreur d'API porte un code, la surface de rendu porte le texte | Accepté |
+| [0020](0020-recherche-publique-conjonctive-avec-repli-nomme.md) | La recherche publique exige tous les termes, et nomme ce qu'elle a dû relâcher | Accepté |
+| [0021](0021-sparse-fieldsets-au-niveau-ressource.md) | `fields[]` désigne des colonnes ; une ressource n'invente pas ce qu'elle n'a pas lu | Proposé |
 
 ## Décisions recensées, pas encore rédigées
 

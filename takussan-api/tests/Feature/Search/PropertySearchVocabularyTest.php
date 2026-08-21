@@ -186,40 +186,61 @@ class PropertySearchVocabularyTest extends TestCase
         }
     }
 
-    public function test_une_phrase_en_francais_courant_classe_le_bon_bien_en_tete(): void
+    /**
+     * TCK-338 — CE TEST A CHANGÉ DE SENS, et il faut lire pourquoi avant de
+     * lire ses chiffres.
+     *
+     * Sa version TCK-335 assertait `total === 2` sur les deux requêtes, et
+     * portait un avertissement en tête : *« ce que ce test ne prouve pas : le
+     * TOTAL reste invariant »*. C'était exact, et c'était le défaut de tête de
+     * l'audit — `q=villa Saly` rendait les mêmes 63 résultats que `q=villa`.
+     * L'étape 8 ne pouvait alors mesurer que le CLASSEMENT.
+     *
+     * Depuis ADR-0020, ce total vaut **1**, sur les deux requêtes. **Ce n'est
+     * pas une régression, c'est la propriété qu'on voulait** : la phrase
+     * RESTREINT désormais, elle ne se contente plus de classer. Les deux
+     * villas du corpus ne diffèrent que par leur contrat, et rien dans leur
+     * texte ne le dit — la seule voie possible reste `contract_label`.
+     *
+     * Ce que ce test épingle donc maintenant, et que ni TCK-335 ni TCK-338 ne
+     * tiennent seuls :
+     *
+     *  - `contract_label` (TCK-335) : sans lui, le mot « louer » n'atteint
+     *    aucune des deux villas et `all` rend **0** au lieu de 1 ;
+     *  - `stopWords` (TCK-335) : sans eux, « une » et « à » deviennent des
+     *    termes exigés, qu'aucun bien ne porte, et `all` rend **0** ;
+     *  - `matchingStrategy: 'all'` (TCK-338) : sans lui, les deux requêtes
+     *    rendent **2**, c'est-à-dire les deux villas, et le mot d'intention ne
+     *    sert plus qu'à les ordonner.
+     *
+     * Les trois leviers ne se valident qu'ENSEMBLE — c'est la seule chose que
+     * la section « Contraintes strictes » du ticket avait vue juste.
+     */
+    public function test_une_phrase_en_francais_courant_restreint_au_bon_contrat(): void
     {
         $this->semerLeCorpus();
         $this->indexProperties();
 
-        // ⚠ CE QUE CE TEST NE PROUVE PAS, et il faut le dire avant de le lire :
-        // le TOTAL reste invariant. La règle `words` de Meilisearch retire les
-        // termes qui ne matchent pas au lieu d'exclure les documents — c'est le
-        // constat de tête de l'audit (`q=villa Saly` rendait les mêmes 63
-        // résultats que `q=villa`), et le vocabulaire injecté à l'indexation
-        // ne le referme PAS. Convertir « Saly » en `city=Saly` ou « à louer »
-        // en `contract_type=rent` est une analyse d'intention AMONT, hors du
-        // périmètre de l'étape 8.
-        //
-        // Ce que l'étape 8 change, et qui est mesurable ici : le CLASSEMENT.
-        // Le corpus porte deux villas, une par contrat, et rien dans leur
-        // texte ne dit le contrat. Avant `contract_label`, les deux étaient
-        // rigoureusement à égalité sur les deux requêtes.
         $toutesLesVillas = $this->service()->search(['q' => 'villa']);
         $this->assertSame(2, $toutesLesVillas['meta']['total']);
 
         $aLouer = $this->service()->search(['q' => 'une villa à louer']);
-        $this->assertSame(2, $aLouer['meta']['total']);
-        $this->assertSame(
-            $this->biens['location_villa']->id,
-            $this->idsRendus($aLouer, trier: false)[0],
-        );
+        $this->assertSame(1, $aLouer['meta']['total']);
+        $this->assertSame($this->idsAttendus('location_villa'), $this->idsRendus($aLouer));
+        // Le régime NOMINAL, pas le repli : la conjonction aboutit d'elle-même.
+        // Sans cette assertion, un repli qui se déclencherait à tort rendrait
+        // le même ensemble avec la mauvaise étiquette.
+        $this->assertSame('all', $aLouer['search']['strategy']);
 
         $aVendre = $this->service()->search(['q' => 'une villa à vendre']);
-        $this->assertSame(2, $aVendre['meta']['total']);
-        $this->assertSame(
-            $this->biens['vente_villa']->id,
-            $this->idsRendus($aVendre, trier: false)[0],
-        );
+        $this->assertSame(1, $aVendre['meta']['total']);
+        $this->assertSame($this->idsAttendus('vente_villa'), $this->idsRendus($aVendre));
+        $this->assertSame('all', $aVendre['search']['strategy']);
+
+        // Et les deux ensembles sont bien DISJOINTS : la villa en vente ne
+        // sort pas sur « à louer », et réciproquement. C'est ce qu'un
+        // classement seul ne pouvait pas garantir.
+        $this->assertNotSame($this->idsRendus($aLouer), $this->idsRendus($aVendre));
     }
 
     public function test_meuble_atteint_exactement_les_biens_meubles(): void
