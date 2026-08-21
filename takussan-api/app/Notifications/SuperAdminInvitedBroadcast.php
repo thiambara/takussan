@@ -2,8 +2,10 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\NotificationType;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Notifications\Channels\AppDatabaseChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -48,6 +50,24 @@ class SuperAdminInvitedBroadcast extends Notification implements ShouldQueue
                 'email' => $targetEmail,
             ]))
             ->salutation(__('notifications.salutation'));
+    }
+
+    /**
+     * Le feed in-app (`app_notifications`) exige un `type` et un `title` ; le
+     * `toArray()` de cette classe n'en porte pas. On les déclare donc ici plutôt que
+     * de les laisser deviner — {@see AppDatabaseChannel}.
+     *
+     * @return array{type: NotificationType, title: string, data: array<string,mixed>}
+     */
+    public function toAppNotification(object $notifiable): array
+    {
+        return [
+            'type' => NotificationType::System,
+            'title' => __('super_admins.cooptation.notifications.invited.subject', [
+                'email' => $this->invitation->email,
+            ]),
+            'data' => $this->toArray($notifiable),
+        ];
     }
 
     /** @return array<string,mixed> */

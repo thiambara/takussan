@@ -211,4 +211,8 @@ return [
         'next_steps' => 'Moo man laa laaj waat bu bees su dëkku bi dafa am.',
         'unknown_property' => 'Dëkku bu xamul',
     ],
+
+    'threshold_alert' => [
+        'title' => 'Yëgle KPI — :metric',
+    ],
 ];

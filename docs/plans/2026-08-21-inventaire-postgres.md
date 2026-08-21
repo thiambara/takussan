@@ -49,11 +49,36 @@ Aucune n'est du DDL. Aucune n'est du SQL exotique.
 | | Cause | Tests | Ce que ça révélait |
 |---|---|---|---|
 | 1 | `lockForUpdate()` sur un agrégat (`SQLSTATE[0A000]`) | 11 | 4 sites. Le verrou ne fermait **aucune** des courses qu'il visait — verrouiller les lignes existantes ne voit pas un INSERT concurrent. MySQL le faisait par un verrou d'intervalle, effet de bord jamais écrit ici. |
-| 2 | La table `notifications` n'existe pas (`42P01`, puis cascade `25P02`) | 4 | **29 classes de notification écrivaient dans le vide, en production aussi.** L'exception était avalée ; SQLite et MySQL laissaient continuer. |
+| 2 | La table `notifications` n'existe pas (`42P01`, puis cascade `25P02`) | 4 | **29 classes de notification écrivaient dans le vide, en production aussi.** L'exception était avalée ; SQLite et MySQL laissaient continuer. ⚠ *Le premier correctif — créer la table — a été RÉVOQUÉ le 2026-08-21 : il contredisait une décision de `models-spec.md` §12 datée du 2026-04-13. Voir l'encart ci-dessous.* |
 | 3 | `ORDER BY properties_count is ambiguous` (`42702`) | 1 | Deux colonnes homonymes — une vraie colonne dénormalisée et l'alias d'un `withCount`. Le moteur choisissait, en silence. |
 | 4 | Trois défauts isolés (`22001`, unique-catch, id en dur) | 1+ | Une longueur de `VARCHAR` non appliquée par SQLite, une exception attendue dans le cas nominal, un identifiant écrit en dur dans une clé de cache. |
 
 **Détail complet et raisonnement** : commit `42ca9ce0`.
+
+> #### ⚠ La cause n°2 a d'abord été mal corrigée — révoqué le 2026-08-21
+>
+> Le correctif initial créait la table `notifications` de Laravel. **Il était faux, et il l'était
+> contre une décision explicite** : `docs/models-spec.md` §12 tranche depuis le **2026-04-13** une
+> « approche hybride : table applicative propre, **distincte de la table `notifications` de
+> Laravel** ». `app_notifications` porte le feed, et c'est la seule table que
+> `GET /api/notifications` lit (`NotificationController:14`).
+>
+> Créer la table transformait donc une **perte silencieuse** en **stockage mort** : 24 classes
+> vivantes écrivant dans une table qu'aucun lecteur — ni back, ni front — n'interroge.
+>
+> Le vrai trou était ailleurs, et la spec le nommait déjà : elle annonçait un canal `app_database`
+> enregistré via `ChannelManager::extend()`, **qui n'a jamais été écrit**. La migration est
+> supprimée ; `App\Notifications\Channels\AppDatabaseChannel` prend la place du canal natif
+> `database` et écrit dans `app_notifications`.
+>
+> **Ce que ça apprend sur la méthode, pas sur PostgreSQL** : la migration a bien trouvé le défaut,
+> et la première correction a été écrite sans chercher si le point avait déjà été tranché. Le
+> docblock de la migration affirmait même que « la question n'est pas tranchée ici ». Elle l'était
+> depuis quatre mois. *Mesurer plutôt que déduire vaut aussi pour les décisions : une décision se
+> cherche dans les specs avant d'être reprise.*
+>
+> Vérifié par ablation : sans l'enregistrement du canal, `AppDatabaseChannelTest` rougit sur le
+> `25P02` d'origine. Suite entière après correctif : **2673 passés, 0 échec, 636 s**.
 
 ### Le résultat qui n'était pas prévisible
 

@@ -2,7 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\NotificationType;
 use App\Models\User;
+use App\Notifications\Channels\AppDatabaseChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -32,21 +34,42 @@ class SuperAdminAcceptedBroadcast extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $name = trim(($this->newSuperAdmin->first_name ?? '').' '.($this->newSuperAdmin->last_name ?? ''));
-        if ($name === '') {
-            $name = (string) $this->newSuperAdmin->email;
-        }
-
         return (new MailMessage)
             ->subject(__('super_admins.cooptation.notifications.accepted.subject', [
-                'name' => $name,
+                'name' => $this->nomAffiche(),
             ]))
             ->greeting(__('notifications.salutation'))
             ->line(__('super_admins.cooptation.notifications.accepted.body', [
-                'name' => $name,
+                'name' => $this->nomAffiche(),
                 'email' => $this->newSuperAdmin->email,
             ]))
             ->salutation(__('notifications.salutation'));
+    }
+
+    /** Nom complet du nouveau super-admin, ou son e-mail à défaut. */
+    private function nomAffiche(): string
+    {
+        $name = trim(($this->newSuperAdmin->first_name ?? '').' '.($this->newSuperAdmin->last_name ?? ''));
+
+        return $name !== '' ? $name : (string) $this->newSuperAdmin->email;
+    }
+
+    /**
+     * Le feed in-app (`app_notifications`) exige un `type` et un `title` ; le
+     * `toArray()` de cette classe n'en porte pas. On les déclare donc ici plutôt que
+     * de les laisser deviner — {@see AppDatabaseChannel}.
+     *
+     * @return array{type: NotificationType, title: string, data: array<string,mixed>}
+     */
+    public function toAppNotification(object $notifiable): array
+    {
+        return [
+            'type' => NotificationType::System,
+            'title' => __('super_admins.cooptation.notifications.accepted.subject', [
+                'name' => $this->nomAffiche(),
+            ]),
+            'data' => $this->toArray($notifiable),
+        ];
     }
 
     /** @return array<string,mixed> */
