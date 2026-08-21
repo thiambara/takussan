@@ -124,88 +124,88 @@ faux. Deux intentions guident les choix front :
 - [x] `web-ci.yml` déclenche sur les deux fichiers PHP lus par la garde
 - [x] `searchFiltersSchema` supprimé — 18 clés contre 20, aucun consommateur de production
 
-### Étape 3 — anti-rebond de saisie
+### Étape 3 — anti-rebond de saisie  ✅ LIVRÉE
 
 **L'emplacement est imposé, et les deux autres sont interdits par mesure.**
 
-- [ ] `src/hooks/useDebouncedValue.ts` + `useDebouncedCallback(fn, ms) → { call, flush, cancel }`,
+- [x] `src/hooks/useDebouncedValue.ts` + `useDebouncedCallback(fn, ms) → { call, flush, cancel }`,
       extraits de la copie locale de `useSuggest.ts` ; `useSuggest` devient le premier appelant
-- [ ] `FilterSidebar` : brouillon **local** par champ, resynchronisé par `useStateSyncedWith`
+- [x] `FilterSidebar` : brouillon **local** par champ, resynchronisé par `useStateSyncedWith`
       (hook existant, TCK-316). **Jamais** dans `useSearch` (5 aller-retours RSC subsistent),
       **jamais** sur `router.replace` (l'input est contrôlé par l'URL : `restoreStateOfTarget` du
       `react-dom` du dépôt réécrit le DOM à l'ancienne valeur, **le caractère frappé disparaît**)
-- [ ] champs libres : 400 ms, délai injectable en prop `debounceMs` ; **bornes numériques : commit
+- [x] champs libres : 400 ms, délai injectable en prop `debounceMs` ; **bornes numériques : commit
       au `blur` et à `Enter`**, sans timer court — chaque frappe intermédiaire rend le catalogue
       entier (176 Ko pour « 150000 »)
-- [ ] `set()` fusionne le brouillon en attente dans chaque patch, `flush()` au `blur` et à `Enter`
-- [ ] `FilterSidebar.test.tsx` — **sur le composant, pas sur la page** : au niveau de la page,
+- [x] `set()` fusionne le brouillon en attente dans chaque patch, `flush()` au `blur` et à `Enter`
+- [x] `FilterSidebar.test.tsx` — **sur le composant, pas sur la page** : au niveau de la page,
       `useSearchParams` est figé par le mock, et le test serait vert sans le correctif
 
-### Étape 4 — restauration du défilement
+### Étape 4 — restauration du défilement  ✅ LIVRÉE
 
-- [ ] `useScrollRestoration` — mémoriser `window.scrollY` par entrée d'historique, restaurer
+- [x] `useScrollRestoration` — mémoriser `window.scrollY` par entrée d'historique, restaurer
       **après commit des résultats**. La restauration native opère sur un document au tiers de sa
       hauteur (10 squelettes contre 30 résultats) : les 1 200 px sont écrêtés à 0
 
-### Étape 5 — taxonomie `push` / `replace` *(dépend de l'étape 3)*
+### Étape 5 — taxonomie `push` / `replace` *(dépend de l'étape 3)*  ✅ LIVRÉE
 
-- [ ] `search(filters, { historique })` : **`push`** pour les gestes discrets (puces, tri,
+- [x] `search(filters, { historique })` : **`push`** pour les gestes discrets (puces, tri,
       `per_page`, pagination, retrait de filtre), **`replace`** pour les commits de champ continu.
       `push` livré sans l'étape 3 est **pire** que le `replace` actuel : « Dakar » empilerait cinq
       entrées d'historique
 
-### Étape 6 — la fiche en rendu serveur
+### Étape 6 — la fiche en rendu serveur  ✅ LIVRÉE
 
-- [ ] extraire `PropertyDetailContent` ; `page.tsx` devient serveur et lui passe le bien en prop
+- [x] extraire `PropertyDetailContent` ; `page.tsx` devient serveur et lui passe le bien en prop
       (il l'accepte **déjà** en prop — le nombre de composants à convertir est **zéro**)
-- [ ] `getProperty = cache(...)` partagé entre `generateMetadata` et la page ; `layout.tsx`
+- [x] `getProperty = cache(...)` partagé entre `generateMetadata` et la page ; `layout.tsx`
       passe-plat supprimé ; `useProperty` supprimé
-- [ ] `loading.tsx` sur `/properties` et `fallback` sur son `<Suspense>` (aujourd'hui vide)
-- [ ] JSON-LD `RealEstateListing` — **jamais `Product`/`Offer`** (balisage trompeur au sens des
+- [x] `loading.tsx` sur `/properties` et `fallback` sur son `<Suspense>` (aujourd'hui vide)
+- [x] JSON-LD `RealEstateListing` — **jamais `Product`/`Offer`** (balisage trompeur au sens des
       règles Google) ; `price` décimal **jamais ×100** ; `geo` **omis** quand les coordonnées sont
       nulles
-- [ ] **404 amont → `notFound()`**, toute autre panne → indisponibilité explicite +
+- [x] **404 amont → `notFound()`**, toute autre panne → indisponibilité explicite +
       `robots: { index: false }`. Le `try/catch → null` actuel sert un **soft-404 en HTTP 200**
       aux moteurs, mesuré en production aujourd'hui
 
-### Étape 7 — le jeu de démonstration cesse de se contredire *(préalable de l'étape 8)*
+### Étape 7 — le jeu de démonstration cesse de se contredire *(préalable de l'étape 8)*  ✅ LIVRÉE
 
-- [ ] `SenegalFakerProvider` : le gabarit de titre « meublé » ne sort plus sur `furnished=false`
+- [x] `SenegalFakerProvider` : le gabarit de titre « meublé » ne sort plus sur `furnished=false`
       (mesuré : 12 biens publics sur 21)
-- [ ] `FilterCoverageSeeder` attache 1 à 4 tags par bien et une passe sur un tiers du catalogue —
+- [x] `FilterCoverageSeeder` attache 1 à 4 tags par bien et une passe sur un tiers du catalogue —
       **uniquement les tags `feature`/`amenity`**, jamais les 5 tags `crm` (ce sont des tags de
       clients : un bien remonterait sur `q=étudiant`)
 
-### Étape 8 — vocabulaire injecté à l'indexation *(dépend de l'étape 7)*
+### Étape 8 — vocabulaire injecté à l'indexation *(dépend de l'étape 7)*  ✅ LIVRÉE
 
 **Les synonymes Meilisearch sont la mauvaise mécanique**, et c'est mesuré : « vendre » et « vente »
 apparaissent dans le texte de **0** bien, donc `vente => vendre` fait passer `q=vente` de 0 à 0. Un
 synonyme réécrit un terme de requête ; il ne crée pas un mot absent de l'index.
 
-- [ ] `Property::CONTRACT_SEARCH_ALIASES` + champs `contract_label` et `furnished_label` dans
+- [x] `Property::CONTRACT_SEARCH_ALIASES` + champs `contract_label` et `furnished_label` dans
       `toSearchableArray()`, sur le modèle strict de `type_label`
-- [ ] `config/scout.php` : les deux nouveaux champs **EN DERNIER** dans `searchableAttributes` —
+- [x] `config/scout.php` : les deux nouveaux champs **EN DERNIER** dans `searchableAttributes` —
       position mesurée : en tête, n'importe quel bien en location passe devant le bien dont le
       titre dit « location »
-- [ ] mots vides français ; `tags` ajouté à `searchableAttributes`
-- [ ] `PropertySearchVocabularyTest`, **avec ablation sur chaque assertion** : `q=louer` rend déjà
+- [x] mots vides français ; `tags` ajouté à `searchableAttributes`
+- [x] `PropertySearchVocabularyTest`, **avec ablation sur chaque assertion** : `q=louer` rend déjà
       7 aujourd'hui par accident de gabarit de titre
 
-### Étape 9 — champs de modération conditionnés
+### Étape 9 — champs de modération conditionnés  ✅ LIVRÉE
 
-- [ ] `approved_at`, `submitted_at`, `rejected_at`, `rejection_reason` derrière
+- [x] `approved_at`, `submitted_at`, `rejected_at`, `rejection_reason` derrière
       `$request->user()` (motif déjà présent dans le même fichier pour l'e-mail d'un
       collaborateur). **Rendre les quatre optionnels dans `src/types/property.ts`** — sans quoi
       `tsc --noEmit` rougit, et aucun script npm ne le lance
 
-### Étape 10 — suggestion tolérante à la faute *(villes et quartiers seulement)*
+### Étape 10 — suggestion tolérante à la faute *(villes et quartiers seulement)*  ✅ LIVRÉE
 
-- [ ] `SuggestService` : villes et quartiers par `POST /indexes/{uid}/facet-search`, **avec le
+- [x] `SuggestService` : villes et quartiers par `POST /indexes/{uid}/facet-search`, **avec le
       filtre public exact** — sans lui les comptes sont faux (Mermoz 29 au lieu de 20)
-- [ ] **`property_types` RESTE sur le chemin `trans()`** : `type` est indexé par sa valeur d'enum
+- [x] **`property_types` RESTE sur le chemin `trans()`** : `type` est indexé par sa valeur d'enum
       anglaise, `facetQuery=maison` rend `[]`. Basculer détruirait la localisation de la
       suggestion, dans le lot dont l'autre moitié répare la localisation
-- [ ] `SearchSuggestTest` doit porter `InteractsWithMeilisearch`, sinon il rendrait **vide**
+- [x] `SearchSuggestTest` doit porter `InteractsWithMeilisearch`, sinon il rendrait **vide**
 
 ## Critères d'acceptation
 
@@ -231,28 +231,29 @@ synonyme réécrit un terme de requête ; il ne crée pas un mot absent de l'ind
       trois locales)* n'apparaissent
 - [x] **AC6** *(réécrit)* — les clés de `SearchFilters` et celles de
       `SearchPublicPropertyRequest::rules()` coïncident, et la CI casse si un seul côté bouge
-- [ ] **AC7a** *(remplace AC7)* — 5 caractères dans « Ville » → **0** `onFilterChange` avant le
+- [x] **AC7a** *(remplace AC7)* — 5 caractères dans « Ville » → **0** `onFilterChange` avant le
       délai, **exactement 1** après
-- [ ] **AC7b** — pendant la frappe, `input.value` contient **toujours** le texte frappé
-- [ ] **AC7c** — cliquer une puce pendant qu'un brouillon est en attente conserve **les deux**
-- [ ] **AC8** — le retour depuis une fiche réaffiche la liste et **restaure la position de
+- [x] **AC7b** — pendant la frappe, `input.value` contient **toujours** le texte frappé
+- [x] **AC7c** — cliquer une puce pendant qu'un brouillon est en attente conserve **les deux**
+- [x] **AC8** — le retour depuis une fiche réaffiche la liste et **restaure la position de
       défilement**
-- [ ] **AC9** *(précisé)* — un Précédent après un clic de puce revient à l'état précédent ; un
+- [x] **AC9** *(précisé)* — un Précédent après un clic de puce revient à l'état précédent ; un
       Précédent après un mot de 5 lettres revient à l'état d'**avant le mot**, pas d'avant la
       dernière lettre
-- [ ] **AC11** — `q=louer` rend un ordre de grandeur comparable à `contract_type=rent`
+- [x] **AC11** — `q=louer` rend un ordre de grandeur comparable à `contract_type=rent`
       *(aujourd'hui : 7 contre 204)*, et `q=meublé` à `furnished=1` *(21 contre 99)*
-- [ ] **AC12a** *(réduit)* — le HTML de `/properties/{slug}`, **JavaScript désactivé**, contient le
+- [x] **AC12a** *(réduit)* — le HTML de `/properties/{slug}`, **JavaScript désactivé**, contient le
       `<h1>` du titre, le prix et la description
 - [x] **AC13** — `Accept-Language: en` rend `For Rent` *(mesuré : en → For Rent, wo → Tëddé)*
 - [x] **AC13bis** *(nouveau)* — une requête **sans** `Accept-Language` rend la même chose qu'une
       requête portant `app.locale`, et autre chose que n'importe quelle autre locale
-- [ ] **AC15** — l'autocomplétion rend « Mermoz » sur la saisie `mrmoz`
-- [ ] **AC16** — les deux suites restent vertes et le cliquet de couverture tient à 86 %
-- [ ] **AC17** *(nouveau)* — une fiche dont l'amont rend autre chose qu'un 404 ne rend **jamais**
+- [x] **AC15** — l'autocomplétion rend « Mermoz » sur la saisie `mrmoz`
+- [x] **AC16** — les deux suites restent vertes *(backend 2619 · front 1199, 0 échec)* et le
+      cliquet de couverture tient : **86,7 %** (21 633 / 24 964 lignes exécutables), seuil 86 %
+- [x] **AC17** *(nouveau)* — une fiche dont l'amont rend autre chose qu'un 404 ne rend **jamais**
       200 avec « Bien introuvable ». *Mesuré en production le 2026-08-21 : c'est ce qui se passe
       aujourd'hui, sur toute la surface indexable — un soft-404 servi en 200 aux moteurs.*
-- [ ] **AC20** *(nouveau)* — au moins un tiers des biens publics porte ≥ 1 tag, et aucun tag `crm`
+- [x] **AC20** *(nouveau)* — au moins un tiers des biens publics porte ≥ 1 tag, et aucun tag `crm`
       n'est attaché à un bien *(préalable : sans données, `tags` searchable est invérifiable)*
 
 **Retirés :** AC10 (part avec TCK-338 — seul `matchingStrategy` peut le fermer, et c'est une
@@ -285,4 +286,71 @@ Restent également hors périmètre, sans ticket :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Statut : `doing`, et non `done`.** Règle n°4 du dépôt — le statut vaut pour ce qui est mergé sur
+`dev` ; tout ce qui suit vit sur `feat/tck-335-recherche-navigation`.
+
+### Ce que la revue adverse a changé, et qu'il ne faut pas défaire
+
+Sept revues, une par lot, chacune chargée de **reproduire le défaut avant d'attaquer la
+prescription**. Le diagnostic a tenu (4/4 des filtres, 5/5 des mesures de recherche). Trois
+prescriptions et deux critères d'acceptation sont tombés :
+
+1. **`available_from` s'ÉCRÊTE, il ne se libère pas.** Retirer `after_or_equal:today` fait passer
+   une recherche sauvegardée de **422 bruyant à 8 résultats sur 258** — de l'erreur au mensonge
+   discret — et l'AC « rend 200 » validait les deux indifféremment. C'est le défaut d'acceptation
+   le plus sérieux qu'on ait trouvé dans ce ticket.
+2. **`SearchToolbar` ne trie pas les puces.** Cela exigerait une liste front des clés que le
+   serveur applique, douzième liste de clés du dépôt, et la faute qu'elle installe — un filtre
+   actif, appliqué, sans puce et sans moyen de le retirer — est PIRE que celle qu'elle corrige.
+   Remplacé par une garde de parité qui LIT les fichiers PHP.
+3. **Pas de synonymes Meilisearch.** Ils ne peuvent pas créer un mot absent de l'index (« vendre »
+   et « vente » figurent dans le texte de zéro bien), ils doubleraient `TYPE_SEARCH_ALIASES`, et
+   `PATCH /settings` n'efface pas une clé retirée : un synonyme posé une fois ne se retire plus de
+   la production.
+
+### Trois découvertes que ni l'audit ni le ticket n'avaient vues
+
+- **Le soft-404 était causé par `[slug]/loading.tsx`, pas par le `try/catch`.** Un `loading.tsx`
+  ouvre une frontière de suspension sur son segment **et tous ses enfants** : la coque part
+  immédiatement, statut compris, et `notFound()` arrive après le premier octet. Ablation :
+  sonde `notFound()` sous `/properties`, sans ce fichier → **404**, avec → **200**. Le fichier est
+  supprimé, celui de la liste confiné dans un groupe `(liste)`, et
+  `pas-de-frontiere-de-suspension.test.ts` garde la cause — le code HTTP lui-même n'est pas
+  observable en vitest, ce dépôt n'ayant pas de harnais e2e.
+- **Le caractère frappé disparaissait déjà de l'écran.** L'input est contrôlé par l'URL et
+  `router.replace` est une transition : `restoreStateOfTarget` du `react-dom` du dépôt réécrit le
+  DOM à l'ancienne valeur. Le lot 3 n'était pas une optimisation, c'était un correctif de saisie.
+- **L'ordre de `searchableAttributes` décide du classement.** `contract_label` en tête fait tomber
+  du 20ᵉ au 205ᵉ rang (sur 211) le bien dont le titre dit littéralement « location ». Il est donc
+  en dernier — mesuré, pas déduit.
+
+### Ce qui reste ouvert, et qui doit le rester
+
+- **TTFB de la fiche : re-mesuré, et le retrait de `loading.tsx` ne coûte pas ce qu'on craignait.**
+  Les premières mesures (1,5 à 2,1 s) ont été prises sous `load average` **68 à 150** sur 8 cœurs,
+  saturation causée par la suite de tests d'un autre projet — l'API seule y mettait déjà 1 à 1,5 s.
+  *Ces chiffres décrivaient la machine, pas le dépôt.* Reprises à `load` ~11, build de production :
+  **217 à 531 ms**, dont **~170 ms d'aller-retour API**. Le surcoût propre au rendu serveur est
+  donc de l'ordre de 50 ms. À comparer aux **923 ms** que l'audit avait mesurés pour voir le `<h1>`
+  dans la version cliente, en trois vagues d'appels séquentielles — et sans rien dans le HTML.
+  Reste à mesurer machine réellement au repos.
+- **Aucune vérification en navigateur des étapes 3, 4 et 5.** L'anti-rebond, la restauration du
+  défilement et la taxonomie `push`/`replace` sont épinglés par des tests jsdom vérifiés par
+  ablation, ce qui est plus faible qu'une mesure en conditions réelles.
+- **`q=meublé` rend 111 quand `furnished=1` en compte 99.** L'écart est du texte de description,
+  pas un défaut du champ dérivé — mais il n'est pas expliqué ligne à ligne.
+- Six sujets sont sortis du ticket avec leur propre ticket : **TCK-336** à **TCK-341**. Voir
+  « Hors périmètre ».
+
+### Gotchas payés
+
+- `.next/dev/types/validator.ts` est un artefact **généré** : après la suppression de
+  `[slug]/layout.tsx`, il continuait de déclarer `/properties/[slug]` comme route de layout et
+  faisait échouer `next build` sur une erreur qui ne décrivait aucun code du dépôt. `rm -rf .next`.
+- `config(['app.locale' => …])` **ne survit pas à une requête HTTP** dans ce harnais de test : la
+  configuration est rechargée. Le test de locale par défaut épingle donc la *propriété* (« sans
+  en-tête ≡ en-tête portant `app.locale` ») et non l'une de ses trois valeurs — sans quoi il serait
+  vert en CI (`.env.example` → `fr`) et rouge en local (`.env` → `en`).
+- `mockTraductionsServeur` de `@/test/intl` **ignore les paramètres d'interpolation** : un test qui
+  vérifiait qu'aucun « null » ne s'écrit dans une `<meta description>` y était vert avec ou sans le
+  correctif. Découvert par ablation.
