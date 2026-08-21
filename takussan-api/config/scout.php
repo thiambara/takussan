@@ -149,9 +149,25 @@ return [
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
             Property::class => [
+                // ⚠ L'ORDRE de `searchableAttributes` EST une règle de classement
+                // (règle `attribute` ci-dessous) : le champ le plus discriminant
+                // d'abord. C'est pourquoi les deux champs de vocabulaire ajoutés
+                // par TCK-335 sont EN DERNIER, et c'est MESURÉ, pas déduit —
+                // `contract_label` placé en tête fait passer n'importe quel bien
+                // en location AU-DESSUS du bien dont le titre dit littéralement
+                // « location » (score `attribute` 0,987 contre 0,831). Un mot
+                // d'intention doit ÉLARGIR le rappel, jamais réordonner la
+                // pertinence : il vaut pour 204 biens à la fois, il n'a donc
+                // aucun pouvoir discriminant.
+                //
+                // `tags` rejoint la liste (il n'était que `filterable`) : sans
+                // lui, aucun mot d'équipement — « piscine », « climatisation »,
+                // « ascenseur » — ne pouvait atteindre l'index autrement qu'en
+                // traînant dans une description.
                 'searchableAttributes' => [
                     'title', 'type_label', 'description',
-                    'neighborhood', 'city', 'reference_number',
+                    'neighborhood', 'city', 'tags', 'reference_number',
+                    'contract_label', 'furnished_label',
                 ],
                 'filterableAttributes' => [
                     'type', 'contract_type', 'rent_period', 'status', 'visibility',
@@ -162,6 +178,24 @@ return [
                 ],
                 'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                // TCK-335 — mots vides français. Meilisearch les retire À LA
+                // REQUÊTE comme à l'indexation : c'est ce qui fait que
+                // `q=à vendre` cesse de rendre le catalogue entier. Mesuré le
+                // 2026-08-21, avant : `q=a vendre` → **247** biens sur 258, le
+                // « a » matchant presque tout titre français (« Studio à
+                // Mermoz »). La règle `words` de Meilisearch n'exclut pas les
+                // documents qui ne portent qu'un terme sur deux, elle les
+                // classe plus bas — le bruit compte donc dans `meta.total`.
+                //
+                // Liste courte et fermée, uniquement des mots-outils : aucun
+                // n'est un nom de quartier, de ville ni de type de bien
+                // (« Point E », « Ouest Foire », « Sicap Baobab », « Louga »,
+                // « Touba » restent intacts).
+                'stopWords' => [
+                    'a', 'à', 'au', 'aux', 'de', 'des', 'du',
+                    'le', 'la', 'les', 'un', 'une',
+                    'en', 'pour', 'avec', 'sur', 'dans',
+                ],
             ],
             Message::class => [
                 'searchableAttributes' => ['body'],

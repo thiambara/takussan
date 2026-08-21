@@ -58,14 +58,25 @@ abstract class BaseResource extends JsonResource
         return $enum?->value;
     }
 
-    protected function enumLabel(?BackedEnum $enum, string $group, string $locale = 'fr'): ?string
+    /**
+     * TCK-335 — la locale par defaut etait FIGEE a `'fr'`, et ce helper n'avait alors
+     * aucun appelant : le defaut attendait le premier. `PropertyResource` portait la
+     * meme ligne en copie privee, et elle rendait « A louer » sous `Accept-Language: en`
+     * comme sous `wo`, alors que `lang/en` et `lang/wo` portent les memes 35 cles que
+     * `lang/fr`. La traduction existait et n'etait jamais atteinte.
+     *
+     * Le defaut est desormais la locale ACTIVE — celle que `SetLocaleMiddleware` a
+     * negociee. Un appelant peut toujours forcer une locale, c'est ce que fait le
+     * rendu d'un document destine a quelqu'un d'autre que le porteur de la requete.
+     */
+    protected function enumLabel(?BackedEnum $enum, string $group, ?string $locale = null): ?string
     {
         if ($enum === null) {
             return null;
         }
 
         $key = "{$group}.{$enum->value}";
-        $translation = Lang::get($key, [], $locale);
+        $translation = Lang::get($key, [], $locale ?? app()->getLocale());
 
         return $translation === $key ? null : $translation;
     }

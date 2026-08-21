@@ -13,12 +13,15 @@ use App\Models\Enums\PaymentFrequency;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\TagType;
 use App\Models\Lease;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Models\Tag;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 /**
@@ -58,6 +61,33 @@ class FilterCoverageSeeder extends Seeder
         ['bedrooms' => 6, 'bathrooms' => 5],
     ];
 
+    /**
+     * Types de tags attachables à un BIEN — et la liste est courte pour une
+     * raison métier, pas par prudence (TCK-335, étape 7).
+     *
+     * `TagType::Crm` désigne des CLIENTS : `VIP`, `Prospect chaud`, `Étranger`,
+     * `Famille`, `Étudiant` (`database/seeders/System/TagSeeder.php`). Les
+     * coller sur des biens ferait remonter un appartement sur `q=étudiant` —
+     * on aurait rempli la table pivot et cassé la recherche du même geste.
+     * `TagType::Label` est laissé de côté faute de vocabulaire semé.
+     *
+     * @var array<int,TagType>
+     */
+    private const PROPERTY_TAG_TYPES = [TagType::Feature, TagType::Amenity];
+
+    /**
+     * Part MINIMALE du catalogue public d'une agence qui repart taguée.
+     *
+     * 40 % et non « un tiers tout juste » : `EdgeCaseSeeder` crée encore des
+     * biens publics APRÈS ce seeder (`YearOfActivitySeeder::PIPELINE`), et une
+     * part calculée pile au tiers repasserait sous la barre de quelques unités. L'invariant qu'on veut tenir est « au moins un bien public sur
+     * trois porte un tag », pas « exactement un sur trois ».
+     */
+    private const CATALOG_TAG_SHARE = 0.4;
+
+    /** @var Collection<int,int>|null ids des tags attachables, résolus une fois */
+    private ?Collection $propertyTagIds = null;
+
     public function __construct(private readonly SeedingContext $ctx) {}
 
     public function run(): void
@@ -70,6 +100,7 @@ class FilterCoverageSeeder extends Seeder
 
         foreach ($this->ctx->agencies as $agency) {
             $this->createFilterCoverageProperties($agency->id);
+            $this->tagExistingCatalog($agency->id);
             $this->createFilterCoverageLeases($agency->id);
             $this->createFilterCoverageCustomers($agency->id);
         }
@@ -199,7 +230,79 @@ class FilterCoverageSeeder extends Seeder
             'longitude' => $this->ctx->faker()->longitude(-17.5, -17.3),
         ]);
 
+        $this->attachPropertyTags($property, 1, 4);
+
         $this->ctx->registerProperty($property);
+    }
+
+    /**
+     * Passe sur le catalogue déjà semé : au moins un bien PUBLIC sur trois
+     * repart avec des tags.
+     *
+     * Sans elle, la table pivot des taggables comptait **0 ligne** sur un jeu
+     * de 836 biens (mesuré le 2026-08-21) : les 17 tags d'équipement existaient
+     * et aucun bien n'en portait. Le filtre `tags=` et la facette
+     * correspondante n'étaient donc **jamais exercés** en développement, et
+     * rendre `tags` searchable côté moteur aurait été INVÉRIFIABLE — un index
+     * juste et un index vide y sont indistinguables.
+     *
+     * La sélection porte sur les biens PUBLICS, et pas sur le catalogue entier :
+     * c'est la population que la recherche publique interroge, et c'est donc
+     * la seule sur laquelle la part se tienne sans tirage au sort. Les biens
+     * non publics sont couverts par {@see createPropertyWithAttributes()}, qui
+     * tague chacun de ceux qu'il crée.
+     */
+    private function tagExistingCatalog(int $agencyId): void
+    {
+        $ids = Property::query()
+            ->public()
+            ->where('agency_id', $agencyId)
+            ->pluck('id')
+            ->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $share = (int) ceil(count($ids) * self::CATALOG_TAG_SHARE);
+        $chosen = $this->ctx->faker()->randomElements($ids, min($share, count($ids)));
+
+        Property::query()
+            ->whereIn('id', $chosen)
+            ->each(fn (Property $property) => $this->attachPropertyTags($property, 1, 3));
+    }
+
+    /**
+     * Attache entre `$min` et `$max` tags d'équipement au bien.
+     *
+     * `syncWithoutDetaching` et non `attach` : la passe sur le catalogue peut
+     * croiser un bien déjà tagué, et `attach` doublerait la ligne de pivot
+     * (aucune clé unique ne l'en empêche).
+     */
+    private function attachPropertyTags(Property $property, int $min, int $max): void
+    {
+        $tagIds = $this->propertyTagIds();
+        if ($tagIds->isEmpty()) {
+            return;
+        }
+
+        $count = min($tagIds->count(), $this->ctx->faker()->numberBetween($min, $max));
+
+        $property->tags()->syncWithoutDetaching(
+            $this->ctx->faker()->randomElements($tagIds->all(), $count)
+        );
+    }
+
+    /**
+     * Ids des tags attachables à un bien, résolus une fois par exécution.
+     *
+     * @return Collection<int,int>
+     */
+    private function propertyTagIds(): Collection
+    {
+        return $this->propertyTagIds ??= Tag::query()
+            ->whereIn('type', array_map(fn (TagType $type) => $type->value, self::PROPERTY_TAG_TYPES))
+            ->pluck('id');
     }
 
     /**

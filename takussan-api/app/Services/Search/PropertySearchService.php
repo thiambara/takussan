@@ -63,6 +63,34 @@ class PropertySearchService
     }
 
     /**
+     * Les clauses moteur qui decrivent le CATALOGUE PUBLIC, et rien d'autre —
+     * la transposition Meilisearch de `Property::scopePublic()`.
+     *
+     * TCK-335 — extraite parce qu'elle a un SECOND appelant : `SuggestService`
+     * interroge desormais `POST /indexes/{uid}/facet-search` pour les villes et
+     * les quartiers, et une facette comptee sous un filtre INCOMPLET rend un
+     * compte faux. Mesure le 2026-08-21 sur la base locale (836 biens, 258
+     * publics) : avec les trois premieres clauses seulement (visibility,
+     * is_test, published_at) la facette rend « Mermoz 29 » et « Dakar 462 » ;
+     * avec les quatre, « Mermoz 20 » et « Dakar 210 » — c'est-a-dire exactement
+     * ce que `/search?location=Mermoz` et `/search?city=Dakar` totalisent.
+     *
+     * ⚠ Ne PAS recopier ces quatre lignes chez l'appelant : deux copies
+     * divergent, et la divergence se lit comme un compte plausible.
+     *
+     * @return list<string>
+     */
+    public static function publicFilter(): array
+    {
+        return [
+            "visibility = 'public'",
+            'is_test = false',
+            'published_at IS NOT NULL',
+            'NOT status IN ['.self::quoteList(Property::NON_PUBLIC_STATUSES).']',
+        ];
+    }
+
+    /**
      * Build the Meilisearch filter — outer array is AND-joined, a nested array
      * is OR-joined. The first clauses reproduce `Property::scopePublic()` so a
      * draft / non-public listing can never surface here.
@@ -72,18 +100,13 @@ class PropertySearchService
      */
     private function buildFilter(array $p): array
     {
-        $filter = [
-            "visibility = 'public'",
-            'is_test = false',
-            'published_at IS NOT NULL',
-            'NOT status IN ['.$this->quoteList(Property::NON_PUBLIC_STATUSES).']',
-        ];
+        $filter = self::publicFilter();
 
         if (! empty($p['location'])) {
-            $filter[] = 'neighborhood = '.$this->quote((string) $p['location']);
+            $filter[] = 'neighborhood = '.self::quote((string) $p['location']);
         }
         if (! empty($p['city'])) {
-            $filter[] = 'city = '.$this->quote((string) $p['city']);
+            $filter[] = 'city = '.self::quote((string) $p['city']);
         }
         if (isset($p['price_min']) && is_numeric($p['price_min'])) {
             $filter[] = 'price >= '.(float) $p['price_min'];
@@ -97,20 +120,44 @@ class PropertySearchService
         if (isset($p['bathrooms']) && is_numeric($p['bathrooms'])) {
             $filter[] = 'bathrooms = '.(int) $p['bathrooms'];
         }
+        // TCK-335 — `isset() && is_numeric()`, le motif de `price_min` juste au-dessus,
+        // et surtout PAS `! empty()` : `area_min=0` doit AGIR (donc ecarter une surface
+        // inconnue), pas etre relu comme « pas de filtre ».
+        //
+        // Et surtout PAS le motif OR `IS NULL` de la clause `available_from` plus bas :
+        // `area` est nullable, et Meilisearch exclut nativement les NULL d'une
+        // comparaison numerique. C'est le comportement voulu — un bien a surface
+        // inconnue ne peut pas satisfaire « au moins 200 m² », on ne le promet pas.
+        // C'est deja la regle de `floor_number` et de `price`, epinglee par
+        // `PublicPropertySearchFiltersTest::test_floor_number_filter_excludes_null_floor`.
+        if (isset($p['area_min']) && is_numeric($p['area_min'])) {
+            $filter[] = 'area >= '.(float) $p['area_min'];
+        }
+        if (isset($p['area_max']) && is_numeric($p['area_max'])) {
+            $filter[] = 'area <= '.(float) $p['area_max'];
+        }
+        // TCK-335 — UNILATERAL, par alignement sur `PublicPropertyController::index()`
+        // qui traite deja ce parametre par `$request->boolean('featured')` sur la meme
+        // surface publique. Deux endpoints qui portent le meme mot doivent rendre le
+        // meme compte. L'interface n'offre qu'une bascule « en vedette uniquement » :
+        // le « non-vedette » n'existe pas au produit.
+        if (array_key_exists('featured', $p) && filter_var($p['featured'], FILTER_VALIDATE_BOOLEAN)) {
+            $filter[] = 'featured = true';
+        }
         if (isset($p['floor_number']) && is_numeric($p['floor_number'])) {
             $filter[] = 'floor_number = '.(int) $p['floor_number'];
         }
         if (! empty($p['type'])) {
             $types = array_filter(array_map('trim', explode(',', (string) $p['type'])));
             if ($types !== []) {
-                $filter[] = array_map(fn ($t) => 'type = '.$this->quote($t), array_values($types));
+                $filter[] = array_map(fn ($t) => 'type = '.self::quote($t), array_values($types));
             }
         }
         if (! empty($p['contract_type'])) {
-            $filter[] = 'contract_type = '.$this->quote((string) $p['contract_type']);
+            $filter[] = 'contract_type = '.self::quote((string) $p['contract_type']);
         }
         if (! empty($p['rent_period'])) {
-            $filter[] = 'rent_period = '.$this->quote((string) $p['rent_period']);
+            $filter[] = 'rent_period = '.self::quote((string) $p['rent_period']);
         }
         if (array_key_exists('furnished', $p) && $p['furnished'] !== null && $p['furnished'] !== '') {
             $filter[] = 'furnished = '.(filter_var($p['furnished'], FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false');
@@ -119,7 +166,7 @@ class PropertySearchService
             $tags = is_array($p['tags']) ? $p['tags'] : explode(',', (string) $p['tags']);
             $tags = array_filter(array_map('trim', $tags));
             if ($tags !== []) {
-                $filter[] = array_map(fn ($t) => 'tags = '.$this->quote($t), array_values($tags));
+                $filter[] = array_map(fn ($t) => 'tags = '.self::quote($t), array_values($tags));
             }
         }
         if (! empty($p['available_from'])) {
@@ -211,7 +258,7 @@ class PropertySearchService
         return true;
     }
 
-    private function quote(string $value): string
+    private static function quote(string $value): string
     {
         return "'".str_replace(['\\', "'"], ['\\\\', "\\'"], $value)."'";
     }
@@ -219,8 +266,8 @@ class PropertySearchService
     /**
      * @param  array<int,string>  $values
      */
-    private function quoteList(array $values): string
+    private static function quoteList(array $values): string
     {
-        return implode(', ', array_map(fn (string $v): string => $this->quote($v), $values));
+        return implode(', ', array_map(fn (string $v): string => self::quote($v), $values));
     }
 }

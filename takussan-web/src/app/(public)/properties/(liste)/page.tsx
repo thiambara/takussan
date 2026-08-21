@@ -3,6 +3,8 @@ import { Suspense } from 'react';
 import { getTranslations } from 'next-intl/server';
 import { PropertiesDiscoveryPage } from '@/components/property/PropertiesDiscoveryPage';
 
+import { PropertiesSkeleton } from './loading';
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta.properties');
   return {
@@ -17,7 +19,11 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default function Page() {
   return (
-    <Suspense>
+    // `fallback` n'était PAS passé (TCK-335, étape 6) : un `<Suspense>` sans repli ne montre
+    // rien pendant la suspension. `PropertiesDiscoveryPage` lit `useSearchParams`, donc son
+    // rendu SUSPEND — c'est exactement le moment que ce repli couvre. Il partage le squelette
+    // de `loading.tsx`, qui couvre l'instant d'avant : la navigation.
+    <Suspense fallback={<PropertiesSkeleton />}>
       <PropertiesDiscoveryPage />
     </Suspense>
   );

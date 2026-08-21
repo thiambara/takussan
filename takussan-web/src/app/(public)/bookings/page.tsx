@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { Compass, SearchX } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
@@ -53,7 +53,11 @@ export default async function BookingPage({
 
   let property: PropertyDetail | null = null;
   try {
-    const res = await apiFetch<{ data: PropertyDetail }>(`/public/properties/${slug}`);
+    const res = await apiFetch<{ data: PropertyDetail }>(
+      `/public/properties/${slug}`,
+      undefined,
+      { locale: await getLocale() },
+    );
     property = res.data;
   } catch {
     property = null;

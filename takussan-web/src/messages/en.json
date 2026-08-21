@@ -256,6 +256,10 @@
     },
     "dashboard": {
       "title": "Dashboard — Takussan"
+    },
+    "propertyUnavailable": {
+      "title": "Listing temporarily unavailable",
+      "description": "This listing cannot be displayed right now. Please try again in a moment."
     }
   },
   "homepage": {
@@ -621,7 +625,9 @@
         "offer": "Make an offer",
         "reserve": "Book",
         "apply": "Apply"
-      }
+      },
+      "unavailableTitle": "Listing temporarily unavailable",
+      "unavailableBody": "We can't reach the catalogue right now. The listing may still exist — please try again in a moment."
     },
     "reviews": {
       "title": "Reviews",
@@ -2766,7 +2772,10 @@
       "empty_title": "No property found",
       "empty_description": "Widen your criteria or remove a few filters — there is surely a home for you.",
       "empty_cta": "Clear all filters",
-      "error": "Something went wrong. Please try again."
+      "error": "Something went wrong. Please try again.",
+      "error_invalid_filter": "One of the filters in this search is not valid.",
+      "error_invalid_filter_named": "The “{filter}” filter is not valid.",
+      "error_retry": "Try again"
     },
     "filters": {
       "title": "Filters",

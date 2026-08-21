@@ -3,7 +3,8 @@
 import React, { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { List, Map as MapIcon, SearchX } from 'lucide-react';
-import { EmptyState } from '@/components/feedback';
+import { ApiError } from '@/lib/api';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
@@ -15,6 +16,7 @@ import { PropertyMap } from '@/components/map';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSearch } from '@/hooks/useSearch';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import type { SearchFilters } from '@/types/search';
 
 /**
@@ -31,6 +33,17 @@ import type { SearchFilters } from '@/types/search';
  */
 
 type View = 'list' | 'map';
+
+/**
+ * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider
+ * si un 422 désigne un filtre RÉPARABLE — la liste qui fait autorité vit côté serveur,
+ * et `search-filters.parity.test.ts` garde l'accord entre les deux.
+ */
+const FILTRES_CONNUS = new Set<keyof SearchFilters>([
+  'q', 'location', 'city', 'contract_type', 'type', 'rent_period',
+  'price_min', 'price_max', 'bedrooms', 'bathrooms', 'area_min', 'area_max',
+  'furnished', 'featured', 'floor_number', 'available_from', 'tags', 'sort',
+]);
 
 function CardSkeleton() {
   return (
@@ -130,8 +143,39 @@ export function PropertiesDiscoveryPage() {
   const properties = data?.data ?? [];
   const meta = data?.meta;
 
-  const handleFilterChange = (patch: Partial<SearchFilters>) => {
-    search({ ...filters, ...patch });
+  // TCK-335 — le retour arrière repartait du haut. En traversée d'historique, Next ne
+  // reprend pas la main sur le défilement : c'est la restauration NATIVE qui opère, et
+  // elle opère pendant que cette page rend ses 10 squelettes (`CardSkeleton` ci-dessous)
+  // pour 30 résultats à venir. Un document au tiers de sa hauteur écrête 1 200 px à 0.
+  // Le signal passé au hook est donc « le commit porte les résultats », c'est-à-dire la
+  // retombée de `loading` — et non le montage. `loading` couvre les trois issues (résultats,
+  // liste vide, erreur) : la hauteur du document est arrêtée dans chacune.
+  useScrollRestoration(!loading);
+
+  // TCK-335 — un 422 nomme le filtre en cause dans `errors.<champ>`. S'il en désigne
+  // UN SEUL et qu'il appartient bien à `SearchFilters`, on propose de retirer celui-là
+  // plutôt que d'effacer toute la recherche : l'utilisateur garde son travail.
+  //
+  // ⚠ On n'affiche JAMAIS la prose de validation du serveur ici. Mesuré : le 422 de
+  // `furnished` rend « The furnished field must be true or false. » sous `Accept-Language`
+  // fr, en ET wo — `lang/fr/validation.php` ne porte pas la clé `boolean`. Le libellé
+  // vient donc du dictionnaire du front, comme le veut le principe non négociable n°5.
+  const cleFautive = (() => {
+    if (!(error instanceof ApiError) || error.status !== 422) return null;
+    const champs = Object.keys(error.validationErrors ?? {});
+    if (champs.length !== 1) return null;
+    const champ = champs[0] as keyof SearchFilters;
+    return champ in filters || FILTRES_CONNUS.has(champ) ? champ : null;
+  })();
+
+  const handleFilterChange = (
+    patch: Partial<SearchFilters>,
+    options?: { continu?: boolean },
+  ) => {
+    // TCK-335, étape 5 — un commit de champ CONTINU écrase l'entrée d'historique ; tout le
+    // reste l'empile. Voir le docblock de `search()` : `push` partout serait pire que le
+    // `replace` d'origine tant que l'anti-rebond de l'étape 3 n'est pas en place.
+    search({ ...filters, ...patch }, { historique: options?.continu ? 'replace' : 'push' });
   };
 
   // Derive the map filters from the active search filters. We only forward
@@ -162,7 +206,7 @@ export function PropertiesDiscoveryPage() {
 
           <main className="flex-1 min-w-0">
             <SearchToolbar
-              total={meta?.total ?? 0}
+              total={error ? null : (meta?.total ?? 0)}
               loading={loading}
               filters={filters}
               activeCount={activeCount}
@@ -195,9 +239,18 @@ export function PropertiesDiscoveryPage() {
             ) : (
               <>
                 {error && !loading && (
-                  <div className="py-16 text-center text-sm text-gray-400">
-                    {t('error')}
-                  </div>
+                  <ErrorState
+                    className="mb-6"
+                    message={
+                      error instanceof ApiError && error.status === 422
+                        ? cleFautive
+                          ? t('error_invalid_filter_named', { filter: cleFautive })
+                          : t('error_invalid_filter')
+                        : t('error')
+                    }
+                    onRetry={cleFautive ? () => removeFilter(cleFautive) : resetFilters}
+                    retryLabel={cleFautive ? t('error_retry') : t('empty_cta')}
+                  />
                 )}
 
                 <div
@@ -211,7 +264,11 @@ export function PropertiesDiscoveryPage() {
                     Array.from({ length: 10 }).map((_, i) => (
                       <CardSkeleton key={i} />
                     ))
-                  ) : properties.length === 0 && !loading ? (
+                  ) : properties.length === 0 && !loading && !error ? (
+                    // TCK-335 — `!error` : l'état vide et l'état d'erreur s'excluent.
+                    // Ils s'affichaient ensemble, si bien qu'un filtre invalide produisait
+                    // « 0 biens trouvés » ET « Aucun bien trouvé » ET « Une erreur est
+                    // survenue » sur le même écran — trois affirmations concurrentes.
                     <SearchEmpty onReset={resetFilters} />
                   ) : (
                     properties.map((property, i) => (

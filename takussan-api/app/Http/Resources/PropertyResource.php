@@ -12,7 +12,6 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Lang;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PropertyResource extends BaseResource
@@ -32,16 +31,16 @@ class PropertyResource extends BaseResource
             'price' => (float) $this->price,
             'currency' => $this->currency?->value,
             'type' => $this->type?->value,
-            'type_label' => $this->translate('type', $this->type?->value),
+            'type_label' => $this->enumLabel($this->type, 'properties.type'),
             'contract_type' => $this->contract_type?->value,
-            'contract_type_label' => $this->translate('contract_type', $this->contract_type?->value),
+            'contract_type_label' => $this->enumLabel($this->contract_type, 'properties.contract_type'),
             'rent_period' => $this->rent_period?->value,
-            'rent_period_label' => $this->translate('rent_period', $this->rent_period?->value),
+            'rent_period_label' => $this->enumLabel($this->rent_period, 'properties.rent_period'),
             'status' => $this->status?->value,
-            'status_label' => $this->translate('status', $this->status?->value),
+            'status_label' => $this->enumLabel($this->status, 'properties.status'),
             'visibility' => $this->visibility?->value,
             'title_type' => $this->title_type?->value,
-            'title_type_label' => $this->translate('title_type', $this->title_type?->value),
+            'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
             'location' => $this->buildLocation($address),
             'bedrooms' => $this->bedrooms,
             'bathrooms' => $this->bathrooms,
@@ -115,24 +114,22 @@ class PropertyResource extends BaseResource
             'price_history' => $this->when($isDetail, fn () => $this->buildPriceHistory()),
             'published_at' => $this->iso($this->published_at),
             'created_at' => $this->iso($this->created_at),
-            // TCK-098 — moderation fields (always included so the agent dashboard
-            // can render the status banner without a second round-trip).
-            'rejection_reason' => $this->rejection_reason,
-            'submitted_at' => $this->iso($this->submitted_at),
-            'approved_at' => $this->iso($this->approved_at),
-            'rejected_at' => $this->iso($this->rejected_at),
+            // TCK-098 — moderation fields, so the agent dashboard can render the
+            // status banner without a second round-trip. TCK-335 — that dashboard
+            // is rendered from an AUTHENTICATED session, so gating them on
+            // `$request->user()` costs it nothing; the same key already masks a
+            // collaborator's email above. Anonymous callers were carrying 4 keys
+            // that are null by construction on any public property
+            // (`PropertyModerationService::approve()` clears `rejection_reason`
+            // and `rejected_at`; `rejected`/`pending_review` are in
+            // `NON_PUBLIC_STATUSES`) — 8.5% of the search payload, and a needless
+            // disclosure of the moderation machinery. Absent, not null: a missing
+            // key gets noticed, a null one gets believed.
+            'rejection_reason' => $this->when($request->user() !== null, fn () => $this->rejection_reason),
+            'submitted_at' => $this->when($request->user() !== null, fn () => $this->iso($this->submitted_at)),
+            'approved_at' => $this->when($request->user() !== null, fn () => $this->iso($this->approved_at)),
+            'rejected_at' => $this->when($request->user() !== null, fn () => $this->iso($this->rejected_at)),
         ];
-    }
-
-    private function translate(string $group, ?string $value): ?string
-    {
-        if ($value === null) {
-            return null;
-        }
-        $key = "properties.{$group}.{$value}";
-        $translation = Lang::get($key, [], 'fr');
-
-        return $translation === $key ? null : $translation;
     }
 
     /**

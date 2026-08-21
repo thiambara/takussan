@@ -232,7 +232,19 @@ class DateRepresentationTest extends TestCase
             $model->setAttribute($attribut, Carbon::parse(self::INSTANT, 'UTC'));
         }
 
-        $sortie = (new $resourceClass($model))->toArray(Request::create('/', 'GET'));
+        // TCK-335 — la requête porte un appelant AUTHENTIFIÉ, et ce n'est pas
+        // une commodité : `PropertyResource` conditionne désormais ses trois
+        // instants de modération (`submitted_at`, `approved_at`, `rejected_at`)
+        // à `$request->user() !== null`, un visiteur anonyme n'en recevant plus
+        // la clé du tout. Sans ce résolveur, ce test-ci mesurerait le FORMAT
+        // d'un champ que la ressource n'émet pas pour ce type d'appelant, et
+        // rougirait sur `MissingValue` — ce qui n'apprend rien sur ADR-0018.
+        // Le format reste comparé à la chaîne exacte : la garde n'est pas
+        // relâchée, c'est l'appelant simulé qui est rendu représentatif.
+        $requete = Request::create('/', 'GET');
+        $requete->setUserResolver(fn () => new User);
+
+        $sortie = (new $resourceClass($model))->toArray($requete);
 
         foreach ($champs as $cle => $attribut) {
             $this->assertArrayHasKey($cle, $sortie, "{$resourceClass} n'expose plus « {$cle} »");

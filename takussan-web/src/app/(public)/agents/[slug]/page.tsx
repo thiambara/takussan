@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Building2 } from 'lucide-react';
@@ -52,7 +52,11 @@ interface ApiEnvelope<T> {
 
 async function loadAgent(slug: string): Promise<AgentDto | null> {
   try {
-    const res = await apiFetch<ApiEnvelope<AgentDto>>(`/public/agents/${encodeURIComponent(slug)}`);
+    const res = await apiFetch<ApiEnvelope<AgentDto>>(
+      `/public/agents/${encodeURIComponent(slug)}`,
+      undefined,
+      { locale: await getLocale() },
+    );
     return res.data;
   } catch {
     return null;
