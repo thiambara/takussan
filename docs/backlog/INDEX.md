@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**324 tickets** — 15 ouverts, 308 livrés.
+**328 tickets** — 19 ouverts, 308 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 6 |
+| 📋 Todo | 10 |
 | 🚧 Doing | 9 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -39,6 +39,10 @@
 - [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
 - [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
 - [TCK-342](tickets/TCK-342-libelles-wolof-divergents-back-front.md) — Le même bien porte deux mots wolof différents selon l'écran `M · P3 · applicatif`
+- [TCK-343](tickets/TCK-343-index-gin-et-requetes-jsonb.md) — Exploiter JSONB : index GIN et requêtes sur les colonnes de propriétés `M · P3 · technique`
+- [TCK-344](tickets/TCK-344-pgvector-et-chatbot.md) — Chatbot sur Laravel AI SDK, avec pgvector pour la recherche sémantique `XL · P3 · applicatif`
+- [TCK-345](tickets/TCK-345-recherche-postgresql-contre-meilisearch.md) — Recherche PostgreSQL (pg_trgm / FTS) : faut-il retirer Meilisearch ? `XL · P3 · technique`
+- [TCK-346](tickets/TCK-346-geo-postgis.md) — Recherche géographique : rayon, distance, carte — avec ou sans PostGIS `L · P3 · applicatif`
 
 ## 🚧 Doing
 

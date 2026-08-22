@@ -14,7 +14,7 @@ return new class extends Migration
             $table->timestamp('ends_at');
             $table->string('mode');
             $table->string('severity');
-            $table->json('messages');
+            $table->jsonb('messages');
             $table->unsignedInteger('banner_lead_minutes')->default(30);
             $table->foreignId('created_by_id')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('cancelled_by_id')->nullable()->constrained('users')->nullOnDelete();

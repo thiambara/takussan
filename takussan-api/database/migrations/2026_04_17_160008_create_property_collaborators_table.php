@@ -16,7 +16,7 @@ return new class extends Migration
             $table->decimal('commission_share', 5, 2)->nullable();
             $table->timestamp('invited_at')->nullable();
             $table->timestamp('accepted_at')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->timestamps();
 
             $table->unique(['property_id', 'user_id']);

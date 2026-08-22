@@ -164,6 +164,60 @@ abstract class TestCase extends LaravelTestCase
      *    remplace `links` : une enveloppe qui rendrait `"12"` au lieu de `12` satisfaisait
      *    l'ancienne structure sans que rien ne bronche.
      */
+    /**
+     * Compare deux structures STRICTEMENT, mais sans tenir compte de l'ORDRE DES CLÉS.
+     *
+     * ## Pourquoi cette assertion existe (ADR-0020)
+     *
+     * `assertSame` sur des tableaux compare aussi l'ordre des clés. Tant que les
+     * colonnes JSON étaient de type `json`, PostgreSQL — comme MySQL et SQLite —
+     * restituait les clés dans l'ordre d'insertion, et l'ordre du tableau attendu
+     * coïncidait avec celui du tableau relu. Depuis le passage en `jsonb`, PostgreSQL
+     * NORMALISE cet ordre : les clés sont rangées par longueur, puis octet par octet.
+     * `['from' => …, 'to' => …]` revient donc en `['to' => …, 'from' => …]`.
+     *
+     * **La valeur n'a pas changé, seul son ordre de clés — qui n'a jamais été un
+     * contrat.** L'ordre des clés d'un objet JSON n'est porteur d'aucun sens, ni pour
+     * la norme, ni pour un client. Un test qui l'assertait affirmait donc une propriété
+     * du MOTEUR en croyant affirmer une propriété du code.
+     *
+     * ## Pourquoi pas `assertEqualsCanonicalizing`
+     *
+     * Parce qu'il compare avec `==` : il laisserait passer un `'5'` là où on attend
+     * `5`, ou un `1` là où on attend `true`. Or **c'est exactement le glissement de
+     * type qu'un changement de driver provoque** — `pdo_pgsql` ne rend pas les
+     * agrégats, les décimaux ni les booléens comme `pdo_mysql`. Relâcher la
+     * comparaison ici reviendrait à désarmer, pour régler un problème d'ordre, la
+     * seule assertion qui garde les types.
+     *
+     * Le tri est RÉCURSIF : les structures imbriquées sont concernées au même titre.
+     *
+     * ⚠ À n'employer que sur des tableaux ASSOCIATIFS relus depuis une colonne `jsonb`.
+     * Sur une LISTE dont l'ordre est significatif — un tri par pertinence, un ordre de
+     * créneaux —, il faut `assertSame` : cette aide trierait les indices numériques et
+     * cacherait une vraie régression.
+     */
+    protected function assertSameIgnoringKeyOrder(mixed $attendu, mixed $obtenu, string $message = ''): void
+    {
+        $trier = static function (mixed $valeur) use (&$trier): mixed {
+            if (! is_array($valeur)) {
+                return $valeur;
+            }
+
+            $valeur = array_map($trier, $valeur);
+
+            // On ne trie QUE les tableaux associatifs : une liste garde son ordre,
+            // qui lui est souvent significatif.
+            if (! array_is_list($valeur)) {
+                ksort($valeur);
+            }
+
+            return $valeur;
+        };
+
+        Assert::assertSame($trier($attendu), $trier($obtenu), $message);
+    }
+
     protected function assertJsonStructurePaginated(TestResponse $response): void
     {
         $response->assertJsonStructure([

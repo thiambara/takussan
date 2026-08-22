@@ -3,7 +3,9 @@
 namespace App\Notifications;
 
 use App\Models\AgencyUpgradeRequest;
+use App\Models\Enums\NotificationType;
 use App\Models\User;
+use App\Notifications\Channels\AppDatabaseChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -53,10 +55,22 @@ class AgencyUpgradeRequestSubmittedNotification extends Notification implements 
             ->action(__('agency_upgrade.notifications.submitted.action'), $reviewUrl);
     }
 
-    /** @return array<string,mixed> */
-    public function toDatabase(object $notifiable): array
+    /**
+     * Le feed in-app (`app_notifications`) exige un `type` et un `title` ; le
+     * `toArray()` de cette classe n'en porte pas. On les déclare donc ici plutôt que
+     * de les laisser deviner — {@see AppDatabaseChannel}.
+     *
+     * @return array{type: NotificationType, title: string, data: array<string,mixed>}
+     */
+    public function toAppNotification(object $notifiable): array
     {
-        return $this->toArray($notifiable);
+        return [
+            'type' => NotificationType::System,
+            'title' => __('agency_upgrade.notifications.submitted.subject', [
+                'agency' => $this->upgradeRequest->agency?->name ?? '#'.$this->upgradeRequest->agency_id,
+            ]),
+            'data' => $this->toArray($notifiable),
+        ];
     }
 
     /** @return array<string,mixed> */

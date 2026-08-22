@@ -48,7 +48,14 @@ class PropertyDetailTest extends TestCase
             'addressable_type' => Property::class,
             'city' => 'Dakar',
             'region' => 'Dakar',
-            'country' => 'Sénégal',
+            // ⚠ 'SN' et non 'Sénégal' : `addresses.country` est un `string('country', 2)`,
+            // un code ISO-3166 alpha-2, avec `SN` pour défaut. Ce test écrivait un nom de
+            // pays de 7 caractères dans une colonne de 2, et il n'était vert que parce que
+            // SQLite N'APPLIQUE AUCUNE longueur de VARCHAR. PostgreSQL la refuse
+            // (« value too long for type character varying(2) »), et MySQL 8 en mode strict
+            // l'aurait refusée aussi — la production n'ayant jamais servi, personne ne l'a
+            // découvert. Le test assertait donc un comportement que le schéma interdit.
+            'country' => 'SN',
             'neighborhood' => 'Almadies',
             'latitude' => 14.7444,
             'longitude' => -17.5167,
@@ -85,7 +92,12 @@ class PropertyDetailTest extends TestCase
 
         $this->assertEquals(5.0, $response->json('data.average_rating'));
         $this->assertEquals(1, $response->json('data.reviews_count'));
-        $this->assertSame('Almadies, Dakar, Dakar, Sénégal', $response->json('data.location.full'));
+        // L'attente suit le schéma : `location.full` concatène la colonne telle qu'elle est
+        // stockée, donc le code ISO. Que l'API serve « SN » plutôt que « Sénégal » dans une
+        // chaîne destinée à l'affichage est une question de PRODUIT — le front possède le
+        // texte affiché (principe non négociable n°5) — et non une question de migration :
+        // on n'en profite pas pour la trancher ici.
+        $this->assertSame('Almadies, Dakar, Dakar, SN', $response->json('data.location.full'));
     }
 
     public function test_show_hides_owner_contact_direct_fields(): void

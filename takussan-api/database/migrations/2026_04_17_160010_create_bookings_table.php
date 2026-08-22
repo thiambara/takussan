@@ -27,7 +27,7 @@ return new class extends Migration
             $table->timestamp('expires_at')->nullable();
             $table->string('cancellation_by')->nullable();
             $table->text('cancellation_reason')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

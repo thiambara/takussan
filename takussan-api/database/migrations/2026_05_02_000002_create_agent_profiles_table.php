@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('specialty')->nullable();
             $table->date('hire_date')->nullable();
             $table->date('active_until')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

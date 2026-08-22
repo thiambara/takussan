@@ -30,7 +30,7 @@ return new class extends Migration
             $table->timestamp('processed_at')->nullable();
             $table->text('failed_reason')->nullable();
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

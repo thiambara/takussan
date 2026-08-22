@@ -49,6 +49,33 @@ class AgencyUpgradeRequestTest extends TestCase
         $this->assertNull($fresh->reviewed_by);
     }
 
+    /**
+     * L'index unique PARTIEL est désormais le seul garde-fou au niveau des données.
+     *
+     * Ce test existe parce qu'ADR-0020 a supprimé le second : `AgencyUpgradeRequest`
+     * portait un `booted()`/`creating` qui sondait la table et levait une
+     * `QueryException`, écrit pour SQLite — qui n'a pas d'index partiel — et devenu
+     * injoignable dès lors que la suite tourne sur PostgreSQL.
+     *
+     * *On ne retire pas une couche de garde sans prouver que celle qui reste tient.*
+     * Éprouvé par ablation : en retirant le `if (…'pgsql')` de la migration
+     * `2026_05_10_180000`, ce test rougit.
+     */
+    public function test_partial_unique_index_rejects_a_second_pending_request(): void
+    {
+        $agency = Agency::factory()->create();
+
+        AgencyUpgradeRequest::factory()->for($agency)->create([
+            'status' => AgencyUpgradeRequestStatus::Pending->value,
+        ]);
+
+        $this->expectException(QueryException::class);
+
+        AgencyUpgradeRequest::factory()->for($agency)->create([
+            'status' => AgencyUpgradeRequestStatus::Pending->value,
+        ]);
+    }
+
     public function test_pending_scope_returns_pending_requests_only(): void
     {
         $pending = AgencyUpgradeRequest::factory()->pending()->create();

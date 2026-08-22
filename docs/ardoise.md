@@ -179,6 +179,31 @@ démarrer**. Sur une installation neuve suivie à la lettre, l'application ne bo
 > première chose que TCK-288 doit faire, et c'est précisément le geste que cette entrée a déjà
 > manqué deux fois. TCK-288 repart de là, et non du texte ci-dessous.
 >
+> ## ⚠️ 2026-08-21 — L'OBSTACLE N'EXISTE PLUS SOUS CETTE FORME
+>
+> **Le blocage nommé ci-dessus est `Access denied for user 'takussan_prod'` sur MySQL. Depuis
+> [ADR-0020](adr/0020-postgresql-sur-tous-les-environnements.md), le dépôt ne tourne plus sur
+> MySQL.**
+>
+> Ce n'est pas une résolution de D-04 — l'API n'a toujours jamais servi, et `api.takussan.com/up`
+> rend toujours 404. C'est un changement de la QUESTION que TCK-288 doit poser. Il ne s'agit plus
+> de trancher entre « secret périmé / compte absent / *grant* manquant » sur un compte MySQL que
+> personne n'a réussi à joindre : il s'agit de **provisionner un PostgreSQL 17 neuf avec un compte
+> qu'on crée**. Les trois hypothèses ci-dessus deviennent sans objet en même temps.
+>
+> *La migration a dissous cet obstacle par effet de bord, et c'est le seul bénéfice de ce chantier
+> que personne n'avait demandé.*
+>
+> **Trois choses restent à faire côté serveur, et aucune n'est dans le dépôt** — c'est toujours
+> TCK-288 : installer `postgresql-17` **et** `postgresql-17-pgvector` (sans quoi TCK-344 se ferme
+> en silence), créer le rôle applicatif **SANS `CREATEDB`** (ce droit n'existe que pour la suite de
+> tests), et réécrire le bloc `DB_*` de `.env.prod`, fichier hors dépôt.
+>
+> ⚠ Et la leçon de cette entrée s'applique à elle-même une troisième fois : **la cible PostgreSQL
+> n'est pas mesurée, elle est décidée.** `docs/infra/versions.json` porte donc `non_mesure` pour la
+> ligne production, et `scripts/check-db-engine.mjs` a renommé sa constante `PROD` en `CIBLE`. Y
+> écrire la valeur attendue avant de l'avoir relevée serait la quatrième occurrence du même défaut.
+>
 > **Ce qui n'a PAS changé, et c'est le seul point qui ait tenu** : `master` reste un ancêtre strict
 > de `dev` (`git rev-list --count origin/dev..origin/master` → **0**) ; un merge serait un
 > *fast-forward*. Et la décision d'un premier déploiement de production reste **une action
@@ -265,6 +290,26 @@ le DDL qu'on éprouve.
 > sur la foi d'un `apt install mariadb-server` que personne n'avait exécuté. Le serveur est en
 > **MySQL 8.0.46**, `utf8mb4_0900_ai_ci` (mesuré). Corrigé, et gardé par
 > `scripts/check-db-engine.mjs` (D-43 ci-dessous).
+
+> ⚠⚠ **2026-08-21 — CE JOB A CHANGÉ DE RAISON D'ÊTRE, et cette dette avec.** Le dépôt est passé à
+> PostgreSQL 17 sur tous les environnements, **suite de tests comprise**
+> ([ADR-0020](adr/0020-postgresql-sur-tous-les-environnements.md)).
+>
+> Le motif de cette dette était : *« le job de tests tourne sur SQLite, donc rien n'éprouve le DDL
+> sur le moteur de production »*. **Ce motif est mort.** L'aller des migrations est désormais
+> exécuté par la suite entière, à chaque exécution, sur le moteur cible — c'est-à-dire des milliers
+> de fois plus souvent que ce job ne le faisait.
+>
+> Ce qui reste et que rien d'autre ne couvre, c'est le RETOUR. `migrations-mysql` devient donc
+> `migrations-pgsql` et ne garde plus que les `down()` : **15 sur 135** au 2026-08-21, ceux
+> au-dessus de la borne TCK-278. *Ne pas lire ce job comme « les `down()` sont couverts ».*
+>
+> Et deux des quatre familles de pièges que cette dette invoquait **n'existent plus** : `DEFAULT`
+> sur `JSON`/`TEXT` est accepté par PostgreSQL, et `dropUnique` sous FK n'a plus d'objet — parce
+> que PostgreSQL n'indexe pas automatiquement les clés étrangères. Ce dernier point est une
+> contrepartie, pas un gain : les 177 FK du dépôt perdent l'index qu'InnoDB leur donnait
+> gratuitement. La troisième famille, elle, s'est AGGRAVÉE en silence — la limite de nom passe de
+> 64 à 63, et PostgreSQL tronque au lieu de refuser.
 
 > **Il a trouvé un défaut réel à sa PREMIÈRE exécution**, et c'était exactement le piège n°2.
 > `2026_06_18_000001_add_performance_indexes_to_transactional_tables` posait un index composite

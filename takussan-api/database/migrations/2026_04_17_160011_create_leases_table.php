@@ -37,7 +37,7 @@ return new class extends Migration
             $table->timestamp('terminated_at')->nullable();
             $table->text('termination_reason')->nullable();
             $table->foreignId('terminated_by_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

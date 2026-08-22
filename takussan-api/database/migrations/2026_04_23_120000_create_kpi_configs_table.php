@@ -27,7 +27,7 @@ return new class extends Migration
             $table->string('format')->default('number'); // number|percent|currency
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->boolean('is_enabled')->default(true);
-            $table->json('settings')->nullable();
+            $table->jsonb('settings')->nullable();
             $table->timestamps();
 
             $table->unique(['agency_id', 'metric']);

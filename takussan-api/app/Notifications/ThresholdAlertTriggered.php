@@ -2,7 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Models\Enums\NotificationType;
 use App\Models\ThresholdAlert;
+use App\Notifications\Channels\AppDatabaseChannel;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -58,6 +60,22 @@ class ThresholdAlertTriggered extends Notification
             ))
             ->action('Voir le tableau de bord', url('/app/overview'))
             ->line('Cette alerte ne sera pas renvoyée pendant '.$this->alert->cooldown_hours.' heures.');
+    }
+
+    /**
+     * Le feed in-app (`app_notifications`) exige un `type` et un `title` ; le
+     * `toArray()` de cette classe n'en porte pas. On les déclare donc ici plutôt que
+     * de les laisser deviner — {@see AppDatabaseChannel}.
+     *
+     * @return array{type: NotificationType, title: string, data: array<string,mixed>}
+     */
+    public function toAppNotification(object $notifiable): array
+    {
+        return [
+            'type' => NotificationType::System,
+            'title' => __('notifications.threshold_alert.title', ['metric' => $this->alert->metric]),
+            'data' => $this->toArray($notifiable),
+        ];
     }
 
     /**

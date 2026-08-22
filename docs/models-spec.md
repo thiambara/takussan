@@ -744,7 +744,35 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 - ✏️ `reference_id` → `referenceable_id` / `reference_type` → `referenceable_type` (convention standard Laravel pour les morphs)
 - ✏️ `type` et `delivery_channel` passent de `string` à enum typé
 
-**Note :** La relation `referenceable()` est intentionnellement manuelle (morph non standard) — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification) pour le motif. Le canal `app_database` est enregistré dans `AppServiceProvider` via `ChannelManager::extend()`.
+**Note :** La relation `referenceable()` est intentionnellement manuelle (morph non standard) — voir [Règle 3](#règle-3--morph-referenceable-dans-appnotification) pour le motif.
+
+> ⚠️ **Le canal a changé de nom, et cette phrase a coûté quatre mois — corrigé le 2026-08-21.**
+> Cette note annonçait un canal **`app_database` enregistré dans `AppServiceProvider` via
+> `ChannelManager::extend()`**. Il n'a jamais été écrit : `grep -rn app_database app/ config/ tests/`
+> ne rendait rien. Les 29 classes de `app/Notifications/` déclaraient donc `'database'`, le canal
+> **natif** de Laravel, qui vise la table `notifications` que l'approche hybride ci-dessus écarte
+> justement — et qu'aucune migration ne créait. **Vingt-quatre d'entre elles sont réellement
+> envoyées depuis `app/` : elles écrivaient dans le vide, en production comme en test.**
+>
+> Rien ne pouvait le voir : l'échec d'insertion était avalé, la requête rendait 201, le test
+> passait. C'est la bascule PostgreSQL ([ADR-0020](adr/0020-postgresql-sur-tous-les-environnements.md))
+> qui l'a rendu bruyant — un moteur qui abandonne la transaction au premier échec ne laisse pas
+> une écriture perdue passer inaperçue.
+>
+> **Le canal existe désormais, et il PREND LA PLACE de `database`** :
+> `App\Notifications\Channels\AppDatabaseChannel`, enregistré par
+> `AppServiceProvider::bootNotificationChannels()`. Le nom `app_database` est abandonné
+> délibérément : il aurait fallu réécrire le `via()` des 29 classes **et** le trou serait resté
+> ouvert pour la trentième. Rien ne dépendait des sémantiques de Laravel — `unreadNotifications`,
+> `DatabaseNotification` et `Notifiable::notifications()` n'ont aucun appelant dans ce dépôt.
+>
+> Chaque notification fournit son `type` (carte `AppDatabaseChannel::TYPES`) et son `title`
+> (`toArray()['title']`, que 23 des 29 portent déjà ; les 6 autres déclarent un
+> `toAppNotification()`). `tests/Feature/Notifications/AppDatabaseChannelTest.php` garde la carte :
+> une notification qui emprunte `'database'` sans être rangée fait rougir la suite.
+>
+> *Une décision qui n'est écrite que dans une spec n'est pas appliquée ; elle est seulement
+> espérée.*
 
 **Scopes :**
 - `unread()` → `where('is_read', false)`

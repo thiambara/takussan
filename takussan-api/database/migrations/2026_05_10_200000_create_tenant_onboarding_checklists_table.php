@@ -39,7 +39,7 @@ return new class extends Migration
             // MySQL < 8.0.13 refuse DEFAULT sur JSON. Le default '[]' est
             // posé côté Model via $attributes (TenantOnboardingChecklist.php),
             // et la lecture est défensive via "?? []" partout.
-            $table->json('reminders_sent')->nullable();
+            $table->jsonb('reminders_sent')->nullable();
 
             $table->timestamp('completed_at')->nullable();
 

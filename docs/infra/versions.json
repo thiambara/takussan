@@ -1,43 +1,30 @@
 {
   "_lisez_moi": "Catalogue des versions d'infrastructure — la SEULE source de vérité du dépôt sur « quelle version de quel service tourne où ». Gardé par `node scripts/check-infra-versions.mjs`, rejoué par Repo CI. Le raisonnement, les commandes de mesure et le mode d'emploi sont dans docs/infra/versions.md — ce fichier ne porte que des valeurs, pour rester lisible par script.",
-
   "_regles": [
     "Une valeur `dev` ou `ci` est une CITATION du dépôt : la garde exige de la retrouver, à l'identique, dans le fichier qui la déclare. Si la valeur ne s'y trouve plus, la garde rougit — dans les DEUX sens, valeur changée comme déclaration supprimée.",
     "Une valeur `prod` est soit MESURÉE sur la machine (`etat: mesure`, avec la commande, la date et la référence de la mesure), soit déclarée NON MESURÉE (`etat: non_mesure`, `valeur: null`, avec la commande qui la mesurerait). Il n'y a pas de troisième état : une version déduite d'un guide d'installation, d'un fichier de configuration ou d'un déploiement réussi n'est pas une mesure.",
     "Un environnement sans déclaration porte `valeur: null` ET une `absence` qui dit pourquoi. Nuller sans expliquer désarme la garde en silence — c'est exactement le défaut prouvé par mutation sur `check-db-engine.mjs`."
   ],
-
   "_mesure_prod": {
     "acces": "Serveur Contabo, Ubuntu 24.04, accès SSH `deploy@`. Aucune de ces commandes n'écrit quoi que ce soit.",
-    "toutes_en_une": "ssh deploy@<serveur> 'mysql --version; /usr/bin/meilisearch --version; redis-server --version; php -v | head -1; node --version; cat /etc/takussan/php-version'",
+    "toutes_en_une": "ssh deploy@<serveur> 'psql --version; /usr/bin/meilisearch --version; redis-server --version; php -v | head -1; node --version; cat /etc/takussan/php-version'",
     "apres_mesure": "Reporter la valeur dans ce fichier, passer `etat` à `mesure`, renseigner `date` et `source`, puis relancer `node scripts/check-infra-versions.mjs --report`."
   },
-
   "services": {
-    "mysql": {
-      "libelle": "Base de données",
-      "sondes": [{ "type": "image", "depot": "mysql" }],
-      "dev": { "valeur": "mysql:8.0" },
-      "ci": { "valeur": "mysql:8.0" },
-      "prod": {
-        "etat": "mesure",
-        "valeur": "8.0.46-0ubuntu0.24.04.3",
-        "commande": "sudo mysql -e \"SELECT VERSION(), @@collation_server, @@character_set_server;\"",
-        "date": "2026-08-13",
-        "source": "TCK-289 / ardoise D-43",
-        "note": "Le moteur, la version ET la collation ont leur propre garde dédiée : `scripts/check-db-engine.mjs`. Ce catalogue n'y ajoute rien — il vérifie seulement que les deux fichiers portent la même valeur mesurée."
-      },
-      "accords_croises": [
-        ["scripts/check-db-engine.mjs", "8.0.46-0ubuntu0.24.04.3"],
-        ["scripts/check-db-engine.mjs", "mysql:8.0"]
-      ]
-    },
-
     "meilisearch": {
       "libelle": "Moteur de recherche",
-      "sondes": [{ "type": "image", "depot": "getmeili/meilisearch" }],
-      "dev": { "valeur": "getmeili/meilisearch:v1.16" },
-      "ci": { "valeur": "getmeili/meilisearch:v1.16" },
+      "sondes": [
+        {
+          "type": "image",
+          "depot": "getmeili/meilisearch"
+        }
+      ],
+      "dev": {
+        "valeur": "getmeili/meilisearch:v1.16"
+      },
+      "ci": {
+        "valeur": "getmeili/meilisearch:v1.16"
+      },
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
@@ -45,11 +32,17 @@
         "pourquoi": "Le dépôt ne contient qu'un GUIDE d'installation (`docs/infra/deploy-preview.html` §6.4 : `sudo apt update && sudo apt install meilisearch`), qui n'épingle aucune version et que personne n'a rejoué sous les yeux d'un agent. Un guide décrit ce qu'on VOUDRAIT installer ; seule la machine dit ce qui EST installé. C'est le raisonnement exact qui a fait tourner la CI sur MariaDB alors que la production servait MySQL (D-43)."
       }
     },
-
     "redis": {
       "libelle": "Cache / sessions",
-      "sondes": [{ "type": "image", "depot": "redis" }],
-      "dev": { "valeur": "redis:8-alpine" },
+      "sondes": [
+        {
+          "type": "image",
+          "depot": "redis"
+        }
+      ],
+      "dev": {
+        "valeur": "redis:8-alpine"
+      },
       "ci": {
         "valeur": null,
         "absence": "Aucun workflow ne démarre Redis — vérifié le 2026-08-16 : `grep -nE '^\\s*redis:|REDIS_' .github/workflows/*.yml` ne rend rien. La suite tourne donc sur les drivers de `.env.example` sans jamais éprouver le chemin Redis."
@@ -61,11 +54,17 @@
         "pourquoi": "Rien dans le dépôt ne provisionne ni ne mentionne Redis côté serveur : `scripts/server-setup.sh` ne l'installe pas, `docs/infra/premier-deploiement.md` ne le nomme pas. On ne sait donc même pas s'il est présent — et `.env.example` livre pourtant `CACHE_STORE=redis`."
       }
     },
-
     "mailpit": {
       "libelle": "Collecteur de courriel (développement)",
-      "sondes": [{ "type": "image", "depot": "axllent/mailpit" }],
-      "dev": { "valeur": "axllent/mailpit:v1.30.3" },
+      "sondes": [
+        {
+          "type": "image",
+          "depot": "axllent/mailpit"
+        }
+      ],
+      "dev": {
+        "valeur": "axllent/mailpit:v1.30.3"
+      },
       "ci": {
         "valeur": null,
         "absence": "Aucun workflow ne déclare Mailpit — vérifié le 2026-08-16 : `grep -in mailpit .github/workflows/*.yml` ne rend rien."
@@ -77,16 +76,22 @@
         "pourquoi": "Mailpit est un outil de développement, et on l'ATTEND absent en production — mais attendre n'est pas mesurer. La ligne reste ici pour que l'attente soit écrite quelque part où on puisse la démentir."
       }
     },
-
     "php": {
       "libelle": "Runtime applicatif (API)",
       "sondes": [
-        { "type": "cle-yaml", "cle": "php-version" },
+        {
+          "type": "cle-yaml",
+          "cle": "php-version"
+        },
         {
           "type": "json",
           "env": "dev",
           "fichier": "takussan-api/composer.json",
-          "chemin": ["config", "platform", "php"]
+          "chemin": [
+            "config",
+            "platform",
+            "php"
+          ]
         }
       ],
       "dev": {
@@ -104,10 +109,14 @@
         "pourquoi": "L'ardoise D-01 établit une BORNE INFÉRIEURE, pas une version : le déploiement de preview du 2026-06-20 a réussi, `deploy.sh` y lance `composer install --no-dev`, et le lock d'alors exigeait `php >=8.4.1` — donc le serveur (partagé entre preview et production) est au moins en 8.4.1. C'est une inférence tirée d'un ÉVÉNEMENT observé, ce qui vaut infiniment mieux qu'un guide, mais ce n'est toujours pas un relevé : on ignore le correctif exact et si prod et preview servent le même binaire aujourd'hui. Rien dans le dépôt ne choisit cette version — `scripts/server-setup.sh` n'installe aucun PHP (il LIT `php -v` et imprime `apt install php<version>-fpm` si le binaire manque), et `deploy.yml` n'en déclare aucune. ⚠ Le tableau de l'ardoise D-09 porte encore « 8.3 » pour cette case, en contradiction avec D-01 : ne s'y fier ni dans un sens ni dans l'autre avant d'avoir lancé la commande."
       }
     },
-
     "node": {
       "libelle": "Runtime applicatif (front) et outillage du dépôt",
-      "sondes": [{ "type": "cle-yaml", "cle": "node-version" }],
+      "sondes": [
+        {
+          "type": "cle-yaml",
+          "cle": "node-version"
+        }
+      ],
       "dev": {
         "valeur": null,
         "absence": "Aucun `engines.node` dans `takussan-web/package.json` et aucun conteneur Node dans `docker-compose.yml` — vérifié le 2026-08-16. La version locale est celle du poste, quelle qu'elle soit, et rien ne la confronte au « 24 » de la CI."
@@ -122,6 +131,36 @@
         "commande": "node --version 2>/dev/null || echo 'node absent'",
         "pourquoi": "Aucun workflow ne déploie de runtime Node : `deploy.yml` et `deploy-preview.yml` ne déclarent ni `setup-node` ni image, et `scripts/server-setup.sh` ne pose ni Node ni service front. Le front n'est donc pas déployé depuis ce dépôt (TCK-299) — mais l'absence de Node SUR LE SERVEUR reste une supposition tant que la commande n'a pas été lancée."
       }
+    },
+    "postgres": {
+      "libelle": "Base de données",
+      "sondes": [
+        {
+          "type": "image",
+          "depot": "pgvector/pgvector"
+        }
+      ],
+      "dev": {
+        "valeur": "pgvector/pgvector:pg17"
+      },
+      "ci": {
+        "valeur": "pgvector/pgvector:pg17"
+      },
+      "prod": {
+        "etat": "non_mesure",
+        "pourquoi": "aucune production PostgreSQL n'existe : l'API n'a jamais été déployée (D-04 — api.takussan.com/up → 404, deploy.yml en échec deux fois le 2026-08-15 sur l'authentification MySQL de takussan_prod). La mesure se prendra en se connectant au serveur, dans TCK-288, et pas avant.",
+        "valeur": null,
+        "commande": "psql -tAc \"SELECT current_setting('server_version'), datcollate, pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database();\"",
+        "date": null,
+        "source": "ADR-0020 / TCK-288",
+        "note": "⚠ `non_mesure`, et c'est le point important de cette entrée. Le moteur a changé le 2026-08-21 (ADR-0020 : MySQL 8.0 → PostgreSQL 17), mais AUCUNE production PostgreSQL n'existe — `api.takussan.com/up` rend 404 et `deploy.yml` a échoué deux fois le 2026-08-15 (D-04). L'entrée précédente portait `mesure` / `8.0.46-0ubuntu0.24.04.3` / `2026-08-13` : c'était vrai, et ça décrivait un moteur que le dépôt n'exécute plus. Recopier ici la cible PostgreSQL en la marquant `mesure` referait EXACTEMENT la faute de `mariadb:11.4` que ce catalogue existe pour empêcher — une configuration prise pour un relevé. La valeur reste nulle jusqu'à ce que quelqu'un lance la commande ci-dessus SUR le serveur. Le moteur, l'image et la collation ont par ailleurs leur garde dédiée : `scripts/check-db-engine.mjs`, dont la constante s'appelle `CIBLE` et non `PROD`, pour la même raison."
+      },
+      "accords_croises": [
+        [
+          "scripts/check-db-engine.mjs",
+          "pgvector/pgvector:pg17"
+        ]
+      ]
     }
   }
 }

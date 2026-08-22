@@ -56,7 +56,7 @@ Aucune de ces commandes n'écrit quoi que ce soit. Depuis un poste ayant l'accè
 
 ```bash
 ssh deploy@<serveur> '
-  mysql --version
+  psql --version           || echo "postgresql: absent"
   /usr/bin/meilisearch --version
   redis-server --version   || echo "redis: absent"
   php -v | head -1
@@ -66,12 +66,25 @@ ssh deploy@<serveur> '
 '
 ```
 
-Pour MySQL, la mesure de référence reste celle que porte `scripts/check-db-engine.mjs` — elle relève
-aussi la collation, qui compte autant que la version :
+Pour la base, la mesure de référence reste celle que porte `scripts/check-db-engine.mjs` — elle
+relève aussi la **collation**, qui compte autant que la version : c'est d'elle que dépend le sens
+de six contraintes d'unicité sur texte (ADR-0020 §4.2).
 
 ```bash
-sudo mysql -e "SELECT VERSION(), @@collation_server, @@character_set_server;"
+sudo -u postgres psql -Atc \
+  "SELECT version(), datcollate, datctype, pg_encoding_to_char(encoding)
+     FROM pg_database WHERE datname = current_database();"
+# attendu, cible : PostgreSQL 17.x · C | C | UTF8
 ```
+
+> ⚠ **La collation se lit dans `pg_database`, jamais dans un paramètre de session** :
+> `current_setting('lc_collate')` n'existe pas en PostgreSQL 17 et rend
+> *« unrecognized configuration parameter »*. L'erreur a été payée en écrivant ADR-0020.
+>
+> **Et cette commande n'a encore jamais rendu de résultat** : aucune production PostgreSQL
+> n'existe (D-04). Elle décrit la mesure à prendre dans TCK-288, pas une mesure prise. La
+> commande MySQL qu'elle remplace, elle, avait été exécutée — le 2026-08-13, sur un moteur que
+> le dépôt n'exécute plus depuis ADR-0020.
 
 **Après avoir mesuré**, dans `versions.json` : passer `etat` à `mesure`, écrire `valeur`, `date`
 (le jour du relevé, pas celui de l'écriture) et `source` (ticket ou entrée d'ardoise), puis
@@ -115,7 +128,7 @@ Une garde qu'on n'a pas vue rougir ne garde rien. Les sept mutations jouées ava
 | Nouveau service `rabbitmq:4-management` ajouté au compose | rouge — un service hors catalogue | ✅ `image rabbitmq:4-management … ABSENTE de docs/infra/versions.json` |
 | `meilisearch.prod` : `valeur` remplie tout en restant `non_mesure` | rouge — c'est le geste que le ticket interdit | ✅ `… mais valeur vaut "v1.16". Une version non mesurée n'est pas une version : c'est une supposition.` |
 | `redis.dev` nullé **sans** `absence` | rouge — sinon supprimer une version rend la garde muette | ✅ `valeur: null sans absence` |
-| `check-db-engine.mjs` : `PROD.version` → `8.0.47-…`, catalogue inchangé | rouge — les deux gardes doivent porter la même mesure | ⚠️ **verte d'abord**, cf. ci-dessous |
+| `check-db-engine.mjs` : `PROD.version` → `8.0.47-…`, catalogue inchangé (⚠ la constante s'appelle **`CIBLE`** depuis ADR-0020 — renommée parce qu'aucune production PostgreSQL n'a été relevée, et qu'un nom `PROD` inviterait à croire le contraire) | rouge — les deux gardes doivent porter la même mesure | ⚠️ **verte d'abord**, cf. ci-dessous |
 
 La dernière mutation est la plus instructive, et elle a **trouvé un défaut réel dans la garde**.
 L'accord croisé cherchait le littéral dans le fichier *entier* — or `8.0.46-0ubuntu0.24.04.3` survit

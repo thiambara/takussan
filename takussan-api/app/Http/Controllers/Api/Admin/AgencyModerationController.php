@@ -28,7 +28,22 @@ class AgencyModerationController extends Controller
     {
         $query = Agency::query()
             ->select('agencies.*')
-            ->withCount('properties')
+            // ⚠ ALIAS EXPLICITE, et ce n'est pas de la cosmétique : `agencies` porte une
+            // VRAIE colonne `properties_count`, dénormalisée et maintenue par
+            // `PropertyObserver` (increment/decrement). Un `withCount('properties')` nu en
+            // ajoutait une SECONDE du même nom, si bien que la requête rendait deux
+            // colonnes homonymes — et que la valeur servie par l'API dépendait de quelle
+            // colonne le moteur choisissait.
+            //
+            // PostgreSQL a refusé de choisir (« ORDER BY "properties_count" is ambiguous »),
+            // ce qui a rendu le défaut visible ; MySQL et SQLite choisissaient en silence.
+            // Le tri `sort=-properties_count` s'appliquait donc à une colonne que personne
+            // n'avait décidée, et rien ne pouvait le signaler.
+            //
+            // On garde le compte VIVANT — c'est ce que le code demandait explicitement, et
+            // lui seul exclut les biens supprimés en douceur (`deleted_at is null`), là où
+            // le compteur dénormalisé dépend de la bonne tenue de l'observateur.
+            ->withCount('properties as live_properties_count')
             ->selectSub($this->memberCountSubquery(), 'members_count')
             ->selectSub($this->lastActivitySubquery(), 'last_activity_at');
 
@@ -61,7 +76,9 @@ class AgencyModerationController extends Controller
             'created_at' => 'agencies.created_at',
             'name' => 'agencies.name',
             'members_count' => 'members_count',
-            'properties_count' => 'properties_count',
+            // Le nom PUBLIC du tri ne change pas — c'est un contrat d'API ; seule la
+            // colonne visée est désormais désignée sans ambiguïté.
+            'properties_count' => 'live_properties_count',
         ];
 
         if (isset($sorts[$field])) {

@@ -36,6 +36,8 @@
     "39": "Évacuation dette — convergence des conventions backend (2026-08-16)",
     "40": "Évacuation dette — documentation : specs et documents périmés (2026-08-16)",
     "41": "Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)",
-    "42": "Recherche & navigation publiques — audit du 2026-08-21"
+    "42": "Recherche & navigation publiques — audit du 2026-08-21",
+    "43": "PostgreSQL : ce que la migration a rendu POSSIBLE — jsonb exploité, pgvector et le chatbot (2026-08-21)",
+    "44": "PostgreSQL : ce que la migration a rendu DISCUTABLE — recherche PG contre Meilisearch, géo (2026-08-21)"
   }
 }

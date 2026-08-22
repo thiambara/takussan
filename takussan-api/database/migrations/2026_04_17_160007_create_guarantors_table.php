@@ -22,7 +22,7 @@ return new class extends Migration
             $table->string('relationship_to_tenant')->nullable();
             $table->foreignId('added_by_id')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

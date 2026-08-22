@@ -15,7 +15,7 @@ return new class extends Migration
             $table->text('credentials');
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_used_at')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

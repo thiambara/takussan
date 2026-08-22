@@ -7,6 +7,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.4",
+        "ext-pdo_pgsql": "*",
         "bacon/bacon-qr-code": "^3.1",
         "intervention/image": "^4.2",
         "laravel/framework": "^13.0",

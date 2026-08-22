@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('requested_by')->constrained('users')->cascadeOnDelete();
             $table->string('report');     // growth | revenue | cohorts | funnel
             $table->string('format');     // csv | xlsx
-            $table->json('parameters')->nullable();
+            $table->jsonb('parameters')->nullable();
             $table->string('status')->default('queued'); // queued | processing | ready | failed
             $table->string('archive_path')->nullable();
             $table->unsignedBigInteger('row_count')->nullable();

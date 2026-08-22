@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('direction')->default('incoming');
             $table->string('status')->default('received');
             $table->string('event_type')->nullable();
-            $table->json('payload');
+            $table->jsonb('payload');
             $table->timestamp('processed_at')->nullable();
             $table->timestamps();
 

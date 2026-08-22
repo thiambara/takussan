@@ -98,6 +98,32 @@ class PipelineStatsService
     }
 
     /**
+     * Les deux chemins JSON du journal d'activité, en SQL PostgreSQL.
+     *
+     * ⚠ Ces deux constantes remplacent un BRANCHEMENT PAR DRIVER qui était mort de
+     * naissance, et c'est la trouvaille la plus instructive de la migration vers
+     * PostgreSQL (ADR-0020).
+     *
+     * Il s'écrivait `$driver === 'sqlite' ? json_extract(…) : JSON_UNQUOTE(JSON_EXTRACT(…))`
+     * — donc « SQLite, sinon MySQL ». Mais la suite de tests tournait sur SQLite et la
+     * production n'a jamais servi (D-04) : **la branche MySQL n'a jamais été exécutée par
+     * quoi que ce soit**, ni un test, ni une requête réelle. Elle aurait cassé sur
+     * PostgreSQL — `JSON_UNQUOTE` n'y existe pas — et le rouge ne serait apparu qu'en
+     * production, sur une console CRM.
+     *
+     * Le branchement est SUPPRIMÉ, pas ramené à une branche : laisser un ternaire à un
+     * seul cas laisse croire qu'il en existe un second, et invite le suivant à le
+     * « compléter » pour un moteur que le dépôt ne supporte plus.
+     *
+     * `->>` rend du TEXTE et déquote lui-même : il n'y a pas d'équivalent de
+     * `JSON_UNQUOTE` à écrire, l'oublier donnerait des valeurs entourées de guillemets.
+     * Les deux opérateurs valent sur `json` comme sur `jsonb`.
+     */
+    private const PIPELINE_STAGE_OLD = "properties->'old'->>'pipeline_stage'";
+
+    private const PIPELINE_STAGE_NEW = "properties->'attributes'->>'pipeline_stage'";
+
+    /**
      * Count of pipeline_stage transitions for the in-scope customers in the
      * last 30 days. Uses the spatie activity log (Auditable trait) which
      * tracks `pipeline_stage` in its `properties` JSON column.
@@ -108,16 +134,11 @@ class PipelineStatsService
             return 0;
         }
 
-        $driver = DB::connection()->getDriverName();
-        $jsonHas = $driver === 'sqlite'
-            ? "json_extract(properties, '$.attributes.pipeline_stage') IS NOT NULL"
-            : "JSON_EXTRACT(properties, '$.attributes.pipeline_stage') IS NOT NULL";
-
         return (int) Activity::query()
             ->where('subject_type', Customer::class)
             ->whereIn('subject_id', $customerIds)
             ->where('created_at', '>=', now()->subDays(30))
-            ->whereRaw($jsonHas)
+            ->whereRaw(self::PIPELINE_STAGE_NEW.' IS NOT NULL')
             ->count();
     }
 
@@ -138,13 +159,8 @@ class PipelineStatsService
             return $result;
         }
 
-        $driver = DB::connection()->getDriverName();
-        $oldExpr = $driver === 'sqlite'
-            ? "json_extract(properties, '$.old.pipeline_stage')"
-            : "JSON_UNQUOTE(JSON_EXTRACT(properties, '$.old.pipeline_stage'))";
-        $newExpr = $driver === 'sqlite'
-            ? "json_extract(properties, '$.attributes.pipeline_stage')"
-            : "JSON_UNQUOTE(JSON_EXTRACT(properties, '$.attributes.pipeline_stage'))";
+        $oldExpr = self::PIPELINE_STAGE_OLD;
+        $newExpr = self::PIPELINE_STAGE_NEW;
 
         $rows = Activity::query()
             ->where('subject_type', Customer::class)

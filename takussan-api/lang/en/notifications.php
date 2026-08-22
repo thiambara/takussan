@@ -237,4 +237,8 @@ return [
         'next_steps' => 'You may submit a new booking request if the property is still available.',
         'unknown_property' => 'Unknown property',
     ],
+
+    'threshold_alert' => [
+        'title' => 'KPI alert — :metric',
+    ],
 ];

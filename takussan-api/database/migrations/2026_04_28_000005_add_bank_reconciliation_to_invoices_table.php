@@ -28,12 +28,16 @@ return new class extends Migration
 
     private function addPartialUnique(string $table, string $column): void
     {
-        $driver = DB::getDriverName();
-
-        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
-            DB::statement("CREATE UNIQUE INDEX {$table}_bank_line_unique ON {$table} ({$column}) WHERE {$column} IS NOT NULL");
-        } else {
-            Schema::table($table, fn (Blueprint $t) => $t->unique($column, "{$table}_bank_line_unique"));
-        }
+        // ⚠ Plus de branchement par driver depuis ADR-0020 : il n'y a qu'un moteur.
+        // La forme conditionnelle disait « pgsql ou sqlite → index partiel, SINON un
+        // unique simple » — et ce « sinon », écrit pour MySQL, n'a jamais été exécuté
+        // par un test et ne le sera plus. Un branchement à une seule branche laisse
+        // croire qu'il en existe une seconde et invite à la « compléter ».
+        //
+        // ⚠⚠ Les deux formes n'étaient PAS équivalentes : l'index partiel n'interdit
+        // les doublons que sur les lignes NON NULLES, là où un unique simple compte
+        // aussi les NULL sur certains moteurs. C'est l'index partiel qui porte
+        // l'intention.
+        DB::statement("CREATE UNIQUE INDEX {$table}_bank_line_unique ON {$table} ({$column}) WHERE {$column} IS NOT NULL");
     }
 };
