@@ -222,3 +222,79 @@ les réponses FastCGI). `gzip -6` sur le même corps rend **3 222 octets, soit 1
 sur le fil, quand l'ETag n'économise que les octets d'une réponse déjà calculée et que les sparse
 fieldsets en valaient 123.
 
+
+## Re-mesuré le 2026-08-22 — AC5 est infermable d'ici, et il ne suffirait pas
+
+Trois mesures, prises le 2026-08-22 depuis cette machine.
+
+### 1. AC5 ne peut être fermé ni depuis le dépôt, ni depuis cette machine
+
+| Ce qu'il faudrait | Mesure |
+|---|---|
+| une clé pour joindre le serveur | `ls -la ~/.ssh/` → `agent/`, `known_hosts`, `known_hosts.old`. **Aucune clé privée.** `~/.ssh/config` absent. `ssh-add -l` → *The agent has no identities.* |
+| l'hôte | `dig +short preview.api.takussan.com` → `178.18.247.62`, présent dans `known_hosts` |
+| la connexion | `ssh -o BatchMode=yes 178.18.247.62 true` → **`Permission denied (publickey,password)`** |
+| un workflow qui exécute le script | `grep -rn 'server-setup' .` → **aucun**. `scripts/deploy.sh:372` écrit lui-même que ce script est MANUEL. `deploy-preview.yml` ne lance que `deploy.sh`, qui ne touche pas au vhost. |
+| les secrets | `gh secret list` → `CONTABO_HOST`, `CONTABO_USER`, `CONTABO_SSH_KEY` — présents, **illisibles** (c'est leur rôle) |
+
+Le bloc gzip est bien là où le ticket le dit — `scripts/server-setup.sh:241-245`, dans le heredoc `<<NGINX` de
+`setup_nginx_vhost`. Il n'est exécuté par rien.
+
+### 2. Et le fermer ne donnerait PAS l'effet attendu — la préproduction ne porte pas ce ticket
+
+```
+$ git log -1 --format='%h %ad' --date=iso origin/preview
+c8b77d90 2026-08-20 21:15:40 +0000
+$ git rev-list --count origin/preview..origin/dev     → 34
+$ git rev-list --count origin/dev..origin/preview     → 4      ← preview n'est PAS un ancêtre de dev
+```
+
+```
+$ curl -sI 'https://preview.api.takussan.com/api/public/properties/search?per_page=5'
+Cache-Control: no-cache, private
+Vary: Origin
+(aucun ETag, aucun Content-Encoding)
+```
+
+**AC1 à AC4 sont mergés sur `dev` et absents de la préproduction.** `search` y sort sans ETag, `discovery` avec
+`Vary: Origin` seul. Relancer `server-setup.sh` activerait la compression sur une API qui ne revalide toujours
+rien : le préalable est un `git push origin dev:preview`, et c'est une **action sortante**, pas un rangement.
+
+*Un critère d'acceptation qui dépend d'un déploiement ne se ferme pas dans le dépôt qui le décrit.* AC5 est
+donc **extrait** dans un ticket d'infrastructure, [TCK-348](TCK-348-compression-et-deploiement-preprod.md),
+rattaché à TCK-288 — plutôt que de laisser ce ticket ouvert sur une action que personne d'ici ne peut faire.
+
+### 3. Un défaut trouvé en chemin, mesuré et corrigé : `.env.docker` livrait un cache qui ne sait pas tagger
+
+Ce n'est pas dans le périmètre d'origine, mais c'est la même surface — le cache — et le défaut est réel.
+
+```
+$ CACHE_STORE=database php artisan tinker --execute="Cache::tags(['x'])->put('a',1,60);"
+BadMethodCallException — This cache store does not support tagging.
+```
+
+`app/Services/Property/SimilarPropertiesService.php:19,157` emploie `Cache::tags()`. `.env.docker` livrait
+`CACHE_STORE=database` : **tout développeur qui suivait le fichier de développement du dépôt obtenait un 500
+sur les biens similaires.** Le commentaire qui justifiait ce choix affirmait « `database` partout, comme la
+PRODUCTION (cf. `docs/infra/deploy-preview.html`) » — deux erreurs en une phrase :
+
+- **la production déclare `redis`**, et c'est mesuré : `docs/infra/prod-drivers.json` donne `CACHE_STORE: redis`
+  et `SESSION_DRIVER: redis` pour la préproduction **et** la production, `etat: mesure`, 2026-08-16 ;
+- il citait `deploy-preview.html`, c'est-à-dire **l'une des trois copies que `prod-drivers.json` a précisément
+  remplacées** parce qu'elles se contredisaient.
+
+Le plus instructif : `CLAUDE.md:444` affirmait déjà, depuis TCK-300, que « les deux `.env` livrés déclarent
+`redis` pour le cache et la session ». C'était vrai de `.env.example` et faux de `.env.docker`. **Deux fichiers
+du même dépôt se contredisaient sur une valeur, et aucune garde ne pouvait le voir** : `check-env-parity.mjs`
+compare les **clés**, jamais les valeurs — délibérément, deux fichiers aux valeurs identiques n'auraient aucune
+raison d'être deux. C'est la limite de cette garde, et elle est écrite dans son propre en-tête.
+
+Corrigé : `.env.docker` déclare `redis` pour le cache et la session, `database` pour la file (ce que les deux
+environnements déployés déclarent). Vérifié après coup :
+
+```
+$ CACHE_STORE=redis REDIS_PORT=6380 php artisan tinker --execute="Cache::tags(['sonde'])->put('a',1,60); …"
+TAGS OK sur redis — relecture: '1' ; flush OK
+$ node scripts/check-env-parity.mjs   → ✓ 115 clés des deux côtés
+$ node scripts/check-prod-drivers.mjs → ✓ 11 accord(s) vérifié(s)
+```
