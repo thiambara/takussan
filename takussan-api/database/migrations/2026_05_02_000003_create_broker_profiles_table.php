@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('insurance_policy_id')->nullable();
             $table->string('regulator_registration')->nullable();
             $table->date('active_until')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

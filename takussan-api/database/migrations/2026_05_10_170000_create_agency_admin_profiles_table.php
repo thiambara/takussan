@@ -28,7 +28,7 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained('users')->restrictOnDelete();
             $table->foreignId('agency_id')->constrained('agencies')->restrictOnDelete();
             $table->string('status')->default('active');
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

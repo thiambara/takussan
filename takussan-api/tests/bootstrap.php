@@ -1,5 +1,6 @@
 <?php
 
+use Tests\Support\TestDatabase;
 use Tests\Support\TestFilesystemIsolation;
 use Tests\Support\TestSearchIndex;
 
@@ -22,5 +23,6 @@ use Tests\Support\TestSearchIndex;
 
 require __DIR__.'/../vendor/autoload.php';
 
+TestDatabase::install();
 TestSearchIndex::install();
 TestFilesystemIsolation::install();

@@ -21,7 +21,7 @@ return new class extends Migration
             $table->text('reply_content')->nullable();
             $table->foreignId('replied_by_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('replied_at')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

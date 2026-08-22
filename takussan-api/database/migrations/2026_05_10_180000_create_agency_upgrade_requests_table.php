@@ -58,24 +58,27 @@ return new class extends Migration
             $table->index(['status', 'submitted_at']);
         });
 
-        // Postgres: index unique partiel `WHERE status = 'pending'` pour
-        // garantir au niveau DB qu'une agence n'a jamais 2 demandes
-        // pending simultanées. Pas d'équivalent natif SQLite — fallback au
-        // check applicatif dans le modèle.
-        if (DB::connection()->getDriverName() === 'pgsql') {
-            DB::statement(<<<'SQL'
-                CREATE UNIQUE INDEX agency_upgrade_requests_one_pending_per_agency
-                ON agency_upgrade_requests (agency_id)
-                WHERE status = 'pending'
-            SQL);
-        }
+        // Index unique PARTIEL : une agence n'a jamais deux demandes `pending`
+        // simultanées, garanti au niveau de la base.
+        //
+        // ⚠ Le branchement `=== 'pgsql'` a disparu avec ADR-0020, et son commentaire
+        // avec — il annonçait « pas d'équivalent natif SQLite, fallback au check
+        // applicatif dans le modèle ». Ce repli existait bien
+        // (`AgencyUpgradeRequest::booted()`), et il a été supprimé en même temps : son
+        // `if (getDriverName() !== 'sqlite') return;` sortait désormais à tous les
+        // coups. La contrainte n'a plus qu'une couche en base, et
+        // `AgencyUpgradeRequestTest::test_partial_unique_index_rejects_a_second_pending_request`
+        // l'éprouve — vérifié par ablation.
+        DB::statement(<<<'SQL'
+            CREATE UNIQUE INDEX agency_upgrade_requests_one_pending_per_agency
+            ON agency_upgrade_requests (agency_id)
+            WHERE status = 'pending'
+        SQL);
     }
 
     public function down(): void
     {
-        if (DB::connection()->getDriverName() === 'pgsql') {
-            DB::statement('DROP INDEX IF EXISTS agency_upgrade_requests_one_pending_per_agency');
-        }
+        DB::statement('DROP INDEX IF EXISTS agency_upgrade_requests_one_pending_per_agency');
 
         Schema::dropIfExists('agency_upgrade_requests');
     }

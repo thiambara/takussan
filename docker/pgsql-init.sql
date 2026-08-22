@@ -1,0 +1,66 @@
+-- Initialisation du serveur PostgreSQL de développement (ADR-0020).
+--
+-- ⚠ Joué UNE SEULE FOIS, à la CRÉATION du volume `pgsql-data`. Sur un volume qui
+-- existe déjà, l'entrypoint de l'image ignore ce répertoire sans rien dire. Pour
+-- l'appliquer à un environnement déjà monté :
+--
+--     docker compose exec postgres psql -U takussan -d takussan -f /docker-entrypoint-initdb.d/01-init.sql
+--
+-- ou, plus radical, `docker compose down -v` puis `up` — il n'y a aucune donnée à
+-- perdre en développement, `php artisan migrate:fresh --seed` la reconstruit.
+
+
+-- ─── CE QUE CE FICHIER FAIT VRAIMENT, ET IL FAUT LE DIRE EXACTEMENT ────────────────
+--
+-- ⚠ La ligne ci-dessous est aujourd'hui un NO-OP, et sa première version prétendait le
+-- contraire. Elle était introduite par « le seul droit que l'image ne donne pas », ce
+-- qui était FAUX : `POSTGRES_USER` fait du rôle le SUPERUTILISATEUR de l'instance, et
+-- `CREATEDB` en découle. Mesuré le 2026-08-21, sur le conteneur qui tourne :
+--
+--     SELECT rolname, rolsuper, rolcreatedb FROM pg_roles WHERE rolname='takussan';
+--     takussan|t|t
+--
+-- La ligne était donc vraie sur le fond — le droit est bien indispensable — et fausse
+-- sur son sujet : elle ne l'accordait pas, elle le trouvait déjà là. *Un fichier qui
+-- s'attribue un effet qu'il n'a pas est pire qu'un fichier absent : on le croit.*
+--
+-- Elle est CONSERVÉE, et pour deux raisons qui ne sont pas de la politesse :
+--
+--   1. Elle rend l'exigence EXPLICITE. `Tests\Support\TestDatabase` crée une base par
+--      processus de test — la cinquième ressource partagée par machine, et la seule que
+--      la migration vers PostgreSQL CRÉE au lieu de la révéler : sous SQLite `:memory:`,
+--      chaque processus PHP avait sa base gratuitement. Sans base par processus, le
+--      `migrate:fresh` de `RefreshDatabase` de l'un vide les tables sous l'autre.
+--      Mesuré par ablation : deux exécutions simultanées de `DocumentVersionTest`
+--      rendent 10/10 avec l'isolation, et meurent TOUTES DEUX sans elle —
+--      `SQLSTATE[42P01] table "account_deletion_requests" does not exist` d'un côté,
+--      `relation "migrations" does not exist` de l'autre. C'est la panne D-44.
+--
+--   2. Elle survit au jour où l'image change. Le superutilisateur est une propriété de
+--      `docker-entrypoint.sh`, pas une garantie de PostgreSQL. Une instance managée, un
+--      rôle applicatif créé à la main, une image alternative : le droit disparaît, et
+--      `ALTER ROLE` cesse alors d'être un no-op au moment précis où il compte.
+--
+-- Ce qui NE DOIT PAS en être déduit : ce droit est un droit de DÉVELOPPEMENT ET DE CI.
+-- Il n'a rien à faire sur le rôle applicatif de production, où personne ne crée de base
+-- à l'exécution.
+--
+-- Et il n'a pas besoin de garde ici : si le droit manque, `TestDatabase` lève au lieu de
+-- se replier sur la base partagée. *Une isolation qui se désactive toute seule n'est pas
+-- une isolation.*
+ALTER ROLE takussan CREATEDB;
+
+
+-- ─── Ce que ce script ne fait PAS, délibérément ─────────────────────────────────────
+--
+-- Il ne crée AUCUNE extension. Ni `vector`, ni `pg_trgm`, ni `citext`.
+--
+-- L'image est `pgvector/pgvector:pg17` pour que l'extension soit DISPONIBLE — c'est le
+-- provisionnement qui se décide dans ce chantier, pas le schéma (ADR-0020 §2). Chaque
+-- extension viendra avec le ticket qui en a besoin, et avec la migration qui l'installe :
+-- une extension créée « au cas où » est une dépendance que personne n'a décidée.
+--
+-- Vérifié le 2026-08-21 : `vector` est disponible en 0.8.6, et `pg_extension` ne contient
+-- que `plpgsql`. Pour le revérifier sans rien installer :
+--
+--     SELECT name, default_version FROM pg_available_extensions WHERE name = 'vector';

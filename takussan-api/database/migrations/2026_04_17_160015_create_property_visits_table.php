@@ -27,7 +27,7 @@ return new class extends Migration
             $table->text('feedback')->nullable();
             $table->decimal('rating', 2, 1)->nullable();
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->timestamps();
 
             $table->index(['property_id', 'scheduled_at']);

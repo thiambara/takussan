@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('delivery_channel')->default('app');
             $table->string('title');
             $table->text('body')->nullable();
-            $table->json('data')->nullable();
+            $table->jsonb('data')->nullable();
             $table->unsignedBigInteger('referenceable_id')->nullable();
             $table->string('referenceable_type')->nullable();
             $table->boolean('is_read')->default(false);

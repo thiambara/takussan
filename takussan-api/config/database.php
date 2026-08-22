@@ -17,7 +17,26 @@ return [
     |
     */
 
-    'default' => env('DB_CONNECTION', 'sqlite'),
+    /*
+     * ⚠ Le REPLI est `pgsql` depuis ADR-0020, et il valait `sqlite`.
+     *
+     * Ce n'est pas un détail de configuration : un `.env` où `DB_CONNECTION` manque ou
+     * est vide faisait démarrer l'application sur un moteur RETIRÉ, sans un mot. Rien
+     * n'aurait rougi — ni la CI, ni `./dev.sh doctor`, ni un test —, et la divergence
+     * ne se serait vue qu'au premier comportement qui diffère : une comparaison de
+     * chaînes, une longueur de VARCHAR non appliquée, un `lockForUpdate` accepté.
+     *
+     * Le dépôt a déjà payé exactement ce défaut, à un cran de là : une clé déclarée à
+     * VIDE dans `.env.example` n'est pas « clé absente » — `env()` rend la chaîne vide
+     * et le défaut ne s'applique jamais. C'est ainsi que quatre clés SMS ont fait passer
+     * la CI de verte à 14 échecs pendant que le local restait vert.
+     *
+     * Les blocs `sqlite`, `mysql` et `mariadb` ci-dessous sont CONSERVÉS : ce sont des
+     * définitions de driver livrées par Laravel, disponibles et non utilisées. Elles
+     * n'épinglent rien et les retirer ferait diverger ce fichier de son amont sans rien
+     * garder de plus. C'est le DÉFAUT qui décidait, et lui seul.
+     */
+    'default' => env('DB_CONNECTION', 'pgsql'),
 
     /*
     |--------------------------------------------------------------------------

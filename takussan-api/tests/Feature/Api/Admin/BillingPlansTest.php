@@ -67,10 +67,29 @@ class BillingPlansTest extends TestCase
         $resolver = app(QuotaResolver::class);
 
         $this->assertSame(2.5, $resolver->effectivePlatformFeePct($subscription));
-        $this->assertSame([
-            'max_active_listings' => 3,
-            'max_agents' => 5,
-        ], $resolver->effectiveLimits($subscription));
+
+        // ⚠ On trie les clés avant de comparer, et ce n'est PAS un contournement.
+        //
+        // `assertSame` sur deux tableaux compare aussi l'ORDRE des clés. Ce test
+        // passait tant que `plans.limits` était une colonne `json`, qui restitue les
+        // clés dans l'ordre d'insertion. Depuis ADR-0020 la colonne est `jsonb`, qui
+        // NORMALISE cet ordre (par longueur de clé, puis octet par octet) :
+        // `max_agents` remonte donc avant `max_active_listings`.
+        //
+        // La valeur rendue n'a pas changé — seul son ordre de clés, qui n'a jamais
+        // été un contrat : `effectiveLimits()` rend une table d'association, et
+        // l'ordre des clés d'un objet JSON n'est porteur d'aucun sens. Le test
+        // affirmait donc une propriété du MOTEUR en croyant affirmer une propriété du
+        // code.
+        //
+        // `ksort` plutôt que `assertEqualsCanonicalizing` : ce dernier compare avec
+        // `==` et laisserait passer un `'5'` là où on attend `5` — or c'est
+        // exactement le genre de glissement de type qu'un changement de driver
+        // provoque. On garde la comparaison STRICTE.
+        $this->assertSameIgnoringKeyOrder(
+            ['max_active_listings' => 3, 'max_agents' => 5],
+            $resolver->effectiveLimits($subscription),
+        );
     }
 
     public function test_creating_listing_over_active_quota_returns_422(): void

@@ -482,11 +482,22 @@ setup_queue_service() {
     # revues plus tôt, précisément pour ce cas.
     #
     # Toute nouvelle file nommée doit être AJOUTÉE à l'une des deux, et la garde le vérifie.
+    # ⚠ `After=postgresql.service` — et non `mysql.service`, depuis ADR-0020. C'est un ORDRE
+    # DE DÉMARRAGE, rien de plus : systemd ne vérifie pas que l'unité existe, et un worker
+    # démarré avant sa base échoue sur la première connexion, pas au boot.
+    #
+    # ⚠⚠ CE SCRIPT N'INSTALLE AUCUNE BASE DE DONNÉES, et ne l'a jamais fait — ni MySQL hier,
+    # ni PostgreSQL aujourd'hui. Il configure PHP-FPM, nginx et les unités systemd. Le
+    # provisionnement du serveur de base (paquet `postgresql-17`, `postgresql-17-pgvector`,
+    # rôle applicatif SANS `CREATEDB`, base, sauvegardes) appartient à TCK-288 et se fait en
+    # se connectant au serveur — ce qu'aucun fichier de ce dépôt ne peut faire à sa place.
+    # Le dire ici plutôt que de laisser croire le contraire : `docs/infra/prod-drivers.json`
+    # portait déjà l'avertissement pour Redis, et personne ne l'avait rapproché de ce script.
     local files_worker="$3"   # littéral, passé par les appels en bas de ce fichier
     cat > "${service_file}" <<UNIT
 [Unit]
 Description=Takussan Queue Worker (${name})
-After=network.target mysql.service
+After=network.target postgresql.service
 
 [Service]
 User=${DEPLOY_USER}

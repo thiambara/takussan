@@ -17,7 +17,7 @@ return new class extends Migration
             $table->date('started_at')->nullable();
             $table->date('ended_at')->nullable();
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->timestamps();
 
             $table->unique(['user_id', 'customer_id', 'relationship_type'], 'ucr_unique');

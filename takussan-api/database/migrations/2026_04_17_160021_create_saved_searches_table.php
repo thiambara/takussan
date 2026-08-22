@@ -12,12 +12,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->string('name');
-            $table->json('criteria');
+            $table->jsonb('criteria');
             $table->string('notification_frequency')->default('daily');
             $table->boolean('is_active')->default(true);
             $table->timestamp('last_notified_at')->nullable();
             $table->unsignedInteger('results_count')->default(0);
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->timestamps();
 
             $table->unique(['user_id', 'name']);

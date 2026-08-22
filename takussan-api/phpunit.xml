@@ -24,9 +24,29 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="5433"/>
+        <env name="DB_USERNAME" value="takussan"/>
+        <env name="DB_PASSWORD" value="takussan"/>
         <env name="DB_URL" value=""/>
+        <!-- ⚠ `DB_DATABASE` N'EST PLUS DÉCLARÉ ICI, et c'est délibéré — exactement la
+             même raison que `SCOUT_PREFIX` ci-dessous, sur une CINQUIÈME ressource.
+
+             Il valait `:memory:`, et cette valeur donnait à chaque processus sa propre
+             base SANS QUE PERSONNE AIT EU À LE DÉCIDER : SQLite en mémoire n'est jamais
+             partagé. Sur PostgreSQL (ADR-0020), tous les processus de la machine parlent
+             au MÊME serveur. Un littéral ici les ferait tous écrire dans la MÊME base, et
+             le `migrate:fresh` de `RefreshDatabase` de l'un viderait les tables sous
+             l'autre — qui rougirait sur une assertion métier juste, en accusant le code.
+             C'est la panne D-44, à l'identique, sur une ressource que la migration CRÉE.
+
+             Le nom est donc engendré PAR PROCESSUS dans `tests/bootstrap.php` —
+             cf. `Tests\Support\TestDatabase`, qui crée la base, programme sa suppression
+             en fin d'exécution, et balaie celles qu'une exécution tuée aurait laissées.
+
+             ⚠⚠ Le driver est forcé SANS REPLI, comme `SCOUT_DRIVER`. PostgreSQL est un
+             prérequis dur de la suite : `docker-compose.yml` en fournit un (ADR-0011). -->
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

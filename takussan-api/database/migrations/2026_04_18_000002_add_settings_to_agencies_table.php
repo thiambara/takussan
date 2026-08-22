@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('agencies', function (Blueprint $table) {
-            $table->json('settings')->nullable()->after('metadata');
+            $table->jsonb('settings')->nullable()->after('metadata');
         });
     }
 

@@ -238,4 +238,10 @@ return [
         'next_steps' => 'Vous pouvez soumettre une nouvelle demande si le bien est toujours disponible.',
         'unknown_property' => 'Bien inconnu',
     ],
+
+    // Titre du feed in-app pour ThresholdAlertTriggered — la seule des six classes
+    // dotées d'un toAppNotification() dont le sujet e-mail était codé en dur.
+    'threshold_alert' => [
+        'title' => 'Alerte KPI — :metric',
+    ],
 ];

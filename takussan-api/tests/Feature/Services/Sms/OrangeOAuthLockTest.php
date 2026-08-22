@@ -88,7 +88,7 @@ class OrangeOAuthLockTest extends TestCase
     public function test_401_retry_reads_cache_instead_of_re_calling_oauth(): void
     {
         $agency = Agency::factory()->create();
-        Integration::create([
+        $integration = Integration::create([
             'provider' => 'sms_orange',
             'agency_id' => $agency->id,
             'credentials' => [
@@ -105,7 +105,25 @@ class OrangeOAuthLockTest extends TestCase
         // a *new* token in the cache to simulate a peer worker having
         // already refreshed; the 401 path must adopt that token rather
         // than calling OAuth again.
-        Cache::put('sms:orange:oauth_token:1', 'old-tok', 3600);
+        // ⚠ `{$integration->id}` — et il a fallu DEUX corrections pour arriver là.
+        //
+        // Le littéral `1` d'origine ne marchait que par coïncidence : `nextval()` n'est
+        // PAS transactionnel, donc le `ROLLBACK` de `RefreshDatabase` rend les lignes et
+        // jamais les numéros. Le second test de cette classe voyait déjà des
+        // identifiants supérieurs à 1, et l'assertion « zéro appel OAuth » en comptait 2.
+        // Sous SQLite `:memory:`, le compteur de rowid repartait de `max(rowid)+1` sur
+        // une table vidée : la valeur 1 revenait à chaque test.
+        //
+        // ⚠⚠ La première correction a écrit `{$agency->id}` — juste sur le diagnostic,
+        // FAUSSE sur l'identifiant : `OrangeOAuthTokenCache::key()` bâtit la clé sur
+        // l'`integration_id`, pas sur l'agence. Les deux valaient 1 quand la classe
+        // tournait seule, si bien que le test passait en isolation et rougissait dans la
+        // suite entière (1 appel au lieu de 0). *Remplacer une coïncidence par une autre
+        // coïncidence donne un test qui passe pour la mauvaise raison.*
+        //
+        // La clé est désormais dérivée de l'objet réel : la coïncidence n'est plus
+        // possible, quel que soit l'ordre d'exécution.
+        Cache::put("sms:orange:oauth_token:{$integration->id}", 'old-tok', 3600);
 
         $sendCalls = 0;
         Http::fake([
@@ -117,7 +135,7 @@ class OrangeOAuthLockTest extends TestCase
                 $sendCalls++;
                 if ($sendCalls === 1) {
                     // Peer worker refreshed mid-flight → swap cached token.
-                    Cache::put('sms:orange:oauth_token:1', 'peer-refreshed', 3600);
+                    Cache::put("sms:orange:oauth_token:{$integration->id}", 'peer-refreshed', 3600);
 
                     return Http::response(['error' => 'unauthorized'], 401);
                 }

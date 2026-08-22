@@ -9,7 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         $dupes = DB::table('users')
-            ->selectRaw('LOWER(email) as normalized, MIN(id) as keeper, GROUP_CONCAT(id) as all_ids')
+            // `string_agg` et non `GROUP_CONCAT` : cette dernière n'existe pas en
+            // PostgreSQL (ADR-0020). Le `::text` est obligatoire — `string_agg` refuse
+            // un `bigint` et rend « function string_agg(bigint, unknown) does not
+            // exist », sans dire qu'il manque une conversion.
+            ->selectRaw("LOWER(email) as normalized, MIN(id) as keeper, string_agg(id::text, ',') as all_ids")
             ->groupBy('normalized')
             ->havingRaw('COUNT(*) > 1')
             ->get();

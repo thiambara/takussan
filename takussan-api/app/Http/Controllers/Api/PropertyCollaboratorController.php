@@ -86,11 +86,36 @@ class PropertyCollaboratorController extends Controller
         float $candidateShare,
         ?int $excludingCollaboratorId = null,
     ): void {
+        // ⚠ Le verrou porte sur le BIEN, pas sur les lignes de collaborateurs — et ce
+        // n'est pas une contrainte de syntaxe, c'est une correction de fond.
+        //
+        // La version précédente écrivait `->lockForUpdate()->sum('commission_share')`.
+        // PostgreSQL le REFUSE (« FOR UPDATE is not allowed with aggregate functions »),
+        // ce qui a rendu le défaut visible — mais le défaut ne venait pas de là.
+        //
+        // Verrouiller les lignes EXISTANTES ne ferme pas la course que ce code garde :
+        // deux écrivains simultanés qui insèrent chacun 30 % sur un bien à 50 % lisent
+        // tous deux 50, concluent tous deux que 80 ≤ 100, et le bien finit à 110. C'est
+        // un INSERT concurrent, pas une modification de ligne existante — aucun verrou
+        // de ligne ne le voit. MySQL en REPEATABLE READ le bloquait par un verrou
+        // d'intervalle, mais c'était un effet de bord du moteur, jamais une intention
+        // écrite ici ; PostgreSQL en READ COMMITTED n'en pose pas.
+        //
+        // Verrouiller la ligne du BIEN sérialise TOUS les écrivains de ce bien —
+        // insertions comprises — sur les deux moteurs. C'est le point de sérialisation
+        // portable, et il est plus fort que ce que la version précédente obtenait.
+        //
+        // ⚠⚠ Aucun test n'exerçait ce verrou. `test_store_commission_cap_runs_inside_transaction`
+        // le dit dans son propre commentaire : « SQLite does not emit a literal FOR UPDATE
+        // clause (the grammar strips it) », et il assertait donc le niveau de transaction,
+        // pas le verrou. Le verrou était du code jamais exécuté par la suite.
+        Property::query()->whereKey($property->getKey())->lockForUpdate()->firstOrFail();
+
         $query = $property->collaborators();
         if ($excludingCollaboratorId !== null) {
             $query->where('id', '!=', $excludingCollaboratorId);
         }
-        $currentTotal = (float) $query->lockForUpdate()->sum('commission_share');
+        $currentTotal = (float) $query->sum('commission_share');
 
         if (round($currentTotal + $candidateShare, 2) > 100.0) {
             throw ValidationException::withMessages([

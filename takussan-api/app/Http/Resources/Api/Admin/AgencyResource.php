@@ -28,7 +28,13 @@ class AgencyResource extends BaseResource
             'email' => $this->email,
             'phone' => $this->phone,
             'logo_url' => $this->getFirstMediaUrl('logo') ?: null,
-            'properties_count' => (int) ($this->properties_count ?? 0),
+            // `live_properties_count` d'abord : c'est le compte calculé par la requête,
+            // qui exclut les biens supprimés en douceur. `properties_count` est le
+            // compteur dénormalisé de la table, servi de repli quand la ressource est
+            // rendue hors de la requête de modération. Les deux existaient déjà et
+            // portaient le même nom ; ils sont désormais distincts (cf.
+            // `AgencyModerationController`).
+            'properties_count' => (int) ($this->live_properties_count ?? $this->properties_count ?? 0),
             'members_count' => (int) ($this->members_count ?? 0),
             'last_activity_at' => $this->last_activity_at
                 ? $this->iso(Carbon::parse($this->last_activity_at))

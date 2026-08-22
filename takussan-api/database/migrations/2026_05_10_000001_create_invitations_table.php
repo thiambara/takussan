@@ -43,7 +43,7 @@ return new class extends Migration
             $table->timestamp('accepted_at')->nullable();
             $table->timestamp('revoked_at')->nullable();
             $table->timestamp('last_reminded_at')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->timestamps();
 
             // Indexes (voir spec §48):

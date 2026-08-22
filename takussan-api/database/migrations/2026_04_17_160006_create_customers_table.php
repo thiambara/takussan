@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('status')->default('active');
             $table->string('pipeline_stage')->default('lead');
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

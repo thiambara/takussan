@@ -18,13 +18,13 @@ return new class extends Migration
             $table->timestamp('conducted_at');
             $table->string('status')->default('draft');
             $table->string('general_condition');
-            $table->json('rooms');
+            $table->jsonb('rooms');
             $table->text('notes')->nullable();
             $table->boolean('tenant_signed')->default(false);
             $table->timestamp('tenant_signed_at')->nullable();
             $table->boolean('owner_signed')->default(false);
             $table->timestamp('owner_signed_at')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 
