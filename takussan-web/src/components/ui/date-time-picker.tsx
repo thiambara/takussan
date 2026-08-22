@@ -3,8 +3,9 @@
 import * as React from "react";
 import { CalendarIcon } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+
+import { localeDateFns } from "@/lib/format/dateFnsLocale";
 
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -78,6 +79,17 @@ export function DateTimePicker({
   "data-testid": dataTestId,
 }: DateTimePickerProps) {
   const t = useTranslations("ui.dateTimePicker");
+  // TCK-292 (2026-08-22) — la locale date-fns était `fr` EN DUR, et le motif portait un `\'à\'`
+  // français QUOTÉ : un mot de liaison caché dans un format de date, que rien ne pouvait voir.
+  // Le mot passe désormais par le dictionnaire (`dateAtTime`), la date et l'heure sont formatées
+  // séparément, et la ponctuation reste au dictionnaire — le wolof ne place pas forcément ses
+  // deux morceaux dans cet ordre.
+  // ⚠ `ui.dateTimePicker.dateAtTime` DUPLIQUE `calendar.range.dateAtTime`, aux trois valeurs
+  // identiques, et c'est délibéré : le découpage du dictionnaire sert `ui` à huit frontières et
+  // `calendar` à une seule (`src/i18n/namespaces.json`). Réemployer la clé du calendrier depuis
+  // une primitive `ui/` ferait embarquer TOUT l'espace `calendar` à chaque écran qui pose un
+  // sélecteur de date. Trois chaînes courtes coûtent moins cher que cet espace-là.
+  const dfLocale = localeDateFns(useLocale());
   const selected = toDateTime(value);
   const minDate = toDateTime(min);
   const maxDate = toDateTime(max);
@@ -151,7 +163,10 @@ export function DateTimePicker({
             >
               <span className="truncate">
                 {selected
-                  ? format(selected, "d MMMM yyyy 'à' HH:mm", { locale: fr })
+                  ? t("dateAtTime", {
+                      date: format(selected, "d MMMM yyyy", { locale: dfLocale }),
+                      time: format(selected, "HH:mm", { locale: dfLocale }),
+                    })
                   : (placeholder ?? t("placeholder"))}
               </span>
               <CalendarIcon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />

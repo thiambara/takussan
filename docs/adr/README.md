@@ -46,9 +46,10 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0018](0018-format-des-dates-sur-le-fil.md) | L'API émet deux types de date : instant `…T12:34:56+00:00`, date calendaire `YYYY-MM-DD` | Accepté |
 | [0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) | L'erreur d'API porte un code, la surface de rendu porte le texte | Accepté |
 | [0020](0020-postgresql-sur-tous-les-environnements.md) | PostgreSQL 17 sur tous les environnements, base de test comprise — SQLite et MySQL retirés | Accepté |
-| [0020](0020-recherche-publique-conjonctive-avec-repli-nomme.md) | La recherche publique exige tous les termes, et nomme ce qu'elle a dû relâcher | Accepté |
 | [0021](0021-sparse-fieldsets-au-niveau-ressource.md) | `fields[]` désigne des colonnes ; une ressource n'invente pas ce qu'elle n'a pas lu | Proposé |
 | [0022](0022-le-dictionnaire-i18n-est-decoupe-par-groupe-de-routes.md) | Le dictionnaire i18n est découpé par groupe de routes, et une clé manquante lève | Accepté |
+| [0023](0023-recherche-geographique-par-distances-sans-postgis.md) | La recherche géographique traite des distances et des rectangles, jamais des géométries — pas de PostGIS | Accepté |
+| [0024](0024-recherche-publique-conjonctive-avec-repli-nomme.md) | La recherche publique exige tous les termes, et nomme ce qu'elle a dû relâcher | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

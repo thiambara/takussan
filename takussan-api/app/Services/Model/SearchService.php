@@ -5,6 +5,7 @@ namespace App\Services\Model;
 use App\Models\Property;
 use App\Models\SavedSearch;
 use App\Models\User;
+use App\Support\DistanceHaversine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -52,28 +53,35 @@ class SearchService
             $query->whereHas('tags', fn ($q) => $q->whereIn('tags.name', $tags));
         }
 
-        // Geospatial bounding box
-        if (! empty($filters['lat_min']) && ! empty($filters['lat_max'])
-            && ! empty($filters['lng_min']) && ! empty($filters['lng_max'])) {
+        // Rectangle geographique (ADR-0023, chemin 3).
+        //
+        // ⚠ `is_numeric` et non `! empty` : `empty('0')` est VRAI, et une borne
+        // a 0 est une latitude ou une longitude parfaitement valide. La garde
+        // d'origine faisait disparaitre le filtre en silence sur l'equateur ou
+        // sur le meridien de Greenwich (TCK-346).
+        if ($this->aQuatreBornes($filters)) {
             $query->whereHas('address', function ($q) use ($filters) {
                 $q->whereBetween('latitude', [$filters['lat_min'], $filters['lat_max']])
                     ->whereBetween('longitude', [$filters['lng_min'], $filters['lng_max']]);
             });
         }
 
-        // Radius search (center point + km)
-        if (! empty($filters['lat']) && ! empty($filters['lng']) && ! empty($filters['radius_km'])) {
+        // Rayon autour d'un point, en KILOMETRES — meme nom et meme unite que
+        // `GET /api/public/properties/search` (ADR-0023), pour que la
+        // convergence future soit un changement de moteur et non de contrat.
+        //
+        // ⚠ L'expression haversine vit dans `App\Support\DistanceHaversine`, et
+        // PAS ici : `GET /api/public/properties/map` l'emploie aussi. Deux copies
+        // dont une seule porterait le clamp `LEAST/GREATEST`, c'est exactement le
+        // defaut que TCK-346 a paye (cf. le docblock de la classe).
+        if ($this->aUnPointEtUnRayon($filters)) {
             $lat = (float) $filters['lat'];
             $lng = (float) $filters['lng'];
             $radius = (float) $filters['radius_km'];
-            $query->whereHas('address', function ($q) use ($lat, $lng, $radius) {
-                $q->whereNotNull('latitude')
-                    ->whereNotNull('longitude')
-                    ->whereRaw(
-                        '(6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) <= ?',
-                        [$lat, $lng, $lat, $radius]
-                    );
-            });
+            $query->whereHas(
+                'address',
+                fn ($q) => DistanceHaversine::restreindreAuRayonKm($q, $lat, $lng, $radius)
+            );
         }
 
         $sort = $filters['sort'] ?? 'published_at';
@@ -96,6 +104,36 @@ class SearchService
             'notification_frequency' => $criteria['notification_frequency'] ?? 'daily',
             'is_active' => true,
         ]);
+    }
+
+    /**
+     * Les quatre bornes du rectangle sont fournies et numeriques.
+     *
+     * @param  array<string,mixed>  $filters
+     */
+    private function aQuatreBornes(array $filters): bool
+    {
+        foreach (['lat_min', 'lat_max', 'lng_min', 'lng_max'] as $cle) {
+            if (! isset($filters[$cle]) || ! is_numeric($filters[$cle])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Un point d'origine complet ET un rayon strictement positif.
+     *
+     * @param  array<string,mixed>  $filters
+     */
+    private function aUnPointEtUnRayon(array $filters): bool
+    {
+        return isset($filters['lat'], $filters['lng'], $filters['radius_km'])
+            && is_numeric($filters['lat'])
+            && is_numeric($filters['lng'])
+            && is_numeric($filters['radius_km'])
+            && (float) $filters['radius_km'] > 0;
     }
 
     /** @return Collection<int,Property> */

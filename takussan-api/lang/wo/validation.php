@@ -30,5 +30,7 @@ return [
     ],
     'max_guarantors_reached' => 'Benn luwé du mën a am lu ëpp 3 ñu koy wóolu.',
     'bounds_format' => 'Barabu :attribute bi war na am ñeent nimero ñu taxaw ci virgule : sw_lat,sw_lng,ne_lat,ne_lng.',
+    'geo_radius_requires_point' => 'Barabu :attribute bi war na am benn point bu mat : lat ak lng ñoom ñaar ñépp war nañu ñëw.',
+    'sort_distance_requires_point' => 'Tànn ci sori bi war na am benn point bu mat : lat ak lng ñoom ñaar ñépp war nañu ñëw.',
     'commission_share_exceeds_cap' => 'Xaalisu commission yi ci mbaar mi du mën a ëpp 100%.',
 ];

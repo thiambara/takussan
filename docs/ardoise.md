@@ -1430,7 +1430,36 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 implémentations restent d'accord.** Une règle d'autorisation rendue à deux endroits et tenue à un
 seul est le motif le plus tenace de ce genre de duplication.
 
-### D-24 — La règle « le front possède le texte affiché » est une intention 🟠 → [TCK-286](backlog/tickets/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/TCK-292-i18n-reste-du-parc.md)
+### D-24 — La règle « le front possède le texte affiché » est une intention 🟢 *quasi soldée le 2026-08-22 — 0 occurrence non justifiée ; restent une décision produit et une relecture wolof* → [TCK-286](backlog/tickets/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/TCK-292-i18n-reste-du-parc.md) · [TCK-347](backlog/tickets/TCK-347-formatage-nombres-et-dates-suit-la-locale.md)
+
+> ## État au 2026-08-22 — la règle est devenue un état, à deux réserves près
+>
+> | | 2026-08-15 | 2026-08-17 | 2026-08-20 | **2026-08-22** |
+> |---|---:|---:|---:|---:|
+> | fichiers portant du texte en dur | 431 | 291 | 40 | **0 non justifié** |
+> | occurrences | 3 735 | 2 761 | 91 | **0 tolérée · 78 excusées** |
+> | clés `wo` manquantes | 88 | 70 | 0 | **0** (sur 5 013 clés `fr`) |
+> | tests front | ~810 | ~810 | 1 160 | **1 328** |
+>
+> **Ce qui a débloqué la dernière marche n'était pas de traduire davantage.** Les 91 occurrences
+> restantes du 2026-08-20 étaient tenues par un **cliquet par fichier**, qui TOLÈRE sans jamais
+> JUSTIFIER. *Un cliquet dit « pas plus qu'hier ». Il ne dit jamais « et voici pourquoi ces
+> onze-là sont légitimes ».* La garde a reçu un mécanisme d'exceptions ÉCRITES — 41 entrées,
+> chacune avec sa famille et sa raison, chacune vérifiée contre un site réel, et la garde rougit
+> quand une exception cesse d'y correspondre. Sa sortie distingue désormais **excusé** de
+> **toléré**.
+>
+> ⚠️ **Et le triage a trouvé 5 occurrences qui n'étaient PAS des faux positifs** — dont
+> `'Users fetch failed'`, que le super-admin lisait littéralement à l'écran dans les trois langues.
+> C'était exactement le piège que TCK-292 avait déjà payé une fois (`new ApiError(401, {message:
+> 'no token'})`), une couche plus haut. *« Ça ressemble à du technique donc ça ne s'affiche pas »
+> est une hypothèse à vérifier, pas un classement.*
+>
+> **Ce qui reste ne se code pas** : une décision produit sur deux mots (`shop` → « Commerce »,
+> `resort` → « Complexe »), et une relecture du wolof par un locuteur — la parité est exacte et
+> **muette sur la justesse**. Le formatage des nombres et des dates, figé en `fr-SN` quelle que
+> soit la locale, est sorti dans **TCK-347** : traduire les libellés ne le corrige pas, et un
+> anglophone lit des libellés anglais avec des nombres au format français.
 
 **Mesuré par AST le 2026-08-15 : 431 fichiers portaient 3 735 occurrences de texte affiché en dur.**
 
@@ -2217,7 +2246,62 @@ n'est pas prise, l'activation en CI reste une option ouverte, pas une décision 
 > pourrait alors paralléliser et rendre son verdict en 83 s au lieu de 206. C'est un ticket à
 > ouvrir le jour où le temps de retour de PR devient le sujet ; il ne l'est pas aujourd'hui.
 
-### D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟢 *cause nommée et corrigée le 2026-08-17 ; épreuve sur la suite ENTIÈRE encore à jouer* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
+### D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre ✅ *SOLDÉE le 2026-08-22 — trois causes successives, cinq paires vertes sur la suite entière* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md) · [TCK-334](backlog/tickets/TCK-334-meilisearch-file-partagee-par-machine.md)
+
+> ## ✅ Soldée le 2026-08-22 — et c'est l'entrée la plus instructive de cette ardoise
+>
+> **Trois causes se sont succédé sous un seul symptôme, et chacune a masqué la suivante.** Chaque
+> correctif était juste, et chaque fois la suivante réapparaissait sous la même forme : « deux
+> `--parallel` simultanés ne marchent pas ».
+>
+> | # | Cause | Trouvée | Symptôme |
+> |---|---|---|---|
+> | 1 | les **vues compilées** créées dans le processus parent de ParaTest | 2026-08-17 (TCK-322) | l'une des deux meurt au démarrage sur `mkdir(): File exists` |
+> | 2 | la **file de tâches Meilisearch**, globale par machine | 2026-08-20 (TCK-334) | 38 et 37 `MeilisearchNotIdleException`, quand une seule exécution rend 0 échec |
+> | 3 | **trois mécanismes nommaient la base de test**, depuis ADR-0020 | 2026-08-22 (TCK-334) | 2553 erreurs de chaque côté — et `--parallel` cassé même SEUL |
+>
+> **La troisième n'a été trouvée qu'en rejouant la mesure**, et elle datait de la veille de la
+> deuxième : ADR-0020 avait fait basculer la suite sur PostgreSQL le 2026-08-21, cassant
+> `--parallel` entièrement, sans que personne le mesure. *Une commande documentée avec un gain
+> chiffré de ×3,2 ne fonctionnait plus du tout, et rien dans le dépôt ne pouvait le dire — la CI
+> ne l'emploie pas (TCK-324), et un agent seul ne s'en sert pas tous les jours.*
+>
+> ### Ce que la troisième cause a révélé, et qui dépasse `--parallel`
+>
+> `TestDatabase::ensureCreated()` — le mécanisme écrit par ADR-0020 pour fermer la cinquième
+> ressource partagée par machine — était accrochée à `Tests\CreatesApplication`, **un trait que
+> `Tests\TestCase` n'emploie pas** : les tests héritent du `createApplication()` du framework.
+> Elle **n'a donc jamais tourné dans un test**. Ni l'horodatage `COMMENT ON DATABASE`, ni la
+> suppression en fin d'exécution, ni le balayage des orphelines ne s'appliquaient. Ce qui créait
+> réellement les bases était `MigrateCommand::createMissingMySqlOrPgsqlDatabase()`, en silence.
+>
+> **Mesuré le 2026-08-22 : 130 bases `takussan_test_%` orphelines, dont 0 horodatée, 1 926 Mo** —
+> et `sweepOrphans()` ne pourra JAMAIS les réclamer, puisqu'il s'abstient délibérément devant une
+> base sans horodatage, pour ne pas arracher une base sous une exécution vivante.
+>
+> > *Un mécanisme d'isolation qui n'est jamais appelé n'échoue pas : un autre le couvre, plus mal,
+> > et le vert reste vert.* C'est le même enseignement que les trois ablations de
+> > `BaseFormRequest` (D-32) — et c'est pour cela qu'une **ablation** vaut mieux qu'une relecture :
+> > seule elle distingue « ce mécanisme sert » de « ce mécanisme est couvert par un autre ».
+>
+> ### La mesure qui solde
+>
+> Cinq paires de `php artisan test --parallel` **simultanées sur la suite ENTIÈRE**, 8 cœurs,
+> chacune partie machine au repos (`load average` 2,60 · 5,73 · 5,78 · 5,85 · 5,45) :
+> **`Tests: 2736, Assertions: 8791, Skipped: 2`, sortie 0 des DEUX côtés, cinq fois sur cinq**,
+> **zéro `MeilisearchNotIdleException` sur dix exécutions**, et zéro base orpheline créée.
+>
+> La restriction « un seul agent à la fois » disparaît des deux `CLAUDE.md` et d'ici — non parce
+> qu'on a cessé d'y croire, mais parce qu'elle a cessé d'être vraie. C'était l'AC5 de TCK-322 pris
+> à la lettre.
+>
+> ### Ce qui reste ouvert, et n'est pas dans le dépôt
+>
+> **Les 130 bases orphelines de cette machine.** Le correctif arrête l'hémorragie ; il ne nettoie
+> pas le passé, et un balayage sans horodatage serait exactement le comportement dangereux que
+> `sweepOrphans()` refuse. La requête qui les liste est dans TCK-334, à jouer à la main, machine
+> sans exécution en cours.
+
 
 > **Mise à jour du 2026-08-17 — le répertoire fautif est nommé, et ce n'était pas ParaTest.**
 >

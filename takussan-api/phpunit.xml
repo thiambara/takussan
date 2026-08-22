@@ -65,6 +65,42 @@
              DIFFÉRENTS, sans qu'un fichier n'ait changé). Le préfixe est désormais engendré par
              PROCESSUS dans `tests/bootstrap.php` — cf. `Tests\Support\TestSearchIndex`, qui
              programme aussi la suppression des index en fin d'exécution. -->
+        <!-- ⚠ L'HÔTE MEILISEARCH EST ÉPINGLÉ ICI, ET C'EST UNE MESURE D'ISOLATION, PAS DE
+             CONFIGURATION — même raison que `DB_HOST`/`DB_PORT` ci-dessus.
+
+             Mesuré le 2026-08-22 sur la machine de développement : `takussan-api/.env` déclarait
+             `MEILISEARCH_HOST=http://localhost:7700`, soit le port CANONIQUE, servi par une
+             instance native brew — et NON le conteneur du dépôt, publié sur 7701
+             (`docker-compose.yml`, cf. la note PORTS de son en-tête). Deux conséquences, les
+             deux relevées le même jour :
+               1. `GET :7700/indexes` rendait 12 index, dont `documents` et `messages` SANS
+                  AUCUN PRÉFIXE : ils appartiennent à un autre projet. La suite partageait donc
+                  sa file de tâches — ressource GLOBALE au serveur, cf. TCK-334 — avec un
+                  logiciel tiers que personne ne contrôle. L'isolation par préfixe de
+                  `Tests\Support\TestSearchIndex` sépare les DOCUMENTS ; elle ne sépare pas la
+                  file d'attente, et c'est celle-là que la barrière surveille.
+               2. `GET :7700/version` → **1.36.0**, quand `GET :7701/version` → **1.16.0**,
+                  version que `docker-compose.yml` et `.github/workflows/api-ci.yml` fixent tous
+                  deux. La suite locale éprouvait un moteur à vingt versions mineures de celui de
+                  la CI, sans que personne l'ait décidé.
+
+             ⚠⚠ CET ÉPINGLAGE NE CASSE PAS LA CI, et c'est MESURÉ, pas déduit. La CI pose
+             `MEILISEARCH_HOST`/`MEILISEARCH_KEY` en variables d'environnement du job
+             (`api-ci.yml`). PHPUnit n'écrase une variable DÉJÀ POSÉE que si l'attribut
+             `force="true"` est présent (`PhpHandler::handleEnvVariables()` :
+             `if ($force || getenv($name) === false)`). Éprouvé par exécution le 2026-08-22 :
+             `MEILISEARCH_HOST=http://127.0.0.1:9999 php artisan test tests/Feature/Search/…`
+             ÉCHOUE à la connexion — donc la variable du shell l'emporte, et la CI garde la
+             main. Ne JAMAIS ajouter `force="true"` ici : ce serait détourner la CI de son
+             propre service vers un hôte qui n'existe pas chez elle.
+
+             La clé est épinglée pour la même raison que l'hôte : `masterKey` est celle du
+             conteneur (`MEILI_MASTER_KEY` dans `docker-compose.yml`). Un hôte juste avec la clé
+             du `.env` du développeur rend un 403 — panne plus obscure que l'absence de service,
+             puisque le serveur répond. Rien de secret ici : c'est la clé d'un moteur de
+             développement lié à 127.0.0.1. -->
+        <env name="MEILISEARCH_HOST" value="http://127.0.0.1:7701"/>
+        <env name="MEILISEARCH_KEY" value="masterKey"/>
         <env name="SCOUT_QUEUE" value="false"/>
         <env name="SCOUT_AFTER_COMMIT" value="false"/>
         <env name="LARAVEL_PDF_DRIVER" value="dompdf"/>

@@ -18,7 +18,7 @@ use Meilisearch\Contracts\SearchQuery;
  * post-engine filtering is needed. Returns the `{data, facets, meta, search}`
  * contract expected by `GET /api/public/properties/search`.
  *
- * ── DEUX RÉGIMES (TCK-338, {@see docs/adr/0020-recherche-publique-conjonctive-avec-repli-nomme.md}) ──
+ * ── DEUX RÉGIMES (TCK-338, {@see docs/adr/0024-recherche-publique-conjonctive-avec-repli-nomme.md}) ──
  *
  * 1. NOMINAL — `matchingStrategy: 'all'` : un bien ne sort que s'il porte TOUS
  *    les termes utiles. Une requête, comme avant.
@@ -73,7 +73,7 @@ class PropertySearchService
         $perPage = min(100, max(1, (int) ($params['per_page'] ?? 20)));
 
         $filter = $this->buildFilter($params);
-        $sort = $this->buildSort((string) ($params['sort'] ?? 'relevance'), $term);
+        $sort = $this->buildSort((string) ($params['sort'] ?? 'relevance'), $term, $params);
 
         // Scout unwraps a callback's SearchResult via getRaw(), so raw() here
         // yields the raw Meilisearch response array (hits/totalHits/etc.).
@@ -414,19 +414,59 @@ class PropertySearchService
                 (float) $p['lat_min'], (float) $p['lng_min'],
             );
         }
+        // TCK-346 / ADR-0023 — le rayon, en MÈTRES pour le moteur.
+        //
+        // ⚠ C'est LA seule conversion km → m du dépôt : le paramètre public est
+        // `radius_km`, `_geoRadius` prend des mètres, et la frontière est ici.
+        // Le rayon et le rectangle ci-dessus sont CONJOINTS (`$filter` est un ET
+        // de ses éléments) : envoyer les deux rend l'intersection, ce qui est le
+        // sens attendu d'« un rayon, dans le cadrage que je regarde ».
+        //
+        // Un bien sans coordonnées n'a pas de `_geo` dans son document
+        // (`Property::toSearchableArray()` ne l'émet que si l'adresse porte les
+        // deux colonnes) : il ne satisfait donc AUCUN `_geoRadius`. C'est voulu,
+        // et c'est la règle déjà appliquée à `area` et `price` — on ne promet
+        // pas ce qu'on ne sait pas.
+        if ($this->hasGeoRadius($p)) {
+            $filter[] = sprintf(
+                '_geoRadius(%F, %F, %F)',
+                (float) $p['lat'], (float) $p['lng'],
+                (float) $p['radius_km'] * 1000,
+            );
+        }
 
         return $filter;
     }
 
     /**
+     * TCK-346 / ADR-0023 — `distance` demande à Meilisearch de classer par
+     * éloignement au point donné, du plus proche au plus lointain.
+     *
+     * ⚠ C'est `_geo` — PAS `_geoPoint` — qui doit figurer dans
+     * `sortableAttributes` (config/scout.php) : le moteur résout l'expression
+     * de tri vers l'attribut `_geo` et vérifie celui-là. Mesuré sur
+     * Meilisearch 1.16 le 2026-08-22, le détail est dans `config/scout.php`.
+     * Sans ce réglage le moteur REFUSE la requête (HTTP 400), il ne dégrade pas
+     * le tri. C'est un réglage d'INDEX, donc un `scout:sync-index-settings` au
+     * déploiement.
+     *
+     * ⚠⚠ Le repli `[]` sur `distance` sans point est INATTEIGNABLE par HTTP :
+     * `SearchPublicPropertyRequest` rend 422 (`sort_distance_requires_point`).
+     * Il existe pour qu'un appel direct au service — un job, un test — ne
+     * produise pas une erreur moteur ; il n'est pas le contrat.
+     *
+     * @param  array<string,mixed>  $p
      * @return array<int,string>
      */
-    private function buildSort(string $sort, string $term): array
+    private function buildSort(string $sort, string $term, array $p = []): array
     {
         return match ($sort) {
             'price_asc' => ['price:asc'],
             'price_desc' => ['price:desc'],
             'created_desc' => ['created_at:desc'],
+            'distance' => $this->hasGeoPoint($p)
+                ? [sprintf('_geoPoint(%F,%F):asc', (float) $p['lat'], (float) $p['lng'])]
+                : [],
             default => $term === '' ? ['featured:desc', 'published_at:desc'] : [],
         };
     }
@@ -490,6 +530,35 @@ class PropertySearchService
         }
 
         return true;
+    }
+
+    /**
+     * Un point d'origine complet et exploitable.
+     *
+     * @param  array<string,mixed>  $p
+     */
+    private function hasGeoPoint(array $p): bool
+    {
+        return isset($p['lat'], $p['lng']) && is_numeric($p['lat']) && is_numeric($p['lng']);
+    }
+
+    /**
+     * Un point ET un rayon strictement positif.
+     *
+     * ⚠ `is_numeric` plutôt que `! empty` : `empty('0')` est vrai, et
+     * `lat = 0` est une latitude parfaitement valide. Le chemin haversine
+     * (`App\Services\Model\SearchService`) emploie `! empty` et perd donc
+     * silencieusement un point sur l'équateur — c'est un des deux défauts que
+     * TCK-346 a relevés sur lui.
+     *
+     * @param  array<string,mixed>  $p
+     */
+    private function hasGeoRadius(array $p): bool
+    {
+        return $this->hasGeoPoint($p)
+            && isset($p['radius_km'])
+            && is_numeric($p['radius_km'])
+            && (float) $p['radius_km'] > 0;
     }
 
     private static function quote(string $value): string

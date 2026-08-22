@@ -42,6 +42,7 @@ use App\Services\Model\NotificationService;
 use App\Services\Property\HomepageDiscoveryService;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
+use App\Support\DistanceHaversine;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -262,6 +263,40 @@ class PublicPropertyController extends Controller
         ]);
     }
 
+    /**
+     * Marqueurs GeoJSON dans un cadrage — et, depuis TCK-346, dans un rayon.
+     *
+     * ## Pourquoi le rayon transite jusqu'ici
+     *
+     * `/search` et `/map` sont deux endpoints sur deux moteurs, mais UN seul
+     * écran : `PropertiesDiscoveryPage` bascule `list` ↔ `map` sans changer de
+     * filtres. Tant que `/map` ignorait `radius_km`, poser « à moins de 3 km »
+     * puis basculer en carte faisait réapparaître les biens que la liste venait
+     * d'écarter — un filtre qui disparaît en silence, et deux comptes différents
+     * pour la même recherche.
+     *
+     * ## Pourquoi il n'y a PAS de `sort=distance` ici
+     *
+     * Pesé, et écarté — trois raisons, la troisième étant la décisive :
+     *
+     * 1. La sortie est un `FeatureCollection` **sans pagination** : le client
+     *    rend les N marqueurs d'un coup sur un fond de carte. L'ordre des
+     *    entités n'est observable par personne.
+     * 2. `sort` de `/search` est une énumération métier
+     *    (`relevance|price_asc|price_desc|created_desc|distance`) qui n'a pas de
+     *    sens sur un jeu de marqueurs. Un `sort` de `/map` serait donc une AUTRE
+     *    énumération sous le même nom — la divergence de contrat que TCK-346
+     *    existe pour supprimer.
+     * 3. Il coûterait un haversine par ligne sur l'ensemble du cadrage, à chaque
+     *    pan de carte, pour un classement invisible.
+     *
+     * ⚠ Ce qui rouvrirait la question : la TRONCATURE. Au-delà de
+     * `MAP_MAX_RESULTS`, l'ensemble rendu est arbitraire, et un tri par distance
+     * le rendrait signifiant (« les 500 plus proches »). Aujourd'hui la réponse
+     * est ailleurs — `meta.truncated` le dit, et resserrer le cadrage ou le rayon
+     * le corrige. Le jour où un écran rend la troncature ordinaire plutôt
+     * qu'exceptionnelle, ce paragraphe est le point de reprise.
+     */
     public function map(MapPublicPropertyRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -282,6 +317,24 @@ class PublicPropertyController extends Controller
                     ->whereBetween('latitude', [$minLat, $maxLat])
                     ->whereBetween('longitude', [$minLng, $maxLng]);
             });
+
+        // Rayon autour d'un point, en KILOMETRES — memes noms, memes bornes et
+        // meme unite que `/search` (ADR-0023). Il se CONJOINT au cadrage : les
+        // deux clauses portent sur la meme sous-requete `address`, en ET.
+        //
+        // Un bien sans coordonnees est exclu, comme sur `/search` — c'est
+        // `DistanceHaversine` qui porte la regle, et le clamp `LEAST/GREATEST`
+        // sans lequel `acos()` LEVE sur PostgreSQL quand le point de recherche
+        // coincide avec un bien.
+        if (isset($validated['lat'], $validated['lng'], $validated['radius_km'])) {
+            $lat = (float) $validated['lat'];
+            $lng = (float) $validated['lng'];
+            $rayon = (float) $validated['radius_km'];
+            $query->whereHas(
+                'address',
+                fn ($q) => DistanceHaversine::restreindreAuRayonKm($q, $lat, $lng, $rayon)
+            );
+        }
 
         if (! empty($validated['type'])) {
             $types = array_filter(explode(',', $validated['type']));

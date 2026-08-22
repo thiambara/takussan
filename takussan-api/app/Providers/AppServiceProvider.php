@@ -663,7 +663,7 @@ class AppServiceProvider extends ServiceProvider
         // TCK-282 — `whatsapp` channel: any Notification can list it (or
         // route to it via PreferenceResolver::resolveMobileChannel()).
         $this->app->make(ChannelManager::class)->extend('whatsapp', fn ($app) => $app->make(WhatsappChannel::class));
-        // ADR-0020 / models-spec §12 — le canal `app_database` que la spec décrit
+        // models-spec §12 — le canal `app_database` que la spec décrit
         // depuis le 2026-04-13 et que personne n'avait écrit. Il PREND LA PLACE du
         // canal natif `database` : les 29 classes qui le déclarent visaient la table
         // `notifications` de Laravel, écartée par la décision et jamais créée, donc

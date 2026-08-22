@@ -11,7 +11,7 @@ import {
  *
  * Ces deux fonctions sont la charnière : sans elles, `search.strategy` et
  * `search.terms_unmatched` arrivent dans le JSON et **meurent là** (c'est l'état exact que
- * l'ADR-0020 décrit en « conséquences »). Elles sont testées ICI, hors de tout rendu, parce que
+ * l'ADR-0024 décrit en « conséquences »). Elles sont testées ICI, hors de tout rendu, parce que
  * ce sont les deux endroits où l'on peut se tromper *silencieusement* : afficher une étiquette
  * sur un résultat exact, ou retirer le mauvais mot de la requête de l'utilisateur.
  */

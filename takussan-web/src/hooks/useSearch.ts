@@ -6,6 +6,7 @@ import {
   CLES_DE_RECHERCHE,
   CLES_DE_CONTROLE,
   SEARCH_FILTER_KEYS,
+  agregateurDe,
   definitionDe,
   repliDeRecherche,
   retirerTermeDeLaRequete,
@@ -43,6 +44,46 @@ function reducer(state: State, action: Action): State {
  * `filtersToParams` mais absent de `filtersFromSearchParams` disparaît au rechargement de la page,
  * sans erreur ni trace.
  */
+/**
+ * Les trois états géographiques que le SERVEUR refuse — TCK-346.
+ *
+ * `SearchPublicPropertyRequest` les rend en 422 : `lat`/`lng` s'exigent mutuellement
+ * (`required_with`), `radius_km` et `sort=distance` exigent le point complet. Une interface qui
+ * peut produire ces états les produira : il suffit d'un retrait de puce, d'un lien hérité, ou
+ * d'un critère sauvegardé sous une version antérieure.
+ *
+ * Le choix ici est de **normaliser plutôt que d'afficher l'erreur**, et il n'est pas
+ * symétrique du reste du hook. Sur `furnished=nimportequoi`, le 422 est une information : la
+ * demande de l'utilisateur est inintelligible, on la lui rend. Ici il n'y a rien à rendre —
+ * une demi-coordonnée n'est pas une demande à moitié comprise, c'est un fragment que **le
+ * front lui-même** vient de fabriquer en retirant l'autre moitié. Le seul état honnête est
+ * « pas de géographie », et il ne coûte aucun aller-retour.
+ *
+ * Mutation : rendre cette fonction inerte fait rougir `useSearch.geo.test.ts`.
+ */
+export function normaliserGeo(params: URLSearchParams): URLSearchParams {
+  const aPoint = params.has('lat') && params.has('lng');
+
+  if (!aPoint) {
+    // Une demi-coordonnée n'est jamais un filtre à moitié appliqué : c'est un 422.
+    params.delete('lat');
+    params.delete('lng');
+    params.delete('radius_km');
+    if (params.get('sort') === 'distance') params.delete('sort');
+    return params;
+  }
+
+  // Point complet mais plus personne pour le consommer : ni rayon, ni tri par distance.
+  // Le laisser serait pire que le retirer — il est INVISIBLE (aucune puce ne le décrit) et
+  // il repartirait dans la prochaine recherche sauvegardée sans que rien ne l'ait annoncé.
+  if (!params.has('radius_km') && params.get('sort') !== 'distance') {
+    params.delete('lat');
+    params.delete('lng');
+  }
+
+  return params;
+}
+
 export function filtersToParams(filters: SearchFilters): URLSearchParams {
   const params = new URLSearchParams();
   for (const cle of CLES_DE_RECHERCHE) {
@@ -54,7 +95,7 @@ export function filtersToParams(filters: SearchFilters): URLSearchParams {
     if (brut === undefined || brut === '') continue;
     params.set(def.params[0], brut);
   }
-  return params;
+  return normaliserGeo(params);
 }
 
 export function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
@@ -78,7 +119,13 @@ export const IGNORED_KEYS: readonly CleDeRechercheNom[] = CLES_DE_CONTROLE;
 
 export function countActiveFilters(filters: SearchFilters): number {
   return (Object.keys(filters) as CleDeRechercheNom[])
-    .filter(k => SEARCH_FILTER_KEYS[k]?.role === 'filtre' && filters[k] !== undefined && filters[k] !== '')
+    // TCK-346 — `agregateurDe` écarte les clés qui n'ont pas de puce propre. Sans lui, un
+    // rayon autour d'un point compterait TROIS filtres (`lat`, `lng`, `radius_km`) pour une
+    // seule puce affichée : la pastille du bouton « Filtres » annoncerait 3, l'utilisateur
+    // en verrait 1, et aucun geste ne ferait descendre le compte à 2.
+    .filter(k => SEARCH_FILTER_KEYS[k]?.role === 'filtre'
+      && agregateurDe(k) === undefined
+      && filters[k] !== undefined && filters[k] !== '')
     .length;
 }
 
@@ -105,8 +152,21 @@ export function useSearch() {
   // est une dépendance simple, stable, et `currentFilters` en dérive — donc les
   // deux `useCallback` ci-dessous n'ont plus besoin de dérogation.
   const searchParamsKey = searchParams.toString();
+  /**
+   * TCK-346 — l'URL est normalisée AVANT d'être lue en filtres.
+   *
+   * Une URL peut porter un état géographique que le serveur refuse (`?sort=distance` sans
+   * point, `?lat=` sans `lng`) : un lien hérité, un partage tronqué, un critère sauvegardé
+   * d'une version antérieure. Sans cette normalisation, l'écran afficherait « Le plus proche »
+   * dans le sélecteur de tri pendant que la requête rendrait 422 — l'interface annoncerait un
+   * tri qui n'a jamais eu lieu.
+   *
+   * ⚠ L'URL elle-même n'est PAS réécrite ici : un `router.replace` au montage volerait l'entrée
+   * d'historique de la page précédente. Elle se corrige d'elle-même au premier geste, puisque
+   * `filtersToParams` normalise aussi.
+   */
   const currentFilters = useMemo(
-    () => filtersFromSearchParams(new URLSearchParams(searchParamsKey)),
+    () => filtersFromSearchParams(normaliserGeo(new URLSearchParams(searchParamsKey))),
     [searchParamsKey],
   );
 
@@ -169,6 +229,18 @@ export function useSearch() {
     // suffit à atteindre. TCK-340 — ce cas particulier était écrit ici en dur (`if (key === 'q')`),
     // seule liste de clés à vivre hors de la table ; il est désormais porté par `params`.
     for (const nom of definitionDe(key).params) params.delete(nom);
+    // TCK-346 — `removeFilter('lat')` est un chemin RÉEL : sur un 422, `PropertiesDiscoveryPage`
+    // propose de retirer le filtre que le serveur NOMME, et il nomme `lat`. N'effacer que `lat`
+    // laisserait `lng`, donc un second 422 (`required_with:lat`) sur un bouton censé réparer la
+    // recherche. C'est `normaliserGeo` qui l'empêche, et c'est le seul mécanisme.
+    //
+    // ⚠ Une première version faisait AUSSI remonter le retrait à l'agrégateur ici
+    // (`agregateurDe(key) ?? key`). **Mesuré par ablation le 2026-08-22 : la retirer ne fait
+    // rougir AUCUN test**, parce que `normaliserGeo` produit exactement le même état final.
+    // C'était donc un second chemin pour la même garantie — précisément ce que ce dépôt
+    // paie cher ailleurs. Ce qui reste load-bearing, c'est la POSSESSION des trois paramètres
+    // par `radius_km` (`params`), gardée par `search-filters.parity.test.ts`.
+    normaliserGeo(params);
     params.set('page', '1');
     naviguer(`${pathname}?${params.toString()}`, 'push');
   }, [naviguer, pathname, searchParams]);
@@ -201,7 +273,10 @@ export function useSearch() {
 
     dispatch({ type: 'LOADING', prev });
 
-    const apiParams = new URLSearchParams(qs);
+    // Même normalisation que `currentFilters` : ce qui est demandé au serveur est exactement
+    // ce que l'écran affiche, et un 422 géographique fabriqué par une URL héritée n'atteint
+    // jamais le réseau.
+    const apiParams = normaliserGeo(new URLSearchParams(qs));
     if (!apiParams.has('q') && apiParams.has('search')) {
       apiParams.set('q', apiParams.get('search') ?? '');
     }

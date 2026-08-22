@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**328 tickets** — 15 ouverts, 312 livrés.
+**333 tickets** — 13 ouverts, 319 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 10 |
-| 🚧 Doing | 5 |
+| 📋 Todo | 12 |
+| 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 312 |
+| ✅ Done | 319 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -37,20 +37,18 @@
 - [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-332](tickets/TCK-332-front-public-appelle-une-api-absente.md) — Le front de production est public et appelle une API qui n'existe pas `S · P0 · technique`
 - [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
-- [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
 - [TCK-342](tickets/TCK-342-libelles-wolof-divergents-back-front.md) — Le même bien porte deux mots wolof différents selon l'écran `M · P3 · applicatif`
-- [TCK-343](tickets/TCK-343-index-gin-et-requetes-jsonb.md) — Exploiter JSONB : index GIN et requêtes sur les colonnes de propriétés `M · P3 · technique`
 - [TCK-344](tickets/TCK-344-pgvector-et-chatbot.md) — Chatbot sur Laravel AI SDK, avec pgvector pour la recherche sémantique `XL · P3 · applicatif`
 - [TCK-345](tickets/TCK-345-recherche-postgresql-contre-meilisearch.md) — Recherche PostgreSQL (pg_trgm / FTS) : faut-il retirer Meilisearch ? `XL · P3 · technique`
-- [TCK-346](tickets/TCK-346-geo-postgis.md) — Recherche géographique : rayon, distance, carte — avec ou sans PostGIS `L · P3 · applicatif`
+- [TCK-347](tickets/TCK-347-formatage-nombres-et-dates-suit-la-locale.md) — Le formatage des nombres et des dates est figé en français, quelle que soit la langue `L · P3 · front`
+- [TCK-348](tickets/TCK-348-compression-et-deploiement-preprod.md) — Préproduction : la compression n'est pas active, et la branche est 34 commits derrière `dev` `S · P2 · technique`
+- [TCK-349](tickets/TCK-349-index-des-cles-etrangeres-nues.md) — Indexer les clés étrangères nues que la mesure justifie (85 restantes) `M · P3 · technique`
+- [TCK-350](tickets/TCK-350-alertes-de-recherche-sauvegardee-renotifient.md) — Les alertes de recherche sauvegardée renotifient les mêmes biens tous les jours `M · P1 · technique`
+- [TCK-351](tickets/TCK-351-deux-sources-de-libelles-de-bien.md) — Deux sources de libellés de bien s'affichent dans le même parcours — 44 divergences mesurées `M · P2 · technique`
 
 ## 🚧 Doing
 
-- [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
-- [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
-- [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-341](tickets/TCK-341-cache-http-du-catalogue-public.md) — Le catalogue public se recalcule pour chaque visiteur `S · P2 · technique`
 
 ## 👀 Review
 
@@ -62,27 +60,44 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 312
+## ✅ Done — 319
 
 <details>
-<summary><strong>Vague 42 — Recherche & navigation publiques — audit du 2026-08-21</strong> — 5 tickets</summary>
+<summary><strong>Vague 44 — PostgreSQL : ce que la migration a rendu DISCUTABLE — recherche PG contre Meilisearch, géo (2026-08-21)</strong> — 1 ticket</summary>
+
+- [TCK-346](tickets/TCK-346-geo-postgis.md) — Recherche géographique : rayon, distance, carte — unifier trois implémentations `L · P3 · applicatif`
+
+</details>
+
+<details>
+<summary><strong>Vague 43 — PostgreSQL : ce que la migration a rendu POSSIBLE — jsonb exploité, pgvector et le chatbot (2026-08-21)</strong> — 1 ticket</summary>
+
+- [TCK-343](tickets/TCK-343-index-gin-et-requetes-jsonb.md) — Exploiter JSONB : index GIN et requêtes sur les colonnes de propriétés `M · P3 · technique`
+
+</details>
+
+<details>
+<summary><strong>Vague 42 — Recherche & navigation publiques — audit du 2026-08-21</strong> — 6 tickets</summary>
 
 - [TCK-335](tickets/TCK-335-recherche-navigation-defauts-mesures.md) — Recherche & navigation publiques — défauts mesurés de bout en bout `XL · P0 · full`
 - [TCK-336](tickets/TCK-336-sparse-fieldsets-au-niveau-ressource.md) — `PropertyResource` fabrique des valeurs pour les colonnes que `fields[]` n'a pas fait lire `M · P2 · technique`
 - [TCK-337](tickets/TCK-337-decoupage-du-dictionnaire-next-intl.md) — Le dictionnaire next-intl est inliné en entier dans chaque page `L · P3 · technique`
 - [TCK-338](tickets/TCK-338-recherche-conjonctive-tous-les-termes.md) — Une recherche à plusieurs mots doit les exiger tous `M · P1 · applicatif`
 - [TCK-340](tickets/TCK-340-listes-de-cles-de-filtre-front.md) — Douze listes de clés de filtre côté front, une seule table `L · P3 · technique`
+- [TCK-341](tickets/TCK-341-cache-http-du-catalogue-public.md) — Le catalogue public se recalcule pour chaque visiteur `S · P2 · technique`
 
 </details>
 
 <details>
-<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 5 tickets</summary>
+<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 7 tickets</summary>
 
 - [TCK-320](tickets/TCK-320-selection-des-tests-par-impact.md) — Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests `M · P2 · technique`
 - [TCK-321](tickets/TCK-321-parallel-en-ci.md) — Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé `M · P2 · technique`
+- [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 - [TCK-324](tickets/TCK-324-mesurer-parallel-sur-le-runner-ci.md) — Mesurer `--parallel` sur le runner CI, puis trancher — la décision actuelle est un défaut, pas un résultat `S · P2 · technique`
 - [TCK-325](tickets/TCK-325-garde-des-declencheurs-durs-du-selecteur.md) — Garder la liste des déclencheurs durs du sélecteur d'impact — elle est recopiée à la main et avait dérivé le jour de son écriture `S · P2 · technique`
 - [TCK-331](tickets/TCK-331-coverage-php-en-double-casse-le-cliquet.md) — `--coverage-php` est passé DEUX FOIS — le cliquet sort en 1 sans un mot, et la carte d'impact n'a jamais été régénérée `M · P2 · technique`
+- [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
 
 </details>
 
@@ -96,7 +111,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 11 tickets</summary>
+<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 12 tickets</summary>
 
 - [TCK-304](tickets/TCK-304-enveloppe-pagination-dupliquee.md) — Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes `L · P2 · technique`
 - [TCK-305](tickets/TCK-305-validation-inline-vers-formrequest.md) — 120 validations inline contre 65 FormRequest — deux conventions sur le même geste `L · P2 · technique`
@@ -109,6 +124,7 @@ _(aucun)_
 - [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
 - [TCK-319](tickets/TCK-319-porter-watermarkservice-sur-intervention-image-4.md) — Porter `WatermarkService` sur intervention/image 4 — `place()` devient `insert()`, et l'opacité change d'unité `S · P3 · back`
 - [TCK-326](tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) — Supprimer `scopeWithSearch` — le jumeau de `scopeFilter`, et un doublon INFÉRIEUR `S · P2 · technique`
+- [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
 
 </details>
 
@@ -568,7 +584,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 13 tickets</summary>
+<summary><strong>Sans vague</strong> — 14 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -577,6 +593,7 @@ _(aucun)_
 - [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
 - [TCK-289](tickets/TCK-289-moteur-de-base-production-non-epingle.md) — Moteur de base de production non épinglé — la CI éprouvait une hypothèse, et elle était fausse `S · P1 · technique`
 - [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
+- [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
 - [TCK-294](tickets/TCK-294-mtarget-api-pulling-dlr.md) — Mtarget — basculer les accusés de livraison sur l'API Pulling plutôt qu'un webhook non signé `M · P2 · technique`
 - [TCK-295](tickets/TCK-295-kpi-alertes-restriction-agence-individual.md) — §1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard` `S · P3 · technique`
 - [TCK-323](tickets/TCK-323-typescript-7-casse-le-cliquet-i18n.md) — TypeScript 7 n'exporte plus l'API compilateur côté Node — le cliquet i18n en dépend, et le bump PR #182 le casse `M · P2 · technique`

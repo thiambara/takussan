@@ -447,9 +447,12 @@ collection Eloquent).
 Sur le chemin survivant, le callback mémorise l'ordre des ids rendus par Meilisearch
 (`HasQueryBuilder::$searchRelevanceIds`) et le contrôleur le rejoue via
 `Model::defaultSortsWithRelevance('-created_at')` → `App\Sorts\SearchRelevanceSort`, un `CASE`
-portable SQLite/MySQL (`FIELD()` n'existe pas en SQLite). **Le résultat se passe à `defaultSorts()`,
-jamais à `allowedSorts()`** : un `sort=` explicite du client reste souverain, la pertinence n'agit
-qu'à défaut.
+portable. ⚠ Sa justification citait SQLite et MySQL, deux moteurs que le dépôt n'a plus depuis
+ADR-0020 ; re-mesuré le 2026-08-22 sur le moteur réel, `SELECT FIELD(1,2,3)` rend
+`ERROR: function field(integer, integer, integer) does not exist` sur PostgreSQL 17.11 — la
+conclusion tient, ses raisons sont datées. **Le résultat se passe à `defaultSorts()`, jamais à
+`allowedSorts()`** : un `sort=` explicite du client reste souverain, la pertinence n'agit qu'à
+défaut.
 
 ⚠️ **Un contrôleur qui écrit `->defaultSort(…)` en dur sur un modèle `Searchable` reprend la
 recherche tolérante aux fautes et jette le classement.** C'était l'état d'avant TCK-281, et il
@@ -491,8 +494,20 @@ nom du produit**. `scripts/check-command-prefixes.mjs` (Repo CI) le garde. **Fic
 
 ## Tests
 
-307 fichiers (277 `Feature`, 26 `Unit`). `phpunit.xml` force SQLite `:memory:`, `QUEUE_CONNECTION=sync`,
-`CACHE_STORE=array`, `BCRYPT_ROUNDS=4`, `SCOUT_DRIVER=meilisearch`, `LARAVEL_PDF_DRIVER=dompdf`.
+**377 fichiers de test** (326 `Feature`, 51 `Unit`), mesurés le 2026-08-22 par
+`find tests -name '*Test.php' | wc -l`. ⚠ **Ce chiffre est un ordre de grandeur, pas un compte à
+tenir à jour** : cette ligne annonçait « 307 fichiers (277 `Feature`, 26 `Unit`) » — faux de 70
+fichiers, dont 25 sur les seuls tests unitaires, soit un doublement passé inaperçu.
+
+`phpunit.xml` force **`DB_CONNECTION=pgsql` SANS REPLI** (ADR-0020, 2026-08-21) — et non plus
+SQLite `:memory:`, comme cette ligne l'a affirmé jusqu'au 2026-08-22 —, plus
+`QUEUE_CONNECTION=sync`, `CACHE_STORE=array`, `BCRYPT_ROUNDS=4`, `SCOUT_DRIVER=meilisearch`,
+`LARAVEL_PDF_DRIVER=dompdf`. `DB_DATABASE` n'y est **plus** déclaré : sous SQLite `:memory:`,
+chaque processus avait sa base gratuitement ; sur PostgreSQL, tous parlent au même serveur, et le
+nom est donc engendré par processus (`Tests\Support\TestDatabase`). Même raison que
+`SCOUT_PREFIX`, sur une cinquième ressource partagée par machine.
+
+**`docker compose up -d postgres` est un prérequis dur de la suite**, au même titre que Meilisearch.
 
 **La suite exige une instance Meilisearch** : `SCOUT_DRIVER=meilisearch` est forcé sans repli.
 `./dev.sh services` la fournit.
@@ -525,8 +540,28 @@ une base hors des trois, et **une quatrième classe de base**.
 > justifie par un quatrième **usage** — et elle se déclare alors dans `BASES_CANONIQUES`, sinon la
 > CI casse.
 
-> ⚠️ Les tests visent l'instance Meilisearch **réelle** du développeur : `phpunit.xml` ne définit
-> pas `MEILISEARCH_HOST`, donc c'est celui du `.env` qui sert.
+> ✅ **Les tests visent désormais le conteneur du dépôt, et c'est épinglé** (2026-08-22).
+> `phpunit.xml` déclare `MEILISEARCH_HOST=http://127.0.0.1:7701` et `MEILISEARCH_KEY=masterKey`,
+> pour la même raison que `DB_HOST`/`DB_PORT` : *une suite qui dépend du `.env` ne mesure pas le
+> code, elle mesure la machine.*
+>
+> Ce paragraphe disait l'inverse — « c'est celui du `.env` qui sert » — et c'était vrai, avec deux
+> conséquences que personne n'avait relevées avant de les mesurer :
+>
+> 1. le `.env` de cette machine visait le port **canonique** 7700, servi par une instance **native
+>    brew** dont `GET /indexes` rendait 12 index, **dont `documents` et `messages` sans aucun
+>    préfixe** — ils appartiennent à un autre projet. La suite partageait donc sa **file de tâches**
+>    avec un logiciel tiers. L'isolation par préfixe (`TestSearchIndex`) sépare les *documents* ;
+>    elle ne sépare pas la file, et c'est la file que la barrière surveille (TCK-334) ;
+> 2. `GET :7700/version` → **1.36.0** quand le conteneur et la CI tiennent **1.16** : vingt
+>    versions mineures d'écart sur le moteur de recherche, décidées par personne.
+>
+> ⚠ **Ne jamais ajouter `force="true"` à ces deux lignes.** La CI pose ses propres
+> `MEILISEARCH_HOST`/`MEILISEARCH_KEY` en variables de job, et PHPUnit ne les écrase qu'avec
+> `force` (`PhpHandler::handleEnvVariables()` : `if ($force || getenv($name) === false)`). Éprouvé
+> par exécution : `MEILISEARCH_HOST=http://127.0.0.1:9999 php artisan test tests/Feature/Search/…`
+> échoue à la connexion — la variable du shell l'emporte. `force` détournerait la CI de son propre
+> service vers un hôte qui n'existe pas chez elle.
 
 ### Déterminisme du harnais — ce qui a été payé, et ce qu'il ne faut pas défaire
 
@@ -604,9 +639,40 @@ rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
    Assertions: 8210, Skipped: 2`, 0 échec, en 108 s** (`real 108,09 · user 448,45 · sys 44,35`).
    La simultanéité est donc la cause, ni l'arbre ni la charge.
 
-   **Un seul agent à la fois sur la suite entière en `--parallel`** : la restriction est
-   inchangée, sa raison ne l'est pas. Suite dans **TCK-334**.
-   Le mode séquentiel et `php bin/impacted-tests.php` supportent la simultanéité depuis D-44.
+   ✅ **RÉSOLU le 2026-08-22, et la restriction « un seul agent à la fois » est LEVÉE** (TCK-334).
+   La cause n'était plus celle-là non plus. Entre les deux mesures,
+   [ADR-0020](../docs/adr/0020-postgresql-sur-tous-les-environnements.md) a fait cesser de
+   fonctionner `--parallel` **entièrement** — pas sous simultanéité : *seul*, sur n'importe quel
+   test touchant la base. Une paire rendait alors **2553 erreurs de chaque côté**, si bien que la
+   file Meilisearch n'était plus atteignable : *l'ordre des causes est d'abord la base, ensuite —
+   peut-être — la file.*
+
+   **TROIS mécanismes nommaient ou créaient la base de test** là où ce fichier n'en décrivait
+   qu'un. Le plus coûteux n'était pas celui qui cassait : `TestDatabase::ensureCreated()` était
+   accrochée à `Tests\CreatesApplication`, **que `Tests\TestCase` n'emploie pas** — elle n'a donc
+   jamais tourné dans un test, et c'est `MigrateCommand::createMissingMySqlOrPgsqlDatabase()` qui
+   créait les bases en silence, sans horodatage, donc hors de portée définitive du balayage des
+   orphelines. Mesuré : **130 bases orphelines, 0 horodatée, 1 926 Mo**.
+
+   > *Un mécanisme d'isolation qui n'est jamais appelé n'échoue pas : un autre le couvre, plus
+   > mal, et le vert reste vert.*
+
+   Un seul mécanisme nomme et crée désormais la base :
+   `TestDatabase::neutralizeFrameworkMechanism()` éteint celui du framework par **son propre
+   interrupteur documenté** (`LARAVEL_PARALLEL_TESTING_WITHOUT_DATABASES`, ce que pose
+   `--without-databases`), et `ensureCreated()` est ré-accrochée à `Tests\TestCase`.
+   `tests/Unit/Testing/TestDatabaseIsolationTest.php` garde la propriété observable qui sépare les
+   deux créateurs : **une base créée par le dépôt porte un horodatage, une base créée par le
+   framework n'en porte pas.**
+
+   **Mesure qui lève la restriction** — cinq paires de `--parallel` simultanées sur la suite
+   ENTIÈRE, 8 cœurs, chacune partie au repos (`load average` 2,60 · 5,73 · 5,78 · 5,85 · 5,45) :
+   **`Tests: 2736, Assertions: 8791, Skipped: 2`, sortie 0 des DEUX côtés, cinq fois sur cinq**,
+   et **zéro `MeilisearchNotIdleException` sur dix exécutions**. Durées 4 min 06 à 8 min 11 — la
+   croissance vient de la charge héritée entre paires, pas du correctif.
+
+   Le mode séquentiel et `php bin/impacted-tests.php` supportaient déjà la simultanéité depuis
+   D-44 ; les trois modes la supportent maintenant.
 
 ## Ne lancer que les tests que le diff touche
 

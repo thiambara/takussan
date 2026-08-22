@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 import { SearchToolbar } from '../SearchToolbar';
 import {
+  agregateurDe,
   CLES_DE_RECHERCHE,
   SEARCH_FILTER_KEYS,
   type CleDeRechercheNom,
@@ -31,6 +32,10 @@ const TOUS_LES_FILTRES: SearchFilters = {
   q: 'villa vue mer',
   location: 'Almadies',
   city: 'Dakar',
+  // TCK-346 — le rayon PORTE la puce, `lat`/`lng` y sont agrégées : trois clés, une puce.
+  radius_km: 5,
+  lat: 14.6928,
+  lng: -17.4467,
   contract_type: 'rent',
   type: ['villa', 'studio'],
   rent_period: 'monthly',
@@ -83,6 +88,7 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
       '"villa vue mer"',
       'Quartier : Almadies',
       'Dakar',
+      'Dans un rayon de 5 km',
       'Location',
       'Villa',
       'Studio',
@@ -166,11 +172,57 @@ describe('<SearchToolbar> — AC1, vu à l’exécution', () => {
         />,
       ));
       const rendues = puces();
-      expect(rendues.length, `aucune puce pour \`${cle}\``).toBeGreaterThan(0);
+      if (agregateurDe(cle)) {
+        // TCK-346 — une clé AGRÉGÉE ne rend rien seule, et c'est l'invariant : sa puce est
+        // celle de son agrégateur. Sans cette branche, `lat` rendrait « 14.6928 » à l'écran,
+        // et son retrait laisserait `lng` — donc un 422 fabriqué par l'interface.
+        // Que l'agrégateur, lui, porte bien un libellé est vérifié à son propre tour de boucle
+        // et par `search-filters.parity.test.ts`.
+        expect(rendues, `\`${cle}\` est agrégée : elle ne doit PAS rendre de puce`).toEqual([]);
+      } else {
+        expect(rendues.length, `aucune puce pour \`${cle}\``).toBeGreaterThan(0);
+      }
       for (const p of rendues) {
         expect(p, `\`${cle}\` rend sa valeur brute`).not.toBe(String(valeur));
       }
       unmount();
     }
+  });
+});
+
+/**
+ * TCK-346 — `distance` exige une origine, et le serveur rend 422 sans elle.
+ *
+ * Une option de tri qui produit un 422 à coup sûr est pire qu'absente : l'utilisateur la
+ * choisit, l'écran perd ses résultats, et rien dans l'interface n'explique pourquoi. Elle
+ * apparaît donc avec le point et disparaît avec lui.
+ */
+describe('<SearchToolbar> — le tri par distance suit le point', () => {
+  const POINT: SearchFilters = { lat: 14.6928, lng: -17.4467, radius_km: 5 };
+
+  async function optionsDeTri(filters: SearchFilters): Promise<string[]> {
+    const user = userEvent.setup();
+    monte(filters);
+    // Deux `combobox` : la taille de page, puis le tri.
+    await user.click(screen.getAllByRole('combobox')[1]);
+    // `findAllByRole` et non `queryAllByRole` : le panneau du `Select` (base-ui) se monte dans
+    // un portail au tour de boucle SUIVANT. Lu synchroniquement, il rend une liste vide — donc
+    // un « l'option n'est pas offerte » qui serait vrai de TOUTES les options à la fois.
+    const options = await screen.findAllByRole('option');
+    return options.map((o) => (o.textContent ?? '').trim());
+  }
+
+  it('offre « Le plus proche » quand un point est posé', async () => {
+    expect(await optionsDeTri(POINT)).toContain('Le plus proche');
+  });
+
+  it('ne l’offre PAS sans point', async () => {
+    expect(await optionsDeTri({ city: 'Dakar' })).not.toContain('Le plus proche');
+  });
+
+  it('ne l’offre pas non plus sur un demi-point', async () => {
+    // `lat` seule rend 422 (`required_with:lng`) : proposer le tri ici serait proposer une
+    // requête impossible par deux motifs à la fois.
+    expect(await optionsDeTri({ lat: 14.6928 })).not.toContain('Le plus proche');
   });
 });

@@ -1,10 +1,27 @@
-# ADR-0020 — La recherche publique exige TOUS les termes, et nomme ce qu'elle a dû relâcher
+# ADR-0024 — La recherche publique exige TOUS les termes, et nomme ce qu'elle a dû relâcher
 
 - **Statut** : Accepté
 - **Date** : 2026-08-21
 - **Tickets** : TCK-338 (sorti de [TCK-335](../backlog/tickets/TCK-335-recherche-navigation-defauts-mesures.md))
 - **Frère de** : [ADR-0008](0008-meilisearch-sur-tous-les-environnements.md) — il décide *quel moteur*,
   celui-ci décide *ce que le moteur promet*.
+
+> ⚠ **CET ADR S'EST APPELÉ `ADR-0020` DU 2026-08-21 AU 2026-08-22, ET IL N'ÉTAIT PAS SEUL.**
+> [ADR-0020](0020-postgresql-sur-tous-les-environnements.md) — PostgreSQL sur tous les
+> environnements — porte le même numéro, écrit le même jour. Deux décisions structurelles, un seul
+> identifiant, et l'index les listait toutes les deux en `0020` sans que rien ne le signale.
+>
+> Le coût n'était pas le désordre, c'était l'**ambiguïté d'une référence** : 25 fichiers du dépôt
+> citaient « ADR-0020 » sans lien, et le lecteur ne pouvait pas savoir lequel des deux était visé.
+> [ADR-0023](0023-recherche-geographique-par-distances-sans-postgis.md) en portait déjà la trace —
+> elle avait dû écrire « ADR-0020 *de la recherche conjonctive* » pour se faire comprendre. *Une
+> référence qui a besoin d'une glose n'est plus une référence.*
+>
+> C'est celui-ci qui a été renuméroté, et pas l'autre, parce qu'il était le moins cité : 18
+> citations contre plus de 40 pour PostgreSQL, dont une garde de CI entière
+> (`scripts/check-db-engine.mjs`). Les 18 ont été reclassées une par une, en lisant le contexte de
+> chacune — un remplacement global aurait renuméroté les citations de l'autre décision.
+> **Un lien `adr/0020-recherche-publique-conjonctive-…` trouvé ailleurs pointe vers ce fichier.**
 
 > ⚠ **Cet ADR est soumis DANS LA MÊME PR que son implémentation.** La règle du dépôt — « l'ADR
 > avant le code » — porte sur l'ordre de la *décision*, pas sur l'ordre des merges : la décision a

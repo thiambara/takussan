@@ -12,7 +12,7 @@ use Tests\Concerns\InteractsWithMeilisearch;
 use Tests\TestCase;
 
 /**
- * TCK-338 / ADR-0020 — une recherche à plusieurs mots les EXIGE tous, et le
+ * TCK-338 / ADR-0024 — une recherche à plusieurs mots les EXIGE tous, et le
  * repli nomme ce qu'il a dû relâcher.
  *
  * ── CE QUE CES TESTS DOIVENT DISTINGUER ───────────────────────────────────
@@ -159,7 +159,7 @@ class RechercheConjonctiveTest extends TestCase
         // Aucun bien à Mbour : la conjonction est vide. Le repli SERT tout de
         // même les 4 villas — sinon la moitié des requêtes naturelles rendrait
         // une page blanche (30 couples type × ville sur 60, mesuré ; cf.
-        // ADR-0020) — mais la réponse ne les présente plus comme exactes.
+        // ADR-0024) — mais la réponse ne les présente plus comme exactes.
         //
         // ⚠ C'est la nuance que le front doit rendre visible, et il ne le fait
         // PAS encore : tant que `search.strategy` n'est pas affiché, cette
@@ -210,7 +210,7 @@ class RechercheConjonctiveTest extends TestCase
     /**
      * Deux chemins qui portent le même mot rendent le même ensemble.
      *
-     * C'est la mesure qui a tranché la décision (ADR-0020) : sous `all`,
+     * C'est la mesure qui a tranché la décision (ADR-0024) : sous `all`,
      * écrire la ville dans la barre de recherche rend EXACTEMENT ce que rend
      * le filtre `city=`. Sous `last`, les deux divergeaient — 4 contre 3 — sans
      * que rien ne le signale.

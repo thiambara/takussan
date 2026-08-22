@@ -18,7 +18,7 @@ import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSearch } from '@/hooks/useSearch';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
-import type { SearchFilters } from '@/types/search';
+import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 /**
  * Canonical `/properties` discovery layout — Wave 3.
@@ -36,15 +36,19 @@ import type { SearchFilters } from '@/types/search';
 type View = 'list' | 'map';
 
 /**
- * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider
- * si un 422 désigne un filtre RÉPARABLE — la liste qui fait autorité vit côté serveur,
- * et `search-filters.parity.test.ts` garde l'accord entre les deux.
+ * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider si un 422
+ * désigne un filtre RÉPARABLE.
+ *
+ * TCK-346 — **dérivée de `SEARCH_FILTER_KEYS`**, alors qu'elle était écrite à la main. Elle
+ * citait dix-huit clés et venait donc d'en manquer trois (`lat`, `lng`, `radius_km`) : un 422
+ * sur `radius_km` — que le plafond de 500 km rend parfaitement atteignable depuis un lien —
+ * n'aurait proposé que « effacer toute la recherche ». Son propre commentaire disait déjà que
+ * la liste faisant autorité vit ailleurs ; elle la recopiait quand même.
+ *
+ * `removeFilter` remonte à l'agrégateur (TCK-346), donc chaque clé listée ici est réellement
+ * retirable, y compris `lat` et `lng` qui n'ont pas de puce propre.
  */
-const FILTRES_CONNUS = new Set<keyof SearchFilters>([
-  'q', 'location', 'city', 'contract_type', 'type', 'rent_period',
-  'price_min', 'price_max', 'bedrooms', 'bathrooms', 'area_min', 'area_max',
-  'furnished', 'featured', 'floor_number', 'available_from', 'tags', 'sort',
-]);
+const FILTRES_CONNUS = new Set<keyof SearchFilters>(CLES_DE_RECHERCHE);
 
 function CardSkeleton() {
   return (
@@ -183,11 +187,28 @@ export function PropertiesDiscoveryPage() {
 
   // Derive the map filters from the active search filters. We only forward
   // the subset that the backend's `/map` endpoint supports.
+  //
+  // TCK-346 — `lat` / `lng` / `radius_km` en font partie DEPUIS ce lot, et leur
+  // absence était un défaut que le rayon avait introduit : poser « à moins de
+  // 3 km » puis basculer en vue carte faisait RÉAPPARAÎTRE les biens que la
+  // liste venait d'écarter. Le filtre disparaissait en silence à la bascule,
+  // sur le même écran, avec deux comptes différents pour la même recherche.
+  //
+  // Les trois clés voyagent ensemble ou pas du tout : `normaliserGeo()` garantit
+  // qu'un point à moitié posé n'atteint jamais l'URL, et `/map` rendrait 422 sur
+  // une demi-coordonnée — mêmes règles que `/search` (ADR-0023).
+  //
+  // ⚠ Pas de `sort` : `/map` n'en déclare aucun, et c'est motivé dans le
+  // docblock de `PublicPropertyController::map()` — la sortie est un GeoJSON
+  // plafonné, sans pagination, dont l'ordre n'est observable par personne.
   const mapFilters: Record<string, string | number | undefined> = {
     type: filters.type?.join(','),
     contract_type: filters.contract_type,
     price_min: filters.price_min,
     price_max: filters.price_max,
+    lat: filters.lat,
+    lng: filters.lng,
+    radius_km: filters.radius_km,
   };
 
   return (

@@ -27,7 +27,7 @@ tenir à jour :
 | Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
 | Données | 135 migrations · 38 factories · 48 fichiers de seeders | — |
-| Tests | ~310 fichiers · **~2660 tests, verts _au repos_ sur PostgreSQL** *(2026-08-21)* | ~190 fichiers · **~1290 tests, verts** *(2026-08-21)* |
+| Tests | ~380 fichiers · **~2740 tests, verts sur PostgreSQL** *(2026-08-22)* | ~190 fichiers · **~1330 tests, verts** *(2026-08-22)* |
 
 > Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
 > `.ts`/`.tsx` » — faux dans le commit qui l'écrivait, puisque ce même commit en supprimait sept.
@@ -119,6 +119,12 @@ suffit, et une méthode traversée sans assertion y compte pour couverte.
 > 2026-08-16.
 >
 > Durée sous Xdebug : **1414 s (23 min 34)**, contre 641 s sans couverture.
+>
+> > **Re-mesurée le 2026-08-22, après le lot de la vague 45 : 86,9 %** (22 014 / 25 323 lignes
+> > exécutables), toujours sous Xdebug en local, cliquet `--min=86` **franchi, sortie 0**, sur
+> > `Tests: 2736, Assertions: 8791, Skipped: 2`. Le seuil n'est toujours pas resserré, et pour la
+> > même raison : *resserrer un cliquet sur une mesure prise par un autre pilote, c'est fabriquer
+> > un rouge de CI qui n'apprend rien.*
 
 ⚠️ **Le cliquet n'est PLUS le `--min` de `artisan test`, depuis TCK-331 (2026-08-20).** La CI
 invoque **PHPUnit directement** et évalue le seuil dans un step à part,
@@ -155,40 +161,62 @@ dont les deux jetons sont désormais **composés** (`<pid+aléa>_<index worker>`
 **Cinq exécutions d'épreuve à 0 échec**, et ×3,2 sur la meilleure paire comparable (208,80 s
 séquentiel à load 3,74 → **64,90 s** à load 6,11, 8 cœurs).
 
-⚠️ **Deux limites, mesurées, et elles gouvernent l'usage :**
+✅ **La restriction « un seul agent à la fois » est LEVÉE le 2026-08-22.** Elle a tenu du 2026-08-17
+au 2026-08-22, pour trois raisons successives qui se sont masquées les unes les autres — toutes
+soldées, et l'histoire vaut d'être lue parce qu'elle se reproduira.
 
-1. **La collision de démarrage est TROUVÉE ET CORRIGÉE (TCK-322), la preuve sur la suite entière
-   reste à faire.** Deux `--parallel` simultanés : l'un passait, **l'autre mourait au démarrage** sur
-   `mkdir(): File exists` — une **quatrième** ressource partagée par machine, que D-44 ne pouvait pas
-   connaître parce que ParaTest n'était pas installé. Ce n'était pas ParaTest : c'est le rappel
-   `setUpProcess` de Laravel qui crée `storage/framework/views/test_<index worker>` dans le processus
-   **parent**, là où le jeton composé de TCK-321 — posé dans `tests/bootstrap.php` — n'atteint
-   jamais. Les vues compilées sont désormais enracinées par exécution
-   (`Tests\Support\TestCompiledViews`). `--tmp-dir` ne corrigeait rien : ce répertoire n'est pas
-   celui de ParaTest.
+**La mesure qui la lève** — cinq paires de `php artisan test --parallel` **simultanées sur la suite
+ENTIÈRE**, 8 cœurs, chacune partie machine au repos :
 
-   **Mesuré le 2026-08-17, 8 cœurs : cinq paires simultanées à 0 échec des deux côtés** (`load`
-   21-94), une paire compilant du Blade verte à `load` 215, et l'ablation du correctif fait
-   remourir l'une des deux.
+| Paire | `load average` au départ | Durée | A et B |
+|---|---|---|---|
+| 1 | 2,60 | 4 min 06 | `Tests: 2736, Assertions: 8791, Skipped: 2` · sortie **0** |
+| 2 | 5,73 | 6 min 47 | idem · sortie **0** |
+| 3 | 5,78 | 8 min 04 | idem · sortie **0** |
+| 4 | 5,85 | 8 min 11 | idem · sortie **0** |
+| 5 | 5,45 | 7 min 46 | idem · sortie **0** |
 
-   ⚠️ **La paire sur la suite ENTIÈRE a été jouée le 2026-08-20, et elle ROUGIT — mais pas pour
-   cette raison-là.** Machine au repos (load 3,39 sur 8 cœurs) : `A = 38 erreurs`, `B = 37`, sur
-   2589 tests chacune. **Les deux ont DÉMARRÉ** — le correctif ci-dessus tient, `mkdir(): File
-   exists` ne s'est pas produit — et les jetons d'index sont bien distincts. Les 75 erreurs sont
-   *toutes* des `MeilisearchNotIdleException` : **une CINQUIÈME ressource partagée par machine, la
-   file de tâches globale du serveur Meilisearch.** Contrôle joué juste après, même arbre, même
-   repos : **une seule exécution rend 2589 tests, 0 échec, en 108 s**. C'est donc la simultanéité,
-   pas l'arbre ni la charge.
+**Cinq fois sur cinq, 0 échec des deux côtés, zéro `MeilisearchNotIdleException` sur dix
+exécutions.** ⚠ Les durées croissent parce que les paires s'enchaînent et que la charge héritée ne
+retombe pas entre elles — *le chiffre qui compte ici est le code de sortie, pas le chronomètre.*
 
-   **Donc : un seul agent à la fois sur `--parallel` en suite entière** — la restriction ne change
-   pas, sa RAISON change, et c'est TCK-334 qui la porte désormais. Le mode séquentiel et
-   `bin/impacted-tests.php` supportent la simultanéité depuis D-44.
+⚠️ **Trois causes se sont succédé sous le même symptôme, et chacune a caché la suivante :**
 
-   *À lire deux fois : c'est le correctif D-44 qui a rendu ce diagnostic possible.* L'ancienne
-   version abandonnait en silence au bout de 10 s et rougissait sur une assertion métier juste, en
-   accusant le code applicatif. Ici la barrière lève, compte les tâches en attente index par index,
-   et nomme elle-même la cause probable dans son message. **Le diagnostic était dans l'erreur.**
-2. **Pas activé en CI — et c'est désormais un RÉSULTAT, plus un défaut** (TCK-324, mesuré le
+1. **Les vues compilées** (TCK-322, corrigé le 2026-08-17). Deux `--parallel` simultanés : l'un
+   passait, l'autre **mourait au démarrage** sur `mkdir(): File exists`. Ce n'était pas ParaTest :
+   le rappel `setUpProcess` de Laravel crée `storage/framework/views/test_<index worker>` dans le
+   processus **parent**, là où le jeton composé de TCK-321 — posé dans `tests/bootstrap.php` —
+   n'atteint jamais. Enracinées par exécution depuis (`Tests\Support\TestCompiledViews`).
+   `--tmp-dir` ne corrigeait rien : ce répertoire n'est pas celui de ParaTest.
+2. **La file de tâches Meilisearch** (TCK-334, mesurée le 2026-08-20). La paire sur la suite entière
+   rendait 38 et 37 erreurs, *toutes* des `MeilisearchNotIdleException`, quand une seule exécution
+   rendait 0 échec en 108 s au même repos. Le diagnostic était juste ce jour-là — et il n'est plus
+   reproductible, parce qu'entre-temps :
+3. **ADR-0020 a cassé `--parallel` entièrement**, le 2026-08-21, et personne ne l'a mesuré. Pas sous
+   simultanéité : **seul**, sur n'importe quel test touchant la base. Une paire rendait **2553
+   erreurs de chaque côté**. TROIS mécanismes nommaient ou créaient la base de test là où le dépôt
+   croyait n'en avoir qu'un — le sien, celui de ParaTest qui recompose le nom, et `MigrateCommand`
+   qui crée en silence toute base pgsql absente.
+
+   Le plus coûteux des trois n'était pas celui qui cassait : `TestDatabase::ensureCreated()` était
+   accrochée à `Tests\CreatesApplication`, **que `Tests\TestCase` n'emploie pas**. Elle n'a donc
+   **jamais tourné dans un test**, et c'est `MigrateCommand` qui créait les bases en silence — sans
+   horodatage, donc à jamais hors de portée du balayage des orphelines. **Mesuré le 2026-08-22 :
+   130 bases orphelines, dont 0 horodatée, 1 926 Mo.**
+
+   > *Un mécanisme d'isolation qui n'est jamais appelé n'échoue pas : un autre le couvre, plus mal,
+   > et le vert reste vert.* Même enseignement que les trois ablations de `BaseFormRequest`.
+
+**Ce que la barrière Meilisearch a changé au passage** (TCK-334) : elle abandonnait après 10 s
+d'attente, quelle qu'en fût la raison. Elle abandonne désormais après 10 s **de silence du
+serveur** — `GET /batches?limit=1`, champ `progress`. Aucun plafond n'est relevé : c'est la
+*grandeur mesurée* qui a changé. Le chiffre qui l'ancre : le plus long batch **légitime** de
+l'historique du serveur dure **8,24 s pour une seule tâche**, et pendant ces 8,2 s le compte de
+tâches en attente reste FIGÉ — un détecteur de stagnation fondé sur le COMPTE aurait donc été
+*pire* que le plafond qu'il remplaçait.
+
+⚠️ **Une limite subsiste, et c'est un RÉSULTAT, plus un défaut : `--parallel` n'est pas activé en
+CI** (TCK-324, mesuré le
    2026-08-18 sur le runner `ubuntu-latest`, `nproc` **4**, AMD EPYC 7763, load 1,05 au départ) :
 
    | suite | durée | sortie |
@@ -232,7 +260,24 @@ php artisan test                    # ⚠ TOURNE SUR POSTGRESQL depuis ADR-0020 
                                     #   ressource partagée par machine, et la seule que la
                                     #   migration a CRÉÉE : sous SQLite `:memory:` chaque processus
                                     #   avait la sienne gratuitement.
-                                    # ⚠⚠ LE TEMPS DE RÉFÉRENCE EST 648 s (10 min 49), mesuré le
+                                    # ⚠⚠ TEMPS DE RÉFÉRENCE : 470 à 610 s, DEUX mesures le
+                                    #   2026-08-22 (468 s puis 612 s), sur ~2740 tests / ~8800
+                                    #   assertions / 0 échec, 8 cœurs. La FOURCHETTE est le
+                                    #   chiffre honnête : les deux départs affichaient la même
+                                    #   moyenne à 1 minute (3,4 et 4,2) et des moyennes à 5 et
+                                    #   15 minutes très différentes (6,4/19,4 contre 8,6/6,9).
+                                    #   ⚠ « Machine au repos » ne se lit PAS sur la moyenne à
+                                    #   1 minute : elle retombe en premier, et c'est la charge
+                                    #   des minutes précédentes que la suite subit encore.
+                                    #   Relever les TROIS moyennes, ou attendre que la moyenne
+                                    #   à 5 minutes descende aussi.
+                                    # L'ANCIENNE référence était 648 s le 2026-08-21 sur 2668
+                                    #   tests. ⚠ Elle et celles-ci ne se comparent PAS : ni le
+                                    #   même nombre de tests, ni la même instance Meilisearch
+                                    #   (le lot du 2026-08-22 a épinglé le conteneur 1.16 au
+                                    #   lieu d'une instance native 1.36 partagée avec un autre
+                                    #   projet). Aucune ablation n'a isolé la part de chacun.
+                                    # Référence du 2026-08-21, conservée : 648 s (10 min 49), le
                                     #   2026-08-21 sur 2668 tests / 8616 assertions / 0 échec,
                                     #   MACHINE AU REPOS : load average 2,93 au départ et 4,63 à
                                     #   l'arrivée, 8 cœurs, 335,70 s user + 29,66 s system.
@@ -251,34 +296,32 @@ php artisan test                    # ⚠ TOURNE SUR POSTGRESQL depuis ADR-0020 
                                     #   (cf. D-44) — mais depuis le correctif, la suite entière rend
                                     #   0 échec même sous cette charge.
 php artisan test --filter=Foo
-php artisan test --parallel          # ×3,2 sur la meilleure mesure (208,80 s séquentiel, load 3,74
-                                    #   → 64,90 s en parallèle, load 6,11 au départ ; 8 cœurs,
-                                    #   mesuré le 2026-08-17, cf. D-30). ⚠ POUR LE RITUEL DE FIN DE
-                                    #   BRANCHE, machine au repos — PAS pour la boucle quotidienne :
-                                    #   la suite séquentielle n'occupe que 0,73 cœur sur 8 (mesuré
-                                    #   le 2026-08-17, load average 5,7 → 21,7 sur 8 cœurs : user
-                                    #   417,40 s + sys 29,42 s pour 611,4 s), et
-                                    #   deux agents qui parallélisent en même temps demandent 16
-                                    #   cœurs à une machine qui en a 8. NON activé en CI, et
-                                    #   c'est MESURÉ (TCK-324, 2026-08-18, runner à 4 cœurs) :
-                                    #   206 s séquentiel → 83 s en parallèle, gain ×2,48. Le gain
-                                    #   est réel ; il est INUTILISABLE, parce qu'une seule
-                                    #   exécution porte les tests ET la couverture qui alimente
-                                    #   le cliquet à 86 % (par le clover depuis TCK-331), et que
-                                    #   PCOV agrège mal entre processus (cf. D-30).
-                                    #   ⚠⚠ La mort au démarrage de deux --parallel simultanés
-                                    #   (« mkdir(): File exists ») est CORRIGÉE par TCK-322 :
-                                    #   les vues compilées sont enracinées par exécution. Cinq
-                                    #   paires simultanées à 0 échec, mais sur des SOUS-ENSEMBLES
-                                    #   La paire sur la suite ENTIÈRE a été jouée le 2026-08-20
-                                    #   et elle ROUGIT — 38 et 37 erreurs, TOUTES Meilisearch,
-                                    #   alors qu'une seule exécution rend 0 échec en 108 s au
-                                    #   même repos. Cinquième ressource partagée : la file de
-                                    #   tâches du serveur (TCK-334). On garde donc « un seul
-                                    #   agent à la fois » pour celle-ci, pour une AUTRE raison. Le
-                                    #   séquentiel et impacted-tests.php supportent la
-                                    #   simultanéité. Pour le quotidien :
+php artisan test --parallel          # ⚠ RÉFÉRENCE À REPRENDRE : le ×3,2 de 2026-08-17 (208,80 s
+                                    #   séquentiel → 64,90 s) a été mesuré sur une commande qui
+                                    #   a CESSÉ DE FONCTIONNER le 2026-08-21 avec ADR-0020, sans
+                                    #   que personne le mesure. Réparée le 2026-08-22 (TCK-334) :
+                                    #   trois mécanismes nommaient ou créaient la base de test.
+                                    #   Mesuré ce jour-là, 8 cœurs, machine au repos :
+                                    #     2736 tests, 8791 assertions, 0 échec, 4 min 06.
+                                    # ✅ DEUX AGENTS PEUVENT DÉSORMAIS LA LANCER EN MÊME TEMPS.
+                                    #   La restriction « un seul agent à la fois » est LEVÉE, et
+                                    #   elle l'est sur mesure : CINQ paires simultanées sur la
+                                    #   suite ENTIÈRE, 0 échec des deux côtés, cinq fois sur cinq,
+                                    #   zéro MeilisearchNotIdleException sur dix exécutions
+                                    #   (TCK-322 AC2/AC3, TCK-334).
+                                    # ⚠ Ça n'en fait pas la commande du quotidien pour autant :
+                                    #   deux exécutions parallèles demandent 16 cœurs à une
+                                    #   machine qui en a 8, et les durées mesurées passent de
+                                    #   4 min 06 à 8 min 11 quand les paires s'enchaînent sans
+                                    #   laisser la charge retomber. C'est le RITUEL DE FIN DE
+                                    #   BRANCHE, machine au repos. Pour la boucle quotidienne :
                                     #   php bin/impacted-tests.php --run
+                                    # NON activé en CI, et c'est MESURÉ (TCK-324, 2026-08-18,
+                                    #   runner à 4 cœurs) : 206 s séquentiel → 83 s en parallèle,
+                                    #   gain ×2,48. Le gain est réel ; il est INUTILISABLE tant
+                                    #   qu'une seule exécution porte les tests ET la couverture
+                                    #   qui alimente le cliquet à 86 % (par le clover depuis
+                                    #   TCK-331), PCOV agrégeant mal entre processus (cf. D-30).
 php bin/impacted-tests.php --run     # ← LA commande du quotidien : ne lance que les tests que
                                     #   le diff touche, via tests/impact-map.json (carte dérivée
                                     #   d'un rapport de couverture, jamais éditée à la main).

@@ -27,7 +27,7 @@ Un visiteur qui cherche « villa Saly » ne reçoit pas des villas de Dakar.
 
 Sorti de [TCK-335](TCK-335-recherche-navigation-defauts-mesures.md) parce que c'est une **décision
 structurelle** : passer le moteur public en conjonction change le contrat de la recherche pour tout
-le site. Le dépôt exige un ADR **avant** l'implémentation → **[ADR-0020](../../adr/0020-recherche-publique-conjonctive-avec-repli-nomme.md)**.
+le site. Le dépôt exige un ADR **avant** l'implémentation → **[ADR-0024](../../adr/0024-recherche-publique-conjonctive-avec-repli-nomme.md)**.
 
 Mesure fondatrice ([audit](../../qa/audit-recherche-navigation-2026-08-21.md) §1.1) : `q=villa Saly`
 rend **exactement les mêmes 63 résultats, dans le même ordre**, que `q=villa`. Meilisearch applique
@@ -67,7 +67,7 @@ rend 0).
 
 ## Delta à produire
 
-- [x] **ADR** frère d'ADR-0008 → [ADR-0020](../../adr/0020-recherche-publique-conjonctive-avec-repli-nomme.md)
+- [x] **ADR** frère d'ADR-0008 → [ADR-0024](../../adr/0024-recherche-publique-conjonctive-avec-repli-nomme.md)
       ⚠ soumis **dans la même PR** que l'implémentation : la règle du dépôt porte sur l'ordre de la
       *décision*, pas sur l'ordre des merges, et un agent délégué ne pousse pas.
 - [x] `matchingStrategy: 'all'` sur la recherche publique

@@ -15,18 +15,26 @@ use Spatie\QueryBuilder\Sorts\Sort;
  * ordering is *not* preserved »). Ce tri le rétablit en projetant le RANG de
  * chaque id dans un `CASE`.
  *
- * ⚠ **Portabilité.** MySQL 8 offre `FIELD(id, …)` — SQLite non, et la suite de
- * tests tourne sur SQLite. C'est la 5ᵉ famille du piège « une migration se
- * pense pour MySQL, jamais pour SQLite », transposée au requêtage. Le `CASE
- * <col> WHEN <valeur> THEN <rang> … ELSE <n> END` est le seul dénominateur
- * commun aux deux moteurs.
+ * ⚠ **Portabilité — la CONCLUSION tient, ses RAISONS ont changé (2026-08-22).**
+ * Ce paragraphe invoquait MySQL et SQLite : « MySQL 8 offre `FIELD(id, …)` —
+ * SQLite non, et la suite de tests tourne sur SQLite ». Les deux moteurs ont
+ * disparu du dépôt avec ADR-0020, et la suite tourne sur PostgreSQL 17.
+ * Re-mesuré sur le moteur réel plutôt que déduit :
+ *
+ *   SELECT FIELD(1,2,3);           → ERROR: function field(...) does not exist
+ *   SELECT CASE 5 WHEN 5 THEN 0 …; → 0
+ *   SHOW server_version;           → 17.11 (Debian 17.11-1.pgdg12+2)
+ *
+ * PostgreSQL n'offre pas `FIELD()` davantage que SQLite : le `CASE <col> WHEN
+ * <valeur> THEN <rang> … ELSE <n> END` reste le bon choix, et il l'est
+ * désormais pour un seul moteur au lieu d'être un dénominateur commun à deux.
  *
  * ⚠ **Littéraux, pas de placeholders.** Les rangs et les ids sont écrits
  * directement dans le SQL après un cast `(int)` — un entier casté ne peut rien
  * injecter. Avec des placeholders, un jeu de 5 000 ids (le plafond du callback)
  * en coûterait 10 000 de plus, en sus des 5 000 du `whereIn` : on approcherait
- * la limite de variables liées de SQLite (32 766) et de MySQL (65 535) au lieu
- * de s'en tenir loin. Le constructeur REJETTE tout id non entier plutôt que de
+ * le plafond de paramètres liés du protocole PostgreSQL — **65 535**, imposé
+ * par un compteur 16 bits — au lieu de s'en tenir loin. Le constructeur REJETTE tout id non entier plutôt que de
  * l'ignorer : ce tri ne s'applique qu'à des clés primaires entières, et un
  * modèle à clé non entière doit être traité explicitement, pas silencieusement
  * reclassé par date.

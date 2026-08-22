@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Public;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\FiltreParPointEtRayon;
+use Closure;
 use Illuminate\Support\Carbon;
 
 /**
@@ -10,6 +12,12 @@ use Illuminate\Support\Carbon;
  */
 class SearchPublicPropertyRequest extends BaseFormRequest
 {
+    /**
+     * `lat`, `lng`, `radius_km` et `RADIUS_KM_MAX` — le meme contrat que
+     * `MapPublicPropertyRequest`, defini une seule fois (ADR-0023, TCK-346).
+     */
+    use FiltreParPointEtRayon;
+
     /**
      * L'autorisation reste dans le controleur / la policy (principes 1 et 2, TCK-306).
      * `BaseFormRequest` refuse par defaut : sans cette surcharge, l'endpoint rendrait 403.
@@ -106,11 +114,32 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             'rent_period' => 'nullable|string',
             'furnished' => 'nullable|boolean',
             'tags' => 'nullable|string',
-            'lat_min' => 'nullable|numeric',
-            'lat_max' => 'nullable|numeric',
-            'lng_min' => 'nullable|numeric',
-            'lng_max' => 'nullable|numeric',
-            'sort' => 'nullable|in:relevance,price_asc,price_desc,created_desc',
+            // ── GEO, contrat « viewport » (ADR-0023, chemin 1) ────────────────
+            // Le rectangle existe depuis TCK-280 et n'est atteint par PERSONNE :
+            // `SEARCH_FILTER_KEYS` (takussan-web/src/types/search.ts) ne porte
+            // aucune cle geo. Il est CONSERVE et son statut est desormais ecrit :
+            // il sert a synchroniser la liste de resultats avec le cadrage de la
+            // carte. Il se conjoint (ET) au rayon si les deux sont envoyes.
+            'lat_min' => 'nullable|numeric|between:-90,90',
+            'lat_max' => 'nullable|numeric|between:-90,90',
+            'lng_min' => 'nullable|numeric|between:-180,180',
+            'lng_max' => 'nullable|numeric|between:-180,180',
+
+            // ── GEO, contrat « point + rayon » (TCK-346, ADR-0023) ────────────
+            // Les trois regles viennent du trait : `/map` les porte a l'identique.
+            ...$this->reglesPointEtRayon(),
+
+            // `distance` exige le point, pour la meme raison : sans lui, le tri
+            // n'a pas d'origine. Le refuser en 422 vaut mieux que de retomber en
+            // silence sur le tri par defaut — le front croirait trier.
+            'sort' => [
+                'nullable', 'in:relevance,price_asc,price_desc,created_desc,distance',
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    if ($valeur === 'distance' && ! $this->porteUnPointGeo()) {
+                        $echec(__('validation.sort_distance_requires_point'));
+                    }
+                },
+            ],
             'floor_number' => 'nullable|integer|min:0|max:200',
             // TCK-335 — `after_or_equal:today` faisait POURRIR toute recherche sauvegardee
             // et tout lien partage : le jour ou la date passait, l'URL rendait 422, et le

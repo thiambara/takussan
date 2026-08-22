@@ -23,5 +23,7 @@ return [
     ],
     'max_guarantors_reached' => 'Un bail ne peut pas avoir plus de 3 garants.',
     'bounds_format' => 'Le champ :attribute doit contenir quatre nombres séparés par des virgules : sw_lat,sw_lng,ne_lat,ne_lng.',
+    'geo_radius_requires_point' => 'Le champ :attribute exige un point complet : lat et lng doivent être fournis tous les deux.',
+    'sort_distance_requires_point' => 'Le tri par distance exige un point complet : lat et lng doivent être fournis tous les deux.',
     'commission_share_exceeds_cap' => 'La somme des commissions pour cette propriété ne peut excéder 100%.',
 ];

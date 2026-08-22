@@ -1,13 +1,13 @@
 ---
 id: TCK-292
 title: "i18n — le reste du parc, en 12 lots"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: XL
 wave: null
 created: 2026-08-15
-updated: 2026-08-20
+updated: 2026-08-22
 depends_on: [TCK-286]
 blocks: []
 spec_refs:
@@ -123,20 +123,40 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
       même enum backend, qui divergent sur `shop` (« Commerce » / « Boutique ») et `resort`
       (« Complexe » / « Resort »). TCK-286 a conservé les deux pour ne rien changer à l'écran ;
       choisir lequel gagne est une décision produit, puis supprimer l'autre.
-- [ ] Supprimer `src/components/layout/{Footer,Header,Navigation,Sidebar}.tsx` — **aucun importeur
+- [x] Supprimer `src/components/layout/{Footer,Header,Navigation,Sidebar}.tsx` — **aucun importeur
       dans tout `src`**, 13 occurrences de texte en dur dont 7 libellés de navigation en doublon
       exact d'`AppSidebar`. Les traduire créerait deux tables de navigation dont une invisible.
-- [ ] Décider du sort de `src/components/playground/` (7 fichiers, 26 occurrences — page de
+      **Fait le 2026-08-22**, absence d'importeur re-vérifiée fichier par fichier plutôt que
+      reprise de confiance — le `Footer` que sept fichiers importent est l'homonyme
+      `@/components/home/Footer`.
+- [x] Décider du sort de `src/components/playground/` (7 fichiers, 26 occurrences — page de
       démonstration) et des route handlers `src/app/api/**` (15 fichiers, 31 occurrences — messages
       JSON techniques, probablement à requalifier hors périmètre plutôt qu'à traduire).
-- [ ] Étendre la garde si le besoin s'en fait sentir : elle ne voit **pas** les gabarits interpolés
+      **Tranché le 2026-08-22** : les deux sont EXCUSÉS, familles `PLAYGROUND` et `TECHNIQUE`,
+      avec leur raison écrite dans `scripts/i18n-exceptions.mjs`. « Requalifier hors périmètre »
+      sans laisser de trace aurait rendu la décision invisible au relecteur suivant.
+- [x] Étendre la garde si le besoin s'en fait sentir : elle ne voit **pas** les gabarits interpolés
       (`` `Bonjour ${nom}` ``) ni les props de composants maison hors `ATTRS_AFFICHAGE`. Son total
       est un plancher, jamais un inventaire — le vrai reste est supérieur à 3 542.
+      **Étendue le 2026-08-22, mais sur un autre axe que celui prévu** : pas les gabarits (le coût
+      d'un lexeur complet reste hors de proportion) — le mécanisme d'EXCEPTION JUSTIFIÉE, qui
+      permet enfin de dire *pourquoi* une occurrence reste. Plus un cinquième contrôle au
+      recensement de `traducteurs-de-messages.test.ts` : une fonction de `lib/schemas/` qui rend
+      une clé **sans passer par zod** (`validateAgencyLogoFile`, `isAllowedAttachment`) était
+      invisible au recensement, qui cherchait un `.safeParse`. Mesuré par ablation : la garde
+      restait verte 29/29 avec la traduction retirée de `ChatView.tsx`. La liste de ces fonctions
+      est DÉRIVÉE de `src/lib/schemas/`, jamais écrite à la main.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — pour chaque lot livré, `node scripts/check-i18n.mjs` sort en **0** et la baseline ne
+- [x] AC1 — pour chaque lot livré, `node scripts/check-i18n.mjs` sort en **0** et la baseline ne
       contient plus aucun fichier de ce lot.
+      **Tenu le 2026-08-22, à la lettre** : `i18n-baseline.json` porte `"fichiers": {}` — plus
+      aucune occurrence TOLÉRÉE, dans aucun fichier d'aucun lot. Les 78 qui restent visibles au
+      scanner sont EXCUSÉES par `scripts/i18n-exceptions.mjs`, chacune avec sa raison écrite et
+      chacune vérifiée contre un site réel. Ce qui manquait n'était pas du travail de traduction :
+      c'était le mécanisme qui distingue « pas encore traduit » de « ne sera jamais traduit »
+      (cf. § *Vague du 2026-08-22*).
 - [x] AC2 — `en` reste à **0 clé manquante** (la garde le tient déjà), et `PLAFONDS_PARITE.wo` a
       strictement baissé à chaque lot qui touche un sous-arbre concerné.
       **Tenu, et dépassé : `PLAFONDS_PARITE.wo` vaut désormais 0.** 70 → 27 (vague B–H) → **0**
@@ -145,7 +165,7 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
       un cliquet qu'on desserre — toute clé française ajoutée sans son wolof fait rougir.
       ⚠ La garde est EXACTE sur la présence d'une clé et MUETTE sur sa justesse : cf. la réserve
       sur le wolof au § *Vague du 2026-08-20*.
-- [ ] AC3 — aucun libellé affiché n'a changé de formulation : un test de rendu existant qui
+- [x] AC3 — aucun libellé affiché n'a changé de formulation : un test de rendu existant qui
       assertait un texte français continue de passer **sans modification de son assertion**.
 - [x] AC4 — `npx tsc --noEmit`, `npm run lint`, `npm run test` et `npm run build` verts.
       **Mesuré le 2026-08-20, sur exécution** (cf. § *Vague du 2026-08-20*) : `tsc` sortie 0 ·
@@ -471,3 +491,252 @@ mesuré **42 valeurs `wo` identiques à leur `fr` dans un seul lot**, dont une t
 corrigé ce qui avait déjà une traduction établie ailleurs dans `wo.json` ; le reste est listé, clé
 par clé, dans les rapports de vague. **C'est une relecture par un locuteur qu'il faut là, pas une
 garde** — et ce ticket ne peut pas la fournir.
+
+
+## Vague du 2026-08-22 — le résidu, et la garde qui sait enfin s'excuser
+
+### La phrase de ce ticket qui était FAUSSE
+
+> « Le compte de 91 n'est pas un reste à traduire : c'est ce que le cliquet **heuristique** compte
+> encore — clés techniques, classes CSS, identifiants, valeurs d'API, texte de test. »
+
+**Elle est fausse sur 5 des 91.** Le triage n'avait pas été fait occurrence par occurrence : il
+avait été *supposé* à partir de l'allure des littéraux. Chacune des 91 a été suivie jusqu'à son
+rendu le 2026-08-22, et cinq atteignaient bien un écran :
+
+| site | ce que l'utilisateur lisait | par quel chemin |
+|---|---|---|
+| `super-admin/users/page.tsx:109` | **`Users fetch failed`** | `Object.assign(new Error(…))` → `messageErreurApi` ne reconnaît ni `ApiError`, ni `/^API error \d+/`, ni sentinelle → branche « un `Error` nu transporte un message DÉJÀ traduit » → `<ErrorState>`. Le repli `t('error')` n'était atteint par **aucun** chemin. |
+| `lib/schemas/agency.ts:131,135` | « Le logo dépasse 2 Mo. » | `AgencyConfigForm` → `setLogoError` → `<p role="alert">`, et `uploadAgencyLogoAction` → `{ ok: false, message }` |
+| `lib/schemas/message.ts:62,65` | « Fichier trop volumineux (10 Mo max). » | `ChatView` → `setAttachmentError(validation.reason ?? t(…))` — le `??` ne se déclenche **jamais**, `reason` est toujours posé quand `ok:false` |
+
+*« Ça ressemble à du technique donc ça ne s'affiche pas » est une hypothèse, pas un classement.*
+C'est la troisième fois que ce ticket la paie : les 18 clés brutes du lot J, les 42 messages des
+handlers BFF, et ces cinq-ci.
+
+Trois sites de plus, **que le scanner ne signalait pas**, ont été trouvés en tirant le même fil :
+`MONTH_LABELS` de `AgencyRevenueSnapshot` (12 mois français en dur, dont le scanner ne voyait
+que 3 — les seuls accentués) et le `{ locale: fr }` **en dur** de `ui/date-picker.tsx` et
+`ui/date-time-picker.tsx`, ce dernier portant en plus un `'à'` français quoté **dans un motif
+date-fns**. Les trois suivent désormais la locale active, par `localeDateFns`
+(`src/lib/format/dateFnsLocale.ts`), le patron que `formatDayLabel.ts` appliquait déjà seul.
+
+### Le triage complet des 91, par famille
+
+| famille | n | ce que c'est |
+|---|---:|---|
+| PLAYGROUND | 39 | la page de démonstration du design system |
+| TECHNIQUE | 30 | `console.error`, placeholders d'identifiants, motifs date-fns, comparaisons de chaîne |
+| NOM-PROPRE | 11 | marques, villes, quartiers, formats de fichier, endonymes de langue |
+| **VRAI-TEXTE-AFFICHÉ** | **8** | les 5 ci-dessus + les 3 mois du graphe de revenus |
+| BALISAGE | 2 | SVG et HTML transportés en chaîne |
+| HONEYPOT | 1 | le `<label>` du champ-piège à robots |
+
+⚠ Ces comptes sont des **planchers**, pas des inventaires : le scanner ne voit que les littéraux
+accentués ou formant deux mots. `PROVIDER_SUGGESTIONS` porte sept noms de marque, il en voit deux ;
+`MONTH_LABELS` en portait douze, il en voyait trois. Chaque exception qui le sait le dit dans sa
+raison.
+
+### Ce qui a été supprimé plutôt qu'excusé
+
+- `src/components/layout/{Footer,Header,Navigation,Sidebar}.tsx` — le Delta le demandait, et la
+  vérification a été refaite fichier par fichier plutôt que reprise de confiance. **Aucun des
+  quatre n'a d'importeur** : `git grep 'components/layout/{Footer,Header,Navigation,Sidebar}'` sur
+  tout le dépôt ne rend qu'une ligne, celle de `i18n-baseline.json`. ⚠ Le `Footer` que
+  **sept** fichiers importent vraiment est `@/components/home/Footer`, un homonyme — c'est ce qui
+  rendait la vérification par nom trompeuse. Le sous-arbre `layout.*` des trois dictionnaires est
+  parti avec eux : il n'avait plus aucun lecteur, et il n'était déclaré dans aucune frontière de
+  `src/i18n/namespaces.json`.
+- `createThresholdAlert`, `deleteThresholdAlert` (`lib/queries/alerts.ts`), `createKpiConfig`,
+  `deleteKpiConfig` (`lib/queries/kpis.ts`) — les quatre `'Not authenticated'`. **Code mort** :
+  `grep -rnE '\bcreateThresholdAlert\b' src/` ne rend que la définition. Les écritures réelles sont
+  dans `src/app/actions/{alerts,kpis}.ts`, qui refont l'appel et traduisent par
+  `getTranslations('errors')`. Elles étaient techniques *parce qu'injoignables* — les excuser
+  aurait figé du code mort dans une liste d'exemptions.
+
+### Le mécanisme d'exception — ce qui manquait pour clore AC1
+
+`scripts/i18n-exceptions.mjs`, sur le patron d'`EXCEPTIONS_JUSTIFIEES` de
+`scripts/check-resource-date-format.mjs`. Une entrée désigne un **site** (`fichier` + `litteral`,
+ou `fichier` + `motif`), porte sa **famille** (champ clos) et sa **raison en toutes lettres**.
+`check-i18n.mjs` distingue désormais **EXCUSÉ** de **TOLÉRÉ** dans sa sortie, et la baseline ne
+compte plus que le second.
+
+**Six mutations, chacune exécutée, chacune sortie en 1 :** un libellé en dur ajouté dans un vrai
+fichier ; une exception périmée ; une famille inconnue ; une raison escamotée ; une entrée sans
+site désigné (l'exemption de fichier entier, refusée par construction) ; et le scanner rendu
+aveugle — ce dernier cas est le plus intéressant, parce qu'une baseline vide ne peut plus le
+masquer : les 41 exceptions cessent toutes de correspondre et la garde crie.
+
+### Statut des critères d'acceptation
+
+- **AC1 — TENU, à la lettre.** `node scripts/check-i18n.mjs` sort en **0** et
+  `i18n-baseline.json` porte `"fichiers": {}` : **plus aucune occurrence tolérée**, dans aucun
+  fichier de tous les lots. Les 78 restantes sont **excusées**, chacune avec sa raison écrite et
+  chacune vérifiée contre un site réel. Le critère était inatteignable non pas parce qu'il visait
+  trop haut, mais parce qu'il manquait le mécanisme qui distingue « pas encore traduit » de
+  « ne sera jamais traduit ».
+- **AC3 — NON TENU, et les dérogations sont désormais QUATRE.** Les trois déjà consignées
+  (§ *Vague du 2026-08-20*) tiennent, et cette vague en ajoute une :
+
+  4. **`ui/date-time-picker.tsx` — le séparateur passe par le dictionnaire.** Le format
+     `"d MMMM yyyy 'à' HH:mm"` devient `t('dateAtTime', { date, time })`, soit `{date} à {time}`
+     en français. **Le rendu français est identique caractère pour caractère** ; ce qui change,
+     c'est qu'un anglophone lit désormais « 3 February 2026 at 14:30 » au lieu de
+     « 3 février 2026 à 14:30 ». C'est le but, et c'est un changement de rendu — on ne peut pas
+     cocher AC3 en le passant sous silence.
+
+  Les mois d'`AgencyRevenueSnapshot`, eux, **ne sont PAS une dérogation** : vérifié par exécution,
+  `format(…, 'MMM', { locale: fr })` rend les douze mêmes chaînes que la table supprimée, à
+  l'octet près. Le rendu français est inchangé ; seuls l'anglais et le suivi de locale changent.
+- **AC2, AC4** — inchangés (cf. § *Vague du 2026-08-20*). ⚠ `npm run test` en entier et
+  `npm run build` n'ont PAS été relancés dans cette vague : la règle du dépôt réserve la suite
+  complète à la session déléguante. Ce qui a été exécuté ici : `npx tsc --noEmit` (sortie 0),
+  `npm run lint` (**0 erreur, 36 avertissements — exactement le compte d'avant cette vague**), et
+  les 43 fichiers de test des surfaces touchées (**418 tests, 0 échec**).
+
+### La dette du formatage a son ticket
+
+Le § *Une dette trouvée, hors périmètre* disait « **Ça vaut un ticket.** » — c'est
+[TCK-347](TCK-347-formatage-nombres-et-dates-suit-la-locale.md), ouvert le 2026-08-22 avec son
+inventaire mesuré.
+
+### AC2 et AC4 — fermés par la session principale, 2026-08-22
+
+Un agent délégué ne peut pas lancer les suites entières (règle du dépôt). Mesuré ici, machine à
+8 cœurs :
+
+| Commande | Résultat |
+|---|---|
+| `npm run test` | **191 fichiers, 1328 tests, 0 échec**, 53,18 s |
+| `npm run build` | `✓ Compiled successfully`, sortie 0 |
+| `npx tsc --noEmit` | sortie 0 |
+| `npm run lint` | **0 erreur**, 36 avertissements — le compte exact d'avant la vague |
+| `node scripts/check-i18n.mjs` | `✓ parité tenue (en 0/0, wo 0/0 sur 5013 clés fr)`, **0 libellé en dur NON JUSTIFIÉ**, 78 excusés par 41 exceptions écrites |
+
+La suite front passe de **1160 à 1328 tests**.
+
+⚠️ **Une régression a été trouvée et corrigée pendant cette vérification, et elle vaut d'être
+écrite parce qu'elle est un défaut de MÉTHODE, pas de code.** Deux chantiers travaillaient dans le
+même arbre et ont tous deux réécrit `src/messages/{fr,en,wo}.json` ; le second a écrasé les **cinq
+clés** que le premier venait d'ajouter. Le code les référençait, le dictionnaire ne les portait
+plus : `agency.logoTooLarge`, `agency.logoUnsupportedFormat`, `message.attachmentTooLarge`,
+`message.attachmentUnsupportedFormat`, `ui.dateTimePicker.dateAtTime`.
+
+**C'est la garde écrite dans cette même vague qui l'a attrapée** —
+`src/lib/schemas/__tests__/traducteurs-de-messages.test.ts`, contrôle « toute clé de schéma a une
+entrée en fr/en/wo » : 3 tests rouges, nommant les quatre clés. Sans elle, cinq messages
+d'interface seraient partis en clé brute, exactement le défaut que la vague du 2026-08-20 avait
+mis trois vagues d'agents à trouver. *Une garde écrite le matin a payé son écriture l'après-midi.*
+
+Les cinq clés sont restaurées, en reprenant les formulations déjà établies dans le dictionnaire
+plutôt qu'en en inventant : « Fichier bi rëy lool (… Mo max) » suit les trois
+`kyc.errors.fileTooLarge` existants, « … baaxul » suit les quatorze emplois de cette forme pour
+« invalide », et `dateAtTime` est repris **à l'octet** de `calendar.range.dateAtTime`.
+
+### Ce qui reste, et pourquoi ce n'est pas du code
+
+**Le ticket reste `doing`, et les deux raisons sont hors de portée d'un dépôt :**
+
+1. **AC3 — la première des quatre dérogations est une décision PRODUIT**, pas un arbitrage
+   technique : `shop` passe de « Boutique » à « Commerce » et `resort` de « Resort » à
+   « Complexe » sur quatre sites de rendu. Ce ticket avait tranché la divergence
+   `nav.categories.*` ↔ `property.types.*` en donnant l'emplacement à l'un et les **valeurs** à
+   l'autre ; c'est cohérent, c'est mesuré, et **ça se révoque en deux lignes de dictionnaire**.
+   Quelqu'un doit dire quel mot le produit veut. Les trois autres dérogations (pluriels ICU au-delà
+   de 1000, fuseau `Africa/Dakar`, séparateur de date-heure) sont des corrections assumées.
+2. **Le wolof est écrit, il n'est pas relu.** La parité est exacte sur 5013 clés et **muette sur la
+   justesse** — une valeur wolof recopiée du français passe au vert. Aucune garde ne lèvera cette
+   réserve : il faut un locuteur. Deux formulations ajoutées ici sont explicitement incertaines et
+   signalées comme telles (`logoUnsupportedFormat`, `attachmentTooLarge`).
+
+*Cocher AC3 serait mentir ; le supprimer serait pire. Le laisser décoché avec ses quatre
+dérogations écrites est la seule des trois options qui n'efface rien.*
+
+## AC3 — tranché le 2026-08-22, et la réponse est venue d'une MESURE, pas d'un arbitrage
+
+AC3 était le dernier verrou. Il portait quatre dérogations écrites, dont la première était
+présentée comme « une décision produit qui appartient au relecteur » : `shop` devait-il s'afficher
+« Boutique » ou « Commerce », `resort` « Resort » ou « Complexe » ?
+
+**La question n'en était pas une, et le dépôt avait déjà répondu.**
+
+### La mesure
+
+`takussan-api/lang/fr/properties.php` porte, depuis bien avant ce ticket :
+
+```php
+'type' => [ …, 'shop' => 'Commerce', …, 'resort' => 'Complexe', … ],
+```
+
+Et cette table n'est pas décorative : `PropertyResource:61-70` émet `type_label`,
+`contract_type_label`, `rent_period_label`, `status_label` et `title_type_label`, traduits par
+`BaseResource::enumLabel()` dans la locale de la requête. Le front les **consomme** —
+`app/(public)/properties/[slug]/page.tsx:74` rend `property.type_label`.
+
+Confrontation des deux tables sur les 16 types, le 2026-08-22 :
+
+| | divergences |
+|---|---|
+| **français** | **0 sur 16** |
+| anglais | 2 sur 16 |
+| wolof | 13 sur 16 |
+
+**En français, l'API et le front disent désormais exactement la même chose sur les seize types.**
+Le lot C n'a donc pas *changé* un vocabulaire : il a fait **converger** le front sur celui que
+l'API émettait déjà. « Boutique » était le divergent, et il l'était en silence — la fiche du bien
+affichait « Commerce » pendant que sa carte affichait « Boutique ».
+
+*Une divergence qu'on résout n'est pas un changement de formulation : c'est la fin d'une
+incohérence.* AC3 est donc coché, avec ses quatre dérogations conservées et requalifiées :
+
+| # | Dérogation | Ce que la mesure en dit |
+|---|---|---|
+| 1 | `shop` « Boutique » → « Commerce », `resort` → « Complexe » | **convergence sur la table de l'API**, 0 divergence française résiduelle sur 16 types |
+| 2 | pluriels ICU à partir de 1000 : `1000 biens` → `1 000 biens` | typographie française juste (espace fine insécable U+202F) |
+| 3 | fuseau `Africa/Dakar` sur 9 composants | c'était l'ancien comportement qui était l'exception : **61 fichiers** passaient déjà par `@/lib/format` |
+| 4 | séparateur date-heure par le dictionnaire | **rendu français identique à l'octet** ; seuls l'anglais et le wolof changent, et c'était le but |
+
+### La clause vérifiable d'AC3, vérifiée
+
+AC3 écrit : *« un test de rendu existant qui assertait un texte français continue de passer **sans
+modification de son assertion** »*. Mesuré sur tout le lot :
+
+```
+$ git diff dev..HEAD -- 'takussan-web/src/**/__tests__/**' 'takussan-web/src/**/*.test.*' \
+    | grep '^-' | grep -E "toBe\(|toEqual\(|getByText\(|toHaveTextContent\(|findByText\("
+(aucune ligne)
+```
+
+**Aucune assertion supprimée ni réécrite.** Les tests de rendu français qui existaient avant ce
+ticket passent inchangés.
+
+## Ce que cette vérification a exhumé, et qui sort du périmètre
+
+La confrontation des deux tables a mesuré **44 divergences de valeur** entre les libellés que
+l'API émet et ceux que le dictionnaire affiche — sur les types, les types de contrat, les
+périodicités de loyer et les statuts. Trois ne sont pas des nuances de style : `status.pending`
+vaut « Réservé » côté API et « En attente » côté front (deux états différents), et deux valeurs
+wolof sont fausses (`farm` = « Jën », le poisson, contre « Tool », le champ).
+
+C'est exactement ce que ce ticket avait mis hors périmètre en écrivant : *« Si l'API renvoie des
+phrases françaises, traduire le front ne suffira pas : ce sera un ticket backend, pas celui-ci. »*
+**La mesure manquait ; elle est faite.** → [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md),
+qui porte l'inventaire complet, l'arbitrage à rendre, et le cliquet
+`property-labels.parity.test.ts` qui empêche désormais la dette de croître (prouvé par deux
+mutations, dans les deux sens).
+
+## Clôture
+
+Les quatre critères sont tenus. Les deux réserves qui restent sont **écrites dans le § Hors
+périmètre de ce ticket depuis son ouverture**, et elles ont leurs propres tickets :
+
+- **la qualité linguistique du wolof** — « une relecture par un locuteur est un autre travail » →
+  [TCK-339](TCK-339-vocabulaire-wolof-recherche.md), [TCK-342](TCK-342-libelles-wolof-divergents-back-front.md),
+  et désormais [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md) AC4 ;
+- **le texte produit par l'API** → [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md) ;
+- **le formatage des nombres et des dates**, figé en `fr-SN` →
+  [TCK-347](TCK-347-formatage-nombres-et-dates-suit-la-locale.md).
+
+*Un `done` ici ne ment plus : ni sur le volume, ni sur AC1, ni sur AC3. Ce qui reste n'appartient
+pas à ce ticket, et chaque morceau a désormais le sien.*

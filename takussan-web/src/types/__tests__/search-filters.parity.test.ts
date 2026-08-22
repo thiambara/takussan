@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS } from '../search';
@@ -52,6 +52,7 @@ import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS } from '../search';
  */
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const REQUETE = join(RACINE, 'takussan-api', 'app', 'Http', 'Requests', 'Public', 'SearchPublicPropertyRequest.php');
+const CONCERNS = join(RACINE, 'takussan-api', 'app', 'Http', 'Requests', 'Concerns');
 const SERVICE = join(RACINE, 'takussan-api', 'app', 'Services', 'Search', 'PropertySearchService.php');
 const TYPES = join(RACINE, 'takussan-web', 'src', 'types', 'search.ts');
 
@@ -72,11 +73,54 @@ function clesDuFront(): string[] {
   return [...CLES_DE_RECHERCHE];
 }
 
+/** Les clés littérales d'un corps de tableau PHP. */
+function clesLitterales(corps: string): string[] {
+  return [...corps.matchAll(/^\s*'([a-z_]+)'\s*=>/gm)].map((m) => m[1]);
+}
+
+/**
+ * Résout un `...$this->machin()` de `rules()` vers les clés qu'il apporte.
+ *
+ * ⚠ TCK-346 a montré pourquoi cette fonction doit exister, et pourquoi elle doit ÉCHOUER
+ * plutôt que rendre `[]`. Le contrat « point + rayon » (`lat`, `lng`, `radius_km`) a été
+ * extrait dans `App\Http\Requests\Concerns\FiltreParPointEtRayon` pour être partagé avec
+ * `MapPublicPropertyRequest` — extraction JUSTE, puisqu'un contrat qui diverge entre les
+ * deux endpoints d'un même écran est le défaut que ce ticket ferme. Mais la garde ne lisait
+ * que les clés littérales de `rules()` : les trois clés ont disparu de son inventaire du
+ * back, et elle a rougi en accusant le FRONT de les exposer sans serveur.
+ *
+ * *Elle a rougi, donc elle a fait son travail.* Le piège aurait été qu'elle ignore les
+ * spreads en silence : l'ensemble du back aurait rétréci sans un mot, et le second contrôle
+ * — « le serveur n'accepte aucun filtre que l'interface ignorerait » — serait passé au vert
+ * en ne comparant plus rien. C'est la vacuité qui ressemble le plus à un succès, et le
+ * docblock de `clesDuFront()` la nomme déjà pour l'autre côté.
+ */
+function clesDuSpread(methode: string): string[] {
+  const candidats = readdirSync(CONCERNS).filter((f) => f.endsWith('.php'));
+  for (const fichier of candidats) {
+    const php = readFileSync(join(CONCERNS, fichier), 'utf8');
+    const bloc = new RegExp(`function ${methode}\\(\\): array\\s*\\{\\s*return \\[([\\s\\S]*?)\\n\\s*\\];`).exec(php);
+    if (bloc) {
+      const cles = clesLitterales(bloc[1]);
+      expect(cles.length, `${methode}() trouvée dans ${fichier} mais sans clé`).toBeGreaterThan(0);
+      return cles;
+    }
+  }
+  // Jamais `return []` : une source introuvable se DIT.
+  expect.fail(
+    `rules() étale \`...$this->${methode}()\` et cette méthode est introuvable sous ${CONCERNS}. ` +
+      `Si elle a déménagé, cette garde doit apprendre où — sinon elle compare un ensemble amputé.`,
+  );
+}
+
 function clesDuBack(): string[] {
   const php = readFileSync(REQUETE, 'utf8');
   const bloc = /public function rules\(\): array\s*\{\s*return \[([\s\S]*?)\n\s*\];/.exec(php);
   expect(bloc, `rules() introuvable dans ${REQUETE}`).not.toBeNull();
-  const cles = [...bloc![1].matchAll(/^\s*'([a-z_]+)'\s*=>/gm)].map((m) => m[1]);
+  const cles = clesLitterales(bloc![1]);
+  for (const [, methode] of bloc![1].matchAll(/\.\.\.\$this->(\w+)\(\)/g)) {
+    cles.push(...clesDuSpread(methode));
+  }
   expect(cles.length, 'aucune clé extraite de rules()').toBeGreaterThan(5);
   return cles;
 }
@@ -151,13 +195,62 @@ describe('TCK-340 — le rôle déclaré, et l’échappatoire d’un mot qu’i
     expect(declares).toEqual([...CONTROLES_ADMIS].sort());
   });
 
-  it('toute clé `filtre` porte réellement une fabrique de libellé', () => {
+  it('toute clé `filtre` porte un libellé, ou désigne la puce qui la décrit', () => {
     // Le typage l'exige déjà ; cette assertion attrape ce que `tsc` ne voit pas — un `as`,
     // un `@ts-expect-error`, ou un objet construit ailleurs qu'au littéral.
     const sansLibelle = CLES_DE_RECHERCHE.filter((c) => {
-      const def = SEARCH_FILTER_KEYS[c];
-      return def.role === 'filtre' && typeof (def as { libelle?: unknown }).libelle !== 'function';
+      const def = SEARCH_FILTER_KEYS[c] as { role: string; libelle?: unknown; agregeeDans?: string };
+      if (def.role !== 'filtre') return false;
+      if (typeof def.libelle === 'function') return false;
+      // TCK-346 — la seule dispense : la clé est AGRÉGÉE dans une autre puce. L'invariant qui
+      // la rend sûre est vérifié par le test suivant, pas ici.
+      return def.agregeeDans === undefined;
     });
     expect(sansLibelle).toEqual([]);
+  });
+});
+
+/**
+ * TCK-346 — `agregeeDans` est la seconde échappatoire du typage, et elle a besoin de sa garde.
+ *
+ * `role: 'controle'` sortait une clé du compte et de la puce d'un mot ; `agregeeDans` fait la
+ * même chose, en promettant qu'une AUTRE puce s'en charge. Si cette promesse est fausse — nom
+ * inexistant, agrégateur sans libellé, agrégateur qui ne possède pas les paramètres d'URL de la
+ * clé agrégée — on retombe exactement sur le défaut que TCK-340 avait fermé : un filtre appliqué
+ * par le serveur, invisible et non retirable. Pire ici : `removeFilter` effacerait une moitié de
+ * point et le serveur rendrait 422 sur l'autre.
+ *
+ * La garde est donc structurelle, et elle est DÉRIVÉE de la table — c'est légitime parce qu'elle
+ * ne vérifie pas *quelles* clés sont agrégées (choix de conception), mais que chaque agrégation
+ * déclarée tient sa promesse.
+ */
+describe('TCK-346 — une clé agrégée est réellement portée par la puce qu’elle désigne', () => {
+  type Def = { role: string; params: readonly string[]; libelle?: unknown; agregeeDans?: string };
+  const defs = SEARCH_FILTER_KEYS as unknown as Record<string, Def>;
+
+  const agregees = CLES_DE_RECHERCHE.filter((c) => defs[c].agregeeDans !== undefined);
+
+  it('l’agrégateur existe, filtre, et porte un libellé', () => {
+    const rompues = agregees.filter((c) => {
+      const cible = defs[defs[c].agregeeDans!];
+      return !cible || cible.role !== 'filtre' || typeof cible.libelle !== 'function';
+    });
+    expect(rompues).toEqual([]);
+  });
+
+  it('l’agrégateur POSSÈDE les paramètres d’URL de la clé agrégée', () => {
+    // Sans cette inclusion, retirer la puce laisserait le paramètre dans l'URL : le filtre
+    // resterait appliqué alors que l'interface annonce l'avoir retiré.
+    const nonCouvertes = agregees.filter((c) => {
+      const cible = defs[defs[c].agregeeDans!];
+      return !defs[c].params.every((nom) => cible?.params.includes(nom));
+    });
+    expect(nonCouvertes).toEqual([]);
+  });
+
+  it('aucune agrégation n’a été ajoutée en douce', () => {
+    // Même raison que `CONTROLES_ADMIS` : écrite à la main, jamais dérivée. Ajouter une entrée
+    // ici est un geste qu'une revue voit passer.
+    expect([...agregees].sort()).toEqual(['lat', 'lng']);
   });
 });

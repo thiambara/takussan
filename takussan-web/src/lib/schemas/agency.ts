@@ -126,13 +126,27 @@ export const AGENCY_LOGO_MAX_BYTES = 2 * 1024 * 1024;
 // backend-side (to avoid XSS via inline SVG) so we keep parity here.
 export const AGENCY_LOGO_ACCEPT = 'image/jpeg,image/png,image/webp';
 
+/**
+ * Rend une CLÉ de message (`validation.agency.…`), jamais un libellé — TCK-292, 2026-08-22.
+ *
+ * Les deux libellés français rendus ici l'étaient TELS QUELS à l'écran, dans les trois langues,
+ * par deux chemins : `AgencyConfigForm.tsx` (`setLogoError` → `<p role="alert">`) et
+ * `uploadAgencyLogoAction` (`{ ok: false, message }`). Ce module est importé des DEUX côtés — un
+ * composant client et un module `'use server'` — donc ni `useTranslations` ni `getTranslations`
+ * n'y est appelable : c'est le patron de `./messages.ts` qui s'applique (le schéma porte la clé,
+ * la surface de rendu la résout par `traduireMessageValidation`).
+ *
+ * ⚠️ Un appelant qui NE traduit PAS affiche la clé brute. Les deux appelants du dépôt sont
+ * couverts ; `src/lib/schemas/__tests__/traducteurs-de-messages.test.ts` rougit sur un troisième
+ * qui l'oublierait.
+ */
 export function validateAgencyLogoFile(file: File): string | null {
   if (file.size > AGENCY_LOGO_MAX_BYTES) {
-    return 'Le logo dépasse 2 Mo.';
+    return msgValidation('agency.logoTooLarge');
   }
   const acceptedTypes = AGENCY_LOGO_ACCEPT.split(',').map((t) => t.trim());
   if (file.type && !acceptedTypes.includes(file.type)) {
-    return 'Format non supporté. Utilisez JPG, PNG ou WEBP.';
+    return msgValidation('agency.logoUnsupportedFormat');
   }
   return null;
 }

@@ -196,7 +196,7 @@ class PropertySearchVocabularyTest extends TestCase
      * l'audit — `q=villa Saly` rendait les mêmes 63 résultats que `q=villa`.
      * L'étape 8 ne pouvait alors mesurer que le CLASSEMENT.
      *
-     * Depuis ADR-0020, ce total vaut **1**, sur les deux requêtes. **Ce n'est
+     * Depuis ADR-0024, ce total vaut **1**, sur les deux requêtes. **Ce n'est
      * pas une régression, c'est la propriété qu'on voulait** : la phrase
      * RESTREINT désormais, elle ne se contente plus de classer. Les deux
      * villas du corpus ne diffèrent que par leur contrat, et rien dans leur
