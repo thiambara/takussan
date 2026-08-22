@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
+import { attendAucuneCleBrute } from '@/test/cles-brutes';
 import SuperAdminUsersPage from '../page';
 
 const mockReplace = vi.fn();
@@ -162,5 +163,35 @@ describe('super-admin users page', () => {
     expect(mockReplace).toHaveBeenCalled();
     const replaced = String(mockReplace.mock.calls.at(-1)?.[0]);
     expect(replaced).not.toContain('role=agent');
+  });
+  /**
+   * TCK-292 (2026-08-22) — le chemin d'ERREUR n'était parcouru par AUCUN test, et c'est
+   * exactement ce qui a laissé vivre le défaut : `fetchUsers` levait
+   * `Object.assign(new Error('Users fetch failed'), …)`, un `Error` NU. `messageErreurApi` ne le
+   * reconnaissait ni comme `ApiError`, ni comme forme technique (`/^API error \d+/`), ni comme
+   * sentinelle de framework — il retombait donc dans « un `Error` nu transporte un message DÉJÀ
+   * traduit » et rendait « Users fetch failed » TEL QUEL dans les trois langues. Le repli
+   * `t('error')` n'était atteint par aucun chemin.
+   *
+   * Ce test-ci n'assère pas seulement le bon libellé : il refuse aussi la chaîne fautive, sans
+   * quoi une régression qui rendrait les DEUX passerait au vert.
+   */
+  it("rend le libellé TRADUIT quand le BFF échoue — jamais le message anglais de l'Error", async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    })));
+
+    renderPage();
+
+    // Le libellé attendu vient du CODE d'erreur dérivé du 500 (`errors.api.serverError`), et non
+    // du repli `t('error')` : c'est justement ce que `throw new ApiError(res.status, data)` rend
+    // possible et qu'un `Error` nu rendait inatteignable.
+    expect(
+      await screen.findByText('Le serveur a rencontré une erreur. Réessayez dans un instant.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Users fetch failed/)).not.toBeInTheDocument();
+    attendAucuneCleBrute(document.body);
   });
 });

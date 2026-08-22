@@ -98,12 +98,15 @@ describe('validateAgencyLogoFile', () => {
     const file = new File([new Uint8Array(AGENCY_LOGO_MAX_BYTES + 1)], 'big.png', {
       type: 'image/png',
     });
-    expect(validateAgencyLogoFile(file)).toMatch(/2 Mo/);
+    // TCK-292 (2026-08-22) — la fonction rend une CLÉ, plus un libellé français. Asserter la
+    // clé EXACTE et non `/2 Mo/` : c'est la clé que la surface de rendu doit savoir traduire, et
+    // c'est ce que `fr.json` doit contenir.
+    expect(validateAgencyLogoFile(file)).toBe('validation.agency.logoTooLarge');
   });
 
   it('rejects unsupported MIME types', () => {
     const file = new File([new Uint8Array(100)], 'bad.gif', { type: 'image/gif' });
-    expect(validateAgencyLogoFile(file)).toMatch(/Format/);
+    expect(validateAgencyLogoFile(file)).toBe('validation.agency.logoUnsupportedFormat');
   });
 
   it('accepts a PNG under the size cap', () => {

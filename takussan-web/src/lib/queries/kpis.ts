@@ -37,18 +37,6 @@ export async function fetchKpiMetricsCatalog(): Promise<{ data: string[] } | nul
   return apiRequest('/api/kpi-configs/metrics', { token });
 }
 
-export async function createKpiConfig(payload: KpiConfigInput) {
-  const token = await getToken();
-  if (!token) throw new Error('Not authenticated');
-  return apiRequest<{ data: KpiConfig }>('/api/kpi-configs', {
-    token,
-    method: 'POST',
-    body: payload,
-  });
-}
-
-export async function deleteKpiConfig(id: number) {
-  const token = await getToken();
-  if (!token) throw new Error('Not authenticated');
-  return apiRequest('/api/kpi-configs/' + id, { token, method: 'DELETE' });
-}
+// TCK-292 (2026-08-22) — `createKpiConfig` et `deleteKpiConfig` ont été SUPPRIMÉES, pas
+// excusées : même diagnostic que `./alerts.ts`. Aucun appelant, et les écritures réelles sont
+// dans `src/app/actions/kpis.ts`.

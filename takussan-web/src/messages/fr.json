@@ -2802,7 +2802,19 @@
         "floor": "Étage",
         "availability": "Disponibilité",
         "amenities": "Équipements",
-        "advanced": "Recherche avancée"
+        "advanced": "Recherche avancée",
+        "aroundMe": "Autour de moi"
+      },
+      "aroundMe": {
+        "use": "Utiliser ma position",
+        "locating": "Localisation en cours…",
+        "active": "Autour de ma position",
+        "radiusLabel": "Rayon de recherche",
+        "radiusOption": "{km} km",
+        "change": "Actualiser ma position",
+        "denied": "Vous avez refusé le partage de votre position. Indiquez une ville ci-dessus pour chercher sans elle.",
+        "unavailable": "Ce navigateur ne sait pas donner votre position. Indiquez une ville ci-dessus.",
+        "failed": "Position introuvable pour l’instant. Réessayez, ou indiquez une ville ci-dessus."
       },
       "cityPlaceholder": "Ville (ex : Dakar, Mbour…)",
       "quarterPlaceholder": "Quartier (ex : Plateau, Almadies…)",
@@ -2835,7 +2847,8 @@
       "relevance": "Pertinence",
       "price_asc": "Prix croissant",
       "price_desc": "Prix décroissant",
-      "created_desc": "Plus récent"
+      "created_desc": "Plus récent",
+      "distance": "Le plus proche"
     },
     "tags": {
       "furnished": "Meublé",
@@ -2851,7 +2864,8 @@
       "bedrooms": "{n} ch.",
       "bathrooms": "{n} sdb",
       "areaMin": "≥ {value} m²",
-      "areaMax": "≤ {value} m²"
+      "areaMax": "≤ {value} m²",
+      "radius": "Dans un rayon de {km} km"
     },
     "pagination": {
       "aria": "Pagination",
@@ -6568,7 +6582,9 @@
       "websiteInvalid": "URL invalide. Exemple : https://exemple.sn",
       "commissionRange": "La commission doit être comprise entre 0 et 100.",
       "currencyInvalid": "Code devise invalide (ex : XOF, EUR).",
-      "timezoneTooLong": "Fuseau horaire trop long."
+      "timezoneTooLong": "Fuseau horaire trop long.",
+      "logoTooLarge": "Le logo dépasse 2 Mo.",
+      "logoUnsupportedFormat": "Format non supporté. Utilisez JPG, PNG ou WEBP."
     },
     "common": {
       "emailTooLong": "L’adresse e-mail est trop longue.",
@@ -6653,7 +6669,9 @@
     "message": {
       "bodyRequired": "Le message ne peut pas être vide.",
       "initialRequired": "Le message initial est requis.",
-      "bodyTooLong": "Message trop long ({max} caractères max)."
+      "bodyTooLong": "Message trop long ({max} caractères max).",
+      "attachmentTooLarge": "Fichier trop volumineux (10 Mo max).",
+      "attachmentUnsupportedFormat": "Format non supporté (images, PDF, doc/docx uniquement)."
     },
     "payment": {
       "dateInvalid": "Format de date invalide (AAAA-MM-JJ).",
@@ -6753,7 +6771,8 @@
     },
     "dateTimePicker": {
       "placeholder": "Choisir une date et une heure",
-      "timeLabel": "Heure"
+      "timeLabel": "Heure",
+      "dateAtTime": "{date} à {time}"
     },
     "toast": {
       "close": "Fermer la notification"

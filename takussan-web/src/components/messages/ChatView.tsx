@@ -21,6 +21,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTime } from '@/lib/format';
 import { isAllowedAttachment, sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/message';
+import { traduireMessageValidation } from '@/lib/schemas/messages';
+import { useTraducteurValidation } from '@/hooks/useApiForm';
 import { cn } from '@/lib/utils';
 import { SystemMessageBubble } from './SystemMessageBubble';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
@@ -54,6 +56,7 @@ interface ChatViewProps {
 export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewProps) {
   const isWidget = variant === 'widget';
   const t = useTranslations('messaging');
+  const tValidation = useTraducteurValidation();
   const tWidget = useTranslations('messaging.widget');
   const messageErreur = useMessageErreurApi();
   const locale = useLocale() as Locale;
@@ -226,7 +229,13 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
       if (pendingFile) {
         const validation = isAllowedAttachment(pendingFile);
         if (!validation.ok) {
-          setAttachmentError(validation.reason ?? t('chat.attachmentRejected'));
+          // `reason` porte une CLÉ (`validation.message.…`), pas un libellé — cf. l'en-tête
+          // d'`isAllowedAttachment`. Le `??` reste pour la forme : `reason` est toujours posé
+          // quand `ok` vaut `false`, donc le repli n'est atteint par aucun chemin connu.
+          setAttachmentError(
+            traduireMessageValidation(validation.reason, tValidation)
+            ?? t('chat.attachmentRejected'),
+          );
         } else {
           setUploading(true);
           try {
@@ -250,7 +259,9 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
     if (!file) return;
     const v = isAllowedAttachment(file);
     if (!v.ok) {
-      setAttachmentError(v.reason ?? t('chat.attachmentRejected'));
+      setAttachmentError(
+        traduireMessageValidation(v.reason, tValidation) ?? t('chat.attachmentRejected'),
+      );
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }

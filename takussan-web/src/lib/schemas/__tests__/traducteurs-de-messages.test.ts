@@ -402,6 +402,55 @@ function traduitSesMessages(fichier: Fichier): boolean {
   return APPEL_DE_TRADUCTEUR.test(fichier.contenu);
 }
 
+/* ──────────────────────────────────────────────────────────────────────────────────────────────
+ * LE CINQUIÈME ANGLE MORT — une fonction de `lib/schemas/` qui rend une clé SANS passer par zod
+ * ──────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Le recensement ci-dessus reconnaît un consommateur à un APPEL DE VALIDATION zod
+ * (`.safeParse`, `.parse`, …). Cette propriété-là a un trou, mesuré le 2026-08-22 par ablation :
+ * `src/lib/schemas/` porte aussi des fonctions de garde ORDINAIRES — `validateAgencyLogoFile`,
+ * `isAllowedAttachment` — qui rendent une clé `validation.…` sans qu'aucun schéma zod ne soit
+ * évalué. En retirant la traduction de `ChatView.tsx`, la garde restait **verte 29/29** : elle
+ * cherchait un `.safeParse` qui n'a jamais été là.
+ *
+ * Le symptôme est pourtant identique — `validation.message.attachmentTooLarge` en toutes lettres
+ * sous la zone de saisie du chat.
+ *
+ * La liste de ces fonctions n'est PAS écrite ici : elle est **dérivée** de `src/lib/schemas/` à
+ * chaque exécution, en cherchant les fonctions exportées dont le corps appelle `msgValidation(`.
+ * Une liste écrite à la main serait fausse dès la fonction suivante — et personne ne le saurait,
+ * puisque son oubli est précisément ce que cette garde existe pour voir.
+ */
+
+/**
+ * Les fonctions exportées de `src/lib/schemas/` qui rendent une CLÉ de message.
+ *
+ * Le découpage est grossier et assumé : on coupe le fichier aux `export function`, et une fonction
+ * compte si le texte qui la suit — jusqu'au prochain `export` de premier niveau — appelle
+ * `msgValidation(`. Le sens de l'erreur est le bon : une tranche trop large fait entrer une
+ * fonction de plus dans la liste (donc CRIER sur un appelant), jamais en sortir une.
+ */
+function fonctionsPorteusesDeCles(): string[] {
+  const trouvees = new Set<string>();
+  for (const chemin of fichiersSources(DOSSIER_DES_SCHEMAS)) {
+    const contenu = sansCommentaires(readFileSync(chemin, 'utf8'));
+    const tranches = contenu.split(/^export\s+(?=(?:async\s+)?function\s)/m);
+    for (const tranche of tranches) {
+      const nom = /^(?:async\s+)?function\s+([A-Za-z0-9_$]+)/.exec(tranche)?.[1];
+      if (nom === undefined) continue;
+      const corps = tranche.split(/^export\s/m)[0];
+      if (/\bmsgValidation\s*\(/.test(corps)) trouvees.add(nom);
+    }
+  }
+  return [...trouvees].sort();
+}
+
+/** `true` si le fichier APPELLE l'une des fonctions porteuses de clés. */
+function appelleUnePorteuseDeCle(fichier: Fichier, porteuses: readonly string[]): boolean {
+  if (porteuses.length === 0) return false;
+  return new RegExp(`\\b(?:${porteuses.join('|')})\\s*\\(`).test(fichier.contenu);
+}
+
 describe('recensement des consommateurs de schémas (le contrôle qui manquait)', () => {
   const sources: Fichier[] = fichiersSources().map((chemin) => ({
     relatif: path.relative(RACINE_SRC, chemin).split(path.sep).join('/'),
@@ -440,6 +489,24 @@ describe('recensement des consommateurs de schémas (le contrôle qui manquait)'
     expect(consommateurs.length).toBeGreaterThan(0);
 
     const fautifs = consommateurs.filter((f) => !traduitSesMessages(f)).map((f) => f.relatif);
+    expect(fautifs).toEqual([]);
+  });
+
+  it('la liste des fonctions PORTEUSES DE CLÉS est dérivée, et elle n’est pas vide', () => {
+    // Elle est dérivée de `src/lib/schemas/` : si la dérivation casse (fichiers déplacés, forme
+    // d'export changée), elle rend un tableau vide — et l'assertion suivante ne garderait plus
+    // rien tout en restant verte. C'est le mode de défaillance de D-15/D-18/D-44, refusé ici.
+    expect(fonctionsPorteusesDeCles().length).toBeGreaterThan(0);
+  });
+
+  it('TOUT appelant d’une fonction porteuse de clé traduit ses messages', () => {
+    const porteuses = fonctionsPorteusesDeCles();
+    const appelants = sources
+      .filter((f) => !estSousLesSchemas(path.join(RACINE_SRC, f.relatif)))
+      .filter((f) => appelleUnePorteuseDeCle(f, porteuses));
+    expect(appelants.length).toBeGreaterThan(0);
+
+    const fautifs = appelants.filter((f) => !traduitSesMessages(f)).map((f) => f.relatif);
     expect(fautifs).toEqual([]);
   });
 });

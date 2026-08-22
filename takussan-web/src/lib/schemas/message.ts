@@ -54,15 +54,25 @@ export const ALLOWED_ATTACHMENT_MIME = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ] as const;
 
+/**
+ * `reason` est une CLÉ de message (`validation.message.…`), jamais un libellé — TCK-292,
+ * 2026-08-22.
+ *
+ * Les deux libellés français rendus ici arrivaient TELS QUELS à l'écran, dans les trois langues :
+ * `ChatView.tsx` fait `setAttachmentError(validation.reason ?? t('chat.attachmentRejected'))` et
+ * le `??` ne se déclenche JAMAIS — `reason` est toujours posé quand `ok` vaut `false`. Le repli
+ * traduit était donc mort. La résolution se fait désormais à l'appel, par
+ * `traduireMessageValidation` (cf. l'en-tête de `./messages.ts` pour la raison du détour).
+ */
 export function isAllowedAttachment(file: File): {
   ok: boolean;
   reason?: string;
 } {
   if (file.size > MAX_ATTACHMENT_BYTES) {
-    return { ok: false, reason: 'Fichier trop volumineux (10 Mo max).' };
+    return { ok: false, reason: msgValidation('message.attachmentTooLarge') };
   }
   if (!ALLOWED_ATTACHMENT_MIME.includes(file.type as (typeof ALLOWED_ATTACHMENT_MIME)[number])) {
-    return { ok: false, reason: 'Format non supporté (images, PDF, doc/docx uniquement).' };
+    return { ok: false, reason: msgValidation('message.attachmentUnsupportedFormat') };
   }
   return { ok: true };
 }

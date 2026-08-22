@@ -2802,7 +2802,19 @@
         "floor": "Floor",
         "availability": "Availability",
         "amenities": "Amenities",
-        "advanced": "Advanced search"
+        "advanced": "Advanced search",
+        "aroundMe": "Around me"
+      },
+      "aroundMe": {
+        "use": "Use my location",
+        "locating": "Locating…",
+        "active": "Around my location",
+        "radiusLabel": "Search radius",
+        "radiusOption": "{km} km",
+        "change": "Refresh my location",
+        "denied": "You declined to share your location. Enter a city above to search without it.",
+        "unavailable": "This browser cannot provide your location. Enter a city above.",
+        "failed": "Could not find your location right now. Try again, or enter a city above."
       },
       "cityPlaceholder": "City (e.g. Dakar, Mbour…)",
       "quarterPlaceholder": "Neighbourhood (e.g. Plateau, Almadies…)",
@@ -2835,7 +2847,8 @@
       "relevance": "Relevance",
       "price_asc": "Price: low to high",
       "price_desc": "Price: high to low",
-      "created_desc": "Most recent"
+      "created_desc": "Most recent",
+      "distance": "Nearest first"
     },
     "tags": {
       "furnished": "Furnished",
@@ -2851,7 +2864,8 @@
       "bedrooms": "{n} bd",
       "bathrooms": "{n} ba",
       "areaMin": "≥ {value} m²",
-      "areaMax": "≤ {value} m²"
+      "areaMax": "≤ {value} m²",
+      "radius": "Within {km} km"
     },
     "pagination": {
       "aria": "Pagination",
@@ -6593,7 +6607,9 @@
       "websiteInvalid": "Invalid URL. Example: https://exemple.sn",
       "commissionRange": "The commission must be between 0 and 100.",
       "currencyInvalid": "Invalid currency code (e.g. XOF, EUR).",
-      "timezoneTooLong": "Time zone too long."
+      "timezoneTooLong": "Time zone too long.",
+      "logoTooLarge": "The logo exceeds 2 MB.",
+      "logoUnsupportedFormat": "Unsupported format. Use JPG, PNG or WEBP."
     },
     "booking": {
       "guestsRequired": "The number of guests is required.",
@@ -6653,7 +6669,9 @@
     "message": {
       "bodyRequired": "The message cannot be empty.",
       "bodyTooLong": "Message too long ({max} characters max).",
-      "initialRequired": "The initial message is required."
+      "initialRequired": "The initial message is required.",
+      "attachmentTooLarge": "File too large (10 MB max).",
+      "attachmentUnsupportedFormat": "Unsupported format (images, PDF, doc/docx only)."
     },
     "payment": {
       "dateInvalid": "Invalid date format (YYYY-MM-DD).",
@@ -6753,7 +6771,8 @@
     },
     "dateTimePicker": {
       "placeholder": "Pick a date and time",
-      "timeLabel": "Time"
+      "timeLabel": "Time",
+      "dateAtTime": "{date} at {time}"
     },
     "toast": {
       "close": "Close notification"

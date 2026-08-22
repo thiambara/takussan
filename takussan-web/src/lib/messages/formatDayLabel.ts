@@ -1,12 +1,6 @@
 import { format, isSameDay, isSameYear, subDays } from 'date-fns';
-import { enUS, fr, type Locale as DateFnsLocale } from 'date-fns/locale';
+import { localeDateFns } from '@/lib/format/dateFnsLocale';
 import type { Locale } from '@/i18n/config';
-
-const DATE_FNS_LOCALES: Record<Locale, DateFnsLocale> = {
-  fr,
-  en: enUS,
-  wo: fr,
-};
 
 export type DayLabelLabels = {
   today: string;
@@ -34,7 +28,7 @@ export function formatDayLabel(
   if (isSameDay(date, now)) return labels.today;
   if (isSameDay(date, subDays(now, 1))) return labels.yesterday;
 
-  const dfLocale = DATE_FNS_LOCALES[locale] ?? fr;
+  const dfLocale = localeDateFns(locale);
 
   if (isSameYear(date, now)) {
     return capitalize(format(date, 'EEE d MMM', { locale: dfLocale }));
