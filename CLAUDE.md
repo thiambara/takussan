@@ -9,18 +9,14 @@ Monorepo **Takussan** — plateforme de gestion immobilière (Sénégal, XOF, fr
 - `takussan-api/` — Laravel 13, PHP ^8.4 (`config.platform.php` figé à 8.4.1)
 - `takussan-web/` — Next.js 16.3.1, React 19, TypeScript 5, Tailwind CSS 4
 
-## État courant — mesuré le 2026-08-12
+## État courant
 
 **Le projet n'est pas un squelette.** Cette précision ouvre le fichier parce que la version
-précédente de ce document affirmait le contraire — *« takussan-api : État actuel : skeleton vierge.
-Seuls `Controller.php` (abstract) et `User.php` existent »* et *« takussan-web : scaffold vierge
-(create-next-app) »* — **pendant 118 jours**, du 2026-04-15 au 2026-08-12, et 308 commits. Tout agent
-qui a lu ce fichier avant d'écrire du code a commencé par une contre-vérité de plusieurs ordres de
-grandeur. *Un document d'entrée qui ment coûte plus cher que l'absence de document : on ne s'en
-méfie pas.*
+précédente de ce document affirmait le contraire — *« skeleton vierge »*, *« scaffold vierge
+(create-next-app) »* — **pendant 118 jours** et 308 commits. *Un document d'entrée qui ment coûte
+plus cher que l'absence de document : on ne s'en méfie pas.*
 
-Ce qui existe réellement — **ordres de grandeur, mesurés le 2026-08-12**, et non des comptes à
-tenir à jour :
+Ce qui existe réellement — **ordres de grandeur**, non des comptes à tenir à jour :
 
 | | `takussan-api/` | `takussan-web/` |
 |---|---|---|
@@ -29,216 +25,68 @@ tenir à jour :
 | Données | 135 migrations · 38 factories · 48 fichiers de seeders | — |
 | Tests | ~380 fichiers · **~2740 tests, verts sur PostgreSQL** *(2026-08-22)* | ~190 fichiers · **~1330 tests, verts** *(2026-08-22)* |
 
-> Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
-> `.ts`/`.tsx` » — faux dans le commit qui l'écrivait, puisque ce même commit en supprimait sept.
-> Ce tableau existe pour établir un ORDRE DE GRANDEUR (« ce dépôt n'est pas un squelette »), et
-> une précision à l'unité sur une valeur qui bouge à chaque commit ne sert pas cet objet : elle
-> ne fait qu'offrir une prise à l'erreur. Le compte exact se prend à la source :
-> `php artisan test`, `npm run test`, `find … | wc -l`.
->
-> *Une précision qu'on ne peut pas tenir n'est pas de la rigueur, c'est une dette de rigueur.*
+> **Le compte exact se prend à la source**, jamais ici : `php artisan test`, `npm run test`,
+> `find … | wc -l`. *Une précision qu'on ne peut pas tenir n'est pas de la rigueur, c'est une dette
+> de rigueur* — [pourquoi ce tableau est arrondi](docs/journal-des-corrections.md#j-01).
 
-**Le backlog est vidé, pas en cours** — l'écrasante majorité des tickets est `done`, et la poignée
-qui reste ouverte tient sur un écran. **Le compte exact ne s'écrit pas ici** :
+**Le backlog est vidé, pas en cours.** Le compte ne s'écrit pas ici — il se prend :
 
 ```bash
 node docs/backlog/check-backlog.mjs --report   # compte par statut + la liste des ouverts
 ```
 
-Une version de ce paragraphe donnait les chiffres en toutes lettres. Elle était **fausse dans le
-commit qui l'introduisait** — elle annonçait 265 tickets et 3 `todo` quand la commande ci-dessus en
-comptait 270 et 7, les cinq manquants étant ceux que ce même commit ajoutait. C'est exactement le
-défaut que ce fichier existe pour ne plus commettre, un cran plus bas : *un compte recopié à la main
-est faux dès qu'on ajoute un ticket, et il est faux avec l'autorité d'un document d'entrée.* Un
-agent qui suit la convention « prendre le premier ticket de Todo » sur une liste amputée travaille
-sur la mauvaise tâche sans jamais l'apprendre.
+> *Aucune liste maintenue à la main ne reste juste ; seule une liste dérivée le reste* —
+> [l'INDEX était faux sur 80 % de ses entrées](docs/journal-des-corrections.md#j-07).
 
-**Ce qui est vert, et depuis quand.** Au 2026-08-12, après le chantier de reprise : backend Pint
-propre et la suite entière verte ; frontend ESLint 0 erreur, `tsc --noEmit` propre, suite verte. Les
-trois régressions qui vivaient sur `dev` — une violation Pint qui **bloquait toute la CI depuis le
-2026-06-29** (Pint tourne *avant* les tests : la suite entière n'a pas été exécutée en CI pendant six
-semaines), une erreur TypeScript et une erreur ESLint bloquante côté front — sont corrigées.
+**Ce qui est vert.** Backend : Pint propre, suite entière verte sur PostgreSQL. Frontend : ESLint
+0 erreur, `tsc --noEmit` propre, suite verte. Les trois régressions qui vivaient sur `dev` au
+2026-08-12 — dont une violation Pint qui bloquait toute la CI depuis six semaines, Pint tournant
+*avant* les tests — sont corrigées.
 
-**« Vert » voulait dire « vert au repos », et personne ne l'avait écrit — mesuré le 2026-08-15.**
-La suite backend lancée **seule**, machine au repos, rend **2056 passés, 0 échec, sortie 0, en
-313 s**. La même suite lancée pendant qu'une autre exécution tournait a rendu **12 échecs** ; relancée
-aussitôt, **4 échecs sur un ensemble DIFFÉRENT**, sans qu'un seul fichier n'ait changé entre les deux.
-Union des deux exécutions : **14 tests distincts, tous des tests de recherche Meilisearch** — et
-ces 14-là, relancés seuls, passent **22/22**.
+**Le temps de référence de la suite backend : 470 à 610 s**, deux mesures le 2026-08-22 (468 s puis
+612 s) sur ~2740 tests / ~8800 assertions / 0 échec, 8 cœurs, machine au repos. **La fourchette est
+le chiffre honnête.**
 
-Ce n'est pas « la machine était chargée ». `waitForMeilisearch()` **abandonnait en silence** au bout
-de 10 s — une boucle qui `return` sans lever, sans assertion, sans trace
-(`takussan-api/tests/Concerns/InteractsWithMeilisearch.php:68-84`) — pendant que la suite s'infligeait
-elle-même un backlog de **3308 tâches d'indexation**. Le test enchaînait donc sur un index à moitié
-construit et rougissait sur une assertion métier parfaitement juste, en accusant le code applicatif.
+⚠️ **« Au repos » est une condition de la mesure, pas une formule de style : le facteur mesuré est
+d'environ 11.** Un temps de suite pris sous charge ne dit rien du dépôt — il dit ce que la machine
+faisait d'autre. **Relever les trois moyennes d'`uptime` et `sysctl -n hw.ncpu` à côté du chiffre**,
+et ne pas se fier à la moyenne à 1 minute : elle retombe en premier.
 
-**La CI est verte par chance de tempo** : même commande, même plafond de 10 s, runner simplement assez
-rapide pour rester sous la barre. Ce n'est pas une garantie, c'est une marge que personne n'a mesurée.
+> Les quatre références successives (313 s, 204-235 s, 648 s, 470-610 s), ce qu'elles mesuraient et
+> pourquoi **elles ne se soustraient pas** : [J-09](docs/journal-des-corrections.md#j-09).
 
-Ce que cela change pour qui travaille ici : **ne jamais conclure d'un rouge Meilisearch sans l'avoir
-relancé seul**, et ne pas lancer la suite entière pendant qu'un autre agent la lance. Détail complet,
-chiffres et état du correctif : ardoise **D-44**.
+**La couverture est gardée par un cliquet à 86 %** sur les lignes de `app/`, évalué par
+`bin/coverage-gate.php` sur le clover (TCK-331). Dernière mesure : **86,9 %** le 2026-08-22.
+[L'historique des mesures et des resserrements](docs/journal-des-corrections.md#j-02).
 
-**Le temps de référence de la suite backend — 204 à 235 s, machine au repos, mesuré le 2026-08-16**
-sur ~2320 tests, **0 échec, sortie 0** (deux mesures indépendantes le même jour : 235 s, puis 204 s à
-`load average` 8-29). C'est cet ordre de grandeur qu'on compare désormais, et non les 313 s
-ci-dessus : celles-ci ont été prises le 2026-08-15, sur 2056 tests, **avant** le correctif D-44. Les
-deux chiffres décrivent des suites différentes à des dates différentes — ils ne se soustraient pas.
+⚠️ **Ne pas resserrer le seuil sur une mesure locale.** Xdebug (local) et PCOV (CI) ne comptent pas
+les mêmes lignes exécutables : *resserrer un cliquet sur une mesure prise par un autre pilote, c'est
+fabriquer un rouge de CI qui n'apprend rien.* Le resserrement se décide sur un chiffre de CI.
 
-⚠️ **« Au repos » est une condition de la mesure, pas une formule de style — et le facteur mesuré est
-d'environ 11.** Le 2026-08-16, sur cette même machine à 8 cœurs, **la même commande** (PHPUnit sous
-PCOV, à la virgule près) a rendu **1240 s** sous `load average` 200-258 — vitest et ESLint d'agents
-voisins, plus le langage server PHP de l'IDE à ~230 % de CPU — et **113 s** deux heures plus tard à
-load 4-8. Un test individuel passait de ~0,1 s à 2-3 s. Un temps de suite mesuré sous charge ne dit
-rien du dépôt : il dit ce que la machine faisait d'autre. **Relever `uptime` et `sysctl -n hw.ncpu` à
-côté du chiffre** — sans eux, il ne veut plus rien dire six mois plus tard.
+⚠️ **`php artisan test --coverage --min=86` n'est PAS la forme de la CI et ne juge pas du cliquet** —
+deux défauts mesurés le rendent capable de dire « vert » sans avoir rien mesuré. Signature à
+retenir : *une commande de couverture qui sort en 0 sans imprimer de ligne `Total:` n'a pas mesuré
+la couverture.* [Le détail des deux défauts](docs/journal-des-corrections.md#j-10).
 
-**La bonne nouvelle de cette contention, elle, est solide** : c'est justement l'exécution à load
-200-258 qui a rendu **2313 tests, 7136 assertions, 2 ignorés, 0 échec**. Le correctif D-44 tient donc
-là où l'ancienne version rougissait, et c'est une preuve *plus forte* qu'une exécution au repos, pas
-une preuve dégradée : au repos, l'ancienne version passait aussi.
+**`--parallel` est validé, et deux agents peuvent la lancer en même temps** (TCK-321, TCK-322,
+TCK-334) — mesuré sur cinq paires simultanées sur la suite entière, 0 échec des deux côtés, cinq
+fois sur cinq. ⚠ Ça n'en fait pas la commande du quotidien : deux exécutions parallèles demandent
+16 cœurs à une machine qui en a 8. C'est le **rituel de fin de branche**, machine au repos ; pour la
+boucle quotidienne, `php bin/impacted-tests.php --run`.
 
-**La couverture est mesurée et gardée depuis le 2026-08-16** — elle ne l'avait jamais été. Sur `app/`
-(768 fichiers) : **lignes 86,16 %** (21 148 / 24 544), **méthodes 66,87 %**, **classes 43,81 %**. La CI
-pose un **cliquet à 86 %**, pour un surcoût mesuré de **+36 %** (83 s → 113 s), et publie le
-clover en artefact à chaque exécution. Le seuil a été **resserré de 85 à 86 le 2026-08-16**, la CI ayant confirmé **86,3 %** au premier
-passage (PR #176) — la marge de 85 couvrait un doute sur le PCOV du runner, ce doute est levé. Il
-reste 0,3 point, soit ~74 lignes non testées : c'est serré délibérément. Le seuil garde contre
-l'**érosion** ; il ne dit pas que 86 %
-suffit, et une méthode traversée sans assertion y compte pour couverte.
+**`--parallel` n'est pas activé en CI, et c'est un résultat, pas un défaut** : le gain y est de
+×2,48 (mesuré), mais une seule exécution porte les tests **et** la couverture, et PCOV agrège mal
+entre processus. Le gain est réel et inutilisable dans la forme actuelle de la CI.
 
-> **Remesurée sur PostgreSQL le 2026-08-21 : 86,8 %** (21 893 / 25 218 lignes exécutables), contre
-> 86,16 % sur SQLite. Le cliquet à 86 % tient, avec plus de marge qu'avant — le chantier ADR-0020 a
-> supprimé du code que rien n'exécutait (un branchement par driver mort, un garde-fou applicatif
-> injoignable) davantage qu'il n'en a ajouté.
->
-> ⚠ **Le seuil n'est PAS resserré, et c'est délibéré.** Ce 86,8 % est pris sous **Xdebug en local**,
-> quand la CI mesure sous **PCOV** — les deux pilotes ne comptent pas exactement les mêmes lignes
-> exécutables. *Resserrer un cliquet sur une mesure prise par un autre pilote, c'est fabriquer un
-> rouge de CI qui n'apprend rien.* Le resserrement se décide sur un chiffre de CI, comme le
-> 2026-08-16.
->
-> Durée sous Xdebug : **1414 s (23 min 34)**, contre 641 s sans couverture.
->
-> > **Re-mesurée le 2026-08-22, après le lot de la vague 45 : 86,9 %** (22 014 / 25 323 lignes
-> > exécutables), toujours sous Xdebug en local, cliquet `--min=86` **franchi, sortie 0**, sur
-> > `Tests: 2736, Assertions: 8791, Skipped: 2`. Le seuil n'est toujours pas resserré, et pour la
-> > même raison : *resserrer un cliquet sur une mesure prise par un autre pilote, c'est fabriquer
-> > un rouge de CI qui n'apprend rien.*
-
-⚠️ **Le cliquet n'est PLUS le `--min` de `artisan test`, depuis TCK-331 (2026-08-20).** La CI
-invoque **PHPUnit directement** et évalue le seuil dans un step à part,
-`php bin/coverage-gate.php storage/coverage/clover.xml --min=86`, qui lit le **clover**. Deux
-raisons mesurées, et la seconde est la plus coûteuse : `artisan test --coverage` passe déjà
-`--coverage-php` à PHPUnit en interne (une seconde occurrence est écartée, le rapport ne se
-matérialise jamais, `--min` n'a rien à évaluer et la commande sort en **1 sans imprimer un
-chiffre**, sur une suite verte à 86,33 %) ; et `artisan test` appelle `ignoreValidationErrors()`,
-si bien que **toute option placée après une option que Symfony ne connaît pas est perdue en
-silence**. Le cliquet lit désormais un fichier, pas un code de sortie — et un rapport qui n'a
-mesuré **aucune** ligne exécutable y est un échec, jamais un 100 %.
-
-Ce second défaut n'est pas théorique et il ne se limite pas à `--testsuite`. **Re-mesuré le
-2026-08-20 sur le drapeau que ce fichier documente lui-même deux lignes plus haut, `--filter`** —
-même test, même pilote Xdebug, une seule variable, l'ordre :
-
-```
-$ XDEBUG_MODE=coverage php artisan test --coverage --min=86 --filter=CurrencyRuleTest
-    Total: 0.7 %
-    FAIL  Code coverage below expected: 0.7 %. Minimum: 86.0 %.        → sortie 1
-
-$ XDEBUG_MODE=coverage php artisan test --filter=CurrencyRuleTest --coverage --min=86
-    Tests: 2 passed (11 assertions)
-    (aucune ligne « Total: », aucune table)                            → sortie 0
-```
-
-**La seconde forme dit « vert » en n'ayant rien mesuré.** Retenir la signature plutôt que la
-règle : *une commande de couverture qui sort en 0 sans imprimer de ligne `Total:` n'a pas mesuré
-la couverture* — quelle que soit l'option qui l'a avalée.
-
-**`--parallel` a été refusé le 2026-08-16, puis REPRIS et validé le 2026-08-17** (TCK-321). Les
-deux causes du refus sont soldées — le test dépendant de l'ordre (TCK-314) et les gardes d'isolation,
-dont les deux jetons sont désormais **composés** (`<pid+aléa>_<index worker>`) plutôt qu'opposés.
-**Cinq exécutions d'épreuve à 0 échec**, et ×3,2 sur la meilleure paire comparable (208,80 s
-séquentiel à load 3,74 → **64,90 s** à load 6,11, 8 cœurs).
-
-✅ **La restriction « un seul agent à la fois » est LEVÉE le 2026-08-22.** Elle a tenu du 2026-08-17
-au 2026-08-22, pour trois raisons successives qui se sont masquées les unes les autres — toutes
-soldées, et l'histoire vaut d'être lue parce qu'elle se reproduira.
-
-**La mesure qui la lève** — cinq paires de `php artisan test --parallel` **simultanées sur la suite
-ENTIÈRE**, 8 cœurs, chacune partie machine au repos :
-
-| Paire | `load average` au départ | Durée | A et B |
-|---|---|---|---|
-| 1 | 2,60 | 4 min 06 | `Tests: 2736, Assertions: 8791, Skipped: 2` · sortie **0** |
-| 2 | 5,73 | 6 min 47 | idem · sortie **0** |
-| 3 | 5,78 | 8 min 04 | idem · sortie **0** |
-| 4 | 5,85 | 8 min 11 | idem · sortie **0** |
-| 5 | 5,45 | 7 min 46 | idem · sortie **0** |
-
-**Cinq fois sur cinq, 0 échec des deux côtés, zéro `MeilisearchNotIdleException` sur dix
-exécutions.** ⚠ Les durées croissent parce que les paires s'enchaînent et que la charge héritée ne
-retombe pas entre elles — *le chiffre qui compte ici est le code de sortie, pas le chronomètre.*
-
-⚠️ **Trois causes se sont succédé sous le même symptôme, et chacune a caché la suivante :**
-
-1. **Les vues compilées** (TCK-322, corrigé le 2026-08-17). Deux `--parallel` simultanés : l'un
-   passait, l'autre **mourait au démarrage** sur `mkdir(): File exists`. Ce n'était pas ParaTest :
-   le rappel `setUpProcess` de Laravel crée `storage/framework/views/test_<index worker>` dans le
-   processus **parent**, là où le jeton composé de TCK-321 — posé dans `tests/bootstrap.php` —
-   n'atteint jamais. Enracinées par exécution depuis (`Tests\Support\TestCompiledViews`).
-   `--tmp-dir` ne corrigeait rien : ce répertoire n'est pas celui de ParaTest.
-2. **La file de tâches Meilisearch** (TCK-334, mesurée le 2026-08-20). La paire sur la suite entière
-   rendait 38 et 37 erreurs, *toutes* des `MeilisearchNotIdleException`, quand une seule exécution
-   rendait 0 échec en 108 s au même repos. Le diagnostic était juste ce jour-là — et il n'est plus
-   reproductible, parce qu'entre-temps :
-3. **ADR-0020 a cassé `--parallel` entièrement**, le 2026-08-21, et personne ne l'a mesuré. Pas sous
-   simultanéité : **seul**, sur n'importe quel test touchant la base. Une paire rendait **2553
-   erreurs de chaque côté**. TROIS mécanismes nommaient ou créaient la base de test là où le dépôt
-   croyait n'en avoir qu'un — le sien, celui de ParaTest qui recompose le nom, et `MigrateCommand`
-   qui crée en silence toute base pgsql absente.
-
-   Le plus coûteux des trois n'était pas celui qui cassait : `TestDatabase::ensureCreated()` était
-   accrochée à `Tests\CreatesApplication`, **que `Tests\TestCase` n'emploie pas**. Elle n'a donc
-   **jamais tourné dans un test**, et c'est `MigrateCommand` qui créait les bases en silence — sans
-   horodatage, donc à jamais hors de portée du balayage des orphelines. **Mesuré le 2026-08-22 :
-   130 bases orphelines, dont 0 horodatée, 1 926 Mo.**
-
-   > *Un mécanisme d'isolation qui n'est jamais appelé n'échoue pas : un autre le couvre, plus mal,
-   > et le vert reste vert.* Même enseignement que les trois ablations de `BaseFormRequest`.
-
-**Ce que la barrière Meilisearch a changé au passage** (TCK-334) : elle abandonnait après 10 s
-d'attente, quelle qu'en fût la raison. Elle abandonne désormais après 10 s **de silence du
-serveur** — `GET /batches?limit=1`, champ `progress`. Aucun plafond n'est relevé : c'est la
-*grandeur mesurée* qui a changé. Le chiffre qui l'ancre : le plus long batch **légitime** de
-l'historique du serveur dure **8,24 s pour une seule tâche**, et pendant ces 8,2 s le compte de
-tâches en attente reste FIGÉ — un détecteur de stagnation fondé sur le COMPTE aurait donc été
-*pire* que le plafond qu'il remplaçait.
-
-⚠️ **Une limite subsiste, et c'est un RÉSULTAT, plus un défaut : `--parallel` n'est pas activé en
-CI** (TCK-324, mesuré le
-   2026-08-18 sur le runner `ubuntu-latest`, `nproc` **4**, AMD EPYC 7763, load 1,05 au départ) :
-
-   | suite | durée | sortie |
-   |---|---|---|
-   | séquentielle | **206 s** | 0 · 2552 passés |
-   | `--parallel` | **83 s** | 0 · 2554 tests, 8069 assertions |
-
-   **Gain ×2,48**, bien au-dessus de la barre de ~1,5× que TCK-324 posait. **L'obstacle n'est pas
-   le gain** : une SEULE exécution de la suite porte à la fois les tests **et** le cliquet
-   `--min=86`, et PCOV agrège mal entre processus. Paralléliser cette exécution-là revient à
-   abandonner le cliquet ; l'ajouter en second passage coûte 83 s de plus, pas 123 s de moins,
-   puisque la couverture reste le chemin critique.
-
-   *Le gain est réel et inutilisable dans la forme actuelle de la CI* — ce n'est pas « ça ne vaut
-   pas le coup ». Ce qui changerait la réponse : sortir le cliquet du job de PR. Détail : ardoise
-   **D-30**.
-
-Détail et raisonnement : ardoise **D-30**, tickets **TCK-302**, **TCK-314**, **TCK-321**, **TCK-322**, **TCK-324**.
+> [Les trois causes successives qui ont bloqué `--parallel`](docs/journal-des-corrections.md#j-11)
+> — chacune masquait la suivante, et la dernière a montré qu'*un mécanisme d'isolation jamais
+> appelé n'échoue pas : un autre le couvre, plus mal, et le vert reste vert.*
+> [Le gain en CI et son obstacle](docs/journal-des-corrections.md#j-12).
 
 **L'ardoise est ouverte et écrite.** `docs/ardoise.md` porte l'inventaire des manquements mesurés,
 chacun sourcé, classé et priorisé — dont quatre qui touchent la **production** et ne se voient pas
 depuis le code. **La lire avant de planifier quoi que ce soit.**
+
 
 ## Les commandes réelles (utiliser celles-ci, ne pas en inventer)
 
@@ -252,130 +100,40 @@ depuis le code. **La lire avant de planifier quoi que ce soit.**
 `takussan-api/` :
 
 ```bash
-php artisan test                    # ⚠ TOURNE SUR POSTGRESQL depuis ADR-0020 (2026-08-21), plus
-                                    #   sur SQLite : `phpunit.xml` force `pgsql` SANS REPLI, et
-                                    #   `docker compose up -d postgres` est un prérequis dur au
-                                    #   même titre que Meilisearch. La base est créée PAR PROCESSUS
-                                    #   (`Tests\Support\TestDatabase`) — c'est la cinquième
-                                    #   ressource partagée par machine, et la seule que la
-                                    #   migration a CRÉÉE : sous SQLite `:memory:` chaque processus
-                                    #   avait la sienne gratuitement.
-                                    # ⚠⚠ TEMPS DE RÉFÉRENCE : 470 à 610 s, DEUX mesures le
-                                    #   2026-08-22 (468 s puis 612 s), sur ~2740 tests / ~8800
-                                    #   assertions / 0 échec, 8 cœurs. La FOURCHETTE est le
-                                    #   chiffre honnête : les deux départs affichaient la même
-                                    #   moyenne à 1 minute (3,4 et 4,2) et des moyennes à 5 et
-                                    #   15 minutes très différentes (6,4/19,4 contre 8,6/6,9).
-                                    #   ⚠ « Machine au repos » ne se lit PAS sur la moyenne à
-                                    #   1 minute : elle retombe en premier, et c'est la charge
-                                    #   des minutes précédentes que la suite subit encore.
-                                    #   Relever les TROIS moyennes, ou attendre que la moyenne
-                                    #   à 5 minutes descende aussi.
-                                    # L'ANCIENNE référence était 648 s le 2026-08-21 sur 2668
-                                    #   tests. ⚠ Elle et celles-ci ne se comparent PAS : ni le
-                                    #   même nombre de tests, ni la même instance Meilisearch
-                                    #   (le lot du 2026-08-22 a épinglé le conteneur 1.16 au
-                                    #   lieu d'une instance native 1.36 partagée avec un autre
-                                    #   projet). Aucune ablation n'a isolé la part de chacun.
-                                    # Référence du 2026-08-21, conservée : 648 s (10 min 49), le
-                                    #   2026-08-21 sur 2668 tests / 8616 assertions / 0 échec,
-                                    #   MACHINE AU REPOS : load average 2,93 au départ et 4,63 à
-                                    #   l'arrivée, 8 cœurs, 335,70 s user + 29,66 s system.
-                                    #   C'est ~×2,8 la référence SQLite ci-dessous (204-235 s), et
-                                    #   c'est le PRIX de la propriété achetée : ce que la suite
-                                    #   éprouve est ce que la production exécutera. La piste si ce
-                                    #   coût devient insupportable — NON empruntée, faute de
-                                    #   nécessité démontrée — est `CREATE DATABASE … TEMPLATE` :
-                                    #   migrer une base modèle une fois, la cloner par processus.
-                                    # L'ANCIENNE référence SQLite, conservée pour la comparaison :
-                                    # ~2300 tests, 204-235 s MACHINE AU REPOS (2026-08-16, deux
-                                    #   mesures) — exige une instance Meilisearch (cf. D-08).
-                                    #   Le temps ne se mesure QUE machine au repos : à load 200-258
-                                    #   sur 8 cœurs, la même commande met ×11 plus longtemps.
-                                    #   Un rouge Meilisearch se relance seul AVANT d'accuser le code
-                                    #   (cf. D-44) — mais depuis le correctif, la suite entière rend
-                                    #   0 échec même sous cette charge.
+php artisan test                    # ⚠ PostgreSQL, plus SQLite (ADR-0020) : `phpunit.xml` force
+                                    #   `pgsql` SANS REPLI. `docker compose up -d postgres` est un
+                                    #   prérequis dur, au même titre que Meilisearch. La base est
+                                    #   créée PAR PROCESSUS (`Tests\Support\TestDatabase`).
+                                    #   Référence : 470-610 s au repos (cf. § État courant).
 php artisan test --filter=Foo
-php artisan test --parallel          # ⚠ RÉFÉRENCE À REPRENDRE : le ×3,2 de 2026-08-17 (208,80 s
-                                    #   séquentiel → 64,90 s) a été mesuré sur une commande qui
-                                    #   a CESSÉ DE FONCTIONNER le 2026-08-21 avec ADR-0020, sans
-                                    #   que personne le mesure. Réparée le 2026-08-22 (TCK-334) :
-                                    #   trois mécanismes nommaient ou créaient la base de test.
-                                    #   Mesuré ce jour-là, 8 cœurs, machine au repos :
-                                    #     2736 tests, 8791 assertions, 0 échec, 4 min 06.
-                                    # ✅ DEUX AGENTS PEUVENT DÉSORMAIS LA LANCER EN MÊME TEMPS.
-                                    #   La restriction « un seul agent à la fois » est LEVÉE, et
-                                    #   elle l'est sur mesure : CINQ paires simultanées sur la
-                                    #   suite ENTIÈRE, 0 échec des deux côtés, cinq fois sur cinq,
-                                    #   zéro MeilisearchNotIdleException sur dix exécutions
-                                    #   (TCK-322 AC2/AC3, TCK-334).
-                                    # ⚠ Ça n'en fait pas la commande du quotidien pour autant :
-                                    #   deux exécutions parallèles demandent 16 cœurs à une
-                                    #   machine qui en a 8, et les durées mesurées passent de
-                                    #   4 min 06 à 8 min 11 quand les paires s'enchaînent sans
-                                    #   laisser la charge retomber. C'est le RITUEL DE FIN DE
-                                    #   BRANCHE, machine au repos. Pour la boucle quotidienne :
-                                    #   php bin/impacted-tests.php --run
-                                    # NON activé en CI, et c'est MESURÉ (TCK-324, 2026-08-18,
-                                    #   runner à 4 cœurs) : 206 s séquentiel → 83 s en parallèle,
-                                    #   gain ×2,48. Le gain est réel ; il est INUTILISABLE tant
-                                    #   qu'une seule exécution porte les tests ET la couverture
-                                    #   qui alimente le cliquet à 86 % (par le clover depuis
-                                    #   TCK-331), PCOV agrégeant mal entre processus (cf. D-30).
-php bin/impacted-tests.php --run     # ← LA commande du quotidien : ne lance que les tests que
-                                    #   le diff touche, via tests/impact-map.json (carte dérivée
-                                    #   d'un rapport de couverture, jamais éditée à la main).
-                                    #   Mesuré le 2026-08-17 par ablation : 4 classes, 16,7 s à
-                                    #   load 5,2-5,8/8 cœurs, contre 204-235 s pour la suite
-                                    #   entière au repos.
-                                    #   ⚠ Un vert ici NE DIT RIEN de la suite : c'est une boucle
-                                    #   de retour, pas une garde. La CI et le rituel de fin de
-                                    #   branche jouent la suite entière, toujours.
+php artisan test --parallel         # RITUEL DE FIN DE BRANCHE, machine au repos — pas la boucle
+                                    #   quotidienne. Deux agents peuvent la lancer en même temps
+                                    #   (TCK-322, TCK-334). NON activée en CI : cf. § État courant.
+php bin/impacted-tests.php --run    # ← LA commande du quotidien : ne lance que les tests que le
+                                    #   diff touche, via tests/impact-map.json (carte dérivée d'un
+                                    #   rapport de couverture, jamais éditée à la main). Mesuré par
+                                    #   ablation : 4 classes en 16,7 s.
+                                    #   ⚠ Un vert ici NE DIT RIEN de la suite : c'est une boucle de
+                                    #   retour, pas une garde. La CI et le rituel de fin de branche
+                                    #   jouent la suite entière, toujours.
 XDEBUG_MODE=coverage php vendor/phpunit/phpunit/phpunit \
   --coverage-clover=storage/coverage/clover.xml
 php bin/coverage-gate.php storage/coverage/clover.xml --min=86
-                                    # couverture de lignes de app/ — le CLIQUET de la CI (TCK-302),
-                                    #   dans la forme EXACTE qu'elle emploie depuis TCK-331.
+                                    # le CLIQUET de la CI, dans sa forme EXACTE (TCK-302, TCK-331).
                                     #   Exige un pilote de couverture : PCOV en CI, Xdebug en local.
                                     #   ⚠ La VARIABLE D'ENVIRONNEMENT, pas `-d xdebug.mode=…`.
-                                    #   Le seuil est posé au niveau MESURÉ ; il ne dit pas
-                                    #   « 86 % suffit », il dit « on ne redescend pas ».
-                                    #   ⚠⚠ `php artisan test --coverage --min=86` N'EST PLUS la
-                                    #   forme de la CI, et il ne faut pas s'en servir pour juger
-                                    #   du cliquet — DEUX défauts mesurés le 2026-08-20 :
-                                    #   (a) `artisan test --coverage` passe DÉJÀ `--coverage-php`
-                                    #       à PHPUnit ; l'ajouter le rend présent deux fois,
-                                    #       PHPUnit l'écarte, `--min` n'a plus rien à évaluer, et
-                                    #       la commande sort en 1 SANS IMPRIMER UN CHIFFRE, sur
-                                    #       une suite entièrement verte (TCK-331) ;
-                                    #   (b) `artisan test` ignore ses erreurs de validation : la
-                                    #       PREMIÈRE option que Symfony ne connaît pas interrompt
-                                    #       l'analyse et fait perdre TOUTES les suivantes en
-                                    #       silence. `--testsuite=Unit --coverage --min=86` sort
-                                    #       en 0 sans avoir mesuré quoi que ce soit. Le cliquet
-                                    #       dépendait de l'ORDRE DES ARGUMENTS.
-                                    #   `coverage-gate.php` lit le clover, rend le MÊME nombre
-                                    #   à la décimale (mesure appariée), et fait ÉCHOUER
-                                    #   bruyamment un rapport absent, tronqué, ou qui n'a mesuré
-                                    #   aucune ligne — `0/0` n'est pas 100 %, c'est une mesure
-                                    #   absente.
+                                    #   Il lit le clover et fait ÉCHOUER bruyamment un rapport
+                                    #   absent, tronqué, ou qui n'a mesuré aucune ligne : `0/0`
+                                    #   n'est pas 100 %, c'est une mesure absente.
+                                    #   ⚠⚠ NE PAS juger du cliquet avec `artisan test --coverage
+                                    #   --min=86` : cf. § État courant et J-10.
 ./vendor/bin/pint                   # ← AVANT CHAQUE COMMIT. Rien ne l'impose : c'est une
                                     #   violation d'un seul fichier qui a cassé la CI six semaines.
 php artisan migrate
-php artisan migrate:fresh --seed    # 48 fichiers de seeders. MESURÉ sur PostgreSQL le 2026-08-21 :
-                                    #   262 s, sortie 0, 836 biens / 305 utilisateurs / 4 agences,
-                                    #   0 erreur, et AUCUNE séquence désynchronisée (vérifié en
-                                    #   insérant une ligne applicative dans 5 tables semées : la
-                                    #   panne des séquences ne se voit qu'au PREMIER insert suivant,
-                                    #   pas au seed lui-même).
-                                    #   ~450 biens. SANS médias par défaut :
-                                    #   SEED_DOWNLOAD_MEDIA=false des DEUX côtés (.env.example
-                                    #   ET .env.docker) depuis TCK-301 — il valait `true`, et
-                                    #   décidait pour tout nouveau clone de 1000 à 2700 requêtes
-                                    #   HTTP. `true` reste valable, mais c'est un choix : les
-                                    #   échecs sont alors comptés, imprimés, et `db:seed` sort en
-                                    #   erreur au-delà de 10 % — un jeu partiel ne se déclare plus
-                                    #   complet.
+php artisan migrate:fresh --seed    # 48 fichiers de seeders, ~260 s, ~840 biens. SANS médias par
+                                    #   défaut (`SEED_DOWNLOAD_MEDIA=false` des deux côtés depuis
+                                    #   TCK-301). Détail + vérification des séquences :
+                                    #   docs/journal-des-corrections.md#j-13
 ```
 
 `takussan-web/` :
@@ -397,17 +155,11 @@ node docs/backlog/gen-index.mjs --check        # + les deux générateurs
 node docs/gen-features-by-actor.mjs --check
 ```
 
-> **Pourquoi une commande et pas une liste.** Ce bloc a cité **deux** gardes sur douze pendant que
-> le dépôt en accumulait dix autres, et il n'y avait aucun moyen de s'en apercevoir : une liste
-> écrite à la main est juste le jour où on l'écrit. C'est exactement le défaut que la moitié de ces
-> gardes existent pour attraper ailleurs (D-15 sur `INDEX.md`, D-44 sur les modèles indexables,
-> D-18 sur `models-spec.md`) — il vivait dans le document qui les présente.
->
-> Elles vérifient toutes la même chose sous des formes différentes : **qu'un document dérivé suit
-> encore sa source, et que la source suit encore la réalité.** Chacune porte son motif et son
-> histoire dans son propre en-tête ; c'est là qu'il faut lire, pas ici.
->
+> **Pourquoi une commande et pas une liste :** une liste de gardes écrite à la main est juste le
+> jour où on l'écrit — c'est le défaut que la moitié d'entre elles existent pour attraper ailleurs.
+> Chacune porte son motif et son histoire dans son propre en-tête ; c'est là qu'il faut lire.
 > `.github/workflows/repo-ci.yml` les rejoue toutes à chaque PR.
+> [Ce bloc a cité deux gardes sur douze](docs/journal-des-corrections.md#j-03).
 
 ## Qui lance quoi — la règle des tests quand plusieurs agents travaillent
 
@@ -451,23 +203,19 @@ divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée 
 par service, est dans l'en-tête du fichier.
 
 > **Le moteur est PostgreSQL 17 depuis le 2026-08-21** ([ADR-0020](docs/adr/0020-postgresql-sur-tous-les-environnements.md)),
-> sur tous les environnements, **suite de tests comprise**. L'image est `pgvector/pgvector:pg17` et
-> non `postgres:17` — l'extension doit être *disponible* partout dès maintenant, alors qu'aucune
-> table ne l'utilise, sinon le motif se referme en silence le jour du chatbot (TCK-344). La base est
-> créée en `--encoding=UTF8 --locale=C` : collation **déterministe**, décision la plus lourde de
-> l'ADR, dont dépend le sens de six contraintes d'unicité sur texte.
+> sur tous les environnements, **suite de tests comprise**. Deux points de l'ADR gouvernent du code :
 >
-> **La leçon qui a précédé cette décision survit, et elle vaut désormais DAVANTAGE.** Le compose et
-> la CI ont tourné sur `mariadb:11.4` du 2026-06-29 au 2026-08-13 parce qu'un commentaire affirmait
-> que la prod sortait d'un `apt install mariadb-server` — commande que personne n'avait exécutée.
-> Mesuré sur le serveur ce jour-là : `mysql-server 8.0.46`. Pas un écart de version, **le mauvais
-> moteur**. *Ne jamais déduire l'état d'un environnement de la configuration — ni de la commande
-> d'installation — qui le vise.*
+> - L'image est `pgvector/pgvector:pg17` et non `postgres:17` — l'extension doit être *disponible*
+>   partout dès maintenant, alors qu'aucune table ne l'utilise, sinon le motif se referme en silence
+>   le jour du chatbot (TCK-344).
+> - La base est créée en `--encoding=UTF8 --locale=C` : collation **déterministe**, décision la plus
+>   lourde de l'ADR, dont dépend le sens de six contraintes d'unicité sur texte.
 >
-> C'est pourquoi la constante de `scripts/check-db-engine.mjs` s'appelle désormais **`CIBLE` et non
-> `PROD`** : il n'existe **aucune** production PostgreSQL à mesurer (D-04), et une constante nommée
-> `PROD` inviterait à croire qu'elle a été relevée quelque part. Le jour où le serveur existe
-> (TCK-288), la première chose à faire est de le mesurer et de comparer.
+> ⚠️ **Ne jamais déduire l'état d'un environnement de la configuration — ni de la commande
+> d'installation — qui le vise.** C'est pourquoi la constante de `scripts/check-db-engine.mjs`
+> s'appelle **`CIBLE` et non `PROD`** : il n'existe **aucune** production PostgreSQL à mesurer
+> (D-04). [Le dépôt a tourné six semaines sur le mauvais moteur pour l'avoir
+> déduit](docs/journal-des-corrections.md#j-04).
 
 **Les ports sont décalés d'un cran** (5433, 7701, 6380, 1026/8026) : les ports canoniques étaient
 occupés par des installations natives brew et par un projet voisin. Le décalage rend les deux mondes
@@ -482,14 +230,11 @@ les deux (jamais des valeurs — deux fichiers aux valeurs identiques n'auraient
 deux), et `scripts/check-webhook-env-keys.mjs` garde ce que la parité ne peut pas voir : **une clé
 absente des DEUX fichiers est en parité parfaite** (TCK-296).
 
-> ⚠️ **Nuance mesurée le 2026-08-16 (TCK-300), parce que la phrase ci-dessus vieillit mal sur un
-> point.** `CACHE_STORE=redis` n'est **plus** un écart avec la production : les deux `.env` livrés
-> déclarent `redis` pour le cache et la session. Ce qui reste vrai, c'est que `.env.example` seul ne
-> provisionne rien — `docker-compose.yml` s'en charge, et c'est précisément sa raison d'être.
->
-> Le relevé des drivers réellement déclarés par les environnements déployés vit dans
-> [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), **et nulle part ailleurs** : il
+> ⚠️ **Le relevé des drivers réellement déclarés par les environnements déployés vit dans
+> [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), et NULLE PART AILLEURS** — il
 > était recopié dans trois documents qui se contredisaient, dont un qui se contredisait lui-même.
+> `CACHE_STORE=redis` n'est plus un écart avec la production depuis TCK-300.
+> [Détail](docs/journal-des-corrections.md#j-05).
 
 `./dev.sh` ne force pas docker : il détecte si le `.env` vise les conteneurs du dépôt ou des services
 natifs, **sonde ce que le `.env` déclare**, et nomme ce qui ne répond pas. Un service déclaré et
@@ -571,20 +316,10 @@ Il y a donc un utilisateur exposé devant une API absente, ce que D-04 décrivai
 pas. C'est l'objet de [TCK-332](docs/backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md),
 et cela relève la priorité de TCK-288.
 
-> **Pourquoi ce paragraphe est réécrit et non corrigé chiffre par chiffre.** Il a déjà servi une
-> fois de leçon : sa version précédente écrivait « la production ne reçoit plus rien depuis trois
-> mois », déduite du **YAML** du workflow et non de son historique d'exécution, et la correction
-> concluait *« ne jamais déduire l'état d'un environnement de la configuration qui le vise »*.
-> **La correction elle-même a vieilli exactement de la même façon** : ses chiffres — 2026-05-18,
-> 31 commits, `deploy.yml` absent de `master` — ont été mesurés une fois, le 2026-08-12, puis
-> recopiés comme s'ils étaient une propriété du dépôt. **Ils sont devenus faux TROIS JOURS plus
-> tard** : le 2026-08-15, `master` recevait `fefe2c87`, la chaîne de déploiement, deux tentatives
-> de déploiement et un site public. Cinq jours de plus, et **rien dans ce fichier ne pouvait le
-> signaler** — la phrase gardait l'aplomb du jour où elle avait été juste.
->
-> *Une mesure sans sa date devient une croyance.* Chaque affirmation ci-dessus porte donc sa
+> ⚠️ **Une mesure sans sa date devient une croyance.** Chaque affirmation ci-dessus porte sa
 > commande et son 2026-08-20 : c'est ce qui permettra de savoir, la prochaine fois, ce qui est
-> périmé plutôt que de le supposer juste.
+> périmé plutôt que de le supposer juste. Ce paragraphe a été faux deux fois, de la même manière —
+> [dont une fois DANS la correction qui l'énonçait](docs/journal-des-corrections.md#j-06).
 
 Messages de commit en français, préfixés du type conventionnel, citant le ticket quand il y en a un
 (`feat(api): … (TCK-280)`). Ne jamais merger ni pousser sans demande explicite.
@@ -604,12 +339,7 @@ Messages de commit en français, préfixés du type conventionnel, citant le tic
 > **`INDEX.md` est GÉNÉRÉ** depuis les frontmatters par `node docs/backlog/gen-index.mjs`.
 > Ne jamais l'éditer à la main — éditer le frontmatter du ticket, puis régénérer.
 > `node docs/backlog/check-backlog.mjs` garde sa fraîcheur, et la CI rejoue les deux.
->
-> *Pourquoi :* l'INDEX était maintenu à la main, et il était **faux sur 213 de ses 266 entrées
-> (80,1 %)**. Il affichait 40 tickets à faire et 177 en review là où les frontmatters en comptaient
-> 3 et 2. Le premier ticket de sa colonne « Todo » — la convention documentée pour « implémente la
-> tâche suivante » — était `done` depuis trois mois. *Aucune liste maintenue à la main ne reste
-> juste ; seule une liste dérivée le reste.*
+> [Pourquoi : il était faux sur 80 % de ses entrées](docs/journal-des-corrections.md#j-07).
 
 **Format ticket** : frontmatter YAML (`id`, `title`, `status`, `phase`, `family`, `estimate`,
 `created`, `updated`, `depends_on`, `blocks`, `spec_refs`, `tags`, `wave`) + corps.
@@ -820,21 +550,27 @@ directement le workflow correspondant.
 n'en sont que des relais : elles pointent toutes deux vers `.agent/workflows/`, qui pointe vers
 `.agent/skills/`. Une compétence se corrige donc là, une seule fois.
 
-> Un second répertoire, `.agents/` — 602 fichiers, suivi par git, référencé par aucun fichier du
-> dépôt — a coexisté avec lui pendant trois mois (TCK-303, ardoise D-46). Le coût n'a pas été la
-> duplication, mais le doute : le 2026-05-18, la correction « `spatie/laravel-permission` a été
-> retiré, les capacités sont résolues par `MembershipCapabilityResolver` » y a été écrite. Elle
-> était **juste**, et elle est tombée dans la copie que personne ne charge. Pendant trois mois,
-> tout agent qui implémentait un ticket a lu qu'il fallait employer un paquet désinstallé sur
-> lequel la CI casse à l'import. *Un répertoire mort n'est pas inerte : il absorbe les
-> corrections.* `scripts/check-skills-dir.mjs` refuse désormais toute compétence de ce dépôt
-> hors du canonique — quel que soit le nom du répertoire qui la porte.
+> ⚠️ **Un répertoire mort n'est pas inerte : il absorbe les corrections.** `.agents/` a coexisté
+> trois mois avec le canonique ; une correction juste y a été écrite et personne ne l'a lue.
+> `scripts/check-skills-dir.mjs` refuse désormais toute compétence de ce dépôt hors du canonique,
+> quel que soit le nom du répertoire — mais elle ne voit pas les compétences de fournisseur, et le
+> motif s'est reproduit en 2026-08 sur `.claude/skills/`.
+> [L'histoire des deux occurrences](docs/journal-des-corrections.md#j-08).
 
 ## Où vont les fichiers
 
 Tout document de conception va sous `docs/`, **jamais à la racine**. `docs/adr/` pour les décisions,
 `docs/backlog/` pour les tickets, `docs/plans/` pour les plans d'implémentation, `docs/qa/` et
-`docs/smoke-tests/` pour les campagnes. `docs/ardoise.md` porte les dettes.
+`docs/smoke-tests/` pour les campagnes. `docs/ardoise.md` porte les dettes, et
+[`docs/journal-des-corrections.md`](docs/journal-des-corrections.md) le **pourquoi** des
+règles de ce fichier.
+
+**Ce fichier porte la RÈGLE, le journal porte le RÉCIT.** Les renvois `#j-NN` ci-dessus
+mènent à ce qu'une règle a coûté : ce qu'un document affirmait, ce que la mesure a rendu.
+Une règle ne quitte jamais ce fichier — c'est ce qui empêche le journal de devenir un
+répertoire mort ([J-08](docs/journal-des-corrections.md#j-08)). **L'ouvrir avant de
+trancher** quand on s'apprête à resserrer un seuil, recopier un compte à la main, ou
+déduire l'état d'un environnement d'un fichier de configuration.
 
 **`AGENTS.md` ne duplique plus ce fichier** — il y renvoie. Deux fichiers d'instructions divergents à
 la racine, c'est un mensonge qui attend son lecteur.

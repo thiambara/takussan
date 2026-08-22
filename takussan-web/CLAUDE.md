@@ -214,24 +214,18 @@ remappe les erreurs 422 de Laravel sur les champs RHF — y compris les clés im
   un compte qui descend échoue tant qu'on n'a pas lancé `--update`.
 
 > ⚠️ **Ce scan est un lexeur TS/TSX écrit DANS le dépôt, sans dépendance, et c'est une décision**
-> (TCK-323, ardoise D-55). Il employait l'API compilateur de TypeScript ; `typescript@7` — le
-> portage Go, en `dist-tag: latest` — ne l'exporte plus côté Node, et la garde est morte le jour du
-> bump, **pendant que `tsc --noEmit` et `next build` restaient verts tous les deux**. Rebrancher
-> sur un autre analyseur tiers aurait reproduit la même exposition un nom de paquet plus loin.
-> L'équivalence avec l'ancienne version est **mesurée**, pas déduite : mêmes 3 542 occurrences sur
-> les 409 fichiers concernés, une à une, et les 21 cas de `i18n-scan.test.ts` inchangés.
+> (TCK-323, ardoise D-55) : la version précédente employait l'API compilateur de TypeScript et
+> **est morte au bump `typescript@7`, pendant que `tsc --noEmit` et `next build` restaient verts
+> tous les deux.** [Détail et preuve d'équivalence](../docs/journal-des-corrections.md#j-40).
 
 > ⚠️ **La règle « le front possède le texte affiché » reste une intention sur l'essentiel du parc**
-> (dette D-24). Les chiffres ne s'écrivent PAS ici — ils bougent à chaque commit et une version
-> antérieure de ce paragraphe annonçait « 82 fichiers sur 875 » et « 1376 clés fr/en », deux
-> comptes faux (le second comptait les nœuds de l'arbre JSON, pas les clés traduisibles). Le compte
-> se prend à la source : `node scripts/check-i18n.mjs --report`. Le reste à faire est chiffré et
-> découpé en douze lots dans TCK-292.
+> (dette D-24). **Les chiffres ne s'écrivent PAS ici** — ils bougent à chaque commit, et deux
+> comptes recopiés à la main s'y sont déjà révélés faux. Le compte se prend à la source :
+> `node scripts/check-i18n.mjs --report`. Le reste à faire est découpé en douze lots dans TCK-292.
 >
 > ⚠️ **`useTranslations` dans un fichier n'est PAS un indicateur d'achèvement** : 18 fichiers
-> importent next-intl ET portent encore du texte en dur, jusqu'à 34 occurrences dans un seul
-> (`admin-agency/AgencyConfigForm.tsx`). Un tableau de bord qui compterait les imports mentirait
-> exactement comme l'INDEX maintenu à la main.
+> importent next-intl ET portent encore du texte en dur. *Un tableau de bord qui compterait les
+> imports mentirait exactement comme l'INDEX maintenu à la main.*
 
 **Tests** : `src/test/intl.tsx` — `withIntl(ui)` pour les composants client, `mockTraductionsServeur()`
 pour les composants serveur. `vitest.setup.ts` ne monte **aucun** provider, et un rendu avec
@@ -242,25 +236,15 @@ pour les composants serveur. `vitest.setup.ts` ne monte **aucun** provider, et u
 vitest 4 + jsdom + @testing-library, alias `@` → `./src`, setup global qui polyfille
 `ResizeObserver` et `matchMedia` (`vitest.setup.ts`). **~143 fichiers, ~810 tests, tous verts** (arrondi : cf. la note du `CLAUDE.md` racine).
 
-> **Le plafond par test est de 20 s, et c'est une valeur mesurée** (`vitest.config.ts`, TCK-312).
-> Les 5000 ms précédents étaient le *défaut de vitest*, jamais choisi pour cette suite : quatre
-> tests de la console super-admin en sortaient dès que la suite backend tournait en même temps.
-> Aucun test ne dépasse **1000 ms au repos**, mais les tests d'interaction `userEvent` ralentissent
-> d'un facteur **12 à 17× sous contention CPU** — le coût est en O(frappes), ~4,5 ms par caractère.
-> **Ne pas rabaisser ce plafond sans refaire la mesure**, et ne pas le lire comme une licence à
-> écrire des tests lents : un test qui s'en approche au repos est un test à revoir.
+> **Deux plafonds, deux valeurs MESURÉES, et aucune des deux ne se rabaisse sans refaire la
+> mesure** : `testTimeout` à **20 s** (`vitest.config.ts`, TCK-312) et le délai des attentes à
+> **3000 ms** (`vitest.setup.ts`, TCK-313). Les valeurs précédentes étaient les défauts de vitest et
+> de Testing Library, jamais choisis pour cette suite.
 >
-> **Le délai propre des attentes est de 3000 ms, et c'est une seconde valeur mesurée**
-> (`vitest.setup.ts`, TCK-313). Il gouverne chaque `waitFor` / `findBy*`, là où `testTimeout`
-> gouverne le test entier. Les 1000 ms précédents étaient le défaut de Testing Library. Au repos,
-> 95 % des attentes de la suite tiennent en **150 ms** et la pire en **467 ms** — mais cette même
-> attente a été mesurée à **980 ms** quelques minutes plus tard, sur le même code, parce que
-> d'autres agents travaillaient : la marge annoncée valait ce que la machine faisait d'autre.
-> Ablation : à 1000 ms, `Integrations` rougit 2/2 sous charge 287-331 avec un message qui accuse le
-> composant ; à 3000 ms, 38/38 sous la même charge. Le coût est **+2 s par test rouge** (une
-> attente qui ne sera jamais satisfaite brûle son plafond en entier) et **zéro sur une exécution
-> verte**. Le détail des mesures est dans le commentaire de `vitest.setup.ts` — le relever exige
-> de les refaire.
+> ⚠ Ce ne sont pas des licences à écrire des tests lents : aucun test ne dépasse 1000 ms au repos,
+> et un test qui s'en approche est un test à revoir. Les plafonds couvrent la **contention** — les
+> tests `userEvent` ralentissent de 12 à 17× sous charge. Coût : **+2 s par test rouge, zéro sur
+> une exécution verte**. [Les mesures et l'ablation](../docs/journal-des-corrections.md#j-41).
 
 ```bash
 npm run lint          # ⚠ `npm run build` ne lance PAS ESLint sous Next 16
@@ -268,11 +252,9 @@ npx tsc --noEmit      # ⚠ aucun script `typecheck` dans package.json
 npm run test
 ```
 
-> **Les trois commandes ci-dessus doivent être vertes avant tout commit.** Le frontend n'a eu
-> **aucune CI** jusqu'au 2026-08-12 : une erreur ESLint bloquante, une erreur TypeScript et un test
-> en échec ont vécu sur `dev` pendant 53 à 94 jours sans que rien ne les signale. `web-ci.yml` les
-> attrape désormais — mais `npm run build` seul ne suffit toujours pas, et c'est pour ça que les
-> trois sont listées.
+> **Les trois commandes ci-dessus doivent être vertes avant tout commit**, et séparément : sous
+> Next 16, `npm run build` ne lance pas ESLint, et il n'existe aucun script `typecheck`.
+> [Le front a vécu 53 à 94 jours sans aucune CI](../docs/journal-des-corrections.md#j-42).
 
 ## Environnement
 
@@ -286,24 +268,11 @@ Une seule variable applicative : **`NEXT_PUBLIC_API_URL`** (39 lectures), plus `
 > ⚠️ **Autre défaut, autre axe — ne pas le confondre avec celui du dessus.** Celui-ci porte sur
 > l'origine à laquelle **le front lui-même** est servi, pas sur celle de l'API qu'il appelle.
 >
-> **Next 16 bloque ses ressources de développement pour tout hôte absent d'`allowedDevOrigins`,
-> dont la valeur par défaut ne contient que `localhost` et `**.localhost`.** Servi sur
-> `http://127.0.0.1:<port>`, le front rendait son HTML, affichait son CSS… et **React ne
-> s'hydratait jamais** : 13 × 403 sur `/_next/static/chunks/*`, WebSocket HMR en échec, et le
-> formulaire de connexion soumis en **GET natif** — mesuré le 2026-08-20, le mot de passe part
-> alors dans l'URL (`/auth/login?email=…&password=…`).
->
-> `next.config.ts` déclare désormais `allowedDevOrigins: ['127.0.0.1', '[::1]']` (TCK-328,
-> ardoise D-57), donc les deux hôtes marchent. Ce qu'il faut retenir :
->
-> - **La panne est MUETTE** : la page s'affiche, rien ne casse visiblement, c'est
->   l'interactivité qui manque — partout à la fois. Le premier réflexe est de chercher dans le
->   composant.
-> - **`[::1]` s'écrit avec ses crochets** : Next compare `new URL(origin).hostname`, qui rend
->   `"[::1]"`. Écrit `'::1'`, l'entrée ne matche rien — mesuré.
-> - **Restreint à la boucle locale, délibérément.** Ni IP de LAN, ni joker : ces ressources
->   n'ont pas à être atteignables depuis le réseau.
-> - `./dev.sh doctor` nomme l'écart si la ligne disparaît, et ne dit rien quand elle est là.
+> `next.config.ts` déclare `allowedDevOrigins: ['127.0.0.1', '[::1]']` (TCK-328), donc les deux
+> hôtes marchent. Si la ligne disparaît, **la panne est MUETTE** : la page s'affiche, rien ne casse
+> visiblement, c'est l'interactivité qui manque — partout à la fois, et le premier réflexe est de
+> chercher dans le composant. `./dev.sh doctor` nomme l'écart.
+> [Ce que ça donne exactement, crochets d'`[::1]` compris](../docs/journal-des-corrections.md#j-43).
 
 `next.config.ts` branche le plugin next-intl sur `./src/i18n/request.ts` et autorise en
 `remotePatterns` picsum/placehold/unsplash + `api.takussan.com` + `preview.api.takussan.com` +
@@ -313,12 +282,9 @@ déclare aussi `reactCompiler: true` ([ADR-0015](../docs/adr/0015-react-compiler
 
 ## Déploiement — ce dossier EST en production, et publiquement
 
-> ⚠️ **Aucun workflow de ce dépôt ne déploie ce dossier, et pourtant il est déployé.** L'absence de
-> `deploy` dans `.github/workflows/` pour `takussan-web/` a longtemps été lue comme « le front
-> n'est pas déployé ». C'était une déduction, et elle était fausse : le déclencheur est
-> l'**intégration Git du projet Vercel** `thiambaras-projects/takussan`, qui publie son activité sur
-> GitHub. *Une absence dans le dépôt ne prouve rien sur le monde ; elle prouve seulement que le
-> dépôt ne le fait pas.*
+> ⚠️ **Aucun workflow de ce dépôt ne déploie ce dossier, et pourtant il est déployé** — le
+> déclencheur est l'intégration Git du projet Vercel `thiambaras-projects/takussan`. *Une absence
+> dans le dépôt ne prouve rien sur le monde ; elle prouve seulement que le dépôt ne le fait pas.*
 
 | Branche | Environnement | Ce qu'on atteint | Public ? |
 |---|---|---|---|
