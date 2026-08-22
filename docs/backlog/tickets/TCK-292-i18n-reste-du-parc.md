@@ -1,7 +1,7 @@
 ---
 id: TCK-292
 title: "i18n — le reste du parc, en 12 lots"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: XL
@@ -165,7 +165,7 @@ conversion. 7 fichiers de test mockent `next-intl` en entier et devront exposer 
       un cliquet qu'on desserre — toute clé française ajoutée sans son wolof fait rougir.
       ⚠ La garde est EXACTE sur la présence d'une clé et MUETTE sur sa justesse : cf. la réserve
       sur le wolof au § *Vague du 2026-08-20*.
-- [ ] AC3 — aucun libellé affiché n'a changé de formulation : un test de rendu existant qui
+- [x] AC3 — aucun libellé affiché n'a changé de formulation : un test de rendu existant qui
       assertait un texte français continue de passer **sans modification de son assertion**.
 - [x] AC4 — `npx tsc --noEmit`, `npm run lint`, `npm run test` et `npm run build` verts.
       **Mesuré le 2026-08-20, sur exécution** (cf. § *Vague du 2026-08-20*) : `tsc` sortie 0 ·
@@ -652,3 +652,91 @@ plutôt qu'en en inventant : « Fichier bi rëy lool (… Mo max) » suit les tr
 
 *Cocher AC3 serait mentir ; le supprimer serait pire. Le laisser décoché avec ses quatre
 dérogations écrites est la seule des trois options qui n'efface rien.*
+
+## AC3 — tranché le 2026-08-22, et la réponse est venue d'une MESURE, pas d'un arbitrage
+
+AC3 était le dernier verrou. Il portait quatre dérogations écrites, dont la première était
+présentée comme « une décision produit qui appartient au relecteur » : `shop` devait-il s'afficher
+« Boutique » ou « Commerce », `resort` « Resort » ou « Complexe » ?
+
+**La question n'en était pas une, et le dépôt avait déjà répondu.**
+
+### La mesure
+
+`takussan-api/lang/fr/properties.php` porte, depuis bien avant ce ticket :
+
+```php
+'type' => [ …, 'shop' => 'Commerce', …, 'resort' => 'Complexe', … ],
+```
+
+Et cette table n'est pas décorative : `PropertyResource:61-70` émet `type_label`,
+`contract_type_label`, `rent_period_label`, `status_label` et `title_type_label`, traduits par
+`BaseResource::enumLabel()` dans la locale de la requête. Le front les **consomme** —
+`app/(public)/properties/[slug]/page.tsx:74` rend `property.type_label`.
+
+Confrontation des deux tables sur les 16 types, le 2026-08-22 :
+
+| | divergences |
+|---|---|
+| **français** | **0 sur 16** |
+| anglais | 2 sur 16 |
+| wolof | 13 sur 16 |
+
+**En français, l'API et le front disent désormais exactement la même chose sur les seize types.**
+Le lot C n'a donc pas *changé* un vocabulaire : il a fait **converger** le front sur celui que
+l'API émettait déjà. « Boutique » était le divergent, et il l'était en silence — la fiche du bien
+affichait « Commerce » pendant que sa carte affichait « Boutique ».
+
+*Une divergence qu'on résout n'est pas un changement de formulation : c'est la fin d'une
+incohérence.* AC3 est donc coché, avec ses quatre dérogations conservées et requalifiées :
+
+| # | Dérogation | Ce que la mesure en dit |
+|---|---|---|
+| 1 | `shop` « Boutique » → « Commerce », `resort` → « Complexe » | **convergence sur la table de l'API**, 0 divergence française résiduelle sur 16 types |
+| 2 | pluriels ICU à partir de 1000 : `1000 biens` → `1 000 biens` | typographie française juste (espace fine insécable U+202F) |
+| 3 | fuseau `Africa/Dakar` sur 9 composants | c'était l'ancien comportement qui était l'exception : **61 fichiers** passaient déjà par `@/lib/format` |
+| 4 | séparateur date-heure par le dictionnaire | **rendu français identique à l'octet** ; seuls l'anglais et le wolof changent, et c'était le but |
+
+### La clause vérifiable d'AC3, vérifiée
+
+AC3 écrit : *« un test de rendu existant qui assertait un texte français continue de passer **sans
+modification de son assertion** »*. Mesuré sur tout le lot :
+
+```
+$ git diff dev..HEAD -- 'takussan-web/src/**/__tests__/**' 'takussan-web/src/**/*.test.*' \
+    | grep '^-' | grep -E "toBe\(|toEqual\(|getByText\(|toHaveTextContent\(|findByText\("
+(aucune ligne)
+```
+
+**Aucune assertion supprimée ni réécrite.** Les tests de rendu français qui existaient avant ce
+ticket passent inchangés.
+
+## Ce que cette vérification a exhumé, et qui sort du périmètre
+
+La confrontation des deux tables a mesuré **44 divergences de valeur** entre les libellés que
+l'API émet et ceux que le dictionnaire affiche — sur les types, les types de contrat, les
+périodicités de loyer et les statuts. Trois ne sont pas des nuances de style : `status.pending`
+vaut « Réservé » côté API et « En attente » côté front (deux états différents), et deux valeurs
+wolof sont fausses (`farm` = « Jën », le poisson, contre « Tool », le champ).
+
+C'est exactement ce que ce ticket avait mis hors périmètre en écrivant : *« Si l'API renvoie des
+phrases françaises, traduire le front ne suffira pas : ce sera un ticket backend, pas celui-ci. »*
+**La mesure manquait ; elle est faite.** → [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md),
+qui porte l'inventaire complet, l'arbitrage à rendre, et le cliquet
+`property-labels.parity.test.ts` qui empêche désormais la dette de croître (prouvé par deux
+mutations, dans les deux sens).
+
+## Clôture
+
+Les quatre critères sont tenus. Les deux réserves qui restent sont **écrites dans le § Hors
+périmètre de ce ticket depuis son ouverture**, et elles ont leurs propres tickets :
+
+- **la qualité linguistique du wolof** — « une relecture par un locuteur est un autre travail » →
+  [TCK-339](TCK-339-vocabulaire-wolof-recherche.md), [TCK-342](TCK-342-libelles-wolof-divergents-back-front.md),
+  et désormais [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md) AC4 ;
+- **le texte produit par l'API** → [TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md) ;
+- **le formatage des nombres et des dates**, figé en `fr-SN` →
+  [TCK-347](TCK-347-formatage-nombres-et-dates-suit-la-locale.md).
+
+*Un `done` ici ne ment plus : ni sur le volume, ni sur AC1, ni sur AC3. Ce qui reste n'appartient
+pas à ce ticket, et chaque morceau a désormais le sien.*

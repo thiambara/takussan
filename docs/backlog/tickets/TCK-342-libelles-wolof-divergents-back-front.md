@@ -7,7 +7,7 @@ family: applicatif
 estimate: M
 wave: 42
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-08-22
 depends_on: []
 blocks: []
 spec_refs:
@@ -143,3 +143,31 @@ argument de plus pour ne pas les réutiliser comme alias (mesuré le 2026-08-21,
 - `warehouse => 'Magasin'` rend **56 documents, dont `shop:56` et `warehouse:0`** — « magasin »
   est déjà un jeton de l'alias français de `shop` ;
 - `parking => 'Parking'` rend **36 documents, dont `garage:32` et `parking:4`**.
+
+
+## L'inventaire exhaustif a été mesuré le 2026-08-22 — et il déborde le wolof
+
+Ce ticket décrivait le symptôme (« le même bien porte deux mots wolof différents selon l'écran »).
+La confrontation systématique des deux sources a été faite en soldant TCK-292, et elle donne le
+compte :
+
+| groupe | fr | en | wo |
+|---|---:|---:|---:|
+| `properties.type` ↔ `property.types` | 0 / 16 | 2 / 16 | **13 / 16** |
+| `properties.contract_type` ↔ `property.contractTypes` | 2 / 2 | 2 / 2 | 2 / 2 |
+| `properties.rent_period` ↔ `property.rentPeriods` | 4 / 4 | 4 / 4 | 4 / 4 |
+| `properties.status` ↔ `property.status` | 1 / 9 | 1 / 9 | **9 / 9** |
+
+**44 divergences de valeur au total, dont 24 en wolof.** Deux d'entre elles sont des erreurs de
+sens, pas des variantes : `type.farm` — l'API dit « Jën » (le poisson) quand le front dit « Tool »
+(le champ) — et `type.land` — « Dëkk » (le village) contre « Suuf » (le sol). Et plusieurs valeurs
+wolof de la table de l'API sont **en français** : `status.draft` = « Brouillon »,
+`status.archived` = « Archivé », `type.factory` = « Usine ».
+
+La cause structurelle est plus large que le wolof, et elle a son ticket :
+[TCK-351](TCK-351-deux-sources-de-libelles-de-bien.md). Un cliquet à contenu nommé
+(`takussan-web/src/types/__tests__/property-labels.parity.test.ts`) empêche désormais la dette de
+croître, dans les deux sens.
+
+**Ce ticket garde sa raison d'être** : le choix de la BONNE valeur wolof, clé par clé, exige un
+locuteur — aucune garde ne l'établira. Les 24 entrées wolof ci-dessus sont sa matière.

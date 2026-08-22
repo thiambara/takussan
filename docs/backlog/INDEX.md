@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**332 tickets** — 13 ouverts, 318 livrés.
+**333 tickets** — 13 ouverts, 319 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 11 |
-| 🚧 Doing | 2 |
+| 📋 Todo | 12 |
+| 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 318 |
+| ✅ Done | 319 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -44,10 +44,10 @@
 - [TCK-348](tickets/TCK-348-compression-et-deploiement-preprod.md) — Préproduction : la compression n'est pas active, et la branche est 34 commits derrière `dev` `S · P2 · technique`
 - [TCK-349](tickets/TCK-349-index-des-cles-etrangeres-nues.md) — Indexer les clés étrangères nues que la mesure justifie (85 restantes) `M · P3 · technique`
 - [TCK-350](tickets/TCK-350-alertes-de-recherche-sauvegardee-renotifient.md) — Les alertes de recherche sauvegardée renotifient les mêmes biens tous les jours `M · P1 · technique`
+- [TCK-351](tickets/TCK-351-deux-sources-de-libelles-de-bien.md) — Deux sources de libellés de bien s'affichent dans le même parcours — 44 divergences mesurées `M · P2 · technique`
 
 ## 🚧 Doing
 
-- [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 
 ## 👀 Review
@@ -60,7 +60,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 318
+## ✅ Done — 319
 
 <details>
 <summary><strong>Vague 44 — PostgreSQL : ce que la migration a rendu DISCUTABLE — recherche PG contre Meilisearch, géo (2026-08-21)</strong> — 1 ticket</summary>
@@ -584,7 +584,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 13 tickets</summary>
+<summary><strong>Sans vague</strong> — 14 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -593,6 +593,7 @@ _(aucun)_
 - [TCK-287](tickets/TCK-287-filament-supprimer-ou-securiser.md) — Filament — supprimer le panel ou le securiser `S · P1 · technique`
 - [TCK-289](tickets/TCK-289-moteur-de-base-production-non-epingle.md) — Moteur de base de production non épinglé — la CI éprouvait une hypothèse, et elle était fausse `S · P1 · technique`
 - [TCK-290](tickets/TCK-290-upload-logo-agence-403.md) — Upload du logo d'agence — 403 systématique, aucune policy pour Agency `S · P1 · bug`
+- [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
 - [TCK-294](tickets/TCK-294-mtarget-api-pulling-dlr.md) — Mtarget — basculer les accusés de livraison sur l'API Pulling plutôt qu'un webhook non signé `M · P2 · technique`
 - [TCK-295](tickets/TCK-295-kpi-alertes-restriction-agence-individual.md) — §1.12 — rendre EXPLICITE que les KPI et alertes de seuil ne sont pas réservés aux agences `standard` `S · P3 · technique`
 - [TCK-323](tickets/TCK-323-typescript-7-casse-le-cliquet-i18n.md) — TypeScript 7 n'exporte plus l'API compilateur côté Node — le cliquet i18n en dépend, et le bump PR #182 le casse `M · P2 · technique`

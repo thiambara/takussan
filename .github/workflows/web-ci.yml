@@ -32,6 +32,13 @@ on:
       # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
       # contrat géographique bouge seul.
       - 'takussan-api/app/Http/Requests/Concerns/**'
+      # ⚠ `property-labels.parity.test.ts` compare les libellés que `PropertyResource` ÉMET
+      # (traduits par `enumLabel()` depuis ces fichiers) à ceux que le dictionnaire du front
+      # affiche. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle dort
+      # quand le back bouge seul — et c'est précisément ce qui a laissé 44 divergences
+      # s'installer sans que rien ne le signale (TCK-351).
+      - 'takussan-api/lang/**'
+      - 'takussan-api/app/Http/Resources/PropertyResource.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
   push:
     branches: [dev, master]
@@ -46,6 +53,13 @@ on:
       # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
       # contrat géographique bouge seul.
       - 'takussan-api/app/Http/Requests/Concerns/**'
+      # ⚠ `property-labels.parity.test.ts` compare les libellés que `PropertyResource` ÉMET
+      # (traduits par `enumLabel()` depuis ces fichiers) à ceux que le dictionnaire du front
+      # affiche. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle dort
+      # quand le back bouge seul — et c'est précisément ce qui a laissé 44 divergences
+      # s'installer sans que rien ne le signale (TCK-351).
+      - 'takussan-api/lang/**'
+      - 'takussan-api/app/Http/Resources/PropertyResource.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
 
 jobs:
