@@ -1,7 +1,7 @@
 ---
 id: TCK-338
 title: "Une recherche à plusieurs mots doit les exiger tous"
-status: doing
+status: done
 phase: P1
 family: applicatif
 estimate: M
