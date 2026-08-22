@@ -639,9 +639,40 @@ rouvre la panne, et elle ne se voit qu'au hasard du tempo** :
    Assertions: 8210, Skipped: 2`, 0 échec, en 108 s** (`real 108,09 · user 448,45 · sys 44,35`).
    La simultanéité est donc la cause, ni l'arbre ni la charge.
 
-   **Un seul agent à la fois sur la suite entière en `--parallel`** : la restriction est
-   inchangée, sa raison ne l'est pas. Suite dans **TCK-334**.
-   Le mode séquentiel et `php bin/impacted-tests.php` supportent la simultanéité depuis D-44.
+   ✅ **RÉSOLU le 2026-08-22, et la restriction « un seul agent à la fois » est LEVÉE** (TCK-334).
+   La cause n'était plus celle-là non plus. Entre les deux mesures,
+   [ADR-0020](../docs/adr/0020-postgresql-sur-tous-les-environnements.md) a fait cesser de
+   fonctionner `--parallel` **entièrement** — pas sous simultanéité : *seul*, sur n'importe quel
+   test touchant la base. Une paire rendait alors **2553 erreurs de chaque côté**, si bien que la
+   file Meilisearch n'était plus atteignable : *l'ordre des causes est d'abord la base, ensuite —
+   peut-être — la file.*
+
+   **TROIS mécanismes nommaient ou créaient la base de test** là où ce fichier n'en décrivait
+   qu'un. Le plus coûteux n'était pas celui qui cassait : `TestDatabase::ensureCreated()` était
+   accrochée à `Tests\CreatesApplication`, **que `Tests\TestCase` n'emploie pas** — elle n'a donc
+   jamais tourné dans un test, et c'est `MigrateCommand::createMissingMySqlOrPgsqlDatabase()` qui
+   créait les bases en silence, sans horodatage, donc hors de portée définitive du balayage des
+   orphelines. Mesuré : **130 bases orphelines, 0 horodatée, 1 926 Mo**.
+
+   > *Un mécanisme d'isolation qui n'est jamais appelé n'échoue pas : un autre le couvre, plus
+   > mal, et le vert reste vert.*
+
+   Un seul mécanisme nomme et crée désormais la base :
+   `TestDatabase::neutralizeFrameworkMechanism()` éteint celui du framework par **son propre
+   interrupteur documenté** (`LARAVEL_PARALLEL_TESTING_WITHOUT_DATABASES`, ce que pose
+   `--without-databases`), et `ensureCreated()` est ré-accrochée à `Tests\TestCase`.
+   `tests/Unit/Testing/TestDatabaseIsolationTest.php` garde la propriété observable qui sépare les
+   deux créateurs : **une base créée par le dépôt porte un horodatage, une base créée par le
+   framework n'en porte pas.**
+
+   **Mesure qui lève la restriction** — cinq paires de `--parallel` simultanées sur la suite
+   ENTIÈRE, 8 cœurs, chacune partie au repos (`load average` 2,60 · 5,73 · 5,78 · 5,85 · 5,45) :
+   **`Tests: 2736, Assertions: 8791, Skipped: 2`, sortie 0 des DEUX côtés, cinq fois sur cinq**,
+   et **zéro `MeilisearchNotIdleException` sur dix exécutions**. Durées 4 min 06 à 8 min 11 — la
+   croissance vient de la charge héritée entre paires, pas du correctif.
+
+   Le mode séquentiel et `php bin/impacted-tests.php` supportaient déjà la simultanéité depuis
+   D-44 ; les trois modes la supportent maintenant.
 
 ## Ne lancer que les tests que le diff touche
 

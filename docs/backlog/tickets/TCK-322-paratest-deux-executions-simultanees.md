@@ -1,13 +1,13 @@
 ---
 id: TCK-322
 title: "Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 41
 created: 2026-08-17
-updated: 2026-08-20
+updated: 2026-08-22
 depends_on: [TCK-321]
 blocks: []
 spec_refs:
@@ -225,8 +225,95 @@ produire.
 - La suite reste prise par **TCK-334**, qui porte la mesure et les options.
 
 
+## 2026-08-22 — l'AC2 redevient atteignable sur sous-ensembles, et il est TENU
+
+**Ce que la section précédente disait était juste au 2026-08-20, et il faut y ajouter un cran.**
+Entre-temps, ADR-0020 avait cassé `--parallel` **entièrement** — seul, sur n'importe quel test qui
+touche la base — parce que trois mécanismes nommaient ou créaient la base de test au lieu d'un. Le
+détail et les mesures sont dans **TCK-334**, section *« L'ordre des causes a changé »*.
+
+Cela change deux choses pour CE ticket, et il faut les distinguer :
+
+1. **Le correctif de ce ticket n'y est pour rien, et il tient toujours.** Les paires du 2026-08-22
+   démarrent toutes les deux ; `mkdir(): File exists` ne s'est produit aucune fois. L'isolation des
+   vues compilées par exécution (`Tests\Support\TestCompiledViews`) fait ce qu'elle promet.
+
+2. **L'AC2 et l'AC3 sont TENUS sur sous-ensembles, avec une preuve refaite après le correctif de
+   base** — l'ancienne preuve du 2026-08-17 portait sur un arbre où `--parallel` marchait encore.
+
+   Mesuré le 2026-08-22, 8 cœurs (`sysctl -n hw.ncpu` → 8), sous-ensemble de 236 tests touchant la
+   base (`--filter='Authorization|Validation|Testing|Policies'`) :
+
+   | Paire | `load average` avant | A | B |
+   |---|---|---|---|
+   | 1 | 9,75 | OK (236 tests, 790 assertions), sortie 0 | idem |
+   | 2 | 21,87 | idem | idem |
+   | 3 | 23,54 | idem | idem |
+   | 4 | 24,44 | idem | idem |
+   | 5 | 22,92 *(arrivée 26,12)* | idem | idem |
+
+   Et la disjonction est vérifiée en base, pas déduite : échantillonnée six fois pendant une paire,
+   **16 bases vivantes distinctes pour 16 workers, 0 collision**.
+
+3. **L'AC2 sur la suite ENTIÈRE reste NON TENU, et la raison est inchangée** : c'est TCK-334 qui la
+   porte, et la paire sur la suite entière n'a pas pu être rejouée ici (elle est interdite à un
+   agent délégué). Ce qu'on sait de neuf, c'est que la file Meilisearch **redevient la question** —
+   au 2026-08-20 elle était masquée par une panne de base plus grossière.
+
 ## Ce que ce ticket ne fait pas
 
 - Il ne remet pas en cause `--parallel` pour un agent seul : les cinq exécutions d'épreuve de
   TCK-321 sont vertes.
 - Il ne touche pas à `bin/impacted-tests.php`, qui reste séquentiel et concurrent-safe.
+
+## LA PAIRE SUR LA SUITE ENTIÈRE EST JOUÉE — 2026-08-22, et elle est VERTE
+
+**AC2 et AC3 sont tenus. La restriction « un seul agent à la fois » tombe.**
+
+Elle ne tombe pas parce qu'on a cessé d'y croire : elle tombe parce qu'elle a cessé d'être vraie,
+et c'est exactement ce qu'AC5 demandait.
+
+### La mesure — session principale, 8 cœurs (`sysctl -n hw.ncpu` → 8)
+
+Cinq paires de `php artisan test --parallel` lancées **simultanément sur la suite ENTIÈRE**,
+chacune partie machine au repos :
+
+| Paire | `load average` au départ | Durée | A | B |
+|---|---|---|---|---|
+| 1 | 2,60 6,58 14,47 | 4 min 06 | `Tests: 2736, Assertions: 8791, Skipped: 2` · sortie **0** | idem · sortie **0** |
+| 2 | 5,73 16,44 17,82 | 6 min 47 | idem · sortie **0** | idem · sortie **0** |
+| 3 | 5,78 26,97 26,68 | 8 min 04 | idem · sortie **0** | idem · sortie **0** |
+| 4 | 5,85 27,65 34,42 | 8 min 11 | idem · sortie **0** | idem · sortie **0** |
+| 5 | 5,45 32,09 40,87 | 7 min 46 | idem · sortie **0** | idem · sortie **0** |
+
+**Cinq fois sur cinq, 0 échec des deux côtés, 2736 tests joués de chaque côté.** Aucune
+`MeilisearchNotIdleException` — pas une seule, sur les dix exécutions.
+
+⚠ **La durée croît de 4 à 8 minutes d'une paire à l'autre, et ce n'est pas une dérive du
+correctif** : les paires s'enchaînent, la moyenne de charge à 5 et 15 minutes n'est jamais
+retombée (14 → 40), et c'est elle que la machine subit. *Le chiffre qui compte ici est le code de
+sortie, pas le chronomètre — un temps mesuré sous une charge héritée de la mesure précédente ne
+décrit pas le dépôt.*
+
+### Ce qui a réellement débloqué AC2, et ce n'était pas ce ticket
+
+Ce ticket avait corrigé la QUATRIÈME ressource partagée (les vues compilées) et son correctif est
+prouvé depuis le 2026-08-17. Ce qui manquait n'était ni lui, ni la file Meilisearch que la mesure
+du 2026-08-20 avait désignée : c'était une panne **postérieure**, introduite par
+[ADR-0020](../../adr/0020-postgresql-sur-tous-les-environnements.md) le 2026-08-21, qui rendait
+`--parallel` totalement inopérant — trois mécanismes nommaient ou créaient la base de test.
+Diagnostic complet, correctif et ablations : **TCK-334**.
+
+*Deux causes se sont donc succédé sous le même symptôme, et la seconde a masqué la première.* La
+mesure du 2026-08-20 reste vraie de son jour ; elle n'est simplement plus reproductible, parce
+qu'on ne peut plus atteindre le point où la file devient le facteur limitant sans avoir d'abord
+réparé la base.
+
+### Ce que cela ne dit pas
+
+La file de tâches Meilisearch **n'est pas disculpée**, elle est *hors d'atteinte* : dix exécutions
+de la suite entière l'ont traversée sans un seul rouge, ce qui est une preuve forte, mais pas la
+démonstration que la saturation observée le 2026-08-20 ne se reproduira jamais sur une machine
+plus lente ou avec plus d'exécutions. La barrière est désormais outillée pour le dire elle-même :
+elle mesure le battement du serveur, et son message distingue « le serveur ne bat plus » de
+« plafond absolu atteint » (TCK-334).

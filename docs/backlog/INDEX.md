@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**331 tickets** — 17 ouverts, 313 livrés.
+**331 tickets** — 15 ouverts, 315 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 11 |
-| 🚧 Doing | 6 |
+| 📋 Todo | 10 |
+| 🚧 Doing | 5 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 313 |
+| ✅ Done | 315 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -37,7 +37,6 @@
 - [TCK-293](tickets/TCK-293-webhook-paiement-scope-agence.md) — Webhook de paiement — le secret de n'importe quelle agence valide celui des autres `M · P0 · bug`
 - [TCK-332](tickets/TCK-332-front-public-appelle-une-api-absente.md) — Le front de production est public et appelle une API qui n'existe pas `S · P0 · technique`
 - [TCK-333](tickets/TCK-333-vercel-sans-filtre-de-chemins.md) — L'intégration Vercel n'a aucun filtre de chemins : chaque commit reconstruit le front `S · P3 · technique`
-- [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
 - [TCK-342](tickets/TCK-342-libelles-wolof-divergents-back-front.md) — Le même bien porte deux mots wolof différents selon l'écran `M · P3 · applicatif`
 - [TCK-344](tickets/TCK-344-pgvector-et-chatbot.md) — Chatbot sur Laravel AI SDK, avec pgvector pour la recherche sémantique `XL · P3 · applicatif`
 - [TCK-345](tickets/TCK-345-recherche-postgresql-contre-meilisearch.md) — Recherche PostgreSQL (pg_trgm / FTS) : faut-il retirer Meilisearch ? `XL · P3 · technique`
@@ -48,7 +47,6 @@
 ## 🚧 Doing
 
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
-- [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 - [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 - [TCK-341](tickets/TCK-341-cache-http-du-catalogue-public.md) — Le catalogue public se recalcule pour chaque visiteur `S · P2 · technique`
@@ -64,7 +62,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 313
+## ✅ Done — 315
 
 <details>
 <summary><strong>Vague 43 — PostgreSQL : ce que la migration a rendu POSSIBLE — jsonb exploité, pgvector et le chatbot (2026-08-21)</strong> — 1 ticket</summary>
@@ -85,13 +83,15 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 5 tickets</summary>
+<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 7 tickets</summary>
 
 - [TCK-320](tickets/TCK-320-selection-des-tests-par-impact.md) — Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests `M · P2 · technique`
 - [TCK-321](tickets/TCK-321-parallel-en-ci.md) — Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé `M · P2 · technique`
+- [TCK-322](tickets/TCK-322-paratest-deux-executions-simultanees.md) — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage — une quatrième ressource partagée par machine `S · P2 · technique`
 - [TCK-324](tickets/TCK-324-mesurer-parallel-sur-le-runner-ci.md) — Mesurer `--parallel` sur le runner CI, puis trancher — la décision actuelle est un défaut, pas un résultat `S · P2 · technique`
 - [TCK-325](tickets/TCK-325-garde-des-declencheurs-durs-du-selecteur.md) — Garder la liste des déclencheurs durs du sélecteur d'impact — elle est recopiée à la main et avait dérivé le jour de son écriture `S · P2 · technique`
 - [TCK-331](tickets/TCK-331-coverage-php-en-double-casse-le-cliquet.md) — `--coverage-php` est passé DEUX FOIS — le cliquet sort en 1 sans un mot, et la carte d'impact n'a jamais été régénérée `M · P2 · technique`
+- [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
 
 </details>
 

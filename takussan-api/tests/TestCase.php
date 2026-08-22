@@ -13,6 +13,7 @@ use Illuminate\Foundation\Testing\TestCase as LaravelTestCase;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
 use Tests\Support\SearchableModels;
+use Tests\Support\TestDatabase;
 
 /**
  * LA classe de base des tests qui ont besoin de l'application Laravel.
@@ -71,6 +72,31 @@ abstract class TestCase extends LaravelTestCase
         }
 
         parent::setUp();
+    }
+
+    /**
+     * Le SEUL point d'accroche du dépôt dans un processus de TEST (TCK-334).
+     *
+     * `refreshApplication()` appelle cette méthode, puis `setUpTraits()` : c'est donc
+     * le dernier moment où la connexion est configurée sans que personne ne s'y soit
+     * encore connecté, et le seul où `RefreshDatabase` n'a pas encore tenté de migrer.
+     *
+     * ⚠ **Sa disparition serait SILENCIEUSE, et elle l'a été pendant tout ADR-0020.**
+     * `MigrateCommand::createMissingMySqlOrPgsqlDatabase()` crée en douce toute base
+     * pgsql absente au premier `migrate` : sans cet appel, la suite reste VERTE, et
+     * seules les promesses de {@see TestDatabase} tombent — pas d'horodatage, pas de
+     * suppression en fin d'exécution, pas de balayage. Mesuré le 2026-08-22, c'est
+     * exactement ce qui se passait : 129 bases orphelines sur cette machine, aucune
+     * horodatée, donc aucune récupérable. `tests/Unit/Testing/TestDatabaseIsolationTest.php`
+     * garde la propriété observable qui sépare les deux créateurs.
+     */
+    public function createApplication()
+    {
+        $app = parent::createApplication();
+
+        TestDatabase::ensureCreated($app['config']);
+
+        return $app;
     }
 
     /**

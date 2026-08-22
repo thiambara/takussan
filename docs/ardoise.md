@@ -2217,7 +2217,62 @@ n'est pas prise, l'activation en CI reste une option ouverte, pas une décision 
 > pourrait alors paralléliser et rendre son verdict en 83 s au lieu de 206. C'est un ticket à
 > ouvrir le jour où le temps de retour de PR devient le sujet ; il ne l'est pas aujourd'hui.
 
-### D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre au démarrage 🟢 *cause nommée et corrigée le 2026-08-17 ; épreuve sur la suite ENTIÈRE encore à jouer* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md)
+### D-56 — Deux exécutions `--parallel` simultanées se cassent l'une l'autre ✅ *SOLDÉE le 2026-08-22 — trois causes successives, cinq paires vertes sur la suite entière* → [TCK-322](backlog/tickets/TCK-322-paratest-deux-executions-simultanees.md) · [TCK-334](backlog/tickets/TCK-334-meilisearch-file-partagee-par-machine.md)
+
+> ## ✅ Soldée le 2026-08-22 — et c'est l'entrée la plus instructive de cette ardoise
+>
+> **Trois causes se sont succédé sous un seul symptôme, et chacune a masqué la suivante.** Chaque
+> correctif était juste, et chaque fois la suivante réapparaissait sous la même forme : « deux
+> `--parallel` simultanés ne marchent pas ».
+>
+> | # | Cause | Trouvée | Symptôme |
+> |---|---|---|---|
+> | 1 | les **vues compilées** créées dans le processus parent de ParaTest | 2026-08-17 (TCK-322) | l'une des deux meurt au démarrage sur `mkdir(): File exists` |
+> | 2 | la **file de tâches Meilisearch**, globale par machine | 2026-08-20 (TCK-334) | 38 et 37 `MeilisearchNotIdleException`, quand une seule exécution rend 0 échec |
+> | 3 | **trois mécanismes nommaient la base de test**, depuis ADR-0020 | 2026-08-22 (TCK-334) | 2553 erreurs de chaque côté — et `--parallel` cassé même SEUL |
+>
+> **La troisième n'a été trouvée qu'en rejouant la mesure**, et elle datait de la veille de la
+> deuxième : ADR-0020 avait fait basculer la suite sur PostgreSQL le 2026-08-21, cassant
+> `--parallel` entièrement, sans que personne le mesure. *Une commande documentée avec un gain
+> chiffré de ×3,2 ne fonctionnait plus du tout, et rien dans le dépôt ne pouvait le dire — la CI
+> ne l'emploie pas (TCK-324), et un agent seul ne s'en sert pas tous les jours.*
+>
+> ### Ce que la troisième cause a révélé, et qui dépasse `--parallel`
+>
+> `TestDatabase::ensureCreated()` — le mécanisme écrit par ADR-0020 pour fermer la cinquième
+> ressource partagée par machine — était accrochée à `Tests\CreatesApplication`, **un trait que
+> `Tests\TestCase` n'emploie pas** : les tests héritent du `createApplication()` du framework.
+> Elle **n'a donc jamais tourné dans un test**. Ni l'horodatage `COMMENT ON DATABASE`, ni la
+> suppression en fin d'exécution, ni le balayage des orphelines ne s'appliquaient. Ce qui créait
+> réellement les bases était `MigrateCommand::createMissingMySqlOrPgsqlDatabase()`, en silence.
+>
+> **Mesuré le 2026-08-22 : 130 bases `takussan_test_%` orphelines, dont 0 horodatée, 1 926 Mo** —
+> et `sweepOrphans()` ne pourra JAMAIS les réclamer, puisqu'il s'abstient délibérément devant une
+> base sans horodatage, pour ne pas arracher une base sous une exécution vivante.
+>
+> > *Un mécanisme d'isolation qui n'est jamais appelé n'échoue pas : un autre le couvre, plus mal,
+> > et le vert reste vert.* C'est le même enseignement que les trois ablations de
+> > `BaseFormRequest` (D-32) — et c'est pour cela qu'une **ablation** vaut mieux qu'une relecture :
+> > seule elle distingue « ce mécanisme sert » de « ce mécanisme est couvert par un autre ».
+>
+> ### La mesure qui solde
+>
+> Cinq paires de `php artisan test --parallel` **simultanées sur la suite ENTIÈRE**, 8 cœurs,
+> chacune partie machine au repos (`load average` 2,60 · 5,73 · 5,78 · 5,85 · 5,45) :
+> **`Tests: 2736, Assertions: 8791, Skipped: 2`, sortie 0 des DEUX côtés, cinq fois sur cinq**,
+> **zéro `MeilisearchNotIdleException` sur dix exécutions**, et zéro base orpheline créée.
+>
+> La restriction « un seul agent à la fois » disparaît des deux `CLAUDE.md` et d'ici — non parce
+> qu'on a cessé d'y croire, mais parce qu'elle a cessé d'être vraie. C'était l'AC5 de TCK-322 pris
+> à la lettre.
+>
+> ### Ce qui reste ouvert, et n'est pas dans le dépôt
+>
+> **Les 130 bases orphelines de cette machine.** Le correctif arrête l'hémorragie ; il ne nettoie
+> pas le passé, et un balayage sans horodatage serait exactement le comportement dangereux que
+> `sweepOrphans()` refuse. La requête qui les liste est dans TCK-334, à jouer à la main, machine
+> sans exécution en cours.
+
 
 > **Mise à jour du 2026-08-17 — le répertoire fautif est nommé, et ce n'était pas ParaTest.**
 >
