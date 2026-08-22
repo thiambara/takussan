@@ -55,26 +55,18 @@ précédent : `app/Models/MaintenanceRequest.php:70-83` avec `app/Sorts/Maintena
 6. Un modèle neuf exposé en liste les déclare — c'est ce qui rend la règle des sparse fieldsets
 tenable côté front.
 
-> ✅ **Il n'y a plus qu'un mécanisme de filtrage** (TCK-307). Le DSL maison
-> `BaseModelTrait::scopeFilter(Builder, array)` coexistait avec spatie sur les **mêmes** modèles —
-> `AbstractModel` composait les deux traits — et une version de ce paragraphe le réservait « aux
-> usages internes (jobs, commandes, services) ». Mesuré le 2026-08-17 : **zéro appelant** dans tout
-> le dépôt, contre **46 `buildQuery()`** dans les seuls contrôleurs. Il n'avait pas d'usage interne,
-> il n'avait aucun usage — sauf le test qui le testait. Il est supprimé.
+> ✅ **Il n'y a plus qu'un mécanisme de filtrage** (TCK-307) : `HasQueryBuilder`. Le DSL maison
+> `scopeFilter()` avait **zéro appelant** contre 46 `buildQuery()` — il est supprimé.
 >
-> Ce qui coûtait n'était pas les dix-neuf lignes, c'était l'**ambiguïté** : deux mécanismes
+> Ce qui coûtait n'était pas ses dix-neuf lignes, c'était l'**ambiguïté** : *deux mécanismes
 > également disponibles sur le même modèle ne se lisent pas « un vivant, un mort », ils se lisent
-> « deux conventions, choisis ». Qui prenait le mauvais écrivait du code qui **marchait** et qui
-> sortait du contrat de lecture — ni sparse fieldsets, ni `include=`, ni routage Scout, ni tri
-> déclaré. `scripts/check-filtering-single-mechanism.mjs` (Repo CI) garde la suppression, **y
-> compris sous un autre nom** : son contrôle C refuse tout scope à paramètre `array` qui déroule
-> des `where()` en boucle. ⚠ Il ne voit **pas** le filtrage ad hoc en contrôleur ; il y en a, et
-> certains sont délibérés (TCK-281, « Hors périmètre »).
+> « deux conventions, choisis »* — et qui prenait le mauvais écrivait du code qui **marchait** en
+> sortant du contrat de lecture (ni sparse fieldsets, ni `include=`, ni Scout, ni tri déclaré).
 >
-> `scopeWithSearch()`, le second scope du même trait, a **subsisté** à TCK-307 — hors de son
-> périmètre — et a été supprimé par **TCK-326** le 2026-08-20, avec le trait devenu vide. Même
-> motif, un cran plus coûteux : il n'était pas un doublon inerte mais un doublon **inférieur**
-> (pertinence perdue). Détail au § *Recherche*. La garde a gagné un **contrôle D** pour lui.
+> `scripts/check-filtering-single-mechanism.mjs` (Repo CI) garde la suppression **y compris sous un
+> autre nom** : son contrôle C refuse tout scope à paramètre `array` qui déroule des `where()` en
+> boucle. ⚠ Il ne voit **pas** le filtrage ad hoc en contrôleur ; il y en a, et certains sont
+> délibérés (TCK-281, « Hors périmètre »). [Détail](docs/journal-des-corrections.md#j-20).
 
 ## Modèles — `AbstractModel`
 
@@ -122,60 +114,31 @@ encore. La Gate dérive l'agence dans l'ordre : 2ᵉ argument de `can()` → `re
 `Gate::before(… isSuperAdmin() ? true : null)` est le bypass global, enregistré une seule fois
 (`AppServiceProvider.php:362`).
 
-> ℹ️ **Les trois docblocks qui décrivaient encore spatie ont été corrigés** — `HasProfiles`
-> (« Sister trait of HasRoles »), `LeasePolicy` (« permission `leases.renew` (Spatie) ») et
-> `bootstrap/app.php` (« sole owner of the spatie team context »). Le package n'existe plus depuis
-> TCK-278 ; si un commentaire le mentionne encore ailleurs, il décrit un mécanisme supprimé.
-
-> ✅ **`BasePolicy` DÉSIGNE ses capacités, il ne les nomme plus** (TCK-297). Il concaténait
-> `$this->resource().'.view'` — et trois familles de chaînes ainsi produites n'existaient dans
-> aucun cas de `Capability` : `*.view` (l'enum n'en a aucun, sur aucun domaine), `properties.update`
-> et `leases.update|delete` (l'enum sépare `update_any`/`update_own`), et `media.*` en entier.
-> Or **une ability non définie ne lève pas, elle refuse** : ces abilities refusaient tout le monde
-> sauf le super-admin, sans trace.
+> ✅ **Une policy DÉSIGNE ses capacités, elle ne les nomme plus** (TCK-297) : `viewCapability()` /
+> `createCapability()` / `updateCapability()` / `deleteCapability()`, typées `?Capability` — la
+> faute est **inexprimable**. `null` signifie « pas gardé par capacité », **ce qui refuse** : lire
+> n'est pas un privilège catalogué, c'est le périmètre d'agence qui le porte (principe n°2).
 >
-> Une policy déclare désormais `viewCapability()` / `createCapability()` / `updateCapability()` /
-> `deleteCapability()`, typées `?Capability` — la faute est devenue **inexprimable**. `null` signifie
-> « pas gardé par capacité », ce qui refuse : **lire n'est pas un privilège catalogué**, c'est le
-> périmètre d'agence qui le porte (principe non négociable n°2).
+> ⚠️ **Une ability non définie ne lève pas, elle REFUSE** — tout le monde sauf le super-admin, sans
+> trace. Même chose pour une policy jamais liée dans `AppServiceProvider::bootGatesAndPolicies()`.
+> C'est la panne la plus silencieuse de cette couche. [Ce qu'elle a coûté](docs/journal-des-corrections.md#j-21).
 >
-> Deux gardes tiennent la propriété : `tests/Unit/Policies/BasePolicyCapabilityTest.php` (la liste
-> des sous-classes est **dérivée** de `app/Policies/`, pas recopiée) et
-> `tests/Unit/Authorization/CapabilityStringLiteralsTest.php`, qui tokenise `app/` et casse sur tout
-> littéral de forme `<domaine>.<verbe>` passé à `can()`/`authorize()` sans cas d'enum correspondant.
-> Le tokenizer n'est pas un raffinement : un `grep` sur la même recherche rend trois faux positifs
-> (un docblock, un commentaire de test, un nom de route Laravel).
+> ⚠️ `BasePolicy::view()`/`update()` sans capacité déclarée **refusent** : une policy qui doit
+> ouvrir la lecture au propriétaire et à l'agence écrit sa règle explicitement.
 
 > ✅ **UNE convention d'autorisation, et une garde qui la tient** (TCK-306). Une règle
 > d'autorisation vit dans une policy sous `app/Policies/` ; le contrôleur l'invoque par
-> `$this->authorize('view', $model)` — `Base\Controller` porte `AuthorizesRequests` depuis TCK-306.
-> `scripts/check-controller-authorization.mjs` (Repo CI) casse si un contrôleur redéfinit une règle,
-> **sous n'importe quel nom** : elle cherche une forme (`function authorize*`, `ensureCan*`,
-> `check*Access*`), pas deux noms.
+> `$this->authorize('view', $model)` — `Base\Controller` porte `AuthorizesRequests`.
+> `scripts/check-controller-authorization.mjs` (Repo CI) casse si un contrôleur redéfinit une
+> règle, **sous n'importe quel nom** : elle cherche une forme, pas deux noms.
 >
-> *Pourquoi la garde cherche une forme.* Cette section annonçait « 38 contrôleurs, 124 appels »
-> (au 2026-08-12) ; la re-mesure du 2026-08-17 en a trouvé **25 et 88** — surestimé d'un tiers. Mais
-> le grep qui les comptait cherchait `authorizeAccess`/`authorizeManage`, et la garde a trouvé
-> **19 helpers de plus, sous 19 noms différents** (`authorizeAdmin`, `authorizeLeaseManage`,
-> `authorizeAttach`…) dans 15 autres contrôleurs. *Un inventaire qui cherche des noms mesure les
-> noms qu'il connaît.* Ces 19-là sont hors périmètre de TCK-306 et inscrits dans les exemptions
-> justifiées de la garde : la dette est comptable, elle n'est plus invisible.
+> *Un inventaire qui cherche des noms mesure les noms qu'il connaît* — elle a trouvé 19 helpers
+> sous 19 noms différents que le grep d'origine ne voyait pas. Ces 19 sont hors périmètre et
+> inscrits dans les exemptions justifiées : la dette est comptable, plus invisible.
+> [Les deux pièges à connaître avant d'en déplacer une de plus](docs/journal-des-corrections.md#j-22).
 >
-> ⚠️ **Deux pièges payés pendant la migration, à connaître avant d'en déplacer une de plus :**
->
-> 1. **Vérifie sur quelle règle chaque appel tombait vraiment.** `DocumentController` et
->    `DocumentVersionController` définissaient tous deux un `authorizeManage()`, sur le **même
->    modèle**, avec des règles **différentes** — l'un le téléverseur seul, l'autre déléguant à la
->    règle de lecture. Les mapper tous les deux sur `update` aurait rendu 403 là où l'endpoint
->    répondait 200.
-> 2. **Une policy jamais liée est ignorée, pas bruyante.** L'ability retombe sur le défaut de la
->    Gate et refuse tout le monde sauf le super-admin, sans trace. Inscris-la dans
->    `AppServiceProvider::bootGatesAndPolicies()` — la garde le vérifie.
->
-> ⚠️ `BasePolicy::view()`/`update()` sans capacité déclarée **refusent** (cf. TCK-297) : une policy
-> qui doit ouvrir la lecture au propriétaire et à l'agence écrit sa règle explicitement. C'était le
-> cas de `PropertyPolicy::view()` et de `LeasePolicy::view()/update()`, muettes tant que la règle
-> vivait dans les contrôleurs.
+> ℹ️ Les trois docblocks qui décrivaient encore spatie sont corrigés. Le package n'existe plus
+> depuis TCK-278 ; si un commentaire le mentionne ailleurs, il décrit un mécanisme supprimé.
 
 ## Profil actif — `ResolveActiveProfile`
 
@@ -198,12 +161,10 @@ Il n'y a plus de validation en ligne dans un contrôleur, et `scripts/check-inli
 (Repo CI) casse le build si on en réintroduit une — sous **quatre** orthographes :
 `$request->validate(`, `$this->validate(`, `validator(`, `Validator::make(`.
 
-> **Ce que la convergence a coûté, et pourquoi la garde existe.** Cette section disait « deux
-> conventions, et laquelle choisir », et tranchait déjà pour le code neuf. Elle n'a rien freiné :
-> mesuré le 2026-08-17, **120 `$request->validate()` inline** dans 58 contrôleurs, **511 champs de
-> règles**, contre 74 FormRequest — et une **troisième** forme que le compte ne voyait pas
-> (`validator([...], [...])->validate()`). *Une convention qui n'existe que dans un document est
-> lue une fois, par ceux qui la respectaient déjà.* Détail : TCK-305, ardoise D-32.
+> ⚠️ **Une convention qui n'existe que dans un document est lue une fois, par ceux qui la
+> respectaient déjà.** Cette section disait déjà « deux conventions, et laquelle choisir » et n'a
+> rien freiné — 120 `validate()` inline dans 58 contrôleurs. C'est la garde qui tient la règle.
+> [Détail : TCK-305, ardoise D-32](docs/journal-des-corrections.md#j-23).
 
 ⚠️ **Deux pièges payés pendant la convergence, à connaître avant d'en déplacer une de plus :**
 
@@ -292,20 +253,10 @@ Rend **ces quatre clés, et elles seules** — `total`, `per_page`, `current_pag
 suivies des compteurs métier passés en `extra`. Une clé canonique passée en `extra` est ignorée :
 le paginateur fait foi.
 
-> **Ce que la convergence a coûté, et pourquoi la garde existe.** Cette section disait déjà « ces
-> quatre clés, et elles seules » — et n'a rien freiné. Mesuré le 2026-08-17 : **57 contrôleurs et
-> 1 service** recopiaient la forme, avec `total` 88 fois, `current_page` 67, `last_page` 51,
-> `->perPage()` 40. Un tiers des endpoints émettait `total` sans `per_page`. La dette grossissait à
-> la vitesse à laquelle on écrit des contrôleurs : 44 fichiers au 2026-08-12, 58 quatre jours plus
-> tard. *Une convention qui n'existe que dans un document est lue une fois, par ceux qui la
-> respectaient déjà.*
->
-> Deux symptômes valent d'être retenus, parce qu'ils sont muets tous les deux :
-> `takussan-web/src/types/api.ts` déclarait `links` **obligatoire** quand 52 endpoints sur 57 ne
-> l'émettaient pas — un type de réponse n'est vérifié par rien ; et
-> `BaseTestCase::assertJsonStructurePaginated()` l'exigeait aussi, ce qui explique qu'**aucun test
-> ne l'appelait** : il aurait rougi sur presque toute l'API. `links` a été retiré des 5 endpoints
-> qui l'émettaient, après vérification qu'aucun code du front ne le lit.
+> ⚠️ **Ces quatre clés, et elles seules.** Cette section a énoncé la règle pendant des mois en la
+> voyant se dégrader sous elle : *une convention qui n'existe que dans un document est lue une
+> fois, par ceux qui la respectaient déjà.* C'est la garde qui la tient, pas ce paragraphe.
+> [Ce que la convergence a coûté, et les deux symptômes muets](docs/journal-des-corrections.md#j-23).
 
 ## Ressources — `BaseResource`
 
@@ -329,24 +280,15 @@ violée par malveillance, elle était **invisible** au moment d'écrire le fichi
 *Une convention sans garde ne converge pas, elle stagne.*
 
 > ⚠️ **La garde couvre l'HÉRITAGE, pas l'EMPLOI — et l'écart est réel, pas théorique.** Étendre
-> `BaseResource` ne veut pas dire employer ses cinq helpers, et la migration a été un **échange de
-> parent, rien d'autre** : 72 insertions, 72 suppressions, deux lignes par fichier, aucun corps de
-> `toArray()` touché. C'est délibéré, et c'est ce qui rend l'opération sûre sur le point le plus
-> cher du dépôt — `BaseResource` n'offre **aucun helper de montant**, il ne peut donc pas en changer
-> la représentation (principe non négociable n°3 : XOF n'a pas de sous-unité).
-> `tests/Unit/Http/Resources/AmountRepresentationTest.php` fige ce point pour l'avenir, et il a été
-> vérifié par ablation (un `× 100` glissé dans une ressource le fait rougir).
+> `BaseResource` ne veut pas dire employer ses cinq helpers.
 >
-> **Ce que TCK-327 a soldé, et ce qui reste.** Les dates sortaient de ces mêmes fichiers sous
-> **trois chaînes distinctes** — mesuré le 2026-08-20 : 138 lignes, 55 `toISOString()`
-> (`…T12:34:56.000000Z`), 37 `toIso8601String()`, 28 `iso()` et 18 `toDateString()`. Le défaut
-> n'était pas cosmétique : `PlatformPayout::period_start`, casté `date`, sortait en
-> `2026-08-17T00:00:00+00:00` quand `PayoutResource` et `BankStatementResource` émettaient le
-> **même champ, sur le même cast**, en `2026-08-17`. C'est converti, décidé en ADR-0018, gardé par
-> `check-resource-date-format.mjs` et figé par `DateRepresentationTest.php`.
+> ⚠️ **`BaseResource` n'offre aucun helper de montant, et c'est délibéré** — il ne peut donc pas en
+> changer la représentation (principe non négociable n°3 : XOF n'a pas de sous-unité).
+> `tests/Unit/Http/Resources/AmountRepresentationTest.php` fige ce point, vérifié par ablation.
 >
-> **Restent non gardés** : `enumValue`, `enumLabel` et `mediaUrl`. Même famille, mais chacun a son
-> propre coût de contrat, et aucun n'a encore été mesuré.
+> Les dates sont converties et gardées (ADR-0018, `check-resource-date-format.mjs`,
+> `DateRepresentationTest.php`). **Restent non gardés** : `enumValue`, `enumLabel`, `mediaUrl` —
+> même famille, coût de contrat non mesuré. [Le détail du chantier](docs/journal-des-corrections.md#j-24).
 
 Pour du code neuf : `BaseResource`, et employer ses helpers plutôt que refaire la conversion.
 
@@ -368,10 +310,8 @@ reste du dépôt avait déjà tranché (139 contrôleurs sous `Api/`, 26 hors).
 `…\Auth` ailleurs, **et** tout contrôleur câblé par `routes/api/auth.php` sous ce namespace-là.
 
 > ⚠️ **Un namespace qui bouge et une route qui bouge se ressemblent dans un diff, et seule la
-> seconde casse les clients.** Le déplacement a donc été prouvé par comparaison de
-> `php artisan route:list` avant/après : **516 routes, diff vide** sur la méthode, l'URI, le nom et
-> les middlewares ; 24 actions réécrites, toutes du seul préfixe de namespace. *Un déplacement de
-> code qui ne se compare pas se relit — et une relecture ne prouve rien sur 516 lignes.*
+> seconde casse les clients.** Prouver un déplacement par comparaison de `php artisan route:list`
+> avant/après, jamais par relecture. *[516 routes, diff vide](docs/journal-des-corrections.md#j-25).*
 
 Le namespace `/api/admin/*` est gardé par le middleware alias `super-admin`
 (`app/Http/Middleware/EnsureSuperAdmin.php`) : 401 si non authentifié, 403 si non super-admin.
@@ -418,31 +358,15 @@ app/Models`). Le driver est `SCOUT_DRIVER` (`meilisearch` en développement dock
 production ; `collection` est un défaut historique qui ne prouve rien — il filtre en PHP sur une
 collection Eloquent).
 
-> ✅ **Il n'y a plus qu'UN chemin qui compose Scout et Eloquent** (TCK-326). Ils étaient deux, et
-> ils ne se valaient pas :
+> ✅ **Il n'y a plus qu'UN chemin qui compose Scout et Eloquent** : `HasQueryBuilder`
+> `filter[search]`, avec l'ordre de pertinence **restitué** (TCK-281). Le DSL maison
+> `scopeWithSearch()` — pertinence perdue — a été supprimé (TCK-326) avec `BaseModelTrait` devenu
+> vide ; `AbstractModel` = `Model` + `HasQueryBuilder`.
 >
-> | Chemin | Ordre de pertinence | Sort |
-> |---|---|---|
-> | `BaseModelTrait::scopeWithSearch()` — le DSL maison | **perdu** (`whereIn`, aveu dans son propre docblock) | **supprimé** (TCK-326) |
-> | `HasQueryBuilder` `filter[search]` — toute surface d'API | **restitué** (TCK-281) | seul survivant |
->
-> Ce n'était pas un doublon inerte comme `scopeFilter` (TCK-307), c'était un doublon
-> **INFÉRIEUR** : monté sur les 68 modèles d'`AbstractModel`, également disponible, et rendant
-> une recherche tolérante aux fautes mais **classée par date** — exactement le défaut que TCK-281
-> a corrigé sur l'autre chemin. Le docblock l'avertissait ; *l'appelant ne lit pas le docblock, il
-> lit la liste des méthodes disponibles.*
->
-> Ré-inventorié le 2026-08-20 sur le dépôt entier avant suppression : **0 appelant** en `app/`,
-> `routes/`, `database/`, `bin/`, `config/`, **0** côté `takussan-web/`, **0** invocation
-> dynamique (`->scopes([…])`, `call_user_func`, `->{$méthode}`) — les 5 seuls appels vivaient dans
-> `tests/Feature/Search/ScoutSearchTest.php`, c'est-à-dire dans le test qui le testait. Son helper
-> `isSearchable()` n'avait qu'un appelant : le scope lui-même. `BaseModelTrait` est donc devenu
-> vide et a été supprimé avec eux ; `AbstractModel` = `Model` + `HasQueryBuilder`.
->
-> `scripts/check-filtering-single-mechanism.mjs` **contrôle D** garde la suppression, et par
-> FORME autant que par nom : un scope de `app/` qui entre par Scout (`::search(`) et recompose
-> dans Eloquent (`whereIn`/`whereRaw`/`keys`) casse la CI, **même renommé**. Prouvé par mutation,
-> cf. l'en-tête de la garde.
+> `scripts/check-filtering-single-mechanism.mjs` **contrôle D** garde la suppression par FORME
+> autant que par nom : un scope de `app/` qui entre par Scout (`::search(`) et recompose dans
+> Eloquent (`whereIn`/`whereRaw`/`keys`) casse la CI, **même renommé**.
+> [Pourquoi c'était un doublon *inférieur*, et non inerte](docs/journal-des-corrections.md#j-20).
 
 Sur le chemin survivant, le callback mémorise l'ordre des ids rendus par Meilisearch
 (`HasQueryBuilder::$searchRelevanceIds`) et le contrôleur le rejoue via
@@ -477,20 +401,14 @@ un incident qui n'arrive qu'en production.
 nom du produit**. `scripts/check-command-prefixes.mjs` (Repo CI) le garde. **Fichier exemplaire :
 `app/Console/Commands/MediaCleanup.php`.**
 
-> ✅ **Les deux préfixes plateforme concurrents sont soldés (TCK-309, ex-dette D-38).**
-> `takussan:create-super-admin` était le seul `takussan:` sur 16 commandes — un nom de dépôt, qui ne
-> partitionne rien puisque tout ce qui est ici lui appartient. Elle s'appelle désormais
-> **`platform:create-super-admin`**, sous le même domaine que sa jumelle
-> `platform:grant-super-admin`. Les deux ne font d'ailleurs pas le même travail : la première
-> **crée** l'opérateur (user + 2FA + codes de secours), la seconde **promeut** un user existant.
+> ✅ **Le préfixe est `platform:`, pas `takussan:`** (TCK-309, ex-dette D-38).
+> `platform:create-super-admin` **crée** l'opérateur (user + 2FA + codes de secours) ;
+> `platform:grant-super-admin` **promeut** un user existant — ce n'est pas le même travail.
 >
-> ⚠️ **L'ancien nom reste un alias déprécié**, et ce n'est pas de la prudence : `docs/features.md`
-> §2.1 le prescrit encore à l'installation d'un environnement, et ce document ne se modifie pas
-> depuis un ticket d'implémentation. *Renommer une commande qu'un document de référence prescrit,
-> c'est fabriquer une panne pour le jour de l'installation — et ce jour-là, personne ne pensera à
-> `git log`.* L'alias avertit à chaque invocation. Il se retire dans cet ordre : mettre
-> `docs/features.md` à jour, retirer `$aliases`, puis vider `ALIAS_DEPRECIES_TOLERES` dans la garde
-> — qui **rougit si l'alias disparaît sans qu'on l'y ait déclaré**.
+> ⚠️ **L'ancien nom reste un alias déprécié, et ce n'est pas de la prudence** : `docs/features.md`
+> §2.1 le prescrit encore. Il se retire dans cet ordre — mettre `docs/features.md` à jour, retirer
+> `$aliases`, puis vider `ALIAS_DEPRECIES_TOLERES` dans la garde, **qui rougit si l'alias disparaît
+> sans qu'on l'y ait déclaré**. [Pourquoi](docs/journal-des-corrections.md#j-26).
 
 ## Tests
 
@@ -528,33 +446,16 @@ synchrone pour ce test-là, **sans qu'il rougisse lui-même** — c'est la suite
 plus tard, ailleurs (D-44). `scripts/check-test-base-classes.mjs` (Repo CI) refuse les deux fautes :
 une base hors des trois, et **une quatrième classe de base**.
 
-> **Il y en avait TROIS, mais pas celles-ci** : `TestCase` → `BaseTestCase` → `ApiTestCase`, en
-> chaîne, sans qu'aucun document ne dise laquelle étendre. `BaseTestCase` n'avait **pas d'usage
-> propre** — elle portait `actingAsRole()` et deux assertions JSON que rien ne réservait aux tests
-> non-API. Le partage qui en résultait ne suivait donc aucune règle, seulement l'ordre d'écriture :
-> 49 classes d'un côté, 38 de l'autre, la même chose des deux. Elle a été **fondue dans
-> `Tests\TestCase` et supprimée**.
->
-> *Deux emplacements également plausibles ne restent pas deux : le suivant lit le désordre comme un
-> précédent, et la quatrième base arrive sans que personne n'ait rien décidé.* Une quatrième se
-> justifie par un quatrième **usage** — et elle se déclare alors dans `BASES_CANONIQUES`, sinon la
-> CI casse.
+> **Une seule base de test : `Tests\TestCase`.** Il y en avait trois en chaîne, dont une sans usage
+> propre. *Deux emplacements également plausibles ne restent pas deux : le suivant lit le désordre
+> comme un précédent, et la quatrième base arrive sans que personne n'ait rien décidé.* Une
+> quatrième se justifie par un quatrième **usage**, et se déclare alors dans `BASES_CANONIQUES`,
+> sinon la CI casse. [Détail](docs/journal-des-corrections.md#j-27).
 
-> ✅ **Les tests visent désormais le conteneur du dépôt, et c'est épinglé** (2026-08-22).
-> `phpunit.xml` déclare `MEILISEARCH_HOST=http://127.0.0.1:7701` et `MEILISEARCH_KEY=masterKey`,
-> pour la même raison que `DB_HOST`/`DB_PORT` : *une suite qui dépend du `.env` ne mesure pas le
-> code, elle mesure la machine.*
->
-> Ce paragraphe disait l'inverse — « c'est celui du `.env` qui sert » — et c'était vrai, avec deux
-> conséquences que personne n'avait relevées avant de les mesurer :
->
-> 1. le `.env` de cette machine visait le port **canonique** 7700, servi par une instance **native
->    brew** dont `GET /indexes` rendait 12 index, **dont `documents` et `messages` sans aucun
->    préfixe** — ils appartiennent à un autre projet. La suite partageait donc sa **file de tâches**
->    avec un logiciel tiers. L'isolation par préfixe (`TestSearchIndex`) sépare les *documents* ;
->    elle ne sépare pas la file, et c'est la file que la barrière surveille (TCK-334) ;
-> 2. `GET :7700/version` → **1.36.0** quand le conteneur et la CI tiennent **1.16** : vingt
->    versions mineures d'écart sur le moteur de recherche, décidées par personne.
+> ✅ **Les tests visent le conteneur du dépôt, et c'est épinglé** : `phpunit.xml` déclare
+> `MEILISEARCH_HOST=http://127.0.0.1:7701` et `MEILISEARCH_KEY=masterKey`, pour la même raison que
+> `DB_HOST`/`DB_PORT` — *une suite qui dépend du `.env` ne mesure pas le code, elle mesure la
+> machine.* [Ce que le `.env` faisait vraiment pointer](docs/journal-des-corrections.md#j-27).
 >
 > ⚠ **Ne jamais ajouter `force="true"` à ces deux lignes.** La CI pose ses propres
 > `MEILISEARCH_HOST`/`MEILISEARCH_KEY` en variables de job, et PHPUnit ne les écrase qu'avec
@@ -710,10 +611,8 @@ trop étroite produit un vert qui ne prouve rien.*
 > ⚠️ **Ces deux listes sont recopiées à la main depuis `ImpactSelector::HARD_PREFIXES`,
 > `::HARD_FILES` et `::INERT_PREFIXES`. `scripts/check-impact-triggers.mjs` les confronte au code
 > dans les deux sens, à chaque PR** (Repo CI, TCK-325) — les marqueurs HTML ci-dessus délimitent ce
-> qu'elle compare ; les déplacer sans la prévenir la fait rougir. Elle existe parce que la liste
-> avait déjà dérivé **le jour où elle a été écrite** — `composer.json` y manquait, et c'est une
-> revue qui l'a vu, pas une garde. **La source de vérité reste le code** : si les deux divergent,
-> croire le code et corriger la prose.
+> qu'elle compare ; les déplacer sans la prévenir la fait rougir. **La source de vérité reste le
+> code** : si les deux divergent, croire le code et corriger la prose.
 >
 > ⚠ Ce qu'elle ne prouve pas : elle compare des ENSEMBLES de chemins, jamais la prose qui les
 > entoure, et elle confond délibérément `HARD_PREFIXES` et `HARD_FILES` — pour le lecteur, les deux
