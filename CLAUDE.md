@@ -27,7 +27,7 @@ tenir à jour :
 | Code | ~770 fichiers PHP · ~62 000 lignes dans `app/` | ~870 fichiers `.ts`/`.tsx` dans `src/` |
 | Surface | ~535 routes · ~160 contrôleurs · 70 modèles | ~110 pages · ~30 route handlers BFF · 20 modules de server actions |
 | Données | 135 migrations · 38 factories · 48 fichiers de seeders | — |
-| Tests | ~310 fichiers · **~2660 tests, verts _au repos_ sur PostgreSQL** *(2026-08-21)* | ~190 fichiers · **~1290 tests, verts** *(2026-08-21)* |
+| Tests | ~380 fichiers · **~2740 tests, verts sur PostgreSQL** *(2026-08-22)* | ~190 fichiers · **~1330 tests, verts** *(2026-08-22)* |
 
 > Les chiffres sont **arrondis délibérément**. La version précédente annonçait « 875 fichiers
 > `.ts`/`.tsx` » — faux dans le commit qui l'écrivait, puisque ce même commit en supprimait sept.
@@ -119,6 +119,12 @@ suffit, et une méthode traversée sans assertion y compte pour couverte.
 > 2026-08-16.
 >
 > Durée sous Xdebug : **1414 s (23 min 34)**, contre 641 s sans couverture.
+>
+> > **Re-mesurée le 2026-08-22, après le lot de la vague 45 : 86,9 %** (22 014 / 25 323 lignes
+> > exécutables), toujours sous Xdebug en local, cliquet `--min=86` **franchi, sortie 0**, sur
+> > `Tests: 2736, Assertions: 8791, Skipped: 2`. Le seuil n'est toujours pas resserré, et pour la
+> > même raison : *resserrer un cliquet sur une mesure prise par un autre pilote, c'est fabriquer
+> > un rouge de CI qui n'apprend rien.*
 
 ⚠️ **Le cliquet n'est PLUS le `--min` de `artisan test`, depuis TCK-331 (2026-08-20).** La CI
 invoque **PHPUnit directement** et évalue le seuil dans un step à part,
@@ -254,7 +260,18 @@ php artisan test                    # ⚠ TOURNE SUR POSTGRESQL depuis ADR-0020 
                                     #   ressource partagée par machine, et la seule que la
                                     #   migration a CRÉÉE : sous SQLite `:memory:` chaque processus
                                     #   avait la sienne gratuitement.
-                                    # ⚠⚠ LE TEMPS DE RÉFÉRENCE EST 648 s (10 min 49), mesuré le
+                                    # ⚠⚠ TEMPS DE RÉFÉRENCE : 468 s (7 min 48), mesuré le
+                                    #   2026-08-22 sur 2734 passés + 2 ignorés / 8791 assertions
+                                    #   / 0 échec, MACHINE AU REPOS (load 3,92 à l'arrivée,
+                                    #   8 cœurs). L'ANCIENNE référence était 648 s le 2026-08-21,
+                                    #   sur 2668 tests : la suite a GAGNÉ 180 s en gagnant
+                                    #   66 tests. ⚠ Cet écart n'est PAS attribué : le lot du
+                                    #   2026-08-22 a épinglé l'hôte Meilisearch sur le conteneur
+                                    #   du dépôt (1.16) au lieu d'une instance native (1.36)
+                                    #   partagée avec un autre projet, ce qui est une cause
+                                    #   PLAUSIBLE et NON ISOLÉE PAR ABLATION. Deux mesures à des
+                                    #   dates différentes ne se soustraient pas.
+                                    # L'ancienne référence, conservée : 648 s (10 min 49), le
                                     #   2026-08-21 sur 2668 tests / 8616 assertions / 0 échec,
                                     #   MACHINE AU REPOS : load average 2,93 au départ et 4,63 à
                                     #   l'arrivée, 8 cœurs, 335,70 s user + 29,66 s system.
