@@ -1430,7 +1430,36 @@ cent fois trop peu. Classé P0 malgré son apparence documentaire.
 implémentations restent d'accord.** Une règle d'autorisation rendue à deux endroits et tenue à un
 seul est le motif le plus tenace de ce genre de duplication.
 
-### D-24 — La règle « le front possède le texte affiché » est une intention 🟠 → [TCK-286](backlog/tickets/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/TCK-292-i18n-reste-du-parc.md)
+### D-24 — La règle « le front possède le texte affiché » est une intention 🟢 *quasi soldée le 2026-08-22 — 0 occurrence non justifiée ; restent une décision produit et une relecture wolof* → [TCK-286](backlog/tickets/TCK-286-i18n-textes-en-dur.md) · [TCK-292](backlog/tickets/TCK-292-i18n-reste-du-parc.md) · [TCK-347](backlog/tickets/TCK-347-formatage-nombres-et-dates-suit-la-locale.md)
+
+> ## État au 2026-08-22 — la règle est devenue un état, à deux réserves près
+>
+> | | 2026-08-15 | 2026-08-17 | 2026-08-20 | **2026-08-22** |
+> |---|---:|---:|---:|---:|
+> | fichiers portant du texte en dur | 431 | 291 | 40 | **0 non justifié** |
+> | occurrences | 3 735 | 2 761 | 91 | **0 tolérée · 78 excusées** |
+> | clés `wo` manquantes | 88 | 70 | 0 | **0** (sur 5 013 clés `fr`) |
+> | tests front | ~810 | ~810 | 1 160 | **1 328** |
+>
+> **Ce qui a débloqué la dernière marche n'était pas de traduire davantage.** Les 91 occurrences
+> restantes du 2026-08-20 étaient tenues par un **cliquet par fichier**, qui TOLÈRE sans jamais
+> JUSTIFIER. *Un cliquet dit « pas plus qu'hier ». Il ne dit jamais « et voici pourquoi ces
+> onze-là sont légitimes ».* La garde a reçu un mécanisme d'exceptions ÉCRITES — 41 entrées,
+> chacune avec sa famille et sa raison, chacune vérifiée contre un site réel, et la garde rougit
+> quand une exception cesse d'y correspondre. Sa sortie distingue désormais **excusé** de
+> **toléré**.
+>
+> ⚠️ **Et le triage a trouvé 5 occurrences qui n'étaient PAS des faux positifs** — dont
+> `'Users fetch failed'`, que le super-admin lisait littéralement à l'écran dans les trois langues.
+> C'était exactement le piège que TCK-292 avait déjà payé une fois (`new ApiError(401, {message:
+> 'no token'})`), une couche plus haut. *« Ça ressemble à du technique donc ça ne s'affiche pas »
+> est une hypothèse à vérifier, pas un classement.*
+>
+> **Ce qui reste ne se code pas** : une décision produit sur deux mots (`shop` → « Commerce »,
+> `resort` → « Complexe »), et une relecture du wolof par un locuteur — la parité est exacte et
+> **muette sur la justesse**. Le formatage des nombres et des dates, figé en `fr-SN` quelle que
+> soit la locale, est sorti dans **TCK-347** : traduire les libellés ne le corrige pas, et un
+> anglophone lit des libellés anglais avec des nombres au format français.
 
 **Mesuré par AST le 2026-08-15 : 431 fichiers portaient 3 735 occurrences de texte affiché en dur.**
 

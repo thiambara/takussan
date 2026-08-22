@@ -600,3 +600,55 @@ masquer : les 41 exceptions cessent toutes de correspondre et la garde crie.
 Le § *Une dette trouvée, hors périmètre* disait « **Ça vaut un ticket.** » — c'est
 [TCK-347](TCK-347-formatage-nombres-et-dates-suit-la-locale.md), ouvert le 2026-08-22 avec son
 inventaire mesuré.
+
+### AC2 et AC4 — fermés par la session principale, 2026-08-22
+
+Un agent délégué ne peut pas lancer les suites entières (règle du dépôt). Mesuré ici, machine à
+8 cœurs :
+
+| Commande | Résultat |
+|---|---|
+| `npm run test` | **191 fichiers, 1328 tests, 0 échec**, 53,18 s |
+| `npm run build` | `✓ Compiled successfully`, sortie 0 |
+| `npx tsc --noEmit` | sortie 0 |
+| `npm run lint` | **0 erreur**, 36 avertissements — le compte exact d'avant la vague |
+| `node scripts/check-i18n.mjs` | `✓ parité tenue (en 0/0, wo 0/0 sur 5013 clés fr)`, **0 libellé en dur NON JUSTIFIÉ**, 78 excusés par 41 exceptions écrites |
+
+La suite front passe de **1160 à 1328 tests**.
+
+⚠️ **Une régression a été trouvée et corrigée pendant cette vérification, et elle vaut d'être
+écrite parce qu'elle est un défaut de MÉTHODE, pas de code.** Deux chantiers travaillaient dans le
+même arbre et ont tous deux réécrit `src/messages/{fr,en,wo}.json` ; le second a écrasé les **cinq
+clés** que le premier venait d'ajouter. Le code les référençait, le dictionnaire ne les portait
+plus : `agency.logoTooLarge`, `agency.logoUnsupportedFormat`, `message.attachmentTooLarge`,
+`message.attachmentUnsupportedFormat`, `ui.dateTimePicker.dateAtTime`.
+
+**C'est la garde écrite dans cette même vague qui l'a attrapée** —
+`src/lib/schemas/__tests__/traducteurs-de-messages.test.ts`, contrôle « toute clé de schéma a une
+entrée en fr/en/wo » : 3 tests rouges, nommant les quatre clés. Sans elle, cinq messages
+d'interface seraient partis en clé brute, exactement le défaut que la vague du 2026-08-20 avait
+mis trois vagues d'agents à trouver. *Une garde écrite le matin a payé son écriture l'après-midi.*
+
+Les cinq clés sont restaurées, en reprenant les formulations déjà établies dans le dictionnaire
+plutôt qu'en en inventant : « Fichier bi rëy lool (… Mo max) » suit les trois
+`kyc.errors.fileTooLarge` existants, « … baaxul » suit les quatorze emplois de cette forme pour
+« invalide », et `dateAtTime` est repris **à l'octet** de `calendar.range.dateAtTime`.
+
+### Ce qui reste, et pourquoi ce n'est pas du code
+
+**Le ticket reste `doing`, et les deux raisons sont hors de portée d'un dépôt :**
+
+1. **AC3 — la première des quatre dérogations est une décision PRODUIT**, pas un arbitrage
+   technique : `shop` passe de « Boutique » à « Commerce » et `resort` de « Resort » à
+   « Complexe » sur quatre sites de rendu. Ce ticket avait tranché la divergence
+   `nav.categories.*` ↔ `property.types.*` en donnant l'emplacement à l'un et les **valeurs** à
+   l'autre ; c'est cohérent, c'est mesuré, et **ça se révoque en deux lignes de dictionnaire**.
+   Quelqu'un doit dire quel mot le produit veut. Les trois autres dérogations (pluriels ICU au-delà
+   de 1000, fuseau `Africa/Dakar`, séparateur de date-heure) sont des corrections assumées.
+2. **Le wolof est écrit, il n'est pas relu.** La parité est exacte sur 5013 clés et **muette sur la
+   justesse** — une valeur wolof recopiée du français passe au vert. Aucune garde ne lèvera cette
+   réserve : il faut un locuteur. Deux formulations ajoutées ici sont explicitement incertaines et
+   signalées comme telles (`logoUnsupportedFormat`, `attachmentTooLarge`).
+
+*Cocher AC3 serait mentir ; le supprimer serait pire. Le laisser décoché avec ses quatre
+dérogations écrites est la seule des trois options qui n'efface rien.*
