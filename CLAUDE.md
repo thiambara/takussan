@@ -260,18 +260,24 @@ php artisan test                    # ⚠ TOURNE SUR POSTGRESQL depuis ADR-0020 
                                     #   ressource partagée par machine, et la seule que la
                                     #   migration a CRÉÉE : sous SQLite `:memory:` chaque processus
                                     #   avait la sienne gratuitement.
-                                    # ⚠⚠ TEMPS DE RÉFÉRENCE : 468 s (7 min 48), mesuré le
-                                    #   2026-08-22 sur 2734 passés + 2 ignorés / 8791 assertions
-                                    #   / 0 échec, MACHINE AU REPOS (load 3,92 à l'arrivée,
-                                    #   8 cœurs). L'ANCIENNE référence était 648 s le 2026-08-21,
-                                    #   sur 2668 tests : la suite a GAGNÉ 180 s en gagnant
-                                    #   66 tests. ⚠ Cet écart n'est PAS attribué : le lot du
-                                    #   2026-08-22 a épinglé l'hôte Meilisearch sur le conteneur
-                                    #   du dépôt (1.16) au lieu d'une instance native (1.36)
-                                    #   partagée avec un autre projet, ce qui est une cause
-                                    #   PLAUSIBLE et NON ISOLÉE PAR ABLATION. Deux mesures à des
-                                    #   dates différentes ne se soustraient pas.
-                                    # L'ancienne référence, conservée : 648 s (10 min 49), le
+                                    # ⚠⚠ TEMPS DE RÉFÉRENCE : 470 à 610 s, DEUX mesures le
+                                    #   2026-08-22 (468 s puis 612 s), sur ~2740 tests / ~8800
+                                    #   assertions / 0 échec, 8 cœurs. La FOURCHETTE est le
+                                    #   chiffre honnête : les deux départs affichaient la même
+                                    #   moyenne à 1 minute (3,4 et 4,2) et des moyennes à 5 et
+                                    #   15 minutes très différentes (6,4/19,4 contre 8,6/6,9).
+                                    #   ⚠ « Machine au repos » ne se lit PAS sur la moyenne à
+                                    #   1 minute : elle retombe en premier, et c'est la charge
+                                    #   des minutes précédentes que la suite subit encore.
+                                    #   Relever les TROIS moyennes, ou attendre que la moyenne
+                                    #   à 5 minutes descende aussi.
+                                    # L'ANCIENNE référence était 648 s le 2026-08-21 sur 2668
+                                    #   tests. ⚠ Elle et celles-ci ne se comparent PAS : ni le
+                                    #   même nombre de tests, ni la même instance Meilisearch
+                                    #   (le lot du 2026-08-22 a épinglé le conteneur 1.16 au
+                                    #   lieu d'une instance native 1.36 partagée avec un autre
+                                    #   projet). Aucune ablation n'a isolé la part de chacun.
+                                    # Référence du 2026-08-21, conservée : 648 s (10 min 49), le
                                     #   2026-08-21 sur 2668 tests / 8616 assertions / 0 échec,
                                     #   MACHINE AU REPOS : load average 2,93 au départ et 4,63 à
                                     #   l'arrivée, 8 cœurs, 335,70 s user + 29,66 s system.

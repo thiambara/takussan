@@ -187,11 +187,28 @@ export function PropertiesDiscoveryPage() {
 
   // Derive the map filters from the active search filters. We only forward
   // the subset that the backend's `/map` endpoint supports.
+  //
+  // TCK-346 — `lat` / `lng` / `radius_km` en font partie DEPUIS ce lot, et leur
+  // absence était un défaut que le rayon avait introduit : poser « à moins de
+  // 3 km » puis basculer en vue carte faisait RÉAPPARAÎTRE les biens que la
+  // liste venait d'écarter. Le filtre disparaissait en silence à la bascule,
+  // sur le même écran, avec deux comptes différents pour la même recherche.
+  //
+  // Les trois clés voyagent ensemble ou pas du tout : `normaliserGeo()` garantit
+  // qu'un point à moitié posé n'atteint jamais l'URL, et `/map` rendrait 422 sur
+  // une demi-coordonnée — mêmes règles que `/search` (ADR-0023).
+  //
+  // ⚠ Pas de `sort` : `/map` n'en déclare aucun, et c'est motivé dans le
+  // docblock de `PublicPropertyController::map()` — la sortie est un GeoJSON
+  // plafonné, sans pagination, dont l'ordre n'est observable par personne.
   const mapFilters: Record<string, string | number | undefined> = {
     type: filters.type?.join(','),
     contract_type: filters.contract_type,
     price_min: filters.price_min,
     price_max: filters.price_max,
+    lat: filters.lat,
+    lng: filters.lng,
+    radius_km: filters.radius_km,
   };
 
   return (

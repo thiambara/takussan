@@ -101,6 +101,8 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 | P0 | 👤🏠 | Fiche bien publique (galerie, détails, formulaire de contact) |
 | P0 | 👤🏠 | Tri des résultats (prix, récence, pertinence) |
 | P1 | 👤🏠 | Filtres avancés (amenités, disponibilité, étage, meublé) |
+| P1 | 👤🏠 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
+| P1 | 👤🏠 | Tri des résultats par distance au point de recherche |
 | P1 | 🏠 | Recherche par carte interactive |
 | P1 | 🏠 | Favoris (ajout / retrait / liste personnelle) |
 | P1 | 🏠 | Recherches sauvegardées avec alertes email |

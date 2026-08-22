@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS } from '../search';
@@ -52,6 +52,7 @@ import { CLES_DE_RECHERCHE, SEARCH_FILTER_KEYS } from '../search';
  */
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const REQUETE = join(RACINE, 'takussan-api', 'app', 'Http', 'Requests', 'Public', 'SearchPublicPropertyRequest.php');
+const CONCERNS = join(RACINE, 'takussan-api', 'app', 'Http', 'Requests', 'Concerns');
 const SERVICE = join(RACINE, 'takussan-api', 'app', 'Services', 'Search', 'PropertySearchService.php');
 const TYPES = join(RACINE, 'takussan-web', 'src', 'types', 'search.ts');
 
@@ -72,11 +73,54 @@ function clesDuFront(): string[] {
   return [...CLES_DE_RECHERCHE];
 }
 
+/** Les clés littérales d'un corps de tableau PHP. */
+function clesLitterales(corps: string): string[] {
+  return [...corps.matchAll(/^\s*'([a-z_]+)'\s*=>/gm)].map((m) => m[1]);
+}
+
+/**
+ * Résout un `...$this->machin()` de `rules()` vers les clés qu'il apporte.
+ *
+ * ⚠ TCK-346 a montré pourquoi cette fonction doit exister, et pourquoi elle doit ÉCHOUER
+ * plutôt que rendre `[]`. Le contrat « point + rayon » (`lat`, `lng`, `radius_km`) a été
+ * extrait dans `App\Http\Requests\Concerns\FiltreParPointEtRayon` pour être partagé avec
+ * `MapPublicPropertyRequest` — extraction JUSTE, puisqu'un contrat qui diverge entre les
+ * deux endpoints d'un même écran est le défaut que ce ticket ferme. Mais la garde ne lisait
+ * que les clés littérales de `rules()` : les trois clés ont disparu de son inventaire du
+ * back, et elle a rougi en accusant le FRONT de les exposer sans serveur.
+ *
+ * *Elle a rougi, donc elle a fait son travail.* Le piège aurait été qu'elle ignore les
+ * spreads en silence : l'ensemble du back aurait rétréci sans un mot, et le second contrôle
+ * — « le serveur n'accepte aucun filtre que l'interface ignorerait » — serait passé au vert
+ * en ne comparant plus rien. C'est la vacuité qui ressemble le plus à un succès, et le
+ * docblock de `clesDuFront()` la nomme déjà pour l'autre côté.
+ */
+function clesDuSpread(methode: string): string[] {
+  const candidats = readdirSync(CONCERNS).filter((f) => f.endsWith('.php'));
+  for (const fichier of candidats) {
+    const php = readFileSync(join(CONCERNS, fichier), 'utf8');
+    const bloc = new RegExp(`function ${methode}\\(\\): array\\s*\\{\\s*return \\[([\\s\\S]*?)\\n\\s*\\];`).exec(php);
+    if (bloc) {
+      const cles = clesLitterales(bloc[1]);
+      expect(cles.length, `${methode}() trouvée dans ${fichier} mais sans clé`).toBeGreaterThan(0);
+      return cles;
+    }
+  }
+  // Jamais `return []` : une source introuvable se DIT.
+  expect.fail(
+    `rules() étale \`...$this->${methode}()\` et cette méthode est introuvable sous ${CONCERNS}. ` +
+      `Si elle a déménagé, cette garde doit apprendre où — sinon elle compare un ensemble amputé.`,
+  );
+}
+
 function clesDuBack(): string[] {
   const php = readFileSync(REQUETE, 'utf8');
   const bloc = /public function rules\(\): array\s*\{\s*return \[([\s\S]*?)\n\s*\];/.exec(php);
   expect(bloc, `rules() introuvable dans ${REQUETE}`).not.toBeNull();
-  const cles = [...bloc![1].matchAll(/^\s*'([a-z_]+)'\s*=>/gm)].map((m) => m[1]);
+  const cles = clesLitterales(bloc![1]);
+  for (const [, methode] of bloc![1].matchAll(/\.\.\.\$this->(\w+)\(\)/g)) {
+    cles.push(...clesDuSpread(methode));
+  }
   expect(cles.length, 'aucune clé extraite de rules()').toBeGreaterThan(5);
   return cles;
 }

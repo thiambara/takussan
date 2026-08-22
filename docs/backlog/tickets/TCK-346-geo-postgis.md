@@ -1,7 +1,7 @@
 ---
 id: TCK-346
 title: "Recherche géographique : rayon, distance, carte — unifier trois implémentations"
-status: doing
+status: done
 phase: P3
 family: applicatif
 estimate: L
@@ -129,27 +129,52 @@ retrait à l'agrégateur. Ablation mesurée le 2026-08-22 : le retirer **ne fait
 ## Ce qui RESTE, et pourquoi
 
 
-- [ ] **La vue CARTE ne reçoit pas le rayon.** `mapFilters` (`PropertiesDiscoveryPage`) ne transmet
-      que `type`, `contract_type`, `price_min` et `price_max` à `/api/public/properties/map`, qui est
-      un autre endpoint et une autre requête de validation. Basculer en vue carte avec un rayon posé
-      affiche donc des marqueurs que la liste, elle, filtre — deux comptes différents sur le même
-      écran. C'est un ticket à part : il faut d'abord décider si `/map` accepte le rayon ou si la
-      vue carte doit dessiner le cercle sans le filtrer.
-- [ ] **`docs/features.md` ne mentionne ni rayon ni distance.** `grep -niE "rayon|distance|polygon|
-      géoloc|proximit" docs/features.md` (2026-08-22) rend **une seule ligne**, `:72`, qui décrit la
-      SAISIE d'une adresse. La §1.2 ne demande qu'« une carte interactive » (P1). Le rayon livré ici
-      est donc une surface produit que la spec ne formule pas : elle relève de `/sync-specs`, pas
-      d'un ticket d'implémentation.
-- [ ] **Le chemin 3 ne converge pas vers Meilisearch, et c'est motivé.** `SavedSearch.criteria` est
+- [x] **La vue CARTE reçoit le rayon** *(2026-08-22)*. L'arbitrage annoncé est tranché : `/map`
+      **accepte** le rayon plutôt que de dessiner un cercle décoratif — un filtre qui disparaît à la
+      bascule est un silence, pas une simplification. Les trois clés (`lat`, `lng`, `radius_km`)
+      portent les **mêmes noms, mêmes bornes et mêmes messages** que `/search`, parce que
+      `App\Http\Requests\Concerns\FiltreParPointEtRayon` les définit une seule fois pour les deux
+      `FormRequest`, plafond compris. La formule haversine — clamp `LEAST/GREATEST` inclus — est
+      extraite dans `App\Support\DistanceHaversine` et partagée par `SearchService` et le
+      contrôleur : **deux copies dont une seule porterait le clamp, c'est le défaut que ce ticket
+      venait de payer.** Rayon et `bounds` se composent (ET) ; un bien sans coordonnées est exclu.
+      Côté front, `mapFilters` transmet les trois clés.
+
+      ⚠ **`sort=distance` n'est PAS ajouté à `/map`, et c'est une décision motivée** (docblock de
+      `PublicPropertyController::map()`) : la sortie est un `FeatureCollection` sans pagination dont
+      l'ordre n'est observable par personne, et l'énumération `sort` de `/search` n'a pas de sens sur
+      un jeu de marqueurs — un `sort` de `/map` serait une AUTRE énumération sous le même nom, soit
+      exactement la divergence que ce ticket supprime. Ce qui rouvrirait la question est écrit sur
+      place : la **troncature** à `MAP_MAX_RESULTS`, qui rend l'ensemble arbitraire au-delà de 500.
+      Tests : `tests/Feature/Public/PropertyMapRadiusTest.php` (13) et
+      `src/components/property/__tests__/PropertiesDiscoveryPage.carte-geo.test.tsx` (4), les deux
+      vérifiés par ablation.
+- [x] **`docs/features.md` formule le rayon et la distance** *(2026-08-22)*. Deux lignes ajoutées à
+      la §1.2, au format des voisines : « Recherche « autour de moi » : rayon en kilomètres autour
+      d'un point, plafonné à 500 km, appliqué à la liste comme à la carte » et « Tri des résultats
+      par distance au point de recherche », toutes deux P1 · 👤🏠 — la recherche publique est
+      atteignable sans compte. `docs/features-by-actor.md` en est DÉRIVÉ et a été régénéré ;
+      `node docs/gen-features-by-actor.mjs --check` est vert. *(L'avertissement sur l'acteur `🔧`
+      non déclaré est antérieur et hors périmètre.)*
+- [x] **Le chemin 3 ne converge PAS vers Meilisearch — décision écrite, et c'est le livrable.**
+      Le ticket demandait de faire converger les trois chemins « si tu peux le faire sans élargir
+      le chantier ; sinon dis pourquoi ». C'est la seconde branche, et la raison est mesurée.
+      `SavedSearch.criteria` est
       un tableau libre (`['required','array']`, sans schéma) dont les noms de filtres divergent de
       ceux de `/search` (`min_price` contre `price_min`). Y brancher `PropertySearchService`
       changerait **silencieusement** le sens des recherches déjà enregistrées. La convergence exige
-      d'abord une migration des `criteria` : c'est un ticket à elle seule.
-- [ ] **`SendSavedSearchAlerts` porte un défaut hors périmètre géo, non corrigé ici** : il calcule
-      `$criteria['published_after']` puis appelle `getMatchingProperties($search)`, qui **relit
-      `criteria` depuis le modèle** — la variable locale est jetée. Et `SearchService::search()` ne
-      connaît de toute façon pas la clé `published_after`. L'alerte renotifie donc les mêmes biens à
-      chaque passage. À ouvrir en ticket propre.
+      d'abord une migration des `criteria` : c'est un ticket à elle seule, et il n'est
+      **volontairement pas ouvert ici** — son périmètre dépend de l'arbitrage de
+      [TCK-350](TCK-350-alertes-de-recherche-sauvegardee-renotifient.md), qui décidera où vit
+      l'anti-renotification. *Ouvrir un ticket dont on ne sait pas encore délimiter le périmètre,
+      c'est fabriquer une entrée que personne ne saura prendre.*
+- [x] **`SendSavedSearchAlerts` : le défaut est vérifié et OUVERT en ticket** *(2026-08-22)* —
+      [TCK-350](TCK-350-alertes-de-recherche-sauvegardee-renotifient.md). Le constat tient à la
+      relecture (`SendSavedSearchAlerts.php:25-32`, `SearchService.php:140-142`), et un **second**
+      défaut du même job est mesuré au passage : `notification_frequency` n'a aucun lecteur côté
+      envoi, si bien qu'une alerte réglée sur `off` notifie quand même, tous les jours. Le ticket ne
+      tranche délibérément pas entre les trois emplacements possibles de l'anti-renotification.
+      **Toujours pas corrigé ici** : hors périmètre géographique.
 
 ## Références
 

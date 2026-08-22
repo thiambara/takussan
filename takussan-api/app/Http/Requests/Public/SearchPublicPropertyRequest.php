@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Public;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Http\Requests\Concerns\FiltreParPointEtRayon;
 use Closure;
 use Illuminate\Support\Carbon;
 
@@ -12,16 +13,10 @@ use Illuminate\Support\Carbon;
 class SearchPublicPropertyRequest extends BaseFormRequest
 {
     /**
-     * Rayon maximal accepte, en KILOMETRES (ADR-0023).
-     *
-     * Le plafond n'est pas cosmetique : le catalogue est senegalais, sa plus
-     * grande diagonale avoisine 700 km, et au-dela de 500 km un rayon centre
-     * sur Dakar ne discrimine plus rien — c'est un filtre qui coute au moteur
-     * sans reduire l'ensemble. `addresses` ne porte AUCUN `CHECK` sur
-     * `latitude` / `longitude` (mesure le 2026-08-22 sur les 135 migrations) :
-     * cette validation est le SEUL garde-fou.
+     * `lat`, `lng`, `radius_km` et `RADIUS_KM_MAX` — le meme contrat que
+     * `MapPublicPropertyRequest`, defini une seule fois (ADR-0023, TCK-346).
      */
-    public const RADIUS_KM_MAX = 500;
+    use FiltreParPointEtRayon;
 
     /**
      * L'autorisation reste dans le controleur / la policy (principes 1 et 2, TCK-306).
@@ -95,32 +90,6 @@ class SearchPublicPropertyRequest extends BaseFormRequest
         }
     }
 
-    /**
-     * `lat` ET `lng` sont tous deux presents et exploitables.
-     *
-     * ⚠ `filled()` et non `has()` : `BaseFormRequest::prepareForValidation()`
-     * remplace toute chaine vide par `null`, si bien que `?lat=` arrive ici
-     * comme une cle presente et nulle. `has()` la lirait comme un point donne.
-     * `filled(0)` reste vrai — l'equateur et le meridien de Greenwich sont des
-     * coordonnees valides.
-     */
-    private function porteUnPointGeo(): bool
-    {
-        return $this->filled('lat') && $this->filled('lng');
-    }
-
-    /**
-     * Regle de fermeture : ce parametre n'a de sens qu'avec un point complet.
-     */
-    private function exigeUnPointGeo(string $cleDeMessage): Closure
-    {
-        return function (string $attribut, mixed $valeur, Closure $echec) use ($cleDeMessage): void {
-            if (! $this->porteUnPointGeo()) {
-                $echec(__($cleDeMessage));
-            }
-        };
-    }
-
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -157,20 +126,8 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             'lng_max' => 'nullable|numeric|between:-180,180',
 
             // ── GEO, contrat « point + rayon » (TCK-346, ADR-0023) ────────────
-            // `lat` et `lng` s'exigent MUTUELLEMENT : un point a moitie donne est
-            // une erreur, jamais un filtre a moitie applique.
-            'lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'],
-            'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'],
-            // ⚠ KILOMETRES a la frontiere publique. `_geoRadius` de Meilisearch
-            // prend des METRES : la conversion vit dans `PropertySearchService`
-            // et nulle part ailleurs. Le nom et l'unite sont ceux qu'employait
-            // deja `App\Services\Model\SearchService` (chemin 3) — c'est ce qui
-            // fera de la convergence future un changement de moteur et non de
-            // contrat.
-            'radius_km' => [
-                'nullable', 'numeric', 'gt:0', 'max:'.self::RADIUS_KM_MAX,
-                $this->exigeUnPointGeo('validation.geo_radius_requires_point'),
-            ],
+            // Les trois regles viennent du trait : `/map` les porte a l'identique.
+            ...$this->reglesPointEtRayon(),
 
             // `distance` exige le point, pour la meme raison : sans lui, le tri
             // n'a pas d'origine. Le refuser en 422 vaut mieux que de retomber en

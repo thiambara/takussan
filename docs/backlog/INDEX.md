@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**331 tickets** — 15 ouverts, 315 livrés.
+**332 tickets** — 13 ouverts, 318 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 10 |
-| 🚧 Doing | 5 |
+| 📋 Todo | 11 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 315 |
+| ✅ Done | 318 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -43,14 +43,12 @@
 - [TCK-347](tickets/TCK-347-formatage-nombres-et-dates-suit-la-locale.md) — Le formatage des nombres et des dates est figé en français, quelle que soit la langue `L · P3 · front`
 - [TCK-348](tickets/TCK-348-compression-et-deploiement-preprod.md) — Préproduction : la compression n'est pas active, et la branche est 34 commits derrière `dev` `S · P2 · technique`
 - [TCK-349](tickets/TCK-349-index-des-cles-etrangeres-nues.md) — Indexer les clés étrangères nues que la mesure justifie (85 restantes) `M · P3 · technique`
+- [TCK-350](tickets/TCK-350-alertes-de-recherche-sauvegardee-renotifient.md) — Les alertes de recherche sauvegardée renotifient les mêmes biens tous les jours `M · P1 · technique`
 
 ## 🚧 Doing
 
 - [TCK-292](tickets/TCK-292-i18n-reste-du-parc.md) — i18n — le reste du parc, en 12 lots `XL · P2 · front`
-- [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-341](tickets/TCK-341-cache-http-du-catalogue-public.md) — Le catalogue public se recalcule pour chaque visiteur `S · P2 · technique`
-- [TCK-346](tickets/TCK-346-geo-postgis.md) — Recherche géographique : rayon, distance, carte — unifier trois implémentations `L · P3 · applicatif`
 
 ## 👀 Review
 
@@ -62,7 +60,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 315
+## ✅ Done — 318
+
+<details>
+<summary><strong>Vague 44 — PostgreSQL : ce que la migration a rendu DISCUTABLE — recherche PG contre Meilisearch, géo (2026-08-21)</strong> — 1 ticket</summary>
+
+- [TCK-346](tickets/TCK-346-geo-postgis.md) — Recherche géographique : rayon, distance, carte — unifier trois implémentations `L · P3 · applicatif`
+
+</details>
 
 <details>
 <summary><strong>Vague 43 — PostgreSQL : ce que la migration a rendu POSSIBLE — jsonb exploité, pgvector et le chatbot (2026-08-21)</strong> — 1 ticket</summary>
@@ -72,13 +77,14 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 42 — Recherche & navigation publiques — audit du 2026-08-21</strong> — 5 tickets</summary>
+<summary><strong>Vague 42 — Recherche & navigation publiques — audit du 2026-08-21</strong> — 6 tickets</summary>
 
 - [TCK-335](tickets/TCK-335-recherche-navigation-defauts-mesures.md) — Recherche & navigation publiques — défauts mesurés de bout en bout `XL · P0 · full`
 - [TCK-336](tickets/TCK-336-sparse-fieldsets-au-niveau-ressource.md) — `PropertyResource` fabrique des valeurs pour les colonnes que `fields[]` n'a pas fait lire `M · P2 · technique`
 - [TCK-337](tickets/TCK-337-decoupage-du-dictionnaire-next-intl.md) — Le dictionnaire next-intl est inliné en entier dans chaque page `L · P3 · technique`
 - [TCK-338](tickets/TCK-338-recherche-conjonctive-tous-les-termes.md) — Une recherche à plusieurs mots doit les exiger tous `M · P1 · applicatif`
 - [TCK-340](tickets/TCK-340-listes-de-cles-de-filtre-front.md) — Douze listes de clés de filtre côté front, une seule table `L · P3 · technique`
+- [TCK-341](tickets/TCK-341-cache-http-du-catalogue-public.md) — Le catalogue public se recalcule pour chaque visiteur `S · P2 · technique`
 
 </details>
 
@@ -105,7 +111,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 11 tickets</summary>
+<summary><strong>Vague 39 — Évacuation dette — convergence des conventions backend (2026-08-16)</strong> — 12 tickets</summary>
 
 - [TCK-304](tickets/TCK-304-enveloppe-pagination-dupliquee.md) — Enveloppe de pagination dupliquée à la main sur 58 fichiers, avec des clés incohérentes `L · P2 · technique`
 - [TCK-305](tickets/TCK-305-validation-inline-vers-formrequest.md) — 120 validations inline contre 65 FormRequest — deux conventions sur le même geste `L · P2 · technique`
@@ -118,6 +124,7 @@ _(aucun)_
 - [TCK-318](tickets/TCK-318-activer-le-react-compiler.md) — Activer le React Compiler — ou décider de ne pas l'activer, mais le décider `M · P3 · front`
 - [TCK-319](tickets/TCK-319-porter-watermarkservice-sur-intervention-image-4.md) — Porter `WatermarkService` sur intervention/image 4 — `place()` devient `insert()`, et l'opacité change d'unité `S · P3 · back`
 - [TCK-326](tickets/TCK-326-supprimer-scopewithsearch-doublon-inferieur.md) — Supprimer `scopeWithSearch` — le jumeau de `scopeFilter`, et un doublon INFÉRIEUR `S · P2 · technique`
+- [TCK-327](tickets/TCK-327-trois-formats-de-date-sur-la-meme-api.md) — Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString` `M · P2 · technique`
 
 </details>
 

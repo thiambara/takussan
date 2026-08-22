@@ -5,37 +5,12 @@ namespace App\Services\Model;
 use App\Models\Property;
 use App\Models\SavedSearch;
 use App\Models\User;
+use App\Support\DistanceHaversine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
 class SearchService
 {
-    /**
-     * Distance orthodromique en KILOMETRES entre (?, ?) et (latitude, longitude).
-     *
-     * ⚠⚠ `LEAST(1.0, GREATEST(-1.0, …))` N'EST PAS un ornement defensif : sans
-     * lui, cette requete FAIT PLANTER LE JOB D'ALERTES SUR POSTGRESQL. Mesure
-     * le 2026-08-22 sur PostgreSQL 17 (`tests/Feature/Search/SearchServiceGeoTest.php`,
-     * cas « un bien sans coordonnees » et « un brouillon ») :
-     *
-     *   SQLSTATE[22003]: Numeric value out of range: 7 ERROR: input is out of range
-     *
-     * L'argument d'`acos()` vaut mathematiquement 1 quand le point de recherche
-     * COINCIDE avec les coordonnees d'un bien — le cas « des biens autour de
-     * celui-ci » — et l'arithmetique flottante le rend regulierement a
-     * 1,0000000000000002. MySQL et SQLite rendaient alors NULL et la ligne
-     * etait simplement ecartee ; PostgreSQL LEVE. Et comme
-     * `SendSavedSearchAlerts` itere par `each()`, l'exception ne perd pas une
-     * recherche : elle tue le job, donc TOUTES les alertes suivantes.
-     *
-     * C'est exactement la classe de divergence qu'ADR-0020 a rendue visible en
-     * amenant la suite de tests sur le moteur de production — et ce chemin
-     * n'avait aucun test jusqu'a TCK-346.
-     */
-    private const HAVERSINE_KM = '(6371 * acos(LEAST(1.0, GREATEST(-1.0, '
-        .'cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) '
-        .'+ sin(radians(?)) * sin(radians(latitude))))))';
-
     /** @param array<string,mixed> $filters */
     public function search(array $filters, ?User $user = null): LengthAwarePaginator
     {
@@ -94,15 +69,19 @@ class SearchService
         // Rayon autour d'un point, en KILOMETRES — meme nom et meme unite que
         // `GET /api/public/properties/search` (ADR-0023), pour que la
         // convergence future soit un changement de moteur et non de contrat.
+        //
+        // ⚠ L'expression haversine vit dans `App\Support\DistanceHaversine`, et
+        // PAS ici : `GET /api/public/properties/map` l'emploie aussi. Deux copies
+        // dont une seule porterait le clamp `LEAST/GREATEST`, c'est exactement le
+        // defaut que TCK-346 a paye (cf. le docblock de la classe).
         if ($this->aUnPointEtUnRayon($filters)) {
             $lat = (float) $filters['lat'];
             $lng = (float) $filters['lng'];
             $radius = (float) $filters['radius_km'];
-            $query->whereHas('address', function ($q) use ($lat, $lng, $radius) {
-                $q->whereNotNull('latitude')
-                    ->whereNotNull('longitude')
-                    ->whereRaw(self::HAVERSINE_KM.' <= ?', [$lat, $lng, $lat, $radius]);
-            });
+            $query->whereHas(
+                'address',
+                fn ($q) => DistanceHaversine::restreindreAuRayonKm($q, $lat, $lng, $radius)
+            );
         }
 
         $sort = $filters['sort'] ?? 'published_at';

@@ -27,6 +27,11 @@ on:
       # défaut d'origine — trois filtres produits par l'interface et supprimés par
       # `validated()` — a vécu parce que RIEN ne regardait les deux côtés ensemble.
       - 'takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php'
+      # ⚠ `rules()` ÉTALE `...$this->reglesPointEtRayon()` depuis TCK-346 : les clés `lat`,
+      # `lng` et `radius_km` vivent dans ce trait, partagé avec `MapPublicPropertyRequest`.
+      # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
+      # contrat géographique bouge seul.
+      - 'takussan-api/app/Http/Requests/Concerns/**'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
   push:
     branches: [dev, master]
@@ -36,6 +41,11 @@ on:
       # Mêmes motifs qu'au déclencheur `pull_request`, et pour la même raison.
       - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
       - 'takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php'
+      # ⚠ `rules()` ÉTALE `...$this->reglesPointEtRayon()` depuis TCK-346 : les clés `lat`,
+      # `lng` et `radius_km` vivent dans ce trait, partagé avec `MapPublicPropertyRequest`.
+      # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
+      # contrat géographique bouge seul.
+      - 'takussan-api/app/Http/Requests/Concerns/**'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
 
 jobs:
