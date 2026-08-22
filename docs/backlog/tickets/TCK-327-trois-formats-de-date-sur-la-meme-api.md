@@ -1,7 +1,7 @@
 ---
 id: TCK-327
 title: "Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString`"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -685,3 +685,25 @@ Ce qui EST établi, et qui est déjà beaucoup :
 
 En attendant, le ticket reste `doing` : son delta est livré, son AC2 ne l'est pas, et le premier ne
 rachète pas le second.
+
+## Clôture — 2026-08-22
+
+**Les six critères sont tenus, et le dernier l'a été par un changement de MÉTHODE, pas par plus de
+travail de conversion.**
+
+AC2 exigeait « TOUTE date émise ». La garde statique ne pouvait pas l'établir : elle reconnaît une
+date à son NOM de clé, ce qui est un plancher et jamais un inventaire. Le ticket proposait de
+reformuler l'AC à la baisse ou d'ouvrir un ticket pour un inventaire dérivé des `$casts`. **C'est
+la seconde issue qui a été prise, sous une forme plus forte encore** : un inventaire par VALEUR,
+qui n'essaie plus de deviner quelles clés sont des dates — il instancie la ressource, appelle
+`resolve()`, parcourt la sortie récursivement et refuse toute valeur qui EST une date sous une
+forme non conforme.
+
+Les deux gardes restent, et c'est délibéré : **elles se trompent différemment.** La mutation qui le
+prouve est la plus utile de la série — une date émise sous la clé `horodatage` fait rougir
+l'inventaire par valeur pendant que la garde statique imprime *« ✓ toutes les dates ÉMISES par
+l'API passent par BaseResource »* et sort en 0.
+
+Fermé par la session principale, sur exécution : `php artisan test` → **2734 passés, 2 ignorés,
+0 échec**, 8791 assertions, 468 s, machine au repos. `npm run test` → 191 fichiers, 1328 tests,
+0 échec. `npx tsc --noEmit` sortie 0. `node scripts/check-resource-date-format.mjs` sortie 0.

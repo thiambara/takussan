@@ -1,13 +1,13 @@
 ---
 id: TCK-341
 title: "Le catalogue public se recalcule pour chaque visiteur"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 42
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-08-22
 depends_on: []
 blocks: []
 spec_refs:
