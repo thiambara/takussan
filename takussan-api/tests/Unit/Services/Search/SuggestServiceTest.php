@@ -21,13 +21,13 @@ use Tests\TestCase;
  * Il montait un `CacheRepository` en mock, lui faisait rendre une « base »
  * de villes, de quartiers et de types, puis vérifiait le filtrage par préfixe
  * sur les trois groupes. Deux de ces trois groupes ne passent plus par le
- * cache ni par MySQL : `cities` et `neighborhoods` sont servis par
+ * cache ni par la base : `cities` et `neighborhoods` sont servis par
  * `POST /indexes/{uid}/facet-search`, pour la tolérance à la faute. Un mock de
  * cache ne peut plus rien prouver à leur sujet — il rendrait une base que le
  * service ne lit plus, et le test serait vert quoi qu'il arrive.
  *
  * Ce qui SUBSISTE d'unitaire est donc réduit, et ciblé sur ce qui reste sur le
- * chemin MySQL : le court-circuit de la requête vide, et le filtrage par
+ * chemin par la base : le court-circuit de la requête vide, et le filtrage par
  * préfixe de `property_types`. S'y ajoute une épreuve qui n'est pas unitaire
  * mais qui est la plus utile du fichier : celle qui MESURE pourquoi
  * `property_types` n'a pas basculé.
@@ -37,7 +37,7 @@ class SuggestServiceTest extends TestCase
     use InteractsWithMeilisearch;
     use RefreshDatabase;
 
-    /** Base de types injectée par le mock de cache — jamais lue depuis MySQL ici. */
+    /** Base de types injectée par le mock de cache — jamais lue depuis la base ici. */
     private const TYPES = [
         ['label' => 'Appartement', 'value' => 'apartment', 'count' => 8, 'normalized_label' => 'appartement'],
         ['label' => 'Autre', 'value' => 'other', 'count' => 5, 'normalized_label' => 'autre'],
@@ -58,7 +58,7 @@ class SuggestServiceTest extends TestCase
     public function test_empty_query_short_circuits_before_any_lookup(): void
     {
         // `shouldNotReceive` : la requête vide ne doit toucher NI le cache, NI
-        // — par voie de conséquence — MySQL ou le moteur.
+        // — par voie de conséquence — la base ou le moteur.
         $cache = Mockery::mock(CacheRepository::class);
         $cache->shouldNotReceive('remember');
 
@@ -155,13 +155,13 @@ class SuggestServiceTest extends TestCase
         $this->assertSame(
             [],
             $facette('maison'),
-            'Si cette assertion rougit, la facette `type` répond désormais au français : le partage MySQL/moteur peut être rediscuté.',
+            'Si cette assertion rougit, la facette `type` répond désormais au français : le partage base/moteur peut être rediscuté.',
         );
         // La MEME facette repond bien a la valeur d'enum anglaise : ce n'est pas
         // la facette qui est cassee, c'est la langue qu'elle porte.
         $this->assertSame('house', $facette('hou')[0]['value'] ?? null);
 
-        // Le chemin MySQL, lui, répond — et dans la locale demandée.
+        // Le chemin par la base, lui, répond — et dans la locale demandée.
         $types = app(SuggestService::class)->resolve('maison', 10, 'fr')['property_types'];
         $this->assertSame('Maison', collect($types)->firstWhere('value', 'house')['label'] ?? null);
     }

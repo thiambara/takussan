@@ -21,7 +21,7 @@ use Meilisearch\Contracts\SearchQuery;
  * |-------------------|-------------|------------------------------------------------|
  * | `cities`          | Meilisearch | tolerance a la faute (`mrmoz` -> `Mermoz`)      |
  * | `neighborhoods`   | Meilisearch | idem, + le couple (quartier, ville) exact       |
- * | `property_types`  | MySQL       | l'enum est indexee en ANGLAIS, cf. plus bas     |
+ * | `property_types`  | base SQL    | l'enum est indexee en ANGLAIS, cf. plus bas     |
  *
  * ⚠ `property_types` RESTE sur `trans()`, et c'est MESURE (2026-08-21, base
  * locale, 258 biens publics) :
@@ -33,8 +33,16 @@ use Meilisearch\Contracts\SearchQuery;
  * *searchable* mais pas *filterable*, donc pas facetable. Basculer ce groupe
  * sur le moteur rendrait des libelles anglais a un utilisateur francophone et
  * ne repondrait plus a « maison » — c'est-a-dire detruirait la localisation de
- * la suggestion. Le chemin MySQL rend `maison -> Maison (23)` et
+ * la suggestion. Le chemin par la base rend `maison -> Maison (23)` et
  * `appart -> Appartement (35)`, dans les trois langues.
+ *
+ * ⚠ Ce chemin s'appelait « chemin MySQL » jusqu'au 2026-08-22, et ce n'etait pas
+ * un detail de vocabulaire : il ne designait PAS un moteur, mais « la base plutot
+ * que l'index ». MySQL a ete retire par ADR-0020 (PostgreSQL 17 partout, suite de
+ * tests comprise) et le nom a survecu au moteur, decrivant un `groupBy` portable
+ * par le nom d'un produit qui n'est plus la. *Nommer un chemin de code d'apres un
+ * fournisseur oblige a le renommer chaque fois qu'il change, et personne ne le
+ * fait.* Le partage est entre la BASE et MEILISEARCH, il l'a toujours ete.
  */
 class SuggestService
 {
@@ -177,15 +185,15 @@ class SuggestService
         }
 
         // Meilisearch ne garantit pas l'ordre des `facetHits` ; l'ancien chemin
-        // MySQL triait `count desc, label asc` et l'interface les affiche dans
-        // l'ordre recu — on le refait explicitement.
+        // par la base triait `count desc, label asc` et l'interface les affiche
+        // dans l'ordre recu — on le refait explicitement.
         usort($rows, static fn (array $a, array $b): int => [$b['count'], $a['value']] <=> [$a['count'], $b['value']]);
 
         return array_slice($rows, 0, $limit);
     }
 
     /**
-     * Types de bien — chemin MySQL + `trans()`, cf. l'en-tete de la classe.
+     * Types de bien — chemin par la base + `trans()`, cf. l'en-tete de la classe.
      *
      * @return list<array<string,mixed>>
      */

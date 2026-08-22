@@ -82,9 +82,12 @@ class ActivityLogExporter
 
         // Use exact morph-class match + correlated subquery on user IDs.
         // Earlier revisions used `causer_type LIKE '%\Models\User'` which
-        // was unreliable: MySQL's LIKE treats `\` as the escape character,
-        // so the literal backslashes in the FQCN were eaten and the filter
-        // matched nothing in production (SQLite test runs hid the bug).
+        // was unreliable: LIKE treats `\` as the escape character, so the
+        // literal backslashes in the FQCN were eaten and the filter matched
+        // nothing in production (SQLite test runs hid the bug at the time).
+        // The engines named here are gone (ADR-0020) but the trap is NOT
+        // MySQL-specific — PostgreSQL's LIKE escapes with `\` too. Do not
+        // reintroduce the pattern thinking the engine change fixed it.
         $query->where(function (Builder $q) use ($agencyId): void {
             $q->where('causer_type', User::class)
                 ->whereIn(

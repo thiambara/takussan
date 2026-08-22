@@ -25,8 +25,13 @@ use Illuminate\Support\Str;
  *    de l'agence — la factory `->approved()` insère directement le statut.
  *
  * Idempotent : on cherche d'abord une `pending` existante avant d'en
- * créer une nouvelle (un seul `pending` autorisé par agence — index
- * unique partiel sur Postgres, fallback applicatif sur SQLite).
+ * créer une nouvelle (un seul `pending` autorisé par agence — index unique
+ * PARTIEL, `agency_upgrade_requests_one_pending_per_agency`).
+ *
+ * ⚠ Cette parenthèse disait « index unique partiel sur Postgres, fallback
+ * applicatif sur SQLite » jusqu'au 2026-08-22. Il n'y a plus qu'un moteur
+ * (ADR-0020) et le fallback a été SUPPRIMÉ avec SQLite : il ne reste que
+ * l'index. Nommer un garde-fou disparu est pire que ne rien dire.
  */
 class AgencyUpgradeRequestSeeder extends Seeder
 {

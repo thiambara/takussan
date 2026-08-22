@@ -244,8 +244,10 @@ class OverdueReminderService
 
         // The exact-day matrix: due_date == today - offset_n for any n.
         // `whereDate` is used (instead of plain `whereIn`) because the
-        // underlying SQLite/MySQL column may serialize a `date` cast as
-        // `Y-m-d H:i:s`, which would never match a bare `Y-m-d` literal.
+        // underlying column may serialize a `date` cast as `Y-m-d H:i:s`,
+        // which would never match a bare `Y-m-d` literal. (This line named
+        // "SQLite/MySQL" until 2026-08-22; both were retired by ADR-0020,
+        // and the reason is a property of the CAST, not of the engine.)
         $eligibleDates = array_map(
             static fn (int $offset) => $today->copy()->subDays($offset)->toDateString(),
             $offsets,

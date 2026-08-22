@@ -72,10 +72,16 @@ D-01). Conteneuriser le développement rapproche les deux mondes ; ça ne fige p
 ## Application
 
 - `docker-compose.yml` — le raisonnement service par service est dans son en-tête.
-- `docker/mysql-init.sql` — la base de test, séparée de celle de développement.
+- `docker/pgsql-init.sql` — le droit `CREATEDB` du rôle applicatif, dont dépend l'isolation par
+  processus de `Tests\Support\TestDatabase`. ⚠ Cette ligne nommait `docker/mysql-init.sql`, « la
+  base de test, séparée de celle de développement » : le fichier a changé de nom **et de rôle**
+  avec le moteur (ADR-0020). Il n'y a plus une seconde base figée, mais une base PAR PROCESSUS.
 - `dev.sh` — modes `all` / `api` / `services` / `doctor`.
 - `takussan-api/.env.docker` · `scripts/check-env-parity.mjs`.
 - `.github/workflows/repo-ci.yml` — la garde de parité.
-- `.github/workflows/api-ci.yml`, job `migrations-mysql` — les migrations rejouées sur MySQL 8.0.
-  **Il a trouvé un `down()` cassé à sa première exécution** : `dropIndex` sur une colonne portant
-  une FK, sur trois tables — exactement le piège n°2 de `CLAUDE.md`.
+- `.github/workflows/api-ci.yml`, job **`migrations-pgsql`** (ex-`migrations-mysql`) — les
+  migrations rejouées EN ARRIÈRE sur PostgreSQL 17. **Il a trouvé un `down()` cassé à sa première
+  exécution** : `dropIndex` sur une colonne portant une FK, sur trois tables — le piège n°2 du
+  `CLAUDE.md` d'alors. ⚠ Il a changé de raison d'être avec ADR-0020 : la suite de tests tournant
+  désormais sur le moteur de la production, l'ALLER y est déjà éprouvé ; il ne garde plus que les
+  `down()`, et seulement 15 sur 135.

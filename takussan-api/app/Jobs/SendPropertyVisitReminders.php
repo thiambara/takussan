@@ -65,9 +65,14 @@ class SendPropertyVisitReminders implements ShouldQueue
         // metadata inside the transaction, and only dispatch if the
         // marker is still empty. Without this, two concurrent scheduler
         // ticks could both pass the "not sent yet" check and both emit
-        // the same reminder. Transaction + lockForUpdate is DB-agnostic
-        // (works on SQLite/MySQL/Postgres) and avoids driver-specific
-        // JSON_SET/jsonb_set shenanigans.
+        // the same reminder. Transaction + lockForUpdate is portable SQL and
+        // avoids driver-specific JSON_SET/jsonb_set shenanigans.
+        //
+        // ⚠ This said "(works on SQLite/MySQL/Postgres)"; only PostgreSQL is
+        // left (ADR-0020). One PostgreSQL caveat that list hid: `FOR UPDATE`
+        // is REFUSED on an aggregate — `->lockForUpdate()->count()` raises
+        // `SQLSTATE[0A000]`. This call locks a ROW, which is the supported
+        // and correct shape.
         DB::transaction(function () use ($visit, $window, $metaKey) {
             $fresh = PropertyVisit::query()
                 ->whereKey($visit->id)
