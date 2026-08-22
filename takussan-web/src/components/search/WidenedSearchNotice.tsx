@@ -10,7 +10,7 @@ export interface WidenedSearchNoticeProps {
   /**
    * Les termes dont la sonde solo a rendu 0, tels que l'utilisateur les a écrits.
    *
-   * **Vide n'est pas une absence** : c'est le second cas de l'ADR-0020 — chaque mot existe
+   * **Vide n'est pas une absence** : c'est le second cas de l'ADR-0024 — chaque mot existe
    * séparément, leur intersection non. On ne nomme alors AUCUN terme, parce qu'aucun n'est
    * fautif. Le composant ne s'affiche donc pas « quand il y a des termes », il s'affiche quand
    * il y a un repli ; c'est l'appelant qui décide de le monter, sur `repli !== null`.
@@ -35,7 +35,7 @@ export interface WidenedSearchNoticeProps {
  *
  * ## Pourquoi ce composant existe
  *
- * La recherche publique est passée en conjonction ({@link ../../../../docs/adr/0020-recherche-publique-conjonctive-avec-repli-nomme.md ADR-0020}) :
+ * La recherche publique est passée en conjonction ({@link ../../../../docs/adr/0024-recherche-publique-conjonctive-avec-repli-nomme.md ADR-0024}) :
  * un bien ne sort que s'il porte TOUS les termes. Quand cela rend 0, le back rejoue la requête en
  * relâchant des termes et **le dit** dans un bloc `search`. Sans cet écran, ce bloc mourait dans
  * le JSON : `q=villa Saly` affichait 63 villas de Dakar, exactement comme avant, à l'octet près

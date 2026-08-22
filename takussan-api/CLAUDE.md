@@ -447,9 +447,12 @@ collection Eloquent).
 Sur le chemin survivant, le callback mémorise l'ordre des ids rendus par Meilisearch
 (`HasQueryBuilder::$searchRelevanceIds`) et le contrôleur le rejoue via
 `Model::defaultSortsWithRelevance('-created_at')` → `App\Sorts\SearchRelevanceSort`, un `CASE`
-portable SQLite/MySQL (`FIELD()` n'existe pas en SQLite). **Le résultat se passe à `defaultSorts()`,
-jamais à `allowedSorts()`** : un `sort=` explicite du client reste souverain, la pertinence n'agit
-qu'à défaut.
+portable. ⚠ Sa justification citait SQLite et MySQL, deux moteurs que le dépôt n'a plus depuis
+ADR-0020 ; re-mesuré le 2026-08-22 sur le moteur réel, `SELECT FIELD(1,2,3)` rend
+`ERROR: function field(integer, integer, integer) does not exist` sur PostgreSQL 17.11 — la
+conclusion tient, ses raisons sont datées. **Le résultat se passe à `defaultSorts()`, jamais à
+`allowedSorts()`** : un `sort=` explicite du client reste souverain, la pertinence n'agit qu'à
+défaut.
 
 ⚠️ **Un contrôleur qui écrit `->defaultSort(…)` en dur sur un modèle `Searchable` reprend la
 recherche tolérante aux fautes et jette le classement.** C'était l'état d'avant TCK-281, et il
@@ -491,8 +494,20 @@ nom du produit**. `scripts/check-command-prefixes.mjs` (Repo CI) le garde. **Fic
 
 ## Tests
 
-307 fichiers (277 `Feature`, 26 `Unit`). `phpunit.xml` force SQLite `:memory:`, `QUEUE_CONNECTION=sync`,
-`CACHE_STORE=array`, `BCRYPT_ROUNDS=4`, `SCOUT_DRIVER=meilisearch`, `LARAVEL_PDF_DRIVER=dompdf`.
+**377 fichiers de test** (326 `Feature`, 51 `Unit`), mesurés le 2026-08-22 par
+`find tests -name '*Test.php' | wc -l`. ⚠ **Ce chiffre est un ordre de grandeur, pas un compte à
+tenir à jour** : cette ligne annonçait « 307 fichiers (277 `Feature`, 26 `Unit`) » — faux de 70
+fichiers, dont 25 sur les seuls tests unitaires, soit un doublement passé inaperçu.
+
+`phpunit.xml` force **`DB_CONNECTION=pgsql` SANS REPLI** (ADR-0020, 2026-08-21) — et non plus
+SQLite `:memory:`, comme cette ligne l'a affirmé jusqu'au 2026-08-22 —, plus
+`QUEUE_CONNECTION=sync`, `CACHE_STORE=array`, `BCRYPT_ROUNDS=4`, `SCOUT_DRIVER=meilisearch`,
+`LARAVEL_PDF_DRIVER=dompdf`. `DB_DATABASE` n'y est **plus** déclaré : sous SQLite `:memory:`,
+chaque processus avait sa base gratuitement ; sur PostgreSQL, tous parlent au même serveur, et le
+nom est donc engendré par processus (`Tests\Support\TestDatabase`). Même raison que
+`SCOUT_PREFIX`, sur une cinquième ressource partagée par machine.
+
+**`docker compose up -d postgres` est un prérequis dur de la suite**, au même titre que Meilisearch.
 
 **La suite exige une instance Meilisearch** : `SCOUT_DRIVER=meilisearch` est forcé sans repli.
 `./dev.sh services` la fournit.
@@ -525,8 +540,28 @@ une base hors des trois, et **une quatrième classe de base**.
 > justifie par un quatrième **usage** — et elle se déclare alors dans `BASES_CANONIQUES`, sinon la
 > CI casse.
 
-> ⚠️ Les tests visent l'instance Meilisearch **réelle** du développeur : `phpunit.xml` ne définit
-> pas `MEILISEARCH_HOST`, donc c'est celui du `.env` qui sert.
+> ✅ **Les tests visent désormais le conteneur du dépôt, et c'est épinglé** (2026-08-22).
+> `phpunit.xml` déclare `MEILISEARCH_HOST=http://127.0.0.1:7701` et `MEILISEARCH_KEY=masterKey`,
+> pour la même raison que `DB_HOST`/`DB_PORT` : *une suite qui dépend du `.env` ne mesure pas le
+> code, elle mesure la machine.*
+>
+> Ce paragraphe disait l'inverse — « c'est celui du `.env` qui sert » — et c'était vrai, avec deux
+> conséquences que personne n'avait relevées avant de les mesurer :
+>
+> 1. le `.env` de cette machine visait le port **canonique** 7700, servi par une instance **native
+>    brew** dont `GET /indexes` rendait 12 index, **dont `documents` et `messages` sans aucun
+>    préfixe** — ils appartiennent à un autre projet. La suite partageait donc sa **file de tâches**
+>    avec un logiciel tiers. L'isolation par préfixe (`TestSearchIndex`) sépare les *documents* ;
+>    elle ne sépare pas la file, et c'est la file que la barrière surveille (TCK-334) ;
+> 2. `GET :7700/version` → **1.36.0** quand le conteneur et la CI tiennent **1.16** : vingt
+>    versions mineures d'écart sur le moteur de recherche, décidées par personne.
+>
+> ⚠ **Ne jamais ajouter `force="true"` à ces deux lignes.** La CI pose ses propres
+> `MEILISEARCH_HOST`/`MEILISEARCH_KEY` en variables de job, et PHPUnit ne les écrase qu'avec
+> `force` (`PhpHandler::handleEnvVariables()` : `if ($force || getenv($name) === false)`). Éprouvé
+> par exécution : `MEILISEARCH_HOST=http://127.0.0.1:9999 php artisan test tests/Feature/Search/…`
+> échoue à la connexion — la variable du shell l'emporte. `force` détournerait la CI de son propre
+> service vers un hôte qui n'existe pas chez elle.
 
 ### Déterminisme du harnais — ce qui a été payé, et ce qu'il ne faut pas défaire
 
