@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Auth;
 use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Auth\ForgotPasswordPasswordResetRequest;
 use App\Http\Requests\Auth\ResetPasswordPasswordResetRequest;
+use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -13,7 +14,7 @@ class PasswordResetController extends Controller
 {
     public function forgotPassword(ForgotPasswordPasswordResetRequest $request): JsonResponse
     {
-        $request->merge(['email' => strtolower(trim($request->input('email')))]);
+        $request->merge(['email' => CaseInsensitive::fold(trim((string) $request->input('email')))]);
 
         Password::sendResetLink($request->only('email'));
 
@@ -24,7 +25,7 @@ class PasswordResetController extends Controller
     {
 
         $data = $request->only('email', 'password', 'password_confirmation', 'token');
-        $data['email'] = strtolower(trim($data['email']));
+        $data['email'] = CaseInsensitive::fold(trim((string) $data['email']));
 
         $status = Password::reset(
             $data,

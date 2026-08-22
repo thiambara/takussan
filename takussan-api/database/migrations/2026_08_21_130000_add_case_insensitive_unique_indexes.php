@@ -53,6 +53,19 @@ use Illuminate\Support\Facades\DB;
  * La perdre est plus près d'une correction que d'une régression — mais c'est un
  * changement de comportement, alors il est écrit ici plutôt que découvert.
  *
+ * ─── ⚠⚠ CETTE MIGRATION NE TENAIT SA PROMESSE QU'EN ASCII (corrigé le 2026-08-22) ──
+ *
+ * `LOWER(col)` ci-dessous replie **l'ASCII A-Z et rien d'autre**, parce que `lower()`
+ * emprunte la collation de son argument et que la base est en `--locale=C`. Mesuré :
+ * `lower('CAFÉ')` rend `cafÉ`, donc `Café` et `CAFÉ` coexistaient — dans l'index dont
+ * c'est précisément la raison d'être.
+ *
+ * `2026_08_22_100000_recreate_case_insensitive_indexes_with_icu_collation` recrée les
+ * trois index sous `LOWER(col COLLATE "und-x-icu")`
+ * ([ADR-0025](../../../docs/adr/0025-repli-de-casse-par-collation-icu.md)).
+ * **Ne pas lire les paragraphes ci-dessous comme l'état courant** : ils décrivent
+ * l'intention, que l'implémentation ne tenait qu'à moitié.
+ *
  * ─── La casse STOCKÉE est préservée ────────────────────────────────────────────────
  *
  * On indexe `LOWER(col)` plutôt que de forcer la colonne en minuscules : `Dakar` reste

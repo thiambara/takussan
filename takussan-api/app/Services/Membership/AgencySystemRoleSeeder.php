@@ -16,9 +16,19 @@ use App\Models\Enums\AgencyRoleBaseType;
  * `(agency_id, name)` refusant le second.
  *
  * La spec exige « exactement un rôle système par (agency_id,
- * base_profile_type) ». MySQL 8.0 ne sait pas exprimer un unique partiel
- * (`WHERE is_system = true`) : cet invariant est tenu ici, et nulle part
- * ailleurs — aucun chemin d'API ne crée de rôle `is_system=true`.
+ * base_profile_type) ». Cet invariant est tenu ICI, et nulle part ailleurs —
+ * aucun chemin d'API ne crée de rôle `is_system=true`.
+ *
+ * ⚠ **Ce n'est plus la SEULE couche depuis le 2026-08-22.** La raison écrite ici
+ * — « MySQL 8.0 ne sait pas exprimer un unique partiel (`WHERE is_system = true`) »
+ * — était périmée depuis ADR-0020 : PostgreSQL sait parfaitement l'exprimer, et
+ * `2026_08_22_100100_add_partial_unique_index_on_agency_system_roles` le pose enfin
+ * (`agency_roles_one_system_role_per_base_type`).
+ *
+ * *Une justification périmée protège le code qu'elle décrit : on cesse de se demander
+ * s'il est encore nécessaire.* Ce seeder reste nécessaire — il tient le COMPORTEMENT,
+ * et l'index tient les DONNÉES sur les chemins que le seeder ne voit pas (un
+ * `DB::table()->insert()`, un import, un `updateQuietly`).
  */
 class AgencySystemRoleSeeder
 {

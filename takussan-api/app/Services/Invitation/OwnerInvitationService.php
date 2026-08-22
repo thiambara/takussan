@@ -9,6 +9,7 @@ use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -58,7 +59,7 @@ class OwnerInvitationService
         $this->assertAgencyCanInvite($agency);
         $this->assertInviterCanInvite($inviter, $agency);
 
-        $email = strtolower(trim((string) $data['email']));
+        $email = CaseInsensitive::fold(trim((string) $data['email']));
         $ownerType = (string) ($data['owner_type'] ?? 'individual');
 
         if ($ownerType === 'company' && empty(trim((string) ($data['company_name'] ?? '')))) {
@@ -175,7 +176,7 @@ class OwnerInvitationService
         $existing = OwnerProfile::query()
             ->where('agency_id', $agency->id)
             ->whereHas('user', function ($query) use ($email): void {
-                $query->whereRaw('LOWER(email) = ?', [$email]);
+                $query->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)]);
             })
             ->first();
 

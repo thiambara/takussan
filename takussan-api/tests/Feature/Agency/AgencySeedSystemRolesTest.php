@@ -10,7 +10,9 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Membership\AgencySystemRoleSeeder;
 use App\Services\Membership\SystemRoleCapabilities;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -68,6 +70,81 @@ class AgencySeedSystemRolesTest extends TestCase
                 ->where('is_system', true)
                 ->count());
         }
+    }
+
+    /**
+     * LE MÊME INVARIANT, GARDÉ PAR LA BASE — et il ne l'était pas.
+     *
+     * Le test au-dessus éprouve l'IDEMPOTENCE DU SEEDER : il rappelle `seed()` et
+     * compte. C'est utile, et ça ne dit rien de l'invariant, parce que le seeder est
+     * précisément le seul chemin qui ne le viole jamais. Un `DB::table()->insert()`,
+     * une commande de reprise, un `updateQuietly` ou un import passaient à côté sans
+     * rien lever.
+     *
+     * Le docblock de `AgencySystemRoleSeeder` justifiait cette absence par « MySQL 8.0
+     * ne sait pas exprimer un unique partiel (`WHERE is_system = true`) ». C'était vrai
+     * de MySQL, et périmé depuis ADR-0020 : PostgreSQL le sait, et le dépôt en pose déjà
+     * un ailleurs (`agency_upgrade_requests_one_pending_per_agency`). *Une justification
+     * périmée protège le code qu'elle décrit : on cesse de se demander s'il est encore
+     * nécessaire.*
+     *
+     * L'invariant reste tenu applicativement — le seeder et `AgencyRolePolicy` restent
+     * la première couche. Celui-ci est la seconde : *la normalisation applicative garde
+     * le comportement ; l'index garde les données.*
+     */
+    public function test_un_second_role_systeme_du_meme_type_est_refuse_par_la_base(): void
+    {
+        $agency = Agency::factory()->create();
+
+        $existant = AgencyRole::query()
+            ->where('agency_id', $agency->id)
+            ->where('base_profile_type', AgencyRoleBaseType::Agent->value)
+            ->where('is_system', true)
+            ->firstOrFail();
+
+        $this->expectException(QueryException::class);
+
+        // En SQL brut, délibérément : passer par le seeder testerait le seeder.
+        DB::table('agency_roles')->insert([
+            'agency_id' => $agency->id,
+            'name' => $existant->name.' (doublon)',
+            'base_profile_type' => AgencyRoleBaseType::Agent->value,
+            'is_system' => true,
+            'is_clonable' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * L'index est PARTIEL : il ne doit contraindre que `is_system`. Deux rôles
+     * PERSONNALISÉS du même type de base sont parfaitement légitimes — c'est tout
+     * l'objet de TCK-279 phase 2 — et un index total les refuserait en silence.
+     *
+     * *Une contrainte trop large ne se voit pas en vert : elle se voit le jour où
+     * quelqu'un a besoin du cas qu'elle interdit.*
+     */
+    public function test_deux_roles_personnalises_du_meme_type_restent_permis(): void
+    {
+        $agency = Agency::factory()->create();
+
+        foreach (['Agent senior', 'Agent junior'] as $nom) {
+            DB::table('agency_roles')->insert([
+                'agency_id' => $agency->id,
+                'name' => $nom,
+                'base_profile_type' => AgencyRoleBaseType::Agent->value,
+                'is_system' => false,
+                'is_clonable' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->assertSame(2, AgencyRole::query()
+            ->where('agency_id', $agency->id)
+            ->where('base_profile_type', AgencyRoleBaseType::Agent->value)
+            ->where('is_system', false)
+            ->count());
     }
 
     /**

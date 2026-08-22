@@ -12,6 +12,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Notifications\RegistrationConfirmationNotification;
 use App\Notifications\ResetPasswordNotification;
+use App\Support\CaseInsensitive;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Contracts\Translation\HasLocalePreference;
@@ -75,7 +76,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     public function setEmailAttribute(?string $value): void
     {
         $this->attributes['email'] = $value !== null
-            ? strtolower(trim($value))
+            ? CaseInsensitive::fold(trim($value))
             : null;
     }
 
@@ -183,7 +184,7 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     /**
      * TCK-281 — n'indexe que l'id et les champs de `$requestSearchFields`.
      * Le mot de passe, les secrets 2FA, `metadata` et les jetons ne partent
-     * JAMAIS vers Meilisearch : l'index est un second magasin, hors MySQL.
+     * JAMAIS vers Meilisearch : l'index est un second magasin, hors de la base.
      *
      * @return array<string,mixed>
      */
