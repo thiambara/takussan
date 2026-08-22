@@ -1,13 +1,13 @@
 ---
 id: TCK-346
-title: "Recherche géographique : rayon, distance, carte — avec ou sans PostGIS"
-status: todo
+title: "Recherche géographique : rayon, distance, carte — unifier trois implémentations"
+status: doing
 phase: P3
 family: applicatif
 estimate: L
 wave: 44
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-08-22
 depends_on: []
 blocks: []
 spec_refs:
@@ -18,30 +18,143 @@ spec_refs:
 tags: [back, front, geo]
 ---
 
-## Contexte
+## Contexte — RÉÉCRIT le 2026-08-22, la version d'origine était fausse
 
-**Il n'y a rien à migrer : la géo n'existe pas encore.** Mesuré le 2026-08-21 sur les ~62 000
-lignes de `app/` : `addresses.latitude` / `longitude` en `decimal(10,7)`, et **zéro** calcul de
-distance, **zéro** `ST_*`, **zéro** filtre par rayon.
+> **Ce que ce ticket affirmait, du 2026-08-21 au 2026-08-22 :**
+>
+> > *« Il n'y a rien à migrer : la géo n'existe pas encore. Mesuré le 2026-08-21 sur les ~62 000
+> > lignes de `app/` : `addresses.latitude` / `longitude` en `decimal(10,7)`, et **zéro** calcul de
+> > distance, **zéro** `ST_*`, **zéro** filtre par rayon. C'est une fonctionnalité neuve, pas une
+> > conséquence de la migration. »*
+>
+> **Conservé, pas effacé** — le dépôt ne réécrit pas son histoire, il la date. Cette version faisait
+> chercher une fonctionnalité neuve là où il y a **trois implémentations à arbitrer**, ce qui est
+> plus coûteux que l'absence de contexte : on ne se méfie pas d'un document d'entrée.
 
-C'est une fonctionnalité neuve, pas une conséquence de la migration — d'où son report par
-ADR-0020.
+Remesuré le **2026-08-22** :
 
-## ⚠ PostGIS n'est pas acquis, et c'est le premier arbitrage
-
-Trois chemins, et le plus lourd n'est pas forcément le bon :
-
-| | Coût | Ce que ça donne |
+| Affirmation d'origine | Mesure | Verdict |
 |---|---|---|
-| **`_geoRadius` de Meilisearch** | quasi nul — le moteur est déjà là, les 7 modèles déjà indexés | rayon et tri par distance sur la recherche publique |
-| **`earthdistance` / formule haversine** en SQL | une extension légère, ou aucune | distance et rayon, sans typage géométrique |
-| **PostGIS** | une extension lourde, un type de colonne, une remigration des adresses | polygones, quartiers, intersections, projections |
+| zéro `ST_*` | `grep -rEn '\bST_[A-Za-z]+\s*\(' app database ../takussan-web/src \| wc -l` → `0` | **vrai** |
+| PostGIS nulle part | `grep -rn postgis app config database ../docker-compose.yml ../.github \| wc -l` → `0` | **vrai** |
+| zéro calcul de distance | `app/Services/Model/SearchService.php:63-77` — **formule haversine SQL complète** | **FAUX** |
+| zéro filtre par rayon | même fichier — `lat` + `lng` + `radius_km` | **FAUX** |
+| la géo n'existe pas | `Property::toSearchableArray()` émet `_geo` **depuis TCK-280 (2026-05-20)** ; `_geo` est `filterable` (`config/scout.php`) ; `PropertySearchService` pose `_geoBoundingBox(...)` | **FAUX** |
 
-**Ne pas choisir PostGIS par défaut.** La question à se poser d'abord : le produit a-t-il besoin de
-GÉOMÉTRIES (dessiner un quartier, chercher dans un polygone) ou seulement de DISTANCES (« à moins
-de 3 km ») ? Le second cas ne justifie pas PostGIS, et l'image du dépôt ne le porte pas
-(`pgvector/pgvector:pg17`) : l'adopter changerait l'image de tous les environnements.
+### Les trois implémentations, et ce qu'on en fait
+
+| # | Chemin | Moteur | Atteint par | Tests avant | Décision |
+|---|---|---|---|---|---|
+| 1 | `GET /api/public/properties/search` | Meilisearch | **personne** (aucune clé géo dans `SEARCH_FILTER_KEYS`) | 1 | **étendu** — rayon + tri par distance |
+| 2 | `GET /api/public/properties/map` | SQL Eloquent, GeoJSON, cap 500 | la carte du front | 13 | **inchangé** |
+| 3 | `App\Services\Model\SearchService::search()` | SQL Eloquent, **haversine** | aucune route HTTP ; `SendSavedSearchAlerts` seulement | **0** | **sous test, non convergé** |
+
+**L'arbitrage réel n'était donc pas « faut-il PostGIS »**, c'était « comment unifier trois chemins ».
+Tranché par [ADR-0023](../../adr/0023-recherche-geographique-par-distances-sans-postgis.md) :
+**distances et rectangles, jamais de géométries ; pas de PostGIS, pas d'`earthdistance`.**
+
+## Ce qui est fait (2026-08-22)
+
+- [x] **ADR-0023** écrit et indexé dans `docs/adr/README.md`, avec les trois faits mesurés, le sort
+      de chacun des trois chemins, et **ce qui rouvrirait la décision**.
+- [x] `lat`, `lng`, `radius_km` sur `/api/public/properties/search` → `_geoRadius(lat, lng, mètres)`.
+- [x] `sort=distance` → `_geoPoint(lat,lng):asc`, plus `_geo` dans `sortableAttributes`.
+- [x] Bornes de validation : latitude `-90..90`, longitude `-180..180`, rayon `> 0` et `≤ 500 km`,
+      `lat`/`lng` mutuellement obligatoires, `radius_km` et `sort=distance` exigeant le point.
+- [x] Le `_geoBoundingBox` du chemin 1 **reçoit un statut** : contrat *viewport*, conjoint au rayon.
+- [x] Le haversine du chemin 3 est **sous test** (`tests/Feature/Search/SearchServiceGeoTest.php`).
+- [x] **Deux défauts de production corrigés** au passage sur le chemin 3, tous deux révélés par le
+      fait de le tester (cf. ci-dessous).
+
+## Deux défauts trouvés en mettant le chemin 3 sous test
+
+1. **`acos()` fait LEVER PostgreSQL** — `SQLSTATE[22003] input is out of range` — dès que le point
+   de recherche coïncide avec les coordonnées d'un bien, c'est-à-dire le cas « les biens autour de
+   celui-ci ». MySQL et SQLite rendaient `NULL`. Comme `SendSavedSearchAlerts` itère par `each()`,
+   l'exception **tuait le job**, donc toutes les alertes suivantes. Corrigé par
+   `LEAST(1.0, GREATEST(-1.0, …))`, épinglé par
+   `SearchServiceGeoTest::test_un_point_qui_coincide_avec_un_bien_ne_fait_pas_lever_le_moteur`.
+2. **`! empty()` désactivait le filtre en silence** sur `lat = 0` / `lng = 0` (équateur, méridien de
+   Greenwich) — `empty('0')` est vrai. Corrigé en `is_numeric()`, aligné sur le chemin 1.
+
+## Le front — livré le 2026-08-22
+
+Le rayon et le tri par distance étaient **inatteignables depuis l'interface** : `SEARCH_FILTER_KEYS`
+(`takussan-web/src/types/search.ts`) ne portait aucune clé géo, exactement comme le
+`_geoBoundingBox` livré à TCK-280. C'est réparé, **par la chaîne existante et non à côté d'elle**.
+
+- [x] `radius_km`, `lat` et `lng` entrent dans `SEARCH_FILTER_KEYS`, donc dans `SearchFilters`,
+      l'URL, les puces, le compteur, les recherches sauvegardées et la garde de parité — d'un seul
+      geste, puisque tout cela en est **dérivé** depuis TCK-340.
+- [x] **`agregeeDans` — l'inverse d'`eclater`.** `eclater` fait rendre plusieurs puces à une clé ;
+      `agregeeDans` fait rendre **une** puce à plusieurs clés. `radius_km` porte le libellé
+      (« Dans un rayon de 5 km ») et **possède** les trois paramètres d'URL ; `lat` et `lng` s'y
+      agrègent. Trois puces indépendantes auraient été pires que muettes : retirer `lat` seule
+      laisse `lng` + `radius_km`, c'est-à-dire **un 422 fabriqué par l'interface**
+      (`required_with:lat`).
+- [x] **`normaliserGeo()`** (`hooks/useSearch.ts`) efface les trois états que le serveur refuse —
+      demi-coordonnée, rayon sans point, `sort=distance` sans origine — **en lecture d'URL, en
+      écriture d'URL et sur la requête envoyée**. Une URL héritée qui les porte ne produit donc ni
+      requête vouée au 422, ni sélecteur de tri qui annonce un tri qui n'aura pas lieu.
+- [x] **Le tri « Le plus proche » n'est offert qu'avec une origine.** Une option qui rend 422 à coup
+      sûr est pire qu'absente : l'utilisateur la choisit, l'écran perd ses résultats, et rien
+      n'explique pourquoi.
+- [x] **`AutourDeMoi`** (`components/search/AutourDeMoi.tsx`) — la commande, dans le panneau de
+      filtres, juste après « Localisation ». Rayons de 1 à 25 km, très en deçà du plafond serveur.
+      Elle pose **toujours** un rayon avec le point : un point seul ne filtre rien, ne porte aucune
+      puce, et serait un état actif invisible.
+- [x] **Le refus de géolocalisation est un état rendu, pas une exception** — traduit en `fr`, `en`
+      et `wo`, et renvoyant au filtre « Ville » qui le précède. Un test compare les libellés `en` et
+      `wo` au dictionnaire **français** : le deep-merge de `src/i18n/request.ts` afficherait sinon
+      le français sous les deux autres locales, sans erreur ni test rouge.
+- [x] `FILTRES_CONNUS` (`PropertiesDiscoveryPage`) est désormais **dérivé** de la table. Écrit à la
+      main, il citait dix-huit clés et venait d'en manquer trois.
+
+**Pourquoi la géolocalisation du navigateur et non le centre de la carte** — les deux étaient
+recevables, et le centre de carte ne demande aucune permission. Il a été écarté pour trois raisons
+écrites en tête d'`AutourDeMoi.tsx` : la commande vit dans le panneau de filtres, monté dans les
+**deux** vues, et serait donc inerte dans la vue liste, qui est celle par défaut ; le centre bouge à
+chaque pan, donc le rayon suivrait un point que l'utilisateur n'a jamais choisi et que l'URL — donc
+le lien partagé, donc la recherche sauvegardée — enregistrerait ; et la carte publique interroge
+`/map`, un autre endpoint, qui ne reçoit même pas `q`.
+
+**Ce que ça coûte, assumé** : `navigator.geolocation` exige HTTPS (ou `localhost`), et le refus est
+un chemin ordinaire. Sur origine non sécurisée, Chrome rend `PERMISSION_DENIED` comme un refus
+humain : les deux tombent sur le même message, un message qui les distinguerait devrait deviner.
+
+**Un correctif retiré parce qu'il était redondant.** `removeFilter` faisait aussi remonter le
+retrait à l'agrégateur. Ablation mesurée le 2026-08-22 : le retirer **ne fait rougir aucun test**,
+`normaliserGeo` produisant le même état final. C'était un second chemin pour la même garantie.
+
+## Ce qui RESTE, et pourquoi
+
+
+- [ ] **La vue CARTE ne reçoit pas le rayon.** `mapFilters` (`PropertiesDiscoveryPage`) ne transmet
+      que `type`, `contract_type`, `price_min` et `price_max` à `/api/public/properties/map`, qui est
+      un autre endpoint et une autre requête de validation. Basculer en vue carte avec un rayon posé
+      affiche donc des marqueurs que la liste, elle, filtre — deux comptes différents sur le même
+      écran. C'est un ticket à part : il faut d'abord décider si `/map` accepte le rayon ou si la
+      vue carte doit dessiner le cercle sans le filtrer.
+- [ ] **`docs/features.md` ne mentionne ni rayon ni distance.** `grep -niE "rayon|distance|polygon|
+      géoloc|proximit" docs/features.md` (2026-08-22) rend **une seule ligne**, `:72`, qui décrit la
+      SAISIE d'une adresse. La §1.2 ne demande qu'« une carte interactive » (P1). Le rayon livré ici
+      est donc une surface produit que la spec ne formule pas : elle relève de `/sync-specs`, pas
+      d'un ticket d'implémentation.
+- [ ] **Le chemin 3 ne converge pas vers Meilisearch, et c'est motivé.** `SavedSearch.criteria` est
+      un tableau libre (`['required','array']`, sans schéma) dont les noms de filtres divergent de
+      ceux de `/search` (`min_price` contre `price_min`). Y brancher `PropertySearchService`
+      changerait **silencieusement** le sens des recherches déjà enregistrées. La convergence exige
+      d'abord une migration des `criteria` : c'est un ticket à elle seule.
+- [ ] **`SendSavedSearchAlerts` porte un défaut hors périmètre géo, non corrigé ici** : il calcule
+      `$criteria['published_after']` puis appelle `getMatchingProperties($search)`, qui **relit
+      `criteria` depuis le modèle** — la variable locale est jetée. Et `SearchService::search()` ne
+      connaît de toute façon pas la clé `published_after`. L'alerte renotifie donc les mêmes biens à
+      chaque passage. À ouvrir en ticket propre.
 
 ## Références
 
-- [ADR-0020](../../adr/0020-postgresql-sur-tous-les-environnements.md) §2 — pourquoi c'est reporté
+- [ADR-0023](../../adr/0023-recherche-geographique-par-distances-sans-postgis.md) — la décision
+- [ADR-0020](../../adr/0020-postgresql-sur-tous-les-environnements.md) §« Embarquer la recherche
+  PostgreSQL et PostGIS dans ce chantier » — pourquoi c'était reporté
+- [ADR-0008](../../adr/0008-meilisearch-sur-tous-les-environnements.md) — pourquoi le filtre géo
+  doit vivre dans le même appel moteur que le texte et les facettes

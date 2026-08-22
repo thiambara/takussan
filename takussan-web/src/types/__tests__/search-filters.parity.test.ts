@@ -151,13 +151,62 @@ describe('TCK-340 — le rôle déclaré, et l’échappatoire d’un mot qu’i
     expect(declares).toEqual([...CONTROLES_ADMIS].sort());
   });
 
-  it('toute clé `filtre` porte réellement une fabrique de libellé', () => {
+  it('toute clé `filtre` porte un libellé, ou désigne la puce qui la décrit', () => {
     // Le typage l'exige déjà ; cette assertion attrape ce que `tsc` ne voit pas — un `as`,
     // un `@ts-expect-error`, ou un objet construit ailleurs qu'au littéral.
     const sansLibelle = CLES_DE_RECHERCHE.filter((c) => {
-      const def = SEARCH_FILTER_KEYS[c];
-      return def.role === 'filtre' && typeof (def as { libelle?: unknown }).libelle !== 'function';
+      const def = SEARCH_FILTER_KEYS[c] as { role: string; libelle?: unknown; agregeeDans?: string };
+      if (def.role !== 'filtre') return false;
+      if (typeof def.libelle === 'function') return false;
+      // TCK-346 — la seule dispense : la clé est AGRÉGÉE dans une autre puce. L'invariant qui
+      // la rend sûre est vérifié par le test suivant, pas ici.
+      return def.agregeeDans === undefined;
     });
     expect(sansLibelle).toEqual([]);
+  });
+});
+
+/**
+ * TCK-346 — `agregeeDans` est la seconde échappatoire du typage, et elle a besoin de sa garde.
+ *
+ * `role: 'controle'` sortait une clé du compte et de la puce d'un mot ; `agregeeDans` fait la
+ * même chose, en promettant qu'une AUTRE puce s'en charge. Si cette promesse est fausse — nom
+ * inexistant, agrégateur sans libellé, agrégateur qui ne possède pas les paramètres d'URL de la
+ * clé agrégée — on retombe exactement sur le défaut que TCK-340 avait fermé : un filtre appliqué
+ * par le serveur, invisible et non retirable. Pire ici : `removeFilter` effacerait une moitié de
+ * point et le serveur rendrait 422 sur l'autre.
+ *
+ * La garde est donc structurelle, et elle est DÉRIVÉE de la table — c'est légitime parce qu'elle
+ * ne vérifie pas *quelles* clés sont agrégées (choix de conception), mais que chaque agrégation
+ * déclarée tient sa promesse.
+ */
+describe('TCK-346 — une clé agrégée est réellement portée par la puce qu’elle désigne', () => {
+  type Def = { role: string; params: readonly string[]; libelle?: unknown; agregeeDans?: string };
+  const defs = SEARCH_FILTER_KEYS as unknown as Record<string, Def>;
+
+  const agregees = CLES_DE_RECHERCHE.filter((c) => defs[c].agregeeDans !== undefined);
+
+  it('l’agrégateur existe, filtre, et porte un libellé', () => {
+    const rompues = agregees.filter((c) => {
+      const cible = defs[defs[c].agregeeDans!];
+      return !cible || cible.role !== 'filtre' || typeof cible.libelle !== 'function';
+    });
+    expect(rompues).toEqual([]);
+  });
+
+  it('l’agrégateur POSSÈDE les paramètres d’URL de la clé agrégée', () => {
+    // Sans cette inclusion, retirer la puce laisserait le paramètre dans l'URL : le filtre
+    // resterait appliqué alors que l'interface annonce l'avoir retiré.
+    const nonCouvertes = agregees.filter((c) => {
+      const cible = defs[defs[c].agregeeDans!];
+      return !defs[c].params.every((nom) => cible?.params.includes(nom));
+    });
+    expect(nonCouvertes).toEqual([]);
+  });
+
+  it('aucune agrégation n’a été ajoutée en douce', () => {
+    // Même raison que `CONTROLES_ADMIS` : écrite à la main, jamais dérivée. Ajouter une entrée
+    // ici est un geste qu'une revue voit passer.
+    expect([...agregees].sort()).toEqual(['lat', 'lng']);
   });
 });

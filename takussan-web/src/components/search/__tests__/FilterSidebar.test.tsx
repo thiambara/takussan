@@ -200,3 +200,67 @@ describe('<FilterSidebar> — anti-rebond de saisie (TCK-335)', () => {
     expect(ville.value).toBe('');
   });
 });
+
+/**
+ * TCK-346 — le rayon est CÂBLÉ au panneau, pas seulement écrit à côté.
+ *
+ * Le composant `AutourDeMoi` a ses propres tests ; celui-ci ne garde qu'une chose, et c'est
+ * celle qui manquerait le plus : que son `onChange` arrive bien sur `onFilterChange`, avec le
+ * brouillon de saisie en cours FUSIONNÉ. Sans cette fusion, poser sa position pendant qu'on
+ * tape « Dakar » efface la ville — le défaut que `set()` existe pour éviter, et qu'une
+ * nouvelle section branchée à côté de lui réintroduirait.
+ */
+describe('<FilterSidebar> — la commande « Autour de moi » (TCK-346)', () => {
+  function geolocalisationQuiRepond() {
+    return {
+      getCurrentPosition: vi.fn((ok: PositionCallback) =>
+        ok({ coords: { latitude: 14.6928, longitude: -17.4467 }, timestamp: 0 } as unknown as GeolocationPosition)),
+    };
+  }
+
+  function monteAvecGeo(filters: SearchFilters = {}) {
+    const onFilterChange = vi.fn();
+    render(
+      withIntl(
+        <FilterSidebar
+          filters={filters}
+          onFilterChange={onFilterChange}
+          onReset={vi.fn()}
+          activeCount={0}
+          open={false}
+          onClose={() => {}}
+          debounceMs={20}
+          geolocalisation={geolocalisationQuiRepond()}
+        />,
+      ),
+    );
+    return { onFilterChange };
+  }
+
+  it('transmet le point et le rayon à `onFilterChange`', () => {
+    const { onFilterChange } = monteAvecGeo();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utiliser ma position' }));
+
+    expect(onFilterChange).toHaveBeenCalledWith(
+      expect.objectContaining({ lat: 14.6928, lng: -17.4467, radius_km: 5 }),
+    );
+  });
+
+  it('n’EFFACE PAS la ville en cours de frappe', () => {
+    const { onFilterChange } = monteAvecGeo();
+    frappe(screen.getByPlaceholderText(PLACEHOLDER_VILLE), 'Dakar');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Utiliser ma position' }));
+
+    expect(onFilterChange).toHaveBeenCalledWith(
+      expect.objectContaining({ city: 'Dakar', lat: 14.6928 }),
+    );
+  });
+
+  it('affiche le choix du rayon dès qu’un point existe', () => {
+    monteAvecGeo({ lat: 14.6928, lng: -17.4467, radius_km: 10 });
+    expect(screen.getByRole('button', { name: '10 km' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '2 km' })).toHaveAttribute('aria-pressed', 'false');
+  });
+});

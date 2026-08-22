@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDebouncedCallback } from '@/hooks/useDebouncedValue';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
+import { AutourDeMoi } from '@/components/search/AutourDeMoi';
 import type { SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -195,6 +196,8 @@ export interface FilterSidebarProps {
    * l'ajuster en production.
    */
   debounceMs?: number;
+  /** Passé tel quel à {@link AutourDeMoi} — injectable pour les tests, jamais en production. */
+  geolocalisation?: Pick<Geolocation, 'getCurrentPosition'>;
 }
 
 /**
@@ -227,6 +230,7 @@ export function FilterSidebar({
   open,
   onClose,
   debounceMs = DEBOUNCE_CHAMPS_LIBRES_MS,
+  geolocalisation,
 }: FilterSidebarProps) {
   const t = useTranslations('search.filters');
   const tTypes = useTranslations('property.types');
@@ -452,6 +456,23 @@ export function FilterSidebar({
               className="rounded-xl"
             />
           </div>
+        </Section>
+
+        {/*
+          4 bis. Autour de moi — TCK-346.
+
+          Placée JUSTE APRÈS « Localisation », et pas ailleurs : c'est la même intention
+          (« où »), et le message de refus de la géolocalisation renvoie explicitement au champ
+          « Ville » qui la précède. Les mettre à distance rendrait ce renvoi incompréhensible.
+        */}
+        <Section title={t(`sections.aroundMe`)}>
+          <AutourDeMoi
+            lat={filters.lat}
+            lng={filters.lng}
+            radiusKm={filters.radius_km}
+            onChange={set}
+            geolocalisation={geolocalisation}
+          />
         </Section>
 
         {/* 5. Budget */}

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Public;
 
 use App\Http\Requests\BaseFormRequest;
+use Closure;
 use Illuminate\Support\Carbon;
 
 /**
@@ -10,6 +11,18 @@ use Illuminate\Support\Carbon;
  */
 class SearchPublicPropertyRequest extends BaseFormRequest
 {
+    /**
+     * Rayon maximal accepte, en KILOMETRES (ADR-0023).
+     *
+     * Le plafond n'est pas cosmetique : le catalogue est senegalais, sa plus
+     * grande diagonale avoisine 700 km, et au-dela de 500 km un rayon centre
+     * sur Dakar ne discrimine plus rien — c'est un filtre qui coute au moteur
+     * sans reduire l'ensemble. `addresses` ne porte AUCUN `CHECK` sur
+     * `latitude` / `longitude` (mesure le 2026-08-22 sur les 135 migrations) :
+     * cette validation est le SEUL garde-fou.
+     */
+    public const RADIUS_KM_MAX = 500;
+
     /**
      * L'autorisation reste dans le controleur / la policy (principes 1 et 2, TCK-306).
      * `BaseFormRequest` refuse par defaut : sans cette surcharge, l'endpoint rendrait 403.
@@ -82,6 +95,32 @@ class SearchPublicPropertyRequest extends BaseFormRequest
         }
     }
 
+    /**
+     * `lat` ET `lng` sont tous deux presents et exploitables.
+     *
+     * ⚠ `filled()` et non `has()` : `BaseFormRequest::prepareForValidation()`
+     * remplace toute chaine vide par `null`, si bien que `?lat=` arrive ici
+     * comme une cle presente et nulle. `has()` la lirait comme un point donne.
+     * `filled(0)` reste vrai — l'equateur et le meridien de Greenwich sont des
+     * coordonnees valides.
+     */
+    private function porteUnPointGeo(): bool
+    {
+        return $this->filled('lat') && $this->filled('lng');
+    }
+
+    /**
+     * Regle de fermeture : ce parametre n'a de sens qu'avec un point complet.
+     */
+    private function exigeUnPointGeo(string $cleDeMessage): Closure
+    {
+        return function (string $attribut, mixed $valeur, Closure $echec) use ($cleDeMessage): void {
+            if (! $this->porteUnPointGeo()) {
+                $echec(__($cleDeMessage));
+            }
+        };
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -106,11 +145,44 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             'rent_period' => 'nullable|string',
             'furnished' => 'nullable|boolean',
             'tags' => 'nullable|string',
-            'lat_min' => 'nullable|numeric',
-            'lat_max' => 'nullable|numeric',
-            'lng_min' => 'nullable|numeric',
-            'lng_max' => 'nullable|numeric',
-            'sort' => 'nullable|in:relevance,price_asc,price_desc,created_desc',
+            // ── GEO, contrat « viewport » (ADR-0023, chemin 1) ────────────────
+            // Le rectangle existe depuis TCK-280 et n'est atteint par PERSONNE :
+            // `SEARCH_FILTER_KEYS` (takussan-web/src/types/search.ts) ne porte
+            // aucune cle geo. Il est CONSERVE et son statut est desormais ecrit :
+            // il sert a synchroniser la liste de resultats avec le cadrage de la
+            // carte. Il se conjoint (ET) au rayon si les deux sont envoyes.
+            'lat_min' => 'nullable|numeric|between:-90,90',
+            'lat_max' => 'nullable|numeric|between:-90,90',
+            'lng_min' => 'nullable|numeric|between:-180,180',
+            'lng_max' => 'nullable|numeric|between:-180,180',
+
+            // ── GEO, contrat « point + rayon » (TCK-346, ADR-0023) ────────────
+            // `lat` et `lng` s'exigent MUTUELLEMENT : un point a moitie donne est
+            // une erreur, jamais un filtre a moitie applique.
+            'lat' => ['nullable', 'numeric', 'between:-90,90', 'required_with:lng'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180', 'required_with:lat'],
+            // ⚠ KILOMETRES a la frontiere publique. `_geoRadius` de Meilisearch
+            // prend des METRES : la conversion vit dans `PropertySearchService`
+            // et nulle part ailleurs. Le nom et l'unite sont ceux qu'employait
+            // deja `App\Services\Model\SearchService` (chemin 3) — c'est ce qui
+            // fera de la convergence future un changement de moteur et non de
+            // contrat.
+            'radius_km' => [
+                'nullable', 'numeric', 'gt:0', 'max:'.self::RADIUS_KM_MAX,
+                $this->exigeUnPointGeo('validation.geo_radius_requires_point'),
+            ],
+
+            // `distance` exige le point, pour la meme raison : sans lui, le tri
+            // n'a pas d'origine. Le refuser en 422 vaut mieux que de retomber en
+            // silence sur le tri par defaut — le front croirait trier.
+            'sort' => [
+                'nullable', 'in:relevance,price_asc,price_desc,created_desc,distance',
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    if ($valeur === 'distance' && ! $this->porteUnPointGeo()) {
+                        $echec(__('validation.sort_distance_requires_point'));
+                    }
+                },
+            ],
             'floor_number' => 'nullable|integer|min:0|max:200',
             // TCK-335 — `after_or_equal:today` faisait POURRIR toute recherche sauvegardee
             // et tout lien partage : le jour ou la date passait, l'URL rendait 422, et le

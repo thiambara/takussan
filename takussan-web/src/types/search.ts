@@ -27,7 +27,13 @@ export type SuggestResponse = {
 
 export type ContractType = 'sale' | 'rent';
 export type RentPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
-export type SortValue = 'relevance' | 'price_asc' | 'price_desc' | 'created_desc';
+/**
+ * ⚠ `distance` n'est PAS un tri comme les autres : il exige une origine (`lat` + `lng`), et le
+ * serveur rend **422** s'il ne l'a pas (`SearchPublicPropertyRequest::rules()`, TCK-346). Ce
+ * couplage est tenu par `normaliserGeo()` (`hooks/useSearch.ts`) et par le fait que
+ * `SearchToolbar` ne propose l'option que lorsqu'un point existe.
+ */
+export type SortValue = 'relevance' | 'price_asc' | 'price_desc' | 'created_desc' | 'distance';
 
 export type Traducteur = (cle: string, valeurs?: Record<string, string | number>) => string;
 
@@ -70,15 +76,39 @@ type CleCommune<V> = {
  * Une clé qui FILTRE : elle restreint le jeu de résultats, donc elle doit être visible et
  * retirable — d'où le libellé, obligatoire par le typage.
  */
-export type CleFiltre<V> = CleCommune<V> & {
-  readonly role: 'filtre';
-  libelle(v: V, trads: TraducteursDeFiltre): string;
-  /**
-   * Clés multi-valuées : une puce par valeur, chacune retirable seule. `type` est la seule
-   * aujourd'hui. La sous-clé est ce que `onRemoveFilter` reçoit en second argument.
-   */
-  eclater?(v: V): readonly { readonly sousCle: string; readonly valeur: V }[];
-};
+export type CleFiltre<V> = CleCommune<V> & { readonly role: 'filtre' } & (
+  | {
+      libelle(v: V, trads: TraducteursDeFiltre): string;
+      /**
+       * Clés multi-valuées : une puce par valeur, chacune retirable seule. `type` est la seule
+       * aujourd'hui. La sous-clé est ce que `onRemoveFilter` reçoit en second argument.
+       */
+      eclater?(v: V): readonly { readonly sousCle: string; readonly valeur: V }[];
+      readonly agregeeDans?: undefined;
+    }
+  | {
+      /**
+       * TCK-346 — l'INVERSE d'`eclater` : plusieurs clés, UNE puce.
+       *
+       * `eclater` fait rendre plusieurs puces à une clé ; `agregeeDans` fait rendre UNE puce à
+       * plusieurs clés. C'est ce dont `lat` / `lng` / `radius_km` ont besoin : trois paramètres
+       * que le serveur valide séparément mais qui ne forment qu'un seul geste — « autour de ce
+       * point, à tant de kilomètres ». Trois puces indépendantes seraient pires que muettes :
+       * retirer `lat` seule laisse `lng` + `radius_km`, c'est-à-dire un **422 fabriqué par
+       * l'interface elle-même** (`required_with:lat`).
+       *
+       * Une clé agrégée n'a donc pas de libellé propre, n'est pas comptée séparément, et n'est
+       * jamais retirée seule : `removeFilter` remonte à l'agrégateur.
+       *
+       * ⚠ Typé `string` et non `CleDeRechercheNom` : ce nom-là est DÉRIVÉ de la table, l'y
+       * référencer serait circulaire. L'invariant qui rend le mécanisme sûr —
+       * *l'agrégateur existe, porte un libellé, et ses `params` couvrent ceux de la clé
+       * agrégée* — est donc vérifié à l'exécution par `search-filters.parity.test.ts`, et
+       * c'est LUI qui garantit qu'aucune clé n'est appliquée sans être retirable.
+       */
+      readonly agregeeDans: string;
+    }
+);
 
 /**
  * Une clé de CONTRÔLE : elle pilote la requête sans rien restreindre (tri, pagination).
@@ -103,6 +133,22 @@ function litTexte(sp: URLSearchParams, nom: string): string | undefined {
 function litNombre(sp: URLSearchParams, nom: string): number | undefined {
   const v = sp.get(nom);
   return v ? Number(v) : undefined;
+}
+
+/**
+ * Comme {@link litNombre}, mais **`0` est une valeur**, pas une absence — TCK-346.
+ *
+ * `litNombre` teste la chaîne (`v ? … : undefined`) : `?lat=0` y devient `undefined`. Or
+ * l'équateur et le méridien de Greenwich sont des coordonnées parfaitement valides, et le
+ * chantier backend a payé exactement ce défaut de l'autre côté (`! empty()` désactivait le
+ * filtre en silence sur `lat/lng = 0`, corrigé en `is_numeric()`). Le reproduire ici aurait
+ * rendu le front muet là où le serveur, lui, filtre.
+ */
+function litCoordonnee(sp: URLSearchParams, nom: string): number | undefined {
+  const brut = sp.get(nom);
+  if (brut === null || brut.trim() === '') return undefined;
+  const n = Number(brut);
+  return Number.isFinite(n) ? n : undefined;
 }
 
 /** `true`/`false` si la valeur est reconnue, `undefined` sinon (paramètre absent ou illisible). */
@@ -153,6 +199,38 @@ export const SEARCH_FILTER_KEYS = {
     lire: (sp: URLSearchParams) => litTexte(sp, 'city'),
     ecrire: (v: string) => v,
     libelle: (v: string) => v,
+  },
+  /**
+   * ─── Le rayon, et le point qui lui sert d'origine (TCK-346, ADR-0023) ──────────────────
+   *
+   * **Une seule puce pour trois paramètres.** `radius_km` porte le libellé et POSSÈDE les trois
+   * paramètres d'URL : retirer la puce retire le rayon *et* le point, d'un seul geste. C'est le
+   * même mécanisme que `q`, qui possède `search` depuis TCK-335 — ici il sert à empêcher un
+   * 422 plutôt qu'une puce irrémovable.
+   *
+   * ⚠ L'unité est le KILOMÈTRE de bout en bout côté front : c'est
+   * `PropertySearchService` qui convertit en mètres pour `_geoRadius`, et nulle part ailleurs.
+   */
+  radius_km: {
+    role: 'filtre',
+    params: ['radius_km', 'lat', 'lng'],
+    lire: (sp: URLSearchParams) => litCoordonnee(sp, 'radius_km'),
+    ecrire: (v: number) => String(v),
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.radius', { km: String(v) }),
+  },
+  lat: {
+    role: 'filtre',
+    params: ['lat'],
+    lire: (sp: URLSearchParams) => litCoordonnee(sp, 'lat'),
+    ecrire: (v: number) => String(v),
+    agregeeDans: 'radius_km',
+  },
+  lng: {
+    role: 'filtre',
+    params: ['lng'],
+    lire: (sp: URLSearchParams) => litCoordonnee(sp, 'lng'),
+    ecrire: (v: number) => String(v),
+    agregeeDans: 'radius_km',
   },
   contract_type: {
     role: 'filtre',
@@ -319,6 +397,28 @@ export function estControle(cle: CleDeRechercheNom): boolean {
   return SEARCH_FILTER_KEYS[cle].role === 'controle';
 }
 
+/**
+ * Le nom de la clé dont la puce DÉCRIT celle-ci, ou `undefined` si elle porte sa propre puce.
+ *
+ * TCK-346 — trois consommateurs en dépendent, et chacun éviterait un défaut distinct :
+ * `puceDeChaqueFiltreActif` (pas de puce muette « 14.6928 »), `countActiveFilters` (un rayon
+ * autour d'un point compte pour UN filtre, pas trois) et `removeFilter` (le retrait remonte à
+ * l'agrégateur, donc il est atomique).
+ */
+export function agregateurDe(cle: CleDeRechercheNom): CleDeRechercheNom | undefined {
+  const def = SEARCH_FILTER_KEYS[cle] as CleDeRecherche<unknown>;
+  if (def.role !== 'filtre') return undefined;
+  const nom = 'agregeeDans' in def ? def.agregeeDans : undefined;
+  return nom === undefined ? undefined : (nom as CleDeRechercheNom);
+}
+
+/** La fabrique de libellé d'une clé filtrante, ou `undefined` si elle est agrégée dans une autre. */
+function libelleDe(
+  def: CleFiltre<unknown>,
+): ((v: unknown, trads: TraducteursDeFiltre) => string) | undefined {
+  return 'libelle' in def ? def.libelle : undefined;
+}
+
 /** Les clés qui ne filtrent rien : ni comptées, ni affichées en puce, ni sauvegardées en critère. */
 export const CLES_DE_CONTROLE: readonly CleDeRechercheNom[] = CLES_DE_RECHERCHE.filter(estControle);
 
@@ -347,14 +447,20 @@ export function puceDeChaqueFiltreActif(
     // Une clé inconnue de la table (critère sauvegardé d'une version antérieure, par exemple)
     // n'a pas de libellé sûr : on ne l'invente pas.
     if (!def || def.role !== 'filtre') continue;
+    // TCK-346 — une clé agrégée n'a pas de puce PROPRE : elle est décrite par celle de son
+    // agrégateur, qui possède aussi ses paramètres d'URL. Lui en donner une rendrait
+    // « 14.6928 » à l'écran, et son retrait fabriquerait un 422.
+    const libelle = libelleDe(def);
+    if (!libelle) continue;
     const valeur = filtres[cle];
     if (valeur === undefined || valeur === null || valeur === '') continue;
     if (Array.isArray(valeur) && valeur.length === 0) continue;
-    const morceaux = def.eclater
-      ? def.eclater(valeur)
+    const eclater = 'eclater' in def ? def.eclater : undefined;
+    const morceaux = eclater
+      ? eclater(valeur)
       : [{ sousCle: undefined as string | undefined, valeur }];
     for (const m of morceaux) {
-      puces.push({ cle, sousCle: m.sousCle, libelle: def.libelle(m.valeur, trads) });
+      puces.push({ cle, sousCle: m.sousCle, libelle: libelle(m.valeur, trads) });
     }
   }
   return puces;
@@ -367,7 +473,7 @@ export interface Facets {
 }
 
 /**
- * Les deux régimes de la recherche publique — {@link file://../../../docs/adr/0020-recherche-publique-conjonctive-avec-repli-nomme.md ADR-0020}.
+ * Les deux régimes de la recherche publique — {@link file://../../../docs/adr/0024-recherche-publique-conjonctive-avec-repli-nomme.md ADR-0024}.
  *
  * - `all` : régime nominal, un bien ne sort que s'il porte TOUS les termes utiles.
  * - `widened` : la conjonction a rendu 0, la requête a été rejouée en relâchant des termes.
@@ -390,7 +496,7 @@ export interface BlocDeRecherche {
   /**
    * Les termes dont la SONDE SOLO rend 0 — pas « les termes relâchés », que Meilisearch ne rend
    * nulle part. Vide quand chaque terme existe séparément mais que leur intersection est vide :
-   * désigner l'un d'eux serait inventer un coupable (ADR-0020).
+   * désigner l'un d'eux serait inventer un coupable (ADR-0024).
    */
   terms_unmatched: string[];
   /** Écho de `meta.total` sous `widened`, `null` sous `all`. */
@@ -443,7 +549,7 @@ export function repliDeRecherche(result: SearchResult | null | undefined): Repli
     ? bloc.terms_unmatched.filter((t): t is string => typeof t === 'string' && t.trim() !== '')
     : [];
 
-  // `widened_total` est l'écho de `meta.total` PAR CONSTRUCTION (ADR-0020) : le repli sur
+  // `widened_total` est l'écho de `meta.total` PAR CONSTRUCTION (ADR-0024) : le repli sur
   // `meta.total` ne choisit donc pas entre deux comptes, il lit le même par l'autre chemin.
   const totalElargi = typeof bloc.widened_total === 'number'
     ? bloc.widened_total

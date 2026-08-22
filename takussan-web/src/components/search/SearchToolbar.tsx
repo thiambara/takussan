@@ -19,6 +19,17 @@ import {
 const SORT_VALUES = ['relevance', 'price_asc', 'price_desc', 'created_desc'] as const;
 
 /**
+ * TCK-346 — `distance` n'est proposé QUE lorsqu'une origine existe.
+ *
+ * Le serveur rend 422 sur `sort=distance` sans `lat`/`lng`
+ * (`SearchPublicPropertyRequest::rules()`), et il a raison : sans origine, le tri n'a pas de
+ * sens. Le refuser en 422 vaut mieux qu'un repli silencieux sur le tri par défaut — mais une
+ * option qui produit un 422 à coup sûr n'a rien à faire dans une liste déroulante. Elle
+ * apparaît donc avec le point et disparaît avec lui.
+ */
+const TRI_DISTANCE = 'distance' as const;
+
+/**
  * TCK-340 — la table des libellés et la liste des clés masquées vivaient ICI, en double de
  * `useSearch.ts`, et le lien entre les deux n'était pas vérifiable.
  *
@@ -76,7 +87,9 @@ export function SearchToolbar({
     value: String(n),
     label: t('perPageOption', { count: n }),
   }));
-  const sortOptions = SORT_VALUES.map((v) => ({ value: v, label: tSort(v) }));
+  const aUnPointGeo = filters.lat !== undefined && filters.lng !== undefined;
+  const valeursDeTri = aUnPointGeo ? [...SORT_VALUES, TRI_DISTANCE] : [...SORT_VALUES];
+  const sortOptions = valeursDeTri.map((v) => ({ value: v, label: tSort(v) }));
 
   const activeTags = puceDeChaqueFiltreActif(filters, trads);
 

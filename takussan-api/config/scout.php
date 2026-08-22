@@ -176,7 +176,26 @@ return [
                     'available_from', 'published_at', 'city', 'neighborhood',
                     'tags', '_geo',
                 ],
-                'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured'],
+                // TCK-346 / ADR-0023 — `_geo` est ici EN PLUS de `filterableAttributes`
+                // ci-dessus : filtrer par rayon et TRIER par distance sont deux
+                // autorisations distinctes.
+                //
+                // ⚠ Le jeton est `_geo`, PAS `_geoPoint`. La prescription du
+                // ticket disait `_geoPoint` ; MESURÉ sur Meilisearch 1.16 le
+                // 2026-08-22, sur un index témoin, c'est faux : avec
+                // `sortableAttributes: ["_geoPoint"]`, une requête
+                // `sort=_geoPoint(14.7,-17.45):asc` est REFUSÉE par
+                //   « Attribute `_geo` is not sortable. Available sortable
+                //     attributes are: `_geoPoint, id`. »
+                // — le moteur résout l'expression de tri vers l'attribut `_geo`
+                // et vérifie CELUI-LÀ. Avec `["_geo"]`, la même requête rend
+                // `[1, 2, 3]`, et `[3, 2, 1]` depuis un point au nord.
+                //
+                // Sans ce réglage, `sort=distance` produit une erreur moteur
+                // (`invalid_search_sort`, HTTP 400 → 500 côté API), pas un tri
+                // dégradé : c'est un prérequis DUR, et il exige un
+                // `scout:sync-index-settings` au déploiement.
+                'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured', '_geo'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
                 // TCK-335 — mots vides français. Meilisearch les retire À LA
                 // REQUÊTE comme à l'indexation : c'est ce qui fait que

@@ -18,7 +18,7 @@ import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useSearch } from '@/hooks/useSearch';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
-import type { SearchFilters } from '@/types/search';
+import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 /**
  * Canonical `/properties` discovery layout — Wave 3.
@@ -36,15 +36,19 @@ import type { SearchFilters } from '@/types/search';
 type View = 'list' | 'map';
 
 /**
- * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider
- * si un 422 désigne un filtre RÉPARABLE — la liste qui fait autorité vit côté serveur,
- * et `search-filters.parity.test.ts` garde l'accord entre les deux.
+ * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider si un 422
+ * désigne un filtre RÉPARABLE.
+ *
+ * TCK-346 — **dérivée de `SEARCH_FILTER_KEYS`**, alors qu'elle était écrite à la main. Elle
+ * citait dix-huit clés et venait donc d'en manquer trois (`lat`, `lng`, `radius_km`) : un 422
+ * sur `radius_km` — que le plafond de 500 km rend parfaitement atteignable depuis un lien —
+ * n'aurait proposé que « effacer toute la recherche ». Son propre commentaire disait déjà que
+ * la liste faisant autorité vit ailleurs ; elle la recopiait quand même.
+ *
+ * `removeFilter` remonte à l'agrégateur (TCK-346), donc chaque clé listée ici est réellement
+ * retirable, y compris `lat` et `lng` qui n'ont pas de puce propre.
  */
-const FILTRES_CONNUS = new Set<keyof SearchFilters>([
-  'q', 'location', 'city', 'contract_type', 'type', 'rent_period',
-  'price_min', 'price_max', 'bedrooms', 'bathrooms', 'area_min', 'area_max',
-  'furnished', 'featured', 'floor_number', 'available_from', 'tags', 'sort',
-]);
+const FILTRES_CONNUS = new Set<keyof SearchFilters>(CLES_DE_RECHERCHE);
 
 function CardSkeleton() {
   return (

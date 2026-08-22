@@ -17,6 +17,9 @@ export const sortSchema = z.enum([
   'price_asc',
   'price_desc',
   'created_desc',
+  // TCK-346 — exige `lat` + `lng` côté serveur ; le couplage est tenu par `normaliserGeo()`
+  // (`hooks/useSearch.ts`), pas ici : un `z.enum` ne peut pas voir les autres clés.
+  'distance',
 ]);
 
 /*
