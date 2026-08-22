@@ -143,7 +143,16 @@ ticket la laisse ouverte plutôt que de la déclarer faite (AC5).
       un jeton Sanctum réel, et que la réponse ne porte ni `public` ni `s-maxage`. Si
       la divergence disparaît un jour, le premier rougit — et c'est voulu : la décision
       doit alors être **relue**, pas contournée.
-- [ ] **AC5 — la compression est active en préproduction.** *Ouvert, et il ne peut pas
+- [~] **AC5 — la compression est active en préproduction. EXTRAIT le 2026-08-22 dans
+      [TCK-348](TCK-348-compression-et-deploiement-preprod.md)**, et ce ticket est clos sans lui.
+      Deux raisons, mesurées : il n'est fermable ni depuis le dépôt ni depuis une machine d'agent
+      (aucune clé privée, aucun workflow n'exécute `server-setup.sh`), et surtout **le fermer seul
+      ne donnerait pas l'effet attendu** — `origin/preview` est 34 commits derrière `dev` et 4
+      devant, et la préproduction sort `Cache-Control: no-cache, private` **sans ETag**. Elle ne
+      porte pas ce ticket du tout. *Un critère d'acceptation qui dépend d'un déploiement ne se
+      ferme pas dans le dépôt qui le décrit ; le garder ici aurait fait porter à un ticket
+      applicatif une dette d'infrastructure.* Le texte d'origine suit, conservé :
+      *Ouvert, et il ne peut pas
       être fermé depuis le dépôt* : le bloc gzip est écrit dans `server-setup.sh`, mais
       aucun workflow ne l'exécute. À fermer par `curl -H 'Accept-Encoding: gzip'
       https://preview.api.takussan.com/api/public/properties/search?per_page=20`
