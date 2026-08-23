@@ -52,7 +52,13 @@ revirement.
 - `routes/api/enums.php` — `GET enums/{key}`, cache 300 s.
 - `app/Http/Controllers/Api/PropertyController.php:76-82` — `Rule::enum()` en usage.
 - `CLAUDE.md` — piège de migration n°4.
-- **La garde** : le job `migrations-mysql` de `api-ci.yml` rejoue les migrations sur MySQL 8.0 —
-  le moteur de la production, mesuré le 2026-08-13 (ardoise D-43). Il
-  n'interdit pas un `enum()` explicitement, mais c'est le seul endroit où un écart entre le schéma
-  MySQL et le schéma SQLite peut désormais se voir.
+- **La garde** : elle a changé de nature avec [ADR-0020](0020-postgresql-sur-tous-les-environnements.md),
+  et en bien. Elle était le job `migrations-mysql` de `api-ci.yml`, qui rejouait les migrations sur
+  MySQL 8.0 — le seul endroit où un écart entre le schéma MySQL et le schéma SQLite pouvait se
+  voir. **Il n'y a plus d'écart** : la suite de tests tourne sur PostgreSQL 17, le moteur de tous
+  les environnements, donc tout `enum()` déclaré serait exécuté par CHAQUE exécution de la suite,
+  et non par un seul job. Le job survit sous le nom `migrations-pgsql`, mais pour les `down()`.
+- ⚠ **Cette décision n'est PAS révoquée par le changement de moteur, et elle ne s'appuie plus sur
+  lui.** Sa raison est propre : un `string()` plus un contrôle applicatif se fait évoluer, un type
+  SQL énuméré non. PostgreSQL a bien un type `ENUM` — il ne rend pas cet ADR caduc, il le rend
+  seulement moins évident à défendre par le moteur.

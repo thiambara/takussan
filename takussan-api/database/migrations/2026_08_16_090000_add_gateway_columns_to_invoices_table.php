@@ -24,10 +24,16 @@ use Illuminate\Support\Facades\Schema;
  *
  * **Et la suite de tests ne pouvait structurellement pas le voir** : mesuré le 2026-08-16,
  * la même requête sur SQLite (le moteur des tests) ne lève pas — elle rend 0 ligne EN
- * SILENCE. Sur MySQL 8.0.46 (le moteur de production, mesuré) elle lève. C'est la règle n°4
- * du `CLAUDE.md` — « une migration se pense pour MySQL, jamais pour SQLite » — transposée au
- * REQUÊTAGE, où rien ne la gardait. `tests/Feature/Api/PaymentGatewaySchemaContractTest.php`
- * ferme désormais ce trou sans exiger un second moteur en CI.
+ * SILENCE. Sur MySQL 8.0.46 (le moteur de production, mesuré) elle lève. C'était la règle n°4
+ * du `CLAUDE.md` D'ALORS — « une migration se pense pour MySQL, jamais pour SQLite » —
+ * transposée au REQUÊTAGE, où rien ne la gardait.
+ * `tests/Feature/Api/PaymentGatewaySchemaContractTest.php` ferme ce trou.
+ *
+ * ⚠ Cette règle est RÉVOQUÉE depuis le 2026-08-21 (ADR-0020) : il n'y a plus qu'un moteur,
+ * PostgreSQL 17, et la suite de tests tourne dessus. La divergence « tests permissifs,
+ * production stricte » qui rendait ce défaut invisible **n'existe plus** — ce que la suite
+ * éprouve est ce que la production exécutera. Le test de contrat reste utile pour autant :
+ * il éprouve le SCHÉMA, pas le moteur, et une colonne oubliée reste une colonne oubliée.
  *
  * Colonnes calquées sur `booking_payments` et `lease_payments`, qui portent exactement les
  * mêmes depuis l'origine (`create_booking_payments_table.php:20,26`).
@@ -53,8 +59,9 @@ return new class extends Migration
             // des factures à chaque notification de paiement.
             //
             // Nom explicite : `invoices_transaction_id_index` fait 29 caractères et tiendrait
-            // sous la limite MySQL de 64, mais ce dépôt nomme ses index (piège n°3 du
-            // CLAUDE.md) plutôt que de compter à chaque fois.
+            // sous la limite de 63 de PostgreSQL, mais ce dépôt nomme ses index (piège n°3 du
+            // CLAUDE.md) plutôt que de compter à chaque fois — d'autant que PostgreSQL ne
+            // refuse pas un nom trop long, il le TRONQUE avec un simple `NOTICE`.
             $table->index('transaction_id', 'invoices_transaction_id_idx');
         });
     }
@@ -62,10 +69,14 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('invoices', function (Blueprint $table): void {
-            // L'index D'ABORD, la colonne ensuite. L'ordre inverse fonctionne sur SQLite et
-            // échoue sur MySQL, qui refuse de retirer une colonne encore indexée — et c'est
-            // MySQL qui tourne le jour où l'on redescend. Ce `down()` est exécuté par le job
-            // CI `migrations-mysql`, cette migration se plaçant au-dessus du cutover TCK-278.
+            // L'index D'ABORD, la colonne ensuite. C'était une NÉCESSITÉ sous MySQL, qui
+            // refuse de retirer une colonne encore indexée ; PostgreSQL, lui, supprime les
+            // index dépendants avec la colonne. L'ordre est donc conservé parce qu'il est
+            // juste partout, pas parce qu'il est encore requis — on ne réécrit pas un `down()`
+            // déjà joué pour lui retirer une précaution qui ne coûte rien.
+            //
+            // Ce `down()` est exécuté par le job CI `migrations-pgsql` (ex-`migrations-mysql`),
+            // cette migration se plaçant au-dessus de la borne TCK-278.
             $table->dropIndex('invoices_transaction_id_idx');
             $table->dropColumn(['transaction_id', 'payment_method']);
         });

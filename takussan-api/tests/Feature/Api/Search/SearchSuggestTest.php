@@ -187,7 +187,7 @@ class SearchSuggestTest extends TestCase
 
     /**
      * TCK-335 — LE defaut du ticket : `SuggestService` filtrait par
-     * `str_starts_with` sur une liste MySQL, donc une seule faute de frappe
+     * `str_starts_with` sur une liste tiree de la base, donc une seule faute de frappe
      * rendait ZERO suggestion, alors que Meilisearch tourne a cote.
      *
      * ⚠ Ce que ce test ne promet PAS, et c'est mesure : `facet-search` fait du

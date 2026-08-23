@@ -55,9 +55,10 @@ on:
       - 'takussan-api/CLAUDE.md'
       - 'takussan-web/CLAUDE.md'
       - 'takussan-web/README.md'
-      # `check-db-engine` compare le compose, le job `migrations-mysql` d'`api-ci.yml` et
-      # l'init SQL. Les trois doivent déclencher, sinon la garde ne voit qu'une moitié de
-      # l'écart qu'elle existe pour trouver — la règle posée en haut de ce bloc.
+      # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
+      # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
+      # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
+      # règle posée en haut de ce bloc.
       - 'docker-compose.yml'
       - 'docker/**'
       - '.github/workflows/api-ci.yml'
@@ -128,9 +129,10 @@ on:
       - 'takussan-api/CLAUDE.md'
       - 'takussan-web/CLAUDE.md'
       - 'takussan-web/README.md'
-      # `check-db-engine` compare le compose, le job `migrations-mysql` d'`api-ci.yml` et
-      # l'init SQL. Les trois doivent déclencher, sinon la garde ne voit qu'une moitié de
-      # l'écart qu'elle existe pour trouver — la règle posée en haut de ce bloc.
+      # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
+      # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
+      # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
+      # règle posée en haut de ce bloc.
       - 'docker-compose.yml'
       - 'docker/**'
       - '.github/workflows/api-ci.yml'

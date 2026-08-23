@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Support\CaseInsensitive;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RegisterRequest extends FormRequest
@@ -14,7 +15,7 @@ class RegisterRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if ($this->has('email') && is_string($this->input('email'))) {
-            $this->merge(['email' => strtolower(trim($this->input('email')))]);
+            $this->merge(['email' => CaseInsensitive::fold(trim((string) $this->input('email')))]);
         }
     }
 

@@ -517,6 +517,28 @@ rien attraper.*
    MySQL n°2 qui disparaît : plus rien ne refuse un `dropIndex`, et plus rien ne sert les
    requêtes.*
 
+9. **`lower()` ne replie que l'ASCII — et c'est le piège qui a coûté le plus cher après coup.**
+   `lower()` emprunte la collation de son argument, et la base est en `--locale=C` (ADR-0020) :
+   `lower('CAFÉ')` rend **`cafÉ`**. Un index `LOWER(col)` posé pour refuser les variantes de casse
+   laisse donc passer `CAFÉ` à côté de `Café` — ce qui était le cas des trois index de
+   `2026_08_21_130000` pendant un jour, et de six requêtes applicatives.
+
+   ```php
+   ❌ ->whereRaw('LOWER(email) = ?', [strtolower($email)])      // ASCII des DEUX côtés
+   ✓ ->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)])
+   ```
+
+   **`App\Support\CaseInsensitive` porte la forme, et ses deux méthodes vont par paire** :
+   `sql()` rend `LOWER(col COLLATE "und-x-icu")`, `fold()` fait `mb_strtolower`. Replier d'un
+   seul côté déplace le défaut au lieu de le corriger — `strtolower()` de PHP est ASCII-only
+   exactement comme `lower()` nu ([ADR-0025](docs/adr/0025-repli-de-casse-par-collation-icu.md)).
+
+   ⚠ **Une requête doit écrire EXACTEMENT l'expression de l'index, sinon elle ne l'emprunte pas** :
+   mesuré sur 5000 lignes, `LOWER(name COLLATE "und-x-icu") = ?` rend un `Index Scan`, `LOWER(name)
+   = ?` un `Seq Scan`. Index et requêtes bougent ensemble ou pas du tout.
+
+   ⚠ Ça ne replie **pas** les accents, délibérément : `Café` ≠ `Cafe`, reconduction d'ADR-0020 §2.
+
 **Les pièges MySQL qui ont DISPARU** — ne plus les chercher : `DEFAULT` sur `JSON`/`TEXT` (accepté
 par PostgreSQL), `dropUnique`/`dropIndex` sur une colonne portant une FK (voir n°8), et la limite
 de 64 caractères (devenue 63, et silencieuse — voir n°3). L'interdiction d'`enum()` (ADR-0007)

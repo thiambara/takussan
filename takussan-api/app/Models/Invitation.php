@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Bases\AbstractModel;
 use App\Models\Enums\InvitationStatus;
+use App\Support\CaseInsensitive;
 use Database\Factories\InvitationFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -75,7 +76,7 @@ class Invitation extends AbstractModel
     public function setEmailAttribute(?string $value): void
     {
         $this->attributes['email'] = $value !== null
-            ? strtolower(trim($value))
+            ? CaseInsensitive::fold(trim($value))
             : null;
     }
 

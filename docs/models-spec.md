@@ -83,6 +83,24 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 - FK = Foreign Key
 - PK = Primary Key
 
+> **Le moteur est PostgreSQL 17, sur tous les environnements, suite de tests comprise**
+> ([ADR-0020](adr/0020-postgresql-sur-tous-les-environnements.md), 2026-08-21). SQLite et MySQL ont
+> été retirés : ce ne sont plus des variantes supportées. Ce document décrivait encore le schéma
+> par les contraintes de MySQL jusqu'au 2026-08-22 — la lecture ci-dessous en dépend sur deux
+> points, et il faut les poser une fois plutôt que les répéter par colonne :
+>
+> - **Le type `json` de ce document est un `jsonb` en base.** Mesuré le 2026-08-22 :
+>   `grep -rho '\->jsonb(' database/migrations/ | wc -l` → **69**, et **zéro** `->json(`. La
+>   distinction n'est pas cosmétique : le type `json` de PostgreSQL n'a **aucun opérateur
+>   d'égalité** — `DISTINCT`, `GROUP BY` et `UNION` y sont impossibles, et aucun index GIN ne s'y
+>   pose. Les 56 lignes de type `json` de ce document sont écrites `jsonb` depuis cette date.
+>   ⚠ 56 < 69 : les tableaux ci-dessous ne couvrent pas toutes les colonnes du schéma. **Le compte
+>   se prend à la source, jamais ici.**
+> - **La limite d'un nom d'index est 63 caractères, pas 64** — et PostgreSQL ne REFUSE pas, il
+>   **tronque** avec un simple `NOTICE`. L'index existe alors sous un nom que Laravel ne calculera
+>   jamais, et c'est le `dropIndex()` d'une migration future qui échouera sur un index
+>   « introuvable » qui est pourtant là. C'est pourquoi ce document nomme ses index explicitement.
+
 ---
 
 ## Table des matières
@@ -249,7 +267,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | notifications_email_enabled | boolean | | true | Alertes par email activées | ➕ |
 | notifications_push_enabled | boolean | | true | Alertes push activées | ➕ |
 | notifications_sms_enabled | boolean | | false | Alertes SMS activées | ➕ |
-| metadata | json | oui | null | Données supplémentaires flexibles | |
+| metadata | jsonb | oui | null | Données supplémentaires flexibles | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | Date de création | |
 | updated_at | datetime | | auto | Date de modification | |
@@ -323,8 +341,8 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | properties_count | integer | | 0 | Compteur biens (cache — mettre à jour via Observer ou job) | ➕ |
 | active_leases_count | integer | | 0 | Compteur baux actifs (cache) | ➕ |
 | average_rating | decimal(2,1) | oui | null | Note moyenne (cache) | ➕ |
-| settings | json | oui | null | Paramètres internes (préférences, config) | |
-| metadata | json | oui | null | Données supplémentaires flexibles | |
+| settings | jsonb | oui | null | Paramètres internes (préférences, config) | |
+| metadata | jsonb | oui | null | Données supplémentaires flexibles | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
@@ -387,7 +405,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | average_rating | decimal(2,1) | oui | null | Note moyenne des avis (cache) | ➕ |
 | available_from | date | oui | null | Date de disponibilité | ➕ |
 | published_at | datetime | oui | null | Date de publication de l'annonce | ➕ |
-| metadata | json | oui | null | Attributs supplémentaires spécifiques au type | |
+| metadata | jsonb | oui | null | Attributs supplémentaires spécifiques au type | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
@@ -452,7 +470,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | building | string | oui | null | Bâtiment / Résidence | |
 | latitude | decimal(10,8) | oui | null | Latitude GPS | |
 | longitude | decimal(11,8) | oui | null | Longitude GPS | |
-| metadata | json | oui | null | Données complémentaires | |
+| metadata | jsonb | oui | null | Données complémentaires | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
 
@@ -491,7 +509,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | reason_for_rejection | text | oui | null | Motif de rejet | |
 | reason_for_cancellation | text | oui | null | Motif d'annulation | |
 | cancellation_by | CancellationBy | oui | null | Qui a annulé (owner, customer, agent, system) | ✏️ |
-| metadata | json | oui | null | | |
+| metadata | jsonb | oui | null | | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
@@ -540,7 +558,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | refund_amount | decimal(14,2) | oui | null | Montant remboursé (si applicable) | ➕ |
 | refund_reason | text | oui | null | Motif du remboursement | ➕ |
 | notes | text | oui | null | Notes | |
-| metadata | json | oui | null | Données passerelle / complémentaires | |
+| metadata | jsonb | oui | null | Données passerelle / complémentaires | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
@@ -577,7 +595,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | emergency_contact_phone | string | oui | null | Téléphone du contact d'urgence | ➕ |
 | added_by_id | FK users | oui | null | Agent / propriétaire ayant ajouté ce contact | |
 | user_id | FK users | oui | null | Compte utilisateur lié (si le client est inscrit) | |
-| metadata | json | oui | null | | |
+| metadata | jsonb | oui | null | | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
@@ -615,7 +633,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | user_id | FK users | | | Utilisateur invité | |
 | role | CollaboratorRole | | | Rôle attribué (manager, co_owner, agent, viewer) | ✏️ |
 | commission_share | decimal(5,2) | oui | null | Part de commission allouée à ce collaborateur (%) — la somme par property doit être ≤ 100 | ➕ |
-| permissions | json | | | Permissions spécifiques accordées | |
+| permissions | jsonb | | | Permissions spécifiques accordées | |
 | notes | text | oui | null | Notes sur la collaboration | |
 | invited_by | FK users | oui | null | Utilisateur ayant envoyé l'invitation | |
 | invitation_accepted | boolean | | false | Invitation acceptée | |
@@ -735,7 +753,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | delivered | boolean | | false | Notification délivrée | |
 | delivery_channel | NotificationChannel | | 'app' | Canal (app, email, sms, push) | ✏️ |
 | delivered_at | datetime | oui | null | Date de délivrance | |
-| metadata | json | oui | null | Données supplémentaires (passerelle, contexte) | |
+| metadata | jsonb | oui | null | Données supplémentaires (passerelle, contexte) | |
 | deleted_at | datetime | oui | null | Soft delete | |
 | created_at | datetime | | auto | | |
 | updated_at | datetime | | auto | | |
@@ -854,7 +872,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | terminated_at | datetime | oui | null | Date de résiliation anticipée |
 | termination_reason | text | oui | null | Motif de résiliation |
 | terminated_by_id | FK users | oui | null | Qui a résilié |
-| metadata | json | oui | null | |
+| metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -906,7 +924,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | late_fee | decimal(14,2) | oui | null | Pénalité de retard appliquée |
 | transaction_id | string | oui | null | ID transaction externe (mobile money, banque) |
 | notes | text | oui | null | Notes |
-| metadata | json | oui | null | |
+| metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -969,7 +987,7 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 | feedback | text | oui | null | Retour du visiteur après la visite |
 | rating | decimal(2,1) | oui | null | Note donnée au bien (1.0 à 5.0) |
 | notes | text | oui | null | Notes internes de l'agent |
-| metadata | json | oui | null | |
+| metadata | jsonb | oui | null | |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -1005,7 +1023,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | last_message_id | FK messages | oui | null | Dernier message envoyé (cache, mis à jour via MessageObserver::created()) |
 | last_message_preview | string(255) | oui | null | Extrait texte du dernier message (cache, affichage liste sans JOIN) |
 | last_message_at | datetime | oui | null | Horodatage du dernier message (cache) |
-| metadata | json | oui | null | |
+| metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1060,7 +1078,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | sender_id | FK users | | | Expéditeur |
 | content | text | | | Contenu du message |
 | type | MessageType | | 'text' | Type (text, image, document, system) |
-| metadata | json | oui | null | Métadonnées (URL image, nom fichier, etc.) |
+| metadata | jsonb | oui | null | Métadonnées (URL image, nom fichier, etc.) |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1099,7 +1117,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | started_at | datetime | oui | null | Date de début d'intervention |
 | completed_at | datetime | oui | null | Date de fin d'intervention |
 | resolution_notes | text | oui | null | Notes de résolution |
-| metadata | json | oui | null | |
+| metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1138,7 +1156,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | verified_by | FK users | oui | null | Vérificateur |
 | verified_at | datetime | oui | null | Date de vérification |
 | expiry_date | date | oui | null | Date d'expiration (CNI, assurance, etc.) |
-| metadata | json | oui | null | |
+| metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1165,12 +1183,12 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | id | bigint PK | | auto | Identifiant unique |
 | user_id | FK users | | | Utilisateur |
 | name | string | | | Nom donné à la recherche (ex: "3 pièces Dakar < 200k") |
-| criteria | json | | | Critères de recherche (type, prix min/max, surface, localisation, etc.) |
+| criteria | jsonb | | | Critères de recherche (type, prix min/max, surface, localisation, etc.) |
 | notification_frequency | string | | 'daily' | Fréquence d'alerte (`instant`, `daily`, `weekly`, `off`). **NOT NULL** — la sentinelle « ne pas notifier » est `off`, jamais `null` ni `""` (TCK-330) |
 | is_active | boolean | | true | Alerte active |
 | last_notified_at | datetime | oui | null | Dernière notification envoyée |
 | results_count | integer | | 0 | Nombre de résultats actuels (cache — mettre à jour via job planifié, pas à la volée) |
-| metadata | json | oui | null | |
+| metadata | jsonb | oui | null | |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -1195,13 +1213,13 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | conducted_at | datetime | | | Date de réalisation |
 | status | InventoryStatus | | 'draft' | Statut (draft, pending_signature, signed, disputed) |
 | general_condition | InventoryCondition | | | État général (excellent, good, fair, poor) |
-| rooms | json | | | Détail pièce par pièce (nom, état, commentaires, photos) |
+| rooms | jsonb | | | Détail pièce par pièce (nom, état, commentaires, photos) |
 | notes | text | oui | null | Observations générales |
 | tenant_signed | boolean | | false | Locataire a signé |
 | tenant_signed_at | datetime | oui | null | Date de signature locataire |
 | owner_signed | boolean | | false | Propriétaire a signé |
 | owner_signed_at | datetime | oui | null | Date de signature propriétaire |
-| metadata | json | oui | null | |
+| metadata | jsonb | oui | null | |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1241,7 +1259,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | total_amount | decimal(14,2) | | | Montant total TTC |
 | currency | Currency | | 'XOF' | Devise |
 | notes | text | oui | null | Libellé ou notes complémentaires |
-| metadata | json | oui | null | Données complémentaires |
+| metadata | jsonb | oui | null | Données complémentaires |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1309,7 +1327,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | relationship_to_tenant | string | oui | null | Lien avec le locataire (parent, conjoint, employeur, autre) |
 | added_by_id | FK users | oui | null | Utilisateur ayant saisi le garant (`nullOnDelete`) |
 | notes | text | oui | null | Notes internes |
-| metadata | json | oui | null | Données complémentaires |
+| metadata | jsonb | oui | null | Données complémentaires |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1356,7 +1374,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | processed_at | datetime | oui | null | Date effective du reversement |
 | failed_reason | text | oui | null | Motif d'échec (si `status = failed`) |
 | notes | text | oui | null | Notes internes |
-| metadata | json | oui | null | Données passerelle / complémentaires |
+| metadata | jsonb | oui | null | Données passerelle / complémentaires |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1423,7 +1441,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
 | key | string | | | Clé du paramètre (ex: `booking.auto_expire_hours`) |
-| value | json | | | Valeur (typage libre via JSON) |
+| value | jsonb | | | Valeur (typage libre via JSON) |
 | scope | SettingScope | | 'global' | Portée (`global`, `agency`) |
 | scope_id | bigint | oui | null | FK vers l'entité de scope (ex: `agencies.id` si `scope = agency`) |
 | updated_by_id | FK users | oui | null | Dernier utilisateur ayant modifié (`nullOnDelete`) |
@@ -1451,7 +1469,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | credentials | text (encrypted) | | | Credentials chiffrés (API keys, secrets, tokens) |
 | is_active | boolean | | true | Intégration activée |
 | last_used_at | datetime | oui | null | Dernière utilisation |
-| metadata | json | oui | null | Configuration complémentaire (webhooks, scopes…) |
+| metadata | jsonb | oui | null | Configuration complémentaire (webhooks, scopes…) |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1536,7 +1554,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | monthly_income | decimal(12,2) | oui | null | Revenus mensuels déclarés (XOF) |
 | employer | string | oui | null | Employeur |
 | guarantor_user_id | FK users | oui | null | Garant (autre user — `nullOnDelete`) |
-| metadata | json | oui | null | Données flexibles |
+| metadata | jsonb | oui | null | Données flexibles |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1570,7 +1588,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | specialty | string | oui | null | Spécialité (résidentiel, commercial, luxe, etc.) |
 | hire_date | date | oui | null | Date d'embauche |
 | active_until | date | oui | null | Date de fin de contrat (si applicable) |
-| metadata | json | oui | null | Données flexibles |
+| metadata | jsonb | oui | null | Données flexibles |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1600,7 +1618,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | insurance_policy_id | string | oui | null | Référence police d'assurance RC pro |
 | regulator_registration | string | oui | null | Numéro d'enregistrement régulateur |
 | active_until | date | oui | null | Validité de la licence |
-| metadata | json | oui | null | Données flexibles |
+| metadata | jsonb | oui | null | Données flexibles |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1628,14 +1646,14 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | Identifiant unique |
 | user_id | FK users | | | Identité du prestataire (`restrictOnDelete`) |
-| specialties | json | oui | null | Liste de `MaintenanceCategory` (plumbing, electrical, etc.) |
-| service_areas | json | oui | null | Zones desservies (codes postaux, communes) |
+| specialties | jsonb | oui | null | Liste de `MaintenanceCategory` (plumbing, electrical, etc.) |
+| service_areas | jsonb | oui | null | Zones desservies (codes postaux, communes) |
 | insurance_policy_id | string | oui | null | Référence police d'assurance |
-| certifications | json | oui | null | Liste de certifications (label + URL preuve) |
+| certifications | jsonb | oui | null | Liste de certifications (label + URL preuve) |
 | hourly_rate_min | decimal(10,2) | oui | null | Tarif horaire minimum (XOF) |
 | hourly_rate_max | decimal(10,2) | oui | null | Tarif horaire maximum (XOF) |
 | active_until | date | oui | null | Validité administrative |
-| metadata | json | oui | null | Données flexibles |
+| metadata | jsonb | oui | null | Données flexibles |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1666,7 +1684,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | status | CollaborationStatus | | 'active' | Statut (active, paused, ended) |
 | started_at | date | | | Début de la collaboration |
 | ended_at | date | oui | null | Fin de la collaboration |
-| metadata | json | oui | null | Données flexibles (taux, conditions) |
+| metadata | jsonb | oui | null | Données flexibles (taux, conditions) |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1693,7 +1711,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | status | CollaborationStatus | | 'active' | Statut (active, paused, ended) |
 | started_at | date | | | Début de la collaboration |
 | ended_at | date | oui | null | Fin de la collaboration |
-| metadata | json | oui | null | Données flexibles |
+| metadata | jsonb | oui | null | Données flexibles |
 | deleted_at | datetime | oui | null | Soft delete |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -1772,7 +1790,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | label | text | | | Libellé bancaire complet |
 | reference | string | oui | null | Référence bancaire (transaction id) |
 | counterparty | string | oui | null | Contrepartie identifiée (libre) |
-| raw_payload | json | | | Payload brut de la ligne tel qu'importée (CSV/OFX) — traçabilité totale |
+| raw_payload | jsonb | | | Payload brut de la ligne tel qu'importée (CSV/OFX) — traçabilité totale |
 | match_status | BankStatementLineMatchStatus enum | | 'unmatched' | État d'appariement (unmatched, suggested, confirmed, ignored) |
 | matched_payment_type | string | oui | null | Type morph du paiement apparié (`BookingPayment` ou `LeasePayment`) |
 | matched_payment_id | bigint | oui | null | ID du paiement apparié |
@@ -1816,7 +1834,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | reviewed_at | datetime | oui | null | Décision rendue |
 | reviewed_by | FK users | oui | null | Super-admin (ou agency_admin pour les profils internes) ayant statué (`nullOnDelete`) |
 | rejection_reason | text | oui | null | Motif si `status=rejected` |
-| metadata | json | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) |
+| metadata | jsonb | oui | null | Champs libres dépendants du type (numéro RCCM, pays d'émission, etc.) |
 | created_at / updated_at | datetime | | auto | |
 
 **Index :**
@@ -1850,7 +1868,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | monthly_price_xof | decimal(12,2) | | 0 | Prix mensuel hors taxes en XOF |
 | platform_fee_pct | decimal(5,2) | | 0 | Commission plateforme par défaut sur transactions (%) |
 | trial_days | unsignedSmallInteger | | 0 | Période d'essai gratuite |
-| limits | json | oui | null | Quotas (`max_active_listings`, `max_agents`, `max_branches`…) |
+| limits | jsonb | oui | null | Quotas (`max_active_listings`, `max_agents`, `max_branches`…) |
 | is_active | boolean | | true | Affichable dans le catalogue |
 | sort_order | unsignedSmallInteger | | 0 | Ordre d'affichage |
 | created_at / updated_at | datetime | | auto | |
@@ -1883,7 +1901,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | current_period_end | datetime | | | |
 | ended_at | datetime | oui | null | Si non null, souscription archivée — une nouvelle peut être active |
 | platform_fee_pct_override | decimal(5,2) | oui | null | Si non null, écrase `Plan.platform_fee_pct` |
-| limits_override | json | oui | null | Quotas négociés ; merge sur `Plan.limits` |
+| limits_override | jsonb | oui | null | Quotas négociés ; merge sur `Plan.limits` |
 | created_at / updated_at | datetime | | auto | |
 
 **Index :**
@@ -1921,7 +1939,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | approved_by | FK users | oui | null | Super-admin ayant approuvé |
 | processed_at | datetime | oui | null | Date d'exécution du virement |
 | failure_reason | text | oui | null | |
-| metadata | json | oui | null | Référence virement bancaire, lot, breakdown |
+| metadata | jsonb | oui | null | Référence virement bancaire, lot, breakdown |
 | created_at / updated_at | datetime | | auto | |
 
 **Index :**
@@ -1948,10 +1966,10 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | Colonne | Type | Nullable | Défaut | Description |
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
-| title | json | | | Titre par locale (`{fr, en, wo}`) |
-| body | json | | | Corps multilingue |
+| title | jsonb | | | Titre par locale (`{fr, en, wo}`) |
+| body | jsonb | | | Corps multilingue |
 | severity | AnnouncementSeverity enum | | 'info' | info, success, warning, critical |
-| segment | json | | | `{roles?: [...], agency_ids?: [...], rollout_percentage?: int}` — l'absence de segment = tout le monde |
+| segment | jsonb | | | `{roles?: [...], agency_ids?: [...], rollout_percentage?: int}` — l'absence de segment = tout le monde |
 | starts_at | datetime | | | |
 | ends_at | datetime | oui | null | Si null, jusqu'à désactivation explicite |
 | is_active | boolean | | true | |
@@ -2008,7 +2026,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | accepted_at | datetime | oui | null | |
 | revoked_at | datetime | oui | null | |
 | last_reminded_at | datetime | oui | null | Date du dernier rappel J+2 envoyé |
-| metadata | json | oui | null | Données additionnelles propres au parcours (ex. zones d'intervention pré-sélectionnées, premier lead pré-assigné) |
+| metadata | jsonb | oui | null | Données additionnelles propres au parcours (ex. zones d'intervention pré-sélectionnées, premier lead pré-assigné) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -2094,7 +2112,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | inventory_completed_at | datetime | oui | null | État des lieux d'entrée signé (référence `Inventory` via `lease_id`) |
 | first_payment_at | datetime | oui | null | Premier paiement enregistré (acompte ou 1er loyer, voir `LeasePayment`) |
 | documents_acknowledged_at | datetime | oui | null | Bail + EDL accusés réception |
-| reminders_sent | json | | '[]' | Liste des rappels envoyés (ex. `[{type:'inventory', sent_at:...}]`) |
+| reminders_sent | jsonb | | '[]' | Liste des rappels envoyés (ex. `[{type:'inventory', sent_at:...}]`) |
 | completed_at | datetime | oui | null | Tous les items requis cochés |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -2233,7 +2251,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | phone | string | | | Numéro E.164 — **unique** |
 | user_id | FK users | oui | null | User associé (null = contact anonyme inbound) (`nullOnDelete`) |
 | display_name | string | oui | null | Nom WhatsApp du contact |
-| opt_in_status | string | | 'pending' | `pending` / `opted_in` / `opted_out` (string + check applicatif, **pas d'enum() MySQL**) |
+| opt_in_status | string | | 'pending' | `pending` / `opted_in` / `opted_out` (string + check applicatif, **pas d'`enum()` SQL** — [ADR-0007](adr/0007-pas-d-enum-sql.md)) |
 | opt_in_source | string | oui | null | Origine du consentement (ex. `account_settings`, `inbound_reply`) |
 | opt_in_at | datetime | oui | null | Horodatage du consentement |
 | last_inbound_at | datetime | oui | null | Dernier message entrant — base de la fenêtre 24h |
@@ -2261,7 +2279,7 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 | meta_template_name | string | oui | null | Nom du template tel qu'enregistré chez Meta |
 | meta_category | string | oui | null | `authentication` (OTP) / `utility` (transactionnel, rappels, relances) — **jamais `marketing`** |
 | meta_status | string | oui | null | `pending` / `approved` / `rejected` (statut d'approbation Meta) |
-| meta_variables | json | oui | null | Mapping **ordonné** des variables du template (défaut `[]` côté model, **pas de DEFAULT JSON en migration**) |
+| meta_variables | jsonb | oui | null | Mapping **ordonné** des variables du template (défaut `[]` côté model, **pas de DEFAULT JSON en migration**) |
 
 **Contraintes :**
 - Hors fenêtre 24h + pas de template `meta_status = approved` pour `event + locale` → canal WhatsApp inéligible → bascule SMS.
@@ -2379,7 +2397,7 @@ des drapeaux connus est défini **en code** (`app/Domain/Features/Flag`) ; cette
 | label | string | | | Libellé affiché au back-office |
 | description | text | oui | null | Description fonctionnelle |
 | enabled | boolean | | false | État global du drapeau |
-| segments_json | json | oui | null | Ciblage (segments d'utilisateurs) — casté `array` |
+| segments_json | jsonb | oui | null | Ciblage (segments d'utilisateurs) — casté `array` |
 | updated_by_id | FK users | oui | null | Dernier opérateur ayant modifié le drapeau (`nullOnDelete`) |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -2403,8 +2421,8 @@ est défini en code (`app/Domain/Alerts/AlertableEvents`) ; cette table ne porte
 |---------|------|----------|--------|-------------|
 | id | bigint PK | | auto | |
 | event | string | | | Identifiant de l'événement surveillé |
-| channels_json | json | | | Canaux de diffusion — casté `array`, **NOT NULL sans DEFAULT** (règle MySQL : pas de `DEFAULT` sur `JSON`) |
-| recipients_json | json | | | Destinataires — casté `array`, mêmes contraintes |
+| channels_json | jsonb | | | Canaux de diffusion — casté `array`, **NOT NULL sans DEFAULT**. ⚠ La raison écrite ici était « règle MySQL : pas de `DEFAULT` sur `JSON` » : elle est **périmée**, PostgreSQL accepte un `DEFAULT` sur `jsonb`. La colonne reste telle qu'elle est en base ; c'est la justification qui tombe, pas le schéma |
+| recipients_json | jsonb | | | Destinataires — casté `array`, mêmes contraintes |
 | is_active | boolean | | true | Règle active |
 | last_triggered_at | timestamp | oui | null | Dernier déclenchement |
 | failure_count | unsignedInteger | | 0 | Compteur d'échecs de diffusion |
@@ -2433,9 +2451,9 @@ horodatée (`cancelled_at`, `cancelled_by_id`).
 | id | bigint PK | | auto | |
 | starts_at | timestamp | | | Début de la fenêtre |
 | ends_at | timestamp | | | Fin de la fenêtre |
-| mode | string | | | `banner` / `read_only` / `down` — **string + contrôle applicatif**, pas d'`enum()` MySQL ni d'enum PHP ; les valeurs sont validées par `Rule::in()` dans `Api/Admin/MaintenanceController` |
+| mode | string | | | `banner` / `read_only` / `down` — **string + contrôle applicatif**, pas d'`enum()` SQL ([ADR-0007](adr/0007-pas-d-enum-sql.md)) ni d'enum PHP ; les valeurs sont validées par `Rule::in()` dans `Api/Admin/MaintenanceController` |
 | severity | string | | | `info` / `scheduled` / `interruption` — même mécanisme |
-| messages | json | | | Messages localisés — casté `array` ; le contrôleur exige `messages.fr` et accepte `messages.en` / `messages.wo` (≤ 500 caractères) |
+| messages | jsonb | | | Messages localisés — casté `array` ; le contrôleur exige `messages.fr` et accepte `messages.en` / `messages.wo` (≤ 500 caractères) |
 | banner_lead_minutes | unsignedInteger | | 30 | Avance d'affichage de la bannière avant `starts_at` |
 | created_by_id | FK users | oui | null | Opérateur ayant planifié (`nullOnDelete`) |
 | cancelled_by_id | FK users | oui | null | Opérateur ayant annulé (`nullOnDelete`) |
@@ -2488,7 +2506,7 @@ péremption.
 | requested_by | FK users | | | Demandeur (`cascadeOnDelete`) |
 | report | string | | | Rapport demandé — `growth` / `revenue` / `cohorts` / `funnel` (contrôle applicatif) |
 | format | string | | | `csv` / `xlsx` |
-| parameters | json | oui | null | Paramètres du rapport (période, filtres) — casté `array` |
+| parameters | jsonb | oui | null | Paramètres du rapport (période, filtres) — casté `array` |
 | status | string | | 'queued' | `queued` / `processing` / `ready` / `failed` — **string simple, sans enum PHP**, contrairement à `DataExport.status` qui utilise `DataExportStatus` |
 | archive_path | string | oui | null | Chemin du fichier sur le disque `local` — **casté `encrypted`** |
 | row_count | unsignedBigInteger | oui | null | Nombre de lignes produites |
@@ -2510,8 +2528,10 @@ péremption.
 
 > ⚠️ **`archive_path` est `string` ici et `text` dans `data_exports`, pour la même donnée chiffrée.**
 > Un `cast` `encrypted` gonfle la valeur : mesuré, un chemin de 32 à 47 caractères en clair produit
-> **256 caractères** chiffrés — au-delà du `VARCHAR(255)` que Laravel génère pour `string()` sur
-> MySQL. Les chemins réellement écrits aujourd'hui (`reports/{report}-{id}.csv`, ≤ 27 caractères)
+> **256 caractères** chiffrés — au-delà du `VARCHAR(255)` que Laravel génère pour `string()`, sur
+> PostgreSQL comme sur le moteur d'avant. ⚠ Et une longueur de `VARCHAR` est APPLIQUÉE : la
+> dépasser lève `SQLSTATE[22001] value too long`, elle ne tronque pas. Les chemins réellement
+> écrits aujourd'hui (`reports/{report}-{id}.csv`, ≤ 27 caractères)
 > tiennent en 228 caractères, donc la colonne suffit — **par marge, pas par construction**. La
 > divergence est documentée telle qu'elle est, pas corrigée : ce document décrit le schéma, il ne
 > le décide pas.
@@ -2533,7 +2553,7 @@ pour rejeu et diagnostic.
 | direction | string | | 'incoming' | Sens du webhook |
 | status | string | | 'received' | État de traitement |
 | event_type | string | oui | null | Type d'événement annoncé par le fournisseur |
-| payload | json | | | Payload brut — casté `array`, **NOT NULL sans DEFAULT** (règle MySQL) |
+| payload | jsonb | | | Payload brut — casté `array`, **NOT NULL sans DEFAULT** (la raison invoquée, « règle MySQL », est périmée — cf. `channels_json` §NotificationTemplate) |
 | processed_at | timestamp | oui | null | Date de traitement — `null` = non traité |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
@@ -2563,7 +2583,7 @@ d'affichage.
 | format | string | | 'number' | `number` / `percent` / `currency` |
 | sort_order | unsignedSmallInteger | | 0 | Rang d'affichage |
 | is_enabled | boolean | | true | KPI affiché |
-| settings | json | oui | null | Réglages additionnels (objectif, seuil visuel…) — casté `array` |
+| settings | jsonb | oui | null | Réglages additionnels (objectif, seuil visuel…) — casté `array` |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -2609,7 +2629,7 @@ du délai de refroidissement `cooldown_hours` depuis `last_triggered_at`.
 | last_triggered_at | timestamp | oui | null | Dernier déclenchement — base du refroidissement |
 | last_value | decimal(14,4) | oui | null | Dernière valeur observée — casté `decimal:4` |
 | cooldown_hours | unsignedSmallInteger | | 24 | Délai minimal entre deux déclenchements |
-| settings | json | oui | null | Réglages additionnels — casté `array` |
+| settings | jsonb | oui | null | Réglages additionnels — casté `array` |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 
@@ -2657,7 +2677,7 @@ le temps (`starts_at` → `ends_at`) et révocable. Une délégation programmée
 | ends_at | dateTime | | | Fin — **obligatoire**, une délégation est bornée par construction |
 | status | RoleDelegationStatus | | 'scheduled' | scheduled, active, revoked, expired |
 | reason | text | oui | null | Motif |
-| user_native_roles_snapshot | json | | | Instantané des **types de profils** que le bénéficiaire détenait déjà dans l'agence — casté `array`, **NOT NULL sans DEFAULT** (règle MySQL) |
+| user_native_roles_snapshot | jsonb | | | Instantané des **types de profils** que le bénéficiaire détenait déjà dans l'agence — casté `array`, **NOT NULL sans DEFAULT** (la raison invoquée, « règle MySQL », est périmée — cf. `channels_json` §NotificationTemplate) |
 | activated_at | dateTime | oui | null | Date d'activation effective |
 | expired_at | dateTime | oui | null | Date d'expiration constatée |
 | revoked_at | dateTime | oui | null | Date de révocation |
@@ -2786,7 +2806,8 @@ supprime l'ambiguïté de sous-chaîne qu'avait la recherche `LIKE` sur le JSON.
 
 **Contraintes d'unicité :**
 - `(provider, provider_message_id)` — index nommé `ndo_provider_message_unique` (nom explicite : la
-  concaténation automatique aurait dépassé les 64 caractères de MySQL)
+  concaténation automatique aurait dépassé les **63** caractères de PostgreSQL — qui ne refuse pas,
+  mais **tronque** en silence, cf. la légende)
 
 **Index :**
 - `(app_notification_id, attempt)`
@@ -2814,7 +2835,7 @@ par `(user_id, key)` ; **la forme de `data` appartient au parcours consommateur,
 | user_id | FK users | | | Propriétaire du brouillon (`cascadeOnDelete`) |
 | key | string | | | Identifiant du parcours |
 | step | unsignedSmallInteger | | 0 | Étape courante — casté `integer` |
-| data | json | oui | null | État du parcours — casté `array` |
+| data | jsonb | oui | null | État du parcours — casté `array` |
 | created_at | datetime | | auto | |
 | updated_at | datetime | | auto | |
 

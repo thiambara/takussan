@@ -76,6 +76,39 @@ class CaseInsensitiveUniquenessTest extends TestCase
         $this->insererBrut($table, $colonne, strtoupper($valeur));
     }
 
+    /**
+     * LE MÊME TEST, SUR UNE VALEUR NON-ASCII — et il échouait quand celui du dessus
+     * passait. C'est tout l'objet d'ADR-0025.
+     *
+     * `lower()` emprunte la collation de son argument. Sous `--locale=C`, elle ne replie
+     * que l'ASCII A-Z : mesuré le 2026-08-22 sur le conteneur,
+     *
+     *     SELECT lower('CAFÉ'), lower('CAFÉ') = lower('Café');
+     *     cafÉ | f
+     *
+     * Les trois index `LOWER(col)` posés par `2026_08_21_130000` — dont la raison d'être
+     * ENTIÈRE est de refuser les variantes de casse — laissaient donc passer `CAFÉ` à
+     * côté de `Café`. Prouvé par ablation sur une base jetable avant d'être corrigé.
+     *
+     * ⚠ **Le test au-dessus ne pouvait pas l'attraper, et il faut dire pourquoi** : sa
+     * valeur est `Dakar…`, purement ASCII, et `strtoupper()` de PHP est lui aussi
+     * ASCII-only. Il éprouvait le seul cas où le défaut ne se manifeste pas. *Un test
+     * dont la donnée évite le cas limite ne garde pas la règle, il garde l'exemple.*
+     */
+    #[DataProvider('colonnesUniques')]
+    public function test_une_variante_de_casse_non_ascii_est_refusee(string $table, string $colonne): void
+    {
+        // `mb_strtoupper`, PAS `strtoupper` : le second laisserait `é` intact et le test
+        // se réduirait à celui du dessus.
+        $valeur = 'Café'.bin2hex(random_bytes(4));
+
+        $this->insererBrut($table, $colonne, $valeur);
+
+        $this->expectException(QueryException::class);
+
+        $this->insererBrut($table, $colonne, mb_strtoupper($valeur));
+    }
+
     public function test_la_casse_stockee_est_preservee(): void
     {
         // On indexe `LOWER(col)`, on ne force PAS la colonne en minuscules : seule la

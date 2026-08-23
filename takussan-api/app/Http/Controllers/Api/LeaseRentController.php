@@ -47,9 +47,13 @@ class LeaseRentController extends Controller
             ->where('subject_type', Lease::class)
             ->where('subject_id', $lease->id)
             ->where('event', 'lease_rent_reviewed')
-            // Tie-break on `id` so two reviews logged within the same
-            // second still come out in insertion order (created_at has
-            // second precision in MySQL/SQLite).
+            // Tie-break on `id` so two reviews logged within the same instant
+            // still come out in insertion order. This cited "second precision
+            // in MySQL/SQLite" until 2026-08-22 — both engines are gone
+            // (ADR-0020) and PostgreSQL timestamps carry microseconds, so the
+            // collision is far less likely. The tie-break stays: `ORDER BY` on
+            // a non-unique column has no defined order for equal keys on ANY
+            // engine, and that is the real reason.
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->paginate($perPage);

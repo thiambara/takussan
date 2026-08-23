@@ -8,8 +8,16 @@ use Tests\TestCase;
 
 /**
  * TCK-281 — le SQL de ce tri est écrit à la main, donc il n'est PAS protégé
- * par le dialecte de l'ORM. Ces tests épinglent la seule forme portable entre
- * SQLite (la suite) et MySQL 8 (la production).
+ * par le dialecte de l'ORM. Ces tests épinglent la forme portable : un `CASE`,
+ * que tout moteur SQL comprend.
+ *
+ * ⚠ Ce docblock justifiait la portabilité par « SQLite (la suite) et MySQL 8
+ * (la production) ». Les DEUX ont été retirés par ADR-0020 : il n'y a plus qu'un
+ * moteur, PostgreSQL 17, sur tous les environnements. Les tests ci-dessous
+ * gardent malgré tout leur valeur — PostgreSQL n'offre pas `FIELD()` davantage
+ * que SQLite ne l'offrait, et c'est justement l'intérêt d'épingler la forme
+ * plutôt que le moteur. *Un test qui se justifie par un écart entre moteurs
+ * survit mal à la disparition de l'écart ; celui-ci épingle une FORME.*
  */
 class SearchRelevanceSortTest extends TestCase
 {
@@ -26,9 +34,11 @@ class SearchRelevanceSortTest extends TestCase
             $sql,
         );
 
-        // `FIELD()` existe en MySQL 8 et PAS en SQLite : c'est le piège
-        // « une migration se pense pour MySQL, jamais pour SQLite » transposé
-        // au requêtage. Si quelqu'un le réintroduit, ce test le dit.
+        // `FIELD()` est une fonction MySQL, et elle n'existe NI sur PostgreSQL
+        // (le moteur du dépôt depuis ADR-0020) NI sur SQLite. Le nom du test la
+        // cite donc pour ce qu'elle est — une fonction propriétaire — et pas
+        // parce que le dépôt viserait encore MySQL. Si quelqu'un la réintroduit,
+        // ce test le dit.
         $this->assertStringNotContainsStringIgnoringCase('FIELD(', $sql);
     }
 

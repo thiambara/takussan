@@ -173,9 +173,12 @@ class Agency extends AbstractModel implements HasMedia
     }
 
     /**
-     * Demande d'upgrade actuellement `pending` (au plus une — invariant
-     * garanti par index unique partiel sur Postgres + check applicatif sur
-     * SQLite, cf. {@see AgencyUpgradeRequest}).
+     * Demande d'upgrade actuellement `pending` (au plus une — invariant garanti
+     * par l'index unique PARTIEL `agency_upgrade_requests_one_pending_per_agency`,
+     * cf. {@see AgencyUpgradeRequest}).
+     *
+     * ⚠ Cette ligne ajoutait « + check applicatif sur SQLite » jusqu'au
+     * 2026-08-22 : ce second garde-fou a été supprimé avec SQLite (ADR-0020).
      */
     public function pendingUpgradeRequest(): HasOne
     {

@@ -15,10 +15,14 @@ use Illuminate\Support\Facades\Schema;
  * Voir `docs/models-spec.md#49-agencyupgraderequest-` pour la référence
  * canonique des colonnes.
  *
- * Contrainte critique : **une seule demande `pending` par agence** — exposée
- * comme index unique partiel `(agency_id) WHERE status = 'pending'` sur
- * Postgres ; sur SQLite (utilisé en tests locaux) on retombe sur un check
- * applicatif via `AgencyUpgradeRequest::booted()`.
+ * Contrainte critique : **une seule demande `pending` par agence** — un index
+ * unique PARTIEL `(agency_id) WHERE status = 'pending'`, et rien d'autre.
+ *
+ * ⚠ Ce paragraphe décrivait un second étage — « sur SQLite (utilisé en tests
+ * locaux) on retombe sur un check applicatif via `AgencyUpgradeRequest::booted()` »
+ * — supprimé avec SQLite par ADR-0020. Le corps de `up()` ci-dessous le raconte
+ * déjà ; ce docblock, lui, était resté en arrière. *Deux commentaires du même
+ * fichier qui se contredisent valent moins que zéro commentaire.*
  */
 return new class extends Migration
 {

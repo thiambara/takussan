@@ -263,8 +263,11 @@ class PaymentGatewayService
                 $this->assertReportedAmountCoversPayment($payment, $metadata);
                 $this->writeStatus($payment, PaymentStatus::Paid);
                 // `invoices` n'a pas de colonne `paid_at` : l'écrire y ajouterait un attribut
-                // inconnu et ferait échouer le `save()` sur MySQL (SQLite l'accepterait, et
-                // c'est exactement le genre d'écart que D-51 a coûté).
+                // inconnu et ferait échouer le `save()` — `SQLSTATE[42703] column … does not
+                // exist` sur PostgreSQL. (Ce commentaire opposait « MySQL lève / SQLite
+                // accepte » : c'est l'écart qui a coûté D-51, et il n'existe PLUS depuis
+                // ADR-0020 — la suite tourne sur le moteur de la production. La garde reste
+                // nécessaire, c'est sa JUSTIFICATION qui a changé.)
                 if ($this->hasColumn($payment, 'paid_at')) {
                     $payment->paid_at ??= now();
                 }
@@ -518,8 +521,14 @@ class PaymentGatewayService
     /**
      * Ce payable porte-t-il réellement cette colonne ?
      *
-     * Écrire un attribut inexistant est silencieux jusqu'au `save()`, où MySQL lève et SQLite
-     * pardonne — l'asymétrie exacte qui a caché D-51 pendant tout ce temps.
+     * Écrire un attribut inexistant est silencieux jusqu'au `save()`, où la base lève
+     * (`SQLSTATE[42703]` sur PostgreSQL).
+     *
+     * ⚠ Cette ligne disait « où MySQL lève et SQLite pardonne — l'asymétrie exacte qui a caché
+     * D-51 ». L'asymétrie a disparu avec ADR-0020 : la suite tourne sur le moteur de la
+     * production, donc un test rougirait là où D-51 restait vert. Ce n'est pas une raison de
+     * retirer la garde — elle empêche l'erreur au lieu de la constater —, c'en est une de ne
+     * plus la justifier par un écart entre moteurs qui n'existe plus.
      */
     protected function hasColumn(Model $payment, string $column): bool
     {

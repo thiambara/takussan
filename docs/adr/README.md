@@ -50,6 +50,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0022](0022-le-dictionnaire-i18n-est-decoupe-par-groupe-de-routes.md) | Le dictionnaire i18n est découpé par groupe de routes, et une clé manquante lève | Accepté |
 | [0023](0023-recherche-geographique-par-distances-sans-postgis.md) | La recherche géographique traite des distances et des rectangles, jamais des géométries — pas de PostGIS | Accepté |
 | [0024](0024-recherche-publique-conjonctive-avec-repli-nomme.md) | La recherche publique exige tous les termes, et nomme ce qu'elle a dû relâcher | Accepté |
+| [0025](0025-repli-de-casse-par-collation-icu.md) | Le repli de casse passe par `COLLATE "und-x-icu"`, jamais par `lower()` nu | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

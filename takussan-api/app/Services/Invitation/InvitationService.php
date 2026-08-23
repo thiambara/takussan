@@ -11,6 +11,7 @@ use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
+use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -79,7 +80,7 @@ class InvitationService
      */
     public function send(array $payload, User $inviter): Invitation
     {
-        $email = strtolower(trim((string) $payload['email']));
+        $email = CaseInsensitive::fold(trim((string) $payload['email']));
         $role = (string) $payload['role'];
         $invitableType = $payload['invitable_type'] ?? null;
         $invitableId = $payload['invitable_id'] ?? null;
@@ -205,7 +206,7 @@ class InvitationService
     {
         $invitation = $this->lookupActiveInvitation($token);
 
-        if (strtolower(trim($user->email)) !== $invitation->email) {
+        if (CaseInsensitive::fold(trim($user->email)) !== $invitation->email) {
             abort(403, __('invitations.errors.email_mismatch'));
         }
 

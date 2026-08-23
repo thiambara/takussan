@@ -9,6 +9,7 @@ use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -63,7 +64,7 @@ class AgentInvitationService
         $this->assertAgencyCanInvite($agency);
         $this->assertInviterCanManageTeam($inviter, $agency);
 
-        $email = strtolower(trim((string) $data['email']));
+        $email = CaseInsensitive::fold(trim((string) $data['email']));
         $role = (string) ($data['role'] ?? 'agent');
 
         if (! in_array($role, self::ALLOWED_ROLES, true)) {
@@ -228,7 +229,7 @@ class AgentInvitationService
         $existing = AgentProfile::query()
             ->where('agency_id', $agency->id)
             ->whereHas('user', function ($query) use ($email): void {
-                $query->whereRaw('LOWER(email) = ?', [$email]);
+                $query->whereRaw(CaseInsensitive::sql('email').' = ?', [CaseInsensitive::fold($email)]);
             })
             ->first();
 

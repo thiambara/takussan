@@ -4,6 +4,7 @@ namespace App\Services\Property;
 
 use App\Models\Enums\ContractType;
 use App\Models\Property;
+use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
@@ -157,12 +158,41 @@ class HomepageDiscoveryService
         return $this->ranked(
             $this->baseQuery()->whereHas(
                 'address',
-                // `LOWER()` rather than a bare `where`: MySQL 8 compares
-                // `utf8mb4_0900_ai_ci` case- and accent-insensitively while
-                // SQLite — the engine the suite runs on — compares bytes. A
-                // plain equality would behave differently in the two places
-                // and a green test would prove nothing about production.
-                fn (Builder $q) => $q->whereRaw('LOWER(city) = ?', [mb_strtolower($city)])
+                // Case-insensitive on purpose, and the reason has changed TWICE.
+                //
+                // It first read: "MySQL 8 compares `utf8mb4_0900_ai_ci` case- and
+                // accent-insensitively while SQLite — the engine the suite runs on —
+                // compares bytes", so `LOWER()` made the two agree. There is now ONE
+                // engine (ADR-0020), so `LOWER()` is no longer a bridge between two of
+                // them: it is the only thing making this lookup case-insensitive at all.
+                //
+                // Then the form itself turned out to be wrong. `lower()` borrows its
+                // argument's collation, and under `--locale=C` it folds ASCII A-Z ONLY.
+                // Measured on the running container on 2026-08-22:
+                //
+                //     SELECT lower('THIÈS') = 'thiès';   →  f
+                //
+                // A city STORED as `THIÈS` was therefore invisible to a visitor
+                // geolocated to `Thiès`: the "near you" row silently fell back to Dakar
+                // with `fallback: true`, and nothing anywhere raised. `near_city` is free
+                // text from IP geolocation (see the FormRequest), so its casing belongs
+                // to the provider, not to us. ADR-0025 is the fix, and
+                // `CaseInsensitive::sql()`/`fold()` are its two halves — the SQL side and
+                // the PHP side have to fold identically or the defect just moves.
+                //
+                // ⚠ THE DIRECTION MATTERS, and the test written for this had it backwards
+                // at first — it stored `Thiès`, asked for `THIÈS`, and PASSED.
+                // `lower('Thiès')` does give `thiès`: the `è` is already lowercase, only
+                // the `T` is folded. It is `lower('THIÈS')` that gives `thiÈs`.
+                //
+                // ⚠ What this still does NOT do: fold ACCENTS. `Thies` does not match
+                // `Thiès`, and it did under `ai_ci`. That is a deliberate, separate
+                // decision (ADR-0020 §2 declines to install `unaccent` without a ticket),
+                // not an oversight of ADR-0025.
+                fn (Builder $q) => $q->whereRaw(
+                    CaseInsensitive::sql('city').' = ?',
+                    [CaseInsensitive::fold($city)],
+                )
             )
         )->limit($poolSize)->pluck('id')->all();
     }

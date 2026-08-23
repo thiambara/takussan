@@ -111,7 +111,7 @@ class Customer extends AbstractModel
      * TCK-281 — n'indexe que l'id et les champs de `$requestSearchFields`.
      * Les colonnes sensibles (`id_number`, `metadata`, `emergency_contact_*`)
      * ne partent JAMAIS vers Meilisearch : l'index est un second magasin, hors
-     * MySQL, et tout ce qu'on y pousse en sort du périmètre de la base.
+     * de la base, et tout ce qu'on y pousse en sort du périmètre de la base.
      *
      * @return array<string,mixed>
      */

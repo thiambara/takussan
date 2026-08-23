@@ -40,9 +40,14 @@ class AgencyUpgradeRequestService
      *  1. Re-assert the agency is `individual` and the submitter is an
      *     `agency_admin` scoped to that agency's team_id.
      *  2. Pre-check for an existing pending request — TCK-252 enforces
-     *     uniqueness at the DB level (partial unique index on Postgres,
-     *     applicative fallback on SQLite), but we surface a 422 with a
-     *     clear message rather than letting the QueryException bubble.
+     *     uniqueness at the DB level with a partial unique index
+     *     (`agency_upgrade_requests_one_pending_per_agency`), but we surface a
+     *     422 with a clear message rather than letting the QueryException
+     *     bubble. ⚠ This line promised an "applicative fallback on SQLite"
+     *     until 2026-08-22; that fallback was DELETED along with SQLite
+     *     (ADR-0020) — see {@see AgencyUpgradeRequest}. The docblock
+     *     outlived the code it described, which is the worse of the two
+     *     failure modes: it named a safety net that is no longer there.
      *  3. Persist the request + attach the uploaded `statuts_doc` as a
      *     polymorphic Document (with a media item) inside one transaction.
      *  4. Activity-log `agency_upgrade_requested` with both the agency id

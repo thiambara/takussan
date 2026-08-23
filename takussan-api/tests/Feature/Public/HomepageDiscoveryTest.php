@@ -245,6 +245,49 @@ class HomepageDiscoveryTest extends TestCase
         $this->assertCount(6, $near['items']);
     }
 
+    /**
+     * LE MÊME TEST, SUR UNE VILLE ACCENTUÉE — et il échouait quand celui du dessus
+     * passait (ADR-0025).
+     *
+     * `near_city` est du TEXTE LIBRE venu de la géolocalisation IP du visiteur : le
+     * `rules()` du FormRequest le dit, et la casse appartient au fournisseur, pas au
+     * dépôt. `cityCandidates()` compare par `LOWER(city) = ?`, et sous `--locale=C`
+     * `lower()` ne replie que l'ASCII A-Z. Mesuré le 2026-08-22 :
+     *
+     *     SELECT lower('THIÈS') = 'thiès';   →  f
+     *
+     * Un visiteur localisé à Thiès par un fournisseur qui rend la ville en capitales
+     * ne voyait donc AUCUNE annonce locale : la ligne basculait en silence sur Dakar,
+     * `fallback: true`, et rien nulle part ne signalait d'erreur.
+     *
+     * ⚠ Le test au-dessus ne pouvait pas l'attraper : `Ziguinchor` est purement ASCII.
+     * *Un test dont la donnée évite le cas limite ne garde pas la règle, il garde
+     * l'exemple.* Les villes du Sénégal qui portent une majuscule non-ASCII une fois
+     * capitalisées — Thiès, Sédhiou, Kédougou — sont exactement le cas nominal ici.
+     */
+    public function test_city_matching_ignores_case_on_a_non_ascii_city(): void
+    {
+        // ⚠ LE SENS COMPTE, et la première version de ce test l'avait à l'envers : elle
+        // stockait `Thiès` et demandait `THIÈS`, et elle PASSAIT. `lower('Thiès')` rend
+        // bien `thiès` — le `è` est déjà minuscule, seul le `T` est replié. C'est
+        // `lower('THIÈS')` qui rend `thiÈs`. La valeur fautive est donc celle qui est
+        // STOCKÉE en capitales : un import, un seeder ou une saisie en capitales suffit.
+        //
+        // `mb_strtoupper`, pas `strtoupper` : le second laisserait le `è` intact et le
+        // test se réduirait à celui du dessus.
+        foreach (range(1, 6) as $i) {
+            $this->makeProperty(mb_strtoupper('Thiès'), [], $i);
+        }
+
+        // `urlencode` : sans lui, l'octet non-ASCII brut dans la chaîne de requête fait
+        // rendre « Malformed UTF-8 characters » à la sérialisation JSON de la réponse —
+        // un échec qui ressemble au défaut cherché sans en être un.
+        $near = $this->getJson(self::URL.'?near_city='.urlencode('Thiès'))->assertOk()->json('data.near');
+
+        $this->assertFalse($near['fallback'], 'La ligne a basculé sur la ville de référence : la comparaison de casse a échoué sur le caractère accentué.');
+        $this->assertCount(6, $near['items']);
+    }
+
     // ── Visibilité ───────────────────────────────────────────────────────────
 
     public function test_drafts_and_non_public_properties_are_excluded(): void
