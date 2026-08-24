@@ -176,6 +176,50 @@ class CurrencyPdfRegressionTest extends TestCase
         }
     }
 
+    /**
+     * TCK-354 — la quittance de RÉSERVATION n'était couverte par aucun de ces cas, et elle
+     * formatait le montant à la main : `number_format($amount, 0, ',', ' ')` suivi du CODE de
+     * devise. Une agence en EUR y lisait « 250 000 EUR » là où TCK-084 impose « 250 000,00 € ».
+     *
+     * *Un gabarit hors du système partagé n'échoue pas : il rend quelque chose de plausible,
+     * et personne ne compare.*
+     *
+     * @param  array<int, string>  $expected
+     * @param  array<int, string>  $forbidden
+     */
+    #[DataProvider('currencyCases')]
+    public function test_booking_receipt_template_renders_with_currency_symbols(Currency $currency, array $expected, array $forbidden): void
+    {
+        $agency = Agency::factory()->create(['currency' => $currency]);
+        $customerUser = User::factory()->create();
+        $customer = Customer::factory()->create(['user_id' => $customerUser->id]);
+        $property = Property::factory()->create(['user_id' => $customerUser->id]);
+
+        $html = View::make('pdf.receipts.booking', [
+            'reference' => 'BP-2026-0001',
+            'amount' => 250_000.0,
+            'currency' => $currency->value,
+            'paid_at' => now(),
+            'method' => 'cash',
+            'type' => 'deposit',
+            'property' => $property,
+            'customer' => $customer,
+            'agency' => $agency,
+            'context_label' => 'Réservation #BK-2026-0001',
+            'title' => 'Quittance de paiement',
+            'document_label' => 'Quittance',
+            'generated_at' => now(),
+            'footer_note' => 'Test',
+        ])->render();
+
+        foreach ($expected as $needle) {
+            $this->assertStringContainsString($needle, $html);
+        }
+        foreach ($forbidden as $needle) {
+            $this->assertStringNotContainsString($needle, $html);
+        }
+    }
+
     public function test_pdf_service_renders_real_pdf_for_eur_agency(): void
     {
         $agency = Agency::factory()->create(['currency' => Currency::EUR]);
