@@ -82,6 +82,11 @@ on:
       # posée en haut de ce bloc, appliquée à elle-même.
       - '.github/workflows/**'
       - 'takussan-api/composer.json'
+      # `check-deps-dev-atteignables` lit le LOCK, et lui seul sait ce qui est livré : c'est le
+      # lock qui range un paquet en `packages` ou en `packages-dev`, pas le `composer.json`. Un
+      # `composer update` qui fait basculer une dépendance TRANSITIVE d'un côté à l'autre ne touche
+      # pas `composer.json` — et c'est exactement par là que `dompdf/dompdf` est arrivé (TCK-354).
+      - 'takussan-api/composer.lock'
       # `check-impact-map` lit la carte. Aucune entrée existante ne la couvre : les
       # déclencheurs de ce workflow visent `takussan-api/app/**`, `routes/**` et
       # `database/**`, jamais `tests/`. Sans cette ligne, une carte corrompue arriverait
@@ -148,6 +153,11 @@ on:
       # posée en haut de ce bloc, appliquée à elle-même.
       - '.github/workflows/**'
       - 'takussan-api/composer.json'
+      # `check-deps-dev-atteignables` lit le LOCK, et lui seul sait ce qui est livré : c'est le
+      # lock qui range un paquet en `packages` ou en `packages-dev`, pas le `composer.json`. Un
+      # `composer update` qui fait basculer une dépendance TRANSITIVE d'un côté à l'autre ne touche
+      # pas `composer.json` — et c'est exactement par là que `dompdf/dompdf` est arrivé (TCK-354).
+      - 'takussan-api/composer.lock'
       # `check-impact-map` lit la carte. Aucune entrée existante ne la couvre : les
       # déclencheurs de ce workflow visent `takussan-api/app/**`, `routes/**` et
       # `database/**`, jamais `tests/`. Sans cette ligne, une carte corrompue arriverait
@@ -592,3 +602,19 @@ jobs:
         # échoue DUR si une constante devient introuvable — une garde qui passe parce qu'elle ne
         # trouve plus sa cible est pire qu'aucune garde (TCK-325).
         run: node scripts/check-impact-triggers.mjs --report
+
+      - name: Aucune dépendance de développement n'est atteignable depuis le code de production
+        # Le défaut ne vit dans aucun fichier : `deploy.sh` installe en `--no-dev` (juste),
+        # `PaymentReceiptPdf` faisait `new Dompdf(…)` (du PHP valide), et `dompdf/dompdf` n'est
+        # déclaré NULLE PART dans `composer.json` — il n'arrivait qu'en dév et TRANSITIVEMENT, par
+        # les `require-dev` de `phpoffice/phpspreadsheet` et `spatie/laravel-pdf`. Le reçu de
+        # paiement rendait donc 500 sur tout environnement déployé, et vert en local.
+        #
+        # ⚠ AUCUN TEST NE PEUT VOIR ÇA, et c'est le point : la suite tourne avec les dépendances
+        # de dév installées. Seule une lecture de `composer.lock` distingue « disponible ici » de
+        # « livré ». Vérifiée par ablation le 2026-08-24 : remise dans l'état d'avant, elle rougit
+        # en nommant `app/Services/Payments/PaymentReceiptPdf.php` et ses deux lignes d'import.
+        #
+        # ⚠ Elle ne lit que les `use` de portée fichier. Un `new \Dompdf\Dompdf` en dur lui
+        # échappe — c'est un PLANCHER, elle attrape la forme qui a coûté, pas toutes les formes.
+        run: node scripts/check-deps-dev-atteignables.mjs --report
