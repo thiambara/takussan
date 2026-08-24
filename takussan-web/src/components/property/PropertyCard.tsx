@@ -10,6 +10,8 @@ import type { PropertyListItem } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
+import { staggerDelay } from '@/components/property/card-stagger';
+import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 
 /**
  * Canonical PropertyCard used by the homepage, search results and any
@@ -56,6 +58,14 @@ export interface PropertyCardProps {
   readonly hideFavorite?: boolean;
   /** Hide the compare toggle — defaults to visible on public discovery cards (TCK-082). */
   readonly hideCompare?: boolean;
+  /**
+   * `sizes` de `next/image` — **appartient à la grille appelante, pas à la carte**.
+   *
+   * Le défaut couvre la grille de `/properties` parce que c'est la surface
+   * historique ; toute autre grille DOIT passer le sien. Les valeurs mesurées vivent
+   * dans `card-image-sizes.ts`, avec le relevé qui les justifie.
+   */
+  readonly sizes?: string;
 }
 
 export function PropertyCard({
@@ -65,6 +75,7 @@ export function PropertyCard({
   className,
   hideFavorite = false,
   hideCompare = false,
+  sizes = CARD_SIZES_SEARCH_GRID,
 }: PropertyCardProps) {
   const t = useTranslations('property');
   const tCards = useTranslations('property.cards');
@@ -86,7 +97,7 @@ export function PropertyCard({
     <Link href={`/properties/${property.slug}`} className="block">
       <div
         ref={ref}
-        style={{ animationDelay: `${index * 60}ms` }}
+        style={{ animationDelay: staggerDelay(index) }}
         className={`group cursor-pointer transition-opacity duration-300 ${
           visible ? 'animate-fade-in-up' : 'opacity-0'
         } ${className || ''}`}
@@ -99,7 +110,7 @@ export function PropertyCard({
             fill
             priority={priority}
             className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+            sizes={sizes}
           />
 
           {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide. */}

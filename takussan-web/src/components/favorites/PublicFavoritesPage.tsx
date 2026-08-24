@@ -16,6 +16,7 @@ import {
   remove as storeRemove,
 } from '@/lib/favoritesStore';
 import { usePropertiesByIdsChunkedQuery } from '@/lib/queries/favorites';
+import { CARD_SIZES_FAVORITES_PUBLIC } from '@/components/property/card-image-sizes';
 
 function CardSkeleton() {
   return (
@@ -90,6 +91,7 @@ export function PublicFavoritesPage() {
                 property={property}
                 index={i}
                 priority={i < 3}
+                sizes={CARD_SIZES_FAVORITES_PUBLIC}
               />
             ))}
           </div>

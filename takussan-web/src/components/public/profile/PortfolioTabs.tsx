@@ -12,6 +12,7 @@ import {
   fetchAgencyPortfolio,
   type PortfolioPage,
 } from '@/lib/queries/profile-portfolio';
+import { CARD_SIZES_PORTFOLIO_GRID } from '@/components/property/card-image-sizes';
 
 type TabKey = 'all' | 'rent' | 'sale';
 
@@ -109,7 +110,11 @@ export function PortfolioTabs({ portfolio, emptyHint, totals, source }: Portfoli
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {current.map((p, index) => (
                 <div key={p.id} className="w-full [&>article]:w-full">
-                  <PropertyCardStandard property={p} index={index} />
+                  <PropertyCardStandard
+                    property={p}
+                    index={index}
+                    sizes={CARD_SIZES_PORTFOLIO_GRID}
+                  />
                 </div>
               ))}
             </div>

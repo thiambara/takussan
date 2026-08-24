@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useSearch } from '@/hooks/useSearch';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
+import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 
 /**
  * Canonical `/properties` discovery layout — Wave 3.
@@ -323,6 +324,7 @@ export function PropertiesDiscoveryPage() {
                         property={property}
                         index={i}
                         priority={i < 4}
+                        sizes={CARD_SIZES_SEARCH_GRID}
                       />
                     ))
                   )}

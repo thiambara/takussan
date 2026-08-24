@@ -43,6 +43,63 @@ const nextConfig: NextConfig = {
   // (TCK-328, ardoise D-57 ; `./dev.sh doctor` nomme le cas si cette liste disparaît.)
   allowedDevOrigins: ['127.0.0.1', '[::1]'],
   images: {
+    // ── Formats — AVIF EN PREMIER, puis WebP ────────────────────────────────────
+    //
+    // Le défaut de Next 16 est `['image/webp']` SEUL (mesuré :
+    // `node_modules/next/dist/server/image-optimizer.js`, déstructuration de
+    // `nextConfig.images`). AVIF n'était donc jamais servi, à personne.
+    //
+    // Mesuré le 2026-08-24 avec le `sharp` du dépôt, sur une conversion `preview`
+    // réelle (800 × 600), redimensionnée à la largeur que la grille demande :
+    //
+    //   w=640   jpeg 64,3 Ko | webp 51,5 Ko | avif(q60) 43,5 Ko
+    //   w=384   jpeg 24,4 Ko | webp 19,5 Ko | avif(q60) 17,3 Ko
+    //
+    // L'ordre compte : l'optimiseur retient le PREMIER format de cette liste que
+    // l'`Accept` du client annonce. Chrome, Edge, Firefox et Safari 16+ annoncent
+    // `image/avif` ; les autres retombent sur WebP, puis sur le format source.
+    //
+    // ⚠ AVIF coûte nettement plus cher à ENCODER que WebP. La dépense est payée une
+    // fois par (image, largeur, qualité) — l'optimiseur écrit son résultat sur
+    // disque — mais elle est payée par le premier visiteur de chaque variante. C'est
+    // un arbitrage assumé sur un marché où la bande passante mobile coûte plus cher
+    // que le CPU d'un serveur.
+    formats: ['image/avif', 'image/webp'],
+
+    // ── Largeurs candidates — plafonnées à 1920 ────────────────────────────────
+    //
+    // Le défaut de Next ajoute `2048` et `3840`. Or la plus grande image que cette
+    // API sert est la conversion `preview`, LARGE DE 800 px (`Property::
+    // registerMediaConversions`) : au-dessus de 828, l'optimiseur ne peut plus que
+    // ré-encoder la source sans y ajouter un pixel. Une entrée `3840w` dans le
+    // `srcset` n'est donc pas une option de qualité, c'est une invitation faite au
+    // navigateur à télécharger un ré-encodage plus lourd de la MÊME image.
+    //
+    // Mesuré sur la fiche d'un bien, viewport 1920 : la grande tuile de la mosaïque
+    // demandait `w=1920` pour 604 px occupés. Les `sizes` ont été corrigés (cf.
+    // `card-image-sizes.ts` et `PropertyGalleryMosaic`), et ce plafond est la
+    // seconde barrière — celle qui tient quand un futur `sizes` sera faux.
+    //
+    // 1920 et non 1080 : la visionneuse plein écran (`PropertyLightbox`, `100vw`)
+    // est la seule surface qui consomme légitimement une grande largeur, et elle
+    // sert `photo.original` — qui, pour un porteur du droit `viewRaw`, N'EST PAS
+    // plafonné à 800 px.
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+
+    // ⚠ La durée de cache VUE PAR LE NAVIGATEUR ne se règle PAS ici.
+    //
+    // L'optimiseur émet `max-age = max(minimumCacheTTL, max-age de l'amont)` — et
+    // l'amont, c'est nginx : `location /storage/` dans `scripts/server-setup.sh`,
+    // qui domine le défaut de 4 h de `minimumCacheTTL`. Les deux valeurs bougent
+    // ensemble ou pas du tout ; le raisonnement (et ce qui interdit `immutable`)
+    // vit dans le commentaire de ce bloc nginx.
+    //
+    // ⚠⚠ En DÉVELOPPEMENT, rien de tout cela ne s'applique : Next force
+    // `max-age=0, must-revalidate` quel que soit l'amont (`image-optimizer.js`,
+    // `isDev ? 0 : maxAge`). Vérifié le 2026-08-24 — `placehold.co` annonce
+    // `max-age=1209600` et ressort quand même en `max-age=0`. Les 304 qu'on voit
+    // sur `/_next/image` en rechargeant une liste sont ce comportement-là, pas un
+    // défaut de configuration : ils n'existent pas en production.
     dangerouslyAllowSVG: true,
     dangerouslyAllowLocalIP: true,
     remotePatterns: [

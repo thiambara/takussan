@@ -10,6 +10,7 @@ import {
   RENT_PERIOD_SHORT,
   type PropertyCardCommonProps,
 } from './types';
+import { staggerDelay } from '@/components/property/card-stagger';
 
 /**
  * Cover 3:4 overlay — variante magazine. Image full ratio 3/4, gradient bas,
@@ -27,7 +28,7 @@ export function PropertyCardCover({
   return (
     <article
       className="group w-[260px] shrink-0 animate-card-enter"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: staggerDelay(index) }}
     >
       <Link href={`/properties/${property.slug}`} className="block">
         <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted">

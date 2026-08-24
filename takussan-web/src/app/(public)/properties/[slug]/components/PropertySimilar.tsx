@@ -5,6 +5,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { useSimilarProperties } from '@/hooks/useSimilarProperties';
+import { CARD_SIZES_SIMILAR_CAROUSEL } from '@/components/property/card-image-sizes';
 
 interface PropertySimilarProps {
   slug: string;
@@ -83,7 +84,7 @@ export function PropertySimilar({ slug }: PropertySimilarProps) {
               key={property.id}
               className="flex-[0_0_85%] sm:flex-[0_0_48%] lg:flex-[0_0_24%] min-w-0"
             >
-              <PropertyCard property={property} />
+              <PropertyCard property={property} sizes={CARD_SIZES_SIMILAR_CAROUSEL} />
             </div>
           ))}
         </div>
