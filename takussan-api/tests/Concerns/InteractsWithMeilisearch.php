@@ -5,6 +5,7 @@ namespace Tests\Concerns;
 use App\Models\Property;
 use Illuminate\Support\Facades\Artisan;
 use Meilisearch\Client;
+use Meilisearch\Contracts\BatchesQuery;
 use Meilisearch\Contracts\TasksQuery;
 use Tests\Support\MeilisearchBarrier;
 use Tests\Support\MeilisearchNotIdleException;
@@ -32,6 +33,9 @@ use Tests\TestCase;
  */
 trait InteractsWithMeilisearch
 {
+    /** Voir {@see self::pendingTasksQuery()} : le serveur pagine `GET /tasks` à 20 par défaut. */
+    public const PENDING_TASKS_PAGE_LIMIT = 10000;
+
     private static bool $meilisearchSettingsSynced = false;
 
     protected function setUpInteractsWithMeilisearch(): void
@@ -91,16 +95,26 @@ trait InteractsWithMeilisearch
     }
 
     /**
-     * Block until no Meilisearch task is enqueued or processing (10s cap).
+     * Bloque tant que Meilisearch a des tâches `enqueued`/`processing` sur les
+     * index de CE processus.
      *
-     * ⚠ Cette méthode LÈVE quand le plafond est atteint. Elle retournait
-     * normalement — sans exception, sans assertion, sans trace — et le test
-     * enchaînait sur un index à moitié construit. C'est la ligne qui a coûté
-     * le plus cher ici : elle transformait une course en test rouge aléatoire.
+     * ⚠ Cette méthode LÈVE. Elle retournait normalement — sans exception, sans
+     * assertion, sans trace — et le test enchaînait sur un index à moitié
+     * construit. C'est la ligne qui a coûté le plus cher ici : elle
+     * transformait une course en test rouge aléatoire.
+     *
+     * ⚠⚠ Depuis TCK-334 (2026-08-22), la grandeur surveillée n'est plus le
+     * temps d'attente mais le SILENCE DU SERVEUR : on abandonne quand
+     * Meilisearch cesse de produire des batchs, pas quand on a attendu
+     * longtemps. Le raisonnement complet, chiffres compris, est dans le
+     * docblock de {@see MeilisearchBarrier} — il ne se recopie pas ici.
+     *
+     * @param  float|null  $stallTimeout  Secondes SANS battement du serveur (défaut : la constante).
+     * @param  float|null  $absoluteCap  Plafond absolu (défaut : la constante).
      *
      * @throws MeilisearchNotIdleException
      */
-    protected function waitForMeilisearch(float $timeout = 10.0): void
+    protected function waitForMeilisearch(?float $stallTimeout = null, ?float $absoluteCap = null): void
     {
         $client = $this->meilisearchClient();
 
@@ -112,13 +126,73 @@ trait InteractsWithMeilisearch
         $indexUids = $this->meilisearchManagedIndexes();
 
         MeilisearchBarrier::await(
-            fn () => $client->getTasks(
-                (new TasksQuery)
-                    ->setStatuses(['enqueued', 'processing'])
-                    ->setIndexUids($indexUids)
+            fetchPending: fn () => $client->getTasks(
+                self::pendingTasksQuery($indexUids)
             )->getResults(),
-            $timeout,
+            fetchHeartbeat: fn () => $this->meilisearchHeartbeat($client),
+            stallTimeout: $stallTimeout ?? MeilisearchBarrier::STALL_TIMEOUT_SECONDS,
+            absoluteCap: $absoluteCap ?? MeilisearchBarrier::ABSOLUTE_CAP_SECONDS,
         );
+    }
+
+    /**
+     * La requête des tâches en attente sur nos index.
+     *
+     * ⚠ `setLimit()` N'EST PAS COSMÉTIQUE, et son absence a menti pendant tout
+     * le temps où elle a duré : `GET /tasks` PAGINE, et le serveur répond
+     * `limit: 20` par défaut (mesuré le 2026-08-22 sur Meilisearch 1.16). Le
+     * `count($pending)` du diagnostic de {@see MeilisearchBarrier} plafonnait
+     * donc à 20 — c'est-à-dire qu'il sous-déclarait l'ampleur du problème au
+     * moment PRÉCIS où on a besoin de la connaître : le backlog auto-infligé
+     * que D-44 a mesuré valait **3308 tâches**, et le message en aurait
+     * annoncé 20.
+     *
+     * Le plafond retenu, 10000, couvre 3× ce pire backlog mesuré. Il ne coûte
+     * rien en régime nominal : la requête est filtrée sur `enqueued`/
+     * `processing` ET sur nos seuls index, donc elle ne matérialise que ce qui
+     * reste vraiment à faire — 0,166 s d'attente maximale mesurée sur les
+     * 88 appels de `tests/Feature/Search/` (2026-08-22). Le serveur accepte
+     * cette valeur : `GET /tasks?limit=10000` rend `limit: 10000` (mesuré).
+     *
+     * Extraite en méthode STATIQUE pour être testable sans moteur — cf.
+     * `tests/Unit/Testing/MeilisearchBarrierTest.php`, qui casse si la limite
+     * disparaît.
+     *
+     * @param  array<int,string>  $indexUids
+     */
+    public static function pendingTasksQuery(array $indexUids): TasksQuery
+    {
+        return (new TasksQuery)
+            ->setStatuses(['enqueued', 'processing'])
+            ->setIndexUids($indexUids)
+            ->setLimit(self::PENDING_TASKS_PAGE_LIMIT);
+    }
+
+    /**
+     * L'empreinte du dernier batch du serveur — le « battement » que la
+     * barrière surveille.
+     *
+     * `GET /batches?limit=1` rend le batch le plus récent. Son `uid` change à
+     * chaque nouveau batch, et son `progress` avance tant que le batch tourne
+     * (`null` une fois fini) : l'empreinte des deux bouge donc dès que le
+     * serveur fait quoi que ce soit, **pour n'importe quel index**, y compris
+     * ceux d'une autre exécution de la suite. C'est voulu : la file est
+     * globale au serveur (TCK-334), donc un serveur qui travaille pour
+     * quelqu'un d'autre est un serveur vivant, et attendre est la bonne
+     * réponse.
+     */
+    private function meilisearchHeartbeat(Client $client): string
+    {
+        $batch = $client->getBatches((new BatchesQuery)->setLimit(1))->getResults()[0] ?? null;
+
+        if ($batch === null) {
+            return 'aucun-batch';
+        }
+
+        return json_encode([
+            'uid' => is_array($batch) ? ($batch['uid'] ?? null) : null,
+            'progress' => is_array($batch) ? ($batch['progress'] ?? null) : null,
+        ]);
     }
 
     /**

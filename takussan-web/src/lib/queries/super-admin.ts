@@ -408,7 +408,19 @@ export async function postStopImpersonation(targetUserId: number): Promise<Imper
  * `agency_id` is included even though the table renders `agency.name` from the
  * `include=agency` relation: Eloquent needs the foreign key on each parent row
  * to eager-load the `belongsTo(Agency::class)` relation, otherwise `row.agency`
- * comes back null for every property.
+ * comes back null for every property. Vérifié le 2026-08-21 sur l'API réelle avec
+ * l'équivalent `user_id` : `fields[properties]=id,title&include=owner` rend
+ * `owner: null`, `id,user_id,title` rend l'objet. La FK n'est pas décorative.
+ *
+ * TCK-336 — cette liste et les clés que `SuperAdminPropertiesTable` / `agency-detail`
+ * lisent réellement sont comparées par
+ * `queries/__tests__/property-fields.coverage.test.ts`. Deux points MESURÉS le 2026-08-21,
+ * contre ce que TCK-336 affirmait :
+ *   · ce tableau n'a AUCUNE vignette — ni `<img>`, ni `next/image`, ni `main_photo_url`
+ *     dans le fichier. Ne pas lui en « rétablir » une ;
+ *   · les seules clés qu'il lit hors colonnes sont `location`, `status_label` et `agency`.
+ *     Elles ne peuvent pas être demandées (spatie rend 400) : la ressource les sert
+ *     inconditionnellement, et le test le vérifie des deux côtés.
  */
 export const ADMIN_PROPERTY_FIELDS = [
   'id',

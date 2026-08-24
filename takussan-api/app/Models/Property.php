@@ -158,6 +158,140 @@ class Property extends AbstractModel implements HasMedia
     ];
 
     /**
+     * Alias de recherche français par type de CONTRAT — indexés dans
+     * `contract_label` (TCK-335, étape 8), sur le modèle strict de
+     * {@see TYPE_SEARCH_ALIASES} : un mot d'INTENTION écrit en français
+     * atteint un bien dont la colonne dit `rent` / `sale`.
+     *
+     * ⚠ **Ce n'est délibérément pas un synonyme Meilisearch, et c'est mesuré.**
+     * Un synonyme réécrit un terme de REQUÊTE en un autre terme de requête ; il
+     * ne crée pas un mot absent de l'index. Or « vendre » et « vente »
+     * n'apparaissaient dans le texte d'AUCUN bien du catalogue public
+     * (mesuré le 2026-08-21 : `q=vente` → 0, `q=vendre` → 0, pour 54 biens en
+     * `contract_type=sale`) : déclarer `vente => vendre` aurait fait passer
+     * `q=vente` de 0 à 0. Poser `synonyms` aurait en outre installé un SECOND
+     * mécanisme parallèle à ces tables d'alias, exactement le défaut que
+     * `scripts/check-filtering-single-mechanism.mjs` existe pour refuser
+     * ailleurs. Note d'exploitation qui achève le débat : `PATCH /settings`
+     * n'efface PAS une clé retirée de la configuration — un synonyme posé une
+     * fois ne se retire plus de la production.
+     *
+     * Les jetons sont DÉDUPLIQUÉS : « à louer » et « à vendre » sont couverts
+     * sans les écrire, parce que « à » est un mot vide (`stopWords`,
+     * `config/scout.php`) et que le mot restant est présent. Un jeton répété
+     * dans un champ indexé ne change rien au filtrage Meilisearch.
+     *
+     * @var array<string,string>
+     */
+    public const CONTRACT_SEARCH_ALIASES = [
+        'rent' => 'louer location bail loyer',
+        'sale' => 'vendre vente achat acheter',
+    ];
+
+    /**
+     * Vocabulaire d'ameublement — indexé dans `furnished_label` quand, et
+     * seulement quand, `furnished` est vrai (TCK-335, étape 8).
+     *
+     * Ce champ est le SEUL chemin possible du mot « meublé » vers les biens
+     * meublés : ni un synonyme, ni {@see TYPE_SEARCH_ALIASES}, ni des tags
+     * searchable ne peuvent y mener. Et parce qu'il est DÉRIVÉ de la colonne,
+     * il ne peut pas la contredire — au contraire du gabarit de titre qui
+     * disait « meublé » sur 12 biens `furnished = false`
+     * (cf. `database/seeders/Support/SenegalFakerProvider.php`).
+     *
+     * Sans accents : Meilisearch normalise à l'indexation comme à la requête,
+     * `q=meublé` et `q=meuble` rendent déjà le même ensemble.
+     */
+    public const FURNISHED_SEARCH_LABEL = 'meuble equipe';
+
+    /**
+     * Alias de recherche WOLOF par type de bien — TABLE VOLONTAIREMENT VIDE
+     * (TCK-339). Chaque valeur d'enum y a sa clé ; aucune n'a de valeur.
+     *
+     * ⚠ **Ne remplir qu'après validation par un locuteur wolophone.** Le mot
+     * qu'on écrit ici n'est pas un libellé, c'est un CRITÈRE DE RAPPEL : un
+     * faux ami indexé rend des résultats, donc il a l'air de marcher. C'est
+     * mesuré sur les libellés d'affichage existants, qui ne sont PAS
+     * réutilisables tels quels — `land => 'Dëkk'` (village) et
+     * `farm => 'Jën'` (poisson) dans `lang/wo/properties.php` — et c'est la
+     * raison d'être de cette table séparée.
+     *
+     * La séance de validation se prépare avec `php artisan search:wolof-review-sheet`,
+     * qui imprime pour chaque ligne l'alias français en vigueur, les DEUX
+     * libellés wolof existants (back et front) et le nombre de biens que le
+     * mot atteint DÉJÀ dans l'index. Cette dernière colonne attrape le risque
+     * qu'aucune revue lexicale ne peut voir : la collision de CORPUS. Mesuré
+     * le 2026-08-21 sur `takussan_localproperties` (795 documents), `keur`
+     * rend **40** résultats — non pas parce que le mot est indexé comme
+     * vocabulaire, mais parce que le quartier « Cité Keur Gorgui » existe.
+     * Poser `house => 'keur'` ne se verrait donc pas : la requête rendrait des
+     * biens avant comme après, et pas les mêmes.
+     *
+     * Trois faits mesurés le 2026-08-21 qui gouvernent l'écriture des valeurs :
+     *  - **Les diacritiques sont normalisés**, à l'indexation comme à la
+     *    requête : `q=mëublé` et `q=meuble` rendent le même ensemble (319).
+     *    `ë`, `ï`, `é` se ramènent à la lettre nue. Écrire l'alias sans
+     *    diacritique n'ampute donc rien — et l'écrire avec ne protège de rien.
+     *  - **`oneTypo` est à 5 caractères** (relevé sur l'index vivant) : sous
+     *    5 lettres, la tolérance aux fautes est NULLE. `q=ker` ne rend pas
+     *    `Keur` (0 contre 40). Un alias de 3 ou 4 lettres — et le wolof en
+     *    compte beaucoup — n'a droit à aucune approximation.
+     *  - **Un jeton se sépare par une espace**, plusieurs jetons sont permis
+     *    par clé, et un jeton répété ne change rien au filtrage.
+     *
+     * Le champ de destination est `type_label`, celui que TCK-335 a déjà
+     * installé — délibérément, et pas un champ neuf : un champ neuf forcerait
+     * une édition de `searchableAttributes`, donc un réimport de tous les
+     * modèles, et rouvrirait la question de l'ORDRE que TCK-335 a mesurée.
+     *
+     * @var array<string,string>
+     */
+    public const TYPE_SEARCH_ALIASES_WO = [
+        'land' => '',
+        'house' => '',
+        'apartment' => '',
+        'villa' => '',
+        'studio' => '',
+        'room' => '',
+        'office' => '',
+        'shop' => '',
+        'warehouse' => '',
+        'factory' => '',
+        'farm' => '',
+        'hotel' => '',
+        'resort' => '',
+        'garage' => '',
+        'parking' => '',
+        'other' => '',
+    ];
+
+    /**
+     * Alias de recherche WOLOF par type de CONTRAT — TABLE VOLONTAIREMENT VIDE
+     * (TCK-339), concaténée dans `contract_label`. Mêmes règles que
+     * {@see TYPE_SEARCH_ALIASES_WO}.
+     *
+     * ⚠ **Le piège est ici plus profond qu'ailleurs, et il est déjà réalisé
+     * dans les libellés d'affichage** : `lang/wo/properties.php` traduit
+     * `sale => 'Jënd'`, qui signifie *acheter*, tandis que
+     * `takussan-web/src/messages/wo.json` traduit le même `sale => 'Njaay'`,
+     * qui signifie *vente*. Deux mots, deux sens, la même colonne.
+     *
+     * ⚠⚠ Cela **n'interdit pas** d'indexer un mot d'achat sur un bien en
+     * vente : {@see CONTRACT_SEARCH_ALIASES} le fait déjà en français, et
+     * c'est délibéré (TCK-335) — `q=acheter` rend 54 biens en vente, mesuré,
+     * parce qu'un acheteur cherche avec le verbe de SON intention. La règle
+     * n'est pas « pas de verbe d'achat » mais « le verbe doit désigner
+     * l'intention que le contrat sert ». Un mot d'achat sur un bien en
+     * LOCATION serait la faute ; sur un bien en vente, c'est le but.
+     *
+     * @var array<string,string>
+     */
+    public const CONTRACT_SEARCH_ALIASES_WO = [
+        'sale' => '',
+        'rent' => '',
+    ];
+
+    /**
      * Statuses excluded from the public search index filter — mirror of
      * {@see scopePublic()}. A property indexed by {@see shouldBeSearchable()}
      * but in one of these statuses must not surface on the public endpoint.
@@ -169,6 +303,41 @@ class Property extends AbstractModel implements HasMedia
         'under_maintenance', 'unavailable', 'pending_review', 'rejected',
     ];
 
+    /**
+     * Concatène l'alias français et l'alias wolof d'une même clé d'enum en UN
+     * SEUL jeton de champ (TCK-339).
+     *
+     * Contrat, et c'est ce que verrouille `PropertySearchableArrayTest` : tant
+     * que la table wolof est vide, la valeur rendue est **identique à la chaîne
+     * près** à ce que rendait l'accès direct au tableau français. Le mécanisme
+     * est donc posé à vide — aucun document ne change, aucun réimport n'est dû.
+     * Les valeurs vides sont écartées AVANT la jointure : une table vide ne
+     * produit pas d'espace de fin, qui déclencherait un diff de document sur
+     * les 795 documents pour rien.
+     *
+     * `static::` et non `self::` : la liaison tardive est ce qui permet à un
+     * double de test de redéclarer les constantes et de PROUVER que le chemin
+     * de concaténation existe vraiment. Sans elle, la seule preuve disponible
+     * serait « rien n'a changé », qu'une implémentation qui ignore purement la
+     * table wolof cocherait tout aussi bien.
+     *
+     * @param  array<string,string>  $aliasesFr
+     * @param  array<string,string>  $aliasesWo
+     */
+    protected static function joinSearchAliases(array $aliasesFr, array $aliasesWo, ?string $key): string
+    {
+        if ($key === null) {
+            return '';
+        }
+
+        $parts = array_filter(
+            [trim($aliasesFr[$key] ?? ''), trim($aliasesWo[$key] ?? '')],
+            static fn (string $part): bool => $part !== '',
+        );
+
+        return implode(' ', $parts);
+    }
+
     public function toSearchableArray(): array
     {
         $address = $this->address;
@@ -178,7 +347,12 @@ class Property extends AbstractModel implements HasMedia
             'title' => $this->title,
             'description' => $this->description,
             'reference_number' => $this->reference_number,
-            'type_label' => self::TYPE_SEARCH_ALIASES[$this->type?->value] ?? '',
+            'type_label' => static::joinSearchAliases(static::TYPE_SEARCH_ALIASES, static::TYPE_SEARCH_ALIASES_WO, $this->type?->value),
+            // TCK-335 — deux champs DÉRIVÉS, jamais saisis. Leur POSITION dans
+            // `searchableAttributes` (config/scout.php) est une règle de
+            // classement, et elle est mesurée : ils y sont EN DERNIER.
+            'contract_label' => static::joinSearchAliases(static::CONTRACT_SEARCH_ALIASES, static::CONTRACT_SEARCH_ALIASES_WO, $this->contract_type?->value),
+            'furnished_label' => $this->furnished ? self::FURNISHED_SEARCH_LABEL : '',
             'type' => $this->type?->value,
             'contract_type' => $this->contract_type?->value,
             'rent_period' => $this->rent_period?->value,

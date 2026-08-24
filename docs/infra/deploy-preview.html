@@ -654,7 +654,7 @@
         <li><a href="#vercel">Frontend Vercel</a></li>
         <li><a href="#preflight">Audit du VPS</a></li>
         <li><a href="#server-setup">Bootstrap serveur</a></li>
-        <li><a href="#mysql">MySQL : bases &amp; users</a></li>
+        <li><a href="#postgres">PostgreSQL : bases &amp; rôles</a></li>
         <li><a href="#env">Secrets <code>.env</code></a></li>
         <li><a href="#cors">CORS &amp; Sanctum</a></li>
         <li><a href="#deploy-key">SSH GitHub Deploy Key</a></li>
@@ -807,7 +807,7 @@
         │      │   └────┬────┘                └────┬────┘         │
         │      │        ▼                           ▼             │
         │      │   ┌──────────┐                ┌──────────┐       │
-        │      │   │ MySQL    │                │ MySQL    │       │
+        │      │   │ Postgres │                │ Postgres │       │
         │      │   │takussan_ │                │takussan_ │       │
         │      │   │  prod    │                │  preview │       │
         │      │   └──────────┘                └──────────┘       │
@@ -845,8 +845,8 @@
             <tr><td>Domaine front (Vercel)</td>     <td><code>preview.takussan.com</code></td>          <td><code>takussan.com</code> (+ <code>www</code>)</td></tr>
             <tr><td>Domaine API (VPS)</td>          <td><code>preview.api.takussan.com</code></td>      <td><code>api.takussan.com</code></td></tr>
             <tr><td>App dir (sur le VPS)</td>       <td><code>/var/www/takussan-preview</code></td>     <td><code>/var/www/takussan</code></td></tr>
-            <tr><td>Base MySQL</td>                 <td><code>takussan_preview</code></td>              <td><code>takussan_prod</code></td></tr>
-            <tr><td>User MySQL</td>                 <td><code>takussan_pre</code></td>                  <td><code>takussan_pro</code></td></tr>
+            <tr><td>Base PostgreSQL</td>            <td><code>takussan_preview</code></td>              <td><code>takussan_prod</code></td></tr>
+            <tr><td>Rôle PostgreSQL</td>            <td><code>takussan_pre</code></td>                  <td><code>takussan_pro</code></td></tr>
             <tr><td>Pool PHP-FPM</td>               <td><code>takussan-preview</code></td>              <td><code>takussan</code></td></tr>
             <tr><td>Socket PHP-FPM</td>             <td><code>/run/php/takussan-preview.sock</code></td><td><code>/run/php/takussan.sock</code></td></tr>
             <tr><td>Cookie de session</td>          <td><code>takussan_session_preview</code></td>      <td><code>takussan_session</code></td></tr>
@@ -860,7 +860,8 @@
 
       <div class="callout ok">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        <div><p>L'infrastructure CheckPrint est déjà en place sur le même VPS (user <code>deploy</code>, Nginx, PHP-FPM, MySQL, Certbot). On la réutilise et on ne crée que ce qui est spécifique à Takussan, isolé par dossier, pool, base et service.</p></div>
+        <div><p>L'infrastructure CheckPrint est déjà en place sur le même VPS (user <code>deploy</code>, Nginx, PHP-FPM, MySQL, Certbot). On la réutilise et on ne crée que ce qui est spécifique à Takussan, isolé par dossier, pool, base et service.</p>
+        <p><strong>⚠ Le MySQL de cette liste n'est plus celui de Takussan.</strong> Depuis <a href="../adr/0020-postgresql-sur-tous-les-environnements.md">ADR-0020</a> (2026-08-21), Takussan tourne sur <strong>PostgreSQL 17</strong> sur tous ses environnements, suite de tests comprise. Le MySQL du VPS reste en service <em>pour CheckPrint</em> : PostgreSQL s'y <strong>ajoute</strong>, il ne le remplace pas, et les deux moteurs cohabitent sans se gêner. C'est la seule ligne de ce guide où « MySQL » désigne encore quelque chose de vivant.</p></div>
       </div>
     </section>
 
@@ -1059,7 +1060,8 @@ sudo systemctl list-units 'checkprint-*' --no-pager
 php -v               <span class="comment"># attendu : 8.3+</span>
 node -v && npm -v    <span class="comment"># attendu : 20+ (pour Vite build sur serveur)</span>
 composer -V
-mysql --version
+psql --version       <span class="comment"># attendu : 17.x — ADR-0020. `psql: command not found` est le cas NORMAL sur ce VPS : PostgreSQL n'y a jamais été posé, il l'est au §6</span>
+mysql --version      <span class="comment"># pour mémoire : c'est le moteur de CheckPrint, plus celui de Takussan</span>
 
 <span class="comment"># 7. Espace disque</span>
 df -h /var</code></pre>
@@ -1068,7 +1070,7 @@ df -h /var</code></pre>
       <div class="checklist">
         <div class="check"><input type="checkbox" id="ck-deploy"><label for="ck-deploy">User <code>deploy</code> existe et est dans le groupe <code>www-data</code></label></div>
         <div class="check"><input type="checkbox" id="ck-php"><label for="ck-php">PHP <strong>8.4</strong> + Composer + Node 20 installés — <strong>voir l'encadré de migration ci-dessous si le serveur est encore en 8.3</strong></label></div>
-        <div class="check"><input type="checkbox" id="ck-mysql"><label for="ck-mysql">MySQL/MariaDB en service</label></div>
+        <div class="check"><input type="checkbox" id="ck-postgres"><label for="ck-postgres">PostgreSQL 17 en service — <strong>à poser au §6 si absent</strong>, ce qui est le cas par défaut sur ce VPS</label></div>
         <div class="check"><input type="checkbox" id="ck-nginx"><label for="ck-nginx">Nginx + Certbot opérationnels</label></div>
         <div class="check"><input type="checkbox" id="ck-disk"><label for="ck-disk">Au moins 3 Go libres sur <code>/var</code></label></div>
       </div>
@@ -1096,8 +1098,10 @@ df -h /var</code></pre>
           <p><strong>Si une dépendance manque…</strong></p>
           <ul>
             <li><code>id deploy</code> retourne "no such user" → CheckPrint n'a pas été déployé sur ce VPS. Crée-le : <code>sudo adduser --disabled-password --gecos "" deploy &amp;&amp; sudo usermod -aG www-data deploy</code>.</li>
-            <li>PHP/Composer/Node absents → <code>sudo apt update &amp;&amp; sudo apt install -y php8.4-fpm php8.4-mysql php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip php8.4-intl php8.4-gd php8.4-bcmath php8.4-redis composer nodejs npm nginx certbot python3-certbot-nginx</code>.</li>
-            <li>MySQL absent → <code>sudo apt install -y mariadb-server &amp;&amp; sudo mysql_secure_installation</code>.</li>
+            <li>PHP/Composer/Node absents → <code>sudo apt update &amp;&amp; sudo apt install -y php8.4-fpm php8.4-pgsql php8.4-mbstring php8.4-xml php8.4-curl php8.4-zip php8.4-intl php8.4-gd php8.4-bcmath php8.4-redis composer nodejs npm nginx certbot python3-certbot-nginx</code>.
+              <br><strong>⚠ <code>php8.4-pgsql</code> et non <code>php8.4-mysql</code></strong> (ADR-0020). Ce n'est pas une équivalence : sans <code>pdo_pgsql</code>, l'API <strong>ne se connecte pas du tout</strong>. Contrôle : <code>php -m | grep pdo_pgsql</code>.
+              <br>Depuis le 2026-08-21, <strong>tu n'as plus à y penser</strong> : <code>composer.json</code> déclare <code>ext-pdo_pgsql</code>, et <code>deploy.sh</code> lance <code>composer check-platform-reqs</code> <em>avant</em> le <code>composer install</code>. Un serveur sans le pilote fait donc <strong>échouer le déploiement</strong> au lieu de servir une application qui meurt à la première requête. Vérifié par ablation : une extension absente rend une sortie 2 et la liste la ligne <code>missing</code>.</li>
+            <li>PostgreSQL absent → voir le <strong>§6</strong>, qui le pose avec sa collation. Ne pas l'installer d'un simple <code>apt install postgresql</code> ici : la base doit être créée en <code>--locale=C</code>, et ça ne se rattrape pas après coup sans la recréer.</li>
           </ul>
         </div>
       </div>
@@ -1266,17 +1270,18 @@ sudo ls -la /run/php/takussan.sock /run/php/takussan-preview.sock</code></pre>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════
-         § 6 — MYSQL
+         § 6 — POSTGRESQL
          ═══════════════════════════════════════════════════════════ -->
-    <section id="mysql">
-      <h2><span class="step-num">6</span>MySQL &amp; Meilisearch — services VPS</h2>
+    <section id="postgres">
+      <h2><span class="step-num">6</span>PostgreSQL &amp; Meilisearch — services VPS</h2>
 
       <div class="callout why">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
-        <div><p><strong>Pourquoi cette étape ?</strong> Laravel a besoin d'une base MySQL pour stocker ses données. On crée <strong>deux bases isolées</strong> (preview et prod) avec deux users distincts. Comme ça si une migration casse la base preview, la prod est en sécurité.</p></div>
+        <div><p><strong>Pourquoi cette étape ?</strong> Laravel a besoin d'une base pour stocker ses données. On crée <strong>deux bases isolées</strong> (preview et prod) avec deux rôles distincts. Comme ça si une migration casse la base preview, la prod est en sécurité.</p>
+        <p><strong>Le moteur est PostgreSQL 17 depuis <a href="../adr/0020-postgresql-sur-tous-les-environnements.md">ADR-0020</a> (2026-08-21)</strong>, sur tous les environnements, suite de tests comprise. Cette section prescrivait MySQL jusque-là ; la suivre aujourd'hui déploierait une API qui ne démarre pas.</p></div>
       </div>
 
-      <p>Cette étape est <strong>manuelle</strong> car le script <code>server-setup.sh</code> n'a pas accès au password root de MySQL.</p>
+      <p>Cette étape est <strong>manuelle</strong>, et elle le reste : <code>server-setup.sh</code> <strong>n'installe aucune base de données</strong> — ni MySQL hier, ni PostgreSQL aujourd'hui. Il configure PHP-FPM, nginx et les unités systemd, rien d'autre. Son propre commentaire le dit désormais.</p>
 
       <div class="table-wrap">
         <table class="env-matrix">
@@ -1285,7 +1290,7 @@ sudo ls -la /run/php/takussan.sock /run/php/takussan-preview.sock</code></pre>
           </thead>
           <tbody>
             <tr><td>Nom de la base</td><td><code>takussan_preview</code></td><td><code>takussan_prod</code></td></tr>
-            <tr><td>User MySQL</td><td><code>takussan_pre</code></td><td><code>takussan_pro</code></td></tr>
+            <tr><td>Rôle PostgreSQL</td><td><code>takussan_pre</code></td><td><code>takussan_pro</code></td></tr>
             <tr><td>Password</td><td><em>généré au §6.1</em></td><td><em>généré au §6.1, différent du preview</em></td></tr>
           </tbody>
         </table>
@@ -1308,42 +1313,73 @@ openssl rand -base64 24</code></pre>
 
       <div class="code-block" data-lang="bash">
         <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
-        <pre><code>sudo mysql &lt;&lt;'SQL'
-<span class="comment">-- ═══════ PREVIEW ═══════</span>
-CREATE DATABASE takussan_preview CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'takussan_pre'@'localhost' IDENTIFIED BY 'PASSWORD_PREVIEW_DU_6_1';
-GRANT ALL PRIVILEGES ON takussan_preview.* TO 'takussan_pre'@'localhost';
+        <pre><code><span class="comment"># Poser le serveur, s'il ne l'est pas déjà. `postgresql-17-pgvector` est installé
+# MAINTENANT bien qu'AUCUNE table ne l'utilise : ADR-0020 §2 — l'extension doit être
+# disponible partout dès le départ, sinon le motif se referme en silence le jour du
+# chatbot (TCK-344), et l'ajouter à un serveur qui sert coûte davantage.</span>
+sudo apt update &amp;&amp; sudo apt install -y postgresql-17 postgresql-17-pgvector php8.4-pgsql
+sudo systemctl enable --now postgresql
 
-<span class="comment">-- ═══════ PROD ═══════</span>
-CREATE DATABASE takussan_prod CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'takussan_pro'@'localhost' IDENTIFIED BY 'PASSWORD_PROD_DU_6_1';
-GRANT ALL PRIVILEGES ON takussan_prod.* TO 'takussan_pro'@'localhost';
+sudo -u postgres psql &lt;&lt;'SQL'
+<span class="comment">-- ═══════ RÔLES ═══════</span>
+CREATE ROLE takussan_pre LOGIN PASSWORD 'PASSWORD_PREVIEW_DU_6_1';
+CREATE ROLE takussan_pro LOGIN PASSWORD 'PASSWORD_PROD_DU_6_1';
+SQL
 
-FLUSH PRIVILEGES;
-SQL</code></pre>
+<span class="comment"># ═══════ BASES ═══════
+# ⚠ `--locale=C` est la ligne la PLUS IMPORTANTE de cette étape, et elle ne se
+# rattrape pas : une base créée avec la locale par défaut du serveur a une collation
+# différente, et le SENS de six contraintes d'unicité sur texte en dépend
+# (ADR-0020 §4.2). Une contrainte qui change de sens ne lève AUCUNE erreur — elle
+# laisse passer un doublon, et ça se découvre dans les données des mois plus tard.
+# `--template=template0` est obligatoire dès qu'on impose une locale.
+# Ces bases se créent en CLI et non en SQL : `CREATE DATABASE … LOCALE` refuse de
+# tourner dans le psql interactif ci-dessus si template1 a une autre locale.</span>
+sudo -u postgres createdb --owner=takussan_pre --encoding=UTF8 \
+     --locale=C --template=template0 takussan_preview
+sudo -u postgres createdb --owner=takussan_pro --encoding=UTF8 \
+     --locale=C --template=template0 takussan_prod</code></pre>
       </div>
 
       <div class="callout warn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <div><p><strong>Garde les deux passwords précieusement</strong> — tu vas les coller dans les secrets GitHub <code>ENV_FILE</code> et <code>ENV_FILE_PREVIEW</code> à la section suivante. Si tu les perds, tu devras les régénérer avec <code>ALTER USER ... IDENTIFIED BY '...'</code>.</p></div>
+        <div><p><strong>Garde les deux passwords précieusement</strong> — tu vas les coller dans les secrets GitHub <code>ENV_FILE</code> et <code>ENV_FILE_PREVIEW</code> à la section suivante. Si tu les perds, régénère-les avec <code>sudo -u postgres psql -c "ALTER ROLE takussan_pro PASSWORD '…';"</code>.</p>
+        <p>C'est exactement ce qui a coûté le déploiement du 2026-08-15 : <code>deploy.yml</code> est mort deux fois sur <code>Access denied for user 'takussan_prod'@'localhost'</code>, et le journal ne disait pas de quel côté était l'écart — secret périmé, compte absent ou <em>grant</em> manquant se ressemblent tous les trois (ardoise D-04). Un rôle qu'on crée soi-même à cette étape supprime la question.</p></div>
       </div>
 
       <h3>6.3 Vérifier que les users se connectent</h3>
 
       <div class="code-block" data-lang="bash">
         <div class="code-block-header"><span class="lang">bash — sur le VPS</span><button class="copy-btn" type="button"><svg class="icon-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span class="label-copy">Copier</span><span class="label-copied">Copié !</span></button></div>
-        <pre><code><span class="comment"># Preview</span>
-mysql -u takussan_pre -p takussan_preview -e "SELECT 'preview OK' AS status;"
+        <pre><code><span class="comment"># Preview — `-h 127.0.0.1` force l'authentification par mot de passe (TCP) plutôt
+# que par `peer` sur socket unix, qui réussirait pour de mauvaises raisons et ne
+# dirait donc RIEN de ce que fera l'API.</span>
+psql -h 127.0.0.1 -U takussan_pre -d takussan_preview -c "SELECT 'preview OK' AS status;"
 
 <span class="comment"># Prod</span>
-mysql -u takussan_pro -p takussan_prod -e "SELECT 'prod OK' AS status;"</code></pre>
+psql -h 127.0.0.1 -U takussan_pro -d takussan_prod -c "SELECT 'prod OK' AS status;"
+
+<span class="comment"># La collation est-elle bien celle qu'on a demandée ? Vérifier la COMMANDE, pas
+# l'intention — c'est la mesure qui compte. Attendu : C | C | UTF8 pour les deux.
+# ⚠ `current_setting('lc_collate')` N'EXISTE PAS en PG 17 ; passer par pg_database.</span>
+sudo -u postgres psql -Atc \
+  "SELECT datname, datcollate, datctype, pg_encoding_to_char(encoding)
+     FROM pg_database WHERE datname IN ('takussan_preview','takussan_prod');"
+
+<span class="comment"># L'extension pgvector est-elle DISPONIBLE ? (disponible ≠ installée : on ne la
+# crée dans aucune base tant qu'aucune table ne l'utilise.)</span>
+sudo -u postgres psql -Atc \
+  "SELECT name, default_version FROM pg_available_extensions WHERE name='vector';"
+
+<span class="comment"># Et le pilote PHP — sans lui, rien de ce qui précède ne sert.</span>
+php -m | grep -E 'pdo_pgsql|pgsql' || echo 'FATAL: pdo_pgsql absent'</code></pre>
       </div>
 
       <h3>6.4 Meilisearch — moteur de recherche</h3>
 
       <div class="callout why">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <div><p><strong>Pourquoi cette étape ?</strong> La recherche plein-texte (biens, messages, documents) tourne sur <strong>Meilisearch</strong> via Laravel Scout. Comme MySQL, c'est un service à installer manuellement — <code>server-setup.sh</code> ne le provisionne pas. Une seule instance sert preview et prod, les index étant isolés par <code>SCOUT_PREFIX</code>.</p></div>
+        <div><p><strong>Pourquoi cette étape ?</strong> La recherche plein-texte (biens, messages, documents) tourne sur <strong>Meilisearch</strong> via Laravel Scout. Comme PostgreSQL, c'est un service à installer manuellement — <code>server-setup.sh</code> ne le provisionne pas. Une seule instance sert preview et prod, les index étant isolés par <code>SCOUT_PREFIX</code>.</p></div>
       </div>
 
       <p>Installer le binaire (dépôt apt officiel), créer l'utilisateur système et les répertoires de données :</p>
@@ -1487,9 +1523,9 @@ SANCTUM_STATEFUL_DOMAINS=preview.takussan.com  <span class="comment"># prod : ta
 TRUSTED_PROXIES=127.0.0.1,::1
 
 <span class="comment"># ═══════════════════════ Database ═══════════════════════</span>
-DB_CONNECTION=mysql
+DB_CONNECTION=pgsql                            <span class="comment"># ADR-0020. `mysql` ici déploie une API qui ne démarre pas</span>
 DB_HOST=127.0.0.1
-DB_PORT=3306
+DB_PORT=5432                                   <span class="comment"># le port CANONIQUE — PAS le 5433 des `.env` livrés, qui n'est décalé que pour cohabiter avec un brew local</span>
 DB_DATABASE=takussan_preview                   <span class="comment"># prod : takussan_prod</span>
 DB_USERNAME=takussan_pre                       <span class="comment"># prod : takussan_pro</span>
 DB_PASSWORD=PASSWORD_DU_6_1                    <span class="comment"># prod : autre password</span>
@@ -2020,9 +2056,11 @@ sudo journalctl -u takussan-queue-preview -f</code></pre>
           <p><strong>Et une migration est irréversible par construction.</strong> <code>2026_05_18_120000_drop_spatie_permission_tables</code> — le cutover RBAC de TCK-278 — lève une exception dans son <code>down()</code> : reconstituer des rôles historiques depuis un seeder n'aurait restauré qu'une approximation, ce qui est pire qu'un refus. <strong>Il n'existe donc aucune marche arrière de schéma au-delà de cette migration</strong>, seulement une restauration de dump.</p>
           <p><strong>Conséquence opérationnelle, à tenir avant d'en avoir besoin :</strong></p>
           <ol>
-            <li><strong>Dump avant chaque déploiement qui porte une migration.</strong> C'est la seule marche arrière réelle : <code>mysqldump --single-transaction --routines takussan_prod &gt; /var/backups/takussan/pre-deploy-$(date +%F-%H%M).sql</code></li>
+            <li><strong>Dump avant chaque déploiement qui porte une migration.</strong> C'est la seule marche arrière réelle : <code>sudo -u postgres pg_dump --format=custom takussan_prod &gt; /var/backups/takussan/pre-deploy-$(date +%F-%H%M).dump</code>
+              <br><strong>⚠ <code>pg_dump</code> et non <code>mysqldump</code></strong> (ADR-0020). <code>--format=custom</code> plutôt que du SQL brut : c'est le seul format que <code>pg_restore</code> sait restaurer <em>partiellement</em> — une table, un schéma — au lieu de tout ou rien. Restauration : <code>sudo -u postgres pg_restore --clean --if-exists -d takussan_prod &lt;fichier&gt;</code>.</li>
             <li>Vérifier que le dump est <strong>non vide et relisible</strong> avant de lancer le deploy — un dump qu'on n'a jamais relu n'est pas une sauvegarde.</li>
-            <li>Le job <code>migrations-mysql</code> de la CI rejoue chaque migration <strong>aller ET retour</strong> sur MariaDB avant le merge. Il a trouvé un <code>down()</code> cassé sur trois tables à sa première exécution : la suite de tests n'exécute <em>aucun</em> <code>down()</code>, et SQLite acceptait ce que MySQL refuse.</li>
+            <li>Le job <code>migrations-pgsql</code> de la CI rejoue des migrations <strong>aller ET retour</strong> avant le merge. Il a trouvé un <code>down()</code> cassé sur trois tables à sa première exécution : la suite de tests n'exécute <em>aucun</em> <code>down()</code>.
+              <br><strong>⚠ Il a changé de raison d'être le 2026-08-21, et il en couvre moins qu'il n'y paraît.</strong> Il s'appelait <code>migrations-mysql</code> et gardait deux choses : que le DDL passe sur le moteur réel, et que les <code>down()</code> tiennent. La première a disparu — depuis ADR-0020 la suite de tests tourne sur <strong>le moteur de la production</strong>, donc le DDL y est déjà éprouvé. Il ne reste que les <code>down()</code>, et seulement <strong>15 sur 135</strong> : ceux au-dessus de la borne TCK-278, dont le <code>down()</code> est délibérément irréversible. Ne pas lire ce job comme « les <code>down()</code> sont couverts » — il imprime son propre compte à chaque exécution.</li>
           </ol>
         </div>
       </div>
@@ -2208,7 +2246,7 @@ sudo visudo -c -f /etc/sudoers.d/takussan-deploy
         <div class="check"><input type="checkbox" id="g7"><label for="g7"><code>sudo systemctl status takussan-queue</code> → active (running)</label></div>
         <div class="check"><input type="checkbox" id="g8"><label for="g8">Cron scheduler prod tourne (<code>sudo crontab -u deploy -l | grep /var/www/takussan/current</code>)</label></div>
         <div class="check"><input type="checkbox" id="g9"><label for="g9"><code>APP_DEBUG=false</code> + <code>APP_ENV=production</code> confirmés (<code>php artisan about</code> sur le serveur)</label></div>
-        <div class="check"><input type="checkbox" id="g10"><label for="g10">Backup MySQL cron en place (<code>mysqldump</code> + copie offsite — S3/Bunny/rclone)</label></div>
+        <div class="check"><input type="checkbox" id="g10"><label for="g10">Backup PostgreSQL cron en place (<code>pg_dump --format=custom</code> + copie offsite — S3/Bunny/rclone), <strong>et restauré au moins une fois</strong> : un dump jamais relu n'est pas une sauvegarde</label></div>
         <div class="check"><input type="checkbox" id="g11"><label for="g11">Monitoring uptime externe sur <code>/up</code> (UptimeRobot, BetterStack…)</label></div>
         <div class="check"><input type="checkbox" id="g12"><label for="g12">Sentry (ou équivalent) capturant les erreurs Laravel + front</label></div>
         <div class="check"><input type="checkbox" id="g13"><label for="g13">Vercel Analytics actif sur la prod</label></div>

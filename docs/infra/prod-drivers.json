@@ -91,5 +91,6 @@
       "consequence": "Aucune. L'ardoise D-11 mettait cette clé et la précédente dans le même sac ; mesurées, une seule est un trou. *Deux clés absentes du même fichier n'ont pas le même coût : c'est le DÉFAUT du code qui décide, pas l'absence.*",
       "corrige_par": null
     }
-  ]
+  ],
+  "_moteur_de_base": "ADR-0020 (2026-08-21) — le dépôt est passé à PostgreSQL 17 sur tous les environnements, suite de tests comprise. `DB_CONNECTION` est DÉLIBÉRÉMENT absent des relevés ci-dessous : ce fichier ne porte que des valeurs MESURÉES, et aucune production PostgreSQL n'existe encore (D-04). Ce qui a été mesuré, c'est le conteneur de DÉVELOPPEMENT, le 2026-08-21 : `17.11 (Debian 17.11-1.pgdg12+2) | C | C | UTF8`, extension `vector` disponible en 0.8.6 et NON installée. Le `.env.prod` hors dépôt déclare encore l'ancien moteur : le corriger est un acte de déploiement, il appartient à TCK-288. **Inscrire ici la valeur cible avant de l'avoir relevée sur le serveur referait exactement la faute de `mariadb:11.4`** — une configuration prise pour une mesure."
 }

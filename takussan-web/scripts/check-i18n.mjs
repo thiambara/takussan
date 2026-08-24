@@ -38,6 +38,22 @@
  *      la baseline qui porte du texte fait rougir — sinon un écran neuf entre sous le radar, ce
  *      qui est précisément le mode de dégradation que TCK-286 décrit.
  *
+ *      ⚠ **Ce que B compte est le TOLÉRÉ, pas le trouvé** (TCK-292, 2026-08-22). Toute occurrence
+ *      inscrite dans `i18n-exceptions.mjs` avec sa raison écrite est EXCUSÉE, et sort du cliquet.
+ *      Les deux populations étaient auparavant mélangées dans un seul nombre : un `console.error`
+ *      du BFF, qui ne sera jamais traduit, et un libellé anglais affiché au super-admin, qui
+ *      DEVAIT l'être, y comptaient pareil. Le cliquet disait « pas plus qu'hier » ; il ne pouvait
+ *      pas dire « et voici pourquoi ces onze-là sont légitimes », et c'est ce qui rendait « le
+ *      compte tombe à zéro » inatteignable.
+ *
+ *   C. **Les EXCEPTIONS elles-mêmes** — EXACT. Chaque entrée d'`i18n-exceptions.mjs` doit
+ *      correspondre à au moins un site réel, porter une famille connue et une raison
+ *      substantielle. Une exception qui ne s'applique plus à rien fait ROUGIR : une autorisation
+ *      qui survit à son motif est le mécanisme par lequel une liste d'exemptions devient une
+ *      passoire. C'est accessoirement le refus de vacuité du scanner — s'il devenait aveugle, les
+ *      41 entrées cesseraient toutes de correspondre et la garde crierait, au lieu de passer au
+ *      vert en n'ayant plus rien à trouver.
+ *
  * B ne certifie RIEN quand il est vert. Ses limites sont MESURÉES, pas supposées :
  *   · Les littéraux de gabarit interpolés (`` `Bonjour ${nom}` ``) ne sont PAS comptés. Le total
  *     est un PLANCHER, jamais un inventaire.
@@ -58,6 +74,7 @@ import { readFileSync, readdirSync, statSync, existsSync, writeFileSync } from '
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { compteFichier } from './i18n-scan.mjs';
+import { EXCEPTIONS_JUSTIFIEES, FAMILLES, LONGUEUR_MIN_RAISON } from './i18n-exceptions.mjs';
 
 const WEB = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = join(WEB, 'src');
@@ -171,27 +188,127 @@ if (tous.length === 0) {
   process.exit(1);
 }
 
-const mesure = new Map();
-const detail = new Map();
+// ── C1. La FORME des exceptions — vérifiée AVANT toute mesure ─────────────────────────────────
+//
+// Cet ordre n'est pas cosmétique : la boucle de mesure appelle `entree.motif.test(…)`. Une entrée
+// sans `litteral` NI `motif` y faisait planter Node sur un `TypeError` — un code de sortie 1, mais
+// une trace de pile au lieu de la phrase qui dit quoi corriger. *Une garde qui a raison en
+// s'effondrant n'apprend rien à qui la lit.*
+
+const ecartsExceptions = [];
+const identiteDe = (e) => `${e.fichier} :: ${e.litteral ?? e.motif ?? '(aucun site désigné)'}`;
+
+for (const entree of EXCEPTIONS_JUSTIFIEES) {
+  const identite = identiteDe(entree);
+
+  if ((entree.litteral === undefined) === (entree.motif === undefined)) {
+    ecartsExceptions.push(
+      `l'exception « ${identite} » doit porter EXACTEMENT l'un de \`litteral\` ou \`motif\`. `
+      + "Ni les deux (le second serait mort sans que rien ne le dise), ni aucun des deux — une "
+      + "entrée sans site désigné excuserait le fichier ENTIER, c'est-à-dire la baseline sous un "
+      + 'autre nom, avec en plus l\'autorité d\'une justification écrite.',
+    );
+  }
+  if (!FAMILLES.includes(entree.famille)) {
+    ecartsExceptions.push(
+      `l'exception « ${identite} » porte la famille inconnue \`${entree.famille}\`. `
+      + `Les seules admises : ${FAMILLES.join(', ')}. Le champ est CLOS parce qu'une famille `
+      + "inventée à la volée efface le raisonnement qui a produit le classement.",
+    );
+  }
+  if (typeof entree.raison !== 'string' || entree.raison.trim().length < LONGUEUR_MIN_RAISON) {
+    ecartsExceptions.push(
+      `l'exception « ${identite} » n'a pas de raison substantielle `
+      + `(${LONGUEUR_MIN_RAISON} caractères minimum). Le champ \`raison\` est ce qui rend `
+      + "l'exception RELISIBLE : sans lui, cette liste n'est qu'une baseline plus permissive.",
+    );
+  }
+}
+
+if (ecartsExceptions.length > 0) {
+  // On sort ICI plutôt que de poursuivre : la mesure qui suit LIT ces entrées, et une entrée mal
+  // formée ferait de sa sortie un mensonge (une occurrence excusée à tort, ou une trace de pile).
+  console.error(`\n✗ ${ecartsExceptions.length} exception(s) i18n MAL FORMÉE(S) :\n`);
+  for (const e of ecartsExceptions) console.error(`  · ${e}`);
+  console.error('\n  La mesure du texte en dur n\'a PAS été faite : elle lit ces entrées.');
+  process.exit(1);
+}
+
+// ── B/C. Le tri : chaque occurrence est EXCUSÉE (raison écrite) ou TOLÉRÉE (dette au cliquet) ──
+
+/** L'entrée d'exception couvre-t-elle cette occurrence ? `litteral` est EXACT, `motif` est testé. */
+const couvre = (entree, extrait) => (
+  entree.litteral !== undefined ? entree.litteral === extrait : entree.motif.test(extrait)
+);
+
+/** Combien de sites chaque entrée a-t-elle réellement couverts — cf. contrôle C. */
+const sitesParException = new Map(EXCEPTIONS_JUSTIFIEES.map((e) => [e, 0]));
+
+const mesure = new Map();      // toléré, par fichier — c'est CE compte que la baseline garde
+const detail = new Map();      // les occurrences tolérées, pour le rapport
+const excuses = new Map();     // excusé, par fichier
+const parFamille = new Map();  // excusé, par famille
+
 for (const chemin of tous) {
+  const cle = cleFichier(chemin);
   const trouves = compteFichier(chemin, readFileSync(chemin, 'utf8'));
-  if (trouves.length > 0) {
-    mesure.set(cleFichier(chemin), trouves.length);
-    detail.set(cleFichier(chemin), trouves);
+  const toleres = [];
+  for (const occurrence of trouves) {
+    const entree = EXCEPTIONS_JUSTIFIEES
+      .find((e) => e.fichier === cle && couvre(e, occurrence.extrait));
+    if (entree === undefined) {
+      toleres.push(occurrence);
+      continue;
+    }
+    sitesParException.set(entree, sitesParException.get(entree) + 1);
+    excuses.set(cle, (excuses.get(cle) ?? 0) + 1);
+    parFamille.set(entree.famille, (parFamille.get(entree.famille) ?? 0) + 1);
+  }
+  if (toleres.length > 0) {
+    mesure.set(cle, toleres.length);
+    detail.set(cle, toleres);
   }
 }
 const total = [...mesure.values()].reduce((a, b) => a + b, 0);
+const totalExcuse = [...excuses.values()].reduce((a, b) => a + b, 0);
+
+// ── C2. La FRAÎCHEUR des exceptions — après la mesure, qui seule sait ce qui a été couvert ────
+
+for (const entree of EXCEPTIONS_JUSTIFIEES) {
+  if (sitesParException.get(entree) === 0) {
+    ecartsExceptions.push(
+      `l'exception « ${identiteDe(entree)} » ne correspond à AUCUN site. Le fichier a été renommé, `
+      + "le littéral corrigé, ou le scanner ne le voit plus. Une autorisation qui survit à son "
+      + "motif n'est pas inoffensive : elle donne à la liste une autorité qu'elle n'a plus. La "
+      + 'retirer, ou corriger ce qui a bougé.',
+    );
+  }
+}
+
 
 if (UPDATE) {
   const fichiers = Object.fromEntries([...mesure.entries()].sort(([a], [b]) => a.localeCompare(b)));
   writeFileSync(BASELINE, `${JSON.stringify({
     _lisez_moi: 'GÉNÉRÉ par `node scripts/check-i18n.mjs --update`. Ne pas éditer à la main : '
       + 'ces comptes sont une MESURE, et un compte recopié à la main est faux dès le commit suivant. '
-      + 'Chaque entrée est un plafond PAR FICHIER qui ne peut que descendre.',
+      + 'Chaque entrée est un plafond PAR FICHIER qui ne peut que descendre. '
+      + 'Depuis TCK-292 (2026-08-22), ce fichier ne compte QUE le TOLÉRÉ : les occurrences '
+      + 'inscrites dans `scripts/i18n-exceptions.mjs` avec leur raison écrite sont EXCUSÉES et '
+      + "n'apparaissent pas ici. Un objet `fichiers` vide veut donc dire « plus aucune dette non "
+      + 'justifiée », et non « plus aucun littéral ».',
     total,
     fichiers,
   }, null, 2)}\n`);
-  console.log(`✓ baseline réécrite : ${mesure.size} fichiers, ${total} occurrences.`);
+  console.log(`✓ baseline réécrite : ${mesure.size} fichier(s), ${total} occurrence(s) TOLÉRÉE(S)`
+    + ` — ${totalExcuse} autre(s) sont excusées par ${EXCEPTIONS_JUSTIFIEES.length} exception(s)`
+    + ' écrite(s) dans `scripts/i18n-exceptions.mjs`.');
+  if (ecartsExceptions.length > 0) {
+    // `--update` réécrit la baseline, il ne PARDONNE pas une exception invalide : la réécriture
+    // aurait justement retiré du cliquet les sites qu'une exception périmée couvrait à tort.
+    console.error(`\n✗ ${ecartsExceptions.length} écart(s) sur les exceptions :\n`);
+    for (const e of ecartsExceptions) console.error(`  · ${e}`);
+    process.exit(1);
+  }
   process.exit(0);
 }
 
@@ -233,18 +350,32 @@ if (REPORT) {
       console.log(`          … et ${parite[locale].manquantes.length - 20} autres`);
     }
   }
-  console.log(`\n  B · texte en dur (cliquet HEURISTIQUE, par fichier)`);
-  console.log(`      ${mesure.size} fichiers / ${total} occurrences — baseline : `
-    + `${Object.keys(baseline).length} fichiers / ${totalBaseline} occurrences`);
-  console.log('      les 20 fichiers les plus chargés :');
+  console.log(`\n  B · texte en dur — ${total + totalExcuse} occurrence(s) vue(s) par le scanner`);
+  console.log(`      ${String(totalExcuse).padStart(4)} EXCUSÉE(S)  — raison écrite dans `
+    + `scripts/i18n-exceptions.mjs (${EXCEPTIONS_JUSTIFIEES.length} exception(s))`);
+  for (const famille of FAMILLES) {
+    const n = parFamille.get(famille) ?? 0;
+    if (n > 0) console.log(`           ${String(n).padStart(4)}  ${famille}`);
+  }
+  console.log(`      ${String(total).padStart(4)} TOLÉRÉE(S)  — dette au cliquet, sur `
+    + `${mesure.size} fichier(s) ; baseline : ${totalBaseline} sur `
+    + `${Object.keys(baseline).length} fichier(s)`);
+  if (total === 0) {
+    console.log('           (aucune — toute occurrence vue est motivée)');
+  }
   for (const [f, c] of [...mesure.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20)) {
-    console.log(`          ${String(c).padStart(4)}  ${f}`);
+    console.log(`           ${String(c).padStart(4)}  ${f}`);
+    for (const t of detail.get(f) ?? []) {
+      console.log(`                 ${t.categorie.padEnd(9)} ${f.split('/').pop()}:${t.ligne}  ${t.extrait}`);
+    }
   }
   const parCategorie = {};
   for (const trouves of detail.values()) {
     for (const t of trouves) parCategorie[t.categorie] = (parCategorie[t.categorie] ?? 0) + 1;
   }
-  console.log(`      par catégorie : ${Object.entries(parCategorie).map(([k, v]) => `${k}=${v}`).join(' · ')}`);
+  if (total > 0) {
+    console.log(`      par catégorie (toléré) : ${Object.entries(parCategorie).map(([k, v]) => `${k}=${v}`).join(' · ')}`);
+  }
   console.log();
 }
 
@@ -281,6 +412,8 @@ for (const locale of ['en', 'wo']) {
   }
 }
 
+erreurs.push(...ecartsExceptions);
+
 for (const [f, compte, plafond] of monte) {
   erreurs.push(
     `${f} : ${compte} libellé(s) en dur pour un plafond de ${plafond} — le compte a MONTÉ. `
@@ -313,8 +446,10 @@ if (erreurs.length === 0) {
   console.log(
     `✓ i18n : parité tenue (en ${parite.en.manquantes.length}/${PLAFONDS_PARITE.en}, `
     + `wo ${parite.wo.manquantes.length}/${PLAFONDS_PARITE.wo} clé(s) manquante(s) sur `
-    + `${dicos.fr.size} clés fr), et ${total} libellé(s) en dur sur ${mesure.size} fichiers, `
-    + 'tous au plafond de leur baseline.',
+    + `${dicos.fr.size} clés fr), et ${total} libellé(s) en dur NON JUSTIFIÉ(S) sur `
+    + `${mesure.size} fichier(s), tous au plafond de leur baseline — `
+    + `${totalExcuse} autre(s) sont excusé(e)s par ${EXCEPTIONS_JUSTIFIEES.length} exception(s) `
+    + 'écrite(s), chacune vérifiée contre un site réel.',
   );
   console.log("  ⚠ PORTÉE — ce vert NE PROUVE PAS que le front est internationalisé.");
   console.log('    · A (parité) est EXACT sur la PRÉSENCE des clés, et muet sur leur QUALITÉ : une');
@@ -322,6 +457,11 @@ if (erreurs.length === 0) {
   console.log('    · B (texte en dur) est un cliquet HEURISTIQUE. Il ne voit pas les gabarits');
   console.log('      interpolés (`Bonjour ${nom}`), ni les props de composants maison hors');
   console.log('      `ATTRS_AFFICHAGE`. Le total est un PLANCHER, jamais un inventaire.');
+  console.log('    · Une occurrence EXCUSÉE l’est sur la foi d’une raison écrite par un humain.');
+  console.log('      La garde vérifie que la raison existe et que le site existe encore — jamais');
+  console.log('      que le classement est juste. C’est exactement l’hypothèse qui a coûté cinq');
+  console.log('      libellés affichés à TCK-292 : « ça ressemble à du technique donc ça ne');
+  console.log('      s’affiche pas » se vérifie en suivant le littéral jusqu’à son rendu.');
   process.exit(0);
 }
 

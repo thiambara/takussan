@@ -17,35 +17,31 @@ export const sortSchema = z.enum([
   'price_asc',
   'price_desc',
   'created_desc',
+  // TCK-346 — exige `lat` + `lng` côté serveur ; le couplage est tenu par `normaliserGeo()`
+  // (`hooks/useSearch.ts`), pas ici : un `z.enum` ne peut pas voir les autres clés.
+  'distance',
 ]);
 
-/**
- * URL-shape of the search filters. All values are optional; numeric values
- * are coerced from strings because they originate from `URLSearchParams`.
+/*
+ * ─────────────────────────────────────────────────────────────────────────────
+ * `searchFiltersSchema` a été SUPPRIMÉ ici — TCK-335.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Son docblock affirmait « These mirror `SearchFilters` ». C'était faux : il portait
+ * 18 clés contre 20, `floor_number` et `available_from` manquaient, et personne ne
+ * s'en était aperçu parce qu'il n'avait **aucun consommateur de production** — seul
+ * son propre test l'importait.
+ *
+ * C'est le pire état pour une liste : elle a l'autorité d'un schéma, elle a divergé,
+ * et rien ne peut le signaler. Une liste morte n'est pas inerte — elle absorbe les
+ * corrections sans les rendre, exactement comme le second répertoire de compétences
+ * de TCK-303.
+ *
+ * La parité qui compte est désormais gardée là où elle traverse réellement deux
+ * runtimes : `src/types/__tests__/search-filters.parity.test.ts` compare `SearchFilters`
+ * aux règles de `SearchPublicPropertyRequest` et à ce que `PropertySearchService`
+ * consomme, en lisant les fichiers PHP.
  */
-export const searchFiltersSchema = z.object({
-  q: z.string().trim().min(1).max(200).optional(),
-  location: z.string().trim().max(200).optional(),
-  city: z.string().trim().max(200).optional(),
-  contract_type: contractTypeSchema.optional(),
-  type: z.array(z.string()).optional(),
-  rent_period: rentPeriodSchema.optional(),
-  price_min: z.coerce.number().min(0).optional(),
-  price_max: z.coerce.number().min(0).optional(),
-  bedrooms: z.coerce.number().int().min(0).optional(),
-  bathrooms: z.coerce.number().int().min(0).optional(),
-  area_min: z.coerce.number().min(0).optional(),
-  area_max: z.coerce.number().min(0).optional(),
-  furnished: z.coerce.boolean().optional(),
-  featured: z.coerce.boolean().optional(),
-  tags: z.string().optional(),
-  sort: sortSchema.optional(),
-  page: z.coerce.number().int().min(1).optional(),
-  per_page: z.coerce.number().int().min(1).max(100).optional(),
-});
-
-export type SearchFiltersInput = z.input<typeof searchFiltersSchema>;
-export type SearchFiltersParsed = z.output<typeof searchFiltersSchema>;
 
 /**
  * Payload accepted by `POST /api/saved-searches`.

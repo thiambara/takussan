@@ -11,10 +11,10 @@ return new class extends Migration
     {
         Schema::create('announcements', function (Blueprint $table): void {
             $table->id();
-            $table->json('title');
-            $table->json('body');
+            $table->jsonb('title');
+            $table->jsonb('body');
             $table->string('severity')->default(AnnouncementSeverity::Info->value);
-            $table->json('segment')->nullable();
+            $table->jsonb('segment')->nullable();
             $table->timestamp('starts_at');
             $table->timestamp('ends_at')->nullable();
             $table->boolean('is_active')->default(true);

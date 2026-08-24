@@ -55,9 +55,10 @@ on:
       - 'takussan-api/CLAUDE.md'
       - 'takussan-web/CLAUDE.md'
       - 'takussan-web/README.md'
-      # `check-db-engine` compare le compose, le job `migrations-mysql` d'`api-ci.yml` et
-      # l'init SQL. Les trois doivent déclencher, sinon la garde ne voit qu'une moitié de
-      # l'écart qu'elle existe pour trouver — la règle posée en haut de ce bloc.
+      # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
+      # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
+      # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
+      # règle posée en haut de ce bloc.
       - 'docker-compose.yml'
       - 'docker/**'
       - '.github/workflows/api-ci.yml'
@@ -128,9 +129,10 @@ on:
       - 'takussan-api/CLAUDE.md'
       - 'takussan-web/CLAUDE.md'
       - 'takussan-web/README.md'
-      # `check-db-engine` compare le compose, le job `migrations-mysql` d'`api-ci.yml` et
-      # l'init SQL. Les trois doivent déclencher, sinon la garde ne voit qu'une moitié de
-      # l'écart qu'elle existe pour trouver — la règle posée en haut de ce bloc.
+      # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
+      # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
+      # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
+      # règle posée en haut de ce bloc.
       - 'docker-compose.yml'
       - 'docker/**'
       - '.github/workflows/api-ci.yml'
@@ -359,6 +361,36 @@ jobs:
         # ⚠ La garde écrit sa portée dans sa sortie : elle interdit de DÉFINIR une règle dans un
         # contrôleur, elle ne vérifie pas qu'un endpoint autorise quoi que ce soit (dette D-23).
         run: node scripts/check-controller-authorization.mjs --report
+
+      - name: Aucune surface authentifiée n'est cacheable par un cache partagé
+        # TCK-341. `Cache-Control: public` autorise un CDN ou un reverse proxy à
+        # stocker une réponse et à la resservir à quelqu'un d'autre. Sur une route
+        # authentifiée, cela ne produit ni erreur ni ralentissement — cela produit la
+        # réponse d'un utilisateur servie à un autre, et rien dans le code applicatif
+        # ne peut le voir.
+        #
+        # Un test seul ne suffit pas, et c'est le motif exact de cette garde : le
+        # défaut ne s'introduit pas en ajoutant un en-tête de cache, il s'introduit en
+        # ajoutant `auth:sanctum` autour d'un groupe qui en portait déjà un — le
+        # fichier modifié n'est alors même pas celui qui porte le `public`, et la route
+        # continue de répondre exactement ce qu'on lui demande.
+        #
+        # Elle regarde les DEUX formes, parce que la seconde est la seule employée
+        # aujourd'hui : le middleware `cache.headers:…public…`, ET les
+        # `->header('Cache-Control', 'public, …')` posés à la main dans un contrôleur —
+        # ceux-là, aucune lecture d'un fichier de routes ne peut les voir. Le
+        # rattachement se fait méthode par méthode : `PublicPropertyController` sert à
+        # la fois `discovery` (qui émet `public`) et `booking-request` (sous
+        # `auth:sanctum`), et les confondre la rendrait rouge à tort dès son premier
+        # jour.
+        #
+        # ⚠ Elle écrit sa portée dans sa sortie : elle refuse le COUPLE (cache partagé,
+        # authentification). Elle ne dit PAS qu'une réponse `public` non authentifiée
+        # est sûre — mesuré le 2026-08-21, la fiche publique varie avec un porteur
+        # Bearer sans porter le moindre `auth:` (`ResolveActiveProfile` le propage au
+        # garde par défaut, TCK-179). Cette variance-là se prouve en comparant deux
+        # corps : `tests/Feature/Public/CataloguePublicCacheTest.php`.
+        run: node scripts/check-cache-headers-auth.mjs --report
 
       - name: Le filtrage passe par un seul mécanisme
         # `BaseModelTrait::scopeFilter(Builder, array)` coexistait avec spatie/laravel-query-builder

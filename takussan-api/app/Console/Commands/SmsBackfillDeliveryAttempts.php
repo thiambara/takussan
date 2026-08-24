@@ -55,17 +55,31 @@ class SmsBackfillDeliveryAttempts extends Command
                         }
                         // Idempotent: the unique index on
                         // (provider, provider_message_id) blocks dups
-                        // when the command is re-run. We swallow the
-                        // unique-constraint violation rather than
-                        // upserting so the existing row's status
-                        // (potentially already updated by a DLR) is
-                        // preserved.
-                        try {
-                            NotificationDeliveryAttempt::query()->create($row);
-                            $totalInserted++;
-                        } catch (UniqueConstraintViolationException) {
-                            // already backfilled
-                        }
+                        // when the command is re-run. The existing
+                        // row's status (potentially already updated by
+                        // a DLR) must be PRESERVED — hence ignore, not
+                        // upsert.
+                        //
+                        // ⚠ `insertOrIgnore` et non plus « insérer puis attraper
+                        // UniqueConstraintViolationException ». Sur MySQL et SQLite,
+                        // l'instruction ratée n'empêchait pas les suivantes ; sur
+                        // PostgreSQL elle ABANDONNE LA TRANSACTION ENTIÈRE
+                        // (« current transaction is aborted, commands ignored until end
+                        // of transaction block »), et c'est tout le `chunkById` qui
+                        // mourait — sur un message accusant la ligne suivante, innocente.
+                        //
+                        // Ce n'est pas une contorsion pour PostgreSQL : `insertOrIgnore`
+                        // compile en `ON CONFLICT DO NOTHING` et exprime enfin dans le
+                        // SQL ce que le commentaire décrivait déjà. Une exception attendue
+                        // dans le cas NOMINAL n'est pas un mécanisme de contrôle, c'est un
+                        // coût qu'on paie à chaque ligne déjà remplie.
+                        //
+                        // `insertOrIgnore` court-circuite Eloquent : les horodatages ne
+                        // sont plus posés automatiquement, on les écrit.
+                        $now = now();
+                        $totalInserted += NotificationDeliveryAttempt::query()->insertOrIgnore(
+                            $row + ['created_at' => $now, 'updated_at' => $now],
+                        );
                     }
                 }
             });

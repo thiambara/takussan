@@ -9,8 +9,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\DB;
 
 /**
  * TCK-252 — Demande d'upgrade d'une agence `individual` vers `standard`.
@@ -19,13 +17,24 @@ use Illuminate\Support\Facades\DB;
  * approbation est conduite par les services dédiés (TCK-267 form de
  * soumission, TCK-268 console super-admin, TCK-269 flip de l'agence).
  *
- * Contrainte critique : **une seule demande `pending` par agence**.
- *  - Sur Postgres l'invariant est garanti par un index unique partiel
- *    (`agency_id WHERE status = 'pending'`, créé par la migration).
- *  - Sur SQLite (utilisé en tests locaux) il n'existe pas d'équivalent
- *    natif — on retombe sur un check applicatif déclenché en `creating`
- *    qui lève une {@see QueryException} mimant la collision Postgres,
- *    pour garder un comportement homogène entre drivers.
+ * Contrainte critique : **une seule demande `pending` par agence**, garantie par
+ * un index unique PARTIEL en base :
+ *
+ *     CREATE UNIQUE INDEX agency_upgrade_requests_one_pending_per_agency
+ *     ON agency_upgrade_requests (agency_id) WHERE status = 'pending'
+ *
+ * ⚠ Il y avait ici un SECOND garde-fou, un `booted()`/`creating` qui sondait la
+ * table et levait une `QueryException` imitant la collision — parce que SQLite,
+ * qui servait alors aux tests, n'a pas d'index partiel. **Il a été supprimé avec
+ * SQLite** (ADR-0020) : la suite tourne désormais sur PostgreSQL, donc sur le même
+ * index que la production, et ce garde-fou était devenu du code que rien ne pouvait
+ * plus atteindre — son `if (getDriverName() !== 'sqlite') return;` sortait à tous
+ * les coups.
+ *
+ * Deux couches subsistent, et elles suffisent : l'index ci-dessus pour toute
+ * écriture, et le contrôleur de soumission qui rend un 422 propre sur le chemin
+ * HTTP (`test_duplicate_pending_request_returns_422`). L'index seul est éprouvé par
+ * `AgencyUpgradeRequestTest::test_partial_unique_index_rejects_a_second_pending_request`.
  *
  * Voir `docs/models-spec.md#49-agencyupgraderequest-` pour la spec data.
  */
@@ -70,40 +79,6 @@ class AgencyUpgradeRequest extends AbstractModel
         'reviewed_by', 'reviewed_at', 'review_comment',
         'created_at', 'updated_at',
     ];
-
-    protected static function booted(): void
-    {
-        // SQLite fallback for the `(agency_id) WHERE status = 'pending'`
-        // partial unique index — Postgres enforces it natively. We probe in
-        // `creating` only when the driver is sqlite to keep prod paths free
-        // of the extra SELECT.
-        static::creating(function (self $request): void {
-            if ($request->status !== AgencyUpgradeRequestStatus::Pending->value
-                && $request->status !== AgencyUpgradeRequestStatus::Pending) {
-                return;
-            }
-
-            if (DB::connection()->getDriverName() !== 'sqlite') {
-                return;
-            }
-
-            $exists = static::query()
-                ->where('agency_id', $request->agency_id)
-                ->where('status', AgencyUpgradeRequestStatus::Pending->value)
-                ->exists();
-
-            if ($exists) {
-                throw new QueryException(
-                    DB::connection()->getName(),
-                    'INSERT INTO agency_upgrade_requests',
-                    [],
-                    new \RuntimeException(
-                        'UNIQUE constraint failed: agency_upgrade_requests.agency_id (status=pending)'
-                    )
-                );
-            }
-        });
-    }
 
     public function scopePending(Builder $query): Builder
     {

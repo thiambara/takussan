@@ -33,18 +33,9 @@ export async function fetchThresholdAlerts(): Promise<{ data: ThresholdAlert[] }
   return apiRequest('/api/threshold-alerts', { token });
 }
 
-export async function createThresholdAlert(payload: ThresholdAlertInput) {
-  const token = await getToken();
-  if (!token) throw new Error('Not authenticated');
-  return apiRequest<{ data: ThresholdAlert }>('/api/threshold-alerts', {
-    token,
-    method: 'POST',
-    body: payload,
-  });
-}
-
-export async function deleteThresholdAlert(id: number) {
-  const token = await getToken();
-  if (!token) throw new Error('Not authenticated');
-  return apiRequest('/api/threshold-alerts/' + id, { token, method: 'DELETE' });
-}
+// TCK-292 (2026-08-22) — `createThresholdAlert` et `deleteThresholdAlert` ont été SUPPRIMÉES,
+// pas excusées. Elles portaient `throw new Error('Not authenticated')` et n'avaient AUCUN
+// appelant (`grep -rnE '\bcreateThresholdAlert\b' src/` → la définition seule) : les vraies
+// écritures vivent dans `src/app/actions/alerts.ts`, qui refait l'appel lui-même et traduit son
+// message par `getTranslations('errors')`. Ne subsistent ici que la lecture, réellement appelée
+// par `app/(dashboard)/app/overview/alerts/page.tsx`, et les types que l'action importe.

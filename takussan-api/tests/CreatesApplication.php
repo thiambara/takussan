@@ -5,6 +5,7 @@ namespace Tests;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
 use Tests\Support\TestCompiledViews;
+use Tests\Support\TestDatabase;
 
 /**
  * Le SEUL point d'accroche du dépôt dans le processus PARENT de ParaTest.
@@ -24,8 +25,15 @@ use Tests\Support\TestCompiledViews;
  * pouvait donc pas l'atteindre : c'est pourquoi l'une des deux exécutions
  * simultanées passait et l'autre mourait à l'amorçage.
  *
- * Ce que ce trait ajoute au chemin par défaut tient en une ligne, et
- * {@see TestCompiledViews} porte le raisonnement complet.
+ * Ce que ce trait ajoute au chemin par défaut tient en deux lignes, et
+ * {@see TestCompiledViews} porte le raisonnement complet de la première.
+ *
+ * ⚠ **Ce trait ne sert PAS aux processus de test, et l'avoir cru a coûté cher**
+ * (TCK-334, mesuré le 2026-08-22). `Tests\TestCase` ne l'emploie pas : il hérite du
+ * `createApplication()` du framework. Tout ce qu'on accroche ici ne tourne donc QUE
+ * dans le parent. `TestDatabase::ensureCreated()` y a vécu jusqu'au 2026-08-22 —
+ * c'est-à-dire nulle part où elle servait — et la création des bases de test était
+ * en réalité assurée, en silence, par `MigrateCommand`. Voir {@see TestDatabase}.
  *
  * ⚠ **Sa disparition serait SILENCIEUSE** : le framework se rabattrait sur son
  * chemin par défaut, tout resterait vert pour un agent seul, et la collision ne
@@ -42,6 +50,12 @@ trait CreatesApplication
         $app->make(Kernel::class)->bootstrap();
 
         TestCompiledViews::install($app['config']);
+        // Le parent ne joue aucun test et n'a donc aucune base à créer — mais c'est LUI
+        // qui exécute les rappels `setUpProcess` / `tearDownProcess` de
+        // `Illuminate\Testing\Concerns\TestDatabases`, sous `--recreate-databases` et
+        // `--drop-databases`. On les éteint ici comme `tests/bootstrap.php` les éteint
+        // côté worker : un seul mécanisme nomme et crée, dans les deux processus.
+        TestDatabase::neutralizeFrameworkMechanism();
 
         return $app;
     }

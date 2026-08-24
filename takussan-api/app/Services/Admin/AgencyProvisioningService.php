@@ -10,6 +10,7 @@ use App\Models\Enums\Currency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
+use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -24,7 +25,7 @@ class AgencyProvisioningService
      */
     public function provision(array $payload, User $actor): array
     {
-        $adminEmail = strtolower((string) data_get($payload, 'admin.email'));
+        $adminEmail = CaseInsensitive::fold((string) data_get($payload, 'admin.email'));
         abort_if(
             User::query()->where('email', $adminEmail)->exists(),
             409,

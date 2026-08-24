@@ -62,6 +62,7 @@ use App\Models\Review;
 use App\Models\RoleDelegation;
 use App\Models\Task;
 use App\Models\User;
+use App\Notifications\Channels\AppDatabaseChannel;
 use App\Notifications\Channels\SmsChannel;
 use App\Notifications\Channels\WhatsappChannel;
 use App\Observers\AgencyObserver;
@@ -662,5 +663,12 @@ class AppServiceProvider extends ServiceProvider
         // TCK-282 — `whatsapp` channel: any Notification can list it (or
         // route to it via PreferenceResolver::resolveMobileChannel()).
         $this->app->make(ChannelManager::class)->extend('whatsapp', fn ($app) => $app->make(WhatsappChannel::class));
+        // models-spec §12 — le canal `app_database` que la spec décrit
+        // depuis le 2026-04-13 et que personne n'avait écrit. Il PREND LA PLACE du
+        // canal natif `database` : les 29 classes qui le déclarent visaient la table
+        // `notifications` de Laravel, écartée par la décision et jamais créée, donc
+        // écrivaient dans le vide. Le remplacer plutôt que l'ajouter à côté ferme la
+        // faute pour de bon — aucune classe future ne peut retomber dedans.
+        $this->app->make(ChannelManager::class)->extend('database', fn ($app) => $app->make(AppDatabaseChannel::class));
     }
 }

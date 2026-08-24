@@ -7,6 +7,7 @@ use App\Models\Invitation;
 use App\Models\User;
 use App\Notifications\SuperAdminInvitedBroadcast;
 use App\Services\Invitation\InvitationService;
+use App\Support\CaseInsensitive;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class SuperAdminCooptationService
     {
         $this->assertInviterIsSuperAdmin($inviter);
 
-        $email = strtolower(trim((string) $data['email']));
+        $email = CaseInsensitive::fold(trim((string) $data['email']));
         $this->assertTargetIsNotAlreadySuperAdmin($email);
 
         $invitation = DB::transaction(function () use ($inviter, $data, $email): Invitation {

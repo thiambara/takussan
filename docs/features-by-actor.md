@@ -36,8 +36,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Sommaire
 
-1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 11 fonctionnalités
-2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 43 fonctionnalités
+1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 13 fonctionnalités
+2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 45 fonctionnalités
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 38 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 68 fonctionnalités
 5. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 63 fonctionnalités
@@ -58,6 +58,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact) |
 | P0 | §1.2 | Tri des résultats (prix, récence, pertinence) |
 | P1 | §1.2 | Filtres avancés (amenités, disponibilité, étage, meublé) |
+| P1 | §1.2 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
+| P1 | §1.2 | Tri des résultats par distance au point de recherche |
 | P1 | §1.2 | Partage d'un bien (lien, réseaux sociaux) |
 
 ### §1.11 Avis & réputation
@@ -93,6 +95,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact) |
 | P0 | §1.2 | Tri des résultats (prix, récence, pertinence) |
 | P1 | §1.2 | Filtres avancés (amenités, disponibilité, étage, meublé) |
+| P1 | §1.2 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
+| P1 | §1.2 | Tri des résultats par distance au point de recherche |
 | P1 | §1.2 | Recherche par carte interactive |
 | P1 | §1.2 | Favoris (ajout / retrait / liste personnelle) |
 | P1 | §1.2 | Recherches sauvegardées avec alertes email |
@@ -629,8 +633,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **231** lignes de fonctionnalité lues,
-  réparties en **279** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **233** lignes de fonctionnalité lues,
+  réparties en **283** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

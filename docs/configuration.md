@@ -55,7 +55,7 @@ Document de référence pour configurer le monorepo **Takussan** de A à Z (dép
 
 | Catégorie | Service | Obligatoire | Variables clés |
 |---|---|---|---|
-| **DB** | PostgreSQL / MySQL / SQLite | ✅ | `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` |
+| **DB** | PostgreSQL 17 | ✅ | `DB_CONNECTION=pgsql` — **seul moteur supporté, sur TOUS les environnements, suite de tests comprise** (ADR-0020). SQLite et MySQL ont été retirés. Puis `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` |
 | **Cache** | Redis (recommandé) | ✅ (prod) | `CACHE_STORE=redis`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` |
 | **Queue** | Database / Redis / SQS / Beanstalkd | ✅ | `QUEUE_CONNECTION` |
 | **Storage** | Local / S3 (AWS) | ✅ | `FILESYSTEM_DISK`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET`, `AWS_DEFAULT_REGION` |
@@ -102,17 +102,26 @@ SANCTUM_STATEFUL_DOMAINS=localhost:3000
 
 ### 3.3 Base de données
 
+**PostgreSQL 17 sur tous les environnements, suite de tests comprise** ([ADR-0020](adr/0020-postgresql-sur-tous-les-environnements.md)).
+SQLite et MySQL ont été retirés : ce ne sont plus des variantes supportées, et `config/database.php`
+replie sur `pgsql` quand `DB_CONNECTION` manque. Il n'y a donc **rien à commenter ni à décommenter
+ici** — ces six lignes sont l'environnement, pas un exemple parmi d'autres.
+
 ```env
-# SQLite (défaut local)
-DB_CONNECTION=sqlite
-# PostgreSQL / MySQL
-# DB_CONNECTION=pgsql
-# DB_HOST=127.0.0.1
-# DB_PORT=5432
-# DB_DATABASE=takussan
-# DB_USERNAME=postgres
-# DB_PASSWORD=secret
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5433
+DB_DATABASE=takussan
+DB_USERNAME=takussan
+DB_PASSWORD=takussan
 ```
+
+> ⚠ **5433 et non 5432.** Le port canonique est laissé à une éventuelle installation brew : les
+> conteneurs du dépôt sont décalés d'un cran (5433 / 7701 / 6380 / 1026), pour que les deux mondes
+> cohabitent au lieu que l'un démonte l'autre. Viser 5432 ne produit **aucun rouge** — les services
+> répondent, ce sont ceux de brew — et rien de ce que `docker-compose.yml` garantit ne s'applique
+> alors : ni PostgreSQL 17, ni `--locale=C` (dont dépend le sens de six contraintes d'unicité sur
+> texte), ni la disponibilité de pgvector. `./dev.sh doctor` nomme ce cas.
 
 ### 3.4 Session / Cache / Queue / Filesystem
 
@@ -410,12 +419,19 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 
 ### 5.1 Pré-requis système
 
-- **PHP ^8.4** avec extensions : `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `gd` (ou `imagick` si Intervention Image), `intl`, `mbstring`, `openssl`, `pdo`, `pdo_sqlite` (ou `pdo_pgsql` / `pdo_mysql`), `redis` (phpredis), `tokenizer`, `xml`, `zip`.
+- **PHP ^8.4** avec extensions : `bcmath`, `ctype`, `curl`, `dom`, `fileinfo`, `gd` (ou `imagick` si Intervention Image), `intl`, `mbstring`, `openssl`, `pdo`, **`pdo_pgsql`**, `redis` (phpredis), `tokenizer`, `xml`, `zip`.
+  ⚠ **`pdo_pgsql`, et pas `pdo_mysql` ni `pdo_sqlite`** (ADR-0020). Ce n'est pas une équivalence : sans lui, l'API **ne se connecte à rien** — et le message ne nomme pas l'extension manquante.
 - **Composer 2.x**
 - **Node.js ≥ 20.x** + **npm** (frontend `engines` non strict, mais types `@types/node ^20`)
-- **Database** : **MySQL 8.0** — la version de la production, mesurée le 2026-08-13. SQLite ne sert qu'à la suite de tests — c'est un moteur
-  permissif qui **ne peut pas voir** les quatre familles de pièges de migration documentées dans
-  [`../CLAUDE.md`](../CLAUDE.md). Développer dessus, c'est n'éprouver aucune migration.
+- **Database** : **PostgreSQL 17**, sur *tous* les environnements, **suite de tests comprise**
+  ([ADR-0020](adr/0020-postgresql-sur-tous-les-environnements.md)). SQLite et MySQL ont été
+  **retirés** : ce ne sont plus des variantes supportées, et `phpunit.xml` force `pgsql` sans repli
+  — **sans instance PostgreSQL, `php artisan test` ne démarre pas**, au même titre que Meilisearch.
+  L'image attendue est `pgvector/pgvector:pg17` et non `postgres:17` : l'extension doit être
+  *disponible* partout dès maintenant, alors qu'aucune table ne l'utilise encore.
+  Le gain n'est pas PostgreSQL, c'est que **la base de test EST celle de la production** : la
+  divergence « tests permissifs, production stricte » que les pièges de migration de
+  [`../CLAUDE.md`](../CLAUDE.md) existaient pour compenser n'existe plus.
 - **Meilisearch** — **obligatoire, pas optionnel** (ADR-0008). `phpunit.xml` force
   `SCOUT_DRIVER=meilisearch` sans repli : **sans instance, `php artisan test` ne démarre pas.**
 - **Git**
@@ -431,8 +447,8 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 - *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ∉ {`dompdf`, `cloudflare`}
 
 > **Le plus simple est de ne rien installer de tout cela** : `docker-compose.yml` à la racine sert
-> MySQL 8.0, Meilisearch, Redis et Mailpit, et `./dev.sh` démarre l'ensemble en une commande
-> (ADR-0011). `./dev.sh doctor` dit ce qui répond et ce qui manque.
+> PostgreSQL 17 (`pgvector/pgvector:pg17`), Meilisearch, Redis et Mailpit, et `./dev.sh` démarre
+> l'ensemble en une commande (ADR-0011). `./dev.sh doctor` dit ce qui répond et ce qui manque.
 
 ### 5.2 Cloner le repo
 
@@ -454,7 +470,9 @@ cp .env.example .env
 php artisan key:generate
 
 # 3. Base de données
-touch database/database.sqlite           # uniquement pour DB_CONNECTION=sqlite
+#    Prérequis DUR : le conteneur doit tourner. `php artisan migrate` sur une base absente
+#    ne dit pas « démarre PostgreSQL », il dit « Connection refused ».
+docker compose up -d postgres            # depuis la RACINE du monorepo
 php artisan migrate
 php artisan db:seed                      # seed démo (volumes via SEED_*)
 

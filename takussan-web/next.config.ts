@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
   // → `false` sur `127.0.0.1`, `true` sur `localhost`, même serveur, même instant.
   //
   // Et le dépôt oriente vers l'hôte fautif : `dev.sh` annonce `127.0.0.1` pour l'API, Meilisearch,
-  // MySQL et Redis, et `.env.example` livre `NEXT_PUBLIC_API_URL=http://127.0.0.1:8002`. Un outil
+  // PostgreSQL et Redis, et `.env.example` livre `NEXT_PUBLIC_API_URL=http://127.0.0.1:8002`. Un outil
   // end-to-end, qui vise `127.0.0.1` par défaut, y tombe aussi.
   //
   // La liste est délibérément limitée à la BOUCLE LOCALE — pas d'IP de LAN, pas de `*`. Élargir

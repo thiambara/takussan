@@ -1,29 +1,34 @@
-import { useTranslations } from 'next-intl';
+import { format } from 'date-fns';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { BarChart } from '@/components/charts/BarChart';
 import { formatCurrency } from '@/lib/format';
+import { localeDateFns } from '@/lib/format/dateFnsLocale';
 import type { DashboardAgencyTimeseries } from '@/lib/queries/dashboard-agency';
+import type { Locale as DateFnsLocale } from 'date-fns/locale';
 
 type Props = {
   timeseries?: DashboardAgencyTimeseries;
 };
 
 /**
- * ⚠ Table de mois volontairement NON traduite (TCK-292, lot L2). Ce n'est pas un libellé
- * d'interface mais du FORMATAGE DE DATE, et le formatage est figé en français dans tout ce
- * dépôt (`formatCurrency(…, 'fr')`, `toLocaleDateString('fr-SN')`) — la dette est nommée dans
- * TCK-292 et attend son propre ticket. La déplacer dans le dictionnaire ferait croire le
- * problème réglé alors que les montants et les dates voisins resteraient français.
+ * L'abscisse du graphe — un mois abrégé, DANS LA LOCALE ACTIVE (TCK-292, 2026-08-22).
+ *
+ * ⚠ La version précédente portait une table de douze mois français écrits à la main (`janv.`,
+ * `févr.`, …) et un commentaire qui l'assumait : « ce n'est pas un libellé d'interface mais du
+ * FORMATAGE DE DATE ». Les deux moitiés étaient fausses. C'est bien du texte affiché — c'est
+ * l'axe d'un graphique que l'utilisateur lit — et « le formatage est figé en français partout »
+ * décrivait une dette, pas une décision : une dette ne justifie pas la suivante. Le scanner de
+ * `check-i18n.mjs` n'en voyait d'ailleurs que TROIS entrées sur douze (les seules accentuées),
+ * donc le compte affiché pour ce fichier n'a jamais décrit ce qu'il contenait.
+ *
+ * Le jour du mois est arbitraire : `format(…, 'MMM')` ne lit que le mois. Le 1er est choisi parce
+ * qu'il existe dans les douze mois de toutes les années.
  */
-const MONTH_LABELS = [
-  'janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin',
-  'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.',
-];
-
-function shortLabel(yyyymm: string): string {
-  const [, mm] = yyyymm.split('-');
-  const idx = Math.max(0, Math.min(11, Number(mm) - 1));
-  return MONTH_LABELS[idx];
+function shortLabel(yyyymm: string, dfLocale: DateFnsLocale): string {
+  const [yyyy, mm] = yyyymm.split('-');
+  const mois = Math.max(0, Math.min(11, Number(mm) - 1));
+  return format(new Date(Number(yyyy) || 2000, mois, 1), 'MMM', { locale: dfLocale });
 }
 
 /**
@@ -34,6 +39,7 @@ function shortLabel(yyyymm: string): string {
  */
 export function AgencyRevenueSnapshot({ timeseries }: Props) {
   const t = useTranslations('dashboard.agencyRevenue');
+  const dfLocale = localeDateFns(useLocale());
 
   if (!timeseries || timeseries.months.length === 0) {
     return (
@@ -66,7 +72,7 @@ export function AgencyRevenueSnapshot({ timeseries }: Props) {
       </header>
       <BarChart
         data={{
-          labels: timeseries.months.map(shortLabel),
+          labels: timeseries.months.map((mois) => shortLabel(mois, dfLocale)),
           series: [{ name: t('seriesName'), values: timeseries.revenue }],
         }}
         unit="F"

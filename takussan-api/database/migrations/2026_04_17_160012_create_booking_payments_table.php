@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamp('paid_at')->nullable();
             $table->string('transaction_id')->nullable();
             $table->text('notes')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

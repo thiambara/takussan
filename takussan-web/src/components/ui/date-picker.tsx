@@ -3,8 +3,9 @@
 import * as React from "react";
 import { CalendarIcon } from "lucide-react";
 import { format, isValid, parseISO } from "date-fns";
-import { fr } from "date-fns/locale";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+
+import { localeDateFns } from "@/lib/format/dateFnsLocale";
 
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
@@ -66,6 +67,9 @@ export function DatePicker({
   "data-testid": dataTestId,
 }: DatePickerProps) {
   const t = useTranslations("ui.datePicker");
+  // TCK-292 (2026-08-22) — la locale date-fns était `fr` EN DUR : un utilisateur anglophone lisait
+  // « 3 février 2026 » dans un formulaire par ailleurs anglais.
+  const dfLocale = localeDateFns(useLocale());
   const selected = toDate(value);
   const minDate = toDate(min);
   const maxDate = toDate(max);
@@ -102,7 +106,7 @@ export function DatePicker({
             >
               <span className="truncate">
                 {selected
-                  ? format(selected, "d MMMM yyyy", { locale: fr })
+                  ? format(selected, "d MMMM yyyy", { locale: dfLocale })
                   : (placeholder ?? t("placeholder"))}
               </span>
               <CalendarIcon className="pointer-events-none size-4 shrink-0 text-muted-foreground" />

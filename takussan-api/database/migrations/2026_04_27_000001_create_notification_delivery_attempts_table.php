@@ -32,7 +32,19 @@ return new class extends Migration
             $table->dateTime('delivered_at')->nullable();
             $table->timestamps();
 
-            $table->index(['app_notification_id', 'attempt']);
+            // ⚠ NOM EXPLICITE, parce que le nom auto-généré fait EXACTEMENT 64 caractères :
+            //     notification_delivery_attempts_app_notification_id_attempt_index
+            // MySQL plafonne à 64, PostgreSQL à 63 (`SHOW max_identifier_length`). Et
+            // PostgreSQL ne REFUSE pas un nom trop long : il le TRONQUE, avec un simple
+            // NOTICE que personne ne lit. L'index existerait donc sous un nom différent de
+            // celui que Laravel calcule, et le premier `dropIndex()` échouerait un jour sur
+            // un index « introuvable » qui est pourtant là.
+            //
+            // La ligne 40 de ce même fichier nomme déjà son index explicitement
+            // (`ndo_provider_message_unique`) : la précaution était connue et appliquée à
+            // une déclaration sur deux. Sur les 142 déclarations d'index du dépôt, c'est la
+            // seule qui dépassait 63.
+            $table->index(['app_notification_id', 'attempt'], 'nda_notification_attempt_idx');
             // The (provider, provider_message_id) pair is what DLR
             // webhooks look up. Provider-side ids are unique within a
             // provider; making the index unique guarantees one DLR can

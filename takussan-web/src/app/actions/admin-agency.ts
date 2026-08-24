@@ -11,6 +11,7 @@ import {
   uploadAgencyLogo,
 } from '@/lib/queries/agencies';
 import { validateAgencyLogoFile, type AgencyFormPayload } from '@/lib/schemas/agency';
+import { traduireMessageValidation, type Traducteur } from '@/lib/schemas/messages';
 import type { Agency } from '@/types/agency';
 
 /**
@@ -100,7 +101,15 @@ export async function uploadAgencyLogoAction(
   }
   const validationError = validateAgencyLogoFile(file);
   if (validationError) {
-    return { ok: false, message: validationError };
+    // `validateAgencyLogoFile` rend une CLÉ (`validation.agency.…`), pas un libellé. Ce module est
+    // `'use server'` : `getTranslations()` de `next-intl/server` est la seule primitive correcte
+    // ici (ADR-0019). Sans cette résolution, le client afficherait la clé brute — c'est le défaut
+    // EXACT qu'ADR-0019 a été écrite pour fermer (TCK-292, 2026-08-22).
+    const tRacine = await getTranslations();
+    return {
+      ok: false,
+      message: traduireMessageValidation(validationError, tRacine as unknown as Traducteur),
+    };
   }
   try {
     const data = await uploadAgencyLogo(auth.token, agencyId, file, await getActiveProfileId());

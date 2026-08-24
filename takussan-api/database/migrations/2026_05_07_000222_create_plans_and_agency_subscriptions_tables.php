@@ -18,7 +18,7 @@ return new class extends Migration
             $table->decimal('monthly_price_xof', 12, 2)->default(0);
             $table->decimal('platform_fee_pct', 5, 2)->default(0);
             $table->unsignedSmallInteger('trial_days')->default(0);
-            $table->json('limits')->nullable();
+            $table->jsonb('limits')->nullable();
             $table->boolean('is_active')->default(true);
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
@@ -36,24 +36,22 @@ return new class extends Migration
             $table->timestamp('current_period_end');
             $table->timestamp('ended_at')->nullable();
             $table->decimal('platform_fee_pct_override', 5, 2)->nullable();
-            $table->json('limits_override')->nullable();
+            $table->jsonb('limits_override')->nullable();
             $table->timestamps();
 
             $table->index(['agency_id', 'ended_at']);
         });
 
-        $driver = DB::getDriverName();
-        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
-            DB::statement('CREATE UNIQUE INDEX agency_subscriptions_one_open_per_agency ON agency_subscriptions (agency_id) WHERE ended_at IS NULL');
-        }
+        // ⚠ Plus de branchement par driver depuis ADR-0020 : il n'y a qu'un moteur.
+        // La condition disait « pgsql ou sqlite », et son absence d'`else` signifiait
+        // qu'aucun index n'était créé sur MySQL — l'invariant n'y était donc PAS garanti
+        // en base. Ce n'était pas une équivalence entre moteurs, c'était un trou.
+        DB::statement('CREATE UNIQUE INDEX agency_subscriptions_one_open_per_agency ON agency_subscriptions (agency_id) WHERE ended_at IS NULL');
     }
 
     public function down(): void
     {
-        $driver = DB::getDriverName();
-        if (in_array($driver, ['pgsql', 'sqlite'], true)) {
-            DB::statement('DROP INDEX IF EXISTS agency_subscriptions_one_open_per_agency');
-        }
+        DB::statement('DROP INDEX IF EXISTS agency_subscriptions_one_open_per_agency');
 
         Schema::dropIfExists('agency_subscriptions');
         Schema::dropIfExists('plans');

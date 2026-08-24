@@ -21,6 +21,25 @@ on:
       # la garde restait muette. Même règle qu'en tête de `repo-ci.yml` : *les deux côtés qu'une
       # garde compare doivent la déclencher.*
       - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
+      # `src/types/__tests__/search-filters.parity.test.ts` (TCK-335) compare les clés de
+      # `SearchFilters` à celles de `SearchPublicPropertyRequest::rules()`, et vérifie que
+      # `PropertySearchService` les consomme toutes. Même règle, deuxième occurrence : le
+      # défaut d'origine — trois filtres produits par l'interface et supprimés par
+      # `validated()` — a vécu parce que RIEN ne regardait les deux côtés ensemble.
+      - 'takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php'
+      # ⚠ `rules()` ÉTALE `...$this->reglesPointEtRayon()` depuis TCK-346 : les clés `lat`,
+      # `lng` et `radius_km` vivent dans ce trait, partagé avec `MapPublicPropertyRequest`.
+      # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
+      # contrat géographique bouge seul.
+      - 'takussan-api/app/Http/Requests/Concerns/**'
+      # ⚠ `property-labels.parity.test.ts` compare les libellés que `PropertyResource` ÉMET
+      # (traduits par `enumLabel()` depuis ces fichiers) à ceux que le dictionnaire du front
+      # affiche. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle dort
+      # quand le back bouge seul — et c'est précisément ce qui a laissé 44 divergences
+      # s'installer sans que rien ne le signale (TCK-351).
+      - 'takussan-api/lang/**'
+      - 'takussan-api/app/Http/Resources/PropertyResource.php'
+      - 'takussan-api/app/Services/Search/PropertySearchService.php'
   push:
     branches: [dev, master]
     paths:
@@ -28,6 +47,20 @@ on:
       - '.github/workflows/web-ci.yml'
       # Mêmes motifs qu'au déclencheur `pull_request`, et pour la même raison.
       - 'takussan-api/app/Services/Profiles/ActiveProfileResolver.php'
+      - 'takussan-api/app/Http/Requests/Public/SearchPublicPropertyRequest.php'
+      # ⚠ `rules()` ÉTALE `...$this->reglesPointEtRayon()` depuis TCK-346 : les clés `lat`,
+      # `lng` et `radius_km` vivent dans ce trait, partagé avec `MapPublicPropertyRequest`.
+      # La garde le lit ; ce déclencheur doit donc le suivre, sinon elle dort quand le
+      # contrat géographique bouge seul.
+      - 'takussan-api/app/Http/Requests/Concerns/**'
+      # ⚠ `property-labels.parity.test.ts` compare les libellés que `PropertyResource` ÉMET
+      # (traduits par `enumLabel()` depuis ces fichiers) à ceux que le dictionnaire du front
+      # affiche. Les deux côtés qu'une garde compare doivent la déclencher, sinon elle dort
+      # quand le back bouge seul — et c'est précisément ce qui a laissé 44 divergences
+      # s'installer sans que rien ne le signale (TCK-351).
+      - 'takussan-api/lang/**'
+      - 'takussan-api/app/Http/Resources/PropertyResource.php'
+      - 'takussan-api/app/Services/Search/PropertySearchService.php'
 
 jobs:
   quality:
@@ -70,6 +103,21 @@ jobs:
         # une analyse par regex, moins précise sur exactement le point qui compte (distinguer un
         # libellé affiché d'une chaîne technique). Elle est donc ici, où `npm ci` a déjà tourné.
         run: npm run check:i18n
+
+      - name: i18n (découpage du dictionnaire par frontière de rendu)
+        # Garde SŒUR de la précédente, et non un doublon : celle-là compare les trois locales
+        # entre elles, celle-ci compare la table `src/i18n/namespaces.json` au GRAPHE D'IMPORTS
+        # dont elle est dérivée. Elle vit ici pour la même raison — `repo-ci.yml` n'exécute aucun
+        # `npm ci`.
+        #
+        # Elle a sa propre étape plutôt qu'une ligne dans la précédente parce que son échec se lit
+        # autrement : « la table ne suit plus le code », pas « une locale a pris du retard ».
+        #
+        # ⚠ Ce qu'elle garde ne casse RIEN d'autre. Un espace de noms oublié dans le découpage
+        # traverse `next build`, ESLint, `tsc --noEmit` et les ~810 tests sans un avertissement,
+        # puis peint le chemin de la clé à l'écran d'un utilisateur. Aucune des quatre étapes
+        # voisines ne peut le voir : c'est une donnée absente d'un objet, découverte au rendu.
+        run: npm run check:i18n-namespaces
 
       - name: Tests (Vitest)
         run: npm run test

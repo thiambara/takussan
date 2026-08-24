@@ -12,7 +12,8 @@ import {
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { formatCurrency } from '@/lib/format/currency';
+import { filtersFromSearchParams } from '@/hooks/useSearch';
+import { puceDeChaqueFiltreActif, type TraducteursDeFiltre } from '@/types/search';
 
 /**
  * Dashboard "Mes recherches sauvegardées" listing — Wave 3 / TCK-047.
@@ -22,6 +23,13 @@ import { formatCurrency } from '@/lib/format/currency';
  * - Provides a "Relancer la recherche" link that rebuilds the URL for
  *   `/properties?` from the stored criteria JSON.
  * - Provides a "Supprimer" action that issues `DELETE /api/saved-searches/{id}`.
+ */
+/**
+ * `criteria` arrive du SERVEUR : c'est du JSON libre, pas un `SearchFilters`. On le repasse donc
+ * par le même aller-retour URL que la page de résultats — `criteriaToQueryString` puis
+ * `filtersFromSearchParams` — plutôt que de le lire à la main. Une valeur d'une version
+ * antérieure, ou d'un type inattendu, retombe alors sur les mêmes lecteurs que le reste du front
+ * au lieu de casser le résumé (`criteria.type` stocké en chaîne faisait planter un `.map`).
  */
 function criteriaToQueryString(criteria: Record<string, unknown>): string {
   const params = new URLSearchParams();
@@ -38,38 +46,26 @@ function criteriaToQueryString(criteria: Record<string, unknown>): string {
   return params.toString();
 }
 
-function humaniseCriteria(criteria: Record<string, unknown>, repliAucunCritere: string): string {
-  const parts: string[] = [];
-  if (criteria.contract_type === 'sale') parts.push('Vente');
-  if (criteria.contract_type === 'rent') parts.push('Location');
-  if (typeof criteria.city === 'string' && criteria.city.length > 0) {
-    parts.push(criteria.city);
-  }
-  if (typeof criteria.q === 'string' && criteria.q.length > 0) {
-    parts.push(`"${criteria.q}"`);
-  }
-  if (Array.isArray(criteria.type) && criteria.type.length > 0) {
-    parts.push(criteria.type.join(', '));
-  }
-  if (criteria.bedrooms != null) {
-    parts.push(`${String(criteria.bedrooms)} ch.`);
-  }
-  if (criteria.price_min != null || criteria.price_max != null) {
-    const min = criteria.price_min != null ? formatCurrency(Number(criteria.price_min)) : null;
-    const max = criteria.price_max != null ? formatCurrency(Number(criteria.price_max)) : null;
-    if (min && max) {
-      parts.push(`${min} – ${max}`);
-    } else if (max) {
-      parts.push(`Maximum ${max}`);
-    } else if (min) {
-      parts.push(`Minimum ${min}`);
-    }
-  }
-  if (criteria.area_min != null || criteria.area_max != null) {
-    parts.push(
-      `surface ${criteria.area_min ?? '…'} – ${criteria.area_max ?? '…'} m²`,
-    );
-  }
+/**
+ * TCK-340 — le résumé d'une recherche sauvegardée passe par `puceDeChaqueFiltreActif`, la MÊME
+ * fabrique de libellés que les puces de `SearchToolbar`.
+ *
+ * L'ancienne version était l'une des trois listes qui avaient RÉELLEMENT dérivé, et elle mentait
+ * de deux façons à la fois :
+ *
+ * - elle ne connaissait que six clés sur dix-sept, donc une recherche sauvegardée sur
+ *   « meublé, en vedette, quartier Almadies, dispo dès le 1ᵉʳ septembre » se résumait à
+ *   « Aucun critère » — le repli exact d'une recherche VIDE ;
+ * - elle écrivait « Vente », « ch. », « Maximum », « surface … m² » en français dur, hors
+ *   next-intl, ce que le principe 5 interdit (le front possède le texte affiché).
+ */
+function humaniseCriteria(
+  criteria: Record<string, unknown>,
+  repliAucunCritere: string,
+  trads: TraducteursDeFiltre,
+): string {
+  const filtres = filtersFromSearchParams(new URLSearchParams(criteriaToQueryString(criteria)));
+  const parts = puceDeChaqueFiltreActif(filtres, trads).map((p) => p.libelle);
   return parts.length > 0 ? parts.join(' · ') : repliAucunCritere;
 }
 
@@ -83,6 +79,12 @@ function SavedSearchRow({
   deleting: boolean;
 }) {
   const t = useTranslations('search.saved');
+  const trads: TraducteursDeFiltre = {
+    tags: useTranslations('search'),
+    types: useTranslations('property.types'),
+    contract: useTranslations('property.contractTypes'),
+    periods: useTranslations('property.rentPeriods'),
+  };
   const qs = criteriaToQueryString(search.criteria);
   const href = `/properties${qs ? `?${qs}` : ''}`;
   return (
@@ -95,7 +97,7 @@ function SavedSearchRow({
           </h3>
         </div>
         <p className="mt-1 text-sm text-stone-500 truncate">
-          {humaniseCriteria(search.criteria, t('noCriteria'))}
+          {humaniseCriteria(search.criteria, t('noCriteria'), trads)}
         </p>
       </div>
       <div className="flex items-center gap-2">

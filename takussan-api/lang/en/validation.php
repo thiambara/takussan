@@ -23,5 +23,7 @@ return [
     ],
     'max_guarantors_reached' => 'A lease cannot have more than 3 guarantors.',
     'bounds_format' => 'The :attribute must be four comma-separated numbers: sw_lat,sw_lng,ne_lat,ne_lng.',
+    'geo_radius_requires_point' => 'The :attribute field requires a complete point: both lat and lng must be provided.',
+    'sort_distance_requires_point' => 'Sorting by distance requires a complete point: both lat and lng must be provided.',
     'commission_share_exceeds_cap' => 'The sum of commission shares for this property cannot exceed 100%.',
 ];

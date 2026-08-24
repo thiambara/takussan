@@ -6,24 +6,29 @@
 # Pourquoi ces quatre-là, et pas un de plus ni un de moins : chacun couvre une
 # divergence dev↔prod qui coûtait cher tant qu'elle n'était pas provisionnée.
 #
-#   mysql        la prod tourne sur MySQL 8.0, le dev sur SQLite. Or `CLAUDE.md`
-#                documente quatre familles de pièges MySQL que SQLite ne peut PAS voir
-#                (DEFAULT sur JSON/TEXT, dropUnique sous FK, noms d'index > 64 chars,
-#                enum). Une migration qui passe en dev et casse au déploiement est le
-#                régime NORMAL tant que le dev est sur SQLite — pas un accident.
+#   postgres     LE MOTEUR, et il n'y en a plus qu'un : PostgreSQL 17 sur TOUS les
+#                environnements, suite de tests comprise (ADR-0020). Ce service n'est
+#                donc plus « le banc d'essai qui reproduit la production » : c'est
+#                l'environnement lui-même. Le gain principal n'est pas PostgreSQL, c'est
+#                que **la base de test EST celle de la production** — ce que la suite
+#                éprouve est ce que la production exécutera, et la divergence « tests
+#                permissifs, production stricte » disparaît au lieu d'être compensée.
 #
-#                ⚠ CE SERVICE ÉTAIT `mariadb:11.4` JUSQU'AU 2026-08-13, sur la foi d'un
-#                `apt install mariadb-server` que personne n'avait exécuté. Mesuré sur
-#                le serveur ce jour-là :
+#                ⚠ CE SERVICE A ÉTÉ `mariadb:11.4`, PUIS `mysql:8.0`, ET LES DEUX
+#                ÉTAIENT DES DÉFAUTS DIFFÉRENTS. `mariadb:11.4` tenait à un
+#                `apt install mariadb-server` que personne n'avait exécuté ; mesuré sur
+#                le serveur le 2026-08-13 :
 #                    $ sudo mysql -e "SELECT VERSION(), @@collation_server;"
 #                    8.0.46-0ubuntu0.24.04.3 | utf8mb4_0900_ai_ci
-#                Ce n'était donc pas une question de version : c'était le mauvais
-#                MOTEUR. MariaDB 11 et MySQL 8 ont divergé pour de bon — collation par
-#                défaut, `CHECK`, colonnes JSON, noms d'index générés. Le banc d'essai
-#                reproduit la production ; il ne la prescrit pas (TCK-289).
+#                Ce n'était pas une question de version, c'était le mauvais MOTEUR
+#                (TCK-289). Le suivant, `mysql:8.0`, était juste — et il reproduisait
+#                une production qui n'a jamais servi (D-04). *Un banc d'essai ne se
+#                déduit jamais d'une configuration, seulement d'une mesure ;
+#                `scripts/check-db-engine.mjs` en fait une garde, et sa constante
+#                s'appelle `CIBLE` et non `PROD` pour cette raison exacte.*
 #
-#                Le volume a changé de nom avec le moteur (`mysql-data`) : les fichiers
-#                de données de MariaDB ne se lisent pas par MySQL. Un environnement
+#                Le volume a changé de nom avec le moteur (`pgsql-data`) : les fichiers
+#                de données de MySQL ne se lisent pas par PostgreSQL. Un environnement
 #                déjà monté repart d'une base vide — `./dev.sh` la remigre.
 #   meilisearch  la CI et la prod indexent sur Meilisearch, `.env.example` propose
 #                `SCOUT_DRIVER=collection`. Le driver `collection` filtre en PHP sur
@@ -52,9 +57,9 @@
 # `takussan-api/.env.docker`.
 #
 # PORTS — pourquoi aucun n'est le port canonique. Chaque service est décalé d'un cran
-# (3307, 7701, 6380, 1026/8026 au lieu de 3306, 7700, 6379, 1025/8025). Ce n'est pas
+# (5433, 7701, 6380, 1026/8026 au lieu de 5432, 7700, 6379, 1025/8025). Ce n'est pas
 # une préférence : **les quatre ports canoniques étaient occupés sur la machine où ce
-# fichier a été écrit** — MySQL et Meilisearch installés nativement par brew, Redis et
+# fichier a été écrit** — la base et Meilisearch installés nativement par brew, Redis et
 # Mailpit tenus par les conteneurs d'un projet voisin. Mesuré, pas supposé.
 #
 # Le coût du conflit n'est pas l'échec : c'est que `docker compose up` échoue APRÈS
@@ -66,7 +71,7 @@
 # servir ce qu'elle servait, Takussan tourne à côté, et on ne démonte rien pour
 # reprendre le développement. Chaque port reste surchargeable par une variable dans un
 # `.env` à la RACINE du dépôt (lu automatiquement par docker compose, jamais commité) :
-#   TAKUSSAN_DB_PORT=3308
+#   TAKUSSAN_DB_PORT=5434
 # Tout port changé ici doit l'être aussi dans `takussan-api/.env.docker` — c'est la
 # seule chose que ce fichier ne peut pas garantir tout seul, et `./dev.sh` la vérifie.
 #
@@ -74,38 +79,57 @@
 # passe sérieux n'a rien à faire sur l'interface publique d'un portable en wifi.
 
 services:
-  mysql:
-    # Épinglé sur le moteur MESURÉ en production le 2026-08-13 (cf. l'en-tête) : MySQL
-    # 8.0. Le tag `8.0` suit les correctifs de la branche sans changer de branche —
-    # `8.0.46` en production le jour de la mesure.
-    image: mysql:8.0
+  postgres:
+    # `pgvector/pgvector:pg17`, et surtout PAS `postgres:17`. L'extension `vector` doit
+    # être DISPONIBLE sur tous les environnements dès maintenant, alors même qu'aucune
+    # table ne l'utilise encore (ADR-0020, §2) : le jour où le chatbot arrive, une
+    # instance qui refuse `CREATE EXTENSION vector` se découvre en production, six mois
+    # plus tard, et le motif de la migration se referme en silence.
+    #
+    # Le tag suit les correctifs de la branche 17 sans changer de branche — un passage
+    # en 18 doit rester une décision, pas un effet de bord d'un `docker pull`.
+    image: pgvector/pgvector:pg17
     environment:
-      MYSQL_DATABASE: takussan
-      MYSQL_USER: takussan
-      MYSQL_PASSWORD: takussan
-      MYSQL_ROOT_PASSWORD: takussan
-    ports:
-      - '127.0.0.1:${TAKUSSAN_DB_PORT:-3307}:3306'
-    volumes:
-      - mysql-data:/var/lib/mysql
-      # Joué UNIQUEMENT à la première création du volume. Sur un volume existant,
-      # rejouer le script à la main : voir l'en-tête de docker/mysql-init.sql.
-      - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-    command:
-      # La collation SERVEUR de la production, à l'identique. Les migrations Laravel
-      # n'imposent pas de collation : elles héritent de celle de la base — et deux
-      # collations différentes entre dev et prod font diverger les comparaisons de
-      # chaînes (recherche insensible à la casse, unicité d'e-mail).
+      POSTGRES_DB: takussan
+      POSTGRES_USER: takussan
+      POSTGRES_PASSWORD: takussan
+      # L'encodage et la collation de la base, ÉCRITS plutôt que subis — même règle que
+      # le `--collation-server` que portait MySQL ici : un défaut non écrit est un défaut
+      # qu'on ne remarque pas quand il change.
       #
-      # `utf8mb4_0900_ai_ci` est le défaut de MySQL 8 ; on l'écrit quand même, parce
-      # qu'un défaut non écrit est un défaut qu'on ne remarque pas quand il change.
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_0900_ai_ci
+      # `--locale=C` est DÉLIBÉRÉ, et c'est la décision la plus lourde de l'ADR-0020 :
+      # comparaison et tri DÉTERMINISTES, sensibles à la casse et aux accents. On ne
+      # reproduit PAS l'`utf8mb4_0900_ai_ci` de l'ancienne production, et ce n'est pas un
+      # oubli : PostgreSQL REFUSE `LIKE` sur une collation non déterministe, et le dépôt
+      # en compte 21. Reproduire MySQL échangerait un problème visible — une comparaison
+      # devenue sensible à la casse — contre un problème obscur.
+      #
+      # Ce que ça met à découvert est écrit dans l'ADR : six contraintes d'unicité sur
+      # texte changent de sens, et une contrainte qui change de sens ne lève pas
+      # d'erreur — elle laisse passer un doublon en silence.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    ports:
+      # Décalé d'un cran comme les trois autres (7701 / 6380 / 1026) : une
+      # installation brew de PostgreSQL écoute sur 5432, et les deux mondes doivent
+      # cohabiter plutôt que l'un démonte l'autre.
+      #
+      # ⚠ On RÉUTILISE `TAKUSSAN_DB_PORT` plutôt que d'introduire un second nom :
+      # `dev.sh` compare cette variable à `DB_PORT` du `.env` — en 11 endroits — pour
+      # décider si l'environnement vise les conteneurs du dépôt. Une variable neuve
+      # aurait laissé cette comparaison porter sur un port mort, et `./dev.sh doctor`
+      # aurait répondu juste sur une question devenue fausse.
+      - '127.0.0.1:${TAKUSSAN_DB_PORT:-5433}:5432'
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data
+      # Joué UNIQUEMENT à la première création du volume. Sur un volume existant,
+      # rejouer le script à la main : voir l'en-tête de docker/pgsql-init.sql.
+      - ./docker/pgsql-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
     healthcheck:
-      # `mysqladmin ping` avec des identifiants : sans eux, il rend « mysqld is alive »
-      # et sort en 1 sur un refus d'accès — un service déclaré malade alors qu'il
-      # répond, ou l'inverse selon la version du client.
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-uroot', '-ptakussan']
+      # `pg_isready` avec l'utilisateur ET la base : sans eux il interroge la base
+      # `postgres` sous l'utilisateur du conteneur et déclare sain un serveur dont la
+      # base applicative n'est pas encore créée — un `dev.sh` qui démarre l'API sur une
+      # base absente, et c'est la première requête qui meurt.
+      test: ['CMD-SHELL', 'pg_isready -U takussan -d takussan']
       interval: 5s
       timeout: 3s
       retries: 20
@@ -148,8 +172,8 @@ services:
       retries: 10
 
   mailpit:
-    # ÉPINGLÉ, comme les trois autres. C'était le seul `latest` d'un fichier qui fige MySQL à
-    # 8.0, Meilisearch à v1.16 et Redis à 8 — et dont l'en-tête soutient qu'une version doit
+    # ÉPINGLÉ, comme les trois autres. C'était le seul `latest` d'un fichier qui fige PostgreSQL
+    # à pg17, Meilisearch à v1.16 et Redis à 8 — et dont l'en-tête soutient qu'une version doit
     # bouger de concert avec la CI et le lock. Un `latest` qui glisse sous le développeur change
     # en silence le seul service dont le rôle est de RENDRE VISIBLE ce que le système produit.
     image: axllent/mailpit:v1.30.3
@@ -164,6 +188,6 @@ services:
       retries: 10
 
 volumes:
-  mysql-data:
+  pgsql-data:
   meili-data:
   redis-data:

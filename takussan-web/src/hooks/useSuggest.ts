@@ -1,25 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useLocale } from 'next-intl';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import type { SuggestResponse } from '@/types/search';
 import type { UseQueryResult } from '@tanstack/react-query';
-
-function useDebouncedValue<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(id);
-  }, [value, delay]);
-  return debounced;
-}
 
 export function useSuggest(
   q: string,
   options: { enabled?: boolean } = {},
 ): UseQueryResult<SuggestResponse> {
   const locale = useLocale();
+  // TCK-335 — l'implémentation était une copie LOCALE de ce fichier, non exportée : le seul
+  // anti-rebond générique du dépôt, et personne ne pouvait s'en servir. Elle vit désormais dans
+  // `@/hooks/useDebouncedValue`, dont `FilterSidebar` est le second appelant.
   const debouncedQ = useDebouncedValue(q, 150);
   const enabled = (options.enabled ?? true) && debouncedQ.length >= 1;
 

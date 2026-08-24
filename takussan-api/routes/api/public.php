@@ -13,7 +13,37 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('properties', [PublicPropertyController::class, 'index'])
         ->name('properties.index');
 
+    // TCK-341 — `etag` SEUL, délibérément : ni `public`, ni `max_age`.
+    //
+    // Ce que ça achète, mesuré : `search` est appelée depuis le NAVIGATEUR
+    // (`takussan-web/src/hooks/useSearch.ts:218`, `useProperties.ts:66`), donc
+    // `Cache-Control: no-cache` + `ETag` produit une revalidation réelle et un
+    // 304 au rechargement. Ce que ça n'achète PAS, et le ticket l'affirmait :
+    // un 304 N'ÉCONOMISE AUCUN CYCLE SERVEUR. `SetCacheHeaders::handle()`
+    // appelle `$next($request)` D'ABORD : la recherche Meilisearch est jouée,
+    // la ressource sérialisée, et c'est ce corps-là qui sert à calculer l'ETag
+    // avant d'être jeté. Mesuré le 2026-08-21, 12 exécutions de chaque côté sur
+    // `?per_page=20` (macOS, 8 cœurs, `load average` 6,26) : médiane 200 =
+    // 67,2 ms, médiane 304 = 64,6 ms. L'écart de 2,6 ms est le temps d'écrire
+    // 18 019 octets sur la boucle locale — c'est exactement ce que le 304
+    // économise, et rien d'autre : des OCTETS (18 019 → 0), pas un calcul.
+    // L'objectif du ticket — « ne pas la faire calculer deux fois » — décrit
+    // donc un mécanisme qui n'existe pas ; il faudrait un cache applicatif
+    // pour cela, et le ticket le range lui-même en hors périmètre.
+    //
+    // ⚠ Pourquoi PAS `public`, alors que `/api/search/suggest` le porte : le
+    // corps de `search` varie avec l'APPELANT. `PropertySearchService` rend du
+    // `PropertyResource`, et celui-ci émet `rejection_reason`, `submitted_at`,
+    // `approved_at`, `rejected_at` dès que `$request->user() !== null` — ce qui
+    // arrive sur cette route SANS `auth:sanctum`, parce que
+    // `ResolveActiveProfile` propage délibérément un porteur Bearer au garde
+    // par défaut sur tout `api/*` (TCK-179). Mesuré : mêmes paramètres, un
+    // jeton Sanctum réel → 4 clés de plus. Un cache PARTAGÉ servirait donc la
+    // variante authentifiée au visiteur suivant, et défairait en silence
+    // exactement ce que TCK-335 venait de retirer. `cache.headers` ne sait pas
+    // émettre de `Vary` ; sans `public`, il n'y a rien à faire varier.
     Route::get('properties/search', [PublicPropertyController::class, 'search'])
+        ->middleware('cache.headers:etag')
         ->name('properties.search');
 
     // TCK-247 — the whole homepage in one call. Literal segment: it MUST stay
@@ -33,6 +63,26 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
         ->middleware('throttle:60,1')
         ->name('properties.map');
 
+    // TCK-341 — la fiche NE REÇOIT NI `public` NI `etag`, et c'est un refus
+    // motivé, pas un oubli. Le ticket la listait pourtant dans son delta.
+    // Trois mesures, chacune suffisante à elle seule :
+    //
+    //   1. Le corps varie avec l'appelant, comme `search` ci-dessus — et ici
+    //      s'y ajoute l'e-mail d'un collaborateur, que
+    //      `PropertyResource` ne masque que si `$request->user()` est null,
+    //      sur une route qui eager-load `collaborators.user`. Un cache
+    //      partagé le servirait au visiteur suivant.
+    //   2. `show()` ÉCRIT : elle incrémente `views_count`, que la même
+    //      ressource émet. Deux appels anonymes successifs depuis la même IP
+    //      ne rendent donc pas le même corps (mesuré : 1 puis 2), et un ETag
+    //      n'y serait stable qu'une fois les 3 crédits horaires du
+    //      `RateLimiter` épuisés. Un ETag qui change trois fois avant de se
+    //      fixer n'est pas une garantie de fraîcheur, c'est du bruit.
+    //   3. Même stable, il ne servirait à personne : la fiche est cherchée par
+    //      le SERVEUR Next (`takussan-web/src/lib/queries/public-property.ts:63`),
+    //      et le `fetch` de Next 16 est `no-store` par défaut — il n'émet
+    //      jamais d'`If-None-Match`. Contrairement à `search`, qui part du
+    //      navigateur.
     Route::get('properties/{slug}', [PublicPropertyController::class, 'show'])
         ->name('properties.show');
 

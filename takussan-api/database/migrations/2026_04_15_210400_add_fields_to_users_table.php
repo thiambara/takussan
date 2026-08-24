@@ -51,7 +51,7 @@ return new class extends Migration
             $table->boolean('notifications_sms_enabled')->default(false)->after('notifications_push_enabled');
 
             // Misc
-            $table->json('metadata')->nullable()->after('notifications_sms_enabled');
+            $table->jsonb('metadata')->nullable()->after('notifications_sms_enabled');
             $table->softDeletes();
         });
     }

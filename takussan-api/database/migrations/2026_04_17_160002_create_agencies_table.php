@@ -26,7 +26,7 @@ return new class extends Migration
             $table->unsignedInteger('properties_count')->default(0);
             $table->unsignedInteger('active_leases_count')->default(0);
             $table->decimal('average_rating', 3, 2)->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

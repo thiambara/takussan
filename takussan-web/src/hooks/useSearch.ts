@@ -1,96 +1,141 @@
 'use client';
 import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
-import { apiFetch } from '@/lib/api';
-import type { SearchFilters, SearchResult } from '@/types/search';
+import { apiFetch, ApiError } from '@/lib/api';
+import {
+  CLES_DE_RECHERCHE,
+  CLES_DE_CONTROLE,
+  SEARCH_FILTER_KEYS,
+  agregateurDe,
+  definitionDe,
+  repliDeRecherche,
+  retirerTermeDeLaRequete,
+  type CleDeRechercheNom,
+  type SearchFilters,
+  type SearchResult,
+} from '@/types/search';
 
 type State =
   | { status: 'idle' }
   | { status: 'loading'; prev: SearchResult | null }
   | { status: 'success'; result: SearchResult }
-  | { status: 'error'; prev: SearchResult | null };
+  | { status: 'error'; erreur: Error; prev: SearchResult | null };
 
 type Action =
   | { type: 'LOADING'; prev: SearchResult | null }
   | { type: 'SUCCESS'; result: SearchResult }
-  | { type: 'ERROR'; prev: SearchResult | null };
+  | { type: 'ERROR'; erreur: Error; prev: SearchResult | null };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'LOADING': return { status: 'loading', prev: action.prev };
     case 'SUCCESS': return { status: 'success', result: action.result };
-    case 'ERROR':   return { status: 'error', prev: action.prev };
+    case 'ERROR':   return { status: 'error', erreur: action.erreur, prev: action.prev };
   }
 }
 
 // ─── Serialisation ──────────────────────────────────────────────────────────
 
-function filtersToParams(filters: SearchFilters): URLSearchParams {
-  const params = new URLSearchParams();
-  const entries: Array<[string, string | number | boolean | undefined]> = [
-    ['q',              filters.q],
-    ['location',       filters.location],
-    ['city',           filters.city],
-    ['contract_type',  filters.contract_type],
-    ['rent_period',    filters.rent_period],
-    ['price_min',      filters.price_min],
-    ['price_max',      filters.price_max],
-    ['bedrooms',       filters.bedrooms],
-    ['bathrooms',      filters.bathrooms],
-    ['area_min',       filters.area_min],
-    ['area_max',       filters.area_max],
-    ['furnished',      filters.furnished],
-    ['featured',       filters.featured],
-    ['floor_number',   filters.floor_number],
-    ['available_from', filters.available_from],
-    ['tags',           filters.tags],
-    ['sort',           filters.sort],
-    ['page',           filters.page],
-    ['per_page',       filters.per_page],
-  ];
-  for (const [k, v] of entries) {
-    if (v !== undefined && v !== '') params.set(k, String(v));
+/**
+ * TCK-340 — sérialisation et lecture d'URL passent désormais par `SEARCH_FILTER_KEYS`.
+ *
+ * C'étaient DEUX énumérations distinctes des mêmes vingt clés, à quinze lignes l'une de l'autre,
+ * et rien ne pouvait dire laquelle avait raison si elles divergeaient : un filtre écrit par
+ * `filtersToParams` mais absent de `filtersFromSearchParams` disparaît au rechargement de la page,
+ * sans erreur ni trace.
+ */
+/**
+ * Les trois états géographiques que le SERVEUR refuse — TCK-346.
+ *
+ * `SearchPublicPropertyRequest` les rend en 422 : `lat`/`lng` s'exigent mutuellement
+ * (`required_with`), `radius_km` et `sort=distance` exigent le point complet. Une interface qui
+ * peut produire ces états les produira : il suffit d'un retrait de puce, d'un lien hérité, ou
+ * d'un critère sauvegardé sous une version antérieure.
+ *
+ * Le choix ici est de **normaliser plutôt que d'afficher l'erreur**, et il n'est pas
+ * symétrique du reste du hook. Sur `furnished=nimportequoi`, le 422 est une information : la
+ * demande de l'utilisateur est inintelligible, on la lui rend. Ici il n'y a rien à rendre —
+ * une demi-coordonnée n'est pas une demande à moitié comprise, c'est un fragment que **le
+ * front lui-même** vient de fabriquer en retirant l'autre moitié. Le seul état honnête est
+ * « pas de géographie », et il ne coûte aucun aller-retour.
+ *
+ * Mutation : rendre cette fonction inerte fait rougir `useSearch.geo.test.ts`.
+ */
+export function normaliserGeo(params: URLSearchParams): URLSearchParams {
+  const aPoint = params.has('lat') && params.has('lng');
+
+  if (!aPoint) {
+    // Une demi-coordonnée n'est jamais un filtre à moitié appliqué : c'est un 422.
+    params.delete('lat');
+    params.delete('lng');
+    params.delete('radius_km');
+    if (params.get('sort') === 'distance') params.delete('sort');
+    return params;
   }
-  if (filters.type?.length) params.set('type', filters.type.join(','));
+
+  // Point complet mais plus personne pour le consommer : ni rayon, ni tri par distance.
+  // Le laisser serait pire que le retirer — il est INVISIBLE (aucune puce ne le décrit) et
+  // il repartirait dans la prochaine recherche sauvegardée sans que rien ne l'ait annoncé.
+  if (!params.has('radius_km') && params.get('sort') !== 'distance') {
+    params.delete('lat');
+    params.delete('lng');
+  }
+
   return params;
 }
 
-function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
-  const n = (key: string) => { const v = sp.get(key); return v ? Number(v) : undefined; };
-  const s = (key: string) => sp.get(key) ?? undefined;
-  return {
-    q:             s('q') ?? s('search'),
-    location:      s('location'),
-    city:          s('city'),
-    contract_type: s('contract_type') as SearchFilters['contract_type'],
-    type:          s('type') ? s('type')!.split(',').filter(Boolean) : undefined,
-    rent_period:   s('rent_period') as SearchFilters['rent_period'],
-    price_min:     n('price_min'),
-    price_max:     n('price_max'),
-    bedrooms:      n('bedrooms'),
-    bathrooms:     n('bathrooms'),
-    area_min:      n('area_min'),
-    area_max:      n('area_max'),
-    furnished:     sp.has('furnished') ? (sp.get('furnished') === 'true') : undefined,
-    featured:      sp.has('featured') ? (sp.get('featured') === 'true') : undefined,
-    floor_number:  n('floor_number'),
-    available_from: s('available_from'),
-    tags:          s('tags'),
-    sort:          s('sort') as SearchFilters['sort'],
-    page:          n('page'),
-    per_page:      n('per_page'),
-  };
+export function filtersToParams(filters: SearchFilters): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const cle of CLES_DE_RECHERCHE) {
+    const valeur = filters[cle];
+    if (valeur === undefined || valeur === '') continue;
+    const def = definitionDe(cle);
+    const brut = def.ecrire(valeur);
+    // `type: []` sérialise en chaîne vide : le filtre n'existe pas, on n'écrit rien.
+    if (brut === undefined || brut === '') continue;
+    params.set(def.params[0], brut);
+  }
+  return normaliserGeo(params);
+}
+
+export function filtersFromSearchParams(sp: URLSearchParams): SearchFilters {
+  const filtres: Record<string, unknown> = {};
+  for (const cle of CLES_DE_RECHERCHE) {
+    const valeur = definitionDe(cle).lire(sp);
+    if (valeur !== undefined) filtres[cle] = valeur;
+  }
+  return filtres as SearchFilters;
 }
 
 // ─── Count active filters (excluding sort, page) ────────────────────────────
 
-const IGNORED_KEYS: (keyof SearchFilters)[] = ['sort', 'page', 'per_page'];
+/**
+ * TCK-340 — dérivé de la table, plus écrit à la main.
+ *
+ * `SearchToolbar` en tenait une copie mot pour mot (`HIDDEN_FROM_TAGS`) : deux listes qui doivent
+ * TOUJOURS coïncider, puisqu'un filtre compté sans puce est un filtre qu'on ne peut pas retirer.
+ */
+export const IGNORED_KEYS: readonly CleDeRechercheNom[] = CLES_DE_CONTROLE;
 
 export function countActiveFilters(filters: SearchFilters): number {
-  return (Object.keys(filters) as (keyof SearchFilters)[])
-    .filter(k => !IGNORED_KEYS.includes(k) && filters[k] !== undefined && filters[k] !== '')
+  return (Object.keys(filters) as CleDeRechercheNom[])
+    // TCK-346 — `agregateurDe` écarte les clés qui n'ont pas de puce propre. Sans lui, un
+    // rayon autour d'un point compterait TROIS filtres (`lat`, `lng`, `radius_km`) pour une
+    // seule puce affichée : la pastille du bouton « Filtres » annoncerait 3, l'utilisateur
+    // en verrait 1, et aucun geste ne ferait descendre le compte à 2.
+    .filter(k => SEARCH_FILTER_KEYS[k]?.role === 'filtre'
+      && agregateurDe(k) === undefined
+      && filters[k] !== undefined && filters[k] !== '')
     .length;
 }
+
+/** Comment le changement s'inscrit dans l'historique du navigateur. */
+export type Historique = 'push' | 'replace';
+
+export type OptionsNavigation = {
+  /** Défaut : `push`. Les commits de champ continu passent `replace` — cf. `search()`. */
+  historique?: Historique;
+};
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
@@ -98,11 +143,6 @@ export function useSearch() {
   const router   = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-
-  const prevResult = (): SearchResult | null => {
-    // keep previous data while loading to avoid flicker
-    return null;
-  };
 
   const [state, dispatch] = useReducer(reducer, { status: 'idle' });
 
@@ -112,33 +152,116 @@ export function useSearch() {
   // est une dépendance simple, stable, et `currentFilters` en dérive — donc les
   // deux `useCallback` ci-dessous n'ont plus besoin de dérogation.
   const searchParamsKey = searchParams.toString();
+  /**
+   * TCK-346 — l'URL est normalisée AVANT d'être lue en filtres.
+   *
+   * Une URL peut porter un état géographique que le serveur refuse (`?sort=distance` sans
+   * point, `?lat=` sans `lng`) : un lien hérité, un partage tronqué, un critère sauvegardé
+   * d'une version antérieure. Sans cette normalisation, l'écran afficherait « Le plus proche »
+   * dans le sélecteur de tri pendant que la requête rendrait 422 — l'interface annoncerait un
+   * tri qui n'a jamais eu lieu.
+   *
+   * ⚠ L'URL elle-même n'est PAS réécrite ici : un `router.replace` au montage volerait l'entrée
+   * d'historique de la page précédente. Elle se corrige d'elle-même au premier geste, puisque
+   * `filtersToParams` normalise aussi.
+   */
   const currentFilters = useMemo(
-    () => filtersFromSearchParams(new URLSearchParams(searchParamsKey)),
+    () => filtersFromSearchParams(normaliserGeo(new URLSearchParams(searchParamsKey))),
     [searchParamsKey],
   );
 
-  const search = useCallback((filters: Partial<SearchFilters>) => {
+  /**
+   * TCK-335, étape 5 — `push` ou `replace`, et le critère est le GESTE, pas le filtre.
+   *
+   * Tout passait par `router.replace`, si bien que l'historique ne grandissait jamais :
+   * un visiteur qui posait cinq filtres puis appuyait une fois sur Précédent ne revenait
+   * pas au filtre précédent, **il quittait la recherche** (mesuré : `history.length`
+   * inchangé à 2 après la saisie d'un filtre).
+   *
+   * Mais `push` partout serait PIRE que l'état d'origine, et c'est pour ça que cette
+   * étape dépendait de l'anti-rebond : sans lui, frapper « Dakar » empilerait cinq
+   * entrées et « 150000 » six — cinq Précédent pour défaire un mot.
+   *
+   * D'où la ligne de partage :
+   *
+   * | geste | exemples | méthode |
+   * |---|---|---|
+   * | **discret** — un geste = une intention | puce, bascule, tri, `per_page`, pagination, retrait de filtre, réinitialisation | `push` |
+   * | **continu** — la valeur transite par des états intermédiaires | les quatre champs texte et les quatre bornes numériques du panneau | `replace` |
+   *
+   * `SearchAutocomplete` employait déjà `router.push` pour entrer dans les résultats : la
+   * convention implicite du dépôt était donc *entrer empile, affiner écrase*. On la rend
+   * explicite plutôt que d'en inventer une autre.
+   */
+  const naviguer = useCallback((url: string, historique: Historique, defiler = false) => {
+    if (historique === 'push') {
+      router.push(url, { scroll: defiler });
+    } else {
+      router.replace(url, { scroll: defiler });
+    }
+  }, [router]);
+
+  const search = useCallback((
+    filters: Partial<SearchFilters>,
+    options: OptionsNavigation = {},
+  ) => {
     const merged = { ...currentFilters, ...filters, page: 1 };
     const qs = filtersToParams(merged).toString();
-    router.replace(`${pathname}${qs ? '?' + qs : ''}`);
-  }, [router, pathname, currentFilters]);
+    // `scroll: false` : affiner une recherche ne doit pas ramener l'œil en haut de page.
+    naviguer(`${pathname}${qs ? '?' + qs : ''}`, options.historique ?? 'push');
+  }, [naviguer, pathname, currentFilters]);
 
   const setPage = useCallback((page: number) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('page', String(page));
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [router, pathname, searchParams]);
+    // Changer de page, EN REVANCHE, défile — la page suivante commence en haut.
+    naviguer(`${pathname}?${params.toString()}`, 'push', true);
+  }, [naviguer, pathname, searchParams]);
 
   const resetFilters = useCallback(() => {
-    router.replace(pathname);
-  }, [router, pathname]);
+    naviguer(pathname, 'push');
+  }, [naviguer, pathname]);
 
   const removeFilter = useCallback((key: keyof SearchFilters) => {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete(String(key));
+    // TCK-335 — `q` alimente la MÊME puce depuis `q` ET depuis `search` : n'en retirer qu'un
+    // rendait la puce irrémovable sur `/properties?search=villa`, qu'un lien externe ou hérité
+    // suffit à atteindre. TCK-340 — ce cas particulier était écrit ici en dur (`if (key === 'q')`),
+    // seule liste de clés à vivre hors de la table ; il est désormais porté par `params`.
+    for (const nom of definitionDe(key).params) params.delete(nom);
+    // TCK-346 — `removeFilter('lat')` est un chemin RÉEL : sur un 422, `PropertiesDiscoveryPage`
+    // propose de retirer le filtre que le serveur NOMME, et il nomme `lat`. N'effacer que `lat`
+    // laisserait `lng`, donc un second 422 (`required_with:lat`) sur un bouton censé réparer la
+    // recherche. C'est `normaliserGeo` qui l'empêche, et c'est le seul mécanisme.
+    //
+    // ⚠ Une première version faisait AUSSI remonter le retrait à l'agrégateur ici
+    // (`agregateurDe(key) ?? key`). **Mesuré par ablation le 2026-08-22 : la retirer ne fait
+    // rougir AUCUN test**, parce que `normaliserGeo` produit exactement le même état final.
+    // C'était donc un second chemin pour la même garantie — précisément ce que ce dépôt
+    // paie cher ailleurs. Ce qui reste load-bearing, c'est la POSSESSION des trois paramètres
+    // par `radius_km` (`params`), gardée par `search-filters.parity.test.ts`.
+    normaliserGeo(params);
     params.set('page', '1');
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [router, pathname, searchParams]);
+    naviguer(`${pathname}?${params.toString()}`, 'push');
+  }, [naviguer, pathname, searchParams]);
+
+  /**
+   * TCK-338 — retirer UN terme de la requête texte, en gardant tout le reste.
+   *
+   * C'est le geste que le repli conjonctif rend nécessaire : sur `q=villa Saly`, le back a dû
+   * relâcher « Saly » pour rendre quelque chose, et l'écran l'annonce. Sans ce geste, l'unique
+   * issue serait de retirer la recherche ENTIÈRE (`removeFilter('q')`) — l'utilisateur perdrait
+   * « villa », c'est-à-dire la moitié de sa demande qui, elle, marchait.
+   *
+   * Passe par `search()` — donc `push`, comme tout geste discret (cf. son docblock) : le retour
+   * arrière ramène la requête complète, et c'est ce qui rend le geste sans risque.
+   */
+  const retirerTerme = useCallback((terme: string) => {
+    const restant = retirerTermeDeLaRequete(currentFilters.q ?? '', terme);
+    // `''` n'est pas écrit par `filtersToParams` : `q` disparaît de l'URL, et l'alias hérité
+    // `search=` avec lui, puisque l'URL est reconstruite depuis les filtres et non modifiée.
+    search({ q: restant });
+  }, [search, currentFilters.q]);
 
   // Fetch whenever URL params change
   useEffect(() => {
@@ -150,7 +273,10 @@ export function useSearch() {
 
     dispatch({ type: 'LOADING', prev });
 
-    const apiParams = new URLSearchParams(qs);
+    // Même normalisation que `currentFilters` : ce qui est demandé au serveur est exactement
+    // ce que l'écran affiche, et un 422 géographique fabriqué par une URL héritée n'atteint
+    // jamais le réseau.
+    const apiParams = normaliserGeo(new URLSearchParams(qs));
     if (!apiParams.has('q') && apiParams.has('search')) {
       apiParams.set('q', apiParams.get('search') ?? '');
     }
@@ -158,8 +284,18 @@ export function useSearch() {
 
     let cancelled = false;
     apiFetch<SearchResult>(`/public/properties/search?${apiParams.toString()}`)
-      .then(result  => { if (!cancelled) dispatch({ type: 'SUCCESS', result }); })
-      .catch(()     => { if (!cancelled) dispatch({ type: 'ERROR', prev }); });
+      .then(result => { if (!cancelled) dispatch({ type: 'SUCCESS', result }); })
+      .catch((erreur: unknown) => {
+        if (cancelled) return;
+        const erreurNormalisee = erreur instanceof Error ? erreur : new Error(String(erreur));
+        // TCK-335 — sur un 422, on JETTE le résultat précédent. Le garder afficherait
+        // les anciennes cartes et l'ancien total comme s'ils étaient courants, sous une
+        // puce de filtre qui n'a rien filtré : le mensonge est alors plus crédible que
+        // « 0 bien trouvé ». Un 5xx ou une panne réseau, eux, n'invalident pas ce qui
+        // était juste il y a une seconde — on le garde.
+        const filtreInvalide = erreurNormalisee instanceof ApiError && erreurNormalisee.status === 422;
+        dispatch({ type: 'ERROR', erreur: erreurNormalisee, prev: filtreInvalide ? null : prev });
+      });
 
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,12 +308,19 @@ export function useSearch() {
   return {
     data:           result,
     loading:        state.status === 'loading' || state.status === 'idle',
-    error:          state.status === 'error',
+    // TCK-335 — l'erreur elle-même, plus un booléen : c'est ce qui permet à la page de
+    // distinguer « ce filtre n'est pas valide » (422, réparable par l'utilisateur) d'une
+    // panne (5xx, réseau), et de nommer le filtre en cause via `validationErrors`.
+    error:          state.status === 'error' ? state.erreur : null,
     filters:        currentFilters,
     activeCount:    countActiveFilters(currentFilters),
+    // TCK-338 — ce que le bloc `search` de la réponse oblige l'écran à dire, ou `null`.
+    // Il arrivait dans le JSON et mourait là : `SearchResult` ne le déclarait pas.
+    repli:          repliDeRecherche(result),
     search,
     setPage,
     resetFilters,
     removeFilter,
+    retirerTerme,
   };
 }

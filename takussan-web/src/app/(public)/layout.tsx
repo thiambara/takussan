@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
+import { IntlProvider } from '@/i18n/IntlProvider';
+import { messagesPour } from '@/i18n/messages';
 import { CompareProvider } from '@/context/CompareContext';
 import { CompareFloatingBar } from '@/components/compare/CompareFloatingBar';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
@@ -20,6 +22,11 @@ import { ToastProvider, Toaster } from '@/components/ui/toast';
  *   selection store (TCK-082). The floating bar is rendered here so it
  *   follows the user across every public page.
  *
+ * i18n (TCK-337) : ce layout est une FRONTIÈRE de dictionnaire. Il sert le sous-ensemble cumulé
+ * du groupe `(public)` — le sien plus le socle racine —, et non les 60 espaces de noms du
+ * produit. La table est dérivée du graphe d'imports par `scripts/check-i18n-namespaces.mjs` ;
+ * ⚠ le provider imbriqué REMPLACE celui du parent, d'où l'ensemble cumulé (cf. `IntlProvider`).
+ *
  * SEO: indexable by default; individual pages override `metadata` as needed.
  */
 export async function generateMetadata(): Promise<Metadata> {
@@ -34,14 +41,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ToastProvider>
-      <CompareProvider>
-        {children}
-        <CompareFloatingBar />
-        <Toaster />
-      </CompareProvider>
-    </ToastProvider>
+    <IntlProvider messages={await messagesPour('(public)')}>
+      <ToastProvider>
+        <CompareProvider>
+          {children}
+          <CompareFloatingBar />
+          <Toaster />
+        </CompareProvider>
+      </ToastProvider>
+    </IntlProvider>
   );
 }

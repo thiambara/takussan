@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
+use App\Support\CaseInsensitive;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +23,7 @@ class GrantSuperAdminCommand extends Command
 
     public function handle(): int
     {
-        $email = strtolower(trim((string) $this->argument('email')));
+        $email = CaseInsensitive::fold(trim((string) $this->argument('email')));
 
         $user = User::query()->where('email', $email)->first();
         if ($user === null) {

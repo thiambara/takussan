@@ -18,7 +18,7 @@ return new class extends Migration
             $table->dateTime('ends_at');
             $table->string('status')->default('scheduled');
             $table->text('reason')->nullable();
-            $table->json('user_native_roles_snapshot');
+            $table->jsonb('user_native_roles_snapshot');
             $table->dateTime('activated_at')->nullable();
             $table->dateTime('expired_at')->nullable();
             $table->dateTime('revoked_at')->nullable();

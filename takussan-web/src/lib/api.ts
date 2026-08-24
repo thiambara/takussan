@@ -20,12 +20,59 @@ function clientLocaleCookie(): string | undefined {
   return SUPPORTED_LOCALES.has(locale) ? locale : undefined;
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export type ApiFetchOptions = {
+  /**
+   * Locale à transmettre en `Accept-Language`. **Obligatoire côté serveur** : le repli
+   * automatique passe par le cookie du navigateur, qui n'existe pas en RSC.
+   */
+  locale?: string;
+};
+
+/**
+ * Appel des endpoints PUBLICS. Le préfixe `/api` est ajouté par la fonction — cf. le tableau
+ * d'ouverture de `takussan-web/CLAUDE.md`.
+ *
+ * ⚠️ **Elle lève `ApiError`, comme {@link apiRequest} — depuis TCK-335.** Elle levait un `Error`
+ * nu dont le statut n'existait que comme SOUS-CHAÎNE du message (`API error 422: /public/…`), et
+ * le corps de la réponse n'était jamais lu. L'appelant ne pouvait donc rien distinguer : sur la
+ * page de résultats, un 422 « ce filtre n'est pas valide » et une panne réseau produisaient le
+ * même écran — « 0 bien trouvé », c'est-à-dire une réponse là où il y avait une erreur.
+ *
+ * La bascule est rétro-compatible et c'est mesuré : des 19 appelants d'`apiFetch`, un seul
+ * inspecte l'erreur — `useProperty` teste `/\b404\b/` sur `err.message` — et `ApiError` construit
+ * `super('API error 404')`, que la même expression reconnaît.
+ */
+export async function apiFetch<T>(
+  path: string,
+  init?: RequestInit,
+  options: ApiFetchOptions = {},
+): Promise<T> {
+  // TCK-335 — la locale part en `Accept-Language`, comme le fait `apiRequest`. Sans elle,
+  // les libellés d'énumération de l'API (`type_label`, `contract_type_label`, `status_label`)
+  // sortent dans `APP_LOCALE` — c'est-à-dire dans la langue du SERVEUR, pas du visiteur — et
+  // les deux surfaces les plus parcourues du site public, `/properties` et la fiche, étaient
+  // justement celles qui passaient par ici.
+  //
+  // ⚠ L'appelant SERVEUR doit passer `locale` explicitement : `clientLocaleCookie()` lit
+  // `document.cookie` et rend `undefined` hors navigateur, **en silence**. C'est le patron de
+  // `RequestOptions.locale` ci-dessous, et il existe pour cette raison précise.
+  const locale = options.locale ?? clientLocaleCookie();
+  const enTetes: Record<string, string> = {
+    Accept: 'application/json',
+    ...(locale ? { 'Accept-Language': locale } : {}),
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+
   const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Accept': 'application/json', ...init?.headers },
     ...init,
+    headers: enTetes,
   });
-  if (!res.ok) throw new Error(`API error ${res.status}: ${path}`);
+  if (!res.ok) {
+    // Le corps est lu SUR LE CHEMIN D'ERREUR uniquement : c'est lui qui porte
+    // `errors.<champ>` sur un 422, donc le nom du filtre en cause.
+    const corps = await res.json().catch(() => null);
+    throw new ApiError(res.status, corps);
+  }
   return res.json() as Promise<T>;
 }
 

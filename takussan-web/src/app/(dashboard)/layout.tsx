@@ -5,6 +5,9 @@ import { getMeAction } from '@/app/actions/auth';
 import { getAccountDeletionRequestAction } from '@/app/actions/account-deletion';
 import { AccountDeletionBanner } from '@/components/profile/security/AccountDeletionBanner';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
+import { IntlProvider } from '@/i18n/IntlProvider';
+import { messagesPour } from '@/i18n/messages';
+
 
 /**
  * Dashboard route group layout.
@@ -19,6 +22,10 @@ import { ToastProvider, Toaster } from '@/components/ui/toast';
  * TCK-080 — also fetches the user's pending RGPD deletion request and
  * surfaces a global red banner with the day-precise countdown when one
  * is active. Cancel button on the banner revokes the request inline.
+ *
+ * i18n (TCK-337) : frontière de dictionnaire. `(dashboard)` ne porte que sa propre chrome — les
+ * deux sous-arbres `/app` et `/admin` ont chacun leur frontière, plus riche. ⚠ Un provider
+ * imbriqué REMPLACE celui du parent : chaque entrée de la table est donc l'ensemble CUMULÉ.
  *
  * SEO: noindex for every dashboard page — these are authenticated, private.
  */
@@ -53,14 +60,16 @@ export default async function DashboardGroupLayout({
   const pending = deletion.ok ? deletion.data : null;
 
   return (
-    <ToastProvider>
-      <>
-        {pending && !pending.executed_at ? (
-          <AccountDeletionBanner daysRemaining={pending.days_remaining} />
-        ) : null}
-        {children}
-        <Toaster />
-      </>
-    </ToastProvider>
+    <IntlProvider messages={await messagesPour('(dashboard)')}>
+      <ToastProvider>
+        <>
+          {pending && !pending.executed_at ? (
+            <AccountDeletionBanner daysRemaining={pending.days_remaining} />
+          ) : null}
+          {children}
+          <Toaster />
+        </>
+      </ToastProvider>
+    </IntlProvider>
   );
 }

@@ -149,9 +149,25 @@ return [
         'key' => env('MEILISEARCH_KEY'),
         'index-settings' => [
             Property::class => [
+                // ⚠ L'ORDRE de `searchableAttributes` EST une règle de classement
+                // (règle `attribute` ci-dessous) : le champ le plus discriminant
+                // d'abord. C'est pourquoi les deux champs de vocabulaire ajoutés
+                // par TCK-335 sont EN DERNIER, et c'est MESURÉ, pas déduit —
+                // `contract_label` placé en tête fait passer n'importe quel bien
+                // en location AU-DESSUS du bien dont le titre dit littéralement
+                // « location » (score `attribute` 0,987 contre 0,831). Un mot
+                // d'intention doit ÉLARGIR le rappel, jamais réordonner la
+                // pertinence : il vaut pour 204 biens à la fois, il n'a donc
+                // aucun pouvoir discriminant.
+                //
+                // `tags` rejoint la liste (il n'était que `filterable`) : sans
+                // lui, aucun mot d'équipement — « piscine », « climatisation »,
+                // « ascenseur » — ne pouvait atteindre l'index autrement qu'en
+                // traînant dans une description.
                 'searchableAttributes' => [
                     'title', 'type_label', 'description',
-                    'neighborhood', 'city', 'reference_number',
+                    'neighborhood', 'city', 'tags', 'reference_number',
+                    'contract_label', 'furnished_label',
                 ],
                 'filterableAttributes' => [
                     'type', 'contract_type', 'rent_period', 'status', 'visibility',
@@ -160,8 +176,45 @@ return [
                     'available_from', 'published_at', 'city', 'neighborhood',
                     'tags', '_geo',
                 ],
-                'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured'],
+                // TCK-346 / ADR-0023 — `_geo` est ici EN PLUS de `filterableAttributes`
+                // ci-dessus : filtrer par rayon et TRIER par distance sont deux
+                // autorisations distinctes.
+                //
+                // ⚠ Le jeton est `_geo`, PAS `_geoPoint`. La prescription du
+                // ticket disait `_geoPoint` ; MESURÉ sur Meilisearch 1.16 le
+                // 2026-08-22, sur un index témoin, c'est faux : avec
+                // `sortableAttributes: ["_geoPoint"]`, une requête
+                // `sort=_geoPoint(14.7,-17.45):asc` est REFUSÉE par
+                //   « Attribute `_geo` is not sortable. Available sortable
+                //     attributes are: `_geoPoint, id`. »
+                // — le moteur résout l'expression de tri vers l'attribut `_geo`
+                // et vérifie CELUI-LÀ. Avec `["_geo"]`, la même requête rend
+                // `[1, 2, 3]`, et `[3, 2, 1]` depuis un point au nord.
+                //
+                // Sans ce réglage, `sort=distance` produit une erreur moteur
+                // (`invalid_search_sort`, HTTP 400 → 500 côté API), pas un tri
+                // dégradé : c'est un prérequis DUR, et il exige un
+                // `scout:sync-index-settings` au déploiement.
+                'sortableAttributes' => ['price', 'created_at', 'published_at', 'featured', '_geo'],
                 'rankingRules' => ['sort', 'words', 'typo', 'proximity', 'attribute', 'exactness'],
+                // TCK-335 — mots vides français. Meilisearch les retire À LA
+                // REQUÊTE comme à l'indexation : c'est ce qui fait que
+                // `q=à vendre` cesse de rendre le catalogue entier. Mesuré le
+                // 2026-08-21, avant : `q=a vendre` → **247** biens sur 258, le
+                // « a » matchant presque tout titre français (« Studio à
+                // Mermoz »). La règle `words` de Meilisearch n'exclut pas les
+                // documents qui ne portent qu'un terme sur deux, elle les
+                // classe plus bas — le bruit compte donc dans `meta.total`.
+                //
+                // Liste courte et fermée, uniquement des mots-outils : aucun
+                // n'est un nom de quartier, de ville ni de type de bien
+                // (« Point E », « Ouest Foire », « Sicap Baobab », « Louga »,
+                // « Touba » restent intacts).
+                'stopWords' => [
+                    'a', 'à', 'au', 'aux', 'de', 'des', 'du',
+                    'le', 'la', 'les', 'un', 'une',
+                    'en', 'pour', 'avec', 'sur', 'dans',
+                ],
             ],
             Message::class => [
                 'searchableAttributes' => ['body'],

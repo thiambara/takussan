@@ -40,7 +40,7 @@ return new class extends Migration
             $table->decimal('average_rating', 3, 2)->nullable();
             $table->date('available_from')->nullable();
             $table->timestamp('published_at')->nullable();
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

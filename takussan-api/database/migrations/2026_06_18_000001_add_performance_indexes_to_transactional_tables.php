@@ -52,10 +52,19 @@ return new class extends Migration
      * retire : le composite devient **le seul** index de la FK. Le `down()` essaie donc de
      * supprimer le support de la contrainte, et se le voit refuser.
      *
-     * C'est le piège n°2 de `CLAUDE.md` (« dropUnique/dropIndex sur une colonne portant une FK »).
-     * Il était invisible : la CI tournait sur SQLite, qui accepte tout, et **aucun `down()` n'est
-     * jamais exécuté par la suite de tests**. Le job `migrations-mysql` de `api-ci.yml` le rejoue
-     * désormais à chaque PR — il a trouvé celui-ci à sa première exécution.
+     * C'était le piège n°2 du `CLAUDE.md` d'alors (« dropUnique/dropIndex sur une colonne portant
+     * une FK »). Il était invisible : la CI tournait sur SQLite, qui accepte tout, et **aucun
+     * `down()` n'est jamais exécuté par la suite de tests**. Le job `migrations-pgsql` de
+     * `api-ci.yml` (ex-`migrations-mysql`) le rejoue à chaque PR — il a trouvé celui-ci à sa
+     * première exécution.
+     *
+     * ⚠ Depuis ADR-0020 (PostgreSQL 17 partout), ce piège a DISPARU dans les deux sens, et le
+     * détour ci-dessous est devenu inutile sans devenir faux : PostgreSQL n'indexe PAS
+     * automatiquement une clé étrangère, donc rien n'y refuse un `dropIndex`. C'est le piège n°8
+     * du `CLAUDE.md` actuel, qui est la contrepartie de celui-ci — plus rien ne refuse un
+     * `dropIndex`, et plus rien ne sert les requêtes gratuitement. Le `down()` n'est pas réécrit :
+     * il est joué en CI, il passe, et défaire une précaution qui ne coûte rien sur une migration
+     * déjà appliquée n'achète aucune sûreté.
      */
     public function down(): void
     {
@@ -71,7 +80,10 @@ return new class extends Migration
                     $blueprint->dropIndex([$colonne]);
                 }
                 // Reposée à l'identique de la migration de création : nullable + nullOnDelete.
-                // MySQL recrée alors son propre index de support, et on retrouve l'état d'avant.
+                // Sous InnoDB, l'index de support était recréé avec elle et on retrouvait l'état
+                // d'avant ; PostgreSQL, lui, n'en crée aucun — la FK est reposée nue. Ce n'est pas
+                // une régression de ce `down()` : c'est le piège n°8 du `CLAUDE.md`, et il vaut
+                // pour les 177 FK du dépôt, à indexer par mesure (`EXPLAIN`) et non en masse.
                 $blueprint->foreign('agency_id')->references('id')->on('agencies')->nullOnDelete();
             });
         }

@@ -6,6 +6,7 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Enums\UserStatus;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
+use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use RuntimeException;
@@ -40,7 +41,7 @@ class SuperAdminBootstrapService
      */
     public function bootstrap(array $data, string $source = 'artisan'): array
     {
-        if (User::query()->where('email', strtolower(trim($data['email'])))->exists()) {
+        if (User::query()->where('email', CaseInsensitive::fold(trim((string) $data['email'])))->exists()) {
             throw new RuntimeException("A user with email {$data['email']} already exists.");
         }
 

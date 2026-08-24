@@ -34,6 +34,21 @@ const CONVERSATION_LIST_FIELDS: string[] = [
   'updated_at',
 ];
 
+/**
+ * Colonnes du bien attaché à une conversation (TCK-336).
+ *
+ * Constante EXPORTÉE et non deux littéraux recopiés : `property-fields.coverage.test.ts`
+ * la compare aux clés que `ConversationList` et `ChatView` lisent réellement, et une garde
+ * ne peut pas comparer ce qui n'a pas de nom.
+ *
+ * ⚠ `main_photo_url` — que les deux composants affichent — n'y figure pas et ne peut pas
+ * y figurer : c'est un attribut calculé (media library), pas une colonne. Mesuré le
+ * 2026-08-21 : `GET /api/properties?fields[properties]=id,title,main_photo_url` rend
+ * **400 InvalidFieldQuery**. Le contrat de TCK-336 est donc que `PropertyResource` le
+ * serve INCONDITIONNELLEMENT, quel que soit `fields[]`.
+ */
+export const CONVERSATION_PROPERTY_FIELDS: string[] = ['id', 'title', 'slug'];
+
 const MESSAGE_LIST_FIELDS: string[] = [
   'id',
   'conversation_id',
@@ -68,9 +83,7 @@ export function useConversations(
   const spatieParams: SpatieQueryParams = {
     fields: {
       conversations: CONVERSATION_LIST_FIELDS,
-      // `main_photo_url` is computed (Spatie media library), not a DB column —
-      // omit from sparse fieldset; PropertyResource emits it anyway.
-      properties: ['id', 'title', 'slug'],
+      properties: CONVERSATION_PROPERTY_FIELDS,
     },
     filter,
     include: ['property', 'participants', 'last_message'],
@@ -101,7 +114,7 @@ export function useConversation(id: number | null | undefined) {
         'created_by',
         'created_at',
       ],
-      properties: ['id', 'title', 'slug'],
+      properties: CONVERSATION_PROPERTY_FIELDS,
     },
     include: ['property', 'participants'],
   };

@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('label');
             $table->text('description')->nullable();
             $table->boolean('enabled')->default(false);
-            $table->json('segments_json')->nullable();
+            $table->jsonb('segments_json')->nullable();
             $table->foreignId('updated_by_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });

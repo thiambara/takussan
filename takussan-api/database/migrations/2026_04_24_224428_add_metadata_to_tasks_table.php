@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
-            $table->json('metadata')->nullable()->after('priority');
+            $table->jsonb('metadata')->nullable()->after('priority');
         });
     }
 

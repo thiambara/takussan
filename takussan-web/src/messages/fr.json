@@ -256,6 +256,10 @@
     },
     "dashboard": {
       "title": "Tableau de bord — Takussan"
+    },
+    "propertyUnavailable": {
+      "title": "Bien momentanément indisponible",
+      "description": "Ce bien ne peut pas être affiché pour le moment. Réessayez dans quelques instants."
     }
   },
   "auth": {
@@ -597,7 +601,9 @@
         "offer": "Faire une offre",
         "reserve": "Réserver",
         "apply": "Postuler"
-      }
+      },
+      "unavailableTitle": "Bien momentanément indisponible",
+      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants."
     },
     "reviews": {
       "title": "Avis",
@@ -2766,7 +2772,17 @@
       "empty_title": "Aucun bien trouvé",
       "empty_description": "Élargissez vos critères ou retirez quelques filtres — il y a sûrement un bien pour vous.",
       "empty_cta": "Effacer tous les filtres",
-      "error": "Une erreur est survenue. Veuillez réessayer."
+      "error": "Une erreur est survenue. Veuillez réessayer.",
+      "error_invalid_filter": "Un des filtres de cette recherche n'est pas valide.",
+      "error_invalid_filter_named": "Le filtre « {filter} » n'est pas valide.",
+      "error_retry": "Réessayer"
+    },
+    "widened": {
+      "unmatched": "{count, plural, =1 {Aucun bien ne correspond à « {terms} ».} other {Aucun bien ne correspond à ces mots : {terms}.}}",
+      "noIntersection": "Aucun bien ne réunit tous vos mots.",
+      "showing": "{count, plural, =0 {Aucun bien proche à vous proposer.} =1 {Voici le seul bien qui correspond à une partie de vos mots.} other {Voici les # biens qui correspondent à une partie de vos mots.}}",
+      "removeTerm": "Retirer « {term} »",
+      "clearQuery": "Effacer les mots-clés"
     },
     "filters": {
       "title": "Filtres",
@@ -2786,7 +2802,19 @@
         "floor": "Étage",
         "availability": "Disponibilité",
         "amenities": "Équipements",
-        "advanced": "Recherche avancée"
+        "advanced": "Recherche avancée",
+        "aroundMe": "Autour de moi"
+      },
+      "aroundMe": {
+        "use": "Utiliser ma position",
+        "locating": "Localisation en cours…",
+        "active": "Autour de ma position",
+        "radiusLabel": "Rayon de recherche",
+        "radiusOption": "{km} km",
+        "change": "Actualiser ma position",
+        "denied": "Vous avez refusé le partage de votre position. Indiquez une ville ci-dessus pour chercher sans elle.",
+        "unavailable": "Ce navigateur ne sait pas donner votre position. Indiquez une ville ci-dessus.",
+        "failed": "Position introuvable pour l’instant. Réessayez, ou indiquez une ville ci-dessus."
       },
       "cityPlaceholder": "Ville (ex : Dakar, Mbour…)",
       "quarterPlaceholder": "Quartier (ex : Plateau, Almadies…)",
@@ -2819,7 +2847,8 @@
       "relevance": "Pertinence",
       "price_asc": "Prix croissant",
       "price_desc": "Prix décroissant",
-      "created_desc": "Plus récent"
+      "created_desc": "Plus récent",
+      "distance": "Le plus proche"
     },
     "tags": {
       "furnished": "Meublé",
@@ -2835,7 +2864,8 @@
       "bedrooms": "{n} ch.",
       "bathrooms": "{n} sdb",
       "areaMin": "≥ {value} m²",
-      "areaMax": "≤ {value} m²"
+      "areaMax": "≤ {value} m²",
+      "radius": "Dans un rayon de {km} km"
     },
     "pagination": {
       "aria": "Pagination",
@@ -6552,7 +6582,9 @@
       "websiteInvalid": "URL invalide. Exemple : https://exemple.sn",
       "commissionRange": "La commission doit être comprise entre 0 et 100.",
       "currencyInvalid": "Code devise invalide (ex : XOF, EUR).",
-      "timezoneTooLong": "Fuseau horaire trop long."
+      "timezoneTooLong": "Fuseau horaire trop long.",
+      "logoTooLarge": "Le logo dépasse 2 Mo.",
+      "logoUnsupportedFormat": "Format non supporté. Utilisez JPG, PNG ou WEBP."
     },
     "common": {
       "emailTooLong": "L’adresse e-mail est trop longue.",
@@ -6637,7 +6669,9 @@
     "message": {
       "bodyRequired": "Le message ne peut pas être vide.",
       "initialRequired": "Le message initial est requis.",
-      "bodyTooLong": "Message trop long ({max} caractères max)."
+      "bodyTooLong": "Message trop long ({max} caractères max).",
+      "attachmentTooLarge": "Fichier trop volumineux (10 Mo max).",
+      "attachmentUnsupportedFormat": "Format non supporté (images, PDF, doc/docx uniquement)."
     },
     "payment": {
       "dateInvalid": "Format de date invalide (AAAA-MM-JJ).",
@@ -6737,7 +6771,8 @@
     },
     "dateTimePicker": {
       "placeholder": "Choisir une date et une heure",
-      "timeLabel": "Heure"
+      "timeLabel": "Heure",
+      "dateAtTime": "{date} à {time}"
     },
     "toast": {
       "close": "Fermer la notification"

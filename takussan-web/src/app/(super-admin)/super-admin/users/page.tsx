@@ -20,7 +20,7 @@ import {
 import { ConfirmActionDialog } from '@/components/admin/super/ConfirmActionDialog';
 import { Pagination } from '@/components/super-admin/Pagination';
 import { useImpersonate } from '@/hooks/useImpersonation';
-import type { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -106,7 +106,15 @@ async function fetchUsers(params: UsersParams): Promise<UsersResponse> {
   const res = await fetch(`/api/super-admin-users?${qs.toString()}`, { credentials: 'include' });
   if (!res.ok) {
     const data = await res.json().catch(() => null);
-    throw Object.assign(new Error('Users fetch failed'), { status: res.status, data });
+    // TCK-292 (2026-08-22) — un `Error` NU portait ici le libellé anglais « Users fetch failed ».
+    // `messageErreurApi` ne le reconnaissait ni comme `ApiError`, ni comme forme technique
+    // (`/^API error \d+/`), ni comme sentinelle de framework : il retombait donc dans la branche
+    // « un Error nu transporte un message DÉJÀ traduit » et l'affichait TEL QUEL dans
+    // `<ErrorState>`, dans les trois langues. Le repli `t('error')` n'était jamais atteint.
+    // `ApiError` est la forme que le reste du dépôt lève (`jsonOrThrow` de
+    // `src/lib/queries/{admin-users,super-admin,billing,…}.ts`) — et c'est aussi ce que le type
+    // `useQuery<UsersResponse, ApiError>` ci-dessous a toujours PRÉTENDU recevoir.
+    throw new ApiError(res.status, data);
   }
   return res.json();
 }

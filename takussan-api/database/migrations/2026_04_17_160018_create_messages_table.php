@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('sender_id')->constrained('users');
             $table->text('content');
             $table->string('type')->default('text');
-            $table->json('metadata')->nullable();
+            $table->jsonb('metadata')->nullable();
             $table->softDeletes();
             $table->timestamps();
 

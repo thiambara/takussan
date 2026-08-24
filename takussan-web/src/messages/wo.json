@@ -1723,7 +1723,17 @@
       "empty_title": "Gisunu benn kër",
       "empty_description": "Yaatal say coobare walla dindil ay filtre — am na kër bu la war.",
       "empty_cta": "Faral filtre yépp",
-      "error": "Am na njuumte. Jéemaatal su la neexee."
+      "error": "Am na njuumte. Jéemaatal su la neexee.",
+      "error_invalid_filter": "Benn ci filtar yi ci seet bii baaxul.",
+      "error_invalid_filter_named": "Filtar bu « {filter} » baaxul.",
+      "error_retry": "Jéemaat"
+    },
+    "widened": {
+      "unmatched": "{count, plural, =1 {Gisunu benn kër ci « {terms} ».} other {Gisunu benn kër ci baat yii : {terms}.}}",
+      "noIntersection": "Gisunu benn kër bu boole say baat yépp.",
+      "showing": "{count, plural, =0 {Amul kër bu jege bu ñu la wone.} =1 {Kër gii rekk a jege ci say baat.} other {Kër yii # ñoo jege ci say baat.}}",
+      "removeTerm": "Dindil « {term} »",
+      "clearQuery": "Far baat yi"
     },
     "filters": {
       "title": "Tànneef",
@@ -1743,7 +1753,19 @@
         "floor": "Etaas",
         "availability": "Jotaay",
         "amenities": "Jumtukaay yi",
-        "advanced": "Seet bu xóot"
+        "advanced": "Seet bu xóot",
+        "aroundMe": "Ci wetu ma"
+      },
+      "aroundMe": {
+        "use": "Jëfandikoo sama bérébu",
+        "locating": "Ñu ngi seet sa bérébu…",
+        "active": "Ci wetu sama bérébu",
+        "radiusLabel": "Sori bi ngay seet",
+        "radiusOption": "{km} km",
+        "change": "Yeesalaat sama bérébu",
+        "denied": "Nanguwoo joxe sa bérébu. Bind dëkk ci kaw ngir seet te du ko soxla.",
+        "unavailable": "Naawalkat bi mënul joxe sa bérébu. Bind dëkk ci kaw.",
+        "failed": "Gisunu sa bérébu léegi. Jéemaat, walla bind dëkk ci kaw."
       },
       "cityPlaceholder": "Dëkk (ci misaal : Ndakaaru, Mbuur…)",
       "quarterPlaceholder": "Gox (ci misaal : Plateau, Almadies…)",
@@ -1776,7 +1798,8 @@
       "relevance": "Li gën a jaadu",
       "price_asc": "Njëg gu yokku",
       "price_desc": "Njëg gu wàcc",
-      "created_desc": "Bi gën a bees"
+      "created_desc": "Bi gën a bees",
+      "distance": "Bi gën a jege"
     },
     "tags": {
       "furnished": "Ame na meebal",
@@ -1792,7 +1815,8 @@
       "bedrooms": "{n} neeg",
       "bathrooms": "{n} sanjaan",
       "areaMin": "≥ {value} m²",
-      "areaMax": "≤ {value} m²"
+      "areaMax": "≤ {value} m²",
+      "radius": "Ci {km} km ci wetu bérébu bi"
     },
     "pagination": {
       "aria": "Xët yi",
@@ -3570,7 +3594,9 @@
         "offer": "Joxe benn njaay",
         "reserve": "Réserwe",
         "apply": "Ñaan"
-      }
+      },
+      "unavailableTitle": "Këru bi amul ba tey",
+      "unavailableBody": "Mënunu jot katalog bi ci saa si. Këru bi mën na am ba tey — jéemaatal ci ay saa."
     },
     "reviews": {
       "title": "Xalaat yi",
@@ -6351,6 +6377,10 @@
     },
     "dashboard": {
       "title": "Tablo bi — Takussan"
+    },
+    "propertyUnavailable": {
+      "title": "Këru bi amul ba tey",
+      "description": "Këru bi mënul a wone ci saa si. Jéemaatal ci ay saa."
     }
   },
   "billing": {
@@ -6577,7 +6607,9 @@
       "websiteInvalid": "URL bu baaxul. Misaal : https://exemple.sn",
       "commissionRange": "Komisioŋ bi war na nekk diggante 0 ak 100.",
       "currencyInvalid": "Kodu xaalis bu baaxul (misaal : XOF, EUR).",
-      "timezoneTooLong": "Goxu waxtu bi dafa gudd lool."
+      "timezoneTooLong": "Goxu waxtu bi dafa gudd lool.",
+      "logoTooLarge": "Logo bi rëy lool (2 Mo max).",
+      "logoUnsupportedFormat": "Format bi baaxul. Jëfandikoo JPG, PNG walla WEBP."
     },
     "booking": {
       "guestsRequired": "Limu nit ñi fàww la.",
@@ -6637,7 +6669,9 @@
     "message": {
       "bodyRequired": "Bataaxal bi mënul nekk neen.",
       "bodyTooLong": "Bataaxal bi dafa gudd lool (ba {max} araf).",
-      "initialRequired": "Bataaxal bu njëkk bi fàww la."
+      "initialRequired": "Bataaxal bu njëkk bi fàww la.",
+      "attachmentTooLarge": "Fichier bi rëy lool (10 Mo max).",
+      "attachmentUnsupportedFormat": "Format bi baaxul (nataal, PDF, doc/docx rekk)."
     },
     "payment": {
       "dateInvalid": "Melokaanu bés bu baaxul (AAAA-MM-JJ).",
@@ -6737,7 +6771,8 @@
     },
     "dateTimePicker": {
       "placeholder": "Tànn benn bés ak benn waxtu",
-      "timeLabel": "Waxtu"
+      "timeLabel": "Waxtu",
+      "dateAtTime": "{date} ci {time}"
     },
     "toast": {
       "close": "Tëj yégle bi"

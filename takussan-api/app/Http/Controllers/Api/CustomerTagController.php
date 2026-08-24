@@ -7,6 +7,7 @@ use App\Http\Requests\AttachCustomerTagsRequest;
 use App\Models\Customer;
 use App\Models\Enums\TagType;
 use App\Models\Tag;
+use App\Support\CaseInsensitive;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -39,7 +40,11 @@ class CustomerTagController extends Controller
             // The `tags.name` column has a single unique index (no compound on type).
             // Looking up case-insensitively avoids a unique-constraint violation when a
             // tag was seeded or created from another module with a different capitalisation.
-            $tag = Tag::whereRaw('LOWER(name) = ?', [$name])->first();
+            // `CaseInsensitive::sql()` et non `LOWER(name)` : l'index unique de la
+            // colonne est `LOWER(name COLLATE "und-x-icu")` depuis ADR-0025, et une
+            // requête qui n'écrit pas EXACTEMENT l'expression de l'index ne l'emprunte
+            // pas — elle balaye la table, sans rien signaler.
+            $tag = Tag::whereRaw(CaseInsensitive::sql('name').' = ?', [CaseInsensitive::fold($name)])->first();
             if ($tag === null) {
                 $tag = Tag::create([
                     'name' => $name,

@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Manrope, Inter, Bricolage_Grotesque, DM_Sans, Fraunces } from 'next/font/google';
 import { cookies } from 'next/headers';
-import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages, getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 import { getMe } from '@/lib/auth';
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { AuthProvider } from '@/context/AuthContext';
@@ -13,7 +12,8 @@ import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
 import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
 import { ChatWidget } from '@/components/chat-widget/ChatWidget';
 import { FloatingDockProvider } from '@/components/floating-dock';
-import { TIMEZONE } from '@/i18n/config';
+import { IntlProviderRacine } from '@/i18n/IntlProvider';
+import { messagesPour } from '@/i18n/messages';
 import { Analytics } from '@vercel/analytics/next';
 import './globals.css';
 
@@ -43,12 +43,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   const locale = await getLocale();
-  const messages = await getMessages();
+  // ⚠ PAS `getMessages()`. Le dictionnaire ENTIER — 60 espaces de noms, ~60 ko gzip — était
+  // sérialisé ici, dans la charge RSC du document, servie `no-store` : repayée à CHAQUE
+  // chargement de page, et pesant 83,1 % des octets de `/properties`. Le socle ne porte que ce
+  // que la chrome racine et les frontières d'erreur adressent ; chaque groupe de routes ajoute
+  // le sien (`src/i18n/messages.ts`, TCK-337).
+  const messages = await messagesPour('.');
 
   return (
     <html lang={locale} className={`${geist.variable} ${manrope.variable} ${inter.variable} ${bricolage.variable} ${dmSans.variable} ${fraunces.variable}`}>
       <body className="font-sans antialiased">
-        <NextIntlClientProvider locale={locale} messages={messages} timeZone={TIMEZONE}>
+        <IntlProviderRacine locale={locale} messages={messages}>
           <QueryProvider>
             <AuthProvider initialUser={initialUser} initialToken={token ?? null}>
               <FeatureFlagProvider>
@@ -64,7 +69,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </FeatureFlagProvider>
             </AuthProvider>
           </QueryProvider>
-        </NextIntlClientProvider>
+        </IntlProviderRacine>
       </body>
     </html>
   );

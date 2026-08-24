@@ -1,13 +1,13 @@
 ---
 id: TCK-327
 title: "Trois formats de date sur la même API — 55 `toISOString`, 37 `toIso8601String`, 18 `toDateString`"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: M
 wave: 39
 created: 2026-08-17
-updated: 2026-08-20
+updated: 2026-08-22
 depends_on: [TCK-308]
 blocks: []
 spec_refs:
@@ -105,14 +105,33 @@ indépendantes, et les confondre ferait chercher le défaut au mauvais endroit.
       > — cf. § 10.
 - [x] **Garde prouvée par 8 mutations**, sorties consignées au § 10 — dont l'attribut Carbon brut,
       la chaîne SQL brute et une clé de date ajoutée sans helper
+- [x] **Inventaire par VALEUR** (2026-08-22, § 11) — `tests/Support/ResourceInventory.php`,
+      `ResourceSubjects.php`, `WireDateForm.php` et
+      `tests/Unit/Http/Resources/DateInventoryByValueTest.php` : énumération dérivée des 44
+      ressources, registres gardés dans les deux sens, parcours récursif de la sortie de
+      `resolve()`, **7 mutations** consignées
 - [x] **D-36bis soldé** dans `docs/ardoise.md` ; `takussan-api/CLAUDE.md` § *Ressources* et
       `scripts/check-resources-extend-base.mjs` corrigés (leur texte était devenu faux)
 
 ## Critères d'acceptation
 
 - [x] AC1 — un ADR décide du format, et il est écrit **avant** la première conversion
-- [ ] AC2 — toute date émise par `app/Http/Resources/` respecte le format retenu, ou figure dans
+- [x] AC2 — toute date émise par `app/Http/Resources/` respecte le format retenu, ou figure dans
       une liste d'exceptions **justifiées par écrit** (les dates-calendaires, si c'est la décision)
+      > ✅ **RECOCHÉ le 2026-08-22, et cette fois sur la propriété que l'AC énonce — cf. § 11.**
+      > Ce qui manquait n'était pas un correctif, c'était un INVENTAIRE : la garde reconnaissait une
+      > date à son NOM de clé, donc elle ne pouvait pas établir un « toute ». Un second dispositif,
+      > **par VALEUR**, exécute désormais les 44 ressources sur 96 résolutions et inspecte **386
+      > valeurs de date** reconnues à leur FORME, quel que soit le nom de la clé : 0 non conforme.
+      > La mutation qui départage les deux gardes est jouée et écrite — une date émise sous la clé
+      > `horodatage` laisse `check-resource-date-format.mjs` en **sortie 0**, et fait rougir
+      > l'inventaire par valeur en nommant la clé.
+      >
+      > **Ce qui reste hors de portée est ÉNUMÉRÉ, et l'énumération est elle-même gardée** par
+      > `CLES_JAMAIS_ATTEINTES` (égalité stricte) : deux clés, `CustomerResource::tasks_count` et
+      > `LeaseResource::renewals_count`, toutes deux des compteurs `whenCounted` entiers. Les trois
+      > angles morts résiduels — horodatage Unix, branches de relation de SECOND niveau, conformité
+      > SÉMANTIQUE — sont nommés au § 11 avec ce qui les fermerait.
       > ⚠️ **DÉCOCHÉ le 2026-08-20, après avoir été coché à tort.** Il avait été validé sur le vert
       > d'une garde qui ne mesurait pas la propriété : **la garde était une liste noire d'APPELS de
       > conversion, elle passait au vert sur une date émise BRUTE.** Huit champs violaient l'AC dans
@@ -518,6 +537,120 @@ déléguante, une fois, à la fin. `php bin/impacted-tests.php` répond d'ailleu
 cette reprise. AC4 et AC5 restent donc décochés, pour le même motif qu'au § 8.
 
 
+### 11. REPRISE du 2026-08-22 — l'inventaire par VALEUR, et AC2 recoché
+
+Le § 10 laissait deux issues ouvertes. **C'est la seconde qui est prise, sous une forme plus forte
+que celle qu'il proposait** : on n'essaie plus de deviner quelles clés sont des dates. On instancie
+la ressource, on regarde ce qu'elle ÉMET, et on refuse toute valeur qui EST une date sous une forme
+non conforme. *Une date se reconnaît alors à ce qu'elle est, pas à comment on l'a nommée.*
+
+**La garde statique n'est pas remplacée, elle est complétée — et les deux se trompent
+DIFFÉREMMENT.** C'est la seule raison d'en avoir deux :
+
+| | `check-resource-date-format.mjs` | `DateInventoryByValueTest` |
+|---|---|---|
+| lit | le SOURCE | la VALEUR ÉMISE |
+| voit les branches non exécutées | **oui** | non |
+| voit une date sous une clé non nommée `*_at`/`*_date`/… | **non** | **oui** |
+| voit un désaccord cast ↔ forme (`datetime` rendu en jour) | **oui** | non |
+
+#### Ce qui a été écrit
+
+- `takussan-api/tests/Support/ResourceInventory.php` — l'énumération **dérivée** des 44 ressources
+  concrètes (Finder + ReflectionClass + cache statique, patron copié de `SearchableModels`), plus
+  **trois registres gardés dans les deux sens** : `MODELES_EXPLICITES` (5 ressources que la
+  convention `<Modele>Resource` ne résout pas), `SUJETS_SUR_MESURE` (5 ressources qu'aucun modèle
+  n'adosse), `NON_ENUMERABLES` (**vide, et c'est un résultat**).
+- `takussan-api/tests/Support/ResourceSubjects.php` — la fabrication du sujet. Les colonnes de date
+  sont **lues dans le conteneur** (`getCasts()` + `getDates()`), jamais devinées ; les modèles sans
+  factory sont instanciés non persistés avec toutes leurs colonnes présentes ; les relations citées
+  par le SOURCE de la ressource sont chargées, et greffées quand la base ne les fournit pas.
+- `takussan-api/tests/Support/WireDateForm.php` — la reconnaissance de forme, ancrée, avec ses faux
+  positifs éprouvés (numéro de version, uuid, téléphone, iban, montant, slug, url signée…).
+- `takussan-api/tests/Unit/Http/Resources/DateInventoryByValueTest.php` — le parcours **récursif**
+  de `resolve()`, tableaux imbriqués compris. `DateRepresentationTest` n'est pas touché : il fige la
+  correspondance cast ↔ forme **champ par champ**, ce que l'énumération ne fait pas.
+
+**Les dix ressources que le § 10 pressentait non énumérables le sont TOUTES** — cinq modèles sans
+factory par `new Modele` non persisté, cinq non-modèles par une recette écrite (DTO `readonly`,
+tableau de `selectRaw`, tableau `{agency, admin}`, `Spatie\…\Media`). *Une ressource éprouvée vaut
+mieux qu'une ressource excusée* : `NON_ENUMERABLES` reste écrit, vide, parce que sa raison d'être
+n'est pas de porter des entrées mais d'être le seul endroit où une ressource peut légitimement
+échapper au test.
+
+#### Ce que le dispositif mesure — chiffres du 2026-08-22
+
+```
+$ php artisan test tests/Unit/Http/Resources/
+  Tests:    66 passed (214 assertions)   Duration: 8.68s
+$ node scripts/check-resource-date-format.mjs
+  ✓ toutes les dates ÉMISES par l'API passent par BaseResource.        → sortie 0
+```
+
+- **96 résolutions** : 44 ressources → 48 sujets (`ProfileResource` comptant pour ses cinq profils
+  polymorphes) × 2 variantes d'appelant (liste / route de détail) ;
+- **386 valeurs de date** reconnues à leur forme, **0 non conforme** ;
+- **28 paires (ressource, relation) `whenLoaded`/`relationLoaded` sur 28** exécutées au moins une
+  fois — c'était 27 avant la greffe des relations, et **0 pour les cinq modèles sans factory** ;
+- **2 clés** que le parcours n'atteint jamais, écrites et gardées à l'égalité stricte.
+
+⚠️ **Deux pièges payés, tous deux SILENCIEUX, et le second vaut d'être retenu hors de ce ticket.**
+
+1. `resolve()` ne récurse pas dans un tableau PHP nu — seulement dans `MergeValue` et
+   `JsonResource`. Un Carbon imbriqué survit donc au filtrage. Le parcours doit être récursif ; la
+   mutation (f) ci-dessous le prouve à trois niveaux (`property.owner.member_since`).
+2. **`$this->app->instance('request', $r)` ÉCRASE le résolveur d'utilisateur de `$r`.**
+   `Application::instance()` déclenche les rappels de rebinding, et
+   `AuthServiceProvider::registerRequestRebindHandler()` repose alors un résolveur adossé au garde.
+   Poser `setUserResolver()` AVANT cette liaison le perd : `$request->user()` redevient `null`, les
+   quatre clés que `PropertyResource` conditionne à un appelant authentifié — **dont trois dates** —
+   quittent la sortie, et **rien ne rougit**. Mesuré : 176 dates vues dans le mauvais ordre, 191
+   dans le bon.
+
+#### Preuve par MUTATION — 7 mutations, toutes rouges, toutes restaurées
+
+| # | mutation | inventaire par valeur | garde statique |
+|---|---|---|---|
+| a | `UserResource` émet `created_at` en **Carbon brut** | ✗ `→ created_at : objet Illuminate\Support\Carbon NON CONVERTI` | ✗ (plancher de sites conformes) |
+| b | `ModerationItemResource` recopie la **chaîne SQL brute** | ✗ `« 2026-08-17 12:34:56 » — c'est une chaîne SQL BRUTE` | ✗ |
+| c | ressource **nouvelle**, ni énumérable ni inscrite | ✗ `n'est adossée à AUCUN modèle […] et n'est inscrite à aucun registre` | dépend du nom de la clé |
+| d | entrée de registre **sans fichier réel** | ✗ `SUJETS_SUR_MESURE inscrit « …MediaLegacyResource », qui n'est plus une ressource concrète` | — |
+| e | date sous la clé **`horodatage`** (nom non reconnu) | ✗ `→ horodatage : objet …Carbon NON CONVERTI` | **✓ sortie 0 — AVEUGLE** |
+| f | date **imbriquée** dans un tableau PHP nu | ✗ `→ property.owner.member_since : objet …Carbon NON CONVERTI` | ✗ |
+| g | une entrée de `CLES_JAMAIS_ATTEINTES` retirée | ✗ `L'ensemble des clés que le parcours n'atteint jamais a changé` | — |
+
+**La ligne (e) est le cœur du chantier.** Sur cette mutation, `check-resource-date-format.mjs`
+imprime *« ✓ toutes les dates ÉMISES par l'API passent par BaseResource »* et sort en **0**, alors
+qu'un objet `Carbon` part sur le fil. C'est exactement le défaut nommé par le § 10 — et il n'est
+plus une hypothèse, il est reproduit.
+
+#### Pourquoi AC2 est recoché, et ce qui le décocherait
+
+L'AC dit *« toute date émise »*. La question n'est donc plus « la garde connaît-elle les noms ? »
+mais **« reste-t-il une branche capable d'émettre une date que ni l'une ni l'autre ne regarde ? »**.
+Trois résidus, tous nommés, aucun ouvert :
+
+1. **Un horodatage Unix est indiscernable d'un identifiant** — aucune forme ne les sépare, et
+   `WireDateForm` l'écrit dans son propre docblock. Le dépôt n'en émet aucun ; le jour où il en
+   émettrait un, ce dispositif serait muet.
+2. **Les branches de relation de SECOND niveau** — la greffe ne descend que d'un cran. Deux sites :
+   `MaintenanceRequestResource:51` (`$property->address`) et `PropertyResource:128`
+   (`$collaborator->user`). Les deux ont été **lus** : le premier émet `neighborhood/city/region/
+   country`, le second `id/name/email`. **Aucune date.**
+3. **La conformité SÉMANTIQUE** — un champ casté `datetime` rendu en jour calendaire est conforme
+   *par valeur*, et le restera. C'est le cas de `MatchCandidateResource::paid_at`, que la garde
+   statique porte en exception écrite parce qu'elle connaît le cast. Le trou est COMPTÉ, pas
+   pardonné, et il n'est pas dans le périmètre de ce ticket (la troncature a lieu dans un DTO de
+   service).
+
+Ce qui décocherait AC2 : une quatrième famille de résidu apparaissant sans être écrite. C'est
+précisément ce que `CLES_JAMAIS_ATTEINTES` empêche — toute clé qui cesse d'être atteinte fait
+rougir, avec ou sans date.
+
+⚠️ **Ce que ce § n'établit PAS** : la suite entière n'a pas été jouée par l'agent délégué (règle du
+dépôt) — seuls `tests/Unit/Http/Resources/` et la garde statique l'ont été. La session déléguante la
+joue une fois, à la fin.
+
 ## Reste sur dev
 
 **Le delta est mergé ; AC2 reste NON TENU, et il ne peut pas l'être sous la forme où il est écrit.**
@@ -552,3 +685,25 @@ Ce qui EST établi, et qui est déjà beaucoup :
 
 En attendant, le ticket reste `doing` : son delta est livré, son AC2 ne l'est pas, et le premier ne
 rachète pas le second.
+
+## Clôture — 2026-08-22
+
+**Les six critères sont tenus, et le dernier l'a été par un changement de MÉTHODE, pas par plus de
+travail de conversion.**
+
+AC2 exigeait « TOUTE date émise ». La garde statique ne pouvait pas l'établir : elle reconnaît une
+date à son NOM de clé, ce qui est un plancher et jamais un inventaire. Le ticket proposait de
+reformuler l'AC à la baisse ou d'ouvrir un ticket pour un inventaire dérivé des `$casts`. **C'est
+la seconde issue qui a été prise, sous une forme plus forte encore** : un inventaire par VALEUR,
+qui n'essaie plus de deviner quelles clés sont des dates — il instancie la ressource, appelle
+`resolve()`, parcourt la sortie récursivement et refuse toute valeur qui EST une date sous une
+forme non conforme.
+
+Les deux gardes restent, et c'est délibéré : **elles se trompent différemment.** La mutation qui le
+prouve est la plus utile de la série — une date émise sous la clé `horodatage` fait rougir
+l'inventaire par valeur pendant que la garde statique imprime *« ✓ toutes les dates ÉMISES par
+l'API passent par BaseResource »* et sort en 0.
+
+Fermé par la session principale, sur exécution : `php artisan test` → **2734 passés, 2 ignorés,
+0 échec**, 8791 assertions, 468 s, machine au repos. `npm run test` → 191 fichiers, 1328 tests,
+0 échec. `npx tsc --noEmit` sortie 0. `node scripts/check-resource-date-format.mjs` sortie 0.

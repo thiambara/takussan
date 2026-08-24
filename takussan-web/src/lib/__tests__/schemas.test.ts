@@ -177,11 +177,14 @@ describe('isAllowedAttachment', () => {
     });
     const r = isAllowedAttachment(file);
     expect(r.ok).toBe(false);
+    // TCK-292 (2026-08-22) — `reason` porte une CLÉ, plus un libellé français.
+    expect(r.reason).toBe('validation.message.attachmentTooLarge');
   });
 
   it('rejects disallowed mime types', () => {
     const f = makeFile(100, 'application/zip');
     expect(isAllowedAttachment(f).ok).toBe(false);
+    expect(isAllowedAttachment(f).reason).toBe('validation.message.attachmentUnsupportedFormat');
   });
 
   it('accepts images and PDFs under the limit', () => {

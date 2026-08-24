@@ -24,6 +24,8 @@ import {
   validateAgencyLogoFile,
   type AgencyFormValues,
 } from '@/lib/schemas/agency';
+import { traduireMessageValidation } from '@/lib/schemas/messages';
+import { useTraducteurValidation } from '@/hooks/useApiForm';
 import {
   updateAgencyAction,
   uploadAgencyLogoAction,
@@ -86,6 +88,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
   const [isUploadingLogo, startLogoTransition] = useTransition();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const t = useTranslations('admin.agencyConfig');
+  const tValidation = useTraducteurValidation();
   const tCurrency = useTranslations('agency.currency');
   const tCommon = useTranslations('common.actions');
 
@@ -121,7 +124,9 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
     if (!file) return;
     const validation = validateAgencyLogoFile(file);
     if (validation) {
-      setLogoError(validation);
+      // `validateAgencyLogoFile` rend une CLÉ (`validation.agency.logoTooLarge`), pas un libellé :
+      // sans cette résolution l'utilisateur lit la clé brute (TCK-292, 2026-08-22).
+      setLogoError(traduireMessageValidation(validation, tValidation));
       ev.target.value = '';
       return;
     }
