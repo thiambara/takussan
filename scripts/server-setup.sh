@@ -224,6 +224,49 @@ setup_nginx_vhost() {
     # celle qui prouvera qu'un `Content-Encoding: gzip` sort enfin — attend donc un
     # humain, et TCK-341 la laisse ouverte plutôt que de la déclarer faite.
 
+    # -- Cache des medias servis depuis /storage/ (revu le 2026-08-24) ----------
+    #
+    # Cette prose vit ICI, hors du heredoc, pour la meme raison que celle de la
+    # compression : le heredoc n'est pas quote, donc bash executerait les backticks
+    # d'un commentaire. scripts/check-heredocs.mjs le refuse a l'ecriture.
+    #
+    # Le bloc portait "expires 7d" et rien d'autre. Ce qui manquait n'est pas la
+    # duree, c'est ce qui l'entoure :
+    #
+    #  . "expires" emet "Cache-Control: max-age=604800" SANS "public". Un cache
+    #    partage -- le CDN Bunny de TCK-105 quand CDN_ENABLED passe a true, ou le
+    #    cache disque de l'optimiseur next/image -- traite l'absence de "public"
+    #    de facon conservatrice des que la requete porte une autorisation.
+    #
+    #  . "stale-while-revalidate" manquait. C'est la directive qui evite le blanc :
+    #    passe la fraicheur, le cache ressert immediatement l'image connue et
+    #    revalide en arriere-plan, au lieu de faire attendre le rendu.
+    #
+    # ATTENTION -- pourquoi PAS "immutable", ni un an.
+    #
+    # C'est l'option qu'on retient d'ordinaire pour des noms de fichiers qui
+    # ressemblent a des empreintes. Elle est FAUSSE ici, et le dépôt en porte la
+    # preuve : RegenerateAgencyWatermarksJob invoque "media-library:regenerate",
+    # declenche par POST /api/agencies/{id}/regenerate-watermarks. La regeneration
+    # REECRIT les conversions A LA MEME URL -- le chemin ne depend que de l'id du
+    # media, jamais du contenu du fichier. Une agence qui change son filigrane
+    # verrait donc l'ancien servi pendant toute la duree annoncee, sans aucun moyen
+    # de le rattraper cote client.
+    #
+    # 7 jours est le plafond de ce risque, et c'est pour cela qu'il ne bouge pas.
+    # Ce qui rendrait "immutable" sur : que l'URL change quand le fichier change,
+    # par exemple un jeton derive de media.updated_at ajoute dans PropertyResource
+    # (que "media-library:regenerate" fait bouger, via markAsConversionGenerated).
+    # Tant que ce jeton n'existe pas, allonger cette duree est un pari sur le fait
+    # qu'aucune agence ne regenerera son filigrane.
+    #
+    # "expires off" precede le add_header a dessein : sans lui, nginx ajoute SON
+    # propre Cache-Control et la reponse en porte deux. Last-Modified et ETag sont
+    # emis independamment, donc la revalidation reste un 304 a vide.
+    #
+    # ATTENTION -- ECRIRE CE BLOC NE LE DEPLOIE PAS, exactement comme pour la
+    # compression : aucun workflow de ce depot n'execute server-setup.sh.
+
     # HTTP-only vhost. Certbot --nginx will add the 443 server block and a
     # 301 redirect on first run (see Next steps below).
     cat > "${vhost_file}" <<NGINX
@@ -249,7 +292,10 @@ server {
 
     location /storage/ {
         alias ${app_dir}/shared/storage/app/public/;
-        expires 7d;
+
+        # Voir le commentaire de setup_nginx_vhost, hors heredoc.
+        expires off;
+        add_header Cache-Control "public, max-age=604800, stale-while-revalidate=86400" always;
     }
 
     location / {

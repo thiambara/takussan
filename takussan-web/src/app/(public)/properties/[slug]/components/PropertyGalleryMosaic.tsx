@@ -39,6 +39,44 @@ function Tile({ photo, alt, index, sizes, priority, className, onOpen }: TilePro
   );
 }
 
+/**
+ * `sizes` de la mosaïque — **mesurés le 2026-08-24, viewport 1920 × 1000**.
+ *
+ * La mosaïque raisonnait en `vw` (`50vw`, `25vw`, `60vw`, `40vw`) alors qu'elle vit
+ * dans `max-w-7xl px-4 sm:px-6 lg:px-8` : au-delà de 1280 px le conteneur est figé à
+ * **1216 px** et un `vw` n'y décrit plus rien. Relevé sur une fiche à 5 photos :
+ *
+ * | tuile | occupée à l'écran | `sizes` déclaré | largeur demandée |
+ * |---|---|---|---|
+ * | grande (`col-span-2 row-span-2`) | 604 px | `50vw` → 960 px | **w=1920** |
+ * | petite (1 colonne) | 298 px | `25vw` → 480 px | **w=1080** |
+ *
+ * La grande tuile est l'image LCP de la fiche : elle demandait plus du triple de ce
+ * qu'elle affiche, sur la requête qui décide du ressenti de la page.
+ *
+ * Géométrie : grille `grid-cols-4` à gouttière `gap-2` (8 px). Une colonne vaut
+ * `(L − 3 × 8) / 4`, une tuile sur deux colonnes `2 × colonne + 8`. Avec L = 1216 px
+ * une fois plafonné : 298 px et 604 px — ce que la mesure rend exactement. En
+ * dessous de 1280 px, L = viewport − rembourrage, d'où les valeurs en `vw`.
+ *
+ * La mosaïque est `hidden md:grid` : aucun palier en dessous de 768 px n'est utile
+ * ici — c'est `PropertyMobileGallery` qui sert, et son `100vw` est juste.
+ */
+const TUILE_LARGE = '(max-width: 1279px) 48vw, 604px';
+const TUILE_PETITE = '(max-width: 1279px) 24vw, 298px';
+
+/** Disposition à deux photos : `grid-cols-[60fr_40fr]`, soit 725 px / 483 px au plafond. */
+const TUILE_60 = '(max-width: 1279px) 58vw, 725px';
+const TUILE_40 = '(max-width: 1279px) 39vw, 483px';
+
+/**
+ * Photo unique : la tuile occupe TOUTE la largeur du conteneur et, contrairement à
+ * la mosaïque, n'est pas `hidden md:grid` — elle sert aussi sur mobile.
+ * L'ancien `66vw` sous-estimait le besoin de 30 % à 1280 px (845 px déclarés pour
+ * 1216 px occupés), ce qui rend flou au lieu de rendre lourd.
+ */
+const TUILE_PLEINE = '(max-width: 1279px) 95vw, 1216px';
+
 export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: PropertyGalleryMosaicProps) {
   const t = useTranslations('property.detail');
 
@@ -56,7 +94,7 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
         photo={photos[0]}
         alt={title}
         index={0}
-        sizes="(max-width: 768px) 100vw, 66vw"
+        sizes={TUILE_PLEINE}
         priority
         onOpen={onOpenLightbox}
         className="w-full aspect-[16/7] rounded-xl"
@@ -78,8 +116,8 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
       >
         {photos.length === 2 && (
           <>
-            <Tile photo={photos[0]} alt={altOf(0)} index={0} sizes="60vw" priority onOpen={onOpenLightbox} className="rounded-l-xl" />
-            <Tile photo={photos[1]} alt={altOf(1)} index={1} sizes="40vw" onOpen={onOpenLightbox} className="rounded-r-xl" />
+            <Tile photo={photos[0]} alt={altOf(0)} index={0} sizes={TUILE_60} priority onOpen={onOpenLightbox} className="rounded-l-xl" />
+            <Tile photo={photos[1]} alt={altOf(1)} index={1} sizes={TUILE_40} onOpen={onOpenLightbox} className="rounded-r-xl" />
           </>
         )}
 
@@ -89,7 +127,7 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               photo={photos[0]}
               alt={altOf(0)}
               index={0}
-              sizes="50vw"
+              sizes={TUILE_LARGE}
               priority
               onOpen={onOpenLightbox}
               className="col-span-2 row-span-2 rounded-l-xl"
@@ -98,7 +136,7 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               photo={photos[1]}
               alt={altOf(1)}
               index={1}
-              sizes="50vw"
+              sizes={TUILE_LARGE}
               onOpen={onOpenLightbox}
               className="col-span-2 rounded-tr-xl"
             />
@@ -106,7 +144,7 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               photo={photos[2]}
               alt={altOf(2)}
               index={2}
-              sizes="50vw"
+              sizes={TUILE_LARGE}
               onOpen={onOpenLightbox}
               className="col-span-2 rounded-br-xl"
             />
@@ -119,7 +157,7 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               photo={photos[0]}
               alt={altOf(0)}
               index={0}
-              sizes="50vw"
+              sizes={TUILE_LARGE}
               priority
               onOpen={onOpenLightbox}
               className="col-span-2 row-span-2 rounded-l-xl"
@@ -128,12 +166,12 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               photo={photos[1]}
               alt={altOf(1)}
               index={1}
-              sizes="50vw"
+              sizes={TUILE_LARGE}
               onOpen={onOpenLightbox}
               className="col-span-2 rounded-tr-xl"
             />
-            <Tile photo={photos[2]} alt={altOf(2)} index={2} sizes="25vw" onOpen={onOpenLightbox} />
-            <Tile photo={photos[3]} alt={altOf(3)} index={3} sizes="25vw" onOpen={onOpenLightbox} className="rounded-br-xl" />
+            <Tile photo={photos[2]} alt={altOf(2)} index={2} sizes={TUILE_PETITE} onOpen={onOpenLightbox} />
+            <Tile photo={photos[3]} alt={altOf(3)} index={3} sizes={TUILE_PETITE} onOpen={onOpenLightbox} className="rounded-br-xl" />
           </>
         )}
 
@@ -143,15 +181,15 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
               photo={photos[0]}
               alt={altOf(0)}
               index={0}
-              sizes="50vw"
+              sizes={TUILE_LARGE}
               priority
               onOpen={onOpenLightbox}
               className="col-span-2 row-span-2 rounded-l-xl"
             />
-            <Tile photo={photos[1]} alt={altOf(1)} index={1} sizes="25vw" onOpen={onOpenLightbox} />
-            <Tile photo={photos[2]} alt={altOf(2)} index={2} sizes="25vw" onOpen={onOpenLightbox} className="rounded-tr-xl" />
-            <Tile photo={photos[3]} alt={altOf(3)} index={3} sizes="25vw" onOpen={onOpenLightbox} />
-            <Tile photo={photos[4]} alt={altOf(4)} index={4} sizes="25vw" onOpen={onOpenLightbox} className="rounded-br-xl" />
+            <Tile photo={photos[1]} alt={altOf(1)} index={1} sizes={TUILE_PETITE} onOpen={onOpenLightbox} />
+            <Tile photo={photos[2]} alt={altOf(2)} index={2} sizes={TUILE_PETITE} onOpen={onOpenLightbox} className="rounded-tr-xl" />
+            <Tile photo={photos[3]} alt={altOf(3)} index={3} sizes={TUILE_PETITE} onOpen={onOpenLightbox} />
+            <Tile photo={photos[4]} alt={altOf(4)} index={4} sizes={TUILE_PETITE} onOpen={onOpenLightbox} className="rounded-br-xl" />
           </>
         )}
       </div>

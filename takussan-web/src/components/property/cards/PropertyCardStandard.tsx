@@ -12,6 +12,8 @@ import {
   RENT_PERIOD_SHORT,
   type PropertyCardCommonProps,
 } from './types';
+import { staggerDelay } from '@/components/property/card-stagger';
+import { CARD_SIZES_STANDARD_ROW } from '@/components/property/card-image-sizes';
 
 /**
  * Standard 4:3 — variante de référence. Format proche de la PropertyCard
@@ -22,6 +24,7 @@ export function PropertyCardStandard({
   property,
   index = 0,
   priority = false,
+  sizes = CARD_SIZES_STANDARD_ROW,
 }: PropertyCardCommonProps) {
   const t = useTranslations('property.cards');
   const photo = property.main_photo_url ?? FALLBACK_IMAGE;
@@ -35,7 +38,7 @@ export function PropertyCardStandard({
   return (
     <article
       className="group w-[290px] shrink-0 animate-card-enter"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: staggerDelay(index) }}
     >
       <Link href={`/properties/${property.slug}`} className="block">
         <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted">
@@ -43,7 +46,7 @@ export function PropertyCardStandard({
             src={photo}
             alt={property.title}
             fill
-            sizes="290px"
+            sizes={sizes}
             priority={priority}
             className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
           />

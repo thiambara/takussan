@@ -11,6 +11,7 @@ import {
   RENT_PERIOD_SHORT,
   type PropertyCardCommonProps,
 } from './types';
+import { staggerDelay } from '@/components/property/card-stagger';
 
 /**
  * Compact 1:1 — variante carrée et dense. Format orienté scan rapide
@@ -28,7 +29,7 @@ export function PropertyCardCompact({
   return (
     <article
       className="group w-[210px] shrink-0 animate-card-enter"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: staggerDelay(index) }}
     >
       <Link href={`/properties/${property.slug}`} className="block">
         <div className="relative aspect-square rounded-xl overflow-hidden bg-muted">

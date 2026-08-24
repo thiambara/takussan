@@ -12,6 +12,7 @@ import {
   RENT_PERIOD_SHORT,
   type PropertyCardCommonProps,
 } from './types';
+import { staggerDelay } from '@/components/property/card-stagger';
 
 /**
  * Listing horizontal — image carrée à gauche, méta à droite.
@@ -34,7 +35,7 @@ export function PropertyCardListing({
   return (
     <article
       className="group w-[440px] shrink-0 animate-card-enter"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: staggerDelay(index) }}
     >
       <div className="flex gap-4 items-stretch p-3 rounded-2xl bg-card border border-border hover:shadow-[0_8px_24px_rgba(31,24,18,0.08)] transition-shadow">
         <Link href={`/properties/${property.slug}`} className="block shrink-0">
