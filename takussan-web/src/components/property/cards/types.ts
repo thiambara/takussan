@@ -8,6 +8,12 @@ export interface PropertyCardCommonProps {
   readonly index?: number;
   /** Mark the 1-2 above-the-fold cards as priority for next/image LCP. */
   readonly priority?: boolean;
+  /**
+   * `sizes` de `next/image`. Le défaut de chaque variante décrit sa largeur NATIVE ;
+   * toute surface qui étire la carte (`w-full`, colonne de grille) doit passer le
+   * sien — cf. `card-image-sizes.ts`, qui porte les relevés.
+   */
+  readonly sizes?: string;
 }
 
 export const RENT_PERIOD_SHORT: Record<RentPeriod, string> = {

@@ -7,6 +7,7 @@ import { Heart, MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
 import type { PropertyListItem, RentPeriod } from '@/types/property';
 import { getCardPhotoUrl } from './photoFallback';
+import { staggerDelay } from '@/components/property/card-stagger';
 
 interface PropertyCardWideProps {
   readonly property: PropertyListItem;
@@ -35,7 +36,7 @@ export function PropertyCardWide({ property, priority, index = 0 }: PropertyCard
   return (
     <article
       className="pg-card pg-card-enter group w-[440px] shrink-0"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: staggerDelay(index) }}
     >
       <div className="flex gap-4 items-stretch p-3 rounded-2xl bg-[var(--pg-cream)] border border-[var(--pg-hairline)] hover:shadow-[0_8px_24px_rgba(27,40,69,0.08)] transition-shadow">
         <Link href={`/properties/${property.slug}`} className="block shrink-0">

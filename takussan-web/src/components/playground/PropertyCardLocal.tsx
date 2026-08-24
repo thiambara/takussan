@@ -7,6 +7,7 @@ import { Heart, MapPin, Clock } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
 import type { PropertyListItem, RentPeriod } from '@/types/property';
 import { getCardPhotoUrl } from './photoFallback';
+import { staggerDelay } from '@/components/property/card-stagger';
 
 interface PropertyCardLocalProps {
   readonly property: PropertyListItem;
@@ -42,7 +43,7 @@ export function PropertyCardLocal({ property, priority, index = 0 }: PropertyCar
   return (
     <article
       className="pg-card pg-card-enter group w-[290px] shrink-0"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: staggerDelay(index) }}
     >
       <Link href={`/properties/${property.slug}`} className="block">
         <div className="pg-card-image-wrap pg-card-image relative pg-aspect-4-3">

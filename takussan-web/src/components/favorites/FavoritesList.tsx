@@ -9,6 +9,7 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { PropertyListItem } from '@/types/property';
+import { CARD_SIZES_FAVORITES_DASHBOARD } from '@/components/property/card-image-sizes';
 
 /**
  * Dashboard "Mes favoris" listing — Wave 3 / TCK-047.
@@ -100,6 +101,7 @@ export function FavoritesList() {
           property={normalizeFavoriteProperty(item)}
           index={i}
           priority={i < 3}
+          sizes={CARD_SIZES_FAVORITES_DASHBOARD}
         />
       ))}
     </div>

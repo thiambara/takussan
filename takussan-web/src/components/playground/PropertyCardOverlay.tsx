@@ -7,6 +7,7 @@ import { Heart } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import type { PropertyListItem, RentPeriod } from '@/types/property';
 import { getCardPhotoUrl } from './photoFallback';
+import { staggerDelay } from '@/components/property/card-stagger';
 
 interface PropertyCardOverlayProps {
   readonly property: PropertyListItem;
@@ -31,7 +32,7 @@ export function PropertyCardOverlay({ property, priority, index = 0 }: PropertyC
   return (
     <article
       className="pg-card pg-card-enter group w-[260px] shrink-0"
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: staggerDelay(index) }}
     >
       <Link href={`/properties/${property.slug}`} className="block">
         <div className="pg-card-image-wrap pg-card-image relative pg-aspect-3-4">
