@@ -136,12 +136,12 @@ quel environnement il tourne.*
       `composer.lock` et non dans `packages`, échouer en nommant le fichier
 - [x] Brancher la garde dans `.github/workflows/repo-ci.yml`, déclencheurs `takussan-api/app/**`,
       `takussan-api/composer.lock` et `scripts/**`
-- [ ] Vérifier sur la préproduction, après correctif, que la route rend bien un PDF
+- [x] Vérifier sur la préproduction, après correctif, que la route rend bien un PDF
 
 ## Critères d'acceptation
 
-- [ ] `GET` du reçu d'un paiement rend un PDF sur la **préproduction** — mesuré par une requête
-      réelle, pas déduit d'un test local
+- [x] `GET` du reçu d'un paiement rend un PDF sur la **préproduction** — mesuré par un appel réel,
+      pas déduit d'un test local
 - [x] La garde, **vérifiée par ablation** : remise dans l'état d'avant (Dompdf en dév seulement),
       elle doit échouer en nommant `app/Services/Payments/PaymentReceiptPdf.php`. Une garde qui
       n'a jamais été vue rouge sur le défaut qu'elle vise n'est pas vérifiée
@@ -192,3 +192,15 @@ passe parce qu'elle ne trouve plus sa cible est pire qu'aucune garde.*
 assertions. `CurrencyPdfRegressionTest` compare l'HTML pré-compilation et non le binaire, il ne
 dépendait donc pas du moteur ; la crainte inscrite dans les contraintes n'avait pas lieu d'être, ce
 que seule la lecture du test a pu dire.
+
+**Vérification sur la préproduction, après déploiement (2026-08-24, release `20260824170051`) :**
+
+```
+driver configure   : cloudflare
+Dompdf disponible  : false
+RECU OK : 30464 octets, entete %PDF-1.4
+```
+
+Les deux lignes vont ensemble et c'est tout l'intérêt : le reçu se génère **pendant que Dompdf reste
+absent de la release**. Un PDF rendu sur une release qui porterait le paquet ne prouverait rien —
+c'est l'ablation qui fait la preuve, pas le succès.
