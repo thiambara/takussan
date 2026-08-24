@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**333 tickets** — 13 ouverts, 319 livrés.
+**336 tickets** — 15 ouverts, 320 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 12 |
+| 📋 Todo | 14 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 319 |
+| ✅ Done | 320 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -45,6 +45,8 @@
 - [TCK-349](tickets/TCK-349-index-des-cles-etrangeres-nues.md) — Indexer les clés étrangères nues que la mesure justifie (85 restantes) `M · P3 · technique`
 - [TCK-350](tickets/TCK-350-alertes-de-recherche-sauvegardee-renotifient.md) — Les alertes de recherche sauvegardée renotifient les mêmes biens tous les jours `M · P1 · technique`
 - [TCK-351](tickets/TCK-351-deux-sources-de-libelles-de-bien.md) — Deux sources de libellés de bien s'affichent dans le même parcours — 44 divergences mesurées `M · P2 · technique`
+- [TCK-352](tickets/TCK-352-mailer-resend-declare-sans-dependance.md) — Le mailer `resend` est déclaré mais son paquet n'est pas une dépendance — aucun courriel n'est jamais parti `S · P1 · bug`
+- [TCK-354](tickets/TCK-354-dompdf-dependance-de-dev-utilisee-en-production.md) — Le reçu de paiement PDF ne peut pas se générer sur un environnement déployé : `dompdf/dompdf` est une dépendance de dév `S · P1 · bug`
 
 ## 🚧 Doing
 
@@ -60,7 +62,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 319
+## ✅ Done — 320
 
 <details>
 <summary><strong>Vague 44 — PostgreSQL : ce que la migration a rendu DISCUTABLE — recherche PG contre Meilisearch, géo (2026-08-21)</strong> — 1 ticket</summary>
@@ -584,7 +586,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 14 tickets</summary>
+<summary><strong>Sans vague</strong> — 15 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -600,6 +602,7 @@ _(aucun)_
 - [TCK-328](tickets/TCK-328-front-servi-sur-127-0-0-1-ne-s-hydrate-pas.md) — Le front servi sur `127.0.0.1` ne s'hydrate pas — Next 16 bloque ses ressources de dev, en silence `S · P2 · technique`
 - [TCK-329](tickets/TCK-329-profiletype-front-ignore-agency-admin.md) — Le type `ProfileType` du front ignore `agency_admin` — la barre supérieure affiche « undefined · <agence> » `S · P2 · front`
 - [TCK-330](tickets/TCK-330-saved-search-frequence-nulle-500.md) — Créer une recherche sauvegardée avec une fréquence d'alerte vide rend 500 `S · P1 · bug`
+- [TCK-353](tickets/TCK-353-aucun-environnement-deploye-ne-peut-etre-seede.md) — Aucun environnement déployé ne peut être seedé : `deploy.sh` installe `--no-dev`, les seeders exigent Faker `S · P2 · technique`
 
 </details>
 

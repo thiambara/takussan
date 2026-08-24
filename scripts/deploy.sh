@@ -187,6 +187,21 @@ cd "${RELEASE_DIR}/takussan-api"
 log "Checking platform requirements against the real PHP..."
 composer check-platform-reqs --no-dev
 
+# ⚠ Ce que `--no-dev` rend impossible AILLEURS, et qui ne se voit pas d'ici (TCK-353).
+#
+# `fakerphp/faker` est une dépendance de dév, et les 48 fichiers de seeders passent tous par
+# `Database\Seeders\Support\SeedingContext`, qui instancie `Faker\Factory`. Sur toute release
+# produite par ce script, `php artisan db:seed` meurt donc sur `Class "Faker\Factory" not found`
+# — sur tous les environnements, depuis toujours. Mesuré le 2026-08-24.
+#
+# Le drapeau reste : c'est le seed qui a besoin d'un autre chemin, pas le déploiement.
+# `scripts/seed-environnement.sh` le fournit — une copie jetable de la release, avec les
+# dépendances de dév, supprimée après. Ce script-ci ne seede JAMAIS : la commande écrase des
+# données, et un déploiement ne doit pas pouvoir en écraser.
+#
+# *Trois décisions justes — `--no-dev` ici, Faker en `require-dev`, les seeders qui l'utilisent —
+# ne se contredisent nulle part et produisent quand même une capacité absente. Le défaut ne vit
+# dans aucun de ces trois fichiers, il vit entre eux ; c'est pourquoi aucune garde ne l'attrape.*
 log "Installing Composer dependencies..."
 composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 

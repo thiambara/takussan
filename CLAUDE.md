@@ -299,9 +299,23 @@ les distinguer.**
   sur l'**authentification MySQL du compte `takussan_prod`**, et **se déroule proprement en
   arrière**. D'où le 404 : `https://api.takussan.com/up` → **404** quand
   `https://preview.api.takussan.com/up` → **200**, sur le même serveur (dette D-04, TCK-288).
-  ⚠ Ce journal ne dit **pas** de quel côté est l'écart — secret périmé, compte absent, *grant*
-  manquant : les trois se ressemblent ici. Ne pas le deviner ; l'ardoise D-04 le pose comme la
-  première mesure à prendre.
+  ⚠ Ce journal ne disait **pas** de quel côté était l'écart — secret périmé, compte absent, *grant*
+  manquant se ressemblent tous ici. **La mesure a été prise le 2026-08-24, en se connectant, et
+  l'écart tient en un caractère :**
+
+  ```
+  $ grep DB_USERNAME /var/www/takussan/shared/.env      → takussan_prod   (13 caractères)
+  $ mysql -N -e 'SELECT user, LENGTH(user) FROM mysql.user WHERE user LIKE "takussan%";'
+    takussan_pre  12
+    takussan_pro  12                                    ← le compte qui EXISTE
+  $ mysql -N -e 'SHOW GRANTS FOR "takussan_pro"@"localhost";'
+    GRANT ALL PRIVILEGES ON `takussan_prod`.* TO `takussan_pro`@`localhost`
+  ```
+
+  La base existe, les droits sont posés — au nom d'un compte que le `.env` n'écrit pas. *Deux
+  identifiants qui diffèrent d'un caractère ne se vérifient pas en les relisant :* `LENGTH()` a
+  tranché en une commande ce que huit jours de relecture n'avaient pas attrapé. Le détail, et ce
+  que la bascule PostgreSQL y change, sont dans TCK-288.
 
 **Et c'est cette combinaison qui coûte, pas chacun des deux faits.** Le front de production est
 public et son bundle porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` — l'hôte qui rend 404.
