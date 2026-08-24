@@ -1,7 +1,7 @@
 {
   "_lisez_moi": "Catalogue des DRIVERS effectivement déclarés par les environnements déployés. Pendant de `versions.json` (TCK-298) pour les drivers plutôt que pour les versions, et même discipline : chaque valeur porte son `etat`, `mesure` ou `non_mesure`, et une valeur `mesure` cite la commande et la date qui l'ont produite. Ce fichier dit ce que les FICHIERS `.env` DÉCLARENT — jamais ce que la machine exécute, qui est un autre fait et qui appartient à TCK-288.",
   "_pourquoi_ce_fichier": "`docs/configuration.md` se contredisait lui-même : sa ligne 422 affirmait « la production tourne en CACHE_STORE=database » quand sa checklist §5.7 prescrivait `CACHE_STORE=redis`, et les deux `.env` livrés déclarent `redis`. Trois réponses, un seul sujet. Le défaut n'est pas qu'une des trois soit fausse — c'est qu'il y en ait trois : une valeur recopiée dans trois documents diverge au premier changement, et rien ne le signale.",
-  "_ce_que_ce_fichier_ne_dit_pas": "Que ces drivers FONCTIONNENT. `.env.prod` déclare `CACHE_STORE=redis` et `REDIS_HOST=127.0.0.1`, mais `scripts/server-setup.sh` n'installe rien et aucune mesure du dépôt ne prouve qu'un Redis écoute sur le serveur. La production n'ayant JAMAIS été déployée (D-04, re-vérifié le 2026-08-16 : `api.takussan.com/up` → 404 quand `preview.api.takussan.com/up` → 200), personne ne l'a découvert. C'est le premier risque à lever dans TCK-288, et il ne se lève qu'en se connectant.",
+  "_ce_que_ce_fichier_ne_dit_pas": "Que ces drivers FONCTIONNENT — sauf pour ceux qui portent une note de vérification. L'avertissement historique portait sur Redis : `.env.prod` déclarait `CACHE_STORE=redis` sans qu'aucune mesure ne prouve qu'un Redis écoute. **C'est prouvé depuis le 2026-08-24** : `redis-server` écoute sur `127.0.0.1:6379` et `redis-cli ping` rend `PONG` (sans mot de passe — `REDIS_PASSWORD` vaut la chaîne littérale `null`, que Laravel convertit en `null` ; l'écoute est restreinte à la boucle locale). Meilisearch écoute de même sur `127.0.0.1:7700`. Ce que ce fichier ne dit toujours pas : que la PRODUCTION fonctionne — elle n'a jamais été déployée (D-04).",
   "_mesure": {
     "commande_locale": "grep -E '^(CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION|MAIL_MAILER|SESSION_SECURE_COOKIE|SESSION_SAME_SITE)=' takussan-api/.env.preview takussan-api/.env.prod",
     "commande_serveur": "ssh <serveur> \"grep -E '^(CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION)=' /var/www/takussan/.env; redis-cli ping; php -v\"",
@@ -19,6 +19,12 @@
         "resultat": "200"
       },
       "drivers": {
+        "DB_CONNECTION": {
+          "valeur": "pgsql",
+          "etat": "mesure",
+          "date": "2026-08-24",
+          "note": "Bascule ADR-0020 effectuée le 2026-08-24. Vérifié SUR le serveur, pas déduit de la configuration : `SELECT datname, datcollate, datctype, encoding FROM pg_database` rend `takussan_preview|C|C|UTF8` sur PostgreSQL 17.11, et l'API répond 200 sur `/api/public/properties/search` avec des données."
+        },
         "CACHE_STORE": {
           "valeur": "redis",
           "etat": "mesure",
@@ -53,6 +59,12 @@
         "note": "D-04 / TCK-288 — la chaîne de déploiement n'a jamais tourné. Le fichier existe, l'environnement non."
       },
       "drivers": {
+        "DB_CONNECTION": {
+          "valeur": "mysql",
+          "etat": "mesure",
+          "date": "2026-08-24",
+          "note": "⚠ C'est ce que `.env.prod` DÉCLARE, et c'est un ÉCART avec ADR-0020, pas un état acceptable. La production n'est toujours pas déployée (D-04) ; corriger cette valeur est un acte de déploiement et appartient à TCK-288. Le serveur, lui, porte PostgreSQL 17.11 depuis le 2026-08-24 — mais ni rôle ni base de production n'existent encore."
+        },
         "CACHE_STORE": {
           "valeur": "redis",
           "etat": "mesure",
@@ -92,5 +104,5 @@
       "corrige_par": null
     }
   ],
-  "_moteur_de_base": "ADR-0020 (2026-08-21) — le dépôt est passé à PostgreSQL 17 sur tous les environnements, suite de tests comprise. `DB_CONNECTION` est DÉLIBÉRÉMENT absent des relevés ci-dessous : ce fichier ne porte que des valeurs MESURÉES, et aucune production PostgreSQL n'existe encore (D-04). Ce qui a été mesuré, c'est le conteneur de DÉVELOPPEMENT, le 2026-08-21 : `17.11 (Debian 17.11-1.pgdg12+2) | C | C | UTF8`, extension `vector` disponible en 0.8.6 et NON installée. Le `.env.prod` hors dépôt déclare encore l'ancien moteur : le corriger est un acte de déploiement, il appartient à TCK-288. **Inscrire ici la valeur cible avant de l'avoir relevée sur le serveur referait exactement la faute de `mariadb:11.4`** — une configuration prise pour une mesure."
+  "_moteur_de_base": "ADR-0020 (2026-08-21) — PostgreSQL 17 sur tous les environnements, suite de tests comprise. `DB_CONNECTION` était DÉLIBÉRÉMENT absent de ce catalogue tant qu'aucune valeur n'avait été relevée sur une machine. **Il y entre le 2026-08-24, mesuré des deux côtés** : la préproduction tourne effectivement sur PostgreSQL 17.11 (base `takussan_preview`, `C|C|UTF8`, rôle sans CREATEDB, `pgvector` 0.8.6 disponible et non installé conformément à ADR-0020 §2) ; la production, elle, déclare toujours `mysql` et n'est toujours pas déployée. **La discipline ne change pas : ce fichier enregistre ce qui a été relevé, jamais ce qui est visé.** Inscrire `pgsql` du côté production avant qu'un serveur ne le serve referait la faute de `mariadb:11.4` — une configuration prise pour une mesure."
 }

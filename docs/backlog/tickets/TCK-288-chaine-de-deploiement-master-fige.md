@@ -7,8 +7,8 @@ family: technique
 estimate: M
 wave: null
 created: 2026-08-12
-updated: 2026-08-12
-depends_on: [TCK-296, TCK-299, TCK-300, TCK-332]
+updated: 2026-08-24
+depends_on: [TCK-296, TCK-299, TCK-300, TCK-332, TCK-352]
 blocks: []
 spec_refs:
   features: []
@@ -132,6 +132,58 @@ L'ordre compte, et une étape omise déploierait l'état du 2026-05-18 :
 alors qu'il **n'existe sur aucune branche** — `dev`, `preview` et `master` l'ignorent tous. Ses deux
 seuls runs ont **échoué** (18 et 19 mai). C'est l'enregistrement résiduel d'un workflow supprimé :
 inoffensif, mais il encombre `gh workflow list` et fait croire à un quatrième pipeline.
+
+## ✅ L'échec du 2026-08-15 est élucidé — mesuré le 2026-08-24, sur le serveur
+
+CLAUDE.md posait trois hypothèses et interdisait de deviner laquelle : *« secret périmé, compte
+absent, grant manquant : les trois se ressemblent ici »*. La connexion au serveur tranche : **c'est
+le nom du compte dans le secret, et l'écart tient en un caractère.**
+
+```
+$ grep DB_USERNAME /var/www/takussan/shared/.env
+DB_USERNAME=takussan_prod                       ← 13 caractères
+
+$ mysql -N -e 'SELECT user, LENGTH(user) FROM mysql.user WHERE user LIKE "takussan%";'
+takussan_pre    12
+takussan_pro    12                              ← le compte qui existe
+
+$ mysql -N -e 'SHOW GRANTS FOR "takussan_pro"@"localhost";'
+GRANT ALL PRIVILEGES ON `takussan_prod`.* TO `takussan_pro`@`localhost`
+```
+
+La base `takussan_prod` **existe** (vide, 0 table) et les droits sont posés — mais au nom d'un compte
+que le `.env` n'écrit pas. D'où `Access denied for user 'takussan_prod'@'localhost'`.
+
+**Aucune des trois hypothèses n'était fausse au sens strict** : le compte nommé par le secret était
+bien absent. Ce que la mesure ajoute, c'est qu'il n'a jamais existé — il n'y a rien à restaurer, il y
+a un nom à corriger d'un côté ou de l'autre.
+
+> *Deux identifiants qui diffèrent d'un caractère et se ressemblent à l'œil ne se vérifient pas en
+> les lisant.* `LENGTH()` a tranché en une commande ce qu'aucune relecture n'avait attrapé en huit
+> jours.
+
+### Ce que cette mesure change pour la suite du ticket
+
+- **Le moteur a changé depuis** : ADR-0020 a fait passer le dépôt à PostgreSQL 17, et la
+  préproduction y tourne depuis le 2026-08-24. Le compte MySQL `takussan_pro` n'a donc plus d'objet.
+  Ce qu'il faut créer côté production est un **rôle PostgreSQL**, et une base en
+  `--encoding=UTF8 --locale=C` — la manœuvre exacte, éprouvée sur la préproduction le 2026-08-24,
+  est celle du runbook `docs/infra/premier-deploiement.md` §1.
+- **Le serveur est prêt** : PostgreSQL 17.11 et `pgvector` 0.8.6 y sont installés, et `pdo_pgsql` est
+  présent depuis la même date (ce qui a imposé de monter PHP de 8.4.18 à 8.4.24, le PPA ne livrant
+  plus la 8.4.18). Il ne reste que le rôle, la base, et le `.env` de production.
+- **Le `.env` de production déclare encore `DB_CONNECTION=mysql`** — à corriger dans le secret
+  `ENV_FILE`, pas sur le serveur : `deploy.sh` réécrit `shared/.env` depuis le secret à chaque
+  déploiement.
+- **La leçon de nommage se reporte telle quelle.** Le rôle PostgreSQL et la valeur de `DB_USERNAME`
+  doivent être copiés-collés depuis la même source, jamais retapés.
+
+### Résidu supplémentaire, mesuré le 2026-08-24
+
+`/var/www/takussan/current` est un lien symbolique **qui pointe sur lui-même**, et
+`/var/www/takussan/releases/` est **vide** : c'est ce que le `rollback()` de `deploy.sh` a laissé
+après l'échec du 2026-08-15. Sans conséquence tant que rien ne sert, mais le premier déploiement
+réussi doit soit l'écraser proprement, soit être précédé d'un `rm`.
 
 ## Contraintes strictes (métier)
 

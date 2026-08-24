@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**333 tickets** — 13 ouverts, 319 livrés.
+**335 tickets** — 15 ouverts, 319 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 12 |
+| 📋 Todo | 14 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -45,6 +45,8 @@
 - [TCK-349](tickets/TCK-349-index-des-cles-etrangeres-nues.md) — Indexer les clés étrangères nues que la mesure justifie (85 restantes) `M · P3 · technique`
 - [TCK-350](tickets/TCK-350-alertes-de-recherche-sauvegardee-renotifient.md) — Les alertes de recherche sauvegardée renotifient les mêmes biens tous les jours `M · P1 · technique`
 - [TCK-351](tickets/TCK-351-deux-sources-de-libelles-de-bien.md) — Deux sources de libellés de bien s'affichent dans le même parcours — 44 divergences mesurées `M · P2 · technique`
+- [TCK-352](tickets/TCK-352-mailer-resend-declare-sans-dependance.md) — Le mailer `resend` est déclaré mais son paquet n'est pas une dépendance — aucun courriel n'est jamais parti `S · P1 · bug`
+- [TCK-353](tickets/TCK-353-aucun-environnement-deploye-ne-peut-etre-seede.md) — Aucun environnement déployé ne peut être seedé : `deploy.sh` installe `--no-dev`, les seeders exigent Faker `S · P2 · technique`
 
 ## 🚧 Doing
 
