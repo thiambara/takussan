@@ -125,8 +125,9 @@ quel environnement il tourne.*
 - [ ] Router `PaymentReceiptPdf` par `App\Services\Pdf\DocumentPdfService` — **tranché par la
       mesure ci-dessus**, plus par un arbitrage. Ne pas déclarer `dompdf/dompdf` en `require` :
       ce serait livrer un moteur que la production n'emploiera pas
-- [ ] Décider du sort des DEUX gabarits — `payments/receipt.blade.php` (celui du contournement) et
-      `pdf/receipts/rent.blade.php` (celui du service central). Converger, ou dire pourquoi non
+- [x] Décider du sort des DEUX gabarits — **convergé** : `payments/receipt.blade.php` est
+      supprimé et remplacé par `pdf/receipts/booking.blade.php`, qui étend `pdf.layouts.base`
+      comme ses voisins. `forLeasePayment()`, sans aucun appelant, est supprimée avec lui
 - [x] ~~Un test qui échoue quand le moteur PDF est absent~~ — **abandonné, et c'est le bon
       résultat** : la suite tourne avec les dépendances de dév installées, donc aucun test ne peut
       distinguer « disponible ici » de « livré ». Un `class_exists` dans un test serait vert des
@@ -136,12 +137,12 @@ quel environnement il tourne.*
       `composer.lock` et non dans `packages`, échouer en nommant le fichier
 - [x] Brancher la garde dans `.github/workflows/repo-ci.yml`, déclencheurs `takussan-api/app/**`,
       `takussan-api/composer.lock` et `scripts/**`
-- [ ] Vérifier sur la préproduction, après correctif, que la route rend bien un PDF
+- [x] Vérifier sur la préproduction, après correctif, que la route rend bien un PDF
 
 ## Critères d'acceptation
 
-- [ ] `GET` du reçu d'un paiement rend un PDF sur la **préproduction** — mesuré par une requête
-      réelle, pas déduit d'un test local
+- [x] `GET` du reçu d'un paiement rend un PDF sur la **préproduction** — mesuré par un appel réel,
+      pas déduit d'un test local
 - [x] La garde, **vérifiée par ablation** : remise dans l'état d'avant (Dompdf en dév seulement),
       elle doit échouer en nommant `app/Services/Payments/PaymentReceiptPdf.php`. Une garde qui
       n'a jamais été vue rouge sur le défaut qu'elle vise n'est pas vérifiée
@@ -192,3 +193,54 @@ passe parce qu'elle ne trouve plus sa cible est pire qu'aucune garde.*
 assertions. `CurrencyPdfRegressionTest` compare l'HTML pré-compilation et non le binaire, il ne
 dépendait donc pas du moteur ; la crainte inscrite dans les contraintes n'avait pas lieu d'être, ce
 que seule la lecture du test a pu dire.
+
+**Vérification sur la préproduction, après déploiement (2026-08-24, release `20260824170051`) :**
+
+```
+driver configure   : cloudflare
+Dompdf disponible  : false
+RECU OK : 30464 octets, entete %PDF-1.4
+```
+
+Les deux lignes vont ensemble et c'est tout l'intérêt : le reçu se génère **pendant que Dompdf reste
+absent de la release**. Un PDF rendu sur une release qui porterait le paquet ne prouverait rien —
+c'est l'ablation qui fait la preuve, pas le succès.
+
+## Convergence des gabarits — la décision, et ce qu'elle a découvert (2026-08-24)
+
+Le ticket laissait ouvert le sort des deux gabarits. **Tranché : convergence sur le système
+partagé**, et ce n'est pas un arbitrage de goût — le gabarit contourné portait un second défaut,
+que la lecture seule n'avait pas révélé.
+
+`payments/receipt.blade.php` formatait le montant à la main :
+
+```blade
+{{ number_format($amount, 0, ',', ' ') }} {{ $currency }}
+```
+
+Mesuré, en rendant l'ancien gabarit pour une agence en EUR :
+
+```
+montant rendu par l ANCIEN gabarit (agence EUR) : 250 000 EUR
+contient le symbole € : false
+```
+
+TCK-084 impose `@currency`, qui rend **250 000,00 €**. La quittance de réservation y échappait
+depuis toujours, et `CurrencyPdfRegressionTest` ne la couvrait pas — ses trois cas visent
+`pdf.receipts.rent`, `pdf.invoices.default` et `pdf.leases.contract`. *Un gabarit hors du système
+partagé n'échoue pas : il rend quelque chose de plausible, et personne ne compare.*
+
+En héritant de `pdf.layouts.base`, la quittance récupère aussi le logo de l'agence, la pagination
+et la mention « Document généré le … — Takussan » du pied partagé, qu'elle n'avait pas.
+
+**`forLeasePayment()` est supprimée** — zéro appelant, mesuré (`grep -rn "forLeasePayment" app/
+routes/ tests/`). La quittance de bail est servie par `DocumentPdfController` avec
+`pdf.receipts.rent`. La garder, c'était laisser le prochain à en avoir besoin câbler celle-ci et
+livrer un document différent de celui que le produit rend déjà.
+
+**Ce que les tests existants ne pouvaient PAS attraper, et la parade.**
+`test_customer_can_download_paid_booking_payment_receipt_pdf` vérifie que la route rend des octets
+`%PDF-`. C'est vrai du service central comme de l'ancien `new Dompdf(…)`, et vrai de n'importe quel
+gabarit : un retour en arrière — sur le moteur **ou** sur le gabarit — le laisserait vert.
+`tests/Feature/Services/PaymentReceiptPdfTest.php` épingle donc la DÉCISION : quel gabarit, par
+quel service, avec quelles clés. Vérifié en RED avant le correctif (deux échecs), vert après.
