@@ -1,13 +1,13 @@
 ---
 id: TCK-348
 title: "Préproduction : la compression n'est pas active, et la branche est 34 commits derrière `dev`"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 45
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-08-24
 depends_on: []
 blocks: []
 spec_refs:
@@ -98,30 +98,66 @@ sont recevables ; la seconde est plus durable.
 
 ## Delta à produire
 
-- [ ] **Décider** : reporter le bloc gzip à la main sur le serveur, ou ajouter à `deploy.sh` un pas qui
-      applique le vhost (et rendre alors ce pas idempotent et vérifié par `nginx -t`). La seconde
-      option supprime la classe entière de dette « écrit dans le dépôt, jamais appliqué » ; c'est
-      pourquoi elle mérite d'être pesée plutôt que d'aller au plus court.
-- [ ] **Aligner `preview` sur `dev`** — et d'abord regarder les **4 commits propres** de `preview` :
-      ils peuvent être un correctif d'urgence que `dev` n'a jamais reçu.
-- [ ] Re-mesurer, et consigner la mesure d'après à côté de celle d'avant.
+- [x] **Décidé — ni l'une ni l'autre des deux options énoncées.** Le bloc gzip est posé dans
+      `/etc/nginx/conf.d/gzip.conf`, au niveau `http`, et non dans un vhost. Motif : `server-setup.sh`
+      réécrit les vhosts avec `cat >` sans lire ce qui s'y trouvait — une directive posée dans un
+      vhost, à la main **ou** par `deploy.sh`, disparaîtrait au prochain provisionnement, en silence.
+      *La question n'était pas « qui applique le vhost » mais « pourquoi la compression vivrait-elle
+      dans un fichier qu'un autre script réécrit ».*
+- [x] **`preview` est alignée sur `dev`** — et ses commits propres ne portaient rien : voir AC4.
+- [x] Mesure d'après consignée ci-dessous, à côté de celle d'avant.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `curl -sI -H 'Accept-Encoding: gzip' …/api/public/properties/search?per_page=20` rend un
+- [x] AC1 — `curl -sI -H 'Accept-Encoding: gzip' …/api/public/properties/search?per_page=20` rend un
       `Content-Encoding: gzip`, et le corps compressé est **mesuré** (l'ordre de grandeur attendu est
       ~3,2 ko contre 21,3 ko).
-- [ ] AC2 — la même requête rend un **ETag**, et une seconde requête portant `If-None-Match` rend
+- [x] AC2 — la même requête rend un **ETag**, et une seconde requête portant `If-None-Match` rend
       **304**. *Sans cet AC, on aurait compressé une réponse que personne ne revalide.*
-- [ ] AC3 — `/api/public/properties/discovery` rend `Vary` contenant `Accept-Language` **et**
+- [x] AC3 — `/api/public/properties/discovery` rend `Vary` contenant `Accept-Language` **et**
       `Authorization`. C'est le seul défaut de TCK-341 qui vivait réellement en production.
-- [ ] AC4 — le sort des **4 commits propres** de `origin/preview` est écrit : reportés sur `dev`,
+- [x] AC4 — le sort des **4 commits propres** de `origin/preview` est écrit : reportés sur `dev`,
       ou constatés obsolètes avec la raison. *Une branche qu'on écrase sans regarder ce qu'elle porte
       est une régression qu'on ne saura pas nommer.*
-- [ ] AC5 — si le choix se porte sur l'automatisation : l'application du vhost est **idempotente** et
+- [x] AC5 — si le choix se porte sur l'automatisation : l'application du vhost est **idempotente** et
       un second passage ne casse rien. Prouvé en le jouant deux fois.
 
 ## Ce que ce ticket ne fait pas
 
 - Il ne traite pas la production (`api.takussan.com` → 404) : c'est [TCK-288](TCK-288-premiere-mise-en-production.md).
 - Il ne touche pas au cache applicatif, laissé hors périmètre par TCK-341.
+
+---
+
+## Mesure d'après — 2026-08-24, sur `preview.api.takussan.com`
+
+Correctif : `/etc/nginx/conf.d/gzip.conf` (niveau `http`, hors vhost), `gzip_vary on`,
+`gzip_proxied any`, `gzip_comp_level 5`, `gzip_min_length 512`, et un `gzip_types` qui nomme
+`application/json`. `nginx -t` avant chaque rechargement.
+
+**Le relevé du 2026-08-22 était exact mais incomplet.** Il disait « `gzip_types` vaut `text/html` seul
+et `gzip_proxied` vaut `off` ». Vérifié sur la machine : `nginx.conf` ne portait **que** `gzip on;`,
+sans aucune autre directive gzip — tout le reste venait des défauts. La conséquence se voyait à l'œil
+nu et personne ne l'avait regardée : `/up`, qui est du `text/html`, **était compressé**, pendant
+qu'aucune réponse JSON ne l'était. *Le symptôme portait sa propre explication.*
+
+| Critère | Avant (2026-08-22) | Après (2026-08-24) |
+|---|---|---|
+| AC1 · `search?per_page=20` | aucun `Content-Encoding`, 21 300 o | `Content-Encoding: gzip` — **3 813 o** contre 20 495 o en `identity`, facteur **5,4** |
+| AC2 · ETag / 304 | absent du relevé | `ETag: "8dedc5210f8d0f003b9c9ddf9fd47da5"`, puis `If-None-Match` → **304**, 0 octet |
+| AC3 · `Vary` sur `discovery` | `Vary: Origin` seul | `Vary: Accept-Language, Authorization, Origin` |
+| AC4 · commits propres de `preview` | 4, sort inconnu | **8, tous des commits de fusion `dev` → `preview`** ; `git diff --stat origin/dev origin/preview` rend **0 ligne** — les arbres sont identiques, aucun correctif d'urgence n'y dormait |
+| AC5 · idempotence | — | écrire un fichier de `conf.d/` est idempotent par construction ; appliqué deux fois, `nginx -t` vert les deux fois |
+
+⚠️ **Deux erreurs de MESURE, les miennes, corrigées — et elles se ressemblent.** Ma première
+extraction de l'ETag a rendu « aucun » alors que l'en-tête était bien présent (découpage fautif sur
+le préfixe `W/`), et mon premier `curl` comparait `gzip` à `identity` sans voir que curl ne décode
+pas sans `--compressed`. *Une commande de vérification qui se trompe ne rend pas une erreur : elle
+rend un résultat, et ce résultat a exactement la forme de la réponse attendue.*
+
+## Ce que ce ticket laisse au suivant
+
+La compression est posée **sur le serveur**, pas dans le dépôt. Aucune garde ne la protège : une
+réinstallation, ou un `server-setup.sh` qui apprendrait un jour à écrire dans `conf.d/`, la
+reprendrait sans que rien ne le dise. Le fichier porte son propre motif en en-tête — c'est le seul
+mécanisme dont il dispose, et il ne vaut que pour qui l'ouvre.
