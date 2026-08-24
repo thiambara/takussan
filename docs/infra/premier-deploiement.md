@@ -248,6 +248,10 @@ Vérifier enfin dans le journal du déploiement qu'aucun `WARNING: aucune unité
 consomme la file '…'` n'apparaît : `deploy.sh` lit les **unités réelles** et n'échoue pas
 là-dessus — il se contente de le dire.
 
+> Un déploiement ne peuple **jamais** la base : `deploy.sh` joue `migrate --force`, rien de plus.
+> Pour des données, voir [Peupler un environnement déployé](#peupler-un-environnement-déployé)
+> plus bas — et savoir que `php artisan db:seed` **ne marche pas** sur une release déployée.
+
 ## Étape 4 — Déployer `dev` en production, à la main
 
 C'est le geste pour lequel l'entrée `branch` existe.
@@ -295,6 +299,77 @@ Une fois la production servie et vérifiée, la question posée par TCK-288 se p
 faits : garder `push: master` comme déclencheur de production, ou n'y laisser que le
 `workflow_dispatch` et sa confirmation typée. Le choix se prend **après** ce premier déploiement,
 pas avant — c'est ce que dit l'en-tête de `deploy.yml`.
+
+---
+
+## Peupler un environnement déployé
+
+**Depuis le poste, une commande :**
+
+```sh
+scripts/seed-remote.sh preview            # seed par-dessus les données existantes
+scripts/seed-remote.sh preview --fresh    # ⚠ migrate:fresh AVANT — DÉTRUIT tout
+```
+
+`--fresh` demande de retaper `preview` avant de partir. Compter **~30 min** avec
+`SEED_DOWNLOAD_MEDIA=true` (mesuré : 30 min 42 s le 2026-08-24, pour 836 biens et 3431 médias).
+Un seul seeder : `scripts/seed-remote.sh preview --class='Database\Seeders\FooSeeder'`.
+
+> ⚠️ **L'API continue de servir pendant l'opération, et elle sert une base en cours de
+> reconstruction.** Le seed n'a pas de transaction d'ensemble : avec `--fresh`, les tables sont
+> vides à la première seconde et se remplissent pendant une demi-heure. Ce n'est pas un problème
+> sur la préproduction — c'est un problème si quelqu'un fait une démonstration dessus au même
+> moment.
+
+Si l'enveloppe ne marche pas, le script serveur reste appelable directement — c'est pour ça qu'il
+est un fichier à part :
+
+```sh
+ssh takussan 'bash /var/www/takussan-preview/seed-environnement.sh /var/www/takussan-preview --fresh'
+```
+
+**Si la connexion tombe en cours de route, l'opération, elle, continue** — c'est mesuré, pas
+supposé : le client SSH est mort au milieu d'un `--fresh` le 2026-08-24 et le seed distant est allé
+au bout. Ne pas relancer avant d'avoir regardé. Le compte rendu complet est sur le serveur, écrasé
+à chaque exécution, et la présence du répertoire de travail dit si c'est encore en cours :
+
+```sh
+ssh takussan 'tail -20 /var/www/takussan-preview/seed-environnement.log'
+ssh takussan 'pgrep -af seed-environnement.sh || echo "AUCUN SEED EN COURS"'
+```
+
+> ⚠️ **Lire le processus, pas seulement la présence du répertoire de travail — et ne jamais lire
+> une commande muette comme une réponse.** Une boucle d'attente écrite pendant ce chantier
+> testait `test -d …/seed-workspace` à travers `ssh` et sortait dès que la commande rendait faux :
+> une connexion SSH qui échoue rend faux elle aussi, et la boucle a annoncé « terminé » sur un
+> seed qui tournait encore. *Une mesure qui n'a pas pu être prise et une mesure qui rend « non »
+> se ressemblent — il faut exiger le « oui » ou le « non » explicite, et traiter le silence comme
+> une absence de mesure.*
+
+**Pourquoi ça ne peut pas être `php artisan db:seed`.** `deploy.sh` installe en `--no-dev`,
+`fakerphp/faker` est une dépendance de dév, et les 48 fichiers de seeders passent tous par
+`Database\Seeders\Support\SeedingContext`, qui l'instancie. Sur toute release produite par la
+chaîne de déploiement, la commande meurt donc sur `Class "Faker\Factory" not found` — sur tous les
+environnements, depuis toujours. Ce n'est pas un effet de la bascule PostgreSQL : le défaut n'était
+simplement jamais apparu, la préproduction n'ayant jamais été re-peuplée après un déploiement.
+
+`seed-environnement.sh` copie la release en service (`cp -a`, qui préserve les liens `.env` et
+`storage` vers `shared/`), installe les dépendances de dév **dans la copie**, seede depuis elle,
+puis la supprime. La release en service n'est jamais modifiée, et le script le **vérifie** aux deux
+bouts — `class_exists("Faker\Factory")` sur son autoloader doit rendre `false` avant comme après.
+Il refuse de partir si Faker y est déjà présent : cela voudrait dire qu'une opération précédente
+l'a contaminée, et un seed réussi masquerait l'écart.
+
+Il réindexe aussi Meilisearch explicitement à la fin. Ce n'est pas de la ceinture-bretelles : avec
+`SCOUT_QUEUE=true`, le seed n'indexe pas, il empile des jobs — et le 2026-08-24, **quatre index
+sur sept** sont restés vides après un seed complet (`agencies`, `customers`, `users`,
+`maintenance_requests`), sans une seule erreur nulle part.
+
+**La production est hors périmètre**, des deux côtés : le tableau des environnements de
+`seed-remote.sh` ne la nomme pas, et `seed-environnement.sh` refuse `/var/www/takussan` ainsi que
+tout `.env` déclarant `APP_ENV=production`.
+
+Détail et raisonnement : [TCK-353](../backlog/tickets/TCK-353-aucun-environnement-deploye-ne-peut-etre-seede.md).
 
 ---
 
