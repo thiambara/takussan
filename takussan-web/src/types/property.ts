@@ -86,6 +86,22 @@ export interface PropertyPhoto {
   id: number;
   thumbnail: string;
   preview: string;
+  /**
+   * TCK-356 — la plus grande image servie au PUBLIC (jusqu'à 1600 px de large).
+   *
+   * `preview` plafonne à 800 px : la grande tuile de la fiche en demande 1450 px
+   * physiques en DPR 2, la lightbox davantage. Aucun `sizes` ne rattrape une source
+   * qui n'existe pas à la bonne taille.
+   *
+   * `full` est filigranée comme les autres conversions ; le fichier source ne sort
+   * qu'à un appelant autorisé, via `original`.
+   */
+  full: string;
+  /**
+   * Le fichier source pour qui détient `viewRaw`, sinon `full` (TCK-106).
+   * Ce n'est donc PAS l'original pour un visiteur — c'est la plus grande image
+   * filigranée qu'on accepte de lui servir.
+   */
   original: string;
   order: number;
 }

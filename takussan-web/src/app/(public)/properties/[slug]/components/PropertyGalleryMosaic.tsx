@@ -28,7 +28,7 @@ function Tile({ photo, alt, index, sizes, priority, className, onOpen }: TilePro
       className={`relative group overflow-hidden ${className ?? ''}`}
     >
       <Image
-        src={photo.preview}
+        src={photo.full}
         alt={alt}
         fill
         sizes={sizes}
@@ -61,6 +61,18 @@ function Tile({ photo, alt, index, sizes, priority, className, onOpen }: TilePro
  *
  * La mosaïque est `hidden md:grid` : aucun palier en dessous de 768 px n'est utile
  * ici — c'est `PropertyMobileGallery` qui sert, et son `100vw` est juste.
+ *
+ * ⚠ **TCK-356 — ces `sizes` ne servaient à rien tant que la SOURCE plafonnait.**
+ * Les tuiles lisaient `photo.preview`, une conversion de 800 × 600 : demander
+ * 1216 px à une source de 800 px rend une image agrandie, pas une image nette.
+ * Elles lisent désormais `photo.full` (jusqu'à 1600 px). Les deux vont ensemble —
+ * un `sizes` juste sur une source trop petite ne se voit dans aucun outil, l'image
+ * est simplement floue.
+ *
+ * `full` pour TOUTES les tuiles, y compris les petites que `preview` couvrait :
+ * `next/image` négocie de toute façon la largeur émise via `sizes`, donc les octets
+ * envoyés au visiteur sont les mêmes, et une source unique par composant ne se
+ * désynchronise pas de la mise en page au prochain remaniement de la grille.
  */
 const TUILE_LARGE = '(max-width: 1279px) 48vw, 604px';
 const TUILE_PETITE = '(max-width: 1279px) 24vw, 298px';

@@ -95,6 +95,7 @@ class PropertyResource extends BaseResource
                     'id' => $media->id,
                     'thumbnail' => $this->urlFor($media, 'thumbnail'),
                     'preview' => $this->urlFor($media, 'preview'),
+                    'full' => $this->urlFor($media, $this->largestPublicConversion($media)),
                     'original' => $this->originalUrlFor($media),
                     'order' => $media->order_column ?? ($index + 1),
                 ])->all()
@@ -326,7 +327,7 @@ class PropertyResource extends BaseResource
     /**
      * TCK-106 — `original` exposes the unwatermarked source file.
      * Only return it when the caller is authorized to view raw media,
-     * otherwise fall back to the largest watermarked conversion (preview)
+     * otherwise fall back to the largest watermarked conversion
      * so public consumers cannot bypass the watermark.
      */
     private function originalUrlFor(Media $media): string
@@ -335,7 +336,21 @@ class PropertyResource extends BaseResource
             return $media->getUrl();
         }
 
-        return $media->getUrl('preview');
+        return $media->getUrl($this->largestPublicConversion($media));
+    }
+
+    /**
+     * TCK-356 — `full` (1600 px) est la plus grande conversion servie au public.
+     *
+     * Le repli sur `preview` n'est pas décoratif : `getUrl('full')` construit une
+     * URL à partir du NOM de la conversion sans vérifier qu'elle a été produite.
+     * Tant que le parc existant n'est pas régénéré, un média d'avant TCK-356 rendrait
+     * donc une URL en 404. Ce repli tient la fenêtre entre le déploiement et la
+     * régénération ; il devient inutile quand AC5 est vert (0 média sans `full`).
+     */
+    private function largestPublicConversion(Media $media): string
+    {
+        return $media->hasGeneratedConversion('full') ? 'full' : 'preview';
     }
 
     /**
