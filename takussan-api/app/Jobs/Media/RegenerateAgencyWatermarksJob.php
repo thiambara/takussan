@@ -40,7 +40,7 @@ class RegenerateAgencyWatermarksJob implements ShouldQueue
                 ]);
 
                 if ($watermarkEnabled) {
-                    foreach (['thumbnail', 'preview'] as $conversion) {
+                    foreach (Property::watermarkedConversions() as $conversion) {
                         ApplyWatermarkJob::dispatch($media->id, $conversion);
                     }
                 }

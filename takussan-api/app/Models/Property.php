@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
+use Spatie\Image\Enums\Fit;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -499,10 +500,45 @@ class Property extends AbstractModel implements HasMedia
             ->acceptsMimeTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
     }
 
+    /**
+     * TCK-356 — la liste UNIQUE des conversions de `photos` à filigraner.
+     *
+     * Elle vaut « toutes les conversions déclarées ci-dessous », et pas un
+     * sous-ensemble : `PropertyResource::originalUrlFor()` sert la plus grande
+     * d'entre elles à tout appelant sans `viewRaw` (TCK-106). Une conversion
+     * absente de cette liste part donc au public SANS filigrane.
+     *
+     * Elle était écrite en dur à deux endroits — `ApplyWatermarkOnConversionListener`
+     * et `RegenerateAgencyWatermarksJob` — qui devaient dire la même chose sans que
+     * rien ne l'impose. `PropertyMediaConversionsTest` compare désormais cette liste
+     * aux conversions réellement enregistrées : ajouter l'une sans l'autre est rouge.
+     *
+     * @return list<string>
+     */
+    public static function watermarkedConversions(): array
+    {
+        return ['thumbnail', 'preview', 'full'];
+    }
+
     public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumbnail')->width(300)->height(300)->nonQueued();
         $this->addMediaConversion('preview')->width(800)->height(600)->nonQueued();
+
+        // TCK-356 — `full` est le PLAFOND PUBLIC, pas un confort : le fichier source
+        // n'est servi qu'au détenteur de `viewRaw`. 800 px ne couvraient que 33 % de
+        // la grande tuile de la fiche en DPR 2.
+        //
+        // ⚠ `Fit::Max` et non `->width(1600)` : mesuré, `width()` AGRANDIT. Une source
+        // de 800 px rendait un `full` de 1600 px — deux fois le poids pour zéro détail,
+        // et le parc local (des vignettes de seed de 128 px) aurait été régénéré en
+        // placards de 1600 px. `Fit::Max` = `PreserveAspectRatio` + `DoNotUpsize`
+        // (`Spatie\Image\Enums\Fit::calculateSize`). Hauteur laissée nulle : elle vaut
+        // alors celle de la source, donc seule la largeur contraint et rien n'est
+        // recadré — les photos de biens n'ont pas un ratio unique.
+        //
+        // Le plafond public vaut donc `min(1600, largeur de la source)`.
+        $this->addMediaConversion('full')->fit(Fit::Max, 1600)->nonQueued();
     }
 
     public function owner(): BelongsTo

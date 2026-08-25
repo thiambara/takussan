@@ -67,6 +67,16 @@ export function PropertyLightbox({ photos, open, startIndex, onClose, title }: P
             </button>
           </div>
           <div className="relative flex-1">
+            {/*
+              TCK-356 — `original` et NON `full`, délibérément.
+
+              `PropertyResource::originalUrlFor()` rend le fichier source au seul
+              détenteur de `viewRaw` et retombe sur `full` pour tout le monde d'autre
+              (TCK-106). Le visiteur reçoit donc déjà les 1600 px que ce ticket
+              apporte, et le propriétaire garde sa photo pleine résolution en plein
+              écran. Écrire `current.full` ici ne changerait rien au public et
+              DÉGRADERAIT le propriétaire.
+            */}
             <Image
               src={current.original}
               alt={t('gallery.photoAlt', { title, index: index + 1 })}

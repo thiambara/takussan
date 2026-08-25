@@ -25,7 +25,7 @@ class ApplyWatermarkOnConversionListener implements ShouldQueue
             return;
         }
 
-        if (! in_array($conversion->getName(), ['thumbnail', 'preview'], true)) {
+        if (! in_array($conversion->getName(), Property::watermarkedConversions(), true)) {
             return;
         }
 
