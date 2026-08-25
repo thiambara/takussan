@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**337 tickets** — 14 ouverts, 322 livrés.
+**338 tickets** — 14 ouverts, 323 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 322 |
+| ✅ Done | 323 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -61,7 +61,7 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 322
+## ✅ Done — 323
 
 <details>
 <summary><strong>Vague 45 — Solde des tickets ouverts : barrière Meilisearch, dates par valeur, i18n résiduel, géo par distances (2026-08-22)</strong> — 1 ticket</summary>
@@ -592,7 +592,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Sans vague</strong> — 16 tickets</summary>
+<summary><strong>Sans vague</strong> — 17 tickets</summary>
 
 - [TCK-273](tickets/TCK-273-cleanup-redundant-admin-role.md) — Suppression du rôle Spatie redondant `admin` `M · P2 · technique`
 - [TCK-284](tickets/TCK-284-pro-routes-sans-garde-serveur.md) — Quatre routes « pro » cadenassées sans garde serveur `S · P1 · bug`
@@ -610,6 +610,7 @@ _(aucun)_
 - [TCK-330](tickets/TCK-330-saved-search-frequence-nulle-500.md) — Créer une recherche sauvegardée avec une fréquence d'alerte vide rend 500 `S · P1 · bug`
 - [TCK-353](tickets/TCK-353-aucun-environnement-deploye-ne-peut-etre-seede.md) — Aucun environnement déployé ne peut être seedé : `deploy.sh` installe `--no-dev`, les seeders exigent Faker `S · P2 · technique`
 - [TCK-354](tickets/TCK-354-dompdf-dependance-de-dev-utilisee-en-production.md) — Le reçu de paiement PDF ne peut pas se générer sur un environnement déployé : `dompdf/dompdf` est une dépendance de dév `S · P1 · bug`
+- [TCK-356](tickets/TCK-356-conversion-preview-sous-resolue.md) — La plus grande image qu'un visiteur puisse recevoir fait 800 × 600, pour des emplacements qui en demandent jusqu'à 2 432 `M · P2 · back`
 
 </details>
 

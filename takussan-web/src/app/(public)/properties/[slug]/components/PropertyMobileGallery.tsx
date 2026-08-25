@@ -53,8 +53,14 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
               className="relative flex-[0_0_100%] aspect-[4/3]"
               aria-label={t('gallery.openPhoto', { index: i + 1 })}
             >
+              {/*
+                TCK-356 — `full`, pas `preview`. Ce carrousel occupe `100vw` : sur un
+                téléphone de 430 px en DPR 3, il demande 1290 px physiques, quand
+                `preview` en plafonne 800. C'est la même image sous-résolue que sur la
+                mosaïque de bureau, et c'est ici qu'elle touche le plus de visiteurs.
+              */}
               <Image
-                src={photo.preview}
+                src={photo.full}
                 alt={t('gallery.photoAlt', { title, index: i + 1 })}
                 fill
                 sizes="100vw"

@@ -21,6 +21,7 @@ class PropertyMediaController extends Controller
             'id' => $m->id,
             'thumbnail' => $m->getUrl('thumbnail'),
             'preview' => $m->getUrl('preview'),
+            'full' => $this->fullUrl($m),
             'original' => $m->getUrl(),
             'order' => $m->order_column,
         ]);
@@ -48,11 +49,24 @@ class PropertyMediaController extends Controller
                 'id' => $media->id,
                 'thumbnail' => $media->getUrl('thumbnail'),
                 'preview' => $media->getUrl('preview'),
+                'full' => $this->fullUrl($media),
                 'original' => $media->getUrl(),
             ];
         }
 
         return $this->json(['data' => $added], 201);
+    }
+
+    /**
+     * TCK-356 — même clé `full` que `PropertyResource`, et même repli.
+     *
+     * La console du propriétaire et l'API publique doivent décrire le même jeu
+     * d'images ; `getUrl('full')` n'atteste pas que la conversion a été produite,
+     * d'où le repli sur `preview` tant que le parc n'est pas régénéré.
+     */
+    private function fullUrl(Media $media): string
+    {
+        return $media->getUrl($media->hasGeneratedConversion('full') ? 'full' : 'preview');
     }
 
     public function destroy(Request $request, Property $property, int $mediaId): JsonResponse

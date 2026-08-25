@@ -303,6 +303,8 @@ export interface PropertyMediaItem {
   readonly id: number;
   readonly thumbnail: string;
   readonly preview: string;
+  /** TCK-356 — même clé que l'API publique : la plus grande conversion servie. */
+  readonly full: string;
   readonly original: string;
   readonly order: number | null;
 }
