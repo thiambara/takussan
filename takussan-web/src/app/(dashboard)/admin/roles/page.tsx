@@ -7,7 +7,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { AgencyRolesConsole } from '@/components/admin/roles/AgencyRolesConsole';
 import { EmptyState } from '@/components/feedback';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 import { buttonVariants } from '@/components/ui/button';
 import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
@@ -39,7 +39,7 @@ export default async function AdminRolesPage() {
   if (!user.agency_id) {
     return (
       <div className="space-y-6">
-        <PageHeader title={t('page.title')} subtitle={t('page.subtitle')} />
+        <PageHeader title={t('page.title')} description={t('page.subtitle')} />
         <EmptyState
           icon={<Building2 className="size-8" aria-hidden="true" />}
           title={t('page.no_agency_title')}
@@ -56,7 +56,7 @@ export default async function AdminRolesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('page.title')} subtitle={t('page.subtitle')} />
+      <PageHeader title={t('page.title')} description={t('page.subtitle')} />
       <AgencyRolesConsole agencyId={user.agency_id} />
     </div>
   );

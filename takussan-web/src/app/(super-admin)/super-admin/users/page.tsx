@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ConfirmActionDialog } from '@/components/admin/super/ConfirmActionDialog';
-import { Pagination } from '@/components/super-admin/Pagination';
+import { Pagination } from '@/components/console';
 import { useImpersonate } from '@/hooks/useImpersonation';
 import { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';

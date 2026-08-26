@@ -146,7 +146,7 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
       {reports.length > 0 ? (
         <div className="mt-5">
           <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Flag className="size-4 text-red-600" />
+            <Flag className="size-4 text-destructive" />
             {t('reportsHeading', { count: String(reports.length) })}
           </h3>
           <ul className="space-y-2">

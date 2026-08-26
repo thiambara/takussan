@@ -3,7 +3,7 @@ import { AgencyActivityFeed } from '@/components/dashboard/admin/AgencyActivityF
 import { AgencyDegradedState } from '@/components/dashboard/admin/AgencyDegradedState';
 import { AgencyKpis } from '@/components/dashboard/admin/AgencyKpis';
 import { AgencyRevenueSnapshot } from '@/components/dashboard/admin/AgencyRevenueSnapshot';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
@@ -27,7 +27,7 @@ export default async function Page() {
     <div className="space-y-6">
       <PageHeader
         title={t('title')}
-        subtitle={t('subtitle')}
+        description={t('subtitle')}
       />
 
       {payload ? (

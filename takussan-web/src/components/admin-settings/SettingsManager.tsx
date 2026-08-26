@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, Pencil, Plus, Save, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
+import { DataTable, type DataTableColumn } from '@/components/console';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -153,6 +154,86 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
     [t],
   );
 
+  const columns: readonly DataTableColumn<Setting>[] = [
+    {
+      id: 'key',
+      header: t('columns.key'),
+      cell: (setting) => <span className="font-mono text-xs">{setting.key}</span>,
+    },
+    {
+      id: 'scope',
+      header: t('columns.scope'),
+      className: 'text-xs',
+      cell: (setting) => (
+        <span className="rounded-full bg-muted px-2 py-0.5">{t(`scopes.${setting.scope}`)}</span>
+      ),
+    },
+    {
+      id: 'value',
+      header: t('columns.value'),
+      className: 'text-xs',
+      cell: (setting) => (
+        <>
+          {editingId === setting.id ? (
+            <Textarea
+              value={editingValue}
+              onChange={(e) => setEditingValue(e.target.value)}
+              rows={3}
+              className="font-mono text-xs"
+            />
+          ) : (
+            <code className="whitespace-pre-wrap break-all text-xs">
+              {renderSettingValue(setting.value)}
+            </code>
+          )}
+          {rowError?.id === setting.id ? <FormError>{rowError.message}</FormError> : null}
+        </>
+      ),
+    },
+    {
+      id: 'actions',
+      header: t('columns.actions'),
+      align: 'end',
+      cell: (setting) => {
+        const canEdit = setting.scope === 'global' ? canManageGlobal : true;
+        return editingId === setting.id ? (
+          <div className="flex justify-end gap-1">
+            <Button type="button" size="sm" onClick={() => commitEdit(setting)} disabled={isPending}>
+              <Save aria-hidden="true" />
+              <span>{tCommon('save')}</span>
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={cancelEdit} disabled={isPending}>
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={t('actions.edit', { key: setting.key })}
+              onClick={() => beginEdit(setting)}
+              disabled={!canEdit || isPending}
+            >
+              <Pencil aria-hidden="true" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-label={t('actions.delete', { key: setting.key })}
+              onClick={() => handleDelete(setting)}
+              disabled={!canEdit || isPending}
+            >
+              <Trash2 aria-hidden="true" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {banner?.kind === 'success' ? (
@@ -197,111 +278,21 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-input">
-        <table className="min-w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-semibold">{t('columns.key')}</th>
-              <th scope="col" className="px-4 py-3 font-semibold">{t('columns.scope')}</th>
-              <th scope="col" className="px-4 py-3 font-semibold">{t('columns.value')}</th>
-              <th scope="col" className="px-4 py-3 font-semibold text-right">{t('columns.actions')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-input">
-            {visible.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="p-0">
-                  <EmptyState
-                    className="border-0"
-                    icon={<SlidersHorizontal className="size-8" aria-hidden="true" />}
-                    title={t('empty_title')}
-                    description={t('empty_description')}
-                  />
-                </td>
-              </tr>
-            ) : (
-              visible.map((setting) => {
-                const isEditing = editingId === setting.id;
-                const canEdit = setting.scope === 'global' ? canManageGlobal : true;
-                return (
-                  <tr key={setting.id} className="bg-card align-top">
-                    <td className="px-4 py-3 font-mono text-xs">{setting.key}</td>
-                    <td className="px-4 py-3 text-xs">
-                      <span className="rounded-full bg-muted px-2 py-0.5">
-                        {t(`scopes.${setting.scope}`)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      {isEditing ? (
-                        <Textarea
-                          value={editingValue}
-                          onChange={(e) => setEditingValue(e.target.value)}
-                          rows={3}
-                          className="font-mono text-xs"
-                        />
-                      ) : (
-                        <code className="whitespace-pre-wrap break-all text-xs">
-                          {renderSettingValue(setting.value)}
-                        </code>
-                      )}
-                      {rowError?.id === setting.id ? (
-                        <FormError>{rowError.message}</FormError>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {isEditing ? (
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => commitEdit(setting)}
-                            disabled={isPending}
-                          >
-                            <Save aria-hidden="true" />
-                            <span>{tCommon('save')}</span>
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={cancelEdit}
-                            disabled={isPending}
-                          >
-                            <X aria-hidden="true" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={t('actions.edit', { key: setting.key })}
-                            onClick={() => beginEdit(setting)}
-                            disabled={!canEdit || isPending}
-                          >
-                            <Pencil aria-hidden="true" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            aria-label={t('actions.delete', { key: setting.key })}
-                            onClick={() => handleDelete(setting)}
-                            disabled={!canEdit || isPending}
-                          >
-                            <Trash2 aria-hidden="true" />
-                          </Button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        caption={t('tableCaption')}
+        columns={columns}
+        rows={visible}
+        rowKey={(setting) => setting.id}
+        rowProps={() => ({ className: 'align-top' })}
+        emptyState={(
+          <EmptyState
+            className="border-0"
+            icon={<SlidersHorizontal className="size-8" aria-hidden="true" />}
+            title={t('empty_title')}
+            description={t('empty_description')}
+          />
+        )}
+      />
 
       <CreateSettingDialog
         open={isCreateOpen}

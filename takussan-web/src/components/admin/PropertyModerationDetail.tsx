@@ -178,7 +178,8 @@ export function PropertyModerationDetail({
           <Button
             onClick={() => approveMutation.mutate()}
             disabled={isBusy}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            // Le sage de la charte : « Succès / location : var(--accent) ».
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
           >
             {approveMutation.isPending ? (
               <Loader2 className="mr-1.5 size-4 animate-spin" />

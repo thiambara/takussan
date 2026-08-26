@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CapabilityMatrix } from './CapabilityMatrix';
 import { useSyncRoleCapabilities, useUpdateAgencyRole } from '@/lib/queries/agency-roles';
 import { useCapabilityCatalogue } from '@/lib/queries/capabilities';
@@ -178,7 +179,7 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
         </div>
 
         {catalogueQuery.isLoading ? (
-          <div className="h-40 animate-pulse rounded-xl bg-muted" aria-hidden="true" />
+          <Skeleton className="h-40 rounded-xl" aria-hidden="true" />
         ) : catalogueQuery.isError || !catalogueQuery.data ? (
           <ErrorState
             message={messageErreur(catalogueQuery.error, t('errors.load'))}

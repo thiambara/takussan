@@ -8,7 +8,7 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { getToken } from '@/lib/session';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 
@@ -50,7 +50,7 @@ export default async function AgencyDashboardPage() {
   if (!payload) {
     return (
       <div className="space-y-2">
-        <PageHeader title={t('title')} subtitle={t('loadError')} />
+        <PageHeader title={t('title')} description={t('loadError')} />
       </div>
     );
   }
@@ -61,7 +61,7 @@ export default async function AgencyDashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title={t('title')}
-        subtitle={t('period', {
+        description={t('period', {
           start: data.period.start.slice(0, 10),
           end: data.period.end.slice(0, 10),
         })}

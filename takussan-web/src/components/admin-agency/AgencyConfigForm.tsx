@@ -327,7 +327,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             {currencyChanged ? (
               <p
                 role="alert"
-                className="mt-1.5 rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-900"
+                className="mt-1.5 rounded-md bg-primary/5 px-2 py-1.5 text-xs text-foreground"
               >
                 {tCurrency('warningOnChange')}
               </p>

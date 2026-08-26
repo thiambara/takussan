@@ -14,7 +14,7 @@ import { PageHeader } from '@/components/console';
 
 export default function Page() {
   const t = useTranslations('superAdmin.pages.kyc');
-  const tPagination = useTranslations('superAdmin.pages.pagination');
+  const tPagination = useTranslations('console.pagination');
   const [page, setPage] = useState(1);
   const query = useQuery({
     queryKey: ['super-admin', 'kyc', page],

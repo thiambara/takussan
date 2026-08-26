@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 31 |
+| 📋 Todo | 30 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 2 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 324 |
 | 🗑️ Obsolete | 1 |
@@ -60,7 +60,6 @@
 - [TCK-369](tickets/TCK-369-delegation-temporaire-ecran-manquant.md) — Délégation temporaire de rôles — l'écran que TCK-108 n'a pas livré `M · P2 · front`
 - [TCK-370](tickets/TCK-370-console-agence-chemins-et-gestes-morts.md) — Console agence — quatre chemins et gestes morts `S · P2 · bug`
 - [TCK-371](tickets/TCK-371-console-agence-accessibilite-et-mobile.md) — Console agence — contraste des entrées verrouillées, tables tronquées sur mobile, focus clavier `S · P1 · front`
-- [TCK-373](tickets/TCK-373-console-agence-adopter-les-primitives-partagees.md) — Console agence — adopter les primitives partagées (en-tête, badge, états, pagination, table) `M · P2 · front`
 - [TCK-374](tickets/TCK-374-graphique-agence-tokens-chart-et-locale.md) — Graphique agence — palette `--chart-*` et locale active au lieu de `'fr'` `S · P2 · front`
 - [TCK-375](tickets/TCK-375-tableau-de-bord-agence-files-attente.md) — Tableau de bord agence — les files d'attente d'abord `M · P2 · front`
 - [TCK-376](tickets/TCK-376-moderation-et-audit-etat-partageable.md) — Modération et journal d'audit — état partageable, pagination, recherche temporisée `M · P2 · front`
@@ -72,6 +71,7 @@
 ## 👀 Review
 
 - [TCK-372](tickets/TCK-372-eteindre-le-vocabulaire-app-et-poser-le-cliquet.md) — Éteindre le vocabulaire `app-*` et poser le cliquet — la correction de TCK-244 `L · P2 · front`
+- [TCK-373](tickets/TCK-373-console-agence-adopter-les-primitives-partagees.md) — Console agence — adopter les primitives partagées (en-tête, badge, états, pagination, table) `M · P2 · front`
 
 ## ⛔ Blocked
 

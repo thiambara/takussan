@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { AgencyBillingClient } from '@/components/billing/AgencyBillingClient';
 import { AgencyPayoutsClient } from '@/components/billing/AgencyPayoutsClient';
+import { PageHeader } from '@/components/console';
 import { isAdmin } from '@/lib/roles';
 import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 import { getTranslations } from 'next-intl/server';
@@ -16,10 +17,7 @@ export default async function Page() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+      <PageHeader title={t('title')} description={t('subtitle')} />
       <AgencyBillingClient />
       <section className="space-y-3">
         <h2 className="font-display text-lg font-semibold text-foreground">{t('payoutsTitle')}</h2>

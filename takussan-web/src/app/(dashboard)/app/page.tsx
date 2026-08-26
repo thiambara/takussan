@@ -4,7 +4,7 @@ import { BrandingBanner } from '@/components/agency/BrandingBanner';
 import { DashboardEmpty } from '@/components/dashboard/DashboardEmpty';
 import { DashboardMeKpis } from '@/components/dashboard/DashboardMeKpis';
 import { DashboardShortcuts } from '@/components/dashboard/DashboardShortcuts';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
 import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
@@ -39,7 +39,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title={t('greeting', { name: user.first_name })}
-        subtitle={t('subtitle')}
+        description={t('subtitle')}
       />
 
       {showBrandingBanner ? <BrandingBanner /> : null}

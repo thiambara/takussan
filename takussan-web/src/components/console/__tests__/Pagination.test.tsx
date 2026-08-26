@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
-import { Pagination } from '../Pagination';
+import { Pagination } from '@/components/console';
 
 describe('<Pagination>', () => {
   it('renders nothing when there is a single page (or less)', () => {

@@ -6,6 +6,8 @@ export { FilterBar } from './FilterBar';
 export type { FilterBarProps } from './FilterBar';
 export { PageHeader } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';
+export { Pagination } from './Pagination';
+export type { PaginationProps } from './Pagination';
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
 export { StatusBadge } from './StatusBadge';

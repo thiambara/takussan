@@ -35,6 +35,15 @@
       "current": "Langue actuelle : {locale}"
     }
   },
+  "console": {
+    "pagination": {
+      "aria": "Pagination",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "position": "Page {page} sur {lastPage}",
+      "positionSlash": "Page {page} / {lastPage}"
+    }
+  },
   "nav": {
     "publish": "Publier",
     "publishListing": "Publier une annonce",
@@ -4011,6 +4020,7 @@
         "empty_title": "Aucun impayé en cours",
         "empty_description": "Bonne nouvelle : toutes les échéances sont réglées.",
         "count": "{count, plural, =1 {# impayé} other {# impayés}}",
+        "tableCaption": "Paiements en retard",
         "table": {
           "reference": "Référence",
           "source": "Source",
@@ -4085,10 +4095,8 @@
         "subject": "Objet",
         "description": "Description"
       },
-      "entries": "{count, plural, =1 {{total} entrée} other {{total} entrées}}",
-      "previous": "Précédent",
-      "next": "Suivant",
-      "pageOf": "Page {current} / {last}"
+      "tableCaption": "Journal d'audit de l'agence",
+      "entries": "{count, plural, =1 {{total} entrée} other {{total} entrées}}"
     },
     "roles": {
       "page": {
@@ -4345,13 +4353,7 @@
           "admins": "Administrateurs",
           "owners": "Propriétaires"
         },
-        "invite": "Inviter",
-        "pagination": {
-          "label": "Pagination",
-          "previous": "Précédent",
-          "next": "Suivant",
-          "pageOf": "Page {current} sur {last}"
-        }
+        "invite": "Inviter"
       }
     },
     "propertyModeration": {
@@ -4458,6 +4460,7 @@
         "allRoles": "Tous rôles"
       },
       "table": {
+        "caption": "Membres de l'agence",
         "member": "Membre",
         "email": "Email",
         "role": "Rôle",
@@ -5402,13 +5405,6 @@
         "subtitle": "Référentiel global utilisé par toutes les agences pour qualifier biens et clients.",
         "loadError": "Impossible de charger les tags :"
       },
-      "pagination": {
-        "aria": "Pagination",
-        "previous": "Précédent",
-        "next": "Suivant",
-        "position": "Page {page} sur {lastPage}",
-        "positionSlash": "Page {page} / {lastPage}"
-      },
       "system": {
         "metaTitle": "Système — Console Takussan",
         "title": "Système",
@@ -5929,6 +5925,7 @@
         "agency": "Agence"
       },
       "new": "Nouveau paramètre",
+      "tableCaption": "Réglages de la plateforme",
       "columns": {
         "key": "Clé",
         "scope": "Portée",

@@ -288,7 +288,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                   <div
                     role="status"
                     className={`flex items-center gap-2 text-xs ${
-                      testState.kind === 'success' ? 'text-green-700' : 'text-destructive'
+                      testState.kind === 'success' ? 'text-accent' : 'text-destructive'
                     }`}
                   >
                     {testState.kind === 'success' ? (
@@ -581,7 +581,7 @@ function SmsProviderFieldset({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+      <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-relaxed text-foreground">
         {t.rich('artp', {
           b: (chunks) => <strong className="font-semibold">{chunks}</strong>,
         })}

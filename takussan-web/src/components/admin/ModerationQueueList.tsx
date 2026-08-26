@@ -3,6 +3,7 @@
 import { Flag, Star } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { StatusBadge, type StatusTone } from '@/components/console';
 import { cn } from '@/lib/utils';
 import type { ModerationReview } from '@/lib/queries/reviews-moderation';
 
@@ -14,11 +15,16 @@ interface ModerationQueueListProps {
 
 const STATUTS_CONNUS = new Set(['pending', 'reported', 'approved', 'rejected']);
 
-const STATUS_CLASS: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700 border-amber-200',
-  reported: 'bg-red-50 text-red-700 border-red-200',
-  approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  rejected: 'bg-stone-50 text-stone-700 border-stone-200',
+/**
+ * TCK-373 — le statut porte un TON, plus une paire de classes. `approved` était
+ * `bg-emerald-50`, l'une des quatre recettes de « succès » de la console ; aucune n'était le
+ * sage de la charte. La couleur se décide dans `StatusBadge`, une fois.
+ */
+const STATUS_TONES: Record<string, StatusTone> = {
+  pending: 'attention',
+  reported: 'danger',
+  approved: 'success',
+  rejected: 'neutral',
 };
 
 export function ModerationQueueList({
@@ -47,16 +53,13 @@ export function ModerationQueueList({
               aria-pressed={isSelected}
             >
               <div className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-                    STATUS_CLASS[status] ?? 'bg-muted text-foreground border-border',
-                  )}
-                >
-                  {STATUTS_CONNUS.has(status) ? t(`status.${status}`) : status}
-                </span>
+                <StatusBadge
+                  tone={STATUS_TONES[status] ?? 'neutral'}
+                  className="text-[10px] font-semibold uppercase tracking-wide"
+                  label={STATUTS_CONNUS.has(status) ? t(`status.${status}`) : status}
+                />
                 {review.reported_count > 0 ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-red-600">
+                  <span className="inline-flex items-center gap-1 text-xs text-destructive">
                     <Flag className="size-3" />
                     {review.reported_count}
                   </span>

@@ -4,6 +4,8 @@ import { Building2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ModerationProperty } from '@/lib/queries/property-moderation';
 import { useLocale, useTranslations } from 'next-intl';
+
+import { StatusBadge } from '@/components/console';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 
@@ -57,9 +59,11 @@ export function PropertyModerationQueueList({
                     {property.agency ? ` · ${property.agency.name}` : ''}
                   </p>
                 </div>
-                <span className="flex-shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                  {t('status.pending')}
-                </span>
+                <StatusBadge
+                  tone="attention"
+                  className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide"
+                  label={t('status.pending')}
+                />
               </div>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">

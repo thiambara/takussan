@@ -28,7 +28,7 @@ import { PageHeader } from '@/components/console';
 export default function SuperAdminModerationPage() {
   const t = useTranslations('superAdmin.moderation');
   const tPage = useTranslations('superAdmin.pages.moderation');
-  const tPagination = useTranslations('superAdmin.pages.pagination');
+  const tPagination = useTranslations('console.pagination');
   const messageErreur = useMessageErreurApi();
   const searchParams = useSearchParams();
   const router = useRouter();

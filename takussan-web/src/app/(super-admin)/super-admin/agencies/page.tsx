@@ -8,7 +8,7 @@ import { EmptyState, ErrorState } from '@/components/feedback';
 import { fetchAdminAgencies } from '@/lib/queries/super-admin';
 import { AgencyModerationCard } from '@/components/admin/super/AgencyModerationCard';
 import { AgencyOnboardingDialog } from '@/components/admin/super/AgencyOnboardingDialog';
-import { Pagination } from '@/components/super-admin/Pagination';
+import { Pagination } from '@/components/console';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import {

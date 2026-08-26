@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Plus, ShieldCheck } from 'lucide-react';
 
 import { EmptyState, ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { AgencyRoleEditor } from './AgencyRoleEditor';
 import { AgencyRolesList } from './AgencyRolesList';
@@ -80,8 +81,8 @@ export function AgencyRolesConsole({ agencyId }: AgencyRolesConsoleProps) {
   if (rolesQuery.isLoading) {
     return (
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]" data-testid="agency-roles-loading">
-        <div className="h-64 animate-pulse rounded-xl bg-muted" aria-hidden="true" />
-        <div className="h-96 animate-pulse rounded-xl bg-muted" aria-hidden="true" />
+        <Skeleton className="h-64 rounded-xl" aria-hidden="true" />
+        <Skeleton className="h-96 rounded-xl" aria-hidden="true" />
       </div>
     );
   }

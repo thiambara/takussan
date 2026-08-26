@@ -18,7 +18,7 @@ import { PropertyListFilters } from '@/components/property-dashboard/PropertyLis
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { PropertyKpiStrip } from '@/components/property-dashboard/PropertyKpiStrip';
 import { buttonVariants } from '@/components/ui/button';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 
 /**
  * TCK-041 — dashboard agent, liste des biens.
@@ -161,7 +161,7 @@ export default async function Page({
     <div className="space-y-6">
       <PageHeader
         title={t('title')}
-        subtitle={t('subtitle')}
+        description={t('subtitle')}
         actions={
           <Link
             href="/app/properties/new"

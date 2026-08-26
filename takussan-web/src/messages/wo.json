@@ -35,6 +35,15 @@
       "current": "Làkk bi ngay jëfandikoo : {locale}"
     }
   },
+  "console": {
+    "pagination": {
+      "aria": "Xët yi",
+      "previous": "Bi jiitu",
+      "next": "Bi ci topp",
+      "position": "Xët {page} ci {lastPage}",
+      "positionSlash": "Xët {page} / {lastPage}"
+    }
+  },
   "nav": {
     "publish": "Yebbi",
     "publishListing": "Yebbi kër",
@@ -2962,6 +2971,7 @@
         "empty_title": "Amul benn pey bu ñu feyul",
         "empty_description": "Xibaar bu baax : bes yépp feyees nañu.",
         "count": "{count, plural, =1 {# pey bu ñu feyul} other {# pey yu ñu feyul}}",
+        "tableCaption": "Peyoom yu yeex",
         "table": {
           "reference": "Referaas",
           "source": "Source",
@@ -3036,10 +3046,8 @@
         "subject": "Objet",
         "description": "Leeral"
       },
-      "entries": "{count, plural, =1 {{total} ligne} other {{total} ligne}}",
-      "previous": "Bi jiitu",
-      "next": "Bi ci topp",
-      "pageOf": "Xët {current} / {last}"
+      "tableCaption": "Sàqu jëf yi ci agence bi",
+      "entries": "{count, plural, =1 {{total} ligne} other {{total} ligne}}"
     },
     "roles": {
       "page": {
@@ -3296,13 +3304,7 @@
           "admins": "Administrateur yi",
           "owners": "Boroom kër yi"
         },
-        "invite": "Woo",
-        "pagination": {
-          "label": "Xët yi",
-          "previous": "Bi jiitu",
-          "next": "Bi ci topp",
-          "pageOf": "Xët {current} ci {last}"
-        }
+        "invite": "Woo"
       }
     },
     "propertyModeration": {
@@ -3409,6 +3411,7 @@
         "allRoles": "Rol yépp"
       },
       "table": {
+        "caption": "Ñi ci agence bi",
         "member": "Ndaw",
         "email": "Email",
         "role": "Rol",
@@ -4946,13 +4949,6 @@
         "subtitle": "Limu mag bi ajaans yépp di jëfandikoo ngir tekki kër yi ak kiliyaan yi.",
         "loadError": "Mënuñu yeb tag yi :"
       },
-      "pagination": {
-        "aria": "Xët yi",
-        "previous": "Bi jiitu",
-        "next": "Bi ci topp",
-        "position": "Xët {page} ci {lastPage}",
-        "positionSlash": "Xët {page} / {lastPage}"
-      },
       "system": {
         "metaTitle": "Sistem — Konsol Takussan",
         "title": "Sistem",
@@ -5473,6 +5469,7 @@
         "agency": "Ajance"
       },
       "new": "Paramètre bu bees",
+      "tableCaption": "Tëraliin yi ci platform bi",
       "columns": {
         "key": "Kaley",
         "scope": "Portée",
