@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**358 tickets** — 33 ouverts, 324 livrés.
+**358 tickets** — 31 ouverts, 326 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 30 |
 | 🚧 Doing | 1 |
-| 👀 Review | 2 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 324 |
+| ✅ Done | 326 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -70,8 +70,7 @@
 
 ## 👀 Review
 
-- [TCK-372](tickets/TCK-372-eteindre-le-vocabulaire-app-et-poser-le-cliquet.md) — Éteindre le vocabulaire `app-*` et poser le cliquet — la correction de TCK-244 `L · P2 · front`
-- [TCK-373](tickets/TCK-373-console-agence-adopter-les-primitives-partagees.md) — Console agence — adopter les primitives partagées (en-tête, badge, états, pagination, table) `M · P2 · front`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -79,7 +78,15 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 324
+## ✅ Done — 326
+
+<details>
+<summary><strong>Vague 47 — Console agence /admin — audit design & fonctionnel (2026-08-26)</strong> — 2 tickets</summary>
+
+- [TCK-372](tickets/TCK-372-eteindre-le-vocabulaire-app-et-poser-le-cliquet.md) — Éteindre le vocabulaire `app-*` et poser le cliquet — la correction de TCK-244 `L · P2 · front`
+- [TCK-373](tickets/TCK-373-console-agence-adopter-les-primitives-partagees.md) — Console agence — adopter les primitives partagées (en-tête, badge, états, pagination, table) `M · P2 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 46 — Console super-admin — audit design & fonctionnel (2026-08-26)</strong> — 1 ticket</summary>

@@ -1,7 +1,7 @@
 ---
 id: TCK-373
 title: "Console agence — adopter les primitives partagées (en-tête, badge, états, pagination, table)"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-372
 title: "Éteindre le vocabulaire `app-*` et poser le cliquet — la correction de TCK-244"
-status: review
+status: done
 phase: P2
 family: front
 estimate: L
