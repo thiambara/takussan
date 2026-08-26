@@ -178,10 +178,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
       ) : null}
 
       {/* Identité */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-app-ink">{t('identity.title')}</h2>
-          <p className="mt-1 text-xs text-app-ink-muted">{t('identity.description')}</p>
+          <h2 className="text-base font-semibold text-foreground">{t('identity.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('identity.description')}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput control={control} name="name" label={t('fields.name')} required />
@@ -217,10 +217,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
       </section>
 
       {/* Contact */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-app-ink">{t('contact.title')}</h2>
-          <p className="mt-1 text-xs text-app-ink-muted">{t('contact.description')}</p>
+          <h2 className="text-base font-semibold text-foreground">{t('contact.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('contact.description')}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput control={control} name="email" label={t('fields.email')} type="email" />
@@ -242,10 +242,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
       </section>
 
       {/* Logo */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-app-ink">{t('logo.title')}</h2>
-          <p className="mt-1 text-xs text-app-ink-muted">{t('logo.description')}</p>
+          <h2 className="text-base font-semibold text-foreground">{t('logo.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('logo.description')}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex size-20 items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted">
@@ -300,10 +300,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
       </section>
 
       {/* Paramètres métier */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <div>
-          <h2 className="text-base font-semibold text-app-ink">{t('business.title')}</h2>
-          <p className="mt-1 text-xs text-app-ink-muted">{t('business.description')}</p>
+          <h2 className="text-base font-semibold text-foreground">{t('business.title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('business.description')}</p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
@@ -321,7 +321,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
               options={CURRENCY_OPTIONS}
               placeholder={tCurrency('placeholder')}
             />
-            <p className="mt-1.5 text-xs text-app-ink-muted">
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {tCurrency('preview', { example: formatCurrency(100_000, selectedCurrency) })}
             </p>
             {currencyChanged ? (
@@ -352,11 +352,11 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           <div>
             <label
               htmlFor="moderation_required"
-              className="cursor-pointer text-sm font-medium text-app-ink"
+              className="cursor-pointer text-sm font-medium text-foreground"
             >
               {t('moderation.label')}
             </label>
-            <p className="mt-0.5 text-xs text-app-ink-muted">{t('moderation.hint')}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('moderation.hint')}</p>
           </div>
         </div>
       </section>

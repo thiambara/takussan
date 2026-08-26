@@ -66,10 +66,10 @@ export function CustomerNotesTimeline({
 
   return (
     <section className="space-y-4">
-      <form onSubmit={submit} className="space-y-2 rounded-xl bg-app-surface-1 p-4">
+      <form onSubmit={submit} className="space-y-2 rounded-xl bg-card p-4">
         <label
           htmlFor="customer-note-body"
-          className="text-sm font-medium text-app-ink"
+          className="text-sm font-medium text-foreground"
         >
           {t('add')}
         </label>
@@ -111,12 +111,12 @@ export function CustomerNotesTimeline({
             <li
               key={note.id}
               className={cn(
-                'rounded-xl bg-app-surface-1 p-4',
+                'rounded-xl bg-card p-4',
                 note.pinned && 'ring-1 ring-primary/30',
               )}
             >
               <div className="mb-1 flex items-center justify-between gap-2">
-                <p className="text-xs text-app-ink-muted">
+                <p className="text-xs text-muted-foreground">
                   {note.author_name ? `${note.author_name} · ` : ''}
                   {formatDateTime(note.created_at, locale)}
                 </p>
@@ -124,7 +124,7 @@ export function CustomerNotesTimeline({
                   <Pin className="size-3 text-primary" aria-label={t('pinnedAria')} />
                 ) : null}
               </div>
-              <p className="whitespace-pre-line text-sm text-app-ink">{note.body}</p>
+              <p className="whitespace-pre-line text-sm text-foreground">{note.body}</p>
             </li>
           ))}
         </ol>

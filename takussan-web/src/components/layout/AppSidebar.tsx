@@ -250,7 +250,7 @@ function SidebarItem({
         role="link"
         aria-disabled="true"
         title={t('proLocked')}
-        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-app-ink-muted opacity-60"
+        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground opacity-60"
       >
         <Icon className="size-4 shrink-0" />
         <span className="truncate">{label}</span>
@@ -265,9 +265,9 @@ function SidebarItem({
       className={cn(
         'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
         active
-          ? 'bg-app-surface-3 text-app-topbar font-semibold'
-          : 'text-app-ink-muted hover:bg-app-surface-2',
-        emphasized && !active && 'text-app-topbar font-semibold',
+          ? 'bg-border text-foreground font-semibold'
+          : 'text-muted-foreground hover:bg-muted',
+        emphasized && !active && 'text-foreground font-semibold',
       )}
     >
       <Icon className="size-4 shrink-0" />
@@ -283,15 +283,15 @@ function SidebarUserFooter({ user, onNavigate }: { user: User; onNavigate?: () =
     <Link
       href="/app/profile"
       onClick={onNavigate}
-      className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-app-surface-2"
+      className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-muted"
     >
       <Avatar className="size-9">
         {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}
-        <AvatarFallback className="bg-app-topbar text-white">{initials}</AvatarFallback>
+        <AvatarFallback className="bg-foreground text-white">{initials}</AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-app-ink">{user.full_name}</p>
-        <p className="truncate text-xs text-app-ink-muted">{t('myProfile')}</p>
+        <p className="truncate text-sm font-semibold text-foreground">{user.full_name}</p>
+        <p className="truncate text-xs text-muted-foreground">{t('myProfile')}</p>
       </div>
     </Link>
   );
@@ -316,12 +316,12 @@ export function AppSidebar({
     agencyIsStandard === false;
 
   return (
-    <aside className={cn('flex h-full w-64 flex-col bg-app-surface-1', className)}>
+    <aside className={cn('flex h-full w-64 flex-col bg-card', className)}>
       <div className="px-6 py-5">
         <Link
           href="/"
           onClick={onNavigate}
-          className="text-xl font-bold tracking-tighter text-app-topbar"
+          className="text-xl font-bold tracking-tighter text-foreground"
         >
           {tCommon('appName')}
         </Link>

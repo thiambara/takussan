@@ -55,17 +55,17 @@ export function CustomerDocumentsPanel({
 
   return (
     <section className="space-y-4">
-      <div className="rounded-xl bg-app-surface-1 p-4">
+      <div className="rounded-xl bg-card p-4">
         <label
           htmlFor="customer-document-input"
-          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-app-surface-3 px-4 py-6 text-center text-sm text-app-ink-muted transition-colors hover:border-app-accent/60"
+          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60"
         >
           {pending ? (
-            <Loader2 className="size-5 animate-spin text-app-accent" aria-hidden="true" />
+            <Loader2 className="size-5 animate-spin text-primary" aria-hidden="true" />
           ) : (
-            <UploadCloud className="size-5 text-app-accent" aria-hidden="true" />
+            <UploadCloud className="size-5 text-primary" aria-hidden="true" />
           )}
-          <span className="text-sm font-medium text-app-ink">
+          <span className="text-sm font-medium text-foreground">
             {t('upload')}
           </span>
           <span className="text-xs">
@@ -99,15 +99,15 @@ export function CustomerDocumentsPanel({
           {documents.map((doc) => (
             <li
               key={doc.id}
-              className="flex items-center justify-between gap-3 rounded-xl bg-app-surface-1 p-4"
+              className="flex items-center justify-between gap-3 rounded-xl bg-card p-4"
             >
               <div className="flex items-center gap-3">
-                <FileText className="size-5 text-app-accent" aria-hidden="true" />
+                <FileText className="size-5 text-primary" aria-hidden="true" />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-app-ink">
+                  <p className="truncate text-sm font-medium text-foreground">
                     {doc.name}
                   </p>
-                  <p className="text-xs text-app-ink-muted">
+                  <p className="text-xs text-muted-foreground">
                     {formatDateTime(doc.uploaded_at, locale)} ·{' '}
                     {t('sizeMb', { size: (doc.size / (1024 * 1024)).toFixed(2) })}
                   </p>

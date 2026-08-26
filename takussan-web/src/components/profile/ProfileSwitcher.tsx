@@ -158,7 +158,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
                     <span className="flex flex-col">
                       <span className="font-medium">{profile.agency?.name ?? profileTypeLabel(type, tTypes)}</span>
                       {profile.agency?.slug ? (
-                        <span className="text-xs text-app-ink-muted">{profile.agency.slug}</span>
+                        <span className="text-xs text-muted-foreground">{profile.agency.slug}</span>
                       ) : null}
                     </span>
                     {isActive ? <Check className="size-4 text-emerald-600" aria-hidden="true" /> : null}

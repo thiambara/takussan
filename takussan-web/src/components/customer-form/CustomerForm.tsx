@@ -128,7 +128,7 @@ export function CustomerForm({
         ) : null}
       </FormGlobalError>
 
-      <div className={compact ? 'space-y-4' : 'rounded-xl bg-app-surface-1 p-6 space-y-4'}>
+      <div className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
         <div className="grid gap-4 md:grid-cols-2">
           <FormInput control={control} name="first_name" label={t('firstName')} required />
           <FormInput control={control} name="last_name" label={t('lastName')} required />
@@ -158,9 +158,9 @@ export function CustomerForm({
         />
       </div>
 
-      <div className={compact ? 'space-y-4' : 'rounded-xl bg-app-surface-1 p-6 space-y-4'}>
+      <div className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
         {!compact ? (
-          <h2 className="text-base font-semibold text-app-ink">{t('crmSection')}</h2>
+          <h2 className="text-base font-semibold text-foreground">{t('crmSection')}</h2>
         ) : null}
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect
@@ -178,9 +178,9 @@ export function CustomerForm({
         </div>
       </div>
 
-      <div className={compact ? 'space-y-4' : 'rounded-xl bg-app-surface-1 p-6 space-y-4'}>
+      <div className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
         {!compact ? (
-          <h2 className="text-base font-semibold text-app-ink">{t('idSection')}</h2>
+          <h2 className="text-base font-semibold text-foreground">{t('idSection')}</h2>
         ) : null}
         <div className="grid gap-4 md:grid-cols-2">
           <FormSelect

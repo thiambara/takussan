@@ -109,7 +109,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
           type="button"
           onClick={addKpi}
           disabled={isPending}
-          className="rounded-md bg-app-topbar px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {t('add')}
         </button>
@@ -121,7 +121,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
         {configs.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('empty')}</p>
         ) : (
-          <ul className="divide-y divide-app-surface-3">
+          <ul className="divide-y divide-border">
             {configs.map((c) => (
               <li key={c.id} className="flex items-center justify-between py-2 text-sm">
                 <span>

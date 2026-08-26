@@ -134,7 +134,7 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
     <section className="space-y-6" data-testid="agency-role-editor">
       {role.is_system ? (
         <p
-          className="flex items-start gap-2 rounded-xl border border-border bg-app-surface-2/50 px-4 py-3 text-sm text-app-ink-muted"
+          className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
           data-testid="agency-role-system-notice"
         >
           <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -142,8 +142,8 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
         </p>
       ) : null}
 
-      <div className="space-y-4 rounded-xl border border-border bg-app-surface-1 p-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-app-ink-muted">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {t('editor.details_heading')}
         </h2>
         <div className="space-y-2">
@@ -171,10 +171,10 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
 
       <div className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-app-ink-muted">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {t('editor.capabilities_heading')}
           </h2>
-          <p className="mt-1 text-xs text-app-ink-muted">{t('editor.capabilities_hint')}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('editor.capabilities_hint')}</p>
         </div>
 
         {catalogueQuery.isLoading ? (

@@ -119,10 +119,10 @@ export function AdminUsersTable({
   };
 
   return (
-    <div className="overflow-hidden rounded-xl bg-app-surface-1">
+    <div className="overflow-hidden rounded-xl bg-card">
       <table className="w-full text-sm" data-testid="admin-users-table">
         <thead>
-          <tr className="bg-app-surface-2/50 text-left text-xs uppercase tracking-wide text-app-ink-muted">
+          <tr className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <th className="px-4 py-3 font-semibold">
               <button type="button" onClick={() => onSortClick('first_name')} className="flex items-center">
                 {t('table.member')} {renderSort('first_name')}
@@ -144,7 +144,7 @@ export function AdminUsersTable({
             <th className="px-4 py-3 text-right font-semibold sr-only">{t('table.actions')}</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-app-surface-2">
+        <tbody className="divide-y divide-muted">
           {rows.map((row) => {
             const statusCls = STATUS_CLS[row.status] ?? '';
             const statusLabel =
@@ -163,16 +163,16 @@ export function AdminUsersTable({
                       <AvatarFallback>{getInitials(row)}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-semibold text-app-ink">
+                      <p className="font-semibold text-foreground">
                         {row.first_name} {row.last_name}
                       </p>
                       {isSelf ? (
-                        <p className="text-xs text-app-ink-muted">{t('table.you')}</p>
+                        <p className="text-xs text-muted-foreground">{t('table.you')}</p>
                       ) : null}
                     </div>
                   </button>
                 </td>
-                <td className="px-4 py-3 text-app-ink-muted">
+                <td className="px-4 py-3 text-muted-foreground">
                   <a href={`mailto:${row.email}`} className="hover:underline">
                     {row.email}
                   </a>
@@ -215,7 +215,7 @@ export function AdminUsersTable({
                         {roleLabel(name)}
                       </Badge>
                     ) : (
-                      <span className="text-xs text-app-ink-muted">—</span>
+                      <span className="text-xs text-muted-foreground">—</span>
                     );
                   })()}
                 </td>
@@ -224,8 +224,8 @@ export function AdminUsersTable({
                     {statusLabel}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 text-app-ink-muted">{formatDate(row.last_login_at, locale)}</td>
-                <td className="px-4 py-3 text-app-ink-muted">{formatDate(row.created_at, locale)}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatDate(row.last_login_at, locale)}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatDate(row.created_at, locale)}</td>
                 <td className="px-4 py-3 text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger
@@ -282,7 +282,7 @@ export function AdminUsersTable({
           })}
         </tbody>
       </table>
-      <p className="border-t border-app-surface-2 px-4 py-2 text-xs text-app-ink-muted">
+      <p className="border-t border-muted px-4 py-2 text-xs text-muted-foreground">
         {t('table.count', { count: total, total: String(total) })}
       </p>
     </div>

@@ -38,8 +38,8 @@ export function BookingStepper({ steps, currentIndex }: BookingStepperProps) {
             <div
               className={cn(
                 'flex size-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-semibold',
-                isCompleted && 'border-app-topbar bg-app-topbar text-white',
-                isCurrent && 'border-app-topbar bg-white text-app-topbar',
+                isCompleted && 'border-foreground bg-foreground text-white',
+                isCurrent && 'border-foreground bg-white text-foreground',
                 !isCompleted && !isCurrent && 'border-stone-200 bg-white text-stone-400',
               )}
             >
@@ -48,8 +48,8 @@ export function BookingStepper({ steps, currentIndex }: BookingStepperProps) {
             <span
               className={cn(
                 'hidden text-sm font-medium sm:inline',
-                isCurrent && 'text-app-ink',
-                isCompleted && 'text-app-ink-muted',
+                isCurrent && 'text-foreground',
+                isCompleted && 'text-muted-foreground',
                 !isCompleted && !isCurrent && 'text-stone-400',
               )}
             >
@@ -59,7 +59,7 @@ export function BookingStepper({ steps, currentIndex }: BookingStepperProps) {
               <div
                 className={cn(
                   'h-px flex-1',
-                  isCompleted ? 'bg-app-topbar' : 'bg-stone-200',
+                  isCompleted ? 'bg-foreground' : 'bg-stone-200',
                 )}
                 aria-hidden
               />

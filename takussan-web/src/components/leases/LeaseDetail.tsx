@@ -102,7 +102,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }, [paymentsData]);
 
   if (isLoading) {
-    return <div className="h-60 animate-pulse rounded-xl bg-app-surface-1" />;
+    return <div className="h-60 animate-pulse rounded-xl bg-card" />;
   }
   if (isError || !data) {
     return (
@@ -148,7 +148,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           <Link href="/app/leases" className="text-xs text-stone-500 hover:text-stone-700">
             ← {t('backToList')}
           </Link>
-          <h1 className="mt-1 text-2xl font-bold text-app-ink">
+          <h1 className="mt-1 text-2xl font-bold text-foreground">
             {lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
           </h1>
           <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
@@ -274,7 +274,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-app-ink">{t('schedule')}</h2>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">{t('schedule')}</h2>
         {lease.status === 'draft' ? (
           <p className="mb-3 rounded-lg border border-dashed border-stone-200 bg-white p-3 text-sm text-stone-500">
             {t('activateBeforeSchedule')}

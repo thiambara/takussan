@@ -136,10 +136,10 @@ export function PropertyList({
   return (
     <div className="space-y-4">
       {/* Desktop table — 6 columns */}
-      <div className="hidden overflow-hidden rounded-xl bg-app-surface-1 md:block">
+      <div className="hidden overflow-hidden rounded-xl bg-card md:block">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-app-surface-2/70 backdrop-blur">
-            <tr className="text-left text-xs uppercase tracking-wide text-app-ink-muted">
+          <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur">
+            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="w-10 px-4 py-3 font-semibold">
                 <input
                   type="checkbox"
@@ -158,13 +158,13 @@ export function PropertyList({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-app-surface-2/60">
+          <tbody className="divide-y divide-muted/60">
             {properties.map((property) => (
               <tr
                 key={property.id}
                 className={cn(
-                  'align-middle transition-colors hover:bg-app-surface-2/30',
-                  selectedIds.includes(property.id) && 'bg-app-accent/5',
+                  'align-middle transition-colors hover:bg-muted/30',
+                  selectedIds.includes(property.id) && 'bg-primary/5',
                 )}
               >
                 <td className="px-4 py-4">
@@ -210,8 +210,8 @@ export function PropertyList({
             <li
               key={property.id}
               className={cn(
-                'relative flex gap-3 rounded-xl bg-app-surface-1 p-3 transition-colors',
-                isSelected && 'ring-1 ring-inset ring-app-accent/30',
+                'relative flex gap-3 rounded-xl bg-card p-3 transition-colors',
+                isSelected && 'ring-1 ring-inset ring-primary/30',
               )}
             >
               <div className="relative shrink-0">
@@ -227,17 +227,17 @@ export function PropertyList({
               <div className="min-w-0 flex-1 pr-8">
                 <Link
                   href={`/app/properties/${property.id}`}
-                  className="block truncate text-sm font-semibold text-app-ink"
+                  className="block truncate text-sm font-semibold text-foreground"
                 >
                   {property.title}
                 </Link>
-                <p className="truncate text-xs text-app-ink-muted">
+                <p className="truncate text-xs text-muted-foreground">
                   {enumLabel(tType, propertyTypeValues, property.type)}
                   {property.location?.city ? ` · ${property.location.city}` : ''}
                   {property.reference_number ? ` · ${property.reference_number}` : ''}
                 </p>
                 <div className="mt-1.5 flex items-baseline gap-2">
-                  <span className="text-base font-semibold text-app-ink tabular-nums">
+                  <span className="text-base font-semibold text-foreground tabular-nums">
                     {typeof property.price === 'number'
                       ? formatCurrency(property.price, 'fr', {
                           currency: property.currency ?? 'XOF',
@@ -245,13 +245,13 @@ export function PropertyList({
                       : '—'}
                     {property.contract_type === 'rent' &&
                     property.rent_period ? (
-                      <span className="ml-0.5 text-xs font-medium text-app-ink-muted">
+                      <span className="ml-0.5 text-xs font-medium text-muted-foreground">
                         /{RENT_PERIOD_SHORT[property.rent_period]}
                       </span>
                     ) : null}
                   </span>
                   {property.contract_type ? (
-                    <span className="text-xs text-app-ink-muted">
+                    <span className="text-xs text-muted-foreground">
                       {enumLabel(tContract, contractTypeValues, property.contract_type)}
                     </span>
                   ) : null}
@@ -260,7 +260,7 @@ export function PropertyList({
                   <StatusBadge status={property.status} />
                   <VisibilityBadge visibility={property.visibility} />
                 </div>
-                <p className="mt-2 text-xs text-app-ink-muted">
+                <p className="mt-2 text-xs text-muted-foreground">
                   <RelativeDate value={property.created_at} /> ·{' '}
                   <span className="inline-flex items-center gap-1">
                     <EyeIcon className="size-3" aria-hidden="true" />
@@ -346,19 +346,19 @@ function BienCell({
       <div className="min-w-0">
         <Link
           href={`/app/properties/${property.id}`}
-          className="block truncate text-sm font-semibold text-app-ink hover:text-app-accent"
+          className="block truncate text-sm font-semibold text-foreground hover:text-primary"
         >
           {property.title}
         </Link>
-        <p className="truncate text-xs text-app-ink-muted">
+        <p className="truncate text-xs text-muted-foreground">
           {enumLabel(tType, propertyTypeValues, property.type)}
           {property.location?.city ? ` · ${property.location.city}` : ''}
           {property.reference_number ? ` · ${property.reference_number}` : ''}
         </p>
         {showAgent ? (
-          <p className="mt-1 truncate text-xs text-app-ink-muted">
-            <span className="text-app-ink-muted/70">{t('agentPrefix')}</span>{' '}
-            <span className="font-medium text-app-ink">{property.owner?.name}</span>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            <span className="text-muted-foreground/70">{t('agentPrefix')}</span>{' '}
+            <span className="font-medium text-foreground">{property.owner?.name}</span>
           </p>
         ) : null}
       </div>
@@ -371,20 +371,20 @@ function PriceCell({ property }: { readonly property: PropertyListItem }) {
   const isRent = property.contract_type === 'rent';
   return (
     <div className="space-y-0.5">
-      <div className="text-base font-semibold text-app-ink tabular-nums">
+      <div className="text-base font-semibold text-foreground tabular-nums">
         {typeof property.price === 'number'
           ? formatCurrency(property.price, 'fr', {
               currency: property.currency ?? 'XOF',
             })
           : '—'}
         {isRent && property.rent_period ? (
-          <span className="ml-0.5 text-xs font-medium text-app-ink-muted">
+          <span className="ml-0.5 text-xs font-medium text-muted-foreground">
             /{RENT_PERIOD_SHORT[property.rent_period]}
           </span>
         ) : null}
       </div>
       {property.contract_type ? (
-        <div className="text-xs text-app-ink-muted">
+        <div className="text-xs text-muted-foreground">
           {enumLabel(tContract, contractTypeValues, property.contract_type)}
         </div>
       ) : null}
@@ -395,8 +395,8 @@ function PriceCell({ property }: { readonly property: PropertyListItem }) {
 function ActivityCell({ property }: { readonly property: PropertyListItem }) {
   const t = useTranslations('property.dashboard.list');
   return (
-    <div className="space-y-0.5 text-xs text-app-ink-muted">
-      <div className="text-app-ink">
+    <div className="space-y-0.5 text-xs text-muted-foreground">
+      <div className="text-foreground">
         <RelativeDate value={property.created_at} />
       </div>
       <div className="flex items-center gap-3">
@@ -439,7 +439,7 @@ function PropertyThumbnail({
   if (property.main_photo_url) {
     return (
       <span
-        className="relative block shrink-0 overflow-hidden rounded-lg bg-app-surface-2"
+        className="relative block shrink-0 overflow-hidden rounded-lg bg-muted"
         style={{ width: dim, height: dim }}
       >
         <Image
@@ -455,7 +455,7 @@ function PropertyThumbnail({
   return (
     <span
       aria-hidden="true"
-      className="block shrink-0 rounded-lg bg-app-surface-2"
+      className="block shrink-0 rounded-lg bg-muted"
       style={{ width: dim, height: dim }}
     />
   );
@@ -530,7 +530,7 @@ function StatusBadge({ status }: { status: string | null }) {
   return (
     <Badge
       className={cn(
-        'border-transparent bg-app-surface-2 text-app-ink',
+        'border-transparent bg-muted text-foreground',
         status === 'available' && 'bg-emerald-50 text-emerald-700',
         status === 'sold' && 'bg-emerald-100 text-emerald-800',
         status === 'rented' && 'bg-blue-50 text-blue-700',
@@ -557,8 +557,8 @@ function VisibilityBadge({ visibility }: { visibility: string | null }) {
       className={cn(
         'gap-1 border-transparent text-xs',
         isPublic
-          ? 'bg-app-accent/10 text-app-accent'
-          : 'bg-app-surface-2 text-app-ink-muted',
+          ? 'bg-primary/10 text-primary'
+          : 'bg-muted text-muted-foreground',
       )}
     >
       {isPublic ? (
@@ -642,7 +642,7 @@ function BulkActionBar({
     <div
       role="region"
       aria-label={t('bulkAria')}
-      className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-app-topbar/95 px-3 py-2.5 text-sm text-white shadow-lg backdrop-blur md:inset-x-auto md:right-6"
+      className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-foreground/95 px-3 py-2.5 text-sm text-white shadow-lg backdrop-blur md:inset-x-auto md:right-6"
     >
       <span className="font-semibold">
         {t('bulkSelected', { count: selectedCount })}

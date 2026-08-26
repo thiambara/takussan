@@ -47,7 +47,7 @@ export function LanguageSwitcher({ className, variant = 'compact' }: LanguageSwi
         aria-label={t('label')}
         disabled={isPending}
         className={cn(
-          'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium outline-none ring-1 ring-black/5 transition-colors hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-app-topbar disabled:opacity-60',
+          'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium outline-none ring-1 ring-black/5 transition-colors hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-foreground disabled:opacity-60',
           className,
         )}
       >
@@ -65,12 +65,12 @@ export function LanguageSwitcher({ className, variant = 'compact' }: LanguageSwi
             onClick={() => handleSelect(code)}
             className={cn(
               'flex items-center justify-between gap-4',
-              code === locale && 'font-semibold text-app-topbar',
+              code === locale && 'font-semibold text-foreground',
             )}
             aria-current={code === locale ? 'true' : undefined}
           >
             <span>{localeDisplayLabel(code, locale)}</span>
-            <span className="text-xs text-app-ink-muted">{LOCALE_SHORT[code]}</span>
+            <span className="text-xs text-muted-foreground">{LOCALE_SHORT[code]}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

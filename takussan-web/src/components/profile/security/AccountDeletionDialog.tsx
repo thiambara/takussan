@@ -157,13 +157,13 @@ export function AccountDeletionDialog({
 
         {step === 1 ? (
           <div className="space-y-4">
-            <p className="font-semibold text-app-ink">{t('step1Title')}</p>
+            <p className="font-semibold text-foreground">{t('step1Title')}</p>
             <fieldset className="space-y-2">
               <legend className="sr-only">{t('step1Title')}</legend>
               {REASONS.map((r) => (
                 <label
                   key={r}
-                  className="flex cursor-pointer items-center gap-2 rounded-md border border-app-surface-3 p-3 hover:bg-app-surface-1"
+                  className="flex cursor-pointer items-center gap-2 rounded-md border border-border p-3 hover:bg-card"
                 >
                   <input
                     type="radio"
@@ -189,7 +189,7 @@ export function AccountDeletionDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            <p className="font-semibold text-app-ink">
+            <p className="font-semibold text-foreground">
               {hasUsablePassword ? t('step2Title') : t('step2CodeTitle')}
             </p>
             {hasUsablePassword ? (
@@ -215,7 +215,7 @@ export function AccountDeletionDialog({
                   {codeSent ? t('resendCodeCta') : t('sendCodeCta')}
                 </Button>
                 {codeSent ? (
-                  <p className="text-sm text-app-ink-muted" role="status">
+                  <p className="text-sm text-muted-foreground" role="status">
                     {t('codeSentHint')}
                   </p>
                 ) : null}

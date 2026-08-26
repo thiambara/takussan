@@ -66,13 +66,13 @@ export function AgencyAdminOnboardingWizard({
       </ol>
 
       {step === 'welcome' ? (
-        <section className="space-y-6 rounded-2xl border border-app-surface-3 bg-white p-8 text-center shadow-sm">
+        <section className="space-y-6 rounded-2xl border border-border bg-white p-8 text-center shadow-sm">
           <Sparkles className="mx-auto size-10 text-primary" aria-hidden="true" />
           <div className="space-y-2">
-            <h1 className="font-display text-2xl font-bold text-app-ink">
+            <h1 className="font-display text-2xl font-bold text-foreground">
               {t('welcome.title', { firstName })}
             </h1>
-            <p className="text-sm text-app-ink-muted">
+            <p className="text-sm text-muted-foreground">
               {t('welcome.body', { agencyName })}
             </p>
           </div>
@@ -85,7 +85,7 @@ export function AgencyAdminOnboardingWizard({
       ) : null}
 
       {step === 'two-factor' ? (
-        <section className="space-y-6 rounded-2xl border border-app-surface-3 bg-white p-8 shadow-sm">
+        <section className="space-y-6 rounded-2xl border border-border bg-white p-8 shadow-sm">
           <TotpEnrollment
             mode="recommended"
             onComplete={finish}

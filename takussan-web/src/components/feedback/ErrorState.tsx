@@ -30,7 +30,7 @@ type ErrorStateProps = ErrorStateBase &
  * est le composant shadcn/Radix, et ce dépôt tourne sur `@base-ui/react` sans aucune dépendance
  * Radix. L'équivalent existait déjà : `DestructiveBanner`, avec son `role="alert"` et ses tokens
  * `destructive/10` + `ring-destructive/20`. Il n'avait qu'**un seul consommateur** dans tout le
- * dépôt, pendant que 16 fichiers recopiaient le même `rounded-xl bg-app-surface-1 p-6 text-sm
+ * dépôt, pendant que 16 fichiers recopiaient le même `rounded-xl bg-card p-6 text-sm
  * text-red-600` au caractère près et qu'une quarantaine d'autres formes mêlaient la palette
  * Tailwind brute aux tokens du DS.
  *

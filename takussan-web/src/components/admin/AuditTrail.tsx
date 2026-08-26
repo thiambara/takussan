@@ -195,7 +195,7 @@ export function AuditTrail() {
       {/* ─── Sticky filter bar ─────────────────────────────────────────── */}
       <div className="sticky top-0 z-10 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">{t('filters.from')}</label>
+          <label className="text-xs font-medium text-muted-foreground">{t('filters.from')}</label>
           <DatePicker
             value={dateFrom}
             max={dateTo || today()}
@@ -205,7 +205,7 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">{t('filters.to')}</label>
+          <label className="text-xs font-medium text-muted-foreground">{t('filters.to')}</label>
           <DatePicker
             value={dateTo}
             min={dateFrom}
@@ -216,7 +216,7 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">{t('filters.action')}</label>
+          <label className="text-xs font-medium text-muted-foreground">{t('filters.action')}</label>
           <Select
             value={event || ANY}
             onValueChange={(next) => { setEvent(next === ANY ? '' : (next ?? '')); setPage(1); }}
@@ -234,7 +234,7 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">{t('filters.subject')}</label>
+          <label className="text-xs font-medium text-muted-foreground">{t('filters.subject')}</label>
           <Select
             value={subjectType || ANY}
             onValueChange={(next) => { setSubjectType(next === ANY ? '' : (next ?? '')); setPage(1); }}
@@ -252,9 +252,9 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-app-ink-muted">{t('filters.search')}</label>
+          <label className="text-xs font-medium text-muted-foreground">{t('filters.search')}</label>
           <div className="relative">
-            <Search className="absolute left-2.5 top-2 h-4 w-4 text-app-ink-muted" />
+            <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
@@ -285,14 +285,14 @@ export function AuditTrail() {
                   onClick={() => handleExport('csv')}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-stone-50"
                 >
-                  <FileText className="h-4 w-4 text-app-ink-muted" />
+                  <FileText className="h-4 w-4 text-muted-foreground" />
                   CSV
                 </button>
                 <button
                   onClick={() => handleExport('xlsx')}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-stone-50"
                 >
-                  <FileSpreadsheet className="h-4 w-4 text-app-ink-muted" />
+                  <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
                   Excel (XLSX)
                 </button>
               </div>
@@ -304,7 +304,7 @@ export function AuditTrail() {
       {/* ─── Table ─────────────────────────────────────────────────────── */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-app-ink-muted" />
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : isError ? (
         <ErrorState
@@ -322,11 +322,11 @@ export function AuditTrail() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-stone-50 text-left">
-                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.date')}</th>
-                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.user')}</th>
-                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.action')}</th>
-                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.subject')}</th>
-                <th className="px-4 py-3 font-medium text-app-ink-muted">{t('columns.description')}</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground">{t('columns.date')}</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground">{t('columns.user')}</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground">{t('columns.action')}</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground">{t('columns.subject')}</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground">{t('columns.description')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -340,7 +340,7 @@ export function AuditTrail() {
 
       {/* ─── Pagination ────────────────────────────────────────────────── */}
       {meta && meta.last_page > 1 && (
-        <div className="flex items-center justify-between text-sm text-app-ink-muted">
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>{t('entries', { count: meta.total, total: String(meta.total) })}</span>
           <div className="flex gap-2">
             <Button
@@ -379,13 +379,13 @@ function AuditRow({ log }: { log: ActivityLogEntry }) {
 
   return (
     <tr className="transition-colors hover:bg-stone-50">
-      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-app-ink-muted">
+      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-muted-foreground">
         {formatDate(log.created_at, locale)}
       </td>
       <td className="px-4 py-3">
-        <span className="font-medium text-app-ink">{causerName}</span>
+        <span className="font-medium text-foreground">{causerName}</span>
         {log.causer?.email && log.causer.name && (
-          <p className="text-xs text-app-ink-muted">{log.causer.email}</p>
+          <p className="text-xs text-muted-foreground">{log.causer.email}</p>
         )}
       </td>
       <td className="px-4 py-3">
@@ -395,15 +395,15 @@ function AuditRow({ log }: { log: ActivityLogEntry }) {
       </td>
       <td className="px-4 py-3">
         {log.subject_type ? (
-          <span className="text-app-ink">
+          <span className="text-foreground">
             {subjType}{' '}
             {log.subject_id && (
-              <span className="text-app-ink-muted">#{log.subject_id}</span>
+              <span className="text-muted-foreground">#{log.subject_id}</span>
             )}
           </span>
         ) : '—'}
       </td>
-      <td className="max-w-xs truncate px-4 py-3 text-app-ink-muted">
+      <td className="max-w-xs truncate px-4 py-3 text-muted-foreground">
         {log.description ?? '—'}
       </td>
     </tr>

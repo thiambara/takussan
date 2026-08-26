@@ -3,11 +3,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function PropertyListSkeleton({ rows = 5 }: { readonly rows?: number }) {
   return (
     <div className="space-y-4">
-      <div className="hidden overflow-hidden rounded-xl bg-app-surface-1 md:block">
-        <div className="border-b border-app-surface-2/60 px-4 py-3">
+      <div className="hidden overflow-hidden rounded-xl bg-card md:block">
+        <div className="border-b border-muted/60 px-4 py-3">
           <Skeleton className="h-3 w-32" />
         </div>
-        <ul className="divide-y divide-app-surface-2/60">
+        <ul className="divide-y divide-muted/60">
           {Array.from({ length: rows }).map((_, idx) => (
             <li key={idx} className="flex items-center gap-4 px-4 py-4">
               <Skeleton className="size-4 rounded" />
@@ -28,7 +28,7 @@ export function PropertyListSkeleton({ rows = 5 }: { readonly rows?: number }) {
         {Array.from({ length: rows }).map((_, idx) => (
           <li
             key={idx}
-            className="flex gap-3 rounded-xl bg-app-surface-1 p-3"
+            className="flex gap-3 rounded-xl bg-card p-3"
           >
             <Skeleton className="size-24 rounded-lg" />
             <div className="flex-1 space-y-2">

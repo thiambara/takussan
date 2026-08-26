@@ -126,21 +126,21 @@ function KpiTile({ icon, label, value, hint, loading, tone = 'default' }: KpiTil
   const ringClass =
     tone === 'danger'
       ? 'border-destructive/30 bg-destructive/5'
-      : 'border-app-surface-2 bg-app-surface-1';
+      : 'border-muted bg-card';
 
   return (
     <div
       className={`rounded-2xl border ${ringClass} p-4`}
       data-testid={`finance-kpi-${label.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '')}`}
     >
-      <div className="flex items-center justify-between text-app-ink-muted">
+      <div className="flex items-center justify-between text-muted-foreground">
         <p className="text-xs font-medium uppercase tracking-wide">{label}</p>
         {icon}
       </div>
-      <p className="mt-3 text-2xl font-bold text-app-ink">
+      <p className="mt-3 text-2xl font-bold text-foreground">
         {loading ? <span aria-hidden="true">—</span> : (value ?? '—')}
       </p>
-      {hint ? <p className="mt-1 text-xs text-app-ink-muted">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

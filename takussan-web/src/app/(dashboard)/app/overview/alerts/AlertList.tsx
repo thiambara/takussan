@@ -160,7 +160,7 @@ export function AlertList({ initialAlerts }: Props) {
           type="button"
           onClick={addAlert}
           disabled={isPending}
-          className="rounded-md bg-app-topbar px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {t('create')}
         </button>
@@ -172,7 +172,7 @@ export function AlertList({ initialAlerts }: Props) {
         {alerts.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('empty')}</p>
         ) : (
-          <ul className="divide-y divide-app-surface-3">
+          <ul className="divide-y divide-border">
             {alerts.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 text-sm">
                 <span>

@@ -53,11 +53,11 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
 
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl bg-app-surface-1 p-5">
+      <header className="rounded-2xl bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-app-ink">{request.title}</h2>
-            <p className="mt-1 text-xs text-app-ink-muted">
+            <h2 className="text-lg font-semibold text-foreground">{request.title}</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
               {tCategory(request.category)} ·{' '}
               {t('created_at', { date: formatDateTime(request.created_at, locale) })}
             </p>
@@ -68,36 +68,36 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
           </div>
         </div>
 
-        <p className="mt-4 whitespace-pre-wrap text-sm text-app-ink">{request.description}</p>
+        <p className="mt-4 whitespace-pre-wrap text-sm text-foreground">{request.description}</p>
 
-        <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-app-ink-muted md:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-muted-foreground md:grid-cols-4">
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('property')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               <PropertyValue request={request} />
             </dd>
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('requester')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               {personLabel(request.requester) ?? t('requester_missing')}
             </dd>
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('assignee')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               {personLabel(request.assignee) ?? t('unassigned')}
             </dd>
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('scheduled_for')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               {request.scheduled_at ? formatDateTime(request.scheduled_at, locale) : '—'}
             </dd>
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('actual_cost')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               {request.actual_cost !== null
                 ? formatCurrency(request.actual_cost, locale)
                 : '—'}
@@ -130,13 +130,13 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
       ) : null}
 
       {request.resolution_notes ? (
-        <section className="rounded-2xl bg-app-surface-1 p-5">
-          <h3 className="text-sm font-semibold text-app-ink">{t('resolution_notes')}</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-app-ink">
+        <section className="rounded-2xl bg-card p-5">
+          <h3 className="text-sm font-semibold text-foreground">{t('resolution_notes')}</h3>
+          <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
             {request.resolution_notes}
           </p>
           {request.completed_at ? (
-            <p className="mt-2 text-xs text-app-ink-muted">
+            <p className="mt-2 text-xs text-muted-foreground">
               {t('completed_at', { date: formatDateTime(request.completed_at, locale) })}
             </p>
           ) : null}
@@ -157,7 +157,7 @@ function PropertyValue({ request }: { readonly request: MaintenanceRequest }) {
     <>
       <span className="font-medium">{property.title}</span>
       {property.location?.full ? (
-        <span className="mt-0.5 block text-app-ink-muted">{property.location.full}</span>
+        <span className="mt-0.5 block text-muted-foreground">{property.location.full}</span>
       ) : null}
     </>
   );
@@ -198,7 +198,7 @@ function StatusActions({
 
   if (allowed.length === 0) {
     return (
-      <div className="rounded-2xl bg-app-surface-1 p-5 text-sm text-app-ink-muted">
+      <div className="rounded-2xl bg-card p-5 text-sm text-muted-foreground">
         {t('terminal', { status: tStatus(request.status) })}
       </div>
     );
@@ -239,8 +239,8 @@ function StatusActions({
     startWorkMutation.isPending;
 
   return (
-    <div className="rounded-2xl bg-app-surface-1 p-5">
-      <h3 className="text-sm font-semibold text-app-ink">{t('change_status')}</h3>
+    <div className="rounded-2xl bg-card p-5">
+      <h3 className="text-sm font-semibold text-foreground">{t('change_status')}</h3>
       <div className="mt-3 flex flex-wrap gap-2">
         {allowed.map((next) => (
           <Button

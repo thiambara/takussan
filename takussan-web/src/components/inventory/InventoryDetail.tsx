@@ -48,13 +48,13 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl bg-app-surface-1 p-5">
+      <header className="rounded-2xl bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-lg font-semibold text-app-ink">
+            <p className="text-lg font-semibold text-foreground">
               {inventory.property?.title ?? tRoot('fallbackReference', { id: String(inventory.id) })}
             </p>
-            <p className="mt-1 text-xs text-app-ink-muted">
+            <p className="mt-1 text-xs text-muted-foreground">
               {inventory.property?.slug ? (
                 <Link
                   href={`/properties/${inventory.property.slug}`}
@@ -80,22 +80,22 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
           </div>
         </div>
 
-        <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-app-ink-muted md:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-muted-foreground md:grid-cols-4">
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('generalCondition')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               {tConditions(inventory.general_condition)}
             </dd>
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('conductedAt')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               {inventory.conducted_at ? formatDateTime(inventory.conducted_at, locale) : '—'}
             </dd>
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('tenant')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               {inventory.tenant_signed && inventory.tenant_signed_at
                 ? t('signedOn', { date: formatDateTime(inventory.tenant_signed_at, locale) })
                 : t('pending')}
@@ -103,7 +103,7 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('landlord')}</dt>
-            <dd className="mt-0.5 text-app-ink">
+            <dd className="mt-0.5 text-foreground">
               {inventory.owner_signed && inventory.owner_signed_at
                 ? t('signedOn', { date: formatDateTime(inventory.owner_signed_at, locale) })
                 : t('pending')}
@@ -112,7 +112,7 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
         </dl>
 
         {inventory.notes ? (
-          <p className="mt-4 whitespace-pre-wrap rounded-md bg-app-surface-2 p-3 text-sm text-app-ink">
+          <p className="mt-4 whitespace-pre-wrap rounded-md bg-muted p-3 text-sm text-foreground">
             {inventory.notes}
           </p>
         ) : null}
@@ -123,7 +123,7 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
       <SignatureSection inventory={inventory} />
 
       <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-app-ink">
+        <h3 className="text-sm font-semibold text-foreground">
           {t('rooms', { count: String(inventory.rooms.length) })}
         </h3>
         {inventory.rooms.length === 0 ? (
@@ -164,18 +164,18 @@ function RoomCard({
   const [photos, setPhotos] = useState<File[]>([]);
 
   return (
-    <article className="rounded-xl bg-app-surface-1 p-4">
+    <article className="rounded-xl bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-app-ink">{room.name}</p>
-          <p className="text-xs text-app-ink-muted">
+          <p className="text-sm font-semibold text-foreground">{room.name}</p>
+          <p className="text-xs text-muted-foreground">
             {t('roomCondition', { condition: tConditions(room.condition) })}
           </p>
         </div>
       </div>
 
       {room.notes ? (
-        <p className="mt-2 whitespace-pre-wrap text-sm text-app-ink">{room.notes}</p>
+        <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{room.notes}</p>
       ) : null}
 
       {room.elements && room.elements.length > 0 ? (
@@ -183,13 +183,13 @@ function RoomCard({
           {room.elements.map((el, i) => (
             <li
               key={`${el.label}-${i}`}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-app-surface-2 px-3 py-2 text-sm"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted px-3 py-2 text-sm"
             >
-              <span className="font-medium text-app-ink">{el.label}</span>
+              <span className="font-medium text-foreground">{el.label}</span>
               <div className="flex items-center gap-2">
                 <InventoryElementStateBadge state={el.state} />
                 {el.notes ? (
-                  <span className="text-xs text-app-ink-muted">{el.notes}</span>
+                  <span className="text-xs text-muted-foreground">{el.notes}</span>
                 ) : null}
               </div>
             </li>
@@ -198,7 +198,7 @@ function RoomCard({
       ) : null}
 
       {canUpload ? (
-        <div className="mt-3 space-y-3 rounded-md border border-dashed border-app-surface-3 p-3">
+        <div className="mt-3 space-y-3 rounded-md border border-dashed border-border p-3">
           <MediaDropzone
             onChange={(next) => setPhotos((prev) => [...prev, ...next])}
             files={photos}
@@ -251,14 +251,14 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
 
   if (!canSubmit && !canDispute && !showPdfAction) {
     return (
-      <div className="rounded-2xl bg-app-surface-1 p-5 text-sm text-app-ink-muted">
+      <div className="rounded-2xl bg-card p-5 text-sm text-muted-foreground">
         {t('terminalState', { status: tStatus(inventory.status) })}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 rounded-2xl bg-app-surface-1 p-5">
+    <div className="space-y-3 rounded-2xl bg-card p-5">
       <div className="flex flex-wrap items-center gap-2">
         {canSubmit ? (
           <Button
@@ -287,10 +287,10 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
       </div>
 
       {showDispute ? (
-        <div className="space-y-2 rounded-md bg-app-surface-2 p-3">
+        <div className="space-y-2 rounded-md bg-muted p-3">
           <label
             htmlFor="dispute-reason"
-            className="block text-xs font-semibold uppercase tracking-wide text-app-ink-muted"
+            className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
           >
             {t('disputeReason')}
           </label>

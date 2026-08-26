@@ -53,7 +53,7 @@ export function OverduePaymentsTable() {
       loadingFallback={
         <div className="space-y-3" data-testid="overdue-payments-loading">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-app-surface-1" />
+            <div key={i} className="h-12 animate-pulse rounded-lg bg-card" />
           ))}
         </div>
       }
@@ -74,7 +74,7 @@ export function OverduePaymentsTable() {
         return (
           <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
             <table className="w-full text-left text-sm" data-testid="overdue-payments-table">
-              <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
+              <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">{tTable('reference')}</th>
                   <th className="px-3 py-2">{tTable('source')}</th>
@@ -100,8 +100,8 @@ export function OverduePaymentsTable() {
                       : null;
 
                   return (
-                    <tr key={`${row.source}-${row.id}`} className="text-app-ink">
-                      <td className="px-3 py-2 font-mono text-xs text-app-ink-muted">
+                    <tr key={`${row.source}-${row.id}`} className="text-foreground">
+                      <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                         {row.reference_number ?? `#${row.id}`}
                       </td>
                       <td className="px-3 py-2 text-xs">{tTable(`sources.${row.source}`)}</td>
@@ -134,7 +134,7 @@ export function OverduePaymentsTable() {
               </tbody>
             </table>
             {data.meta.total ? (
-              <p className="border-t border-stone-100 px-3 py-2 text-xs text-app-ink-muted">
+              <p className="border-t border-stone-100 px-3 py-2 text-xs text-muted-foreground">
                 {t('count', { count: data.meta.total })}
               </p>
             ) : null}

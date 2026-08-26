@@ -305,10 +305,10 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       ) : null}
 
       {/* ── Section 1 : Informations générales ── */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">{t('general.title')}</h2>
-          <p className="text-xs text-app-ink-muted">{t('general.hint')}</p>
+          <h2 className="text-base font-semibold text-foreground">{t('general.title')}</h2>
+          <p className="text-xs text-muted-foreground">{t('general.hint')}</p>
         </header>
         <FormInput
           control={control}
@@ -337,10 +337,10 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       </section>
 
       {/* ── Section 2 : Prix ── */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">{t('price.title')}</h2>
-          <p className="text-xs text-app-ink-muted">
+          <h2 className="text-base font-semibold text-foreground">{t('price.title')}</h2>
+          <p className="text-xs text-muted-foreground">
             {t(contractType === 'rent' ? 'price.hintRent' : 'price.hintSale')}
           </p>
         </header>
@@ -376,10 +376,10 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       </section>
 
       {/* ── Section 3 : Localisation / Adresse ── */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">{t('location.title')}</h2>
-          <p className="text-xs text-app-ink-muted">{t('location.hintFull')}</p>
+          <h2 className="text-base font-semibold text-foreground">{t('location.title')}</h2>
+          <p className="text-xs text-muted-foreground">{t('location.hintFull')}</p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
@@ -424,24 +424,24 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           />
         </div>
         <div className="space-y-2">
-          <p className="text-xs font-medium text-app-ink-muted">
+          <p className="text-xs font-medium text-muted-foreground">
             {t('location.gps')}{' '}
             {lat != null && lng != null && (
-              <span className="text-app-ink">
+              <span className="text-foreground">
                 ({lat.toFixed(5)}, {lng.toFixed(5)})
               </span>
             )}
           </p>
           <LocationPickerMapLoader lat={lat} lng={lng} onChange={handleLocationChange} />
-          <p className="text-xs text-app-ink-muted">{t('location.mapHint')}</p>
+          <p className="text-xs text-muted-foreground">{t('location.mapHint')}</p>
         </div>
       </section>
 
       {/* ── Section 4 : Caractéristiques ── */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">{t('features.title')}</h2>
-          <p className="text-xs text-app-ink-muted">{t('features.hintFull')}</p>
+          <h2 className="text-base font-semibold text-foreground">{t('features.title')}</h2>
+          <p className="text-xs text-muted-foreground">{t('features.hintFull')}</p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
           <FormInput
@@ -494,10 +494,10 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       </section>
 
       {/* ── Section 5 : Description ── */}
-      <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+      <section className="rounded-xl bg-card p-6 space-y-4">
         <header>
-          <h2 className="text-base font-semibold text-app-ink">{t('description.title')}</h2>
-          <p className="text-xs text-app-ink-muted">{t('description.hint')}</p>
+          <h2 className="text-base font-semibold text-foreground">{t('description.title')}</h2>
+          <p className="text-xs text-muted-foreground">{t('description.hint')}</p>
         </header>
         <FormTextarea
           control={control}
@@ -506,17 +506,17 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
           rows={6}
           placeholder={t('fields.descriptionPlaceholder')}
         />
-        <p className="text-right text-xs text-app-ink-muted">
+        <p className="text-right text-xs text-muted-foreground">
           {t('description.counter', { count: description.length })}
         </p>
       </section>
 
       {/* ── Section 6 : Équipements / Tags ── */}
       {tags.length > 0 && (
-        <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+        <section className="rounded-xl bg-card p-6 space-y-4">
           <header>
-            <h2 className="text-base font-semibold text-app-ink">{t('amenities.title')}</h2>
-            <p className="text-xs text-app-ink-muted">{t('amenities.hint')}</p>
+            <h2 className="text-base font-semibold text-foreground">{t('amenities.title')}</h2>
+            <p className="text-xs text-muted-foreground">{t('amenities.hint')}</p>
           </header>
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => {
@@ -530,7 +530,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors ${
                     checked
                       ? 'border-primary bg-primary text-primary-foreground'
-                      : 'border-border bg-transparent text-app-ink hover:bg-app-surface-2'
+                      : 'border-border bg-transparent text-foreground hover:bg-muted'
                   }`}
                 >
                   {tag.icon && <span aria-hidden="true">{tag.icon}</span>}
@@ -544,10 +544,10 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
 
       {/* ── Section 7 : Photos (creation only — edit uses PropertyMediaPanel) ── */}
       {mode === 'create' && (
-        <section className="rounded-xl bg-app-surface-1 p-6 space-y-4">
+        <section className="rounded-xl bg-card p-6 space-y-4">
           <header>
-            <h2 className="text-base font-semibold text-app-ink">{t('photos.title')}</h2>
-            <p className="text-xs text-app-ink-muted">{t('photos.hint', { max: MAX_PHOTOS })}</p>
+            <h2 className="text-base font-semibold text-foreground">{t('photos.title')}</h2>
+            <p className="text-xs text-muted-foreground">{t('photos.hint', { max: MAX_PHOTOS })}</p>
           </header>
           <MediaDropzone
             onChange={onPhotosChange}
@@ -555,7 +555,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             onRemove={removePhoto}
             maxFiles={MAX_PHOTOS}
           />
-          <p className="text-xs text-app-ink-muted">
+          <p className="text-xs text-muted-foreground">
             {t('photos.counter', { count: pendingPhotos.length, max: MAX_PHOTOS })}
           </p>
           {photoError ? (
@@ -567,7 +567,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       )}
 
       <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <p className="text-xs text-app-ink-muted" aria-live="polite">
+        <p className="text-xs text-muted-foreground" aria-live="polite">
           {mode === 'edit' && dirtyCount > 0
             ? t('footer.dirty', { count: dirtyCount })
             : t(mode === 'edit' ? 'footer.noChanges' : 'footer.requiredHint')}

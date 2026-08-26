@@ -83,7 +83,7 @@ export function MemberAgencyRoleSelect({ agencyId, assignment }: MemberAgencyRol
     <div className="space-y-2" data-testid={`member-agency-role-${assignment.profile_type}`}>
       <Label htmlFor={selectId}>{t('assign.label', { type: typeLabel() })}</Label>
       {rolesQuery.isLoading ? (
-        <p className="text-xs text-app-ink-muted">{t('assign.loading')}</p>
+        <p className="text-xs text-muted-foreground">{t('assign.loading')}</p>
       ) : (
         <select
           id={selectId}

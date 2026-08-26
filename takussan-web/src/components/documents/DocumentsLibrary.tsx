@@ -128,7 +128,7 @@ export function DocumentsLibrary() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-app-ink-muted">
+          <p className="text-sm text-muted-foreground">
             {isLoading
               ? tCommon('status.loading')
               : t('count', { count: totalFromMeta })}
@@ -153,14 +153,14 @@ export function DocumentsLibrary() {
         className={[
           'rounded-xl border border-dashed p-2 transition-colors',
           dragOver
-            ? 'border-app-accent bg-app-accent/5'
+            ? 'border-primary bg-primary/5'
             : 'border-transparent',
         ].join(' ')}
       >
         {isLoading ? (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-xl bg-app-surface-1" />
+              <div key={i} className="h-16 animate-pulse rounded-xl bg-card" />
             ))}
           </div>
         ) : isError ? (
@@ -180,7 +180,7 @@ export function DocumentsLibrary() {
             {grouped.map(([category, docs]) => (
               <section key={category}>
                 <header className="mb-2 flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-app-ink">
+                  <h2 className="text-sm font-semibold text-foreground">
                     {tTypes(category)}
                   </h2>
                   <Badge variant="secondary">{docs.length}</Badge>
@@ -285,14 +285,14 @@ function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
   ] as const;
 
   return (
-    <div className="rounded-xl bg-app-surface-1 px-5 py-6 text-sm text-app-ink">
+    <div className="rounded-xl bg-card px-5 py-6 text-sm text-foreground">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2">
-            <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
+            <UploadCloud className="size-6 text-primary" aria-hidden="true" />
             <h2 className="text-base font-semibold">{t('title')}</h2>
           </div>
-          <p className="mt-2 text-app-ink-muted">{t('body')}</p>
+          <p className="mt-2 text-muted-foreground">{t('body')}</p>
         </div>
         <Button type="button" onClick={onUpload} className="shrink-0">
           <Plus className="mr-1 size-4" aria-hidden="true" />
@@ -302,14 +302,14 @@ function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('examples_heading')}
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
             {examples.map((example) => (
               <span
                 key={example.label}
-                className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-app-ink"
+                className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-foreground"
               >
                 {example.label} · {example.type}
               </span>
@@ -318,7 +318,7 @@ function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
         </section>
 
         <section>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('targets_heading')}
           </h3>
           <div className="mt-2 grid gap-2">
@@ -326,10 +326,10 @@ function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
               const Icon = target.icon;
               return (
                 <div key={target.title} className="flex items-start gap-2 rounded-lg border border-stone-200 bg-white p-2">
-                  <Icon className="mt-0.5 size-4 shrink-0 text-app-accent" aria-hidden="true" />
+                  <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
                   <div>
                     <p className="font-medium">{target.title}</p>
-                    <p className="text-xs text-app-ink-muted">{target.helper}</p>
+                    <p className="text-xs text-muted-foreground">{target.helper}</p>
                   </div>
                 </div>
               );
@@ -357,13 +357,13 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
 
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-3 text-sm">
-      <FileText className="size-5 shrink-0 text-app-accent" aria-hidden="true" />
+      <FileText className="size-5 shrink-0 text-primary" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate font-medium text-app-ink">{doc.name}</span>
+          <span className="truncate font-medium text-foreground">{doc.name}</span>
           {doc.is_verified ? <Badge variant="secondary">{t('verified')}</Badge> : null}
         </div>
-        <p className="mt-0.5 text-xs text-app-ink-muted">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           {formatFileSize(doc.file_size)}
           {doc.mime_type ? <> · {doc.mime_type}</> : null}
           {doc.created_at ? <> · {formatDateTime(doc.created_at, locale)}</> : null}

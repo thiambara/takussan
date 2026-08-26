@@ -16,7 +16,7 @@ interface PageHeaderProps {
  *
  * Les 25 pages super-admin recopiaient le même bloc — mesuré le 2026-08-26 : 24 fois
  * `font-display text-2xl font-bold text-foreground` et 23 fois `mt-1 text-sm text-muted-foreground`,
- * avec une 25ᵉ page (`/super-admin/settings`) partie sur `text-app-ink`, un jeton que le DS ne
+ * avec une 25ᵉ page (`/super-admin/settings`) partie sur `text-foreground`, un jeton que le DS ne
  * publie plus. Recopié 24 fois, un bloc reste juste ; c'est la 25ᵉ copie qui décide, et personne
  * ne la voit passer.
  *

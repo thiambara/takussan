@@ -164,7 +164,7 @@ function ConversationRow({
           </div>
         </div>
         {unread > 0 && (
-          <span className="ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-app-topbar text-[10px] font-bold text-white">
+          <span className="ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-white">
             {unread > 9 ? '9+' : unread}
           </span>
         )}

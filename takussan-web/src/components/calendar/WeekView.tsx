@@ -53,7 +53,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
               <div
                 className={cn(
                   'mt-0.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full text-sm font-semibold',
-                  isToday ? 'bg-app-topbar text-white px-1.5' : 'text-stone-900',
+                  isToday ? 'bg-foreground text-white px-1.5' : 'text-stone-900',
                 )}
               >
                 {day.getDate()}

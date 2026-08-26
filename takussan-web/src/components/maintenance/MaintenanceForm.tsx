@@ -157,10 +157,10 @@ export function MaintenanceForm({
           accept="image/jpeg,image/png,image/webp"
           multiple
           onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
-          className="block w-full text-sm text-app-ink-muted"
+          className="block w-full text-sm text-muted-foreground"
         />
         {photos.length > 0 ? (
-          <p className="mt-1 text-xs text-app-ink-muted">
+          <p className="mt-1 text-xs text-muted-foreground">
             {t('photos_selected', { count: photos.length })}
           </p>
         ) : null}

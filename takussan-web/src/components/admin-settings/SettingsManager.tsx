@@ -199,7 +199,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
 
       <div className="overflow-x-auto rounded-xl border border-input">
         <table className="min-w-full text-sm">
-          <thead className="bg-app-surface-2 text-left text-xs uppercase tracking-wider text-app-ink-muted">
+          <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th scope="col" className="px-4 py-3 font-semibold">{t('columns.key')}</th>
               <th scope="col" className="px-4 py-3 font-semibold">{t('columns.scope')}</th>
@@ -224,7 +224,7 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
                 const isEditing = editingId === setting.id;
                 const canEdit = setting.scope === 'global' ? canManageGlobal : true;
                 return (
-                  <tr key={setting.id} className="bg-app-surface-1 align-top">
+                  <tr key={setting.id} className="bg-card align-top">
                     <td className="px-4 py-3 font-mono text-xs">{setting.key}</td>
                     <td className="px-4 py-3 text-xs">
                       <span className="rounded-full bg-muted px-2 py-0.5">

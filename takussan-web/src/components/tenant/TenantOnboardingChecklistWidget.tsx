@@ -115,10 +115,10 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
   if (query.isLoading) {
     return (
       <div
-        className="rounded-xl border border-app-border bg-app-surface-1 p-6"
+        className="rounded-xl border border-border bg-card p-6"
         aria-busy="true"
       >
-        <div className="h-4 w-32 animate-pulse rounded bg-app-border" />
+        <div className="h-4 w-32 animate-pulse rounded bg-border" />
       </div>
     );
   }
@@ -144,7 +144,7 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
 
   return (
     <section
-      className="rounded-xl border border-app-border bg-app-surface-1 p-6"
+      className="rounded-xl border border-border bg-card p-6"
       aria-labelledby={`tenant-onboarding-${lease.id}`}
     >
       <header className="mb-4">
@@ -154,7 +154,7 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
         <p className="mt-1 text-sm text-muted-foreground">{t('widget.subtitle')}</p>
       </header>
 
-      <ul className="divide-y divide-app-border">
+      <ul className="divide-y divide-border">
         {rows.map((item) => {
           const done = isItemDone(checklist, item);
           const href = handleClickItem(item);
@@ -201,7 +201,7 @@ function ChecklistRow({
       <span
         className={cn(
           'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border',
-          done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-app-border text-muted-foreground',
+          done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-border text-muted-foreground',
         )}
         aria-hidden="true"
       >
@@ -230,7 +230,7 @@ function ChecklistRow({
 
   if (href) {
     return (
-      <Link href={href} className="block hover:bg-app-surface-2/50">
+      <Link href={href} className="block hover:bg-muted/50">
         {content}
       </Link>
     );
@@ -242,7 +242,7 @@ function ChecklistRow({
         type="button"
         onClick={onAcknowledge}
         disabled={isPending}
-        className="block w-full hover:bg-app-surface-2/50 disabled:opacity-60"
+        className="block w-full hover:bg-muted/50 disabled:opacity-60"
       >
         {content}
       </button>

@@ -52,14 +52,14 @@ export function PropertyModerationWorkspace() {
           className="h-9 w-64 rounded-lg border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         />
         {data?.meta ? (
-          <p className="ml-auto text-xs text-app-ink-muted">
+          <p className="ml-auto text-xs text-muted-foreground">
             {t('pendingCount', { count: data.meta.pending_count })}
           </p>
         ) : null}
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 rounded-xl bg-app-surface-1 p-12 text-sm text-app-ink-muted">
+        <div className="flex items-center justify-center gap-2 rounded-xl bg-card p-12 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" aria-hidden="true" />
           {t('loading')}
         </div>

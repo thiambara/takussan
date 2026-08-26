@@ -97,7 +97,7 @@ export function MonthView({
                 className={cn(
                   'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium transition-colors hover:bg-stone-100',
                   todayBadge
-                    ? 'bg-app-topbar text-white'
+                    ? 'bg-foreground text-white'
                     : inMonth
                       ? 'text-stone-700'
                       : 'text-stone-400',

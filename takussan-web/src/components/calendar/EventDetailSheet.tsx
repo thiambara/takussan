@@ -121,7 +121,7 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
             <dt className="text-xs font-semibold uppercase text-stone-500">{t('detail.property')}</dt>
             <dd>
               <Link
-                className="text-app-topbar hover:underline"
+                className="text-foreground hover:underline"
                 href={`/properties/${event.property_slug}`}
               >
                 {t('detail.viewProperty')}
@@ -134,7 +134,7 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
       <footer className="border-t border-stone-200 px-6 py-4">
         <Link
           href={event.resource_url}
-          className="inline-flex w-full items-center justify-center rounded-lg bg-app-topbar px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="inline-flex w-full items-center justify-center rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
           data-testid="calendar-event-open-resource"
         >
           {t('detail.open', { resource: openLabel })}

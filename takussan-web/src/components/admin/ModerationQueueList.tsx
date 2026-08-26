@@ -29,7 +29,7 @@ export function ModerationQueueList({
   const t = useTranslations('admin.moderation');
   const locale = useLocale();
   return (
-    <ul className="max-h-[70vh] overflow-y-auto rounded-xl bg-app-surface-1">
+    <ul className="max-h-[70vh] overflow-y-auto rounded-xl bg-card">
       {reviews.map((review) => {
         const isSelected = review.id === selectedId;
         const status = review.status ?? 'pending';
@@ -39,10 +39,10 @@ export function ModerationQueueList({
               type="button"
               onClick={() => onSelect(review)}
               className={cn(
-                'flex w-full flex-col gap-2 border-b border-app-surface-2 p-4 text-left text-sm transition-colors',
+                'flex w-full flex-col gap-2 border-b border-muted p-4 text-left text-sm transition-colors',
                 isSelected
-                  ? 'bg-app-surface-2/60'
-                  : 'hover:bg-app-surface-2/40',
+                  ? 'bg-muted/60'
+                  : 'hover:bg-muted/40',
               )}
               aria-pressed={isSelected}
             >
@@ -50,7 +50,7 @@ export function ModerationQueueList({
                 <span
                   className={cn(
                     'rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-                    STATUS_CLASS[status] ?? 'bg-app-surface-2 text-app-ink border-app-surface-3',
+                    STATUS_CLASS[status] ?? 'bg-muted text-foreground border-border',
                   )}
                 >
                   {STATUTS_CONNUS.has(status) ? t(`status.${status}`) : status}
@@ -61,15 +61,15 @@ export function ModerationQueueList({
                     {review.reported_count}
                   </span>
                 ) : null}
-                <div className="ml-auto flex items-center gap-1 text-xs text-app-ink-muted">
+                <div className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
                   <Star className="size-3" />
                   {review.rating}/5
                 </div>
               </div>
-              <p className="line-clamp-2 text-sm font-medium text-app-ink">
+              <p className="line-clamp-2 text-sm font-medium text-foreground">
                 {review.title || review.content || t('emptyReview')}
               </p>
-              <div className="flex items-center justify-between text-xs text-app-ink-muted">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span className="truncate">{review.author?.name ?? t('detail.anonymous')}</span>
                 <span>{new Date(review.created_at).toLocaleDateString(locale)}</span>
               </div>

@@ -142,12 +142,12 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-semibold text-app-ink">{label}</p>
+        <p className="text-sm font-semibold text-foreground">{label}</p>
         {helperText ? (
-          <p className="mt-0.5 text-xs text-app-ink-muted">{helperText}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{helperText}</p>
         ) : null}
       </div>
-      <div className="rounded-xl border border-dashed border-app-surface-3 bg-white p-1">
+      <div className="rounded-xl border border-dashed border-border bg-white p-1">
         <canvas
           ref={canvasRef}
           data-testid="signature-canvas"

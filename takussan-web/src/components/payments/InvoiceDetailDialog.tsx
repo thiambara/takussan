@@ -69,9 +69,9 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
         </DialogHeader>
 
         {isLoading ? (
-          <div className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
+          <div className="h-24 animate-pulse rounded-xl bg-card" />
         ) : isError ? (
-          <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-red-600">
+          <p className="rounded-xl bg-card p-4 text-sm text-red-600">
             {messageErreur(error, t('notFound'))}
           </p>
         ) : invoice ? (
@@ -80,7 +80,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
               <Badge variant={INVOICE_STATUS_VARIANT[status] ?? 'outline'}>
                 {tStatus(status)}
               </Badge>
-              <span className="text-xs text-app-ink-muted">
+              <span className="text-xs text-muted-foreground">
                 {t('issuedOn', {
                   date: invoice.issue_date ? formatDate(invoice.issue_date, locale) : '—',
                 })}
@@ -89,26 +89,26 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
 
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('customer')}</dt>
-                <dd className="mt-0.5 text-app-ink">#{invoice.customer_id}</dd>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('customer')}</dt>
+                <dd className="mt-0.5 text-foreground">#{invoice.customer_id}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('dueDate')}</dt>
-                <dd className="mt-0.5 text-app-ink">
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('dueDate')}</dt>
+                <dd className="mt-0.5 text-foreground">
                   {invoice.due_date ? formatDate(invoice.due_date, locale) : '—'}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('subtotal')}</dt>
-                <dd className="mt-0.5 text-app-ink">
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('subtotal')}</dt>
+                <dd className="mt-0.5 text-foreground">
                   {formatCurrency(invoice.subtotal, locale, {
                     currency: invoice.currency || 'XOF',
                   })}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('total')}</dt>
-                <dd className="mt-0.5 font-semibold text-app-ink">
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('total')}</dt>
+                <dd className="mt-0.5 font-semibold text-foreground">
                   {formatCurrency(invoice.total_amount, locale, {
                     currency: invoice.currency || 'XOF',
                   })}
@@ -116,8 +116,8 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
               </div>
               {invoice.tax_rate ? (
                 <div>
-                  <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('tax')}</dt>
-                  <dd className="mt-0.5 text-app-ink">
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('tax')}</dt>
+                  <dd className="mt-0.5 text-foreground">
                     {t('taxValue', {
                       // String() délibéré : ICU formaterait 1.5 en « 1,5 » sous fr, là où le JSX
                       // d'origine rendait le nombre brut. Aucun rendu ne doit changer (TCK-292).
@@ -132,7 +132,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
             </dl>
 
             {invoice.notes ? (
-              <p className="whitespace-pre-line rounded-lg bg-app-surface-1 p-3 text-sm text-app-ink">
+              <p className="whitespace-pre-line rounded-lg bg-card p-3 text-sm text-foreground">
                 {invoice.notes}
               </p>
             ) : null}

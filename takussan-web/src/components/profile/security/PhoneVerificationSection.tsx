@@ -72,13 +72,13 @@ export function PhoneVerificationSection({
   }
 
   return (
-    <div className="rounded-2xl border border-app-surface-3 bg-white p-6">
+    <div className="rounded-2xl border border-border bg-white p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-app-ink">
+          <h3 className="text-base font-semibold text-foreground">
             {t('title')}
           </h3>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <p className="mt-1 text-sm text-muted-foreground">
             {phone ? t('descriptionWithPhone', { phone }) : t('descriptionNoPhone')}
           </p>
         </div>
@@ -87,7 +87,7 @@ export function PhoneVerificationSection({
             'rounded-full px-2 py-1 text-xs font-semibold ' +
             (verified
               ? 'bg-emerald-100 text-emerald-800'
-              : 'bg-app-surface-1 text-app-ink-muted')
+              : 'bg-card text-muted-foreground')
           }
         >
           {verified ? tOtp('verified') : tOtp('notVerified')}

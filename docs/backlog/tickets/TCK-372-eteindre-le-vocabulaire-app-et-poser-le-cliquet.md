@@ -1,7 +1,7 @@
 ---
 id: TCK-372
 title: "Éteindre le vocabulaire `app-*` et poser le cliquet — la correction de TCK-244"
-status: todo
+status: review
 phase: P2
 family: front
 estimate: L
@@ -95,30 +95,30 @@ retirées, l'absence se prouve toute seule.
 
 ## Delta à produire
 
-- [ ] Traduction de `app-*` vers les tokens documentés sur toute la surface qui les emploie
+- [x] Traduction de `app-*` vers les tokens documentés sur toute la surface qui les emploie
       (1083 occurrences relevées, dont 183 sur `/admin`)
-- [ ] Suppression des déclarations `--app-*` et de leurs alias `@theme inline` dans
+- [x] Suppression des déclarations `--app-*` et de leurs alias `@theme inline` dans
       `src/app/globals.css`
-- [ ] Garde `scripts/check-*.mjs` refusant toute réapparition, avec motif et relevé daté en
+- [x] Garde `scripts/check-*.mjs` refusant toute réapparition, avec motif et relevé daté en
       en-tête
-- [ ] Branchement de la garde dans `repo-ci.yml`
-- [ ] Vérification visuelle sur au moins 5 écrans représentatifs de `/app` et `/admin`
+- [x] Branchement de la garde dans `repo-ci.yml`
+- [x] Vérification visuelle sur au moins 5 écrans représentatifs de `/app` et `/admin`
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `grep -rE '\-\-app-(bg|ink|ink-muted|surface-[123]|accent|topbar)' src/app/globals.css`
+- [x] AC1 — `grep -rE '\-\-app-(bg|ink|ink-muted|surface-[123]|accent|topbar)' src/app/globals.css`
       ne renvoie **aucun** résultat : le doublon n'existe plus à la source
-- [ ] AC2 — `grep -rEc '\b(bg|text|border|ring|divide|fill|stroke)-app-[a-z0-9-]+' src/`
+- [x] AC2 — `grep -rEc '\b(bg|text|border|ring|divide|fill|stroke)-app-[a-z0-9-]+' src/`
       renvoie **0**, contre 1083 le 2026-08-26
-- [ ] AC3 — la garde **sort en échec** quand on réintroduit volontairement `text-app-ink` dans
+- [x] AC3 — la garde **sort en échec** quand on réintroduit volontairement `text-app-ink` dans
       `src/components/admin/AuditTrail.tsx` — vérification **par ablation** : une garde qui n'a
       jamais échoué n'est pas prouvée, elle est supposée
-- [ ] AC4 — la garde couvre `src/` **entier**, pas un répertoire de pages : c'est la leçon de
+- [x] AC4 — la garde couvre `src/` **entier**, pas un répertoire de pages : c'est la leçon de
       l'AC1 de TCK-244, et un correctif qui la répéterait serait le même défaut sous un
       nouveau numéro
-- [ ] AC5 — aucune valeur hex nouvelle n'apparaît dans un fichier `.tsx` du diff
-- [ ] AC6 — comparaison avant/après sur 5 écrans : **aucune différence de rendu**
-- [ ] AC7 — `npm run lint`, `npx tsc --noEmit`, `npm run test`, `npm run build` passent
+- [x] AC5 — aucune valeur hex nouvelle n'apparaît dans un fichier `.tsx` du diff
+- [x] AC6 — comparaison avant/après sur 5 écrans : **aucune différence de rendu**
+- [x] AC7 — `npm run lint`, `npx tsc --noEmit`, `npm run test`, `npm run build` passent
 
 ## Hors périmètre
 
@@ -131,4 +131,60 @@ retirées, l'absence se prouve toute seule.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**La traduction s'est faite par codemod, et la table de correspondance vit désormais dans la
+garde** (`scripts/check-app-tokens.mjs`, constante `TRADUCTION`) plutôt que dans ce ticket : c'est
+elle qui l'imprime dans son message d'erreur, donc c'est elle qui doit la porter. 1084
+remplacements sur 150 fichiers (1083 relevés par la regex de l'AC2, plus un
+`placeholder-app-ink-muted` que cette regex ne voyait pas — le préfixe `placeholder` n'y figure
+pas ; c'est la troisième occurrence du défaut « le préfixe » de TCK-244, et la raison pour
+laquelle la garde énumère seize préfixes).
+
+**Trois classes n'avaient jamais existé comme variable, et c'est le seul endroit où le rendu
+bouge.** `--app-border`, `--app-primary` et `--app-surface` (sans chiffre) n'étaient déclarées
+nulle part : Tailwind ne générait pas la classe, et le style était silencieusement absent. Les
+traduire les rend *effectives*. Quatre points de rendu changent donc, tous dans le sens de
+l'intention manifeste de leur auteur — et il faut le dire plutôt que de le ranger sous
+« aucune différence » :
+
+| Fichier | Avant | Après |
+|---|---|---|
+| `tenant/TenantOnboardingChecklistWidget.tsx:121` | barre de squelette invisible (`bg-app-border`) | `bg-border` — elle se voit |
+| `maintenance/MaintenanceStepper.tsx:43` | trait de liaison du stepper invisible | `bg-border` — il se voit |
+| `layout/NotificationBell.tsx:231` | « tout marquer comme lu » héritait l'encre | `text-primary` — terracotta |
+| `documents/DocumentDetailClient.tsx:62` | carte transparente sur le fond de page | `bg-card` — blanche |
+
+`border-app-border` (5) et `divide-app-border` (1) sont en revanche des **non-événements** :
+`globals.css` porte `@layer base { * { @apply border-border } }`, donc ces éléments prenaient déjà
+`--border`. Le vérifier valait mieux que le supposer — l'inverse aurait été une régression muette
+sur six bordures.
+
+**AC6 — la preuve est structurelle, ET le passage navigateur a eu lieu.** Chacun des huit
+jetons déclarés a été traduit vers le jeton documenté de même rôle *et de même hex* ; le bundle CSS
+de production confirme que chaque utilitaire cible rend bien `var(--<jeton>)`
+(`.bg-card{background-color:var(--card)}`, `:where(.divide-border>:not(:last-child)){border-color:var(--border)}`,
+etc.) et que `:root` est inchangé. La couverture est donc **totale sur les 1080 occurrences**, là
+où cinq écrans en auraient couvert quelques dizaines.
+
+Le passage navigateur l'a doublée le 2026-08-26, connecté en `agency_admin` puis en `super_admin`
+sur la pile locale (PostgreSQL semé, API 8002, front 3000) : `/app`, `/admin`, `/admin/team`,
+`/admin/audit`, `/admin/finances?tab=impayes`, `/admin/settings/integrations`,
+`/admin/moderation/properties`, `/admin/roles`, `/super-admin/users` — palette Lin intacte, barre
+et barre latérale sombres inchangées. Le troisième point du tableau ci-dessus a été vérifié à
+l'œil : « Tout marquer comme lu » du panneau de notifications se lit maintenant en terracotta.
+
+⚠ Le front local se sert sur `localhost:3000`, **pas** `127.0.0.1:3000` : `config/cors.php` n'autorise
+que `FRONTEND_URL`, et l'écart d'hôte que le `CLAUDE.md` de `takussan-web/` documente rend la
+connexion impossible en `net::ERR_FAILED` — le symptôme accuse le réseau, jamais la configuration.
+
+**Ce que la garde prouve, contrairement à ses voisines.** `check-feedback-states.mjs` assume que
+deux de ses trois contrôles sont des cliquets heuristiques. Ici la propriété est décidable : une
+classe Tailwind est un littéral, sous peine de ne pas être compilée du tout. Le script ne retire
+donc **pas** les commentaires avant analyse — un docblock qui recommande `text-app-ink` est
+exactement la documentation périmée que ce ticket éteint.
+
+**Le mode sombre n'est pas réparé, il est devenu réparable.** Les huit jetons cibles existent dans
+le bloc `.dark` ; les `--app-*` n'y étaient pas. Restent les `text-white` qui accompagnaient
+`bg-app-topbar` (barre et barre latérale sombres) : ils n'ont pas été traduits en
+`text-background`, parce que `#ffffff` ≠ `#fcf9f3` et que ça aurait été une différence de rendu.
+C'est la dette qui survit à ce ticket, et elle attend le commutateur de thème (hors périmètre,
+ADR requis).

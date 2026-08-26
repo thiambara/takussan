@@ -68,16 +68,6 @@
   --on-surface-variant: #6e655a;
   --outline: #ebe5d5;
 
-  /* === App palette consolidée dans Lin (plus de warm heritage parallèle) === */
-  --app-topbar: #1f1812;
-  --app-bg: #fcf9f3;
-  --app-surface-1: #ffffff;
-  --app-surface-2: #f1ece0;
-  --app-surface-3: #ebe5d5;
-  --app-ink: #1f1812;
-  --app-ink-muted: #6e655a;
-  --app-accent: #a85332;
-
   /* === Floating Dock (TCK-275) === */
   /*
    * Base offset for floating bottom UI (compare bar, chat widget, etc.).
@@ -140,16 +130,6 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-
-  /* App palette aliases. */
-  --color-app-topbar: var(--app-topbar);
-  --color-app-bg: var(--app-bg);
-  --color-app-surface-1: var(--app-surface-1);
-  --color-app-surface-2: var(--app-surface-2);
-  --color-app-surface-3: var(--app-surface-3);
-  --color-app-ink: var(--app-ink);
-  --color-app-ink-muted: var(--app-ink-muted);
-  --color-app-accent: var(--app-accent);
 
   /* Radius scale. */
   --radius-sm: calc(var(--radius) * 0.6);

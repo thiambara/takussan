@@ -124,13 +124,13 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
         {currentUser.avatar_url ? (
           <AvatarImage src={currentUser.avatar_url} alt={currentUser.full_name} />
         ) : null}
-        <AvatarFallback className="bg-app-topbar text-2xl text-white">{initials}</AvatarFallback>
+        <AvatarFallback className="bg-foreground text-2xl text-white">{initials}</AvatarFallback>
       </Avatar>
       <div className="space-y-1">
-        <h1 className="text-2xl font-bold text-app-ink">{currentUser.full_name}</h1>
-        <p className="text-sm text-app-ink-muted">{currentUser.email}</p>
+        <h1 className="text-2xl font-bold text-foreground">{currentUser.full_name}</h1>
+        <p className="text-sm text-muted-foreground">{currentUser.email}</p>
         {primaryRole ? (
-          <span className="inline-block rounded-full bg-app-surface-1 px-3 py-1 text-xs font-semibold text-app-topbar">
+          <span className="inline-block rounded-full bg-card px-3 py-1 text-xs font-semibold text-foreground">
             {tRoles(ROLE_KEYS[primaryRole])}
           </span>
         ) : null}
@@ -156,7 +156,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
-              <label htmlFor="avatar" className="text-xs font-semibold text-app-ink-muted">
+              <label htmlFor="avatar" className="text-xs font-semibold text-muted-foreground">
                 {t('avatarLabel')}
               </label>
               <Input
@@ -171,15 +171,15 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                 </p>
               ) : null}
               {dialogAvatarSrc ? (
-                <div className="flex items-center justify-between gap-3 rounded-md border border-app-surface-3 p-2">
+                <div className="flex items-center justify-between gap-3 rounded-md border border-border p-2">
                   <div className="flex items-center gap-3">
                     <Avatar className="size-10">
                       <AvatarImage src={dialogAvatarSrc} alt={currentUser.full_name} />
-                      <AvatarFallback className="bg-app-topbar text-xs text-white">
+                      <AvatarFallback className="bg-foreground text-xs text-white">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-xs text-app-ink-muted">
+                    <span className="text-xs text-muted-foreground">
                       {avatar ? avatar.name : t('currentAvatar')}
                     </span>
                   </div>
@@ -199,7 +199,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               ) : null}
             </div>
             <div className="space-y-1">
-              <label htmlFor="first_name" className="text-xs font-semibold text-app-ink-muted">
+              <label htmlFor="first_name" className="text-xs font-semibold text-muted-foreground">
                 {t('firstName')}
               </label>
               <Input
@@ -210,7 +210,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               />
             </div>
             <div className="space-y-1">
-              <label htmlFor="last_name" className="text-xs font-semibold text-app-ink-muted">
+              <label htmlFor="last_name" className="text-xs font-semibold text-muted-foreground">
                 {t('lastName')}
               </label>
               <Input
@@ -221,7 +221,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               />
             </div>
             <div className="space-y-1">
-              <label htmlFor="bio" className="text-xs font-semibold text-app-ink-muted">
+              <label htmlFor="bio" className="text-xs font-semibold text-muted-foreground">
                 {t('bioLabel')}
               </label>
               <Textarea

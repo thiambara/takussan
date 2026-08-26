@@ -20,7 +20,7 @@ export function LeaseChainTimeline({ leaseId, currentId }: LeaseChainTimelinePro
   const chain = data?.data ?? [];
 
   if (isLoading) {
-    return <div className="h-16 animate-pulse rounded-xl bg-app-surface-1" />;
+    return <div className="h-16 animate-pulse rounded-xl bg-card" />;
   }
 
   if (chain.length < 2) {

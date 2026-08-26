@@ -131,11 +131,11 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
       </header>
 
       {providers.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-app-surface-2 bg-app-surface-1 p-10 text-center">
-          <h2 className="text-base font-semibold text-app-ink">
+        <div className="rounded-xl border border-dashed border-muted bg-card p-10 text-center">
+          <h2 className="text-base font-semibold text-foreground">
             {tList('empty_title')}
           </h2>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <p className="mt-1 text-sm text-muted-foreground">
             {tList('empty_description')}
           </p>
           {canInvite ? (
@@ -146,10 +146,10 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
           ) : null}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-app-surface-1">
+        <div className="overflow-hidden rounded-xl bg-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-app-surface-2/50 text-left text-xs uppercase tracking-wide text-app-ink-muted">
+              <tr className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-semibold">{tList('columns.name')}</th>
                 <th className="px-4 py-3 font-semibold">{tList('columns.trades')}</th>
                 <th className="px-4 py-3 font-semibold">{tList('columns.zones')}</th>
@@ -159,7 +159,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-app-surface-2">
+            <tbody className="divide-y divide-muted">
               {providers.map((sp) => (
                 <ProviderRow
                   key={sp.id}
@@ -208,8 +208,8 @@ function ProviderRow({ provider, resending, revoking, onResend, onRevoke }: RowP
 
   return (
     <tr>
-      <td className="px-4 py-3 font-semibold text-app-ink">{name || '—'}</td>
-      <td className="px-4 py-3 text-app-ink-muted">
+      <td className="px-4 py-3 font-semibold text-foreground">{name || '—'}</td>
+      <td className="px-4 py-3 text-muted-foreground">
         {trades.length === 0 ? (
           '—'
         ) : (
@@ -217,7 +217,7 @@ function ProviderRow({ provider, resending, revoking, onResend, onRevoke }: RowP
             {trades.map((trade) => (
               <span
                 key={trade}
-                className="rounded-full bg-app-surface-2 px-2 py-0.5 text-xs"
+                className="rounded-full bg-muted px-2 py-0.5 text-xs"
               >
                 {translateTrade(tCategories, trade)}
               </span>
@@ -225,7 +225,7 @@ function ProviderRow({ provider, resending, revoking, onResend, onRevoke }: RowP
           </div>
         )}
       </td>
-      <td className="px-4 py-3 text-app-ink-muted">
+      <td className="px-4 py-3 text-muted-foreground">
         {zones.length === 0 ? '—' : zones.join(', ')}
       </td>
       <td className="px-4 py-3">

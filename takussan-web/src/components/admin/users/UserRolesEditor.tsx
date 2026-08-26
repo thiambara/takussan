@@ -84,7 +84,7 @@ export function UserRolesEditor({ user }: UserRolesEditorProps) {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {t('rolesEditor.heading')}
       </p>
       <Select

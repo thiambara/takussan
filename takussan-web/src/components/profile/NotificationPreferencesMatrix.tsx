@@ -173,7 +173,7 @@ export function NotificationPreferencesMatrix() {
     );
   }
   if (!data) {
-    return <p className="text-sm text-app-ink-muted">{tCommon('loading')}</p>;
+    return <p className="text-sm text-muted-foreground">{tCommon('loading')}</p>;
   }
 
   const channels = data.channels;
@@ -203,14 +203,14 @@ export function NotificationPreferencesMatrix() {
       ) : null}
 
       {GROUPS.map((group) => (
-        <section key={group.key} className="rounded-2xl border border-app-surface-3 bg-white">
-          <header className="border-b border-app-surface-3 px-4 py-3">
-            <h3 className="text-sm font-bold text-app-ink">{t(`groups.${group.key}`)}</h3>
+        <section key={group.key} className="rounded-2xl border border-border bg-white">
+          <header className="border-b border-border px-4 py-3">
+            <h3 className="text-sm font-bold text-foreground">{t(`groups.${group.key}`)}</h3>
           </header>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-xs text-app-ink-muted">
+              <thead className="text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2">{t('eventColumn')}</th>
                   {channels.map((channel) => (
@@ -222,8 +222,8 @@ export function NotificationPreferencesMatrix() {
               </thead>
               <tbody>
                 {group.events.map((event) => (
-                  <tr key={event} className="border-t border-app-surface-3">
-                    <td className="px-4 py-2 text-app-ink">
+                  <tr key={event} className="border-t border-border">
+                    <td className="px-4 py-2 text-foreground">
                       {labelEvenement(event)}
                     </td>
                     {channels.map((channel) => {

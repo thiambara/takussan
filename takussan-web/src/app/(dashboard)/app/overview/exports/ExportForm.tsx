@@ -111,7 +111,7 @@ export function ExportForm({ canExportCustomers }: Props) {
         type="button"
         onClick={handleDownload}
         disabled={isPending}
-        className="rounded-md bg-app-topbar px-4 py-2 text-sm font-semibold text-white hover:bg-app-topbar/90 disabled:opacity-60"
+        className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-white hover:bg-foreground/90 disabled:opacity-60"
       >
         {isPending ? t('downloading') : t('download')}
       </button>

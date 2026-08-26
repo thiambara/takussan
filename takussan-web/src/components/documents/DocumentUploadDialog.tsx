@@ -174,18 +174,18 @@ export function DocumentUploadDialog({
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
             htmlFor="document-upload-input"
-            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-app-surface-3 px-4 py-6 text-center text-sm text-app-ink-muted transition-colors hover:border-app-accent/60"
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60"
           >
             {file ? (
               <>
-                <FileText className="size-6 text-app-accent" aria-hidden="true" />
+                <FileText className="size-6 text-primary" aria-hidden="true" />
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-app-ink">
+                  <span className="truncate text-sm font-medium text-foreground">
                     {file.name}
                   </span>
                   <button
                     type="button"
-                    className="text-xs text-app-ink-muted hover:text-destructive"
+                    className="text-xs text-muted-foreground hover:text-destructive"
                     onClick={(e) => {
                       e.preventDefault();
                       setFile(null);
@@ -202,8 +202,8 @@ export function DocumentUploadDialog({
               </>
             ) : (
               <>
-                <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
-                <span className="text-sm font-medium text-app-ink">
+                <UploadCloud className="size-6 text-primary" aria-hidden="true" />
+                <span className="text-sm font-medium text-foreground">
                   {t('dropzone_title')}
                 </span>
                 <span className="text-xs">{t('dropzone_hint')}</span>

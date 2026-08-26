@@ -268,30 +268,30 @@ export function CreatePayoutDialog({
             rows={2}
           />
 
-          <dl className="grid gap-2 rounded-xl bg-app-surface-1 p-3 text-xs sm:grid-cols-4">
+          <dl className="grid gap-2 rounded-xl bg-card p-3 text-xs sm:grid-cols-4">
             <div>
-              <dt className="text-app-ink-muted">{t('gross')}</dt>
-              <dd className="text-sm font-semibold text-app-ink">
+              <dt className="text-muted-foreground">{t('gross')}</dt>
+              <dd className="text-sm font-semibold text-foreground">
                 {formatCurrency(gross, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">{t('commission')}</dt>
-              <dd className="text-sm font-semibold text-app-ink">
+              <dt className="text-muted-foreground">{t('commission')}</dt>
+              <dd className="text-sm font-semibold text-foreground">
                 {formatCurrency(manualCommission ?? 0, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">{t('fees')}</dt>
-              <dd className="text-sm font-semibold text-app-ink">
+              <dt className="text-muted-foreground">{t('fees')}</dt>
+              <dd className="text-sm font-semibold text-foreground">
                 {formatCurrency(fees, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">{t('net')}</dt>
+              <dt className="text-muted-foreground">{t('net')}</dt>
               <dd
                 className={`text-sm font-semibold ${
-                  net <= 0 ? 'text-destructive' : 'text-app-ink'
+                  net <= 0 ? 'text-destructive' : 'text-foreground'
                 }`}
               >
                 {formatCurrency(net, locale, { currency })}

@@ -43,11 +43,11 @@ export default function DashboardError({
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <AlertTriangle className="size-10 text-app-accent" aria-hidden />
-      <h1 className="text-xl font-semibold text-app-ink">{t('title')}</h1>
-      <p className="max-w-md text-sm text-app-ink-muted">{t('body')}</p>
+      <AlertTriangle className="size-10 text-primary" aria-hidden />
+      <h1 className="text-xl font-semibold text-foreground">{t('title')}</h1>
+      <p className="max-w-md text-sm text-muted-foreground">{t('body')}</p>
       {error.digest && (
-        <p className="text-xs text-app-ink-muted">{t('reference', { digest: error.digest })}</p>
+        <p className="text-xs text-muted-foreground">{t('reference', { digest: error.digest })}</p>
       )}
       <Button onClick={reset}>{t('retry')}</Button>
     </div>
