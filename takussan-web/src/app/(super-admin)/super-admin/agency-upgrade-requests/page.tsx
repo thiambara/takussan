@@ -111,13 +111,44 @@ export default function AgencyUpgradeRequestsListPage() {
     {
       id: 'agency',
       header: t('columns.agency'),
-      cell: (row) => <UpgradeRequestAgencyCell row={row} />,
+      cell: (row) => (
+        <div className="flex items-center gap-2">
+          <Building2 className="size-4 text-muted-foreground" aria-hidden="true" />
+          <div>
+            <p className="font-medium text-foreground">
+              {row.agency?.name
+                ?? row.company_legal_name
+                ?? t('agencyFallback', { id: String(row.agency_id) })}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t('agencyRef', { id: String(row.agency_id) })}
+              {row.planned_agents_count
+                ? t('plannedAgents', { count: String(row.planned_agents_count) })
+                : null}
+            </p>
+          </div>
+        </div>
+      ),
     },
     {
       id: 'submittedBy',
       header: t('columns.submittedBy'),
       className: 'text-muted-foreground',
-      cell: (row) => <UpgradeRequestSubmitterCell row={row} />,
+      cell: (row) =>
+        row.submitter ? (
+          <>
+            <p className="text-foreground">
+              {[row.submitter.first_name, row.submitter.last_name].filter(Boolean).join(' ')
+                || row.submitter.email
+                || t('userFallback', { id: String(row.submitted_by) })}
+            </p>
+            {row.submitter.email ? (
+              <p className="text-xs text-muted-foreground">{row.submitter.email}</p>
+            ) : null}
+          </>
+        ) : (
+          <span className="text-xs">{t('userFallback', { id: String(row.submitted_by) })}</span>
+        ),
     },
     {
       id: 'date',
@@ -136,7 +167,7 @@ export default function AgencyUpgradeRequestsListPage() {
       id: 'delay',
       header: t('columns.delay'),
       className: 'text-muted-foreground',
-      cell: (row) => <UpgradeRequestDelayCell submittedAt={row.submitted_at} now={now} />,
+      cell: (row) => formatElapsed(elapsedDaysSince(row.submitted_at, now), t),
     },
     {
       id: 'actions',
@@ -275,64 +306,20 @@ export default function AgencyUpgradeRequestsListPage() {
 }
 
 /**
- * Les trois cellules composées sont des composants et non des fonctions en ligne parce qu'elles
- * ont besoin d'un HOOK (`useTranslations`) : l'appeler depuis la `cell` d'une colonne, qui est un
- * callback, violerait les règles des hooks.
+ * Les cellules sont des fonctions PURES, pas des composants.
+ *
+ * Le `t` dont elles ont besoin est celui de la page — même espace de noms, déjà en portée : rien
+ * ici n'appelle de hook, donc rien n'oblige à traverser une frontière de composant. Un composant
+ * par cellule aurait payé un `useTranslations` par cellule ET par ligne.
  */
-function UpgradeRequestAgencyCell({ row }: { readonly row: AdminAgencyUpgradeRequestRow }) {
-  const t = useTranslations('superAdmin.pages.upgradeRequests');
-  return (
-    <div className="flex items-center gap-2">
-      <Building2 className="size-4 text-muted-foreground" aria-hidden="true" />
-      <div>
-        <p className="font-medium text-foreground">
-          {row.agency?.name
-            ?? row.company_legal_name
-            ?? t('agencyFallback', { id: String(row.agency_id) })}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {t('agencyRef', { id: String(row.agency_id) })}
-          {row.planned_agents_count
-            ? t('plannedAgents', { count: String(row.planned_agents_count) })
-            : null}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function UpgradeRequestSubmitterCell({ row }: { readonly row: AdminAgencyUpgradeRequestRow }) {
-  const t = useTranslations('superAdmin.pages.upgradeRequests');
-  if (!row.submitter) {
-    return <span className="text-xs">{t('userFallback', { id: String(row.submitted_by) })}</span>;
-  }
-  return (
-    <>
-      <p className="text-foreground">
-        {[row.submitter.first_name, row.submitter.last_name].filter(Boolean).join(' ') ||
-          row.submitter.email ||
-          t('userFallback', { id: String(row.submitted_by) })}
-      </p>
-      {row.submitter.email ? (
-        <p className="text-xs text-muted-foreground">{row.submitter.email}</p>
-      ) : null}
-    </>
-  );
-}
-
-function UpgradeRequestDelayCell({
-  submittedAt,
-  now,
-}: {
-  readonly submittedAt: string | null;
-  readonly now: number;
-}) {
-  const t = useTranslations('superAdmin.pages.upgradeRequests');
-  const elapsedDays = elapsedDaysSince(submittedAt, now);
-  if (elapsedDays === null) return <>—</>;
-  if (elapsedDays === 0) return <>{t('delay.today')}</>;
-  if (elapsedDays === 1) return <>{t('delay.oneDay')}</>;
-  return <>{t('delay.days', { count: String(elapsedDays) })}</>;
+function formatElapsed(
+  elapsedDays: number | null,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  if (elapsedDays === null) return '—';
+  if (elapsedDays === 0) return t('delay.today');
+  if (elapsedDays === 1) return t('delay.oneDay');
+  return t('delay.days', { count: String(elapsedDays) });
 }
 
 /**

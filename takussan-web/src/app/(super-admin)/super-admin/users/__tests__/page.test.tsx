@@ -115,8 +115,10 @@ describe('super-admin users page', () => {
     expect(within(ligne).getByText('agent')).toBeInTheDocument();
     expect(within(ligne).getByText('Dakar Immo')).toBeInTheDocument();
     expect(within(ligne).getByText('active')).toBeInTheDocument();
-    expect(within(ligne).getByText('vérifié')).toBeInTheDocument();
-    expect(within(ligne).getByText('activée')).toBeInTheDocument();
+    // Les deux valeurs de sécurité portent leur PRÉFIXE : « vérifié » et « activée » nus ne
+    // disent pas laquelle est l'email et laquelle le 2FA.
+    expect(within(ligne).getByText('Email : vérifié')).toBeInTheDocument();
+    expect(within(ligne).getByText('2FA : activée')).toBeInTheDocument();
   });
 
   it('sends role and agency filters to the server', async () => {

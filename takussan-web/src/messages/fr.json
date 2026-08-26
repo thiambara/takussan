@@ -5456,6 +5456,8 @@
         "emailUnverified": "non vérifié",
         "twoFactorOn": "activée",
         "twoFactorOff": "inactive",
+        "securityEmail": "Email : {value}",
+        "securityTwoFactor": "2FA : {value}",
         "open": "Ouvrir",
         "impersonate": "Impersonifier",
         "impersonateTitle": "Impersonifier {name}",

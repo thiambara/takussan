@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**358 tickets** — 34 ouverts, 323 livrés.
+**358 tickets** — 33 ouverts, 324 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 32 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 323 |
+| ✅ Done | 324 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -72,7 +72,7 @@
 
 ## 👀 Review
 
-- [TCK-357](tickets/TCK-357-console-super-admin-primitives-partagees.md) — Console super-admin — primitives partagées (table, en-tête, tuile, badge, filtres, états) `L · P2 · front`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -80,7 +80,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 323
+## ✅ Done — 324
+
+<details>
+<summary><strong>Vague 46 — Console super-admin — audit design & fonctionnel (2026-08-26)</strong> — 1 ticket</summary>
+
+- [TCK-357](tickets/TCK-357-console-super-admin-primitives-partagees.md) — Console super-admin — primitives partagées (table, en-tête, tuile, badge, filtres, états) `L · P2 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 45 — Solde des tickets ouverts : barrière Meilisearch, dates par valeur, i18n résiduel, géo par distances (2026-08-22)</strong> — 1 ticket</summary>

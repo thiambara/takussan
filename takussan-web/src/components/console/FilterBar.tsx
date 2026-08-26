@@ -46,7 +46,12 @@ export function FilterBar({
       <div className={cn('grid gap-2 md:grid-cols-3 xl:grid-cols-4', controlsClassName)}>
         {children}
       </div>
-      {resultCount || (onReset && resetLabel) ? (
+      {/*
+        `resultCount != null` et non `resultCount` : un compteur passé en NOMBRE vaut `0` quand la
+        recherche ne rend rien, et c'est exactement le moment où l'écran doit l'afficher. Un test
+        de vérité l'aurait fait disparaître là.
+      */}
+      {resultCount != null || (onReset && resetLabel) ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">{resultCount}</p>
           {onReset && resetLabel ? (

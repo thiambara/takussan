@@ -1,7 +1,7 @@
 ---
 id: TCK-357
 title: "Console super-admin — primitives partagées (table, en-tête, tuile, badge, filtres, états)"
-status: review
+status: done
 phase: P2
 family: front
 estimate: L
@@ -98,9 +98,13 @@ et les quatre graphiques de Reporting comme les cinq onglets de la fiche agence 
 leur requête au montage. Sans le garde `{actif ? <Panneau /> : null}`, la bascule vers `<Tabs>`
 aurait multiplié par quatre (resp. cinq) le nombre de requêtes à l'ouverture de l'écran.
 
-**Trois cellules composées sont des COMPOSANTS, pas des fonctions en ligne** (`AnnouncementSegment`,
-`AnnouncementAction`, `UpgradeRequest*Cell`) : elles appellent `useTranslations` ou `useMutation`, et
-la prop `cell` d'une colonne est un callback — y appeler un hook viole les règles des hooks.
+**Une seule cellule composée est un COMPOSANT** — `AnnouncementAction`, parce qu'elle porte une
+MUTATION, donc un hook, et que la prop `cell` d'une colonne est un callback. Les quatre autres
+(`AnnouncementSegment`, `UpgradeRequest*Cell`) l'étaient aussi au premier jet, sur une justification
+FAUSSE écrite dans leur propre docblock : « elles ont besoin de `useTranslations` ». Le composant
+parent tenait déjà ce `t`, dans le même espace de noms. La revue de branche l'a attrapé ; elles sont
+redevenues des fonctions pures rendues en ligne, et `formatElapsed(days, t)` a été extrait comme
+fonction. *Un docblock qui justifie une structure est une affirmation, et se vérifie comme telle.*
 
 **Le contrat de tri est la chaîne spatie, pas un couple (colonne, direction).** Les trois écrans
 triables écrivaient tous `?sort=-created_at` et re-dérivaient chacun la bascule de direction ;
@@ -109,7 +113,11 @@ triables écrivaient tous `?sort=-created_at` et re-dérivaient chacun la bascul
 **Le test `/users` a changé d'objet, délibérément.** Il assérait la phrase-résumé de la carte
 (« Statut : … · Email … · 2FA … ») ; il assère désormais la STRUCTURE de table — légende accessible,
 liste exacte des en-têtes, contenu de la ligne. Les clés `rolesLabel`, `agenciesLabel` et `summary`
-de `superAdmin.pages.users` sont mortes avec les cartes et ont été retirées des trois locales.
+de `superAdmin.pages.users` sont mortes avec les cartes et ont été retirées des trois locales — mais
+`summary` PORTAIT les libellés de la colonne « Sécurité » (`Email {email} · 2FA {twoFactor}`), que
+rien ne remplaçait : la colonne rendait `vérifié` / `activée` nus, illisibles en anglais (`verified`
+/ `on`). Deux clés `securityEmail` / `securityTwoFactor` les ont rétablis. *Retirer une clé morte
+retire aussi ce qu'elle disait d'autre.*
 
 **Vérification NON faite : aucun parcours navigateur de la console authentifiée.** `./dev.sh doctor`
 rend la base « ne répond pas ou n'a jamais été migrée », et `/super-admin/*` redirige en 307 vers
@@ -121,3 +129,11 @@ tests de primitives qui mesurent le DOM réel — rôles ARIA, `scope`, `aria-so
 Ablation faite sur les garanties d'accessibilité : retirer `scope="col"`, le `sr-only` de la légende
 ou l'échelle unique de padding fait rougir `DataTable.test.tsx`. Le test de densité, lui, avait déjà
 prouvé sa valeur en attrapant le défaut ci-dessus avant toute ablation.
+
+**Ce que la revue de branche a corrigé, en plus des deux points ci-dessus.** `FilterBar` testait
+`resultCount ||` — un test de vérité sur un `ReactNode` qui faisait disparaître la ligne de compte
+quand un écran passe le NOMBRE `0`, c'est-à-dire au moment où elle compte le plus (`!= null`
+désormais). `AnnouncementSegment` appelait en outre `useMemo` dans son expression de retour, contre
+ADR-0015. Quatre `text-stone-*` restaient dans `agency-detail.tsx` sur des lignes dont le voisin
+immédiat avait été converti dans le même hunk. Aucun défaut de correction n'a été trouvé sur le
+diff.

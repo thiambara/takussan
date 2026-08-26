@@ -5000,6 +5000,8 @@
         "emailUnverified": "seetluwuñu ko",
         "twoFactorOn": "dox na",
         "twoFactorOff": "doxul",
+        "securityEmail": "Email : {value}",
+        "securityTwoFactor": "2FA : {value}",
         "open": "Ubbi",
         "impersonate": "Jëf ci turam",
         "impersonateTitle": "Jëf ci turu {name}",

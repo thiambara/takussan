@@ -373,8 +373,8 @@ export function AgencyTeamTab({ members, loading }: { members: AdminAgencyTeamMe
         {members.map((member) => (
           <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
             <div>
-              <p className="font-medium text-stone-950">{member.full_name || member.email}</p>
-              <p className="text-sm text-stone-600">{member.email}</p>
+              <p className="font-medium text-foreground">{member.full_name || member.email}</p>
+              <p className="text-sm text-muted-foreground">{member.email}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {member.roles.map((role) => (
@@ -401,8 +401,8 @@ export function AgencyPropertiesTab({ properties, loading }: { properties: Admin
         {properties.map((property) => (
           <div key={property.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
             <div>
-              <p className="font-medium text-stone-950">{property.title}</p>
-              <p className="text-sm text-stone-600">
+              <p className="font-medium text-foreground">{property.title}</p>
+              <p className="text-sm text-muted-foreground">
                 {property.reference_number} · {property.status_label ?? property.status ?? '—'}
               </p>
             </div>

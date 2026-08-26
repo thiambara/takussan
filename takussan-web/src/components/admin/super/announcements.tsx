@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Megaphone, PauseCircle, Plus } from 'lucide-react';
@@ -102,7 +102,7 @@ export function AnnouncementsConsole() {
       id: 'segment',
       header: t('colSegment'),
       className: 'text-muted-foreground',
-      cell: (announcement) => <AnnouncementSegment announcement={announcement} />,
+      cell: (announcement) => describeSegment(announcement, t),
     },
     {
       id: 'window',
@@ -210,15 +210,11 @@ export function AnnouncementsConsole() {
 }
 
 /**
- * La ligne d'annonce s'est scindée en deux cellules parce qu'elles ont chacune un HOOK :
- * `describeSegment` est mémoïsé, la désactivation est une mutation. Les rendre en ligne dans la
- * `cell` d'une colonne appellerait des hooks depuis un callback, ce que React interdit.
+ * SEULE la cellule d'action est un composant, et pour une raison qui ne vaut que pour elle : la
+ * désactivation est une MUTATION, donc un hook, et un hook ne s'appelle pas depuis la `cell` d'une
+ * colonne — qui est un callback. Le segment, lui, n'a besoin que de `t`, que le composant parent
+ * tient déjà : il se rend en ligne.
  */
-function AnnouncementSegment({ announcement }: { announcement: Announcement }) {
-  const t = useTranslations('superAdmin.announcements');
-  return <>{useMemo(() => describeSegment(announcement, t), [announcement, t])}</>;
-}
-
 function AnnouncementAction({ announcement }: { announcement: Announcement }) {
   const t = useTranslations('superAdmin.announcements');
   const queryClient = useQueryClient();

@@ -269,13 +269,20 @@ export default function SuperAdminUsersPage() {
       id: 'security',
       header: tPage('columns.security'),
       className: 'text-xs text-muted-foreground',
+      // Les deux valeurs sont PRÉFIXÉES de ce qu'elles qualifient : seules, « vérifié » et
+      // « activée » (en anglais « verified » et « on ») ne disent pas laquelle porte l'email et
+      // laquelle le 2FA. C'est ce que la phrase `summary` — supprimée avec les cartes — portait.
       cell: (u) => (
         <>
           <span className="block">
-            {u.email_verified_at ? tPage('emailVerified') : tPage('emailUnverified')}
+            {tPage('securityEmail', {
+              value: u.email_verified_at ? tPage('emailVerified') : tPage('emailUnverified'),
+            })}
           </span>
           <span className="block">
-            {u.two_factor_enabled ? tPage('twoFactorOn') : tPage('twoFactorOff')}
+            {tPage('securityTwoFactor', {
+              value: u.two_factor_enabled ? tPage('twoFactorOn') : tPage('twoFactorOff'),
+            })}
           </span>
         </>
       ),
