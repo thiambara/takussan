@@ -470,7 +470,7 @@ function MessageBubble({
         className={cn(
           'max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm',
           isOwn
-            ? 'rounded-br-sm bg-app-topbar text-white'
+            ? 'rounded-br-sm bg-foreground text-white'
             : 'rounded-bl-sm bg-white text-stone-900',
         )}
       >
@@ -490,7 +490,7 @@ function MessageBubble({
                   rel="noopener noreferrer"
                   className={cn(
                     'inline-flex items-center gap-1 text-xs underline',
-                    isOwn ? 'text-white/90' : 'text-app-topbar',
+                    isOwn ? 'text-white/90' : 'text-foreground',
                   )}
                 >
                   <Paperclip className="size-3" aria-hidden />

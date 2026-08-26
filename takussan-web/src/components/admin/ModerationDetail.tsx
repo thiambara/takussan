@@ -83,18 +83,18 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
 
   return (
     <section
-      className="rounded-xl bg-app-surface-1 p-6"
+      className="rounded-xl bg-card p-6"
       data-testid="moderation-detail"
     >
       <header className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wide text-app-ink-muted">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {t('reviewNumber', { id: String(review.id) })}
           </p>
-          <h2 className="mt-1 text-lg font-semibold text-app-ink">
+          <h2 className="mt-1 text-lg font-semibold text-foreground">
             {review.title || t('untitled')}
           </h2>
-          <p className="text-xs text-app-ink-muted">
+          <p className="text-xs text-muted-foreground">
             {t('byAuthor', {
               author: review.author?.name ?? t('anonymous'),
               rating: String(review.rating),
@@ -139,23 +139,23 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
         </div>
       </header>
 
-      <div className="mt-5 whitespace-pre-wrap rounded-lg bg-app-surface-2/40 p-4 text-sm text-app-ink">
-        {review.content ?? <em className="text-app-ink-muted">{t('noComment')}</em>}
+      <div className="mt-5 whitespace-pre-wrap rounded-lg bg-muted/40 p-4 text-sm text-foreground">
+        {review.content ?? <em className="text-muted-foreground">{t('noComment')}</em>}
       </div>
 
       {reports.length > 0 ? (
         <div className="mt-5">
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-app-ink">
-            <Flag className="size-4 text-red-600" />
+          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Flag className="size-4 text-destructive" />
             {t('reportsHeading', { count: String(reports.length) })}
           </h3>
           <ul className="space-y-2">
             {reports.map((report, i) => (
               <li
                 key={`${report.user_id ?? 'anon'}-${i}`}
-                className="rounded-lg border border-app-surface-2 bg-app-surface-2/20 p-3 text-sm"
+                className="rounded-lg border border-muted bg-muted/20 p-3 text-sm"
               >
-                <div className="flex items-center justify-between text-xs text-app-ink-muted">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{report.user?.name ?? t('reporterFallback')}</span>
                   {/* TCK-292 — la locale ACTIVE, plus celle du navigateur : un
                       utilisateur `fr` sur un navigateur `en-US` lisait une date
@@ -165,7 +165,7 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
                     <span>{formatDateTime(report.reported_at, locale)}</span>
                   ) : null}
                 </div>
-                <p className="mt-1 text-app-ink">{report.reason ?? '—'}</p>
+                <p className="mt-1 text-foreground">{report.reason ?? '—'}</p>
               </li>
             ))}
           </ul>
@@ -174,17 +174,17 @@ export function ModerationDetail({ review, onModerated }: ModerationDetailProps)
 
       {pending ? (
         <div
-          className="mt-5 rounded-lg border border-app-surface-2 bg-app-surface-2/30 p-4"
+          className="mt-5 rounded-lg border border-muted bg-muted/30 p-4"
           data-testid="moderation-confirm"
         >
-          <p className="mb-2 text-sm font-semibold text-app-ink">
+          <p className="mb-2 text-sm font-semibold text-foreground">
             {pending.decision === 'delete'
               ? t('confirmDelete')
               : pending.decision === 'hide'
                 ? t('confirmHide')
                 : t('confirmIgnore')}
           </p>
-          <label htmlFor="moderation-reason" className="text-xs text-app-ink-muted">
+          <label htmlFor="moderation-reason" className="text-xs text-muted-foreground">
             {t('reasonLabel')}
           </label>
           <textarea

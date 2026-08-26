@@ -22,7 +22,7 @@ const VARIANT: Record<string, { variant: BadgeVariant; className?: string }> = {
   draft: { variant: 'outline' },
   archived: {
     variant: 'outline',
-    className: 'border-app-surface-2 text-app-ink-muted',
+    className: 'border-muted text-muted-foreground',
   },
   rejected: { variant: 'destructive' },
   sold: { variant: 'secondary' },

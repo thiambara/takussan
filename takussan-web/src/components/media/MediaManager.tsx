@@ -275,13 +275,13 @@ export function MediaManager({
     <div className="space-y-4" data-testid="media-manager">
       <header className="flex items-baseline justify-between gap-4">
         <div>
-          <h3 className="text-base font-semibold text-app-ink">{title ?? t('title')}</h3>
+          <h3 className="text-base font-semibold text-foreground">{title ?? t('title')}</h3>
           {hint ? (
-            <p className="mt-0.5 text-xs text-app-ink-muted">{hint}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
           ) : null}
         </div>
         {grid.length > 0 ? (
-          <span className="text-xs text-app-ink-muted">
+          <span className="text-xs text-muted-foreground">
             {t.rich('photo_count', {
               count: grid.length,
               sup: (chunks) => <sup>{chunks}</sup>,
@@ -307,12 +307,12 @@ export function MediaManager({
           void handleFiles(e.dataTransfer.files);
         }}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-app-surface-3 bg-app-surface-2/40 px-6 py-10 text-center text-sm text-app-ink-muted transition-colors hover:border-app-accent/60',
-          isDragOverDropzone && 'border-app-accent bg-app-surface-2',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60',
+          isDragOverDropzone && 'border-primary bg-muted',
         )}
       >
-        <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
-        <p className="text-sm font-medium text-app-ink">{t('dropzone_title')}</p>
+        <UploadCloud className="size-6 text-primary" aria-hidden="true" />
+        <p className="text-sm font-medium text-foreground">{t('dropzone_title')}</p>
         <p className="text-xs">
           {t('dropzone_hint', { size: formatMo(maxSize), max: maxFiles })}
         </p>
@@ -340,12 +340,12 @@ export function MediaManager({
             <li
               key={`${p.name}-${p.size}`}
               className={cn(
-                'flex items-center gap-3 rounded-md bg-app-surface-2 px-3 py-2 text-xs',
+                'flex items-center gap-3 rounded-md bg-muted px-3 py-2 text-xs',
                 p.status === 'error' && 'bg-destructive/10 text-destructive',
               )}
             >
-              <span className="w-40 flex-none truncate text-app-ink">{p.name}</span>
-              <span className="w-20 flex-none text-app-ink-muted">
+              <span className="w-40 flex-none truncate text-foreground">{p.name}</span>
+              <span className="w-20 flex-none text-muted-foreground">
                 {formatMo(p.size)}
               </span>
               {p.status === 'error' ? (
@@ -353,10 +353,10 @@ export function MediaManager({
                   {p.error}
                 </span>
               ) : (
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-app-surface-3">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
                   <div
                     className={cn(
-                      'h-full bg-app-accent transition-[width]',
+                      'h-full bg-primary transition-[width]',
                       p.status === 'done' && 'bg-green-500',
                     )}
                     style={{ width: `${p.progress}%` }}
@@ -456,9 +456,9 @@ function MediaTile({
       }}
       onDragEnd={onDragEnd}
       className={cn(
-        'group relative overflow-hidden rounded-lg border border-app-surface-3 bg-app-surface-2',
+        'group relative overflow-hidden rounded-lg border border-border bg-muted',
         isDragging && 'opacity-40',
-        isDropTarget && 'ring-2 ring-app-accent',
+        isDropTarget && 'ring-2 ring-primary',
         isBusy && 'pointer-events-none opacity-60',
       )}
     >
@@ -470,12 +470,12 @@ function MediaTile({
         className="aspect-square w-full object-cover"
         draggable={false}
       />
-      <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-app-bg/80 px-2 py-0.5 text-xs font-semibold text-app-ink">
+      <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-background/80 px-2 py-0.5 text-xs font-semibold text-foreground">
         <GripVertical className="size-3" aria-hidden="true" />
         {index + 1}
       </span>
       {isCover ? (
-        <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-app-accent px-2 py-0.5 text-xs font-semibold text-app-bg">
+        <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-background">
           <Star className="size-3" aria-hidden="true" />
           {t('cover')}
         </span>
@@ -579,12 +579,12 @@ export function MediaDropzone({
           validateAndEmit(e.dataTransfer.files);
         }}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-app-surface-3 bg-app-surface-2/40 px-6 py-10 text-center text-sm text-app-ink-muted transition-colors hover:border-app-accent/60',
-          isDragOver && 'border-app-accent bg-app-surface-2',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60',
+          isDragOver && 'border-primary bg-muted',
         )}
       >
-        <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
-        <p className="text-sm font-medium text-app-ink">{t('dropzone_title')}</p>
+        <UploadCloud className="size-6 text-primary" aria-hidden="true" />
+        <p className="text-sm font-medium text-foreground">{t('dropzone_title')}</p>
         <p className="text-xs">
           {t('dropzone_hint_short', { size: formatMo(maxSize), max: maxFiles })}
         </p>
@@ -610,14 +610,14 @@ export function MediaDropzone({
           {files.map((file, index) => (
             <li
               key={`${file.name}-${index}`}
-              className="group relative overflow-hidden rounded-lg bg-app-surface-2 p-2 text-xs"
+              className="group relative overflow-hidden rounded-lg bg-muted p-2 text-xs"
             >
-              <span className="block truncate text-app-ink">{file.name}</span>
-              <span className="block text-app-ink-muted">{formatMo(file.size)}</span>
+              <span className="block truncate text-foreground">{file.name}</span>
+              <span className="block text-muted-foreground">{formatMo(file.size)}</span>
               <button
                 type="button"
                 onClick={() => onRemove(index)}
-                className="absolute right-1 top-1 rounded-full bg-app-bg/70 p-1 text-app-ink transition-opacity hover:bg-app-bg"
+                className="absolute right-1 top-1 rounded-full bg-background/70 p-1 text-foreground transition-opacity hover:bg-background"
                 aria-label={t('remove_file_aria', { name: file.name })}
               >
                 <X className="size-3" aria-hidden="true" />

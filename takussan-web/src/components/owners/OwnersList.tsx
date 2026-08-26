@@ -127,11 +127,11 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
       </header>
 
       {owners.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-app-surface-2 bg-app-surface-1 p-10 text-center">
-          <h2 className="text-base font-semibold text-app-ink">
+        <div className="rounded-xl border border-dashed border-muted bg-card p-10 text-center">
+          <h2 className="text-base font-semibold text-foreground">
             {t('page.empty_title')}
           </h2>
-          <p className="mt-1 text-sm text-app-ink-muted">
+          <p className="mt-1 text-sm text-muted-foreground">
             {t('page.empty_description')}
           </p>
           {canInvite ? (
@@ -142,10 +142,10 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
           ) : null}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-app-surface-1">
+        <div className="overflow-hidden rounded-xl bg-card">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-app-surface-2/50 text-left text-xs uppercase tracking-wide text-app-ink-muted">
+              <tr className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-4 py-3 font-semibold">{t('page.columns.name')}</th>
                 <th className="px-4 py-3 font-semibold">{t('page.columns.email')}</th>
                 <th className="px-4 py-3 font-semibold">{t('page.columns.status')}</th>
@@ -154,7 +154,7 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-app-surface-2">
+            <tbody className="divide-y divide-muted">
               {owners.map((owner) => (
                 <OwnerRow
                   key={owner.id}
@@ -200,8 +200,8 @@ function OwnerRow({ owner, resending, revoking, onResend, onRevoke }: RowProps) 
 
   return (
     <tr>
-      <td className="px-4 py-3 font-semibold text-app-ink">{name || '—'}</td>
-      <td className="px-4 py-3 text-app-ink-muted">{email}</td>
+      <td className="px-4 py-3 font-semibold text-foreground">{name || '—'}</td>
+      <td className="px-4 py-3 text-muted-foreground">{email}</td>
       <td className="px-4 py-3">
         <Badge variant={STATUS_VARIANT[owner.status]}>
           {t(`status.${owner.status}`)}

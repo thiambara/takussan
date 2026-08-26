@@ -26,10 +26,10 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="hidden overflow-hidden rounded-xl bg-app-surface-1 md:block">
+      <div className="hidden overflow-hidden rounded-xl bg-card md:block">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-app-surface-2/50 text-left text-xs uppercase tracking-wide text-app-ink-muted">
+            <tr className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="px-4 py-3 font-semibold">{t('columns.client')}</th>
               <th className="px-4 py-3 font-semibold">{t('columns.contact')}</th>
               <th className="px-4 py-3 font-semibold">{t('columns.tags')}</th>
@@ -37,21 +37,21 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
               <th className="px-4 py-3 font-semibold">{t('columns.status')}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-app-surface-2">
+          <tbody className="divide-y divide-muted">
             {customers.map((customer) => (
               <tr key={customer.id}>
                 <td className="px-4 py-3">
                   <Link
                     href={`/app/customers/${customer.id}`}
-                    className="block font-semibold text-app-ink hover:text-app-topbar"
+                    className="block font-semibold text-foreground hover:text-foreground"
                   >
                     {customer.first_name} {customer.last_name}
                   </Link>
                   {customer.occupation ? (
-                    <p className="text-xs text-app-ink-muted">{customer.occupation}</p>
+                    <p className="text-xs text-muted-foreground">{customer.occupation}</p>
                   ) : null}
                 </td>
-                <td className="px-4 py-3 text-app-ink-muted">
+                <td className="px-4 py-3 text-muted-foreground">
                   {customer.email ? (
                     <a href={`mailto:${customer.email}`} className="hover:underline">
                       {customer.email}
@@ -69,7 +69,7 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
                   {customer.tags && customer.tags.length > 0 ? (
                     <CustomerTagChips tags={customer.tags} onTagClick={onTagClick} />
                   ) : (
-                    <span className="text-xs text-app-ink-muted">—</span>
+                    <span className="text-xs text-muted-foreground">—</span>
                   )}
                 </td>
                 <td className="px-4 py-3">
@@ -89,12 +89,12 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
           <li key={customer.id}>
             <Link
               href={`/app/customers/${customer.id}`}
-              className="block rounded-xl bg-app-surface-1 p-4 transition-colors hover:bg-app-surface-2"
+              className="block rounded-xl bg-card p-4 transition-colors hover:bg-muted"
             >
-              <p className="text-sm font-semibold text-app-ink">
+              <p className="text-sm font-semibold text-foreground">
                 {customer.first_name} {customer.last_name}
               </p>
-              <p className="text-xs text-app-ink-muted">
+              <p className="text-xs text-muted-foreground">
                 {customer.email ?? customer.phone ?? '—'}
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -111,7 +111,7 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
         ))}
       </ul>
 
-      <p className="text-xs text-app-ink-muted">
+      <p className="text-xs text-muted-foreground">
         {t('pagination', {
           total: meta.total,
           page: meta.current_page,
@@ -128,7 +128,7 @@ function PipelineBadge({
   stage: CustomerListItem['pipeline_stage'];
 }) {
   const t = useTranslations('crm.pipeline.stage');
-  if (!stage) return <span className="text-xs text-app-ink-muted">—</span>;
+  if (!stage) return <span className="text-xs text-muted-foreground">—</span>;
   // Repli sur le jeton brut : même invariant que le `?? stage` d'avant, pour une
   // valeur de fil que le front ne connaîtrait pas.
   const label = (pipelineStageValues as readonly string[]).includes(stage) ? t(stage) : stage;
@@ -136,7 +136,7 @@ function PipelineBadge({
     <Badge
       variant="outline"
       className={cn(
-        'border-app-surface-3 bg-app-surface-2 text-app-ink',
+        'border-border bg-muted text-foreground',
         stage === 'converted' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
         stage === 'negotiating' && 'border-amber-200 bg-amber-50 text-amber-700',
         stage === 'lost' && 'border-red-200 bg-red-50 text-red-700',
@@ -155,7 +155,7 @@ function StatusBadge({ status }: { status: CustomerListItem['status'] }) {
     <Badge
       variant="outline"
       className={cn(
-        'border-app-surface-3 bg-app-surface-2 text-app-ink',
+        'border-border bg-muted text-foreground',
         status === 'blocked' && 'border-red-200 bg-red-50 text-red-700',
         status === 'inactive' && 'border-stone-200 bg-stone-50 text-stone-700',
       )}

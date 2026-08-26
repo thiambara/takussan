@@ -14,7 +14,7 @@ export const PIPELINE_STAGES: readonly CustomerPipelineStage[] = [
 ];
 
 export const STAGE_COLOR: Record<CustomerPipelineStage, string> = {
-  lead: 'border-app-surface-2 bg-app-surface-1/40',
+  lead: 'border-muted bg-card/40',
   prospect: 'border-blue-200 bg-blue-50/40 dark:bg-blue-950/20',
   qualified: 'border-cyan-200 bg-cyan-50/40 dark:bg-cyan-950/20',
   negotiating: 'border-amber-200 bg-amber-50/40 dark:bg-amber-950/20',
@@ -23,7 +23,7 @@ export const STAGE_COLOR: Record<CustomerPipelineStage, string> = {
 };
 
 export const STAGE_DOT: Record<CustomerPipelineStage, string> = {
-  lead: 'bg-app-ink-muted/40',
+  lead: 'bg-muted-foreground/40',
   prospect: 'bg-blue-400',
   qualified: 'bg-cyan-400',
   negotiating: 'bg-amber-400',

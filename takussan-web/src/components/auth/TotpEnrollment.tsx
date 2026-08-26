@@ -119,8 +119,8 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-0.5 size-5 text-primary" aria-hidden="true" />
           <div>
-            <h3 className="text-base font-semibold text-app-ink">{t('intro.title')}</h3>
-            <p className="mt-1 text-sm text-app-ink-muted">{t('intro.description')}</p>
+            <h3 className="text-base font-semibold text-foreground">{t('intro.title')}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t('intro.description')}</p>
           </div>
         </div>
         {error ? (
@@ -153,8 +153,8 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
     return (
       <form onSubmit={handleConfirm} className="space-y-4">
         <div>
-          <h3 className="text-base font-semibold text-app-ink">{t('scan.title')}</h3>
-          <p className="mt-1 text-sm text-app-ink-muted">{t('scan.description')}</p>
+          <h3 className="text-base font-semibold text-foreground">{t('scan.title')}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{t('scan.description')}</p>
         </div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           {setup.qrSvg ? (
@@ -164,18 +164,18 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
               alt={t('scan.qrAlt')}
               width={180}
               height={180}
-              className="rounded-md border border-app-surface-3 bg-white"
+              className="rounded-md border border-border bg-white"
             />
           ) : null}
           <div className="space-y-2 text-sm">
-            <p className="text-app-ink-muted">{t('scan.manualHint')}</p>
-            <code className="block break-all rounded-md bg-app-surface-1 px-2 py-1 font-mono text-xs">
+            <p className="text-muted-foreground">{t('scan.manualHint')}</p>
+            <code className="block break-all rounded-md bg-card px-2 py-1 font-mono text-xs">
               {setup.secret}
             </code>
           </div>
         </div>
         <div className="space-y-1">
-          <label htmlFor="totp-enrollment-code" className="text-xs font-semibold text-app-ink-muted">
+          <label htmlFor="totp-enrollment-code" className="text-xs font-semibold text-muted-foreground">
             {t('scan.codeLabel')}
           </label>
           <Input
@@ -215,8 +215,8 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
     return (
       <div className="space-y-4">
         <div>
-          <h3 className="text-base font-semibold text-app-ink">{t('success.title')}</h3>
-          <p className="mt-1 text-sm text-app-ink-muted">{t('success.description')}</p>
+          <h3 className="text-base font-semibold text-foreground">{t('success.title')}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{t('success.description')}</p>
         </div>
         <div
           role="status"
@@ -236,7 +236,7 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
             </Button>
           </div>
         </div>
-        <label className="flex items-start gap-2 text-sm text-app-ink">
+        <label className="flex items-start gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             checked={acknowledged}

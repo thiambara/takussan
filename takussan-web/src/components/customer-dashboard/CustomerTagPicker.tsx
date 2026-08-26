@@ -170,18 +170,18 @@ export function CustomerTagPicker({
           }}
           onKeyDown={onKeyDown}
           onFocus={() => setShowSuggestions(true)}
-          className="w-full rounded-lg border border-app-surface-3 bg-white px-3 py-1.5 text-sm placeholder:text-app-ink-muted focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg border border-border bg-white px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
         />
 
         {showSuggestions && filteredSuggestions.length > 0 && (
-          <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-app-surface-3 bg-white py-1 shadow-md">
+          <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-border bg-white py-1 shadow-md">
             {filteredSuggestions.map((s) => {
               const c = tagColor(s.name);
               return (
                 <li key={s.id}>
                   <button
                     type="button"
-                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-app-surface-1"
+                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-card"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       attach(s.name);

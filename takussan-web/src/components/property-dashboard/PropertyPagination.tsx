@@ -62,7 +62,7 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
       className="flex flex-wrap items-center justify-between gap-3"
       aria-label={t('aria')}
     >
-      <div className="flex items-center gap-3 text-xs text-app-ink-muted">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
         <span>
           {t('pageOf', {
             current: meta.current_page,

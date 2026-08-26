@@ -89,7 +89,7 @@ function BookingsListBody({
     <QueryBoundary
       query={query}
       loadingFallback={[0, 1, 2].map((i) => (
-        <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
+        <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
       ))}
     >
       {(data) => {

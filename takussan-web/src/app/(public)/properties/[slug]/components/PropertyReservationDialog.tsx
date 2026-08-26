@@ -314,7 +314,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
           />
           <span>
             {t('offerForm.termsBefore')}{' '}
-            <Link href="/legal/cgu" className="text-app-accent underline">
+            <Link href="/legal/cgu" className="text-primary underline">
               {t('offerForm.termsLink')}
             </Link>
             {' '}{t('offerForm.termsAfter')}

@@ -137,17 +137,17 @@ export function MaintenanceList() {
               {requests.map((request) => (
                 <li
                   key={request.id}
-                  className="rounded-xl bg-app-surface-1 shadow-sm transition-colors hover:bg-app-surface-2"
+                  className="rounded-xl bg-card shadow-sm transition-colors hover:bg-muted"
                 >
                   <Link
                     href={`/app/maintenance/${request.id}`}
                     className="flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-app-ink">
+                      <p className="truncate text-sm font-semibold text-foreground">
                         {request.title}
                       </p>
-                      <p className="mt-1 text-xs text-app-ink-muted">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {tCategory(request.category)} ·{' '}
                         {formatDate(request.created_at, locale, { dateStyle: 'medium' })}
                         {request.scheduled_at
@@ -183,7 +183,7 @@ export function MaintenanceList() {
               {otherRequests.length > 0 && (
                 <div className="space-y-3">
                   {urgentRequests.length > 0 && (
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-app-ink-muted">
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
                       {t('other_heading')}
                     </h2>
                   )}
@@ -192,7 +192,7 @@ export function MaintenanceList() {
               )}
 
               {data.meta.last_page > 1 ? (
-                <div className="pt-3 text-center text-xs text-app-ink-muted">
+                <div className="pt-3 text-center text-xs text-muted-foreground">
                   {t('pagination', {
                     current: data.meta.current_page,
                     last: data.meta.last_page,

@@ -54,7 +54,7 @@ export default function SuperAdminsCooptationPage() {
 
       {isLoading ? (
         <Card>
-          <CardContent className="p-6 text-sm text-app-ink-muted">{t('loading')}</CardContent>
+          <CardContent className="p-6 text-sm text-muted-foreground">{t('loading')}</CardContent>
         </Card>
       ) : null}
 
@@ -69,13 +69,13 @@ export default function SuperAdminsCooptationPage() {
       {data ? (
         <div className="space-y-6">
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-app-ink-muted">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {t('activeSection', { count: String(data.super_admins.length) })}
             </h2>
             <div className="space-y-2">
               {data.super_admins.length === 0 ? (
                 <Card>
-                  <CardContent className="p-6 text-sm text-app-ink-muted">
+                  <CardContent className="p-6 text-sm text-muted-foreground">
                     {t('noActive')}
                   </CardContent>
                 </Card>
@@ -90,10 +90,10 @@ export default function SuperAdminsCooptationPage() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-app-ink">
+                        <p className="text-sm font-semibold text-foreground">
                           {admin.first_name} {admin.last_name}
                         </p>
-                        <p className="text-xs text-app-ink-muted">{admin.email}</p>
+                        <p className="text-xs text-muted-foreground">{admin.email}</p>
                       </div>
                       <TwoFactorBadge admin={admin} />
                     </CardContent>
@@ -104,13 +104,13 @@ export default function SuperAdminsCooptationPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-app-ink-muted">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
               {t('pendingSection', { count: String(data.pending_invitations.length) })}
             </h2>
             <div className="space-y-2">
               {data.pending_invitations.length === 0 ? (
                 <Card>
-                  <CardContent className="p-6 text-sm text-app-ink-muted">
+                  <CardContent className="p-6 text-sm text-muted-foreground">
                     {t('noPending')}
                   </CardContent>
                 </Card>
@@ -118,10 +118,10 @@ export default function SuperAdminsCooptationPage() {
                 data.pending_invitations.map((inv) => (
                   <Card key={inv.id}>
                     <CardContent className="flex items-center gap-3 p-4">
-                      <Mail className="size-5 text-app-ink-muted" aria-hidden="true" />
+                      <Mail className="size-5 text-muted-foreground" aria-hidden="true" />
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-app-ink">{inv.email}</p>
-                        <p className="text-xs text-app-ink-muted">
+                        <p className="text-sm font-semibold text-foreground">{inv.email}</p>
+                        <p className="text-xs text-muted-foreground">
                           {t('invitedOn', {
                             date: inv.created_at
                               ? new Date(inv.created_at).toLocaleDateString('fr-FR')

@@ -4,6 +4,8 @@ import { Building2, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ModerationProperty } from '@/lib/queries/property-moderation';
 import { useLocale, useTranslations } from 'next-intl';
+
+import { StatusBadge } from '@/components/console';
 import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 
@@ -21,7 +23,7 @@ export function PropertyModerationQueueList({
   const t = useTranslations('admin.moderation');
   const locale = useLocale() as Locale;
   return (
-    <ul className="max-h-[70vh] overflow-y-auto rounded-xl bg-app-surface-1">
+    <ul className="max-h-[70vh] overflow-y-auto rounded-xl bg-card">
       {properties.map((property) => {
         const isSelected = property.id === selectedId;
         return (
@@ -30,8 +32,8 @@ export function PropertyModerationQueueList({
               type="button"
               onClick={() => onSelect(property)}
               className={cn(
-                'flex w-full flex-col gap-2 border-b border-app-surface-2 p-4 text-left text-sm transition-colors',
-                isSelected ? 'bg-app-surface-2/60' : 'hover:bg-app-surface-2/40',
+                'flex w-full flex-col gap-2 border-b border-muted p-4 text-left text-sm transition-colors',
+                isSelected ? 'bg-muted/60' : 'hover:bg-muted/40',
               )}
               aria-pressed={isSelected}
             >
@@ -44,24 +46,26 @@ export function PropertyModerationQueueList({
                     className="size-12 flex-shrink-0 rounded-lg object-cover"
                   />
                 ) : (
-                  <div className="flex size-12 flex-shrink-0 items-center justify-center rounded-lg bg-app-surface-2">
-                    <Building2 className="size-5 text-app-ink-muted" />
+                  <div className="flex size-12 flex-shrink-0 items-center justify-center rounded-lg bg-muted">
+                    <Building2 className="size-5 text-muted-foreground" />
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-app-ink">
+                  <p className="truncate text-sm font-semibold text-foreground">
                     {property.title}
                   </p>
-                  <p className="truncate text-xs text-app-ink-muted">
+                  <p className="truncate text-xs text-muted-foreground">
                     {property.reference_number}
                     {property.agency ? ` · ${property.agency.name}` : ''}
                   </p>
                 </div>
-                <span className="flex-shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                  {t('status.pending')}
-                </span>
+                <StatusBadge
+                  tone="attention"
+                  className="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide"
+                  label={t('status.pending')}
+                />
               </div>
-              <div className="flex items-center gap-3 text-xs text-app-ink-muted">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Building2 className="size-3" />
                   {property.owner?.name ?? t('unknownAgent')}

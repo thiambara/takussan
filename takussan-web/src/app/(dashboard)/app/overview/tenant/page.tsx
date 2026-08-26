@@ -79,7 +79,7 @@ export default async function TenantDashboardPage() {
         {data.payments.upcoming_30d.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('tenant.noUpcoming')}</p>
         ) : (
-          <ul className="divide-y divide-app-surface-3">
+          <ul className="divide-y divide-border">
             {data.payments.upcoming_30d.map((p) => (
               <li key={p.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="text-foreground">
@@ -100,7 +100,7 @@ export default async function TenantDashboardPage() {
         {data.documents.recent.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('tenant.noDocs')}</p>
         ) : (
-          <ul className="divide-y divide-app-surface-3">
+          <ul className="divide-y divide-border">
             {data.documents.recent.map((d) => (
               <li key={d.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="text-foreground">{d.name}</span>

@@ -7,15 +7,16 @@ import { useLocale, useTranslations } from 'next-intl';
 import { CircleCheckBig } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
+import { DataTable, StatusBadge, type DataTableColumn } from '@/components/console';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
   usePaymentsHistory,
   type UsePaymentsHistoryParams,
 } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
-import { PAYMENT_STATUS_VARIANT } from '@/components/payments/constants';
+import type { PaymentHistoryRow } from '@/types/invoice';
 
 /**
  * TCK-134 — "Impayés" tab on `/admin/finances`. Re-uses the consolidated
@@ -47,13 +48,87 @@ export function OverduePaymentsTable() {
 
   const query = usePaymentsHistory(params);
 
+  const columns: readonly DataTableColumn<PaymentHistoryRow>[] = [
+    {
+      id: 'reference',
+      header: tTable('reference'),
+      // La typographie de la CELLULE se pose dans la cellule : `className` va aussi sur le `<th>`,
+      // et un en-tête en chasse fixe n'est pas ce qu'on demandait.
+      cell: (row) => (
+        <span className="font-mono text-xs text-muted-foreground">
+          {row.reference_number ?? `#${row.id}`}
+        </span>
+      ),
+    },
+    {
+      id: 'source',
+      header: tTable('source'),
+      className: 'text-xs',
+      cell: (row) => tTable(`sources.${row.source}`),
+    },
+    {
+      id: 'dueDate',
+      header: tTable('dueDate'),
+      className: 'text-xs',
+      cell: (row) => {
+        const dueDate = row.due_date ?? row.period_start ?? row.date ?? null;
+        return dueDate ? formatDate(dueDate, locale) : '—';
+      },
+    },
+    {
+      id: 'amount',
+      header: tTable('amount'),
+      className: 'font-semibold',
+      cell: (row) => formatCurrency(row.amount, locale, { currency: row.currency || 'XOF' }),
+    },
+    {
+      id: 'remaining',
+      header: tTable('remaining'),
+      cell: (row) => (
+        <span className="font-semibold text-destructive">
+          {formatCurrency(row.remaining_amount, locale, { currency: row.currency || 'XOF' })}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: tTable('status'),
+      // L'onglet épingle `filter[status]=late` : toute ligne qui arrive ici est en retard.
+      cell: () => <StatusBadge tone="danger" label={tStatus('late')} />,
+    },
+    {
+      id: 'entity',
+      header: tTable('entity'),
+      className: 'text-xs',
+      cell: (row) => {
+        const entityLabel = row.lease_id
+          ? tTable('leaseEntity', { id: String(row.lease_id) })
+          : row.booking_id
+            ? tTable('bookingEntity', { id: String(row.booking_id) })
+            : '—';
+        const entityHref = row.lease_id
+          ? `/app/leases/${row.lease_id}`
+          : row.booking_id
+            ? `/app/bookings/${row.booking_id}`
+            : null;
+        return entityHref ? (
+          <Link href={entityHref} className="underline-offset-2 hover:underline">
+            {entityLabel}
+          </Link>
+        ) : (
+          <span>{entityLabel}</span>
+        );
+      },
+    },
+  ];
+
   return (
     <QueryBoundary
       query={query}
       loadingFallback={
         <div className="space-y-3" data-testid="overdue-payments-loading">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-12 animate-pulse rounded-lg bg-app-surface-1" />
+            <Skeleton key={i} className="h-12 rounded-lg" />
           ))}
         </div>
       }
@@ -72,69 +147,18 @@ export function OverduePaymentsTable() {
         }
 
         return (
-          <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-            <table className="w-full text-left text-sm" data-testid="overdue-payments-table">
-              <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
-                <tr>
-                  <th className="px-3 py-2">{tTable('reference')}</th>
-                  <th className="px-3 py-2">{tTable('source')}</th>
-                  <th className="px-3 py-2">{tTable('dueDate')}</th>
-                  <th className="px-3 py-2">{tTable('amount')}</th>
-                  <th className="px-3 py-2">{tTable('remaining')}</th>
-                  <th className="px-3 py-2">{tTable('status')}</th>
-                  <th className="px-3 py-2">{tTable('entity')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-100">
-                {rows.map((row) => {
-                  const dueDate = row.due_date ?? row.period_start ?? row.date ?? null;
-                  const entityLabel = row.lease_id
-                    ? tTable('leaseEntity', { id: String(row.lease_id) })
-                    : row.booking_id
-                      ? tTable('bookingEntity', { id: String(row.booking_id) })
-                      : '—';
-                  const entityHref = row.lease_id
-                    ? `/app/leases/${row.lease_id}`
-                    : row.booking_id
-                      ? `/app/bookings/${row.booking_id}`
-                      : null;
-
-                  return (
-                    <tr key={`${row.source}-${row.id}`} className="text-app-ink">
-                      <td className="px-3 py-2 font-mono text-xs text-app-ink-muted">
-                        {row.reference_number ?? `#${row.id}`}
-                      </td>
-                      <td className="px-3 py-2 text-xs">{tTable(`sources.${row.source}`)}</td>
-                      <td className="px-3 py-2 text-xs">
-                        {dueDate ? formatDate(dueDate, locale) : '—'}
-                      </td>
-                      <td className="px-3 py-2 font-semibold">
-                        {formatCurrency(row.amount, locale, { currency: row.currency || 'XOF' })}
-                      </td>
-                      <td className="px-3 py-2 font-semibold text-destructive">
-                        {formatCurrency(row.remaining_amount, locale, {
-                          currency: row.currency || 'XOF',
-                        })}
-                      </td>
-                      <td className="px-3 py-2">
-                        <Badge variant={PAYMENT_STATUS_VARIANT.late}>{tStatus('late')}</Badge>
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        {entityHref ? (
-                          <Link href={entityHref} className="underline-offset-2 hover:underline">
-                            {entityLabel}
-                          </Link>
-                        ) : (
-                          <span>{entityLabel}</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
+            <DataTable
+              caption={t('tableCaption')}
+              columns={columns}
+              rows={rows}
+              rowKey={(row) => `${row.source}-${row.id}`}
+              density="compact"
+              data-testid="overdue-payments-table"
+              className="rounded-none ring-0"
+            />
             {data.meta.total ? (
-              <p className="border-t border-stone-100 px-3 py-2 text-xs text-app-ink-muted">
+              <p className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
                 {t('count', { count: data.meta.total })}
               </p>
             ) : null}

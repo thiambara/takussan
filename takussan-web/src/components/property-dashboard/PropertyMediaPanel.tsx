@@ -107,15 +107,15 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
 
   if (loading) {
     return (
-      <section className="rounded-xl bg-app-surface-1 p-6">
-        <h2 className="text-base font-semibold text-app-ink">{t('photos')}</h2>
-        <p className="mt-2 text-xs text-app-ink-muted">{t('loading')}</p>
+      <section className="rounded-xl bg-card p-6">
+        <h2 className="text-base font-semibold text-foreground">{t('photos')}</h2>
+        <p className="mt-2 text-xs text-muted-foreground">{t('loading')}</p>
       </section>
     );
   }
 
   return (
-    <section className="rounded-xl bg-app-surface-1 p-6">
+    <section className="rounded-xl bg-card p-6">
       {error ? (
         <p className="mb-3 text-xs text-destructive" role="alert">
           {error}

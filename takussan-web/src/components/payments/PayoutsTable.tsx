@@ -43,7 +43,7 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
     <QueryBoundary
       query={query}
       loadingFallback={[0, 1, 2].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg bg-app-surface-1" />
+        <div key={i} className="h-12 animate-pulse rounded-lg bg-card" />
       ))}
     >
       {(data) => {
@@ -62,7 +62,7 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
           <div className="space-y-3">
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
               <table className="w-full text-left text-sm">
-                <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
+                <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2">{tTable('reference')}</th>
                     <th className="px-3 py-2">{tTable('landlord')}</th>
@@ -77,8 +77,8 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
                   {rows.map((payout) => {
                     const status = payout.status as PayoutStatus;
                     return (
-                      <tr key={payout.id} className="text-app-ink">
-                        <td className="px-3 py-2 font-mono text-xs text-app-ink-muted">
+                      <tr key={payout.id} className="text-foreground">
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                           {payout.reference_number ?? `#${payout.id}`}
                         </td>
                         <td className="px-3 py-2 text-xs">#{payout.landlord_id}</td>
@@ -109,7 +109,7 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
                         <td className="px-3 py-2 text-right">
                           <button
                             type="button"
-                            className="text-xs font-medium text-app-accent hover:underline"
+                            className="text-xs font-medium text-primary hover:underline"
                             onClick={() => onSelect(payout.id)}
                           >
                             {tTable('open')}

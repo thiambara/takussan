@@ -62,7 +62,7 @@ export function MaintenanceNewLauncher({
   }, [options, manualPropertyId, initialPropertyId]);
 
   if (isLoading) {
-    return <div className="h-32 animate-pulse rounded-xl bg-app-surface-1" />;
+    return <div className="h-32 animate-pulse rounded-xl bg-card" />;
   }
 
   if (isError) {

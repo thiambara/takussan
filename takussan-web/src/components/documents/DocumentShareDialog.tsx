@@ -234,7 +234,7 @@ export function DocumentShareDialog({
 
         {links.length > 0 ? (
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t('session_links')}
             </h4>
             <ul className="space-y-2">
@@ -273,7 +273,7 @@ export function DocumentShareDialog({
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
                     </Button>
-                    <div className="flex basis-full gap-3 text-[11px] text-app-ink-muted">
+                    <div className="flex basis-full gap-3 text-[11px] text-muted-foreground">
                       {link.expires_at ? (
                         <span>
                           {t('expires_at', {

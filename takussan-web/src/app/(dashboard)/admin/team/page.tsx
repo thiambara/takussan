@@ -5,8 +5,9 @@ import { Building2 } from 'lucide-react';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { TeamConsole } from '@/components/admin/TeamConsole';
+import { InviteMemberButton } from '@/components/admin/InviteMemberButton';
 import { EmptyState } from '@/components/feedback';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 import { buttonVariants } from '@/components/ui/button';
 import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
@@ -29,7 +30,7 @@ export default async function TeamPage() {
     const t = await getTranslations('team.page');
     return (
       <div className="space-y-6">
-        <PageHeader title={tPage('shortTitle')} subtitle={tPage('shortSubtitle')} />
+        <PageHeader title={tPage('shortTitle')} description={tPage('shortSubtitle')} />
         <EmptyState
           icon={<Building2 className="size-8" aria-hidden="true" />}
           title={t('no_agency_title')}
@@ -48,7 +49,8 @@ export default async function TeamPage() {
     <div className="space-y-6">
       <PageHeader
         title={tPage('title')}
-        subtitle={tPage('subtitle')}
+        description={tPage('subtitle')}
+        actions={<InviteMemberButton agencyId={user.agency_id} />}
       />
       <TeamConsole agencyId={user.agency_id} currentUserId={user.id} />
     </div>

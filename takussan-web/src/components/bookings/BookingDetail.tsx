@@ -155,7 +155,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const toast = useToast();
 
   if (isLoading) {
-    return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
+    return <div className="h-48 animate-pulse rounded-xl bg-card" />;
   }
 
   if (isError || !data) {
@@ -196,7 +196,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           >
             {t('back')}
           </Link>
-          <h1 className="mt-1 text-2xl font-bold text-app-ink">
+          <h1 className="mt-1 text-2xl font-bold text-foreground">
             {booking.property?.title ?? tBookings('fallbackTitle', { id: String(booking.id) })}
           </h1>
           <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
@@ -349,7 +349,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                   {p.status === 'paid' && (
                     <a
                       href={`/api/booking-payments/${p.id}/receipt`}
-                      className="text-xs text-app-accent hover:underline"
+                      className="text-xs text-primary hover:underline"
                     >
                       {t('receipt')}
                     </a>
@@ -519,7 +519,7 @@ function CustomerPayCta({
   }
 
   return (
-    <section className="rounded-xl border border-app-border bg-app-surface-1 p-5">
+    <section className="rounded-xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-stone-900">{label}</h2>

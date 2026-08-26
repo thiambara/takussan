@@ -90,7 +90,7 @@ export function PipelineStatsBar({
             onClick={() => onClickWidget?.(w.id)}
             disabled={!stats || !onClickWidget}
             className={cn(
-              'flex items-center gap-3 rounded-lg border border-app-surface-2 bg-app-surface-1 p-4 text-left transition',
+              'flex items-center gap-3 rounded-lg border border-muted bg-card p-4 text-left transition',
               onClickWidget && 'hover:border-primary/40 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30',
               !onClickWidget && 'cursor-default',
             )}
@@ -102,10 +102,10 @@ export function PipelineStatsBar({
               <Icon className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-app-ink-muted">
+              <p className="text-xs font-medium text-muted-foreground">
                 {t(w.labelKey)}
               </p>
-              <p className="mt-0.5 text-xl font-bold text-app-ink">
+              <p className="mt-0.5 text-xl font-bold text-foreground">
                 {isLoading || !stats ? '—' : w.value(stats)}
               </p>
             </div>

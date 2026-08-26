@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { AgencyKycClient } from '@/components/kyc/AgencyKycClient';
+import { PageHeader } from '@/components/console';
 import { getTranslations } from 'next-intl/server';
 
 export const dynamic = 'force-dynamic';
@@ -16,10 +17,7 @@ export default async function Page() {
   if (!user.agency_id) {
     return (
       <div className="space-y-6">
-        <header>
-          <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('noAgency')}</p>
-        </header>
+        <PageHeader title={t('title')} description={t('noAgency')} />
         <div className="rounded-xl border border-dashed border-border bg-card p-8 text-sm text-muted-foreground">
           {t('contactAdmin')}
         </div>
@@ -29,10 +27,7 @@ export default async function Page() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+      <PageHeader title={t('title')} description={t('subtitle')} />
       <AgencyKycClient agencyId={user.agency_id} />
     </div>
   );

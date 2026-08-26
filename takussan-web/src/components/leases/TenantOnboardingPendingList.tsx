@@ -60,7 +60,7 @@ export function TenantOnboardingPendingList({ agencyId }: Props) {
     <QueryBoundary
       query={query}
       loadingFallback={[0, 1, 2].map((i) => (
-        <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
+        <div key={i} className="h-20 animate-pulse rounded-xl bg-card" />
       ))}
     >
       {(data) => {
@@ -87,7 +87,7 @@ export function TenantOnboardingPendingList({ agencyId }: Props) {
               return (
                 <li
                   key={row.id}
-                  className="rounded-xl border border-app-border bg-app-surface-1 p-4"
+                  className="rounded-xl border border-border bg-card p-4"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="min-w-0">

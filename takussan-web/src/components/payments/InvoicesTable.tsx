@@ -44,7 +44,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
     <QueryBoundary
       query={query}
       loadingFallback={[0, 1, 2].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg bg-app-surface-1" />
+        <div key={i} className="h-12 animate-pulse rounded-lg bg-card" />
       ))}
     >
       {(data) => {
@@ -63,7 +63,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
           <div className="space-y-3">
             <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
               <table className="w-full text-left text-sm">
-                <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
+                <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2">{tTable('reference')}</th>
                     <th className="px-3 py-2">{tTable('issuedOn')}</th>
@@ -77,8 +77,8 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
                   {rows.map((invoice) => {
                     const status = invoice.status as InvoiceStatus;
                     return (
-                      <tr key={invoice.id} className="text-app-ink">
-                        <td className="px-3 py-2 font-mono text-xs text-app-ink-muted">
+                      <tr key={invoice.id} className="text-foreground">
+                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                           {invoice.reference_number ?? `#${invoice.id}`}
                         </td>
                         <td className="px-3 py-2 text-xs">
@@ -100,7 +100,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
                         <td className="px-3 py-2 text-right">
                           <button
                             type="button"
-                            className="text-xs font-medium text-app-accent hover:underline"
+                            className="text-xs font-medium text-primary hover:underline"
                             onClick={() => onSelect(invoice.id)}
                           >
                             {tTable('open')}

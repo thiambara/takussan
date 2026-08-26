@@ -120,7 +120,7 @@ export function UserDetailDrawer({
       >
         {user ? (
           <div key={user.id} className="flex h-full flex-col">
-            <SheetHeader className="space-y-2 border-b border-app-surface-2 p-6">
+            <SheetHeader className="space-y-2 border-b border-muted p-6">
               <div className="flex items-center gap-3">
                 <Avatar className="size-12">
                   <AvatarFallback>{getInitials(user)}</AvatarFallback>
@@ -164,7 +164,7 @@ export function UserDetailDrawer({
                 <>
                   <Separator className="my-5" />
                   <div className="space-y-4" data-testid="member-agency-roles">
-                    <p className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       {agencyRoleHeading}
                     </p>
                     {assignments.map((assignment) => (
@@ -179,7 +179,7 @@ export function UserDetailDrawer({
               ) : null}
             </div>
 
-            <div className="border-t border-app-surface-2 p-6">
+            <div className="border-t border-muted p-6">
               {lastError ? (
                 <p className="mb-3 text-xs text-destructive" role="alert">
                   {messageErreur(lastError)}
@@ -221,7 +221,7 @@ export function UserDetailDrawer({
                 ) : null}
               </div>
               {isSelf ? (
-                <p className="mt-2 text-center text-xs text-app-ink-muted">
+                <p className="mt-2 text-center text-xs text-muted-foreground">
                   {t('drawer.selfNotice')}
                 </p>
               ) : null}
@@ -236,8 +236,8 @@ export function UserDetailDrawer({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{label}</dt>
-      <dd className="truncate text-sm text-app-ink">{value}</dd>
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="truncate text-sm text-foreground">{value}</dd>
     </div>
   );
 }

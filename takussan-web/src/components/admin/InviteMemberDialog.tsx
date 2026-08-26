@@ -100,7 +100,7 @@ export function InviteMemberDialog({
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label htmlFor="invite-email" className="text-xs font-semibold text-app-ink">
+            <label htmlFor="invite-email" className="text-xs font-semibold text-foreground">
               {t('email')}
             </label>
             <input
@@ -118,7 +118,7 @@ export function InviteMemberDialog({
             ) : null}
           </div>
           <div>
-            <label htmlFor="invite-role" className="text-xs font-semibold text-app-ink">
+            <label htmlFor="invite-role" className="text-xs font-semibold text-foreground">
               {t('role')}
             </label>
             <Controller

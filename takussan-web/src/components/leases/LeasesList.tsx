@@ -78,7 +78,7 @@ export function LeasesList() {
     return (
       <div className="space-y-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
         ))}
       </div>
     );

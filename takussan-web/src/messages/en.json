@@ -35,6 +35,15 @@
       "current": "Current language: {locale}"
     }
   },
+  "console": {
+    "pagination": {
+      "aria": "Pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "position": "Page {page} of {lastPage}",
+      "positionSlash": "Page {page} / {lastPage}"
+    }
+  },
   "nav": {
     "publish": "List a property",
     "publishListing": "List a property",
@@ -4011,6 +4020,7 @@
         "empty_title": "No outstanding payment",
         "empty_description": "Good news: every instalment has been settled.",
         "count": "{count, plural, =1 {# outstanding payment} other {# outstanding payments}}",
+        "tableCaption": "Overdue payments",
         "table": {
           "reference": "Reference",
           "source": "Source",
@@ -4085,10 +4095,8 @@
         "subject": "Object",
         "description": "Description"
       },
-      "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}",
-      "previous": "Previous",
-      "next": "Next",
-      "pageOf": "Page {current} / {last}"
+      "tableCaption": "Agency audit trail",
+      "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}"
     },
     "roles": {
       "page": {
@@ -4345,13 +4353,7 @@
           "admins": "Administrators",
           "owners": "Owners"
         },
-        "invite": "Invite",
-        "pagination": {
-          "label": "Pagination",
-          "previous": "Previous",
-          "next": "Next",
-          "pageOf": "Page {current} of {last}"
-        }
+        "invite": "Invite"
       }
     },
     "propertyModeration": {
@@ -4458,6 +4460,7 @@
         "allRoles": "All roles"
       },
       "table": {
+        "caption": "Agency members",
         "member": "Member",
         "email": "Email",
         "role": "Role",
@@ -5402,13 +5405,6 @@
         "subtitle": "Global reference list used by every agency to qualify properties and customers.",
         "loadError": "Could not load the tags:"
       },
-      "pagination": {
-        "aria": "Pagination",
-        "previous": "Previous",
-        "next": "Next",
-        "position": "Page {page} of {lastPage}",
-        "positionSlash": "Page {page} / {lastPage}"
-      },
       "system": {
         "metaTitle": "System — Takussan Console",
         "title": "System",
@@ -5929,6 +5925,7 @@
         "agency": "Agency"
       },
       "new": "New setting",
+      "tableCaption": "Platform settings",
       "columns": {
         "key": "Key",
         "scope": "Scope",

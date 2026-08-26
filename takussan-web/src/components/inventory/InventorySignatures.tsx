@@ -44,16 +44,16 @@ export function InventorySignatures({
   return (
     <section
       aria-labelledby="inventory-signatures-heading"
-      className="rounded-2xl bg-app-surface-1 p-5"
+      className="rounded-2xl bg-card p-5"
     >
       <header className="mb-4">
         <h3
           id="inventory-signatures-heading"
-          className="text-sm font-semibold text-app-ink"
+          className="text-sm font-semibold text-foreground"
         >
           {t('title')}
         </h3>
-        <p className="mt-1 text-xs text-app-ink-muted">
+        <p className="mt-1 text-xs text-muted-foreground">
           {t.rich('immutableNotice', {
             strong: (chunks) => <strong>{chunks}</strong>,
           })}

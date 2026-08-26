@@ -51,9 +51,9 @@ export default async function VerificationIndisponiblePage() {
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <AlertTriangle className="size-10 text-app-accent" aria-hidden />
-      <h1 className="text-xl font-semibold text-app-ink">{t('agencyTitle')}</h1>
-      <p className="max-w-md text-sm text-app-ink-muted">{t('agencyBody')}</p>
+      <AlertTriangle className="size-10 text-primary" aria-hidden />
+      <h1 className="text-xl font-semibold text-foreground">{t('agencyTitle')}</h1>
+      <p className="max-w-md text-sm text-muted-foreground">{t('agencyBody')}</p>
       {/*
         PAS « Réessayer » : ce lien ne réessaie rien, il ramène au tableau de bord. Or `/app` est
         AUSSI la destination du refus — « non, votre agence n'y a pas droit » — c'est-à-dire la

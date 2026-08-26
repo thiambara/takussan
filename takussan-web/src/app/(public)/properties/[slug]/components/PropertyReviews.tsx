@@ -288,12 +288,12 @@ export function PropertyReviews({
 
       {showReviewForm && <PropertyReviewForm onSubmit={submit} />}
       {user && activeEligibility && !activeEligibility.eligible && !activeEligibility.alreadyReviewed && (
-        <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-app-ink-muted">
+        <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground">
           {t('notEligible')}
         </p>
       )}
       {user && activeEligibility?.alreadyReviewed && (
-        <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-app-ink-muted">
+        <p className="rounded-xl bg-card p-4 text-sm text-muted-foreground">
           {t('alreadyReviewed')}
         </p>
       )}

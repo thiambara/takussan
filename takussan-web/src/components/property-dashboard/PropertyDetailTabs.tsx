@@ -85,32 +85,32 @@ export function PropertyDetailTabs({ property, tags }: Props) {
       </TabsContent>
 
       <TabsContent value="history">
-        <section className="rounded-xl bg-app-surface-1 p-6">
+        <section className="rounded-xl bg-card p-6">
           <header>
-            <h2 className="text-base font-semibold text-app-ink">
+            <h2 className="text-base font-semibold text-foreground">
               {t('fullPriceHistory')}
             </h2>
-            <p className="text-xs text-app-ink-muted">{t('fullPriceHistoryHint')}</p>
+            <p className="text-xs text-muted-foreground">{t('fullPriceHistoryHint')}</p>
           </header>
           {priceHistory.length === 0 ? (
-            <p className="mt-4 text-sm text-app-ink-muted">{t('noPriceHistory')}</p>
+            <p className="mt-4 text-sm text-muted-foreground">{t('noPriceHistory')}</p>
           ) : (
-            <ol className="mt-4 divide-y divide-app-surface-2 text-sm">
+            <ol className="mt-4 divide-y divide-muted text-sm">
               {priceHistory.map((entry) => (
                 <li
                   key={entry.id}
                   className="flex flex-wrap items-center justify-between gap-2 py-3"
                 >
-                  <span className="text-app-ink-muted">
+                  <span className="text-muted-foreground">
                     {entry.changed_at?.slice(0, 10) ?? t('unknownDate')}
                   </span>
-                  <span className="font-medium text-app-ink">
+                  <span className="font-medium text-foreground">
                     {formatCurrency(entry.old_price, 'fr', { currency: entry.currency })}{' '}
                     →{' '}
                     {formatCurrency(entry.new_price, 'fr', { currency: entry.currency })}
                   </span>
                   {entry.reason ? (
-                    <span className="basis-full text-xs text-app-ink-muted">
+                    <span className="basis-full text-xs text-muted-foreground">
                       {entry.reason}
                     </span>
                   ) : null}

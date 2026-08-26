@@ -122,22 +122,22 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const showVerifyControls = savedPhone.length > 0 && !phoneVerified && !phoneDirty;
 
   return (
-    <section className="space-y-4 rounded-2xl bg-app-surface-1 p-6">
+    <section className="space-y-4 rounded-2xl bg-card p-6">
       <div>
-        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
-        <p className="text-sm text-app-ink-muted">{t('subtitle')}</p>
+        <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-app-ink-muted">{t('emailLabel')}</label>
+          <label className="text-xs font-semibold text-muted-foreground">{t('emailLabel')}</label>
           <div className="flex items-center gap-2">
             <Input value={user.email} disabled className="bg-white/60" />
             <span
               className={
                 'rounded-full px-2 py-1 text-xs font-semibold ' +
                 (emailVerified
-                  ? 'bg-app-surface-3 text-app-topbar'
-                  : 'bg-white text-app-accent')
+                  ? 'bg-border text-foreground'
+                  : 'bg-white text-primary')
               }
             >
               {emailVerified ? t('verified') : t('notVerified')}
@@ -145,7 +145,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
           </div>
         </div>
         <div className="space-y-1">
-          <label htmlFor="phone" className="text-xs font-semibold text-app-ink-muted">
+          <label htmlFor="phone" className="text-xs font-semibold text-muted-foreground">
             {t('phoneLabel')}
           </label>
           <div className="flex items-center gap-2">
@@ -179,7 +179,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
               {t('phoneFormatError')}
             </p>
           ) : (
-            <p className="text-xs text-app-ink-muted">
+            <p className="text-xs text-muted-foreground">
               {t('phoneHint')}
             </p>
           )}
@@ -254,7 +254,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         ) : null}
 
         <div className="space-y-1">
-          <label htmlFor="contact-bio" className="text-xs font-semibold text-app-ink-muted">
+          <label htmlFor="contact-bio" className="text-xs font-semibold text-muted-foreground">
             {t('bioLabel')}
           </label>
           <Textarea
@@ -265,7 +265,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             rows={3}
             placeholder={t('bioPlaceholder')}
           />
-          <p className="text-right text-xs text-app-ink-muted">{bio.length}/500</p>
+          <p className="text-right text-xs text-muted-foreground">{bio.length}/500</p>
         </div>
         {feedback ? (
           <p

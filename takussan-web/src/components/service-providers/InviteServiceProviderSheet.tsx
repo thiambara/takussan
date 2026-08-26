@@ -302,8 +302,8 @@ export function InviteServiceProviderSheet({
                     onClick={() => toggleTrade(cat)}
                     className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                       active
-                        ? 'border-app-topbar bg-app-topbar text-white'
-                        : 'border-app-surface-2 bg-app-surface-1 text-app-ink-muted hover:border-app-topbar/50'
+                        ? 'border-foreground bg-foreground text-white'
+                        : 'border-muted bg-card text-muted-foreground hover:border-foreground/50'
                     }`}
                   >
                     {tCategories(cat)}
@@ -327,8 +327,8 @@ export function InviteServiceProviderSheet({
                     onClick={() => toggleZone(zone)}
                     className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                       active
-                        ? 'border-app-topbar bg-app-topbar text-white'
-                        : 'border-app-surface-2 bg-app-surface-1 text-app-ink-muted hover:border-app-topbar/50'
+                        ? 'border-foreground bg-foreground text-white'
+                        : 'border-muted bg-card text-muted-foreground hover:border-foreground/50'
                     }`}
                   >
                     {zone}

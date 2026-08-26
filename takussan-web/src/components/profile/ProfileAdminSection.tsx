@@ -25,14 +25,14 @@ export async function ProfileAdminSection({ user }: ProfileAdminSectionProps) {
   const primaryRole = getPrimaryRole(user.roles);
 
   return (
-    <section className="space-y-4 rounded-2xl bg-app-surface-3 p-6">
+    <section className="space-y-4 rounded-2xl bg-border p-6">
       <div>
-        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
-        <p className="text-sm text-app-ink-muted">{t('subtitle')}</p>
+        <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
       <div className="space-y-1">
-        <p className="text-xs font-semibold text-app-ink-muted">{t('roleLabel')}</p>
-        <p className="text-sm font-semibold text-app-ink">
+        <p className="text-xs font-semibold text-muted-foreground">{t('roleLabel')}</p>
+        <p className="text-sm font-semibold text-foreground">
           {primaryRole ? tRoles(ROLE_KEYS[primaryRole]) : '—'}
         </p>
       </div>

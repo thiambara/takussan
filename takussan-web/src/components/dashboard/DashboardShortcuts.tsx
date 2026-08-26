@@ -89,7 +89,7 @@ export function DashboardShortcuts({ roles, agencyId = null }: Props) {
 
   return (
     <section aria-labelledby="dashboard-shortcuts-heading" className="space-y-3">
-      <h2 id="dashboard-shortcuts-heading" className="text-sm font-semibold text-app-ink-muted">
+      <h2 id="dashboard-shortcuts-heading" className="text-sm font-semibold text-muted-foreground">
         {t('dashboard.shortcuts.heading')}
       </h2>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
@@ -97,10 +97,10 @@ export function DashboardShortcuts({ roles, agencyId = null }: Props) {
           <Link
             key={href}
             href={href}
-            className="flex items-center gap-3 rounded-2xl bg-app-surface-1 p-4 transition hover:bg-app-surface-2"
+            className="flex items-center gap-3 rounded-2xl bg-card p-4 transition hover:bg-muted"
           >
-            <Icon className="size-5 text-app-accent" aria-hidden />
-            <span className="text-sm font-medium text-app-ink">{t(labelKey)}</span>
+            <Icon className="size-5 text-primary" aria-hidden />
+            <span className="text-sm font-medium text-foreground">{t(labelKey)}</span>
           </Link>
         ))}
       </div>

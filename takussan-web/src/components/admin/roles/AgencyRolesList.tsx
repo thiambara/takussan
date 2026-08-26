@@ -76,7 +76,7 @@ export function AgencyRolesList({
     <nav aria-label={t('list.heading')} className="space-y-5" data-testid="agency-roles-list">
       {grouped.map(([type, list]) => (
         <section key={type} className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {groupLabel(type)}
           </h3>
           <ul className="space-y-1.5">
@@ -89,7 +89,7 @@ export function AgencyRolesList({
                       'rounded-xl border transition-colors',
                       isSelected
                         ? 'border-primary/50 bg-primary/5'
-                        : 'border-border bg-app-surface-1 hover:bg-app-surface-2/50',
+                        : 'border-border bg-card hover:bg-muted/50',
                     )}
                   >
                     <button
@@ -100,14 +100,14 @@ export function AgencyRolesList({
                       className="w-full px-3 py-2.5 text-left"
                     >
                       <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium text-app-ink">{role.name}</span>
+                        <span className="font-medium text-foreground">{role.name}</span>
                         {role.is_system ? (
                           <Badge variant="outline" className="shrink-0">
                             {t('list.system_badge')}
                           </Badge>
                         ) : null}
                       </span>
-                      <span className="mt-0.5 block text-xs text-app-ink-muted">
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
                         {t('list.capability_count', { count: role.capabilities?.length ?? 0 })}
                         {' · '}
                         {t('list.profiles_count', { count: role.profiles_count ?? 0 })}

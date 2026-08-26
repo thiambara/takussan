@@ -7,6 +7,7 @@ import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { isAdmin } from '@/lib/roles';
 import { AgencyConfigForm } from '@/components/admin-agency/AgencyConfigForm';
 import { EmptyState, ErrorState } from '@/components/feedback';
+import { PageHeader } from '@/components/console';
 
 /**
  * Admin — agency configuration page (TCK-064).
@@ -29,10 +30,7 @@ export default async function Page() {
   if (!user.agency_id) {
     return (
       <div className="space-y-6">
-        <header>
-          <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tPage('noAgency')}</p>
-        </header>
+        <PageHeader title={tPage('title')} description={tPage('noAgency')} />
         <EmptyState
           icon={<Building2 className="size-8" aria-hidden="true" />}
           title={t('no_agency_title')}
@@ -46,10 +44,7 @@ export default async function Page() {
   if (!result.ok || !result.data) {
     return (
       <div className="space-y-6">
-        <header>
-          <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tPage('loadError')}</p>
-        </header>
+        <PageHeader title={tPage('title')} description={tPage('loadError')} />
         {/* Pas d'`onRetry` : server component, aucun gestionnaire d'événement possible ici. */}
         <ErrorState message={result.ok ? t('not_found') : result.message} />
       </div>
@@ -58,10 +53,7 @@ export default async function Page() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
-      </header>
+      <PageHeader title={tPage('title')} description={tPage('subtitle')} />
       <AgencyConfigForm agency={result.data} />
     </div>
   );

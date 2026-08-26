@@ -48,9 +48,9 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   }
 
   return (
-    <div className="rounded-2xl bg-app-surface-1 p-5">
-      <h3 className="text-sm font-semibold text-app-ink">{t('title')}</h3>
-      <p className="mb-4 mt-1 text-xs text-app-ink-muted">{t('intro')}</p>
+    <div className="rounded-2xl bg-card p-5">
+      <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
+      <p className="mb-4 mt-1 text-xs text-muted-foreground">{t('intro')}</p>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <FormGlobalError>{globalError}</FormGlobalError>
@@ -80,10 +80,10 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
             type="file"
             multiple
             onChange={(e) => setAttachments(Array.from(e.target.files ?? []))}
-            className="block w-full text-sm text-app-ink-muted"
+            className="block w-full text-sm text-muted-foreground"
           />
           {attachments.length > 0 && (
-            <p className="mt-1 text-xs text-app-ink-muted">
+            <p className="mt-1 text-xs text-muted-foreground">
               {t('attachments_selected', { count: attachments.length })}
             </p>
           )}

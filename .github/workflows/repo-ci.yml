@@ -279,6 +279,25 @@ jobs:
         # croire le contraire, cette garde écrit ce qu'elle ne couvre pas.
         run: node scripts/check-feedback-states.mjs --report
 
+      - name: Il n'y a qu'un jeu de jetons de couleur — le dialecte app-* ne repousse pas
+        # `globals.css` déclarait HUIT variables `--app-*` qui redisaient au hex près des jetons
+        # déjà documentés (`--app-ink` ≡ `--foreground`, `--app-surface-1` ≡ `--card`…), et le
+        # bloc `.dark` n'en redéfinissait AUCUNE : le shell de `/admin`, bâti dessus, serait
+        # resté en clair au premier commutateur de thème.
+        #
+        # TCK-244 avait déjà fait cette migration et était `done`. Son AC1 rejouée verbatim le
+        # 2026-08-26 rendait 7 là où elle exigeait 0 — elle échouait DANS SON PROPRE PÉRIMÈTRE,
+        # parce qu'elle greppait `src/app/(dashboard)`, les pages, quand le vocabulaire vivait
+        # dans les composants qu'elles montent : 1049 occurrences dans `src/components` pour 15
+        # dans le répertoire audité. *Un grep qui ne suit pas les imports mesure le répertoire,
+        # pas l'écran.* D'où la forme de cette garde : `takussan-web/src` en ENTIER, sans
+        # exception de répertoire, et la liste large des préfixes d'utilitaires — l'AC2 de
+        # TCK-244 cherchait `stroke-` quand le code écrivait `fill-`.
+        #
+        # Elle PROUVE, elle ne cliquette pas : une classe Tailwind est un littéral, sous peine
+        # de ne pas être compilée. Vérifiée par ablation (TCK-372, AC3).
+        run: node scripts/check-app-tokens.mjs --report
+
       - name: Les compétences des agents vivent dans un seul répertoire
         # `.agent/` (646 fichiers) et `.agents/` (602) coexistaient, et les quatre points d'entrée
         # du dépôt désignaient `.agent/`. Le 2026-05-18, la correction « `spatie/laravel-permission`

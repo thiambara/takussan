@@ -18,14 +18,14 @@ export function AdminShell({ user, children, agencyIsStandard }: AdminShellProps
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen flex-col bg-app-bg">
+    <div className="flex h-screen flex-col bg-background">
       <AppTopbar user={user} onMenuToggle={() => setSidebarOpen((v) => !v)} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden md:block md:h-full">
           <AdminSidebar user={user} agencyIsStandard={agencyIsStandard} />
         </div>
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="bg-app-topbar p-0">
+          <SheetContent side="left" className="bg-foreground p-0">
             <AdminSidebar
               user={user}
               agencyIsStandard={agencyIsStandard}
@@ -33,7 +33,7 @@ export function AdminShell({ user, children, agencyIsStandard }: AdminShellProps
             />
           </SheetContent>
         </Sheet>
-        <main className="relative min-h-0 flex-1 overflow-y-auto bg-app-bg">
+        <main className="relative min-h-0 flex-1 overflow-y-auto bg-background">
           <div className="px-4 py-6 md:px-6 md:py-8">{children}</div>
         </main>
       </div>

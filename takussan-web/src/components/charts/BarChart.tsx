@@ -23,7 +23,7 @@ export function BarChart({ data, title, unit, className }: Props) {
   if (labels.length === 0 || series.length === 0) {
     return (
       <div className={className} data-testid="chart-empty">
-        <p className="text-sm text-app-ink-muted">{t('empty')}</p>
+        <p className="text-sm text-muted-foreground">{t('empty')}</p>
       </div>
     );
   }
@@ -48,7 +48,7 @@ export function BarChart({ data, title, unit, className }: Props) {
 
   return (
     <figure className={className} data-testid="bar-chart">
-      {title && <figcaption className="mb-2 text-sm font-semibold text-app-ink">{title}</figcaption>}
+      {title && <figcaption className="mb-2 text-sm font-semibold text-foreground">{title}</figcaption>}
       <svg
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         className="h-full w-full"
@@ -62,13 +62,13 @@ export function BarChart({ data, title, unit, className }: Props) {
               x2={VIEW_W - PADDING.right}
               y1={g.y}
               y2={g.y}
-              className="stroke-app-surface-3"
+              className="stroke-border"
               strokeDasharray="2 3"
             />
             <text
               x={PADDING.left - 6}
               y={g.y + 4}
-              className="fill-app-ink-muted text-[10px]"
+              className="fill-muted-foreground text-[10px]"
               textAnchor="end"
             >
               {g.label}
@@ -101,7 +101,7 @@ export function BarChart({ data, title, unit, className }: Props) {
                 <text
                   x={groupX + groupW / 2}
                   y={VIEW_H - 8}
-                  className="fill-app-ink-muted text-[10px]"
+                  className="fill-muted-foreground text-[10px]"
                   textAnchor="middle"
                 >
                   {label}
@@ -111,7 +111,7 @@ export function BarChart({ data, title, unit, className }: Props) {
           );
         })}
       </svg>
-      <ul className="mt-2 flex flex-wrap gap-3 text-xs text-app-ink-muted">
+      <ul className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
         {series.map((s, idx) => (
           <li key={s.name} className="flex items-center gap-1.5">
             <span className={`inline-block h-2 w-2 rounded-full ${legendDot(idx)}`} aria-hidden />

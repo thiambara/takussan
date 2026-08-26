@@ -45,12 +45,12 @@ export function AgencyRevenueSnapshot({ timeseries }: Props) {
     return (
       <section
         aria-labelledby="agency-revenue-heading"
-        className="rounded-2xl bg-app-surface-1 p-6"
+        className="rounded-2xl bg-card p-6"
       >
-        <h2 id="agency-revenue-heading" className="mb-2 text-sm font-semibold text-app-ink">
+        <h2 id="agency-revenue-heading" className="mb-2 text-sm font-semibold text-foreground">
           {t('heading')}
         </h2>
-        <p className="text-xs text-app-ink-muted">{t('empty')}</p>
+        <p className="text-xs text-muted-foreground">{t('empty')}</p>
       </section>
     );
   }
@@ -60,14 +60,14 @@ export function AgencyRevenueSnapshot({ timeseries }: Props) {
   return (
     <section
       aria-labelledby="agency-revenue-heading"
-      className="rounded-2xl bg-app-surface-1 p-6"
+      className="rounded-2xl bg-card p-6"
     >
       <header className="mb-4 flex items-baseline justify-between">
-        <h2 id="agency-revenue-heading" className="text-sm font-semibold text-app-ink">
+        <h2 id="agency-revenue-heading" className="text-sm font-semibold text-foreground">
           {t('heading')}
         </h2>
-        <p className="text-xs text-app-ink-muted">
-          {t('total')} <span className="font-semibold text-app-ink">{formatCurrency(total, 'fr')}</span>
+        <p className="text-xs text-muted-foreground">
+          {t('total')} <span className="font-semibold text-foreground">{formatCurrency(total, 'fr')}</span>
         </p>
       </header>
       <BarChart

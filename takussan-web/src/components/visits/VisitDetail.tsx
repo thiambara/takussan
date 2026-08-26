@@ -61,7 +61,7 @@ export function VisitDetail({ id }: { id: number }) {
   const toast = useToast();
 
   if (isLoading) {
-    return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
+    return <div className="h-48 animate-pulse rounded-xl bg-card" />;
   }
 
   if (isError || !data) {
@@ -141,7 +141,7 @@ export function VisitDetail({ id }: { id: number }) {
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/app/visits" className="text-xs text-app-ink-muted hover:underline">
+        <Link href="/app/visits" className="text-xs text-muted-foreground hover:underline">
           {t('back')}
         </Link>
       </div>

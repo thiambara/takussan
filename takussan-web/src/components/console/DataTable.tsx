@@ -44,7 +44,15 @@ interface DataTableColumn<Row> {
   readonly sortKey?: string;
   /** Libellé accessible du bouton de tri. Obligatoire dès que `sortKey` est posé. */
   readonly sortLabel?: string;
-  /** Largeur, troncature, alignement vertical — JAMAIS le padding, qui appartient à la densité. */
+  /**
+   * Largeur, troncature, alignement vertical — JAMAIS le padding, qui appartient à la densité.
+   *
+   * ⚠ Elle est posée sur le `<th>` **ET** sur les `<td>` de la colonne. C'est voulu — une largeur
+   * qui ne vaudrait que pour le corps ne cadrerait rien — mais ça vaut aussi pour la typographie :
+   * un `font-mono` ou un `text-destructive` écrit ici teinte l'en-tête. La mise en forme du
+   * CONTENU se pose dans `cell`. Relevé pendant l'adoption par `/admin` (TCK-373) : deux en-têtes
+   * passés en chasse fixe et un troisième en rouge, qu'aucun test ne voyait.
+   */
   readonly className?: string;
 }
 

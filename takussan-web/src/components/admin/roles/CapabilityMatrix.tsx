@@ -98,7 +98,7 @@ export function CapabilityMatrix({
   return (
     <div className="space-y-3" data-testid="capability-matrix">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-app-ink-muted" data-testid="capability-matrix-count">
+        <p className="text-sm text-muted-foreground" data-testid="capability-matrix-count">
           {t('matrix.selected', { count: grantedCount, total: grantable.length })}
         </p>
         {readOnly ? null : (
@@ -106,14 +106,14 @@ export function CapabilityMatrix({
             <button
               type="button"
               onClick={() => onChange([...grantable])}
-              className="rounded-md border border-input px-2.5 py-1 text-xs text-app-ink transition-colors hover:bg-app-surface-2"
+              className="rounded-md border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted"
             >
               {t('matrix.select_all')}
             </button>
             <button
               type="button"
               onClick={() => onChange([])}
-              className="rounded-md border border-input px-2.5 py-1 text-xs text-app-ink transition-colors hover:bg-app-surface-2"
+              className="rounded-md border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted"
             >
               {t('matrix.clear')}
             </button>
@@ -130,17 +130,17 @@ export function CapabilityMatrix({
           return (
             <li
               key={group.domain}
-              className="overflow-hidden rounded-xl border border-border bg-app-surface-1"
+              className="overflow-hidden rounded-xl border border-border bg-card"
             >
               <button
                 type="button"
                 onClick={() => toggleDomain(group.domain)}
                 aria-expanded={!isCollapsed}
                 aria-label={t('matrix.toggle_domain', { domain: domainLabel(group.domain) })}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-app-surface-2/50"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
               >
-                <span className="font-semibold text-app-ink">{domainLabel(group.domain)}</span>
-                <span className="flex items-center gap-2 text-xs text-app-ink-muted">
+                <span className="font-semibold text-foreground">{domainLabel(group.domain)}</span>
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
                   {t('matrix.domain_selected', {
                     count: domainGranted,
                     total: domainGrantable.length,
@@ -164,7 +164,7 @@ export function CapabilityMatrix({
                             'flex items-start gap-3 px-4 py-2.5 text-sm',
                             isReserved || readOnly
                               ? 'cursor-not-allowed opacity-60'
-                              : 'cursor-pointer hover:bg-app-surface-2/40',
+                              : 'cursor-pointer hover:bg-muted/40',
                           )}
                         >
                           <input
@@ -175,8 +175,8 @@ export function CapabilityMatrix({
                             onChange={() => toggle(capability)}
                           />
                           <span className="flex-1">
-                            <span className="block text-app-ink">{label(capability)}</span>
-                            <code className="block text-xs text-app-ink-muted">{capability}</code>
+                            <span className="block text-foreground">{label(capability)}</span>
+                            <code className="block text-xs text-muted-foreground">{capability}</code>
                           </span>
                           {isReserved ? (
                             <Badge

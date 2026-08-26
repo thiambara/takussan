@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { TenantOnboardingPendingList } from '@/components/leases/TenantOnboardingPendingList';
 import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
@@ -39,7 +39,7 @@ export default async function Page() {
     <div className="space-y-6">
       <PageHeader
         title={t('title')}
-        subtitle={t('subtitle')}
+        description={t('subtitle')}
       />
       <TenantOnboardingPendingList agencyId={user.agency_id} />
     </div>

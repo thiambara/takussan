@@ -46,7 +46,7 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
   const payments = useMemo(() => data?.data ?? [], [data]);
 
   if (isLoading) {
-    return <div className="h-40 animate-pulse rounded-xl bg-app-surface-1" />;
+    return <div className="h-40 animate-pulse rounded-xl bg-card" />;
   }
   if (isError) {
     return (

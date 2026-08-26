@@ -73,14 +73,14 @@ export function ProfileReviewsList({ roles }: { readonly roles: UserRole[] }) {
   return (
     <div className="space-y-8">
       <section className="space-y-3" aria-labelledby="posted-reviews-title">
-        <h2 id="posted-reviews-title" className="text-base font-semibold text-app-ink">
+        <h2 id="posted-reviews-title" className="text-base font-semibold text-foreground">
           {t('postedTitle')}
         </h2>
         <AuthoredReviewsList locale={locale} />
       </section>
 
       <section className="space-y-3" aria-labelledby="review-opportunities-title">
-        <h2 id="review-opportunities-title" className="text-base font-semibold text-app-ink">
+        <h2 id="review-opportunities-title" className="text-base font-semibold text-foreground">
           {t('opportunitiesTitle')}
         </h2>
         <ReviewOpportunitiesList />
@@ -88,7 +88,7 @@ export function ProfileReviewsList({ roles }: { readonly roles: UserRole[] }) {
 
       {isOwner(roles) ? (
         <section className="space-y-3" aria-labelledby="received-reviews-title">
-          <h2 id="received-reviews-title" className="text-base font-semibold text-app-ink">
+          <h2 id="received-reviews-title" className="text-base font-semibold text-foreground">
             {t('receivedTitle')}
           </h2>
           <OwnerReviewsInbox />
@@ -107,7 +107,7 @@ function AuthoredReviewsList({ locale }: { readonly locale: string }) {
     return (
       <div className="space-y-3" role="status" aria-label={t('loadingAria')}>
         {[0, 1].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
         ))}
       </div>
     );
@@ -161,7 +161,7 @@ function ReviewOpportunitiesList() {
     return (
       <div className="space-y-3" role="status" aria-label={t('loadingAria')}>
         {[0, 1].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-app-surface-1" />
+          <div key={i} className="h-20 animate-pulse rounded-xl bg-card" />
         ))}
       </div>
     );
@@ -286,7 +286,7 @@ function OwnerReviewsInbox() {
     return (
       <div className="space-y-3" role="status" aria-label={t('loadingAria')}>
         {[0, 1].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
         ))}
       </div>
     );

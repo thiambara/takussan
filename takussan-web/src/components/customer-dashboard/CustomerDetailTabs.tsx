@@ -48,7 +48,7 @@ export function CustomerDetailTabs({
         <TabsTrigger value="relationships">{tTabs('relationships', { count: relationships.length })}</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="overview" className="rounded-xl bg-app-surface-1 p-6">
+      <TabsContent value="overview" className="rounded-xl bg-card p-6">
         <CustomerForm mode="edit" customer={customer} compact />
       </TabsContent>
 
@@ -72,19 +72,19 @@ export function CustomerDetailTabs({
             {relationships.map((rel) => (
               <li
                 key={rel.id}
-                className="rounded-xl bg-app-surface-1 p-4 text-sm"
+                className="rounded-xl bg-card p-4 text-sm"
               >
-                <p className="font-semibold text-app-ink">
+                <p className="font-semibold text-foreground">
                   {rel.relationship_type.replace('_', ' / ')}
                 </p>
-                <p className="text-xs text-app-ink-muted">
+                <p className="text-xs text-muted-foreground">
                   {t('since', { date: formatDateTime(rel.start_date, locale) })}
                   {rel.end_date ? t('until', { date: formatDateTime(rel.end_date, locale) }) : ''}
                   {rel.is_primary ? t('primaryContact') : ''}
                   {t('statusSuffix', { status: rel.status })}
                 </p>
                 {rel.notes ? (
-                  <p className="mt-2 whitespace-pre-line text-app-ink">{rel.notes}</p>
+                  <p className="mt-2 whitespace-pre-line text-foreground">{rel.notes}</p>
                 ) : null}
               </li>
             ))}

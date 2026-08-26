@@ -183,7 +183,7 @@ export function CreateInvoiceDialog({
 
           <section>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-app-ink">{t('lines')}</h3>
+              <h3 className="text-sm font-semibold text-foreground">{t('lines')}</h3>
               <Button
                 type="button"
                 size="sm"
@@ -256,22 +256,22 @@ export function CreateInvoiceDialog({
             />
           </div>
 
-          <dl className="grid gap-2 rounded-xl bg-app-surface-1 p-3 text-xs sm:grid-cols-3">
+          <dl className="grid gap-2 rounded-xl bg-card p-3 text-xs sm:grid-cols-3">
             <div>
-              <dt className="text-app-ink-muted">{t('subtotal')}</dt>
-              <dd className="text-sm font-semibold text-app-ink">
+              <dt className="text-muted-foreground">{t('subtotal')}</dt>
+              <dd className="text-sm font-semibold text-foreground">
                 {formatCurrency(subtotal, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">{t('tax')}</dt>
-              <dd className="text-sm font-semibold text-app-ink">
+              <dt className="text-muted-foreground">{t('tax')}</dt>
+              <dd className="text-sm font-semibold text-foreground">
                 {formatCurrency(taxAmount, locale, { currency })}
               </dd>
             </div>
             <div>
-              <dt className="text-app-ink-muted">{t('total')}</dt>
-              <dd className="text-sm font-semibold text-app-ink">
+              <dt className="text-muted-foreground">{t('total')}</dt>
+              <dd className="text-sm font-semibold text-foreground">
                 {formatCurrency(total, locale, { currency })}
               </dd>
             </div>

@@ -15,16 +15,16 @@ export function DashboardEmpty({ roles }: Props) {
   const isAdminLike = isAdmin(roles) || isSuperAdmin(roles);
 
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-app-surface-1 p-12 text-center">
+    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-card p-12 text-center">
       {isAdminLike ? (
-        <ShieldCheck className="size-10 text-app-accent" />
+        <ShieldCheck className="size-10 text-primary" />
       ) : (
-        <Compass className="size-10 text-app-accent" />
+        <Compass className="size-10 text-primary" />
       )}
-      <p className="text-sm font-semibold text-app-ink">
+      <p className="text-sm font-semibold text-foreground">
         {isAdminLike ? t('adminTitle') : t('userTitle')}
       </p>
-      <p className="text-xs text-app-ink-muted">
+      <p className="text-xs text-muted-foreground">
         {isAdminLike ? t('adminBody') : t('userBody')}
       </p>
       <Link

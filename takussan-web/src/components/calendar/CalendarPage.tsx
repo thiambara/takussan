@@ -206,7 +206,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                 className={cn(
                   'px-3 py-1.5 text-sm transition-colors',
                   view === v
-                    ? 'bg-app-topbar text-white'
+                    ? 'bg-foreground text-white'
                     : 'text-stone-700 hover:bg-stone-50',
                 )}
               >

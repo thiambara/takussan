@@ -21,7 +21,7 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
   const tCommon = useTranslations('common');
 
   return (
-    <header className={cn('flex h-14 shrink-0 items-center gap-3 bg-app-topbar px-4')}>
+    <header className={cn('flex h-14 shrink-0 items-center gap-3 bg-foreground px-4')}>
       <button
         type="button"
         onClick={onMenuToggle}

@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchAdminAgencies, fetchAdminProperties } from '@/lib/queries/super-admin';
 import { SuperAdminPropertiesFilters } from '@/components/admin/super/SuperAdminPropertiesFilters';
 import { SuperAdminPropertiesTable } from '@/components/admin/super/SuperAdminPropertiesTable';
-import { Pagination } from '@/components/super-admin/Pagination';
+import { Pagination } from '@/components/console';
 import type { AdminPropertiesResponse, AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
