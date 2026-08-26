@@ -400,8 +400,16 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
     {
       id: 'description',
       header: t('columns.description'),
-      className: 'max-w-xs truncate text-muted-foreground',
-      cell: (log) => log.description ?? '—',
+      // La troncature se pose dans la CELLULE, jamais dans `className` : celui-ci va aussi sur
+      // le `<th>`, et surtout `DataTable` impose `whitespace-normal` à chaque cellule. `truncate`
+      // et `whitespace-*` sont deux familles distinctes pour twMerge — les deux survivent, et
+      // `.whitespace-normal` est émise APRÈS `.truncate` dans la feuille Tailwind : l'ellipse
+      // exige `white-space: nowrap`, elle ne s'appliquait donc plus du tout.
+      cell: (log) => (
+        <span className="block max-w-xs truncate text-muted-foreground">
+          {log.description ?? '—'}
+        </span>
+      ),
     },
   ];
 }

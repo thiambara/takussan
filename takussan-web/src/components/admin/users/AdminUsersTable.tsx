@@ -25,8 +25,6 @@ import type { Locale } from '@/i18n/config';
 import type { AdminAgencyUserRow } from '@/types/admin-users';
 import type { AgencyRoleAssignment } from '@/types/agency-role';
 
-type SortableKey = 'created_at' | 'last_login_at' | 'first_name';
-
 /**
  * TCK-292 — la donnée ne porte plus que ce qu'elle sait : le TON du badge.
  * Le libellé se résout sous `admin.users.status.*` / `admin.users.roles.*`, et

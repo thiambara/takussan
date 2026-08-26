@@ -283,7 +283,6 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
         columns={columns}
         rows={visible}
         rowKey={(setting) => setting.id}
-        rowProps={() => ({ className: 'align-top' })}
         emptyState={(
           <EmptyState
             className="border-0"
