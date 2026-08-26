@@ -4984,7 +4984,8 @@
       "actions": "Actions",
       "editValueAria": "Edit {value}",
       "deactivateValueAria": "Deactivate {value}",
-      "warning": "Technical statuses and roles cannot be edited here."
+      "warning": "Technical statuses and roles cannot be edited here.",
+      "tableCaption": "Values of the {name} enum"
     },
     "moderation": {
       "empty_title": "No moderation item",
@@ -5040,7 +5041,8 @@
         "hide": "Hide",
         "reject": "Reject",
         "remove": "Delete"
-      }
+      },
+      "tableCaption": "Cross-tenant moderation queue"
     },
     "properties": {
       "empty_title": "No property to show",
@@ -5089,7 +5091,8 @@
           "archiveLabel": "Confirm the archiving",
           "deleteLabel": "Confirm the deletion",
           "unpublishLabel": "Confirm the unpublishing"
-        }
+        },
+        "tableCaption": "Platform properties, across every agency"
       }
     },
     "templates": {
@@ -5123,7 +5126,8 @@
       "colSubject": "Subject",
       "previous": "Previous",
       "next": "Next",
-      "pagination": "Page {current} of {last} · {total} entries"
+      "pagination": "Page {current} of {last} · {total} entries",
+      "tableCaption": "Cross-tenant audit log"
     },
     "announcements": {
       "empty_title": "No announcement yet",
@@ -5155,7 +5159,8 @@
         "success": "Success",
         "warning": "Alert",
         "critical": "Critical"
-      }
+      },
+      "tableCaption": "Scheduled cross-tenant announcements"
     },
     "scheduler": {
       "empty_title": "No run captured",
@@ -5164,7 +5169,8 @@
       "subtitle": "Latest runs observed by the Laravel scheduler.",
       "colTask": "Task",
       "colLastRun": "Last run",
-      "colAvgDuration": "Average duration"
+      "colAvgDuration": "Average duration",
+      "tableCaption": "Scheduled tasks and last run"
     },
     "systemHealth": {
       "failedJobs": {
@@ -5177,7 +5183,8 @@
         "colQueue": "Queue",
         "colPayload": "Payload",
         "colFailedAt": "Failure",
-        "colActions": "Actions"
+        "colActions": "Actions",
+        "tableCaption": "Failed jobs in the queue"
       },
       "queuePending": "Pending",
       "queueProcessing": "Processing",
@@ -5193,7 +5200,8 @@
         "colEvent": "Event",
         "colStatus": "Status",
         "colPayload": "Payload",
-        "colReceived": "Received"
+        "colReceived": "Received",
+        "tableCaption": "Webhook log received for {label}"
       },
       "edit": "Edit",
       "webhooksAction": "Webhooks",
@@ -5444,9 +5452,6 @@
         "statusAria": "Status",
         "emailAria": "Email verified",
         "twoFactorAria": "2FA",
-        "rolesLabel": "Roles:",
-        "agenciesLabel": "Agencies:",
-        "summary": "Status: {status} · Email {email} · 2FA {twoFactor} · Last sign-in {lastLogin}",
         "emailVerified": "verified",
         "emailUnverified": "not verified",
         "twoFactorOn": "on",
@@ -5482,6 +5487,16 @@
           "all": "2FA: all",
           "on": "2FA enabled",
           "off": "2FA disabled"
+        },
+        "tableCaption": "Platform users, across every agency",
+        "columns": {
+          "user": "User",
+          "roles": "Roles",
+          "agencies": "Agencies",
+          "status": "Status",
+          "security": "Security",
+          "lastLogin": "Last sign-in",
+          "actions": "Actions"
         }
       },
       "agencies": {
@@ -5569,7 +5584,8 @@
           "previous": "Previous",
           "next": "Next",
           "position": "Page {page} / {lastPage}"
-        }
+        },
+        "tableCaption": "Agency upgrade requests"
       },
       "upgradeRequestDetail": {
         "invalidId": "Invalid request identifier.",
@@ -5629,7 +5645,8 @@
       "targetRoles": "Targeted roles",
       "rollout": "Rollout %",
       "test": "Test",
-      "testing": "You are testing"
+      "testing": "You are testing",
+      "tableCaption": "Platform feature flags"
     },
     "alerts": {
       "colEvent": "Event",
@@ -5642,7 +5659,8 @@
       "emails": "Emails",
       "webhooks": "Webhooks",
       "test": "Test",
-      "testSent": "Test sent"
+      "testSent": "Test sent",
+      "tableCaption": "Platform alert rules"
     },
     "inviteModal": {
       "title": "Coopt a super-admin",

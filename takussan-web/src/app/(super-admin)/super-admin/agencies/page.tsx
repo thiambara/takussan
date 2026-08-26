@@ -21,6 +21,7 @@ import {
 import type { AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PageHeader } from '@/components/console';
 
 const ALL = '__all__';
 
@@ -77,13 +78,11 @@ export default function SuperAdminAgenciesPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
-        </div>
-        <AgencyOnboardingDialog />
-      </header>
+      <PageHeader
+        title={tPage('title')}
+        description={tPage('subtitle')}
+        actions={<AgencyOnboardingDialog />}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <Select

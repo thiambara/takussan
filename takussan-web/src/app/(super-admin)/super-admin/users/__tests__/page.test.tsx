@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
@@ -75,7 +75,13 @@ describe('super-admin users page', () => {
     expect(url.searchParams.get('include')).toBe('roles,agentProfiles,ownerProfiles');
   });
 
-  it('renders role badges, agencies and security columns', async () => {
+  /**
+   * TCK-357 (AC4) — cet écran rendait une LISTE DE CARTES quand les dix autres listes de la
+   * console étaient des tables, et le résumé du compte tenait dans une phrase interpolée
+   * (« Statut : … · Email … · 2FA … »). Les assertions portent désormais sur la STRUCTURE de
+   * table, pas sur cette phrase : c'est ce qui empêche un retour aux cartes de rester vert.
+   */
+  it('rend une TABLE — pas une liste de cartes — avec rôles, agences et sécurité', async () => {
     mockFetch([
       {
         id: 7,
@@ -96,10 +102,21 @@ describe('super-admin users page', () => {
     renderPage();
 
     expect(await screen.findByText('Awa Ndiaye')).toBeInTheDocument();
-    expect(screen.getAllByText('agent').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Agences : Dakar Immo/)).toBeInTheDocument();
-    expect(screen.getAllByText(/Email vérifié/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/2FA activée/).length).toBeGreaterThan(0);
+
+    const table = screen.getByRole('table');
+    // La légende sr-only est la propriété que `DataTable` garantit et qu'aucune des onze tables
+    // faites main ne portait : l'asserter ici la rend non régressable sur cet écran.
+    expect(table).toHaveAccessibleName('Utilisateurs de la plateforme, toutes agences confondues');
+    expect(
+      within(table).getAllByRole('columnheader').map((th) => th.textContent),
+    ).toEqual(['Utilisateur', 'Rôles', 'Agences', 'Statut', 'Sécurité', 'Dernière connexion', 'Actions']);
+
+    const ligne = within(table).getAllByRole('row')[1];
+    expect(within(ligne).getByText('agent')).toBeInTheDocument();
+    expect(within(ligne).getByText('Dakar Immo')).toBeInTheDocument();
+    expect(within(ligne).getByText('active')).toBeInTheDocument();
+    expect(within(ligne).getByText('vérifié')).toBeInTheDocument();
+    expect(within(ligne).getByText('activée')).toBeInTheDocument();
   });
 
   it('sends role and agency filters to the server', async () => {

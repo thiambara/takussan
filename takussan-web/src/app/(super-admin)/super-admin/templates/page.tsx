@@ -13,6 +13,7 @@ import { fetchNotificationTemplates } from '@/lib/queries/super-admin';
 import type { NotificationTemplateChannel, NotificationTemplatesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PageHeader } from '@/components/console';
 
 export default function SuperAdminTemplatesPage() {
   const t = useTranslations('superAdmin.templates');
@@ -34,10 +35,10 @@ export default function SuperAdminTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
-      </header>
+      <PageHeader
+        title={tPage('title')}
+        description={tPage('subtitle')}
+      />
       {query.isLoading ? (
         <div className="h-48 animate-pulse rounded-xl bg-muted" />
       ) : query.isError ? (

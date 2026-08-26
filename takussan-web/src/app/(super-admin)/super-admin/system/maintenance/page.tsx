@@ -7,6 +7,7 @@ import { fetchMaintenance } from '@/lib/queries/super-admin';
 import type { MaintenanceStatusResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PageHeader } from '@/components/console';
 
 export default function SuperAdminMaintenancePage() {
   const t = useTranslations('superAdmin.pages.maintenance');
@@ -20,10 +21,10 @@ export default function SuperAdminMaintenancePage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+      />
 
       {query.isLoading ? (
         <div className="h-64 animate-pulse rounded-xl bg-muted" />

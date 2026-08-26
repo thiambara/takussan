@@ -4528,7 +4528,8 @@
       "actions": "Aksioŋ yi",
       "editValueAria": "Soppi {value}",
       "deactivateValueAria": "Faral {value}",
-      "warning": "Nekkin yu teknik ak wàll yi mënuñu leen a soppi fii."
+      "warning": "Nekkin yu teknik ak wàll yi mënuñu leen a soppi fii.",
+      "tableCaption": "Waloor yu enum {name}"
     },
     "moderation": {
       "empty_title": "Amul benn liggéey moderasioŋ",
@@ -4584,7 +4585,8 @@
         "hide": "Nëbb ko",
         "reject": "Bañ ko",
         "remove": "Far ko"
-      }
+      },
+      "tableCaption": "File modérasioŋ ci agence yépp"
     },
     "properties": {
       "empty_title": "Amul kër bu ñu wara wone",
@@ -4633,7 +4635,8 @@
           "archiveLabel": "Dëgglal denc gi",
           "deleteLabel": "Dëgglal far gi",
           "unpublishLabel": "Dëgglal dindi gi"
-        }
+        },
+        "tableCaption": "Njaay yu plateform bi, agence yépp"
       }
     },
     "templates": {
@@ -4667,7 +4670,8 @@
       "colSubject": "Lu ko jëm",
       "previous": "Bi jiitu",
       "next": "Bi ci topp",
-      "pagination": "Xët {current} ci {last} · {total} mbind"
+      "pagination": "Xët {current} ci {last} · {total} mbind",
+      "tableCaption": "Journal audit ci agence yépp"
     },
     "announcements": {
       "empty_title": "Amul benn yégle ba tey",
@@ -4699,7 +4703,8 @@
         "success": "Mu antu",
         "warning": "Artu",
         "critical": "Jafe-jafe"
-      }
+      },
+      "tableCaption": "Yégle yu planifiye ci agence yépp"
     },
     "scheduler": {
       "empty_title": "Amul benn dox bu ñu jàpp",
@@ -4708,7 +4713,8 @@
       "subtitle": "Dox yu mujj yi scheduler Laravel bi gis.",
       "colTask": "Liggéey",
       "colLastRun": "Dox bu mujj",
-      "colAvgDuration": "Diir bu digg"
+      "colAvgDuration": "Diir bu digg",
+      "tableCaption": "Liggéey yu planifiye ak dooru mujj gi"
     },
     "systemHealth": {
       "failedJobs": {
@@ -4721,7 +4727,8 @@
         "colQueue": "Liiñ",
         "colPayload": "Payload",
         "colFailedAt": "Njuumte",
-        "colActions": "Aksioŋ yi"
+        "colActions": "Aksioŋ yi",
+        "tableCaption": "Job yu ñàkk ci file bi"
       },
       "queuePending": "Ci xaar",
       "queueProcessing": "Mu ngi dox",
@@ -4737,7 +4744,8 @@
         "colEvent": "Xew-xew",
         "colStatus": "Nekkin",
         "colPayload": "Payload",
-        "colReceived": "Jot"
+        "colReceived": "Jot",
+        "tableCaption": "Journal webhook yi jot ngir {label}"
       },
       "edit": "Soppi",
       "webhooksAction": "Webhook yi",
@@ -4988,9 +4996,6 @@
         "statusAria": "Nekkin",
         "emailAria": "Email bu ñu seetlu",
         "twoFactorAria": "2FA",
-        "rolesLabel": "Wàll yi :",
-        "agenciesLabel": "Ajaans yi :",
-        "summary": "Nekkin : {status} · Email {email} · 2FA {twoFactor} · Dugg bu mujj {lastLogin}",
         "emailVerified": "seetlu na",
         "emailUnverified": "seetluwuñu ko",
         "twoFactorOn": "dox na",
@@ -5026,6 +5031,16 @@
           "all": "2FA : yépp",
           "on": "2FA dox na",
           "off": "2FA doxul"
+        },
+        "tableCaption": "Jëfandikukat yu plateform bi, agence yépp",
+        "columns": {
+          "user": "Jëfandikukat",
+          "roles": "Rol",
+          "agencies": "Agence",
+          "status": "Statu",
+          "security": "Kaaraange",
+          "lastLogin": "Dugg bu mujj",
+          "actions": "Jëf"
         }
       },
       "agencies": {
@@ -5113,7 +5128,8 @@
           "previous": "Bi jiitu",
           "next": "Bi ci topp",
           "position": "Xët {page} / {lastPage}"
-        }
+        },
+        "tableCaption": "Ñaan yu upgrade agence"
       },
       "upgradeRequestDetail": {
         "invalidId": "Nimero ñaan bi baaxul.",
@@ -5173,7 +5189,8 @@
       "targetRoles": "Wàll yi ñu jubal",
       "rollout": "Rollout %",
       "test": "Seetlu ko",
-      "testing": "Yaa ngi ko seetlu"
+      "testing": "Yaa ngi ko seetlu",
+      "tableCaption": "Feature flag yu plateform bi"
     },
     "alerts": {
       "colEvent": "Xew-xew",
@@ -5186,7 +5203,8 @@
       "emails": "Email yi",
       "webhooks": "Webhook yi",
       "test": "Seetlu ko",
-      "testSent": "Seetlu bi dem na"
+      "testSent": "Seetlu bi dem na",
+      "tableCaption": "Reeglu alert yu plateform bi"
     },
     "inviteModal": {
       "title": "Woo benn super-admin",

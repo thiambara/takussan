@@ -15,6 +15,7 @@ import {
 } from '@/lib/queries/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PageHeader, StatusBadge } from '@/components/console';
 
 /**
  * TCK-264 — Cooptation surface for super-admins.
@@ -40,16 +41,16 @@ export default function SuperAdminsCooptationPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-app-ink">{t('title')}</h1>
-          <p className="mt-1 text-sm text-app-ink-muted">{t('subtitle')}</p>
-        </div>
-        <Button onClick={() => setOpen(true)}>
-          <UserPlus className="size-4" aria-hidden="true" />
-          <span>{t('invite')}</span>
-        </Button>
-      </header>
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          <Button onClick={() => setOpen(true)}>
+            <UserPlus className="size-4" aria-hidden="true" />
+            <span>{t('invite')}</span>
+          </Button>
+        }
+      />
 
       {isLoading ? (
         <Card>
@@ -94,7 +95,7 @@ export default function SuperAdminsCooptationPage() {
                         </p>
                         <p className="text-xs text-app-ink-muted">{admin.email}</p>
                       </div>
-                      <StatusBadge admin={admin} />
+                      <TwoFactorBadge admin={admin} />
                     </CardContent>
                   </Card>
                 ))
@@ -128,9 +129,7 @@ export default function SuperAdminsCooptationPage() {
                           })}
                         </p>
                       </div>
-                      <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">
-                        {t('invitedBadge')}
-                      </span>
+                      <StatusBadge tone="attention" label={t('invitedBadge')} />
                     </CardContent>
                   </Card>
                 ))
@@ -152,7 +151,7 @@ export default function SuperAdminsCooptationPage() {
   );
 }
 
-function StatusBadge({
+function TwoFactorBadge({
   admin,
 }: {
   admin: { two_factor_enabled: boolean; force_2fa_at_first_login: boolean };
@@ -161,21 +160,21 @@ function StatusBadge({
 
   if (admin.force_2fa_at_first_login) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900">
-        <ShieldAlert className="size-3" aria-hidden="true" /> {t('badgePending2fa')}
-      </span>
+      <StatusBadge
+        tone="attention"
+        icon={<ShieldAlert className="size-3" aria-hidden="true" />}
+        label={t('badgePending2fa')}
+      />
     );
   }
   if (admin.two_factor_enabled) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-xs font-medium text-emerald-900">
-        <ShieldCheck className="size-3" aria-hidden="true" /> {t('badgeActive')}
-      </span>
+      <StatusBadge
+        tone="success"
+        icon={<ShieldCheck className="size-3" aria-hidden="true" />}
+        label={t('badgeActive')}
+      />
     );
   }
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-1 text-xs font-medium text-stone-900">
-      {t('badgeActiveNo2fa')}
-    </span>
-  );
+  return <StatusBadge tone="neutral" label={t('badgeActiveNo2fa')} />;
 }

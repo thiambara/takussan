@@ -14,6 +14,7 @@ import { fetchBusinessEnums } from '@/lib/queries/super-admin';
 import type { BusinessEnumsResponse, BusinessEnumValue } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PageHeader } from '@/components/console';
 
 export default function SuperAdminEnumsPage() {
   const t = useTranslations('superAdmin.enums');
@@ -39,10 +40,10 @@ export default function SuperAdminEnumsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
-      </header>
+      <PageHeader
+        title={tPage('title')}
+        description={tPage('subtitle')}
+      />
 
       {/* Warning banner: amber Tailwind kept as documented exception (TCK-245) — no `--warning` DS token available. */}
       <div className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">

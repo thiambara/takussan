@@ -19,10 +19,12 @@ import {
   ShieldOff,
   Users,
 } from 'lucide-react';
+import { StatCard, StatusBadge } from '@/components/console';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   fetchAdminAgencyDetail,
   fetchAdminAgencyHealth,
@@ -44,6 +46,15 @@ import { ConfirmActionDialog } from './ConfirmActionDialog';
 
 type Action = 'verify' | 'suspend' | 'unverify';
 type Tab = 'kyc' | 'subscription' | 'team' | 'properties' | 'transactions';
+
+/** La donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyDetail.tabs.*`). */
+const TABS: { id: Tab; icon: typeof Users }[] = [
+  { id: 'kyc', icon: ShieldCheck },
+  { id: 'subscription', icon: CreditCard },
+  { id: 'team', icon: Users },
+  { id: 'properties', icon: Home },
+  { id: 'transactions', icon: CreditCard },
+];
 
 type ActionMeta = { title: string; description: string; phrase: string; label: string; destructive?: boolean };
 
@@ -144,39 +155,48 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
       <AgencyModerationActionsMenu agency={agency} />
       <AgencyHealthStrip health={health} loading={healthQuery.isLoading} />
 
-      <div className="flex flex-wrap gap-2">
-        <TabButton active={activeTab === 'kyc'} onClick={() => setActiveTab('kyc')} icon={ShieldCheck}>
-          {t('tabs.kyc')}
-        </TabButton>
-        <TabButton active={activeTab === 'subscription'} onClick={() => setActiveTab('subscription')} icon={CreditCard}>
-          {t('tabs.subscription')}
-        </TabButton>
-        <TabButton active={activeTab === 'team'} onClick={() => setActiveTab('team')} icon={Users}>
-          {t('tabs.team')}
-        </TabButton>
-        <TabButton active={activeTab === 'properties'} onClick={() => setActiveTab('properties')} icon={Home}>
-          {t('tabs.properties')}
-        </TabButton>
-        <TabButton active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} icon={CreditCard}>
-          {t('tabs.transactions')}
-        </TabButton>
-      </div>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)} className="gap-6">
+        <TabsList variant="line" className="h-auto flex-wrap">
+          {TABS.map((entry) => {
+            const Icon = entry.icon;
+            return (
+              <TabsTrigger key={entry.id} value={entry.id}>
+                <Icon className="size-4" aria-hidden="true" />
+                {t(`tabs.${entry.id}`)}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
 
-      {activeTab === 'kyc' ? (
-        <AgencyKycTab dossier={kycQuery.data?.data} loading={kycQuery.isLoading} agencyId={agencyId} />
-      ) : null}
-      {activeTab === 'subscription' ? (
-        <AdminAgencySubscriptionPanel agencyId={agencyId} />
-      ) : null}
-      {activeTab === 'team' ? (
-        <AgencyTeamTab members={teamQuery.data?.data ?? []} loading={teamQuery.isLoading} />
-      ) : null}
-      {activeTab === 'properties' ? (
-        <AgencyPropertiesTab properties={propertiesQuery.data?.data ?? []} loading={propertiesQuery.isLoading} />
-      ) : null}
-      {activeTab === 'transactions' ? (
-        <AgencyTransactionsTab health={health} loading={healthQuery.isLoading} />
-      ) : null}
+        {/*
+          Panneaux montés à la demande : `AdminAgencySubscriptionPanel` et les onglets KYC/équipe
+          déclenchent chacun leur requête au montage. `<TabsContent>` monte ses enfants même
+          caché — sans ce garde, ouvrir la fiche agence lancerait les cinq requêtes d'un coup.
+        */}
+        <TabsContent value="kyc">
+          {activeTab === 'kyc' ? (
+            <AgencyKycTab dossier={kycQuery.data?.data} loading={kycQuery.isLoading} agencyId={agencyId} />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="subscription">
+          {activeTab === 'subscription' ? <AdminAgencySubscriptionPanel agencyId={agencyId} /> : null}
+        </TabsContent>
+        <TabsContent value="team">
+          {activeTab === 'team' ? (
+            <AgencyTeamTab members={teamQuery.data?.data ?? []} loading={teamQuery.isLoading} />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="properties">
+          {activeTab === 'properties' ? (
+            <AgencyPropertiesTab properties={propertiesQuery.data?.data ?? []} loading={propertiesQuery.isLoading} />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="transactions">
+          {activeTab === 'transactions' ? (
+            <AgencyTransactionsTab health={health} loading={healthQuery.isLoading} />
+          ) : null}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -215,10 +235,10 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
     .join(', ');
 
   return (
-    <header className="rounded-xl bg-white p-5 ring-1 ring-stone-200">
+    <header className="rounded-xl bg-card p-5 ring-1 ring-border">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-4">
-          <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-700">
+          <div className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
             {agency.logo_url ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={agency.logo_url} alt="" className="size-16 rounded-xl object-cover" />
@@ -227,19 +247,20 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
             )}
           </div>
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
               {t('crossTenant')}
             </p>
-            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-stone-950">
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground">
               {agency.name}
             </h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-stone-600">
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <Badge variant="secondary">{statusKey ? tStatus(statusKey) : status}</Badge>
               {agency.is_verified ? (
-                <Badge className="gap-1 bg-emerald-100 text-emerald-900 hover:bg-emerald-100">
-                  <BadgeCheck className="size-3" aria-hidden="true" />
-                  {t('verified')}
-                </Badge>
+                <StatusBadge
+                  tone="success"
+                  icon={<BadgeCheck className="size-3" aria-hidden="true" />}
+                  label={t('verified')}
+                />
               ) : (
                 <Badge variant="outline">{t('notVerified')}</Badge>
               )}
@@ -274,10 +295,10 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
   const meta = pending ? actionMeta(t)[pending] : null;
 
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-stone-950 p-4 text-white">
+    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-foreground p-4 text-background">
       <div>
         <h2 className="font-display text-base font-semibold">{t('moderationTitle')}</h2>
-        <p className="text-sm text-stone-300">{t('moderationSubtitle')}</p>
+        <p className="text-sm text-background/70">{t('moderationSubtitle')}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => setPending('verify')} disabled={mutation.isPending}>
@@ -326,19 +347,13 @@ export function AgencyHealthStrip({ health, loading }: { health?: AdminAgencyHea
       {items.map((item) => {
         const Icon = item.icon;
         return (
-          <Card key={item.label}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm text-stone-600">{item.label}</span>
-                <Icon className="size-4 text-amber-700" aria-hidden="true" />
-              </div>
-              {loading ? (
-                <Skeleton className="mt-3 h-7 w-20" />
-              ) : (
-                <p className="mt-2 text-2xl font-semibold text-stone-950">{item.value ?? 0}</p>
-              )}
-            </CardContent>
-          </Card>
+          <StatCard
+            key={item.label}
+            label={item.label}
+            icon={<Icon className="size-4" aria-hidden="true" />}
+            loading={loading}
+            value={item.value ?? 0}
+          />
         );
       })}
     </section>
@@ -354,9 +369,9 @@ export function AgencyTeamTab({ members, loading }: { members: AdminAgencyTeamMe
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
-        {!loading && members.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
+        {!loading && members.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {members.map((member) => (
-          <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3">
+          <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
             <div>
               <p className="font-medium text-stone-950">{member.full_name || member.email}</p>
               <p className="text-sm text-stone-600">{member.email}</p>
@@ -382,16 +397,16 @@ export function AgencyPropertiesTab({ properties, loading }: { properties: Admin
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
-        {!loading && properties.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
+        {!loading && properties.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {properties.map((property) => (
-          <div key={property.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3">
+          <div key={property.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
             <div>
               <p className="font-medium text-stone-950">{property.title}</p>
               <p className="text-sm text-stone-600">
                 {property.reference_number} · {property.status_label ?? property.status ?? '—'}
               </p>
             </div>
-            <p className="font-semibold text-stone-950">{formatCurrency(property.price)}</p>
+            <p className="font-semibold text-foreground">{formatCurrency(property.price)}</p>
           </div>
         ))}
       </CardContent>
@@ -411,41 +426,13 @@ export function AgencyTransactionsTab({ health, loading }: { health?: AdminAgenc
           <Skeleton className="h-24 md:col-span-3" />
         ) : (
           <>
-            <Metric label={t('count30d')} value={String(health?.transactions_30d ?? 0)} />
-            <Metric label={t('revenue30d')} value={formatCurrency(health?.revenue_30d ?? 0)} />
-            <Metric label={t('lastPayment')} value={health?.last_platform_payment_at ? formatDate(health.last_platform_payment_at) : '—'} />
+            <StatCard label={t('count30d')} value={String(health?.transactions_30d ?? 0)} />
+            <StatCard label={t('revenue30d')} value={formatCurrency(health?.revenue_30d ?? 0)} />
+            <StatCard label={t('lastPayment')} value={health?.last_platform_payment_at ? formatDate(health.last_platform_payment_at) : '—'} />
           </>
         )}
       </CardContent>
     </Card>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  icon: Icon,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: typeof Users;
-  children: React.ReactNode;
-}) {
-  return (
-    <Button type="button" variant={active ? 'default' : 'outline'} onClick={onClick}>
-      <Icon className="mr-2 size-4" aria-hidden="true" />
-      {children}
-    </Button>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-stone-200 p-3">
-      <p className="text-sm text-stone-600">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-stone-950">{value}</p>
-    </div>
   );
 }
 

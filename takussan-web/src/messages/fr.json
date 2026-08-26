@@ -4984,7 +4984,8 @@
       "actions": "Actions",
       "editValueAria": "Modifier {value}",
       "deactivateValueAria": "Désactiver {value}",
-      "warning": "Les statuts techniques et rôles ne sont pas éditables ici."
+      "warning": "Les statuts techniques et rôles ne sont pas éditables ici.",
+      "tableCaption": "Valeurs de l'enum {name}"
     },
     "moderation": {
       "empty_title": "Aucun item de modération",
@@ -5040,7 +5041,8 @@
         "hide": "Masquer",
         "reject": "Rejeter",
         "remove": "Supprimer"
-      }
+      },
+      "tableCaption": "File de modération cross-tenant"
     },
     "properties": {
       "empty_title": "Aucun bien à afficher",
@@ -5089,7 +5091,8 @@
           "archiveLabel": "Confirmer l'archivage",
           "deleteLabel": "Confirmer la suppression",
           "unpublishLabel": "Confirmer la dépublication"
-        }
+        },
+        "tableCaption": "Biens de la plateforme, toutes agences confondues"
       }
     },
     "templates": {
@@ -5123,7 +5126,8 @@
       "colSubject": "Sujet",
       "previous": "Précédent",
       "next": "Suivant",
-      "pagination": "Page {current} sur {last} · {total} entrées"
+      "pagination": "Page {current} sur {last} · {total} entrées",
+      "tableCaption": "Journal d'audit cross-tenant"
     },
     "announcements": {
       "empty_title": "Aucune annonce pour le moment",
@@ -5155,7 +5159,8 @@
         "success": "Succès",
         "warning": "Alerte",
         "critical": "Critique"
-      }
+      },
+      "tableCaption": "Annonces cross-tenant programmées"
     },
     "scheduler": {
       "empty_title": "Aucun run capturé",
@@ -5164,7 +5169,8 @@
       "subtitle": "Dernières exécutions observées par le scheduler Laravel.",
       "colTask": "Tâche",
       "colLastRun": "Dernier run",
-      "colAvgDuration": "Durée moyenne"
+      "colAvgDuration": "Durée moyenne",
+      "tableCaption": "Tâches planifiées et dernière exécution"
     },
     "systemHealth": {
       "failedJobs": {
@@ -5177,7 +5183,8 @@
         "colQueue": "Queue",
         "colPayload": "Payload",
         "colFailedAt": "Échec",
-        "colActions": "Actions"
+        "colActions": "Actions",
+        "tableCaption": "Jobs en échec de la file de traitement"
       },
       "queuePending": "En attente",
       "queueProcessing": "En cours",
@@ -5193,7 +5200,8 @@
         "colEvent": "Événement",
         "colStatus": "Statut",
         "colPayload": "Payload",
-        "colReceived": "Reçu"
+        "colReceived": "Reçu",
+        "tableCaption": "Journal des webhooks reçus pour {label}"
       },
       "edit": "Éditer",
       "webhooksAction": "Webhooks",
@@ -5444,9 +5452,6 @@
         "statusAria": "Statut",
         "emailAria": "Email vérifié",
         "twoFactorAria": "2FA",
-        "rolesLabel": "Rôles :",
-        "agenciesLabel": "Agences :",
-        "summary": "Statut : {status} · Email {email} · 2FA {twoFactor} · Dernière connexion {lastLogin}",
         "emailVerified": "vérifié",
         "emailUnverified": "non vérifié",
         "twoFactorOn": "activée",
@@ -5482,6 +5487,16 @@
           "all": "2FA : tous",
           "on": "2FA activée",
           "off": "2FA inactive"
+        },
+        "tableCaption": "Utilisateurs de la plateforme, toutes agences confondues",
+        "columns": {
+          "user": "Utilisateur",
+          "roles": "Rôles",
+          "agencies": "Agences",
+          "status": "Statut",
+          "security": "Sécurité",
+          "lastLogin": "Dernière connexion",
+          "actions": "Actions"
         }
       },
       "agencies": {
@@ -5569,7 +5584,8 @@
           "previous": "Précédent",
           "next": "Suivant",
           "position": "Page {page} / {lastPage}"
-        }
+        },
+        "tableCaption": "Demandes d'upgrade d'agence"
       },
       "upgradeRequestDetail": {
         "invalidId": "Identifiant de demande invalide.",
@@ -5629,7 +5645,8 @@
       "targetRoles": "Rôles ciblés",
       "rollout": "Rollout %",
       "test": "Tester",
-      "testing": "Vous testez"
+      "testing": "Vous testez",
+      "tableCaption": "Feature flags de la plateforme"
     },
     "alerts": {
       "colEvent": "Événement",
@@ -5642,7 +5659,8 @@
       "emails": "Emails",
       "webhooks": "Webhooks",
       "test": "Tester",
-      "testSent": "Test envoyé"
+      "testSent": "Test envoyé",
+      "tableCaption": "Règles d'alerte de la plateforme"
     },
     "inviteModal": {
       "title": "Coopter un super-admin",

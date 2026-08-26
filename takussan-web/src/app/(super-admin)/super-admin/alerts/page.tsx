@@ -9,6 +9,7 @@ import { fetchAlertRules } from '@/lib/queries/super-admin';
 import type { AlertRulesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PageHeader } from '@/components/console';
 
 export default function SuperAdminAlertsPage() {
   const t = useTranslations('superAdmin.pages.alerts');
@@ -23,13 +24,11 @@ export default function SuperAdminAlertsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <Button type="button" onClick={() => setDialogOpen(true)}>{t('newRule')}</Button>
-      </header>
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={<Button type="button" onClick={() => setDialogOpen(true)}>{t('newRule')}</Button>}
+      />
 
       {query.isLoading ? (
         <div className="h-48 animate-pulse rounded-xl bg-muted" />
