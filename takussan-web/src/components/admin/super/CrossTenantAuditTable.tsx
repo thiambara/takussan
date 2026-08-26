@@ -4,10 +4,18 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { ScrollText } from 'lucide-react';
-import { EmptyState, ErrorState } from '@/components/feedback';
+import {
+  DataState,
+  DataTable,
+  FilterBar,
+  type DataTableColumn,
+} from '@/components/console';
+import { EmptyState } from '@/components/feedback';
+import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { Input } from '@/components/ui/input';
 import { fetchAuditLog } from '@/lib/queries/super-admin';
-import type { AuditLogResponse } from '@/types/super-admin';
+import type { AuditLogEntry, AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
@@ -35,10 +43,39 @@ export function CrossTenantAuditTable() {
     staleTime: 10_000,
   });
 
+  const columns: DataTableColumn<AuditLogEntry>[] = [
+    {
+      id: 'date',
+      header: t('colDate'),
+      className: 'whitespace-nowrap text-muted-foreground',
+      cell: (entry) => (entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'),
+    },
+    {
+      id: 'event',
+      header: t('colEvent'),
+      className: 'font-medium text-foreground',
+      cell: (entry) => entry.event ?? '—',
+    },
+    {
+      id: 'causer',
+      header: t('colCauser'),
+      className: 'text-muted-foreground',
+      cell: (entry) =>
+        entry.causer_type ? `${entry.causer_type.split('\\').pop()} #${entry.causer_id}` : '—',
+    },
+    {
+      id: 'subject',
+      header: t('colSubject'),
+      className: 'text-muted-foreground',
+      cell: (entry) =>
+        entry.subject_type ? `${entry.subject_type.split('\\').pop()} #${entry.subject_id}` : '—',
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <input
+      <FilterBar controlsClassName="sm:grid-cols-2 lg:grid-cols-4">
+        <Input
           type="text"
           value={event}
           onChange={(e) => {
@@ -46,9 +83,8 @@ export function CrossTenantAuditTable() {
             setPage(1);
           }}
           placeholder={t('eventPlaceholder')}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
         />
-        <input
+        <Input
           type="number"
           value={causerId}
           onChange={(e) => {
@@ -56,7 +92,6 @@ export function CrossTenantAuditTable() {
             setPage(1);
           }}
           placeholder={t('causerPlaceholder')}
-          className="rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
         />
         <DatePicker
           value={dateFrom}
@@ -74,63 +109,43 @@ export function CrossTenantAuditTable() {
           }}
           aria-label={t('dateToAria')}
         />
-      </div>
+      </FilterBar>
 
-      {isLoading ? (
-        <div className="space-y-2" data-testid="audit-loading">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-10 animate-pulse rounded-md bg-stone-200" aria-hidden="true" />
-          ))}
-        </div>
-      ) : isError ? (
-        <ErrorState message={messageErreur(error, t('error'))} />
-      ) : !data || data.data.length === 0 ? (
-        <EmptyState
-          icon={<ScrollText className="size-8" aria-hidden="true" />}
-          title={t('empty_title')}
-          description={t('empty_description')}
+      <DataState
+        data-testid="audit-loading"
+        loading={isLoading}
+        error={isError ? messageErreur(error, t('error')) : null}
+        isEmpty={!data || data.data.length === 0}
+        skeletonRows={6}
+        skeletonRowClassName="h-10"
+        emptyState={
+          <EmptyState
+            icon={<ScrollText className="size-8" aria-hidden="true" />}
+            title={t('empty_title')}
+            description={t('empty_description')}
+          />
+        }
+      >
+        <DataTable
+          caption={t('tableCaption')}
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(entry) => entry.id}
+          rowProps={(entry) => ({ 'data-testid': `audit-row-${entry.id}` })}
         />
-      ) : (
-        <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-stone-200">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-50 text-left text-xs uppercase tracking-wide text-stone-600">
-              <tr>
-                <th className="px-3 py-2">{t('colDate')}</th>
-                <th className="px-3 py-2">{t('colEvent')}</th>
-                <th className="px-3 py-2">{t('colCauser')}</th>
-                <th className="px-3 py-2">{t('colSubject')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-200">
-              {data.data.map((entry) => (
-                <tr key={entry.id} data-testid={`audit-row-${entry.id}`}>
-                  <td className="whitespace-nowrap px-3 py-2 text-stone-600">
-                    {entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'}
-                  </td>
-                  <td className="px-3 py-2 font-medium text-stone-900">{entry.event ?? '—'}</td>
-                  <td className="px-3 py-2 text-stone-600">
-                    {entry.causer_type ? `${entry.causer_type.split('\\').pop()} #${entry.causer_id}` : '—'}
-                  </td>
-                  <td className="px-3 py-2 text-stone-600">
-                    {entry.subject_type ? `${entry.subject_type.split('\\').pop()} #${entry.subject_id}` : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      </DataState>
 
       {data && data.meta.last_page > 1 ? (
-        <div className="flex items-center justify-between text-sm text-stone-600">
-          <button
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setPage(Math.max(1, page - 1))}
             disabled={page <= 1}
-            className="rounded-md border border-stone-300 bg-white px-3 py-1 disabled:opacity-50"
           >
             {t('previous')}
-          </button>
+          </Button>
           <span>
             {t('pagination', {
               current: data.meta.current_page,
@@ -138,14 +153,15 @@ export function CrossTenantAuditTable() {
               total: data.meta.total,
             })}
           </span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setPage(Math.min(data.meta.last_page, page + 1))}
             disabled={page >= data.meta.last_page}
-            className="rounded-md border border-stone-300 bg-white px-3 py-1 disabled:opacity-50"
           >
             {t('next')}
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>

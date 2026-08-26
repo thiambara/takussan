@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { SystemMetricsGrid } from '@/components/admin/super/SystemMetricsGrid';
+import { PageHeader } from '@/components/console';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('superAdmin.pages.home');
@@ -12,10 +13,10 @@ export default async function SuperAdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+      />
       <SystemMetricsGrid />
     </div>
   );

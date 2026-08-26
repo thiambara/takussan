@@ -5,10 +5,18 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { EmptyState, ErrorState } from '@/components/feedback';
+import {
+  DataState,
+  DataTable,
+  PageHeader,
+  StatusBadge,
+  type DataTableColumn,
+  type StatusTone,
+} from '@/components/console';
+import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -41,6 +49,14 @@ type UsersResponse = {
 };
 
 const ALL = '__all__';
+
+/** Le statut du compte → le ton du DS. `banned` et `blocked` disent la même gravité. */
+const USER_STATUS_TONES: Record<string, StatusTone> = {
+  active: 'success',
+  inactive: 'neutral',
+  blocked: 'danger',
+  banned: 'danger',
+};
 
 /**
  * Patron « la donnée porte la clé » (TCK-286) : ces tables sont hors composant, donc
@@ -194,12 +210,113 @@ export default function SuperAdminUsersPage() {
     [router, searchParams],
   );
 
+  const columns: DataTableColumn<SuperAdminUser>[] = [
+    {
+      id: 'user',
+      header: tPage('columns.user'),
+      cell: (u) => {
+        const label = getUserDisplayName(u);
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar size="sm" className="shrink-0">
+              <AvatarFallback>{getInitials(label)}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-foreground">{label}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {u.email}
+                {u.phone ? ` · ${u.phone}` : ''}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'roles',
+      header: tPage('columns.roles'),
+      cell: (u) => {
+        const roles = getUserRoleLabels(u);
+        return roles.length ? (
+          <div className="flex flex-wrap gap-1">
+            {roles.map((roleName) => (
+              <Badge key={roleName} variant="outline">{roleName}</Badge>
+            ))}
+          </div>
+        ) : (
+          '—'
+        );
+      },
+    },
+    {
+      id: 'agencies',
+      header: tPage('columns.agencies'),
+      className: 'max-w-48 text-muted-foreground',
+      cell: (u) =>
+        u.agencies?.length ? u.agencies.map((agency) => agency.name).join(', ') : '—',
+    },
+    {
+      id: 'status',
+      header: tPage('columns.status'),
+      cell: (u) =>
+        u.status ? (
+          <StatusBadge tone={USER_STATUS_TONES[u.status] ?? 'neutral'} label={u.status} />
+        ) : (
+          '—'
+        ),
+    },
+    {
+      id: 'security',
+      header: tPage('columns.security'),
+      className: 'text-xs text-muted-foreground',
+      // Les deux valeurs sont PRÉFIXÉES de ce qu'elles qualifient : seules, « vérifié » et
+      // « activée » (en anglais « verified » et « on ») ne disent pas laquelle porte l'email et
+      // laquelle le 2FA. C'est ce que la phrase `summary` — supprimée avec les cartes — portait.
+      cell: (u) => (
+        <>
+          <span className="block">
+            {tPage('securityEmail', {
+              value: u.email_verified_at ? tPage('emailVerified') : tPage('emailUnverified'),
+            })}
+          </span>
+          <span className="block">
+            {tPage('securityTwoFactor', {
+              value: u.two_factor_enabled ? tPage('twoFactorOn') : tPage('twoFactorOff'),
+            })}
+          </span>
+        </>
+      ),
+    },
+    {
+      id: 'lastLogin',
+      header: tPage('columns.lastLogin'),
+      className: 'text-muted-foreground',
+      cell: (u) => formatDateTime(u.last_login_at),
+    },
+    {
+      id: 'actions',
+      header: tPage('columns.actions'),
+      headerSrOnly: true,
+      align: 'end',
+      cell: (u) => (
+        <div className="flex flex-wrap justify-end gap-2">
+          <Link
+            className={buttonVariants({ size: 'sm', variant: 'outline' })}
+            href={`/super-admin/users/${u.id}`}
+          >
+            {tPage('open')}
+          </Link>
+          <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
+            {tPage('impersonate')}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
-      </header>
+      <PageHeader title={tPage('title')} description={tPage('subtitle')} />
 
       <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
         <div className="relative md:col-span-2">
@@ -304,102 +421,28 @@ export default function SuperAdminUsersPage() {
         </Select>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2" data-testid="users-loading">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse rounded-xl bg-muted"
-              aria-hidden="true"
-            />
-          ))}
-        </div>
-      ) : isError ? (
-        <ErrorState message={messageErreur(error, t('error'))} />
-      ) : !data || data.data.length === 0 ? (
-        <EmptyState
-          icon={<Users className="size-8" aria-hidden="true" />}
-          title={t('empty_title')}
-          description={t('empty_description')}
+      <DataState
+        data-testid="users-loading"
+        loading={isLoading}
+        error={isError ? messageErreur(error, t('error')) : null}
+        isEmpty={!data || data.data.length === 0}
+        skeletonRowClassName="h-16"
+        emptyState={
+          <EmptyState
+            icon={<Users className="size-8" aria-hidden="true" />}
+            title={t('empty_title')}
+            description={t('empty_description')}
+          />
+        }
+      >
+        <DataTable
+          caption={tPage('tableCaption')}
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(u) => u.id}
+          rowProps={(u) => ({ 'data-testid': `super-admin-user-${u.id}` })}
         />
-      ) : (
-        <div className="grid gap-3">
-          {data.data.map((u) => {
-            const label = getUserDisplayName(u);
-            const roles = getUserRoleLabels(u);
-
-            return (
-              <Card
-                key={u.id}
-                data-testid={`super-admin-user-${u.id}`}
-                className="transition-colors hover:bg-muted/40"
-              >
-                <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-                  <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <Avatar size="lg" className="shrink-0">
-                      <AvatarFallback>{getInitials(label)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 space-y-1">
-                      <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {u.email}
-                        {u.phone ? ` · ${u.phone}` : ''}
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">{tPage('rolesLabel')}</span>
-                        {roles.length
-                          ? roles.map((roleName) => (
-                              <span
-                                key={roleName}
-                                className="rounded-full bg-muted px-2 py-0.5 text-foreground"
-                              >
-                                {roleName}
-                              </span>
-                            ))
-                          : '—'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {tPage('agenciesLabel')}{' '}
-                        {u.agencies?.length
-                          ? u.agencies.map((agency) => agency.name).join(', ')
-                          : '—'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {tPage('summary', {
-                          status: u.status ?? '—',
-                          email: u.email_verified_at
-                            ? tPage('emailVerified')
-                            : tPage('emailUnverified'),
-                          twoFactor: u.two_factor_enabled
-                            ? tPage('twoFactorOn')
-                            : tPage('twoFactorOff'),
-                          lastLogin: formatDateTime(u.last_login_at),
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      className={buttonVariants({ size: 'sm', variant: 'outline' })}
-                      href={`/super-admin/users/${u.id}`}
-                    >
-                      {tPage('open')}
-                    </Link>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setTarget(u)}
-                      disabled={impersonate.isPending}
-                    >
-                      {tPage('impersonate')}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      </DataState>
 
       {data?.meta?.last_page ? (
         <Pagination

@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Megaphone, PauseCircle, Plus } from 'lucide-react';
+import { DataTable, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,14 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.announcements.severities.*`). */
 const SEVERITIES: AnnouncementSeverity[] = ['info', 'success', 'warning', 'critical'];
+
+/** La sévérité de l'annonce → le ton du DS. Une seule table, lue par la table de la console. */
+const SEVERITY_TONES: Record<AnnouncementSeverity, StatusTone> = {
+  info: 'info',
+  success: 'success',
+  warning: 'attention',
+  critical: 'danger',
+};
 
 /**
  * TCK-292 — valeur d'EXEMPLE composée d'identifiants de rôle de l'API : ce n'est pas du texte
@@ -68,47 +77,76 @@ export function AnnouncementsConsole() {
     onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
+  const columns: DataTableColumn<Announcement>[] = [
+    {
+      id: 'title',
+      header: t('colTitle'),
+      cell: (announcement) => (
+        <>
+          <p className="font-medium text-foreground">{announcement.title.fr}</p>
+          <p className="text-xs text-muted-foreground">{announcement.body.fr}</p>
+        </>
+      ),
+    },
+    {
+      id: 'severity',
+      header: t('colSeverity'),
+      cell: (announcement) => (
+        <StatusBadge
+          tone={SEVERITY_TONES[announcement.severity]}
+          label={announcement.severity}
+        />
+      ),
+    },
+    {
+      id: 'segment',
+      header: t('colSegment'),
+      className: 'text-muted-foreground',
+      cell: (announcement) => describeSegment(announcement, t),
+    },
+    {
+      id: 'window',
+      header: t('colWindow'),
+      className: 'text-muted-foreground',
+      cell: (announcement) => new Date(announcement.starts_at).toLocaleString('fr-FR'),
+    },
+    {
+      id: 'actions',
+      header: t('colActions'),
+      headerSrOnly: true,
+      align: 'end',
+      cell: (announcement) => <AnnouncementAction announcement={announcement} />,
+    },
+  ];
+
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(380px,0.9fr)]">
-      <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
+      <section className="rounded-xl bg-card p-4 ring-1 ring-border">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="font-display text-lg font-semibold text-stone-950">{t('title')}</h2>
-            <p className="text-sm text-stone-600">{t('subtitle')}</p>
+            <h2 className="font-display text-lg font-semibold text-foreground">{t('title')}</h2>
+            <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
           </div>
           <Badge variant="outline">{t('countBadge', { count: query.data?.meta?.total ?? 0 })}</Badge>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full divide-y divide-stone-200 text-sm">
-            <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
-              <tr>
-                <th className="px-3 py-2">{t('colTitle')}</th>
-                <th className="px-3 py-2">{t('colSeverity')}</th>
-                <th className="px-3 py-2">{t('colSegment')}</th>
-                <th className="px-3 py-2">{t('colWindow')}</th>
-                <th className="px-3 py-2"><span className="sr-only">{t('colActions')}</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {(query.data?.data ?? []).map((announcement) => (
-                <AnnouncementRow key={announcement.id} announcement={announcement} />
-              ))}
-              {!query.isLoading && (query.data?.data ?? []).length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-0">
-                    <EmptyState
-                      className="border-0"
-                      icon={<Megaphone className="size-8" aria-hidden="true" />}
-                      title={t('empty_title')}
-                      description={t('empty_description')}
-                    />
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          className="mt-4"
+          caption={t('tableCaption')}
+          columns={columns}
+          rows={query.data?.data ?? []}
+          rowKey={(announcement) => announcement.id}
+          emptyState={
+            query.isLoading ? null : (
+              <EmptyState
+                className="border-0"
+                icon={<Megaphone className="size-8" aria-hidden="true" />}
+                title={t('empty_title')}
+                description={t('empty_description')}
+              />
+            )
+          }
+        />
       </section>
 
       <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
@@ -171,7 +209,13 @@ export function AnnouncementsConsole() {
   );
 }
 
-function AnnouncementRow({ announcement }: { announcement: Announcement }) {
+/**
+ * SEULE la cellule d'action est un composant, et pour une raison qui ne vaut que pour elle : la
+ * désactivation est une MUTATION, donc un hook, et un hook ne s'appelle pas depuis la `cell` d'une
+ * colonne — qui est un callback. Le segment, lui, n'a besoin que de `t`, que le composant parent
+ * tient déjà : il se rend en ligne.
+ */
+function AnnouncementAction({ announcement }: { announcement: Announcement }) {
   const t = useTranslations('superAdmin.announcements');
   const queryClient = useQueryClient();
   const mutation = useMutation({
@@ -181,30 +225,14 @@ function AnnouncementRow({ announcement }: { announcement: Announcement }) {
       queryClient.invalidateQueries({ queryKey: ['announcements', 'active'] });
     },
   });
-  const segment = useMemo(() => describeSegment(announcement, t), [announcement, t]);
 
-  return (
-    <tr>
-      <td className="px-3 py-3">
-        <p className="font-medium text-stone-950">{announcement.title.fr}</p>
-        <p className="text-xs text-stone-500">{announcement.body.fr}</p>
-      </td>
-      <td className="px-3 py-3"><Badge variant={announcement.severity === 'critical' ? 'destructive' : 'secondary'}>{announcement.severity}</Badge></td>
-      <td className="px-3 py-3 text-stone-600">{segment}</td>
-      <td className="px-3 py-3 text-stone-600">
-        {new Date(announcement.starts_at).toLocaleString('fr-FR')}
-      </td>
-      <td className="px-3 py-3">
-        {announcement.is_active ? (
-          <Button type="button" variant="outline" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-            <PauseCircle className="size-4" aria-hidden="true" />
-            {t('deactivate')}
-          </Button>
-        ) : (
-          <Badge variant="outline">{t('inactive')}</Badge>
-        )}
-      </td>
-    </tr>
+  return announcement.is_active ? (
+    <Button type="button" variant="outline" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+      <PauseCircle className="size-4" aria-hidden="true" />
+      {t('deactivate')}
+    </Button>
+  ) : (
+    <Badge variant="outline">{t('inactive')}</Badge>
   );
 }
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { FlaskConical, Save, Settings2 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { DataTable, StatusBadge, type DataTableColumn } from '@/components/console';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -25,45 +25,59 @@ export function FeatureFlagTable({ flags }: { flags: AdminFeatureFlag[] }) {
   const t = useTranslations('superAdmin.featureFlags');
   const [editing, setEditing] = useState<AdminFeatureFlag | null>(null);
 
+  const columns: DataTableColumn<AdminFeatureFlag>[] = [
+    {
+      id: 'flag',
+      header: t('colFlag'),
+      cell: (flag) => (
+        <>
+          <p className="font-medium text-foreground">{flag.label}</p>
+          <p className="text-xs text-muted-foreground">{flag.key}</p>
+        </>
+      ),
+    },
+    {
+      id: 'state',
+      header: t('colState'),
+      cell: (flag) => (
+        <StatusBadge
+          tone={flag.enabled ? 'success' : 'neutral'}
+          label={flag.enabled ? t('enabled') : t('disabled')}
+        />
+      ),
+    },
+    {
+      id: 'segments',
+      header: t('colSegments'),
+      className: 'text-muted-foreground',
+      cell: (flag) =>
+        flag.segments.rollout_percentage ? `${flag.segments.rollout_percentage}%` : t('global'),
+    },
+    {
+      id: 'actions',
+      header: t('colActions'),
+      headerSrOnly: true,
+      align: 'end',
+      cell: (flag) => (
+        <div className="flex justify-end gap-2">
+          <SessionOverrideToggle flag={flag} />
+          <Button type="button" variant="outline" onClick={() => setEditing(flag)}>
+            <Settings2 className="size-4" aria-hidden="true" />
+            {t('configure')}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <section className="rounded-xl bg-white ring-1 ring-stone-200">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-stone-200 text-sm">
-          <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
-            <tr>
-              <th className="px-4 py-2">{t('colFlag')}</th>
-              <th className="px-4 py-2">{t('colState')}</th>
-              <th className="px-4 py-2">{t('colSegments')}</th>
-              <th className="px-4 py-2"><span className="sr-only">{t('colActions')}</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {flags.map((flag) => (
-              <tr key={flag.key}>
-                <td className="px-4 py-3">
-                  <p className="font-medium text-stone-950">{flag.label}</p>
-                  <p className="text-xs text-stone-500">{flag.key}</p>
-                </td>
-                <td className="px-4 py-3">
-                  <Badge variant={flag.enabled ? 'secondary' : 'outline'}>{flag.enabled ? t('enabled') : t('disabled')}</Badge>
-                </td>
-                <td className="px-4 py-3 text-stone-600">
-                  {flag.segments.rollout_percentage ? `${flag.segments.rollout_percentage}%` : t('global')}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    <SessionOverrideToggle flag={flag} />
-                    <Button type="button" variant="outline" onClick={() => setEditing(flag)}>
-                      <Settings2 className="size-4" aria-hidden="true" />
-                      {t('configure')}
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <section>
+      <DataTable
+        caption={t('tableCaption')}
+        columns={columns}
+        rows={flags}
+        rowKey={(flag) => flag.key}
+      />
       <FeatureFlagSegmentDialog key={editing?.key ?? 'none'} flag={editing} open={editing !== null} onOpenChange={(open) => !open && setEditing(null)} />
     </section>
   );

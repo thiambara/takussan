@@ -10,6 +10,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/kyc/kyc-components';
+import { PageHeader } from '@/components/console';
 
 export default function Page() {
   const t = useTranslations('superAdmin.pages.kyc');
@@ -25,10 +26,10 @@ export default function Page() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+      />
 
       <Card>
         <CardHeader>

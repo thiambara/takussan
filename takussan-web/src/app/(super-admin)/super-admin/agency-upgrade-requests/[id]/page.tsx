@@ -30,6 +30,7 @@ import {
   fetchAdminAgencyUpgradeRequest,
   type AdminAgencyUpgradeRequestDetail,
 } from '@/lib/queries/super-admin';
+import { PageHeader } from '@/components/console';
 
 /**
  * TCK-268 — Detail page for one agency upgrade request.
@@ -79,17 +80,11 @@ export default function AgencyUpgradeRequestDetailPage() {
 
       {detail ? (
         <>
-          <header className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="font-display text-2xl font-bold text-foreground">
-                {t('requestNumber', { id: String(detail.id) })}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t('submittedOn', { date: formatDateTime(detail.submitted_at) })}
-              </p>
-            </div>
-            <DecisionBadge detail={detail} />
-          </header>
+          <PageHeader
+            title={t('requestNumber', { id: String(detail.id) })}
+            description={t('submittedOn', { date: formatDateTime(detail.submitted_at) })}
+            actions={<DecisionBadge detail={detail} />}
+          />
 
           <RecapSection detail={detail} />
           <HistorySection detail={detail} />

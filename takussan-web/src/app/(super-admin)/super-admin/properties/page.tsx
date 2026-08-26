@@ -13,6 +13,7 @@ import { Pagination } from '@/components/super-admin/Pagination';
 import type { AdminPropertiesResponse, AdminAgenciesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PageHeader } from '@/components/console';
 
 /**
  * TCK-132 — `/super-admin/properties` cross-tenant catalog. The server-side
@@ -68,10 +69,10 @@ export default function SuperAdminPropertiesPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
-      </header>
+      <PageHeader
+        title={tPage('title')}
+        description={tPage('subtitle')}
+      />
 
       <SuperAdminPropertiesFilters agencies={agencyOptions} />
 

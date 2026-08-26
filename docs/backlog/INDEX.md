@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**338 tickets** — 14 ouverts, 323 livrés.
+**358 tickets** — 33 ouverts, 324 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 13 |
+| 📋 Todo | 32 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 323 |
+| ✅ Done | 324 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -46,6 +46,25 @@
 - [TCK-351](tickets/TCK-351-deux-sources-de-libelles-de-bien.md) — Deux sources de libellés de bien s'affichent dans le même parcours — 44 divergences mesurées `M · P2 · technique`
 - [TCK-352](tickets/TCK-352-mailer-resend-declare-sans-dependance.md) — Le mailer `resend` est déclaré mais son paquet n'est pas une dépendance — aucun courriel n'est jamais parti `S · P1 · bug`
 - [TCK-355](tickets/TCK-355-blocages-noyau-sur-le-vps.md) — Le VPS se bloque au niveau du noyau : l'API devient injoignable pendant plusieurs minutes, cause non établie `M · P1 · technique`
+- [TCK-358](tickets/TCK-358-console-super-admin-tokens-et-cliquet.md) — Console super-admin — éteindre la palette Tailwind brute, et poser le cliquet qui l'empêche de revenir `M · P2 · front`
+- [TCK-359](tickets/TCK-359-console-super-admin-accessibilite-du-shell.md) — Console super-admin — accessibilité du shell : contraste, focus clavier, lien d'évitement `S · P2 · front`
+- [TCK-360](tickets/TCK-360-console-super-admin-accueil-files-attente.md) — Console super-admin — refondre l'accueil autour des files d'attente, et supprimer le doublon /system `M · P2 · front`
+- [TCK-361](tickets/TCK-361-rapports-plateforme-vraies-series-temporelles.md) — Rapports plateforme — de vraies séries temporelles (axes, graduations, infobulles, comparaison) `M · P2 · front`
+- [TCK-362](tickets/TCK-362-file-kyc-decider-depuis-la-file.md) — File KYC super-admin — décider depuis la file, et nommer les agences `M · P1 · front`
+- [TCK-363](tickets/TCK-363-console-super-admin-filtres-et-recherche.md) — Console super-admin — sélecteur d'agence partagé, recherche temporisée, filtres réinitialisables `M · P2 · front`
+- [TCK-364](tickets/TCK-364-console-super-admin-i18n-dates-et-libelles.md) — Console super-admin — dates et libellés techniques localisés (fr / en / wo) `S · P2 · front`
+- [TCK-365](tickets/TCK-365-supervision-jobs-et-scheduler.md) — Supervision des jobs et du scheduler — sortir la boucle d'exploitation de son enterrement `S · P2 · front`
+- [TCK-366](tickets/TCK-366-annonces-cross-tenant-edition.md) — Annonces cross-tenant — éditer une annonce existante `S · P2 · front`
+- [TCK-367](tickets/TCK-367-invitations-super-admin-cycle-de-vie.md) — Invitations super-admin — relance, annulation et expiration visibles `M · P2 · full`
+- [TCK-368](tickets/TCK-368-equipe-cycle-de-vie-des-invitations.md) — Équipe agence — cycle de vie des invitations (en attente, relance, révocation) `S · P1 · front`
+- [TCK-369](tickets/TCK-369-delegation-temporaire-ecran-manquant.md) — Délégation temporaire de rôles — l'écran que TCK-108 n'a pas livré `M · P2 · front`
+- [TCK-370](tickets/TCK-370-console-agence-chemins-et-gestes-morts.md) — Console agence — quatre chemins et gestes morts `S · P2 · bug`
+- [TCK-371](tickets/TCK-371-console-agence-accessibilite-et-mobile.md) — Console agence — contraste des entrées verrouillées, tables tronquées sur mobile, focus clavier `S · P1 · front`
+- [TCK-372](tickets/TCK-372-eteindre-le-vocabulaire-app-et-poser-le-cliquet.md) — Éteindre le vocabulaire `app-*` et poser le cliquet — la correction de TCK-244 `L · P2 · front`
+- [TCK-373](tickets/TCK-373-console-agence-adopter-les-primitives-partagees.md) — Console agence — adopter les primitives partagées (en-tête, badge, états, pagination, table) `M · P2 · front`
+- [TCK-374](tickets/TCK-374-graphique-agence-tokens-chart-et-locale.md) — Graphique agence — palette `--chart-*` et locale active au lieu de `'fr'` `S · P2 · front`
+- [TCK-375](tickets/TCK-375-tableau-de-bord-agence-files-attente.md) — Tableau de bord agence — les files d'attente d'abord `M · P2 · front`
+- [TCK-376](tickets/TCK-376-moderation-et-audit-etat-partageable.md) — Modération et journal d'audit — état partageable, pagination, recherche temporisée `M · P2 · front`
 
 ## 🚧 Doing
 
@@ -61,7 +80,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 323
+## ✅ Done — 324
+
+<details>
+<summary><strong>Vague 46 — Console super-admin — audit design & fonctionnel (2026-08-26)</strong> — 1 ticket</summary>
+
+- [TCK-357](tickets/TCK-357-console-super-admin-primitives-partagees.md) — Console super-admin — primitives partagées (table, en-tête, tuile, badge, filtres, états) `L · P2 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 45 — Solde des tickets ouverts : barrière Meilisearch, dates par valeur, i18n résiduel, géo par distances (2026-08-22)</strong> — 1 ticket</summary>

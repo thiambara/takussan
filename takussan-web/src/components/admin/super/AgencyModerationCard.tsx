@@ -9,6 +9,7 @@ import { postAgencyAction } from '@/lib/queries/super-admin';
 import type { AdminAgency } from '@/types/super-admin';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
+import { StatusBadge, type StatusTone } from '@/components/console';
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
 const STATUS_KEY: Record<string, string> = {
@@ -17,10 +18,11 @@ const STATUS_KEY: Record<string, string> = {
   suspended: 'suspended',
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  active: 'bg-emerald-100 text-emerald-900',
-  inactive: 'bg-stone-200 text-stone-800',
-  suspended: 'bg-red-100 text-red-900',
+/** Le statut de l'agence → le ton du DS. La couleur se décide dans `StatusBadge`, pas ici. */
+const STATUS_TONES: Record<string, StatusTone> = {
+  active: 'success',
+  inactive: 'neutral',
+  suspended: 'danger',
 };
 
 interface AgencyModerationCardProps {
@@ -111,14 +113,11 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status] ?? STATUS_BADGE.inactive}`}>
-            {statusKey ? tStatus(statusKey) : status}
-          </span>
-          {agency.is_verified ? (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">
-              {t('verified')}
-            </span>
-          ) : null}
+          <StatusBadge
+            tone={STATUS_TONES[status] ?? 'neutral'}
+            label={statusKey ? tStatus(statusKey) : status}
+          />
+          {agency.is_verified ? <StatusBadge tone="attention" label={t('verified')} /> : null}
         </div>
       </header>
 
