@@ -27,7 +27,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
-import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
+import { propertyModerationCountQueryOptions } from '@/lib/queries/agency-queues';
 
 /**
  * TCK-371 (revue adverse) — l'anneau de focus de la barre `/admin`.
@@ -243,19 +243,17 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
     staleTime: 30_000,
   });
 
-  // TCK-098 — poll property moderation count (available to agency_admin too).
-  // Standard-only feature: skip the poll for individual agencies (the entry
-  // is padlocked in the sidebar and the backend returns 403 anyway).
-  const { data: propModMeta } = useQuery({
-    queryKey: ['property-moderation', 'pending-count'],
-    queryFn: () =>
-      fetchPropertyModerationQueue(token ?? '', { perPage: 1 }).then((r) => r.meta),
-    enabled: Boolean(token) && agencyIsStandard !== false,
-    refetchInterval: 60_000,
-    staleTime: 30_000,
-  });
+  // TCK-098 — compte de modération des biens (accessible aussi à `agency_admin`).
+  //
+  // TCK-375 — la définition de cette requête a DÉMÉNAGÉ dans `@/lib/queries/agency-queues` sans
+  // changer de clé. Le bloc de files de `/admin` lit le même nombre : deux `queryKey` pour un
+  // seul compteur, ce seraient deux requêtes réseau et, après une décision de modération, un
+  // badge rafraîchi devant une tuile périmée. La clé de cache est le point de rendez-vous.
+  const { data: propModCount } = useQuery(
+    propertyModerationCountQueryOptions(token ?? null, agencyIsStandard),
+  );
 
-  const items = buildAdminItems(user, modMeta?.pending_count ?? 0, propModMeta?.pending_count ?? 0)
+  const items = buildAdminItems(user, modMeta?.pending_count ?? 0, propModCount ?? 0)
     .map((item) => ({
       ...item,
       locked: isProRouteLocked(user, agencyIsStandard, item.href),

@@ -1486,6 +1486,39 @@
         }
       }
     },
+    "agencyQueues": {
+      "heading": "Needs your attention",
+      "subheading": "What is waiting on a decision from your agency.",
+      "empty": "Nothing to handle",
+      "unavailable": "Count unavailable",
+      "kycStatus": {
+        "pending": "Application to complete",
+        "submitted": "Under review",
+        "verified": "Application verified",
+        "rejected": "Application to correct"
+      },
+      "items": {
+        "kyc": {
+          "label": "Agency KYC application",
+          "cta": "Open the application"
+        },
+        "moderation": {
+          "label": "Listings awaiting moderation",
+          "cta": "Moderate",
+          "count": "{count, plural, one {# listing to moderate} other {# listings to moderate}}"
+        },
+        "invitations": {
+          "label": "Unanswered invitations",
+          "cta": "Open the team",
+          "count": "{count, plural, one {# pending invitation} other {# pending invitations}}"
+        },
+        "overdue": {
+          "label": "Overdue instalments",
+          "cta": "See overdue payments",
+          "count": "{count, plural, one {# overdue instalment} other {# overdue instalments}}"
+        }
+      }
+    },
     "agencyRevenue": {
       "heading": "Revenue — last 12 months",
       "empty": "No data to display yet.",

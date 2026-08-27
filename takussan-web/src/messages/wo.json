@@ -6661,6 +6661,39 @@
         }
       }
     },
+    "agencyQueues": {
+      "heading": "Yu war a jàppale",
+      "subheading": "Li di xaar dogal ci ajaans bi.",
+      "empty": "Amul dara lu war a jàppale",
+      "unavailable": "Limu bi jotul",
+      "kycStatus": {
+        "pending": "Dosye bi war nañu koy matal",
+        "submitted": "Ñu ngi koy seetlu",
+        "verified": "Dosye bi dëggal na",
+        "rejected": "Dosye bi war nañu koy defaraat"
+      },
+      "items": {
+        "kyc": {
+          "label": "Dosye KYC bu ajaans bi",
+          "cta": "Ubbi dosye bi"
+        },
+        "moderation": {
+          "label": "Kër yuy xaar moderasioŋ",
+          "cta": "Moderee",
+          "count": "{count, plural, other {# kër yu war a moderee}}"
+        },
+        "invitations": {
+          "label": "Woote yu amul tontu",
+          "cta": "Xool ekib bi",
+          "count": "{count, plural, other {# woote yuy xaar}}"
+        },
+        "overdue": {
+          "label": "Bes yu ñu feyul",
+          "cta": "Xool yu ñu feyul",
+          "count": "{count, plural, other {# bes yu ñu feyul}}"
+        }
+      }
+    },
     "agencyRevenue": {
       "heading": "Njariñ — 12 weer yu mujj",
       "empty": "Amul xibaar bu ñu man a wone ba tey.",

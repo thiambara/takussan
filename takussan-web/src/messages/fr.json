@@ -1462,6 +1462,39 @@
         }
       }
     },
+    "agencyQueues": {
+      "heading": "À traiter",
+      "subheading": "Ce qui attend une décision de votre agence.",
+      "empty": "Rien à traiter",
+      "unavailable": "Compte indisponible",
+      "kycStatus": {
+        "pending": "Dossier à compléter",
+        "submitted": "En cours d'examen",
+        "verified": "Dossier vérifié",
+        "rejected": "Dossier à corriger"
+      },
+      "items": {
+        "kyc": {
+          "label": "Dossier KYC de l'agence",
+          "cta": "Ouvrir le dossier"
+        },
+        "moderation": {
+          "label": "Biens en attente de modération",
+          "cta": "Modérer",
+          "count": "{count, plural, one {# bien à modérer} other {# biens à modérer}}"
+        },
+        "invitations": {
+          "label": "Invitations sans réponse",
+          "cta": "Voir l'équipe",
+          "count": "{count, plural, one {# invitation en attente} other {# invitations en attente}}"
+        },
+        "overdue": {
+          "label": "Échéances impayées",
+          "cta": "Voir les impayés",
+          "count": "{count, plural, one {# échéance impayée} other {# échéances impayées}}"
+        }
+      }
+    },
     "agencyRevenue": {
       "heading": "Revenus — 12 derniers mois",
       "empty": "Pas encore de données à afficher.",
