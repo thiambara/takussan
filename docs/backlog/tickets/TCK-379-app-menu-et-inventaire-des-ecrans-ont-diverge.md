@@ -142,4 +142,65 @@ routes :
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Ce que la re-mesure du 2026-08-27 a confirmé, et le point où le ticket se trompait.**
+
+Les quatre constats du tableau de contexte sont exacts, y compris les numéros de ligne
+(`InventoryList.tsx:108`, `AppSidebar.tsx` bloc Wave 3 Ops) et le relevé du générateur
+(`⚠ 1 acteur(s) non déclaré(s) : 🔧`, `grep -c "🔧" docs/features.md` → `1`, ligne 359).
+
+**Une affirmation était fausse.** Le ticket écrit que `/app/inventories/new` « n'est atteint que
+par `TenantOnboardingChecklistWidget.tsx:133`, avec `?lease_id=` ». La page lit
+`searchParams.lease`, **pas `lease_id`** : ce chemin-là n'atteignait donc pas le formulaire, il
+tombait sur l'écran « aucun bail sélectionné ». Le geste n'était pas mort à moitié, il l'était
+entièrement. Corrigé, et verrouillé par un test qui compare les DEUX moitiés
+(`inventories/new/__tests__/parametre-de-bail.test.tsx`) — une assertion sur le seul `href` du
+widget serait restée verte avec `?lease_id=`.
+
+**Le cul-de-sac de la destination, corrigé avec le lien.** Poser un bouton « Nouvel état des
+lieux » sans toucher à `/app/inventories/new` aurait mené l'agent sur « Aucun bail sélectionné →
+Choisir un bail → `/app/leases` », c'est-à-dire exactement le renvoi vers une autre section que
+le ticket condamne. D'où `InventoryLeasePicker` : sans bail, l'écran montre les baux actifs.
+
+**La garde de rôle est un prédicat POSITIF (`occupeUnLogement`), pas `!isServiceProvider`.** Deux
+raisons mesurées, toutes deux écrites en commentaire au-dessus : `roles` est un tableau (un
+compte prestataire ET locataire garde ses baux), et surtout **le rôle `tenant` n'apparaît nulle
+part ailleurs dans `buildNavItems`** — les poussées inconditionnelles étaient la seule raison
+pour laquelle un locataire voyait ses baux. Une liste positive qui l'aurait omis corrigeait le
+défaut n°4 en en fabriquant un cinquième.
+
+**Vérification par différence complète, plutôt que par assertion ponctuelle.** Les `href` rendus
+ont été dumpés pour les 7 rôles avant et après : le diff porte sur **une seule ligne**, celle du
+prestataire, et uniquement par retrait. C'est cette table qui est figée dans
+`AppSidebar.test.tsx`, en entier — un `not.toContain('/app/bookings')` aurait été coché par une
+régression qui retire l'entrée à tout le monde.
+
+**AC4 résiste à la correction naïve.** Supprimer simplement la ligne
+`if (isServiceProvider(roles)) redirect('/app/overview/tenant')` ne change **rien** : le
+`redirect('/app/overview/tenant')` attrape-tout en fin de fonction y renvoie le prestataire
+malgré tout. Vérifié par ablation — le test rougit aussi bien sur `origin/dev` que sur cette
+correction-là.
+
+**AC5 dit ce qui est vrai, pas ce qui rassure.** Sur les trois écrans nouvellement desservis, un
+seul porte un garde de rôle (`crm/pipeline`, `forbidden()`), éprouvé pour les 7 rôles dans les
+deux sens. `/app/account/privacy` (droit RGPD de tout compte) et `/app/inventories/new` (droits
+dérivés du bail côté API) n'en ont aucun, délibérément : le test le dit au lieu d'affirmer un
+refus qui n'existe pas.
+
+**Deux tickets ouverts** pour ce qui a été mesuré hors du delta : `TCK-419` (quatre liens `/app`
+vers des routes inexistantes — la divergence dans l'autre sens, dont un 404 sur le parcours
+d'onboarding locataire) et `TCK-420` (l'acteur 🔧 absent de la légende de `features.md`, et son
+`--check` qui avertit sans jamais échouer).
+
+**Deux trous trouvés dans mes propres tests à la revue adverse, et refermés.** (a) Le test
+d'inventaire comptait une mention en COMMENTAIRE comme un chemin entrant — les commentaires que ce
+lot écrit lui-même au-dessus de chaque nouveau lien auraient suffi à le garder vert si le lien
+était retiré ensuite : *le correctif se serait prouvé par sa propre documentation.* (b) Le test de
+`InventoryList` serait resté vert si la page passait `canCreate={false}` à tout le monde — le geste
+n'aurait existé pour aucun rôle réel. D'où `inventories/__tests__/geste-de-creation.test.tsx`, qui
+lit ce que la PAGE décide rôle par rôle, et rougit dans les DEUX sens (`true` partout comme `false`
+partout), vérifié par ablation.
+
+**Reste** : les clés `inventory.new.no_lease_*` n'ont plus de site d'appel. Elles sont
+**conservées** — `grep` confirme qu'aucun `t()` ne les demande, mais la garde de parité fr/en/wo
+reste verte quand une clé disparaît des trois, donc rien ne rattraperait une suppression de
+trop.

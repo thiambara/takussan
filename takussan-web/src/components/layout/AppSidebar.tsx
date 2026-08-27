@@ -28,7 +28,8 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
-import { isAgent, isOwner, isCustomer, isAdmin, isServiceProvider } from '@/lib/roles';
+import type { UserRole } from '@/types/user';
+import { isAgent, isOwner, isCustomer, isAdmin, isServiceProvider, isTenant } from '@/lib/roles';
 import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
@@ -65,7 +66,31 @@ interface AppSidebarProps {
   hasPendingUpgrade?: boolean;
 }
 
-function buildNavItems(user: User): NavItem[] {
+/**
+ * TCK-379 — audience des entrées « occupation d'un logement » et « découverte ».
+ *
+ * Ces entrées étaient poussées SANS AUCUNE condition de rôle : un `service_provider` recevait
+ * « Réservations », « Baux », « Visites », « Favoris », « Recherches sauvegardées » et
+ * « Statistiques », dont rien dans `docs/features.md` ne lui accorde le contenu.
+ *
+ * La forme est un prédicat POSITIF, et non `!isServiceProvider(roles)`, pour deux raisons
+ * mesurées sur le code qu'elle remplace :
+ *
+ *  1. `roles` est un TABLEAU. Un compte à la fois prestataire et locataire garde ses baux ;
+ *     une négation les lui aurait retirés — ce qui aurait été une régression, pas un correctif.
+ *  2. Le rôle `tenant` n'apparaît NULLE PART ailleurs dans `buildNavItems` (aucun des blocs
+ *     `isCustomer` / `isOwner` / `isAgent` ne le couvre). Ces poussées inconditionnelles sont
+ *     donc la SEULE raison pour laquelle un `tenant` voit ses baux et ses visites. L'omettre
+ *     ici aurait corrigé le défaut n°4 en en fabriquant un cinquième, invisible en CI puisque
+ *     aucun test ne montait cette barre.
+ */
+function occupeUnLogement(roles: UserRole[]): boolean {
+  return (
+    isCustomer(roles) || isTenant(roles) || isOwner(roles) || isAgent(roles) || isAdmin(roles)
+  );
+}
+
+export function buildNavItems(user: User): NavItem[] {
   const items: NavItem[] = [];
   const roles = user.roles;
 
@@ -83,13 +108,17 @@ function buildNavItems(user: User): NavItem[] {
     });
   }
 
-  // Discovery shortcuts (Wave 3 / TCK-047) — visible for every signed-in user.
-  items.push({ href: '/app/favorites', labelKey: 'myFavorites', icon: Heart });
-  items.push({
-    href: '/app/saved-searches',
-    labelKey: 'savedSearches',
-    icon: BookmarkCheck,
-  });
+  // Discovery shortcuts (Wave 3 / TCK-047).
+  // TCK-379 — plus « visible for every signed-in user » : chercher un bien, le mettre en
+  // favori et enregistrer une recherche sont des gestes de qui occupe ou gère un logement.
+  if (occupeUnLogement(roles)) {
+    items.push({ href: '/app/favorites', labelKey: 'myFavorites', icon: Heart });
+    items.push({
+      href: '/app/saved-searches',
+      labelKey: 'savedSearches',
+      icon: BookmarkCheck,
+    });
+  }
 
   if (isCustomer(roles)) {
     // TCK-173 — full customer flow ordered by user journey:
@@ -138,7 +167,13 @@ function buildNavItems(user: User): NavItem[] {
   items.push({ href: '/app/documents', labelKey: 'documents', icon: FolderOpen });
 
   // TCK-032 overview/stats
-  items.push({ href: '/app/overview', labelKey: 'statistics', icon: BarChart3 });
+  // TCK-379 — `docs/features.md` §2.5 n'accorde AUCUN tableau de bord au prestataire, et
+  // `/app/overview` aiguillait le sien vers la vue LOCATAIRE, qui lui répond
+  // `has_customer_profile: false`. L'entrée n'est plus montrée, et l'aiguillage ne l'y envoie
+  // plus (`app/overview/page.tsx`) : les deux moitiés du même défaut.
+  if (occupeUnLogement(roles)) {
+    items.push({ href: '/app/overview', labelKey: 'statistics', icon: BarChart3 });
+  }
   if (isAdmin(roles) || isAgent(roles) || isOwner(roles)) {
     // TCK-032 overview/stats — exports (P2)
     items.push({ href: '/app/overview/exports', labelKey: 'exports', icon: Download });
@@ -195,16 +230,24 @@ function buildNavItems(user: User): NavItem[] {
     items.push({ href: '/app/inventories', labelKey: 'inventories', icon: ClipboardList });
   }
   // --- Wave 3 Ops Frontend nav entries (dedup below preserves first occurrence) ---
-  // TCK-043 bookings
-  items.push({ href: '/app/bookings', labelKey: isCustomer(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck });
-  // TCK-075 visits — customers see their requests, agents see what to manage.
-  items.push({ href: '/app/visits', labelKey: isCustomer(roles) ? 'myVisits' : 'visits', icon: CalendarClock });
+  // TCK-379 — ce bloc poussait `/app/bookings`, `/app/visits` et `/app/leases` sans aucune
+  // condition de rôle. Le dédoublonnage plus bas masquait le défaut pour cinq rôles sur six
+  // (l'entrée était déjà poussée avec sa garde au-dessus) ; il ne le masquait pas pour le
+  // prestataire, seul rôle à qui ces trois entrées n'arrivaient QUE par ici.
+  if (occupeUnLogement(roles)) {
+    // TCK-043 bookings
+    items.push({ href: '/app/bookings', labelKey: isCustomer(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck });
+    // TCK-075 visits — customers see their requests, agents see what to manage.
+    items.push({ href: '/app/visits', labelKey: isCustomer(roles) ? 'myVisits' : 'visits', icon: CalendarClock });
+  }
   // TCK-072 — calendrier agrégé (visible pour agent/owner/admin qui gèrent un catalogue)
   if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
     items.push({ href: '/app/calendar', labelKey: 'calendar', icon: CalendarDays });
   }
   // TCK-044 leases
-  items.push({ href: '/app/leases', labelKey: isCustomer(roles) ? 'myLeases' : 'leases', icon: FileText });
+  if (occupeUnLogement(roles)) {
+    items.push({ href: '/app/leases', labelKey: isCustomer(roles) ? 'myLeases' : 'leases', icon: FileText });
+  }
   // TCK-266 — sub-entry for the agency console: tenants whose move-in
   // inventory has been pending for more than 7 days. Visible to
   // agency_admin and agent (admin gate covers super_admin too).

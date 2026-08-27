@@ -2784,7 +2784,8 @@
       "next": "Topp",
       "pagination": "Xët {current} / {last} — {total} bind",
       "conductedOn": "Def nañu ko ci {date}",
-      "createdOn": "Sos nañu ko ci {date}"
+      "createdOn": "Sos nañu ko ci {date}",
+      "create": "État des lieux bu bees"
     },
     "new": {
       "no_lease_title": "Tannuñu benn luwé",
@@ -2904,6 +2905,15 @@
       "downloading": "Yeb…",
       "failed": "Yeb bi mënul.",
       "unavailable": "PDF bi amul ({status})."
+    },
+    "pickLease": {
+      "title": "Tànn benn bail",
+      "description": "Bail bi mooy wone kër gi ak dëkkkat bi ci état des lieux bi.",
+      "empty": "Amul benn bail bu ñu war a inventorier.",
+      "emptyCta": "Xool bail yi",
+      "error": "Mënul a yeb bail yi.",
+      "loading": "Mi ngi yeb bail yi…",
+      "select": "Tàmbali"
     }
   },
   "admin": {
@@ -6124,7 +6134,10 @@
       "managePrefs": "Topptoo tànneef yi",
       "reviews": "Xalaat yi",
       "reviewsBody": "Dal ak kontaraa yi nga man a bàyyi xalaat ci kanam ñépp.",
-      "seeReviews": "Xool samay xalaat"
+      "seeReviews": "Xool samay xalaat",
+      "privacy": "Sama xibaar yu jëmm",
+      "privacyBody": "Laaj arsiw bu sa xibaar te toppatoo say export.",
+      "managePrivacy": "Toppatoo sama xibaar"
     },
     "notificationPrefs": {
       "metaTitle": "Tànneefu yégle",
@@ -6217,7 +6230,8 @@
       "customers": {
         "title": "Kiliyaan yi (CRM)",
         "subtitle": "Topp say jokkoo, seen tolluwaay ci pipeline bi ak seen dokimaa.",
-        "add": "Yokk benn kiliyaan"
+        "add": "Yokk benn kiliyaan",
+        "pipelineView": "Xool pipeline bi"
       },
       "customerNew": {
         "metaTitle": "Yokk benn kiliyaan",
