@@ -79,7 +79,7 @@ describe('<DashboardMeKpis>', () => {
 
     expect(screen.getByText('Tâches ouvertes')).toBeInTheDocument();
     expect(screen.getByText('2 en retard')).toBeInTheDocument();
-    // The warning accent applies the amber background class to the tile root.
-    expect(container.querySelector('.bg-amber-50')).not.toBeNull();
+    // Le ton `warning` pose le jeton `--chart-3` sur la racine de la tuile (TCK-374).
+    expect(container.querySelector('[class*="bg-chart-3"]')).not.toBeNull();
   });
 });

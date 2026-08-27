@@ -298,6 +298,18 @@ jobs:
         # de ne pas être compilée. Vérifiée par ablation (TCK-372, AC3).
         run: node scripts/check-app-tokens.mjs --report
 
+      - name: Les couleurs de série des graphiques atteignent 3:1 sur --card
+        # TCK-374. L'AC ne demandait qu'un contraste « calculé et reporté dans la PR » — donc un
+        # nombre vrai le jour où on l'écrit, que personne ne rejoue. Or la matière première est un
+        # HEX dans `globals.css` : elle bougera. La garde recalcule les deux thèmes à partir de la
+        # source, `charts/palette.ts` disant QUELS jetons servent de couleur de série.
+        #
+        # Ce qu'elle a attrapé le jour de sa pose : `--chart-3` (#c89a4a) rend 2,57:1 sur `--card`
+        # en thème CLAIR — moins bien que l'`emerald-500` hors charte qu'il devait remplacer, et
+        # irréprochable en sombre (8,17:1). Un défaut d'un seul thème, dans une charte qu'on
+        # croyait « suffire à régler le contraste ». Vérifiée par ablation (3 mutations, 3 rouges).
+        run: node scripts/check-chart-contrast.mjs --report
+
       - name: Les compétences des agents vivent dans un seul répertoire
         # `.agent/` (646 fichiers) et `.agents/` (602) coexistaient, et les quatre points d'entrée
         # du dépôt désignaient `.agent/`. Le 2026-05-18, la correction « `spatie/laravel-permission`

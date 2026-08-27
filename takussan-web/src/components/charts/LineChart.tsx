@@ -1,5 +1,8 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { formatNumber } from '@/lib/format';
+import { pastilleLegende, traitSerie } from './palette';
 import type { ChartData } from './types';
 
 const PADDING = { top: 16, right: 16, bottom: 28, left: 40 };
@@ -20,6 +23,9 @@ type Props = {
 export function LineChart({ data, title, unit, className }: Props) {
   // Le hook se place AVANT la sortie anticipée (React Compiler, ADR-0015).
   const t = useTranslations('charts');
+  // L'axe suit la locale ACTIVE, jamais une locale écrite dans le code (TCK-374).
+  const brute = useLocale();
+  const locale = isLocale(brute) ? brute : DEFAULT_LOCALE;
   const { labels, series } = data;
   if (labels.length === 0 || series.length === 0) {
     return (
@@ -53,7 +59,7 @@ export function LineChart({ data, title, unit, className }: Props) {
 
   const gridLines = [0, 0.25, 0.5, 0.75, 1].map((p) => {
     const y = PADDING.top + innerH * (1 - p);
-    const label = (min + range * p).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
+    const label = formatNumber(min + range * p, locale, { maximumFractionDigits: 0 });
     return { y, label };
   });
 
@@ -109,7 +115,7 @@ export function LineChart({ data, title, unit, className }: Props) {
           <path
             key={s.name}
             d={toPath(s.values)}
-            className={s.color ?? defaultColor(idx)}
+            className={s.color ?? traitSerie(idx)}
             fill="none"
             strokeWidth={2}
           />
@@ -119,21 +125,11 @@ export function LineChart({ data, title, unit, className }: Props) {
       <ul className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
         {series.map((s, idx) => (
           <li key={s.name} className="flex items-center gap-1.5">
-            <span className={`inline-block h-2 w-2 rounded-full ${legendDot(idx)}`} aria-hidden />
+            <span className={`inline-block h-2 w-2 rounded-full ${pastilleLegende(idx)}`} aria-hidden />
             <span>{s.name}</span>
           </li>
         ))}
       </ul>
     </figure>
   );
-}
-
-function defaultColor(idx: number): string {
-  const palette = ['stroke-emerald-500', 'stroke-sky-500', 'stroke-amber-500', 'stroke-rose-500'];
-  return palette[idx % palette.length];
-}
-
-function legendDot(idx: number): string {
-  const palette = ['bg-emerald-500', 'bg-sky-500', 'bg-amber-500', 'bg-rose-500'];
-  return palette[idx % palette.length];
 }

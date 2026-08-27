@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { ArrowRight, CalendarClock, Users, Wrench, UserCog } from 'lucide-react';
 import type { ComponentType } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 import { formatNumber } from '@/lib/format';
 import type { DashboardAgencySummary } from '@/lib/queries/dashboard-agency';
 
@@ -25,6 +26,9 @@ type Item = {
  */
 export function AgencyActivityFeed({ summary }: Props) {
   const t = useTranslations('dashboard.agencyActivity');
+  // Le compte de chaque ligne suit la locale active (TCK-374).
+  const brute = useLocale();
+  const locale = isLocale(brute) ? brute : DEFAULT_LOCALE;
   const items: Item[] = [
     { href: '/app/bookings', id: 'bookings', count: summary.bookings.pending, icon: CalendarClock },
     { href: '/app/maintenance', id: 'maintenance', count: summary.maintenance.open, icon: Wrench },
@@ -51,7 +55,7 @@ export function AgencyActivityFeed({ summary }: Props) {
               </span>
               <div>
                 <p className="text-sm font-medium text-foreground">{t(`items.${id}.label`)}</p>
-                <p className="text-xs text-muted-foreground">{formatNumber(count, 'fr')}</p>
+                <p className="text-xs text-muted-foreground">{formatNumber(count, locale)}</p>
               </div>
             </div>
             <Link
