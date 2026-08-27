@@ -149,6 +149,74 @@ Le ticket a été écrit **avant** TCK-434. Quatre de ses affirmations ne tenaie
    ⚠ Il n'est **pas** interdit dans `robots.txt` : un moteur qui a l'interdiction de charger l'URL
    ne lit jamais le `noindex` qu'elle porte.
 
+### La garde de `NEXT_PUBLIC_SITE_URL` — tranchée, et ce qu'elle NE couvre pas
+
+**La question est posée ici plutôt que supposée réglée ailleurs.** Trois issues étaient ouvertes :
+étendre `check-env-parity.mjs` au front, écrire une garde dédiée, ou assumer l'absence de garde.
+
+**Issue retenue : une garde dédiée**, `scripts/check-front-env-keys.mjs`.
+
+**`check-env-parity.mjs` n'a PAS été étendu**, délibérément. Il compare deux fichiers **entre
+eux** ; côté front il n'y en a qu'un seul suivi par git (`takussan-web/.gitignore` n'excepte que
+`.env.example`, et `takussan-web/.env.docker` n'existe pas). Une « parité » à un fichier n'a pas de
+sens, et élargir la garde à un troisième fichier lui ferait porter deux relations différentes sous
+un seul nom.
+
+**Ce que la garde retenue vérifie**, à chaque exécution et sans liste écrite à la main :
+
+| | |
+|---|---|
+| Dérivé | les clés `NEXT_PUBLIC_*` **lues** par `takussan-web/src` + `next.config.ts` |
+| Exigé | chacune déclarée dans `takussan-web/.env.example` **et** relevée dans `docs/infra/frontend-deploiement.json` |
+| Non-vacuité | plancher de fichiers balayés, refus de trouver zéro clé, refus d'un relevé vide |
+
+**Ce qu'elle NE couvre PAS, et qu'il ne faut pas croire gardé :**
+
+- **la VALEUR** servie en Production ou en Preview. Le dépôt ne détient aucun jeton Vercel
+  (ADR-0017) : il ne peut vérifier que la DÉCLARATION ;
+- **les variables non préfixées `NEXT_PUBLIC_`.** `VERCEL_ENV` et `VERCEL_URL`, que
+  `resoudreOrigineSite` lit, sont posées par la plateforme — ni à déclarer, ni à relever, ni
+  gardables d'ici ;
+- **`Repo CI` ne la joue pas.** Elle est appelée par le job `variables` de
+  `.github/workflows/front-deploy-map.yml`, dont le déclencheur inclut `takussan-web/**` — donc
+  tout ajout d'une lecture `NEXT_PUBLIC_*` la déclenche par construction. Elle se joue aussi en
+  local : `node scripts/check-front-env-keys.mjs`.
+
+⚠️ **Une garde existait déjà et elle était ROUGE.** Le job `variables` portait cette vérification
+**en ligne, en bash**. Rejoué à l'identique sur la base `912d654e` :
+
+```
+· lues (src/lib/alternates.ts) : NEXT_PUBLIC_SITE_URL
+· manquantes → .env.example    : NEXT_PUBLIC_SITE_URL
+· manquantes → relevé          : NEXT_PUBLIC_SITE_URL
+```
+
+Elle n'a rien attrapé parce qu'elle ne se déclenche qu'en `pull_request` et sur un cron
+hebdomadaire : **personne ne pouvait la JOUER avant de pousser.** C'est la raison du déplacement
+vers `scripts/`, où la commande d'inventaire du `CLAUDE.md` racine
+(`for g in scripts/check-*.mjs`) la trouve.
+
+### `/sitemap.xml` et `/robots.txt` face au proxy
+
+Les deux vivent à la RACINE et non sous `[locale]`. Ce n'est pas une préférence : ils portent une
+extension, et `estCheminLocalisable` exclut du proxy tout chemin dont le DERNIER segment en porte
+une. **C'est une propriété d'un fichier qui n'appartient pas à ce ticket** (`src/i18n/routing.ts`,
+TCK-434) — la resserrer casserait les deux d'un coup, en silence, comme elle l'a déjà fait pour
+`/opengraph-image` et `/icon`, servis eux sur des URL racine SANS extension.
+
+Elle est donc éprouvée sur la RÈGLE (`src/app/__tests__/robots.test.ts`) : les deux chemins ne sont
+pas localisables, le `proxy()` ne les redirige pas, et l'URL que la directive `Sitemap:` **annonce**
+n'est pas redirigée non plus. Ablation jouée : retirer la règle d'extension de
+`estCheminLocalisable` fait rougir les quatre assertions.
+
+Mesuré par HTTP en plus, sur `next start` le 2026-08-27 :
+
+```
+/sitemap.xml     → 200  application/xml   (aucune redirection)
+/robots.txt      → 200  text/plain        (aucune redirection)
+/fr/sitemap.xml  → 404                    (correct : rien ne le référence)
+```
+
 ### Décisions non évidentes
 
 - **Un endpoint dédié, `GET /api/public/properties/sitemap`.** Le ticket désignait
