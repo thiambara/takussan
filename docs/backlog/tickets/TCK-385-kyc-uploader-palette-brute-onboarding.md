@@ -146,6 +146,50 @@ elles sont désormais comptées, nommées et sous cliquet.
 leur source et rend le composant avec chaque jeu de props réel. Monter un assistant aurait prouvé
 UN montage — celui de l'étape atteinte — pour dix fois le coût.
 
+**LE TON `success` DE `StatusBadge` — décision de la revue : TICKET SÉPARÉ, et voici la mesure
+qui tranche.**
+
+Le lead demandait de mesurer le rayon d'action puis de choisir entre corriger dans ce lot et
+ouvrir un ticket. **Le rayon n'est pas modeste : 21 sites de résolution dans 20 fichiers**, et il
+couvre le vocabulaire POSITIF entier de trois consoles. Ce ne sont pas 9 appels comme un premier
+`grep` le suggère — la moitié passe par des tables `Record<…, StatusTone>` :
+
+| Où | Ce qui devient vert |
+|---|---|
+| `(super-admin)/agency-upgrade-requests/{page,[id]/page}.tsx` | `approved` (×2) |
+| `(super-admin)/users/page.tsx`, `admin/users/AdminUsersTable.tsx`, `admin/super/AgencyModerationCard.tsx` | `active` (×3) |
+| `admin/super/kyc-queue.tsx`, `dashboard/admin/AgencyQueues.tsx`, `kyc/kyc-components.tsx` | `verified` (×3) |
+| `billing/PayoutTable.tsx` | `paid` |
+| `admin/super/SuperAdminPropertiesTable.tsx` | `available` |
+| `admin/ModerationQueueList.tsx` | `approved` |
+| `admin/AuditTrail.tsx` | `created` |
+| `admin/super/announcements.tsx` | `success` (sévérité) et `live` |
+| `admin/super/{system-health,feature-flags,user-detail,agency-detail}.tsx` | `ok`, `enabled`, ×2 littéraux |
+| `(super-admin)/super-admins/page.tsx`, `(dashboard)/app/properties/page.tsx` | ×2 littéraux |
+| `kyc/KycUploader.tsx` | la pastille de ce ticket |
+
+**Trois raisons de ne pas le faire ici, dans l'ordre de poids :**
+
+1. **C'est un changement VISIBLE par l'utilisateur sur 21 significations de statut**, pas un
+   correctif interne. Le sage `--accent` (#5d6e4f) devient le vert `--success` (#3f6b45).
+2. **Il révoque un partage délibéré.** `--accent` est documenté comme « sage discret pour badges
+   *featured* » : aujourd'hui « mis en avant » (public) et « approuvé » (console) portent la même
+   teinte. Les séparer est probablement JUSTE — ce sont deux sens différents — mais c'est une
+   décision de charte, pas un effet de bord d'un ticket `S` sur une pastille KYC.
+3. **Je ne peux pas le vérifier à l'écran** (aucun serveur de développement dans ce lot). Un
+   changement de couleur sur 21 badges sans une seule capture n'est pas une livraison.
+
+**Le ticket est prêt à 10 minutes près** — le diff tient en une ligne de
+`console/StatusBadge.tsx` :
+
+```
+- success: 'bg-accent/15 text-accent',
++ success: 'bg-success/15 text-success',
+```
+
+et la mesure est faite : **4,19:1 clair / 3,71:1 sombre → 4,61:1 / 5,73:1**, donc au-dessus des
+4,5:1 d'AA dans les deux thèmes, sur la surface réelle (aplat à 15 % sur `bg-muted/30`).
+
 Le mécanisme de clôture d'import de `scripts/check-super-admin-tokens.mjs` (fonction
 `clotureDeRendu`, plus `resteNonGarde`) est directement réemployable : il part d'un répertoire de
 routes, suit les imports `@/` et relatifs, et se trompe toujours du côté prudent. Son en-tête
