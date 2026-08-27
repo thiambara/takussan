@@ -330,6 +330,27 @@ class RoleDelegationCapabilityTest extends TestCase
         $delegant = $this->adminAvecCapacites(Capability::agencyAssignable());
         $beneficiaire = $this->membreSansCapacite();
 
+        // ⚠ **Ce cas ne fait pas confiance à sa propre parade**, et il le doit
+        // plus que tout autre. Son témoin est une capacité du rôle système
+        // `owner` — or `membreSansCapacite()` existe précisément pour retirer
+        // au bénéficiaire son `OwnerProfile` (le shim TCK-142). **Toute**
+        // capacité du rôle owner prise pour témoin est donc indiscernable
+        // d'une parade qui aurait lâché : ce n'est pas le choix malheureux
+        // d'un témoin, c'est structurel.
+        //
+        // Mesuré : sans cette ligne, avec `delegationAllows()` débranchée ET
+        // la parade amputée d'`OwnerProfile`, ce cas restait VERT — seul de
+        // ses quatre pairs. Le guet du défaut nommé dans le titre du commit
+        // était désarmé par une régression qui ne le concerne pas.
+        //
+        // *Une parade se vérifie dans le test qui en dépend, pas seulement
+        // dans celui qui l'a introduite.* (Même construction qu'en AC2.)
+        $this->assertFalse(
+            $beneficiaire->canActAt(Capability::PropertiesUpdateOwn, $this->agency),
+            'Le bénéficiaire détient `properties.update_own` AVANT toute délégation : '.
+            'la parade `membreSansCapacite()` a lâché, et le témoin de ce cas ne mesure plus rien.',
+        );
+
         $this->deleguer($delegant, $beneficiaire, 'owner');
         $beneficiaire = $beneficiaire->fresh();
 

@@ -160,6 +160,59 @@ class InviteAgentTest extends TestCase
         ]);
     }
 
+    /**
+     * TCK-392 (revue, passe 2) — le TROISIÈME geste de la famille, et les deux
+     * routes qui y mènent.
+     *
+     * `PUT /members/{user}/role` et `PATCH /members/{user}` sont la même
+     * méthode (`AgencyMemberRoleController@update`) : un seul garde les ferme,
+     * mais il faut éprouver les deux, sinon un futur découplage des routes
+     * rouvrirait l'une sans que rien ne bronche.
+     *
+     * Mesuré avant correction : 200 et 200 sur une agence `individual`, quand
+     * `agents/invite` et `POST /members` rendaient déjà 403. L'endpoint promeut
+     * jusqu'à `agency_admin`, or une agence individuelle n'a qu'un seul
+     * administrateur et pas d'équipe.
+     */
+    public function test_individual_agency_cannot_change_a_member_role(): void
+    {
+        Mail::fake();
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+
+        $membre = User::factory()->create(['agency_id' => $agency->id]);
+        AgentProfile::query()->create(['user_id' => $membre->id, 'agency_id' => $agency->id]);
+
+        $this->putJson("/api/agencies/{$agency->id}/members/{$membre->id}/role", ['role' => 'agency_admin'])
+            ->assertStatus(403);
+
+        $this->patchJson("/api/agencies/{$agency->id}/members/{$membre->id}", ['role' => 'agency_admin'])
+            ->assertStatus(403);
+
+        $this->assertDatabaseMissing('agency_admin_profiles', [
+            'user_id' => $membre->id,
+            'agency_id' => $agency->id,
+        ]);
+    }
+
+    /** Témoin : promouvoir reste ouvert sur une agence `standard`. */
+    public function test_standard_agency_can_still_change_a_member_role(): void
+    {
+        Mail::fake();
+        [$agency] = $this->standardAgencyWithAdmin();
+
+        $membre = User::factory()->create(['agency_id' => $agency->id]);
+        AgentProfile::query()->create(['user_id' => $membre->id, 'agency_id' => $agency->id]);
+
+        $this->putJson("/api/agencies/{$agency->id}/members/{$membre->id}/role", ['role' => 'agency_admin'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('agency_admin_profiles', [
+            'user_id' => $membre->id,
+            'agency_id' => $agency->id,
+        ]);
+    }
+
     /** Témoin : le même geste reste ouvert sur une agence `standard`. */
     public function test_standard_agency_can_still_add_an_existing_account_as_member(): void
     {
