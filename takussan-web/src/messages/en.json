@@ -5447,7 +5447,15 @@
       "colTask": "Task",
       "colLastRun": "Last run",
       "colAvgDuration": "Average duration",
-      "tableCaption": "Scheduled tasks and last run"
+      "tableCaption": "Scheduled tasks and last run",
+      "colStatus": "Status",
+      "statusUnknown": "Unknown",
+      "status": {
+        "finished": "Finished",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "running": "Running"
+      }
     },
     "failedJobs": {
       "empty_title": "No failed job",

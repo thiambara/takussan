@@ -4915,7 +4915,15 @@
       "colTask": "Liggéey",
       "colLastRun": "Dox bu mujj",
       "colAvgDuration": "Diir bu digg",
-      "tableCaption": "Liggéey yu planifiye ak dooru mujj gi"
+      "tableCaption": "Liggéey yu planifiye ak dooru mujj gi",
+      "colStatus": "Naka mu deme",
+      "statusUnknown": "Xamuñu",
+      "status": {
+        "finished": "Jeexna",
+        "failed": "Antuwul",
+        "skipped": "Génnewoon",
+        "running": "Muy dox"
+      }
     },
     "failedJobs": {
       "empty_title": "Amul benn job bu ñàkk",

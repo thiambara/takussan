@@ -1,7 +1,7 @@
 ---
 id: TCK-383
 title: "Scheduler — enregistrer le statut RÉEL et la durée d'une exécution, au lieu d'une constante"
-status: todo
+status: doing
 phase: P2
 family: full
 estimate: S
@@ -103,4 +103,35 @@ et elle n'existera pas en changeant l'API seule** :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail.)_
+**Ce que la re-mesure a contredit — un défaut que le ticket ne connaissait pas.**
+
+Le ticket dit que `AppServiceProvider:413` « n'écoute que `ScheduledTaskFinished` ». C'est vrai de
+cette ligne, et faux de l'application : `Application::configure()` appelle `withEvents()` par défaut
+(Laravel 13.25), donc **tout `app/Listeners` est déjà découvert automatiquement**. Le
+`Event::listen()` explicite en posait donc un SECOND sur le même écouteur. Mesuré le 2026-08-27 sur
+le code de `dev` :
+
+```
+Event::getRawListeners()[ScheduledTaskFinished::class]  →  2
+sonde `schedule:run` sur une tâche unique               →  2 lignes dans scheduled_task_runs
+```
+
+**Chaque exécution planifiée écrivait deux lignes depuis toujours.** `max(last_run_at)` et
+`avg(duration_ms)` n'en souffraient pas — c'est pourquoi ça n'a jamais été vu —, mais tout compte
+d'exécutions l'aurait été du double. Les trois `Event::listen()` sont retirés : la découverte suffit,
+et un enregistrement explicite par-dessus une découverte automatique n'est pas une redondance
+inoffensive.
+
+**Ce que le ticket surestimait.** La branche `exitCode !== 0 → failed` de `RecordScheduledTaskRun`
+est en grande partie REDONDANTE avec le nouvel écouteur de `ScheduledTaskFailed` : le framework lève
+sur un code de sortie non nul, rattrape, et dispatche `ScheduledTaskFailed` juste après. Retirer la
+branche laisse l'ablation verte sur ce cas précis. Elle reste nécessaire pour `exitCode === null`
+(tâche détachée → `running`), et c'est ce cas-là que `test_a_task_with_no_exit_code_yet_is_not_recorded_as_finished`
+garde.
+
+**Déduplication.** Une exécution en échec passe par DEUX événements. `ScheduledRunRecorder` est un
+singleton qui indexe la ligne écrite par `spl_object_id($task)` — le framework passe le même objet
+`Event` aux deux événements du même processus — et met à jour au lieu d'insérer.
+
+**`average_duration_ms` à zéro.** L'écran rendait `—` sur `task.average_duration_ms ? … : '—'` :
+une tâche mesurée à 0 ms se lisait « jamais exécutée ». Passé à `!== null`.

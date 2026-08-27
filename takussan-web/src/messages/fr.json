@@ -5447,7 +5447,15 @@
       "colTask": "Tâche",
       "colLastRun": "Dernier run",
       "colAvgDuration": "Durée moyenne",
-      "tableCaption": "Tâches planifiées et dernière exécution"
+      "tableCaption": "Tâches planifiées et dernière exécution",
+      "colStatus": "Statut",
+      "statusUnknown": "Inconnu",
+      "status": {
+        "finished": "Terminée",
+        "failed": "En échec",
+        "skipped": "Écartée",
+        "running": "En cours"
+      }
     },
     "failedJobs": {
       "empty_title": "Aucun job échoué",
