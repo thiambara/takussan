@@ -216,6 +216,25 @@ describe('inventaire des écrans /app', () => {
  * liste d'exceptions ne garde plus que la liste.* Les commentaires sont blanchis par
  * `sansCommentaires` — sans quoi le `/app/...` du docblock de `admin/finances/page.tsx` la ferait
  * rougir sur du texte.
+ *
+ * ⚠⚠ **« ZÉRO EXCEPTION » EST VRAI DE LA LISTE, PAS DE LA PORTÉE.** La distinction a été relevée
+ * en revue, et elle compte : une garde qu'on croit exhaustive n'est plus relue. Trois choses
+ * échappent à ce test, par construction, et aucune ne cache de lien mort AUJOURD'HUI — vérifié le
+ * 2026-08-27, chacune par sa propre commande :
+ *
+ *  1. **Les chemins CONSTRUITS.** Le motif ne reconnaît qu'un littéral commençant par `/app` ;
+ *     `` `${BASE}/leases` `` lui est invisible. Mesuré — `grep -rn "const.*= '/app'" src/` : le
+ *     dépôt n'a aucune constante de base de ce genre, tous les chemins sont écrits en entier.
+ *     C'est vrai jusqu'à la première qu'on écrira.
+ *  2. **Les fichiers de TEST**, écartés par `listeFichiers` avec les `__tests__`. 27 fichiers de
+ *     test citent un `/app/…`. Délibéré : un test qui nomme une route morte pour en éprouver le
+ *     traitement est légitime, et le compter ferait rougir la garde sur des cas de test justes.
+ *  3. **Tout ce qui n'est ni `.ts` ni `.tsx`.** Mesuré —
+ *     `grep -rln "/app/" --include='*.json' src/` : aucun résultat. Aucun `.json` du dépôt ne
+ *     porte de route ; si l'on en ajoutait un (table de navigation sérialisée, jeu de données de
+ *     démonstration), il faudrait élargir `listeFichiers`.
+ *
+ * *Nommer ce qu'une garde ne voit pas est ce qui empêche de croire qu'elle voit tout.*
  */
 
 /** Toutes les routes de `/app`, segments dynamiques compris, rendues comme motifs. */

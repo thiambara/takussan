@@ -135,6 +135,21 @@ describe('/admin/settings/tags → /admin', () => {
  * parce que le lien serait interdit, mais parce qu'un chemin entrant vers une page qui redirige
  * aussitôt est le deuxième geste mort, et qu'il faut alors ouvrir un vrai écran plutôt qu'une
  * entrée de menu. *Une décision qui ne vit que dans un commentaire se défait au premier réflexe.*
+ *
+ * ⚠ **CE QUE CE TRIPWIRE NE VOIT PAS**, relevé en revue et écrit ici plutôt que laissé à
+ * découvrir. Deux bornes, aucune ne cache de lien aujourd'hui :
+ *
+ *  1. **Les fichiers de TEST** (`__tests__/`, `*.test.tsx`) sont écartés par `fichiersSources`.
+ *     Délibéré : ce fichier-ci cite la route à chaque ligne, il rougirait sur lui-même.
+ *  2. **Tout ce qui n'est ni `.ts` ni `.tsx`** — en particulier `src/messages/*.json`. Vérifié le
+ *     2026-08-27, `grep -rn "settings/tags" src/messages/` : aucun résultat. Un libellé de menu
+ *     n'est de toute façon pas un `href` ; c'est le fichier qui porte le lien qui compte, et il
+ *     est en `.tsx`.
+ *
+ * Ce que le tripwire voit, en revanche, il le voit strictement : la route ET un producteur de
+ * navigation sur la MÊME ligne, commentaires écartés. Les trois lignes de `lib/admin/notices.ts`
+ * qui citent la route sont des explications et ne comptent pas — sans quoi la garde rougirait sur
+ * de la documentation juste.
  */
 describe('/admin/settings/tags — la souche est assumée (TCK-430)', () => {
   const SRC = path.resolve(__dirname, '../../../..'); // → src/

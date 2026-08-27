@@ -143,19 +143,50 @@ describe('<TenantOnboardingChecklistWidget>', () => {
     await screen.findByText(/LS-ABC/);
 
     const APP = path.resolve(__dirname, '../../../app/(dashboard)/app');
+
+    /**
+     * ⚠ TROIS conventions du routeur, et la troisième a été ajoutée après coup — par le lot qui
+     * l'a rendue nécessaire. Une URL ne se lit pas comme un chemin de disque :
+     *
+     *  · un segment `[id]` accepte n'importe quelle valeur ;
+     *  · un GROUPE de routes `(nom)` est un répertoire réel qui ne consomme AUCUN segment
+     *    d'URL — TCK-426 en a posé trois (`app/(accueil)`, `leases/(liste)`,
+     *    `maintenance/(liste)`) pour sortir des pages de la portée d'un `loading.tsx` qui leur
+     *    volait leur statut HTTP. Sans cette traversée, `existe('/app/leases')` chercherait
+     *    `leases/page.tsx` là où il vit désormais dans `leases/(liste)/page.tsx`, et ce test
+     *    déclarerait morte une route parfaitement servie ;
+     *  · un segment exact l'emporte sur un segment dynamique.
+     *
+     * *Un test qui traduit une URL en chemin de fichier doit connaître les conventions du
+     * routeur, sinon il mesure une arborescence et prétend mesurer un produit.*
+     */
     const existe = (href: string): boolean => {
       const segments = href.split('?')[0].split('#')[0].replace(/^\/app\/?/, '').split('/').filter(Boolean);
-      let dossier = APP;
-      for (const segment of segments) {
+      const descendre = (dossier: string, reste: string[]): boolean => {
+        if (!fs.existsSync(dossier)) return false;
+        if (reste.length === 0 && fs.existsSync(path.join(dossier, 'page.tsx'))) return true;
         const entrees = fs.readdirSync(dossier, { withFileTypes: true }).filter((e) => e.isDirectory());
-        const exact = entrees.find((e) => e.name === segment);
+        // Les groupes de routes, à `reste` INCHANGÉ, et à TOUS les niveaux — y compris quand il
+        // ne reste plus de segment à consommer : c'est ce dernier cas que `leases/(liste)` exige.
+        if (entrees.filter((e) => /^\(.*\)$/.test(e.name))
+          .some((e) => descendre(path.join(dossier, e.name), reste))) return true;
+        if (reste.length === 0) return false;
+        const [tete, ...queue] = reste;
+        const exact = entrees.find((e) => e.name === tete);
         const dynamique = entrees.find((e) => /^\[.+\]$/.test(e.name));
         const suivant = exact ?? dynamique;
-        if (!suivant) return false;
-        dossier = path.join(dossier, suivant.name);
-      }
-      return fs.existsSync(path.join(dossier, 'page.tsx'));
+        return suivant !== undefined && descendre(path.join(dossier, suivant.name), queue);
+      };
+      return descendre(APP, segments);
     };
+
+    // Le pendant de non-vacuité : un résolveur trop complaisant rendrait le test ci-dessous vert
+    // sur n'importe quel `href`, y compris un lien mort — l'inverse exact de sa raison d'être.
+    expect(existe('/app/leases'), 'route servie via un groupe (liste)').toBe(true);
+    expect(existe('/app/leases/42'), 'segment dynamique').toBe(true);
+    expect(existe('/app'), 'route servie via le groupe (accueil)').toBe(true);
+    expect(existe('/app/payments/new'), 'route inexistante').toBe(false);
+    expect(existe('/app/nimporte-quoi'), 'route inexistante').toBe(false);
 
     for (const libelle of ['Effectuer votre premier paiement', "Signer l'état des lieux d'entrée"]) {
       const lien = screen.getByText(libelle).closest('a');

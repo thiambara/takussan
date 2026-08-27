@@ -11,10 +11,12 @@ import { fileURLToPath } from 'node:url';
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
  * L'AC1 du ticket demandait « un `loading.tsx` dans son segment OU un segment parent ». Écrit
- * ainsi, le contrôle est **invérifiable** : `app/loading.tsx` est un ancêtre de TOUT `/app`, donc
- * dès qu'il existe, aucune page ne peut jamais manquer de repli et le test est vert quoi qu'on
- * ajoute. Il cocherait l'AC en ne mesurant rien — exactement la régression que la revue adverse
- * cherche.
+ * ainsi, le contrôle était **invérifiable** : `app/loading.tsx` existait alors à la racine, donc
+ * ancêtre de TOUT `/app` ; aucune page ne pouvait jamais manquer de repli, et le test serait
+ * resté vert quoi qu'on ajoute. Il aurait coché l'AC en ne mesurant rien — exactement la
+ * régression que la revue adverse cherche. (TCK-426 a depuis déplacé ce repli dans le groupe
+ * `app/(accueil)/` ; la règle étroite ci-dessous reste néanmoins la bonne, pour sa raison
+ * propre — la FORME du squelette, pas la portée du fichier.)
  *
  * La règle tenue ici est donc plus étroite, et elle dit ce que la direction UX demandait
  * vraiment (*« le squelette a la forme de ce qui arrive »*) : un repli posé trois niveaux plus
@@ -41,47 +43,67 @@ import { fileURLToPath } from 'node:url';
  * aujourd'hui 1 page en échec, pas 7.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
- * CE QUE CES REPLIS COÛTENT — mesuré, assumé, et écrit ici pour ne pas être redécouvert
+ * CE QUE CES REPLIS COÛTAIENT, ET CE QUE TCK-426 A RENDU
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
- * Un `loading.tsx` ouvre une frontière de suspension : Next envoie la coque **et le code de
- * réponse** avant que la page n'ait rien décidé. Tout ce que la page ferait ensuite au niveau
- * HTTP est donc perdu. Deux effets, tous deux mesurés le 2026-08-27 sur Next 16.3.1 par sondes
- * jetables (`next dev`, pages nues, ablation du seul `loading.tsx`) :
+ * ⚠ **Tout ce paragraphe est au passé, et ce n'est pas un effet de style.** Il a été écrit au
+ * PRÉSENT par TCK-382, puis laissé tel quel par le commit de TCK-426 qui abolissait ce qu'il
+ * décrivait — six affirmations que les règles de CE fichier, deux cents lignes plus bas,
+ * réfutaient. *Un docblock qui décrit l'ancien monde au présent est plus nuisible qu'un docblock
+ * absent : on ne s'en méfie pas.*
  *
- *     notFound()  sans repli → 404      avec un repli (même segment OU ancêtre) → 200
- *     redirect()  sans repli → 307      avec un repli → 200 + la coque, redirection côté client
+ * LE MÉCANISME (inchangé, et c'est la seule chose ici qui soit encore au présent). Un
+ * `loading.tsx` ouvre une frontière de suspension : Next envoie la coque **et le code de
+ * réponse** avant que la page n'ait rien décidé. Mesuré sur Next 16.3.1 par sondes jetables
+ * (`next dev`, pages nues, ablation du seul repli) :
  *
- * Dans les DEUX cas l'écran final reste juste : la sonde `notFound` rend bien la page 404, et le
- * navigateur suit bien la redirection portée par le flux RSC. Seul le statut change — et `curl`,
- * lui, s'arrête sur le squelette.
+ *     notFound()  sans repli → 404   | repli même segment → 200 | repli ANCÊTRE → 200
+ *     redirect()  sans repli → 307   | repli même segment → 200 | page SYNCHRONE → 200
+ *     permanentRedirect() sans repli → 308                      | avec repli    → 200
+ *     LAYOUT redirect() + repli DU MÊME SEGMENT ou plus bas     → **307**, repli conservé
+ *     LAYOUT redirect() + repli d'un ANCÊTRE                    → 200
  *
- * **C'est un échange, pas un oubli** — et il est plus large que le seul introuvable, ce qu'une
- * première rédaction de ce docblock passait sous silence. `app/loading.tsx` étant l'ancêtre de
- * tout `/app`, l'échange est TOTAL, jamais segmentaire : il couvre les **32 appels de
- * `redirect()`/`permanentRedirect()` répartis sur 15 pages** de `/app` (relevé sur la source
- * débarrassée de ses commentaires), dont la grande majorité sont des refus d'**autorisation** —
- * `owners`, `maintenance/providers`, `settings/agency/upgrade`, `overview/*`, `properties/[id]`,
- * `customers/[id]` — et non d'authentification. Trois pages y font même une redirection
- * d'authentification EN PAGE (`owners:36`, `maintenance/providers:34`,
- * `settings/agency/upgrade:34`).
+ * D'où la règle : *un statut survit si et seulement s'il est décidé STRICTEMENT AU-DESSUS de
+ * toute frontière de suspension de son chemin.*
  *
- * Ce qui change alors dépasse le statut : un utilisateur sans le droit reçoit 200 + `AppShell` +
- * **le squelette de la route interdite**, puis rebondit côté client. Là où il y avait un renvoi
- * serveur immédiat, il y a un bref aperçu de la page qu'il n'a pas le droit de voir. Aucun
- * contenu ne fuit — le squelette ne porte aucune donnée — mais l'écran ment une fraction de
- * seconde. `crm/page.tsx` perd de même son 308, celui dont le commentaire dit qu'il existe pour
- * que les liens en favori résolvent encore.
+ * CE QUE ÇA COÛTAIT, JUSQU'À TCK-426. `app/loading.tsx` était posé à la racine, donc ancêtre de
+ * tout `/app` : l'échange était TOTAL, jamais segmentaire. Il couvrait 32 `redirect()` littéraux
+ * sur 15 pages — plus neuf refus délégués à `assertCanReach*` que ce relevé ne voyait pas, la
+ * population réelle étant donc de 41. La grande majorité étaient des refus d'**autorisation**.
+ * Un utilisateur sans le droit recevait 200 + `AppShell` + le squelette de la route interdite,
+ * puis rebondissait côté client : aucun contenu ne fuyait, mais l'écran mentait une fraction de
+ * seconde, et le refus était indiscernable d'un succès pour tout ce qui n'est pas un navigateur.
+ * `crm/page.tsx` perdait de même son 308, celui qui existe pour que les liens en favori résolvent
+ * encore.
  *
- * L'échange reste assumé, pour trois raisons qui tiennent ensemble : `(dashboard)/layout.tsx`
- * pose `robots: { index: false }` sur tout `/app` (aucun indexeur ne lit ces statuts), l'espace
- * est derrière l'authentification (aucun client sans JS ne l'atteint), et la garde
- * d'authentification DU GROUPE est **au-dessus** de toute frontière posée ici — vérifié : `GET
- * /app` non authentifié rend 307 avec `app/loading.tsx` en place, parce que ce `redirect()` vit
- * dans le layout. Une visite en favori depuis un navigateur déconnecté fonctionne donc encore.
+ * CE QUE TCK-426 A RENDU, mesuré sur l'application réelle (API servie, session authentifiée) :
+ * **307 sur les dix-huit surfaces agence** pour un `service_provider`, 200 pour les rôles admis,
+ * **308** pour `/app/crm`, **307** pour l'aiguilleur `/app/overview`. Aucun squelette perdu :
+ * `data-testid="route-skeleton"` est toujours servi sur les routes vérifiées.
  *
- * ⚠ Aucune suite e2e n'existe dans ce dépôt (`npm run test` = vitest/jsdom) : rien ne garde ces
- * statuts, ni avant ni après. C'est l'objet de TCK-426, qui nomme l'autorisation.
+ * COMMENT. Vingt-trois refus ont remonté dans le `layout.tsx` de leur segment ; `app/loading.tsx`,
+ * `leases/loading.tsx` et `maintenance/loading.tsx` sont descendus dans un groupe de routes avec
+ * la page de liste qu'ils servaient ; `overview/loading.tsx` est descendu dans ses sept vues.
+ *
+ * ⚠ Les renvois de ligne de la rédaction précédente (`owners:36`, `maintenance/providers:34`,
+ * `settings/agency/upgrade:34`) ont été RETIRÉS plutôt que corrigés. Ces trois lignes portent
+ * aujourd'hui un commentaire disant que le refus a déménagé — mais un numéro de ligne se périme
+ * au premier commentaire ajouté au-dessus, et c'est le motif que `PRO_ROUTES` a déjà payé.
+ *
+ * CE QUI GARDE TOUT CELA, désormais, et ce n'est plus « rien » : les trois règles du bloc
+ * « TCK-426 » de ce fichier — aucune page muette sous une frontière, aucune page qui refuse un
+ * UTILISATEUR sous une frontière, aucun layout de refus sous le repli d'un ancêtre — plus
+ * `scripts/check-pro-routes.mjs`, qui lit maintenant la page ET ses layouts d'ancêtres.
+ *
+ * ⚠ Ce qui reste dû : les 9 `notFound()` des pages de détail rendent toujours 200. Ils réagissent
+ * à la RÉPONSE de l'API et non à l'utilisateur, donc les remonter demande de remonter la REQUÊTE.
+ * C'est l'objet de **TCK-442**, et la règle de ce fichier les exclut par une propriété DÉRIVÉE du
+ * code (l'appel vit dans un bloc `catch`), pas par une liste.
+ *
+ * ⚠ Il n'existe toujours aucune suite e2e dans ce dépôt (`npm run test` = vitest/jsdom). Les
+ * relevés HTTP ci-dessus ont été pris à la main, sur sondes jetables et sur l'application réelle ;
+ * les règles de ce fichier gardent la FORME de l'arbre qui les produit, jamais les statuts
+ * eux-mêmes.
  *
  * ⚠ Sur le catalogue PUBLIC, le même échange est inacceptable et le dépôt l'a déjà payé :
  * TCK-335 a SUPPRIMÉ `properties/[slug]/loading.tsx` pour rendre un vrai 404 à l'indexation, et
@@ -251,6 +273,30 @@ describe('TCK-382 — inventaire', () => {
  * TCK-426 — *ce fichier dit ce qu'il garde, pas ce qu'on aimerait qu'il garde.*
  */
 /**
+ * CE QUI COMPTE COMME UN REFUS FONDÉ SUR L'UTILISATEUR — une seule définition, deux règles.
+ *
+ * Les deux formes directes (`redirect`, `permanentRedirect`) plus les TROIS terminateurs
+ * partagés du dépôt, parce qu'un refus délégué refuse tout autant qu'un refus écrit sur place :
+ *
+ *  · `assertCanReachAgentArea` / `assertCanReachAgencyStaffArea` (`src/lib/auth/guards.ts`) —
+ *    neuf appels que le relevé de TCK-426 ne voyait pas, faute de compter autre chose que des
+ *    `redirect()` littéraux. *Un inventaire qui compte une écriture ne compte pas une
+ *    population.*
+ *  · `ensureStandardAgencyOrRedirect` (`src/lib/access/server-guards.ts`) — ajouté ici par
+ *    ANTICIPATION, et il faut le dire : mesuré le 2026-08-27, `grep -rn` sous
+ *    `app/(dashboard)/app` ne rend AUCUN appel, il ne garde aujourd'hui que les cinq routes
+ *    `/admin/*`. Il refuse pourtant par `redirect('/app')` exactement comme les deux autres, et
+ *    la première page de `/app` qui l'appellerait échapperait à ces règles en silence. *Une
+ *    liste fermée de terminateurs se complète quand on la lit, pas quand elle rate quelque
+ *    chose.*
+ *
+ * ⚠ La liste reste FERMÉE, et c'est le point : une forme neuve de refus devra s'ajouter ici
+ * explicitement. Une expression ouverte (« tout ce qui ressemble à un refus ») rendrait la règle
+ * ininterprétable le jour où elle rougit.
+ */
+const REFUS = /\b(permanentRedirect|redirect)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect)\s*\(/;
+
+/**
  * L'indice `i` tombe-t-il DANS un bloc `catch (…) { … }` ?
  *
  * On compte les accolades : à chaque `catch (…) {` rencontré on empile la profondeur d'ouverture,
@@ -310,7 +356,6 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
     // pages de détail — c'est le périmètre de TCK-442, et c'est pour ça que ce test l'exclut au
     // lieu de le tolérer. *Une exception dérivée d'une propriété du code se referme toute seule
     // le jour où le code change ; une exception écrite dans une liste, jamais.*
-    const REFUS = /\b(permanentRedirect|redirect)\s*\(|\bassertCanReach\w*\s*\(/g;
     const fautifs: string[] = [];
 
     for (const page of PAGES) {
@@ -328,7 +373,7 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
         .filter((l) => !/^\s*import\b/.test(l))
         .join('\n');
 
-      for (const trouve of source.matchAll(REFUS)) {
+      for (const trouve of source.matchAll(new RegExp(REFUS, 'g'))) {
         if (!estDansUnCatch(source, trouve.index ?? 0)) {
           const ligne = source.slice(0, trouve.index).split('\n').length;
           fautifs.push(`${page.rel}:${ligne} → ${trouve[0]}`);
@@ -373,7 +418,6 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
     // servaient. *Quatorze layouts justes, deux au mauvais étage : c'est la mesure de bout en
     // bout qui l'a dit, pas la relecture — d'où cette règle, pour que la prochaine fois ce soit
     // la CI.*
-    const REFUS = /\b(permanentRedirect|redirect)\s*\(|\bassertCanReach\w*\s*\(/;
     const fautifs: string[] = [];
 
     const parcours = (dir: string) => {
@@ -384,7 +428,7 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
           continue;
         }
         if (entree.name !== 'layout.tsx') continue;
-        if (!REFUS.test(sansCommentaires(readFileSync(chemin, 'utf8')))) continue;
+        if (!new RegExp(REFUS).test(sansCommentaires(readFileSync(chemin, 'utf8')))) continue;
 
         // Un repli STRICTEMENT au-dessus du segment de ce layout.
         let ancetre = dirname(dir);
