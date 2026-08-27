@@ -16,8 +16,8 @@ import type { SearchFilters } from '@/types/search';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="py-5 border-b border-gray-100 last:border-0">
-      <h3 className="text-sm font-bold text-gray-800 mb-3">{title}</h3>
+    <div className="py-5 border-b border-border last:border-0">
+      <h3 className="text-sm font-bold text-foreground mb-3">{title}</h3>
       {children}
     </div>
   );
@@ -43,7 +43,7 @@ function ChipGroup<T extends string | number>({
             className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-all duration-150 ${
               isActive
                 ? 'bg-primary border-primary text-primary-foreground'
-                : 'border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
+                : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
             }`}
           >
             {opt.label}
@@ -112,7 +112,7 @@ function RangeInputs({
           onKeyDown={surTouche}
           className="rounded-xl"
         />
-        <span className="shrink-0 text-gray-400 text-sm">–</span>
+        <span className="shrink-0 text-muted-foreground text-sm">–</span>
         <Input
           type="number"
           min={0}
@@ -124,7 +124,7 @@ function RangeInputs({
           className="rounded-xl"
         />
       </div>
-      {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -353,8 +353,8 @@ export function FilterSidebar({
   const content = (
     <div className="flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
-        <h2 className="text-base font-bold text-gray-900 flex items-center">
+      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
+        <h2 className="text-base font-bold text-foreground flex items-center">
           {t('title')}
           {activeCount > 0 && (
             <Badge className="ml-2">{activeCount}</Badge>
@@ -367,7 +367,7 @@ export function FilterSidebar({
                 differe.cancel();
                 onReset();
               }}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-primary transition-colors"
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               {t('clearAll')}
@@ -375,7 +375,7 @@ export function FilterSidebar({
           )}
           <button
             onClick={onClose}
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500"
+            className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
             aria-label={t('close')}
           >
             <X className="w-4 h-4" />
@@ -413,7 +413,7 @@ export function FilterSidebar({
                   className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 ${
                     isActive
                       ? 'bg-primary border-primary text-primary-foreground'
-                      : 'border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
+                      : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
                   }`}
                 >
                   {tTypes(opt)}
@@ -528,16 +528,16 @@ export function FilterSidebar({
               className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 ${
                 filters.furnished === true
                   ? 'bg-primary/5 border-primary text-primary'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  : 'border-border text-muted-foreground hover:border-muted-foreground'
               }`}
             >
               <span
                 className={`relative shrink-0 w-10 h-5 rounded-full transition-colors duration-200 ${
-                  filters.furnished === true ? 'bg-primary' : 'bg-gray-200'
+                  filters.furnished === true ? 'bg-primary' : 'bg-secondary'
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                  className={`absolute top-0.5 w-4 h-4 bg-card rounded-full shadow transition-transform duration-200 ${
                     filters.furnished === true ? 'translate-x-5' : 'translate-x-0.5'
                   }`}
                 />
@@ -550,12 +550,12 @@ export function FilterSidebar({
               className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 ${
                 filters.featured === true
                   ? 'bg-amber-50 border-amber-400 text-amber-700'
-                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                  : 'border-border text-muted-foreground hover:border-muted-foreground'
               }`}
             >
               <Star
                 className={`w-4 h-4 shrink-0 ${
-                  filters.featured === true ? 'fill-amber-400 text-amber-400' : 'text-gray-400'
+                  filters.featured === true ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'
                 }`}
               />
               <span className="text-sm font-semibold">{t('featuredOnly')}</span>
@@ -575,7 +575,7 @@ export function FilterSidebar({
         {/* 11. Disponibilité */}
         <Section title={t(`sections.availability`)}>
           <div>
-            <label className="block text-xs text-gray-500 mb-1.5">{t('availableFrom')}</label>
+            <label className="block text-xs text-muted-foreground mb-1.5">{t('availableFrom')}</label>
             <DatePicker
               value={filters.available_from ?? ''}
               min={new Date().toISOString().slice(0, 10)}
@@ -588,7 +588,7 @@ export function FilterSidebar({
         {/* 12. Tags */}
         <Section title={t(`sections.amenities`)}>
           <div className="relative">
-            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
               placeholder={t('amenitiesPlaceholder')}
@@ -599,13 +599,13 @@ export function FilterSidebar({
               className="rounded-xl pl-9"
             />
           </div>
-          <p className="text-[11px] text-gray-400 mt-1.5">{t('amenitiesHint')}</p>
+          <p className="text-[11px] text-muted-foreground mt-1.5">{t('amenitiesHint')}</p>
         </Section>
 
         {/* 13. Full-text search */}
         <Section title={t(`sections.advanced`)}>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
               type="text"
               placeholder={t('advancedPlaceholder')}
@@ -625,7 +625,7 @@ export function FilterSidebar({
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:block w-[264px] shrink-0 bg-white rounded-2xl border border-gray-100 shadow-sm self-start sticky top-[145px]">
+      <aside className="hidden md:block w-[264px] shrink-0 bg-card rounded-2xl border border-border shadow-sm self-start sticky top-[145px]">
         {content}
       </aside>
 
@@ -636,11 +636,11 @@ export function FilterSidebar({
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={onClose}
           />
-          <div className="relative bg-white rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
+          <div className="relative bg-popover rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
             <div className="flex-1 overflow-y-auto">
               {content}
             </div>
-            <div className="px-5 py-4 border-t border-gray-100 bg-white shrink-0">
+            <div className="px-5 py-4 border-t border-border bg-popover shrink-0">
               <Button
                 onClick={() => {
                   commitImmediat();

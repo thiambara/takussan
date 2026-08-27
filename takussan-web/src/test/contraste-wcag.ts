@@ -67,15 +67,56 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
   transparent: 'transparent',
 };
 
-/** Bloc `.dark` de `globals.css` — inatteignable aujourd'hui, tenu à jour pour le jour où. */
+/**
+ * Bloc `.dark` de `globals.css` — inatteignable aujourd'hui, tenu à jour pour le jour où.
+ *
+ * ⚠ **« Inatteignable » a été RE-VÉRIFIÉ le 2026-08-27** (TCK-440), et c'est plus vrai que ce que
+ * l'en-tête laissait croire : il n'y a pas seulement aucune classe `.dark` posée, il n'y a
+ * **aucun mécanisme** pour en poser une — ni `ThemeProvider`, ni `next-themes` au `package.json`,
+ * ni un seul `documentElement.classList` dans `src/`. La bascule sombre est un jeu de valeurs
+ * déclarées que rien n'active. C'est ce qui donne son sens exact à l'AC4 de TCK-440 : ce qu'un
+ * test peut éprouver, ce sont les VALEURS que le design system déclare de part et d'autre, pas
+ * un basculement qu'aucun utilisateur ne peut produire.
+ *
+ * ⚠ **Le `...JETONS_CLAIR` de la première ligne est un piège, et il a mordu.** Il fait hériter en
+ * silence des valeurs CLAIRES tout jeton non ré-écrit ci-dessous — `primary`, `secondary`,
+ * `popover`, `border`, `accent` restaient donc à leur valeur de thème clair, et une mesure
+ * « en sombre » les comparait à un fond sombre : un rapport rassurant, calculé sur une paire qui
+ * n'existe nulle part. Les huit lignes ajoutées le 2026-08-27 (TCK-440) recopient le bloc `.dark`
+ * en entier. Une valeur absente de `globals.css` n'est pas une valeur héritée du clair.
+ */
 export const JETONS_SOMBRE: Readonly<Record<string, string>> = {
   ...JETONS_CLAIR,
   background: '#1f1812',
   foreground: '#fcf9f3',
   card: '#2a2018',
+  'card-foreground': '#fcf9f3',
+  popover: '#2a2018',
+  'popover-foreground': '#fcf9f3',
+  primary: '#c87a52',
+  'primary-foreground': '#1f1812',
+  secondary: '#3a2e23',
+  'secondary-foreground': '#fcf9f3',
   muted: '#3a2e23',
   'muted-foreground': '#b8aa97',
+  accent: '#7d8d6e',
+  'accent-foreground': '#1f1812',
+  warning: '#e0a458',
+  'warning-foreground': '#1f1812',
   ring: '#c87a52',
+  sidebar: '#2a2018',
+  'sidebar-accent': '#3a2e23',
+  /*
+   * ⚠ `--border` et `--input` sont les DEUX seuls jetons du bloc `.dark` qui ne sont pas des hex :
+   * `oklch(1 0 0 / 10%)` et `oklch(1 0 0 / 15%)`, c'est-à-dire du blanc translucide. Les valeurs
+   * ci-dessous sont ces blancs COMPOSÉS sur `--background` #1f1812, la seule composition qu'ils
+   * subissent en pratique — les recopier translucides ferait lever `versRvb()`, et les laisser à
+   * leur valeur claire (ce que faisait le `...JETONS_CLAIR`) mesurerait une bordure crème sur un
+   * fond sombre, c'est-à-dire rien de réel. C'est une APPROXIMATION assumée : posée sur `--card`
+   * (#2a2018), la vraie bordure serait un cran plus claire.
+   */
+  border: '#352f2a',
+  input: '#413b36',
 };
 
 export type Rvb = readonly [number, number, number];
