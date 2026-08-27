@@ -9,7 +9,7 @@ wave: 46
 created: 2026-08-27
 updated: 2026-08-27
 depends_on: []
-blocks: []
+blocks: [TCK-450]
 spec_refs:
   features:
     - docs/features.md#29-administration--configuration
