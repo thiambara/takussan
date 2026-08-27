@@ -119,7 +119,20 @@
       "calendar": "Calendrier",
       "onboardingPending": "Onboardings en attente",
       "administration": "Administration",
-      "proLocked": "Réservé aux comptes pro"
+      "proLocked": "Réservé aux comptes pro",
+      "navLabel": "Navigation du tableau de bord",
+      "sections": {
+        "catalog": "Catalogue",
+        "discover": "Découvrir",
+        "requests": "Demandes",
+        "engagements": "Engagements",
+        "manage": "Pilotage",
+        "admin": "Administration"
+      },
+      "counters": {
+        "unreadMessages": "{count, plural, one {# message non lu} other {# messages non lus}}",
+        "pendingVisits": "{count, plural, one {# demande de visite en attente} other {# demandes de visite en attente}}"
+      }
     },
     "admin": {
       "dashboard": "Tableau de bord",

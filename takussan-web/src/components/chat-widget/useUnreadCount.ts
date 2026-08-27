@@ -15,13 +15,20 @@ import { useAuth } from '@/context/AuthContext';
  *   - drop conversations the user has muted (those still ring on the page
  *     but should not pull attention from the floating badge)
  *   - return 0 while loading or for anonymous visitors
+ *
+ * TCK-377 — `enabled` : la barre latérale de `/app` lit ce compteur pour la pastille de
+ * « Messagerie », et ne doit armer AUCUN sondage quand l'entrée n'est pas rendue. Le défaut
+ * reste `true` — `ChatWidget`, monté globalement, appelle ce hook sans argument et sonde déjà
+ * `/api/conversations` toutes les 10 s. La clé de requête étant la même, la barre latérale ne
+ * coûte aucune requête supplémentaire : elle lit le cache que le widget alimente.
  */
-export function useUnreadCount(): number {
+export function useUnreadCount(options: { enabled?: boolean } = {}): number {
+  const enabled = options.enabled ?? true;
   const { user } = useAuth();
-  const { data, isLoading } = useConversations();
+  const { data, isLoading } = useConversations({}, { enabled });
 
   return useMemo(() => {
-    if (isLoading || !data?.data || !user) return 0;
+    if (!enabled || isLoading || !data?.data || !user) return 0;
     return data.data.reduce((sum, conversation) => {
       const unread = conversation.unread_count ?? 0;
       if (unread <= 0) return sum;
@@ -34,5 +41,5 @@ export function useUnreadCount(): number {
 
       return sum + unread;
     }, 0);
-  }, [data, isLoading, user]);
+  }, [data, enabled, isLoading, user]);
 }

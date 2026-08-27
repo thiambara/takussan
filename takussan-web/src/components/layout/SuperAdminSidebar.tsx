@@ -32,6 +32,19 @@ import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { fetchAdminAgencyUpgradePendingCount } from '@/lib/queries/super-admin';
+import { SUPER_ADMIN_EXACT_ROOTS, isActiveHref } from '@/lib/navigation/active-path';
+
+/**
+ * TCK-377 — La règle était écrite ici pour la troisième fois. Elle vit maintenant dans
+ * `@/lib/navigation/active-path`, avec les deux autres shells.
+ *
+ * ⚠ Ce shell garde la forme PRÉFIXE (`isActiveHref`) et non le plus-long-préfixe adopté par
+ * `AppSidebar` / `AdminSidebar` : ses entrées ont des `children` rendus SOUS leur parent, et
+ * éteindre le parent quand un enfant est actif couperait le fil visuel. La différence est un
+ * choix de rendu, pas un oubli.
+ */
+const isActivePath = (pathname: string | null, href: string) =>
+  isActiveHref(pathname, href, SUPER_ADMIN_EXACT_ROOTS);
 
 interface NavItem {
   href: string;
@@ -246,11 +259,6 @@ function SuperAdminNavItem({
   );
 }
 
-function isActivePath(pathname: string | null, href: string) {
-  if (!pathname) return false;
-  if (href === '/super-admin') return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 /**
  * TCK-268 — Live badge counts for sidebar entries that surface a backlog.

@@ -61,7 +61,45 @@ export type UseVisitsParams = {
 export const visitsQueryKeys = {
   list: (params: UseVisitsParams) => ['visits', 'list', params] as const,
   detail: (id: number | null | undefined) => ['visits', 'detail', id] as const,
+  /** TCK-377 — compteur du menu. Clé distincte de `list` : ce n'est pas une page de liste. */
+  pendingCount: () => ['visits', 'pending-count'] as const,
 };
+
+/**
+ * TCK-377 — Nombre de demandes de visite EN ATTENTE, pour la pastille de la barre latérale.
+ *
+ * ⚠ Trois points où le ticket décrivait une API qui n'existe pas, mesurés le 2026-08-27 :
+ *
+ *  1. l'endpoint est `/api/property-visits`, pas `/api/visits` (`routes/api/property-visits.php`) ;
+ *  2. il n'existe **aucun** statut `pending`. `App\Models\Enums\VisitStatus` en compte cinq —
+ *     `scheduled`, `confirmed`, `completed`, `cancelled`, `no_show` — et « en attente » est
+ *     `scheduled`, que le front affiche déjà « Demandée » (`visits.status.scheduled`) ;
+ *  3. le compte se lit dans `meta.total`, pas dans `meta.pending_count`. Ce dernier n'existe que
+ *     sur les deux files de modération qu'`AdminSidebar` sonde — c'est un champ que ces
+ *     contrôleurs ajoutent, pas une propriété de l'enveloppe paginée.
+ *
+ * `per_page: 1` et `fields[property_visits]=id` : on ne veut que l'en-tête de pagination, jamais
+ * la page. La cadence de 60 s est celle d'`AdminSidebar` — un menu n'est pas un cron.
+ */
+export function usePendingVisitsCount(options: { enabled?: boolean } = {}) {
+  const spatieParams: SpatieQueryParams = {
+    fields: { property_visits: ['id'] },
+    filter: { status: 'scheduled' },
+    page: 1,
+    per_page: 1,
+  };
+
+  return useApiQuery<PaginatedResponse<PropertyVisit>>(
+    visitsQueryKeys.pendingCount(),
+    '/api/property-visits',
+    {
+      params: spatieParams,
+      enabled: options.enabled ?? true,
+      refetchInterval: 60_000,
+      staleTime: 30_000,
+    },
+  );
+}
 
 export function useVisits(params: UseVisitsParams = {}) {
   const {

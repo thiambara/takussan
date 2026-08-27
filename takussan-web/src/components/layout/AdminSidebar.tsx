@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
+import { ADMIN_EXACT_ROOTS, resolveActiveHref } from '@/lib/navigation/active-path';
 
 interface NavItem {
   href: string;
@@ -119,6 +120,7 @@ function AdminItem({
     <Link
       href={href}
       onClick={onNavigate}
+      aria-current={active ? 'page' : undefined}
       className={cn(
         'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
         active
@@ -173,6 +175,16 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
       ...item,
       locked: isProRouteLocked(user, agencyIsStandard, item.href),
     }));
+  // TCK-377 — la règle « racine par égalité, sous-route par préfixe » vit désormais dans
+  // `@/lib/navigation/active-path`, partagée par les trois shells. Le passage à
+  // `resolveActiveHref` (le plus long préfixe, et lui seul) corrige au passage un double
+  // surlignage mesuré : sur `/admin/moderation/properties`, « Modération avis » ET « Modération
+  // biens » s'allumaient ensemble pour un super-admin, les deux `href` étant des préfixes valides.
+  const activeHref = resolveActiveHref(
+    pathname,
+    items.map((item) => item.href),
+    ADMIN_EXACT_ROOTS,
+  );
   const initials = `${user.first_name[0] ?? ''}${user.last_name[0] ?? ''}`.toUpperCase();
 
   return (
@@ -187,23 +199,15 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         </Link>
         <p className="mt-1 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
       </div>
-      <nav className="flex-1 overflow-y-auto space-y-1 px-3">
-        {items.map((item) => {
-          // Exact match for the dashboard root, prefix match for nested routes
-          // so "Paramètres" stays highlighted on /admin/settings/tags etc.
-          const active =
-            item.href === '/admin' || item.href === '/admin/agency'
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(`${item.href}/`);
-          return (
-            <AdminItem
-              key={item.href}
-              {...item}
-              active={active}
-              onNavigate={onNavigate}
-            />
-          );
-        })}
+      <nav aria-label={t('sectionLabel')} className="flex-1 overflow-y-auto space-y-1 px-3">
+        {items.map((item) => (
+          <AdminItem
+            key={item.href}
+            {...item}
+            active={item.href === activeHref}
+            onNavigate={onNavigate}
+          />
+        ))}
       </nav>
       <div className="space-y-2 px-3 pb-4">
         <Link
