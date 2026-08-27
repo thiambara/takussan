@@ -58,13 +58,13 @@ export function MonthView({
     <div
       role="grid"
       aria-label={t('gridAria.month')}
-      className="grid grid-cols-7 overflow-hidden rounded-xl border border-stone-200 bg-white"
+      className="grid grid-cols-7 overflow-hidden rounded-xl border border-border bg-card"
     >
       {WEEKDAY_SHORT_KEYS.map((key) => (
         <div
           key={key}
           role="columnheader"
-          className="bg-stone-50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-stone-500"
+          className="bg-muted/50 px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
         >
           {t(`weekdaysShort.${key}`)}
         </div>
@@ -85,9 +85,9 @@ export function MonthView({
             data-testid={`calendar-day-${day.toISOString().slice(0, 10)}`}
             data-in-month={inMonth ? 'true' : 'false'}
             className={cn(
-              'min-h-24 border-t border-l border-stone-100 p-1.5 text-left align-top',
-              !inMonth && 'bg-stone-50/60 text-stone-400',
-              selected && 'bg-amber-50/70 ring-1 ring-inset ring-amber-300',
+              'min-h-24 border-t border-l border-border p-1.5 text-left align-top',
+              !inMonth && 'bg-muted/60 text-muted-foreground',
+              selected && 'bg-warning/10 ring-1 ring-inset ring-warning/30',
             )}
           >
             <div className="mb-1 flex items-center justify-between">
@@ -95,13 +95,13 @@ export function MonthView({
                 type="button"
                 onClick={() => onDaySelect?.(day)}
                 className={cn(
-                  'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium transition-colors hover:bg-stone-100',
+                  'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium transition-colors hover:bg-muted',
                   todayBadge
-                    ? 'bg-foreground text-white'
+                    ? 'bg-foreground text-primary-foreground'
                     : inMonth
-                      ? 'text-stone-700'
-                      : 'text-stone-400',
-                  selected && !todayBadge && 'bg-amber-200 text-amber-950 hover:bg-amber-200',
+                      ? 'text-muted-foreground'
+                      : 'text-muted-foreground',
+                  selected && !todayBadge && 'bg-warning/20 text-warning hover:bg-warning/20',
                 )}
                 aria-label={t('dayDetailAria', {
                   // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur : le lecteur
@@ -146,7 +146,7 @@ export function MonthView({
                   <button
                     type="button"
                     onClick={() => onDaySelect?.(day)}
-                    className="text-xs font-medium text-stone-600 underline-offset-2 hover:underline"
+                    className="text-xs font-medium text-muted-foreground underline-offset-2 hover:underline"
                     data-testid={`calendar-day-overflow-${day.toISOString().slice(0, 10)}`}
                   >
                     {t('moreEvents', { count: overflow })}

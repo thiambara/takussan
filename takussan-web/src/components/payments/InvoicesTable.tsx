@@ -61,7 +61,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
 
         return (
           <div className="space-y-3">
-            <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
               <table className="w-full text-left text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
@@ -73,7 +73,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
                     <th className="px-3 py-2" aria-label={tTable('actions')} />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-100">
+                <tbody className="divide-y divide-border">
                   {rows.map((invoice) => {
                     const status = invoice.status as InvoiceStatus;
                     return (

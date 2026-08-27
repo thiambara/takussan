@@ -79,7 +79,9 @@ describe('<DashboardMeKpis>', () => {
 
     expect(screen.getByText('Tâches ouvertes')).toBeInTheDocument();
     expect(screen.getByText('2 en retard')).toBeInTheDocument();
-    // Le ton `warning` pose le jeton `--chart-3` sur la racine de la tuile (TCK-374).
-    expect(container.querySelector('[class*="bg-chart-3"]')).not.toBeNull();
+    // Le ton `warning` pose un JETON D'ÉTAT sur la racine de la tuile : l'ambre brut est éteint
+    // depuis TCK-374, et depuis TCK-381 le jeton est `--warning` et non plus `--chart-3`
+    // emprunté aux séries de graphique (cf. le docblock de `charts/StatCard`).
+    expect(container.querySelector('[class*="bg-warning/"]')).not.toBeNull();
   });
 });

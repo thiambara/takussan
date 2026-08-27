@@ -4,6 +4,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { MaintenanceDetail } from '@/components/maintenance';
 import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
 
 interface PageProps {
   readonly params: Promise<{ id: string }>;
@@ -18,8 +19,7 @@ export default async function Page({ params }: PageProps) {
   if (!Number.isInteger(numericId) || numericId <= 0) {
     return (
       <div className="space-y-6">
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('notFound')}</h1>
-        <p className="text-sm text-muted-foreground">{t('invalidId')}</p>
+        <PageHeader title={t('notFound')} description={t('invalidId')} />
         <Link href="/app/maintenance" className={buttonVariants({ variant: 'default' })}>
           {t('backToList')}
         </Link>
@@ -30,10 +30,7 @@ export default async function Page({ params }: PageProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">{t('title', { id: numericId })}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
+        <PageHeader title={t('title', { id: numericId })} description={t('subtitle')} />
         <Link href="/app/maintenance" className={buttonVariants({ variant: 'outline' })}>
           {t('back')}
         </Link>

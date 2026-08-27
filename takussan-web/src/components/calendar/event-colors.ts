@@ -1,11 +1,18 @@
 /**
  * TCK-072 — Code couleur des événements calendrier.
  *
- * Réservations confirmées : bleu.
- * Visites confirmées : violet.
- * Baux / périodes longues : vert.
- * Statuts en attente (`pending` / `scheduled` / `pending_signature`) : gris — pour distinguer
+ * Réservations confirmées : `--info`.
+ * Visites confirmées : `--primary` (terracotta).
+ * Baux / périodes longues : `--success`.
+ * Statuts en attente (`pending` / `scheduled` / `pending_signature`) : `--muted` — pour distinguer
  * visuellement les demandes non traitées.
+ *
+ * ⚠ **TCK-381 — QUATRE jetons DISTINCTS, et c'est une contrainte, pas une préférence.** Ce module
+ * portait bleu / violet / vert / gris ; le barème de substitution ramenait bleu ET violet sur
+ * `--info`, ce qui rendait une réservation et une visite indiscernables **dans la grille du mois**,
+ * là où la bulle est trop étroite pour porter son libellé. La couleur y est le seul canal
+ * d'information — c'est le cas, rare, où collapser sur les tons sémantiques retire du sens plutôt
+ * que d'en aligner. La visite prend donc `--primary`.
  */
 
 import type { CalendarEvent } from '@/types/calendar';
@@ -28,29 +35,29 @@ export function paletteFor(event: Pick<CalendarEvent, 'type' | 'status'>): Event
     event.status === 'pending' || event.status === 'scheduled' || event.status === 'pending_signature';
   if (pending) {
     return {
-      pill: 'bg-stone-100 text-stone-700 border-stone-300',
-      accent: 'bg-stone-400',
+      pill: 'bg-muted text-muted-foreground border-border',
+      accent: 'bg-muted-foreground',
       labelKey: 'eventStatus.pending',
     };
   }
   if (event.type === 'booking') {
     return {
-      pill: 'bg-blue-100 text-blue-800 border-blue-300',
-      accent: 'bg-blue-500',
+      pill: 'bg-info/15 text-info border-info/30',
+      accent: 'bg-info',
       labelKey: 'eventStatus.confirmed',
     };
   }
   if (event.type === 'lease') {
     return {
-      pill: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-      accent: 'bg-emerald-500',
+      pill: 'bg-success/15 text-success border-success/30',
+      accent: 'bg-success',
       labelKey: 'eventStatus.lease',
     };
   }
   // visit
   return {
-    pill: 'bg-violet-100 text-violet-800 border-violet-300',
-    accent: 'bg-violet-500',
+    pill: 'bg-primary/12 text-primary border-primary/30',
+    accent: 'bg-primary',
     labelKey: 'eventStatus.confirmed',
   };
 }

@@ -190,7 +190,7 @@ export function SearchPreferencesForm({
                     'flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm ' +
                     (checked
                       ? 'border-primary bg-primary/10 text-foreground'
-                      : 'border-border bg-white text-muted-foreground')
+                      : 'border-border bg-card text-muted-foreground')
                   }
                 >
                   <input
@@ -249,7 +249,7 @@ export function SearchPreferencesForm({
       </div>
 
       <div
-        className="flex flex-col gap-2 rounded-md bg-white/60 px-3 py-3 md:flex-row md:items-center md:justify-between md:gap-4"
+        className="flex flex-col gap-2 rounded-md bg-card/60 px-3 py-3 md:flex-row md:items-center md:justify-between md:gap-4"
         data-testid="pref-alerts-block"
       >
         <div>
@@ -317,7 +317,7 @@ export function SearchPreferencesForm({
         <p
           role={feedback.ok ? 'status' : 'alert'}
           className={
-            'text-sm ' + (feedback.ok ? 'text-emerald-700' : 'text-red-600')
+            'text-sm ' + (feedback.ok ? 'text-success' : 'text-destructive')
           }
           data-testid="pref-feedback"
         >

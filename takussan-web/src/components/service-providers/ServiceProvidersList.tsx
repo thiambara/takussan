@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Mail, Ban } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { DataTable, PageHeader, type DataTableColumn } from '@/components/console';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
@@ -54,6 +55,7 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   const t = useTranslations('serviceProviders');
   const tInvite = useTranslations('serviceProviders.invite');
   const tList = useTranslations('serviceProviders.list');
+  const tCategories = useTranslations('serviceProviders.invite.trades');
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -111,24 +113,96 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
     },
   });
 
+  /**
+   * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
+   * (nom · métiers · zones · statut · actions), éprouvé par test.
+   */
+  const colonnes: readonly DataTableColumn<ServiceProviderProfileSummary>[] = [
+    {
+      id: 'name',
+      header: tList('columns.name'),
+      className: 'font-semibold text-foreground',
+      cell: (sp) => nomDe(sp) || '—',
+    },
+    {
+      id: 'trades',
+      header: tList('columns.trades'),
+      className: 'text-muted-foreground',
+      cell: (sp) => {
+        const trades = sp.specialties ?? sp.metadata?.trades ?? [];
+        return trades.length === 0 ? (
+          '—'
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {trades.map((trade) => (
+              <span key={trade} className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                {translateTrade(tCategories, trade)}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      id: 'zones',
+      header: tList('columns.zones'),
+      className: 'text-muted-foreground',
+      cell: (sp) => {
+        const zones = sp.service_areas ?? sp.metadata?.intervention_zones ?? [];
+        return zones.length === 0 ? '—' : zones.join(', ');
+      },
+    },
+    {
+      id: 'status',
+      header: tList('columns.status'),
+      cell: (sp) => (
+        <Badge variant={STATUS_VARIANT[sp.status]}>{tList(`status.${sp.status}`)}</Badge>
+      ),
+    },
+    {
+      id: 'actions',
+      header: tList('columns.actions'),
+      align: 'end',
+      cell: (sp) =>
+        sp.status === 'draft' ? (
+          <div className="inline-flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={resendMutation.isPending}
+              onClick={() => resendMutation.mutate(sp)}
+            >
+              <Mail className="size-3.5" aria-hidden="true" />
+              {tList('actions.resend')}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={revokeMutation.isPending}
+              onClick={() => revokeMutation.mutate(sp)}
+            >
+              <Ban className="size-3.5" aria-hidden="true" />
+              {tList('actions.revoke')}
+            </Button>
+          </div>
+        ) : null,
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            {t('page.title')}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('page.subtitle')}
-          </p>
-        </div>
-        {canInvite ? (
-          <Button onClick={() => setSheetOpen(true)} size="lg">
-            <Plus className="size-4" aria-hidden="true" />
-            {t('page.add')}
-          </Button>
-        ) : null}
-      </header>
+      <PageHeader
+        title={t('page.title')}
+        description={t('page.subtitle')}
+        actions={
+          canInvite ? (
+            <Button onClick={() => setSheetOpen(true)} size="lg">
+              <Plus className="size-4" aria-hidden="true" />
+              {t('page.add')}
+            </Button>
+          ) : null
+        }
+      />
 
       {providers.length === 0 ? (
         <div className="rounded-xl border border-dashed border-muted bg-card p-10 text-center">
@@ -146,33 +220,12 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
           ) : null}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl bg-card">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-3 font-semibold">{tList('columns.name')}</th>
-                <th className="px-4 py-3 font-semibold">{tList('columns.trades')}</th>
-                <th className="px-4 py-3 font-semibold">{tList('columns.zones')}</th>
-                <th className="px-4 py-3 font-semibold">{tList('columns.status')}</th>
-                <th className="px-4 py-3 text-right font-semibold">
-                  {tList('columns.actions')}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-muted">
-              {providers.map((sp) => (
-                <ProviderRow
-                  key={sp.id}
-                  provider={sp}
-                  resending={resendMutation.isPending}
-                  revoking={revokeMutation.isPending}
-                  onResend={() => resendMutation.mutate(sp)}
-                  onRevoke={() => revokeMutation.mutate(sp)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          caption={t('page.title')}
+          columns={colonnes}
+          rows={providers}
+          rowKey={(sp) => sp.id}
+        />
       )}
 
       {canInvite ? (
@@ -186,79 +239,12 @@ export function ServiceProvidersList({ agencyId, canInvite, initialData }: Props
   );
 }
 
-type RowProps = {
-  readonly provider: ServiceProviderProfileSummary;
-  readonly resending: boolean;
-  readonly revoking: boolean;
-  readonly onResend: () => void;
-  readonly onRevoke: () => void;
-};
-
-function ProviderRow({ provider, resending, revoking, onResend, onRevoke }: RowProps) {
-  const tList = useTranslations('serviceProviders.list');
-  const tCategories = useTranslations('serviceProviders.invite.trades');
-  const isDraft = provider.status === 'draft';
+/** Le nom composé, seule logique propre à l'ancienne `ProviderRow` qui survivait à la conversion. */
+function nomDe(provider: ServiceProviderProfileSummary): string {
   const meta = provider.metadata ?? null;
-  const name = provider.user
+  return provider.user
     ? `${provider.user.first_name ?? ''} ${provider.user.last_name ?? ''}`.trim()
     : `${meta?.first_name ?? ''} ${meta?.last_name ?? ''}`.trim();
-
-  const trades = provider.specialties ?? meta?.trades ?? [];
-  const zones = provider.service_areas ?? meta?.intervention_zones ?? [];
-
-  return (
-    <tr>
-      <td className="px-4 py-3 font-semibold text-foreground">{name || '—'}</td>
-      <td className="px-4 py-3 text-muted-foreground">
-        {trades.length === 0 ? (
-          '—'
-        ) : (
-          <div className="flex flex-wrap gap-1">
-            {trades.map((trade) => (
-              <span
-                key={trade}
-                className="rounded-full bg-muted px-2 py-0.5 text-xs"
-              >
-                {translateTrade(tCategories, trade)}
-              </span>
-            ))}
-          </div>
-        )}
-      </td>
-      <td className="px-4 py-3 text-muted-foreground">
-        {zones.length === 0 ? '—' : zones.join(', ')}
-      </td>
-      <td className="px-4 py-3">
-        <Badge variant={STATUS_VARIANT[provider.status]}>
-          {tList(`status.${provider.status}`)}
-        </Badge>
-      </td>
-      <td className="px-4 py-3 text-right">
-        {isDraft ? (
-          <div className="inline-flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={resending}
-              onClick={onResend}
-            >
-              <Mail className="size-3.5" aria-hidden="true" />
-              {tList('actions.resend')}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={revoking}
-              onClick={onRevoke}
-            >
-              <Ban className="size-3.5" aria-hidden="true" />
-              {tList('actions.revoke')}
-            </Button>
-          </div>
-        ) : null}
-      </td>
-    </tr>
-  );
 }
 
 /**

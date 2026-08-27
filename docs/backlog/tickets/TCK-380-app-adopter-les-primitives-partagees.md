@@ -125,4 +125,40 @@ requête ajoutée ou retirée.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit (2026-08-27, avant d'écrire une ligne)
+
+| Le ticket écrivait | Mesuré |
+|---|---|
+| clôture d'import de `/app` = **259 fichiers** | **403** (départ 51 fichiers de route, imports suivis) |
+| **31 pages** réécrivent l'en-tête à la main | **32 pages** + 2 composants (`OwnersList`, `ServiceProvidersList`), et 6 des pages en portent **deux** (branches d'erreur / retours anticipés) — 40 blocs au total |
+| **cinq** `<table>` nues dans la clôture | **neuf** : les cinq nommées + `LeaseSchedule`, `InvoicesTable`, `PaymentsHistoryTable`, `PayoutsTable` |
+| `CustomerList` « refait une pagination en ligne » | **faux** — c'est un `<p>` de comptage (`t('pagination', …)`), pas un contrôle : aucun bouton, aucun calcul de page |
+| `PropertyPagination` est un doublon à supprimer | **7 points d'appel**, et elle porte l'état d'URL **et** le sélecteur de densité — cf. AC2 ci-dessous |
+
+### AC2 — pourquoi `PropertyPagination.tsx` existe encore
+
+Sa suppression aurait retiré l'état d'URL et le sélecteur de densité à sept écrans, ce que la
+contrainte stricte « pas de taille de page changée » du même ticket interdit, et ce que le docblock
+de `console/Pagination` refuse explicitement depuis TCK-373 (*« Fusionner les trois produirait un
+composant à trois modes »*).
+
+Ce qui était **réellement** dupliqué a disparu : la paire de boutons et l'arithmétique `page ± 1`.
+`console/Pagination` gagne un emplacement `summary`, `PropertyPagination` devient un adaptateur
+d'URL de ~30 lignes. **La seconde moitié de l'AC2 est donc tenue, la première non, délibérément.**
+
+### Les deux élargissements de primitive
+
+- `DataTable` reçoit `stickyHeader` — pour NE PAS perdre le `sticky top-0 … backdrop-blur` que la
+  table des biens portait déjà.
+- `Pagination` reçoit `summary`, et sa sortie anticipée « une seule page ⇒ rien » ne vaut plus que
+  pour la forme nue : avec un résumé, l'appelant y a mis un compte et un sélecteur qu'escamoter
+  serait une régression.
+
+Les deux sont éprouvés dans `console/__tests__/primitives-elargies-tck-380.test.tsx`.
+
+### Restes assumés
+
+Quatre `<table>` nues de la clôture ne sont pas converties — `LeaseSchedule`, `InvoicesTable`,
+`PaymentsHistoryTable`, `PayoutsTable`. Elles ne figuraient pas dans le relevé du ticket, et les
+trois dernières portent chacune leur propre état de chargement : les convertir demande de trancher
+`DataState` vs l'existant, ce que le hors-périmètre de ce ticket réserve à un autre.

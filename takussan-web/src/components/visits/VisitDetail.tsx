@@ -146,9 +146,9 @@ export function VisitDetail({ id }: { id: number }) {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-stone-200 bg-white p-6 space-y-4">
+      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-lg font-semibold text-stone-900">
+          <h1 className="text-lg font-semibold text-foreground">
             {visit.property?.title ?? tVisits('fallbackTitle', { id: String(visit.id) })}
           </h1>
           <Badge variant="outline">{tVisits(STATUS_LABEL_KEY[status])}</Badge>
@@ -157,8 +157,8 @@ export function VisitDetail({ id }: { id: number }) {
 
         <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-stone-500">{t('slot')}</dt>
-            <dd className="font-medium text-stone-900">
+            <dt className="text-muted-foreground">{t('slot')}</dt>
+            <dd className="font-medium text-foreground">
               {formatDateTime(visit.scheduled_at, locale)}
               {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
                 <> · {visit.duration_minutes} {tVisits('minutesUnit')}</>
@@ -167,26 +167,26 @@ export function VisitDetail({ id }: { id: number }) {
           </div>
           {visit.notes && (
             <div className="sm:col-span-2">
-              <dt className="text-stone-500">{t('notes')}</dt>
-              <dd className="text-stone-900">{visit.notes}</dd>
+              <dt className="text-muted-foreground">{t('notes')}</dt>
+              <dd className="text-foreground">{visit.notes}</dd>
             </div>
           )}
           {visit.cancellation_reason && (
             <div className="sm:col-span-2">
-              <dt className="text-stone-500">{t('cancellationReason')}</dt>
-              <dd className="text-stone-900">{visit.cancellation_reason}</dd>
+              <dt className="text-muted-foreground">{t('cancellationReason')}</dt>
+              <dd className="text-foreground">{visit.cancellation_reason}</dd>
             </div>
           )}
           <div>
-            <dt className="text-stone-500">{t('requester.label')}</dt>
-            <dd className="text-stone-900">
+            <dt className="text-muted-foreground">{t('requester.label')}</dt>
+            <dd className="text-foreground">
               <RequesterSummary visit={visit} />
             </dd>
           </div>
           {visit.agent ? (
             <div>
-              <dt className="text-stone-500">{t('support')}</dt>
-              <dd className="font-medium text-stone-900">
+              <dt className="text-muted-foreground">{t('support')}</dt>
+              <dd className="font-medium text-foreground">
                 {formatUserName(visit.agent) || t('assignedAgent')}
               </dd>
             </div>
@@ -214,7 +214,7 @@ export function VisitDetail({ id }: { id: number }) {
               onClick={handleCancel}
               disabled={cancel.isPending}
               variant="ghost"
-              className="text-red-600 hover:text-red-700"
+              className="text-destructive hover:text-destructive"
             >
               {tCommon('actions.cancel')}
             </Button>
@@ -222,7 +222,7 @@ export function VisitDetail({ id }: { id: number }) {
           {visit.property?.slug && (
             <Link
               href={`/properties/${visit.property.slug}`}
-              className="inline-flex h-9 items-center justify-center rounded-md border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 hover:bg-stone-50"
+              className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-muted/50"
             >
               {t('actions.viewProperty')}
             </Link>
@@ -268,20 +268,20 @@ function RequesterSummary({ visit }: { visit: PropertyVisit }) {
         ) : null}
       </div>
       {requester.email || requester.phone ? (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-stone-500">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {requester.phone ? (
-            <a href={`tel:${requester.phone}`} className="hover:text-stone-900">
+            <a href={`tel:${requester.phone}`} className="hover:text-foreground">
               {requester.phone}
             </a>
           ) : null}
           {requester.email ? (
-            <a href={`mailto:${requester.email}`} className="hover:text-stone-900">
+            <a href={`mailto:${requester.email}`} className="hover:text-foreground">
               {requester.email}
             </a>
           ) : null}
         </div>
       ) : (
-        <p className="text-xs text-stone-500">{requester.fallback}</p>
+        <p className="text-xs text-muted-foreground">{requester.fallback}</p>
       )}
     </div>
   );
@@ -345,17 +345,17 @@ function FeedbackSection({
 
   if (locked) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-white p-6 text-sm text-stone-500">
+      <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
         {t('feedback.locked')}
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-6 space-y-4">
+    <div className="rounded-xl border border-border bg-card p-6 space-y-4">
       <div>
-        <h3 className="text-base font-semibold text-stone-900">{t('feedback.title')}</h3>
-        <p className="text-xs text-stone-500">
+        <h3 className="text-base font-semibold text-foreground">{t('feedback.title')}</h3>
+        <p className="text-xs text-muted-foreground">
           {t('feedback.window', { hours: String(FEEDBACK_WINDOW_HOURS) })}
         </p>
       </div>
@@ -374,7 +374,7 @@ function FeedbackSection({
         />
       )}
       {!canCustomer && !canAgent && (
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-muted-foreground">
           {t('feedback.restricted')}
         </p>
       )}

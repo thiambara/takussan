@@ -308,7 +308,7 @@ jobs:
         # de ne pas être compilée. Vérifiée par ablation (TCK-372, AC3).
         run: node scripts/check-app-tokens.mjs --report
 
-      - name: La console super-admin ne parle qu'un vocabulaire de couleur
+      - name: Les trois espaces ne parlent qu'un vocabulaire de couleur
         # Même défaut que la garde ci-dessus, sur un autre périmètre, et découvert APRÈS elle :
         # TCK-245 avait éteint la palette Tailwind brute de la console super-admin et était
         # `done`. Son AC1 greppait `src/app/(super-admin)/**` — les wrappers de page. L'écran
@@ -337,8 +337,21 @@ jobs:
         #   et REFUSE que le compte du reste monte. Ce reste vit dans des primitives partagées
         #   avec `/app` et le site public (`ui/`, `forms/`, `files/`) : les porter est TCK-384.
         #
-        # `--report` imprime les deux, et c'est délibéré : un vert qui ne dit pas ce qu'il a
-        # mesuré est le vert qui a rendu TCK-245 `done` pendant quatre mois.
+        # ⚠ DEUX ESPACES depuis TCK-381, et le nom du fichier n'en dit qu'un. Le tableau de bord
+        # `/app` a rejoint la garde : même mécanique, cliquet propre. Relevé du 2026-08-27 sur sa
+        # clôture d'import réelle — 403 fichiers, 119 porteurs, 1070 occurrences — quand le ticket
+        # annonçait 259 / 45 / 393. *Un relevé de ticket est une hypothèse, pas une mesure*, et
+        # celui-ci se trompait d'un facteur 2,7, dans le sens qui rassure.
+        #
+        # TCK-381 a aussi élargi la garde par MUTATION plutôt que par prudence : six préfixes de
+        # couleur réels — les côtés de bordure, les axes de séparateur, `ring-offset` — sortaient
+        # au vert, et trois manœuvres de désarmement de la configuration elle-même (retirer un
+        # répertoire, retirer son témoin, retirer un espace) le faisaient aussi. Les trois crans
+        # ajoutés — témoins, plancher de fichiers gardés, forme de la configuration — n'empêchent
+        # pas la manœuvre à trois gestes : ils l'obligent à être VISIBLE dans le diff (trou T6).
+        #
+        # `--report` imprime tout, et c'est délibéré : un vert qui ne dit pas ce qu'il a mesuré
+        # est le vert qui a rendu TCK-245 `done` pendant quatre mois.
         run: node scripts/check-super-admin-tokens.mjs --report
 
       - name: Les consoles ne figent aucune locale

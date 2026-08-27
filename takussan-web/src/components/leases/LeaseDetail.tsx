@@ -145,13 +145,13 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/app/leases" className="text-xs text-stone-500 hover:text-stone-700">
+          <Link href="/app/leases" className="text-xs text-muted-foreground hover:text-muted-foreground">
             ← {t('backToList')}
           </Link>
           <h1 className="mt-1 text-2xl font-bold text-foreground">
             {lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
           </h1>
-          <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <Badge>{tStatus(lease.status)}</Badge>
             {lease.type && (
               <span>{KNOWN_LEASE_TYPES.has(lease.type) ? tTypes(lease.type) : lease.type}</span>
@@ -206,7 +206,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           {!isAgentSurface && (
             <Link
               href={`/api/leases/${leaseId}/contract/pdf`}
-              className="inline-flex h-9 items-center justify-center rounded-md border border-stone-200 bg-white px-4 text-sm font-medium text-stone-900 hover:bg-stone-50"
+              className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-muted/50"
             >
               {t('downloadContract')}
             </Link>
@@ -241,31 +241,31 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       <DepositRefundBanner lease={lease} canRefund={canRefundDeposit} />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">
-          <dt className="text-xs uppercase tracking-wide text-stone-500">{t('duration')}</dt>
-          <dd className="mt-1 text-stone-900">
+        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+          <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('duration')}</dt>
+          <dd className="mt-1 text-foreground">
             {formatDate(lease.start_date, locale)}
             {lease.end_date
               ? ` → ${formatDate(lease.end_date, locale)}`
               : ` → ${t('openEnded')}`}
           </dd>
         </dl>
-        <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">
-          <dt className="text-xs uppercase tracking-wide text-stone-500">
+        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+          <dt className="text-xs uppercase tracking-wide text-muted-foreground">
             {lease.type === 'sale' ? t('price') : t('rent')}
           </dt>
-          <dd className="mt-1 text-lg font-semibold text-stone-900">
+          <dd className="mt-1 text-lg font-semibold text-foreground">
             {typeof rentOrPrice === 'number'
               ? formatCurrency(rentOrPrice, locale)
               : '—'}
             {lease.type !== 'sale' && (
-              <span className="ml-1 text-xs text-stone-500">{tLease('perMonth')}</span>
+              <span className="ml-1 text-xs text-muted-foreground">{tLease('perMonth')}</span>
             )}
           </dd>
         </dl>
-        <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">
-          <dt className="text-xs uppercase tracking-wide text-stone-500">{t('deposit')}</dt>
-          <dd className="mt-1 text-stone-900">
+        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+          <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('deposit')}</dt>
+          <dd className="mt-1 text-foreground">
             {typeof lease.deposit_amount === 'number'
               ? formatCurrency(lease.deposit_amount, locale)
               : '—'}
@@ -276,18 +276,18 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       <section>
         <h2 className="mb-3 text-sm font-semibold text-foreground">{t('schedule')}</h2>
         {lease.status === 'draft' ? (
-          <p className="mb-3 rounded-lg border border-dashed border-stone-200 bg-white p-3 text-sm text-stone-500">
+          <p className="mb-3 rounded-lg border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
             {t('activateBeforeSchedule')}
           </p>
         ) : null}
         <LeaseSchedule leaseId={leaseId} agencyId={lease.agency_id ?? null} />
       </section>
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">{t('deposit')}</h2>
-        <p className="mt-2 text-sm text-stone-600">
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold text-foreground">{t('deposit')}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
           {t('depositInitialAmount')}{' '}
-          <span className="font-medium text-stone-900">
+          <span className="font-medium text-foreground">
             {typeof lease.deposit_amount === 'number'
               ? formatCurrency(lease.deposit_amount, locale)
               : '—'}
@@ -308,24 +308,24 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       />
 
       {(lease.terms || lease.special_conditions) && (
-        <section className="rounded-xl border border-stone-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-stone-900">{t('clauses')}</h2>
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold text-foreground">{t('clauses')}</h2>
           {lease.terms && (
             <div className="mt-3">
-              <h3 className="text-xs uppercase tracking-wide text-stone-500">
+              <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
                 {tLease('terms')}
               </h3>
-              <p className="mt-1 whitespace-pre-line text-sm text-stone-700">
+              <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
                 {lease.terms}
               </p>
             </div>
           )}
           {lease.special_conditions && (
             <div className="mt-4">
-              <h3 className="text-xs uppercase tracking-wide text-stone-500">
+              <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
                 {tLease('specialConditions')}
               </h3>
-              <p className="mt-1 whitespace-pre-line text-sm text-stone-700">
+              <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
                 {lease.special_conditions}
               </p>
             </div>

@@ -90,7 +90,22 @@ Interdits :
   Jamais `bg-red-50` / `text-red-700` : la palette Tailwind brute n'est pas la palette du produit.
   Il n'y a **pas** de `<Alert>` shadcn dans ce dépôt — c'est un composant Radix, et il n'y a aucune
   dépendance Radix ici.
-- **Loading** : skeleton loaders avec `bg-stone-200` ou `bg-muted`, jamais de spinner centré sur page entière sauf première charge.
+- **Loading** : squelettes par `<Skeleton>` (`@/components/ui/skeleton`), qui pose `bg-muted` —
+  jamais de spinner centré sur page entière sauf première charge.
+
+  > ⚠️ **Cette ligne autorisait la brèche qu'elle prétendait fermer.** Elle offrait le fond de
+  > squelette au choix entre la pierre 200 de l'échelle Tailwind **ou** le jeton `--muted`. Le
+  > « ou » est exactement ce que l'en-tête de `scripts/check-app-tokens.mjs` nomme depuis TCK-372 —
+  > *une AC alternative ne nomme pas un objectif, elle nomme la sortie de secours et l'autorise* —
+  > et c'est le document qui pose la règle qui la portait.
+  >
+  > Corrigée par TCK-381 **dans le sens de la règle**, jamais dans celui de l'exception : il n'y a
+  > plus d'alternative, et `scripts/check-super-admin-tokens.mjs` refuse désormais mécaniquement
+  > toute échelle brute dans la clôture d'import de `/app` comme dans celle des deux consoles.
+  >
+  > La faute n'est pas recopiée ici en classe : un document qui montre la classe fautive est
+  > exactement la documentation périmée qui la fait repousser — même raison que le refus de
+  > dépouiller les commentaires dans les gardes de jetons.
 
 ### Bibliothèque de composants — shadcn/ui
 

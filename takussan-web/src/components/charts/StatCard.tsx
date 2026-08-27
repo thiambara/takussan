@@ -24,14 +24,29 @@ type Props = {
  *      `.dark`, avec `text-foreground` à `#fcf9f3` par-dessus : 1,08:1. Un jeton avec canal alpha
  *      (`/10`) se pose sur `--card` et suit le thème par construction.
  *
- * `--chart-3` porte l'ambre de la charte. Il est écarté des SÉRIES pour son contraste en clair
- * (cf. `./palette`), mais ici il n'est qu'un FOND derrière `text-foreground` : à 15 % sur blanc il
- * rend 16,3:1 avec l'encre, et le seuil de 3:1 des objets graphiques ne s'y applique pas.
+ * ⚠ **Les trois tons ont changé de jeton à la fusion de TCK-381, et le point 1 ci-dessus a
+ * gouverné la forme retenue.** TCK-374 avait traduit `success` par `bg-accent/10` et `warning`
+ * par `bg-chart-3/15` — le premier est l'accent de MARQUE, le second un jeton de SÉRIE de
+ * graphique : deux emprunts, faute d'un jeton qui dise l'état. TCK-381 a créé `--success`,
+ * `--info` et repris `--warning` de TCK-358 exactement pour ça (cf. leur docblock dans
+ * `globals.css`, qui porte les contrastes mesurés dans les deux thèmes) ; les tons les prennent
+ * désormais.
+ *
+ * Ce que la fusion N'A PAS repris de TCK-381 : l'encre assortie (`text-success`, `text-warning`,
+ * `text-destructive`) qu'il posait sur le conteneur. C'est la déclaration morte du point 1, sous
+ * un autre nom — les quatre nœuds de texte de la tuile fixent tous leur propre couleur, aucun
+ * n'hérite de celle du conteneur. *Une mesure ne cesse pas de valoir parce que la valeur a
+ * changé.*
+ *
+ * `--chart-3` n'a donc plus AUCUNE occurrence hors des séries, où il reste écarté pour son
+ * 2,57:1 en clair (cf. `./palette`, TCK-404). Son exemption dans `SURFACES` de
+ * `scripts/check-chart-contrast.mjs` est tombée avec lui — cette garde-là fait échouer une
+ * exemption qui ne correspond plus à rien.
  */
 const accents: Record<NonNullable<Props['accent']>, string> = {
   default: 'bg-card',
-  success: 'bg-accent/10',
-  warning: 'bg-chart-3/15',
+  success: 'bg-success/10',
+  warning: 'bg-warning/10',
   danger: 'bg-destructive/10',
 };
 

@@ -173,7 +173,7 @@ export function MaintenanceList() {
             <div className="space-y-6">
               {urgentRequests.length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-red-600 dark:text-red-400">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-destructive dark:text-destructive">
                     {t('urgent_heading')}
                   </h2>
                   {renderList(urgentRequests)}

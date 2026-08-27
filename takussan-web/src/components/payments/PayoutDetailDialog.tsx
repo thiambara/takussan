@@ -70,7 +70,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
         {isLoading ? (
           <div className="h-24 animate-pulse rounded-xl bg-card" />
         ) : isError ? (
-          <p className="rounded-xl bg-card p-4 text-sm text-red-600">
+          <p className="rounded-xl bg-card p-4 text-sm text-destructive">
             {messageErreur(error, t('notFound'))}
           </p>
         ) : payout ? (
@@ -160,7 +160,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
             </dl>
 
             {(status === 'pending' || status === 'scheduled' || status === 'processing') ? (
-              <div className="space-y-3 rounded-xl border border-stone-200 bg-white p-3">
+              <div className="space-y-3 rounded-xl border border-border bg-card p-3">
                 <div>
                   <Label htmlFor="transaction-id" className="mb-1.5 block text-xs font-medium">
                     {t('transactionId')}

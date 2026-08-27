@@ -89,8 +89,8 @@ export function CompareToggleButton({
         'transition-all duration-200 cursor-pointer focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         isSelected
-          ? 'bg-white text-primary shadow-md'
-          : 'bg-white/20 text-white hover:bg-white hover:text-primary',
+          ? 'bg-card text-primary shadow-md'
+          : 'bg-card/20 text-primary-foreground hover:bg-card hover:text-primary',
         className,
       )}
     >

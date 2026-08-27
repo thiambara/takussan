@@ -65,24 +65,35 @@ describe('profileShortLabel', () => {
   });
 });
 
+/**
+ * ⚠ TCK-381 — ces trois cas cherchaient `bg-<famille>-<échelle>`, c'est-à-dire EXACTEMENT le
+ * vocabulaire que ce ticket éteint : ils rougissaient sur le portage sur jetons, pour du code
+ * juste. La forme attendue est désormais un jeton de SÉRIE (`--chart-1..5`), et l'exigence n'a pas
+ * été affaiblie au passage — elle a été resserrée : le motif pinçait n'importe quelle famille
+ * Tailwind, il pince maintenant les cinq jetons du DS et rien d'autre.
+ */
+const CLASSE_DE_SERIE = /\bbg-chart-[1-5]\/\d{1,3}\b/;
+
 describe('<ProfileBadge>', () => {
   // AC4 — la pastille doit porter une classe de couleur pour CHAQUE type.
   it.each(PROFILE_TYPES)('rend une classe de couleur pour %s (variante dot)', (type) => {
     const { container } = render(withIntl(<ProfileBadge profile={makeProfile(type)} variant="dot" />));
     const dot = container.querySelector('span');
     expect(dot).not.toBeNull();
-    expect(dot!.className).toMatch(/\bbg-[a-z]+-\d{2,3}\b/);
+    expect(dot!.className).toMatch(CLASSE_DE_SERIE);
   });
 
-  // ⚠ La garde ci-dessus matche AUSSI le repli `bg-stone-100` : elle ne distingue donc pas une
-  // couleur DÉCLARÉE d'un repli. Mesuré par ablation le 2026-08-20 (vérification adverse) —
-  // retirer la seule entrée `agency_admin` de `TYPE_COLOR` laissait les 27 cas VERTS, `tsc`
-  // étant le seul à rougir. Les deux cas suivants ferment l'écart côté test, pour que la preuve
-  // d'AC4 ne repose pas uniquement sur la compilation.
+  // ⚠ La garde ci-dessus matche AUSSI le REPLI : elle ne distingue donc pas une couleur DÉCLARÉE
+  // d'un repli. Mesuré par ablation le 2026-08-20 (vérification adverse) — retirer la seule entrée
+  // `agency_admin` de `TYPE_COLOR` laissait les 27 cas VERTS, `tsc` étant le seul à rougir. Le cas
+  // suivant ferme l'écart côté test, pour que la preuve d'AC4 ne repose pas sur la compilation.
+  //
+  // TCK-381 : le repli n'est plus une classe d'échelle brute, il est `bg-muted` — et comme il ne
+  // matche PLUS `CLASSE_DE_SERIE`, l'ablation est désormais attrapée deux fois plutôt qu'une.
   it('n’utilise le repli de couleur pour AUCUN type déclaré', () => {
     for (const type of PROFILE_TYPES) {
       const { container } = render(withIntl(<ProfileBadge profile={makeProfile(type)} variant="dot" />));
-      expect(container.querySelector('span')!.className, `type ${type}`).not.toContain('bg-stone-100');
+      expect(container.querySelector('span')!.className, `type ${type}`).not.toContain('bg-muted');
     }
   });
 
@@ -97,6 +108,6 @@ describe('<ProfileBadge>', () => {
   it.each(PROFILE_TYPES)('rend le libellé et une classe de couleur pour %s (variante pill)', (type) => {
     render(withIntl(<ProfileBadge profile={makeProfile(type)} />));
     const pill = screen.getByText(profileTypeLabel(type, t));
-    expect(pill.className).toMatch(/\bbg-[a-z]+-\d{2,3}\b/);
+    expect(pill.className).toMatch(CLASSE_DE_SERIE);
   });
 });

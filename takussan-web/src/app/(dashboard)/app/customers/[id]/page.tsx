@@ -35,6 +35,7 @@ import {
   pipelineStageValues,
 } from '@/lib/schemas/customer';
 import type { CustomerDocument } from '@/types/customer';
+import { PageHeader } from '@/components/console';
 
 /**
  * TCK-042 — fiche client avec onglets (aperçu / notes / documents /
@@ -116,27 +117,25 @@ export default async function Page({ params }: { params: Params }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {tPage('eyebrow', { id: customer.id })}
-          </p>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            {customer.first_name} {customer.last_name}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+      <PageHeader
+        eyebrow={tPage('eyebrow', { id: customer.id })}
+        title={`${customer.first_name} ${customer.last_name}`}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
             {customer.email ? <span>{customer.email}</span> : null}
             {customer.phone ? <span>{customer.phone}</span> : null}
             {pipelineLabel ? <Badge variant="outline">{pipelineLabel}</Badge> : null}
             <Badge variant="outline">{statusLabel}</Badge>
-          </div>
-        </div>
-        <AddDocumentButton
-          documentableType="customer"
-          documentableId={customer.id}
-          displayLabel={`${customer.first_name} ${customer.last_name}`}
-        />
-      </header>
+          </span>
+        }
+        actions={
+          <AddDocumentButton
+            documentableType="customer"
+            documentableId={customer.id}
+            displayLabel={`${customer.first_name} ${customer.last_name}`}
+          />
+        }
+      />
 
       <CustomerTagPickerSection
         customerId={customer.id}

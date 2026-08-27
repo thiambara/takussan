@@ -115,8 +115,8 @@ export function FavoriteButton({
       data-favorite={isFavorite ? 'true' : 'false'}
       className={`${SIZE_CLASSES[size]} rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-200 cursor-pointer disabled:cursor-wait ${
         isFavorite
-          ? 'bg-white text-red-500 shadow-md'
-          : 'bg-white/20 text-white hover:bg-white hover:text-primary'
+          ? 'bg-card text-destructive shadow-md'
+          : 'bg-card/20 text-primary-foreground hover:bg-card hover:text-primary'
       } ${className}`}
     >
       <Heart

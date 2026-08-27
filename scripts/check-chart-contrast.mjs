@@ -85,7 +85,9 @@
  *     séries, sombre (--card #2a2018)  chart-1 4,83  chart-2 4,48  chart-4 7,01  chart-5 15,16
  *     composé bg-chart-1/80            3,65 clair · 3,59 sombre   (la barre de FunnelChart)
  *     28 mesures sous seuil (14 formes × 2 thèmes), minimum 3,59:1, marge 1,20× le seuil
- *     + 2 surfaces déclarées et 1 jeton inline déclaré, mesurés et reportés hors seuil
+ *     + 1 surface déclarée et 1 jeton inline déclaré, mesurés et reportés hors seuil
+ *       (elles étaient 2 : `bg-chart-3/15` est tombé avec la tuile `StatCard`, passée aux
+ *       jetons d'état à la fusion de TCK-380/381 — cf. le commentaire dans `SURFACES`)
  *
  * Usage :
  *   node scripts/check-chart-contrast.mjs            # garde, sort en 1 sous le seuil
@@ -153,15 +155,20 @@ const SURFACES = [
       + '`stroke-chart-1` à pleine opacité le fait, et il est mesuré. Un aplat à 10 % qui '
       + 'atteindrait 3:1 masquerait la grille et les points.',
   },
-  {
-    classe: 'bg-chart-3/15',
-    mesure: '1,13:1 clair · 1,38:1 sombre',
-    raison:
-      "fond de la tuile `StatCard` ton `warning`, derrière `text-foreground`. Le seuil des objets "
-      + 'graphiques ne s’y applique pas : la lisibilité se juge contre l’ENCRE posée dessus '
-      + '(16,3:1 sur blanc, mesuré le 2026-08-27), pas contre la carte. C’est aussi la seule '
-      + 'occurrence de `--chart-3`, écarté des séries pour son 2,57:1 en clair (TCK-404).',
-  },
+  /*
+   * ⚠ **`bg-chart-3/15` a été RETIRÉ d'ici à la fusion de TCK-380/381 (2026-08-27), et c'est
+   * cette garde qui l'a exigé** — elle échoue sur une exemption qui ne correspond plus à rien.
+   *
+   * C'était le fond de la tuile `StatCard` ton `warning`. TCK-374 lui avait donné `--chart-3`
+   * faute de mieux : un jeton de SÉRIE DE GRAPHIQUE employé comme jeton d'ÉTAT. TCK-381 a créé
+   * `--success` / `--info` et repris `--warning` de TCK-358 précisément pour que les états
+   * cessent d'emprunter — `StatCard` porte désormais `bg-warning/10`, hors de la portée de
+   * cette garde, qui ne lit que les `--chart-*`.
+   *
+   * `--chart-3` n'a donc PLUS AUCUNE occurrence dans le périmètre. Il reste écarté des séries
+   * pour son 2,57:1 en clair, et l'auto-épreuve continue d'ancrer cette valeur : c'est ce qui
+   * empêche TCK-404 d'être oublié maintenant que plus rien ne l'emploie.
+   */
 ];
 
 /**

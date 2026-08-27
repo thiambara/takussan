@@ -21,26 +21,26 @@ const PRIORITIES: readonly PriorityOption[] = [
   {
     value: 'urgent',
     icon: AlertTriangle,
-    colorClass: 'text-red-600 dark:text-red-400',
-    activeClass: 'border-red-500 bg-red-50 dark:bg-red-900/20 ring-1 ring-red-500',
+    colorClass: 'text-destructive dark:text-destructive',
+    activeClass: 'border-destructive/30 bg-destructive/10 dark:bg-destructive/20 ring-1 ring-destructive/30',
   },
   {
     value: 'high',
     icon: AlertCircle,
-    colorClass: 'text-orange-600 dark:text-orange-400',
-    activeClass: 'border-orange-500 bg-orange-50 dark:bg-orange-900/20 ring-1 ring-orange-500',
+    colorClass: 'text-warning dark:text-warning',
+    activeClass: 'border-warning/30 bg-warning/10 dark:bg-warning/20 ring-1 ring-warning/30',
   },
   {
     value: 'normal',
     icon: Circle,
-    colorClass: 'text-slate-600 dark:text-slate-400',
-    activeClass: 'border-slate-500 bg-slate-50 dark:bg-slate-800 ring-1 ring-slate-500',
+    colorClass: 'text-muted-foreground dark:text-muted-foreground',
+    activeClass: 'border-border bg-muted/50 dark:bg-foreground ring-1 ring-border',
   },
   {
     value: 'low',
     icon: ArrowDown,
-    colorClass: 'text-blue-600 dark:text-blue-400',
-    activeClass: 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500',
+    colorClass: 'text-info dark:text-info',
+    activeClass: 'border-info/30 bg-info/10 dark:bg-info/20 ring-1 ring-info/30',
   },
 ] as const;
 

@@ -157,7 +157,7 @@ export function PropertyHeaderActions({ property }: Props) {
         </span>
       ) : null}
       {success ? (
-        <span role="status" className="text-xs text-emerald-700">
+        <span role="status" className="text-xs text-success">
           {success}
         </span>
       ) : null}

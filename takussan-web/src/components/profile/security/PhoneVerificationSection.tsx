@@ -72,7 +72,7 @@ export function PhoneVerificationSection({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-6">
+    <div className="rounded-2xl border border-border bg-card p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-foreground">
@@ -86,7 +86,7 @@ export function PhoneVerificationSection({
           className={
             'rounded-full px-2 py-1 text-xs font-semibold ' +
             (verified
-              ? 'bg-emerald-100 text-emerald-800'
+              ? 'bg-success/15 text-success'
               : 'bg-card text-muted-foreground')
           }
         >
@@ -95,12 +95,12 @@ export function PhoneVerificationSection({
       </div>
 
       {error ? (
-        <p role="alert" className="mt-3 text-sm text-red-600">
+        <p role="alert" className="mt-3 text-sm text-destructive">
           {error}
         </p>
       ) : null}
       {feedback ? (
-        <p role="status" className="mt-3 text-sm text-emerald-700">
+        <p role="status" className="mt-3 text-sm text-success">
           {feedback}
         </p>
       ) : null}

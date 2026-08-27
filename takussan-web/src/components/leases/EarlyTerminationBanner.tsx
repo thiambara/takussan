@@ -78,11 +78,11 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
   return (
     <section
       data-testid="early-termination-banner"
-      className="rounded-lg border border-amber-200 bg-amber-50/70 p-4 text-amber-900"
+      className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-warning"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+          <p className="text-xs font-semibold uppercase tracking-wide text-warning">
             {t('banner_eyebrow')}
           </p>
           <h3 className="text-base font-semibold">
@@ -90,7 +90,7 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
               ? t('banner_countdown', { days: remaining })
               : t('banner_due_today')}
           </h3>
-          <p className="text-sm text-amber-900/80">
+          <p className="text-sm text-warning/80">
             {t('banner_effective', { date: lease.early_termination_effective_date })}
           </p>
         </div>
@@ -136,8 +136,8 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
 
       <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         {typeof lease.early_termination_penalty_amount === 'number' && (
-          <div className="rounded-md bg-white/60 p-3">
-            <dt className="text-xs uppercase tracking-wide text-amber-700">
+          <div className="rounded-md bg-card/60 p-3">
+            <dt className="text-xs uppercase tracking-wide text-warning">
               {t('banner_penalty_label')}
             </dt>
             <dd className="mt-0.5 font-semibold">
@@ -147,13 +147,13 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
         )}
 
         {lease.early_termination_invoice_id && (
-          <div className="rounded-md bg-white/60 p-3">
-            <dt className="text-xs uppercase tracking-wide text-amber-700">
+          <div className="rounded-md bg-card/60 p-3">
+            <dt className="text-xs uppercase tracking-wide text-warning">
               {t('banner_invoice_label')}
             </dt>
             <dd className="mt-0.5">
               <a
-                className="font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-700"
+                className="font-semibold text-warning underline underline-offset-2 hover:text-warning"
                 href={`/app/payments?invoice=${lease.early_termination_invoice_id}`}
               >
                 #{lease.early_termination_invoice_id}
@@ -163,8 +163,8 @@ export function EarlyTerminationBanner({ lease, canCancel = true }: EarlyTermina
         )}
 
         {lease.early_termination_reason && (
-          <div className="rounded-md bg-white/60 p-3">
-            <dt className="text-xs uppercase tracking-wide text-amber-700">
+          <div className="rounded-md bg-card/60 p-3">
+            <dt className="text-xs uppercase tracking-wide text-warning">
               {t('banner_reason_label')}
             </dt>
             <dd className="mt-0.5 line-clamp-3">{lease.early_termination_reason}</dd>

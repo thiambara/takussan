@@ -206,7 +206,7 @@ function ChecklistRow({
       <span
         className={cn(
           'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border',
-          done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-border text-muted-foreground',
+          done ? 'border-success/30 bg-success text-primary-foreground' : 'border-border text-muted-foreground',
         )}
         aria-hidden="true"
       >

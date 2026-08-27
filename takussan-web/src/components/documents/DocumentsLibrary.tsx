@@ -309,7 +309,7 @@ function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
             {examples.map((example) => (
               <span
                 key={example.label}
-                className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs text-foreground"
+                className="rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground"
               >
                 {example.label} · {example.type}
               </span>
@@ -325,7 +325,7 @@ function OwnerDocumentsPrimer({ onUpload }: { readonly onUpload: () => void }) {
             {targets.map((target) => {
               const Icon = target.icon;
               return (
-                <div key={target.title} className="flex items-start gap-2 rounded-lg border border-stone-200 bg-white p-2">
+                <div key={target.title} className="flex items-start gap-2 rounded-lg border border-border bg-card p-2">
                   <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
                   <div>
                     <p className="font-medium">{target.title}</p>
@@ -356,7 +356,7 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
   const href = alias ? resolveDocumentableHref(alias, doc.documentable_id) : null;
 
   return (
-    <li className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-3 text-sm">
+    <li className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 text-sm">
       <FileText className="size-5 shrink-0 text-primary" aria-hidden="true" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">

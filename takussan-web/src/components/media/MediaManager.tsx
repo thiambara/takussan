@@ -357,7 +357,7 @@ export function MediaManager({
                   <div
                     className={cn(
                       'h-full bg-primary transition-[width]',
-                      p.status === 'done' && 'bg-green-500',
+                      p.status === 'done' && 'bg-success',
                     )}
                     style={{ width: `${p.progress}%` }}
                     data-testid="progress-bar"
@@ -480,7 +480,7 @@ function MediaTile({
           {t('cover')}
         </span>
       ) : null}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-foreground/70 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
         {!isCover ? (
           <Button
             type="button"

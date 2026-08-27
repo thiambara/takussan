@@ -150,7 +150,7 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
       {success ? (
         <span
           role="status"
-          className="mr-2 hidden truncate text-xs text-emerald-700 md:inline"
+          className="mr-2 hidden truncate text-xs text-success md:inline"
         >
           {success}
         </span>

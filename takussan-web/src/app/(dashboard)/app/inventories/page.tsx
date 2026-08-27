@@ -8,6 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
 import { InventoryList } from '@/components/inventory';
 import { getTranslations } from 'next-intl/server';
 import { isAdmin, isAgent } from '@/lib/roles';
+import { PageHeader } from '@/components/console';
 
 export default async function Page() {
   const t = await getTranslations('dashboard.pages.inventories');
@@ -20,10 +21,7 @@ export default async function Page() {
   const canCreate = isAgent(user.roles) || isAdmin(user.roles);
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <PageHeader title={t('title')} description={t('subtitle')} />
       <InventoryList canCreate={canCreate} />
     </div>
   );

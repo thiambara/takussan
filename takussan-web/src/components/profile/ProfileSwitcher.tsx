@@ -77,7 +77,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
     return (
       <span
         data-testid="profile-switcher-loading"
-        className={cn('h-8 w-32 animate-pulse rounded-md bg-white/10', className)}
+        className={cn('h-8 w-32 animate-pulse rounded-md bg-card/10', className)}
         aria-hidden="true"
       />
     );
@@ -88,7 +88,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
       return (
         <span
           data-testid="profile-switcher-admin-label"
-          className={cn('hidden items-center gap-2 rounded-md px-2 py-1 text-sm text-white/80 sm:inline-flex', className)}
+          className={cn('hidden items-center gap-2 rounded-md px-2 py-1 text-sm text-primary-foreground/80 sm:inline-flex', className)}
         >
           {t('adminLabel')}
         </span>
@@ -103,7 +103,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
       <span
         data-testid="profile-switcher-static"
         className={cn(
-          'hidden items-center gap-2 rounded-md px-2 py-1 text-sm text-white/90 sm:inline-flex',
+          'hidden items-center gap-2 rounded-md px-2 py-1 text-sm text-primary-foreground/90 sm:inline-flex',
           className,
         )}
       >
@@ -120,7 +120,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
         aria-label={t('changeAria')}
         disabled={switchMutation.isPending}
         className={cn(
-          'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors text-white hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60',
+          'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors text-primary-foreground hover:bg-card/10 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60',
           className,
         )}
       >
@@ -161,7 +161,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
                         <span className="text-xs text-muted-foreground">{profile.agency.slug}</span>
                       ) : null}
                     </span>
-                    {isActive ? <Check className="size-4 text-emerald-600" aria-hidden="true" /> : null}
+                    {isActive ? <Check className="size-4 text-success" aria-hidden="true" /> : null}
                   </DropdownMenuItem>
                 );
               })}

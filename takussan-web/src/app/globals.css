@@ -58,6 +58,37 @@
   --warning: #8a5410;
   --warning-foreground: #fcf9f3;
 
+  /*
+   * === Succès et information (TCK-381) ===
+   *
+   * `--warning` seul ne suffisait pas à `/app`. Relevé du 2026-08-27 sur la clôture d'import
+   * des 46 pages : **89 occurrences d'`emerald`** et **29 de `blue`**, portant chacune du SENS
+   * — un « Enregistré », un statut « terminé », une pastille « en cours ». `--accent` (sage) et
+   * `--secondary` existaient déjà et `StatusBadge` s'en servait, mais aucun ne peut s'écrire
+   * `text-success` : un accent de marque et une confirmation ne sont pas la même chose, et les
+   * confondre retire au produit le moyen de dire « ça a marché ».
+   *
+   * Mêmes principes que `--warning` : une teinte de la famille Lin, pas la couleur Tailwind
+   * (`emerald-600 #059669` rend 3,29:1 sur Lin — sous AA), et le contraste est MESURÉ, pas
+   * supposé (WCAG 2.1, `scripts/`-hors-dépôt, 2026-08-27) :
+   *
+   *   #3f6b45 sur --background #fcf9f3 ......... 5,88:1   (AA texte normal)
+   *   #3f6b45 sur --card #ffffff ............... 6,18:1
+   *   #3f6b45 sur success/10 aplati sur Lin .... 5,13:1   ← le cas réel de la pastille
+   *   --success-foreground sur #3f6b45 ......... 5,88:1   ← le cas du remplissage plein
+   *
+   *   #3f5a6b sur --background #fcf9f3 ......... 6,92:1
+   *   #3f5a6b sur --card #ffffff ............... 7,28:1
+   *   #3f5a6b sur info/10 aplati sur Lin ....... 5,98:1
+   *
+   * ⚠ Il n'y a PAS de jeton `--danger` : `--destructive` existe depuis l'origine et le double
+   * emploi est exactement ce que ce ticket éteint ailleurs.
+   */
+  --success: #3f6b45;
+  --success-foreground: #fcf9f3;
+  --info: #3f5a6b;
+  --info-foreground: #fcf9f3;
+
   /* === Bordures & focus === */
   --border: #ebe5d5;
   --input: #ebe5d5;
@@ -144,6 +175,10 @@
   --color-destructive: var(--destructive);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -224,8 +259,17 @@
   --accent: #7d8d6e;
   --accent-foreground: #1f1812;
   --destructive: oklch(0.704 0.191 22.216);
+  /*
+   * Mesures en sombre (2026-08-27) : #e0a458 rend 8,03:1 sur `--background` #1f1812 et 7,30:1
+   * sur `--card` #2a2018 ; #8fbf87 rend 8,32 / 7,56 ; #8fb2c8 rend 7,82 / 7,11. Les trois
+   * `*-foreground` repassent à l'encre, le rapport étant symétrique.
+   */
   --warning: #e0a458;
   --warning-foreground: #1f1812;
+  --success: #8fbf87;
+  --success-foreground: #1f1812;
+  --info: #8fb2c8;
+  --info-foreground: #1f1812;
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #c87a52;
