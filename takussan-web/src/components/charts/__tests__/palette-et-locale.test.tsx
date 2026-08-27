@@ -63,7 +63,7 @@ describe('palette de séries (AC2 / AC3)', () => {
     expect(new Set(numeros)).toEqual(new Set(['1', '2', '3', '4', '5']));
   });
 
-  it('⚠ `--chart-3` atteint 3:1 sur `--card` dans LES DEUX thèmes — lu dans `globals.css`', () => {
+  it('⚠ `--chart-3` atteint 3:1 sur LES DEUX surfaces et LES DEUX thèmes — lu dans `globals.css`', () => {
     // ────────────────────────────────────────────────────────────────────────────────────────
     // Ce cas lit la FEUILLE, pas une copie. C'est ce qui le distingue du harnais
     // `src/test/contraste-wcag.ts`, qui recopie les jetons à dessein : ici la question porte sur
@@ -84,12 +84,26 @@ describe('palette de séries (AC2 / AC3)', () => {
       return (m as RegExpMatchArray)[1];
     };
 
+    // ⚠ LES DEUX RATIOS SONT ÉCRITS, pas seulement le seuil. Une assertion `>= 3` reste verte
+    // sur n'importe quelle valeur plus foncée : elle garde le SEUIL, pas la DÉCISION. TCK-404 a
+    // choisi `#ad8034` pour une raison précise — garder la teinte (38°) et la saturation (54 %)
+    // de la charte, ne baisser que la clarté — et c'est cette valeur-là qui doit être défendue.
+    // Un successeur qui assombrirait le jeton « pour avoir de la marge » sortirait de la charte
+    // sans qu'aucun test ne le dise. Les deux bornes ensemble : le seuil ET la valeur.
+    const ATTENDU: Record<string, Record<string, number>> = {
+      clair: { card: 3.55, background: 3.38 },
+      sombre: { card: 8.17, background: 8.99 },
+    };
+
     for (const [theme, selecteur] of [['clair', ':root'], ['sombre', '.dark']] as const) {
       const source = bloc(selecteur);
-      const ratio = contraste(jeton(source, 'chart-3'), jeton(source, 'card'));
-      expect(ratio, `--chart-3 en ${theme} : ${fmt(ratio)}`).toBeGreaterThanOrEqual(
-        SEUIL_NON_TEXTUEL,
-      );
+      for (const fond of ['card', 'background'] as const) {
+        const ratio = contraste(jeton(source, 'chart-3'), jeton(source, fond));
+        expect(ratio, `--chart-3 sur --${fond} en ${theme} : ${fmt(ratio)}`)
+          .toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
+        expect(ratio, `--chart-3 sur --${fond} en ${theme} : ${fmt(ratio)}`)
+          .toBeCloseTo(ATTENDU[theme][fond], 2);
+      }
     }
   });
 

@@ -91,16 +91,22 @@ troisième candidate doit s'écrire ici avant d'exister.**
 Cinq jetons, `--chart-1` à `--chart-5`, attribués **dans cet ordre** par
 `takussan-web/src/components/charts/palette.ts` — jamais écrits à la main dans un graphique.
 Le seuil applicable est celui de **WCAG 2.2 §1.4.11 (3:1)** : une couleur de série est un objet
-graphique porteur de sens. Mesures sur `--card`, `node scripts/check-chart-contrast.mjs --report`,
-2026-08-27 :
+graphique porteur de sens. Mesures par `node scripts/check-chart-contrast.mjs --report`,
+2026-08-27 — **sur les DEUX surfaces où un graphique se pose**, la carte et le fond de page :
 
-| Jeton | Clair | sur `--card` #ffffff | Sombre | sur `--card` #2a2018 |
-|---|---|---|---|---|
-| `--chart-1` | `#a85332` | 5,32:1 | `#c87a52` | 4,83:1 |
-| `--chart-2` | `#5d6e4f` | 5,51:1 | `#7d8d6e` | 4,48:1 |
-| `--chart-3` | `#ad8034` | 3,55:1 | `#d6b66c` | 8,17:1 |
-| `--chart-4` | `#6e655a` | 5,72:1 | `#b8aa97` | 7,01:1 |
-| `--chart-5` | `#1f1812` | 17,53:1 | `#fcf9f3` | 15,16:1 |
+| Jeton | Clair | `--card` #ffffff | `--background` #fcf9f3 | Sombre | `--card` #2a2018 | `--background` #1f1812 |
+|---|---|---|---|---|---|---|
+| `--chart-1` | `#a85332` | 5,32:1 | 5,06:1 | `#c87a52` | 4,83:1 | 5,31:1 |
+| `--chart-2` | `#5d6e4f` | 5,51:1 | 5,25:1 | `#7d8d6e` | 4,48:1 | 4,93:1 |
+| `--chart-3` | `#ad8034` | 3,55:1 | **3,38:1** | `#d6b66c` | 8,17:1 | 8,99:1 |
+| `--chart-4` | `#6e655a` | 5,72:1 | 5,44:1 | `#b8aa97` | 7,01:1 | 7,71:1 |
+| `--chart-5` | `#1f1812` | 17,53:1 | 16,69:1 | `#fcf9f3` | 15,16:1 | 16,69:1 |
+
+> **La garde ne mesurait que `--card` jusqu'au 2026-08-27**, et son titre le disait. C'était un
+> trou et non un cadrage : les deux surfaces se trompent en sens OPPOSÉS selon le thème — en clair
+> `--background` est plus sombre que `--card` (donc plus favorable), en sombre il l'est aussi
+> (donc moins favorable, la série étant claire). N'en mesurer qu'une laisse toujours une moitié
+> dehors. Le minimum du dépôt est désormais **3,38:1**, `--chart-3` sur `--background` clair.
 
 > **DÉCISION TCK-404 (2026-08-27) — `--chart-3` EST une couleur de série, et sa valeur claire a
 > été corrigée pour que ce soit vrai.**

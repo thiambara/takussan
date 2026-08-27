@@ -127,6 +127,40 @@ ce périmètre ».* Corrigé dans le docblock.
 **⚠ Conséquence à connaître** : l'ordre des séries redevient `1,2,3,4,5`, donc un graphique à trois
 séries voit sa troisième passer de taupe (`--chart-4`) à ocre (`--chart-3`).
 
+**Suite de la revue du lead (2026-08-27).** Trois exigences, trois mesures :
+
+1. **La garde mesure désormais SUR DEUX SURFACES**, `--card` et `--background`, et non plus sur la
+   seule carte. Le second ratio (3,38:1) ne vivait que dans un commentaire, et *un ratio consigné
+   dans une prose que rien ne rejoue est une croyance datée*. C'était un TROU et non un cadrage :
+   les deux surfaces se trompent en sens opposés selon le thème. Relevé à l'ajout — **les 34
+   nouvelles mesures passent toutes**, minimum 3,38:1 en clair et 3,85:1 en sombre : aucune
+   correction n'a été nécessaire pour que la surface entre, ce qui est le seul moment où élargir
+   une garde ne coûte rien. Cliquet `MESURES_ATTENDUES` 34 → 68.
+2. **Le test assert désormais les VALEURS, pas seulement le seuil.** Un `>= 3` reste vert sur
+   n'importe quelle valeur plus foncée : il garde le seuil, pas la DÉCISION. `#ad8034` a été
+   choisi pour garder la teinte et la saturation de la charte ; un successeur qui assombrirait le
+   jeton « pour avoir de la marge » sortirait de la charte sans qu'aucun test ne le dise. Les
+   quatre ratios (3,55 / 3,38 / 8,17 / 8,99) sont écrits et comparés à 2 décimales.
+3. **L'en-tête de `charts/palette.ts` était au PRÉSENT sur une mesure invalidée** — « `--chart-3`
+   vaut `#c89a4a` et rend 2,57:1 ». Passé au passé, avec la raison écrite sur place : c'est
+   exactement la documentation périmée dont on ne se méfie pas.
+
+⚠ **Le défaut de `ProfileBadge` est plus large que ce que ce ticket a d'abord rapporté.** Les CINQ
+types de profil y rendent `bg-chart-N/20 text-chart-N`, et **huit des dix couples (type × thème)
+sont sous les 4,5:1 d'AA** — pas seulement `--chart-3`. Relevé sur `--card` :
+
+| | clair | sombre |
+|---|---|---|
+| `chart-1` | 4,04 ✗ | 3,59 ✗ |
+| `chart-2` | 4,21 ✗ | 3,38 ✗ |
+| `chart-3` | 2,87 ✗ (était 2,17) | 5,31 ✓ |
+| `chart-4` | 4,34 ✗ | 4,73 ✓ |
+| `chart-5` | 11,50 ✓ | 8,10 ✓ |
+
+C'est le motif entier qui est en cause — un aplat à 20 % d'une couleur sous son propre texte ne
+peut pas atteindre 4,5:1 tant que la couleur n'est pas beaucoup plus foncée que sa surface. Pour
+le ticket de suite.
+
 **Un test double la garde**, et lit `globals.css` plutôt qu'une copie : le harnais
 `src/test/contraste-wcag.ts` recopie les jetons à dessein, mais une valeur recopiée ne peut pas
 dire qu'elle a changé. La garde tourne en CI ; ce cas-ci rougit dans la boucle de `npm run test`,

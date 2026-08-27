@@ -18,11 +18,18 @@
  *     rose-500    #f43f5e   3,67:1   ✓ (la seule qui passait)
  *
  * ⚠ **Le ticket supposait que « suivre la charte règle le contraste par la même occasion ».
- * Mesuré, c'est faux d'un jeton sur cinq.** `--chart-3` vaut `#c89a4a` en clair et rend
+ * Mesuré, c'était faux d'un jeton sur cinq.** `--chart-3` VALAIT `#c89a4a` en clair et rendait
  * **2,57:1** sur `--card` — moins bien qu'`emerald-500` qu'il était censé remplacer. En sombre
- * il est irréprochable (8,17:1 sur `#2a2018`) : le défaut est une propriété du THÈME CLAIR seul,
- * ce qui est exactement le genre d'écart qu'une palette employée « telle quelle » propage sans
- * bruit.
+ * il était irréprochable (8,17:1 sur `#2a2018`) : le défaut était une propriété du THÈME CLAIR
+ * seul, ce qui est exactement le genre d'écart qu'une palette employée « telle quelle » propage
+ * sans bruit.
+ *
+ * ⚠⚠ **TOUT CE PARAGRAPHE EST AU PASSÉ DEPUIS TCK-404, et le temps des verbes est le sujet.**
+ * Il a été écrit au PRÉSENT — « `--chart-3` vaut `#c89a4a` et rend 2,57:1 » — et il l'est resté
+ * pendant que la valeur changeait. Un docblock qui énonce au présent une mesure invalidée est
+ * exactement la documentation périmée dont ce dépôt paie le prix ailleurs : on ne s'en méfie
+ * pas. La valeur courante et sa mesure sont plus bas, dans le bloc TCK-404 ; ici, seul le récit
+ * de TCK-374.
  *
  * D'où la forme retenue par TCK-374 : l'ordre des séries n'était pas `1,2,3,4,5` mais `1,2,4,5`,
  * les quatre jetons qui atteignaient 3:1 dans LES DEUX thèmes.
