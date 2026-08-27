@@ -6,11 +6,11 @@ import { Home } from 'lucide-react';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { fetchAdminAgencies, fetchAdminProperties } from '@/lib/queries/super-admin';
+import { fetchAdminProperties } from '@/lib/queries/super-admin';
 import { SuperAdminPropertiesFilters } from '@/components/admin/super/SuperAdminPropertiesFilters';
 import { SuperAdminPropertiesTable } from '@/components/admin/super/SuperAdminPropertiesTable';
 import { Pagination } from '@/components/console';
-import type { AdminPropertiesResponse, AdminAgenciesResponse } from '@/types/super-admin';
+import type { AdminPropertiesResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader } from '@/components/console';
@@ -50,16 +50,9 @@ export default function SuperAdminPropertiesPage() {
     staleTime: 15_000,
   });
 
-  const agenciesQuery = useQuery<AdminAgenciesResponse, ApiError>({
-    queryKey: ['super-admin', 'agencies', 'all-for-filter'],
-    queryFn: () => fetchAdminAgencies({ perPage: 50 }),
-    staleTime: 5 * 60_000,
-  });
-
-  const agencyOptions = useMemo(
-    () => (agenciesQuery.data?.data ?? []).map((a) => ({ id: a.id, name: a.name })),
-    [agenciesQuery.data],
-  );
+  // TCK-363 — la requête `fetchAdminAgencies({ perPage: 50 })` qui vivait ici est SUPPRIMÉE :
+  // elle partait au montage de la page, que le filtre d'agence soit utilisé ou non, et rendait
+  // une liste tronquée en silence. `AgencyCombobox` charge à la demande et cherche au serveur.
 
   const goToPage = (next: number) => {
     const next_params = new URLSearchParams(searchParams.toString());
@@ -74,7 +67,10 @@ export default function SuperAdminPropertiesPage() {
         description={tPage('subtitle')}
       />
 
-      <SuperAdminPropertiesFilters agencies={agencyOptions} />
+      <SuperAdminPropertiesFilters
+        total={propertiesQuery.data?.meta.total}
+        busy={propertiesQuery.isFetching}
+      />
 
       {propertiesQuery.isLoading ? (
         <div className="space-y-2" data-testid="properties-loading">

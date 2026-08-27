@@ -2,6 +2,8 @@ export { DataState } from './DataState';
 export type { DataStateProps } from './DataState';
 export { DataTable } from './DataTable';
 export type { DataTableColumn, DataTableProps, DataTableSort } from './DataTable';
+export { CONSOLE_SEARCH_DEBOUNCE_MS, DebouncedSearchInput } from './DebouncedSearchInput';
+export type { DebouncedSearchInputProps } from './DebouncedSearchInput';
 export { FilterBar } from './FilterBar';
 export type { FilterBarProps } from './FilterBar';
 export { PageHeader } from './PageHeader';

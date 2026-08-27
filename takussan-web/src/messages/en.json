@@ -42,6 +42,22 @@
       "next": "Next",
       "position": "Page {page} of {lastPage}",
       "positionSlash": "Page {page} / {lastPage}"
+    },
+    "filterBar": {
+      "results": "{count, plural, =0 {No result} one {# result} other {# results}}",
+      "reset": "Reset"
+    },
+    "agencyCombobox": {
+      "placeholder": "All agencies",
+      "searching": "Searching…",
+      "noResult": "No agency matches",
+      "loadMore": "Show more",
+      "shown": "{shown} of {total}",
+      "openAria": "Open the agency list",
+      "clearAria": "Clear the selected agency"
+    },
+    "search": {
+      "pending": "Searching…"
     }
   },
   "nav": {
@@ -5480,8 +5496,9 @@
         "title": "Users",
         "subtitle": "Cross-tenant search and impersonation for support.",
         "searchPlaceholder": "Name, email, ID, phone",
+        "searchAria": "Search for a user",
         "roleAria": "Role",
-        "agencyIdPlaceholder": "Agency ID",
+        "agencyAria": "Agency",
         "statusAria": "Status",
         "emailAria": "Email verified",
         "twoFactorAria": "2FA",
@@ -5540,6 +5557,7 @@
         "statusAria": "Status",
         "sortAria": "Sort",
         "searchPlaceholder": "Search (name, slug, email)",
+        "searchAria": "Search for an agency",
         "createdFromAria": "Created from",
         "createdToAria": "Created up to",
         "statuses": {

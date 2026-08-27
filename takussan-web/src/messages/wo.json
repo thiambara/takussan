@@ -42,6 +42,22 @@
       "next": "Bi ci topp",
       "position": "Xët {page} ci {lastPage}",
       "positionSlash": "Xët {page} / {lastPage}"
+    },
+    "filterBar": {
+      "results": "{count, plural, =0 {Amul benn njariñ} one {# njariñ} other {# njariñ}}",
+      "reset": "Delloo ci ndoorte"
+    },
+    "agencyCombobox": {
+      "placeholder": "Ajaas yépp",
+      "searching": "Mi ngi wut…",
+      "noResult": "Amul ajaas bu ci mengoo",
+      "loadMore": "Wone yeneen",
+      "shown": "{shown} ci {total}",
+      "openAria": "Ubbi limu ajaas yi",
+      "clearAria": "Faagaru ajaas bi ñu tànn"
+    },
+    "search": {
+      "pending": "Mi ngi wut…"
     }
   },
   "nav": {
@@ -5024,8 +5040,9 @@
         "title": "Jëfandikukat yi",
         "subtitle": "Seet cross-tenant ak jëf ci turu keneen ngir ndimbal bi.",
         "searchPlaceholder": "Tur, email, ID, telefon",
+        "searchAria": "Wut jëfandikukat",
         "roleAria": "Wàll",
-        "agencyIdPlaceholder": "ID ajaans",
+        "agencyAria": "Ajaas",
         "statusAria": "Nekkin",
         "emailAria": "Email bu ñu seetlu",
         "twoFactorAria": "2FA",
@@ -5084,6 +5101,7 @@
         "statusAria": "Nekkin",
         "sortAria": "Toftal",
         "searchPlaceholder": "Seet (tur, slug, email)",
+        "searchAria": "Wut ajaas",
         "createdFromAria": "Sosu la ci",
         "createdToAria": "Sosu ba ci",
         "statuses": {
