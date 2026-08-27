@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Activity, Database, HardDrive, Mail, Wifi } from 'lucide-react';
 import { StatCard, StatusBadge } from '@/components/console';
 import { fetchPlatformHealth } from '@/lib/queries/super-admin';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { HealthcheckStatus } from '@/types/super-admin';
 
 /**
@@ -57,6 +58,7 @@ export function HealthDashboard() {
 
 function HealthTile({ label, icon: Icon, status }: { label: string; icon: typeof Database; status?: HealthcheckStatus }) {
   const t = useTranslations('superAdmin.systemHealth');
+  const fmt = useFormatteurs();
   const ok = status?.status === 'ok';
   // ⚠️ L'API émet `ok` | `failed` (`HealthcheckService::check()`), PAS `ok` | `error` : `error`
   //    est le CHAMP voisin qui porte le message. La sonde en attente n'a pas de statut du tout —
@@ -67,9 +69,41 @@ function HealthTile({ label, icon: Icon, status }: { label: string; icon: typeof
       label={label}
       icon={<Icon className="size-4" aria-hidden="true" />}
       value={<StatusBadge tone={ok ? 'success' : 'danger'} label={libelleStatut} />}
-      hint={status?.error ?? status?.driver ?? status?.value ?? `${status?.latency_ms ?? 0}ms`}
+      hint={indice(status, t, fmt.nombre)}
     />
   );
+}
+
+/**
+ * L'INDICE de la tuile — quatre charges différentes, une seule ligne de rendu.
+ *
+ * ⚠️ Cette ligne était `status?.error ?? status?.driver ?? status?.value ?? `${latency}ms``, et
+ * l'AC2 de TCK-364 (« aucun libellé affiché n'est une chaîne littérale ») se lisait plus fort
+ * qu'il n'était vrai : elle affichait NUE une valeur d'API — un pilote (`log`, `redis`, `s3`), une
+ * charge de sonde (`miss`), un message d'exception — et collait un suffixe `ms` littéral sur un
+ * nombre qui ne passait par aucun formateur.
+ *
+ * Ce que le front peut posséder, il le possède maintenant : le CADRE de chaque indice est une
+ * clé, et la latence passe par `fmt.nombre` (donc par la locale : `1 200` en `fr`, `1,200` en
+ * `en`).
+ *
+ * ⚠️ Ce que le front ne peut PAS posséder, et qui reste tel quel : le CORPS de `error`. L'API
+ * émet un message d'exception en clair (`HealthcheckService` renvoie `$e->getMessage()`), pas un
+ * code — un anglais technique non traduisible côté front tant qu'il n'y a pas de code à traduire.
+ * Le corriger vraiment demande que l'API émette un code d'erreur, ce qui est un delta d'API, pas
+ * de rendu (principe 5 du CLAUDE.md : *le front possède le texte affiché* — encore faut-il que
+ * l'API lui envoie autre chose que du texte). Idem pour `driver` et `value`, qui sont des
+ * IDENTIFIANTS techniques : les traduire serait une faute, les encadrer suffit.
+ */
+function indice(
+  status: HealthcheckStatus | undefined,
+  t: (cle: string, valeurs?: Record<string, string>) => string,
+  nombre: (value: number | null | undefined) => string,
+): string {
+  if (status?.error) return t('hint.error', { message: status.error });
+  if (status?.driver) return t('hint.driver', { driver: status.driver });
+  if (status?.value) return t('hint.value', { value: status.value });
+  return t('hint.latency', { ms: nombre(status?.latency_ms ?? 0) });
 }
 
 function QueueMetric({

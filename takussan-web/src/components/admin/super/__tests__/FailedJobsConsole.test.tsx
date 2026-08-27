@@ -10,6 +10,7 @@ import {
   retryAllFailedJobs,
   retryFailedJob,
 } from '@/lib/queries/super-admin';
+import { ApiError } from '@/lib/api';
 import type { FailedJob, FailedJobsResponse } from '@/types/super-admin';
 import { withIntl } from '@/test/intl';
 import { FailedJobsConsole } from '../failed-jobs';
@@ -172,6 +173,70 @@ describe('<FailedJobsConsole> (TCK-365)', () => {
     // Le 21e job — hors de portée avant TCK-365, la table étant figée à 20 lignes sans pagination.
     await screen.findByTestId('failed-job-21');
     expect(fetchFailedJobs).toHaveBeenCalledWith({ page: 2, perPage: 20 });
+  });
+
+  /**
+   * D6 — un échec de MUTATION ne doit pas être muet.
+   *
+   * `DataState` ne couvre que la requête de LISTE. Avant correctif, `retryAllFailedJobs` rejetée
+   * laissait `confirm-action-submit` dans le DOM et l'écran sans un mot : l'opérateur retapait la
+   * phrase et recliquait, indéfiniment. Et le cas est celui que le dialogue NOMME lui-même —
+   * « au-delà de 500, l'API refuse le lot » —, mesuré jusqu'au navigateur (409 amont, 409 rendu).
+   */
+  it('annonce l’échec d’un rejeu en lot et referme le dialogue au lieu de le laisser ouvert', async () => {
+    vi.mocked(fetchFailedJobs).mockResolvedValue(page([job()], { total: 501 }));
+    vi.mocked(retryAllFailedJobs).mockRejectedValue(
+      new ApiError(409, { message: 'Too many failed jobs to retry at once.' }),
+    );
+    const user = userEvent.setup();
+    renderConsole();
+
+    await screen.findByTestId('failed-job-1');
+    await user.click(screen.getByRole('button', { name: /Rejouer tout/i }));
+    await user.type(screen.getByTestId('confirm-action-input'), 'REJOUER');
+    await user.click(screen.getByTestId('confirm-action-submit'));
+
+    await waitFor(() => expect(retryAllFailedJobs).toHaveBeenCalledTimes(1));
+
+    // 1. L'échec est DIT — et le message vient du serveur, pas d'un repli générique.
+    const bandeau = await screen.findByTestId('failed-jobs-action-error');
+    expect(bandeau).toHaveTextContent(/Too many failed jobs/i);
+    // 2. Le dialogue ne reste pas ouvert : sinon le geste suivant est un reclic, pas une décision.
+    expect(screen.queryByTestId('confirm-action-submit')).not.toBeInTheDocument();
+  });
+
+  it('annonce l’échec d’une suppression', async () => {
+    vi.mocked(fetchFailedJobs).mockResolvedValue(page([job()], { total: 1 }));
+    vi.mocked(deleteFailedJob).mockRejectedValue(new ApiError(404, {}));
+    const user = userEvent.setup();
+    renderConsole();
+
+    await screen.findByTestId('failed-job-1');
+    await user.click(screen.getByRole('button', { name: /Supprimer/i }));
+    await user.type(screen.getByTestId('confirm-action-input'), 'SUPPRIMER');
+    await user.click(screen.getByTestId('confirm-action-submit'));
+
+    await waitFor(() => expect(deleteFailedJob).toHaveBeenCalledTimes(1));
+    // Sans `message` côté serveur, c'est le repli MÉTIER de l'appelant qui parle — pas la clé i18n.
+    const bandeau = await screen.findByTestId('failed-jobs-action-error');
+    expect(bandeau).toHaveTextContent('La suppression de ce job a échoué.');
+    expect(screen.queryByTestId('confirm-action-submit')).not.toBeInTheDocument();
+  });
+
+  it('annonce l’échec d’un rejeu unitaire, qui ne passe par aucun dialogue', async () => {
+    vi.mocked(fetchFailedJobs).mockResolvedValue(page([job()], { total: 1 }));
+    // 404 : le job est parti entre l'affichage et le clic — et c'est un statut SANS code d'erreur
+    // catalogué, donc celui qui fait parler le repli MÉTIER plutôt que le libellé générique.
+    vi.mocked(retryFailedJob).mockRejectedValue(new ApiError(404, {}));
+    const user = userEvent.setup();
+    renderConsole();
+
+    await screen.findByTestId('failed-job-1');
+    await user.click(screen.getByRole('button', { name: /^Rejouer$/ }));
+
+    await waitFor(() => expect(retryFailedJob).toHaveBeenCalledTimes(1));
+    expect(await screen.findByTestId('failed-jobs-action-error'))
+      .toHaveTextContent('Le rejeu de ce job a échoué.');
   });
 
   it('rejoue un job unique sans confirmation — le rejeu ne détruit rien', async () => {

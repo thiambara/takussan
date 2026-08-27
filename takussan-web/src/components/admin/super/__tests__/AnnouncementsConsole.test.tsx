@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -10,7 +10,7 @@ import {
   patchAdminAnnouncement,
 } from '@/lib/queries/super-admin';
 import type { AdminAgenciesResponse, Announcement, AnnouncementsResponse } from '@/types/super-admin';
-import { AnnouncementsConsole } from '../announcements';
+import { AnnouncementsConsole, announcementState, isoToLocalInput } from '../announcements';
 import { withIntl } from '@/test/intl';
 
 vi.mock('@/lib/queries/super-admin', () => ({
@@ -156,7 +156,62 @@ describe('console des annonces cross-tenant', () => {
     const [id, payload] = vi.mocked(patchAdminAnnouncement).mock.calls[0];
     expect(id).toBe(9);
     expect(payload.is_active).toBe(false);
-    expect(payload.segment).toEqual({ roles: [], agency_ids: [], rollout_percentage: undefined });
+    // Une annonce SANS restriction atteint TOUT LE MONDE, et c'est la charge qui doit le dire.
+    // Émettre `{roles: [], agency_ids: []}` ne dit pas « aucune restriction » à l'API : ce corps-là
+    // ne matchait AUCUN destinataire (`AnnouncementResolver::matches()`), donc éditer une annonce
+    // diffusée à tous la faisait disparaître pour 100 % des utilisateurs. L'assertion précédente
+    // figeait exactement cette charge.
+    expect(payload.segment).toEqual({});
+    // ⚠ La clé `segment` reste PRÉSENTE : `update()` n'écrit que les clés reçues, donc l'omettre
+    // rendrait impossible de retirer le ciblage d'une annonce qui en a un.
+    expect(payload).toHaveProperty('segment');
+  });
+
+  it('retire tout le ciblage d’une annonce ciblée, et le DIT à l’API', async () => {
+    vi.mocked(fetchAdminAnnouncements).mockResolvedValue(liste([enDiffusion]));
+    const user = userEvent.setup();
+    renderConsole();
+
+    await user.click(await screen.findByRole('button', { name: /Éditer.*Maintenance samedi/i }));
+
+    // On décoche le rôle, on retire les deux agences, on vide le rollout : plus aucune restriction.
+    await user.click(screen.getByRole('checkbox', { name: 'Agent' }));
+    await user.click(screen.getByRole('button', { name: /Retirer Agence Plateau du ciblage/i }));
+    await user.click(screen.getByRole('button', { name: /Retirer 4242 du ciblage/i }));
+    await user.clear(screen.getByLabelText('Rollout %'));
+
+    await user.click(screen.getByRole('button', { name: /Enregistrer les modifications/i }));
+
+    await waitFor(() => expect(patchAdminAnnouncement).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(patchAdminAnnouncement).mock.calls[0][1].segment).toEqual({});
+  });
+
+  it('cherche une agence CÔTÉ SERVEUR au lieu de filtrer la page déjà chargée', async () => {
+    vi.mocked(fetchAdminAnnouncements).mockResolvedValue(liste([brouillon]));
+    const user = userEvent.setup();
+    renderConsole();
+
+    await user.click(await screen.findByRole('button', { name: /Éditer.*Nouvelle grille/i }));
+    await waitFor(() => expect(fetchAdminAgencies).toHaveBeenCalled());
+    expect(vi.mocked(fetchAdminAgencies).mock.calls[0][0]).toMatchObject({ search: undefined });
+
+    // ⚠ L'agence cherchée peut être classée au-delà de la première page : filtrer côté client une
+    // liste déjà tronquée faisait AFFIRMER « Aucune agence ne correspond » sur une agence qui
+    // existe. La recherche doit donc partir en `filter[search]`, temporisée.
+    vi.mocked(fetchAdminAgencies).mockResolvedValue({
+      ...agences,
+      data: [{ ...agences.data[0], id: 4242, name: 'Agence Saint-Louis' }],
+      meta: { ...agences.meta, total: 1 },
+    });
+    await user.type(screen.getByLabelText('Rechercher une agence'), 'Saint');
+
+    await waitFor(
+      () => expect(
+        vi.mocked(fetchAdminAgencies).mock.calls.some(([params]) => params?.search === 'Saint'),
+      ).toBe(true),
+      { timeout: 2000 },
+    );
+    expect(await screen.findByRole('checkbox', { name: 'Agence Saint-Louis' })).toBeInTheDocument();
   });
 
   it('coche une agence par son NOM et l’ajoute au ciblage', async () => {
@@ -174,7 +229,6 @@ describe('console des annonces cross-tenant', () => {
     expect(vi.mocked(patchAdminAnnouncement).mock.calls[0][1].segment).toEqual({
       roles: ['agent'],
       agency_ids: [42],
-      rollout_percentage: undefined,
     });
   });
 
@@ -191,5 +245,81 @@ describe('console des annonces cross-tenant', () => {
 
     expect(screen.getByRole('button', { name: /Publier l'annonce/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Enregistrer les modifications/i })).not.toBeInTheDocument();
+  });
+  it('marque le champ de locale vidé au lieu de laisser l’API refuser en aveugle', async () => {
+    vi.mocked(fetchAdminAnnouncements).mockResolvedValue(liste([enDiffusion]));
+    const user = userEvent.setup();
+    renderConsole();
+
+    await user.click(await screen.findByRole('button', { name: /Éditer.*Maintenance samedi/i }));
+    await user.clear(screen.getByLabelText('Titre WO'));
+    await user.click(screen.getByRole('button', { name: /Enregistrer les modifications/i }));
+
+    // L'API refusait déjà (422 `required_with`), mais le bandeau ne DISAIT PAS lequel des six
+    // champs manquait. Rien ne part sur le fil, et le champ fautif est désigné.
+    expect(patchAdminAnnouncement).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Titre WO')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Titre FR')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByRole('alert')).toHaveTextContent('Ce champ est requis.');
+
+    // La marque tombe dès que le champ est rempli — sans re-soumettre pour l'apprendre.
+    await user.type(screen.getByLabelText('Titre WO'), 'Maintenance ci dibéer');
+    expect(screen.getByLabelText('Titre WO')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('rend la sévérité TRADUITE dans la table, pas son slug', async () => {
+    vi.mocked(fetchAdminAnnouncements).mockResolvedValue(liste([enDiffusion]));
+    renderConsole();
+
+    await screen.findByText('Maintenance samedi');
+    const table = screen.getByRole('table');
+    expect(within(table).getByText('Alerte')).toBeInTheDocument();
+    expect(within(table).queryByText('warning')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * TCK-366 (revue) — les deux fonctions pures que le rendu ne peut pas éprouver seul.
+ *
+ * `announcementState` n'était éprouvée que sur `draft` et `live` : ses branches `scheduled` et
+ * `expired` pouvaient être supprimées sans qu'un seul test rougisse. Et le correctif de fuseau
+ * d'`isoToLocalInput` était invérifiable à travers le composant : la machine de développement
+ * comme la CI sont à UTC+00, où la forme fautive rend la même chaîne.
+ */
+describe('les dérivations pures de la console', () => {
+  const t = (iso: string) => new Date(iso).getTime();
+
+  it('distingue les QUATRE états de diffusion', () => {
+    const maintenant = t('2026-08-15T12:00:00.000Z');
+    const base = { ...enDiffusion, is_active: true };
+
+    expect(announcementState({ ...base, is_active: false }, maintenant)).toBe('draft');
+    expect(announcementState({ ...base, starts_at: '2026-08-20T08:00:00.000Z' }, maintenant)).toBe('scheduled');
+    expect(announcementState({ ...base, ends_at: '2026-08-10T08:00:00.000Z' }, maintenant)).toBe('expired');
+    expect(announcementState({ ...base, ends_at: '2026-08-20T08:00:00.000Z' }, maintenant)).toBe('live');
+  });
+
+  it('rend l’heure LOCALE dans le champ, pas l’UTC — éprouvé sous un fuseau simulé', () => {
+    // ⚠ `getTimezoneOffset` est la SEULE dépendance de la fonction au fuseau de la machine (le
+    // reste passe par `toISOString`, qui est absolu). La simuler suffit donc à jouer un décalage
+    // réel — et discrimine `toISOString().slice(0, 16)`, le bug d'origine, qui rendrait
+    // '2026-08-01T08:00' dans les trois cas ci-dessous.
+    const offset = vi.spyOn(Date.prototype, 'getTimezoneOffset');
+
+    offset.mockReturnValue(-180); // UTC+03:00 — Nairobi
+    expect(isoToLocalInput('2026-08-01T08:00:00.000000Z')).toBe('2026-08-01T11:00');
+
+    offset.mockReturnValue(300); // UTC-05:00 — New York
+    expect(isoToLocalInput('2026-08-01T08:00:00.000000Z')).toBe('2026-08-01T03:00');
+
+    offset.mockReturnValue(0); // UTC+00:00 — Dakar, le fuseau de la machine et de la CI
+    expect(isoToLocalInput('2026-08-01T08:00:00.000000Z')).toBe('2026-08-01T08:00');
+
+    offset.mockRestore();
+  });
+
+  it('rend une chaîne vide sur une date absente ou illisible', () => {
+    expect(isoToLocalInput(null)).toBe('');
+    expect(isoToLocalInput('pas-une-date')).toBe('');
   });
 });

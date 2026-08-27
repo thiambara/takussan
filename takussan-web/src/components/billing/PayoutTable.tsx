@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DATE_COURTE, type Formatteurs, useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { PlatformPayout, PlatformPayoutStatus } from '@/types/super-admin';
 
 /**
@@ -47,12 +48,23 @@ export function PayoutStatusPill({ status }: { status: PlatformPayoutStatus }) {
   return <StatusBadge label={tStatus(status)} tone={STATUS_TONE[status]} data-testid={`payout-status-${status}`} />;
 }
 
-export function formatXof(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount);
-  } catch {
-    return `${amount.toLocaleString('fr-FR')} ${currency}`;
-  }
+/**
+ * Le montant d'un reversement, dans la locale ACTIVE.
+ *
+ * ⚠ C'est un HOOK, et ce n'en était pas un : `formatXof` vivait hors composant, donc sans locale
+ * sous la main, donc avec deux `'fr-FR'` écrits en dur — le motif exact que TCK-364 corrige, dans
+ * un répertoire que ni son AC1 (trois répertoires greppés) ni le premier périmètre de
+ * `scripts/check-locale-figee.mjs` (cinq répertoires) ne regardaient. `/super-admin/payouts` rendait
+ * donc des montants français à un super-admin en `en`. *Un périmètre est une liste de répertoires ;
+ * un écran est un graphe de rendu.*
+ *
+ * Le `try/catch` d'origine gardait `Intl.NumberFormat({ style: 'currency' })` contre un code de
+ * devise inconnu. Il disparaît avec lui : `formatCurrency` de `@/lib/format/currency` ne jette pas —
+ * un code hors enum retombe sur les métadonnées XOF.
+ */
+export function useXof(): (amount: number, currency: string) => string {
+  const fmt = useFormatteurs();
+  return (amount, currency) => fmt.montant(amount, currency, { maximumFractionDigits: 0 });
 }
 
 export function PayoutTable({
@@ -68,6 +80,8 @@ export function PayoutTable({
 }) {
   // Hooks AVANT toute sortie anticipée (React Compiler, ADR-0015).
   const t = useTranslations('billing.platformPayouts.table');
+  const fmt = useFormatteurs();
+  const xof = useXof();
 
   if (isLoading) return <Skeleton className="h-60 rounded-xl" />;
 
@@ -105,19 +119,19 @@ export function PayoutTable({
                   className={`border-b border-border/40 last:border-b-0 ${onSelect ? 'cursor-pointer hover:bg-muted/30' : ''}`}
                 >
                   <td className="px-4 py-2">
-                    <span className="font-medium text-foreground">{formatPeriod(payout)}</span>
+                    <span className="font-medium text-foreground">{formatPeriod(payout, fmt)}</span>
                   </td>
                   <td className="px-4 py-2 text-muted-foreground">#{payout.agency_id}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{formatXof(payout.gross_amount, payout.currency)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">{xof(payout.gross_amount, payout.currency)}</td>
                   <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
-                    -{formatXof(payout.platform_fee_amount, payout.currency)}
+                    -{xof(payout.platform_fee_amount, payout.currency)}
                   </td>
                   <td className="px-4 py-2 text-right font-semibold tabular-nums">
-                    {formatXof(payout.net_amount, payout.currency)}
+                    {xof(payout.net_amount, payout.currency)}
                   </td>
                   <td className="px-4 py-2"><PayoutStatusPill status={payout.status} /></td>
                   <td className="px-4 py-2 text-muted-foreground">
-                    {payout.processed_at ? new Date(payout.processed_at).toLocaleDateString('fr-FR') : '—'}
+                    {fmt.date(payout.processed_at, DATE_COURTE)}
                   </td>
                 </tr>
               ))}
@@ -129,8 +143,13 @@ export function PayoutTable({
   );
 }
 
-function formatPeriod(payout: PlatformPayout): string {
-  const end = payout.period_end ? new Date(payout.period_end).toLocaleDateString('fr-FR') : '—';
-  const start = payout.period_start ? new Date(payout.period_start).toLocaleDateString('fr-FR') : '—';
-  return `${start} → ${end}`;
+/**
+ * Reste hors composant — mais reçoit les formatteurs au lieu de figer une locale.
+ *
+ * C'est la troisième forme juste, à côté du hook et de `@/lib/format` : une fonction pure qui
+ * PREND la locale reste testable sans rendu, ce qu'un hook n'est pas. Le repli `'—'` n'est plus
+ * écrit ici, il vient de `VALEUR_ABSENTE` que `fmt.date` rend sur une valeur absente.
+ */
+export function formatPeriod(payout: PlatformPayout, fmt: Formatteurs): string {
+  return `${fmt.date(payout.period_start, DATE_COURTE)} → ${fmt.date(payout.period_end, DATE_COURTE)}`;
 }

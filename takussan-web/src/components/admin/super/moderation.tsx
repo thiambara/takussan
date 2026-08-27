@@ -97,6 +97,10 @@ export function ModerationFilters({ total }: { total?: number }) {
   );
 
   const filtresPoses = PARAMS_DE_FILTRE.some((cle) => (searchParams.get(cle) ?? '') !== '');
+  // TCK-363 (D8) — le bouton est actif dès que le geste FERAIT quelque chose : `reinitialiser()`
+  // vide l'URL, donc la pagination aussi. Sur `?page=7` sans filtre, un bouton désactivé disait
+  // à l'utilisateur qu'il était déjà à l'état par défaut alors qu'il était page 7.
+  const surPageInterieure = (searchParams.get('page') ?? '1') !== '1';
   const reinitialiser = useCallback(() => router.replace('?'), [router]);
 
   return (
@@ -106,7 +110,7 @@ export function ModerationFilters({ total }: { total?: number }) {
       resultCount={total === undefined ? undefined : tFiltres('results', { count: total })}
       onReset={reinitialiser}
       resetLabel={tFiltres('reset')}
-      resetDisabled={!filtresPoses}
+      resetDisabled={!filtresPoses && !surPageInterieure}
     >
       <div className="flex flex-wrap items-center gap-2" aria-label={t('typesAria')}>
         {TYPE_VALUES.map((option) => {

@@ -1,11 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Input } from '@/components/ui/input';
 import { useDebouncedCallback } from '@/hooks/useDebouncedValue';
-import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { cn } from '@/lib/utils';
 
 /** ~300 ms : la valeur du ticket, partagée avec `AgencyCombobox` (TCK-363, AC3). */
@@ -40,7 +40,20 @@ interface DebouncedSearchInputProps {
  *
  * `busy` seul ne suffit pas : pendant la fenêtre de temporisation, **aucune requête n'est en
  * vol**. Un indicateur branché sur le seul état de la requête laisserait l'interface muette
- * exactement pendant le délai qu'on vient d'introduire. D'où `brouillon !== value || busy`.
+ * exactement pendant le délai qu'on vient d'introduire. D'où la comparaison brouillon/valeur.
+ *
+ * ## Le brouillon n'est PAS comparé à une valeur transformée (TCK-363, D1/D2)
+ *
+ * Le commit est TRIMÉ — c'est `' Dakar '` qui ne doit pas partir au serveur, pas la frappe qui
+ * doit être corrigée sous les doigts. Conséquence : après un espace tapé, le brouillon vaut
+ * `'Dakar '` et la valeur commitée `'Dakar'`. Comparer les deux CRÛMENT conclut à une divergence,
+ * et toute resynchronisation du brouillon sur la valeur externe RÉÉCRIT alors le champ sans son
+ * espace : `« Dakar » + « Immo »` se saisissait `« DakarImmo »` (mesuré). Le même écart figeait
+ * l'indicateur d'attente sur une saisie faite d'espaces seuls — `role="status"` permanent pour
+ * une requête qui ne partira jamais.
+ *
+ * La règle tient en une phrase : **on ne compare jamais le brouillon à la valeur qu'on a
+ * transformée avant de l'envoyer.** Des deux côtés de la comparaison, la même normalisation.
  */
 export function DebouncedSearchInput({
   value,
@@ -52,10 +65,21 @@ export function DebouncedSearchInput({
   id,
 }: DebouncedSearchInputProps) {
   const t = useTranslations('console.search');
-  const [brouillon, setBrouillon] = useStateSyncedWith(value);
   const commit = useDebouncedCallback((next: string) => onCommit(next), CONSOLE_SEARCH_DEBOUNCE_MS);
 
-  const enAttente = brouillon !== value || busy;
+  // `useStateSyncedWith(value)` — ajustement d'état pendant le rendu, sans `useEffect` — avec la
+  // seule différence qui compte ici : la valeur externe ne REMPLACE le brouillon que si elle dit
+  // autre chose que lui, aux espaces de bord près (cf. le bloc « le brouillon n'est PAS comparé à
+  // une valeur transformée » ci-dessus). Un `?search=` remis à zéro, une navigation arrière ou un
+  // clic sur « réinitialiser » vident bien le champ ; l'espace qu'on vient de taper, non.
+  const [brouillon, setBrouillon] = useState(value);
+  const [valeurSuivie, setValeurSuivie] = useState(value);
+  if (!Object.is(value, valeurSuivie)) {
+    setValeurSuivie(value);
+    if (value !== brouillon.trim()) setBrouillon(value);
+  }
+
+  const enAttente = brouillon.trim() !== value || busy;
 
   return (
     <div className={cn('relative', className)}>

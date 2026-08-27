@@ -149,4 +149,32 @@ describe('<SuperAdminPropertiesFilters>', () => {
     expect(screen.getByRole('button', { name: 'Réinitialiser' })).toBeDisabled();
     expect(screen.getByText('Aucun résultat')).toBeInTheDocument();
   });
+
+  /**
+   * TCK-363, D6 — MUTANT SURVIVANT : retirer `filter[agency_id]` de `PARAMS_DE_FILTRE` laissait
+   * 5/5 tests verts, alors que c'est le filtre que ce ticket introduit ici. L'agence posée seule,
+   * « Réinitialiser » désactivé : le geste qui lève le filtre devient inatteignable.
+   */
+  it.each([
+    ['filter[search]', 'villa'],
+    ['filter[status]', 'available'],
+    ['filter[type]', 'apartment'],
+    ['filter[visibility]', 'public'],
+    ['filter[agency_id]', '63'],
+  ])('un %s posé SEUL active « Réinitialiser » — AC5 D6 TCK-363', (cle, valeur) => {
+    mockAgencies();
+    mockSearchParams.get.mockImplementation((k: string) => (k === cle ? valeur : null));
+    renderFilters({ total: 3 });
+
+    expect(screen.getByRole('button', { name: 'Réinitialiser' })).toBeEnabled();
+  });
+
+  /** TCK-363, D8 — la remise à zéro vide l'URL, pagination comprise : le bouton doit le dire. */
+  it('« réinitialiser » est actif sur ?page=4 sans aucun filtre — D8 TCK-363', () => {
+    mockAgencies();
+    mockSearchParams.get.mockImplementation((k: string) => (k === 'page' ? '4' : null));
+    renderFilters({ total: 3 });
+
+    expect(screen.getByRole('button', { name: 'Réinitialiser' })).toBeEnabled();
+  });
 });

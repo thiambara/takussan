@@ -46,7 +46,10 @@ describe('ConsoleQueues (TCK-360)', () => {
       ['queue-row-kyc-pending', '/super-admin/kyc'],
       ['queue-row-upgrade-requests-pending', '/super-admin/agency-upgrade-requests?status=pending'],
       ['queue-row-moderation-pending', '/super-admin/moderation'],
-      ['queue-row-failed-jobs', '/super-admin/system/health'],
+      // TCK-365 — la console des jobs échoués vit désormais sur sa propre page. Cette ligne a
+      // porté `/super-admin/system/health` APRÈS le déménagement : verte, elle défendait une
+      // cible où la table n'était plus. Un test qui fige une destination doit bouger avec elle.
+      ['queue-row-failed-jobs', '/super-admin/system/jobs'],
     ];
 
     for (const [testId, href] of attendus) {

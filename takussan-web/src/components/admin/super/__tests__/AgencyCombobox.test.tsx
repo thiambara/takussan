@@ -195,4 +195,108 @@ describe('<AgencyCombobox>', () => {
       expect(screen.getByLabelText('Agence')).toHaveValue('Ziguinchor Habitat'),
     );
   });
+
+  /**
+   * TCK-363, D4 — la contrainte STRICTE du ticket : « le sélecteur ne doit JAMAIS afficher une
+   * liste tronquée sans le signaler ni permettre d'aller chercher plus loin ». Les deux chemins
+   * d'ÉCHEC la violaient, et aucun des six tests ci-dessus ne les parcourait.
+   *
+   * L'assertion qui compte n'est pas « un message existe » mais « le popup n'est pas MUET » :
+   * un sélecteur vide se lit « il n'y a pas d'agences », ce qui est pire qu'une troncature.
+   */
+  it("dit l'erreur et offre un réessai quand l'API échoue à l'OUVERTURE — D4a", async () => {
+    const user = userEvent.setup();
+    let enPanne = true;
+    const spy = vi.fn(async () => {
+      if (enPanne) return { ok: false, status: 500, json: async () => ({}) };
+      return {
+        ok: true,
+        json: async () => ({
+          data: CATALOGUE.slice(0, PER_PAGE),
+          meta: { total: 63, current_page: 1, last_page: 4, per_page: PER_PAGE },
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', spy);
+    renderCombobox();
+
+    await user.click(screen.getByLabelText('Agence'));
+
+    // Le défaut mesuré : `document.body.textContent` valait la chaîne VIDE — ni erreur, ni
+    // « aucun résultat » (le message est délibérément éteint sur ce chemin), ni réessai.
+    const erreur = await screen.findByTestId('agency-combobox-error');
+    expect(erreur).toHaveTextContent("La liste des agences n'a pas pu être chargée.");
+    expect(screen.queryByText('Aucune agence ne correspond')).not.toBeInTheDocument();
+
+    // Et le réessai n'est pas décoratif : il RECHARGE.
+    enPanne = false;
+    await user.click(screen.getByRole('button', { name: 'Réessayer' }));
+    expect(await screen.findByRole('option', { name: 'Agence 01' })).toBeInTheDocument();
+    expect(screen.queryByTestId('agency-combobox-error')).not.toBeInTheDocument();
+  });
+
+  it("dit l'erreur quand la PAGE SUIVANTE échoue, et retire « Afficher plus » — D4b", async () => {
+    const user = userEvent.setup();
+    let page2EnPanne = true;
+    const spy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), 'http://localhost');
+      const page = Number(url.searchParams.get('page') ?? '1');
+      if (page === 2 && page2EnPanne) return { ok: false, status: 503, json: async () => ({}) };
+      return {
+        ok: true,
+        json: async () => ({
+          data: CATALOGUE.slice((page - 1) * PER_PAGE, page * PER_PAGE),
+          meta: { total: 63, current_page: page, last_page: 4, per_page: PER_PAGE },
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', spy);
+    renderCombobox();
+
+    await user.click(screen.getByLabelText('Agence'));
+    await screen.findByRole('option', { name: 'Agence 01' });
+    expect(screen.getByText('20 sur 63')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Afficher plus' }));
+
+    // Le défaut mesuré : « 20 sur 63 » restait figé, « Afficher plus » restait présent et devenait
+    // INERTE, et rien n'était dit. L'utilisateur voyait qu'il manquait 43 agences sans moyen d'y
+    // aller ni de comprendre pourquoi.
+    await screen.findByTestId('agency-combobox-error');
+    expect(screen.queryByRole('button', { name: 'Afficher plus' })).not.toBeInTheDocument();
+
+    page2EnPanne = false;
+    await user.click(screen.getByRole('button', { name: 'Réessayer' }));
+    expect(await screen.findByText('40 sur 63')).toBeInTheDocument();
+  });
+
+  /**
+   * TCK-363, D5 — un filtre ACTIF et INVISIBLE. Quand le détail de l'agence portée par l'URL
+   * échoue, le champ retombait sur son placeholder « Toutes agences » alors que la liste EST
+   * filtrée sur cette agence : le contraire de ce que l'AC2 garantit.
+   */
+  it("affiche l'identifiant, jamais « Toutes agences », quand le détail échoue — D5", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'http://localhost');
+        if (/\/api\/super-admin\/agencies\/\d+$/.test(url.pathname)) {
+          return { ok: false, status: 404, json: async () => ({}) };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            data: [],
+            meta: { total: 0, current_page: 1, last_page: 1, per_page: PER_PAGE },
+          }),
+        };
+      }),
+    );
+    renderCombobox({ value: '63' });
+
+    const champ = screen.getByLabelText('Agence');
+    await waitFor(() => expect(champ).toHaveValue('Agence #63'));
+    // Le champ ne doit SURTOUT pas se lire « aucune agence choisie » sur un filtre posé.
+    expect(champ).not.toHaveValue('');
+  });
 });

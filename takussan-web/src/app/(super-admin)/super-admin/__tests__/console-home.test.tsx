@@ -52,11 +52,15 @@ describe('AC2 — la grille de huit tuiles n’a plus qu’un seul point de mont
 });
 
 describe('/super-admin/system est devenu un index (TCK-360)', () => {
-  it('rend les quatre destinations et plus aucune grille de métriques', async () => {
+  it('rend toutes les destinations du groupe « Système » et plus aucune grille de métriques', async () => {
     render(await SuperAdminSystemPage());
 
+    // TCK-365 — `/super-admin/system/jobs` s'ajoute ici, et pas par confort de symétrie : ce hub
+    // listait TROIS écrans techniques pendant que le groupe « Système » de la barre latérale en
+    // portait QUATRE. Cette liste-là était verte en défendant la porte manquante.
     const attendus = [
       '/super-admin/system/health',
+      '/super-admin/system/jobs',
       '/super-admin/system/maintenance',
       '/super-admin/system/scheduler',
       '/super-admin/settings',
@@ -65,5 +69,24 @@ describe('/super-admin/system est devenu un index (TCK-360)', () => {
     expect(liens).toEqual(attendus);
     expect(screen.queryByTestId('system-metrics-grid')).not.toBeInTheDocument();
     expect(screen.queryByTestId('system-metrics-loading')).not.toBeInTheDocument();
+  });
+
+  /**
+   * D8 — l'entrée neuve doit porter un LIBELLÉ, pas une clé i18n brute.
+   *
+   * Elle n'a pas d'entrée dans `pages.system.entries` : elle emprunte le titre et le sous-titre de
+   * sa propre page. Un chemin de clé qui n'existe pas ne casse rien — `mockTraductionsServeur`
+   * rend la clé, exactement comme next-intl en production. C'est donc à l'écran qu'il faut le
+   * voir, et nulle part ailleurs.
+   */
+  it('nomme l’entrée « jobs échoués » sans laisser fuir une clé i18n', async () => {
+    render(await SuperAdminSystemPage());
+
+    const lien = [...document.querySelectorAll('a[href]')]
+      .find((a) => a.getAttribute('href') === '/super-admin/system/jobs');
+
+    expect(lien).toBeDefined();
+    expect(lien).toHaveTextContent('Jobs échoués');
+    expect(lien?.textContent ?? '').not.toMatch(/superAdmin\.|pages\./);
   });
 });

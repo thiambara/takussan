@@ -82,7 +82,11 @@ export const SUPER_ADMIN_QUEUES: Record<SuperAdminQueueKey, QueueDefinition> = {
   'failed-jobs': {
     queryKey: ['super-admin', 'failed-jobs', 'count'],
     queryFn: async () => (await fetchFailedJobs({ perPage: 1 })).meta.total,
-    href: '/super-admin/system/health',
+    // TCK-365 — la console des jobs échoués a QUITTÉ `/system/health` : cette cible-là ne porte
+    // plus ni table ni bouton « Rejouer ». Un compte de file qui mène à une page où la file
+    // n'est plus n'est pas une porte, c'est un cul-de-sac — et il l'est resté un temps parce
+    // qu'un test vert asseyait l'ancienne cible.
+    href: '/super-admin/system/jobs',
   },
 };
 

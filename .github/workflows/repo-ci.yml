@@ -346,8 +346,17 @@ jobs:
         # du NAVIGATEUR. Le second est le pire des deux : il ne rend pas la même mauvaise réponse
         # à tout le monde, il en rend une différente par machine, donc irreproductible en test.
         #
-        # CLIQUET — le reste (`/app`, site public, baux, calendrier) est un PLAFOND, pas une
-        # tolérance : la garde échoue s'il monte. Le porter à zéro est un autre ticket.
+        # DEUX CLIQUETS, pas un — depuis la revue adverse du 2026-08-27. Le périmètre était une
+        # liste de RÉPERTOIRES, l'écran est un GRAPHE DE RENDU, et les deux ne coïncident jamais
+        # tout seuls : `/super-admin/payouts`, `/super-admin/plans` et l'onglet KYC rendaient
+        # NEUF `'fr-FR'` depuis `components/billing` et `components/kyc`, noyés dans un « reste »
+        # indifférencié. La garde calcule désormais la clôture transitive des imports depuis
+        # `app/(super-admin)/**` et compte séparément ce que la console REND.
+        #
+        # Les deux chiffres sont des cliquets DANS LES DEUX SENS : la garde échoue s'ils montent
+        # (récidive) ET s'ils descendent sans que la ligne soit corrigée. C'est ce qui rend une
+        # HAUSSE de plafond immédiatement rouge — l'une des trois façons de désarmer une garde à
+        # seuil, à côté du répertoire retiré et du fichier exempté, que ses témoins couvrent.
         run: node scripts/check-locale-figee.mjs --report
 
       - name: Les compétences des agents vivent dans un seul répertoire

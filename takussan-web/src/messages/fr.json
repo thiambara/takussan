@@ -54,7 +54,10 @@
       "loadMore": "Afficher plus",
       "shown": "{shown} sur {total}",
       "openAria": "Ouvrir la liste des agences",
-      "clearAria": "Effacer l'agence sélectionnée"
+      "clearAria": "Effacer l'agence sélectionnée",
+      "error": "La liste des agences n'a pas pu être chargée.",
+      "retry": "Réessayer",
+      "unknownAgency": "Agence #{id}"
     },
     "search": {
       "pending": "Recherche en cours…"
@@ -5248,22 +5251,12 @@
       "confirmRetryAllTitle": "Rejouer tous les jobs échoués",
       "confirmRetryAllDescription": "{count} job(s) échoué(s) seront remis en file d'un seul coup. Au-delà de 500, l'API refuse le lot.",
       "confirmDeleteTitle": "Supprimer un job échoué",
-      "confirmDeleteDescription": "{count} job échoué (#{id}) sera purgé définitivement, avec son payload et sa trace."
+      "confirmDeleteDescription": "{count} job échoué (#{id}) sera purgé définitivement, avec son payload et sa trace.",
+      "retryError": "Le rejeu de ce job a échoué.",
+      "retryAllError": "Le rejeu du lot a échoué. Aucun job n'a été remis en file.",
+      "deleteError": "La suppression de ce job a échoué."
     },
     "systemHealth": {
-      "failedJobs": {
-        "empty_title": "Aucun job échoué",
-        "empty_description": "La file de jobs tourne sans erreur.",
-        "title": "Jobs échoués",
-        "subtitle": "Payload tronqué dans la liste.",
-        "retryAll": "Rejouer tout",
-        "retry": "Rejouer",
-        "colQueue": "Queue",
-        "colPayload": "Payload",
-        "colFailedAt": "Échec",
-        "colActions": "Actions",
-        "tableCaption": "Jobs en échec de la file de traitement"
-      },
       "queuePending": "En attente",
       "queueProcessing": "En cours",
       "queueFailed24h": "Échecs 24h",
@@ -5273,6 +5266,12 @@
         "storage": "Stockage",
         "mail": "E-mail",
         "sms": "SMS"
+      },
+      "hint": {
+        "error": "Erreur : {message}",
+        "driver": "Pilote : {driver}",
+        "value": "Valeur : {value}",
+        "latency": "{ms} ms"
       },
       "status": {
         "ok": "OK",

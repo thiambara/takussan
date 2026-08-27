@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Megaphone, PauseCircle, Pencil, Plus, Save, X } from 'lucide-react';
 import { DataTable, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   createAdminAnnouncement,
@@ -20,7 +21,14 @@ import {
   fetchAdminAnnouncements,
   patchAdminAnnouncement,
 } from '@/lib/queries/super-admin';
-import type { AdminAgency, Announcement, AnnouncementPayload, AnnouncementSeverity } from '@/types/super-admin';
+import type {
+  AdminAgenciesResponse,
+  AdminAgency,
+  Announcement,
+  AnnouncementPayload,
+  AnnouncementSegment,
+  AnnouncementSeverity,
+} from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
@@ -79,6 +87,88 @@ export function announcementState(announcement: Announcement, now: number = Date
   return 'live';
 }
 
+/**
+ * TCK-366 (revue) — le délai d'anti-rebond de la recherche d'agences.
+ *
+ * Même valeur que `AGENCY_SEARCH_DEBOUNCE_MS` du combobox partagé, écrite ici plutôt qu'importée :
+ * ce sélecteur-ci est MULTIPLE et ne peut pas emprunter le combobox tel quel. Une factorisation
+ * reste possible le jour où le combobox saura porter plusieurs valeurs.
+ */
+const AGENCY_SEARCH_DEBOUNCE_MS = 300;
+
+/** Une page de résultats — 20, comme le combobox partagé et les listes de la console. */
+const AGENCIES_PER_PAGE = 20;
+
+/**
+ * TCK-366 (revue) — les agences ciblables, cherchées CÔTÉ SERVEUR.
+ *
+ * La forme précédente chargeait 100 agences au montage et filtrait la recherche côté client sur
+ * cette page déjà tronquée. Deux conséquences, et la seconde est la coûteuse : c'est une violation
+ * directe de la discipline sparse fieldsets (« filtre par `filter[…]` côté serveur, jamais côté
+ * client sur une liste déjà récupérée »), et surtout l'écran AFFIRMAIT « Aucune agence ne
+ * correspond » pour toute agence classée au-delà de la 100ᵉ — un sélecteur qui tait ce qu'il ne
+ * montre pas est pire qu'un sélecteur absent.
+ *
+ * Trois propriétés :
+ * 1. la recherche part en `filter[search]` (`fetchAdminAgencies({ search })`), temporisée ;
+ * 2. la troncature est DITE (« n sur N ») et franchissable (page suivante) ;
+ * 3. les noms rendus viennent des pages RÉELLEMENT chargées, et rien d'autre. Un identifiant ciblé
+ *    qu'aucune page ne porte s'affiche « Agence #42 » — c'est déjà le cas avant ce correctif, et
+ *    c'est la seule forme honnête : inventer un nom, ou pire retirer la cible, coûterait plus.
+ *    Conséquence assumée : pendant une recherche, la colonne « Segment » de la table peut retomber
+ *    sur cette forme pour une agence hors résultats.
+ */
+function useAgencesCiblables() {
+  const [recherche, setRecherche] = useState('');
+  const rechercheTemporisee = useDebouncedValue(recherche, AGENCY_SEARCH_DEBOUNCE_MS);
+  const terme = rechercheTemporisee.trim();
+
+  const query = useInfiniteQuery<AdminAgenciesResponse, ApiError>({
+    queryKey: ['super-admin', 'announcements', 'agencies', terme],
+    queryFn: ({ pageParam }) => fetchAdminAgencies({
+      search: terme || undefined,
+      sort: 'name',
+      page: pageParam as number,
+      perPage: AGENCIES_PER_PAGE,
+    }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (
+      last.meta.current_page < last.meta.last_page ? last.meta.current_page + 1 : undefined
+    ),
+    staleTime: 60_000,
+  });
+
+  const agencies: AdminAgency[] = useMemo(
+    () => (query.data?.pages ?? []).flatMap((page) => page.data),
+    [query.data],
+  );
+
+  const agencyNames = useMemo(
+    () => new Map(agencies.map((agency) => [agency.id, agency.name])),
+    [agencies],
+  );
+
+  return {
+    recherche,
+    setRecherche,
+    agencies,
+    agencyNames,
+    total: query.data?.pages[0]?.meta.total ?? 0,
+    isLoading: query.isPending,
+    hasNextPage: query.hasNextPage,
+    isFetchingNextPage: query.isFetchingNextPage,
+    chargerPlus: () => { void query.fetchNextPage(); },
+    /**
+     * ⚠ `recherche !== rechercheTemporisee` — et pas seulement `isFetching`. Pendant les 300 ms
+     * d'attente, aucune requête n'est en vol : l'écran serait muet exactement pendant le délai
+     * qu'on vient d'introduire.
+     */
+    enAttente: recherche !== rechercheTemporisee || query.isFetching,
+  };
+}
+
+type AgencesCiblables = ReturnType<typeof useAgencesCiblables>;
+
 type FormState = {
   titleFr: string;
   titleEn: string;
@@ -103,13 +193,41 @@ type FormState = {
  * `new Date(...)`, qui l'interprète en local. Rendre de l'UTC dans le champ décalerait donc la
  * date à CHAQUE aller-retour d'édition — une annonce ré-enregistrée trois fois depuis Dakar
  * aurait glissé de trois heures sans que personne n'y touche.
+ *
+ * ⚠ Exportée pour être ÉPROUVÉE. Le round-trip mesuré à travers le composant ne discrimine pas les
+ * deux formes : la machine de développement et la CI sont toutes deux à UTC+00, où
+ * `toISOString().slice(0, 16)` — le bug d'origine — rend exactement la même chaîne. Le test simule
+ * donc un décalage (`getTimezoneOffset`) au lieu de dépendre du fuseau de la machine.
  */
-function isoToLocalInput(iso: string | null): string {
+export function isoToLocalInput(iso: string | null): string {
   if (!iso) return '';
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return '';
   const decale = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
   return decale.toISOString().slice(0, 16);
+}
+
+/**
+ * Les six champs de locale, dans l'ordre où l'écran les rend. Une seule table : `LocaleFields`
+ * s'en sert pour rendre, `champsDeLocaleVides` pour juger.
+ */
+const LOCALE_FIELDS = [
+  { label: 'FR', titleKey: 'titleFr', bodyKey: 'bodyFr' },
+  { label: 'EN', titleKey: 'titleEn', bodyKey: 'bodyEn' },
+  { label: 'WO', titleKey: 'titleWo', bodyKey: 'bodyWo' },
+] as const;
+
+/**
+ * TCK-366 (revue) — les champs de locale vides, à l'enregistrement.
+ *
+ * L'API refuse déjà (`required_with` → 422), donc la contrainte métier « on ne publie pas une
+ * correction en français seulement » tenait ; ce qui manquait, c'est de DÉSIGNER le champ fautif :
+ * le bandeau d'erreur rendait un message global, et l'écran laissait chercher lequel des six.
+ */
+function champsDeLocaleVides(form: FormState): string[] {
+  return LOCALE_FIELDS.flatMap(({ titleKey, bodyKey }) => (
+    [titleKey, bodyKey].filter((cle) => form[cle].trim() === '')
+  ));
 }
 
 function emptyForm(): FormState {
@@ -167,6 +285,7 @@ export function AnnouncementsConsole() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tenteDEnregistrer, setTenteDEnregistrer] = useState(false);
   const query = useQuery({
     queryKey: ['super-admin', 'announcements'],
     queryFn: () => fetchAdminAnnouncements({ perPage: 30 }),
@@ -176,24 +295,16 @@ export function AnnouncementsConsole() {
   /**
    * Les agences servent DEUX besoins que rien n'oblige à séparer : borner la saisie du ciblage à
    * des agences existantes (ce que `segment.agency_ids.*` valide côté API par `exists:agencies`)
-   * et résoudre en noms les identifiants déjà posés.
+   * et résoudre en noms les identifiants déjà posés — ici comme dans la colonne « Segment ».
    */
-  const agenciesQuery = useQuery({
-    queryKey: ['super-admin', 'announcements', 'agencies'],
-    queryFn: () => fetchAdminAgencies({ perPage: 100, sort: 'name' }),
-    staleTime: 300_000,
-  });
-
-  const agencies: AdminAgency[] = useMemo(() => agenciesQuery.data?.data ?? [], [agenciesQuery.data]);
-  const agencyNames = useMemo(
-    () => new Map(agencies.map((agency) => [agency.id, agency.name])),
-    [agencies],
-  );
+  const agences = useAgencesCiblables();
+  const agencyNames = agences.agencyNames;
 
   const reset = () => {
     setForm(emptyForm());
     setEditing(null);
     setError(null);
+    setTenteDEnregistrer(false);
   };
 
   const mutation = useMutation({
@@ -212,6 +323,19 @@ export function AnnouncementsConsole() {
     setEditing(announcement);
     setForm(toForm(announcement));
     setError(null);
+    setTenteDEnregistrer(false);
+  };
+
+  /**
+   * ⚠ Les champs manquants sont DÉRIVÉS de la tentative, jamais figés dans un état : la marque
+   * disparaît dès que l'utilisateur remplit le champ, sans qu'il ait à re-soumettre pour le savoir.
+   */
+  const manquants = tenteDEnregistrer ? champsDeLocaleVides(form) : [];
+
+  const enregistrer = () => {
+    setTenteDEnregistrer(true);
+    if (champsDeLocaleVides(form).length > 0) return;
+    mutation.mutate();
   };
 
   const columns: DataTableColumn<Announcement>[] = [
@@ -323,7 +447,7 @@ export function AnnouncementsConsole() {
         ) : null}
 
         <div className="mt-4 grid gap-4">
-          <LocaleFields form={form} setForm={setForm} />
+          <LocaleFields form={form} setForm={setForm} manquants={manquants} />
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1.5">
@@ -372,13 +496,7 @@ export function AnnouncementsConsole() {
 
           <RoleTargeting form={form} setForm={setForm} />
 
-          <AgencyTargeting
-            form={form}
-            setForm={setForm}
-            agencies={agencies}
-            agencyNames={agencyNames}
-            isLoading={agenciesQuery.isLoading}
-          />
+          <AgencyTargeting form={form} setForm={setForm} agences={agences} />
 
           <label className="space-y-1.5">
             <Label htmlFor="announcement-rollout">{t('rollout')}</Label>
@@ -387,7 +505,7 @@ export function AnnouncementsConsole() {
 
           {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}
 
-          <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+          <Button type="button" onClick={enregistrer} disabled={mutation.isPending}>
             {editing ? <Save className="size-4" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
             {editing ? t('save') : t('publish')}
           </Button>
@@ -449,30 +567,52 @@ function AnnouncementAction({
   );
 }
 
-function LocaleFields({ form, setForm }: { form: FormState; setForm: (value: FormState) => void }) {
+function LocaleFields({
+  form,
+  setForm,
+  manquants,
+}: {
+  form: FormState;
+  setForm: (value: FormState) => void;
+  manquants: string[];
+}) {
   const t = useTranslations('superAdmin.announcements');
+  const tValidation = useTranslations('validation.common');
+
   return (
     <div className="grid gap-4">
-      {[
-        ['fr', 'FR', 'titleFr', 'bodyFr'],
-        ['en', 'EN', 'titleEn', 'bodyEn'],
-        ['wo', 'WO', 'titleWo', 'bodyWo'],
-      ].map(([, label, titleKey, bodyKey]) => (
+      {LOCALE_FIELDS.map(({ label, titleKey, bodyKey }) => (
         <div key={label} className="grid gap-2 rounded-lg border border-border p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
           <Input
+            id={`announcement-${titleKey}`}
             aria-label={t('titleFieldLabel', { locale: label })}
-            value={form[titleKey as keyof FormState] as string}
+            aria-invalid={manquants.includes(titleKey) || undefined}
+            aria-describedby={manquants.includes(titleKey) ? `announcement-${titleKey}-error` : undefined}
+            value={form[titleKey]}
             onChange={(event) => setForm({ ...form, [titleKey]: event.target.value })}
             placeholder={t('titlePlaceholder')}
           />
+          {manquants.includes(titleKey) ? (
+            <p id={`announcement-${titleKey}-error`} className="text-xs text-destructive" role="alert">
+              {tValidation('required')}
+            </p>
+          ) : null}
           <Textarea
+            id={`announcement-${bodyKey}`}
             aria-label={t('bodyFieldLabel', { locale: label })}
-            value={form[bodyKey as keyof FormState] as string}
+            aria-invalid={manquants.includes(bodyKey) || undefined}
+            aria-describedby={manquants.includes(bodyKey) ? `announcement-${bodyKey}-error` : undefined}
+            value={form[bodyKey]}
             onChange={(event) => setForm({ ...form, [bodyKey]: event.target.value })}
             placeholder={t('bodyPlaceholder')}
             rows={3}
           />
+          {manquants.includes(bodyKey) ? (
+            <p id={`announcement-${bodyKey}-error`} className="text-xs text-destructive" role="alert">
+              {tValidation('required')}
+            </p>
+          ) : null}
         </div>
       ))}
     </div>
@@ -528,25 +668,28 @@ function RoleTargeting({ form, setForm }: { form: FormState; setForm: (value: Fo
 /**
  * TCK-366 — le ciblage par agence, borné aux agences existantes.
  *
- * ⚠ La liste chargée est PAGINÉE (100). Un identifiant déjà ciblé qui n'y figure pas est conservé
- * et affiché en pastille — jamais retiré du formulaire. Perdre une cible parce qu'elle est sur la
- * deuxième page serait une régression silencieuse, exactement ce que l'AC3 interdit.
+ * ⚠ La liste est PAGINÉE et la recherche est SERVEUR (cf. `useAgencesCiblables`). Deux propriétés
+ * qui ne sont pas décoratives :
+ *
+ * 1. Un identifiant déjà ciblé qui ne figure dans aucune page chargée est conservé et affiché en
+ *    pastille — jamais retiré du formulaire. Perdre une cible parce qu'elle est sur la deuxième
+ *    page serait une régression silencieuse, exactement ce que l'AC3 interdit.
+ * 2. La troncature est DITE (« n sur N ») et franchissable. « Aucune agence ne correspond » ne
+ *    s'affiche plus que lorsque le SERVEUR n'a rien trouvé — auparavant l'écran l'affirmait dès
+ *    que l'agence cherchée était classée au-delà de la 100ᵉ.
  */
 function AgencyTargeting({
   form,
   setForm,
-  agencies,
-  agencyNames,
-  isLoading,
+  agences,
 }: {
   form: FormState;
   setForm: (value: FormState) => void;
-  agencies: AdminAgency[];
-  agencyNames: Map<number, string>;
-  isLoading: boolean;
+  agences: AgencesCiblables;
 }) {
   const t = useTranslations('superAdmin.announcements');
-  const [recherche, setRecherche] = useState('');
+  const tCombobox = useTranslations('console.agencyCombobox');
+  const { agencies, agencyNames } = agences;
 
   const toggle = (id: number) => {
     const agencyIds = form.agencyIds.includes(id)
@@ -554,12 +697,6 @@ function AgencyTargeting({
       : [...form.agencyIds, id];
     setForm({ ...form, agencyIds });
   };
-
-  const filtrees = useMemo(() => {
-    const terme = recherche.trim().toLowerCase();
-    if (!terme) return agencies;
-    return agencies.filter((agency) => agency.name.toLowerCase().includes(terme));
-  }, [agencies, recherche]);
 
   return (
     <fieldset className="grid gap-2">
@@ -584,17 +721,17 @@ function AgencyTargeting({
       <Input
         aria-label={t('agencySearch')}
         placeholder={t('agencySearch')}
-        value={recherche}
-        onChange={(event) => setRecherche(event.target.value)}
+        value={agences.recherche}
+        onChange={(event) => agences.setRecherche(event.target.value)}
       />
 
       <div className="max-h-48 overflow-y-auto rounded-lg border border-border p-2">
-        {isLoading ? (
+        {agences.isLoading ? (
           <p className="text-xs text-muted-foreground">{t('agenciesLoading')}</p>
-        ) : filtrees.length === 0 ? (
+        ) : agencies.length === 0 ? (
           <p className="text-xs text-muted-foreground">{t('agenciesNoMatch')}</p>
         ) : (
-          filtrees.map((agency) => (
+          agencies.map((agency) => (
             <label key={agency.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm text-foreground hover:bg-muted">
               <input
                 type="checkbox"
@@ -607,6 +744,26 @@ function AgencyTargeting({
           ))
         )}
       </div>
+
+      {agencies.length > 0 ? (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {agences.enAttente
+              ? tCombobox('searching')
+              : tCombobox('shown', { shown: agencies.length, total: agences.total })}
+          </p>
+          {agences.hasNextPage ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={agences.chargerPlus}
+              disabled={agences.isFetchingNextPage}
+            >
+              {tCombobox('loadMore')}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </fieldset>
   );
 }
@@ -615,12 +772,29 @@ function roleLabel(slug: string, t: (key: string, values?: Record<string, string
   return ROLE_SLUGS.includes(slug as RoleSlug) ? t(`roleLabels.${slug}`) : slug;
 }
 
+/**
+ * TCK-366 — le segment ne porte QUE les restrictions réellement posées.
+ *
+ * La forme précédente écrivait toujours les trois clés, donc `{"roles":[],"agency_ids":[]}` sur le
+ * fil quand rien n'était ciblé. Ce n'est pas du bruit inoffensif : `AnnouncementResolver::matches()`
+ * ne rendait « atteint tout le monde » que sur le tableau STRICTEMENT vide, et une annonce diffusée
+ * à tous cessait d'atteindre qui que ce soit dès qu'on la ré-enregistrait — prouvé de bout en bout
+ * (`AnnouncementTest::test_editing_an_unrestricted_announcement_keeps_it_visible_for_everyone`).
+ * Le résolveur est corrigé de son côté ; ici on cesse d'émettre une forme qui ne veut rien dire.
+ *
+ * ⚠ La clé `segment` reste TOUJOURS présente, à `{}` quand rien n'est ciblé. L'omettre serait un
+ * autre défaut : `update()` n'écrit que les clés reçues, donc retirer tout le ciblage d'une annonce
+ * qui en avait un ne le retirerait jamais.
+ */
 export function toPayload(form: FormState): AnnouncementPayload {
-  const segment = {
-    roles: form.roles.map((role) => role.trim()).filter(Boolean),
-    agency_ids: form.agencyIds.filter((id) => Number.isFinite(id) && id > 0),
-    rollout_percentage: form.rollout === '' ? undefined : Number(form.rollout),
-  };
+  const roles = form.roles.map((role) => role.trim()).filter(Boolean);
+  const agencyIds = form.agencyIds.filter((id) => Number.isFinite(id) && id > 0);
+  const rollout = form.rollout === '' ? undefined : Number(form.rollout);
+
+  const segment: AnnouncementSegment = {};
+  if (roles.length > 0) segment.roles = roles;
+  if (agencyIds.length > 0) segment.agency_ids = agencyIds;
+  if (rollout !== undefined && Number.isFinite(rollout)) segment.rollout_percentage = rollout;
 
   return {
     title: { fr: form.titleFr, en: form.titleEn, wo: form.titleWo },

@@ -236,6 +236,113 @@ describe('super-admin users page', () => {
     expect(await screen.findByRole('button', { name: 'Réinitialiser' })).toBeDisabled();
   });
 
+  /**
+   * TCK-363, D3 — PERTE DE MERGE, côté TCK-360. Cet écran portait une amorce GARDÉE sur
+   * `?status=` (« même amorce que role ci-dessus ») ; la résolution de conflit a gardé la lecture
+   * d'URL et perdu la garde, pendant que `/agencies` conservait la sienne (`seedStatus()`). Les
+   * deux écrans de la même console divergeaient, et rien ne le disait — TCK-360 n'avait écrit
+   * aucun test pour `/users`, c'est ce qui a rendu la perte silencieuse.
+   *
+   * ⚠ Le test assère les DEUX conséquences, parce qu'elles se corrigent séparément : le jeton
+   * inconnu ne part pas au serveur, ET il ne s'affiche pas brut à l'écran. Un correctif qui
+   * n'aurait fermé que le premier laisserait « nawak » dans le déclencheur du `<Select>`.
+   */
+  it.each([
+    ['status', 'nawak', 'filter[status]', 'Statut', 'Tous statuts'],
+    ['role', 'sorcier', 'filter[role]', 'Rôle', 'Tous rôles'],
+    ['email', '7', 'filter[email_verified]', 'Email vérifié', 'Email : tous'],
+    ['twoFactor', 'peut-être', 'filter[two_factor_enabled]', '2FA', '2FA : tous'],
+  ])(
+    "un ?%s=%s hors vocabulaire retombe sur « tous » — D3 TCK-363 / TCK-360",
+    async (cle, jeton, paramApi, aria, libelleAttendu) => {
+      mockSearchParams.get.mockImplementation((k: string) => (k === cle ? jeton : null));
+      mockSearchParams.toString.mockReturnValue(`${cle}=${encodeURIComponent(jeton)}`);
+      const spy = mockFetch();
+
+      renderPage();
+      await waitFor(() => expect(spy).toHaveBeenCalled());
+
+      const appel = spy.mock.calls.find(([input]) =>
+        String(input).startsWith('/api/super-admin-users?'),
+      );
+      const url = new URL(String(appel?.[0]), 'http://localhost');
+      // Un filtre inexistant côté serveur rend une liste vide inexplicable pour l'utilisateur.
+      expect(url.searchParams.get(paramApi)).toBeNull();
+
+      // Et le déclencheur rend le LIBELLÉ « tous », jamais le jeton brut non traduit.
+      const declencheur = screen.getByLabelText(aria);
+      expect(declencheur).toHaveTextContent(libelleAttendu);
+      expect(declencheur.textContent).not.toContain(jeton);
+    },
+  );
+
+  /**
+   * TCK-363, D6 — trois MUTANTS SURVIVANTS sur l'AC5 : retirer `email` et `twoFactor` de
+   * `PARAMS_DE_FILTRE` laissait 11/11 tests verts. Le code était juste, c'est la GARDE qui
+   * manquait — et elle manquait sur les filtres que ce ticket introduit.
+   *
+   * Conséquence utilisateur de chaque oubli : le filtre est posé seul, `filtresPoses` est faux,
+   * « Réinitialiser » est DÉSACTIVÉ — l'utilisateur ne peut plus lever d'un geste le filtre qu'il
+   * vient de poser. Ne pas pouvoir atteindre l'action est pire que l'atteindre incomplètement.
+   */
+  it.each([
+    ['search', 'awa'],
+    ['role', 'agent'],
+    ['agency', '12'],
+    ['status', 'active'],
+    ['email', '1'],
+    ['twoFactor', '0'],
+  ])('un ?%s= posé SEUL active « Réinitialiser » — AC5 D6 TCK-363', async (cle, valeur) => {
+    mockSearchParams.get.mockImplementation((k: string) => (k === cle ? valeur : null));
+    mockSearchParams.toString.mockReturnValue(`${cle}=${valeur}`);
+    mockFetch();
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Réinitialiser' })).toBeEnabled();
+  });
+
+  /**
+   * TCK-363, D7 — MUTANT SURVIVANT : supprimer entièrement le retour à la page 1 lors d'un
+   * changement de filtre laissait 11/11 tests verts. Le défaut est classique et invisible — on
+   * filtre depuis la page 7 et on croit qu'il n'y a pas de résultats. `/properties` le gardait
+   * déjà (`expect(replaced).not.toContain('page=4')`) ; cet écran non, et l'écart était le signal.
+   */
+  it('changer un filtre depuis la page 7 revient à la page 1 — D7 TCK-363', async () => {
+    const user = userEvent.setup();
+    mockSearchParams.get.mockImplementation((k: string) => (k === 'page' ? '7' : null));
+    mockSearchParams.toString.mockReturnValue('page=7');
+    mockFetch();
+
+    renderPage();
+
+    await user.click(screen.getByLabelText('Rôle'));
+    await user.click(await screen.findByRole('option', { name: 'Agent' }));
+
+    const replaced = String(mockReplace.mock.calls.at(-1)?.[0]);
+    expect(replaced).toContain('role=agent');
+    expect(replaced).not.toContain('page=7');
+  });
+
+  /**
+   * TCK-363, D8 — tranché en faveur de « le bouton est actif dès que le geste ferait quelque
+   * chose ». Sur `?page=7` sans filtre, `reinitialiser()` ramène bien à la page 1 : un bouton
+   * désactivé disait à l'utilisateur qu'il était déjà à l'état par défaut alors qu'il était
+   * page 7.
+   *
+   * ⚠ La garde D6 ci-dessus reste porteuse malgré ce choix : ses six cas n'ont PAS de `page` dans
+   * l'URL, donc un `PARAMS_DE_FILTRE` amputé les fait toujours rougir.
+   */
+  it('« réinitialiser » est actif sur ?page=7 sans aucun filtre — D8 TCK-363', async () => {
+    mockSearchParams.get.mockImplementation((k: string) => (k === 'page' ? '7' : null));
+    mockSearchParams.toString.mockReturnValue('page=7');
+    mockFetch();
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Réinitialiser' })).toBeEnabled();
+  });
+
   it('mirrors the role filter to the URL (?role=…) — AC3 TCK-243', async () => {
     const user = userEvent.setup();
     mockFetch();

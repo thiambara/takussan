@@ -87,3 +87,41 @@ describe('HealthDashboard — libellés de sondes', () => {
     en.unmount();
   });
 });
+
+/**
+ * TCK-364, revue adverse (D7) — l'INDICE de la tuile, que l'AC2 couvrait par sa formulation et
+ * pas par son code.
+ *
+ * `hint` valait `status?.error ?? status?.driver ?? status?.value ?? `${latency}ms`` : trois
+ * valeurs d'API affichées NUES et un suffixe littéral. Les cas ci-dessous asservent le CADRE
+ * (traduit, donc différent entre `fr` et `en`) sans asservir le CORPS — qui est un identifiant
+ * technique (`log`) ou un message d'exception de l'API (`disk full`), et qui doit rester tel quel.
+ */
+describe('HealthDashboard — l’indice est encadré par une clé, jamais rendu nu', () => {
+  it('encadre le pilote, la charge et l’erreur, différemment en fr et en en', async () => {
+    const fr = monter('fr');
+    // Deux sondes (`mail`, `sms`) portent le même pilote : `getAllBy*`, sans quoi le cas rougit
+    // pour la mauvaise raison.
+    await waitFor(() => expect(screen.getAllByText('Pilote : log')).toHaveLength(2));
+    expect(screen.getByText('Erreur : disk full')).toBeInTheDocument();
+    expect(screen.getByText('Valeur : miss')).toBeInTheDocument();
+    // Le CORPS reste tel quel — c'est un jeton d'API, pas un libellé. Ce qui doit disparaître,
+    // c'est qu'il soit affiché SEUL.
+    expect(screen.queryAllByText('log')).toHaveLength(0);
+    expect(screen.queryAllByText('disk full')).toHaveLength(0);
+    fr.unmount();
+
+    const en = monter('en');
+    await waitFor(() => expect(screen.getByText('Error: disk full')).toBeInTheDocument());
+    expect(screen.getAllByText('Driver: log').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Erreur : disk full')).not.toBeInTheDocument();
+    en.unmount();
+  });
+
+  it('formate la latence par la locale et n’y colle plus un `ms` littéral', async () => {
+    const fr = monter('fr');
+    await waitFor(() => expect(screen.getByText('3 ms')).toBeInTheDocument());
+    expect(screen.queryByText('3ms')).not.toBeInTheDocument();
+    fr.unmount();
+  });
+});

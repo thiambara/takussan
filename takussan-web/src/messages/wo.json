@@ -54,7 +54,10 @@
       "loadMore": "Wone yeneen",
       "shown": "{shown} ci {total}",
       "openAria": "Ubbi limu ajaas yi",
-      "clearAria": "Faagaru ajaas bi ñu tànn"
+      "clearAria": "Faagaru ajaas bi ñu tànn",
+      "error": "Mënuñu yeb limu ajaas yi.",
+      "retry": "Jéemaat",
+      "unknownAgency": "Ajaas #{id}"
     },
     "search": {
       "pending": "Mi ngi wut…"
@@ -4792,22 +4795,12 @@
       "confirmRetryAllTitle": "Dellu jëfe jobs yépp yu ñàkk",
       "confirmRetryAllDescription": "{count} job(s) yu ñàkk dinañu dellu ci fiir bi benn yoon. Su weesoo 500, API bi dina ko bañ.",
       "confirmDeleteTitle": "Far benn job bu ñàkk",
-      "confirmDeleteDescription": "{count} job bu ñàkk (#{id}) dinañu ko far ba fàww, ak payload bi ak tarawu bi."
+      "confirmDeleteDescription": "{count} job bu ñàkk (#{id}) dinañu ko far ba fàww, ak payload bi ak tarawu bi.",
+      "retryError": "Dellu def liggéey bii antuwul.",
+      "retryAllError": "Dellu def lépp antuwul. Amul benn liggéey bu ñu dellu def.",
+      "deleteError": "Faral liggéey bii antuwul."
     },
     "systemHealth": {
-      "failedJobs": {
-        "empty_title": "Amul benn liggéey bu antuwul",
-        "empty_description": "Liiñu liggéey bi dafay dox te njuumte amul.",
-        "title": "Liggéey yu antuwul",
-        "subtitle": "Payload bi dañu ko dagg ci limu bi.",
-        "retryAll": "Dellu def lépp",
-        "retry": "Dellu def ko",
-        "colQueue": "Liiñ",
-        "colPayload": "Payload",
-        "colFailedAt": "Njuumte",
-        "colActions": "Aksioŋ yi",
-        "tableCaption": "Job yu ñàkk ci file bi"
-      },
       "queuePending": "Ci xaar",
       "queueProcessing": "Mu ngi dox",
       "queueFailed24h": "Njuumte 24 waxtu",
@@ -4817,6 +4810,12 @@
         "storage": "Denc",
         "mail": "E-mail",
         "sms": "SMS"
+      },
+      "hint": {
+        "error": "Njuumte : {message}",
+        "driver": "Doxalukaay : {driver}",
+        "value": "Njëg : {value}",
+        "latency": "{ms} ms"
       },
       "status": {
         "ok": "Baax na",

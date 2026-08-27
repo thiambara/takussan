@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { CircleCheckBig, FileSearch, Play, RotateCcw, Trash2 } from 'lucide-react';
 
 import { DataState, DataTable, Pagination, StatCard, type DataTableColumn } from '@/components/console';
-import { EmptyState } from '@/components/feedback';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -63,11 +64,20 @@ export function FailedJobsConsole() {
   // `toLocaleString('fr-FR')` n'était pas une négligence, il était invisible des deux côtés.
   // C'est `scripts/check-locale-figee.mjs` qui l'a arrêté à la fusion, pas une relecture.
   const fmt = useFormatteurs();
+  const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
+  /**
+   * L'échec d'une MUTATION — `DataState` ne couvre que la requête de LISTE.
+   *
+   * ⚠ Sans ce mécanisme, un `retry-all` refusé (le cas que le dialogue nomme lui-même :
+   * « au-delà de 500, l'API refuse le lot ») laissait le dialogue ouvert et l'écran muet.
+   * L'opérateur retapait la phrase et recliquait, indéfiniment, sans jamais rien apprendre.
+   */
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const jobs = useQuery({
     queryKey: ['super-admin', 'failed-jobs', page],
@@ -77,23 +87,45 @@ export function FailedJobsConsole() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['super-admin', 'failed-jobs'] });
 
-  const retry = useMutation({ mutationFn: retryFailedJob, onSuccess: invalidate });
+  /**
+   * Les trois `onError` referment le dialogue AVANT d'afficher l'échec, et ce n'est pas un détail
+   * de mise en page : `ConfirmActionDialog` est un modal, un bandeau rendu derrière lui ne serait
+   * pas lu. Un dialogue qu'on referme sur un message est aussi ce qui empêche le reclic en
+   * boucle — le geste suivant redevient délibéré. Même forme que `AgencyModerationCard`.
+   */
+  const echec = (repli: string) => (err: unknown) => {
+    setPending(null);
+    setActionError(messageErreur(err, repli));
+  };
+
+  const retry = useMutation({
+    mutationFn: retryFailedJob,
+    onSuccess: () => {
+      setActionError(null);
+      return invalidate();
+    },
+    onError: echec(t('retryError')),
+  });
   const retryAll = useMutation({
     mutationFn: retryAllFailedJobs,
     onSuccess: () => {
       setPending(null);
+      setActionError(null);
       // Une purge de la file entière peut vider la page courante : on revient à la première
       // plutôt que d'afficher un vide qui n'en est pas un.
       setPage(1);
       return invalidate();
     },
+    onError: echec(t('retryAllError')),
   });
   const remove = useMutation({
     mutationFn: deleteFailedJob,
     onSuccess: () => {
       setPending(null);
+      setActionError(null);
       return invalidate();
     },
+    onError: echec(t('deleteError')),
   });
 
   const rows = jobs.data?.data ?? [];
@@ -168,6 +200,15 @@ export function FailedJobsConsole() {
           </Button>
         </div>
       </section>
+
+      {actionError ? (
+        <ErrorState
+          data-testid="failed-jobs-action-error"
+          message={actionError}
+          onRetry={() => setActionError(null)}
+          retryLabel={tCommon('actions.close')}
+        />
+      ) : null}
 
       <DataState
         loading={jobs.isLoading}

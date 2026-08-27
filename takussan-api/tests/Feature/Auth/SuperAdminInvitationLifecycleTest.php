@@ -6,9 +6,12 @@ use App\Mail\InvitationMailable;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
 use App\Models\User;
+use App\Services\Auth\SuperAdminCooptationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use RuntimeException;
 use Tests\TestCase;
 
 /**
@@ -226,6 +229,206 @@ class SuperAdminInvitationLifecycleTest extends TestCase
         );
         $invitation->refresh();
         $this->assertTrue($invitation->expires_at->isFuture());
+    }
+
+    /**
+     * La contrainte « une relance ne crée pas une seconde invitation
+     * valable », montée sur la séquence COMPLÈTE et pas sur la relance
+     * seule : c'est la composition qui casse, pas l'étape.
+     *
+     * 1. Une cooptation expire — le cron l'a marquée, elle reste à
+     *    l'écran (AC3).
+     * 2. Un super-admin réinvite depuis « Inviter » plutôt que de
+     *    relancer : `InvitationService::send()` ne dédoublonne que sur
+     *    `sent`, la ligne `expired` ne le déclenche pas, une SECONDE
+     *    ligne part.
+     * 3. Quelqu'un relance la vieille ligne → elle doit être REFUSÉE :
+     *    sans ça, deux lignes `sent` et deux jetons ouvrants pour un seul
+     *    destinataire.
+     */
+    public function test_relaunching_an_expired_invitation_superseded_by_a_newer_one_is_refused(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $actor = $this->actingAsRole('super_admin');
+
+        $perimee = $this->cooptationInvitation($actor, [
+            'status' => InvitationStatus::Expired->value,
+            'expires_at' => now()->subDays(3),
+        ]);
+        $tokenPerime = $perimee->getRawOriginal('token');
+
+        $this->postJson('/api/admin/super-admins/invite', [
+            'email' => 'coopte@example.com',
+            'first_name' => 'Coura',
+            'last_name' => 'Sow',
+        ])->assertStatus(201);
+
+        $this->postJson("/api/admin/super-admins/invitations/{$perimee->id}/resend")
+            ->assertStatus(409);
+
+        // Une seule ligne VIVANTE, et c'est la neuve.
+        $this->assertSame(
+            1,
+            Invitation::query()
+                ->where('email', 'coopte@example.com')
+                ->where('status', InvitationStatus::Sent->value)
+                ->count(),
+        );
+
+        // La supplantée n'a bougé en rien : ni statut, ni jeton, ni
+        // expiration. Un 409 qui aurait quand même réémis le jeton
+        // laisserait un lien mort de plus.
+        $perimee->refresh();
+        $this->assertSame(InvitationStatus::Expired, $perimee->status);
+        $this->assertSame($tokenPerime, $perimee->getRawOriginal('token'));
+        $this->assertTrue($perimee->expires_at->isPast());
+
+        // Et le refus ne s'écrit pas dans le journal comme une relance.
+        $this->assertDatabaseMissing('activity_log', [
+            'event' => 'super_admin_invitation_resent',
+            'subject_id' => $perimee->id,
+        ]);
+    }
+
+    /**
+     * Le refus ne vaut QUE pour la résurrection. Une ligne `sent` que le
+     * cron horaire n'a pas encore marquée se relance normalement : la
+     * relancer n'augmente pas le nombre de lignes `sent`.
+     */
+    public function test_a_past_due_but_still_sent_invitation_can_still_be_relaunched(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $actor = $this->actingAsRole('super_admin');
+        $invitation = $this->cooptationInvitation($actor, [
+            'expires_at' => now()->subHour(),
+        ]);
+
+        $this->postJson("/api/admin/super-admins/invitations/{$invitation->id}/resend")
+            ->assertStatus(200)
+            ->assertJsonPath('data.is_expired', false);
+
+        $this->assertSame(
+            1,
+            Invitation::query()->where('email', 'coopte@example.com')->count(),
+        );
+    }
+
+    /**
+     * D2 — le docblock promettait « dans la même transaction » sans
+     * qu'aucune transaction n'existe. Mesuré avant correctif : un envoi
+     * en échec laissait l'invitation `sent`, avec un NOUVEAU jeton et
+     * sept jours de plus, sans qu'aucun courriel ne parte — l'ancien lien
+     * mort, le nouveau jamais envoyé, l'écran affichant une invitation en
+     * attente que personne n'a reçue.
+     *
+     * L'appel passe par le service et non par HTTP : c'est l'état laissé
+     * en base par l'échec qu'on mesure, pas le code de statut.
+     */
+    public function test_a_failing_email_leaves_no_zombie_invitation(): void
+    {
+        Notification::fake();
+        $actor = $this->actingAsRole('super_admin');
+        $invitation = $this->cooptationInvitation($actor, [
+            'status' => InvitationStatus::Expired->value,
+            'expires_at' => now()->subDays(3),
+        ]);
+        $tokenAvant = $invitation->getRawOriginal('token');
+        $expirationAvant = $invitation->expires_at->copy();
+
+        Mail::shouldReceive('to')->andThrow(new RuntimeException('smtp down'));
+
+        try {
+            app(SuperAdminCooptationService::class)->resendInvitation($actor, $invitation);
+            $this->fail("L'échec d'envoi aurait dû remonter.");
+        } catch (RuntimeException $e) {
+            $this->assertSame('smtp down', $e->getMessage());
+        }
+
+        $invitation->refresh();
+        $this->assertSame(InvitationStatus::Expired, $invitation->status);
+        $this->assertSame($tokenAvant, $invitation->getRawOriginal('token'));
+        $this->assertTrue($invitation->expires_at->equalTo($expirationAvant));
+        $this->assertDatabaseMissing('activity_log', [
+            'event' => 'super_admin_invitation_resent',
+            'subject_id' => $invitation->id,
+        ]);
+    }
+
+    /**
+     * D3 — `InvitationService::revoke()` sort en no-op sur une ligne déjà
+     * `revoked`. Journaliser quand même faisait d'un double-clic deux
+     * annulations dans la console d'audit.
+     */
+    public function test_a_second_revoke_does_not_write_a_second_audit_row(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $actor = $this->actingAsRole('super_admin');
+        $invitation = $this->cooptationInvitation($actor);
+
+        $this->postJson("/api/admin/super-admins/invitations/{$invitation->id}/revoke")
+            ->assertStatus(200);
+        $this->postJson("/api/admin/super-admins/invitations/{$invitation->id}/revoke")
+            ->assertStatus(200)
+            ->assertJsonPath('data.status', InvitationStatus::Revoked->value);
+
+        $this->assertSame(
+            1,
+            DB::table('activity_log')
+                ->where('event', 'super_admin_invitation_revoked')
+                ->where('subject_id', $invitation->id)
+                ->count(),
+        );
+    }
+
+    /**
+     * La garde de D1 est un « lire puis écrire » : sans point de
+     * sérialisation, deux relances simultanées de deux lignes `expired`
+     * — ou une relance concurrente d'une invitation — se croisent sans se
+     * voir, et aucun verrou de LIGNE ne ferme la course, l'un des deux
+     * chemins faisant un INSERT (cf. le piège n°2 du CLAUDE.md).
+     *
+     * Ce que ce test prouve : les deux chemins d'écriture de la surface
+     * prennent le MÊME verrou consultatif, pour le même destinataire,
+     * avant de lire. C'est une preuve STRUCTURELLE — une exécution
+     * réellement concurrente est hors de portée sous `RefreshDatabase`,
+     * dont la transaction rend les données invisibles à une seconde
+     * connexion.
+     */
+    public function test_both_write_paths_serialize_on_the_same_advisory_lock(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $actor = $this->actingAsRole('super_admin');
+        $invitation = $this->cooptationInvitation($actor, ['email' => 'Coopte@Example.com']);
+
+        $verrous = [];
+        DB::listen(function ($query) use (&$verrous): void {
+            if (str_contains($query->sql, 'pg_advisory_xact_lock')) {
+                $verrous[] = (int) $query->bindings[0];
+            }
+        });
+
+        $this->postJson("/api/admin/super-admins/invitations/{$invitation->id}/resend")
+            ->assertStatus(200);
+        $this->postJson("/api/admin/super-admins/invitations/{$invitation->id}/revoke")
+            ->assertStatus(200);
+        $this->postJson('/api/admin/super-admins/invite', [
+            'email' => 'coopte@example.com',
+            'first_name' => 'Coura',
+            'last_name' => 'Sow',
+        ])->assertStatus(201);
+
+        // Relance ET invitation le prennent ; l'annulation n'en a pas
+        // besoin (elle ne crée aucune ligne et ne ressuscite rien).
+        $this->assertCount(2, $verrous);
+        // Et c'est bien la MÊME clé, malgré la casse différente de
+        // l'e-mail entre les deux appels — sinon les deux chemins se
+        // sérialiseraient dans deux files distinctes, ce qui ne sérialise
+        // rien du tout.
+        $this->assertSame($verrous[0], $verrous[1]);
     }
 
     // ---------------------------------------------------------------

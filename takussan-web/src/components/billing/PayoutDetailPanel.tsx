@@ -18,7 +18,8 @@ import {
   markAdminPlatformPayoutPaid,
 } from '@/lib/queries/super-admin';
 import type { PlatformPayout } from '@/types/super-admin';
-import { PayoutStatusPill, formatXof } from './PayoutTable';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import { PayoutStatusPill, formatPeriod, useXof } from './PayoutTable';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 export function PayoutDetailPanel({ payoutId, onClose }: { payoutId: number; onClose: () => void }) {
@@ -44,6 +45,8 @@ export function PayoutDetailPanel({ payoutId, onClose }: { payoutId: number; onC
 function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: () => void }) {
   const t = useTranslations('billing.platformPayouts.detail');
   const tBilling = useTranslations('billing');
+  const fmt = useFormatteurs();
+  const xof = useXof();
   const messageErreur = useMessageErreurApi();
   const toast = useToast();
   const queryClient = useQueryClient();
@@ -89,11 +92,11 @@ function PayoutActions({ payout, onClose }: { payout: PlatformPayout; onClose: (
       <CardContent className="space-y-5">
         <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-3">
           <Item label={t('agency')} value={`#${payout.agency_id}`} />
-          <Item label={t('period')} value={formatPeriod(payout)} />
+          <Item label={t('period')} value={formatPeriod(payout, fmt)} />
           <Item label={t('currency')} value={payout.currency} />
-          <Item label={t('gross')} value={formatXof(payout.gross_amount, payout.currency)} />
-          <Item label={t('commission')} value={formatXof(payout.platform_fee_amount, payout.currency)} />
-          <Item label={t('net')} value={formatXof(payout.net_amount, payout.currency)} bold />
+          <Item label={t('gross')} value={xof(payout.gross_amount, payout.currency)} />
+          <Item label={t('commission')} value={xof(payout.platform_fee_amount, payout.currency)} />
+          <Item label={t('net')} value={xof(payout.net_amount, payout.currency)} bold />
         </dl>
 
         {breakdown ? (
@@ -160,6 +163,7 @@ function Item({ label, value, bold }: { label: string; value: string; bold?: boo
 
 function BreakdownRow({ label, group, currency }: { label: string; group: { count: number; gross: number; fees: number }; currency: string }) {
   const t = useTranslations('billing.platformPayouts.detail');
+  const xof = useXof();
   return (
     <div className="rounded-md border border-border/40 bg-background p-2">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
@@ -171,17 +175,10 @@ function BreakdownRow({ label, group, currency }: { label: string; group: { coun
           amount: (chunks) => <span className="tabular-nums">{chunks}</span>,
           fee: (chunks) => <span className="tabular-nums text-muted-foreground">{chunks}</span>,
           count: String(group.count),
-          gross: formatXof(group.gross, currency),
-          fees: formatXof(group.fees, currency),
+          gross: xof(group.gross, currency),
+          fees: xof(group.fees, currency),
         })}
       </div>
     </div>
   );
 }
-
-function formatPeriod(payout: PlatformPayout): string {
-  const end = payout.period_end ? new Date(payout.period_end).toLocaleDateString('fr-FR') : '—';
-  const start = payout.period_start ? new Date(payout.period_start).toLocaleDateString('fr-FR') : '—';
-  return `${start} → ${end}`;
-}
-

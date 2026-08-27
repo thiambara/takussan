@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { KycDossier, KycDossierStatus } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
@@ -24,6 +25,7 @@ const DOCUMENTS: readonly DocumentType[] = ['rccm', 'ninea', 'director_id'];
 
 export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
   const t = useTranslations('kyc');
+  const fmt = useFormatteurs();
   const steps = [
     { id: 'created', label: t('timeline.steps.created'), date: dossier.created_at },
     { id: 'submitted', label: t('timeline.steps.submitted'), date: dossier.submitted_at },
@@ -55,7 +57,7 @@ export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
           {steps.map((step) => (
             <div key={step.id} className="rounded-lg border border-border p-3">
               <p className="text-sm font-medium text-foreground">{step.label}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{formatDate(step.date)}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{fmt.dateTime(step.date)}</p>
             </div>
           ))}
         </div>
@@ -267,9 +269,3 @@ export function StatusBadge({ status }: { status: KycDossierStatus }) {
   const t = useTranslations('kyc.status');
   return <ConsoleStatusBadge label={t(status)} tone={STATUS_TONE[status]} data-testid={`kyc-status-${status}`} />;
 }
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-}
-

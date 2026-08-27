@@ -51,6 +51,31 @@ describe('SuperAdminSidebar — badges de file (TCK-360)', () => {
     expect(fetchModerationQueue).toHaveBeenCalledWith({ perPage: 1 });
   });
 
+  /**
+   * TCK-365 / D7 — AC1 : « la console des jobs échoués est atteignable depuis la barre latérale ».
+   *
+   * ⚠ Cet AC n'était gardé par AUCUN test. Ablation mesurée par la revue : la ligne
+   * `{ href: '/super-admin/system/jobs', … }` retirée de `NAV_GROUPS`, `npx vitest run
+   * src/components/layout` restait VERT — 15/15, deux passes. L'AC phare du ticket se défaisait
+   * par la suppression d'une ligne, en silence.
+   *
+   * Le test exige deux choses, et la seconde compte autant que la première : un lien vers la
+   * bonne destination, et un LIBELLÉ. `withIntl` monte le vrai `fr.json` — un `labelKey` mal
+   * orthographié rendrait la clé brute (`nav.superAdmin.items.…`) sans rien casser, exactement
+   * comme en production.
+   */
+  it('mène aux jobs échoués sans qu’il faille déplier quoi que ce soit (AC1, TCK-365)', async () => {
+    renderSidebar(<SuperAdminSidebar />);
+
+    const lien = screen
+      .getAllByRole('link')
+      .find((a) => a.getAttribute('href') === '/super-admin/system/jobs');
+
+    expect(lien, 'aucun lien vers /super-admin/system/jobs dans la barre latérale').toBeDefined();
+    expect(lien).toHaveTextContent('Jobs échoués');
+    expect(lien?.textContent ?? '').not.toMatch(/nav\.|superAdmin\./);
+  });
+
   it('ne demande aucun compte pour les entrées de menu qui ne sont pas des files', async () => {
     renderSidebar(<SuperAdminSidebar />);
 

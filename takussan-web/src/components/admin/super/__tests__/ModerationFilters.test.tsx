@@ -109,4 +109,35 @@ describe('<ModerationFilters>', () => {
 
     expect(screen.getByRole('button', { name: 'Réinitialiser' })).toBeDisabled();
   });
+
+  /**
+   * TCK-363, D6 — MUTANT SURVIVANT : retirer `filter[agency_id]` de `PARAMS_DE_FILTRE` laissait
+   * 3/3 tests verts. Le code était juste, c'est la GARDE qui manquait — et elle manquait sur le
+   * filtre que ce ticket INTRODUIT sur cet écran.
+   *
+   * Conséquence : l'agence posée seule, `filtresPoses` faux, « Réinitialiser » désactivé —
+   * l'utilisateur ne peut plus lever d'un geste le filtre qu'il vient de poser.
+   */
+  it.each([
+    ['filter[type]', 'property'],
+    ['filter[status]', 'flagged'],
+    ['filter[agency_id]', '63'],
+    ['sort', 'reported_at'],
+  ])('un %s posé SEUL active « Réinitialiser » — AC5 D6 TCK-363', (cle, valeur) => {
+    mockSearchParams.get.mockImplementation((k: string) => (k === cle ? valeur : null));
+    renderFilters({ total: 3 });
+
+    expect(screen.getByRole('button', { name: 'Réinitialiser' })).toBeEnabled();
+  });
+
+  /**
+   * TCK-363, D8 — « Réinitialiser » vide l'URL, donc la pagination aussi. Sur `?page=5` sans
+   * filtre, un bouton désactivé annonçait un état par défaut qui n'était pas celui de l'écran.
+   */
+  it('« réinitialiser » est actif sur ?page=5 sans aucun filtre — D8 TCK-363', () => {
+    mockSearchParams.get.mockImplementation((k: string) => (k === 'page' ? '5' : null));
+    renderFilters({ total: 3 });
+
+    expect(screen.getByRole('button', { name: 'Réinitialiser' })).toBeEnabled();
+  });
 });

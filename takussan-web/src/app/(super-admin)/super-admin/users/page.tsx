@@ -105,6 +105,28 @@ const TWOFA_OPTIONS: { value: string; labelKey: string }[] = [
   { value: '0', labelKey: 'twoFactorFilter.off' },
 ];
 
+/**
+ * Un jeton d'URL hors du vocabulaire de son filtre ne pose PAS un filtre inexistant : il retombe
+ * sur « tous ».
+ *
+ * TCK-360 avait posé cette garde sur `?status=` — la console lie ses tuiles d'accueil vers des
+ * URL filtrées, et une tuile mal formée ne doit pas produire un écran vide inexplicable. La
+ * résolution de conflit de TCK-363 a gardé la lecture d'URL et PERDU la garde : `?status=nawak`
+ * envoyait `filter[status]=nawak` au serveur et rendait le jeton BRUT, non traduit, dans le
+ * déclencheur du `<Select>`. `/agencies` avait conservé la sienne (`seedStatus()`) : les deux
+ * écrans de la même console divergeaient.
+ *
+ * Elle est rétablie ici et ÉTENDUE aux quatre filtres à vocabulaire fermé — `role`, `status`,
+ * `email`, `twoFactor` — qui n'en avaient jamais eu. `agency` (un identifiant) et `search` (du
+ * texte libre) n'ont pas de vocabulaire : le serveur les juge.
+ */
+function jetonValide(
+  options: readonly { value: string }[],
+  brut: string | null | undefined,
+): string {
+  return options.some((option) => option.value === brut) ? (brut as string) : ALL;
+}
+
 type UsersParams = {
   search: string;
   role: string;
@@ -183,12 +205,15 @@ export default function SuperAdminUsersPage() {
   // et, un temps, `status` (TCK-360) : lire l'URL à chaque rendu rend l'amorce sans objet, et
   // ferme au passage le défaut qu'elle avait — un état amorcé une fois ne suit pas les
   // navigations arrière/avant du navigateur.
+  //
+  // ⚠ Les quatre filtres à vocabulaire fermé passent par `jetonValide` : lire l'URL n'est pas la
+  // croire. Cf. le commentaire de la fonction — c'est la garde de TCK-360, reperdue puis rendue.
   const search = searchParams?.get('search') ?? '';
-  const role = searchParams?.get('role') ?? ALL;
+  const role = jetonValide(ROLE_OPTIONS, searchParams?.get('role'));
   const agencyId = searchParams?.get('agency') ?? '';
-  const status = searchParams?.get('status') ?? ALL;
-  const emailVerified = searchParams?.get('email') ?? ALL;
-  const twoFactor = searchParams?.get('twoFactor') ?? ALL;
+  const status = jetonValide(STATUS_OPTIONS, searchParams?.get('status'));
+  const emailVerified = jetonValide(EMAIL_OPTIONS, searchParams?.get('email'));
+  const twoFactor = jetonValide(TWOFA_OPTIONS, searchParams?.get('twoFactor'));
   const page = Number.parseInt(searchParams?.get('page') ?? '1', 10) || 1;
   const [target, setTarget] = useState<SuperAdminUser | null>(null);
   const impersonate = useImpersonate();
@@ -230,6 +255,11 @@ export default function SuperAdminUsersPage() {
   );
 
   const filtresPoses = PARAMS_DE_FILTRE.some((cle) => (searchParams?.get(cle) ?? '') !== '');
+
+  // TCK-363 (D8) — le bouton est actif dès que le geste FERAIT quelque chose, et la remise à zéro
+  // reprend aussi la pagination. Sur `?page=7` sans filtre, un bouton désactivé disait à
+  // l'utilisateur qu'il était déjà à l'état par défaut alors qu'il était page 7.
+  const surPageInterieure = (searchParams?.get('page') ?? '1') !== '1';
 
   // « Réinitialiser » vide l'URL — pas seulement les filtres qu'on connaît : la page, le tri et
   // tout ce qu'un ticket futur y déposera repartent aussi de leur valeur par défaut.
@@ -352,7 +382,7 @@ export default function SuperAdminUsersPage() {
         resultCount={data ? tFiltres('results', { count: data.meta?.total ?? 0 }) : undefined}
         onReset={reinitialiser}
         resetLabel={tFiltres('reset')}
-        resetDisabled={!filtresPoses}
+        resetDisabled={!filtresPoses && !surPageInterieure}
       >
         <DebouncedSearchInput
           className="md:col-span-2"

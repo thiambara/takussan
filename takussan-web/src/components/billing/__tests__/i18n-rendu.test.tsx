@@ -173,3 +173,56 @@ describe('ICU — le rendu ne bouge pas d’un caractère', () => {
     expect(getByTestId('created').textContent).toBe(cree);
   });
 });
+
+/**
+ * TCK-364, revue adverse (D1) — la LOCALE des dates et des montants, pas seulement des libellés.
+ *
+ * ⚠️ Ce fichier existait déjà et il était VERT pendant que le défaut vivait : ses cas asservaient
+ * les LIBELLÉS (`Période` / `Period`) et jamais les VALEURS. `PayoutTable` et `SubscriptionSummary`
+ * portaient quatre `'fr-FR'` écrits en dur dans des helpers module-level, et
+ * `/super-admin/payouts` rendait donc `15/01/2026` et `150 000 F CFA` à un super-admin en `en`.
+ * *Un test qui asserte tout sauf la chose que le ticket corrige est vert par construction.*
+ *
+ * Les cas ci-dessous comparent DEUX rendus de la même donnée. L'ablation les prouve : rétablir un
+ * seul `'fr-FR'` rend les deux chaînes identiques et fait rougir `not.toBe`.
+ */
+describe('les dates et les montants suivent la LOCALE, pas un littéral', () => {
+  const texteDe = (conteneur: HTMLElement, selecteur: string) =>
+    [...conteneur.querySelectorAll(selecteur)].map((n) => n.textContent?.trim() ?? '');
+
+  it('rend la période et les montants différemment en fr et en en', () => {
+    const fr = render(withIntl(<PayoutTable payouts={[payout]} />, 'fr'));
+    const cellulesFr = texteDe(fr.container, 'tbody td');
+    fr.unmount();
+
+    const en = render(withIntl(<PayoutTable payouts={[payout]} />, 'en'));
+    const cellulesEn = texteDe(en.container, 'tbody td');
+    en.unmount();
+
+    // Colonne 0 = période (deux dates), colonnes 2-4 = brut / commission / net.
+    expect(cellulesFr[0]).not.toBe(cellulesEn[0]);
+    expect(cellulesFr[0]).toBe('01 juil. 2026 → 31 juil. 2026');
+    expect(cellulesEn[0]).toBe('01 Jul 2026 → 31 Jul 2026');
+
+    // ⚠️ Trois espaces INVISIBLEMENT différentes dans cette seule chaîne, toutes mesurées par
+    //    `codePointAt` et non lues : le séparateur de milliers est l'espace fine insécable
+    //    (U+202F) en `fr-SN` et la VIRGULE en `en-GB`, et le symbole est collé par une insécable
+    //    (U+00A0) dans les deux. Les écrire en échappement est le seul moyen que l'écart soit
+    //    lisible : collées au clavier, elles s'affichent « expected '500 000' to be '500 000' ».
+    expect(cellulesFr[2]).toBe('500\u202f000\u00a0F CFA');
+    expect(cellulesEn[2]).toBe('500,000\u00a0F CFA');
+  });
+
+  it('rend la période d’abonnement différemment en fr et en en', () => {
+    const fr = render(withIntl(<SubscriptionSummary subscription={subscription} />, 'fr'));
+    const texteFr = fr.container.textContent ?? '';
+    fr.unmount();
+
+    const en = render(withIntl(<SubscriptionSummary subscription={subscription} />, 'en'));
+    const texteEn = en.container.textContent ?? '';
+    en.unmount();
+
+    expect(texteFr).toContain('1 juil. 2026');
+    expect(texteEn).toContain('1 Jul 2026');
+  });
+});

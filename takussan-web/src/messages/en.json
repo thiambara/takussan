@@ -54,7 +54,10 @@
       "loadMore": "Show more",
       "shown": "{shown} of {total}",
       "openAria": "Open the agency list",
-      "clearAria": "Clear the selected agency"
+      "clearAria": "Clear the selected agency",
+      "error": "The agency list could not be loaded.",
+      "retry": "Retry",
+      "unknownAgency": "Agency #{id}"
     },
     "search": {
       "pending": "Searching…"
@@ -5248,22 +5251,12 @@
       "confirmRetryAllTitle": "Retry every failed job",
       "confirmRetryAllDescription": "{count} failed job(s) will be queued again at once. Past 500, the API refuses the batch.",
       "confirmDeleteTitle": "Delete a failed job",
-      "confirmDeleteDescription": "{count} failed job (#{id}) will be purged for good, with its payload and its trace."
+      "confirmDeleteDescription": "{count} failed job (#{id}) will be purged for good, with its payload and its trace.",
+      "retryError": "Retrying this job failed.",
+      "retryAllError": "The bulk retry failed. No job was queued again.",
+      "deleteError": "Deleting this job failed."
     },
     "systemHealth": {
-      "failedJobs": {
-        "empty_title": "No failed job",
-        "empty_description": "The job queue is running without errors.",
-        "title": "Failed jobs",
-        "subtitle": "Payload truncated in the list.",
-        "retryAll": "Retry all",
-        "retry": "Retry",
-        "colQueue": "Queue",
-        "colPayload": "Payload",
-        "colFailedAt": "Failure",
-        "colActions": "Actions",
-        "tableCaption": "Failed jobs in the queue"
-      },
       "queuePending": "Pending",
       "queueProcessing": "Processing",
       "queueFailed24h": "Failures 24h",
@@ -5273,6 +5266,12 @@
         "storage": "Storage",
         "mail": "Email",
         "sms": "SMS"
+      },
+      "hint": {
+        "error": "Error: {message}",
+        "driver": "Driver: {driver}",
+        "value": "Value: {value}",
+        "latency": "{ms} ms"
       },
       "status": {
         "ok": "OK",

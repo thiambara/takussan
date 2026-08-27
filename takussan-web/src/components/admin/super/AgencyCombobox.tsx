@@ -108,7 +108,34 @@ export function AgencyCombobox({
 
   const total = listQuery.data?.pages[0]?.meta.total ?? 0;
   const selectedLabel = knownLabel ?? detailQuery.data?.data.name ?? null;
-  const selected: AgencyItem | null = value === '' ? null : { value, label: selectedLabel ?? value };
+
+  // TCK-363 (D5) — quand `fetchAdminAgencyDetail` ÉCHOUE pour l'agence portée par l'URL, le repli
+  // n'est pas le placeholder. Un champ vide affiche « Toutes agences » sur une liste qui EST
+  // filtrée : le filtre devient actif et invisible, exactement le contraire de ce que l'AC2
+  // garantit. On rend alors l'identifiant — laid, mais vrai. Pendant le CHARGEMENT du détail, en
+  // revanche, on n'affiche rien : le nom arrive, et faire clignoter un identifiant serait pire.
+  const etiquette =
+    selectedLabel ?? (value !== '' && detailQuery.isError ? t('unknownAgency', { id: value }) : '');
+  const selected: AgencyItem | null = value === '' ? null : { value, label: etiquette };
+
+  /**
+   * Deux chemins d'échec, un seul geste. La contrainte du ticket est stricte : le sélecteur ne
+   * doit JAMAIS taire ce qu'il ne montre pas, ni laisser l'utilisateur sans moyen d'aller le
+   * chercher.
+   *
+   * · L'OUVERTURE échoue : le popup ne rendait RIEN — ni erreur, ni « aucun résultat » (le message
+   *   est délibérément éteint sur ce chemin), ni réessai. Un sélecteur vide se lit « il n'y a pas
+   *   d'agences », ce qui est pire qu'une troncature annoncée.
+   * · La page SUIVANTE échoue : « 20 sur 63 » restait affiché, « Afficher plus » restait présent
+   *   et devenait inerte. L'utilisateur voyait noir sur blanc qu'il manquait 43 agences.
+   *
+   * On distingue les deux par ce qui est déjà chargé : des items présents veulent dire que c'est
+   * la pagination qui a échoué, donc qu'il faut redemander la page suivante et non la première.
+   */
+  const reessayer = () =>
+    void (items.length > 0 && listQuery.hasNextPage
+      ? listQuery.fetchNextPage()
+      : listQuery.refetch());
 
   // ⚠ `query !== debouncedQuery` — et PAS seulement `isFetching`. Pendant les 300 ms d'attente,
   // aucune requête n'est en vol : une pastille branchée sur le seul `isFetching` laisserait
@@ -129,7 +156,7 @@ export function AgencyCombobox({
         // contredisent dans le même champ.
         if (!next) setQuery('');
       }}
-      inputValue={open ? query : (selectedLabel ?? '')}
+      inputValue={open ? query : etiquette}
       onInputValueChange={(next, { reason }) => {
         if (reason === 'item-press') return;
         setQuery(next);
@@ -197,12 +224,32 @@ export function AgencyCombobox({
               )}
             </Combobox.List>
 
+            {listQuery.isError ? (
+              <div
+                data-testid="agency-combobox-error"
+                role="alert"
+                className="flex items-center justify-between gap-2 px-3 py-2"
+              >
+                <p className="text-xs text-destructive">{t('error')}</p>
+                <button
+                  type="button"
+                  // Même raison que le bouton « Afficher plus » : le `mousedown` par défaut retire
+                  // le focus de la saisie et referme le popup AVANT que le `click` n'arrive.
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={reessayer}
+                  className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-accent"
+                >
+                  {t('retry')}
+                </button>
+              </div>
+            ) : null}
+
             {items.length > 0 ? (
               <div className="mt-1 flex items-center justify-between gap-2 border-t border-border px-3 pt-2 pb-1">
                 <span className="text-xs text-muted-foreground">
                   {t('shown', { shown: items.length, total })}
                 </span>
-                {listQuery.hasNextPage ? (
+                {listQuery.hasNextPage && !listQuery.isError ? (
                   <button
                     type="button"
                     // Le `mousedown` par défaut retire le focus de la saisie, ce qui referme le
