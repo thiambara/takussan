@@ -131,6 +131,38 @@ describe('useEtatUrl', () => {
 
       expect(derniereUrl().has('page')).toBe(false);
     });
+
+    /**
+     * Le pendant de « poserFiltres abandonne la sélection », et il manquait.
+     *
+     * Mesuré le 2026-08-27 : commenter le `params.delete('selected')` d'`allerALaPage` laissait
+     * **19 fichiers / 184 tests verts**, alors que le bloc de tête du hook consacre un
+     * paragraphe entier à « Pourquoi `selected` tombe avec la page ». Sans le retrait, passer à
+     * la page 2 garde `selected=42` dans l'URL pendant que le panneau retombe sur la première
+     * ligne de la page 2 : l'URL affirme une ligne, l'écran en montre une autre — sur des
+     * écrans dont l'AC1 est précisément « l'état est dans l'URL ».
+     */
+    it('abandonne la sélection : elle désigne une ligne de la page qu’on quitte', () => {
+      const { result } = monte('filter[search]=Dakar&page=1&selected=42');
+      act(() => result.current.allerALaPage(2));
+
+      const params = derniereUrl();
+      expect(params.has('selected')).toBe(false);
+      // ...sans emporter le filtre au passage : c'est la différence avec `poserFiltres`.
+      expect(params.get('filter[search]')).toBe('Dakar');
+      expect(params.get('page')).toBe('2');
+    });
+
+    // Le retour à la page 1 emprunte l'autre branche du `if` : elle doit retirer la sélection
+    // elle aussi, sans quoi la garde ne tient qu'une fois sur deux.
+    it('abandonne la sélection AUSSI sur le retour à la page 1', () => {
+      const { result } = monte('page=4&selected=42');
+      act(() => result.current.allerALaPage(1));
+
+      const params = derniereUrl();
+      expect(params.has('selected')).toBe(false);
+      expect(params.has('page')).toBe(false);
+    });
   });
 
   describe('sélection et remise à zéro', () => {

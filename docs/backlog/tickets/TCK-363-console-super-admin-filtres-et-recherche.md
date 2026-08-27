@@ -1,13 +1,13 @@
 ---
 id: TCK-363
 title: "Console super-admin — sélecteur d'agence partagé, recherche temporisée, filtres réinitialisables"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 46
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: [TCK-357]
 blocks: []
 spec_refs:
@@ -49,21 +49,29 @@ Trois défauts de la même famille, relevés le 2026-08-26 :
 
 ## Delta à produire
 
-- [ ] Composant `AgencyCombobox` (recherche serveur, chargement à la demande, valeur = id, libellé = nom)
-- [ ] `/users` : champ numérique remplacé par `AgencyCombobox` ; état des filtres porté par l'URL
-- [ ] `/properties` et `/moderation` : sélecteurs tronqués remplacés par `AgencyCombobox`
-- [ ] Temporisation (~300 ms) sur les trois champs de recherche, avec indicateur d'attente
-- [ ] `FilterBar` (TCK-357) : compte de résultats + « réinitialiser » sur `/users`, `/agencies`, `/properties`, `/moderation`
-- [ ] Tests : nombre de requêtes émises pour une saisie de N caractères ; sélection d'une agence au-delà des 50 premières ; réinitialisation
+- [x] Composant `AgencyCombobox` (recherche serveur, chargement à la demande, valeur = id, libellé = nom)
+- [x] `/users` : champ numérique remplacé par `AgencyCombobox` ; état des filtres porté par l'URL
+- [x] `/properties` et `/moderation` : sélecteurs tronqués remplacés par `AgencyCombobox`
+- [x] Temporisation (~300 ms) sur les trois champs de recherche, avec indicateur d'attente
+  - les trois écrans à recherche sont `/users`, `/agencies` et `/properties` : `/moderation` n'a **aucun** champ de recherche (cf. note 3 ci-dessous).
+- [x] `FilterBar` (TCK-357) : compte de résultats + « réinitialiser » sur `/users`, `/agencies`, `/properties`, `/moderation`
+- [x] Tests : nombre de requêtes émises pour une saisie de N caractères ; sélection d'une agence au-delà des 50 premières ; réinitialisation
 
 ## Critères d'acceptation
 
-- [ ] AC1 — aucun écran de la console ne demande la saisie manuelle d'un identifiant d'agence
-- [ ] AC2 — une agence classée au-delà du 50ᵉ rang est sélectionnable dans les trois écrans, **le test la choisissant explicitement** (un test qui ne sélectionne que parmi les 50 premières cocherait aussi l'ancien comportement)
-- [ ] AC3 — une saisie de 10 caractères déclenche au plus 2 requêtes de recherche (mesuré par un espion sur `fetch`), contre 10 aujourd'hui
-- [ ] AC4 — pendant l'attente de la temporisation, un état de chargement est visible
-- [ ] AC5 — chaque barre de filtres affiche le compte de résultats et propose « réinitialiser » ; l'action remet tous les filtres à leur valeur par défaut et vide l'URL
+- [x] AC1 — aucun écran de la console ne demande la saisie manuelle d'un identifiant d'agence
+  - **tenu à la lettre, mais pas par ce ticket seul.** À la livraison il restait `announcements.tsx`, qui demandait une liste d'IDs d'agences saisie à la main (`placeholder="12,18"`) — un ciblage MULTI-valué que `AgencyCombobox` ne fait pas et que le delta ne prévoyait pas. Il a été porté sur un sélecteur paginé à recherche serveur par **TCK-366**, dans la même vague. Mesuré dans l'arbre fusionné le 2026-08-27 : plus aucun `<input type="number">` d'identifiant d'agence dans la console.
+  - ⚠ Reste, hors du champ de cet AC : `CrossTenantAuditTable.tsx:90` demande encore un identifiant **d'utilisateur** (`causerId`) au clavier. Même motif, autre entité — à ticketer si on veut le fermer.
+- [x] AC2 — une agence classée au-delà du 50ᵉ rang est sélectionnable dans les trois écrans, **le test la choisissant explicitement** (un test qui ne sélectionne que parmi les 50 premières cocherait aussi l'ancien comportement)
+  - catalogue de 63 agences, la 63ᵉ (« Ziguinchor Habitat ») choisie explicitement par cinq tests, une fois par la recherche serveur et une fois en cliquant « Afficher plus » jusqu'à dépasser le 50ᵉ rang (paliers 20/40/60/63 assérés).
+- [x] AC3 — une saisie de 10 caractères déclenche au plus 2 requêtes de recherche (mesuré par un espion sur `fetch`), contre 10 aujourd'hui
+  - vérifié **par ablation** : délai ramené à 0 ms → 11 requêtes au lieu de 2, le test rougit.
+- [x] AC4 — pendant l'attente de la temporisation, un état de chargement est visible
+  - l'indicateur est branché sur `brouillon !== valeur || isFetching`, **jamais** sur le seul `isFetching` : aucune requête n'est en vol pendant la fenêtre d'attente.
+- [x] AC5 — chaque barre de filtres affiche le compte de résultats et propose « réinitialiser » ; l'action remet tous les filtres à leur valeur par défaut et vide l'URL
+  - « vide l'URL » vaut pour les trois écrans à état d'URL (`router.replace('?')` assére). `/agencies` garde son état en React — le ticket ne demande l'URL que là où elle est déjà, et `/agencies` n'y était pas.
 - [ ] AC6 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+  - **reste décochée.** `npx tsc --noEmit` (exit 0) et `npx eslint` sur les fichiers du lot (exit 0) sont verts ; `npm run test` **en entier** ne l'a été par personne — rituel de fin de branche de la session. Joué à la place : 12 fichiers / 98 tests après correctifs, 39 fichiers / 269 tests par la revue.
 
 ## Hors périmètre
 
@@ -121,3 +129,35 @@ demande une liste d'identifiants d'agences saisie à la main (`placeholder="12,1
 lettre, l'AC1 n'est donc pas tenue à l'échelle du dépôt — elle l'est pour **toutes les barres de
 filtres** de la console. Ce champ est un formulaire de CIBLAGE multi-valué, hors du delta ; il
 demande un sélecteur multiple, à ticketer.
+
+### Ce que la revue adverse a trouvé, et ce qui a été corrigé (2026-08-27)
+
+La revue a **refusé**. Le cœur tenait, mais le champ de recherche partagé que ce ticket **introduit**
+cassait le cas nominal, et deux contraintes strictes du ticket étaient violées. **Les huit défauts
+sont corrigés.**
+
+- **Le composant neuf mangeait l'espace d'une recherche à deux mots.** Le brouillon gardait la
+  valeur brute, le commit envoyait la valeur **trimée**, et la resynchronisation réécrivait ensuite
+  le brouillon sans son espace : `user.type('Dakar ')` puis `'Immo'` donnait **`DakarImmo`**. Sur
+  les trois écrans, et sur des noms d'agence à deux mots — le catalogue de test du ticket lui-même.
+  Aucun test ne l'attrapait : les trois tests d'AC3 tapent un **seul** mot. Corrigé en normalisant
+  les **deux côtés** de la comparaison : *on ne compare jamais le brouillon à la valeur qu'on a
+  transformée avant de l'envoyer.* Même cause pour le second symptôme — une saisie faite d'espaces
+  seuls laissait l'indicateur « Recherche en cours… » allumé indéfiniment, `role="status"` compris,
+  pour une requête qui ne partirait jamais.
+- **Une garde perdue au merge.** La résolution de conflit avec TCK-360 avait gardé la lecture d'URL
+  de `/users` et perdu sa validation : `?status=nawak` partait au serveur et rendait le jeton brut
+  « nawak » dans le déclencheur du Select. Rétablie **et généralisée** aux quatre filtres à
+  vocabulaire fermé (`role`, `status`, `email`, `twoFactor`), dont trois n'en avaient jamais eu.
+- **Le sélecteur d'agence était MUET sur le chemin d'erreur** — ce que la contrainte stricte du
+  ticket interdit nommément. API en échec à l'ouverture : le popup ne rendait **rien** (un sélecteur
+  vide se lit « il n'y a pas d'agences », pire qu'une troncature). Page suivante en échec : le pied
+  affichait toujours « 20 sur 63 » et le bouton devenait inerte sans un mot. Et quand le détail de
+  l'agence portée par l'URL échouait, le champ affichait « Toutes agences » **sur un filtre actif**.
+  Les trois chemins parlent désormais, avec réessai.
+
+**Ce qui reste ouvert et signalé :** `AdminUsersFilters.tsx:76` (console agence) porte le **même
+motif** que le premier défaut — non vérifié par exécution, non corrigé, hors périmètre. La
+sur-demande de champs de `fetchAdminAgencies` (15 champs pour un combobox qui lit `id,name`) vit
+dans une fonction partagée, hors périmètre. Aucune vérification navigateur : le rendu visuel du
+popup (positionnement floating-ui, largeur `--anchor-width`, débordement en `md:`) n'est pas vu.

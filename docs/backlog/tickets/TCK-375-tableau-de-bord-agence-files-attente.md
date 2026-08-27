@@ -1,13 +1,13 @@
 ---
 id: TCK-375
 title: "Tableau de bord agence — les files d'attente d'abord"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 47
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: [TCK-373]
 blocks: []
 spec_refs:
@@ -96,9 +96,11 @@ back-offices, et il ne dit rien de plus qu'un nombre lisible bien placé.
       rapatriée côté client (vérifier par lecture des requêtes : `per_page` et `filter[…]`
       côté serveur)
 - [x] AC5 — le compteur de modération n'est sondé qu'**une** fois par l'application, pas deux
-- [ ] AC6 — `npm run lint` (0 erreur) et `npx tsc --noEmit` (aucune sortie) sont **exécutés et
+- [x] AC6 — `npm run lint` (0 erreur) et `npx tsc --noEmit` (aucune sortie) sont **exécutés et
       verts**. `npm run test` **en entier** appartient à la session déléguante (CLAUDE.md, « qui
       lance quoi ») : 205 tests du périmètre pertinent sont verts, la suite entière reste à jouer.
+      *Rejoués sur l'arbre FUSIONNÉ le 2026-08-27 par la revue adverse puis par le correctif
+      final : lint 0 erreur / 36 avertissements tous préexistants, `tsc` sortie vide, exit 0.*
 
 ## Hors périmètre
 
@@ -179,3 +181,29 @@ non touché (hors delta), noté comme reste.
   pré-existante, non modifiée ici ; `components/layout/` n'est pas dans le périmètre gardé).
 - **Aucune vérification navigateur** : l'écran n'a pas été ouvert dans un navigateur (pile de dev
   non démarrée). Les AC d'interface sont prouvés par rendu jsdom, pas par usage.
+
+### Revue adverse et correctif final (2026-08-27)
+
+**Verdict de la revue : REFUSÉ**, sur un seul motif — 21 mutations jouées, 19 attrapées, dont les
+quatre défauts du jumeau TCK-360 (href identiques, `?tab=` muet, seconde `queryKey` du compteur de
+modération, panne rendue « rien à traiter »). Les deux survivantes ont été fermées :
+
+| Défaut mesuré par la revue | Ce qui a été fait |
+|---|---|
+| `KYC_STATUSES_A_TRAITER` élargi à ses **quatre** cas laissait 16 fichiers / 118 tests VERTS — le test qui porte le sujet ne vérifiait que le TON, pas `aTraiter`. C'est la Note n°2 ci-dessus qui n'était gardée par rien. | `src/lib/queries/__tests__/agency-queues.test.ts` (neuf) : cliquet **bilatéral**, prouvé dans les deux sens (élargissement → 4 rouges ; rétrécissement à `['pending']` → 3 rouges). La table d'attendus est un `Record<KycDossierStatus, boolean>` : un cinquième statut côté API fait échouer `tsc` tant que sa réponse n'est pas décidée. |
+| `fetchPropertyModerationQueue` n'émettait ni `fields[properties]`, ni `include=`, ni `sort=` — forme préexistante (TCK-098), mais que ce ticket transforme en sondage de 60 s monté sur deux écrans. | `property-moderation.ts` passe par `buildQueryString` et nomme ses 12 colonnes, ses 3 relations et son tri. Ablation : retour à la forme d'avant → 1 rouge. |
+
+⚠ **Ce que ce dernier correctif ne fait PAS, et c'est mesuré** : `PropertyModerationController::index()`
+construit `Property::query()` et non `Property::buildQuery()` — spatie n'est jamais instancié sur
+cette route, les trois paramètres ne sont ni honorés ni rejetés. **La charge utile ne diminue pas**
+tant que la route n'est pas portée sur `buildQuery()`. La limite est écrite dans le docblock du
+fetcher, pas seulement ici. *Un contrat de requête déclaré et non lu vaut mieux qu'un contrat
+absent, il ne vaut pas une charge utile réduite.*
+
+**Portée d'AC3, redite par la revue** : la branche `individual` est prouvée au niveau du COMPOSANT
+(mutations `proActif = true` et `enabled` sans garde → rouges) et le redirect au niveau de la PAGE.
+C'est une garde en profondeur, pas un parcours exercé.
+
+**Reste ouvert** : la moitié serveur du sparse fieldset ci-dessus ; `AgencyKpis` /
+`AgencyActivityFeed` figent toujours `formatNumber(x, 'fr')` (préexistant, invisible pour
+`check-locale-figee.mjs`). Aucune vérification navigateur.

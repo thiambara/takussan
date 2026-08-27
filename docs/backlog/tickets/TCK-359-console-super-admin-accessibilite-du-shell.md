@@ -1,13 +1,13 @@
 ---
 id: TCK-359
 title: "Console super-admin — accessibilité du shell : contraste, focus clavier, lien d'évitement"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 46
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: []
 blocks: []
 spec_refs:
@@ -46,18 +46,25 @@ Deux contrastes voisins sont marginaux et méritent d'être remontés dans le m�
 
 ## Delta à produire
 
-- [ ] Libellés de groupe de `SuperAdminSidebar` remontés à ≥ 4,5:1 (`stone-400` mesure 6,93:1, ou son équivalent en token)
-- [ ] `focus-visible:ring-2 focus-visible:ring-ring` explicite sur les liens de navigation, les sous-items et le lien « retour au personnel »
-- [ ] Lien d'évitement dans `SuperAdminShell`, `id` sur `<main>`
-- [ ] En-têtes de table et onglet actif de Reporting remontés au-dessus de 4,5:1
-- [ ] Tests : présence du lien d'évitement et de l'`id` cible ; parcours clavier sur la sidebar
+- [x] Libellés de groupe de `SuperAdminSidebar` remontés à ≥ 4,5:1 (`stone-400` mesure 6,93:1, ou son équivalent en token)
+  - livré en **jeton** et non en `stone-400` : `--sidebar-foreground` @70 % sur `--sidebar` → **8,0781:1** (3,64:1 avant).
+- [x] `focus-visible:ring-2 focus-visible:ring-ring` explicite sur les liens de navigation, les sous-items et le lien « retour au personnel »
+- [x] Lien d'évitement dans `SuperAdminShell`, `id` sur `<main>`
+- [x] En-têtes de table et onglet actif de Reporting remontés au-dessus de 4,5:1
+  - moitié **en-têtes de table : sans objet** — `DataTable.tsx` les porte déjà à 5,20:1 depuis TCK-373, fusionné le jour même de la rédaction. Rien n'a été touché là-bas.
+  - moitié **onglet de Reporting : livrée après la revue adverse**, qui a montré que le « déjà conforme » de l'implémenteur était mesuré contre `--background` alors que `<main>` porte `bg-muted` : la vraie valeur était **4,35:1**, sous AA. `tabs.tsx` passe de `text-foreground/60` à `/70` → **5,99:1**.
+- [x] Tests : présence du lien d'évitement et de l'`id` cible ; parcours clavier sur la sidebar
 
 ## Critères d'acceptation
 
-- [ ] AC1 — chaque paire couleur/fond de `SuperAdminSidebar`, `SuperAdminTopbar` et des en-têtes de table mesure ≥ 4,5:1, **le calcul étant reporté dans les notes d'implémentation paire par paire** (une capture ou un avis visuel ne coche pas cet AC)
-- [ ] AC2 — `grep -r 'focus-visible' takussan-web/src/components/layout/SuperAdminSidebar.tsx` renvoie au moins une occurrence par type de lien (item, sous-item, retour)
-- [ ] AC3 — à la première tabulation depuis le haut de `/super-admin`, l'élément focalisé est le lien d'évitement, et l'activer déplace le focus dans `<main>`
+- [x] AC1 — chaque paire couleur/fond de `SuperAdminSidebar`, `SuperAdminTopbar` et des en-têtes de table mesure ≥ 4,5:1, **le calcul étant reporté dans les notes d'implémentation paire par paire** (une capture ou un avis visuel ne coche pas cet AC)
+  - les deux moitiés sont tenues, mais la seconde ne l'a été **qu'après la revue** : le relevé livré d'abord décrivait la palette `stone-*`/`amber-*` d'avant la résolution de conflit avec TCK-358, donc un état du composant qui n'existait plus. Le tableau ci-dessous est refait sur les jetons réellement livrés (25 paires, contexte indiqué).
+- [x] AC2 — `grep -r 'focus-visible' takussan-web/src/components/layout/SuperAdminSidebar.tsx` renvoie au moins une occurrence par type de lien (item, sous-item, retour)
+  - mesuré le 2026-08-27 : **5** occurrences, ≥ 1 par type (entrée, sous-entrée, retour perso).
+- [x] AC3 — à la première tabulation depuis le haut de `/super-admin`, l'élément focalisé est le lien d'évitement, et l'activer déplace le focus dans `<main>`
+  - ⚠ **substitution assumée** : sous jsdom, le test relève les focalisables dans l'ordre du DOM plutôt que d'appeler `userEvent.tab()`, dont le calcul dépend d'une visibilité que jsdom ne rend pas. La seconde moitié (« l'activer déplace le focus ») est exécutée pour de vrai (`click` puis `document.activeElement === <main>`). **Aucune tabulation dans un vrai navigateur.**
 - [ ] AC4 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+  - **reste décochée.** `npx tsc --noEmit` (exit 0) et `npm run lint` (0 erreur) sont exécutés ; `npm run test` **en entier** ne l'a été par personne — rituel de fin de branche de la session. Joué à la place : les deux suites du périmètre **plus les 12 consommateurs de `tabs.tsx`** trouvés par grep, soit 46 fichiers / 209 tests, 45 fichiers verts (le seul rouge, `TimeSeriesChart.test.tsx`, appartenait au correcteur de TCK-361 en cours d'édition et n'importe pas `tabs`).
 
 ## Hors périmètre
 
@@ -244,3 +251,26 @@ VERTES** :
 | lien d'évitement privé de `focus:absolute focus:left-4 focus:top-4 focus:z-50` *(était VERTE)* | rouge |
 | anneau retiré du bouton de menu de la topbar | rouge |
 | anneau retiré du lien de marque de la topbar | rouge |
+
+### Ce que la revue adverse a imposé de reprendre
+
+La revue a **refusé** le premier livrable sur deux points, tous deux mesurés — et aucun ne portait
+sur ce qui avait été écrit, mais sur ce qui ne l'avait pas été :
+
+1. **Un échec AA réel** sur l'onglet inactif de Reporting (4,35:1), livré « vide à dessein » sur une
+   mesure prise contre un fond que la page n'utilise pas. Corrigé dans `tabs.tsx` — **primitive
+   partagée par 12 consommateurs** : l'onglet inactif devient plus sombre partout, prix assumé d'une
+   valeur unique qui tient sur les trois fonds dans les deux thèmes (marge minimale 1,29).
+2. **Le relevé paire par paire qu'AC1 commande nommément était périmé** : 20 lignes sur 26
+   mesuraient des paires supprimées par la résolution de conflit avec TCK-358. *Un AC qui commande
+   un document et se contente d'un document faux ne garde rien.*
+
+Quatre défauts mineurs de plus, tous corrigés : la contradiction 8,08 / 7,91 (les huit mesures de la
+barre vivent désormais à **un seul endroit**), l'anneau de focus **indiscernable** sur l'entrée
+active (`--ring` et `--sidebar-primary` sont le même octet en contexte sombre : 1,00:1, rétabli à
+4,83:1 par `ring-offset-2 ring-offset-sidebar`, jeton vérifié en compilant la feuille Tailwind
+réelle), le lien d'évitement gardé par sa seule visibilité (deux ablations que la revue avait
+mesurées **vertes**, désormais rouges), et la topbar sans aucun `focus-visible` (0 → 3).
+
+**Aucun défaut n'est resté ouvert.** Ce qui n'est pas couvert reste ce que dit la section
+ci-dessus : aucun rendu navigateur, et la sidebar mobile (`SheetContent`) au clavier.

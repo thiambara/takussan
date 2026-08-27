@@ -316,7 +316,10 @@ class TenantOnboardingChecklistTest extends TestCase
     public function test_pending_endpoint_lists_overdue_checklists_for_agency(): void
     {
         $agency = Agency::factory()->create();
-        $member = User::factory()->create(['agency_id' => $agency->id]);
+        // ⚠ PAS `User::factory()->create(['agency_id' => …])` : ce pont de compat
+        // (TCK-142) fabrique un OwnerProfile, et ce test passait donc en éprouvant
+        // un BAILLEUR sous le nom de « member » — l'écart corrigé par TCK-378 (revue).
+        $member = User::factory()->withAgentProfile($agency)->create();
 
         $oldChecklist = $this->makeChecklist($agency);
         $oldChecklist->forceFill(['created_at' => now()->subDays(10)])->save();
@@ -339,6 +342,43 @@ class TenantOnboardingChecklistTest extends TestCase
         $other = User::factory()->create(['agency_id' => Agency::factory()->create()->id]);
 
         $this->actingAs($other)
+            ->getJson("/api/agencies/{$agency->id}/tenant-onboarding-pending")
+            ->assertForbidden();
+    }
+
+    /**
+     * TCK-378 (revue) — le BAILLEUR n'est PAS du personnel d'agence.
+     *
+     * `/app/leases/onboarding-pending` est un écran de relance INTERNE : le menu
+     * (`AppSidebar`) et la garde de page (`assertCanReachAgencyStaffArea`) tiennent le
+     * bailleur à l'écart, et la route le déclare depuis TCK-266 (« réservée aux membres de
+     * l'agence (agency_admin / agent) et aux super-admins »).
+     *
+     * L'API, elle, l'admettait : `isOwnerAt()` figurait dans le test d'appartenance, et un
+     * `User` porteur d'un simple `OwnerProfile` sur l'agence obtenait 200 avec les lignes de
+     * la file. Une garde de RENDU devant une API qui répond 200 ne protège rien — le contenu
+     * part sur le réseau, quel que soit l'écran.
+     *
+     * ⚠ `User::factory()->create(['agency_id' => X])` fabrique un OwnerProfile (pont de
+     * compat TCK-142, `User::booted()`), pas un AgentProfile : c'est précisément par là que
+     * l'écart était entré, et que l'ancien test le sanctionnait à l'envers.
+     */
+    public function test_pending_endpoint_forbids_a_plain_owner_of_the_agency(): void
+    {
+        $agency = Agency::factory()->create();
+        $owner = User::factory()->create();
+        OwnerProfile::factory()->create([
+            'user_id' => $owner->id,
+            'agency_id' => $agency->id,
+        ]);
+
+        $this->assertTrue($owner->fresh()->isOwnerAt($agency->id), 'the fixture must really be an owner AT this agency');
+        $this->assertFalse($owner->fresh()->isAgentAt($agency->id));
+
+        $overdue = $this->makeChecklist($agency);
+        $overdue->forceFill(['created_at' => now()->subDays(10)])->save();
+
+        $this->actingAs($owner)
             ->getJson("/api/agencies/{$agency->id}/tenant-onboarding-pending")
             ->assertForbidden();
     }

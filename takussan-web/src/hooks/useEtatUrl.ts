@@ -21,7 +21,16 @@ export interface EtatUrl {
    * c'est la seule raison d'être de cette fonction. Voir le bloc de tête.
    */
   readonly poserFiltres: (maj: Readonly<Record<string, string | null>>) => void;
-  /** Change la page, et rien d'autre — les filtres restent. */
+  /**
+   * Change la page. **Les filtres restent ; la sélection, non.**
+   *
+   * ⚠ Le « et rien d'autre » qui tenait ici jusqu'à la revue de TCK-376 disait l'inverse du
+   * code : `allerALaPage` retire `selected` comme `poserFiltres` le fait, et pour la même
+   * raison — une sélection est une position dans une liste, et changer de page change la liste.
+   * Voir « Pourquoi `selected` tombe avec la page » dans le bloc de tête. *Un commentaire
+   * d'interface qui contredit son implémentation rend le retrait de celle-ci plausible comme
+   * nettoyage.*
+   */
   readonly allerALaPage: (page: number) => void;
   /** Sélectionne une ligne de la file. Ne touche ni aux filtres ni à la page. */
   readonly selectionner: (id: number | null) => void;
@@ -111,7 +120,10 @@ export function useEtatUrl(): EtatUrl {
       ecrire((params) => {
         if (suivante <= 1) params.delete('page');
         else params.set('page', String(suivante));
-        // Changer de page change la liste : cf. le bloc de tête.
+        // Changer de page change la liste : cf. « Pourquoi `selected` tombe avec la page » dans
+        // le bloc de tête. ⚠ Ce `delete` a été un mutant SURVIVANT jusqu'à la revue de TCK-376 —
+        // son jumeau de `poserFiltres` était gardé, pas lui. Il l'est désormais
+        // (`useEtatUrl.test.tsx`, « allerALaPage abandonne la sélection »).
         params.delete('selected');
       });
     },

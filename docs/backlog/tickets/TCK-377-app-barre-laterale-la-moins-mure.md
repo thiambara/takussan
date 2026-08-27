@@ -1,13 +1,13 @@
 ---
 id: TCK-377
 title: "Tableau de bord /app — la barre latérale est la moins mûre des trois, et c'est celle que tout le monde utilise"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: M
 wave: 48
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: []
 blocks: []
 spec_refs:
@@ -103,36 +103,43 @@ jamais un appel pour un rôle qui n'a pas la ligne.
 
 ## Delta à produire
 
-- [ ] Surlignage par préfixe dans `AppSidebar`, avec la liste explicite des racines comparées par
+- [x] Surlignage par préfixe dans `AppSidebar`, avec la liste explicite des racines comparées par
       égalité — la même forme que `AdminSidebar`, factorisée pour que les trois shells la
       partagent plutôt que de la réécrire une quatrième fois
-- [ ] `aria-current="page"` sur l'entrée active — dans les **trois** shells, `AdminSidebar`
+- [x] `aria-current="page"` sur l'entrée active — dans les **trois** shells, `AdminSidebar`
       comprise, qui ne l'a pas non plus
-- [ ] `aria-label` sur le `<nav>` de `AppSidebar`
-- [ ] Sections de navigation dans `buildNavItems` : la donnée porte la clé de section, le rendu
+- [x] `aria-label` sur le `<nav>` de `AppSidebar`
+- [x] Sections de navigation dans `buildNavItems` : la donnée porte la clé de section, le rendu
       la résout (patron TCK-286, déjà appliqué aux libellés)
-- [ ] Compteur « messages non lus » et compteur « visites en attente » sur les entrées
+- [x] Compteur « messages non lus » et compteur « visites en attente » sur les entrées
       correspondantes, sondés comme ceux d'`AdminSidebar`
-- [ ] i18n fr/en/wo des étiquettes de section et du libellé accessible des compteurs
-- [ ] Tests : un par défaut corrigé — surlignage sur une page fille, absence de surlignage
+- [x] i18n fr/en/wo des étiquettes de section et du libellé accessible des compteurs
+- [x] Tests : un par défaut corrigé — surlignage sur une page fille, absence de surlignage
       croisé sur les trois couples de routes imbriquées, `aria-current` présent, compteur absent
       à zéro
 
 ## Critères d'acceptation
 
-- [ ] AC1 — sur `/app/properties/42`, l'entrée « Mes biens » est active ; un test l'éprouve et
+- [x] AC1 — sur `/app/properties/42`, l'entrée « Mes biens » est active ; un test l'éprouve et
       **échouerait** si `pathname === item.href` revenait
-- [ ] AC2 — sur `/app/properties/new`, **une seule** entrée est active, et c'est « Publier un
+- [x] AC2 — sur `/app/properties/new`, **une seule** entrée est active, et c'est « Publier un
       bien » ; idem pour `/app/leases/onboarding-pending` contre « Baux ». Un test couvre les
       trois couples imbriqués et échouerait sur un préfixe naïf
-- [ ] AC3 — l'entrée active porte `aria-current="page"` dans `AppSidebar` **et** `AdminSidebar`
-- [ ] AC4 — pour un `agency_admin`, les 23 entrées sont réparties en sections ; la liste des
+- [x] AC3 — l'entrée active porte `aria-current="page"` dans `AppSidebar` **et** `AdminSidebar`
+- [x] AC4 — pour un `agency_admin`, les 23 entrées sont réparties en sections ; la liste des
       `href` rendus est **identique** à celle d'avant le ticket, à l'ordre près — un test compare
       les deux ensembles pour chacun des six rôles
-- [ ] AC5 — un compteur ne s'affiche pas quand la valeur est `0` ni quand la requête échoue ; un
+- [x] AC5 — un compteur ne s'affiche pas quand la valeur est `0` ni quand la requête échoue ; un
       test l'éprouve dans les deux cas
-- [ ] AC6 — aucun sondage réseau n'est armé pour un rôle qui ne voit pas l'entrée comptée
+- [x] AC6 — aucun sondage réseau n'est armé pour un rôle qui ne voit pas l'entrée comptée
+      *Cochée seulement depuis le correctif final : la branche est devenue atteignable par un rôle
+      réel (TCK-379 retire `/app/visits` au `service_provider`) et rien ne l'observait alors — cf.
+      Notes ci-dessous.*
 - [ ] AC7 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+      *Non cochée : `npm run lint` (0 erreur, 36 avertissements tous préexistants) et
+      `npx tsc --noEmit` (0 erreur) sont exécutés et verts sur l'arbre fusionné (2026-08-27), et
+      `src/components/layout` + `src/app/(dashboard)` rendent 228/228. `npm run test` **en entier**
+      n'a jamais tourné — il appartient à la session déléguante (CLAUDE.md, « qui lance quoi »).*
 
 ## Hors périmètre
 
@@ -227,3 +234,38 @@ sections vides conservées (2) · une entrée de plus pour un rôle (9).
 Aucune vérification navigateur : tout est calculé ou exécuté sous jsdom. En particulier
 l'apparence réelle des césures et de la pastille, et le comportement de la barre repliée en tiroir
 sur mobile.
+
+### Revue adverse et correctif final (2026-08-27)
+
+**Verdict : REFUSÉ**, puis corrigé. Les contrastes et le surlignage tiennent — les 16 paires ont
+été **recalculées indépendamment** et reproduisent les chiffres du tableau ci-dessus à ±0,02 près,
+sur le fond RÉEL vérifié en remontant la chaîne (`AppShell` → `<aside> bg-card`, et le chemin
+mobile `SheetContent` est `bg-card` aussi). Les trois ablations du surlignage ont été rejouées à
+l'identique : 13, 11 et 3 rouges, comptes exacts. Aucune assertion n'a été perdue au renommage de
+`AppSidebar.test.tsx` en `AppSidebar.audience.test.tsx` (9 tests sur 9, table `ATTENDU` identique
+octet pour octet).
+
+**Ce qui a été refusé, ce sont les gardes — cinq mutations survivantes, toutes fermées depuis :**
+
+| Mutation survivante (mesurée) | Ce qui a été fait |
+|---|---|
+| `useUnreadCount({ enabled: true })` et `usePendingVisitsCount({ enabled: true })` écrits **en dur**, `countersToPoll` ignorée par le composant → **88/88 verts**. AC6 n'avait aucune garde au niveau du RENDU : le seul test qui capturait les arguments montait un `agency_admin`, pour qui `enabled: true` est la bonne réponse. | `it.each` sur les **sept** rôles, montant réellement la barre, plus une clause qui fige `service_provider → {unreadMessages}` seul et exige que la liste des rôles qui ne sondent pas `pendingVisits` soit exactement `['service_provider']`. Ablation → 1 rouge. |
+| Le test AC6 réparé à la fusion recalculait son attendu avec **le prédicat exact du corps de `countersToPoll`**, sur le même `items` : tautologie, incapable de rougir sur un changement de garde de rôle. Prouvé : la mutation qui réintroduit le défaut n°4 de TCK-379 rendait 3 tests rouges, et pas celui-là. | L'attendu est dérivé de deux sources indépendantes du composant, écrites à la main : `HREFS_PAR_ROLE` et `COMPTEUR_PAR_HREF`. La même mutation rend maintenant **6 rouges, dont les deux tests AC6**. |
+| `SECTION_ORDER` intégralement **inversé** — « Administration » en haut, « Tableau de bord » en bas, c'est-à-dire la thèse même du ticket retournée → **88/88 verts**. Le test existant vérifiait la PRÉSENCE des cinq en-têtes, jamais leur séquence. | Un test de rendu lit la séquence des `<p>` d'en-tête **dans le DOM** et la compare à une liste écrite à la main (non dérivée de `SECTION_ORDER`, sans quoi il comparerait la constante à elle-même). Ablation → 1 rouge. |
+| `withHeadings = true` (césures imposées à une section unique) → **88/88 verts**. Et pire : la règle **n'était pas gardable** dans cette forme — `/app`, `/app/messages` et `/app/documents` étant poussées sans condition de rôle, tout compte a au moins deux groupes, donc la branche `false` n'était atteignable par personne. *Une règle qu'aucune entrée ne peut violer ne peut pas rougir.* | La décision sort du composant (`withSectionHeadings`, pure et exportée) et gagne une clause atteignable : les en-têtes ne paraissent que si au moins une section **libellée** porte deux entrées ou plus. Ablations → 1 puis 3 rouges. |
+| Le docblock de la table d'href promettait « relevé pris sur le code d'AVANT TCK-377 » alors que la ligne `service_provider` avait été régénérée depuis le code d'APRÈS TCK-379. | `HREFS_AVANT_TICKET` renommée `HREFS_PAR_ROLE` — *le nom portait le mensonge* — et le docblock dit ligne par ligne ce que la table est : relevé d'avant-ticket pour six rôles, spec (`features.md` §1.8/§2.5) pour le septième. |
+
+**La règle « le regroupement ne change aucun droit » est tenue, et re-prouvée après correctif** :
+`occupeUnLogement`, `buildNavItems`, `SECTION_ORDER` et `SECTION_LABEL_KEYS` extraits avant/après
+ont le **même md5** ; le dump des href sur 7 rôles + 2 combinaisons reproduit exactement celui de
+la revue (23 / 23 / 18 / 16 / 13 / 4 / 9, et 10 pour `service_provider+tenant`).
+
+⚠ **Un seul changement visible au rendu, et il est voulu** : le `service_provider`, avec ses
+4 entrées, ne reçoit plus les deux césures « Demandes » et « Engagements » qui coiffaient UNE
+entrée chacune. Aucun href ne bouge. C'est le cas exact que la Direction UX de ce ticket nomme.
+
+**Reste ouvert** : la table d'href est dupliquée octet pour octet entre `AppSidebar.test.tsx` et
+`AppSidebar.audience.test.tsx` — un fichier tiers non-test serait la sortie, mais c'est un fichier
+neuf hors du périmètre du correctif ; le coût (éditer deux endroits) est écrit dans les deux
+docblocks. L'entrée cadenassée d'`AdminSidebar` (`text-white/40 opacity-60`) reste bien pire que
+celle de `/app` : c'est de la palette, donc TCK-380/381. Aucune vérification navigateur.

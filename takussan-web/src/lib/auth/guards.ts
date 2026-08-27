@@ -44,9 +44,19 @@ export function assertCanReachAgentArea(roles: UserRole[]): void {
  *
  * ⚠ Cette garde existe parce que le périmètre est réellement plus étroit, pas par symétrie.
  * `/app/leases/onboarding-pending` liste les checklists d'entrée en retard : c'est un écran de
- * relance interne, dont la table de vérité du menu et celle de l'API tiennent le bailleur à
- * l'écart. Factoriser les deux gardes en une seule ÉLARGIRAIT cet écran-là — TCK-378 l'interdit
- * explicitement.
+ * relance interne. Factoriser les deux gardes en une seule ÉLARGIRAIT cet écran-là — TCK-378
+ * l'interdit explicitement.
+ *
+ * ⚠ Cette phrase a déjà été fausse, et c'était la classe de faux que TCK-378 existe pour
+ * supprimer. Elle invoquait « la table de vérité du menu ET CELLE DE L'API ». Mesuré par
+ * exécution le 2026-08-27 : un `User` porteur d'un simple `OwnerProfile` sur l'agence obtenait
+ * **200** sur `GET /api/agencies/{agency}/tenant-onboarding-pending`, et les lignes de la file
+ * avec. `TenantOnboardingPendingController` a été resserré depuis (le bailleur y reçoit 403,
+ * éprouvé par `test_pending_endpoint_forbids_a_plain_owner_of_the_agency`), et les deux tables
+ * coïncident enfin : `agent | agency_admin | super_admin` des deux côtés.
+ *
+ * *Une garde de RENDU devant une API qui répond 200 ne protège rien* : le contenu part sur le
+ * réseau, quel que soit l'écran. C'est l'API qui refuse ; celle-ci épargne un écran vide.
  */
 export function assertCanReachAgencyStaffArea(roles: UserRole[]): void {
   if (!(isAgent(roles) || isAdmin(roles))) {

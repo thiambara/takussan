@@ -158,6 +158,47 @@ describe('<PropertyModerationWorkspace> (TCK-376)', () => {
     expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument();
   });
 
+  /**
+   * AC2, la moitié que les tests d'origine ne parcouraient pas — relevée par la revue adverse.
+   *
+   * Ils n'exerçaient qu'une file PEUPLÉE. La pagination était rendue à l'intérieur de la branche
+   * « la liste n'est pas vide » : on modère les trois dernières lignes de la page 4, la file
+   * retombe à trois pages, et l'écran affichait « aucun bien à valider » sans aucun contrôle de
+   * pagination — donc sans chemin de retour hors édition de l'URL. Un cul-de-sac sur un écran de
+   * travail à la chaîne, et un état vide qui MENT : ce n'est pas la file qui est vide, c'est la
+   * page qui n'existe plus.
+   */
+  it('AC2 — une page devenue vide garde sa pagination : « Précédent » ramène dans la file', async () => {
+    // La file a été traitée jusqu'à ne plus tenir que sur 3 pages ; l'URL est restée sur la 4e.
+    urlCourante = 'page=4';
+    mockFetchQueue.mockResolvedValue(reponse({ last_page: 3, current_page: 4 }, []));
+    render(wrap(<PropertyModerationWorkspace />));
+
+    // L'état vide est là — il est juste, la PAGE est vide.
+    expect(await screen.findByText('Aucun bien à valider')).toBeInTheDocument();
+
+    // ...et la sortie aussi.
+    const nav = screen.getByRole('navigation', { name: 'Pagination' });
+    expect(nav).toBeInTheDocument();
+    const precedent = screen.getByRole('button', { name: /précédent/i });
+    expect(precedent).toBeEnabled();
+
+    const user = userEvent.setup();
+    await user.click(precedent);
+    // Bornée à `lastPage` : le clic ne ramène pas sur une 3e page inexistante mais sur la
+    // dernière qui existe.
+    expect(derniereUrl().get('page')).toBe('3');
+  });
+
+  it('AC2 — une file ENTIÈREMENT vide ne rend pas de pagination : toutes les pages le sont', async () => {
+    urlCourante = 'page=4';
+    mockFetchQueue.mockResolvedValue(reponse({ last_page: 1, current_page: 4 }, []));
+    render(wrap(<PropertyModerationWorkspace />));
+
+    expect(await screen.findByText('Aucun bien à valider')).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Pagination' })).not.toBeInTheDocument();
+  });
+
   // ─── AC3 — la recherche est temporisée, et le filtre est SERVEUR ───────────────────────────
   it('AC3 — dix caractères saisis n’écrivent l’URL qu’une fois', async () => {
     render(wrap(<PropertyModerationWorkspace />));

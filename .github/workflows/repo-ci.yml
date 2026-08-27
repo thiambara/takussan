@@ -350,6 +350,23 @@ jobs:
         # ajoutés — témoins, plancher de fichiers gardés, forme de la configuration — n'empêchent
         # pas la manœuvre à trois gestes : ils l'obligent à être VISIBLE dans le diff (trou T6).
         #
+        # ⚠ QUATRE désarmements de plus, mesurés par la revue adverse de TCK-381 le 2026-08-27,
+        # dont DEUX se jouaient à UN SEUL GESTE sur une garde qui déclarait six trous — sans
+        # qu'aucun des deux y figure :
+        #   · retirer une famille de `FAMILLES` : 13 des 22 n'étaient éprouvées par rien, et la
+        #     garde sortait en 0 AVEC un ✓ pendant qu'un `bg-indigo-500` vivait dans un fichier
+        #     gardé. 15 des 27 préfixes étaient dans le même cas ;
+        #   · lever `RESTE_PLAFOND` de la console super-admin : le cliquet n'était pas bilatéral,
+        #     et la garde IMPRIMAIT elle-même « (cliquet 200) » en sortant en 0 ;
+        #   · `globals.css` — le seul fichier où une couleur a le droit d'être décidée — n'était
+        #     lu par personne, pendant que la garde affirmait prouver le contraire ;
+        #   · la couleur en attribut de présentation (`fill="#a85332"`) échappait aux 4 contrôles.
+        #
+        # Les deux premiers sont fermés par une AUTO-ÉPREUVE PAR ABLATION : à chaque exécution, la
+        # garde reconstruit ses cinq contrôles sans chaque entrée de configuration et exige que
+        # quelque chose cesse d'être vu. *Une entrée dont le retrait ne change rien ne garde rien*
+        # — c'est la règle que ce dépôt applique déjà à ses tests, appliquée à une configuration.
+        #
         # `--report` imprime tout, et c'est délibéré : un vert qui ne dit pas ce qu'il a mesuré
         # est le vert qui a rendu TCK-245 `done` pendant quatre mois.
         run: node scripts/check-super-admin-tokens.mjs --report

@@ -1,13 +1,13 @@
 ---
 id: TCK-358
 title: "Console super-admin — éteindre la palette Tailwind brute, et poser le cliquet qui l'empêche de revenir"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 46
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: [TCK-357]
 blocks: []
 spec_refs:
@@ -54,23 +54,29 @@ Sur l'ensemble de la console : 348 utilitaires de palette brute (`stone`, `amber
 
 ## Delta à produire
 
-- [ ] Token `--warning` / `--warning-foreground` dans `src/app/globals.css` (`:root` + `.dark`) et exposition `@theme inline`
-- [ ] Composant `WarningBanner` sous `src/components/ui/`, appliqué à `/enums` et `/settings` (suppression des deux commentaires d'exception TCK-245)
-- [ ] Codemod sur `src/components/admin/super/**` (218 occurrences)
-- [ ] Codemod sur `src/components/layout/SuperAdmin{Shell,Sidebar,Topbar}.tsx` (12) — la sidebar sombre garde une surface sombre, mais par tokens
-- [ ] Codemod sur `src/app/(super-admin)/**` (11 résiduelles) et `src/components/super-admin/**` (1)
-- [ ] `/super-admins` + `SuperAdminOnboardingWizard` : tokens `app-*` → tokens shadcn ; `text-red-600` → `ErrorState`
-- [ ] Signal cross-tenant assumé dans `SuperAdminShell` (liseré `--primary` ou surface de contenu distincte)
-- [ ] Garde `scripts/check-super-admin-tokens.mjs` + branchement dans `.github/workflows/repo-ci.yml`
+- [x] Token `--warning` / `--warning-foreground` dans `src/app/globals.css` (`:root` + `.dark`) et exposition `@theme inline`
+- [x] Composant `WarningBanner` sous `src/components/ui/`, appliqué à `/enums` et `/settings` (suppression des deux commentaires d'exception TCK-245)
+- [x] Codemod sur `src/components/admin/super/**` (218 occurrences)
+  - le compte réel était **85** au 2026-08-27, pas 218 : TCK-357 est passé entre la rédaction et l'implémentation.
+- [x] Codemod sur `src/components/layout/SuperAdmin{Shell,Sidebar,Topbar}.tsx` (12) — la sidebar sombre garde une surface sombre, mais par tokens
+- [x] Codemod sur `src/app/(super-admin)/**` (11 résiduelles) et `src/components/super-admin/**` (1)
+- [x] `/super-admins` + `SuperAdminOnboardingWizard` : tokens `app-*` → tokens shadcn ; `text-red-600` → `ErrorState`
+  - moitié `app-*` **sans objet** : `grep -rn 'text-app-ink'` sur les quatre périmètres → 0 avant le ticket (éteint par TCK-372). Moitié `text-red-600` livrée, et sur **9** occurrences dans 5 fichiers, pas une seule.
+- [x] Signal cross-tenant assumé dans `SuperAdminShell` (liseré `--primary` ou surface de contenu distincte)
+  - `SuperAdminShell.tsx:53` — `<div className="h-1 shrink-0 bg-primary" aria-hidden />`, plus la surface de contenu en `bg-muted`.
+- [x] Garde `scripts/check-super-admin-tokens.mjs` + branchement dans `.github/workflows/repo-ci.yml`
 
 ## Critères d'acceptation
 
-- [ ] AC1 — sur **les quatre répertoires** (`src/app/(super-admin)`, `src/components/admin/super`, `src/components/layout/SuperAdmin*`, `src/components/super-admin`), hors `__tests__` : `grep -rE '(text|bg|border|ring|divide|from|to)-(stone|amber|emerald|red|green|blue|slate|gray|zinc|neutral)-[0-9]{2,3}'` ne renvoie **aucun** résultat
-- [ ] AC2 — aucune occurrence de `bg-white` ni de `text-app-ink`/`text-app-ink-muted` dans ces quatre répertoires
-- [ ] AC3 — `node scripts/check-super-admin-tokens.mjs` sort en 0 sur le dépôt propre, et **sort en échec** quand on réintroduit volontairement `bg-stone-200` dans `src/components/admin/super/scheduler.tsx` (vérification par ablation : la garde doit être prouvée capable d'échouer, pas seulement de passer)
-- [ ] AC4 — la garde est rejouée par `repo-ci.yml` et son en-tête porte le motif + le relevé chiffré du 2026-08-26
-- [ ] AC5 — le token `--warning` existe dans `:root` **et** `.dark`, et aucun commentaire d'exception TCK-245 ne subsiste
+- [x] AC1 — sur **les quatre répertoires** (`src/app/(super-admin)`, `src/components/admin/super`, `src/components/layout/SuperAdmin*`, `src/components/super-admin`), hors `__tests__` : `grep -rE '(text|bg|border|ring|divide|from|to)-(stone|amber|emerald|red|green|blue|slate|gray|zinc|neutral)-[0-9]{2,3}'` ne renvoie **aucun** résultat
+- [x] AC2 — aucune occurrence de `bg-white` ni de `text-app-ink`/`text-app-ink-muted` dans ces quatre répertoires
+- [x] AC3 — `node scripts/check-super-admin-tokens.mjs` sort en 0 sur le dépôt propre, et **sort en échec** quand on réintroduit volontairement `bg-stone-200` dans `src/components/admin/super/scheduler.tsx` (vérification par ablation : la garde doit être prouvée capable d'échouer, pas seulement de passer)
+- [x] AC4 — la garde est rejouée par `repo-ci.yml` et son en-tête porte le motif + le relevé chiffré du 2026-08-26
+  - `.github/workflows/repo-ci.yml:372` → `node scripts/check-super-admin-tokens.mjs --report`. L'en-tête porte les **deux** relevés datés (2026-08-26 du ticket, 2026-08-27 re-mesuré).
+- [x] AC5 — le token `--warning` existe dans `:root` **et** `.dark`, et aucun commentaire d'exception TCK-245 ne subsiste
+  - `grep -c -- '--warning' globals.css` → 9 (`:root`, `@theme inline`, `.dark`) ; `grep -rn 'documented exception (TCK-245)' src/` → 0.
 - [ ] AC6 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+  - **reste décochée.** `npm run lint` (0 erreur) et `npx tsc --noEmit` (0 sortie) sont exécutés et verts ; `npm run test` **en entier** ne l'a été par personne — c'est le rituel de fin de branche de la session, interdit à un agent délégué. Ce qui a été joué à la place : `npx vitest run src/components src/app` → 135 fichiers / 677 tests, 0 échec. La case se coche quand la suite entière aura tourné.
 
 ## Hors périmètre
 
@@ -120,3 +126,36 @@ l'avait annoncé pour ce ticket.
 **Deux mentions de TCK-245 subsistent dans le code** — dans `globals.css` et `warning-banner.tsx`.
 Ce ne sont plus des commentaires d'exception mais le récit de leur disparition ; l'AC5 visait
 l'exception, pas la trace.
+
+### Ce que la revue adverse a trouvé, et ce qui a été corrigé (2026-08-27)
+
+La revue a **refusé** le livrable : les 6 AC passaient, mais le cliquet — le seul livrable que le
+ticket déclare non négociable — avait **deux trous démontrés par mutation**, dont un que son propre
+en-tête déclarait inexistant.
+
+- **D1 — la garde ne voyait aucune valeur arbitraire de couleur.** `bg-[#f5f5f4]`, `text-[#a85332]`,
+  `bg-[rgb(…)]`, `border-[oklch(…)]` : quatre mutations, quatre verts. Corrigé par un **contrôle D**
+  qui prend en plus les 148 couleurs **nommées** de CSS Color 4 et `color-mix(`/`color(`, avec des
+  bornes `(?<![a-zA-Z0-9-])` et non `\b` (dans une valeur arbitraire les séparateurs sont des `_`).
+  L'en-tête menteur est remplacé par une section « les trois trous qu'elle déclare ».
+- **D2 — le périmètre était quatre répertoires, pas l'écran** : `billing/PayoutTable.tsx` rendait
+  cinq familles de palette brute **dans** la console, garde verte — le défaut de TCK-245 reproduit
+  d'un cran plus haut. Corrigé sur les deux plans : les pastilles de `PayoutTable` et de
+  `kyc/kyc-components.tsx` passent sur le `StatusBadge` partagé, le périmètre s'étend à `billing`,
+  `reporting`, `console`, `feedback` et `kyc/kyc-components.tsx` (58 → 88 fichiers gardés), **et**
+  la garde calcule désormais la **clôture transitive des imports** depuis `src/app/(super-admin)/**`
+  pour compter ce que la console rend sans pouvoir l'exiger à zéro : **46** défauts dans 78 fichiers,
+  sous plafond (`RESTE_PLAFOND`). La sortie verte imprime les deux nombres.
+- **D3 et D4 — le docblock de contrastes de `SuperAdminSidebar`** portait trois valeurs non
+  reproductibles et une contradiction interne (8,08 / 7,91 pour la même paire). Corrigés dans le
+  passage de TCK-359 : les huit mesures vivent maintenant à **un seul endroit** (docblock du
+  composant), et le sous-item actif à **4,60:1** — que D4 signalait comme non documenté — y figure.
+
+**Vérifié une dernière fois dans l'arbre fusionné, le 2026-08-27** : garde exit 0 ; grep AC1 → 0 ;
+grep AC2 → 0 ; ablation `bg-stone-200` dans `scheduler.tsx` → exit **1**, restauration md5 identique.
+
+**Ce qui reste ouvert :** [TCK-384](TCK-384-primitives-partagees-couleur-brute.md) (les 46 défauts
+des primitives partagées que la console rend, avec l'obligation de faire descendre le plafond à
+chaque lot) et [TCK-385](TCK-385-kyc-uploader-palette-brute-onboarding.md) (`KycUploader.tsx`, hors
+clôture, couvert par **aucune** garde). Aucune vérification navigateur n'a été faite : l'aspect —
+équilibre du liseré de 4 px, rendu de l'ocre `--warning` à côté du terracotta — reste non vu.

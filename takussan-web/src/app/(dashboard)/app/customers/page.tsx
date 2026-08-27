@@ -78,7 +78,10 @@ export default async function Page({
               appelle `assertCanReachAgentArea` plus haut, dont l'ensemble autorisé
               (agent | owner | admin) est EXACTEMENT l'allowlist du garde serveur de
               `crm/pipeline/page.tsx`. Quiconque lit ce lien peut déjà ouvrir sa cible ; le lien
-              n'autorise rien de plus, et la page cible garde son `forbidden()`.
+              n'autorise rien de plus, et la page cible garde son propre refus serveur —
+              `assertCanReachAgentArea`, et non un `forbidden()` : TCK-378 a retiré l'appel de
+              cette page-là précisément, parce que sans `experimental.authInterrupts` il rendait
+              un écran de panne au lieu d'un refus.
             */}
             <Link
               href="/app/crm/pipeline"

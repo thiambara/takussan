@@ -1,13 +1,13 @@
 ---
 id: TCK-379
 title: "Tableau de bord /app — le menu et l'inventaire des écrans ont divergé : deux écrans sans chemin, un geste mort, un menu qui n'est pas le sien"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
 wave: 48
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: []
 blocks: []
 spec_refs:
@@ -101,36 +101,41 @@ routes :
 
 ## Delta à produire
 
-- [ ] Chemin de navigation vers `/app/account/privacy`, placé auprès des réglages de compte de
+- [x] Chemin de navigation vers `/app/account/privacy`, placé auprès des réglages de compte de
       l'utilisateur
-- [ ] Chemin de navigation vers `/app/crm/pipeline` depuis les clients, visible par les rôles que
+- [x] Chemin de navigation vers `/app/crm/pipeline` depuis les clients, visible par les rôles que
       la page laisse déjà entrer (agent / bailleur / admin)
-- [ ] Geste de création d'état des lieux depuis `/app/inventories`, pour les rôles que
+- [x] Geste de création d'état des lieux depuis `/app/inventories`, pour les rôles que
       [§1.9](../../features.md#19-état-des-lieux--inventaires) sert — y compris quand la liste
       n'est pas vide
-- [ ] Conditions de rôle sur les entrées poussées sans garde dans `buildNavItems` : réservations,
+- [x] Conditions de rôle sur les entrées poussées sans garde dans `buildNavItems` : réservations,
       baux, visites, favoris, recherches sauvegardées, statistiques
-- [ ] Aiguillage de `/app/overview` : un `service_provider` n'y est plus envoyé vers la vue
+- [x] Aiguillage de `/app/overview` : un `service_provider` n'y est plus envoyé vers la vue
       locataire
-- [ ] i18n fr/en/wo pour tout libellé neuf
-- [ ] Tests : un par défaut corrigé
+- [x] i18n fr/en/wo pour tout libellé neuf
+- [x] Tests : un par défaut corrigé
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un test parcourt **toutes** les routes `page.tsx` de `src/app/(dashboard)/app` et
+- [x] AC1 — un test parcourt **toutes** les routes `page.tsx` de `src/app/(dashboard)/app` et
       échoue sur toute route sans lien entrant, hors une liste d'exceptions **nommées et
       justifiées** (`/app/crm`, `/app/payments/return`, les routes dynamiques). Ce test aurait
       échoué avant ce ticket sur `/app/account/privacy` et `/app/crm/pipeline`
-- [ ] AC2 — un `agent` sur `/app/inventories`, liste **non vide**, atteint la création d'un état
+- [x] AC2 — un `agent` sur `/app/inventories`, liste **non vide**, atteint la création d'un état
       des lieux depuis cet écran ; un test l'éprouve et échouerait si le bouton n'existait que
       dans l'état vide
-- [ ] AC3 — le menu d'un `service_provider` ne contient ni « Réservations », ni « Baux », ni
+- [x] AC3 — le menu d'un `service_provider` ne contient ni « Réservations », ni « Baux », ni
       « Visites », ni « Statistiques ». Un test compare l'ensemble des `href` rendus pour les six
       rôles à une table attendue, et échouerait sur une entrée poussée sans garde
-- [ ] AC4 — `/app/overview` n'aiguille plus un `service_provider` vers `/app/overview/tenant`
-- [ ] AC5 — les gardes serveur des trois pages nouvellement desservies sont inchangées : un test
+- [x] AC4 — `/app/overview` n'aiguille plus un `service_provider` vers `/app/overview/tenant`
+- [x] AC5 — les gardes serveur des trois pages nouvellement desservies sont inchangées : un test
       vérifie qu'un rôle non autorisé est toujours refusé malgré le nouveau lien
 - [ ] AC6 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+      *Non cochée : `npm run lint` (0 erreur, 36 avertissements préexistants), `npx tsc --noEmit`
+      (0 erreur), `npm run check:i18n` (parité 0/0 sur 5338 clés) et
+      `npx vitest run src/components/layout 'src/app/(dashboard)'` (28 fichiers, 228/228) sont
+      exécutés et verts sur l'arbre fusionné le 2026-08-27. `npm run test` **en entier** n'a jamais
+      tourné — il appartient à la session déléguante (CLAUDE.md, « qui lance quoi »).*
 
 ## Hors périmètre
 
@@ -204,3 +209,67 @@ partout), vérifié par ablation.
 **conservées** — `grep` confirme qu'aucun `t()` ne les demande, mais la garde de parité fr/en/wo
 reste verte quand une clé disparaît des trois, donc rien ne rattraperait une suppression de
 trop.
+
+### Revue adverse et correctif final (2026-08-27)
+
+⚠ **RECTIFICATION DU PARAGRAPHE CI-DESSUS.** Le point (a) de « Deux trous trouvés dans mes propres
+tests à la revue adverse, et refermés » **était faux au moment où il a été écrit** : le trou
+n'était pas refermé. Le filtre anti-commentaire du test d'inventaire s'écrivait
+`!/^\s*(\*|\/\/|\/\*)/` — il ne reconnaît qu'une ligne qui **ouvre** un commentaire ou qui
+continue un docblock JSDoc (préfixe `*`). Or les lignes de continuation d'un commentaire de bloc
+JSX `{/* … */}` commencent par du texte nu, et ce sont **exactement** les commentaires que ce
+ticket a posés au-dessus de ses deux nouveaux liens.
+
+**Mesuré par la revue** : le `<Link href="/app/crm/pipeline">` supprimé de `customers/page.tsx`,
+**commentaire laissé en place** → `routes-atteignables` **3/3 VERTS** ; idem pour
+`/app/account/privacy` dans `profile/page.tsx` → 3/3 verts. Le troisième test, nommé « couvre bien
+les deux écrans que ce ticket rebranche », était vert alors que les deux écrans étaient redevenus
+orphelins. *Le correctif se prouvait par sa propre documentation* — c'est-à-dire précisément ce que
+le paragraphe ci-dessus déclarait avoir fermé.
+
+**Ce qui a été fait**, en deux changements tous deux nécessaires :
+
+1. `sansCommentaires()` blanchit les commentaires **en suivant l'état ouvert/fermé des blocs
+   `/* … */` ligne par ligne** (blanchir, et non supprimer, pour garder les numéros alignés).
+2. Une citation ne compte que si la route **et un producteur de lien** tiennent sur la même ligne
+   de code : `href`, `router.push/replace`, `redirect(`. Le test voit désormais un LIEN, pas une
+   mention.
+
+Le prédicat de producteur est **fermé par mesure et non par prudence** : balayage préalable des 38
+routes statiques de `/app`, commentaires blanchis — chaque route non exceptée porte au moins une
+ligne avec producteur, et les deux seules sans (`/app/crm`, `/app/payments/return`) étaient déjà
+dans `EXCEPTIONS` avec leur motif.
+
+**Preuve directe que le trou est refermé** : la même mutation (les deux `<Link>` retirés,
+commentaires conservés) rend **2 rouges sur 3** avec le test corrigé, et **3/3 verts** avec
+l'ancien test restauré par-dessus l'arbre muté.
+
+### Ce que la revue a éprouvé et jugé JUSTE
+
+- **La garde de rôle** : `occupeUnLogement` réécrit en `!isServiceProvider(roles)` → 1 rouge (le
+  test « un compte prestataire ET locataire garde ses baux ») ; `isTenant` retiré du prédicat →
+  3 rouges. Le choix du prédicat positif est correct **et** gardé, dans les deux sens.
+- **Le geste de création (AC2)** : `canCreate = true` partout → 4 rouges ; `canCreate = false`
+  partout → 3 rouges.
+- **L'aiguillage `/app/overview` (AC4)** : la page est exécutée sur les 7 rôles ; le `redirect`
+  attrape-tout de fin de fonction n'est atteignable que par un compte sans aucun rôle.
+- **Le paramètre de bail** : le test lit les **deux** moitiés (le paramètre produit par le widget,
+  et celui que la page lit) — une assertion sur le seul `href` serait restée verte.
+- **La garde de `crm/pipeline`** : elle accepte `forbidden()` **et** `redirect()` mais vérifie la
+  cible ; un faux refus renvoyant vers la page elle-même → 3 rouges.
+- **i18n** : 21/21 clés en fr/en/wo, deux vrais messages ICU pluralisés, et le wolof est
+  **réellement traduit** (aucune clé identique au français).
+- **Dump des droits sur 13 combinaisons de rôles**, reproduit à l'identique après le correctif de
+  TCK-377 : `[service_provider]` n=4, `[service_provider+tenant]` n=10, `[agent+service_provider]`
+  = `[agent]` seul, `[owner+customer]` n=17.
+
+### Reste ouvert
+
+- Les clés `inventory.new.no_lease_*` n'ont plus de site d'appel et sont conservées : la garde de
+  parité fr/en/wo reste verte quand une clé disparaît des trois, donc rien ne rattraperait une
+  suppression de trop.
+- `routes-atteignables.test.ts` **lit le système de fichiers à l'import** : il n'est pas hermétique
+  dans un arbre partagé où un autre agent ablate au même instant. C'est une propriété du test, pas
+  un défaut du ticket — mais elle explique ses rouges transitoires pendant cette vague.
+- TCK-419 (quatre liens `/app` vers des routes inexistantes) et TCK-420 (acteur 🔧 absent de la
+  légende de `features.md`) restent ouverts, comme annoncé.

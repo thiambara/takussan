@@ -88,20 +88,41 @@ export function PropertyModerationWorkspace() {
         <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-sm text-destructive">
           {messageErreur(error, t('loadError'))}
         </div>
-      ) : properties.length === 0 ? (
-        <PropertyModerationEmpty />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-            <PropertyModerationQueueList
-              properties={properties}
-              selectedId={selected?.id ?? null}
-              onSelect={(p: ModerationProperty) => url.selectionner(p.id)}
-            />
-            {selected ? (
-              <PropertyModerationDetail property={selected} onModerated={onModerated} />
-            ) : null}
-          </div>
+          {properties.length === 0 ? (
+            <PropertyModerationEmpty />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
+              <PropertyModerationQueueList
+                properties={properties}
+                selectedId={selected?.id ?? null}
+                onSelect={(p: ModerationProperty) => url.selectionner(p.id)}
+              />
+              {selected ? (
+                <PropertyModerationDetail property={selected} onModerated={onModerated} />
+              ) : null}
+            </div>
+          )}
+          {/*
+            ⚠ **La pagination est rendue HORS de la branche « la liste n'est pas vide »**, et
+            c'est le correctif de la revue de TCK-376.
+
+            Elle vivait à l'intérieur : on modère les trois dernières lignes de la page 4, la
+            file retombe à trois pages, et l'écran affichait « aucun bien à valider » AVEC la
+            pagination disparue — sans autre chemin de retour que l'édition de l'URL. Un
+            cul-de-sac sur un écran de travail à la chaîne, et un état vide qui MENT : la file
+            n'est pas vide, c'est la page qui n'existe plus.
+
+            `Pagination` ne rend rien d'elle-même quand `lastPage <= 1` : la sortir de la branche
+            n'ajoute donc aucun contrôle sur une file d'une seule page. Sur `page=4, lastPage=3`
+            elle rend « Précédent » actif, borné à `Math.min(lastPage, …)`.
+
+            Reste le cas où la file entière se vide (`lastPage === 1`, `page=4`) : la pagination
+            se retire alors, et c'est juste — toutes les pages y sont également vides, et l'état
+            vide dit vrai. Le `page` périmé de l'URL tombe à la première recherche
+            (`poserFiltres` retire `page` inconditionnellement).
+          */}
           {meta ? (
             <Pagination
               page={page}

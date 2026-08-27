@@ -39,10 +39,15 @@
   /*
    * === Avertissement (TCK-358) ===
    *
-   * Le DS n'avait AUCUN jeton d'avertissement, et l'absence se voyait : deux bandeaux
-   * `bg-amber-50 / text-amber-950 / ring-amber-200` recopiés au caractère près dans
-   * `/enums` et `/settings`, chacun portant le même commentaire d'exception TCK-245, plus
-   * un ton `attention` de `StatusBadge` qui empruntait `--primary` faute de mieux.
+   * Le DS n'avait AUCUN jeton d'avertissement, et l'absence se voyait : deux bandeaux —
+   * ambre 50 en fond, ambre 950 en encre, ambre 200 en anneau — recopiés au caractère près
+   * dans `/enums` et `/settings`, chacun portant le même commentaire d'exception TCK-245,
+   * plus un ton `attention` de `StatusBadge` qui empruntait `--primary` faute de mieux.
+   *
+   * ⚠ Les trois classes sont écrites ICI EN TOUTES LETTRES, et non copiables. Ce fichier est
+   * lu par `scripts/check-super-admin-tokens.mjs` depuis le 2026-08-27 : un docblock qui
+   * montre une classe de palette brute est exactement la documentation périmée qui fait
+   * repousser le motif — même règle que `components/console` chez TCK-358.
    *
    * Ocre profond plutôt que l'ambre Tailwind (#f59e0b) : l'ambre vif est illisible en texte
    * sur Lin (1,8:1 sur `--background`) et n'appartient pas à la famille chromatique du
@@ -208,8 +213,8 @@
  * Toutes les autres surfaces de la console passent sur `--card` / `--muted`, qui basculent en
  * `.dark`. Un QR TOTP posé sur `--card` deviendrait des modules sombres sur un fond sombre :
  * illisible par le téléphone, et par personne d'autre non plus. Le blanc est donc ÉCRIT ici,
- * une fois, sous un nom qui dit pourquoi — plutôt qu'un `bg-white` recopié dans un JSX où rien
- * ne distingue plus le blanc décoratif du blanc fonctionnel.
+ * une fois, sous un nom qui dit pourquoi — plutôt qu'un utilitaire de fond blanc recopié dans
+ * un JSX où rien ne distingue plus le blanc décoratif du blanc fonctionnel.
  */
 .qr-surface {
   background-color: #ffffff;

@@ -69,12 +69,84 @@ function routesStatiques(): { route: string; dossier: string }[] {
   return sortie;
 }
 
-const FICHIERS = listeFichiers(RACINE).map((f) => ({ chemin: f, contenu: fs.readFileSync(f, 'utf8') }));
+/**
+ * Blanchit les commentaires, ligne par ligne, EN SUIVANT L'ÉTAT OUVERT/FERMÉ des blocs `/* … *\/`.
+ *
+ * ⚠ La version précédente de ce fichier écartait les commentaires par un test de PRÉFIXE de ligne
+ * (`/^\s*(\*|\/\/|\/\*)/`). Elle ne reconnaissait donc qu'une ligne qui OUVRE un commentaire, ou
+ * qui continue un docblock JSDoc — jamais le corps d'un commentaire de bloc JSX `{/* … *\/}`, dont
+ * les lignes de continuation commencent par du texte nu. **Et ce sont exactement ces commentaires
+ * que TCK-379 a posés au-dessus de ses deux nouveaux liens.** Mesuré : le `<Link>` retiré et le
+ * commentaire laissé, les trois tests de ce fichier restaient VERTS sur les deux routes pour
+ * lesquelles ils ont été écrits. *Le correctif se prouvait par sa propre documentation.*
+ *
+ * On blanchit au lieu de supprimer la ligne : les numéros de ligne restent alignés sur le fichier
+ * source, ce qui garde les diagnostics lisibles.
+ */
+function sansCommentaires(contenu: string): string[] {
+  const sortie: string[] = [];
+  let dansBloc = false;
+  for (const ligne of contenu.split('\n')) {
+    let reste = '';
+    let i = 0;
+    while (i < ligne.length) {
+      if (dansBloc) {
+        const fin = ligne.indexOf('*/', i);
+        if (fin === -1) i = ligne.length;
+        else {
+          dansBloc = false;
+          i = fin + 2;
+        }
+      } else {
+        const bloc = ligne.indexOf('/*', i);
+        const jusquauBout = ligne.indexOf('//', i);
+        if (jusquauBout !== -1 && (bloc === -1 || jusquauBout < bloc)) {
+          reste += ligne.slice(i, jusquauBout);
+          i = ligne.length;
+        } else if (bloc !== -1) {
+          reste += ligne.slice(i, bloc);
+          dansBloc = true;
+          i = bloc + 2;
+        } else {
+          reste += ligne.slice(i);
+          i = ligne.length;
+        }
+      }
+    }
+    sortie.push(reste);
+  }
+  return sortie;
+}
+
+/**
+ * Ce qui, dans du code, PRODUIT un chemin cliquable ou une navigation. Une ligne qui mentionne une
+ * route sans porter l'un de ces marqueurs n'ouvre rien : c'est une chaîne dans un log, un cas de
+ * test recopié, un libellé.
+ *
+ * ⚠ La liste est délibérément COURTE et fermée. Elle a été prise par mesure sur les 38 routes
+ * statiques de `/app` : chacune — sauf les deux exceptées ci-dessus — est desservie par au moins
+ * une ligne qui la porte. Une forme neuve de navigation devra donc s'ajouter ici explicitement,
+ * et c'est le but : *une liste ouverte redeviendrait « toute mention compte ».*
+ *
+ * - `href` (insensible à la casse) couvre `href="…"`, `href: '…'` et les constantes `…_HREF`.
+ * - `router.push` / `router.replace` couvrent la navigation impérative client.
+ * - `redirect(` / `permanentRedirect(` couvrent la navigation serveur de Next.
+ */
+const PRODUCTEUR_DE_LIEN = /href|router\s*\.\s*(push|replace)|\b(permanent)?[Rr]edirect\s*\(/i;
+
+const FICHIERS = listeFichiers(RACINE).map((f) => ({
+  chemin: f,
+  lignes: sansCommentaires(fs.readFileSync(f, 'utf8')),
+}));
 
 /**
  * Une citation ne compte que si elle s'arrête à la bonne frontière : sans la sentinelle
  * ci-dessous, `/app/overview` serait « cité » par le moindre `href="/app/overview/agent"`, et le
  * test rendrait vert un menu qui n'expose que les sous-pages.
+ *
+ * Et elle ne compte que si elle est un LIEN, pas une MENTION : la route et un producteur de lien
+ * doivent tenir sur la MÊME ligne de code, commentaires blanchis. *Un test qui compte les mentions
+ * textuelles d'une route accepte une phrase de docblock aussi bien qu'un `<Link>` cliquable.*
  */
 function citations(route: string, dossierPropre: string): string[] {
   const motif = new RegExp(
@@ -85,13 +157,8 @@ function citations(route: string, dossierPropre: string): string[] {
     // lui-même reste injoignable. Ses SOUS-dossiers, eux, comptent (un détail qui renvoie vers
     // sa liste est un vrai chemin de retour).
     .filter(({ chemin }) => path.dirname(chemin) !== dossierPropre)
-    // ⚠ Une mention en COMMENTAIRE ne dessert rien. Sans ce filtre, le commentaire que ce lot a
-    // lui-même écrit au-dessus de chaque nouveau lien suffirait à rendre le test vert si le lien
-    // était retiré ensuite — le correctif se prouverait par sa propre documentation. Mesuré à la
-    // livraison : aucune route du dépôt n'est citée par un seul commentaire, le filtre ne masque
-    // donc rien aujourd'hui ; il ferme la porte pour la suite.
-    .filter(({ contenu }) =>
-      contenu.split('\n').some((ligne) => motif.test(ligne) && !/^\s*(\*|\/\/|\/\*)/.test(ligne)),
+    .filter(({ lignes }) =>
+      lignes.some((ligne) => motif.test(ligne) && PRODUCTEUR_DE_LIEN.test(ligne)),
     )
     .map(({ chemin }) => path.relative(RACINE, chemin));
 }

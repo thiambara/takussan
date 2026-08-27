@@ -1,7 +1,7 @@
 ---
 id: TCK-382
 title: "Tableau de bord /app — l'attente, l'introuvable et le titre d'onglet : trois états que quarante écrans ne rendent pas"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
@@ -101,34 +101,50 @@ requête de résolution de référence avec son propre `fields[leases]` — cett
 
 ## Delta à produire
 
-- [ ] `loading.tsx` pour les neuf pages de `/app` qui attendent une donnée serveur et n'en ont pas
-- [ ] `not-found.tsx` sous `src/app/(dashboard)`, rendu dans le shell, traduit
-- [ ] Les détails de `/app` distinguent l'introuvable (404 de l'API, identifiant invalide) de
-      l'erreur, et appellent `notFound()` dans le premier cas
-- [ ] `generateMetadata` sur les 17 pages qui n'en ont pas, titres tirés du dictionnaire
-- [ ] Les trois chaînes `Bail #…` de `leases/[id]` passent en clés fr/en/wo
-- [ ] Les 14 déclarations de `generateMetadata` insérées au milieu du bloc d'imports sont
+- [x] `loading.tsx` pour les neuf pages de `/app` qui attendent une donnée serveur et n'en ont pas
+- [x] `not-found.tsx` sous `src/app/(dashboard)`, rendu dans le shell, traduit
+- [x] Les détails de `/app` distinguent l'introuvable (404 de l'API, identifiant invalide) de
+      l'erreur, et appellent `notFound()` dans le premier cas — **3 pages de détail sur 8** ; les
+      cinq autres délèguent leur requête à un composant client et ne traduisent pas un 404 d'API
+      (limite nommée dans le cliquet, pas un oubli)
+- [x] `generateMetadata` sur les 17 pages qui n'en ont pas, titres tirés du dictionnaire
+- [x] Les trois chaînes `Bail #…` de `leases/[id]` passent en clés fr/en/wo
+- [x] Les 14 déclarations de `generateMetadata` insérées au milieu du bloc d'imports sont
       remises après les imports
-- [ ] i18n fr/en/wo pour tout libellé neuf
-- [ ] Tests : introuvable contre erreur sur au moins deux détails ; présence des titres
+- [x] i18n fr/en/wo pour tout libellé neuf
+- [x] Tests : introuvable contre erreur sur au moins deux détails ; présence des titres
 
 ## Critères d'acceptation
 
-- [ ] AC1 — chaque page de `src/app/(dashboard)/app` qui `await` une requête de données possède
+- [x] AC1 — chaque page de `src/app/(dashboard)/app` qui `await` une requête de données possède
       un `loading.tsx` dans son segment ou un segment parent ; un test parcourt l'arbre et
       échouerait sur une page ajoutée sans
 - [ ] AC2 — `/app/properties/999` (bien inexistant) rend l'écran « introuvable » **dans le shell
       du tableau de bord**, barre latérale comprise, dans la langue active
-- [ ] AC3 — un identifiant invalide et une erreur réseau rendent **deux** écrans distincts sur au
+      *Non cochée, PARTIELLE. Éprouvé par test : un 404 de l'API appelle bien `notFound()` (et un
+      403 et un 500 ne l'appellent pas) ; l'écran rend son titre, sa description, aucun bouton de
+      reprise, et le libellé de la **langue active** (assertions en fr ET en en). Mesuré, mais pas
+      par un test : le rendu **dans le shell**, par sonde jetable sur `next dev` — un
+      `not-found.tsx` de segment est rendu dans le `layout.tsx` de son segment. La revue a vérifié
+      la précondition structurelle (le `layout.tsx` d'`app/` monte `AppShell`, `not-found.tsx` en
+      est le frère de segment, et c'est bien un composant serveur). Ce qui n'a **jamais** été vu :
+      le rendu réel de `/app/properties/999` sur une session authentifiée — aucune API ne tourne et
+      le dépôt n'a pas de harnais e2e. Pour la cocher : un parcours réel, ou le harnais.*
+- [x] AC3 — un identifiant invalide et une erreur réseau rendent **deux** écrans distincts sur au
       moins deux pages de détail ; un test l'éprouve et échouerait si les deux chemins
       retombaient sur le même
-- [ ] AC4 — aucune page de `src/app/(dashboard)/app` n'est dépourvue de `generateMetadata`, et
+- [x] AC4 — aucune page de `src/app/(dashboard)/app` n'est dépourvue de `generateMetadata`, et
       deux pages différentes ne rendent pas le même titre
-- [ ] AC5 — `grep -rnE "['\`]Bail " "src/app/(dashboard)/app"` ne renvoie plus rien, et
+- [x] AC5 — `grep -rnE "['\`]Bail " "src/app/(dashboard)/app"` ne renvoie plus rien, et
       `npm run check:i18n` passe
-- [ ] AC6 — dans chaque page de `/app`, `export async function generateMetadata` apparaît
+- [x] AC6 — dans chaque page de `/app`, `export async function generateMetadata` apparaît
       **après** la dernière ligne `^import`
 - [ ] AC7 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+      *Non cochée : `npm run lint` (0 erreur, 36 avertissements — la baseline exacte de `HEAD`,
+      mesurée avant et après), `npx tsc --noEmit` (rc=0), `npx next build` (rc=0, aucun
+      avertissement) et les 27 gardes du dépôt sont verts. `npm run test` **en entier** n'a pas
+      tourné : 295 tests verts sur les 39 fichiers du périmètre touché, et la suite entière
+      appartient à la session déléguante (CLAUDE.md, « qui lance quoi »).*
 
 ## Hors périmètre
 
@@ -235,3 +251,41 @@ tenir la consigne de diff strictement additif sur les dictionnaires. Et **cinq p
 huit ne traduisent pas un 404 de l'API en introuvable**, parce qu'elles délèguent la requête à un
 composant client : `/app/bookings/999999` (identifiant bien formé, objet inexistant) rend encore
 l'écran du composant client. C'est une limite nommée dans le cliquet, pas un oubli.
+
+### Revue adverse (2026-08-27)
+
+**Verdict : ACCEPTÉ.** Les 7 AC tiennent, et — c'est le point qui compte — **les trois états sont
+réellement rendus, pas seulement câblés** : les trois régressions les plus plausibles ont chacune
+été jouée et attrapée.
+
+| Régression jouée | Résultat |
+|---|---|
+| `payments/loading.tsx` retiré — un enfant **direct** d'`app/`, donc couvert par `app/loading.tsx` | 1 rouge : « chaque page qui attend une donnée serveur a son propre repli » |
+| `notFound()` rendu **inconditionnel** sur `properties/[id]` (le correctif naïf que l'AC3 cocherait) | 2 rouges : « 403 → renvoi vers /app, PAS l'introuvable » et « panne réseau (500) → l'exception remonte » |
+| Deux **clés distinctes** rendues **égales en valeur** dans `fr.json` | 1 rouge — le test compare les **valeurs résolues**, pas les clés : *un titre d'onglet identique partout ne peut pas cocher l'AC4* |
+| `<RetourVersLaListe />` remplacé par un bouton « Réessayer » | 4 rouges, dont « dit l'absence sans affirmer laquelle des deux causes » |
+| Une page **neuve** plantée sous `/app` sans repli, sans titre, `generateMetadata` au milieu des imports | rouge sur les trois cliquets à la fois |
+
+**Recomptes indépendants de la revue, repris à la source** : 46 pages de `/app`, 44 avec
+`generateMetadata` (les 2 sans ne rendent **aucun** JSX), 0 titre écrit en dur, 46/46 clés de titre
+résolues dans les trois langues, 37 `loading.tsx` dont 36 sur `RouteSkeleton` réparti en 5
+variantes (list 16 · form 9 · detail 8 · dashboard 2 · board 1), 12 appels `notFound()` dont **0
+inconditionnel**. Sur les 21 clés neuves : `fr ≠ en` et `fr ≠ wo` dans 21 cas sur 21 — le titre
+d'onglet est réellement localisé, pas recopié.
+
+**Un reste nommé, non corrigé** : le squelette entier porte `aria-hidden="true"` et aucun des 37
+`loading.tsx` ne pose de région live (`role="status"`, `aria-live`, `aria-busy`, `sr-only` —
+mesuré par grep : zéro occurrence). Un utilisateur de lecteur d'écran n'entend donc rien pendant
+l'attente, hors ce que le *route announcer* de Next émet de lui-même. Le docblock du composant a
+tranché ainsi et donne sa raison (« un `role=status` sans libellé n'annoncerait rien ») ; la raison
+est plausible mais **n'a pas été mesurée** — aucune sonde ne montre ce que le route announcer dit
+réellement sur ces routes.
+
+**Ticket de suite ouvert par celui-ci : [TCK-426](TCK-426-statuts-http-perdus-sous-les-replis-de-app.md)**
+— l'échange assumé sur les statuts HTTP (`notFound()` 404 → 200, `redirect()` 307 → 200 + coque dès
+qu'un `loading.tsx` couvre la route), re-mesuré à **32 `redirect()` sur 15 pages** de `/app` dont
+la grande majorité sont des refus d'**autorisation** et non d'authentification.
+
+**Restent aussi** : 8 clés i18n orphelines (`crm.customerDetail`, `dashboard.inventoryDetail`,
+`dashboard.maintenanceDetail`, `dashboard.pages.bookingDetail`), conservées pour tenir la consigne
+de diff strictement additif sur les dictionnaires.

@@ -4,7 +4,7 @@ title: "`/admin/settings/tags` n'a aucun chemin entrant — le bandeau réparé 
 status: todo
 phase: P3
 family: front
-estimate: XS
+estimate: S
 wave: 48
 created: 2026-08-27
 updated: 2026-08-27

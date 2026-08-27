@@ -76,7 +76,7 @@
  * des espaces, la troisième par une multiplication écrite avant l'appel. Aucune n'a rougi ; les
  * trois sont restées vertes.
  *
- * Cette garde s'auto-éprouve donc **à chaque invocation**, sur six plans. Les comptes ci-dessous
+ * Cette garde s'auto-éprouve donc **à chaque invocation**, sur huit plans. Les comptes ci-dessous
  * sont ceux du 2026-08-27 ; le script imprime les siens à chaque exécution, et c'est cette
  * sortie-là qui fait foi.
  *
@@ -94,23 +94,45 @@
  *   2. `EPREUVES_DECISION` — 10 verdicts joués sur des entrées synthétiques, parce qu'une
  *      condition écrite au fil du script se neutralise en un `if (false)` que rien ne voit.
  *      Les quatre décisions sont donc des fonctions PURES.
- *   3. `SENTINELLES` — quatre chemins qui DOIVENT figurer dans l'ensemble parcouru. Retirer un
- *      répertoire du périmètre, ou déplacer une de ces pages sans le dire, fait parler la garde
- *      au lieu de la rendre muette. *Un grep qui ne trouve plus rien et un grep qui ne cherche
- *      plus rien rendent la même sortie.*
+ *   3. `SENTINELLES` — quatre chemins qui DOIVENT figurer dans l'ensemble parcouru. Déplacer
+ *      une de ces pages sans le dire fait parler la garde au lieu de la rendre muette. *Un grep
+ *      qui ne trouve plus rien et un grep qui ne cherche plus rien rendent la même sortie.*
+ *
+ *      ⚠ Elles ne suffisent PAS, et la revue de TCK-378 l'a mesuré : les quatre vivent dans les
+ *      deux mêmes répertoires, donc exclure un répertoire QUI N'EN CONTIENT AUCUNE était
+ *      silencieux — `entree === 'components'` faisait tomber le périmètre de 1110 à 517 fichiers
+ *      (53 % du dépôt), avec un `forbidden()` réel planté dedans, et la garde sortait en 0. D'où
+ *      le point 3 bis.
+ *   3 bis. **Le périmètre est RECOUPÉ par `git ls-files`** — une énumération qui n'emprunte
+ *      aucun code de ce script. Tout fichier suivi, présent et de bonne extension doit se
+ *      retrouver dans le parcours ; une exclusion de répertoire, à n'importe quelle profondeur,
+ *      est alors rouge et NOMMÉE. *Le périmètre d'une garde n'est pas une liste de répertoires,
+ *      c'est ce qu'elle monte réellement — et ça ne se vérifie qu'en le recoupant.*
  *   4. `PLANCHERS` — une taille minimale pour chacune des listes ci-dessus. Vider `SENTINELLES`
  *      la rendait muette **sans la rendre rouge** : le filtre des absentes d'une liste vide est
  *      vide. Une liste d'épreuves qu'on peut vider n'est pas une épreuve.
  *   5. `PLAFOND_MESURE` — le compte de `REFUS_ARTISANAL`, redit à part. Allonger l'inventaire
  *      d'une ligne remontait le plafond sans un mot ; il faut désormais deux lignes et un
  *      argument.
- *   6. **Aucune exemption, et c'est compté.** `analysees` doit valoir le nombre de fichiers
- *      parcourus. Un `if (…) continue;` glissé dans la boucle — la forme que prend toujours une
- *      exemption — fait rougir la garde.
+ *   6. **Aucune exemption, et c'est marqué EN FIN DE CORPS.** `analysees` est un ENSEMBLE, et
+ *      `analysees.add(rel)` est la dernière instruction de la boucle. Un `if (…) continue;`
+ *      glissé n'importe où au-dessus saute le marquage et fait rougir la garde. ⚠ Ce point ne
+ *      valait qu'à moitié jusqu'à la revue de TCK-378 : le compteur était en TÊTE de boucle, et
+ *      la même exemption posée UNE LIGNE PLUS BAS sortait en 0.
+ *   7. `EPREUVES_CONFIG` — le LECTEUR de `next.config.ts`, joué sur des fragments synthétiques
+ *      ET sur la config réelle. Il ne l'était pas, et deux mutations d'un seul mot éteignaient
+ *      le contrôle C entier en silence, drapeau réellement actif compris. *L'auto-épreuve d'une
+ *      garde doit couvrir sa CONFIGURATION, pas seulement ses expressions régulières.*
+ *   8. `EPREUVES_ROLE` — le détecteur du cliquet D, joué sur les prédicats réellement lus dans
+ *      `src/lib/roles.ts`. Il ne comptait que les écrans qui IMPORTENT `@/lib/roles` : celui qui
+ *      décide en ligne (`user.roles.includes('agency_admin')`) lui était invisible, et il en
+ *      existait déjà un dans le dépôt.
  *
- * Les six points ci-dessus n'ont pas été imaginés : ils sont les cinq trous trouvés en MUTANT
- * cette garde, plus celui qu'on savait devoir couvrir. 21 mutations de son propre code,
- * 21 attrapées.
+ * Les points ci-dessus n'ont pas été imaginés : ils sont les trous trouvés en MUTANT cette
+ * garde. 21 mutations à l'écriture du ticket, toutes attrapées — puis 7 échappées sur 12 à la
+ * revue adverse, dont trois éteignaient un contrôle entier. *Un « 21/21 » est un compte honnête
+ * des formes qu'on a choisies, jamais une preuve d'étanchéité.* Les sept sont fermées ici, et
+ * rejouées à chaque invocation.
  *
  * ═══════════════════════════════════════════════════════════════════════════════════════════
  * CE QU'ELLE NE PEUT PAS — les limites, écrites parce qu'un vert doit se lire juste
@@ -130,7 +152,10 @@
  *   · **Elle ne peut pas se prémunir de sa propre amputation.** Supprimer une ligne
  *     `echecs.push(...evaluerX(…))` du flot principal ne fait rougir personne. Tout le reste —
  *     regex affaiblie, condition inversée, liste vidée, exemption glissée, plafond remonté — a
- *     été mis à l'épreuve : 21 mutations du code de cette garde, 21 attrapées (2026-08-27).
+ *     été mis à l'épreuve.
+ *   · **Un répertoire exclu DANS un fichier non suivi par git** lui échappe encore : le
+ *     recoupement n'exige que les fichiers suivis. C'est assumé — un fichier non suivi ne part
+ *     ni en CI ni en production.
  *
  * Usage :
  *   node scripts/check-auth-interrupts.mjs            # garde, sort en 1 au moindre écart
@@ -141,6 +166,7 @@
  * @see takussan-web/src/lib/auth/guards.ts
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -173,9 +199,11 @@ const SENTINELLES = [
  * sans passer par `src/lib/auth/guards.ts`.
  *
  * Relevé du 2026-08-27, après TCK-378 : 24 fichiers avant, 21 après (les trois pages du ticket
- * sont passées par le helper).
+ * sont passées par le helper) — puis **22** le même jour, la revue ayant trouvé que le détecteur
+ * était aveugle à la décision de rôle écrite EN LIGNE. Le vingt-deuxième n'a pas été ajouté au
+ * dépôt : il y était, et le cliquet ne le voyait pas.
  *
- * ⚠ Cette liste n'est PAS une liste d'exceptions tolérées : c'est un plafond. Ces 21 écrans
+ * ⚠ Cette liste n'est PAS une liste d'exceptions tolérées : c'est un plafond. Ces écrans
  * écrivent chacun leur propre `redirect('/app…')` à la main, ce qui est correct aujourd'hui et
  * fragile demain — c'est de cette population qu'est sorti chacun des trois `forbidden()`.
  * TCK-378 ne les convertit pas (hors périmètre), il en interdit le vingt-deuxième.
@@ -206,6 +234,14 @@ const REFUS_ARTISANAL = [
   'src/app/(dashboard)/app/overview/owner/page.tsx',
   'src/app/(dashboard)/app/overview/page.tsx',
   'src/app/(dashboard)/app/owners/page.tsx',
+  // Le VINGT-DEUXIÈME, trouvé par la revue de TCK-378 en mutant cette garde : il décide du rôle
+  // EN LIGNE (`user.roles.includes('agency_admin') || user.roles.includes('super_admin')`, l. 35)
+  // sans importer `@/lib/roles`, et l'ancien détecteur ne comptait que les IMPORTS. Il n'est pas
+  // neuf : il était là, et l'inventaire disait 21 pour une population de 22. Le plafond monte
+  // donc d'un cran — non pas parce qu'un écart a été ACCEPTÉ, mais parce qu'un écart qui existait
+  // devient enfin VISIBLE. *Un inventaire qui ne voit qu'une écriture ne compte pas une
+  // population, il compte ses propres regex.*
+  'src/app/(dashboard)/app/settings/agency/upgrade/page.tsx',
 ];
 
 /**
@@ -215,7 +251,7 @@ const REFUS_ARTISANAL = [
  * sans un mot. Le chiffre est donc redit ici, et l'écart entre les deux fait échouer la garde :
  * *remonter un plafond doit coûter deux lignes et un argument, pas une.*
  */
-const PLAFOND_MESURE = 21;
+const PLAFOND_MESURE = 22;
 
 const EXTENSIONS = /\.(tsx?|jsx?|mjs|cjs)$/;
 
@@ -479,7 +515,7 @@ const EPREUVES = [
  * Rétrécir l'une de ces listes est donc un acte délibéré : il faut baisser le plancher dans le
  * même diff, et dire pourquoi.
  */
-const PLANCHERS = { EPREUVES: 34, SENTINELLES: 4, GENRES: 7 };
+const PLANCHERS = { EPREUVES: 34, SENTINELLES: 4, GENRES: 7, EPREUVES_CONFIG: 9, EPREUVES_ROLE: 10, EPREUVES_TERMINATEUR: 7, EPREUVES_PERIMETRE: 5 };
 
 /**
  * Les genres de constat que `analyser()` sait produire — un par détecteur.
@@ -497,6 +533,10 @@ function jouerLesEpreuves() {
     ['EPREUVES', PLANCHERS.EPREUVES, EPREUVES],
     ['SENTINELLES', PLANCHERS.SENTINELLES, SENTINELLES],
     ['GENRES', PLANCHERS.GENRES, GENRES],
+    ['EPREUVES_CONFIG', PLANCHERS.EPREUVES_CONFIG, EPREUVES_CONFIG],
+    ['EPREUVES_ROLE', PLANCHERS.EPREUVES_ROLE, EPREUVES_ROLE],
+    ['EPREUVES_TERMINATEUR', PLANCHERS.EPREUVES_TERMINATEUR, EPREUVES_TERMINATEUR],
+    ['EPREUVES_PERIMETRE', PLANCHERS.EPREUVES_PERIMETRE, EPREUVES_PERIMETRE],
   ]) {
     if (liste.length < minimum) {
       ratees.push({
@@ -551,6 +591,66 @@ function jouerLesEpreuves() {
     }
   }
 
+  // Le LECTEUR DE CONFIGURATION — sur des fragments synthétiques, plus la config réelle.
+  //
+  // ⚠ D'abord : la source lue doit VRAIMENT être le fichier. Mutation de mon cru, échappée au
+  // premier essai : `lireConfig()` renvoyant `''` passait toutes les épreuves ci-dessous — elles
+  // n'attendent qu'un `present: false`, et le rond-trip fonctionne aussi bien sur une chaîne
+  // vide. Le contrôle C devenait aveugle à un drapeau réellement activé. La taille est donc
+  // recoupée par `statSync`, qui n'emprunte pas le même chemin que `readFileSync`.
+  const configReelle = lireConfig();
+  if (configReelle !== null) {
+    const octets = Buffer.byteLength(configReelle, 'utf8');
+    const taille = statSync(CONFIG).size;
+    if (octets !== taille) {
+      ratees.push({
+        nom: 'lecteur de config — la source lue n’est pas le fichier',
+        attendu: `${taille} octets (statSync)`,
+        obtenu: `${octets} octets`,
+        source: '(next.config.ts)',
+      });
+    }
+  }
+  for (const [nom, fragment, attendu] of EPREUVES_CONFIG) {
+    const besoinDuReel = fragment === null || typeof fragment === 'function';
+    if (besoinDuReel && configReelle === null) continue; // l'absence est dite ailleurs, bruyamment
+    const source = typeof fragment === 'function' ? fragment(configReelle) : (fragment ?? configReelle);
+    const obtenu = drapeauActif(source);
+    const dit = (o) => `present=${o.present}${o.valeur === undefined ? '' : ` valeur=${o.valeur}`}`;
+    if (dit(obtenu) !== dit(attendu)) {
+      ratees.push({ nom: `config — ${nom}`, attendu: dit(attendu), obtenu: dit(obtenu), source: typeof fragment === 'string' ? fragment : '(next.config.ts)' });
+    }
+  }
+
+  // Le détecteur de DÉCISION SUR LE RÔLE — sur les prédicats réellement lus dans `roles.ts`.
+  const predicats = predicatsDeRole();
+  if (predicats.length < PLANCHER_PREDICATS) {
+    ratees.push({
+      nom: 'plancher PREDICATS',
+      attendu: `≥ ${PLANCHER_PREDICATS} prédicats \`is*\` exportés par src/lib/roles.ts`,
+      obtenu: `${predicats.length}`,
+      source: '(fichier déplacé, renommé, ou réécrit — le cliquet D compterait zéro décision)',
+    });
+  }
+  for (const [nom, source, attendu] of EPREUVES_ROLE) {
+    const obtenu = decideDuRole(source, predicats);
+    if (obtenu !== attendu) {
+      ratees.push({ nom: `rôle — ${nom}`, attendu: `${attendu}`, obtenu: `${obtenu}`, source });
+    }
+  }
+  for (const [nom, executer, attendu] of EPREUVES_PERIMETRE) {
+    const obtenu = executer();
+    if (obtenu.join('|') !== attendu.join('|')) {
+      ratees.push({ nom: `périmètre — ${nom}`, attendu: `[${attendu}]`, obtenu: `[${obtenu}]`, source: '(entrées synthétiques)' });
+    }
+  }
+  for (const [nom, source, attendu] of EPREUVES_TERMINATEUR) {
+    const obtenu = termineLeRefus(source);
+    if (obtenu !== attendu) {
+      ratees.push({ nom: `terminateur — ${nom}`, attendu: `${attendu}`, obtenu: `${obtenu}`, source });
+    }
+  }
+
   // Et les DÉCISIONS, sur des entrées synthétiques : c'est ce qui empêche un `if (false)` de
   // passer inaperçu.
   for (const [nom, executer, attendu] of EPREUVES_DECISION) {
@@ -563,7 +663,67 @@ function jouerLesEpreuves() {
   return ratees;
 }
 
-/* ──────────────────────────────────────────────────────────────────────────────────────────── */
+/* ────────────────────────────────────────────────────────────────────────────────────────────
+ * LE PÉRIMÈTRE — et pourquoi il est recoupé par une SECONDE énumération
+ *
+ * Les `SENTINELLES` gardent quatre chemins, tous dans `src/app/(dashboard)/app/…` et
+ * `src/lib/auth/`. Retirer du parcours un répertoire QUI N'EN CONTIENT AUCUNE était donc
+ * silencieux. Mesuré (revue de TCK-378) : `if (entree === 'node_modules' || entree ===
+ * 'components') continue;` fait tomber le périmètre de 1110 à 517 fichiers — 53 % du dépôt
+ * disparaît — et la garde sort en 0. Avec un `forbidden()` RÉELLEMENT planté dans
+ * `src/components/pipeline/`, elle sort toujours en 0.
+ *
+ * *Un périmètre ne se garde pas par une liste de répertoires : il se garde en le recoupant.*
+ * `git ls-files` fournit une énumération qui n'emprunte AUCUN code de ce script — pas la même
+ * boucle, pas le même filtre, pas le même `continue`. Tout fichier suivi, présent sur le
+ * disque et de bonne extension doit se retrouver dans l'ensemble parcouru. Une exclusion de
+ * répertoire, à N'IMPORTE quelle profondeur, devient alors rouge et NOMMÉE.
+ *
+ * Les non-suivis (fichier neuf pas encore ajouté) ne sont pas dans la référence : ils sont
+ * analysés sans être exigés. Le contrôle ne peut donc pas rougir à tort sur un arbre en cours
+ * d'édition — il ne sait que dire « il en manque », jamais « il y en a trop ».
+ * ──────────────────────────────────────────────────────────────────────────────────────────── */
+const PLANCHER_SUIVIS = 900;
+
+/**
+ * La comparaison du recoupement, extraite en fonction PURE pour la même raison que les quatre
+ * décisions : mutation de mon cru, échappée au premier essai — réécrite en
+ * `[...ensemble].filter((f) => !ensemble.has(f))`, elle rendait toujours `[]`, et l'exclusion
+ * de `components` repassait au vert. Écrite ici, elle est jouable sur des entrées synthétiques.
+ *
+ * ⚠ Ce qui reste hors de portée, comme pour les autres : SUPPRIMER l'appel du flot principal.
+ * Aucun script ne se prémunit de sa propre amputation, et c'est la revue qui garde ça.
+ */
+function manquantsDuPerimetre(suivis, ensemble) {
+  return suivis.filter((f) => !ensemble.has(f));
+}
+
+const EPREUVES_PERIMETRE = [
+  ['un fichier suivi hors du parcours → nommé', () => manquantsDuPerimetre(['a', 'b'], new Set(['a'])), ['b']],
+  ['tout est parcouru → rien', () => manquantsDuPerimetre(['a', 'b'], new Set(['a', 'b'])), []],
+  ['un fichier parcouru mais non suivi → rien (arbre en cours d’édition)', () => manquantsDuPerimetre(['a'], new Set(['a', 'neuf'])), []],
+  ['référence vide → rien à exiger', () => manquantsDuPerimetre([], new Set(['a'])), []],
+  ['tout manque → tout est nommé', () => manquantsDuPerimetre(['a', 'b'], new Set()), ['a', 'b']],
+];
+
+function fichiersSuivis() {
+  const sous = relative(ROOT, SRC).split(sep).join('/');
+  let sortie;
+  try {
+    sortie = execFileSync('git', ['ls-files', '-z', '--', sous], {
+      cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch {
+    return null; // pas un dépôt git, ou git absent : le contrôle le dira lui-même
+  }
+  return sortie
+    .split('\0')
+    .filter(Boolean)
+    .filter((rel) => EXTENSIONS.test(rel) && !rel.includes('/node_modules/'))
+    .map((rel) => join(ROOT, rel))
+    .filter((abs) => existsSync(abs));
+}
+
 function fichiers(dir, acc = []) {
   for (const entree of readdirSync(dir)) {
     if (entree === 'node_modules') continue;
@@ -577,12 +737,32 @@ function fichiers(dir, acc = []) {
 
 const relWeb = (p) => relative(WEB, p).split(sep).join('/');
 
-function drapeauActif() {
-  if (!existsSync(CONFIG)) return { present: false, absent: true };
-  const src = neutraliser(readFileSync(CONFIG, 'utf8'), { chaines: false });
+/**
+ * C — la LECTURE du drapeau, séparée en deux : une fonction PURE qui décide, et un accès au
+ * disque qui n'a pas le droit d'être muet.
+ *
+ * Trouvé en mutant cette garde (revue de TCK-378) : `drapeauActif()` lisait `next.config.ts`
+ * lui-même, et RIEN ne l'éprouvait — les 34 `EPREUVES` ne passent que par `analyser()`, les
+ * `EPREUVES_DECISION` par `evaluerDrapeau()` sur des entrées déjà décidées. Deux mutations d'un
+ * seul mot éteignaient donc le contrôle C entier en silence :
+ *
+ *   · `\bauthInterrupts` → `\bauthInterruptsZZZ`  → exit 0, drapeau réellement actif ignoré
+ *   · `CONFIG` → `next.config.mjs`                → exit 0, `{present:false}` muet
+ *
+ * La première est fermée par `EPREUVES_CONFIG`, jouée à chaque invocation sur des fragments
+ * synthétiques ; la seconde par l'échec bruyant ci-dessous. *Une garde qui ne trouve pas le
+ * fichier qu'elle surveille n'a pas le droit de conclure.*
+ */
+function drapeauActif(source) {
+  const src = neutraliser(source, { chaines: false });
   const m = src.match(/\bauthInterrupts\s*:\s*([A-Za-z0-9_.]+)/);
-  if (!m) return { present: false, absent: false };
-  return { present: m[1] !== 'false', valeur: m[1], absent: false };
+  if (!m) return { present: false };
+  return { present: m[1] !== 'false', valeur: m[1] };
+}
+
+function lireConfig() {
+  if (!existsSync(CONFIG)) return null;
+  return readFileSync(CONFIG, 'utf8');
 }
 
 /* ────────────────────────────────────────────────────────────────────────────────────────────
@@ -674,6 +854,52 @@ function evaluerCliquet(nouveaux, perimes, plafond = REFUS_ARTISANAL.length) {
 }
 
 /**
+ * Les épreuves du LECTEUR DE CONFIGURATION — ce qui manquait au contrôle C.
+ *
+ * `drapeauActif()` lisait `next.config.ts` lui-même et n'était traversée par AUCUNE épreuve :
+ * les 34 `EPREUVES` passent par `analyser()`, les `EPREUVES_DECISION` par `evaluerDrapeau()`
+ * sur des verdicts déjà pris. Muter un seul mot de sa regex sortait donc en 0, en silence,
+ * drapeau réellement actif compris. *L'auto-épreuve d'une garde doit couvrir sa CONFIGURATION,
+ * pas seulement ses expressions régulières.*
+ *
+ * Chaque entrée est un triplet `[nom, fragment de config, attendu]`.
+ */
+const EPREUVES_CONFIG = [
+  ['drapeau activé', 'export default { experimental: { authInterrupts: true } };', { present: true, valeur: 'true' }],
+  ['drapeau activé, sans espaces', 'const c={experimental:{authInterrupts:true}};', { present: true, valeur: 'true' }],
+  ['drapeau explicitement à false', 'export default { experimental: { authInterrupts: false } };', { present: false, valeur: 'false' }],
+  ['drapeau par une variable', 'export default { experimental: { authInterrupts: ACTIF } };', { present: true, valeur: 'ACTIF' }],
+  ['drapeau absent', "export default { images: { remotePatterns: [] } };", { present: false }],
+  ['drapeau EN COMMENTAIRE — ne compte pas', '// experimental: { authInterrupts: true }\nexport default {};', { present: false }],
+  ['drapeau dans un docblock — ne compte pas', '/**\n * authInterrupts: true\n */\nexport default {};', { present: false }],
+  ['config réelle du dépôt — le drapeau y est absent', null, { present: false }],
+  // Le ROND-TRIP : la config RÉELLE, avec le drapeau injecté, doit être vue comme active.
+  // C'est ce qui empêche de vider le lecteur (`lireConfig()` qui rendrait `''` passerait toutes
+  // les épreuves ci-dessus, puisqu'elles n'attendent qu'un `present: false`) — et c'est aussi
+  // ce qui prouve que la source réellement lue traverse bien la regex du contrôle C.
+  ['config réelle + drapeau injecté → détecté', (r) => `${r}\nconst zz = { experimental: { authInterrupts: true } };`, { present: true, valeur: 'true' }],
+];
+
+/**
+ * Les épreuves du détecteur de DÉCISION SUR LE RÔLE — le cœur du cliquet D.
+ *
+ * Chaque entrée est un triplet `[nom, source, attendu]`, jouée sur les prédicats réellement
+ * lus dans `src/lib/roles.ts` : c'est le chemin de production, pas une imitation.
+ */
+const EPREUVES_ROLE = [
+  ['prédicat de `@/lib/roles`', 'if (!isAgent(user.roles)) redirect("/app");', true],
+  ['prédicat composé', 'const ok = isAgencyAdmin(r) || isSuperAdmin(r);', true],
+  ['décision EN LIGNE — la forme la plus artisanale', "const a = user.roles.includes('agency_admin');", true],
+  ['décision en ligne, chaînage optionnel', "if (user.roles?.some((r) => r === 'agent')) {}", true],
+  ['décision en ligne par indexOf', "if (roles.indexOf('owner') !== -1) {}", true],
+  ['décision par le profil actif', "const p = activeProfile?.type;", true],
+  ['délégation à `guards.ts` — PAS une décision du fichier', 'assertCanReachAgentArea(user.roles);', false],
+  ['aucun rôle en jeu', 'const t = await getTranslations("customers"); redirect("/app");', false],
+  ['homonyme préfixé — `isAgentLike` n’est pas `isAgent`', 'if (isAgentLike(r)) {}', false],
+  ['membre homonyme — `x.isAgent(` est qualifié', 'if (svc.isAgent(r)) {}', false],
+];
+
+/**
  * Les épreuves des DÉCISIONS — jouées elles aussi à chaque invocation.
  *
  * Chacune est un triplet `[nom, () => messages, nombre attendu]`.
@@ -693,16 +919,86 @@ const EPREUVES_DECISION = [
 
 /** Le cliquet D — refus décidé sur le rôle, terminé à la main, hors `lib/auth/guards`. */
 const TERMINATEURS = new RegExp(`\\b(?:redirect|notFound|${INTERRUPTIONS.join('|')})\\s*\\(`);
-function refusArtisanal(chemins) {
+
+/**
+ * La seconde moitié du cliquet D : le REFUS est-il terminé dans ce fichier ?
+ *
+ * Pure, donc jouable — et il fallait qu'elle le soit. Mutation de mon cru, échappée au premier
+ * essai : retirer `notFound` de l'alternance sortait en **0**. Aucune épreuve ne traversait
+ * `TERMINATEURS`, et aucune entrée de l'inventaire ne dépendait de ce terminateur-là ; un écran
+ * qui refuse par `notFound()` serait donc devenu invisible sans un mot. *Un détecteur qu'aucune
+ * épreuve n'atteint est un détecteur qu'on peut casser en silence* — la règle était déjà écrite
+ * dans ce fichier, pour les GENRES ; elle ne l'était pas pour les terminateurs.
+ */
+function termineLeRefus(source) {
+  return TERMINATEURS.test(source);
+}
+
+const EPREUVES_TERMINATEUR = [
+  ['redirect', "if (!ok) redirect('/app');", true],
+  ['notFound', 'if (!ok) notFound();', true],
+  ['forbidden', 'if (!ok) forbidden();', true],
+  ['unauthorized', 'if (!ok) unauthorized();', true],
+  ['espace avant la parenthèse', "redirect ('/app');", true],
+  ['aucun terminateur', 'return <div />;', false],
+  ['préfixe — `redirectTo` n’est pas `redirect`', "const u = redirectTo('/app');", false],
+];
+
+/**
+ * Les écritures par lesquelles un écran DÉCIDE lui-même du rôle.
+ *
+ * Trouvé en mutant cette garde (revue de TCK-378) : le cliquet ne comptait un écran que s'il
+ * IMPORTAIT `@/lib/roles`. Deux formes lui échappaient, et ce sont les deux plus probables :
+ *
+ *   · la décision écrite EN LIGNE, sans prédicat —
+ *     `user.roles.includes('agency_admin') || user.roles.includes('super_admin')`.
+ *     Ce n'était pas hypothétique : `src/app/(dashboard)/app/settings/agency/upgrade/page.tsx`
+ *     l'écrivait DÉJÀ, et l'inventaire disait 21 quand la population réelle était 22. La forme
+ *     la plus artisanale de toutes était la seule invisible.
+ *   · l'écran qui importe `guards.ts` pour une branche et bricole l'AUTRE à la main : l'ancienne
+ *     exclusion blanchissait le fichier entier sur la seule présence de l'import.
+ *
+ * D'où le renversement : ce n'est plus l'IMPORT qui compte, c'est la DÉCISION écrite dans le
+ * fichier. Déléguer à `assertCanReachAgentArea(user.roles)` n'en est pas une — aucun prédicat,
+ * aucun `.includes` — et un écran qui délègue tout continue donc de ne pas compter.
+ *
+ * Les prédicats ne sont pas recopiés : ils sont LUS dans `src/lib/roles.ts`. Une liste recopiée
+ * serait juste le jour où on l'écrit, et le neuvième prédicat serait invisible. Un plancher
+ * garde la lecture : si l'extraction rend moins que `PLANCHER_PREDICATS`, le fichier a été
+ * renommé ou réécrit, et la garde le dit au lieu de compter zéro décision.
+ */
+const ROLES_TS = join(SRC, 'lib', 'roles.ts');
+const PLANCHER_PREDICATS = 8;
+
+function predicatsDeRole() {
+  if (!existsSync(ROLES_TS)) return [];
+  const src = neutraliser(readFileSync(ROLES_TS, 'utf8'), { chaines: false });
+  return [...src.matchAll(/\bexport\s+function\s+(is[A-Z][\w$]*)\s*\(/g)].map((m) => m[1]);
+}
+
+/**
+ * Construit le détecteur de décision-sur-le-rôle. Pur : il prend ses prédicats en argument,
+ * ce qui le rend jouable sur des entrées synthétiques (`EPREUVES_ROLE`).
+ */
+function decideDuRole(source, predicats) {
+  if (predicats.length > 0
+    && new RegExp(`(?<![.\\w$])(?:${predicats.join('|')})\\s*\\(`).test(source)) return true;
+  // `roles.includes('agent')`, `user.roles?.some(…)`, `roles.indexOf(…)` — la décision nue.
+  if (/\broles\s*\)?\s*[?]?\.\s*(?:includes|some|indexOf|find|filter)\s*\(/.test(source)) return true;
+  // `request.activeProfile()` / `activeProfile?.type === 'agent'` — l'autre écriture du rôle.
+  if (/\bactiveProfile\b/.test(source)) return true;
+  return false;
+}
+
+function refusArtisanal(chemins, predicats) {
   const trouves = [];
   for (const chemin of chemins) {
     const rel = relWeb(chemin);
     if (!rel.startsWith('src/app/(dashboard)/')) continue;
     const brut = readFileSync(chemin, 'utf8');
-    const src = neutraliser(brut, { chaines: false });
-    if (!/from\s*['"]@\/lib\/roles['"]/.test(src)) continue;
-    if (/from\s*['"]@\/lib\/auth\/guards['"]/.test(src)) continue;
-    if (!TERMINATEURS.test(neutraliser(brut, { chaines: true }))) continue;
+    const sansRien = neutraliser(brut, { chaines: true });
+    if (!decideDuRole(sansRien, predicats)) continue;
+    if (!termineLeRefus(sansRien)) continue;
     trouves.push(rel);
   }
   return trouves.sort();
@@ -735,6 +1031,42 @@ if (tous.length === 0) {
   process.exit(1);
 }
 const ensemble = new Set(tous.map(relWeb));
+
+// Le RECOUPEMENT — une énumération qui n'emprunte aucun code de ce script (cf. § LE PÉRIMÈTRE).
+const suivis = fichiersSuivis();
+if (suivis === null) {
+  echecs.push(
+    'PÉRIMÈTRE — `git ls-files` n’a pas répondu : le périmètre n’a pas pu être RECOUPÉ.\n'
+    + '    Les sentinelles seules ne voient pas l’exclusion d’un répertoire qui n’en contient\n'
+    + '    aucune — mesuré : exclure `components` retire 53 % du dépôt sans un mot. Ce contrôle\n'
+    + '    ne se contourne pas en silence : faites tourner cette garde dans le dépôt git.',
+  );
+} else if (suivis.length < PLANCHER_SUIVIS || suivis.length * 2 < tous.length) {
+  // Deux planchers, et le second est DÉRIVÉ : mutation de mon cru, échappée au premier essai —
+  // vider `fichiersSuivis()` ET abaisser `PLANCHER_SUIVIS` à 0 (deux lignes) repassait au vert.
+  // La référence doit couvrir au moins la moitié de ce qui a été parcouru ; ce second plancher
+  // se lit sur `tous.length`, donc il ne se neutralise pas en éditant une constante.
+  echecs.push(
+    `PÉRIMÈTRE — \`git ls-files\` ne rend que ${suivis.length} fichier(s) sous ${relWeb(SRC)}, `
+    + `pour ${tous.length} parcourus (planchers : ${PLANCHER_SUIVIS} absolu, `
+    + `${Math.ceil(tous.length / 2)} dérivé).\n`
+    + '    Une référence vide ou tronquée valide n’importe quel parcours : la comparaison\n'
+    + '    n’aurait rien gardé.',
+  );
+} else {
+  const manquants = manquantsDuPerimetre(suivis.map(relWeb), ensemble);
+  if (manquants.length > 0) {
+    echecs.push(
+      `PÉRIMÈTRE — ${manquants.length} fichier(s) suivi(s) par git sont ABSENTS du parcours de\n`
+      + `    cette garde (${tous.length} parcourus, ${suivis.length} suivis) :\n`
+      + manquants.slice(0, 12).map((f) => `    · ${f}`).join('\n')
+      + (manquants.length > 12 ? `\n    … et ${manquants.length - 12} autre(s)` : '')
+      + '\n\n    C’est la signature d’un répertoire retiré du parcours. Les sentinelles ne le'
+      + '\n    voient pas quand aucune n’y vit ; ce recoupement, si.',
+    );
+  }
+}
+
 const absentes = SENTINELLES.filter((s) => !ensemble.has(s));
 if (absentes.length > 0) {
   echecs.push(
@@ -746,7 +1078,16 @@ if (absentes.length > 0) {
 }
 
 // 3 · A et B, sur tout `src`
-const drapeau = drapeauActif();
+const sourceConfig = lireConfig();
+if (sourceConfig === null) {
+  echecs.push(
+    `DRAPEAU — \`${relWeb(CONFIG)}\` est INTROUVABLE : le contrôle C n’a rien lu.\n`
+    + '    Une garde qui ne trouve pas le fichier qu’elle surveille n’a pas le droit de conclure —\n'
+    + '    elle concluait « drapeau absent », ce qui est le verdict rassurant. Si la configuration\n'
+    + '    a été renommée, corrigez `CONFIG` dans ce script.',
+  );
+}
+const drapeau = drapeauActif(sourceConfig ?? '');
 const violations = [];
 // AUCUNE exemption, et c'est vérifié : `analysees` compte les fichiers réellement passés dans
 // `analyser()`, et doit valoir `tous.length`.
@@ -756,16 +1097,25 @@ const violations = [];
 // sortie. `src/lib/auth/guards.ts` est le candidat évident : il nomme `forbidden` dans son
 // docblock. Il n'en a pas besoin, les commentaires étant neutralisés, et il est analysé comme
 // les 964 autres.
-let analysees = 0;
+//
+// ⚠ Le marquage est la DERNIÈRE instruction du corps, et c'est le point. Tant qu'il était en
+// tête, la même exemption glissée UNE LIGNE PLUS BAS — juste après l'incrément — sortait en 0 :
+// le compteur valait toujours 1110. *Un seul déplacement de ligne séparait le rouge du vert.*
+// Placé en dernier, un `continue` posé n'importe où dans le corps saute le marquage, et le seul
+// endroit où il ne le sauterait pas est la fin du corps, où il ne fait rien.
+//
+// C'est aussi un ENSEMBLE et non un compteur : un `+= 1` peut être gonflé, une clé déjà vue ne
+// s'ajoute pas deux fois.
+const analysees = new Set();
 for (const chemin of tous) {
   const rel = relWeb(chemin);
   const { constats } = analyser(readFileSync(chemin, 'utf8'));
-  analysees += 1;
   for (const c of constats) violations.push({ fichier: rel, ...c });
+  analysees.add(rel);
 }
-if (analysees !== tous.length) {
+if (analysees.size !== tous.length) {
   echecs.push(
-    `EXEMPTION — ${tous.length - analysees} fichier(s) ont été ÉCARTÉS de l'analyse sur `
+    `EXEMPTION — ${tous.length - analysees.size} fichier(s) ont été ÉCARTÉS de l'analyse sur `
     + `${tous.length} parcourus.\n`
     + '    Cette garde n’a pas d’exemption, et ne doit pas en acquérir en silence. Si l’une devient\n'
     + '    nécessaire, elle se nomme, se date et se justifie — et elle doit rougir le jour où elle\n'
@@ -779,15 +1129,17 @@ echecs.push(...evaluerInterruptions(violations, drapeau));
 echecs.push(...evaluerDrapeau(drapeau, tous.map(relWeb)));
 
 // 5 · D — le cliquet
-const artisanaux = refusArtisanal(tous);
+const artisanaux = refusArtisanal(tous, predicatsDeRole());
 const { nouveaux, perimes } = comparerCliquet(artisanaux, REFUS_ARTISANAL);
 echecs.push(...evaluerCliquet(nouveaux, perimes));
 
 /* ── Rapport ─────────────────────────────────────────────────────────────────────────────── */
 if (REPORT) {
   console.log(`interruptions d’autorisation — ${tous.length} fichiers lus sous ${relWeb(SRC)}\n`);
-  console.log(`  épreuves de la garde   : ${EPREUVES.length} formes + ${EPREUVES_DECISION.length} décisions, toutes passées`);
-  console.log(`  fichiers analysés      : ${analysees}/${tous.length} (aucune exemption)`);
+  console.log(`  épreuves de la garde   : ${EPREUVES.length} formes + ${EPREUVES_DECISION.length} décisions + ${EPREUVES_CONFIG.length} configs + ${EPREUVES_ROLE.length} rôles + ${EPREUVES_TERMINATEUR.length} terminateurs + ${EPREUVES_PERIMETRE.length} périmètres, toutes passées`);
+  console.log(`  fichiers analysés      : ${analysees.size}/${tous.length} (aucune exemption)`);
+  console.log(`  périmètre recoupé      : ${suivis === null ? 'git indisponible' : `${suivis.length} fichiers suivis par git, tous parcourus`}`);
+  console.log(`  prédicats de rôle lus  : ${predicatsDeRole().join(', ')}`);
   console.log(`  sentinelles présentes  : ${SENTINELLES.length - absentes.length}/${SENTINELLES.length}`);
   console.log(`  drapeau authInterrupts : ${drapeau.present ? `PRÉSENT (${drapeau.valeur})` : 'absent'}`);
   console.log(`  A+B · usages forbidden()/unauthorized() : ${violations.length}`);
@@ -805,8 +1157,11 @@ if (echecs.length === 0) {
     + `${artisanaux.length} refus artisanaux (plafond ${REFUS_ARTISANAL.length}).`,
   );
   console.log(
-    `  Garde auto-éprouvée : ${EPREUVES.length} formes + ${EPREUVES_DECISION.length} décisions jouées, `
-    + `${SENTINELLES.length} sentinelles trouvées, ${analysees}/${tous.length} fichiers analysés sans exemption.`,
+    `  Garde auto-éprouvée : ${EPREUVES.length} formes + ${EPREUVES_DECISION.length} décisions `
+    + `+ ${EPREUVES_CONFIG.length} configs + ${EPREUVES_ROLE.length} rôles `
+    + `+ ${EPREUVES_TERMINATEUR.length} terminateurs + ${EPREUVES_PERIMETRE.length} périmètres jouées, `
+    + `${SENTINELLES.length} sentinelles trouvées, ${analysees.size}/${tous.length} fichiers analysés sans exemption,`
+    + ` périmètre recoupé par git.`,
   );
   console.log('  PORTÉE — A et B sont EXACTS pour les formes énumérées dans `EPREUVES` : un import');
   console.log('  ou un appel se lit dans le texte, il ne se calcule pas. Ce qu’un vert ici ne dit');

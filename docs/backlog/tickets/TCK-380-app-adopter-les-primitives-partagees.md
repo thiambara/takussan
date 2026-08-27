@@ -1,13 +1,13 @@
 ---
 id: TCK-380
 title: "Tableau de bord /app — adopter les primitives partagées que les deux consoles ont déjà"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 48
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: []
 blocks: [TCK-381]
 spec_refs:
@@ -89,30 +89,52 @@ requête ajoutée ou retirée.
 ## Delta à produire
 
 - [ ] `PageHeader` sur les 31 pages de `/app` qui réécrivent l'en-tête à la main
-- [ ] Les cinq tables en `<table>` nu de la clôture passent sur `DataTable` — ou justifient, dans
+      *Non cochée : 32 pages mesurées (+ 2 composants, 40 blocs), toutes converties **sauf une** —
+      `src/app/(dashboard)/app/settings/agency/upgrade/page.tsx` rend encore son en-tête à la main,
+      deux fois, et n'importe pas `PageHeader`. Elle porte un « eyebrow » que `PageHeader` ne sait
+      pas rendre : la convertir demande d'élargir la primitive, ce qui n'a pas été fait. Pour la
+      cocher : soit `PageHeader` gagne l'emplacement, soit la page est déclarée exception dans le
+      code avec son motif.*
+- [x] Les cinq tables en `<table>` nu de la clôture passent sur `DataTable` — ou justifient, dans
       le code, pourquoi elles restent en cartes
 - [ ] `PropertyPagination` et la pagination en ligne de `CustomerList` remplacées par
       `console/Pagination` ; le composant dupliqué supprimé
-- [ ] Élargissement des primitives là où un besoin de `/app` ne rentre pas, avec le test qui va
+      *Non cochée : le composant n'est PAS supprimé, délibérément (cf. « AC2 — pourquoi
+      `PropertyPagination.tsx` existe encore »). Ce qui était réellement dupliqué — la paire de
+      boutons et l'arithmétique `page ± 1` — a disparu ; il reste un adaptateur d'URL de ~30
+      lignes. Et « la pagination en ligne de `CustomerList` » est **sans objet** : la re-mesure
+      montre un `<p>` de comptage, pas un contrôle.*
+- [x] Élargissement des primitives là où un besoin de `/app` ne rentre pas, avec le test qui va
       avec
-- [ ] Tests : les primitives élargies ; un test de non-régression sur chaque table convertie
+- [x] Tests : les primitives élargies ; un test de non-régression sur chaque table convertie
       (mêmes colonnes, même ordre, même tri)
 
 ## Critères d'acceptation
 
-- [ ] AC1 — dans la **clôture d'import** de `src/app/(dashboard)/app` (imports suivis, pas le
+- [x] AC1 — dans la **clôture d'import** de `src/app/(dashboard)/app` (imports suivis, pas le
       répertoire), aucun fichier ne rend un `<h1 className="font-display text-2xl …">` : le seul
       producteur de cet en-tête est `PageHeader`
 - [ ] AC2 — `src/components/property-dashboard/PropertyPagination.tsx` n'existe plus, et aucun
       fichier de la clôture ne calcule `page + 1` / `page - 1` en dehors de `console/Pagination`
-- [ ] AC3 — chaque table convertie rend **exactement** les mêmes colonnes dans le même ordre
+      *Non cochée, et elle ne le sera pas : la PREMIÈRE moitié est **sans objet** — la supprimer
+      aurait retiré l'état d'URL et le sélecteur de densité à sept écrans, ce que la contrainte
+      stricte « pas de taille de page changée » du même ticket interdit. La SECONDE moitié est
+      tenue et vérifiée par exécution (grep `page ± 1` sur la clôture : seules
+      `console/Pagination.tsx:83,95` et une ligne de docblock). Une case cochée ici affirmerait une
+      suppression qui n'a pas eu lieu.*
+- [x] AC3 — chaque table convertie rend **exactement** les mêmes colonnes dans le même ordre
       qu'avant ; un test par table l'éprouve et échouerait sur une colonne perdue
-- [ ] AC4 — aucune requête réseau ne change : les paramètres `fields[…]`, `filter[…]`,
+- [x] AC4 — aucune requête réseau ne change : les paramètres `fields[…]`, `filter[…]`,
       `include=`, `sort=` et `per_page` émis par chaque écran touché sont identiques avant/après,
       éprouvé par test
-- [ ] AC5 — le nombre de fichiers de la clôture important `@/components/console` a augmenté, et
+- [x] AC5 — le nombre de fichiers de la clôture important `@/components/console` a augmenté, et
       aucune primitive n'a été dupliquée sous un autre nom
 - [ ] AC6 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+      *Non cochée : `npm run lint` (0 erreur, 36 avertissements préexistants) et `npx tsc --noEmit`
+      (0) sont verts, et `npx vitest run` **en entier** a bien tourné — 203 fichiers / 1390 tests,
+      0 échec — mais sur le **worktree d'avant fusion**. Depuis, le lot a fusionné 22 unités et
+      quatre correcteurs ont écrit dans l'arbre : ce vert ne dit plus rien de l'arbre livré. La
+      suite entière sur l'arbre fusionné appartient à la session déléguante.*
 
 ## Hors périmètre
 
@@ -162,3 +184,29 @@ Quatre `<table>` nues de la clôture ne sont pas converties — `LeaseSchedule`,
 `PaymentsHistoryTable`, `PayoutsTable`. Elles ne figuraient pas dans le relevé du ticket, et les
 trois dernières portent chacune leur propre état de chargement : les convertir demande de trancher
 `DataState` vs l'existant, ce que le hors-périmètre de ce ticket réserve à un autre.
+
+### Revue adverse (2026-08-27)
+
+**Verdict : ACCEPTÉ AVEC RÉSERVE.** Les six AC tiennent, sauf la première moitié d'AC2 —
+non tenue **délibérément** et bien raisonnée (cf. ci-dessus). AC3 a été vérifié par les ablations
+de la revue et non par lecture : une colonne retirée d'`OwnersList` → 1 rouge **qui la nomme**
+(`['Nom','Statut','Actions']` ≠ `['Nom','Email','Statut','Actions']`), et deux colonnes
+**interverties** → 1 rouge, ce que la première ablation ne prouvait pas.
+
+**Deux réserves nommées, aucune corrigée :**
+
+- `settings/agency/upgrade/page.tsx` est la seule page de `/app` (1 sur 46) à rendre encore son
+  en-tête à la main. Elle coche AC1 parce qu'elle écrit `text-3xl` là où l'AC nomme la chaîne
+  exacte `font-display text-2xl` : **une régression future qui réécrirait un en-tête à la main en
+  `text-3xl` cocherait AC1 elle aussi.** C'est l'AC qui est trop étroite, autant que le code.
+- AC4 est le seul AC des trois tickets de ce groupe que la revue **n'a ni exécuté ni ablaté** : le
+  vérifier vraiment demanderait de comparer les URL émises avant/après sur les sept écrans, donc de
+  disposer de l'arbre d'avant. Il reste couvert par le grep du diff complet (zéro ligne de code de
+  requête modifiée) et par `PropertyPagination.test.tsx`, qui éprouve les quatre formes d'URL
+  émises. *Signalé plutôt que redit comme prouvé.*
+
+**Le hunk ambigu de la fusion sur `StatCard` est résolu juste**, et mesuré : le retrait de l'encre
+de conteneur est correct — les quatre nœuds de texte fixent chacun la leur, et les contrastes
+tiennent (`text-muted-foreground` sur `bg-success/10` : 4,97:1 clair, 5,80:1 sombre ; sur
+`bg-warning/10` : 4,95:1 et 5,82:1 ; `text-foreground` ≥ 12,5:1 partout). L'ablation qui rend
+`bg-warning/10` à `bg-card` fait rougir 2 fichiers.

@@ -458,6 +458,38 @@ export function groupBySection(items: NavItem[]): { section: NavSection; items: 
 }
 
 /**
+ * TCK-377 — « le groupement s'efface quand il n'a plus de travail à faire ».
+ *
+ * ⚠ Cette règle a d'abord été écrite `groups.length > 1`, **directement dans le composant**, et
+ * elle y était doublement inerte :
+ *
+ *  1. **Aucun utilisateur ne la fait basculer.** `buildNavItems` pousse `/app` et `/app/messages`
+ *     en `primary` et `/app/documents` en `engagements` SANS aucune condition de rôle : le
+ *     minimum absolu est de DEUX groupes, y compris pour un compte sans aucun rôle. La branche
+ *     `false` n'était donc atteignable par personne — et une règle qu'aucune entrée ne peut violer
+ *     n'est pas gardable : la mutation `withHeadings = true` laissait les 88 tests verts.
+ *  2. **Elle ne mesurait pas ce que la règle dit.** Ce qu'un en-tête doit gagner, c'est de la
+ *     SÉPARATION ; une césure posée au-dessus d'UNE entrée n'en produit aucune. Compter les
+ *     groupes ne le voit pas, compter les entrées d'un groupe le voit.
+ *
+ * La forme retenue garde l'ancienne clause et lui en ajoute une seconde, réellement atteignable :
+ * les en-têtes ne paraissent que si **au moins une section LIBELLÉE porte deux entrées ou plus**.
+ * `primary` est exclue de ce décompte parce qu'elle n'a pas de libellé ({@link SECTION_LABEL_KEYS})
+ * — elle ne peut donc justifier aucune césure.
+ *
+ * Mesuré sur les sept rôles au 2026-08-27 : la seconde clause ne change le rendu que du
+ * `service_provider`, qui recevait 2 en-têtes au-dessus d'UNE entrée chacune pour 4 entrées en
+ * tout — exactement le cas que la Direction UX du ticket nomme. Les six autres rôles ont au moins
+ * une section libellée à deux entrées et gardent leurs césures.
+ */
+export function withSectionHeadings(groups: { section: NavSection; items: NavItem[] }[]): boolean {
+  if (groups.length <= 1) return false;
+  return groups.some(
+    (group) => SECTION_LABEL_KEYS[group.section] !== null && group.items.length > 1,
+  );
+}
+
+/**
  * TCK-377 — AC6 : quels compteurs sont réellement sondés.
  *
  * Le sondage est armé par la PRÉSENCE de l'entrée comptée, jamais par une liste de rôles recopiée
@@ -465,10 +497,17 @@ export function groupBySection(items: NavItem[]): { section: NavSection; items: 
  * diverger, une liste dérivée non.* Une entrée cadenassée ne compte pas non plus — le cadenas
  * signifie que la page répondra 403, et un menu ne sonde pas une porte fermée.
  *
- * ⚠ Mesuré le 2026-08-27 : aucun des sept rôles ne déclenche aujourd'hui la branche `false`.
- * `/app/messages` et `/app/visits` sont poussées SANS garde de rôle (qui voit quoi est l'objet de
- * TCK-379). La fonction est exportée pour que le test l'éprouve sur une liste construite — sans
- * quoi l'AC6 serait coché par une branche que rien n'exécute.
+ * ⚠ **Ce paragraphe disait l'inverse jusqu'au 2026-08-27**, et la correction est le fait le plus
+ * important de cet AC. Il annonçait « aucun des sept rôles ne déclenche la branche `false` », ce
+ * qui était vrai du code de TCK-377 seul : `/app/visits` y était poussée sans garde de rôle. **Le
+ * même lot a fusionné TCK-379, qui la retire au `service_provider`** — la branche `false` est donc
+ * ATTEINTE par un rôle réel (`service_provider` → `{unreadMessages}` seul), et c'est précisément à
+ * ce moment-là que plus rien ne l'observait : la mutation « les deux compteurs armés en dur »
+ * laissait les 88 tests verts.
+ *
+ * Elle est désormais éprouvée **sur le composant monté**, rôle par rôle
+ * (`AppSidebar.test.tsx`, AC6) : une fonction pure verte ne dit rien de ce que le composant en
+ * fait.
  */
 export function countersToPoll(items: NavItem[]): Set<NavCounterKey> {
   const keys = new Set<NavCounterKey>();
@@ -510,7 +549,7 @@ export function AppSidebar({
     APP_EXACT_ROOTS,
   );
   const groups = groupBySection(navItems);
-  const withHeadings = groups.length > 1;
+  const withHeadings = withSectionHeadings(groups);
 
   const showProUpgradeCard =
     user.roles.includes('agency_admin') &&

@@ -1,13 +1,13 @@
 ---
 id: TCK-366
 title: "Annonces cross-tenant — éditer une annonce existante"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 46
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: []
 blocks: []
 spec_refs:
@@ -41,17 +41,20 @@ Le super-admin corrige une annonce diffusée — une faute, une date, un ciblage
 
 ## Delta à produire
 
-- [ ] Mode édition sur le formulaire d'annonce existant, câblé sur `patchAdminAnnouncement`
-- [ ] Distinction visible brouillon / en diffusion
-- [ ] Ciblage rôles et agences rendu lisible en lecture (au minimum : noms résolus plutôt que des identifiants nus)
-- [ ] Tests : édition d'une annonce active, édition d'un brouillon, ciblage préservé après édition
+- [x] Mode édition sur le formulaire d'annonce existant, câblé sur `patchAdminAnnouncement`
+- [x] Distinction visible brouillon / en diffusion
+- [x] Ciblage rôles et agences rendu lisible en lecture (au minimum : noms résolus plutôt que des identifiants nus)
+- [x] Tests : édition d'une annonce active, édition d'un brouillon, ciblage préservé après édition
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une annonce existante peut être modifiée depuis `/super-admin/announcements` sans être désactivée puis recréée
-- [ ] AC2 — `grep -rn 'patchAdminAnnouncement' takussan-web/src` renvoie au moins un appelant hors de `src/lib/queries/`
-- [ ] AC3 — le ciblage (rôles, agences) est restitué **et préservé** après une édition qui ne le touche pas, vérifié par un test sur la charge utile émise
+- [x] AC1 — une annonce existante peut être modifiée depuis `/super-admin/announcements` sans être désactivée puis recréée
+- [x] AC2 — `grep -rn 'patchAdminAnnouncement' takussan-web/src` renvoie au moins un appelant hors de `src/lib/queries/`
+      <br>Exécuté le 2026-08-27 : `announcements.tsx:312` (`patchAdminAnnouncement(editing.id, toPayload(form))`), plus 10 lignes dans `__tests__/AnnouncementsConsole.test.tsx`.
+- [x] AC3 — le ciblage (rôles, agences) est restitué **et préservé** après une édition qui ne le touche pas, vérifié par un test sur la charge utile émise
+      <br>Tenu seulement APRÈS la revue adverse : la première version émettait `{roles: [], agency_ids: []}` sur une annonce sans restriction, ce qui la rendait invisible pour 100 % des utilisateurs (cf. notes). Corrigé des deux côtés, ablation-vérifié.
 - [ ] AC4 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+      <br>**Deux tiers exécutés, le troisième reste dû.** `npx tsc --noEmit` → exit 0 sur l'arbre fusionné (2026-08-27) ; `npm run lint` → 0 erreur. `npm run test` **en entier** n'a été lancé ni par l'implémenteur, ni par la revue, ni par le correcteur (règle « Qui lance quoi » du CLAUDE.md : > 10 min, coupure silencieuse en délégation). Le plus large périmètre joué est `npx vitest run src/components/admin/super 'src/app/(super-admin)' src/i18n` → 32 fichiers / 225 tests verts. **Se coche par le rituel de fin de branche, machine au repos.**
 
 ## Hors périmètre
 
@@ -106,3 +109,50 @@ complète de bout en bout ; il ne manquait que l'appelant.
 TCK-292 ; et les quatre couleurs Tailwind brutes du panneau de composition (`bg-white`,
 `ring-stone-200`, `text-stone-950`, `text-stone-500`) sont passées en jetons — TCK-358 fait la
 même conversion sur la même branche d'intégration.
+
+
+## Reprise après revue adverse — 2026-08-27
+
+La revue a rendu **REFUSÉ** sur un défaut que ni le ticket ni l'implémenteur n'avaient vu, et qui
+retourne l'objectif du ticket contre lui-même.
+
+**Éditer une annonce diffusée à TOUT LE MONDE l'effaçait pour tout le monde.** `toPayload` émettait
+toujours `segment: {roles: [], agency_ids: []}` ; or `AnnouncementResolver::matches()` ne rendait
+`true` par défaut que sur `$segment === []`. Un tableau qui PORTE deux clés vides tombait dans les
+trois branches suivantes, aucune ne matchait, et la méthode rendait `false`. Mesuré par exécution
+(tinker) : `null` → true, `{}` → true, `{roles:[],agency_ids:[]}` → **false**. Prouvé de bout en
+bout par une sonde contre l'API réelle : après le PATCH que le formulaire sérialise, l'annonce
+reste `is_active = true`, dans sa fenêtre, et `/api/announcements/active` rend **0 résultat** pour
+`customer`, `agency_admin` et `super_admin` — pendant que la console continue d'afficher « Tous ».
+C'est exactement le geste d'ouverture du ticket : *corriger une faute de frappe*.
+
+**Six défauts corrigés, chacun gardé par un test qui rougit à l'ablation :**
+
+1. **Le segment vide** (critique) — des deux côtés. API : `declaresNoRestriction()` remplace le test
+   `$segment === []`. Front : `toPayload` ne pose que les clés renseignées, la clé `segment` restant
+   toujours présente à `{}` — l'omettre serait le défaut inverse, `update()` n'écrivant que les clés
+   reçues, donc retirer tout le ciblage d'une annonce ciblée ne l'aurait jamais retiré. Test écrit
+   AVANT le correctif : `2 failed | 7 passed`, puis `9 passed`.
+2. **Le test qui figeait le défaut** — l'assertion `toEqual({roles: [], agency_ids: [], …})` a été
+   **réécrite** sur l'intention, pas ajustée sur la nouvelle valeur.
+3. **La recherche d'agences passe côté serveur** (`useInfiniteQuery` + terme temporisé 300 ms) : la
+   liste était filtrée sur la seule première page de 100. La troncature est dite (« n sur N ») et
+   franchissable. Écart assumé et écrit : pendant une recherche, la colonne « Segment » peut
+   retomber sur `Agence #42` — la forme qui l'évitait a été **refusée par `npm run lint`** (règle du
+   React Compiler sur `setState` dans un effet).
+4. **`isoToLocalInput`** est exportée et éprouvée sous fuseau simulé (UTC+3, UTC−5, UTC).
+5. **Les quatre états et la pastille de sévérité** sont éprouvés avec un `now` explicite.
+6. **Un champ de locale vide est désigné à l'écran** (`aria-invalid` + `role="alert"`), rien ne part
+   sur le fil, et la marque tombe à la frappe.
+
+### Ce qui reste ouvert
+
+- **`FeatureFlagEvaluator::isEnabled()` porte le MÊME défaut que `matches()` avant correction**
+  (`$segments === []`), et `feature-flags.tsx` lui envoie la même forme à clés vides. **Constaté par
+  lecture, PAS mesuré de bout en bout** — hors périmètre, à confirmer avant d'agir. Vaut un ticket :
+  un drapeau actif qui n'atteint personne se comporte exactement comme un drapeau éteint.
+- **Deux éditions concurrentes s'écrasent en silence** : aucun jeton de version, ni en base ni dans
+  la charge. Hors AC, signalé par la revue.
+- **Aucune vérification navigateur.** Le panneau de composition a doublé de taille (deux fieldsets,
+  une liste scrollable de 100 entrées, un pied « n sur N ») et n'a jamais été vu rendu. `npm run
+  build` n'a pas été lancé non plus ; ce flanc n'est gardé que par `npm run lint`.

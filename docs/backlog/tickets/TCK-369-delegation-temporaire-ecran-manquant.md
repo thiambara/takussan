@@ -1,13 +1,13 @@
 ---
 id: TCK-369
 title: "Délégation temporaire de rôles — l'écran que TCK-108 n'a pas livré"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 47
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: []
 blocks: []
 spec_refs:
@@ -87,26 +87,35 @@ en trois champs — qui, quel rôle, jusqu'à quand.
 
 ## Delta à produire
 
-- [ ] Requêtes et mutations pour les trois endpoints
-- [ ] Section « délégations » sur `/admin/roles`
-- [ ] Formulaire de création (membre, rôle, période)
-- [ ] Révocation avec confirmation
+- [x] Requêtes et mutations pour les trois endpoints
+      <br>`per_page` seul sur l'URL de lecture, et un test fige cette forme : `sort=` **casse l'ordre** sur cet endpoint et `fields[]` y est ignoré (cf. notes, mesuré).
+- [x] Section « délégations » sur `/admin/roles`
+- [x] Formulaire de création (membre, rôle, période)
+- [x] Révocation avec confirmation
 - [ ] Entrée dans `PRO_ROUTES` + garde SSR si la section ouvre une route propre
-- [ ] i18n fr/en/wo, les trois locales dans le même commit
-- [ ] Tests couvrant la création, la révocation, et le rendu des trois statuts
+      <br>**Sans objet : la condition n'est pas remplie.** La section vit sous `/admin/roles`, déjà dans `PRO_ROUTES` et déjà gardée en SSR par `ensureStandardAgencyOrRedirect`. Aucune route propre n'a été ouverte ; une entrée de plus n'aurait rien gardé.
+- [x] i18n fr/en/wo, les trois locales dans le même commit
+- [x] Tests couvrant la création, la révocation, et le rendu des trois statuts
+      <br>**Quatre statuts, pas trois** (`scheduled`, `active`, `expired`, `revoked`), rendus et distincts deux à deux. 13 tests, 10 ablations de l'implémenteur + 4 inventées par la revue + 2 par le correcteur, toutes rouges.
 
 ## Critères d'acceptation
 
 - [ ] AC1 — une délégation créée depuis l'écran apparaît en `scheduled` sans rechargement
-- [ ] AC2 — les trois statuts se distinguent visuellement, et l'un d'eux au moins est éprouvé
+      <br>**Sans objet TEL QU'ÉCRIT, et le cocher aurait été un défaut** : `RoleDelegationService::create()` pose `Active` dès que `starts_at` est nul ou déjà passé, `Scheduled` sinon. Afficher « Programmée » sur des droits déjà accordés est précisément le mensonge à ne pas écrire. **L'intention de l'AC — apparition immédiate, sans rechargement — est tenue et testée sur les DEUX branches** : l'écran rend le statut que porte la réponse 201, jamais une supposition.
+- [x] AC2 — les trois statuts se distinguent visuellement, et l'un d'eux au moins est éprouvé
       par un test qui **échouerait** si les trois rendaient pareil
+      <br>Quatre statuts, distincts deux à deux, ablation-vérifiés.
 - [ ] AC3 — la révocation retire la délégation de la liste et un test le vérifie
-- [ ] AC4 — un 422 du backend (auto-délégation, durée excessive) s'affiche en clair et non en
+      <br>**Sans objet : l'AC contredit la direction UX du même ticket** (« l'expirée s'efface sans disparaître »), et le backend tranche contre lui — `DELETE` rend **200 avec la ligne passée à `revoked`**, `revoked_at` et `revoked_by` renseignés ; il n'efface pas. La faire disparaître effacerait à l'écran une trace d'audit que la base garde. **Ce qui est livré et testé** : la ligne quitte les délégations *en vigueur* (plus de badge actif, plus de bouton de révocation) et reste affichée, estompée.
+- [x] AC4 — un 422 du backend (auto-délégation, durée excessive) s'affiche en clair et non en
       erreur générique
-- [ ] AC5 — `grep -rl "role_delegations" takussan-web/messages` retourne les **trois** locales
-- [ ] AC6 — un `agency_admin` sans la capacité requise ne voit pas le bouton de création, et
+- [x] AC5 — `grep -rl "role_delegations" takussan-web/messages` retourne les **trois** locales
+      <br>Exécuté le 2026-08-27 sur le chemin réel du dépôt (`takussan-web/src/messages`) : `en.json`, `fr.json`, `wo.json`.
+- [x] AC6 — un `agency_admin` sans la capacité requise ne voit pas le bouton de création, et
       `useCan` n'est pas la seule garde (la policy répond 403 : le vérifier)
+      <br>Les deux moitiés exécutées — mais **l'écran et le serveur ne posent pas la même question** : le bouton est gardé par `team.assign_role`, `RoleDelegationPolicy` garde par TYPE de profil (`isAgencyAdminAt`), et le catalogue `Capability` n'a aucun cas `delegations.*`. C'est le serveur qui décide, donc l'AC tient ; l'écart est l'objet de **[TCK-395](TCK-395-delegation-role-delegue-sans-rapport-avec-les-capacites.md)**.
 - [ ] AC7 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+      <br>**Deux tiers exécutés.** `npx tsc --noEmit` → exit 0 sur l'arbre fusionné (2026-08-27), `npm run lint` → 0 erreur. **`npm run test` en ENTIER : non lancé** (règle « Qui lance quoi »). Périmètre joué par le correcteur : 8 fichiers / 58 tests verts. **Se coche par le rituel de fin de branche, machine au repos.**
 
 ## Hors périmètre
 

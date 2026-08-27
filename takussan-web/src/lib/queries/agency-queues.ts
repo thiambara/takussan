@@ -72,6 +72,12 @@ export const agencyKycKey = (agencyId: number) => ['agency', agencyId, 'kyc'] as
  * `['pending_count' => $paginator->total()]` — les deux nombres sont le MÊME, mais seul `total`
  * est garanti par l'enveloppe de pagination (TCK-304). *Lire une clé d'agrément là où une clé
  * canonique dit la même chose, c'est se lier à celle des deux qui peut disparaître.*
+ *
+ * ⚠ Ce compte est un SONDAGE de 60 s monté sur deux écrans : c'est lui qui a rendu coûteux
+ * l'écart de forme de `fetchPropertyModerationQueue`, qui ne nommait aucune colonne. Le fetcher
+ * les nomme depuis la revue de TCK-375 — et son docblock dit ce que le serveur en fait
+ * aujourd'hui, à savoir rien : la route n'instancie pas spatie. C'est un delta d'API, pas un
+ * silence.
  */
 export async function fetchPropertyModerationCount(token: string): Promise<number> {
   const response = await fetchPropertyModerationQueue(token, { perPage: 1 });
