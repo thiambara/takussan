@@ -4725,7 +4725,40 @@
         "warning": "Artu",
         "critical": "Jafe-jafe"
       },
-      "tableCaption": "Yégle yu planifiye ci agence yépp"
+      "tableCaption": "Yégle yu planifiye ci agence yépp",
+      "colState": "Nekkin",
+      "states": {
+        "draft": "Buroyoŋ",
+        "scheduled": "Bu ñu planifiye",
+        "live": "Muy yégle",
+        "expired": "Bu jeex"
+      },
+      "severity": "Tolluwaay",
+      "diffusion": "Yégle",
+      "editTitle": "Soppi yégle bi",
+      "edit": "Soppi",
+      "editRow": "Soppi yégle bi {title}",
+      "cancelEdit": "Bàyyi",
+      "save": "Denc coppite yi",
+      "editingLiveNotice": "Yégle bii muy dox : coppite bi day jëf ci saa si, du tekki ne ñu yéglewaat ko walla ñu ubbiwaat yi jëfandikukat yi tëjoon.",
+      "editingDraftNotice": "Yégle bii dañu ko yéglewul : dinañu ko yégle bu ñu tàmbalee yégle bi.",
+      "titleFieldLabel": "Bopp {locale}",
+      "bodyFieldLabel": "Bataaxal {locale}",
+      "roleLabels": {
+        "super_admin": "Super-admin",
+        "agency_admin": "Kilifa ajaans",
+        "agent": "Ajaŋ",
+        "owner": "Boroom",
+        "broker": "Courtier",
+        "service_provider": "Kiy joxe sarwis"
+      },
+      "rolesHint": "Amul benn wàll bu ñu tànn : yégle bi dañu ko tënkul ci wàll.",
+      "agenciesEmpty": "Amul benn ajaans bu ñu tànn : yégle bi dañu ko tënkul ci ajaans.",
+      "agencySearch": "Seet benn ajaans",
+      "agenciesLoading": "Ajaans yi ñungi yeg…",
+      "agenciesNoMatch": "Amul benn ajaans bu mengoo.",
+      "agencyUnknown": "Ajaans #{id}",
+      "agencyRemove": "Génne {name} ci tànneef bi"
     },
     "scheduler": {
       "empty_title": "Amul benn dox bu ñu jàpp",

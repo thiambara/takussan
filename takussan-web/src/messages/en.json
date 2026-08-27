@@ -5181,7 +5181,40 @@
         "warning": "Alert",
         "critical": "Critical"
       },
-      "tableCaption": "Scheduled cross-tenant announcements"
+      "tableCaption": "Scheduled cross-tenant announcements",
+      "colState": "State",
+      "states": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "live": "Broadcasting",
+        "expired": "Expired"
+      },
+      "severity": "Severity",
+      "diffusion": "Broadcast",
+      "editTitle": "Edit announcement",
+      "edit": "Edit",
+      "editRow": "Edit the {title} announcement",
+      "cancelEdit": "Cancel",
+      "save": "Save changes",
+      "editingLiveNotice": "This announcement is being broadcast: the fix applies immediately, without republishing it or reopening the ones users already dismissed.",
+      "editingDraftNotice": "This announcement is not being broadcast: it will be as soon as broadcasting is turned on.",
+      "titleFieldLabel": "{locale} title",
+      "bodyFieldLabel": "{locale} message",
+      "roleLabels": {
+        "super_admin": "Super-admin",
+        "agency_admin": "Agency admin",
+        "agent": "Agent",
+        "owner": "Owner",
+        "broker": "Broker",
+        "service_provider": "Service provider"
+      },
+      "rolesHint": "No role ticked: the announcement is not restricted by role.",
+      "agenciesEmpty": "No agency targeted: the announcement is not restricted by agency.",
+      "agencySearch": "Search an agency",
+      "agenciesLoading": "Loading agencies…",
+      "agenciesNoMatch": "No agency matches.",
+      "agencyUnknown": "Agency #{id}",
+      "agencyRemove": "Remove {name} from targeting"
     },
     "scheduler": {
       "empty_title": "No run captured",
