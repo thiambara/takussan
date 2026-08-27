@@ -70,10 +70,10 @@ export function PropertyModerationDetail({
   const isBusy = approveMutation.isPending || rejectMutation.isPending;
 
   return (
-    <section className="rounded-xl bg-app-surface-1 p-6">
+    <section className="rounded-xl bg-card p-6">
       <div className="mb-6 flex flex-col gap-1">
-        <h2 className="text-lg font-semibold text-app-ink">{property.title}</h2>
-        <p className="text-sm text-app-ink-muted">
+        <h2 data-testid="property-moderation-detail" className="text-lg font-semibold text-foreground">{property.title}</h2>
+        <p className="text-sm text-muted-foreground">
           {property.reference_number}
           {property.agency ? ` · ${property.agency.name}` : ''}
           {property.location?.city ? ` · ${property.location.city}` : ''}
@@ -91,12 +91,12 @@ export function PropertyModerationDetail({
 
       <dl className="mb-6 grid grid-cols-2 gap-4 text-sm">
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{t('agent')}</dt>
-          <dd className="mt-1 text-app-ink">{property.owner?.name ?? '—'}</dd>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('agent')}</dt>
+          <dd className="mt-1 text-foreground">{property.owner?.name ?? '—'}</dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{t('price')}</dt>
-          <dd className="mt-1 text-app-ink">
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('price')}</dt>
+          <dd className="mt-1 text-foreground">
             {/* TCK-292 — la locale ACTIVE, plus `fr-FR` en dur (montant et date). */}
             {property.price !== null && property.price !== undefined
               ? formatNumber(property.price, locale)
@@ -105,12 +105,12 @@ export function PropertyModerationDetail({
           </dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{t('type')}</dt>
-          <dd className="mt-1 text-app-ink">{property.type}</dd>
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('type')}</dt>
+          <dd className="mt-1 text-foreground">{property.type}</dd>
         </div>
         <div>
-          <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{t('submittedAt')}</dt>
-          <dd className="mt-1 text-app-ink">
+          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('submittedAt')}</dt>
+          <dd className="mt-1 text-foreground">
             {property.submitted_at
               ? formatDate(property.submitted_at, locale, {
                 dateStyle: undefined,
@@ -139,10 +139,10 @@ export function PropertyModerationDetail({
             onChange={(e) => setRejectionReason(e.target.value)}
             rows={4}
             maxLength={1000}
-            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-app-ink outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
             placeholder={t('rejectReasonPlaceholder')}
           />
-          <p className="mt-1 text-right text-xs text-app-ink-muted">
+          <p className="mt-1 text-right text-xs text-muted-foreground">
             {rejectionReason.length}/1000
           </p>
           <div className="mt-3 flex gap-2">
@@ -178,7 +178,8 @@ export function PropertyModerationDetail({
           <Button
             onClick={() => approveMutation.mutate()}
             disabled={isBusy}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            // Le sage de la charte : « Succès / location : var(--accent) ».
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
           >
             {approveMutation.isPending ? (
               <Loader2 className="mr-1.5 size-4 animate-spin" />

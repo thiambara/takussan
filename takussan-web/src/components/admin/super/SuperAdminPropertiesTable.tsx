@@ -5,7 +5,13 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
+import {
+  DataTable,
+  StatusBadge,
+  type DataTableColumn,
+  type StatusTone,
+} from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import {
   DropdownMenu,
@@ -24,9 +30,21 @@ import {
 import type { AdminPropertyRow } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
+import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-type SortableKey = 'created_at' | 'price' | 'published_at';
+/**
+ * Le statut du bien → le ton du DS. Les quatre familles de couleurs faites main (vert 50,
+ * bleu 50, ambre 50, pierre 100) tenaient dans un ternaire à quatre branches ici ;
+ * elles vivent maintenant dans `StatusBadge`, et cette table ne dit plus que le SENS.
+ */
+const PROPERTY_STATUS_TONES: Record<string, StatusTone> = {
+  available: 'success',
+  sold: 'info',
+  rented: 'info',
+  unavailable: 'attention',
+  under_maintenance: 'attention',
+};
 
 type ConfirmIntent =
   | { action: 'unpublish'; ids: number[] }
@@ -39,29 +57,10 @@ interface SuperAdminPropertiesTableProps {
   onChange: () => void;
 }
 
-function formatPrice(price: number, currency: string | null): string {
-  const code = currency ?? 'XOF';
-  try {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: code,
-      maximumFractionDigits: 0,
-    }).format(price);
-  } catch {
-    return `${price.toLocaleString('fr-FR')} ${code}`;
-  }
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminPropertiesTableProps) {
   const t = useTranslations('superAdmin.properties.table');
   const tCommon = useTranslations('common');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -97,14 +96,16 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
     });
   }, []);
 
-  const onSortClick = useCallback(
-    (key: string) => {
+  // `DataTable` compose lui-même la chaîne de tri suivante (`price` ↔ `-price`) : ce rappel ne
+  // fait plus que l'écrire dans l'URL. C'est le sens du contrat de tri de la primitive — la
+  // console avait trois écrans triables et trois façons différentes de basculer la direction.
+  const onSortChange = useCallback(
+    (next: string) => {
       const params = new URLSearchParams(searchParams.toString());
-      const next = sort === `-${key}` ? key : `-${key}`;
       params.set('sort', next);
       router.replace(`?${params.toString()}`);
     },
-    [router, searchParams, sort],
+    [router, searchParams],
   );
 
   const refresh = useCallback(() => {
@@ -152,12 +153,158 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
     else if (intent.action === 'delete') deleteMutation.mutate(intent.ids);
   }, [archiveMutation, deleteMutation, intent, unpublishMutation]);
 
+  const columns: DataTableColumn<AdminPropertyRow>[] = [
+    {
+      id: 'select',
+      header: (
+        <>
+          <label className="sr-only" htmlFor="select-all">{t('selectAll')}</label>
+          <input
+            id="select-all"
+            type="checkbox"
+            checked={allSelected}
+            ref={(el) => {
+              if (el) el.indeterminate = someSelected;
+            }}
+            onChange={toggleAll}
+            aria-label={t('selectAll')}
+          />
+        </>
+      ),
+      cell: (row) => (
+        <input
+          type="checkbox"
+          checked={selected.has(row.id)}
+          onChange={() => toggleOne(row.id)}
+          aria-label={t('selectRowAria', { title: row.title })}
+        />
+      ),
+    },
+    {
+      id: 'property',
+      header: t('colProperty'),
+      cell: (row) => (
+        <>
+          <Link
+            href={`/properties/${row.slug}`}
+            className="block max-w-xs truncate font-semibold text-foreground hover:text-primary"
+          >
+            {row.title}
+          </Link>
+          <p className="text-xs text-muted-foreground">{row.reference_number}</p>
+        </>
+      ),
+    },
+    { id: 'agency', header: t('colAgency'), cell: (row) => row.agency?.name ?? '—' },
+    { id: 'city', header: t('colCity'), cell: (row) => row.location.city ?? '—' },
+    { id: 'type', header: t('colType'), cell: (row) => row.type ?? '—' },
+    {
+      id: 'price',
+      header: t('colPrice'),
+      sortKey: 'price',
+      sortLabel: t('sortByAria', { label: t('colPrice') }),
+      className: 'tabular-nums',
+      cell: (row) => (
+        <>
+          {fmt.montant(row.price, row.currency)}
+          {row.contract_type === 'rent' && row.rent_period ? (
+            <span className="ml-0.5 text-xs font-medium text-muted-foreground">
+              /{RENT_PERIOD_SHORT[row.rent_period]}
+            </span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      id: 'status',
+      header: t('colStatus'),
+      cell: (row) =>
+        row.status ? (
+          <StatusBadge tone={PROPERTY_STATUS_TONES[row.status] ?? 'neutral'} label={row.status_label ?? row.status} />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      id: 'published_at',
+      header: t('colPublication'),
+      sortKey: 'published_at',
+      sortLabel: t('sortByAria', { label: t('colPublication') }),
+      className: 'text-muted-foreground',
+      cell: (row) => fmt.date(row.published_at, DATE_COURTE),
+    },
+    {
+      id: 'created_at',
+      header: t('colUpdated'),
+      sortKey: 'created_at',
+      sortLabel: t('sortByAria', { label: t('colUpdated') }),
+      className: 'text-muted-foreground',
+      cell: (row) => fmt.date(row.created_at, DATE_COURTE),
+    },
+    {
+      id: 'actions',
+      header: t('colActions'),
+      headerSrOnly: true,
+      align: 'end',
+      cell: (row) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label={t('rowActionsAria', { title: row.title })}
+                data-testid={`row-actions-${row.id}`}
+              />
+            }
+          >
+            <MoreHorizontal className="size-4" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem render={<Link href={`/properties/${row.slug}`} />}>
+              {t('viewPublic')}
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link href={`/app/properties/${row.id}`} />}>
+              {t('openBackOffice')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {row.visibility !== 'public' ? (
+              <DropdownMenuItem onClick={() => publishMutation.mutate(row.id)} disabled={pending}>
+                {t('publish')}
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={() => setIntent({ action: 'unpublish', ids: [row.id] })}
+                disabled={pending}
+              >
+                {t('unpublish')}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              onClick={() => setIntent({ action: 'archive', ids: [row.id] })}
+              disabled={pending}
+            >
+              {t('archive')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setIntent({ action: 'delete', ids: [row.id] })}
+              disabled={pending}
+              className="text-destructive"
+            >
+              {tCommon('actions.delete')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-3">
       {selectedIds.length > 0 ? (
         <div
           data-testid="bulk-actions"
-          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-amber-50 px-4 py-2 text-sm text-stone-800 ring-1 ring-amber-200"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-primary/10 px-4 py-2 text-sm text-foreground ring-1 ring-primary/20"
         >
           <span>
             {t('selectedCount', { count: selectedIds.length })}
@@ -185,144 +332,17 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
 
       {error ? <ErrorState message={error} /> : null}
 
-      <div className="overflow-x-auto rounded-xl bg-white ring-1 ring-stone-200">
-        <table className="min-w-full divide-y divide-stone-200 text-sm" data-testid="super-admin-properties-table">
-          <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
-            <tr>
-              <th scope="col" className="px-3 py-2">
-                <label className="sr-only" htmlFor="select-all">{t('selectAll')}</label>
-                <input
-                  id="select-all"
-                  type="checkbox"
-                  checked={allSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = someSelected;
-                  }}
-                  onChange={toggleAll}
-                  aria-label={t('selectAll')}
-                />
-              </th>
-              <th scope="col" className="px-3 py-2">{t('colProperty')}</th>
-              <th scope="col" className="px-3 py-2">{t('colAgency')}</th>
-              <th scope="col" className="px-3 py-2">{t('colCity')}</th>
-              <th scope="col" className="px-3 py-2">{t('colType')}</th>
-              <SortHeader sortKey="price" label={t('colPrice')} currentSort={sort} onClick={onSortClick} />
-              <th scope="col" className="px-3 py-2">{t('colStatus')}</th>
-              <SortHeader
-                sortKey="published_at"
-                label={t('colPublication')}
-                currentSort={sort}
-                onClick={onSortClick}
-              />
-              <SortHeader
-                sortKey="created_at"
-                label={t('colUpdated')}
-                currentSort={sort}
-                onClick={onSortClick}
-              />
-              <th scope="col" className="px-3 py-2"><span className="sr-only">{t('colActions')}</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                data-testid={`super-admin-property-${row.id}`}
-                className="hover:bg-stone-50"
-              >
-                <td className="px-3 py-2">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(row.id)}
-                    onChange={() => toggleOne(row.id)}
-                    aria-label={t('selectRowAria', { title: row.title })}
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <Link
-                    href={`/properties/${row.slug}`}
-                    className="block max-w-xs truncate font-semibold text-stone-900 hover:text-amber-700"
-                  >
-                    {row.title}
-                  </Link>
-                  <p className="text-xs text-stone-500">{row.reference_number}</p>
-                </td>
-                <td className="px-3 py-2 text-stone-700">{row.agency?.name ?? '—'}</td>
-                <td className="px-3 py-2 text-stone-700">{row.location.city ?? '—'}</td>
-                <td className="px-3 py-2 text-stone-700">{row.type ?? '—'}</td>
-                <td className="px-3 py-2 text-stone-900 tabular-nums">
-                  {formatPrice(row.price, row.currency)}
-                  {row.contract_type === 'rent' && row.rent_period ? (
-                    <span className="ml-0.5 text-xs font-medium text-stone-500">
-                      /{RENT_PERIOD_SHORT[row.rent_period]}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="px-3 py-2">
-                  <StatusBadge status={row.status} label={row.status_label} />
-                </td>
-                <td className="px-3 py-2 text-stone-600">{formatDate(row.published_at)}</td>
-                <td className="px-3 py-2 text-stone-600">{formatDate(row.created_at)}</td>
-                <td className="px-3 py-2 text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          aria-label={t('rowActionsAria', { title: row.title })}
-                          data-testid={`row-actions-${row.id}`}
-                        />
-                      }
-                    >
-                      <MoreHorizontal className="size-4" aria-hidden="true" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem render={<Link href={`/properties/${row.slug}`} />}>
-                        {t('viewPublic')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem render={<Link href={`/app/properties/${row.id}`} />}>
-                        {t('openBackOffice')}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {row.visibility !== 'public' ? (
-                        <DropdownMenuItem
-                          onClick={() => publishMutation.mutate(row.id)}
-                          disabled={pending}
-                        >
-                          {t('publish')}
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem
-                          onClick={() => setIntent({ action: 'unpublish', ids: [row.id] })}
-                          disabled={pending}
-                        >
-                          {t('unpublish')}
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem
-                        onClick={() => setIntent({ action: 'archive', ids: [row.id] })}
-                        disabled={pending}
-                      >
-                        {t('archive')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setIntent({ action: 'delete', ids: [row.id] })}
-                        disabled={pending}
-                        className="text-red-700"
-                      >
-                        {tCommon('actions.delete')}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        data-testid="super-admin-properties-table"
+        caption={t('tableCaption')}
+        columns={columns}
+        rows={rows}
+        rowKey={(row) => row.id}
+        rowProps={(row) => ({ 'data-testid': `super-admin-property-${row.id}` })}
+        sort={{ value: sort, onChange: onSortChange }}
+      />
 
-      <p className="text-xs text-stone-500">
+      <p className="text-xs text-muted-foreground">
         {t('totalCount', { count: total })}
       </p>
 
@@ -342,53 +362,6 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
         />
       ) : null}
     </div>
-  );
-}
-
-function SortHeader({
-  sortKey,
-  label,
-  currentSort,
-  onClick,
-}: {
-  sortKey: SortableKey;
-  label: string;
-  currentSort: string;
-  onClick: (key: string) => void;
-}) {
-  const tSort = useTranslations('superAdmin.properties.table');
-  const desc = currentSort === `-${sortKey}`;
-  const asc = currentSort === sortKey;
-  const Icon = desc ? ArrowDown : asc ? ArrowUp : ArrowUpDown;
-  return (
-    <th scope="col" className="px-3 py-2">
-      <button
-        type="button"
-        onClick={() => onClick(sortKey)}
-        className="inline-flex items-center gap-1 hover:text-stone-900"
-        aria-label={tSort('sortByAria', { label })}
-      >
-        {label}
-        <Icon className="size-3" aria-hidden="true" />
-      </button>
-    </th>
-  );
-}
-
-function StatusBadge({ status, label }: { status: string | null; label: string | null }) {
-  if (!status) return <span className="text-stone-400">—</span>;
-  const tone =
-    status === 'available'
-      ? 'bg-green-50 text-green-800 ring-green-200'
-      : status === 'sold' || status === 'rented'
-      ? 'bg-blue-50 text-blue-800 ring-blue-200'
-      : status === 'unavailable' || status === 'under_maintenance'
-      ? 'bg-amber-50 text-amber-800 ring-amber-200'
-      : 'bg-stone-100 text-stone-700 ring-stone-200';
-  return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs ring-1 ${tone}`}>
-      {label ?? status}
-    </span>
   );
 }
 

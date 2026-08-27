@@ -6,9 +6,11 @@ use App\Models\Agency;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\KycDossierStatus;
 use App\Models\KycDossier;
+use App\Services\Kyc\KycWorkflowService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -43,7 +45,10 @@ class KycWorkflowTest extends TestCase
 
         $this->postJson("/api/admin/kyc/{$dossier->id}/verify")
             ->assertStatus(422)
-            ->assertJsonPath('message', 'Missing required KYC documents: rccm, ninea, director_id');
+            ->assertJsonPath('message', 'Missing required KYC documents: rccm, ninea, director_id')
+            // Le code, parce que la file KYC nomme ce cas et affiche un libellé FRANÇAIS : le
+            // `message` ci-dessus n'est pas localisable, il est codé en dur en anglais.
+            ->assertJsonPath('code', KycWorkflowService::CODE_DOCUMENTS_MISSING);
     }
 
     public function test_agency_admin_can_submit_complete_dossier_and_submission_is_audited(): void
@@ -161,6 +166,114 @@ class KycWorkflowTest extends TestCase
             ->assertJsonPath('data.0.id', $older->id)
             ->assertJsonPath('data.1.id', $newer->id)
             ->assertJsonPath('meta.total', 2);
+    }
+
+    /**
+     * TCK-362 — la file doit porter le NOM de l'agence, pas seulement sa clé.
+     *
+     * L'écran `/super-admin/kyc` affichait « Agence #12 » faute d'autre chose à afficher :
+     * `KycController::index` chargeait `subject` depuis toujours, et `KycDossierResource` ne
+     * l'émettait pas. Le test porte donc sur la SORTIE — un nom lisible dans la charge utile —
+     * et non sur le `->with()` du contrôleur, qui était déjà juste et ne prouvait rien.
+     */
+    public function test_kyc_queue_exposes_the_agency_name_without_a_query_per_row(): void
+    {
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create(['name' => 'Dakar Immo Sarl']);
+        $dossier = $this->submittedDossierWithDocuments($agency);
+
+        /*
+         * On ne compte PAS toutes les requêtes : `KycDossierResource` appelle `getMedia()` par
+         * dossier, ce qui est un `N+1` de médias — réel, mais hors du périmètre de ce ticket, et
+         * un compteur global le confondrait avec celui qu'on ferme ici. On ne compte donc que les
+         * requêtes qui touchent `agencies` : c'est exactement la propriété que le ticket demande.
+         */
+        $requetesAgences = 0;
+        DB::listen(function ($requete) use (&$requetesAgences): void {
+            if (str_contains($requete->sql, 'agencies')) {
+                $requetesAgences++;
+            }
+        });
+
+        $this->getJson('/api/admin/kyc?filter[status]=submitted&filter[subject_type]=Agency&per_page=10')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $dossier->id)
+            ->assertJsonPath('data.0.subject.id', $agency->id)
+            ->assertJsonPath('data.0.subject.type', 'Agency')
+            ->assertJsonPath('data.0.subject.name', 'Dakar Immo Sarl');
+
+        // UNE seule requête sur `agencies` pour un dossier — le `morphTo` groupé.
+        $this->assertSame(1, $requetesAgences);
+
+        $this->submittedDossierWithDocuments(Agency::factory()->create());
+        $this->submittedDossierWithDocuments(Agency::factory()->create());
+
+        $requetesAgences = 0;
+        $this->getJson('/api/admin/kyc?filter[status]=submitted&filter[subject_type]=Agency&per_page=10')
+            ->assertOk()
+            ->assertJsonCount(3, 'data');
+
+        // Toujours UNE, pour trois dossiers : trois auraient trahi la lecture ligne à ligne.
+        $this->assertSame(1, $requetesAgences);
+    }
+
+    /**
+     * TCK-362 (revue) — le refus de transition porte un CODE, pas seulement de la prose anglaise.
+     *
+     * Ce test est la moitié SERVEUR d'un correctif dont l'autre moitié est dans `kyc-queue.tsx` :
+     * le panneau de décision nomme le cas sur `code === 'kyc.not_transitionable'` et affiche un
+     * libellé français. Sans ce code, il n'a que `message` — et `messageErreurApi` préfère la
+     * prose serveur, qui est ici de l'anglais codé en dur. Les deux moitiés doivent bouger
+     * ensemble ; celle-ci empêche le code de disparaître sans que rien ne rougisse.
+     *
+     * Le `message` est asserté À L'IDENTIQUE : le correctif AJOUTE une clé, il n'en retire aucune.
+     */
+    public function test_a_second_decision_is_refused_with_a_stable_code(): void
+    {
+        $this->actingAsRole('super_admin');
+        $dossier = $this->submittedDossierWithDocuments(Agency::factory()->create());
+
+        $this->postJson("/api/admin/kyc/{$dossier->id}/verify")->assertOk();
+
+        $this->postJson("/api/admin/kyc/{$dossier->id}/verify")
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'Only submitted KYC dossiers can be reviewed.')
+            ->assertJsonPath('code', KycWorkflowService::CODE_NOT_TRANSITIONABLE);
+
+        // Le rejet APRÈS vérification passe par le même garde-fou, et doit dire la même chose.
+        $this->postJson("/api/admin/kyc/{$dossier->id}/reject", ['reason' => 'Trop tard, vraiment'])
+            ->assertStatus(422)
+            ->assertJsonPath('code', KycWorkflowService::CODE_NOT_TRANSITIONABLE);
+    }
+
+    /**
+     * TCK-362 (revue) — le sujet est émis sur les CINQ chemins, pas seulement sur la file.
+     *
+     * `KycDossierResource` émet `subject` sous `whenLoaded`. Les deux routes servies par
+     * `dossierForAgency()` ne chargeaient pas la relation : le champ était absent **sans erreur**,
+     * et l'`include=subject,reviewer` que `fetchAdminAgencyKyc` envoie n'y produisait rien. Un
+     * `include` ignoré en silence ne casse personne aujourd'hui — il casse le prochain appelant,
+     * qui cherchera le défaut côté front parce que la réponse est un 200 bien formé.
+     *
+     * Le test porte sur les DEUX routes : elles partagent la méthode de service, et c'est
+     * justement pour ça qu'elles avaient le même trou.
+     */
+    public function test_agency_scoped_kyc_routes_expose_the_subject(): void
+    {
+        $agency = Agency::factory()->create(['name' => 'Thies Habitat']);
+        $this->submittedDossierWithDocuments($agency);
+
+        $this->actingAsRole('super_admin');
+        $this->getJson("/api/admin/agencies/{$agency->id}/kyc")
+            ->assertOk()
+            ->assertJsonPath('data.subject.id', $agency->id)
+            ->assertJsonPath('data.subject.type', 'Agency')
+            ->assertJsonPath('data.subject.name', 'Thies Habitat');
+
+        $this->actingAsRole('agency_admin', ['agency' => $agency]);
+        $this->getJson("/api/agencies/{$agency->id}/kyc")
+            ->assertOk()
+            ->assertJsonPath('data.subject.name', 'Thies Habitat');
     }
 
     private function submittedDossierWithDocuments(Agency $agency, mixed $submittedAt = null): KycDossier

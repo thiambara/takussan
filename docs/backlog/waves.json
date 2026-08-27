@@ -39,6 +39,10 @@
     "42": "Recherche & navigation publiques — audit du 2026-08-21",
     "43": "PostgreSQL : ce que la migration a rendu POSSIBLE — jsonb exploité, pgvector et le chatbot (2026-08-21)",
     "44": "PostgreSQL : ce que la migration a rendu DISCUTABLE — recherche PG contre Meilisearch, géo (2026-08-21)",
-    "45": "Solde des tickets ouverts : barrière Meilisearch, dates par valeur, i18n résiduel, géo par distances (2026-08-22)"
+    "45": "Solde des tickets ouverts : barrière Meilisearch, dates par valeur, i18n résiduel, géo par distances (2026-08-22)",
+    "46": "Console super-admin — audit design & fonctionnel (2026-08-26)",
+    "47": "Console agence /admin — audit design & fonctionnel (2026-08-26)",
+    "48": "Tableau de bord /app — audit design & fonctionnel (2026-08-26)",
+    "49": "Site public — audit design & fonctionnel (2026-08-27)"
   }
 }

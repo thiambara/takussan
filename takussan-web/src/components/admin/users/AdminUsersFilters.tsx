@@ -80,7 +80,7 @@ export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersP
 
   return (
     <div
-      className="flex flex-col gap-3 rounded-xl bg-app-surface-1 p-4 md:flex-row md:items-center"
+      className="flex flex-col gap-3 rounded-xl bg-card p-4 md:flex-row md:items-center"
       data-testid="admin-users-filters"
     >
       <form onSubmit={onSearchSubmit} className="flex-1">
@@ -90,7 +90,7 @@ export function AdminUsersFilters({ hideRoleFilter = false }: AdminUsersFiltersP
         <div className="relative">
           <Search
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-ink-muted"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <input
             id="admin-users-search"
@@ -135,7 +135,7 @@ function FilterSelect({
   options: readonly { value: string; label: string }[];
 }) {
   return (
-    <label className="flex flex-col text-xs text-app-ink-muted">
+    <label className="flex flex-col text-xs text-muted-foreground">
       <span className="sr-only">{label}</span>
       <Select
         value={value}

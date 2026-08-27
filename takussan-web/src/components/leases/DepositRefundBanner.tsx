@@ -42,10 +42,10 @@ export function DepositRefundBanner({ lease, canRefund }: DepositRefundBannerPro
 
   const palette =
     status === 'full'
-      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+      ? 'border-success/30 bg-success/10 text-success'
       : status === 'partial'
-        ? 'border-amber-200 bg-amber-50 text-amber-900'
-        : 'border-orange-200 bg-orange-50 text-orange-900';
+        ? 'border-warning/30 bg-warning/10 text-warning'
+        : 'border-warning/30 bg-warning/10 text-warning';
 
   const label = t(`banner.${status}_title`);
 

@@ -86,7 +86,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
   }, [updateParam]);
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-app-surface-1 p-4 md:flex-row md:items-center">
+    <div className="flex flex-col gap-3 rounded-xl bg-card p-4 md:flex-row md:items-center">
       <form onSubmit={onSearchSubmit} className="flex-1">
         <label htmlFor="customer-search" className="sr-only">
           {t('searchLabel')}
@@ -94,7 +94,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
         <div className="relative">
           <Search
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-ink-muted"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             id="customer-search"
@@ -169,7 +169,7 @@ function TagFilter({
         className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors ${
           activeTags.length > 0
             ? 'border-primary/40 bg-primary/5 text-primary'
-            : 'border-app-surface-3 bg-white text-app-ink hover:bg-app-surface-1'
+            : 'border-border bg-card text-foreground hover:bg-card'
         }`}
       >
         <Tag className="size-3.5" aria-hidden="true" />
@@ -186,9 +186,9 @@ function TagFilter({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-app-surface-3 bg-white py-1.5 shadow-md">
+        <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-border bg-card py-1.5 shadow-md">
           <div className="px-3 pb-1.5 pt-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t('customerTags')}
             </p>
           </div>
@@ -200,13 +200,13 @@ function TagFilter({
                   <button
                     type="button"
                     onClick={() => onToggle(tag.name)}
-                    className="flex w-full items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-app-surface-1"
+                    className="flex w-full items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-card"
                   >
                     <span
                       className={`flex size-4 shrink-0 items-center justify-center rounded border ${
                         active
                           ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-app-surface-3 bg-white'
+                          : 'border-border bg-card'
                       }`}
                       aria-hidden="true"
                     >
@@ -216,7 +216,7 @@ function TagFilter({
                         </svg>
                       )}
                     </span>
-                    <span className="truncate text-app-ink">{tag.name}</span>
+                    <span className="truncate text-foreground">{tag.name}</span>
                   </button>
                 </li>
               );
@@ -224,14 +224,14 @@ function TagFilter({
           </ul>
           {activeTags.length > 0 && (
             <>
-              <div className="my-1 h-px bg-app-surface-2" />
+              <div className="my-1 h-px bg-muted" />
               <button
                 type="button"
                 onClick={() => {
                   onClear();
                   setOpen(false);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
               >
                 <X className="size-3.5" />
                 {t('clearAll')}

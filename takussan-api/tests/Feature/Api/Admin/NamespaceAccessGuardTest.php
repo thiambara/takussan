@@ -7,6 +7,7 @@ use App\Models\AgencyUpgradeRequest;
 use App\Models\AlertRule;
 use App\Models\Announcement;
 use App\Models\Integration;
+use App\Models\Invitation;
 use App\Models\KycDossier;
 use App\Models\Plan;
 use App\Models\PlatformPayout;
@@ -74,6 +75,15 @@ class NamespaceAccessGuardTest extends TestCase
         $upgradeRequest = AgencyUpgradeRequest::factory()->pending()->create([
             'agency_id' => $agency->id,
         ]);
+        // TCK-367 — même motif que la ligne ci-dessus, sur les routes de cycle de vie de la
+        // cooptation (`super-admins/invitations/{invitation}/resend|revoke`). Sans cette ligne,
+        // le repli « {param} non résolu -> 1 » tombait sur une invitation inexistante et le test
+        // lisait 404 là où il vérifie 403. Ce n'est PAS une fuite : pour un identifiant qui
+        // n'existe pas, tout le monde reçoit 404 — c'est la garde qui n'était pas atteinte.
+        $invitation = Invitation::factory()->create([
+            'invitable_type' => User::class,
+            'invitable_id' => $user->id,
+        ]);
 
         $routes = collect(Route::getRoutes())
             ->filter(fn ($r) => str_starts_with($r->uri(), 'api/admin'));
@@ -96,6 +106,7 @@ class NamespaceAccessGuardTest extends TestCase
                     '{announcement}' => (string) $announcement->id,
                     '{payout}' => (string) $payout->id,
                     '{upgradeRequest}' => (string) $upgradeRequest->id,
+                    '{invitation}' => (string) $invitation->id,
                 ]);
 
                 // Replace any remaining unresolved {param} with a dummy id so

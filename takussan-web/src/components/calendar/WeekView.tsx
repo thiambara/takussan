@@ -36,9 +36,9 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
     <div
       role="grid"
       aria-label={t('gridAria.week')}
-      className="overflow-hidden rounded-xl border border-stone-200 bg-white"
+      className="overflow-hidden rounded-xl border border-border bg-card"
     >
-      <div className="grid grid-cols-7 border-b border-stone-200 bg-stone-50">
+      <div className="grid grid-cols-7 border-b border-border bg-muted/50">
         {days.map((day, idx) => {
           const isToday = isSameDay(day, today);
           return (
@@ -47,13 +47,13 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
               role="columnheader"
               className="px-3 py-2 text-center"
             >
-              <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+              <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {t(`weekdaysShort.${WEEKDAY_SHORT_KEYS[idx]}`)}
               </div>
               <div
                 className={cn(
                   'mt-0.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full text-sm font-semibold',
-                  isToday ? 'bg-app-topbar text-white px-1.5' : 'text-stone-900',
+                  isToday ? 'bg-foreground text-primary-foreground px-1.5' : 'text-foreground',
                 )}
               >
                 {day.getDate()}
@@ -72,7 +72,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
               key={day.toISOString()}
               role="gridcell"
               data-testid={`calendar-day-${day.toISOString().slice(0, 10)}`}
-              className="min-h-48 border-t border-l border-stone-100 p-2"
+              className="min-h-48 border-t border-l border-border p-2"
             >
               <ul className="space-y-1.5">
                 {dayEvents.map(({ event, start }) => {
@@ -103,7 +103,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
                   );
                 })}
                 {dayEvents.length === 0 && (
-                  <li className="text-xs text-stone-400">—</li>
+                  <li className="text-xs text-muted-foreground">—</li>
                 )}
               </ul>
             </div>

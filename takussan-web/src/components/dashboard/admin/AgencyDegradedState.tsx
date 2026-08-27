@@ -10,10 +10,10 @@ export function AgencyDegradedState() {
   const t = useTranslations('dashboard.agencyDegraded');
 
   return (
-    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-app-surface-1 p-12 text-center">
-      <Lock className="size-10 text-app-ink-muted" />
-      <p className="text-sm font-semibold text-app-ink">{t('title')}</p>
-      <p className="max-w-md text-xs text-app-ink-muted">{t('body')}</p>
+    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-card p-12 text-center">
+      <Lock className="size-10 text-muted-foreground" />
+      <p className="text-sm font-semibold text-foreground">{t('title')}</p>
+      <p className="max-w-md text-xs text-muted-foreground">{t('body')}</p>
     </div>
   );
 }

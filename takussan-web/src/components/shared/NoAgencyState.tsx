@@ -15,7 +15,7 @@ interface NoAgencyStateProps {
  *
  * Il était le seul état vide DÉJÀ partagé du dépôt — et il était partagé **à côté**
  * d'`EmptyState`, pas au-dessus : il recopiait sa propre pastille d'icône, son propre
- * `rounded-2xl bg-app-surface-1 p-12 text-center` et son propre empilement titre/corps/CTA. Un
+ * `rounded-2xl bg-card p-12 text-center` et son propre empilement titre/corps/CTA. Un
  * second état vide partagé n'est pas mieux qu'un état vide ad-hoc, c'est pire : il a huit
  * consommateurs qui croient tous suivre la convention.
  *
@@ -29,7 +29,7 @@ export function NoAgencyState({ title }: NoAgencyStateProps) {
     <div className="space-y-6">
       {title && (
         <div>
-          <h1 className="text-2xl font-bold text-app-ink">{title}</h1>
+          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
         </div>
       )}
       <EmptyState

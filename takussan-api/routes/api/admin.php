@@ -94,6 +94,15 @@ Route::middleware(['auth:sanctum', 'super-admin'])->prefix('admin')->group(funct
         ->name('admin.superAdmins.index');
     Route::post('super-admins/invite', [SuperAdminInvitationController::class, 'store'])
         ->name('admin.superAdmins.invite');
+    // TCK-367 — cycle de vie de l'invitation de cooptation. Montées sous
+    // `super-admins/invitations/*` et non sur les routes génériques
+    // `/api/invitations/{id}/*` : la surface super-admin refuse (404) toute
+    // invitation qui n'est pas une cooptation, ce que la policy générique
+    // — qui autorise l'inviteur ET l'agency_admin de l'agence — ne fait pas.
+    Route::post('super-admins/invitations/{invitation}/resend', [SuperAdminInvitationController::class, 'resend'])
+        ->name('admin.superAdmins.invitations.resend');
+    Route::post('super-admins/invitations/{invitation}/revoke', [SuperAdminInvitationController::class, 'revoke'])
+        ->name('admin.superAdmins.invitations.revoke');
 
     // User support — cross-tenant list/detail, strictly super_admin.
     Route::get('users', [UserDetailController::class, 'index'])

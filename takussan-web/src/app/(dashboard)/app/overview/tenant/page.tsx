@@ -1,9 +1,16 @@
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchTenantDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
+import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.overviewTenant');
+  return { title: t('metaTitle') };
+}
 
 // TCK-179 — les statuts de paiement bruts affichés sur le tableau de bord locataire.
 // TCK-292 : la table de libellés est passée au dictionnaire (`dashboard.paymentStatus.*`) ;
@@ -29,20 +36,14 @@ export default async function TenantDashboardPage() {
   const payload = await fetchTenantDashboard();
   if (!payload) {
     return (
-      <div className="space-y-2">
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('tenant.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('tenant.loadError')}</p>
-      </div>
+      <PageHeader title={t('tenant.title')} description={t('tenant.loadError')} />
     );
   }
   const data = payload.data;
 
   if (!data.has_customer_profile) {
     return (
-      <div className="space-y-4">
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('tenant.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('tenant.noProfile')}</p>
-      </div>
+      <PageHeader title={t('tenant.title')} description={t('tenant.noProfile')} />
     );
   }
 
@@ -50,10 +51,7 @@ export default async function TenantDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('tenant.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('tenant.subtitle')}</p>
-      </div>
+      <PageHeader title={t('tenant.title')} description={t('tenant.subtitle')} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard label={t('tenant.activeLeases')} value={formatNumber(data.leases.active, 'fr')} />
@@ -79,7 +77,7 @@ export default async function TenantDashboardPage() {
         {data.payments.upcoming_30d.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('tenant.noUpcoming')}</p>
         ) : (
-          <ul className="divide-y divide-app-surface-3">
+          <ul className="divide-y divide-border">
             {data.payments.upcoming_30d.map((p) => (
               <li key={p.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="text-foreground">
@@ -100,7 +98,7 @@ export default async function TenantDashboardPage() {
         {data.documents.recent.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('tenant.noDocs')}</p>
         ) : (
-          <ul className="divide-y divide-app-surface-3">
+          <ul className="divide-y divide-border">
             {data.documents.recent.map((d) => (
               <li key={d.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="text-foreground">{d.name}</span>

@@ -6,6 +6,7 @@ import type {
   AdminAgencyTeamResponse,
   KycDossierResponse,
   KycDossiersResponse,
+  KycDossierStatus,
   PlanPayload,
   PlanResponse,
   PlansResponse,
@@ -46,6 +47,7 @@ import type {
   AnnouncementSegment,
   DataExport,
   PlatformHealthResponse,
+  FailedJobDetailResponse,
   FailedJobsResponse,
   SchedulerResponse,
   PlatformPayoutsResponse,
@@ -160,13 +162,21 @@ export async function fetchAdminAgencyKyc(agencyId: number): Promise<KycDossierR
   return jsonOrThrow<KycDossierResponse>(res);
 }
 
+/**
+ * La file KYC du super-admin.
+ *
+ * TCK-362 — `include=subject` n'est PAS décoratif : sans lui `KycDossierResource` n'émet que
+ * `subject_id`, et l'écran retombe sur « Agence #12 ». C'est UN `include` pour toute la page,
+ * jamais une requête par ligne.
+ */
 export async function fetchAdminKycQueue(params: {
-  status?: 'pending' | 'submitted' | 'verified' | 'rejected';
+  status?: KycDossierStatus;
   page?: number;
   perPage?: number;
 } = {}): Promise<KycDossiersResponse> {
   const qs = new URLSearchParams();
   qs.set('fields[kyc_dossiers]', KYC_DOSSIER_FIELDS);
+  qs.set('include', 'subject');
   qs.set('filter[subject_type]', 'Agency');
   qs.set('filter[status]', params.status ?? 'submitted');
   qs.set('sort', 'submitted_at');
@@ -869,6 +879,18 @@ export async function fetchFailedJobs(params: { page?: number; perPage?: number 
   return jsonOrThrow<FailedJobsResponse>(res);
 }
 
+/**
+ * Le détail d'un job, chargé À LA DEMANDE (TCK-365).
+ *
+ * La liste tronque `payload` et `exception` à 1024 caractères CÔTÉ SERVEUR : déplier une ligne
+ * déjà reçue ne rendrait donc jamais que la troncature. Seul cet appel rend la trace entière —
+ * et c'est aussi pourquoi il n'est pas préchargé pour chaque ligne.
+ */
+export async function fetchFailedJob(id: number): Promise<FailedJobDetailResponse> {
+  const res = await fetch(`/api/super-admin/jobs/failed/${id}`, { credentials: 'include' });
+  return jsonOrThrow<FailedJobDetailResponse>(res);
+}
+
 export async function retryFailedJob(id: number): Promise<{ data: { retried: boolean } }> {
   const res = await fetch(`/api/super-admin/jobs/failed/${id}/retry`, { method: 'POST', credentials: 'include' });
   return jsonOrThrow<{ data: { retried: boolean } }>(res);
@@ -984,11 +1006,18 @@ export async function fetchAdminReportGrowth(params: {
   metric: GrowthMetric;
   period?: ReportPeriod;
   granularity?: ReportGranularity;
+  /** TCK-361 — plage libre. Les deux bornes voyagent ensemble ; l'API refuse une borne seule. */
+  starts_at?: string;
+  ends_at?: string;
 }): Promise<GrowthResponse> {
   const qs = new URLSearchParams();
   qs.set('metric', params.metric);
   if (params.period) qs.set('period', params.period);
   if (params.granularity) qs.set('granularity', params.granularity);
+  if (params.starts_at && params.ends_at) {
+    qs.set('starts_at', params.starts_at);
+    qs.set('ends_at', params.ends_at);
+  }
   const res = await fetch(`/api/super-admin/reports/growth?${qs.toString()}`, { credentials: 'include' });
   return jsonOrThrow<GrowthResponse>(res);
 }
@@ -996,10 +1025,17 @@ export async function fetchAdminReportGrowth(params: {
 export async function fetchAdminReportRevenue(params: {
   period?: ReportPeriod;
   granularity?: ReportGranularity;
+  /** TCK-361 — plage libre. Les deux bornes voyagent ensemble ; l'API refuse une borne seule. */
+  starts_at?: string;
+  ends_at?: string;
 } = {}): Promise<RevenueResponse> {
   const qs = new URLSearchParams();
   if (params.period) qs.set('period', params.period);
   if (params.granularity) qs.set('granularity', params.granularity);
+  if (params.starts_at && params.ends_at) {
+    qs.set('starts_at', params.starts_at);
+    qs.set('ends_at', params.ends_at);
+  }
   const res = await fetch(`/api/super-admin/reports/revenue?${qs.toString()}`, { credentials: 'include' });
   return jsonOrThrow<RevenueResponse>(res);
 }
@@ -1096,6 +1132,13 @@ export interface SuperAdminPendingInvitation {
   invited_by: number | null;
   expires_at: string | null;
   created_at: string | null;
+  /**
+   * TCK-367 — calculé par le backend, jamais déduit ici : une invitation
+   * encore `sent` dont `expires_at` est passé EST expirée, et le cron qui
+   * bascule le statut ne tourne qu'à l'heure. Rejouer ce calcul côté client
+   * le ferait dépendre de l'horloge du navigateur.
+   */
+  is_expired: boolean;
   metadata: Record<string, unknown> | null;
 }
 
@@ -1120,6 +1163,36 @@ export async function inviteSuperAdmin(payload: {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  });
+  const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
+  return json.data;
+}
+
+/**
+ * TCK-367 — relance d'une invitation de cooptation.
+ *
+ * Réémet l'invitation EXISTANTE (nouveau token, expiration repoussée) :
+ * ne jamais rappeler `inviteSuperAdmin` pour relancer, cela créerait une
+ * seconde ligne — et le backend répondrait 409.
+ */
+export async function resendSuperAdminInvitation(
+  invitationId: number,
+): Promise<SuperAdminPendingInvitation> {
+  const res = await fetch(`/api/super-admin/super-admins/invitations/${invitationId}/resend`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
+  return json.data;
+}
+
+/** TCK-367 — annulation d'une invitation de cooptation. */
+export async function revokeSuperAdminInvitation(
+  invitationId: number,
+): Promise<SuperAdminPendingInvitation> {
+  const res = await fetch(`/api/super-admin/super-admins/invitations/${invitationId}/revoke`, {
+    method: 'POST',
+    credentials: 'include',
   });
   const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
   return json.data;

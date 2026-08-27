@@ -66,7 +66,7 @@ export function PipelineCard({
       }}
       style={style}
       className={cn(
-        'group cursor-grab rounded-lg border border-app-surface-2 bg-app-surface-1 p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30 active:cursor-grabbing',
+        'group cursor-grab rounded-lg border border-muted bg-card p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30 active:cursor-grabbing',
         (isDragging || localDragging) && 'opacity-60',
       )}
       data-testid="pipeline-card"
@@ -80,22 +80,22 @@ export function PipelineCard({
           {initialsOf(customer)}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-app-ink">
+          <p className="truncate text-sm font-semibold text-foreground">
             {customer.first_name} {customer.last_name}
           </p>
           {addedByName ? (
-            <p className="mt-0.5 truncate text-xs text-app-ink-muted">
+            <p className="mt-0.5 truncate text-xs text-muted-foreground">
               <span className="opacity-70">{t('addedBy')}</span> {addedByName}
             </p>
           ) : null}
-          <div className="mt-2 flex items-center gap-3 text-xs text-app-ink-muted">
+          <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Calendar className="size-3.5" aria-hidden />
               {formatDate(customer.updated_at ?? customer.created_at)}
             </span>
             {(customer.tasks_count ?? 0) > 0 ? (
               <span
-                className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-700 dark:text-amber-300"
+                className="flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-warning dark:text-warning"
                 title={t('openTasks')}
               >
                 <ListTodo className="size-3.5" aria-hidden />

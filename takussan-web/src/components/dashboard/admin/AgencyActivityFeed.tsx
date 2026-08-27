@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { ArrowRight, CalendarClock, Users, Wrench, UserCog } from 'lucide-react';
 import type { ComponentType } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 import { formatNumber } from '@/lib/format';
 import type { DashboardAgencySummary } from '@/lib/queries/dashboard-agency';
 
@@ -25,6 +26,9 @@ type Item = {
  */
 export function AgencyActivityFeed({ summary }: Props) {
   const t = useTranslations('dashboard.agencyActivity');
+  // Le compte de chaque ligne suit la locale active (TCK-374).
+  const brute = useLocale();
+  const locale = isLocale(brute) ? brute : DEFAULT_LOCALE;
   const items: Item[] = [
     { href: '/app/bookings', id: 'bookings', count: summary.bookings.pending, icon: CalendarClock },
     { href: '/app/maintenance', id: 'maintenance', count: summary.maintenance.open, icon: Wrench },
@@ -35,28 +39,28 @@ export function AgencyActivityFeed({ summary }: Props) {
   return (
     <section
       aria-labelledby="agency-activity-heading"
-      className="rounded-2xl bg-app-surface-1 p-6"
+      className="rounded-2xl bg-card p-6"
     >
       <header className="mb-4 flex items-center justify-between">
-        <h2 id="agency-activity-heading" className="text-sm font-semibold text-app-ink">
+        <h2 id="agency-activity-heading" className="text-sm font-semibold text-foreground">
           {t('heading')}
         </h2>
       </header>
-      <ul className="divide-y divide-app-surface-3">
+      <ul className="divide-y divide-border">
         {items.map(({ href, id, count, icon: Icon }) => (
           <li key={href} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
             <div className="flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-full bg-app-surface-2 text-app-accent">
+              <span className="grid size-9 place-items-center rounded-full bg-muted text-primary">
                 <Icon className="size-4" />
               </span>
               <div>
-                <p className="text-sm font-medium text-app-ink">{t(`items.${id}.label`)}</p>
-                <p className="text-xs text-app-ink-muted">{formatNumber(count, 'fr')}</p>
+                <p className="text-sm font-medium text-foreground">{t(`items.${id}.label`)}</p>
+                <p className="text-xs text-muted-foreground">{formatNumber(count, locale)}</p>
               </div>
             </div>
             <Link
               href={href}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-app-accent hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             >
               {t(`items.${id}.cta`)}
               <ArrowRight className="size-3" aria-hidden />

@@ -62,7 +62,7 @@ export function MaintenanceNewLauncher({
   }, [options, manualPropertyId, initialPropertyId]);
 
   if (isLoading) {
-    return <div className="h-32 animate-pulse rounded-xl bg-app-surface-1" />;
+    return <div className="h-32 animate-pulse rounded-xl bg-card" />;
   }
 
   if (isError) {
@@ -87,8 +87,8 @@ export function MaintenanceNewLauncher({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-stone-200 bg-white p-5">
-        <label htmlFor="maintenance-property" className="text-xs font-semibold uppercase tracking-wide text-stone-500">
+      <div className="rounded-xl border border-border bg-card p-5">
+        <label htmlFor="maintenance-property" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t('property_label')}
         </label>
         <div className="mt-2">

@@ -54,17 +54,17 @@ export function EventDetailSheet({ event, open, onOpenChange }: EventDetailSheet
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-black/30 data-open:animate-in data-closed:animate-out data-open:fade-in-0 data-closed:fade-out-0" />
+        <DialogPrimitive.Backdrop className="fixed inset-0 z-50 bg-foreground/30 data-open:animate-in data-closed:animate-out data-open:fade-in-0 data-closed:fade-out-0" />
         <DialogPrimitive.Popup
           data-testid="calendar-event-detail"
-          className="fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-md flex-col bg-white shadow-xl outline-none data-open:animate-in data-closed:animate-out data-open:slide-in-from-right data-closed:slide-out-to-right"
+          className="fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-md flex-col bg-card shadow-xl outline-none data-open:animate-in data-closed:animate-out data-open:slide-in-from-right data-closed:slide-out-to-right"
         >
           <DialogPrimitive.Title className="sr-only">
             {t('detail.title')}
           </DialogPrimitive.Title>
           {event ? <EventDetailBody event={event} /> : null}
           <DialogPrimitive.Close
-            className="absolute top-3 right-3 rounded-md p-1 text-stone-500 hover:bg-stone-100"
+            className="absolute top-3 right-3 rounded-md p-1 text-muted-foreground hover:bg-muted"
             aria-label={tCommon('actions.close')}
           >
             <XIcon className="size-5" />
@@ -87,7 +87,7 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b border-stone-200 px-6 py-5">
+      <header className="border-b border-border px-6 py-5">
         <div className="mb-2 flex items-center gap-2">
           <span
             className={cn(
@@ -97,31 +97,31 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
           >
             {t(typeLabelKey(event.type))}
           </span>
-          <span className="text-xs text-stone-500">{t(palette.labelKey)}</span>
+          <span className="text-xs text-muted-foreground">{t(palette.labelKey)}</span>
         </div>
-        <h2 className="text-lg font-semibold text-stone-900">{event.title}</h2>
-        <p className="mt-1 text-sm text-stone-600 capitalize">{formatRange(event, t)}</p>
+        <h2 className="text-lg font-semibold text-foreground">{event.title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground capitalize">{formatRange(event, t)}</p>
       </header>
 
       <dl className="flex-1 space-y-4 overflow-y-auto px-6 py-5 text-sm">
         {event.reference && (
           <div>
-            <dt className="text-xs font-semibold uppercase text-stone-500">{t('detail.reference')}</dt>
-            <dd className="font-medium text-stone-900">{event.reference}</dd>
+            <dt className="text-xs font-semibold uppercase text-muted-foreground">{t('detail.reference')}</dt>
+            <dd className="font-medium text-foreground">{event.reference}</dd>
           </div>
         )}
         {typeof event.duration_minutes === 'number' && event.duration_minutes > 0 && (
           <div>
-            <dt className="text-xs font-semibold uppercase text-stone-500">{t('detail.duration')}</dt>
-            <dd className="text-stone-900">{event.duration_minutes} {t('detail.minutesUnit')}</dd>
+            <dt className="text-xs font-semibold uppercase text-muted-foreground">{t('detail.duration')}</dt>
+            <dd className="text-foreground">{event.duration_minutes} {t('detail.minutesUnit')}</dd>
           </div>
         )}
         {event.property_slug && (
           <div>
-            <dt className="text-xs font-semibold uppercase text-stone-500">{t('detail.property')}</dt>
+            <dt className="text-xs font-semibold uppercase text-muted-foreground">{t('detail.property')}</dt>
             <dd>
               <Link
-                className="text-app-topbar hover:underline"
+                className="text-foreground hover:underline"
                 href={`/properties/${event.property_slug}`}
               >
                 {t('detail.viewProperty')}
@@ -131,10 +131,10 @@ function EventDetailBody({ event }: { event: CalendarEvent }) {
         )}
       </dl>
 
-      <footer className="border-t border-stone-200 px-6 py-4">
+      <footer className="border-t border-border px-6 py-4">
         <Link
           href={event.resource_url}
-          className="inline-flex w-full items-center justify-center rounded-lg bg-app-topbar px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+          className="inline-flex w-full items-center justify-center rounded-lg bg-foreground px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90"
           data-testid="calendar-event-open-resource"
         >
           {t('detail.open', { resource: openLabel })}

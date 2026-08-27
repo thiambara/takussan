@@ -1,26 +1,28 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Activity, CircleCheckBig, Database, HardDrive, Mail, Play, RotateCcw, Trash2, Wifi } from 'lucide-react';
-import { EmptyState } from '@/components/feedback';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  deleteFailedJob,
-  fetchFailedJobs,
-  fetchPlatformHealth,
-  retryAllFailedJobs,
-  retryFailedJob,
-} from '@/lib/queries/super-admin';
-import type { FailedJob, HealthcheckStatus } from '@/types/super-admin';
+import { Activity, Database, HardDrive, Mail, Wifi } from 'lucide-react';
+import { StatCard, StatusBadge } from '@/components/console';
+import { fetchPlatformHealth } from '@/lib/queries/super-admin';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+import type { HealthcheckStatus } from '@/types/super-admin';
 
-const CHECKS: Array<{ key: 'db' | 'cache' | 'storage' | 'mail' | 'sms'; label: string; icon: typeof Database }> = [
-  { key: 'db', label: 'DB', icon: Database },
-  { key: 'cache', label: 'Cache', icon: Activity },
-  { key: 'storage', label: 'Storage', icon: HardDrive },
-  { key: 'mail', label: 'Mail', icon: Mail },
-  { key: 'sms', label: 'SMS', icon: Wifi },
+/**
+ * TCK-364 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.systemHealth.checks.*`),
+ * même patron que `SEVERITIES` de `announcements.tsx` (TCK-286).
+ *
+ * Cette table portait `label: 'DB' | 'Cache' | 'Storage' | 'Mail' | 'SMS'` — cinq libellés
+ * anglais écrits en dur, hors composant, donc hors de portée de tout `useTranslations`. Trois
+ * d'entre eux (`Cache`, `Mail`, `SMS`) sont identiques en `fr` et en `en`, ce qui est exactement
+ * la raison pour laquelle personne ne les voyait.
+ */
+const CHECKS: Array<{ key: 'db' | 'cache' | 'storage' | 'mail' | 'sms'; icon: typeof Database }> = [
+  { key: 'db', icon: Database },
+  { key: 'cache', icon: Activity },
+  { key: 'storage', icon: HardDrive },
+  { key: 'mail', icon: Mail },
+  { key: 'sms', icon: Wifi },
 ];
 
 export function HealthDashboard() {
@@ -30,129 +32,90 @@ export function HealthDashboard() {
     queryFn: fetchPlatformHealth,
     refetchInterval: 30_000,
   });
-  const jobs = useQuery({
-    queryKey: ['super-admin', 'failed-jobs'],
-    queryFn: () => fetchFailedJobs({ perPage: 20 }),
-    refetchInterval: 30_000,
-  });
 
   return (
     <div className="space-y-6">
       <section className="grid gap-3 md:grid-cols-5">
         {CHECKS.map((check) => {
           const status = health.data?.data[check.key];
-          return <HealthTile key={check.key} label={check.label} icon={check.icon} status={status} />;
+          return <HealthTile key={check.key} label={t(`checks.${check.key}`)} icon={check.icon} status={status} />;
         })}
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
         <QueueMetric label={t('queuePending')} value={health.data?.data.queue.pending ?? 0} />
         <QueueMetric label={t('queueProcessing')} value={health.data?.data.queue.processing ?? 0} />
-        <QueueMetric label={t('queueFailed24h')} value={health.data?.data.queue.failed_24h ?? 0} tone="danger" />
+        <QueueMetric
+          label={t('queueFailed24h')}
+          value={health.data?.data.queue.failed_24h ?? 0}
+          tone="danger"
+          href="/super-admin/system/jobs"
+        />
       </section>
-
-      <FailedJobsTable jobs={jobs.data?.data ?? []} />
     </div>
   );
 }
 
 function HealthTile({ label, icon: Icon, status }: { label: string; icon: typeof Database; status?: HealthcheckStatus }) {
+  const t = useTranslations('superAdmin.systemHealth');
+  const fmt = useFormatteurs();
   const ok = status?.status === 'ok';
+  // ⚠️ L'API émet `ok` | `failed` (`HealthcheckService::check()`), PAS `ok` | `error` : `error`
+  //    est le CHAMP voisin qui porte le message. La sonde en attente n'a pas de statut du tout —
+  //    d'où `status.loading`, qui garde l'ellipsis comme libellé au lieu de l'écrire en dur.
+  const libelleStatut = status ? t(`status.${status.status}`) : t('status.loading');
   return (
-    <div className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
-      <div className="flex items-center justify-between">
-        <Icon className="size-5 text-stone-500" aria-hidden="true" />
-        <Badge variant={ok ? 'secondary' : 'destructive'}>{status?.status ?? '...'}</Badge>
-      </div>
-      <p className="mt-3 font-display text-lg font-semibold text-stone-950">{label}</p>
-      <p className="mt-1 truncate text-xs text-stone-500">{status?.error ?? status?.driver ?? status?.value ?? `${status?.latency_ms ?? 0}ms`}</p>
-    </div>
+    <StatCard
+      label={label}
+      icon={<Icon className="size-4" aria-hidden="true" />}
+      value={<StatusBadge tone={ok ? 'success' : 'danger'} label={libelleStatut} />}
+      hint={indice(status, t, fmt.nombre)}
+    />
   );
 }
 
-function QueueMetric({ label, value, tone = 'default' }: { label: string; value: number; tone?: 'default' | 'danger' }) {
-  return (
-    <div className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
-      <p className="text-sm text-stone-600">{label}</p>
-      <p className={tone === 'danger' ? 'mt-2 font-display text-3xl font-bold text-destructive' : 'mt-2 font-display text-3xl font-bold text-stone-950'}>{value}</p>
-    </div>
-  );
+/**
+ * L'INDICE de la tuile — quatre charges différentes, une seule ligne de rendu.
+ *
+ * ⚠️ Cette ligne était `status?.error ?? status?.driver ?? status?.value ?? `${latency}ms``, et
+ * l'AC2 de TCK-364 (« aucun libellé affiché n'est une chaîne littérale ») se lisait plus fort
+ * qu'il n'était vrai : elle affichait NUE une valeur d'API — un pilote (`log`, `redis`, `s3`), une
+ * charge de sonde (`miss`), un message d'exception — et collait un suffixe `ms` littéral sur un
+ * nombre qui ne passait par aucun formateur.
+ *
+ * Ce que le front peut posséder, il le possède maintenant : le CADRE de chaque indice est une
+ * clé, et la latence passe par `fmt.nombre` (donc par la locale : `1 200` en `fr`, `1,200` en
+ * `en`).
+ *
+ * ⚠️ Ce que le front ne peut PAS posséder, et qui reste tel quel : le CORPS de `error`. L'API
+ * émet un message d'exception en clair (`HealthcheckService` renvoie `$e->getMessage()`), pas un
+ * code — un anglais technique non traduisible côté front tant qu'il n'y a pas de code à traduire.
+ * Le corriger vraiment demande que l'API émette un code d'erreur, ce qui est un delta d'API, pas
+ * de rendu (principe 5 du CLAUDE.md : *le front possède le texte affiché* — encore faut-il que
+ * l'API lui envoie autre chose que du texte). Idem pour `driver` et `value`, qui sont des
+ * IDENTIFIANTS techniques : les traduire serait une faute, les encadrer suffit.
+ */
+function indice(
+  status: HealthcheckStatus | undefined,
+  t: (cle: string, valeurs?: Record<string, string>) => string,
+  nombre: (value: number | null | undefined) => string,
+): string {
+  if (status?.error) return t('hint.error', { message: status.error });
+  if (status?.driver) return t('hint.driver', { driver: status.driver });
+  if (status?.value) return t('hint.value', { value: status.value });
+  return t('hint.latency', { ms: nombre(status?.latency_ms ?? 0) });
 }
 
-function FailedJobsTable({ jobs }: { jobs: FailedJob[] }) {
-  const t = useTranslations('superAdmin.systemHealth.failedJobs');
-  const tCommon = useTranslations('common');
-  const queryClient = useQueryClient();
-  const retry = useMutation({
-    mutationFn: retryFailedJob,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['super-admin', 'failed-jobs'] }),
-  });
-  const retryAll = useMutation({
-    mutationFn: retryAllFailedJobs,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['super-admin', 'failed-jobs'] }),
-  });
-  const remove = useMutation({
-    mutationFn: deleteFailedJob,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['super-admin', 'failed-jobs'] }),
-  });
-
-  return (
-    <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-lg font-semibold text-stone-950">{t('title')}</h2>
-          <p className="text-sm text-stone-600">{t('subtitle')}</p>
-        </div>
-        <Button type="button" variant="outline" onClick={() => retryAll.mutate()} disabled={retryAll.isPending}>
-          <RotateCcw className="size-4" aria-hidden="true" />
-          {t('retryAll')}
-        </Button>
-      </div>
-      <div className="mt-4 overflow-x-auto">
-        <table className="min-w-full divide-y divide-stone-200 text-sm">
-          <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
-            <tr>
-              <th className="px-3 py-2">{t('colQueue')}</th>
-              <th className="px-3 py-2">{t('colPayload')}</th>
-              <th className="px-3 py-2">{t('colFailedAt')}</th>
-              <th className="px-3 py-2"><span className="sr-only">{t('colActions')}</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {jobs.map((job) => (
-              <tr key={job.id}>
-                <td className="px-3 py-3">{job.queue}</td>
-                <td className="max-w-xl truncate px-3 py-3 text-stone-600">{job.payload}</td>
-                <td className="px-3 py-3 text-stone-600">{new Date(job.failed_at).toLocaleString('fr-FR')}</td>
-                <td className="px-3 py-3">
-                  <div className="flex justify-end gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => retry.mutate(job.id)}>
-                      <Play className="size-4" aria-hidden="true" />
-                      {t('retry')}
-                    </Button>
-                    <Button type="button" variant="destructive" size="sm" onClick={() => remove.mutate(job.id)}>
-                      <Trash2 className="size-4" aria-hidden="true" />
-                      {tCommon('actions.delete')}
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {jobs.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="p-0">
-                  <EmptyState
-                    className="border-0"
-                    icon={<CircleCheckBig className="size-8" aria-hidden="true" />}
-                    title={t('empty_title')}
-                    description={t('empty_description')}
-                  />
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
+function QueueMetric({
+  label,
+  value,
+  tone = 'default',
+  href,
+}: {
+  label: string;
+  value: number;
+  tone?: 'default' | 'danger';
+  href?: string;
+}) {
+  return <StatCard label={label} value={value} tone={tone} href={href} />;
 }

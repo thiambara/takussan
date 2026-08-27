@@ -68,9 +68,9 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
         </DialogHeader>
 
         {isLoading ? (
-          <div className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
+          <div className="h-24 animate-pulse rounded-xl bg-card" />
         ) : isError ? (
-          <p className="rounded-xl bg-app-surface-1 p-4 text-sm text-red-600">
+          <p className="rounded-xl bg-card p-4 text-sm text-destructive">
             {messageErreur(error, t('notFound'))}
           </p>
         ) : payout ? (
@@ -79,7 +79,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
               <Badge variant={PAYOUT_STATUS_VARIANT[status] ?? 'outline'}>
                 {tStatus(status)}
               </Badge>
-              <span className="text-xs text-app-ink-muted">
+              <span className="text-xs text-muted-foreground">
                 {t('createdOn', {
                   date: payout.created_at ? formatDate(payout.created_at, locale) : '—',
                 })}
@@ -88,12 +88,12 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
 
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('landlord')}</dt>
-                <dd className="mt-0.5 text-app-ink">#{payout.landlord_id}</dd>
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('landlord')}</dt>
+                <dd className="mt-0.5 text-foreground">#{payout.landlord_id}</dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('period')}</dt>
-                <dd className="mt-0.5 text-app-ink">
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('period')}</dt>
+                <dd className="mt-0.5 text-foreground">
                   {payout.period_start ? formatDate(payout.period_start, locale) : '—'}
                   {payout.period_end ? (
                     <>
@@ -104,32 +104,32 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('gross')}</dt>
-                <dd className="mt-0.5 text-app-ink">
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('gross')}</dt>
+                <dd className="mt-0.5 text-foreground">
                   {formatCurrency(payout.gross_amount, locale, {
                     currency: payout.currency || 'XOF',
                   })}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('commission')}</dt>
-                <dd className="mt-0.5 text-app-ink">
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('commission')}</dt>
+                <dd className="mt-0.5 text-foreground">
                   {formatCurrency(payout.commission_amount, locale, {
                     currency: payout.currency || 'XOF',
                   })}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('fees')}</dt>
-                <dd className="mt-0.5 text-app-ink">
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('fees')}</dt>
+                <dd className="mt-0.5 text-foreground">
                   {formatCurrency(payout.fees_amount ?? 0, locale, {
                     currency: payout.currency || 'XOF',
                   })}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('net')}</dt>
-                <dd className="mt-0.5 font-semibold text-app-ink">
+                <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('net')}</dt>
+                <dd className="mt-0.5 font-semibold text-foreground">
                   {formatCurrency(payout.net_amount, locale, {
                     currency: payout.currency || 'XOF',
                   })}
@@ -137,16 +137,16 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
               </div>
               {payout.payment_method ? (
                 <div>
-                  <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('method')}</dt>
-                  <dd className="mt-0.5 capitalize text-app-ink">
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('method')}</dt>
+                  <dd className="mt-0.5 capitalize text-foreground">
                     {payout.payment_method.replace(/_/g, ' ')}
                   </dd>
                 </div>
               ) : null}
               {payout.processed_at ? (
                 <div>
-                  <dt className="text-xs uppercase tracking-wide text-app-ink-muted">{t('processedOn')}</dt>
-                  <dd className="mt-0.5 text-app-ink">
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('processedOn')}</dt>
+                  <dd className="mt-0.5 text-foreground">
                     {formatDate(payout.processed_at, locale)}
                   </dd>
                 </div>
@@ -154,13 +154,13 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
               {payout.failed_reason ? (
                 <div className="sm:col-span-2">
                   <dt className="text-xs uppercase tracking-wide text-destructive">{t('failedReason')}</dt>
-                  <dd className="mt-0.5 text-app-ink">{payout.failed_reason}</dd>
+                  <dd className="mt-0.5 text-foreground">{payout.failed_reason}</dd>
                 </div>
               ) : null}
             </dl>
 
             {(status === 'pending' || status === 'scheduled' || status === 'processing') ? (
-              <div className="space-y-3 rounded-xl border border-stone-200 bg-white p-3">
+              <div className="space-y-3 rounded-xl border border-border bg-card p-3">
                 <div>
                   <Label htmlFor="transaction-id" className="mb-1.5 block text-xs font-medium">
                     {t('transactionId')}

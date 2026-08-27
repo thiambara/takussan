@@ -40,11 +40,21 @@ const TYPE_LABEL_KEY: Record<ProfileType, string> = {
 };
 
 const TYPE_COLOR: Record<ProfileType, string> = {
-  agency_admin: 'bg-rose-100 text-rose-900',
-  owner: 'bg-emerald-100 text-emerald-900',
-  agent: 'bg-sky-100 text-sky-900',
-  broker: 'bg-violet-100 text-violet-900',
-  service_provider: 'bg-amber-100 text-amber-900',
+  // ⚠ TCK-381 — les JETONS DE SÉRIE, pas les jetons d'état, et le test de ce fichier a tranché.
+  //
+  // La substitution mécanique avait envoyé ces cinq types sur succès / avertissement / danger /
+  // information — ce qui donnait la même couleur à `agent` et `broker` (deux fois `--info`) et
+  // faisait dire « erreur » au badge d'un administrateur d'agence. `ProfileBadge.test.tsx` exige
+  // une couleur DISTINCTE par type déclaré : il a rougi sur les cinq, et il avait raison.
+  //
+  // Un type de profil n'est pas un état : c'est une CATÉGORIE, et le DS publie exactement cela
+  // depuis TCK-129 — `--chart-1..5`, cinq teintes de la famille Lin, distinguables et sans
+  // sémantique de gravité.
+  agency_admin: 'bg-chart-1/20 text-chart-1',
+  owner: 'bg-chart-2/20 text-chart-2',
+  agent: 'bg-chart-3/20 text-chart-3',
+  broker: 'bg-chart-4/20 text-chart-4',
+  service_provider: 'bg-chart-5/20 text-chart-5',
 };
 
 /**
@@ -57,7 +67,7 @@ const TYPE_COLOR: Record<ProfileType, string> = {
  * `undefined` interpolée dans un gabarit — c'est exactement ce qui a été affiché
  * aux admins d'agence, et personne ne pouvait en déduire la cause.
  */
-const FALLBACK_COLOR = 'bg-stone-100 text-stone-900';
+const FALLBACK_COLOR = 'bg-muted text-foreground';
 
 export function profileTypeLabel(type: ProfileType, t: TraducteurTypeProfil): string {
   const cle = TYPE_LABEL_KEY[type];

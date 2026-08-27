@@ -41,18 +41,18 @@ export function ParticipantRow({
 
   return (
     <li className="flex items-center gap-3 py-2">
-      <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-stone-200 text-xs font-semibold uppercase text-stone-600">
+      <div className="relative size-8 shrink-0 overflow-hidden rounded-full bg-muted text-xs font-semibold uppercase text-muted-foreground">
         <span className="absolute inset-0 flex items-center justify-center">
           {initials}
         </span>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-stone-900">
+        <p className="truncate text-sm text-foreground">
           {participant.user?.full_name ?? `#${participant.user_id}`}
-          {isSelf && <span className="ml-1 text-xs text-stone-400">({t('you')})</span>}
+          {isSelf && <span className="ml-1 text-xs text-muted-foreground">({t('you')})</span>}
         </p>
         {participant.user?.email && (
-          <p className="truncate text-xs text-stone-500">{participant.user.email}</p>
+          <p className="truncate text-xs text-muted-foreground">{participant.user.email}</p>
         )}
       </div>
       <Badge
@@ -97,7 +97,7 @@ export function ParticipantRow({
             aria-label={t('remove')}
             title={t('remove')}
           >
-            <UserMinus className="size-4 text-red-600" aria-hidden />
+            <UserMinus className="size-4 text-destructive" aria-hidden />
           </Button>
         </div>
       )}

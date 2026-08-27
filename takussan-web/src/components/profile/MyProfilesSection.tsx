@@ -66,22 +66,22 @@ export function MyProfilesSection() {
 
   if (isLoading) {
     return (
-      <section className="space-y-3 rounded-2xl bg-app-surface-1 p-6">
+      <section className="space-y-3 rounded-2xl bg-card p-6">
         <header>
-          <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
-          <p className="text-sm text-app-ink-muted">{tCommon('loading')}</p>
+          <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
+          <p className="text-sm text-muted-foreground">{tCommon('loading')}</p>
         </header>
-        <div className="h-24 animate-pulse rounded-xl bg-app-surface-2" aria-hidden="true" />
+        <div className="h-24 animate-pulse rounded-xl bg-muted" aria-hidden="true" />
       </section>
     );
   }
 
   if (isError || !data) {
     return (
-      <section className="space-y-3 rounded-2xl bg-app-surface-1 p-6">
+      <section className="space-y-3 rounded-2xl bg-card p-6">
         <header>
-          <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
-          <p className="text-sm text-app-ink-muted">{t('error')}</p>
+          <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
+          <p className="text-sm text-muted-foreground">{t('error')}</p>
         </header>
       </section>
     );
@@ -102,10 +102,10 @@ export function MyProfilesSection() {
 
   if (profiles.length === 0) {
     return (
-      <section className="space-y-3 rounded-2xl bg-app-surface-1 p-6">
+      <section className="space-y-3 rounded-2xl bg-card p-6">
         <header>
-          <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
-          <p className="text-sm text-app-ink-muted">
+          <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
+          <p className="text-sm text-muted-foreground">
             {t('empty')}
           </p>
         </header>
@@ -114,10 +114,10 @@ export function MyProfilesSection() {
   }
 
   return (
-    <section className="space-y-4 rounded-2xl bg-app-surface-1 p-6" data-testid="my-profiles-section">
+    <section className="space-y-4 rounded-2xl bg-card p-6" data-testid="my-profiles-section">
       <header>
-        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
-        <p className="text-sm text-app-ink-muted">
+        <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
+        <p className="text-sm text-muted-foreground">
           {t('description')}
         </p>
       </header>
@@ -129,16 +129,16 @@ export function MyProfilesSection() {
             <li
               key={profile.id}
               data-testid={`my-profile-card-${profile.id}`}
-              className="space-y-3 rounded-xl bg-white p-4 ring-1 ring-app-surface-2"
+              className="space-y-3 rounded-xl bg-card p-4 ring-1 ring-muted"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="space-y-1">
-                  <p className="text-base font-semibold text-app-ink">{profileTitle(profile, tTypes)}</p>
-                  <div className="flex items-center gap-2 text-xs text-app-ink-muted">
+                  <p className="text-base font-semibold text-foreground">{profileTitle(profile, tTypes)}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <ProfileBadge profile={profile} />
                     {profile.status ? <span>· {profile.status}</span> : null}
                     {isActive ? (
-                      <span className="font-medium text-emerald-700">{t('activeProfile')}</span>
+                      <span className="font-medium text-success">{t('activeProfile')}</span>
                     ) : null}
                   </div>
                 </div>
@@ -146,8 +146,8 @@ export function MyProfilesSection() {
               <dl className="grid gap-2 sm:grid-cols-2">
                 {fields.map((field) => (
                   <div key={field.labelKey} className="space-y-0.5">
-                    <dt className="text-xs font-semibold text-app-ink-muted">{t(field.labelKey)}</dt>
-                    <dd className="text-sm text-app-ink-muted">{t(field.helpKey)}</dd>
+                    <dt className="text-xs font-semibold text-muted-foreground">{t(field.labelKey)}</dt>
+                    <dd className="text-sm text-muted-foreground">{t(field.helpKey)}</dd>
                   </div>
                 ))}
               </dl>

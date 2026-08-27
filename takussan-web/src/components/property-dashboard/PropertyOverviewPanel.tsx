@@ -95,11 +95,11 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-xl bg-app-surface-1 p-6">
+        <section className="rounded-xl bg-card p-6">
           <header className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-app-ink">{t('address')}</h2>
-              <p className="text-xs text-app-ink-muted">{t('addressHint')}</p>
+              <h2 className="text-base font-semibold text-foreground">{t('address')}</h2>
+              <p className="text-xs text-muted-foreground">{t('addressHint')}</p>
             </div>
             <Button
               type="button"
@@ -111,14 +111,14 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
               {t('edit')}
             </Button>
           </header>
-          <p className="mt-4 flex items-start gap-2 text-sm text-app-ink">
+          <p className="mt-4 flex items-start gap-2 text-sm text-foreground">
             <MapPin
-              className="mt-0.5 size-4 shrink-0 text-app-ink-muted"
+              className="mt-0.5 size-4 shrink-0 text-muted-foreground"
               aria-hidden="true"
             />
             <span>{fullAddress || t('addressMissing')}</span>
           </p>
-          <p className="mt-2 text-xs text-app-ink-muted">
+          <p className="mt-2 text-xs text-muted-foreground">
             {property.location?.latitude != null &&
             property.location?.longitude != null
               ? `${property.location.latitude.toFixed(5)}, ${property.location.longitude.toFixed(5)}`
@@ -126,11 +126,11 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
           </p>
         </section>
 
-        <section className="rounded-xl bg-app-surface-1 p-6">
+        <section className="rounded-xl bg-card p-6">
           <header className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-app-ink">{t('todo')}</h2>
-              <p className="text-xs text-app-ink-muted">
+              <h2 className="text-base font-semibold text-foreground">{t('todo')}</h2>
+              <p className="text-xs text-muted-foreground">
                 {remaining.length === 0
                   ? t('allDone')
                   : t('remaining', { count: remaining.length })}
@@ -145,7 +145,7 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
               >
                 <span
                   className={
-                    item.done ? 'text-app-ink-muted line-through' : 'text-app-ink'
+                    item.done ? 'text-muted-foreground line-through' : 'text-foreground'
                   }
                 >
                   {item.done ? '✓ ' : '○ '}
@@ -168,13 +168,13 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
         </section>
       </div>
 
-      <section className="rounded-xl bg-app-surface-1 p-6">
+      <section className="rounded-xl bg-card p-6">
         <header className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold text-app-ink">
+            <h2 className="text-base font-semibold text-foreground">
               {t('priceHistory')}
             </h2>
-            <p className="text-xs text-app-ink-muted">{t('priceHistoryHint')}</p>
+            <p className="text-xs text-muted-foreground">{t('priceHistoryHint')}</p>
           </div>
           {property.price_history && property.price_history.length > 5 ? (
             <Button
@@ -189,24 +189,24 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
           ) : null}
         </header>
         {recentPrices.length === 0 ? (
-          <p className="mt-4 text-sm text-app-ink-muted">{t('noPriceHistory')}</p>
+          <p className="mt-4 text-sm text-muted-foreground">{t('noPriceHistory')}</p>
         ) : (
-          <ul className="mt-4 divide-y divide-app-surface-2 text-sm">
+          <ul className="mt-4 divide-y divide-muted text-sm">
             {recentPrices.map((entry) => (
               <li
                 key={entry.id}
                 className="flex flex-wrap items-center justify-between gap-2 py-3"
               >
-                <span className="text-app-ink-muted">
+                <span className="text-muted-foreground">
                   {entry.changed_at?.slice(0, 10) ?? t('unknownDate')}
                 </span>
-                <span className="font-medium text-app-ink">
+                <span className="font-medium text-foreground">
                   {formatCurrency(entry.old_price, 'fr', { currency: entry.currency })}{' '}
                   →{' '}
                   {formatCurrency(entry.new_price, 'fr', { currency: entry.currency })}
                 </span>
                 {entry.reason ? (
-                  <span className="basis-full text-xs text-app-ink-muted">
+                  <span className="basis-full text-xs text-muted-foreground">
                     {entry.reason}
                   </span>
                 ) : null}

@@ -2,9 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { buttonVariants } from '@/components/ui/button';
 import { redirect } from 'next/navigation';
-import { UserPlus } from 'lucide-react';
-
-export const metadata: Metadata = { title: 'Clients (CRM)' };
+import { KanbanSquare, UserPlus } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
@@ -17,6 +15,12 @@ import { CustomerList } from '@/components/customer-dashboard/CustomerList';
 import { CustomerListFilters } from '@/components/customer-dashboard/CustomerListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.customers');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-042 — dashboard agent CRM, liste des clients.
@@ -60,19 +64,39 @@ export default async function Page({
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <Link
-          href="/app/customers/new"
-          className={buttonVariants({ size: 'lg' })}
-        >
-          <UserPlus className="size-4" aria-hidden="true" />
-          {t('add')}
-        </Link>
-      </header>
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={(
+          <>
+            {/*
+              TCK-379 — `/app/crm/pipeline` n'avait AUCUN lien entrant : le kanban existait, avec
+              ses tests, et n'était atteignable que par saisie d'URL. Il est desservi depuis ICI
+              parce que le pipeline est une VUE du CRM, pas une section parallèle.
+
+              Aucune condition de rôle n'est ajoutée, et ce n'est pas un oubli : cette page
+              appelle `assertCanReachAgentArea` plus haut, dont l'ensemble autorisé
+              (agent | owner | admin) est EXACTEMENT l'allowlist du garde serveur de
+              `crm/pipeline/page.tsx`. Quiconque lit ce lien peut déjà ouvrir sa cible ; le lien
+              n'autorise rien de plus, et la page cible garde son propre refus serveur —
+              `assertCanReachAgentArea`, et non un `forbidden()` : TCK-378 a retiré l'appel de
+              cette page-là précisément, parce que sans `experimental.authInterrupts` il rendait
+              un écran de panne au lieu d'un refus.
+            */}
+            <Link
+              href="/app/crm/pipeline"
+              className={buttonVariants({ variant: 'outline', size: 'lg' })}
+            >
+              <KanbanSquare className="size-4" aria-hidden="true" />
+              {t('pipelineView')}
+            </Link>
+            <Link href="/app/customers/new" className={buttonVariants({ size: 'lg' })}>
+              <UserPlus className="size-4" aria-hidden="true" />
+              {t('add')}
+            </Link>
+          </>
+        )}
+      />
 
       <CustomerListFilters crmTags={crmTags} />
 

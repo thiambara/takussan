@@ -151,11 +151,11 @@ export function SearchAutocomplete({
         className={cn(
           'flex items-center gap-2',
           isNavbar
-            ? 'h-9 min-w-72 rounded-full bg-white/10 px-4 text-white/80 hover:bg-white/20'
-            : 'rounded-full border border-stone-200 bg-white px-4 py-2.5 shadow-sm hover:shadow-md transition-shadow',
+            ? 'h-9 min-w-72 rounded-full bg-card/10 px-4 text-primary-foreground/80 hover:bg-card/20'
+            : 'rounded-full border border-border bg-card px-4 py-2.5 shadow-sm hover:shadow-md transition-shadow',
         )}
       >
-        <Search className={cn('shrink-0', isNavbar ? 'size-4 text-white/60' : 'size-4 text-primary')} />
+        <Search className={cn('shrink-0', isNavbar ? 'size-4 text-primary-foreground/60' : 'size-4 text-primary')} />
         <input
           ref={inputRef}
           id={inputId}
@@ -177,7 +177,7 @@ export function SearchAutocomplete({
           placeholder={placeholder ?? defaultPlaceholder}
           className={cn(
             'w-full bg-transparent text-sm outline-none',
-            isNavbar ? 'text-white placeholder:text-white/50' : 'text-gray-900 placeholder:text-gray-400 font-medium',
+            isNavbar ? 'text-primary-foreground placeholder:text-primary-foreground/50' : 'text-foreground placeholder:text-muted-foreground font-medium',
           )}
           autoComplete="off"
         />
@@ -188,19 +188,19 @@ export function SearchAutocomplete({
           id={listboxId}
           role="listbox"
           aria-label={t('placeholder')}
-          className="absolute left-0 top-full z-50 mt-2 w-full min-w-[320px] rounded-xl bg-white shadow-lg ring-1 ring-stone-200 overflow-hidden"
+          className="absolute left-0 top-full z-50 mt-2 w-full min-w-[320px] rounded-xl bg-card shadow-lg ring-1 ring-border overflow-hidden"
         >
           {showLoading && (
             <div className="space-y-2 p-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-8 animate-pulse rounded-lg bg-stone-100" />
+                <div key={i} className="h-8 animate-pulse rounded-lg bg-muted" />
               ))}
             </div>
           )}
 
           {showEmpty && (
             <div className="px-4 py-5 text-center">
-              <p className="text-sm text-stone-500">
+              <p className="text-sm text-muted-foreground">
                 {t('empty', { query })}
               </p>
               <div className="mt-3 flex justify-center gap-3">
@@ -226,7 +226,7 @@ export function SearchAutocomplete({
             <ul className="py-2 max-h-80 overflow-y-auto">
               {cities.length > 0 && (
                 <>
-                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {t('groups.cities')}
                   </li>
                   {cities.map((city, i) => {
@@ -239,13 +239,13 @@ export function SearchAutocomplete({
                         aria-selected={activeIndex === idx}
                         className={cn(
                           'flex cursor-pointer items-center justify-between px-4 py-2 text-sm transition-colors',
-                          activeIndex === idx ? 'bg-primary/8 text-primary' : 'text-stone-800 hover:bg-stone-50',
+                          activeIndex === idx ? 'bg-primary/8 text-primary' : 'text-foreground hover:bg-muted/50',
                         )}
                         onMouseEnter={() => setActiveIndex(idx)}
                         onMouseDown={(e) => { e.preventDefault(); selectItem({ kind: 'city', data: city }); }}
                       >
                         <HighlightedText label={city.label} query={query} />
-                        <span className="ml-2 shrink-0 text-xs text-stone-400">{city.count}</span>
+                        <span className="ml-2 shrink-0 text-xs text-muted-foreground">{city.count}</span>
                       </li>
                     );
                   })}
@@ -254,7 +254,7 @@ export function SearchAutocomplete({
 
               {neighborhoods.length > 0 && (
                 <>
-                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {t('groups.neighborhoods')}
                   </li>
                   {neighborhoods.map((nb, i) => {
@@ -267,16 +267,16 @@ export function SearchAutocomplete({
                         aria-selected={activeIndex === idx}
                         className={cn(
                           'flex cursor-pointer items-center justify-between px-4 py-2 text-sm transition-colors',
-                          activeIndex === idx ? 'bg-primary/8 text-primary' : 'text-stone-800 hover:bg-stone-50',
+                          activeIndex === idx ? 'bg-primary/8 text-primary' : 'text-foreground hover:bg-muted/50',
                         )}
                         onMouseEnter={() => setActiveIndex(idx)}
                         onMouseDown={(e) => { e.preventDefault(); selectItem({ kind: 'neighborhood', data: nb }); }}
                       >
                         <span className="flex flex-col gap-0.5">
                           <HighlightedText label={nb.label} query={query} />
-                          <span className="text-xs text-stone-400">{nb.city}</span>
+                          <span className="text-xs text-muted-foreground">{nb.city}</span>
                         </span>
-                        <span className="ml-2 shrink-0 text-xs text-stone-400">{nb.count}</span>
+                        <span className="ml-2 shrink-0 text-xs text-muted-foreground">{nb.count}</span>
                       </li>
                     );
                   })}
@@ -285,7 +285,7 @@ export function SearchAutocomplete({
 
               {propertyTypes.length > 0 && (
                 <>
-                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     {t('groups.property_types')}
                   </li>
                   {propertyTypes.map((pt, i) => {
@@ -298,13 +298,13 @@ export function SearchAutocomplete({
                         aria-selected={activeIndex === idx}
                         className={cn(
                           'flex cursor-pointer items-center justify-between px-4 py-2 text-sm transition-colors',
-                          activeIndex === idx ? 'bg-primary/8 text-primary' : 'text-stone-800 hover:bg-stone-50',
+                          activeIndex === idx ? 'bg-primary/8 text-primary' : 'text-foreground hover:bg-muted/50',
                         )}
                         onMouseEnter={() => setActiveIndex(idx)}
                         onMouseDown={(e) => { e.preventDefault(); selectItem({ kind: 'property_type', data: pt }); }}
                       >
                         <HighlightedText label={pt.label} query={query} />
-                        <span className="ml-2 shrink-0 text-xs text-stone-400">{pt.count}</span>
+                        <span className="ml-2 shrink-0 text-xs text-muted-foreground">{pt.count}</span>
                       </li>
                     );
                   })}

@@ -59,7 +59,7 @@ export function PaymentsHistoryTable() {
     <QueryBoundary
       query={query}
       loadingFallback={[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg bg-app-surface-1" />
+        <div key={i} className="h-12 animate-pulse rounded-lg bg-card" />
       ))}
     >
       {(data) => {
@@ -78,9 +78,9 @@ export function PaymentsHistoryTable() {
 
         return (
           <div className="space-y-4">
-          <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
             <table className="w-full text-left text-sm">
-              <thead className="bg-app-surface-1 text-xs uppercase tracking-wide text-app-ink-muted">
+              <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">{tTable('reference')}</th>
                   <th className="px-3 py-2">{tTable('source')}</th>
@@ -91,7 +91,7 @@ export function PaymentsHistoryTable() {
                   <th className="px-3 py-2">{tTable('entity')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-border">
                 {rows.map((row) => {
                   const status = (row.status ?? 'pending') as PaymentStatus;
                   const entityLabel = row.lease_id
@@ -106,8 +106,8 @@ export function PaymentsHistoryTable() {
                       : null;
 
                   return (
-                    <tr key={`${row.source}-${row.id}`} className="text-app-ink">
-                      <td className="px-3 py-2 font-mono text-xs text-app-ink-muted">
+                    <tr key={`${row.source}-${row.id}`} className="text-foreground">
+                      <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                         {row.reference_number ?? `#${row.id}`}
                       </td>
                       <td className="px-3 py-2 text-xs">{tTable(`sources.${row.source}`)}</td>
@@ -119,7 +119,7 @@ export function PaymentsHistoryTable() {
                           currency: row.currency || 'XOF',
                         })}
                         {row.remaining_amount > 0 && row.remaining_amount < row.amount ? (
-                          <span className="ml-1 text-xs font-normal text-app-ink-muted">
+                          <span className="ml-1 text-xs font-normal text-muted-foreground">
                             {tTable('paidAmount', {
                               amount: formatCurrency(row.paid_amount, locale, {
                                 currency: row.currency || 'XOF',
@@ -153,31 +153,31 @@ export function PaymentsHistoryTable() {
           </div>
 
           {totals ? (
-            <dl className="grid gap-2 rounded-xl bg-app-surface-1 p-3 text-xs text-app-ink-muted sm:grid-cols-4">
+            <dl className="grid gap-2 rounded-xl bg-card p-3 text-xs text-muted-foreground sm:grid-cols-4">
               <div>
                 <dt>{tTable('total')}</dt>
-                <dd className="text-sm font-semibold text-app-ink">
+                <dd className="text-sm font-semibold text-foreground">
                   {formatCurrency(totals.amount, locale)}
                 </dd>
               </div>
               <div>
                 <dt>{tTable('paid')}</dt>
-                <dd className="text-sm font-semibold text-app-ink">
+                <dd className="text-sm font-semibold text-foreground">
                   {formatCurrency(totals.paid_amount, locale)}
                 </dd>
               </div>
               <div>
                 <dt>{tTable('remaining')}</dt>
-                <dd className="text-sm font-semibold text-app-ink">
+                <dd className="text-sm font-semibold text-foreground">
                   {formatCurrency(totals.remaining_amount, locale)}
                 </dd>
               </div>
               <div>
                 <dt>{tTable('rows')}</dt>
-                <dd className="text-sm font-semibold text-app-ink">
+                <dd className="text-sm font-semibold text-foreground">
                   {totals.count}
                   {data.meta.truncated ? (
-                    <span className="ml-1 text-[11px] font-normal text-app-ink-muted">
+                    <span className="ml-1 text-[11px] font-normal text-muted-foreground">
                       {tTable('cap', { limit: String(data.meta.limit) })}
                     </span>
                   ) : null}

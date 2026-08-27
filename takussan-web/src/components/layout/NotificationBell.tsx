@@ -161,12 +161,12 @@ export function NotificationBell() {
       {open ? (
         <section
           aria-label={t('center')}
-          className="absolute right-0 top-11 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-app-surface-3 bg-white text-app-ink shadow-xl"
+          className="absolute right-0 top-11 z-50 w-[min(24rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-white text-foreground shadow-xl"
         >
-          <header className="flex items-center justify-between gap-3 border-b border-app-surface-3 px-4 py-3">
+          <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
               <h2 className="text-sm font-semibold">{t('label')}</h2>
-              <p className="text-xs text-app-ink-muted">{t('unread', { count: unread })}</p>
+              <p className="text-xs text-muted-foreground">{t('unread', { count: unread })}</p>
             </div>
             <Button
               type="button"
@@ -187,7 +187,7 @@ export function NotificationBell() {
           ) : null}
 
           {query.isLoading ? (
-            <p className="px-4 py-6 text-sm text-app-ink-muted">{t('loading')}</p>
+            <p className="px-4 py-6 text-sm text-muted-foreground">{t('loading')}</p>
           ) : null}
 
           {query.isError ? (
@@ -197,11 +197,11 @@ export function NotificationBell() {
           ) : null}
 
           {!query.isLoading && !query.isError && notifications.length === 0 ? (
-            <p className="px-4 py-6 text-sm text-app-ink-muted">{t('empty')}</p>
+            <p className="px-4 py-6 text-sm text-muted-foreground">{t('empty')}</p>
           ) : null}
 
           {notifications.length > 0 ? (
-            <ul className="max-h-96 overflow-y-auto divide-y divide-app-surface-3">
+            <ul className="max-h-96 overflow-y-auto divide-y divide-border">
               {notifications.map((notification) => {
                 const unreadItem = !notification.read_at;
                 return (
@@ -218,17 +218,17 @@ export function NotificationBell() {
                           {notification.title}
                         </p>
                         {notificationBody(notification) ? (
-                          <p className="mt-1 line-clamp-2 text-xs text-app-ink-muted">
+                          <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                             {notificationBody(notification)}
                           </p>
                         ) : null}
-                        <p className="mt-2 text-[11px] text-app-ink-muted">
+                        <p className="mt-2 text-[11px] text-muted-foreground">
                           {formatDate(notification.created_at, locale)}
                         </p>
                       </div>
                       <button
                         type="button"
-                        className="shrink-0 text-xs font-semibold text-app-primary hover:underline disabled:opacity-50"
+                        className="shrink-0 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
                         disabled={markRead.isPending || markUnread.isPending}
                         onClick={() =>
                           unreadItem

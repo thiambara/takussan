@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { DataExportsPanel } from '@/components/privacy/DataExportsPanel';
 import { getTranslations } from 'next-intl/server';
 import { useTranslations } from 'next-intl';
+import { PageHeader } from '@/components/console';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.privacy');
@@ -13,10 +14,7 @@ export default function AccountPrivacyPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-stone-950">{t('title')}</h1>
-        <p className="mt-1 text-sm text-stone-600">{t('subtitle')}</p>
-      </header>
+      <PageHeader title={t('title')} description={t('subtitle')} />
 
       <DataExportsPanel />
     </div>

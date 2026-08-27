@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Edit3, Plus, Power } from 'lucide-react';
+import { DataTable, type DataTableColumn } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { WarningBanner } from '@/components/ui/warning-banner';
 import {
   deleteBusinessEnumValue,
   patchBusinessEnumValue,
@@ -30,7 +32,7 @@ export function EnumList({
 }) {
   const t = useTranslations('superAdmin.enums');
   return (
-    <nav className="rounded-xl bg-white p-2 ring-1 ring-stone-200" aria-label={t('navLabel')}>
+    <nav className="rounded-xl bg-card p-2 ring-1 ring-border" aria-label={t('navLabel')}>
       {enums.map((item) => (
         <Button
           key={item.key}
@@ -71,12 +73,49 @@ export function EnumValueTable({
     onError: (err: ApiError) => setError(messageErreur(err)),
   });
 
+  const columns: DataTableColumn<BusinessEnumValue>[] = [
+    { id: 'value', header: t('value'), className: 'font-mono text-xs', cell: (value) => value.value },
+    { id: 'fr', header: t('localeFr'), cell: (value) => value.labels.fr },
+    { id: 'en', header: t('localeEn'), cell: (value) => value.labels.en },
+    { id: 'wo', header: t('localeWo'), cell: (value) => value.labels.wo },
+    {
+      id: 'usage',
+      header: t('usage'),
+      cell: (value) => (
+        <Badge variant={value.usage_count > 0 ? 'secondary' : 'outline'}>{value.usage_count}</Badge>
+      ),
+    },
+    {
+      id: 'actions',
+      header: t('actions'),
+      headerSrOnly: true,
+      align: 'end',
+      cell: (value) => (
+        <div className="flex justify-end gap-1">
+          <Button type="button" variant="ghost" size="icon-sm" aria-label={t('editValueAria', { value: value.value })} onClick={() => onEdit(value)}>
+            <Edit3 className="size-4" aria-hidden="true" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('deactivateValueAria', { value: value.value })}
+            onClick={() => deactivate.mutate(value.value)}
+            disabled={deactivate.isPending || !value.is_active}
+          >
+            <Power className="size-4" aria-hidden="true" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <section className="rounded-xl bg-white ring-1 ring-stone-200">
-      <div className="flex flex-col gap-3 border-b border-stone-200 p-4 md:flex-row md:items-start md:justify-between">
+    <section className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
+      <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="font-display text-xl font-semibold text-stone-950">{item.name}</h2>
-          <p className="mt-1 text-sm text-stone-600">{item.description}</p>
+          <h2 className="font-display text-xl font-semibold text-foreground">{item.name}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
         </div>
         <Button type="button" onClick={onAdd}>
           <Plus className="size-4" aria-hidden="true" />
@@ -84,52 +123,17 @@ export function EnumValueTable({
         </Button>
       </div>
       {error ? <ErrorState className="m-4" message={error} /> : null}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-stone-200 text-xs sm:text-sm">
-          <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
-            <tr>
-              <th className="px-2 py-2 sm:px-4">{t('value')}</th>
-              <th className="px-2 py-2 sm:px-4">{t('localeFr')}</th>
-              <th className="px-2 py-2 sm:px-4">{t('localeEn')}</th>
-              <th className="px-2 py-2 sm:px-4">{t('localeWo')}</th>
-              <th className="px-2 py-2 sm:px-4">{t('usage')}</th>
-              <th className="px-2 py-2 sm:px-4"><span className="sr-only">{t('actions')}</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {item.values.map((value) => (
-              <tr key={value.value} className={cn(!value.is_active && 'opacity-55')}>
-                <td className="px-2 py-2 font-mono text-xs sm:px-4 sm:py-3">{value.value}</td>
-                <td className="px-2 py-2 sm:px-4 sm:py-3">{value.labels.fr}</td>
-                <td className="px-2 py-2 sm:px-4 sm:py-3">{value.labels.en}</td>
-                <td className="px-2 py-2 sm:px-4 sm:py-3">{value.labels.wo}</td>
-                <td className="px-2 py-2 sm:px-4 sm:py-3">
-                  <Badge variant={value.usage_count > 0 ? 'secondary' : 'outline'}>
-                    {value.usage_count}
-                  </Badge>
-                </td>
-                <td className="px-2 py-2 sm:px-4 sm:py-3">
-                  <div className="flex justify-end gap-1">
-                    <Button type="button" variant="ghost" size="icon-sm" aria-label={t('editValueAria', { value: value.value })} onClick={() => onEdit(value)}>
-                      <Edit3 className="size-4" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={t('deactivateValueAria', { value: value.value })}
-                      onClick={() => deactivate.mutate(value.value)}
-                      disabled={deactivate.isPending || !value.is_active}
-                    >
-                      <Power className="size-4" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        // La table de valeurs est la plus dense de la console (six colonnes, dont trois locales) :
+        // c'est le seul écran qui réclame la variante compacte, et c'est pour ça qu'elle existe.
+        density="compact"
+        className="rounded-none ring-0"
+        caption={t('tableCaption', { name: item.name })}
+        columns={columns}
+        rows={item.values}
+        rowKey={(value) => value.value}
+        rowProps={(value) => ({ className: cn(!value.is_active && 'opacity-55') })}
+      />
     </section>
   );
 }
@@ -193,10 +197,12 @@ function EnumValueDialogForm({
       <DialogHeader>
         <DialogTitle>{editing ? t('editValue') : t('addValue')}</DialogTitle>
       </DialogHeader>
-      <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200">
-        <AlertTriangle className="mr-2 inline size-4" aria-hidden="true" />
+      <WarningBanner
+        className="rounded-md px-3 py-2"
+        icon={<AlertTriangle className="size-4" aria-hidden="true" />}
+      >
         {t('warning')}
-      </div>
+      </WarningBanner>
       <div className="space-y-3">
         <label className="block text-sm font-medium">
           <span className="mb-1 block">{t('value')}</span>

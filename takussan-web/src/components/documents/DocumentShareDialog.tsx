@@ -173,7 +173,7 @@ export function DocumentShareDialog({
 
         {error ? <ErrorState message={error} /> : null}
 
-        <div className="space-y-3 rounded-xl border border-stone-200 bg-white p-4">
+        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <Label htmlFor="share-ttl" className="mb-1.5 block text-sm font-medium">
@@ -234,7 +234,7 @@ export function DocumentShareDialog({
 
         {links.length > 0 ? (
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t('session_links')}
             </h4>
             <ul className="space-y-2">
@@ -243,7 +243,7 @@ export function DocumentShareDialog({
                 return (
                   <li
                     key={link.id}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs"
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs"
                   >
                     <Input
                       readOnly
@@ -273,7 +273,7 @@ export function DocumentShareDialog({
                     >
                       <Trash2 className="size-4" aria-hidden="true" />
                     </Button>
-                    <div className="flex basis-full gap-3 text-[11px] text-app-ink-muted">
+                    <div className="flex basis-full gap-3 text-[11px] text-muted-foreground">
                       {link.expires_at ? (
                         <span>
                           {t('expires_at', {

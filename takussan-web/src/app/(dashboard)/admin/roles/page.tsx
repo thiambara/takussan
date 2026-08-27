@@ -6,9 +6,11 @@ import { Building2 } from 'lucide-react';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { AgencyRolesConsole } from '@/components/admin/roles/AgencyRolesConsole';
+import { RoleDelegationsSection } from '@/components/admin/roles/RoleDelegationsSection';
 import { EmptyState } from '@/components/feedback';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 import { buttonVariants } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 
 /**
@@ -39,7 +41,7 @@ export default async function AdminRolesPage() {
   if (!user.agency_id) {
     return (
       <div className="space-y-6">
-        <PageHeader title={t('page.title')} subtitle={t('page.subtitle')} />
+        <PageHeader title={t('page.title')} description={t('page.subtitle')} />
         <EmptyState
           icon={<Building2 className="size-8" aria-hidden="true" />}
           title={t('page.no_agency_title')}
@@ -56,8 +58,23 @@ export default async function AdminRolesPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('page.title')} subtitle={t('page.subtitle')} />
+      <PageHeader title={t('page.title')} description={t('page.subtitle')} />
       <AgencyRolesConsole agencyId={user.agency_id} />
+      {/*
+        TCK-369 — la délégation temporaire vit SOUS la console des rôles, et
+        n'ouvre PAS de route propre. C'est délibéré, et ça a une conséquence
+        sur les gardes : `PRO_ROUTES` et `check-pro-routes.mjs` raisonnent par
+        `href`, et `/admin/roles` y est déjà déclaré, déjà gardé en SSR par
+        `ensureStandardAgencyOrRedirect` ci-dessus. Une section n'a rien à y
+        ajouter — une page `/admin/roles/delegations`, si, et c'est
+        précisément le coût qu'on évite.
+
+        Le foyer n'est pas un choix de rangement : une délégation est une
+        dérogation dans le temps à ce que la console définit. On lit d'abord
+        ce qu'un rôle permet, ensuite qui l'emprunte et jusqu'à quand.
+      */}
+      <Separator />
+      <RoleDelegationsSection agencyId={user.agency_id} />
     </div>
   );
 }

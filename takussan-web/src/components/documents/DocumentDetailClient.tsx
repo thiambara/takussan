@@ -33,7 +33,7 @@ export function DocumentDetailClient({
 
   if (isLoading) {
     return (
-      <div className="py-16 text-center text-sm text-app-ink-muted">
+      <div className="py-16 text-center text-sm text-muted-foreground">
         {t('loading')}
       </div>
     );
@@ -52,20 +52,20 @@ export function DocumentDetailClient({
       {/* Back link */}
       <Link
         href="/app/documents"
-        className="inline-flex items-center gap-1 text-sm text-app-ink-muted transition-colors hover:text-app-ink"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         {t('back')}
       </Link>
 
       {/* Document card */}
-      <div className="overflow-hidden rounded-xl border border-app-surface-3 bg-app-surface shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         {/* Header */}
         <div className="flex items-start gap-4 px-5 py-4">
-          <FileText className="mt-0.5 size-8 shrink-0 text-app-accent" aria-hidden="true" />
+          <FileText className="mt-0.5 size-8 shrink-0 text-primary" aria-hidden="true" />
           <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-semibold text-app-ink">{document.name}</h1>
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-app-ink-muted">
+            <h1 className="text-lg font-semibold text-foreground">{document.name}</h1>
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
               {document.type ? <span className="capitalize">{document.type.replace(/_/g, ' ')}</span> : null}
               {document.expiry_date ? (
                 <span>
@@ -76,15 +76,15 @@ export function DocumentDetailClient({
               ) : null}
             </div>
             {document.description ? (
-              <p className="mt-2 text-sm text-app-ink-muted">{document.description}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{document.description}</p>
             ) : null}
           </div>
           {/* Verification badge */}
           <span
             className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
               document.is_verified
-                ? 'bg-green-500/10 text-green-600'
-                : 'bg-app-surface-3 text-app-ink-muted'
+                ? 'bg-success/10 text-success'
+                : 'bg-border text-muted-foreground'
             }`}
           >
             {document.is_verified ? (
@@ -98,15 +98,15 @@ export function DocumentDetailClient({
 
         {/* Active version info */}
         {document.active_version ? (
-          <div className="border-t border-app-surface-3 bg-app-surface-2 px-5 py-3">
-            <p className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
+          <div className="border-t border-border bg-muted px-5 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t('active_version')}
             </p>
-            <p className="mt-1 text-sm font-medium text-app-ink">
+            <p className="mt-1 text-sm font-medium text-foreground">
               v{document.active_version.version_number} — {document.active_version.file_name}
             </p>
             {document.active_version.comment ? (
-              <p className="mt-0.5 text-xs italic text-app-ink-muted">
+              <p className="mt-0.5 text-xs italic text-muted-foreground">
                 {t('comment_quoted', { comment: document.active_version.comment })}
               </p>
             ) : null}

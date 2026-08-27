@@ -3,13 +3,23 @@
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { EmptyState, ErrorState } from '@/components/feedback';
+import {
+  DataState,
+  DataTable,
+  DebouncedSearchInput,
+  FilterBar,
+  PageHeader,
+  StatusBadge,
+  type DataTableColumn,
+  type StatusTone,
+} from '@/components/console';
+import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
+import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -18,12 +28,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ConfirmActionDialog } from '@/components/admin/super/ConfirmActionDialog';
-import { Pagination } from '@/components/super-admin/Pagination';
+import { Pagination } from '@/components/console';
 import { useImpersonate } from '@/hooks/useImpersonation';
 import { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 
 type SuperAdminUser = Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'status'> & {
   full_name?: string | null;
@@ -41,6 +52,23 @@ type UsersResponse = {
 };
 
 const ALL = '__all__';
+
+/**
+ * TCK-363 — les six filtres de l'écran vivent dans l'URL, pas dans six `useState`.
+ *
+ * Seul `role` y était (TCK-243) ; les cinq autres mouraient à la navigation, et une vue filtrée
+ * ne se partageait pas. La table associe le nom du paramètre d'URL — court, lisible, stable —
+ * au nom du filtre d'API, qui lui appartient au backend (`filter[email_verified]`, …).
+ */
+const PARAMS_DE_FILTRE = ['search', 'role', 'agency', 'status', 'email', 'twoFactor'] as const;
+
+/** Le statut du compte → le ton du DS. `banned` et `blocked` disent la même gravité. */
+const USER_STATUS_TONES: Record<string, StatusTone> = {
+  active: 'success',
+  inactive: 'neutral',
+  blocked: 'danger',
+  banned: 'danger',
+};
 
 /**
  * Patron « la donnée porte la clé » (TCK-286) : ces tables sont hors composant, donc
@@ -76,6 +104,28 @@ const TWOFA_OPTIONS: { value: string; labelKey: string }[] = [
   { value: '1', labelKey: 'twoFactorFilter.on' },
   { value: '0', labelKey: 'twoFactorFilter.off' },
 ];
+
+/**
+ * Un jeton d'URL hors du vocabulaire de son filtre ne pose PAS un filtre inexistant : il retombe
+ * sur « tous ».
+ *
+ * TCK-360 avait posé cette garde sur `?status=` — la console lie ses tuiles d'accueil vers des
+ * URL filtrées, et une tuile mal formée ne doit pas produire un écran vide inexplicable. La
+ * résolution de conflit de TCK-363 a gardé la lecture d'URL et PERDU la garde : `?status=nawak`
+ * envoyait `filter[status]=nawak` au serveur et rendait le jeton BRUT, non traduit, dans le
+ * déclencheur du `<Select>`. `/agencies` avait conservé la sienne (`seedStatus()`) : les deux
+ * écrans de la même console divergeaient.
+ *
+ * Elle est rétablie ici et ÉTENDUE aux quatre filtres à vocabulaire fermé — `role`, `status`,
+ * `email`, `twoFactor` — qui n'en avaient jamais eu. `agency` (un identifiant) et `search` (du
+ * texte libre) n'ont pas de vocabulaire : le serveur les juge.
+ */
+function jetonValide(
+  options: readonly { value: string }[],
+  brut: string | null | undefined,
+): string {
+  return options.some((option) => option.value === brut) ? (brut as string) : ALL;
+}
 
 type UsersParams = {
   search: string;
@@ -143,18 +193,28 @@ function getInitials(name: string): string {
 export default function SuperAdminUsersPage() {
   const t = useTranslations('superAdmin.users');
   const tPage = useTranslations('superAdmin.pages.users');
+  const tFiltres = useTranslations('console.filterBar');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState('');
-  // Role filter is mirrored to the URL (`?role=…`) so the view is shareable
-  // and persists across navigation (AC3, TCK-243).
-  const [role, setRole] = useState<string>(() => searchParams?.get('role') ?? ALL);
-  const [agencyId, setAgencyId] = useState('');
-  const [status, setStatus] = useState(ALL);
-  const [emailVerified, setEmailVerified] = useState(ALL);
-  const [twoFactor, setTwoFactor] = useState(ALL);
-  const [page, setPage] = useState(1);
+  // TCK-363 — les six filtres sont LUS dans l'URL. Aucun `useState` de filtre ne subsiste :
+  // deux sources pour un même filtre, c'est la garantie qu'elles divergeront.
+  //
+  // ⚠ Cela REMPLACE l'amorce `useState(() => searchParams.get(…))` que portaient `role` (TCK-243)
+  // et, un temps, `status` (TCK-360) : lire l'URL à chaque rendu rend l'amorce sans objet, et
+  // ferme au passage le défaut qu'elle avait — un état amorcé une fois ne suit pas les
+  // navigations arrière/avant du navigateur.
+  //
+  // ⚠ Les quatre filtres à vocabulaire fermé passent par `jetonValide` : lire l'URL n'est pas la
+  // croire. Cf. le commentaire de la fonction — c'est la garde de TCK-360, reperdue puis rendue.
+  const search = searchParams?.get('search') ?? '';
+  const role = jetonValide(ROLE_OPTIONS, searchParams?.get('role'));
+  const agencyId = searchParams?.get('agency') ?? '';
+  const status = jetonValide(STATUS_OPTIONS, searchParams?.get('status'));
+  const emailVerified = jetonValide(EMAIL_OPTIONS, searchParams?.get('email'));
+  const twoFactor = jetonValide(TWOFA_OPTIONS, searchParams?.get('twoFactor'));
+  const page = Number.parseInt(searchParams?.get('page') ?? '1', 10) || 1;
   const [target, setTarget] = useState<SuperAdminUser | null>(null);
   const impersonate = useImpersonate();
   const roleOptions = ROLE_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
@@ -171,56 +231,170 @@ export default function SuperAdminUsersPage() {
     page,
   };
 
-  const { data, isLoading, isError, error } = useQuery<UsersResponse, ApiError>({
+  const { data, isLoading, isFetching, isError, error } = useQuery<UsersResponse, ApiError>({
     queryKey: ['super-admin', 'users', params],
     queryFn: () => fetchUsers(params),
     staleTime: 15_000,
   });
 
-  const handleRoleChange = useCallback(
-    (next: string) => {
-      setRole(next);
-      setPage(1);
+  const updateParam = useCallback(
+    (key: string, next: string) => {
       const next_params = new URLSearchParams(searchParams?.toString() ?? '');
       if (next && next !== ALL) {
-        next_params.set('role', next);
+        next_params.set(key, next);
       } else {
-        next_params.delete('role');
+        next_params.delete(key);
       }
-      next_params.delete('page');
+      // Changer un filtre remet la pagination à sa première page — sinon on atterrit page 4
+      // d'un jeu de résultats qui n'en a plus qu'une.
+      if (key !== 'page') next_params.delete('page');
       const qs = next_params.toString();
       router.replace(qs ? `?${qs}` : '?');
     },
     [router, searchParams],
   );
 
+  const filtresPoses = PARAMS_DE_FILTRE.some((cle) => (searchParams?.get(cle) ?? '') !== '');
+
+  // TCK-363 (D8) — le bouton est actif dès que le geste FERAIT quelque chose, et la remise à zéro
+  // reprend aussi la pagination. Sur `?page=7` sans filtre, un bouton désactivé disait à
+  // l'utilisateur qu'il était déjà à l'état par défaut alors qu'il était page 7.
+  const surPageInterieure = (searchParams?.get('page') ?? '1') !== '1';
+
+  // « Réinitialiser » vide l'URL — pas seulement les filtres qu'on connaît : la page, le tri et
+  // tout ce qu'un ticket futur y déposera repartent aussi de leur valeur par défaut.
+  const reinitialiser = useCallback(() => router.replace('?'), [router]);
+
+  const columns: DataTableColumn<SuperAdminUser>[] = [
+    {
+      id: 'user',
+      header: tPage('columns.user'),
+      cell: (u) => {
+        const label = getUserDisplayName(u);
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <Avatar size="sm" className="shrink-0">
+              <AvatarFallback>{getInitials(label)}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-foreground">{label}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {u.email}
+                {u.phone ? ` · ${u.phone}` : ''}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      id: 'roles',
+      header: tPage('columns.roles'),
+      cell: (u) => {
+        const roles = getUserRoleLabels(u);
+        return roles.length ? (
+          <div className="flex flex-wrap gap-1">
+            {roles.map((roleName) => (
+              <Badge key={roleName} variant="outline">{roleName}</Badge>
+            ))}
+          </div>
+        ) : (
+          '—'
+        );
+      },
+    },
+    {
+      id: 'agencies',
+      header: tPage('columns.agencies'),
+      className: 'max-w-48 text-muted-foreground',
+      cell: (u) =>
+        u.agencies?.length ? u.agencies.map((agency) => agency.name).join(', ') : '—',
+    },
+    {
+      id: 'status',
+      header: tPage('columns.status'),
+      cell: (u) =>
+        u.status ? (
+          <StatusBadge tone={USER_STATUS_TONES[u.status] ?? 'neutral'} label={u.status} />
+        ) : (
+          '—'
+        ),
+    },
+    {
+      id: 'security',
+      header: tPage('columns.security'),
+      className: 'text-xs text-muted-foreground',
+      // Les deux valeurs sont PRÉFIXÉES de ce qu'elles qualifient : seules, « vérifié » et
+      // « activée » (en anglais « verified » et « on ») ne disent pas laquelle porte l'email et
+      // laquelle le 2FA. C'est ce que la phrase `summary` — supprimée avec les cartes — portait.
+      cell: (u) => (
+        <>
+          <span className="block">
+            {tPage('securityEmail', {
+              value: u.email_verified_at ? tPage('emailVerified') : tPage('emailUnverified'),
+            })}
+          </span>
+          <span className="block">
+            {tPage('securityTwoFactor', {
+              value: u.two_factor_enabled ? tPage('twoFactorOn') : tPage('twoFactorOff'),
+            })}
+          </span>
+        </>
+      ),
+    },
+    {
+      id: 'lastLogin',
+      header: tPage('columns.lastLogin'),
+      className: 'text-muted-foreground',
+      cell: (u) => fmt.date(u.last_login_at, DATE_COURTE),
+    },
+    {
+      id: 'actions',
+      header: tPage('columns.actions'),
+      headerSrOnly: true,
+      align: 'end',
+      cell: (u) => (
+        <div className="flex flex-wrap justify-end gap-2">
+          <Link
+            className={buttonVariants({ size: 'sm', variant: 'outline' })}
+            href={`/super-admin/users/${u.id}`}
+          >
+            {tPage('open')}
+          </Link>
+          <Button size="sm" variant="outline" onClick={() => setTarget(u)} disabled={impersonate.isPending}>
+            {tPage('impersonate')}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
-      </header>
+      <PageHeader title={tPage('title')} description={tPage('subtitle')} />
 
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
-        <div className="relative md:col-span-2">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder={tPage('searchPlaceholder')}
-            className="h-10 pl-9"
-          />
-        </div>
+      {/*
+        `data ? … : undefined` et non `?? 0` : annoncer « aucun résultat » pendant le chargement,
+        c'est répondre avant d'avoir demandé.
+      */}
+      <FilterBar
+        controlsClassName="md:grid-cols-3 xl:grid-cols-6"
+        resultCount={data ? tFiltres('results', { count: data.meta?.total ?? 0 }) : undefined}
+        onReset={reinitialiser}
+        resetLabel={tFiltres('reset')}
+        resetDisabled={!filtresPoses && !surPageInterieure}
+      >
+        <DebouncedSearchInput
+          className="md:col-span-2"
+          value={search}
+          onCommit={(next) => updateParam('search', next)}
+          placeholder={tPage('searchPlaceholder')}
+          aria-label={tPage('searchAria')}
+          busy={isFetching}
+        />
         <Select
           value={role}
-          onValueChange={(next) => handleRoleChange((next ?? ALL) as string)}
+          onValueChange={(next) => updateParam('role', (next ?? ALL) as string)}
           items={roleOptions}
         >
           <SelectTrigger aria-label={tPage('roleAria')} className="h-10 w-full">
@@ -234,23 +408,14 @@ export default function SuperAdminUsersPage() {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          type="number"
-          inputMode="numeric"
+        <AgencyCombobox
           value={agencyId}
-          onChange={(e) => {
-            setAgencyId(e.target.value);
-            setPage(1);
-          }}
-          placeholder={tPage('agencyIdPlaceholder')}
-          className="h-10"
+          onChange={(next) => updateParam('agency', next)}
+          label={tPage('agencyAria')}
         />
         <Select
           value={status}
-          onValueChange={(next) => {
-            setStatus((next ?? ALL) as string);
-            setPage(1);
-          }}
+          onValueChange={(next) => updateParam('status', (next ?? ALL) as string)}
           items={statusOptions}
         >
           <SelectTrigger aria-label={tPage('statusAria')} className="h-10 w-full">
@@ -266,10 +431,7 @@ export default function SuperAdminUsersPage() {
         </Select>
         <Select
           value={emailVerified}
-          onValueChange={(next) => {
-            setEmailVerified((next ?? ALL) as string);
-            setPage(1);
-          }}
+          onValueChange={(next) => updateParam('email', (next ?? ALL) as string)}
           items={emailOptions}
         >
           <SelectTrigger aria-label={tPage('emailAria')} className="h-10 w-full">
@@ -285,10 +447,7 @@ export default function SuperAdminUsersPage() {
         </Select>
         <Select
           value={twoFactor}
-          onValueChange={(next) => {
-            setTwoFactor((next ?? ALL) as string);
-            setPage(1);
-          }}
+          onValueChange={(next) => updateParam('twoFactor', (next ?? ALL) as string)}
           items={twoFactorOptions}
         >
           <SelectTrigger aria-label={tPage('twoFactorAria')} className="h-10 w-full">
@@ -302,110 +461,36 @@ export default function SuperAdminUsersPage() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FilterBar>
 
-      {isLoading ? (
-        <div className="space-y-2" data-testid="users-loading">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse rounded-xl bg-muted"
-              aria-hidden="true"
-            />
-          ))}
-        </div>
-      ) : isError ? (
-        <ErrorState message={messageErreur(error, t('error'))} />
-      ) : !data || data.data.length === 0 ? (
-        <EmptyState
-          icon={<Users className="size-8" aria-hidden="true" />}
-          title={t('empty_title')}
-          description={t('empty_description')}
+      <DataState
+        data-testid="users-loading"
+        loading={isLoading}
+        error={isError ? messageErreur(error, t('error')) : null}
+        isEmpty={!data || data.data.length === 0}
+        skeletonRowClassName="h-16"
+        emptyState={
+          <EmptyState
+            icon={<Users className="size-8" aria-hidden="true" />}
+            title={t('empty_title')}
+            description={t('empty_description')}
+          />
+        }
+      >
+        <DataTable
+          caption={tPage('tableCaption')}
+          columns={columns}
+          rows={data?.data ?? []}
+          rowKey={(u) => u.id}
+          rowProps={(u) => ({ 'data-testid': `super-admin-user-${u.id}` })}
         />
-      ) : (
-        <div className="grid gap-3">
-          {data.data.map((u) => {
-            const label = getUserDisplayName(u);
-            const roles = getUserRoleLabels(u);
-
-            return (
-              <Card
-                key={u.id}
-                data-testid={`super-admin-user-${u.id}`}
-                className="transition-colors hover:bg-muted/40"
-              >
-                <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4">
-                  <div className="flex min-w-0 flex-1 items-start gap-3">
-                    <Avatar size="lg" className="shrink-0">
-                      <AvatarFallback>{getInitials(label)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 space-y-1">
-                      <p className="truncate text-sm font-semibold text-foreground">{label}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {u.email}
-                        {u.phone ? ` · ${u.phone}` : ''}
-                      </p>
-                      <p className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">{tPage('rolesLabel')}</span>
-                        {roles.length
-                          ? roles.map((roleName) => (
-                              <span
-                                key={roleName}
-                                className="rounded-full bg-muted px-2 py-0.5 text-foreground"
-                              >
-                                {roleName}
-                              </span>
-                            ))
-                          : '—'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {tPage('agenciesLabel')}{' '}
-                        {u.agencies?.length
-                          ? u.agencies.map((agency) => agency.name).join(', ')
-                          : '—'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {tPage('summary', {
-                          status: u.status ?? '—',
-                          email: u.email_verified_at
-                            ? tPage('emailVerified')
-                            : tPage('emailUnverified'),
-                          twoFactor: u.two_factor_enabled
-                            ? tPage('twoFactorOn')
-                            : tPage('twoFactorOff'),
-                          lastLogin: formatDateTime(u.last_login_at),
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      className={buttonVariants({ size: 'sm', variant: 'outline' })}
-                      href={`/super-admin/users/${u.id}`}
-                    >
-                      {tPage('open')}
-                    </Link>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setTarget(u)}
-                      disabled={impersonate.isPending}
-                    >
-                      {tPage('impersonate')}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      </DataState>
 
       {data?.meta?.last_page ? (
         <Pagination
           page={data.meta.current_page ?? page}
           lastPage={data.meta.last_page}
-          onChange={setPage}
+          onChange={(next) => updateParam('page', String(next))}
         />
       ) : null}
 
@@ -434,14 +519,4 @@ export default function SuperAdminUsersPage() {
       ) : null}
     </div>
   );
-}
-
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(value));
 }

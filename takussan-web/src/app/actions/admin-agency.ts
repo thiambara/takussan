@@ -7,8 +7,10 @@ import { ApiError, messageErreurApi } from '@/lib/api';
 import { getActiveProfileId, getToken } from '@/lib/session';
 import {
   fetchAgency,
+  regenerateAgencyWatermarks,
   updateAgency,
   uploadAgencyLogo,
+  type RegenerateWatermarksResult,
 } from '@/lib/queries/agencies';
 import { validateAgencyLogoFile, type AgencyFormPayload } from '@/lib/schemas/agency';
 import { traduireMessageValidation, type Traducteur } from '@/lib/schemas/messages';
@@ -114,6 +116,29 @@ export async function uploadAgencyLogoAction(
   try {
     const data = await uploadAgencyLogo(auth.token, agencyId, file, await getActiveProfileId());
     revalidatePath('/admin/agency');
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, ...(await mapError(e)) };
+  }
+}
+
+/**
+ * TCK-370 — le geste que le produit avait déjà payé et qu'aucun bouton n'appelait.
+ *
+ * Pas de `revalidatePath` : le contrôleur rend 202 et le travail part en file. Rien n'a changé
+ * à l'instant du retour, et invalider le cache ici ferait croire le contraire.
+ */
+export async function regenerateAgencyWatermarksAction(
+  agencyId: number,
+): Promise<ActionResult<RegenerateWatermarksResult>> {
+  const auth = await requireToken();
+  if (!auth.ok) return auth.result;
+  try {
+    const data = await regenerateAgencyWatermarks(
+      auth.token,
+      agencyId,
+      await getActiveProfileId(),
+    );
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };

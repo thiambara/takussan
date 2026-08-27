@@ -1,11 +1,14 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { FileSearch } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
-import { EmptyState } from '@/components/feedback';
-import { InventoryForm } from '@/components/inventory';
-import { buttonVariants } from '@/components/ui/button';
+import { InventoryForm, InventoryLeasePicker } from '@/components/inventory';
+import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.inventoryNew');
+  return { title: t('metaTitle') };
+}
 
 interface PageProps {
   readonly searchParams: Promise<{ lease?: string }>;
@@ -22,33 +25,21 @@ export default async function Page({ searchParams }: PageProps) {
   const { lease } = await searchParams;
   const leaseId = lease ? Number(lease) : NaN;
 
+  // TCK-379 — sans bail, cet écran affichait « Aucun bail sélectionné » et un bouton vers
+  // `/app/leases` : un cul-de-sac. Il montre désormais les baux à inventorier, ce qui rend la
+  // destination du nouveau bouton de `/app/inventories` réelle plutôt que nominale.
   if (!Number.isInteger(leaseId) || leaseId <= 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">{t('pickLeaseTitle')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('pickLeaseSubtitle')}</p>
-        </div>
-        <EmptyState
-          icon={<FileSearch className="size-8" aria-hidden="true" />}
-          title={t('no_lease_title')}
-          description={t('no_lease_description')}
-          action={
-            <Link href="/app/leases" className={buttonVariants()}>
-              {t('no_lease_cta')}
-            </Link>
-          }
-        />
+        <PageHeader title={t('pickLeaseTitle')} description={t('pickLeaseSubtitle')} />
+        <InventoryLeasePicker />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('formTitle')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('formSubtitle')}</p>
-      </div>
+      <PageHeader title={t('formTitle')} description={t('formSubtitle')} />
       <InventoryForm leaseId={leaseId} />
     </div>
   );

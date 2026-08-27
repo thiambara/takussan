@@ -30,11 +30,11 @@ export function PropertyModerationBanner({ property }: PropertyModerationBannerP
 
   if (status === 'pending_review') {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-        <Clock className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden="true" />
+      <div className="flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3">
+        <Clock className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-amber-800">{t('pendingTitle')}</p>
-          <p className="mt-0.5 text-xs text-amber-700">{t('pendingBody')}</p>
+          <p className="text-sm font-semibold text-warning">{t('pendingTitle')}</p>
+          <p className="mt-0.5 text-xs text-warning">{t('pendingBody')}</p>
         </div>
       </div>
     );
@@ -77,11 +77,11 @@ export function PropertyModerationBanner({ property }: PropertyModerationBannerP
 
   if (status === 'available' && property.approved_at) {
     return (
-      <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden="true" />
+      <div className="flex items-start gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3">
+        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-emerald-800">{t('approvedTitle')}</p>
-          <p className="mt-0.5 text-xs text-emerald-700">
+          <p className="text-sm font-semibold text-success">{t('approvedTitle')}</p>
+          <p className="mt-0.5 text-xs text-success">
             {t('approvedOn', {
               date: new Date(property.approved_at).toLocaleDateString('fr-FR', {
                 day: 'numeric',

@@ -174,10 +174,10 @@ export function LeaseRenewalDialog({
               key={n}
               className={`flex items-center gap-2 rounded-full px-3 py-1 ${
                 step === n
-                  ? 'bg-stone-900 text-white'
+                  ? 'bg-foreground text-primary-foreground'
                   : step > n
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-stone-100 text-stone-500'
+                    ? 'bg-success/15 text-success'
+                    : 'bg-muted text-muted-foreground'
               }`}
             >
               <span className="font-semibold">{n}</span>
@@ -192,7 +192,7 @@ export function LeaseRenewalDialog({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-stone-700" htmlFor="renew-start">{t('field_start_date')}</label>
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-start">{t('field_start_date')}</label>
                 <DatePicker
                   id="renew-start"
                   value={form.start_date}
@@ -206,7 +206,7 @@ export function LeaseRenewalDialog({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-stone-700" htmlFor="renew-end">{t('field_end_date')}</label>
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-end">{t('field_end_date')}</label>
                 <DatePicker
                   id="renew-end"
                   value={form.end_date}
@@ -214,7 +214,7 @@ export function LeaseRenewalDialog({
                 />
               </div>
             </div>
-            <p className="text-xs text-stone-500">{t('tenant_immutable')}</p>
+            <p className="text-xs text-muted-foreground">{t('tenant_immutable')}</p>
           </div>
         )}
 
@@ -222,7 +222,7 @@ export function LeaseRenewalDialog({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-stone-700" htmlFor="renew-rent">{t('field_monthly_rent')}</label>
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-rent">{t('field_monthly_rent')}</label>
                 <Input
                   id="renew-rent"
                   type="number"
@@ -232,7 +232,7 @@ export function LeaseRenewalDialog({
                   onChange={(e) => setForm((s) => ({ ...s, monthly_rent: e.target.value }))}
                 />
                 {parentRent > 0 && newRent !== parentRent && (
-                  <p className="mt-1 text-xs text-stone-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {t('rent_evolution', {
                       sign,
                       percent: deltaPercent.toFixed(1),
@@ -243,7 +243,7 @@ export function LeaseRenewalDialog({
                 )}
               </div>
               <div>
-                <label className="text-xs font-medium text-stone-700" htmlFor="renew-deposit">{t('field_deposit_amount')}</label>
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-deposit">{t('field_deposit_amount')}</label>
                 <Input
                   id="renew-deposit"
                   type="number"
@@ -256,7 +256,7 @@ export function LeaseRenewalDialog({
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-medium text-stone-700" htmlFor="renew-late-pct">{t('field_late_fee_percent')}</label>
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-late-pct">{t('field_late_fee_percent')}</label>
                 <Input
                   id="renew-late-pct"
                   type="number"
@@ -268,7 +268,7 @@ export function LeaseRenewalDialog({
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-stone-700" htmlFor="renew-grace">{t('field_late_fee_grace_days')}</label>
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-grace">{t('field_late_fee_grace_days')}</label>
                 <Input
                   id="renew-grace"
                   type="number"
@@ -282,7 +282,7 @@ export function LeaseRenewalDialog({
               </div>
             </div>
             <div>
-              <label className="text-xs font-medium text-stone-700" htmlFor="renew-terms">{t('field_terms')}</label>
+              <label className="text-xs font-medium text-muted-foreground" htmlFor="renew-terms">{t('field_terms')}</label>
               <Textarea
                 id="renew-terms"
                 rows={3}
@@ -387,13 +387,13 @@ function RenewalDiffRow({
   return (
     <div
       className={`flex items-baseline justify-between gap-3 rounded-md px-3 py-2 text-sm ${
-        modified ? 'bg-amber-50' : 'bg-stone-50'
+        modified ? 'bg-warning/10' : 'bg-muted/50'
       }`}
     >
-      <span className="text-xs font-medium uppercase tracking-wide text-stone-500">{label}</span>
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
       <span className="flex flex-1 items-baseline justify-end gap-2">
-        <span className="text-stone-400 line-through">{from}</span>
-        <span className={`font-medium ${modified ? 'text-amber-700' : 'text-stone-700'}`}>{to}</span>
+        <span className="text-muted-foreground line-through">{from}</span>
+        <span className={`font-medium ${modified ? 'text-warning' : 'text-muted-foreground'}`}>{to}</span>
       </span>
     </div>
   );

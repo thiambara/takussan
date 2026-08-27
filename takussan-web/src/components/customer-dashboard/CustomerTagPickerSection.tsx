@@ -22,8 +22,8 @@ export function CustomerTagPickerSection({ customerId, initialTags, suggestions 
   const router = useRouter();
 
   return (
-    <section className="rounded-xl bg-app-surface-1 p-4">
-      <h2 className="mb-3 text-sm font-semibold text-app-ink">{t('sectionTitle')}</h2>
+    <section className="rounded-xl bg-card p-4">
+      <h2 className="mb-3 text-sm font-semibold text-foreground">{t('sectionTitle')}</h2>
       <CustomerTagPicker
         customerId={customerId}
         initialTags={initialTags}

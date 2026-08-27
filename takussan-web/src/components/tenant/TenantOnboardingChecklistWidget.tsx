@@ -115,10 +115,10 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
   if (query.isLoading) {
     return (
       <div
-        className="rounded-xl border border-app-border bg-app-surface-1 p-6"
+        className="rounded-xl border border-border bg-card p-6"
         aria-busy="true"
       >
-        <div className="h-4 w-32 animate-pulse rounded bg-app-border" />
+        <div className="h-4 w-32 animate-pulse rounded bg-border" />
       </div>
     );
   }
@@ -130,7 +130,12 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
   const handleClickItem = (item: TenantOnboardingChecklistItem): string | null => {
     switch (item) {
       case 'inventory_completed':
-        return `/app/inventories/new?lease_id=${lease.id}`;
+        // TCK-379 — le paramètre s'appelle `lease`, PAS `lease_id`. Cette ligne était le SEUL
+        // chemin entrant de `/app/inventories/new` dans tout le front, et elle n'y arrivait
+        // pas : la page lit `searchParams.lease`, donc le locataire tombait sur l'écran
+        // « aucun bail sélectionné » au lieu du formulaire. Mesuré le 2026-08-27 — le ticket,
+        // lui, décrivait ce chemin comme fonctionnel.
+        return `/app/inventories/new?lease=${lease.id}`;
       case 'first_payment':
         return `/app/payments/new?lease_id=${lease.id}`;
       // welcome_seen is owned by the modal hook ; documents_acknowledged is
@@ -144,7 +149,7 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
 
   return (
     <section
-      className="rounded-xl border border-app-border bg-app-surface-1 p-6"
+      className="rounded-xl border border-border bg-card p-6"
       aria-labelledby={`tenant-onboarding-${lease.id}`}
     >
       <header className="mb-4">
@@ -154,7 +159,7 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
         <p className="mt-1 text-sm text-muted-foreground">{t('widget.subtitle')}</p>
       </header>
 
-      <ul className="divide-y divide-app-border">
+      <ul className="divide-y divide-border">
         {rows.map((item) => {
           const done = isItemDone(checklist, item);
           const href = handleClickItem(item);
@@ -201,7 +206,7 @@ function ChecklistRow({
       <span
         className={cn(
           'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border',
-          done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-app-border text-muted-foreground',
+          done ? 'border-success/30 bg-success text-primary-foreground' : 'border-border text-muted-foreground',
         )}
         aria-hidden="true"
       >
@@ -230,7 +235,7 @@ function ChecklistRow({
 
   if (href) {
     return (
-      <Link href={href} className="block hover:bg-app-surface-2/50">
+      <Link href={href} className="block hover:bg-muted/50">
         {content}
       </Link>
     );
@@ -242,7 +247,7 @@ function ChecklistRow({
         type="button"
         onClick={onAcknowledge}
         disabled={isPending}
-        className="block w-full hover:bg-app-surface-2/50 disabled:opacity-60"
+        className="block w-full hover:bg-muted/50 disabled:opacity-60"
       >
         {content}
       </button>

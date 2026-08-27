@@ -7,7 +7,7 @@ use App\Http\Requests\ListSimilarPropertiesRequest;
 use App\Http\Requests\Public\BookingRequestPublicPropertyRequest;
 use App\Http\Requests\Public\ByIdsPublicPropertyRequest;
 use App\Http\Requests\Public\ComparePublicPropertyRequest;
-use App\Http\Requests\Public\ContactLeadPublicPropertyRequest;
+use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Requests\Public\ContactMessagePublicPropertyRequest;
 use App\Http\Requests\Public\HomepageDiscoveryRequest;
 use App\Http\Requests\Public\MapPublicPropertyRequest;
@@ -708,7 +708,7 @@ class PublicPropertyController extends Controller
      * existing notification channel. A filled honeypot returns 201 silently
      * — bots get a normal-looking success without polluting the database.
      */
-    public function contactLead(ContactLeadPublicPropertyRequest $request, NotificationService $notifications, string $slug): JsonResponse
+    public function contactLead(ContactLeadPublicRequest $request, NotificationService $notifications, string $slug): JsonResponse
     {
         $data = $request->validated();
 

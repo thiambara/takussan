@@ -38,25 +38,25 @@ export function PipelineColumn({
         STAGE_COLOR[stage],
         // No active highlight by default — only when another card is dragging
         !isDropTarget && 'border-transparent border-solid',
-        isDropTarget && !isOver && 'border-app-surface-2',
+        isDropTarget && !isOver && 'border-muted',
         isOver && 'border-primary/60 bg-primary/5',
       )}
     >
-      <header className="flex items-center justify-between gap-2 border-b border-app-surface-2/60 px-3 py-2">
-        <span className="flex items-center gap-2 text-sm font-semibold text-app-ink">
+      <header className="flex items-center justify-between gap-2 border-b border-muted/60 px-3 py-2">
+        <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <span
             aria-hidden
             className={cn('size-2 rounded-full', STAGE_DOT[stage])}
           />
           {t(`stage.${stage}`)}
         </span>
-        <span className="rounded-full bg-app-surface-2/60 px-2 py-0.5 text-xs font-medium text-app-ink-muted">
+        <span className="rounded-full bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
           {total}
         </span>
       </header>
       <div className="flex-1 space-y-2 overflow-y-auto p-3">
         {customers.length === 0 ? (
-          <p className="rounded-md border border-dashed border-app-surface-2 px-3 py-6 text-center text-xs text-app-ink-muted">
+          <p className="rounded-md border border-dashed border-muted px-3 py-6 text-center text-xs text-muted-foreground">
             {t('emptyColumn')}
           </p>
         ) : (

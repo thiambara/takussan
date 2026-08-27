@@ -11,10 +11,10 @@ interface KpiTile {
 }
 
 const TONE_CLASSES: Record<NonNullable<KpiTile['tone']>, string> = {
-  neutral: 'bg-app-surface-1 hover:bg-app-surface-2/70',
-  success: 'bg-emerald-50/60 hover:bg-emerald-100/60',
-  accent: 'bg-app-accent/5 hover:bg-app-accent/10',
-  muted: 'bg-app-surface-2/40 hover:bg-app-surface-2/70',
+  neutral: 'bg-card hover:bg-muted/70',
+  success: 'bg-success/10 hover:bg-success/10',
+  accent: 'bg-primary/5 hover:bg-primary/10',
+  muted: 'bg-muted/40 hover:bg-muted/70',
 };
 
 export function PropertyKpiStrip({ tiles }: { readonly tiles: readonly KpiTile[] }) {
@@ -27,13 +27,13 @@ export function PropertyKpiStrip({ tiles }: { readonly tiles: readonly KpiTile[]
           className={cn(
             'group flex flex-col gap-1 rounded-xl px-4 py-4 transition-colors',
             TONE_CLASSES[tile.tone ?? 'neutral'],
-            tile.active && 'ring-1 ring-inset ring-app-accent/30',
+            tile.active && 'ring-1 ring-inset ring-primary/30',
           )}
         >
-          <span className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {tile.label}
           </span>
-          <span className="text-2xl font-bold tabular-nums text-app-ink">
+          <span className="text-2xl font-bold tabular-nums text-foreground">
             {tile.value.toLocaleString('fr-FR')}
           </span>
         </Link>

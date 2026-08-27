@@ -55,6 +55,11 @@ on:
       - 'takussan-api/CLAUDE.md'
       - 'takussan-web/CLAUDE.md'
       - 'takussan-web/README.md'
+      # `check-auth-interrupts` compare `takussan-web/src` ET `takussan-web/next.config.ts` :
+      # l'interdiction de `forbidden()` n'a de sens que TANT QUE `experimental.authInterrupts`
+      # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
+      # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
+      - 'takussan-web/next.config.ts'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
       # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
@@ -134,6 +139,11 @@ on:
       - 'takussan-api/CLAUDE.md'
       - 'takussan-web/CLAUDE.md'
       - 'takussan-web/README.md'
+      # `check-auth-interrupts` compare `takussan-web/src` ET `takussan-web/next.config.ts` :
+      # l'interdiction de `forbidden()` n'a de sens que TANT QUE `experimental.authInterrupts`
+      # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
+      # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
+      - 'takussan-web/next.config.ts'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
       # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
@@ -278,6 +288,160 @@ jobs:
         # Chercher un jeton ne mesure pas une propriété (dette D-23) ; plutôt que de laisser
         # croire le contraire, cette garde écrit ce qu'elle ne couvre pas.
         run: node scripts/check-feedback-states.mjs --report
+
+      - name: Il n'y a qu'un jeu de jetons de couleur — le dialecte app-* ne repousse pas
+        # `globals.css` déclarait HUIT variables `--app-*` qui redisaient au hex près des jetons
+        # déjà documentés (`--app-ink` ≡ `--foreground`, `--app-surface-1` ≡ `--card`…), et le
+        # bloc `.dark` n'en redéfinissait AUCUNE : le shell de `/admin`, bâti dessus, serait
+        # resté en clair au premier commutateur de thème.
+        #
+        # TCK-244 avait déjà fait cette migration et était `done`. Son AC1 rejouée verbatim le
+        # 2026-08-26 rendait 7 là où elle exigeait 0 — elle échouait DANS SON PROPRE PÉRIMÈTRE,
+        # parce qu'elle greppait `src/app/(dashboard)`, les pages, quand le vocabulaire vivait
+        # dans les composants qu'elles montent : 1049 occurrences dans `src/components` pour 15
+        # dans le répertoire audité. *Un grep qui ne suit pas les imports mesure le répertoire,
+        # pas l'écran.* D'où la forme de cette garde : `takussan-web/src` en ENTIER, sans
+        # exception de répertoire, et la liste large des préfixes d'utilitaires — l'AC2 de
+        # TCK-244 cherchait `stroke-` quand le code écrivait `fill-`.
+        #
+        # Elle PROUVE, elle ne cliquette pas : une classe Tailwind est un littéral, sous peine
+        # de ne pas être compilée. Vérifiée par ablation (TCK-372, AC3).
+        run: node scripts/check-app-tokens.mjs --report
+
+      - name: Les trois espaces ne parlent qu'un vocabulaire de couleur
+        # Même défaut que la garde ci-dessus, sur un autre périmètre, et découvert APRÈS elle :
+        # TCK-245 avait éteint la palette Tailwind brute de la console super-admin et était
+        # `done`. Son AC1 greppait `src/app/(super-admin)/**` — les wrappers de page. L'écran
+        # vit dans les composants qu'ils montent. Rejouée le 2026-08-26 : 11 dans le périmètre
+        # audité (l'AC exigeait 0, et elles étaient REVENUES avec deux pages créées après),
+        # 218 dans `src/components/admin/super`, 12 dans les trois `layout/SuperAdmin*`, 1 dans
+        # `src/components/super-admin`. Trois vocabulaires cohabitaient — jetons du DS, palette
+        # brute, dialecte `app-*` — et six fichiers en mélangeaient deux.
+        #
+        # D'où les périmètres nommés dans `PERIMETRES`, et une liste de familles qui est celle
+        # de Tailwind et non celle du relevé : recopier les dix familles que la console
+        # utilisait ce jour-là laisserait passer le premier `bg-teal-100` venu.
+        #
+        # ⚠ Cette étape fait DEUX choses, et une seule des deux est une preuve.
+        #
+        #   PREUVE — le PÉRIMÈTRE GARDÉ doit être à zéro. Une classe Tailwind est un littéral,
+        #   sous peine de ne pas être compilée : une lecture de texte suffit, sans heuristique.
+        #   Vérifiée par ablation (TCK-358, AC3), et re-vérifiée par 20 mutations dont 6 formes
+        #   que la version d'origine passait au vert.
+        #
+        #   CLIQUET — le RESTE NON GARDÉ. La revue adverse de TCK-358 a montré que le périmètre
+        #   est une liste de répertoires quand l'écran est un graphe de rendu : la garde sortait
+        #   en 0 pendant que `/super-admin/payouts` rendait six pastilles de palette brute, deux
+        #   maillons plus loin dans `src/components/billing`. La garde calcule donc aussi la
+        #   clôture des imports depuis `src/app/(super-admin)/**`, en retire le périmètre gardé,
+        #   et REFUSE que le compte du reste monte. Ce reste vit dans des primitives partagées
+        #   avec `/app` et le site public (`ui/`, `forms/`, `files/`) : les porter est TCK-384.
+        #
+        # ⚠ DEUX ESPACES depuis TCK-381, et le nom du fichier n'en dit qu'un. Le tableau de bord
+        # `/app` a rejoint la garde : même mécanique, cliquet propre. Relevé du 2026-08-27 sur sa
+        # clôture d'import réelle — 403 fichiers, 119 porteurs, 1070 occurrences — quand le ticket
+        # annonçait 259 / 45 / 393. *Un relevé de ticket est une hypothèse, pas une mesure*, et
+        # celui-ci se trompait d'un facteur 2,7, dans le sens qui rassure.
+        #
+        # TCK-381 a aussi élargi la garde par MUTATION plutôt que par prudence : six préfixes de
+        # couleur réels — les côtés de bordure, les axes de séparateur, `ring-offset` — sortaient
+        # au vert, et trois manœuvres de désarmement de la configuration elle-même (retirer un
+        # répertoire, retirer son témoin, retirer un espace) le faisaient aussi. Les trois crans
+        # ajoutés — témoins, plancher de fichiers gardés, forme de la configuration — n'empêchent
+        # pas la manœuvre à trois gestes : ils l'obligent à être VISIBLE dans le diff (trou T6).
+        #
+        # ⚠ QUATRE désarmements de plus, mesurés par la revue adverse de TCK-381 le 2026-08-27,
+        # dont DEUX se jouaient à UN SEUL GESTE sur une garde qui déclarait six trous — sans
+        # qu'aucun des deux y figure :
+        #   · retirer une famille de `FAMILLES` : 13 des 22 n'étaient éprouvées par rien, et la
+        #     garde sortait en 0 AVEC un ✓ pendant qu'un `bg-indigo-500` vivait dans un fichier
+        #     gardé. 15 des 27 préfixes étaient dans le même cas ;
+        #   · lever `RESTE_PLAFOND` de la console super-admin : le cliquet n'était pas bilatéral,
+        #     et la garde IMPRIMAIT elle-même « (cliquet 200) » en sortant en 0 ;
+        #   · `globals.css` — le seul fichier où une couleur a le droit d'être décidée — n'était
+        #     lu par personne, pendant que la garde affirmait prouver le contraire ;
+        #   · la couleur en attribut de présentation (`fill="#a85332"`) échappait aux 4 contrôles.
+        #
+        # Les deux premiers sont fermés par une AUTO-ÉPREUVE PAR ABLATION : à chaque exécution, la
+        # garde reconstruit ses cinq contrôles sans chaque entrée de configuration et exige que
+        # quelque chose cesse d'être vu. *Une entrée dont le retrait ne change rien ne garde rien*
+        # — c'est la règle que ce dépôt applique déjà à ses tests, appliquée à une configuration.
+        #
+        # `--report` imprime tout, et c'est délibéré : un vert qui ne dit pas ce qu'il a mesuré
+        # est le vert qui a rendu TCK-245 `done` pendant quatre mois.
+        run: node scripts/check-super-admin-tokens.mjs --report
+
+      - name: Les consoles ne figent aucune locale
+        # TCK-364 a supprimé 18 formatages `'fr-FR'` écrits en dur dans 13 fichiers. Son AC1 était
+        # un grep, il était vert, et il l'est resté exactement le temps de la fusion : trois
+        # tickets de la MÊME vague ont créé des fichiers NEUFS portant chacun le même helper
+        # module-level avec `'fr-FR'` dedans. Git n'a signalé aucun conflit — un fichier qui
+        # n'existe que d'un côté d'une fusion ne peut pas en produire — et l'AC avait été mesuré
+        # sur une base où les fautifs n'existaient pas encore.
+        #
+        #   *Un AC vérifié par un grep manuel n'est pas une garde, c'est une photographie.*
+        #
+        # La garde refuse DEUX formes, pas une : le littéral (`Intl.DateTimeFormat('fr-FR', …)`)
+        # et son inverse silencieux, `toLocaleString()` NU — qui ne fige rien mais suit la locale
+        # du NAVIGATEUR. Le second est le pire des deux : il ne rend pas la même mauvaise réponse
+        # à tout le monde, il en rend une différente par machine, donc irreproductible en test.
+        #
+        # DEUX CLIQUETS, pas un — depuis la revue adverse du 2026-08-27. Le périmètre était une
+        # liste de RÉPERTOIRES, l'écran est un GRAPHE DE RENDU, et les deux ne coïncident jamais
+        # tout seuls : `/super-admin/payouts`, `/super-admin/plans` et l'onglet KYC rendaient
+        # NEUF `'fr-FR'` depuis `components/billing` et `components/kyc`, noyés dans un « reste »
+        # indifférencié. La garde calcule désormais la clôture transitive des imports depuis
+        # `app/(super-admin)/**` et compte séparément ce que la console REND.
+        #
+        # Les deux chiffres sont des cliquets DANS LES DEUX SENS : la garde échoue s'ils montent
+        # (récidive) ET s'ils descendent sans que la ligne soit corrigée. C'est ce qui rend une
+        # HAUSSE de plafond immédiatement rouge — l'une des trois façons de désarmer une garde à
+        # seuil, à côté du répertoire retiré et du fichier exempté, que ses témoins couvrent.
+        run: node scripts/check-locale-figee.mjs --report
+      - name: Les couleurs de série des graphiques atteignent 3:1 sur --card
+        # TCK-374. L'AC ne demandait qu'un contraste « calculé et reporté dans la PR » — donc un
+        # nombre vrai le jour où on l'écrit, que personne ne rejoue. Or la matière première est un
+        # HEX dans `globals.css` : elle bougera. La garde recalcule les deux thèmes à partir des
+        # SOURCES, qui disent quels jetons servent de couleur et sous quelle forme.
+        #
+        # Ce qu'elle a attrapé le jour de sa pose : `--chart-3` (#c89a4a) rend 2,57:1 sur `--card`
+        # en thème CLAIR — moins bien que l'`emerald-500` hors charte qu'il devait remplacer, et
+        # irréprochable en sombre (8,17:1). Un défaut d'un seul thème, dans une charte qu'on
+        # croyait « suffire à régler le contraste ».
+        #
+        # ⚠ RÉÉCRITE le 2026-08-27 par la revue de TCK-374, et le motif mérite d'être ici. La
+        # première version ne lisait QUE `charts/palette.ts`, avec une expression régulière qui
+        # exigeait un chiffre unique suivi d'une apostrophe. Sur douze mutations, elle en attrapait
+        # TROIS — et six sortaient en 0 : un `/50` d'opacité (le trait rend alors 2,11:1), un jeton
+        # à deux chiffres, un hex arbitraire, un thème retiré de sa propre table, un seuil abaissé
+        # de 3 à 1, et l'amputation de son alternative `bg`, dont le compte affiché ne bougeait
+        # même pas. Onze classes de jeton vivaient par ailleurs hors de son périmètre.
+        #
+        # La version actuelle lit `components/charts` ET `components/reporting`, refuse toute
+        # forme qu'elle ne sait pas interpréter au lieu de l'omettre, exige que ce qui n'est pas
+        # une série se DÉCLARE avec sa mesure, et s'auto-éprouve (constantes ancrées, témoins de
+        # périmètre, valeur de contrôle, cliquet à 28 mesures qui échoue dans les deux sens).
+        # Vérifiée par ablation : 14 mutations, 14 rouges.
+        run: node scripts/check-chart-contrast.mjs --report
+      - name: Aucun refus par `forbidden()` tant que authInterrupts est désactivé
+        # TCK-167 avait retiré `forbidden()` de six pages, posé `assertCanReachAgentArea` et
+        # décidé en AC3 que `experimental.authInterrupts` ne serait pas activé. Les trois points
+        # tenaient encore le 2026-08-27 — mais RIEN NE LES REJOUAIT : le quatrième point de son
+        # delta, un e2e des six routes, n'a jamais été fait faute de harnais. Trois pages écrites
+        # après (TCK-042, TCK-083, TCK-266) ont donc réintroduit l'appel, chacune de bonne foi,
+        # et l'une d'elles portait un docblock affirmant « les autres tombent en 403 ».
+        #
+        # Ils n'y tombaient pas. Mesuré PAR EXÉCUTION du module installé : sans le drapeau,
+        # `forbidden()` lève `E488`, la frontière `(dashboard)/error.tsx` l'attrape, et
+        # l'utilisateur non autorisé reçoit « une erreur est survenue » avec un bouton
+        # « réessayer » qui relèvera la même erreur. *Un refus n'est pas une panne.*
+        #
+        # La garde s'auto-éprouve à chaque invocation — 34 formes de source (alias, import
+        # multiligne, `import * as`, réexport, crochets, espace avant la parenthèse…) et 10
+        # décisions synthétiques — parce que le mode d'échec d'une garde n'est pas de rougir à
+        # tort, c'est de CESSER DE MATCHER. Vérifiée par ablation ET par 21 mutations de son
+        # propre code (TCK-378, AC5).
+        run: node scripts/check-auth-interrupts.mjs --report
 
       - name: Les compétences des agents vivent dans un seul répertoire
         # `.agent/` (646 fichiers) et `.agents/` (602) coexistaient, et les quatre points d'entrée

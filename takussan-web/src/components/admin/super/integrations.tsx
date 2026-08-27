@@ -4,7 +4,12 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Activity, KeyRound, PlugZap, Save, TestTube2, Webhook, X } from 'lucide-react';
-import { EmptyState, ErrorState } from '@/components/feedback';
+import {
+  DataState,
+  DataTable,
+  type DataTableColumn,
+} from '@/components/console';
+import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -22,6 +27,7 @@ import type {
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 export const categoryLabels: Record<string, string> = {
   payments: 'Paiements',
@@ -30,6 +36,9 @@ export const categoryLabels: Record<string, string> = {
   storage: 'Stockage',
   other: 'Autres',
 };
+
+/** Le type d'événement que l'API n'a pas renseigné — jeton technique, pas du texte affiché. */
+const WEBHOOK_EVENT_FALLBACK = 'webhook';
 
 const statusTone: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   healthy: 'secondary',
@@ -49,22 +58,22 @@ export function IntegrationCard({
 }) {
   const t = useTranslations('superAdmin.integrations');
   return (
-    <article className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
+    <article className="rounded-xl bg-card p-4 ring-1 ring-border">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold text-stone-950">{integration.label}</h3>
-          <p className="mt-1 text-sm text-stone-500">{integration.provider}</p>
+          <h3 className="font-display text-lg font-semibold text-foreground">{integration.label}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{integration.provider}</p>
         </div>
         <Badge variant={statusTone[integration.status] ?? 'outline'}>{integration.status}</Badge>
       </div>
       <dl className="mt-4 space-y-2 text-sm">
         {Object.entries(integration.masked_credentials).slice(0, 2).map(([key, value]) => (
           <div key={key} className="flex items-center justify-between gap-3">
-            <dt className="flex items-center gap-2 text-stone-500">
+            <dt className="flex items-center gap-2 text-muted-foreground">
               <KeyRound className="size-4" aria-hidden="true" />
               {key}
             </dt>
-            <dd className="font-mono text-xs text-stone-700">{value}</dd>
+            <dd className="font-mono text-xs text-muted-foreground">{value}</dd>
           </div>
         ))}
       </dl>
@@ -101,7 +110,7 @@ export function IntegrationTestButton({ integrationId }: { integrationId: number
         <TestTube2 className="size-4" aria-hidden="true" />
         {t('test')}
       </Button>
-      {message ? <span className="text-xs text-stone-500">{message}</span> : null}
+      {message ? <span className="text-xs text-muted-foreground">{message}</span> : null}
     </div>
   );
 }
@@ -149,7 +158,7 @@ export function IntegrationEditDialog({
           <DialogTitle>{integration ? t('editIntegration', { label: integration.label }) : t('editGeneric')}</DialogTitle>
         </DialogHeader>
         {schema.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-stone-200" />
+          <div className="h-32 animate-pulse rounded-lg bg-muted" />
         ) : (
           <div className="space-y-3">
             {fields.map((field) => (
@@ -164,7 +173,7 @@ export function IntegrationEditDialog({
                 />
               </div>
             ))}
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-muted-foreground">
               {t('maskedHint')}
             </p>
           </div>
@@ -202,56 +211,63 @@ export function WebhookTrailTable({
   onClose: () => void;
 }) {
   const t = useTranslations('superAdmin.integrations.webhooks');
+  const fmt = useFormatteurs();
+
+  const columns: DataTableColumn<IntegrationWebhookLog>[] = [
+    { id: 'event', header: t('colEvent'), cell: (log) => log.event_type ?? WEBHOOK_EVENT_FALLBACK },
+    {
+      id: 'status',
+      header: t('colStatus'),
+      cell: (log) => <Badge variant="outline">{log.status}</Badge>,
+    },
+    {
+      id: 'payload',
+      header: t('colPayload'),
+      className: 'max-w-md truncate font-mono text-xs',
+      cell: (log) => log.payload.truncated,
+    },
+    {
+      id: 'received',
+      header: t('colReceived'),
+      className: 'text-muted-foreground',
+      cell: (log) => (log.created_at ? fmt.dateTime(log.created_at) : ''),
+    },
+  ];
 
   return (
-    <section className="rounded-xl bg-white ring-1 ring-stone-200">
-      <div className="flex items-center justify-between border-b border-stone-200 p-4">
+    <section className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
+      <div className="flex items-center justify-between border-b border-border p-4">
         <div>
-          <h2 className="font-display text-lg font-semibold text-stone-950">{t('title', { label: integration.label })}</h2>
-          <p className="text-sm text-stone-500">{t('retention')}</p>
+          <h2 className="font-display text-lg font-semibold text-foreground">{t('title', { label: integration.label })}</h2>
+          <p className="text-sm text-muted-foreground">{t('retention')}</p>
         </div>
         <Button type="button" variant="ghost" size="icon-sm" aria-label={t('closeAria')} onClick={onClose}>
           <X className="size-4" aria-hidden="true" />
         </Button>
       </div>
-      {loading ? (
-        <div className="m-4 h-24 animate-pulse rounded-lg bg-stone-200" />
-      ) : error ? (
-        <ErrorState className="m-4" message={error} />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-stone-200 text-sm">
-            <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
-              <tr>
-                <th className="px-4 py-2">{t('colEvent')}</th>
-                <th className="px-4 py-2">{t('colStatus')}</th>
-                <th className="px-4 py-2">{t('colPayload')}</th>
-                <th className="px-4 py-2">{t('colReceived')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {logs.map((log) => (
-                <tr key={log.id}>
-                  <td className="px-4 py-3">{log.event_type ?? 'webhook'}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant="outline">{log.status}</Badge>
-                  </td>
-                  <td className="max-w-md truncate px-4 py-3 font-mono text-xs">{log.payload.truncated}</td>
-                  <td className="px-4 py-3 text-stone-500">{log.created_at ? new Date(log.created_at).toLocaleString('fr-SN') : ''}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {logs.length === 0 ? (
+      <DataState
+        className="m-4"
+        loading={loading}
+        error={error}
+        skeletonRows={1}
+        skeletonRowClassName="h-24"
+      >
+        <DataTable
+          className="rounded-none ring-0"
+          caption={t('tableCaption', { label: integration.label })}
+          columns={columns}
+          rows={logs}
+          rowKey={(log) => log.id}
+          emptyState={
             <EmptyState
               className="border-0"
               icon={<Activity className="size-8" aria-hidden="true" />}
               title={t('empty_title')}
               description={t('empty_description')}
             />
-          ) : null}
-        </div>
-      )}
+          }
+        />
+      </DataState>
     </section>
   );
 }

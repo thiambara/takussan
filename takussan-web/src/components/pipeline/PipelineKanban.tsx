@@ -149,7 +149,7 @@ export function PipelineKanban() {
 
       {/* Mobile: tab switcher — one stage at a time */}
       <div className="md:hidden">
-        <div className="flex gap-1 overflow-x-auto rounded-lg bg-app-surface-1 p-1 text-xs">
+        <div className="flex gap-1 overflow-x-auto rounded-lg bg-card p-1 text-xs">
           {PIPELINE_STAGES.map((stage) => (
             <button
               key={stage}
@@ -159,7 +159,7 @@ export function PipelineKanban() {
                 'whitespace-nowrap rounded-md px-3 py-1.5 font-medium transition',
                 mobileStage === stage
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-app-ink-muted hover:text-app-ink',
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {t(`stage.${stage}`)}

@@ -136,18 +136,18 @@ export function PaymentProviderPicker({
                 title={enabled ? undefined : t('picker.unavailable')}
                 className={[
                   'flex items-center justify-between rounded-xl border p-4 text-left transition',
-                  enabled ? 'cursor-pointer hover:border-stone-400' : 'cursor-not-allowed opacity-50',
-                  isSelected ? 'border-stone-900 ring-2 ring-stone-900/10' : 'border-stone-200',
+                  enabled ? 'cursor-pointer hover:border-border' : 'cursor-not-allowed opacity-50',
+                  isSelected ? 'border-border ring-2 ring-border/10' : 'border-border',
                 ].join(' ')}
               >
                 <div>
-                  <p className="font-medium text-stone-900">
+                  <p className="font-medium text-foreground">
                     {t(`picker.providers.${provider.labelKey}`)}
                   </p>
-                  <p className="text-xs text-stone-500">{provider.hint}</p>
+                  <p className="text-xs text-muted-foreground">{provider.hint}</p>
                 </div>
                 {!enabled && (
-                  <span className="text-xs text-stone-400">
+                  <span className="text-xs text-muted-foreground">
                     {t('picker.contactAdmin')}
                   </span>
                 )}
@@ -156,7 +156,7 @@ export function PaymentProviderPicker({
           })}
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={initiate.isPending}>

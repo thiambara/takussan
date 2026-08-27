@@ -2,14 +2,16 @@ import type { Metadata } from 'next';
 
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.propertyNew');
-  return { title: t('metaTitle') };
-}
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PropertyForm } from '@/components/property-form';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.propertyNew');
+  return { title: t('metaTitle') };
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -23,10 +25,7 @@ export default async function Page() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+      <PageHeader title={t('title')} description={t('subtitle')} />
       <PropertyForm mode="create" tags={tags} />
     </div>
   );

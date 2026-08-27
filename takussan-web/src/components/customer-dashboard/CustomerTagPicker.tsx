@@ -18,14 +18,14 @@ import type { Tag } from '@/types/tag';
  * it client-side so the same name always renders the same hue.
  */
 const PALETTE = [
-  { bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-200' },
-  { bg: 'bg-sky-100', text: 'text-sky-700', border: 'border-sky-200' },
-  { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200' },
-  { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-200' },
-  { bg: 'bg-rose-100', text: 'text-rose-700', border: 'border-rose-200' },
-  { bg: 'bg-indigo-100', text: 'text-indigo-700', border: 'border-indigo-200' },
-  { bg: 'bg-teal-100', text: 'text-teal-700', border: 'border-teal-200' },
-  { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-200' },
+  { bg: 'bg-info/15', text: 'text-info', border: 'border-info/30' },
+  { bg: 'bg-info/15', text: 'text-info', border: 'border-info/30' },
+  { bg: 'bg-success/15', text: 'text-success', border: 'border-success/30' },
+  { bg: 'bg-warning/15', text: 'text-warning', border: 'border-warning/30' },
+  { bg: 'bg-destructive/15', text: 'text-destructive', border: 'border-destructive/30' },
+  { bg: 'bg-info/15', text: 'text-info', border: 'border-info/30' },
+  { bg: 'bg-success/15', text: 'text-success', border: 'border-success/30' },
+  { bg: 'bg-warning/15', text: 'text-warning', border: 'border-warning/30' },
 ];
 
 function tagColor(name: string) {
@@ -144,7 +144,7 @@ export function CustomerTagPicker({
               <button
                 type="button"
                 aria-label={t('removeAria', { tag: tag.name })}
-                className="ml-0.5 rounded-full p-0.5 hover:bg-black/10"
+                className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
                 onClick={(e) => {
                   e.stopPropagation();
                   detach(tag.id);
@@ -170,18 +170,18 @@ export function CustomerTagPicker({
           }}
           onKeyDown={onKeyDown}
           onFocus={() => setShowSuggestions(true)}
-          className="w-full rounded-lg border border-app-surface-3 bg-white px-3 py-1.5 text-sm placeholder:text-app-ink-muted focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg border border-border bg-card px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
         />
 
         {showSuggestions && filteredSuggestions.length > 0 && (
-          <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-app-surface-3 bg-white py-1 shadow-md">
+          <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-lg border border-border bg-card py-1 shadow-md">
             {filteredSuggestions.map((s) => {
               const c = tagColor(s.name);
               return (
                 <li key={s.id}>
                   <button
                     type="button"
-                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-app-surface-1"
+                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-card"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       attach(s.name);
@@ -206,7 +206,7 @@ export function CustomerTagPicker({
         )}
       </div>
 
-      {error ? <p className="text-xs text-red-600">{error}</p> : null}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

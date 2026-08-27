@@ -134,16 +134,16 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
               e.preventDefault();
               handleFiles(e.dataTransfer.files);
             }}
-            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-app-surface-3 px-4 py-6 text-center text-sm text-app-ink-muted transition-colors hover:border-app-accent/60"
+            className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60"
           >
             {file ? (
               <>
-                <FileText className="size-6 text-app-accent" aria-hidden="true" />
+                <FileText className="size-6 text-primary" aria-hidden="true" />
                 <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-app-ink">{file.name}</span>
+                  <span className="truncate text-sm font-medium text-foreground">{file.name}</span>
                   <button
                     type="button"
-                    className="text-xs text-app-ink-muted hover:text-destructive"
+                    className="text-xs text-muted-foreground hover:text-destructive"
                     onClick={(e) => {
                       e.preventDefault();
                       setFile(null);
@@ -158,8 +158,8 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
               </>
             ) : (
               <>
-                <UploadCloud className="size-6 text-app-accent" aria-hidden="true" />
-                <span className="text-sm font-medium text-app-ink">
+                <UploadCloud className="size-6 text-primary" aria-hidden="true" />
+                <span className="text-sm font-medium text-foreground">
                   {t('dropzone_title')}
                 </span>
                 <span className="text-xs">{t('dropzone_hint')}</span>
@@ -184,10 +184,10 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
           <div className="space-y-1">
             <label
               htmlFor="version-comment"
-              className="block text-sm font-medium text-app-ink"
+              className="block text-sm font-medium text-foreground"
             >
               {t('comment_label')}{' '}
-              <span className="text-app-ink-muted">{t('comment_optional')}</span>
+              <span className="text-muted-foreground">{t('comment_optional')}</span>
             </label>
             <textarea
               id="version-comment"
@@ -196,7 +196,7 @@ function UploadVersionModal({ open, documentId, onOpenChange }: UploadVersionMod
               maxLength={500}
               rows={2}
               placeholder={t('comment_placeholder')}
-              className="w-full resize-none rounded-md border border-app-surface-3 bg-app-surface-2 px-3 py-2 text-sm text-app-ink placeholder-app-ink-muted focus:outline-none focus:ring-2 focus:ring-app-accent/40"
+              className="w-full resize-none rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
 
@@ -248,7 +248,7 @@ function RestoreConfirmDialog({ open, version, documentId, onOpenChange }: Resto
             {t.rich('restore_body', {
               name: version?.file_name ?? '',
               nom: (chunks) => (
-                <span className="font-medium text-app-ink">{chunks}</span>
+                <span className="font-medium text-foreground">{chunks}</span>
               ),
             })}
           </DialogDescription>
@@ -289,23 +289,23 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
   const t = useTranslations('documents.versions');
 
   return (
-    <li className="flex items-start gap-3 rounded-lg border border-app-surface-3 bg-app-surface-2 px-4 py-3">
+    <li className="flex items-start gap-3 rounded-lg border border-border bg-muted px-4 py-3">
       {/* Version badge */}
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-app-accent/10 text-xs font-bold text-app-accent">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
         v{version.version_number}
       </span>
 
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium text-app-ink">{version.file_name}</span>
+          <span className="truncate text-sm font-medium text-foreground">{version.file_name}</span>
           {version.is_active ? (
-            <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
+            <span className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
               <CheckCircle2 className="size-3" aria-hidden="true" />
               {t('active')}
             </span>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-app-ink-muted">
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Clock className="size-3" aria-hidden="true" />
             {formatDate(version.created_at)}
@@ -326,7 +326,7 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
             href={version.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex size-8 items-center justify-center rounded-md text-app-ink-muted transition-colors hover:bg-app-surface-3 hover:text-app-ink"
+            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
             aria-label={t('download_aria')}
           >
             <Download className="size-4" aria-hidden="true" />
@@ -336,7 +336,7 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
           <button
             type="button"
             onClick={() => onRestoreClick(version)}
-            className="inline-flex size-8 items-center justify-center rounded-md text-app-ink-muted transition-colors hover:bg-app-surface-3 hover:text-app-ink"
+            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
             aria-label={t('restore_aria', { version: version.version_number })}
           >
             <RotateCcw className="size-4" aria-hidden="true" />
@@ -388,18 +388,18 @@ export function DocumentVersionsList({
   return (
     <>
       {/* Accordion trigger */}
-      <div className="border-t border-app-surface-3">
+      <div className="border-t border-border">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-app-ink transition-colors hover:bg-app-surface-2"
+          className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
           aria-expanded={expanded}
         >
-          <History className="size-4 text-app-accent" aria-hidden="true" />
+          <History className="size-4 text-primary" aria-hidden="true" />
           <span className="flex-1 text-left">
             {t('heading')}
             {count > 0 ? (
-              <span className="ml-1.5 rounded-full bg-app-accent/10 px-1.5 py-0.5 text-xs font-semibold text-app-accent">
+              <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
                 {count}
               </span>
             ) : null}
@@ -411,7 +411,7 @@ export function DocumentVersionsList({
                 e.stopPropagation();
                 setUploadOpen(true);
               }}
-              className="flex items-center gap-1 rounded-md bg-app-accent px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+              className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
               aria-label={t('add_title')}
             >
               <UploadCloud className="size-3" aria-hidden="true" />
@@ -419,9 +419,9 @@ export function DocumentVersionsList({
             </button>
           ) : null}
           {expanded ? (
-            <ChevronUp className="size-4 text-app-ink-muted" aria-hidden="true" />
+            <ChevronUp className="size-4 text-muted-foreground" aria-hidden="true" />
           ) : (
-            <ChevronDown className="size-4 text-app-ink-muted" aria-hidden="true" />
+            <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
           )}
         </button>
       </div>
@@ -430,7 +430,7 @@ export function DocumentVersionsList({
       {expanded ? (
         <div className="px-4 pb-4">
           {isLoading ? (
-            <p className="py-4 text-center text-sm text-app-ink-muted">
+            <p className="py-4 text-center text-sm text-muted-foreground">
               {tCommon('status.loading')}
             </p>
           ) : isError ? (

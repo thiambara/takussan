@@ -177,7 +177,7 @@ export function SearchPreferencesForm({
     <form className="space-y-4" onSubmit={handleSubmit} data-testid="search-prefs-form">
       <div className="grid gap-3 md:grid-cols-2">
         <div className="space-y-2 md:col-span-2">
-          <span className="text-xs font-semibold text-app-ink-muted">
+          <span className="text-xs font-semibold text-muted-foreground">
             {t('typeLabel')}
           </span>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -189,8 +189,8 @@ export function SearchPreferencesForm({
                   className={
                     'flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm ' +
                     (checked
-                      ? 'border-app-accent bg-app-accent/10 text-app-ink'
-                      : 'border-app-surface-3 bg-white text-app-ink-muted')
+                      ? 'border-primary bg-primary/10 text-foreground'
+                      : 'border-border bg-card text-muted-foreground')
                   }
                 >
                   <input
@@ -210,7 +210,7 @@ export function SearchPreferencesForm({
         <div className="space-y-1">
           <label
             htmlFor="pref-budget"
-            className="text-xs font-semibold text-app-ink-muted"
+            className="text-xs font-semibold text-muted-foreground"
           >
             {t('budgetLabel')}
           </label>
@@ -231,7 +231,7 @@ export function SearchPreferencesForm({
         <div className="space-y-1">
           <label
             htmlFor="pref-cities"
-            className="text-xs font-semibold text-app-ink-muted"
+            className="text-xs font-semibold text-muted-foreground"
           >
             {t('citiesLabel')}
           </label>
@@ -244,22 +244,22 @@ export function SearchPreferencesForm({
             placeholder={t('citiesPlaceholder')}
             data-testid="pref-cities"
           />
-          <p className="text-xs text-app-ink-muted">{t('citiesHint')}</p>
+          <p className="text-xs text-muted-foreground">{t('citiesHint')}</p>
         </div>
       </div>
 
       <div
-        className="flex flex-col gap-2 rounded-md bg-white/60 px-3 py-3 md:flex-row md:items-center md:justify-between md:gap-4"
+        className="flex flex-col gap-2 rounded-md bg-card/60 px-3 py-3 md:flex-row md:items-center md:justify-between md:gap-4"
         data-testid="pref-alerts-block"
       >
         <div>
-          <p className="text-sm font-semibold text-app-ink">{t('alertsTitle')}</p>
+          <p className="text-sm font-semibold text-foreground">{t('alertsTitle')}</p>
           {emailVerified ? (
-            <p className="text-xs text-app-ink-muted">
+            <p className="text-xs text-muted-foreground">
               {t('alertsDescription')}
             </p>
           ) : (
-            <p className="text-xs text-app-accent" data-testid="pref-alerts-unverified">
+            <p className="text-xs text-primary" data-testid="pref-alerts-unverified">
               {t('alertsUnverified')}{' '}
               <Link
                 href="/auth/verify-email"
@@ -282,7 +282,7 @@ export function SearchPreferencesForm({
               aria-label={t('alertsToggleAria')}
               data-testid="pref-alerts-toggle"
             />
-            <span className="text-app-ink">
+            <span className="text-foreground">
               {values.alertsEnabled && emailVerified ? t('enabled') : t('disabled')}
             </span>
           </label>
@@ -317,7 +317,7 @@ export function SearchPreferencesForm({
         <p
           role={feedback.ok ? 'status' : 'alert'}
           className={
-            'text-sm ' + (feedback.ok ? 'text-emerald-700' : 'text-red-600')
+            'text-sm ' + (feedback.ok ? 'text-success' : 'text-destructive')
           }
           data-testid="pref-feedback"
         >
@@ -328,7 +328,7 @@ export function SearchPreferencesForm({
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/app/saved-searches"
-          className="text-xs font-semibold text-app-ink-muted underline-offset-2 hover:underline"
+          className="text-xs font-semibold text-muted-foreground underline-offset-2 hover:underline"
         >
           {t('manageSavedSearches')}
         </Link>

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState, useCallback } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardList, Plus } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
@@ -30,7 +30,20 @@ import {
 
 import { InventoryStatusBadge, InventoryTypeBadge } from './InventoryBadges';
 
-export function InventoryList() {
+/**
+ * TCK-379 — `canCreate` porte le geste de création, et il est passé par la PAGE (server
+ * component, qui seule connaît les rôles) plutôt que lu ici : ce composant est monté côté
+ * client, où `roles` n'est pas une source d'autorisation.
+ *
+ * ⚠ Le bouton vit dans la barre d'outils, PAS dans l'état vide. C'est tout l'objet du défaut
+ * corrigé : la liste peuplée n'offrait aucun geste, et l'état vide renvoyait vers `/app/leases`
+ * — c'est-à-dire envoyait l'agent chercher lui-même dans une autre section.
+ */
+interface InventoryListProps {
+  readonly canCreate?: boolean;
+}
+
+export function InventoryList({ canCreate = false }: InventoryListProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('inventory.list');
   const tRoot = useTranslations('inventory');
@@ -94,6 +107,15 @@ export function InventoryList() {
             </SelectContent>
           </Select>
         </div>
+        {canCreate ? (
+          <Link
+            href="/app/inventories/new"
+            className={buttonVariants({ className: 'ml-auto h-9' })}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            {t('create')}
+          </Link>
+        ) : null}
       </div>
 
       <QueryBoundary query={query}>
@@ -105,9 +127,15 @@ export function InventoryList() {
                 title={t('empty_title')}
                 description={t('empty_description')}
                 action={
-                  <Link href="/app/leases" className={buttonVariants()}>
-                    {t('empty_cta')}
-                  </Link>
+                  canCreate ? (
+                    <Link href="/app/inventories/new" className={buttonVariants()}>
+                      {t('create')}
+                    </Link>
+                  ) : (
+                    <Link href="/app/leases" className={buttonVariants()}>
+                      {t('empty_cta')}
+                    </Link>
+                  )
                 }
               />
             );
@@ -115,17 +143,17 @@ export function InventoryList() {
           return (
             <ul className="space-y-2">
               {data.data.map((inv) => (
-                <li key={inv.id} className="rounded-xl bg-app-surface-1 shadow-sm transition-colors hover:bg-app-surface-2">
+                <li key={inv.id} className="rounded-xl bg-card shadow-sm transition-colors hover:bg-muted">
                   <Link
                     href={`/app/inventories/${inv.id}`}
                     className="flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-app-ink">
+                      <p className="truncate text-sm font-semibold text-foreground">
                         {inv.property?.title ?? tRoot('fallbackReference', { id: String(inv.id) })}
                         {inv.lease?.reference_number ? ` · ${inv.lease.reference_number}` : ''}
                       </p>
-                      <p className="mt-1 text-xs text-app-ink-muted">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {inv.conducted_at
                           ? t('conductedOn', { date: formatDate(inv.conducted_at, locale) })
                           : t('createdOn', { date: formatDate(inv.created_at, locale) })}
@@ -144,12 +172,12 @@ export function InventoryList() {
                     type="button"
                     disabled={data.meta.current_page <= 1}
                     onClick={prevPage}
-                    className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-app-ink hover:bg-app-surface-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <ChevronLeft className="size-3.5" />
                     {t('previous')}
                   </button>
-                  <span className="text-xs text-app-ink-muted">
+                  <span className="text-xs text-muted-foreground">
                     {t('pagination', {
                       current: String(data.meta.current_page),
                       last: String(data.meta.last_page),
@@ -160,7 +188,7 @@ export function InventoryList() {
                     type="button"
                     disabled={data.meta.current_page >= data.meta.last_page}
                     onClick={nextPage}
-                    className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-app-ink hover:bg-app-surface-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     {t('next')}
                     <ChevronRight className="size-3.5" />

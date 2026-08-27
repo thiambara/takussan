@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Send, Settings2, Trash2 } from 'lucide-react';
+import { DataTable, type DataTableColumn } from '@/components/console';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -38,49 +39,56 @@ export function AlertRuleTable({ rules, catalogue }: { rules: AlertRule[]; catal
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['super-admin', 'alert-rules'] }),
   });
 
+  const columns: DataTableColumn<AlertRule>[] = [
+    {
+      id: 'event',
+      header: t('colEvent'),
+      cell: (rule) => (
+        <>
+          <p className="font-medium text-foreground">{rule.label}</p>
+          <p className="text-xs text-muted-foreground">{rule.event}</p>
+        </>
+      ),
+    },
+    {
+      id: 'channels',
+      header: t('colChannels'),
+      cell: (rule) => (
+        <div className="flex flex-wrap gap-1">
+          {rule.channels.map((channel) => <Badge key={channel} variant="outline">{channel}</Badge>)}
+        </div>
+      ),
+    },
+    { id: 'failures', header: t('colFailures'), cell: (rule) => rule.failure_count },
+    {
+      id: 'actions',
+      header: t('colActions'),
+      headerSrOnly: true,
+      align: 'end',
+      cell: (rule) => (
+        <div className="flex justify-end gap-2">
+          <AlertTestButton ruleId={rule.id} />
+          <Button type="button" variant="outline" onClick={() => setEditing(rule)}>
+            <Settings2 className="size-4" aria-hidden="true" />
+            {t('edit')}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => remove.mutate(rule.id)}>
+            <Trash2 className="size-4" aria-hidden="true" />
+            {tCommon('actions.delete')}
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <section className="rounded-xl bg-white ring-1 ring-stone-200">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-stone-200 text-sm">
-          <thead className="bg-stone-50 text-left text-xs font-semibold uppercase text-stone-500">
-            <tr>
-              <th className="px-4 py-2">{t('colEvent')}</th>
-              <th className="px-4 py-2">{t('colChannels')}</th>
-              <th className="px-4 py-2">{t('colFailures')}</th>
-              <th className="px-4 py-2"><span className="sr-only">{t('colActions')}</span></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-stone-100">
-            {rules.map((rule) => (
-              <tr key={rule.id}>
-                <td className="px-4 py-3">
-                  <p className="font-medium text-stone-950">{rule.label}</p>
-                  <p className="text-xs text-stone-500">{rule.event}</p>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-1">
-                    {rule.channels.map((channel) => <Badge key={channel} variant="outline">{channel}</Badge>)}
-                  </div>
-                </td>
-                <td className="px-4 py-3">{rule.failure_count}</td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-2">
-                    <AlertTestButton ruleId={rule.id} />
-                    <Button type="button" variant="outline" onClick={() => setEditing(rule)}>
-                      <Settings2 className="size-4" aria-hidden="true" />
-                      {t('edit')}
-                    </Button>
-                    <Button type="button" variant="ghost" onClick={() => remove.mutate(rule.id)}>
-                      <Trash2 className="size-4" aria-hidden="true" />
-                      {tCommon('actions.delete')}
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <section>
+      <DataTable
+        caption={t('tableCaption')}
+        columns={columns}
+        rows={rules}
+        rowKey={(rule) => rule.id}
+      />
       <AlertRuleDialog key={editing?.id ?? 'none'} rule={editing} catalogue={catalogue} open={editing !== null} onOpenChange={(open) => !open && setEditing(null)} />
     </section>
   );

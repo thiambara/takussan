@@ -7,6 +7,8 @@ import { Download, Loader2, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { WarningBanner } from '@/components/ui/warning-banner';
+import { ErrorState } from '@/components/feedback';
 import {
   superAdminTwoFactorConfirmAction,
   superAdminTwoFactorEnrollAction,
@@ -115,21 +117,17 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-12">
       <header className="space-y-2 text-center">
         <ShieldCheck className="mx-auto size-10 text-primary" aria-hidden="true" />
-        <h1 className="text-2xl font-semibold text-app-ink">
+        <h1 className="text-2xl font-semibold text-foreground">
           {firstName ? tWizard('titleWithName', { name: firstName }) : tWizard('title')}
         </h1>
-        <p className="text-sm text-app-ink-muted">{tWizard('subtitle')}</p>
+        <p className="text-sm text-muted-foreground">{tWizard('subtitle')}</p>
       </header>
 
-      <section className="space-y-4 rounded-2xl border border-app-surface-3 bg-white p-6 shadow-sm">
+      <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
         {stage === 'intro' ? (
           <div className="space-y-4">
-            <p className="text-sm text-app-ink-muted">{t('intro.description')}</p>
-            {error ? (
-              <p role="alert" className="text-sm text-red-600">
-                {error}
-              </p>
-            ) : null}
+            <p className="text-sm text-muted-foreground">{t('intro.description')}</p>
+            {error ? <ErrorState message={error} /> : null}
             <Button onClick={handleStart} disabled={pending}>
               {pending ? (
                 <>
@@ -146,8 +144,8 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
         {stage === 'scanning' && setup ? (
           <form onSubmit={handleConfirm} className="space-y-4">
             <div>
-              <h2 className="text-base font-semibold text-app-ink">{t('scan.title')}</h2>
-              <p className="mt-1 text-sm text-app-ink-muted">{t('scan.description')}</p>
+              <h2 className="text-base font-semibold text-foreground">{t('scan.title')}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t('scan.description')}</p>
             </div>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
               {setup.qrSvg ? (
@@ -157,20 +155,17 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
                   alt={t('scan.qrAlt')}
                   width={180}
                   height={180}
-                  className="rounded-md border border-app-surface-3 bg-white"
+                  className="qr-surface rounded-md border border-border"
                 />
               ) : null}
               <div className="space-y-2 text-sm">
-                <p className="text-app-ink-muted">{t('scan.manualHint')}</p>
-                <code className="block break-all rounded-md bg-app-surface-1 px-2 py-1 font-mono text-xs">
+                <p className="text-muted-foreground">{t('scan.manualHint')}</p>
+                <code className="block break-all rounded-md bg-card px-2 py-1 font-mono text-xs">
                   {setup.secret}
                 </code>
               </div>
             </div>
-            <div
-              role="status"
-              className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
-            >
+            <WarningBanner role="status" className="rounded-md p-4">
               <p className="font-semibold">{t('recovery.title')}</p>
               <p className="mt-1 text-xs">{t('recovery.warning')}</p>
               <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-sm">
@@ -184,8 +179,8 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
                   <span>{t('recovery.download')}</span>
                 </Button>
               </div>
-            </div>
-            <label className="flex items-start gap-2 text-sm text-app-ink">
+            </WarningBanner>
+            <label className="flex items-start gap-2 text-sm text-foreground">
               <input
                 type="checkbox"
                 checked={acknowledged}
@@ -195,7 +190,7 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
               <span>{t('recovery.ack')}</span>
             </label>
             <div className="space-y-1">
-              <label htmlFor="super-admin-totp-code" className="text-xs font-semibold text-app-ink-muted">
+              <label htmlFor="super-admin-totp-code" className="text-xs font-semibold text-muted-foreground">
                 {t('scan.codeLabel')}
               </label>
               <Input
@@ -210,11 +205,7 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
                 required
               />
             </div>
-            {error ? (
-              <p role="alert" className="text-sm text-red-600">
-                {error}
-              </p>
-            ) : null}
+            {error ? <ErrorState message={error} /> : null}
             <Button type="submit" disabled={pending || code.length !== 6 || !acknowledged}>
               {pending ? t('scan.verifying') : t('scan.cta')}
             </Button>
@@ -223,9 +214,9 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
 
         {stage === 'success' ? (
           <div className="space-y-4 text-center">
-            <ShieldCheck className="mx-auto size-12 text-emerald-600" aria-hidden="true" />
-            <h2 className="text-base font-semibold text-app-ink">{t('success.title')}</h2>
-            <p className="text-sm text-app-ink-muted">{tWizard('successBody')}</p>
+            <ShieldCheck className="mx-auto size-12 text-accent" aria-hidden="true" />
+            <h2 className="text-base font-semibold text-foreground">{t('success.title')}</h2>
+            <p className="text-sm text-muted-foreground">{tWizard('successBody')}</p>
             <Button onClick={handleFinish}>{t('success.cta')}</Button>
           </div>
         ) : null}

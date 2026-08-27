@@ -78,7 +78,7 @@ export function LeasesList() {
     return (
       <div className="space-y-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-app-surface-1" />
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
         ))}
       </div>
     );
@@ -102,7 +102,7 @@ export function LeasesList() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2">
         <Select value={status} onValueChange={(value) => setStatus(value ?? 'all')}>
           <SelectTrigger aria-label={t('filterByStatus')}>
             <SelectValue>{statusFilterLabel(status, tStatus, t('allStatuses'))}</SelectValue>
@@ -174,29 +174,29 @@ function LeaseRow({ lease, locale }: { lease: Lease; locale: Locale }) {
     <li>
       <Link
         href={`/app/leases/${lease.id}`}
-        className="block rounded-xl border border-stone-200 bg-white p-4 transition-shadow hover:shadow-sm"
+        className="block rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
       >
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="truncate text-sm font-semibold text-stone-900">
+              <h3 className="truncate text-sm font-semibold text-foreground">
                 {lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
               </h3>
               <Badge variant={STATUS_VARIANT[lease.status]}>
                 {tStatus(lease.status)}
               </Badge>
             </div>
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {formatDate(lease.start_date, locale)}
               {lease.end_date && <> → {formatDate(lease.end_date, locale)}</>}
             </p>
           </div>
           {typeof rentOrPrice === 'number' && (
             <div className="text-right">
-              <p className="text-sm font-semibold text-stone-900">
+              <p className="text-sm font-semibold text-foreground">
                 {formatCurrency(rentOrPrice, locale)}
               </p>
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-muted-foreground">
                 {lease.type === 'sale' ? tLease('salePrice') : tLease('perMonth')}
               </p>
             </div>

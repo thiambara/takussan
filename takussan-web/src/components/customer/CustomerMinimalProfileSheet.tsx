@@ -114,7 +114,7 @@ export function CustomerMinimalProfileSheet({
           'flex flex-col gap-0 p-0',
         )}
       >
-        <SheetHeader className="border-b border-stone-200 px-5 py-4">
+        <SheetHeader className="border-b border-border px-5 py-4">
           <SheetTitle data-testid="customer-minimal-profile-title">
             {t('title')}
           </SheetTitle>
@@ -182,7 +182,7 @@ export function CustomerMinimalProfileSheet({
           ) : null}
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-stone-200 px-5 py-4">
+        <div className="flex items-center justify-between gap-2 border-t border-border px-5 py-4">
           <DialogPrimitive.Close
             render={
               <Button

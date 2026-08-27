@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**338 tickets** — 14 ouverts, 323 livrés.
+**389 tickets** — 38 ouverts, 350 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 13 |
+| 📋 Todo | 37 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 323 |
+| ✅ Done | 350 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -46,6 +46,30 @@
 - [TCK-351](tickets/TCK-351-deux-sources-de-libelles-de-bien.md) — Deux sources de libellés de bien s'affichent dans le même parcours — 44 divergences mesurées `M · P2 · technique`
 - [TCK-352](tickets/TCK-352-mailer-resend-declare-sans-dependance.md) — Le mailer `resend` est déclaré mais son paquet n'est pas une dépendance — aucun courriel n'est jamais parti `S · P1 · bug`
 - [TCK-355](tickets/TCK-355-blocages-noyau-sur-le-vps.md) — Le VPS se bloque au niveau du noyau : l'API devient injoignable pendant plusieurs minutes, cause non établie `M · P1 · technique`
+- [TCK-383](tickets/TCK-383-statut-reel-des-executions-du-scheduler.md) — Scheduler — enregistrer le statut RÉEL et la durée d'une exécution, au lieu d'une constante `S · P2 · full`
+- [TCK-384](tickets/TCK-384-primitives-partagees-couleur-brute.md) — Primitives partagées — la couleur brute que la console rend sans pouvoir la garder `M · P2 · front`
+- [TCK-385](tickets/TCK-385-kyc-uploader-palette-brute-onboarding.md) — Assistants d'onboarding — la pastille KYC en palette brute, dans le seul répertoire que deux gardes se renvoient `S · P2 · front`
+- [TCK-388](tickets/TCK-388-comparaison-de-durees-inegales-sur-plage-partielle.md) — Rapports — la comparaison oppose des durées inégales dès que la plage ne couvre pas des mois entiers `M · P2 · back`
+- [TCK-389](tickets/TCK-389-plafond-de-60-buckets-tronque-en-silence.md) — Rapports — le plafond de 60 buckets tronque une plage choisie sans le dire `S · P2 · back`
+- [TCK-390](tickets/TCK-390-agences-filtre-is-verified.md) — Agences — ouvrir le filtre `is_verified`, sans quoi la tuile « Vérifiées » de l'accueil ne mène nulle part `S · P2 · full`
+- [TCK-392](tickets/TCK-392-inviter-depuis-admin-team-nenvoie-aucune-invitation.md) — « Inviter » depuis /admin/team n'envoie aucune invitation — l'endpoint qui le fait n'a aucun appelant `M · P1 · bug`
+- [TCK-395](tickets/TCK-395-delegation-role-delegue-sans-rapport-avec-les-capacites.md) — Une délégation accorde `agency_admin` en entier, ou rien du tout — les deux se mesurent `M · P2 · back`
+- [TCK-404](tickets/TCK-404-chart-3-sous-le-seuil-de-contraste-en-clair.md) — `--chart-3` rend 2,57:1 sur `--card` en thème clair — décider de la valeur ou du rôle `S · P2 · front`
+- [TCK-405](tickets/TCK-405-barchart-avale-les-valeurs-negatives.md) — `BarChart` rend une valeur négative à hauteur zéro — la barre disparaît sans bruit `S · P2 · front`
+- [TCK-419](tickets/TCK-419-quatre-liens-vers-des-routes-inexistantes.md) — Quatre liens de `/app` mènent à des routes qui n'existent pas — la divergence menu/écrans dans l'autre sens `S · P2 · bug`
+- [TCK-420](tickets/TCK-420-acteur-prestataire-absent-de-features.md) — L'acteur 🔧 (prestataire) n'est pas dans la légende de features.md, et un générateur du dépôt le dit depuis longtemps `S · P2 · technique`
+- [TCK-426](tickets/TCK-426-statuts-http-perdus-sous-les-replis-de-app.md) — Les replis de /app effacent 404, 307 et 308 : un refus d'autorisation rend désormais 200 et le squelette de la page interdite `M · P3 · front`
+- [TCK-430](tickets/TCK-430-admin-settings-tags-sans-chemin-entrant.md) — `/admin/settings/tags` n'a aucun chemin entrant — le bandeau réparé n'est vu que sur une URL tapée à la main `S · P3 · front`
+- [TCK-431](tickets/TCK-431-sitemap-et-robots-absents.md) — Le catalogue public n'est déclaré à aucun crawler : ni sitemap, ni robots, et un POC de design indexable `M · P1 · front`
+- [TCK-432](tickets/TCK-432-accueil-et-liste-sans-rendu-serveur.md) — La page d'accueil et /properties ne rendent aucun bien côté serveur, et ni l'une ni l'autre n'a de `<h1>` `L · P1 · front`
+- [TCK-433](tickets/TCK-433-canonical-et-metadatabase-absents.md) — Aucune URL canonique nulle part : `/properties` se démultiplie en autant de doublons qu'il y a de combinaisons de filtres `S · P2 · front`
+- [TCK-434](tickets/TCK-434-trois-langues-une-seule-url.md) — Trois langues servies sur une seule URL : aucune indexation par langue n'est possible, et le choix n'est pas partageable `L · P2 · front`
+- [TCK-435](tickets/TCK-435-donnees-structurees-incompletes.md) — Une seule page du site public porte des données structurées — le fil d'Ariane, l'organisation et les profils n'en ont aucune `S · P2 · front`
+- [TCK-436](tickets/TCK-436-index-agences-et-agents.md) — `/agencies` et `/agents` n'existent pas : deux surfaces publiques soignées n'ont qu'un seul chemin entrant `M · P2 · full`
+- [TCK-437](tickets/TCK-437-pied-de-page-public.md) — Le pied de page public : un formulaire d'inscription qui ne mène nulle part, deux liens, et deux rechargements complets `S · P2 · front`
+- [TCK-438](tickets/TCK-438-attente-et-introuvable-du-site-public.md) — L'attente et l'introuvable de la section publique : quatre écrans sans état de chargement, et un 404 racine qui n'existe pas `M · P1 · front`
+- [TCK-439](tickets/TCK-439-champ-de-recherche-a-deux-filtres.md) — Le même champ de recherche écrit `q` ou `city` selon le bouton cliqué — et deux entrées du menu mobile mènent à `#` `S · P1 · bug`
+- [TCK-440](tickets/TCK-440-chrome-publique-en-palette-brute.md) — La chrome publique en palette brute : 121 classes hors tokens, dont la navbar et un pied de page entièrement hors palette `M · P2 · front`
 
 ## 🚧 Doing
 
@@ -61,7 +85,58 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 323
+## ✅ Done — 350
+
+<details>
+<summary><strong>Vague 49 — Site public — audit design & fonctionnel (2026-08-27)</strong> — 1 ticket</summary>
+
+- [TCK-441](tickets/TCK-441-contact-personnel-agent-sans-authentification.md) — L'adresse de CONNEXION d'un agent est publiée sur un endpoint public énumérable — là où l'API voisine la retire pour les mêmes personnes `S · P1 · back`
+
+</details>
+
+<details>
+<summary><strong>Vague 48 — Tableau de bord /app — audit design & fonctionnel (2026-08-26)</strong> — 6 tickets</summary>
+
+- [TCK-377](tickets/TCK-377-app-barre-laterale-la-moins-mure.md) — Tableau de bord /app — la barre latérale est la moins mûre des trois, et c'est celle que tout le monde utilise `M · P1 · bug`
+- [TCK-378](tickets/TCK-378-forbidden-trois-pages-et-la-garde-manquante.md) — `forbidden()` — trois pages que TCK-167 n'a pas pu voir, et le cliquet qui manquait pour qu'il le voie `S · P1 · bug`
+- [TCK-379](tickets/TCK-379-app-menu-et-inventaire-des-ecrans-ont-diverge.md) — Tableau de bord /app — le menu et l'inventaire des écrans ont divergé : deux écrans sans chemin, un geste mort, un menu qui n'est pas le sien `S · P2 · bug`
+- [TCK-380](tickets/TCK-380-app-adopter-les-primitives-partagees.md) — Tableau de bord /app — adopter les primitives partagées que les deux consoles ont déjà `M · P2 · front`
+- [TCK-381](tickets/TCK-381-app-palette-brute-et-cliquet.md) — Tableau de bord /app — éteindre la palette Tailwind brute, et étendre le cliquet à ce qu'il ne couvre pas `M · P2 · front`
+- [TCK-382](tickets/TCK-382-app-attente-introuvable-et-titre-onglet.md) — Tableau de bord /app — l'attente, l'introuvable et le titre d'onglet : trois états que quarante écrans ne rendent pas `S · P2 · front`
+
+</details>
+
+<details>
+<summary><strong>Vague 47 — Console agence /admin — audit design & fonctionnel (2026-08-26)</strong> — 9 tickets</summary>
+
+- [TCK-368](tickets/TCK-368-equipe-cycle-de-vie-des-invitations.md) — Équipe agence — cycle de vie des invitations (en attente, relance, révocation) `S · P1 · front`
+- [TCK-369](tickets/TCK-369-delegation-temporaire-ecran-manquant.md) — Délégation temporaire de rôles — l'écran que TCK-108 n'a pas livré `M · P2 · front`
+- [TCK-370](tickets/TCK-370-console-agence-chemins-et-gestes-morts.md) — Console agence — quatre chemins et gestes morts `S · P2 · bug`
+- [TCK-371](tickets/TCK-371-console-agence-accessibilite-et-mobile.md) — Console agence — contraste des entrées verrouillées, tables tronquées sur mobile, focus clavier `S · P1 · front`
+- [TCK-372](tickets/TCK-372-eteindre-le-vocabulaire-app-et-poser-le-cliquet.md) — Éteindre le vocabulaire `app-*` et poser le cliquet — la correction de TCK-244 `L · P2 · front`
+- [TCK-373](tickets/TCK-373-console-agence-adopter-les-primitives-partagees.md) — Console agence — adopter les primitives partagées (en-tête, badge, états, pagination, table) `M · P2 · front`
+- [TCK-374](tickets/TCK-374-graphique-agence-tokens-chart-et-locale.md) — Graphique agence — palette `--chart-*` et locale active au lieu de `'fr'` `S · P2 · front`
+- [TCK-375](tickets/TCK-375-tableau-de-bord-agence-files-attente.md) — Tableau de bord agence — les files d'attente d'abord `M · P2 · front`
+- [TCK-376](tickets/TCK-376-moderation-et-audit-etat-partageable.md) — Modération et journal d'audit — état partageable, pagination, recherche temporisée `M · P2 · front`
+
+</details>
+
+<details>
+<summary><strong>Vague 46 — Console super-admin — audit design & fonctionnel (2026-08-26)</strong> — 11 tickets</summary>
+
+- [TCK-357](tickets/TCK-357-console-super-admin-primitives-partagees.md) — Console super-admin — primitives partagées (table, en-tête, tuile, badge, filtres, états) `L · P2 · front`
+- [TCK-358](tickets/TCK-358-console-super-admin-tokens-et-cliquet.md) — Console super-admin — éteindre la palette Tailwind brute, et poser le cliquet qui l'empêche de revenir `M · P2 · front`
+- [TCK-359](tickets/TCK-359-console-super-admin-accessibilite-du-shell.md) — Console super-admin — accessibilité du shell : contraste, focus clavier, lien d'évitement `S · P2 · front`
+- [TCK-360](tickets/TCK-360-console-super-admin-accueil-files-attente.md) — Console super-admin — refondre l'accueil autour des files d'attente, et supprimer le doublon /system `M · P2 · front`
+- [TCK-361](tickets/TCK-361-rapports-plateforme-vraies-series-temporelles.md) — Rapports plateforme — de vraies séries temporelles (axes, graduations, infobulles, comparaison) `M · P2 · front`
+- [TCK-362](tickets/TCK-362-file-kyc-decider-depuis-la-file.md) — File KYC super-admin — décider depuis la file, et nommer les agences `M · P1 · front`
+- [TCK-363](tickets/TCK-363-console-super-admin-filtres-et-recherche.md) — Console super-admin — sélecteur d'agence partagé, recherche temporisée, filtres réinitialisables `M · P2 · front`
+- [TCK-364](tickets/TCK-364-console-super-admin-i18n-dates-et-libelles.md) — Console super-admin — dates et libellés techniques localisés (fr / en / wo) `S · P2 · front`
+- [TCK-365](tickets/TCK-365-supervision-jobs-et-scheduler.md) — Supervision des jobs et du scheduler — sortir la boucle d'exploitation de son enterrement `S · P2 · front`
+- [TCK-366](tickets/TCK-366-annonces-cross-tenant-edition.md) — Annonces cross-tenant — éditer une annonce existante `S · P2 · front`
+- [TCK-367](tickets/TCK-367-invitations-super-admin-cycle-de-vie.md) — Invitations super-admin — relance, annulation et expiration visibles `M · P2 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 45 — Solde des tickets ouverts : barrière Meilisearch, dates par valeur, i18n résiduel, géo par distances (2026-08-22)</strong> — 1 ticket</summary>

@@ -12,7 +12,7 @@ export function MessageDateSeparator({ date }: { readonly date: Date }) {
 
   return (
     <li className="my-2 flex justify-center" role="separator">
-      <span className="rounded-full bg-stone-200/80 px-2.5 py-0.5 text-[11px] font-medium text-stone-600">
+      <span className="rounded-full bg-muted/80 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
         {label}
       </span>
     </li>

@@ -5,10 +5,12 @@ import { Building2 } from 'lucide-react';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { TeamConsole } from '@/components/admin/TeamConsole';
+import { InviteMemberButton } from '@/components/admin/InviteMemberButton';
 import { EmptyState } from '@/components/feedback';
-import { PageHeader } from '@/components/layout/PageHeader';
+import { PageHeader } from '@/components/console';
 import { buttonVariants } from '@/components/ui/button';
-import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
+import { ensureStandardAgencyOrRedirect, resolveAgencyOrNull } from '@/lib/access/server-guards';
+import { getToken } from '@/lib/session';
 
 /**
  * TCK-277 — unified team console (fusion of TCK-065 `/admin/team` and
@@ -29,7 +31,7 @@ export default async function TeamPage() {
     const t = await getTranslations('team.page');
     return (
       <div className="space-y-6">
-        <PageHeader title={tPage('shortTitle')} subtitle={tPage('shortSubtitle')} />
+        <PageHeader title={tPage('shortTitle')} description={tPage('shortSubtitle')} />
         <EmptyState
           icon={<Building2 className="size-8" aria-hidden="true" />}
           title={t('no_agency_title')}
@@ -44,13 +46,31 @@ export default async function TeamPage() {
     );
   }
 
+  // TCK-368 — le `kind` de l'agence décide si la zone « invitations en attente »
+  // existe. `ensureStandardAgencyOrRedirect` vient de lire la même agence, et
+  // `resolveAgencyOrNull` mémoïse par rendu (`cache()` de React) : cette seconde
+  // lecture ne produit AUCUNE requête supplémentaire.
+  //
+  // Usage `affichage` et non `decision` : la décision d'accès est déjà prise
+  // au-dessus. Faire tomber la page entière parce qu'on n'a pas pu relire une
+  // agence dont on vient de valider le `kind` serait un pas en arrière.
+  const token = await getToken();
+  const agency = token
+    ? await resolveAgencyOrNull(token, user.agency_id, 'TeamPage', 'affichage')
+    : null;
+
   return (
     <div className="space-y-6">
       <PageHeader
         title={tPage('title')}
-        subtitle={tPage('subtitle')}
+        description={tPage('subtitle')}
+        actions={<InviteMemberButton agencyId={user.agency_id} />}
       />
-      <TeamConsole agencyId={user.agency_id} currentUserId={user.id} />
+      <TeamConsole
+        agencyId={user.agency_id}
+        currentUserId={user.id}
+        agencyKind={agency?.kind ?? null}
+      />
     </div>
   );
 }

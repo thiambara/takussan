@@ -36,7 +36,16 @@ export default async function OverviewPage() {
   }
   if (isAgent(roles)) redirect('/app/overview/agent');
   if (isOwner(roles)) redirect('/app/overview/owner');
-  if (isServiceProvider(roles)) redirect('/app/overview/tenant');
+  // TCK-379 — un `service_provider` était aiguillé ici vers `/app/overview/tenant`, c'est-à-dire
+  // vers le tableau de bord LOCATAIRE, qui lui répond `has_customer_profile: false`. Aucun
+  // tableau de bord prestataire n'est spécifié (`docs/features.md` §2.5 — l'acteur 🔧 n'est même
+  // pas dans la légende), et en inventer un serait hors spec. Un prestataire qui atteint cette
+  // route par un signet est donc ramené à son propre point d'entrée.
+  //
+  // ⚠ Le test porte sur un prestataire PUR : les branches admin / agent / bailleur ci-dessus
+  // s'appliquent d'abord, et un prestataire qui est AUSSI locataire garde sa vue locataire —
+  // c'est son autre rôle qui la lui donne, pas celui-ci.
+  if (isServiceProvider(roles) && !isCustomer(roles) && !isTenant(roles)) redirect('/app');
   if (isCustomer(roles) || isTenant(roles)) redirect('/app/overview/tenant');
 
   redirect('/app/overview/tenant');

@@ -41,7 +41,7 @@ class AnnouncementResolver
     public function matches(Announcement $announcement, User $user): bool
     {
         $segment = $announcement->segment ?? [];
-        if ($segment === []) {
+        if ($this->declaresNoRestriction($segment)) {
             return true;
         }
 
@@ -63,6 +63,41 @@ class AnnouncementResolver
         }
 
         return $matched;
+    }
+
+    /**
+     * TCK-366 — un segment qui ne déclare AUCUNE restriction atteint tout le monde.
+     *
+     * Le test était `$segment === []`, et il ratait la forme que la console émet réellement :
+     * `{"roles":[],"agency_ids":[]}`. Un tableau qui PORTE les clés du ciblage, vides, ne
+     * restreint rien de plus qu'un tableau vide — c'est d'ailleurs ce que l'écran affirme, sa
+     * cellule « Segment » rendant « Tous » exactement dans ce cas. Le résolveur disait l'inverse :
+     * il tombait dans les trois branches de `matches()`, aucune ne matchait, et l'annonce
+     * n'atteignait plus personne. Corriger la seule console aurait laissé la trappe ouverte pour
+     * tout autre appelant — le corps est VALIDE au regard de `StoreAnnouncementRequest`
+     * (`segment.roles` est `nullable|array`), donc rien ne le refuse à l'entrée.
+     *
+     * ⚠ Une clé INCONNUE n'est PAS traitée comme vide (`default => false`) : le résolveur reste
+     * fail-closed. Diffuser à tout le monde un segment qu'on ne sait pas juger serait le défaut
+     * symétrique, et le plus cher des deux.
+     *
+     * @param  array<string,mixed>  $segment
+     */
+    private function declaresNoRestriction(array $segment): bool
+    {
+        foreach ($segment as $cle => $valeur) {
+            $vide = match ($cle) {
+                'roles', 'agency_ids' => ! is_array($valeur) || $valeur === [],
+                'rollout_percentage' => $valeur === null || (int) $valeur <= 0,
+                default => false,
+            };
+
+            if (! $vide) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function bucket(int $announcementId, int $userId): int

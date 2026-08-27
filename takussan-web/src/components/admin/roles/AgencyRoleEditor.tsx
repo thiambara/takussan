@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CapabilityMatrix } from './CapabilityMatrix';
 import { useSyncRoleCapabilities, useUpdateAgencyRole } from '@/lib/queries/agency-roles';
 import { useCapabilityCatalogue } from '@/lib/queries/capabilities';
@@ -134,7 +135,7 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
     <section className="space-y-6" data-testid="agency-role-editor">
       {role.is_system ? (
         <p
-          className="flex items-start gap-2 rounded-xl border border-border bg-app-surface-2/50 px-4 py-3 text-sm text-app-ink-muted"
+          className="flex items-start gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
           data-testid="agency-role-system-notice"
         >
           <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -142,8 +143,8 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
         </p>
       ) : null}
 
-      <div className="space-y-4 rounded-xl border border-border bg-app-surface-1 p-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-app-ink-muted">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {t('editor.details_heading')}
         </h2>
         <div className="space-y-2">
@@ -171,14 +172,14 @@ export function AgencyRoleEditor({ agencyId, role, canEdit }: AgencyRoleEditorPr
 
       <div className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-app-ink-muted">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {t('editor.capabilities_heading')}
           </h2>
-          <p className="mt-1 text-xs text-app-ink-muted">{t('editor.capabilities_hint')}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('editor.capabilities_hint')}</p>
         </div>
 
         {catalogueQuery.isLoading ? (
-          <div className="h-40 animate-pulse rounded-xl bg-muted" aria-hidden="true" />
+          <Skeleton className="h-40 rounded-xl" aria-hidden="true" />
         ) : catalogueQuery.isError || !catalogueQuery.data ? (
           <ErrorState
             message={messageErreur(catalogueQuery.error, t('errors.load'))}

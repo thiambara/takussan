@@ -229,7 +229,7 @@ export function InviteOwnerSheet({
           </div>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-stone-900">
+            <legend className="text-sm font-medium text-foreground">
               {t('fields.owner_type')}
             </legend>
             <div className="flex gap-4">

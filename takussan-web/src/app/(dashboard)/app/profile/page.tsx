@@ -3,10 +3,6 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.profile');
-  return { title: t('metaTitle') };
-}
 import { isAgent, isOwner, isCustomer, isAdmin } from '@/lib/roles';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
@@ -21,6 +17,11 @@ import { MyProfilesSection } from '@/components/profile/MyProfilesSection';
 // prescrivait : ce dépôt n'a aucune dépendance Radix, cette API n'existe pas ici.
 import { buttonVariants } from '@/components/ui/button';
 
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.profile');
+  return { title: t('metaTitle') };
+}
+
 export default async function ProfilePage() {
   const t = await getTranslations('dashboard.profile');
   const user = await getMeAction();
@@ -34,6 +35,28 @@ export default async function ProfilePage() {
       {isOwner(user.roles) && <ProfileOwnerSection user={user} />}
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
       <ProfileSecuritySection />
+
+      {/*
+        TCK-379 — `/app/account/privacy` (portabilité RGPD) n'avait AUCUN lien entrant dans tout
+        le front : ni la barre latérale, ni le menu utilisateur, ni cette page. L'écran existait,
+        il était injoignable. Il est posé ici et pas ailleurs parce que l'export de ses données
+        est le PENDANT de la suppression de compte, qui vit dans `ProfileSecuritySection`
+        juste au-dessus : les deux droits RGPD se lisent au même endroit.
+      */}
+      <section className="rounded-2xl bg-card p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">{t('privacy')}</h2>
+            <p className="text-sm text-muted-foreground">{t('privacyBody')}</p>
+          </div>
+          <Link
+            href="/app/account/privacy"
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            {t('managePrivacy')}
+          </Link>
+        </div>
+      </section>
 
       <section className="rounded-2xl bg-card p-6">
         <div className="flex items-center justify-between gap-3">

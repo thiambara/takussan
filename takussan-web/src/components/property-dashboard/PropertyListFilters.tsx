@@ -187,7 +187,7 @@ export function PropertyListFilters({
   }, [router]);
 
   return (
-    <div className="space-y-3 rounded-xl bg-app-surface-1 p-4">
+    <div className="space-y-3 rounded-xl bg-card p-4">
       {/* Row 1 — primary controls */}
       <div className="flex flex-wrap items-center gap-2">
         <form onSubmit={onSearchSubmit} className="relative min-w-[240px] flex-1">
@@ -196,7 +196,7 @@ export function PropertyListFilters({
           </label>
           <Search
             aria-hidden="true"
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-ink-muted"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           />
           <Input
             id="property-search"
@@ -256,7 +256,7 @@ export function PropertyListFilters({
           <SlidersHorizontal aria-hidden="true" className="size-4" />
           {t('advanced')}
           {advancedActiveCount > 0 ? (
-            <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-app-accent/20 px-1.5 text-xs font-semibold text-app-accent">
+            <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/20 px-1.5 text-xs font-semibold text-primary">
               {advancedActiveCount}
             </span>
           ) : null}
@@ -275,11 +275,11 @@ export function PropertyListFilters({
               key={chip.key}
               type="button"
               onClick={() => updateParam(chip.key, null)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-app-surface-2 px-2.5 py-1 text-xs text-app-ink hover:bg-app-surface-3"
+              className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-border"
             >
-              <span className="text-app-ink-muted">{chip.label}:</span>
+              <span className="text-muted-foreground">{chip.label}:</span>
               <span className="font-medium">{chip.value}</span>
-              <X aria-hidden="true" className="size-3 text-app-ink-muted" />
+              <X aria-hidden="true" className="size-3 text-muted-foreground" />
               <span className="sr-only">
                 {t('removeChip', { label: chip.label })}
               </span>
@@ -288,7 +288,7 @@ export function PropertyListFilters({
           <button
             type="button"
             onClick={resetAll}
-            className="text-xs font-medium text-app-accent hover:underline"
+            className="text-xs font-medium text-primary hover:underline"
           >
             {t('resetAll')}
           </button>
@@ -299,7 +299,7 @@ export function PropertyListFilters({
       {advancedOpen ? (
         <form
           onSubmit={onAdvancedSubmit}
-          className="space-y-3 border-t border-app-surface-2/70 pt-3"
+          className="space-y-3 border-t border-muted/70 pt-3"
         >
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <Input
@@ -397,7 +397,7 @@ export function PropertyListFilters({
               ]}
             />
             <div>
-              <label className="mb-1 block text-xs text-app-ink-muted">
+              <label className="mb-1 block text-xs text-muted-foreground">
                 {t('createdFrom')}
               </label>
               <DatePicker
@@ -407,7 +407,7 @@ export function PropertyListFilters({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-app-ink-muted">
+              <label className="mb-1 block text-xs text-muted-foreground">
                 {t('createdTo')}
               </label>
               <DatePicker
@@ -437,15 +437,15 @@ function Toggle({
       className={cn(
         'inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm transition-colors',
         checked
-          ? 'bg-app-accent/15 text-app-ink'
-          : 'bg-app-surface-2/50 text-app-ink-muted hover:bg-app-surface-2',
+          ? 'bg-primary/15 text-foreground'
+          : 'bg-muted/50 text-muted-foreground hover:bg-muted',
       )}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="size-4 rounded border-stone-300"
+        className="size-4 rounded border-border"
       />
       {label}
     </label>
@@ -467,7 +467,7 @@ function FilterSelect({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-xs text-app-ink-muted">{label}</label>
+      <label className="mb-1 block text-xs text-muted-foreground">{label}</label>
       <Select
         value={value}
         onValueChange={(v) => onChange((v ?? '') as string)}

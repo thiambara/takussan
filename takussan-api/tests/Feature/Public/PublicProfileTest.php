@@ -41,7 +41,9 @@ class PublicProfileTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.slug', 'awa-diop')
             ->assertJsonPath('data.full_name', 'Awa Diop')
-            ->assertJsonPath('data.email', 'awa@example.test')
+            // TCK-441 — l'adresse de CONNEXION n'est plus publiee ; le telephone, si.
+            // La garde de non-regression complete vit dans AgentContactLeadTest.
+            ->assertJsonMissingPath('data.email')
             ->assertJsonPath('data.phone', '+221771234567')
             ->assertJsonPath('data.agency.name', 'Takussan Prestige')
             ->assertJsonPath('data.portfolio_count', 1)

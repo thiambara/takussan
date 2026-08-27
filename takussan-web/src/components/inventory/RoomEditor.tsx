@@ -39,7 +39,7 @@ export function RoomEditor({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-app-ink">{t('title')}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
         <Button
           type="button"
           variant="outline"
@@ -102,9 +102,9 @@ function RoomCard({
   }));
 
   return (
-    <div className="rounded-xl bg-app-surface-1 p-4">
+    <div className="rounded-xl bg-card p-4">
       <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-semibold text-app-ink">{t('room', { n: String(roomIndex + 1) })}</p>
+        <p className="text-sm font-semibold text-foreground">{t('room', { n: String(roomIndex + 1) })}</p>
         <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
           {t('remove')}
         </Button>
@@ -142,9 +142,9 @@ function RoomCard({
         />
       </div>
 
-      <div className="mt-4 rounded-lg bg-app-surface-2 p-3">
+      <div className="mt-4 rounded-lg bg-muted p-3">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-app-ink-muted">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('elements')}
           </p>
           <Button
@@ -158,7 +158,7 @@ function RoomCard({
         </div>
 
         {elements.fields.length === 0 ? (
-          <p className="mt-2 text-xs text-app-ink-muted">
+          <p className="mt-2 text-xs text-muted-foreground">
             {t('noElements')}
           </p>
         ) : (
@@ -166,7 +166,7 @@ function RoomCard({
             {elements.fields.map((element, elementIndex) => (
               <li
                 key={element.id}
-                className="grid gap-2 rounded-md bg-app-surface-1 p-3 md:grid-cols-[1fr_12rem_auto]"
+                className="grid gap-2 rounded-md bg-card p-3 md:grid-cols-[1fr_12rem_auto]"
               >
                 <FormInput
                   name={`rooms.${roomIndex}.elements.${elementIndex}.label`}

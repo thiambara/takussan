@@ -171,18 +171,18 @@ export function DepositRefundModal({
               step={1000}
               {...register('amount', { valueAsNumber: true })}
             />
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-muted-foreground">
               {t('modal.remaining', {
                 amount: depositRemaining.toLocaleString(),
                 currency,
               })}
             </p>
             {errors.amount?.message && (
-              <p className="text-xs text-red-600">{errors.amount.message}</p>
+              <p className="text-xs text-destructive">{errors.amount.message}</p>
             )}
           </div>
 
-          <div className="rounded-md bg-stone-50 p-3 text-sm text-stone-700">
+          <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
             <p>
               {t('modal.breakdown_refund', {
                 amount: amount.toLocaleString(),
@@ -190,7 +190,7 @@ export function DepositRefundModal({
               })}
             </p>
             {retained > 0 && (
-              <p className="mt-1 font-medium text-amber-700">
+              <p className="mt-1 font-medium text-warning">
                 {t('modal.breakdown_retained', {
                   amount: retained.toLocaleString(),
                   currency,
@@ -202,7 +202,7 @@ export function DepositRefundModal({
           <div className="space-y-1">
             <Label htmlFor="deposit-refund-reason">
               {t('modal.reason_label')}
-              {isPartial && <span className="ml-1 text-red-600">*</span>}
+              {isPartial && <span className="ml-1 text-destructive">*</span>}
             </Label>
             <Textarea
               id="deposit-refund-reason"
@@ -211,7 +211,7 @@ export function DepositRefundModal({
               {...register('reason')}
             />
             {errors.reason?.message && (
-              <p className="text-xs text-red-600">{errors.reason.message}</p>
+              <p className="text-xs text-destructive">{errors.reason.message}</p>
             )}
           </div>
 
@@ -224,10 +224,10 @@ export function DepositRefundModal({
               multiple
               accept=".jpg,.jpeg,.png,.webp,.pdf"
               onChange={handleFiles}
-              className="block w-full rounded-md border border-stone-300 bg-white p-2 text-sm"
+              className="block w-full rounded-md border border-border bg-card p-2 text-sm"
             />
             {selectedFiles.length > 0 && (
-              <ul className="text-xs text-stone-500">
+              <ul className="text-xs text-muted-foreground">
                 {selectedFiles.map((file) => (
                   <li key={file.name}>{file.name}</li>
                 ))}

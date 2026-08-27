@@ -36,6 +36,64 @@
   /* === Sémantiques (inchangées) === */
   --destructive: oklch(0.577 0.245 27.325);
 
+  /*
+   * === Avertissement (TCK-358) ===
+   *
+   * Le DS n'avait AUCUN jeton d'avertissement, et l'absence se voyait : deux bandeaux —
+   * ambre 50 en fond, ambre 950 en encre, ambre 200 en anneau — recopiés au caractère près
+   * dans `/enums` et `/settings`, chacun portant le même commentaire d'exception TCK-245,
+   * plus un ton `attention` de `StatusBadge` qui empruntait `--primary` faute de mieux.
+   *
+   * ⚠ Les trois classes sont écrites ICI EN TOUTES LETTRES, et non copiables. Ce fichier est
+   * lu par `scripts/check-super-admin-tokens.mjs` depuis le 2026-08-27 : un docblock qui
+   * montre une classe de palette brute est exactement la documentation périmée qui fait
+   * repousser le motif — même règle que `components/console` chez TCK-358.
+   *
+   * Ocre profond plutôt que l'ambre Tailwind (#f59e0b) : l'ambre vif est illisible en texte
+   * sur Lin (1,8:1 sur `--background`) et n'appartient pas à la famille chromatique du
+   * produit. Mesures (WCAG 2.1, script de contraste, 2026-08-27) :
+   *
+   *   #8a5410 sur --background #fcf9f3 ......... 5,95:1   (AA texte normal)
+   *   #8a5410 sur --card #ffffff ............... 6,26:1
+   *   #8a5410 sur warning/10 aplati sur Lin .... 5,19:1   ← le cas réel du bandeau
+   *   --warning-foreground #fcf9f3 sur #8a5410 . 5,95:1   ← le cas du remplissage plein
+   *
+   * En `.dark`, la paire s'inverse : ocre clair sur encre.
+   */
+  --warning: #8a5410;
+  --warning-foreground: #fcf9f3;
+
+  /*
+   * === Succès et information (TCK-381) ===
+   *
+   * `--warning` seul ne suffisait pas à `/app`. Relevé du 2026-08-27 sur la clôture d'import
+   * des 46 pages : **89 occurrences d'`emerald`** et **29 de `blue`**, portant chacune du SENS
+   * — un « Enregistré », un statut « terminé », une pastille « en cours ». `--accent` (sage) et
+   * `--secondary` existaient déjà et `StatusBadge` s'en servait, mais aucun ne peut s'écrire
+   * `text-success` : un accent de marque et une confirmation ne sont pas la même chose, et les
+   * confondre retire au produit le moyen de dire « ça a marché ».
+   *
+   * Mêmes principes que `--warning` : une teinte de la famille Lin, pas la couleur Tailwind
+   * (`emerald-600 #059669` rend 3,29:1 sur Lin — sous AA), et le contraste est MESURÉ, pas
+   * supposé (WCAG 2.1, `scripts/`-hors-dépôt, 2026-08-27) :
+   *
+   *   #3f6b45 sur --background #fcf9f3 ......... 5,88:1   (AA texte normal)
+   *   #3f6b45 sur --card #ffffff ............... 6,18:1
+   *   #3f6b45 sur success/10 aplati sur Lin .... 5,13:1   ← le cas réel de la pastille
+   *   --success-foreground sur #3f6b45 ......... 5,88:1   ← le cas du remplissage plein
+   *
+   *   #3f5a6b sur --background #fcf9f3 ......... 6,92:1
+   *   #3f5a6b sur --card #ffffff ............... 7,28:1
+   *   #3f5a6b sur info/10 aplati sur Lin ....... 5,98:1
+   *
+   * ⚠ Il n'y a PAS de jeton `--danger` : `--destructive` existe depuis l'origine et le double
+   * emploi est exactement ce que ce ticket éteint ailleurs.
+   */
+  --success: #3f6b45;
+  --success-foreground: #fcf9f3;
+  --info: #3f5a6b;
+  --info-foreground: #fcf9f3;
+
   /* === Bordures & focus === */
   --border: #ebe5d5;
   --input: #ebe5d5;
@@ -67,16 +125,6 @@
   --on-surface: #1f1812;
   --on-surface-variant: #6e655a;
   --outline: #ebe5d5;
-
-  /* === App palette consolidée dans Lin (plus de warm heritage parallèle) === */
-  --app-topbar: #1f1812;
-  --app-bg: #fcf9f3;
-  --app-surface-1: #ffffff;
-  --app-surface-2: #f1ece0;
-  --app-surface-3: #ebe5d5;
-  --app-ink: #1f1812;
-  --app-ink-muted: #6e655a;
-  --app-accent: #a85332;
 
   /* === Floating Dock (TCK-275) === */
   /*
@@ -130,6 +178,12 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -141,16 +195,6 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
 
-  /* App palette aliases. */
-  --color-app-topbar: var(--app-topbar);
-  --color-app-bg: var(--app-bg);
-  --color-app-surface-1: var(--app-surface-1);
-  --color-app-surface-2: var(--app-surface-2);
-  --color-app-surface-3: var(--app-surface-3);
-  --color-app-ink: var(--app-ink);
-  --color-app-ink-muted: var(--app-ink-muted);
-  --color-app-accent: var(--app-accent);
-
   /* Radius scale. */
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -159,6 +203,21 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* ─── Blanc FONCTIONNEL — la seule surface qui ne suit pas le thème ──── */
+
+/*
+ * TCK-358 — le fond d'un QR code n'est pas une surface, c'est un contraste machine.
+ *
+ * Toutes les autres surfaces de la console passent sur `--card` / `--muted`, qui basculent en
+ * `.dark`. Un QR TOTP posé sur `--card` deviendrait des modules sombres sur un fond sombre :
+ * illisible par le téléphone, et par personne d'autre non plus. Le blanc est donc ÉCRIT ici,
+ * une fois, sous un nom qui dit pourquoi — plutôt qu'un utilitaire de fond blanc recopié dans
+ * un JSX où rien ne distingue plus le blanc décoratif du blanc fonctionnel.
+ */
+.qr-surface {
+  background-color: #ffffff;
 }
 
 /* ─── Animations utilitaires ────────────────────────────────────────── */
@@ -205,6 +264,17 @@
   --accent: #7d8d6e;
   --accent-foreground: #1f1812;
   --destructive: oklch(0.704 0.191 22.216);
+  /*
+   * Mesures en sombre (2026-08-27) : #e0a458 rend 8,03:1 sur `--background` #1f1812 et 7,30:1
+   * sur `--card` #2a2018 ; #8fbf87 rend 8,32 / 7,56 ; #8fb2c8 rend 7,82 / 7,11. Les trois
+   * `*-foreground` repassent à l'encre, le rapport étant symétrique.
+   */
+  --warning: #e0a458;
+  --warning-foreground: #1f1812;
+  --success: #8fbf87;
+  --success-foreground: #1f1812;
+  --info: #8fb2c8;
+  --info-foreground: #1f1812;
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: #c87a52;

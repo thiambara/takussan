@@ -217,7 +217,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-app-ink-muted">{t('intro')}</p>
+        <p className="text-sm text-muted-foreground">{t('intro')}</p>
         <Button type="button" onClick={() => setDialogMode('create')}>
           <Plus aria-hidden="true" />
           <span>{t('add')}</span>
@@ -237,16 +237,16 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
             return (
               <article
                 key={integration.id}
-                className="rounded-xl border border-input bg-app-surface-1 p-5 space-y-3"
+                className="rounded-xl border border-input bg-card p-5 space-y-3"
               >
                 <header className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Plug className="size-5 text-primary" aria-hidden="true" />
                     <div>
-                      <h3 className="text-sm font-semibold capitalize text-app-ink">
+                      <h3 className="text-sm font-semibold capitalize text-foreground">
                         {integration.provider.replace(/_/g, ' ')}
                       </h3>
-                      <p className="text-xs text-app-ink-muted">
+                      <p className="text-xs text-muted-foreground">
                         {integration.is_active ? t('statusActive') : t('statusInactive')}
                         {integration.last_used_at
                           ? t('lastTest', {
@@ -280,7 +280,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                 </header>
 
                 {testState === 'loading' ? (
-                  <div className="flex items-center gap-2 text-xs text-app-ink-muted">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
                     <span>{t('testing')}</span>
                   </div>
@@ -288,7 +288,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                   <div
                     role="status"
                     className={`flex items-center gap-2 text-xs ${
-                      testState.kind === 'success' ? 'text-green-700' : 'text-destructive'
+                      testState.kind === 'success' ? 'text-accent' : 'text-destructive'
                     }`}
                   >
                     {testState.kind === 'success' ? (
@@ -581,7 +581,7 @@ function SmsProviderFieldset({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+      <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs leading-relaxed text-foreground">
         {t.rich('artp', {
           b: (chunks) => <strong className="font-semibold">{chunks}</strong>,
         })}

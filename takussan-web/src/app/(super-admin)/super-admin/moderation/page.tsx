@@ -13,9 +13,8 @@ import {
   ModerationStats,
 } from '@/components/admin/super/moderation';
 import { Button } from '@/components/ui/button';
-import { fetchAdminAgencies, fetchModerationQueue } from '@/lib/queries/super-admin';
+import { fetchModerationQueue } from '@/lib/queries/super-admin';
 import type {
-  AdminAgenciesResponse,
   AdminModerationItem,
   AdminModerationResponse,
   ModerationItemStatus,
@@ -23,11 +22,12 @@ import type {
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { PageHeader } from '@/components/console';
 
 export default function SuperAdminModerationPage() {
   const t = useTranslations('superAdmin.moderation');
   const tPage = useTranslations('superAdmin.pages.moderation');
-  const tPagination = useTranslations('superAdmin.pages.pagination');
+  const tPagination = useTranslations('console.pagination');
   const messageErreur = useMessageErreurApi();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -53,16 +53,8 @@ export default function SuperAdminModerationPage() {
     staleTime: 15_000,
   });
 
-  const agenciesQuery = useQuery<AdminAgenciesResponse, ApiError>({
-    queryKey: ['super-admin', 'agencies', 'moderation-filter'],
-    queryFn: () => fetchAdminAgencies({ perPage: 50 }),
-    staleTime: 5 * 60_000,
-  });
-
-  const agencies = useMemo(
-    () => (agenciesQuery.data?.data ?? []).map((agency) => ({ id: agency.id, name: agency.name })),
-    [agenciesQuery.data],
-  );
+  // TCK-363 — la requête `fetchAdminAgencies({ perPage: 50 })` qui vivait ici est SUPPRIMÉE :
+  // elle partait au montage de la page et rendait une liste tronquée sans le dire.
 
   const items = queueQuery.data?.data ?? [];
   const meta = queueQuery.data?.meta;
@@ -75,13 +67,13 @@ export default function SuperAdminModerationPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{tPage('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{tPage('subtitle')}</p>
-      </header>
+      <PageHeader
+        title={tPage('title')}
+        description={tPage('subtitle')}
+      />
 
       <ModerationStats items={items} total={meta?.total ?? 0} />
-      <ModerationFilters agencies={agencies} />
+      <ModerationFilters total={meta?.total} />
 
       {queueQuery.isLoading ? (
         <div className="space-y-2" data-testid="moderation-loading">

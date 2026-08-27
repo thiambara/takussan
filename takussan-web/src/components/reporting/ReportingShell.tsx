@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Activity, Layers3, Repeat, TrendingUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CohortHeatmap } from './CohortHeatmap';
 import { FunnelChart } from './FunnelChart';
 import { GrowthChart } from './GrowthChart';
@@ -19,40 +19,46 @@ const TABS: { id: Tab; icon: typeof TrendingUp }[] = [
   { id: 'funnel', icon: Repeat },
 ];
 
+/**
+ * Chaque panneau ne rend son graphique QUE lorsqu'il est actif.
+ *
+ * `<TabsContent>` monte ses enfants même caché, et les quatre graphiques déclenchent chacun leur
+ * requête au montage : rendre les quatre en même temps ferait quatre appels réseau là où l'ancien
+ * rendu conditionnel en faisait un. Le montage conditionnel préserve donc le comportement mesuré.
+ */
+const PANELS: Record<Tab, () => React.JSX.Element> = {
+  growth: GrowthChart,
+  revenue: RevenueChart,
+  cohorts: CohortHeatmap,
+  funnel: FunnelChart,
+};
+
 export function ReportingShell() {
   const t = useTranslations('reporting.tabs');
   const [tab, setTab] = useState<Tab>('growth');
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="flex flex-wrap gap-2 p-2">
-          {TABS.map((entry) => {
-            const Icon = entry.icon;
-            const active = tab === entry.id;
-            return (
-              <button
-                key={entry.id}
-                type="button"
-                onClick={() => setTab(entry.id)}
-                className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
-                  active
-                    ? 'bg-amber-500/15 text-amber-700 ring-1 ring-amber-200'
-                    : 'text-muted-foreground hover:bg-muted/40'
-                }`}
-              >
-                <Icon className="size-4" aria-hidden="true" />
-                {t(entry.id)}
-              </button>
-            );
-          })}
-        </CardContent>
-      </Card>
+    <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="gap-4">
+      <TabsList variant="line" className="h-auto flex-wrap">
+        {TABS.map((entry) => {
+          const Icon = entry.icon;
+          return (
+            <TabsTrigger key={entry.id} value={entry.id}>
+              <Icon className="size-4" aria-hidden="true" />
+              {t(entry.id)}
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
 
-      {tab === 'growth' ? <GrowthChart /> : null}
-      {tab === 'revenue' ? <RevenueChart /> : null}
-      {tab === 'cohorts' ? <CohortHeatmap /> : null}
-      {tab === 'funnel' ? <FunnelChart /> : null}
-    </div>
+      {TABS.map((entry) => {
+        const Panel = PANELS[entry.id];
+        return (
+          <TabsContent key={entry.id} value={entry.id}>
+            {tab === entry.id ? <Panel /> : null}
+          </TabsContent>
+        );
+      })}
+    </Tabs>
   );
 }

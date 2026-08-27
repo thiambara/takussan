@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { getMeAction } from '@/app/actions/auth';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { NotificationPreferencesMatrix } from '@/components/profile/NotificationPreferencesMatrix';
+import { PageHeader } from '@/components/console';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.notificationPrefs');
@@ -18,21 +19,21 @@ export default async function ProfileNotificationsPage() {
 
   return (
     <ProfileLayout>
-      <header className="space-y-1">
-        <nav className="text-sm text-muted-foreground">
-          <Link href="/app/profile" className="hover:underline">
-            {t('breadcrumbProfile')}
-          </Link>
-          <span aria-hidden="true" className="mx-1">
-            /
+      <PageHeader
+        eyebrow={
+          <span className="normal-case tracking-normal">
+            <Link href="/app/profile" className="hover:underline">
+              {t('breadcrumbProfile')}
+            </Link>
+            <span aria-hidden="true" className="mx-1">
+              /
+            </span>
+            <span>{t('breadcrumbCurrent')}</span>
           </span>
-          <span>{t('breadcrumbCurrent')}</span>
-        </nav>
-        <h1 className="font-display text-2xl font-bold text-foreground">
-          {t('title')}
-        </h1>
-        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+        }
+        title={t('title')}
+        description={t('subtitle')}
+      />
 
       <NotificationPreferencesMatrix />
     </ProfileLayout>

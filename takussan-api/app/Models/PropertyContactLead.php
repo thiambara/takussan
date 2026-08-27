@@ -9,6 +9,7 @@ class PropertyContactLead extends AbstractModel
 {
     protected $fillable = [
         'property_id',
+        'agency_id',
         'recipient_user_id',
         'name',
         'email',

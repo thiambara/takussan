@@ -13,27 +13,27 @@ const VARIANT: Record<string, { variant: BadgeVariant; className?: string }> = {
   published: { variant: 'default' },
   pending_review: {
     variant: 'outline',
-    className: 'border-amber-300 bg-amber-50 text-amber-800',
+    className: 'border-warning/30 bg-warning/10 text-warning',
   },
   pending: {
     variant: 'outline',
-    className: 'border-amber-300 bg-amber-50 text-amber-800',
+    className: 'border-warning/30 bg-warning/10 text-warning',
   },
   draft: { variant: 'outline' },
   archived: {
     variant: 'outline',
-    className: 'border-app-surface-2 text-app-ink-muted',
+    className: 'border-muted text-muted-foreground',
   },
   rejected: { variant: 'destructive' },
   sold: { variant: 'secondary' },
   rented: { variant: 'secondary' },
   unavailable: {
     variant: 'outline',
-    className: 'border-amber-300 bg-amber-50 text-amber-800',
+    className: 'border-warning/30 bg-warning/10 text-warning',
   },
   under_maintenance: {
     variant: 'outline',
-    className: 'border-amber-300 bg-amber-50 text-amber-800',
+    className: 'border-warning/30 bg-warning/10 text-warning',
   },
 };
 

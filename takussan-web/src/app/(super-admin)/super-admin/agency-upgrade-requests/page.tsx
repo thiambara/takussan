@@ -2,12 +2,22 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Building2, ChevronLeft, ChevronRight, Filter } from 'lucide-react';
+import { ArrowUpRight, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import {
+  DataState,
+  DataTable,
+  FilterBar,
+  PageHeader,
+  StatusBadge,
+  type DataTableColumn,
+  type StatusTone,
+} from '@/components/console';
+import { EmptyState } from '@/components/feedback';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
@@ -16,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   fetchAdminAgencyUpgradeRequests,
   type AdminAgencyUpgradeRequestRow,
@@ -50,9 +60,34 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'revoked', labelKey: 'filters.revoked' },
 ] as const;
 
+/**
+ * Le statut de la demande → le ton du DS. Les quatre couleurs Tailwind faites main
+ * (ambre 100, émeraude 100, rouge 100, pierre 200) sont devenues quatre SENS ;
+ * la couleur se décide une fois, dans `StatusBadge`.
+ */
+const STATUS_TONES: Record<AgencyUpgradeRequestStatus, StatusTone> = {
+  pending: 'attention',
+  approved: 'success',
+  rejected: 'danger',
+  revoked: 'neutral',
+};
+
+/** Un `?status=` inconnu retombe sur « toutes » plutôt que de filtrer sur une valeur absente. */
+function seedStatusFilter(value: string | null | undefined): AgencyUpgradeRequestStatus | 'all' {
+  const known = STATUS_FILTER_OPTIONS.some((option) => option.value === value);
+  return known ? (value as AgencyUpgradeRequestStatus | 'all') : 'all';
+}
+
 export default function AgencyUpgradeRequestsListPage() {
   const t = useTranslations('superAdmin.pages.upgradeRequests');
-  const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>('all');
+  const fmt = useFormatteurs();
+  const searchParams = useSearchParams();
+  // TCK-360 — la file « demandes d'upgrade » de l'accueil compte les `pending` ; le lien porte
+  // donc `?status=pending`, faute de quoi le clic mènerait à « toutes » et le compte affiché ne
+  // serait pas celui qu'on trouve en arrivant. Amorce seule : le filtre reste local ensuite.
+  const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>(
+    () => seedStatusFilter(searchParams?.get('status')),
+  );
   const [submittedFrom, setSubmittedFrom] = useState('');
   const [submittedTo, setSubmittedTo] = useState('');
   const [page, setPage] = useState(1);
@@ -87,117 +122,172 @@ export default function AgencyUpgradeRequestsListPage() {
     label: t(opt.labelKey),
   }));
 
+  const columns: DataTableColumn<AdminAgencyUpgradeRequestRow>[] = [
+    {
+      id: 'agency',
+      header: t('columns.agency'),
+      cell: (row) => (
+        <div className="flex items-center gap-2">
+          <Building2 className="size-4 text-muted-foreground" aria-hidden="true" />
+          <div>
+            <p className="font-medium text-foreground">
+              {row.agency?.name
+                ?? row.company_legal_name
+                ?? t('agencyFallback', { id: String(row.agency_id) })}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t('agencyRef', { id: String(row.agency_id) })}
+              {row.planned_agents_count
+                ? t('plannedAgents', { count: String(row.planned_agents_count) })
+                : null}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: 'submittedBy',
+      header: t('columns.submittedBy'),
+      className: 'text-muted-foreground',
+      cell: (row) =>
+        row.submitter ? (
+          <>
+            <p className="text-foreground">
+              {[row.submitter.first_name, row.submitter.last_name].filter(Boolean).join(' ')
+                || row.submitter.email
+                || t('userFallback', { id: String(row.submitted_by) })}
+            </p>
+            {row.submitter.email ? (
+              <p className="text-xs text-muted-foreground">{row.submitter.email}</p>
+            ) : null}
+          </>
+        ) : (
+          <span className="text-xs">{t('userFallback', { id: String(row.submitted_by) })}</span>
+        ),
+    },
+    {
+      id: 'date',
+      header: t('columns.date'),
+      className: 'text-muted-foreground',
+      cell: (row) => fmt.dateTime(row.submitted_at),
+    },
+    {
+      id: 'status',
+      header: t('columns.status'),
+      cell: (row) => (
+        <StatusBadge tone={STATUS_TONES[row.status]} label={t(`status.${row.status}`)} />
+      ),
+    },
+    {
+      id: 'delay',
+      header: t('columns.delay'),
+      className: 'text-muted-foreground',
+      cell: (row) => formatElapsed(elapsedDaysSince(row.submitted_at, now), t),
+    },
+    {
+      id: 'actions',
+      header: t('review'),
+      headerSrOnly: true,
+      align: 'end',
+      cell: (row) => (
+        <Link
+          className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          href={`/super-admin/agency-upgrade-requests/${row.id}`}
+        >
+          {t('review')}
+          <ArrowUpRight className="ml-1 size-3.5" aria-hidden="true" />
+        </Link>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t.rich('subtitle', { code: (chunks) => <code>{chunks}</code> })}
-        </p>
-      </header>
+      <PageHeader
+        title={t('title')}
+        description={t.rich('subtitle', { code: (chunks) => <code>{chunks}</code> })}
+      />
 
-      <Card>
-        <CardHeader className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="size-4 text-amber-600" aria-hidden="true" />
-            {t('filtersTitle')}
-          </CardTitle>
-          <span className="text-xs text-muted-foreground">
-            {t('totalRequests', { total: String(meta?.total ?? '—') })}
-          </span>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="space-y-1">
-              <label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground">
-                {t('statusLabel')}
-              </label>
-              <Select
-                value={statusFilter}
-                onValueChange={(next) => {
-                  setStatusFilter((next ?? 'all') as AgencyUpgradeRequestStatus | 'all');
-                  setPage(1);
-                }}
-                items={statusOptions}
-              >
-                <SelectTrigger id="status-filter" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="from-filter" className="text-xs font-medium text-muted-foreground">
-                {t('submittedFrom')}
-              </label>
-              <DatePicker
-                id="from-filter"
-                value={submittedFrom}
-                onValueChange={(value) => {
-                  setSubmittedFrom(value);
-                  setPage(1);
-                }}
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="to-filter" className="text-xs font-medium text-muted-foreground">
-                {t('submittedTo')}
-              </label>
-              <DatePicker
-                id="to-filter"
-                value={submittedTo}
-                onValueChange={(value) => {
-                  setSubmittedTo(value);
-                  setPage(1);
-                }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <FilterBar
+        controlsClassName="grid-cols-1 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3"
+        resultCount={t('totalRequests', { total: String(meta?.total ?? '—') })}
+      >
+        <div className="space-y-1">
+          <label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground">
+            {t('statusLabel')}
+          </label>
+          <Select
+            value={statusFilter}
+            onValueChange={(next) => {
+              setStatusFilter((next ?? 'all') as AgencyUpgradeRequestStatus | 'all');
+              setPage(1);
+            }}
+            items={statusOptions}
+          >
+            <SelectTrigger id="status-filter" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="from-filter" className="text-xs font-medium text-muted-foreground">
+            {t('submittedFrom')}
+          </label>
+          <DatePicker
+            id="from-filter"
+            value={submittedFrom}
+            onValueChange={(value) => {
+              setSubmittedFrom(value);
+              setPage(1);
+            }}
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="to-filter" className="text-xs font-medium text-muted-foreground">
+            {t('submittedTo')}
+          </label>
+          <DatePicker
+            id="to-filter"
+            value={submittedTo}
+            onValueChange={(value) => {
+              setSubmittedTo(value);
+              setPage(1);
+            }}
+          />
+        </div>
+      </FilterBar>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('listTitle')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {query.isLoading ? <Skeleton className="h-32" /> : null}
-          {query.isError ? (
-            <p className="text-sm text-red-600">{t('loadError')}</p>
-          ) : null}
-          {!query.isLoading && !query.isError && rows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('empty')}</p>
-          ) : null}
+      <section className="space-y-3">
+        <h2 className="font-display text-lg font-semibold text-foreground">{t('listTitle')}</h2>
 
-          {rows.length > 0 ? (
-            <div className="overflow-hidden rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead className="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
-                  <tr>
-                    <th className="px-3 py-2 text-left">{t('columns.agency')}</th>
-                    <th className="px-3 py-2 text-left">{t('columns.submittedBy')}</th>
-                    <th className="px-3 py-2 text-left">{t('columns.date')}</th>
-                    <th className="px-3 py-2 text-left">{t('columns.status')}</th>
-                    <th className="px-3 py-2 text-left">{t('columns.delay')}</th>
-                    <th className="px-3 py-2 text-right" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border bg-card">
-                  {rows.map((row) => (
-                    <UpgradeRequestRow key={row.id} row={row} now={now} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
+        <DataState
+          loading={query.isLoading}
+          error={query.isError ? t('loadError') : null}
+          isEmpty={rows.length === 0}
+          skeletonRows={4}
+          emptyState={
+            <EmptyState
+              icon={<Building2 className="size-8" aria-hidden="true" />}
+              title={t('empty')}
+            />
+          }
+        >
+          <DataTable
+            caption={t('tableCaption')}
+            columns={columns}
+            rows={rows}
+            rowKey={(row) => row.id}
+          />
+        </DataState>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="flex items-center justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
@@ -224,114 +314,27 @@ export default function AgencyUpgradeRequestsListPage() {
               {t('pagination.next')}
               <ChevronRight className="ml-1 size-4" aria-hidden="true" />
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }
 
-function UpgradeRequestRow({
-  row,
-  now,
-}: {
-  readonly row: AdminAgencyUpgradeRequestRow;
-  readonly now: number;
-}) {
-  const t = useTranslations('superAdmin.pages.upgradeRequests');
-  const elapsedDays = elapsedDaysSince(row.submitted_at, now);
-
-  return (
-    <tr className="transition-colors hover:bg-stone-50">
-      <td className="px-3 py-2">
-        <div className="flex items-center gap-2">
-          <Building2 className="size-4 text-stone-400" aria-hidden="true" />
-          <div>
-            <p className="font-medium text-foreground">
-              {row.agency?.name
-                ?? row.company_legal_name
-                ?? t('agencyFallback', { id: String(row.agency_id) })}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t('agencyRef', { id: String(row.agency_id) })}
-              {row.planned_agents_count
-                ? t('plannedAgents', { count: String(row.planned_agents_count) })
-                : null}
-            </p>
-          </div>
-        </div>
-      </td>
-      <td className="px-3 py-2 text-muted-foreground">
-        {row.submitter ? (
-          <>
-            <p className="text-foreground">
-              {[row.submitter.first_name, row.submitter.last_name].filter(Boolean).join(' ') ||
-                row.submitter.email ||
-                t('userFallback', { id: String(row.submitted_by) })}
-            </p>
-            {row.submitter.email ? (
-              <p className="text-xs text-muted-foreground">{row.submitter.email}</p>
-            ) : null}
-          </>
-        ) : (
-          <span className="text-xs">{t('userFallback', { id: String(row.submitted_by) })}</span>
-        )}
-      </td>
-      <td className="px-3 py-2 text-muted-foreground">{formatDateTime(row.submitted_at)}</td>
-      <td className="px-3 py-2">
-        <StatusBadge status={row.status} />
-      </td>
-      <td className="px-3 py-2 text-muted-foreground">
-        {elapsedDays === null
-          ? '—'
-          : elapsedDays === 0
-            ? t('delay.today')
-            : elapsedDays === 1
-              ? t('delay.oneDay')
-              : t('delay.days', { count: String(elapsedDays) })}
-      </td>
-      <td className="px-3 py-2 text-right">
-        <Link
-          className={buttonVariants({ variant: 'outline', size: 'sm' })}
-          href={`/super-admin/agency-upgrade-requests/${row.id}`}
-        >
-          {t('review')}
-          <ArrowUpRight className="ml-1 size-3.5" aria-hidden="true" />
-        </Link>
-      </td>
-    </tr>
-  );
-}
-
-function StatusBadge({ status }: { readonly status: AgencyUpgradeRequestStatus }) {
-  const t = useTranslations('superAdmin.pages.upgradeRequests');
-  const map: Record<AgencyUpgradeRequestStatus, { labelKey: string; className: string }> = {
-    pending: {
-      labelKey: 'status.pending',
-      className: 'bg-amber-100 text-amber-900',
-    },
-    approved: {
-      labelKey: 'status.approved',
-      className: 'bg-emerald-100 text-emerald-900',
-    },
-    rejected: {
-      labelKey: 'status.rejected',
-      className: 'bg-red-100 text-red-900',
-    },
-    revoked: {
-      labelKey: 'status.revoked',
-      className: 'bg-stone-200 text-stone-800',
-    },
-  };
-  const { labelKey, className } = map[status];
-  const label = t(labelKey);
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${className}`}
-    >
-      {label}
-    </span>
-  );
+/**
+ * Les cellules sont des fonctions PURES, pas des composants.
+ *
+ * Le `t` dont elles ont besoin est celui de la page — même espace de noms, déjà en portée : rien
+ * ici n'appelle de hook, donc rien n'oblige à traverser une frontière de composant. Un composant
+ * par cellule aurait payé un `useTranslations` par cellule ET par ligne.
+ */
+function formatElapsed(
+  elapsedDays: number | null,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  if (elapsedDays === null) return '—';
+  if (elapsedDays === 0) return t('delay.today');
+  if (elapsedDays === 1) return t('delay.oneDay');
+  return t('delay.days', { count: String(elapsedDays) });
 }
 
 /**
@@ -345,11 +348,4 @@ function elapsedDaysSince(submittedAt: string | null, now: number): number | nul
   const ms = now - new Date(submittedAt).getTime();
   if (ms < 0) return 0;
   return Math.floor(ms / (1000 * 60 * 60 * 24));
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(value),
-  );
 }

@@ -35,6 +35,34 @@
       "current": "Current language: {locale}"
     }
   },
+  "console": {
+    "pagination": {
+      "aria": "Pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "position": "Page {page} of {lastPage}",
+      "positionSlash": "Page {page} / {lastPage}"
+    },
+    "filterBar": {
+      "results": "{count, plural, =0 {No result} one {# result} other {# results}}",
+      "reset": "Reset"
+    },
+    "agencyCombobox": {
+      "placeholder": "All agencies",
+      "searching": "Searching…",
+      "noResult": "No agency matches",
+      "loadMore": "Show more",
+      "shown": "{shown} of {total}",
+      "openAria": "Open the agency list",
+      "clearAria": "Clear the selected agency",
+      "error": "The agency list could not be loaded.",
+      "retry": "Retry",
+      "unknownAgency": "Agency #{id}"
+    },
+    "search": {
+      "pending": "Searching…"
+    }
+  },
   "nav": {
     "publish": "List a property",
     "publishListing": "List a property",
@@ -110,7 +138,20 @@
       "calendar": "Calendar",
       "onboardingPending": "Pending onboardings",
       "administration": "Administration",
-      "proLocked": "Pro accounts only"
+      "proLocked": "Pro accounts only",
+      "navLabel": "Dashboard navigation",
+      "sections": {
+        "catalog": "Catalogue",
+        "discover": "Discover",
+        "requests": "Requests",
+        "engagements": "Commitments",
+        "manage": "Management",
+        "admin": "Administration"
+      },
+      "counters": {
+        "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
+        "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
+      }
     },
     "admin": {
       "dashboard": "Dashboard",
@@ -128,7 +169,8 @@
       "backToPersonal": "Back to my workspace",
       "proLocked": "Pro accounts only",
       "pendingBadge": "{count} pending",
-      "roles": "Roles"
+      "roles": "Roles",
+      "integrations": "Integrations"
     },
     "superAdmin": {
       "eyebrow": "Takussan console",
@@ -137,6 +179,7 @@
       "backToPersonal": "Back to my workspace",
       "pendingBadge": "{count} pending",
       "topbarBrand": "Takussan · Console",
+      "skipToContent": "Skip to main content",
       "groups": {
         "overview": "Overview",
         "operations": "Operations",
@@ -167,6 +210,7 @@
         "audit": "Audit",
         "system": "System",
         "health": "Health",
+        "failedJobs": "Failed jobs",
         "maintenance": "Maintenance",
         "scheduler": "Scheduler"
       }
@@ -940,7 +984,8 @@
         "bulkError": "Bulk action failed.",
         "bulkArchived": "Properties archived.",
         "bulkUnpublished": "Properties unpublished.",
-        "bulkAssigned": "Assigned agent updated."
+        "bulkAssigned": "Assigned agent updated.",
+        "caption": "Dashboard property list"
       },
       "filters": {
         "searchLabel": "Search a property",
@@ -1223,7 +1268,10 @@
       "managePrefs": "Manage preferences",
       "reviews": "Reviews",
       "reviewsBody": "Stays and leases you can publicly review.",
-      "seeReviews": "View my reviews"
+      "seeReviews": "View my reviews",
+      "privacy": "My personal data",
+      "privacyBody": "Request an archive of your data and follow your exports.",
+      "managePrivacy": "Manage my data"
     },
     "notificationPrefs": {
       "metaTitle": "Notification preferences",
@@ -1247,7 +1295,8 @@
       "backToList": "Back to the list",
       "title": "Request #{id}",
       "subtitle": "Intervention tracking",
-      "back": "Back"
+      "back": "Back",
+      "metaTitle": "Maintenance request"
     },
     "onboardingPending": {
       "metaTitle": "Pending onboardings",
@@ -1293,7 +1342,8 @@
       },
       "payments": {
         "title": "Payments",
-        "subtitle": "History, invoices and landlord payouts — one unified view."
+        "subtitle": "History, invoices and landlord payouts — one unified view.",
+        "metaTitle": "Payments"
       },
       "calendar": {
         "metaTitle": "Calendar",
@@ -1316,7 +1366,9 @@
       "customers": {
         "title": "Customers (CRM)",
         "subtitle": "Track your contacts, their pipeline stages and their documents.",
-        "add": "Add a customer"
+        "add": "Add a customer",
+        "pipelineView": "Pipeline view",
+        "metaTitle": "Customers (CRM)"
       },
       "customerNew": {
         "metaTitle": "Add a customer",
@@ -1351,7 +1403,8 @@
         "breadcrumbProfile": "Profile",
         "breadcrumbCurrent": "Reviews",
         "title": "Your reviews",
-        "subtitle": "Find the reviews you published, their statuses, and the stays or leases still eligible for a public review."
+        "subtitle": "Find the reviews you published, their statuses, and the stays or leases still eligible for a public review.",
+        "metaTitle": "Your reviews"
       },
       "bookingDetail": {
         "metaTitle": "Booking",
@@ -1360,7 +1413,8 @@
       "alerts": {
         "title": "Threshold alerts",
         "subtitle": "Configure the alerts triggered when indicators cross a threshold.",
-        "subtitleFull": "Configure the alerts triggered when KPIs cross a threshold. Evaluated hourly."
+        "subtitleFull": "Configure the alerts triggered when KPIs cross a threshold. Evaluated hourly.",
+        "metaTitle": "Threshold alerts"
       },
       "exports": {
         "metaTitle": "Exports",
@@ -1370,25 +1424,53 @@
       "kpis": {
         "title": "Custom KPIs",
         "subtitle": "Choose the indicators to highlight on your dashboard.",
-        "subtitleFull": "Choose the indicators to highlight on your agency's dashboard."
+        "subtitleFull": "Choose the indicators to highlight on your agency's dashboard.",
+        "metaTitle": "Custom KPIs"
       },
       "home": {
         "noAgency": "Dashboard",
         "greeting": "Hello {name}",
-        "subtitle": "An overview of your activity"
+        "subtitle": "An overview of your activity",
+        "metaTitle": "Dashboard"
       },
       "propertyDetail": {
         "metaTitle": "Property record",
         "eyebrow": "Property · {reference}"
       },
       "leaseDetail": {
-        "metaTitleFallback": "Lease not found"
+        "metaTitleFallback": "Lease not found",
+        "metaTitleWithId": "Lease #{id}",
+        "metaTitleWithReference": "Lease {reference}"
       },
       "providers": {
         "metaTitle": "Provider directory"
       },
       "upgrade": {
         "metaTitle": "Upgrade to Pro"
+      },
+      "crmPipeline": {
+        "metaTitle": "Prospect pipeline"
+      },
+      "documentDetail": {
+        "metaTitle": "Document file"
+      },
+      "inventoryNew": {
+        "metaTitle": "New inventory"
+      },
+      "overviewAgency": {
+        "metaTitle": "Agency overview"
+      },
+      "overviewOwner": {
+        "metaTitle": "Landlord overview"
+      },
+      "overviewTenant": {
+        "metaTitle": "My situation"
+      },
+      "paymentReturn": {
+        "metaTitle": "Payment return"
+      },
+      "visitDetail": {
+        "metaTitle": "Visit file"
       }
     },
     "empty": {
@@ -1455,11 +1537,50 @@
         }
       }
     },
+    "agencyQueues": {
+      "heading": "Needs your attention",
+      "subheading": "What is waiting on a decision from your agency.",
+      "empty": "Nothing to handle",
+      "unavailable": "Count unavailable",
+      "kycStatus": {
+        "pending": "Application to complete",
+        "submitted": "Under review",
+        "verified": "Application verified",
+        "rejected": "Application to correct"
+      },
+      "items": {
+        "kyc": {
+          "label": "Agency KYC application",
+          "cta": "Open the application"
+        },
+        "moderation": {
+          "label": "Listings awaiting moderation",
+          "cta": "Moderate",
+          "count": "{count, plural, one {# listing to moderate} other {# listings to moderate}}"
+        },
+        "invitations": {
+          "label": "Unanswered invitations",
+          "cta": "Open the team",
+          "count": "{count, plural, one {# pending invitation} other {# pending invitations}}"
+        },
+        "overdue": {
+          "label": "Overdue instalments",
+          "cta": "See overdue payments",
+          "count": "{count, plural, one {# overdue instalment} other {# overdue instalments}}"
+        }
+      }
+    },
     "agencyRevenue": {
       "heading": "Revenue — last 12 months",
       "empty": "No data to display yet.",
       "total": "Total:",
       "seriesName": "Revenue"
+    },
+    "notFound": {
+      "title": "Not found",
+      "description": "This item does not exist, or it does not belong to your agency. Check the link, or go back to the list.",
+      "backToList": "Back to the list",
+      "backToDashboard": "Back to the dashboard"
     }
   },
   "errors": {
@@ -1810,7 +1931,8 @@
         "pipeline": "Pipeline",
         "status": "Status"
       },
-      "pagination": "{total, plural, one {# customer} other {# customers}} — page {page} of {pages}"
+      "pagination": "{total, plural, one {# customer} other {# customers}} — page {page} of {pages}",
+      "caption": "Customer list"
     },
     "customerDetail": {
       "relationships": {
@@ -3824,7 +3946,8 @@
       "next": "Next",
       "pagination": "Page {current} / {last} — {total} entries",
       "conductedOn": "Carried out on {date}",
-      "createdOn": "Created on {date}"
+      "createdOn": "Created on {date}",
+      "create": "New inventory"
     },
     "new": {
       "no_lease_title": "No lease selected",
@@ -3944,9 +4067,24 @@
       "downloading": "Downloading…",
       "failed": "Download failed.",
       "unavailable": "PDF unavailable ({status})."
+    },
+    "pickLease": {
+      "title": "Pick a lease",
+      "description": "The lease determines the property and the tenant of the inventory.",
+      "empty": "No lease to inventory yet.",
+      "emptyCta": "See leases",
+      "error": "Could not load leases.",
+      "loading": "Loading leases…",
+      "select": "Start"
     }
   },
   "admin": {
+    "notices": {
+      "tagsPlatformManaged": {
+        "title": "Tags are managed by the platform",
+        "body": "There is no agency-level “Tags” page: the tag reference list is maintained by Takussan so it stays shared across the whole catalogue. You were redirected to the dashboard."
+      }
+    },
     "moderation": {
       "reviews": {
         "empty_title": "No review to moderate",
@@ -4011,6 +4149,7 @@
         "empty_title": "No outstanding payment",
         "empty_description": "Good news: every instalment has been settled.",
         "count": "{count, plural, =1 {# outstanding payment} other {# outstanding payments}}",
+        "tableCaption": "Overdue payments",
         "table": {
           "reference": "Reference",
           "source": "Source",
@@ -4069,7 +4208,8 @@
         "subject": "Object type",
         "subjectAria": "Filter by object type",
         "search": "Search",
-        "searchPlaceholder": "Description…"
+        "searchPlaceholder": "Description…",
+        "searchAria": "Search the audit trail"
       },
       "export": {
         "label": "Export",
@@ -4085,10 +4225,8 @@
         "subject": "Object",
         "description": "Description"
       },
-      "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}",
-      "previous": "Previous",
-      "next": "Next",
-      "pageOf": "Page {current} / {last}"
+      "tableCaption": "Agency audit trail",
+      "entries": "{count, plural, =1 {{total} entry} other {{total} entries}}"
     },
     "roles": {
       "page": {
@@ -4266,6 +4404,67 @@
           "edit_custom": "Edit a custom role",
           "delete_custom": "Delete a custom role"
         }
+      },
+      "role_delegations": {
+        "heading": "Temporary delegations",
+        "description": "Hand a role to a member for a bounded period. The delegation starts and ends on its own; you can cut it short at any time.",
+        "empty_title": "No delegation",
+        "empty_description": "Nobody is borrowing a role right now. Create a delegation to cover a leave or an absence.",
+        "unknown_member": "Member #{id}",
+        "columns": {
+          "member": "Beneficiary",
+          "role": "Delegated role",
+          "period": "Period",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "statuses": {
+          "active": "Active",
+          "scheduled": "Scheduled",
+          "expired": "Expired",
+          "revoked": "Revoked"
+        },
+        "roles": {
+          "agency_admin": "Agency administrator",
+          "agent": "Agent",
+          "owner": "Owner"
+        },
+        "period": {
+          "range": "From {start} to {end}",
+          "until": "Until {end}"
+        },
+        "actions": {
+          "create": "Delegate a role",
+          "revoke": "Revoke",
+          "revoke_named": "Revoke {name}'s delegation"
+        },
+        "errors": {
+          "load": "Delegations could not be loaded.",
+          "create": "The delegation could not be created.",
+          "revoke": "The delegation could not be revoked."
+        },
+        "create": {
+          "title": "Delegate a role",
+          "description": "Three things are enough: to whom, which role, and until when.",
+          "member_label": "Beneficiary",
+          "member_placeholder": "Pick a member",
+          "no_member": "No other agency member can receive a delegation.",
+          "role_label": "Role to delegate",
+          "starts_at_label": "Start (optional)",
+          "starts_at_hint": "With no date, the delegation takes effect immediately.",
+          "ends_at_label": "End",
+          "max_duration_hint": "At most {days} days from today.",
+          "reason_label": "Reason (optional)",
+          "reason_placeholder": "Leave, assignment, cover…",
+          "submit": "Delegate",
+          "submitting": "Delegating…"
+        },
+        "revoke": {
+          "title": "Revoke this delegation?",
+          "description": "{name} will lose the delegated role immediately, without waiting for {end}. The row stays visible, as “Revoked”.",
+          "submit": "Revoke",
+          "submitting": "Revoking…"
+        }
       }
     },
     "pages": {
@@ -4345,12 +4544,45 @@
           "admins": "Administrators",
           "owners": "Owners"
         },
-        "invite": "Invite",
-        "pagination": {
-          "label": "Pagination",
-          "previous": "Previous",
-          "next": "Next",
-          "pageOf": "Page {current} of {last}"
+        "invite": "Invite"
+      },
+      "invitations": {
+        "title": "Pending invitations",
+        "subtitle": "No answer yet.",
+        "error": "Pending invitations could not be loaded.",
+        "columns": {
+          "email": "Recipient",
+          "role": "Role",
+          "sentAt": "Sent on",
+          "actions": "Actions",
+          "state": "State"
+        },
+        "roles": {
+          "owner": "Owner",
+          "agent": "Agent",
+          "agent_senior": "Senior agent",
+          "agent_manager": "Agent manager",
+          "agency_admin": "Administrator",
+          "service_provider": "Service provider"
+        },
+        "states": {
+          "pending": "Pending",
+          "expired": "Expired"
+        },
+        "actions": {
+          "resend": "Resend",
+          "revoke": "Cancel"
+        },
+        "toasts": {
+          "resendSuccess": "Invitation resent to {email}.",
+          "revokeSuccess": "Invitation for {email} cancelled.",
+          "errorTitle": "The action did not go through."
+        },
+        "revokeDialog": {
+          "title": "Cancel this invitation?",
+          "description": "The link already sent to {email} will stop working. You can invite them again.",
+          "cancel": "Keep",
+          "confirm": "Cancel invitation"
         }
       }
     },
@@ -4371,9 +4603,20 @@
         "confirmReject": "Confirm the rejection",
         "approve": "Approve",
         "reject": "Reject"
-      }
+      },
+      "searchAria": "Search a property to review"
     },
     "agencyConfig": {
+      "watermarks": {
+        "title": "Photo watermarks",
+        "description": "Re-applies the agency watermark to the photos of every one of its properties. Useful after a logo change.",
+        "action": "Regenerate watermarks",
+        "confirmTitle": "Regenerate every watermark?",
+        "confirmBody": "Every photo of every property in the agency will be reprocessed in the background. It can take several minutes and it replaces the existing files.",
+        "confirmAction": "Start the regeneration",
+        "pending": "Sending…",
+        "queued": "Request sent: the regeneration continues in the background."
+      },
       "successSaved": "Changes saved.",
       "logoUpdated": "Logo updated.",
       "identity": {
@@ -4458,6 +4701,7 @@
         "allRoles": "All roles"
       },
       "table": {
+        "caption": "Agency members",
         "member": "Member",
         "email": "Email",
         "role": "Role",
@@ -4984,7 +5228,8 @@
       "actions": "Actions",
       "editValueAria": "Edit {value}",
       "deactivateValueAria": "Deactivate {value}",
-      "warning": "Technical statuses and roles cannot be edited here."
+      "warning": "Technical statuses and roles cannot be edited here.",
+      "tableCaption": "Values of the {name} enum"
     },
     "moderation": {
       "empty_title": "No moderation item",
@@ -5040,7 +5285,8 @@
         "hide": "Hide",
         "reject": "Reject",
         "remove": "Delete"
-      }
+      },
+      "tableCaption": "Cross-tenant moderation queue"
     },
     "properties": {
       "empty_title": "No property to show",
@@ -5089,7 +5335,8 @@
           "archiveLabel": "Confirm the archiving",
           "deleteLabel": "Confirm the deletion",
           "unpublishLabel": "Confirm the unpublishing"
-        }
+        },
+        "tableCaption": "Platform properties, across every agency"
       }
     },
     "templates": {
@@ -5123,7 +5370,8 @@
       "colSubject": "Subject",
       "previous": "Previous",
       "next": "Next",
-      "pagination": "Page {current} of {last} · {total} entries"
+      "pagination": "Page {current} of {last} · {total} entries",
+      "tableCaption": "Cross-tenant audit log"
     },
     "announcements": {
       "empty_title": "No announcement yet",
@@ -5155,7 +5403,41 @@
         "success": "Success",
         "warning": "Alert",
         "critical": "Critical"
-      }
+      },
+      "tableCaption": "Scheduled cross-tenant announcements",
+      "colState": "State",
+      "states": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "live": "Broadcasting",
+        "expired": "Expired"
+      },
+      "severity": "Severity",
+      "diffusion": "Broadcast",
+      "editTitle": "Edit announcement",
+      "edit": "Edit",
+      "editRow": "Edit the {title} announcement",
+      "cancelEdit": "Cancel",
+      "save": "Save changes",
+      "editingLiveNotice": "This announcement is being broadcast: the fix applies immediately, without republishing it or reopening the ones users already dismissed.",
+      "editingDraftNotice": "This announcement is not being broadcast: it will be as soon as broadcasting is turned on.",
+      "titleFieldLabel": "{locale} title",
+      "bodyFieldLabel": "{locale} message",
+      "roleLabels": {
+        "super_admin": "Super-admin",
+        "agency_admin": "Agency admin",
+        "agent": "Agent",
+        "owner": "Owner",
+        "broker": "Broker",
+        "service_provider": "Service provider"
+      },
+      "rolesHint": "No role ticked: the announcement is not restricted by role.",
+      "agenciesEmpty": "No agency targeted: the announcement is not restricted by agency.",
+      "agencySearch": "Search an agency",
+      "agenciesLoading": "Loading agencies…",
+      "agenciesNoMatch": "No agency matches.",
+      "agencyUnknown": "Agency #{id}",
+      "agencyRemove": "Remove {name} from targeting"
     },
     "scheduler": {
       "empty_title": "No run captured",
@@ -5164,24 +5446,58 @@
       "subtitle": "Latest runs observed by the Laravel scheduler.",
       "colTask": "Task",
       "colLastRun": "Last run",
-      "colAvgDuration": "Average duration"
+      "colAvgDuration": "Average duration",
+      "tableCaption": "Scheduled tasks and last run"
+    },
+    "failedJobs": {
+      "empty_title": "No failed job",
+      "empty_description": "The queue is running without errors.",
+      "statTotal": "Failed jobs",
+      "retryAll": "Retry all",
+      "retry": "Retry",
+      "detail": "Details",
+      "colQueue": "Queue",
+      "colPayload": "Payload",
+      "colFailedAt": "Failed at",
+      "colActions": "Actions",
+      "tableCaption": "Failed jobs in the processing queue",
+      "loadError": "Could not load the failed jobs.",
+      "detailTitle": "Failed job details",
+      "detailSubtitle": "Full payload and exception, as the queue recorded them.",
+      "detailError": "Could not load the job details.",
+      "detailConnection": "Connection",
+      "detailUuid": "UUID",
+      "detailException": "Exception",
+      "confirmRetryAllTitle": "Retry every failed job",
+      "confirmRetryAllDescription": "{count} failed job(s) will be queued again at once. Past 500, the API refuses the batch.",
+      "confirmDeleteTitle": "Delete a failed job",
+      "confirmDeleteDescription": "{count} failed job (#{id}) will be purged for good, with its payload and its trace.",
+      "retryError": "Retrying this job failed.",
+      "retryAllError": "The bulk retry failed. No job was queued again.",
+      "deleteError": "Deleting this job failed."
     },
     "systemHealth": {
-      "failedJobs": {
-        "empty_title": "No failed job",
-        "empty_description": "The job queue is running without errors.",
-        "title": "Failed jobs",
-        "subtitle": "Payload truncated in the list.",
-        "retryAll": "Retry all",
-        "retry": "Retry",
-        "colQueue": "Queue",
-        "colPayload": "Payload",
-        "colFailedAt": "Failure",
-        "colActions": "Actions"
-      },
       "queuePending": "Pending",
       "queueProcessing": "Processing",
-      "queueFailed24h": "Failures 24h"
+      "queueFailed24h": "Failures 24h",
+      "checks": {
+        "db": "Database",
+        "cache": "Cache",
+        "storage": "Storage",
+        "mail": "Email",
+        "sms": "SMS"
+      },
+      "hint": {
+        "error": "Error: {message}",
+        "driver": "Driver: {driver}",
+        "value": "Value: {value}",
+        "latency": "{ms} ms"
+      },
+      "status": {
+        "ok": "OK",
+        "failed": "Down",
+        "loading": "…"
+      }
     },
     "integrations": {
       "webhooks": {
@@ -5193,7 +5509,8 @@
         "colEvent": "Event",
         "colStatus": "Status",
         "colPayload": "Payload",
-        "colReceived": "Received"
+        "colReceived": "Received",
+        "tableCaption": "Webhook log received for {label}"
       },
       "edit": "Edit",
       "webhooksAction": "Webhooks",
@@ -5210,12 +5527,13 @@
       "verificationRate": "{rate}% verified",
       "agenciesActive": "Active",
       "agenciesSuspended": "Suspended",
-      "activeUsers": "Active users",
-      "outOfTotal": "of {total}",
       "publishedProperties": "Published properties",
       "pendingReview": "Under moderation",
       "platformRevenue": "Platform revenue",
-      "cumulativeRents": "Cumulative rent collected"
+      "cumulativeRents": "Cumulative rent collected",
+      "usersTotal": "Users",
+      "activeOutOf": "{active} active",
+      "delta": "{value}% over {days} days"
     },
     "impersonation": {
       "banner": "You are acting as {target} — session until {expires}.",
@@ -5324,7 +5642,8 @@
       "home": {
         "metaTitle": "Takussan Console",
         "title": "Takussan Console",
-        "subtitle": "Platform view — agencies, users, moderation and revenue."
+        "subtitle": "Platform view — agencies, users, moderation and revenue.",
+        "metricsTitle": "Platform state"
       },
       "agencyDetail": {
         "metaTitle": "Agency details"
@@ -5356,6 +5675,10 @@
       "systemHealth": {
         "title": "Healthcheck",
         "subtitle": "Dependencies, queues and job failures with automatic refresh."
+      },
+      "failedJobs": {
+        "title": "Failed jobs",
+        "subtitle": "Queue workers: what failed, the full trace, and the retry."
       },
       "scheduler": {
         "title": "Scheduler",
@@ -5394,24 +5717,21 @@
         "subtitle": "Global reference list used by every agency to qualify properties and customers.",
         "loadError": "Could not load the tags:"
       },
-      "pagination": {
-        "aria": "Pagination",
-        "previous": "Previous",
-        "next": "Next",
-        "position": "Page {page} of {lastPage}",
-        "positionSlash": "Page {page} / {lastPage}"
-      },
       "system": {
         "metaTitle": "System — Takussan Console",
         "title": "System",
-        "subtitle": "Platform metrics and global settings.",
+        "subtitle": "The three technical screens of the platform, plus the global settings.",
         "globalSettings": {
-          "title": "Global settings",
-          "body": "Currencies, formats, fees and technical limits are set on the dedicated settings page. Third-party integrations, maintenance mode and feature flags will land with their own tickets.",
           "openSettings": "Open settings",
           "maintenance": "Maintenance mode",
           "healthcheck": "Healthcheck",
           "scheduler": "Scheduler"
+        },
+        "entries": {
+          "healthcheck": "Dependency status — database, cache, storage, mail, SMS — and failed jobs.",
+          "maintenance": "Close the platform to users, with a message and a time window.",
+          "scheduler": "What the scheduler runs, and when it last ran it.",
+          "openSettings": "Currencies, formats, fees and technical limits of the platform."
         }
       },
       "maintenance": {
@@ -5428,29 +5748,59 @@
       },
       "kyc": {
         "title": "KYC queue",
-        "subtitle": "Submitted agency files, sorted from oldest to newest.",
-        "submittedFiles": "Submitted files",
-        "empty": "No file submitted.",
-        "agency": "Agency #{id}",
-        "submittedOn": "Submitted on {date}",
-        "open": "Open"
+        "subtitle": "Review agency files without leaving the queue.",
+        "statusAria": "Filter by status",
+        "statPending": "To review",
+        "statFiltered": "{status} files",
+        "tableCaption": "Agency KYC files, oldest first",
+        "columns": {
+          "agency": "Agency",
+          "status": "Status",
+          "documents": "Documents",
+          "submittedAt": "Submitted on",
+          "action": "Actions"
+        },
+        "agencyFallback": "Deleted agency (#{id})",
+        "agencyUnknown": "Agency #{id}",
+        "subjectFallback": "{type} #{id}",
+        "dossierRef": "File #{id}",
+        "documentsCount": "{present}/{total}",
+        "review": "Review",
+        "decisionTitle": "Decision",
+        "selectRow": "Pick a file from the queue to review it.",
+        "openDocument": "Open",
+        "documentMissing": "Missing",
+        "previousReason": "Previous reason: {reason}",
+        "reasonLabel": "Rejection reason",
+        "reasonPlaceholder": "What the agency must fix to be accepted.",
+        "reasonRequired": "A rejection needs a reason of at least {min} characters.",
+        "verify": "Verify",
+        "reject": "Reject",
+        "notReviewable": "Only a submitted file can be reviewed.",
+        "decisionFailed": "The decision could not be saved.",
+        "staleDecision": "This file is no longer reviewable: it has just been decided elsewhere. The queue has been refreshed.",
+        "incompleteDossier": "A required document is missing from this file. The queue has been refreshed.",
+        "error": "The KYC queue could not be loaded.",
+        "retry": "Try again",
+        "emptyTitle": "Nothing to review",
+        "emptyDescription": "No file in this state. Switch status to see the others."
       },
       "users": {
         "title": "Users",
         "subtitle": "Cross-tenant search and impersonation for support.",
         "searchPlaceholder": "Name, email, ID, phone",
+        "searchAria": "Search for a user",
         "roleAria": "Role",
-        "agencyIdPlaceholder": "Agency ID",
+        "agencyAria": "Agency",
         "statusAria": "Status",
         "emailAria": "Email verified",
         "twoFactorAria": "2FA",
-        "rolesLabel": "Roles:",
-        "agenciesLabel": "Agencies:",
-        "summary": "Status: {status} · Email {email} · 2FA {twoFactor} · Last sign-in {lastLogin}",
         "emailVerified": "verified",
         "emailUnverified": "not verified",
         "twoFactorOn": "on",
         "twoFactorOff": "off",
+        "securityEmail": "Email: {value}",
+        "securityTwoFactor": "2FA: {value}",
         "open": "Open",
         "impersonate": "Impersonate",
         "impersonateTitle": "Impersonate {name}",
@@ -5482,6 +5832,16 @@
           "all": "2FA: all",
           "on": "2FA enabled",
           "off": "2FA disabled"
+        },
+        "tableCaption": "Platform users, across every agency",
+        "columns": {
+          "user": "User",
+          "roles": "Roles",
+          "agencies": "Agencies",
+          "status": "Status",
+          "security": "Security",
+          "lastLogin": "Last sign-in",
+          "actions": "Actions"
         }
       },
       "agencies": {
@@ -5490,6 +5850,7 @@
         "statusAria": "Status",
         "sortAria": "Sort",
         "searchPlaceholder": "Search (name, slug, email)",
+        "searchAria": "Search for an agency",
         "createdFromAria": "Created from",
         "createdToAria": "Created up to",
         "statuses": {
@@ -5522,7 +5883,25 @@
         "invitedBadge": "Invited",
         "badgePending2fa": "2FA pending",
         "badgeActive": "Active",
-        "badgeActiveNo2fa": "Active (2FA off)"
+        "badgeActiveNo2fa": "Active (2FA off)",
+        "expiresOn": "Expires on {date}",
+        "expiredOn": "Expired on {date}",
+        "expiredBadge": "Expired",
+        "lastLoginOn": "Last sign-in on {date}",
+        "neverLoggedIn": "Never signed in",
+        "resend": "Resend",
+        "resending": "Resending…",
+        "cancel": "Cancel invitation",
+        "cancelling": "Cancelling…",
+        "resendSuccess": "Invitation resent to {email}.",
+        "resendError": "Resending failed:",
+        "cancelSuccess": "Invitation cancelled for {email}.",
+        "cancelError": "Cancelling failed:",
+        "confirmCancelTitle": "Cancel this invitation?",
+        "confirmCancelBody": "The link sent to {email} will stop working immediately. You can always invite this person again later.",
+        "confirmCancelKeep": "Keep it",
+        "confirmCancelConfirm": "Cancel invitation",
+        "invitationActions": "Actions on the invitation for {email}"
       },
       "upgradeRequests": {
         "title": "Upgrade requests",
@@ -5569,7 +5948,8 @@
           "previous": "Previous",
           "next": "Next",
           "position": "Page {page} / {lastPage}"
-        }
+        },
+        "tableCaption": "Agency upgrade requests"
       },
       "upgradeRequestDetail": {
         "invalidId": "Invalid request identifier.",
@@ -5629,7 +6009,8 @@
       "targetRoles": "Targeted roles",
       "rollout": "Rollout %",
       "test": "Test",
-      "testing": "You are testing"
+      "testing": "You are testing",
+      "tableCaption": "Platform feature flags"
     },
     "alerts": {
       "colEvent": "Event",
@@ -5642,7 +6023,8 @@
       "emails": "Emails",
       "webhooks": "Webhooks",
       "test": "Test",
-      "testSent": "Test sent"
+      "testSent": "Test sent",
+      "tableCaption": "Platform alert rules"
     },
     "inviteModal": {
       "title": "Coopt a super-admin",
@@ -5846,6 +6228,43 @@
         "reasonPlaceholder": "Describe the audited reason",
         "pending": "Executing…"
       }
+    },
+    "queues": {
+      "title": "Queues",
+      "subtitle": "What is waiting for a decision. Each row opens the view where it gets handled.",
+      "empty": "Nothing pending",
+      "countError": "Count unavailable",
+      "items": {
+        "kyc-pending": {
+          "label": "KYC files",
+          "description": "Submitted agency identity checks, awaiting review.",
+          "unit": "{count, plural, one {file to review} other {files to review}}"
+        },
+        "upgrade-requests-pending": {
+          "label": "Upgrade requests",
+          "description": "Agency-account upgrades submitted by owners.",
+          "unit": "{count, plural, one {request to handle} other {requests to handle}}"
+        },
+        "moderation-pending": {
+          "label": "Moderation",
+          "description": "Reported properties and reviews, across every agency.",
+          "unit": "{count, plural, one {report to settle} other {reports to settle}}"
+        },
+        "failed-jobs": {
+          "label": "Failed jobs",
+          "description": "Queue jobs that failed and have not been retried.",
+          "unit": "{count, plural, one {job to retry} other {jobs to retry}}"
+        }
+      }
+    },
+    "recentActivity": {
+      "title": "Recent activity",
+      "seeAll": "Full audit log",
+      "error": "Recent activity could not be loaded.",
+      "emptyTitle": "No activity recorded",
+      "emptyDescription": "Cross-agency actions will show up here as soon as they are logged.",
+      "unknownEvent": "Unlabelled event",
+      "systemCauser": "System"
     }
   },
   "adminSettings": {
@@ -5909,6 +6328,7 @@
         "agency": "Agency"
       },
       "new": "New setting",
+      "tableCaption": "Platform settings",
       "columns": {
         "key": "Key",
         "scope": "Scope",
@@ -6787,14 +7207,19 @@
     },
     "filters": {
       "periodAria": "Period",
-      "metricAria": "Metric"
+      "metricAria": "Metric",
+      "rangeStart": "Range start",
+      "rangeEnd": "Range end",
+      "rangeApply": "Apply",
+      "rangeClear": "Clear range"
     },
     "periods": {
       "30d": "30 days",
       "90d": "90 days",
       "3m": "3 months",
       "6m": "6 months",
-      "12m": "12 months"
+      "12m": "12 months",
+      "custom": "Custom range"
     },
     "metrics": {
       "agencies": "Agencies",
@@ -6802,7 +7227,8 @@
       "listings": "Listings"
     },
     "growth": {
-      "total": "Total:"
+      "total": "Total:",
+      "chartAria": "Monthly trend — {metric}, {count} points."
     },
     "funnel": {
       "conversion": "Overall conversion:",
@@ -6811,7 +7237,9 @@
         "bookings_requested": "Bookings requested",
         "bookings_confirmed": "Bookings confirmed",
         "leases_signed": "Leases signed"
-      }
+      },
+      "empty": "No conversion over this period",
+      "emptyHint": "Pick a wider period."
     },
     "revenue": {
       "mrrCurrent": "Current MRR",
@@ -6821,12 +7249,18 @@
         "period": "Period",
         "mrr": "MRR",
         "arr": "ARR"
-      }
+      },
+      "chartAria": "Monthly MRR trend, {count} points.",
+      "chartCaption": "MRR per month, in XOF."
     },
     "cohorts": {
       "caption": "Agency cohorts by sign-up month · 12-month depth.",
       "cohort": "Cohort",
-      "size": "Size"
+      "size": "Size",
+      "empty": "No cohort at this depth",
+      "emptyHint": "No agency signed up over the months covered.",
+      "cellAria": "M{month}: {rate}% still active",
+      "cellEmpty": "M{month}: not measured yet"
     },
     "export": {
       "csv": "Export CSV",
@@ -6836,6 +7270,13 @@
       "requestedBody": "Large exports are notified by email.",
       "errorTitle": "Export failed",
       "errorBody": "Try again in a few moments."
+    },
+    "chart": {
+      "empty": "No data for this period",
+      "emptyHint": "Widen the range or pick another metric.",
+      "compare": "Compare to previous period",
+      "previous": "Previous period",
+      "pointAria": "{bucket}: {value}"
     }
   },
   "kyc": {

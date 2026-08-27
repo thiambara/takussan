@@ -1,8 +1,10 @@
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
+import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { AdminFinancesClient } from './AdminFinancesClient';
+import { PageHeader } from '@/components/console';
 import { getTranslations } from 'next-intl/server';
 
 /**
@@ -31,23 +33,41 @@ export default async function Page() {
   if (!isAdmin(user.roles)) redirect('/app/profile');
 
   const superAdmin = isSuperAdmin(user.roles);
-  const hasAgencyContext = Boolean(user.agency_id);
+  const agencyId = user.agency_id;
 
-  if (superAdmin && !hasAgencyContext) {
+  if (superAdmin && !agencyId) {
     redirect('/super-admin');
   }
 
-  if (!hasAgencyContext) {
+  if (!agencyId) {
     return <NoAgencyState title={t('noAgency')} />;
   }
 
+  // TCK-370 — le taux de commission par défaut du dialogue de reversement.
+  //
+  // ⚠ Le ticket annonçait `/api/dashboard/agency` comme source ; c'est FAUX, et cette page ne
+  // monte pas cet endpoint. `DashboardAgencyService` rend `finance.commission_month`, une SOMME
+  // de `leases.commission_amount` sur le mois — jamais un taux. Le taux vit sur
+  // `agencies.commission_rate`, déjà présent dans `AGENCY_ADMIN_FIELDS` et déjà servi par
+  // `fetchAgencyAction`, celui-là même que `/admin/agency` utilise pour pré-remplir son champ
+  // « Commission ». Les deux écrans lisent donc la même colonne.
+  //
+  // Une agence illisible (403/404) ne casse pas la page : la prop reste absente et le dialogue
+  // reprend son ancien comportement.
+  const agence = await fetchAgencyAction(agencyId);
+  const defaultCommissionRate =
+    agence.ok && typeof agence.data?.commission_rate === 'number'
+      ? agence.data.commission_rate
+      : undefined;
+
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
-      <AdminFinancesClient canViewFinances canEmitFinances />
+      <PageHeader title={t('title')} description={t('subtitle')} />
+      <AdminFinancesClient
+        canViewFinances
+        canEmitFinances
+        defaultCommissionRate={defaultCommissionRate}
+      />
     </div>
   );
 }

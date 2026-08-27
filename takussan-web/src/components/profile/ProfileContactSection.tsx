@@ -122,22 +122,22 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
   const showVerifyControls = savedPhone.length > 0 && !phoneVerified && !phoneDirty;
 
   return (
-    <section className="space-y-4 rounded-2xl bg-app-surface-1 p-6">
+    <section className="space-y-4 rounded-2xl bg-card p-6">
       <div>
-        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
-        <p className="text-sm text-app-ink-muted">{t('subtitle')}</p>
+        <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="space-y-1">
-          <label className="text-xs font-semibold text-app-ink-muted">{t('emailLabel')}</label>
+          <label className="text-xs font-semibold text-muted-foreground">{t('emailLabel')}</label>
           <div className="flex items-center gap-2">
-            <Input value={user.email} disabled className="bg-white/60" />
+            <Input value={user.email} disabled className="bg-card/60" />
             <span
               className={
                 'rounded-full px-2 py-1 text-xs font-semibold ' +
                 (emailVerified
-                  ? 'bg-app-surface-3 text-app-topbar'
-                  : 'bg-white text-app-accent')
+                  ? 'bg-border text-foreground'
+                  : 'bg-card text-primary')
               }
             >
               {emailVerified ? t('verified') : t('notVerified')}
@@ -145,7 +145,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
           </div>
         </div>
         <div className="space-y-1">
-          <label htmlFor="phone" className="text-xs font-semibold text-app-ink-muted">
+          <label htmlFor="phone" className="text-xs font-semibold text-muted-foreground">
             {t('phoneLabel')}
           </label>
           <div className="flex items-center gap-2">
@@ -166,8 +166,8 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                 className={
                   'whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ' +
                   (phoneVerified
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-amber-100 text-amber-800')
+                    ? 'bg-success/15 text-success'
+                    : 'bg-warning/15 text-warning')
                 }
               >
                 {phoneVerified ? t('verified') : t('notVerified')}
@@ -175,11 +175,11 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             ) : null}
           </div>
           {!phoneFormatValid ? (
-            <p id="phone-error" role="alert" className="text-xs text-red-600">
+            <p id="phone-error" role="alert" className="text-xs text-destructive">
               {t('phoneFormatError')}
             </p>
           ) : (
-            <p className="text-xs text-app-ink-muted">
+            <p className="text-xs text-muted-foreground">
               {t('phoneHint')}
             </p>
           )}
@@ -188,9 +188,9 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         {showVerifyControls ? (
           <div
             data-testid="phone-verify-block"
-            className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3"
+            className="space-y-2 rounded-md border border-warning/30 bg-warning/10 p-3"
           >
-            <p className="text-xs text-amber-900">
+            <p className="text-xs text-warning">
               {t('verifyPrompt')}
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -245,7 +245,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             {otpFeedback ? (
               <p
                 role={otpFeedback.ok ? 'status' : 'alert'}
-                className={'text-xs ' + (otpFeedback.ok ? 'text-emerald-700' : 'text-red-600')}
+                className={'text-xs ' + (otpFeedback.ok ? 'text-success' : 'text-destructive')}
               >
                 {otpFeedback.message}
               </p>
@@ -254,7 +254,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         ) : null}
 
         <div className="space-y-1">
-          <label htmlFor="contact-bio" className="text-xs font-semibold text-app-ink-muted">
+          <label htmlFor="contact-bio" className="text-xs font-semibold text-muted-foreground">
             {t('bioLabel')}
           </label>
           <Textarea
@@ -265,12 +265,12 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             rows={3}
             placeholder={t('bioPlaceholder')}
           />
-          <p className="text-right text-xs text-app-ink-muted">{bio.length}/500</p>
+          <p className="text-right text-xs text-muted-foreground">{bio.length}/500</p>
         </div>
         {feedback ? (
           <p
             role={feedback.ok ? 'status' : 'alert'}
-            className={'text-sm ' + (feedback.ok ? 'text-emerald-700' : 'text-red-600')}
+            className={'text-sm ' + (feedback.ok ? 'text-success' : 'text-destructive')}
           >
             {feedback.message}
           </p>

@@ -42,6 +42,7 @@ describe('<InviteSuperAdminModal>', () => {
       invited_by: 1,
       expires_at: null,
       created_at: null,
+      is_expired: false,
       metadata: null,
     });
 

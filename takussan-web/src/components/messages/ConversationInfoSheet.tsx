@@ -110,7 +110,7 @@ export function ConversationInfoSheet({
   return (
     <Sheet open={open} onOpenChange={(v) => (v ? null : onClose())}>
       <SheetContent side="right" className="flex w-full flex-col p-0 sm:max-w-md">
-        <SheetHeader className="border-b border-stone-200 p-4">
+        <SheetHeader className="border-b border-border p-4">
           <SheetTitle>{t('title')}</SheetTitle>
           <SheetDescription>
             {t('subjectLine', { subject: conversation?.subject ?? '—' })}
@@ -120,7 +120,7 @@ export function ConversationInfoSheet({
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {isAdmin && (
             <div className="space-y-1.5">
-              <label className="mb-1 block text-sm font-medium text-stone-700" htmlFor="rename-subject">{t('renameLabel')}</label>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground" htmlFor="rename-subject">{t('renameLabel')}</label>
               <div className="flex gap-2">
                 <Input
                   id="rename-subject"
@@ -149,10 +149,10 @@ export function ConversationInfoSheet({
           <Separator />
 
           <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase text-stone-500">
+            <h3 className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
               {t('participantsHeading', { count: participants.length })}
             </h3>
-            <ul className="divide-y divide-stone-100">
+            <ul className="divide-y divide-border">
               {participants.map((p) => (
                 <ParticipantRow
                   key={p.id}
@@ -174,7 +174,7 @@ export function ConversationInfoSheet({
 
           {isAdmin && (
             <div className="space-y-1.5">
-              <label className="mb-1 block text-sm font-medium text-stone-700" htmlFor="add-participant-input">{t('addLabel')}</label>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground" htmlFor="add-participant-input">{t('addLabel')}</label>
               <div className="flex gap-2">
                 <Input
                   id="add-participant-input"
@@ -207,10 +207,10 @@ export function ConversationInfoSheet({
             </div>
           )}
 
-          {error && <p className="text-xs text-red-600">{error}</p>}
+          {error && <p className="text-xs text-destructive">{error}</p>}
         </div>
 
-        <div className="border-t border-stone-200 p-4 space-y-2">
+        <div className="border-t border-border p-4 space-y-2">
           <Button
             type="button"
             variant="outline"
@@ -228,7 +228,7 @@ export function ConversationInfoSheet({
           <Button
             type="button"
             variant="outline"
-            className="w-full justify-start text-red-600 hover:text-red-700"
+            className="w-full justify-start text-destructive hover:text-destructive"
             disabled={removeParticipant.isPending || isLastAdmin}
             onClick={handleLeave}
           >
@@ -236,7 +236,7 @@ export function ConversationInfoSheet({
             {t('leave')}
           </Button>
           {isLastAdmin && (
-            <p className="text-[10px] text-stone-500">{t('lastAdminLeaveHint')}</p>
+            <p className="text-[10px] text-muted-foreground">{t('lastAdminLeaveHint')}</p>
           )}
         </div>
       </SheetContent>

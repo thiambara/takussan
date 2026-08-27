@@ -17,32 +17,39 @@ import type {
 } from '@/types/inventory';
 
 const STATUS_TONE: Record<InventoryStatus, string> = {
-  draft: 'bg-slate-100 text-slate-700',
-  pending_signature: 'bg-amber-100 text-amber-800',
-  signed: 'bg-emerald-100 text-emerald-800',
-  disputed: 'bg-red-100 text-red-800',
+  draft: 'bg-muted text-muted-foreground',
+  pending_signature: 'bg-warning/15 text-warning',
+  signed: 'bg-success/15 text-success',
+  disputed: 'bg-destructive/15 text-destructive',
 };
 
 export function inventoryStatusBadgeClass(status: InventoryStatus): string {
-  return STATUS_TONE[status] ?? 'bg-gray-100 text-gray-700';
+  return STATUS_TONE[status] ?? 'bg-muted text-muted-foreground';
 }
 
+/**
+ * ⚠ TCK-381 — `move_in` et `move_out` sont deux TYPES opposés, jamais deux statuts : leur donner
+ * le même ton aurait effacé l'opposition que la pastille existe pour porter. `--info` et
+ * `--primary`, comme au calendrier.
+ */
 const TYPE_TONE: Record<InventoryType, string> = {
-  move_in: 'bg-sky-100 text-sky-800',
-  move_out: 'bg-purple-100 text-purple-800',
+  move_in: 'bg-info/15 text-info',
+  move_out: 'bg-primary/12 text-primary',
 };
 
 export function inventoryTypeBadgeClass(type: InventoryType): string {
-  return TYPE_TONE[type] ?? 'bg-gray-100 text-gray-700';
+  return TYPE_TONE[type] ?? 'bg-muted text-muted-foreground';
 }
 
 const ELEMENT_STATE_TONE: Record<InventoryElementState, string> = {
-  bon: 'bg-emerald-100 text-emerald-800',
-  'usé': 'bg-amber-100 text-amber-800',
-  'endommagé': 'bg-orange-100 text-orange-800',
-  manquant: 'bg-red-100 text-red-800',
+  bon: 'bg-success/15 text-success',
+  'usé': 'bg-warning/15 text-warning',
+  // `endommagé` était en orange et `usé` en ambre : deux crans d'un même avertissement. Le DS
+  // n'a qu'un jeton d'avertissement — on garde le cran par l'INTENSITÉ, pas par la teinte.
+  'endommagé': 'bg-warning/30 text-warning',
+  manquant: 'bg-destructive/15 text-destructive',
 };
 
 export function inventoryElementStateBadgeClass(state: InventoryElementState): string {
-  return ELEMENT_STATE_TONE[state] ?? 'bg-gray-100 text-gray-700';
+  return ELEMENT_STATE_TONE[state] ?? 'bg-muted text-muted-foreground';
 }

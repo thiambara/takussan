@@ -133,16 +133,16 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
     <Sheet open onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full max-w-md border-l border-app-surface-2 sm:max-w-lg"
+        className="w-full max-w-md border-l border-muted sm:max-w-lg"
         data-testid="customer-detail-sheet"
       >
-        <header className="flex items-start justify-between gap-3 border-b border-app-surface-2 p-4">
+        <header className="flex items-start justify-between gap-3 border-b border-muted p-4">
           <div className="min-w-0">
-            <p className="truncate text-lg font-bold text-app-ink">
+            <p className="truncate text-lg font-bold text-foreground">
               {customer ? `${customer.first_name} ${customer.last_name}` : '…'}
             </p>
             {customer?.email ? (
-              <p className="truncate text-xs text-app-ink-muted">{customer.email}</p>
+              <p className="truncate text-xs text-muted-foreground">{customer.email}</p>
             ) : null}
           </div>
           <Button
@@ -221,15 +221,15 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-app-ink-muted">{label}</dt>
-      <dd className="mt-0.5 text-app-ink">{value ?? '—'}</dd>
+      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 text-foreground">{value ?? '—'}</dd>
     </div>
   );
 }
 
 function Loading() {
   return (
-    <div className="flex items-center justify-center py-8 text-app-ink-muted">
+    <div className="flex items-center justify-center py-8 text-muted-foreground">
       <Loader2 className="size-5 animate-spin" />
     </div>
   );
@@ -237,7 +237,7 @@ function Loading() {
 
 function Empty() {
   const t = useTranslations('crm.pipeline');
-  return <p className="py-8 text-center text-sm text-app-ink-muted">{t('empty')}</p>;
+  return <p className="py-8 text-center text-sm text-muted-foreground">{t('empty')}</p>;
 }
 
 interface NotesTabProps {
@@ -282,15 +282,15 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
           {notes.map((n) => (
             <li
               key={n.id}
-              className="rounded-md border border-app-surface-2 bg-app-surface-1 p-3 text-sm"
+              className="rounded-md border border-muted bg-card p-3 text-sm"
             >
               {n.pinned ? (
-                <span className="mb-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                <span className="mb-1 inline-block rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning dark:text-warning">
                   {t('notes.pinned')}
                 </span>
               ) : null}
-              <p className="whitespace-pre-wrap text-app-ink">{n.body}</p>
-              <time className="mt-1 block text-xs text-app-ink-muted">
+              <p className="whitespace-pre-wrap text-foreground">{n.body}</p>
+              <time className="mt-1 block text-xs text-muted-foreground">
                 {new Date(n.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </time>
             </li>
@@ -352,7 +352,7 @@ function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTa
           {tasks.map((task) => (
             <li
               key={task.id}
-              className="flex items-start gap-3 rounded-md border border-app-surface-2 bg-app-surface-1 p-3 text-sm"
+              className="flex items-start gap-3 rounded-md border border-muted bg-card p-3 text-sm"
             >
               <input
                 type="checkbox"
@@ -365,14 +365,14 @@ function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTa
                 <p
                   className={
                     task.status === 'done'
-                      ? 'text-app-ink-muted line-through'
-                      : 'text-app-ink'
+                      ? 'text-muted-foreground line-through'
+                      : 'text-foreground'
                   }
                 >
                   {task.title}
                 </p>
                 {task.due_at ? (
-                  <time className="block text-xs text-app-ink-muted">
+                  <time className="block text-xs text-muted-foreground">
                     {new Date(task.due_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </time>
                 ) : null}
@@ -393,10 +393,10 @@ function ActivityTab({ rows, isLoading }: { rows: ActivityRow[]; isLoading: bool
       {rows.map((r) => (
         <li
           key={r.id}
-          className="rounded-md border border-app-surface-2 bg-app-surface-1 p-3 text-sm"
+          className="rounded-md border border-muted bg-card p-3 text-sm"
         >
-          <p className="text-app-ink">{r.description}</p>
-          <time className="block text-xs text-app-ink-muted">
+          <p className="text-foreground">{r.description}</p>
+          <time className="block text-xs text-muted-foreground">
             {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </time>
         </li>

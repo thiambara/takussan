@@ -225,7 +225,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
 
       <div className="overflow-x-auto rounded-xl border border-input">
         <table className="min-w-full text-sm">
-          <thead className="bg-app-surface-2 text-left text-xs uppercase tracking-wider text-app-ink-muted">
+          <thead className="bg-muted text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th scope="col" className="px-4 py-3 font-semibold">{t('columns.name')}</th>
               <th scope="col" className="px-4 py-3 font-semibold">{t('columns.slug')}</th>
@@ -250,8 +250,8 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
               filteredTags.map((tag) => {
                 const isEditing = editingId === tag.id;
                 return (
-                  <tr key={tag.id} className="bg-app-surface-1">
-                    <td className="px-4 py-3 font-medium text-app-ink">
+                  <tr key={tag.id} className="bg-card">
+                    <td className="px-4 py-3 font-medium text-foreground">
                       {isEditing ? (
                         <Input
                           autoFocus
@@ -270,7 +270,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                         <FormError>{rowError.message}</FormError>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-xs text-app-ink-muted">{tag.slug}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">{tag.slug}</td>
                     <td className="px-4 py-3 text-xs">{t(`types.${tag.type}`)}</td>
                     <td className="px-4 py-3 text-xs">
                       {tag.color ? (
@@ -283,7 +283,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                           <code className="text-[11px]">{tag.color}</code>
                         </span>
                       ) : (
-                        <span className="text-app-ink-muted">—</span>
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">

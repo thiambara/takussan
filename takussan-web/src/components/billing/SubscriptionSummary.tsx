@@ -4,12 +4,14 @@ import { useTranslations } from 'next-intl';
 import { CreditCard, Gauge, ShieldCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { AgencySubscription } from '@/types/super-admin';
 
 export function SubscriptionSummary({ subscription }: { subscription: AgencySubscription | null }) {
   // Le hook se place AVANT la sortie anticipée : un `useTranslations` posé après serait un hook
   // conditionnel, refusé par le React Compiler (ADR-0015).
   const t = useTranslations('billing.subscription');
+  const fmt = useFormatteurs();
 
   if (!subscription) {
     return (
@@ -31,7 +33,7 @@ export function SubscriptionSummary({ subscription }: { subscription: AgencySubs
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>{subscription.status}</Badge>
           <span className="text-sm text-muted-foreground">
-            {formatDate(subscription.current_period_start)} → {formatDate(subscription.current_period_end)}
+            {fmt.date(subscription.current_period_start)} → {fmt.date(subscription.current_period_end)}
           </span>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
@@ -67,9 +69,4 @@ function Metric({ icon: Icon, label, value }: { icon: typeof Gauge; label: strin
 /** Le libellé « illimité » arrive de l'appelant : cette fonction vit hors composant (TCK-292). */
 function displayLimit(value: number | undefined, unlimitedLabel: string): string {
   return value === undefined ? unlimitedLabel : String(value);
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(new Date(value));
 }

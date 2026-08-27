@@ -52,19 +52,19 @@ const LEGEND_ITEMS: {
     type: 'booking',
     labelKey: 'types.booking',
     helperKey: 'legend.helper.booking',
-    className: 'bg-blue-100 text-blue-800 border-blue-300',
+    className: 'bg-info/15 text-info border-info/30',
   },
   {
     type: 'visit',
     labelKey: 'types.visit',
     helperKey: 'legend.helper.visit',
-    className: 'bg-violet-100 text-violet-800 border-violet-300',
+    className: 'bg-info/15 text-info border-info/30',
   },
   {
     type: 'lease',
     labelKey: 'types.lease',
     helperKey: 'legend.helper.lease',
-    className: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    className: 'bg-success/15 text-success border-success/30',
   },
 ];
 
@@ -183,7 +183,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
           <Button variant="outline" size="sm" onClick={() => navigate(1)} aria-label={t('nav.next')}>
             <ChevronRight className="size-4" />
           </Button>
-          <h2 className="ml-2 text-lg font-semibold capitalize text-stone-900" data-testid="calendar-focus-label">
+          <h2 className="ml-2 text-lg font-semibold capitalize text-foreground" data-testid="calendar-focus-label">
             {focusLabel}
           </h2>
         </div>
@@ -193,7 +193,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
           <div
             role="radiogroup"
             aria-label={t('viewSwitcherAria')}
-            className="inline-flex overflow-hidden rounded-lg border border-stone-200 bg-white"
+            className="inline-flex overflow-hidden rounded-lg border border-border bg-card"
           >
             {VIEWS.map((v) => (
               <button
@@ -206,8 +206,8 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                 className={cn(
                   'px-3 py-1.5 text-sm transition-colors',
                   view === v
-                    ? 'bg-app-topbar text-white'
-                    : 'text-stone-700 hover:bg-stone-50',
+                    ? 'bg-foreground text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted/50',
                 )}
               >
                 {t(`views.${v}`)}
@@ -218,7 +218,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
           {/* Segmented control types */}
           <div
             aria-label={t('typeFilterAria')}
-            className="inline-flex overflow-hidden rounded-lg border border-stone-200 bg-white"
+            className="inline-flex overflow-hidden rounded-lg border border-border bg-card"
           >
             {TYPE_OPTIONS.map((opt) => {
               const active = selectedTypes.includes(opt.value);
@@ -233,9 +233,9 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                     'px-3 py-1.5 text-sm transition-colors',
                     active
                       ? opt.value === 'booking'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-violet-100 text-violet-800'
-                      : 'text-stone-500 hover:bg-stone-50',
+                        ? 'bg-info/15 text-info'
+                        : 'bg-info/15 text-info'
+                      : 'text-muted-foreground hover:bg-muted/50',
                   )}
                 >
                   {t(opt.labelKey)}
@@ -269,7 +269,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
 
       {(propertyId || selectedTypes.length < TYPE_OPTIONS.length) && (
         <div
-          className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning"
           data-testid="calendar-active-filters"
         >
           <span className="font-semibold">{t('activeFilters.title')}</span>
@@ -277,7 +277,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
             <button
               type="button"
               onClick={() => setPropertyId(null)}
-              className="rounded-md bg-white px-2 py-1 text-amber-900 shadow-sm hover:bg-amber-100"
+              className="rounded-md bg-card px-2 py-1 text-warning shadow-sm hover:bg-warning/15"
             >
               {t('activeFilters.property', {
                 label: selectedPropertyLabel ?? `#${propertyId}`,
@@ -285,7 +285,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
             </button>
           )}
           {selectedTypes.length < TYPE_OPTIONS.length && (
-            <span className="rounded-md bg-white px-2 py-1 shadow-sm">
+            <span className="rounded-md bg-card px-2 py-1 shadow-sm">
               {t('activeFilters.types', {
                 list: TYPE_OPTIONS.filter((type) => selectedTypes.includes(type.value))
                   .map((type) => t(type.labelKey))
@@ -297,7 +297,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
       )}
 
       {query.isLoading ? (
-        <div className="h-96 animate-pulse rounded-xl bg-stone-100" />
+        <div className="h-96 animate-pulse rounded-xl bg-muted" />
       ) : query.isError ? (
         <ErrorState
           message={t('error')}
@@ -354,7 +354,7 @@ function CalendarLegend() {
   return (
     <section
       aria-label={t('legend.aria')}
-      className="grid gap-2 rounded-xl border border-stone-200 bg-white p-3 sm:grid-cols-3"
+      className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-3"
       data-testid="calendar-legend"
     >
       {LEGEND_ITEMS.map((item) => (
@@ -364,14 +364,14 @@ function CalendarLegend() {
             aria-hidden="true"
           />
           <div className="min-w-0">
-            <p className="text-sm font-medium text-stone-900">{t(item.labelKey)}</p>
-            <p className="text-xs text-stone-500">{t(item.helperKey)}</p>
+            <p className="text-sm font-medium text-foreground">{t(item.labelKey)}</p>
+            <p className="text-xs text-muted-foreground">{t(item.helperKey)}</p>
           </div>
         </div>
       ))}
       <div className="flex items-start gap-2 sm:col-span-3">
-        <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full border border-stone-300 bg-stone-100" aria-hidden="true" />
-        <p className="text-xs text-stone-500">{t('legend.pendingNote')}</p>
+        <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full border border-border bg-muted" aria-hidden="true" />
+        <p className="text-xs text-muted-foreground">{t('legend.pendingNote')}</p>
       </div>
     </section>
   );
@@ -396,24 +396,24 @@ function SelectedDayPanel({
   });
 
   return (
-    <aside className="rounded-xl border border-stone-200 bg-white" data-testid="calendar-selected-day">
-      <header className="flex items-center justify-between gap-3 border-b border-stone-200 px-4 py-3">
+    <aside className="rounded-xl border border-border bg-card" data-testid="calendar-selected-day">
+      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
-          <h3 className="text-sm font-semibold capitalize text-stone-900">{label}</h3>
-          <p className="text-xs text-stone-500">{t('eventCount', { count: events.length })}</p>
+          <h3 className="text-sm font-semibold capitalize text-foreground">{label}</h3>
+          <p className="text-xs text-muted-foreground">{t('eventCount', { count: events.length })}</p>
         </div>
         <button
           type="button"
           onClick={onOpenDay}
-          className="rounded-md border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+          className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50"
         >
           {t('dayViewCta')}
         </button>
       </header>
       {events.length === 0 ? (
-        <p className="p-4 text-sm text-stone-500">{t('selectedDayEmpty')}</p>
+        <p className="p-4 text-sm text-muted-foreground">{t('selectedDayEmpty')}</p>
       ) : (
-        <ul className="divide-y divide-stone-100">
+        <ul className="divide-y divide-border">
           {events.map(({ event, start }) => {
             const timeLabel = event.all_day
               ? t('allDay')
@@ -427,7 +427,7 @@ function SelectedDayPanel({
                 <button
                   type="button"
                   onClick={() => onSelect(event)}
-                  className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-stone-50"
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/50"
                   data-testid={`calendar-selected-day-row-${event.type}-${event.id}`}
                 >
                   <span
@@ -435,8 +435,8 @@ function SelectedDayPanel({
                     aria-hidden="true"
                   />
                   <span className="min-w-0">
-                    <span className="block text-xs font-medium text-stone-500">{timeLabel}</span>
-                    <span className="block truncate text-sm font-medium text-stone-900">{event.title}</span>
+                    <span className="block text-xs font-medium text-muted-foreground">{timeLabel}</span>
+                    <span className="block truncate text-sm font-medium text-foreground">{event.title}</span>
                   </span>
                 </button>
               </li>

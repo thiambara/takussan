@@ -82,7 +82,7 @@ function SheetContent({
         data-slot="sheet-content"
         data-side={side}
         className={cn(
-          "fixed z-50 flex flex-col bg-app-surface-1 shadow-[0_0_40px_0_rgba(31,27,23,0.04)] outline-none duration-200 data-open:animate-in data-closed:animate-out",
+          "fixed z-50 flex flex-col bg-card shadow-[0_0_40px_0_rgba(31,27,23,0.04)] outline-none duration-200 data-open:animate-in data-closed:animate-out",
           (side === "left" || side === "right") && "inset-y-0 h-full w-72",
           (side === "top" || side === "bottom") && "inset-x-0 w-full max-h-[90vh]",
           side === "left" &&

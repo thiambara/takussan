@@ -1,9 +1,15 @@
-import { forbidden } from 'next/navigation';
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PipelineKanban } from '@/components/pipeline/PipelineKanban';
+import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.crmPipeline');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-083 — CRM prospect pipeline kanban.
@@ -16,17 +22,12 @@ export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   const me = await getMeAction();
-  if (!(isAgent(me.roles) || isOwner(me.roles) || isAdmin(me.roles))) {
-    forbidden();
-  }
+  assertCanReachAgentArea(me.roles);
   const t = await getTranslations('crm.pipeline');
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+      <PageHeader title={t('title')} description={t('subtitle')} />
       <PipelineKanban />
     </div>
   );

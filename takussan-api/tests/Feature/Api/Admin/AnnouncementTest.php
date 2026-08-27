@@ -102,6 +102,81 @@ class AnnouncementTest extends TestCase
     }
 
     /**
+     * TCK-366 — une annonce SANS restriction reste diffusée à tout le monde après une édition.
+     *
+     * La console émet un segment qui PORTE les trois clés du ciblage, vides quand rien n'est
+     * ciblé : `{"roles":[],"agency_ids":[]}`. C'est un segment qui ne déclare AUCUNE restriction,
+     * et `describeSegment()` (front) l'affiche « Tous » — mais `matches()` ne rendait `true` par
+     * défaut que sur le tableau STRICTEMENT vide. Un super-admin corrigeant une faute de frappe
+     * dans une annonce diffusée à tous la faisait donc disparaître pour 100 % des utilisateurs,
+     * sans erreur et sans changement d'état visible.
+     *
+     * Le test joue la chaîne ENTIÈRE, pas `matches()` : création, lecture par un destinataire,
+     * PATCH portant le corps réel du formulaire, relecture par le même destinataire.
+     */
+    public function test_editing_an_unrestricted_announcement_keeps_it_visible_for_everyone(): void
+    {
+        $this->actingAsRole('super_admin');
+        $announcement = $this->announcement(['segment' => []]);
+
+        $customer = $this->actingAsRole('customer');
+        $this->getJson('/api/announcements/active')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $announcement->id);
+
+        $this->actingAsRole('super_admin');
+        $this->patchJson("/api/admin/announcements/{$announcement->id}", [
+            ...$this->payload(),
+            'title' => [...$this->payload()['title'], 'fr' => 'Maintenance programmee'],
+            'severity' => 'warning',
+            'segment' => ['roles' => [], 'agency_ids' => []],
+            'starts_at' => now()->subMinute()->toIso8601String(),
+            'ends_at' => now()->addDay()->toIso8601String(),
+        ])->assertOk();
+
+        $this->actingAs($customer);
+        $this->getJson('/api/announcements/active')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $announcement->id);
+    }
+
+    /**
+     * TCK-366 — `rollout_percentage` à 0 n'est pas une restriction, c'est l'absence de rollout.
+     *
+     * C'est la lecture que fait déjà l'écran (`describeSegment` n'affiche le pourcentage que s'il
+     * est vrai, et rend « Tous » sinon). Le résolveur disait l'inverse : 0 % n'atteignait
+     * personne, alors qu'une annonce qu'on ne veut diffuser à personne se pose par `is_active`.
+     */
+    public function test_zero_rollout_is_not_a_restriction(): void
+    {
+        $this->actingAsRole('super_admin');
+        $announcement = $this->announcement(['segment' => ['roles' => [], 'agency_ids' => [], 'rollout_percentage' => 0]]);
+
+        $this->actingAsRole('customer');
+        $this->getJson('/api/announcements/active')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $announcement->id);
+    }
+
+    /**
+     * TCK-366 — une clé de ciblage INCONNUE ne se lit pas comme « aucune restriction ».
+     *
+     * Le contraire serait le défaut symétrique de celui qu'on corrige, et le plus cher des deux :
+     * un segment qu'on ne sait pas juger diffuserait à tout le monde. Le résolveur reste
+     * fail-closed dès qu'une clé qu'il ne connaît pas est posée.
+     */
+    public function test_unknown_segment_key_does_not_broadcast(): void
+    {
+        $this->actingAsRole('super_admin');
+        $announcement = $this->announcement(['segment' => ['cohorte' => 'beta']]);
+
+        $this->actingAsRole('customer');
+        $this->getJson('/api/announcements/active')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $announcement->id]);
+    }
+
+    /**
      * @param  array<string,mixed>  $attributes
      */
     private function announcement(array $attributes = []): Announcement

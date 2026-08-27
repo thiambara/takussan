@@ -268,7 +268,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center gap-3 border-b border-stone-200 bg-white px-4 py-3">
+      <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
         {isWidget && (
           <Button
             type="button"
@@ -282,11 +282,11 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           </Button>
         )}
         {isGroup ? (
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-stone-200">
-            <Users className="size-5 text-stone-600" aria-hidden />
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <Users className="size-5 text-muted-foreground" aria-hidden />
           </div>
         ) : conversation?.property ? (
-          <div className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-stone-100">
+          <div className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
             {conversation.property.main_photo_url && (
               <Image
                 src={conversation.property.main_photo_url}
@@ -299,13 +299,13 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           </div>
         ) : null}
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-semibold text-stone-900">
+          <h2 className="truncate text-sm font-semibold text-foreground">
             {conversation?.subject ??
               conversation?.property?.title ??
               t('conversationTitleFallback', { id: String(conversationId) })}
           </h2>
           {isGroup && conversation?.participants && (
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-muted-foreground">
               {t('chat.participants', {
                 count: String(conversation.participants.filter((p) => !p.left_at).length),
               })}
@@ -315,7 +315,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           {!isGroup && conversation?.property && (
             <Link
               href={`/properties/${conversation.property.slug}`}
-              className="text-xs text-stone-500 hover:underline"
+              className="text-xs text-muted-foreground hover:underline"
             >
               {t('chat.viewProperty')}
             </Link>
@@ -336,7 +336,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
         {isGroup && isWidget && (
           <Link
             href={`/app/messages?conversation=${conversationId}`}
-            className="inline-flex size-9 items-center justify-center rounded-md text-stone-600 hover:bg-stone-100"
+            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
             aria-label={tWidget('manageGroup')}
             data-testid="chat-manage-group-link"
           >
@@ -355,17 +355,17 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-stone-50 px-4 py-4"
+        className="flex-1 overflow-y-auto bg-muted/50 px-4 py-4"
       >
         {isLoading ? (
           <div className="space-y-3">
-            <div className="h-10 w-2/3 animate-pulse rounded-lg bg-stone-200" />
-            <div className="ml-auto h-10 w-1/2 animate-pulse rounded-lg bg-stone-200" />
+            <div className="h-10 w-2/3 animate-pulse rounded-lg bg-muted" />
+            <div className="ml-auto h-10 w-1/2 animate-pulse rounded-lg bg-muted" />
           </div>
         ) : isError ? (
-          <p className="text-sm text-red-600">{t('chat.loadError')}</p>
+          <p className="text-sm text-destructive">{t('chat.loadError')}</p>
         ) : messages.length === 0 ? (
-          <p className="text-center text-sm text-stone-500">
+          <p className="text-center text-sm text-muted-foreground">
             {t('chat.empty')}
           </p>
         ) : (
@@ -379,7 +379,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
               )}
             >
               {isFetchingNextPage ? (
-                <span className="text-[11px] text-stone-500">{t('chat.loadingMore')}</span>
+                <span className="text-[11px] text-muted-foreground">{t('chat.loadingMore')}</span>
               ) : null}
             </li>
             {renderItems.map((item) => {
@@ -408,15 +408,15 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
         // le compilateur ne peut pas prouver que la ref n'est pas lue au rendu.
         // On diffère l'appel dans l'événement, ce que fait déjà le bouton plus bas.
         onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
-        className="border-t border-stone-200 bg-white p-3"
+        className="border-t border-border bg-card p-3"
       >
         {attachmentError && (
-          <p className="mb-2 text-xs text-red-600">{attachmentError}</p>
+          <p className="mb-2 text-xs text-destructive">{attachmentError}</p>
         )}
         <div className="flex items-end gap-2">
           <label
             htmlFor="chat-file"
-            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-stone-500 hover:bg-stone-100"
+            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
             aria-label={t('chat.attachAria')}
           >
             <Paperclip className="size-4" aria-hidden />
@@ -470,12 +470,12 @@ function MessageBubble({
         className={cn(
           'max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm',
           isOwn
-            ? 'rounded-br-sm bg-app-topbar text-white'
-            : 'rounded-bl-sm bg-white text-stone-900',
+            ? 'rounded-br-sm bg-foreground text-primary-foreground'
+            : 'rounded-bl-sm bg-card text-foreground',
         )}
       >
         {!isOwn && message.sender && (
-          <p className="mb-0.5 text-[10px] font-semibold text-stone-500">
+          <p className="mb-0.5 text-[10px] font-semibold text-muted-foreground">
             {message.sender.full_name}
           </p>
         )}
@@ -490,7 +490,7 @@ function MessageBubble({
                   rel="noopener noreferrer"
                   className={cn(
                     'inline-flex items-center gap-1 text-xs underline',
-                    isOwn ? 'text-white/90' : 'text-app-topbar',
+                    isOwn ? 'text-primary-foreground/90' : 'text-foreground',
                   )}
                 >
                   <Paperclip className="size-3" aria-hidden />
@@ -503,7 +503,7 @@ function MessageBubble({
         <p
           className={cn(
             'mt-1 text-[10px]',
-            isOwn ? 'text-white/70' : 'text-stone-400',
+            isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground',
           )}
         >
           {formatDateTime(message.created_at, locale, { timeStyle: 'short', dateStyle: undefined })}

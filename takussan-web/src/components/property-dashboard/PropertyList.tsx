@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { DataTable, type DataTableColumn } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -133,74 +134,83 @@ export function PropertyList({
 
   const selectedCount = selectedIds.length;
 
+  /**
+   * Les six colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
+   * (sélection · bien · prix · activité · statut · actions), éprouvé par test.
+   *
+   * La colonne de sélection garde son en-tête à la case à cocher « tout sélectionner » : c'est
+   * un CONTRÔLE, pas un libellé, donc ni `headerSrOnly` ni titre inventé.
+   */
+  const colonnes: readonly DataTableColumn<PropertyListItem>[] = [
+    {
+      id: 'select',
+      header: (
+        <input
+          type="checkbox"
+          aria-label={t('selectAll')}
+          checked={allVisibleSelected}
+          onChange={toggleAll}
+          className="size-4 rounded border-border"
+        />
+      ),
+      className: 'w-10',
+      cell: (property) => (
+        <input
+          type="checkbox"
+          aria-label={t('selectOne', { title: property.title })}
+          checked={selectedIds.includes(property.id)}
+          onChange={() => toggleOne(property.id)}
+          className="size-4 rounded border-border"
+        />
+      ),
+    },
+    {
+      id: 'property',
+      header: t('headers.property'),
+      cell: (property) => <BienCell property={property} currentUserId={currentUserId} />,
+    },
+    { id: 'price', header: t('headers.price'), cell: (property) => <PriceCell property={property} /> },
+    {
+      id: 'activity',
+      header: t('headers.activity'),
+      cell: (property) => <ActivityCell property={property} />,
+    },
+    {
+      id: 'status',
+      header: t('headers.status'),
+      cell: (property) => (
+        <StatusStack status={property.status} visibility={property.visibility} />
+      ),
+    },
+    {
+      id: 'actions',
+      header: t('headers.actions'),
+      align: 'end',
+      cell: (property) => (
+        <div className="flex items-center justify-end">
+          <PropertyRowActions property={property} />
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      {/* Desktop table — 6 columns */}
-      <div className="hidden overflow-hidden rounded-xl bg-app-surface-1 md:block">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-app-surface-2/70 backdrop-blur">
-            <tr className="text-left text-xs uppercase tracking-wide text-app-ink-muted">
-              <th className="w-10 px-4 py-3 font-semibold">
-                <input
-                  type="checkbox"
-                  aria-label={t('selectAll')}
-                  checked={allVisibleSelected}
-                  onChange={toggleAll}
-                  className="size-4 rounded border-stone-300"
-                />
-              </th>
-              <th className="px-4 py-3 font-semibold">{t('headers.property')}</th>
-              <th className="px-4 py-3 font-semibold">{t('headers.price')}</th>
-              <th className="px-4 py-3 font-semibold">{t('headers.activity')}</th>
-              <th className="px-4 py-3 font-semibold">{t('headers.status')}</th>
-              <th className="px-4 py-3 font-semibold text-right">
-                {t('headers.actions')}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-app-surface-2/60">
-            {properties.map((property) => (
-              <tr
-                key={property.id}
-                className={cn(
-                  'align-middle transition-colors hover:bg-app-surface-2/30',
-                  selectedIds.includes(property.id) && 'bg-app-accent/5',
-                )}
-              >
-                <td className="px-4 py-4">
-                  <input
-                    type="checkbox"
-                    aria-label={t('selectOne', { title: property.title })}
-                    checked={selectedIds.includes(property.id)}
-                    onChange={() => toggleOne(property.id)}
-                    className="size-4 rounded border-stone-300"
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <BienCell property={property} currentUserId={currentUserId} />
-                </td>
-                <td className="px-4 py-4">
-                  <PriceCell property={property} />
-                </td>
-                <td className="px-4 py-4">
-                  <ActivityCell property={property} />
-                </td>
-                <td className="px-4 py-4">
-                  <StatusStack
-                    status={property.status}
-                    visibility={property.visibility}
-                  />
-                </td>
-                <td className="px-4 py-4 text-right">
-                  <div className="flex items-center justify-end">
-                    <PropertyRowActions property={property} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Table du bureau — 6 colonnes. La liste de cartes sous `md` reste des CARTES. */}
+      <DataTable
+        className="hidden md:block"
+        caption={t('caption')}
+        columns={colonnes}
+        rows={properties}
+        rowKey={(property) => property.id}
+        rowProps={(property) => ({
+          className: cn(
+            'align-middle transition-colors hover:bg-muted/30',
+            selectedIds.includes(property.id) && 'bg-primary/5',
+          ),
+        })}
+        stickyHeader
+      />
 
       {/* Mobile cards — compact horizontal layout */}
       <ul className="space-y-3 md:hidden">
@@ -210,8 +220,8 @@ export function PropertyList({
             <li
               key={property.id}
               className={cn(
-                'relative flex gap-3 rounded-xl bg-app-surface-1 p-3 transition-colors',
-                isSelected && 'ring-1 ring-inset ring-app-accent/30',
+                'relative flex gap-3 rounded-xl bg-card p-3 transition-colors',
+                isSelected && 'ring-1 ring-inset ring-primary/30',
               )}
             >
               <div className="relative shrink-0">
@@ -221,23 +231,23 @@ export function PropertyList({
                   aria-label={t('selectOne', { title: property.title })}
                   checked={isSelected}
                   onChange={() => toggleOne(property.id)}
-                  className="absolute left-1 top-1 size-4 rounded border-white/80 bg-white/80"
+                  className="absolute left-1 top-1 size-4 rounded border-card/80 bg-card/80"
                 />
               </div>
               <div className="min-w-0 flex-1 pr-8">
                 <Link
                   href={`/app/properties/${property.id}`}
-                  className="block truncate text-sm font-semibold text-app-ink"
+                  className="block truncate text-sm font-semibold text-foreground"
                 >
                   {property.title}
                 </Link>
-                <p className="truncate text-xs text-app-ink-muted">
+                <p className="truncate text-xs text-muted-foreground">
                   {enumLabel(tType, propertyTypeValues, property.type)}
                   {property.location?.city ? ` · ${property.location.city}` : ''}
                   {property.reference_number ? ` · ${property.reference_number}` : ''}
                 </p>
                 <div className="mt-1.5 flex items-baseline gap-2">
-                  <span className="text-base font-semibold text-app-ink tabular-nums">
+                  <span className="text-base font-semibold text-foreground tabular-nums">
                     {typeof property.price === 'number'
                       ? formatCurrency(property.price, 'fr', {
                           currency: property.currency ?? 'XOF',
@@ -245,13 +255,13 @@ export function PropertyList({
                       : '—'}
                     {property.contract_type === 'rent' &&
                     property.rent_period ? (
-                      <span className="ml-0.5 text-xs font-medium text-app-ink-muted">
+                      <span className="ml-0.5 text-xs font-medium text-muted-foreground">
                         /{RENT_PERIOD_SHORT[property.rent_period]}
                       </span>
                     ) : null}
                   </span>
                   {property.contract_type ? (
-                    <span className="text-xs text-app-ink-muted">
+                    <span className="text-xs text-muted-foreground">
                       {enumLabel(tContract, contractTypeValues, property.contract_type)}
                     </span>
                   ) : null}
@@ -260,7 +270,7 @@ export function PropertyList({
                   <StatusBadge status={property.status} />
                   <VisibilityBadge visibility={property.visibility} />
                 </div>
-                <p className="mt-2 text-xs text-app-ink-muted">
+                <p className="mt-2 text-xs text-muted-foreground">
                   <RelativeDate value={property.created_at} /> ·{' '}
                   <span className="inline-flex items-center gap-1">
                     <EyeIcon className="size-3" aria-hidden="true" />
@@ -346,19 +356,19 @@ function BienCell({
       <div className="min-w-0">
         <Link
           href={`/app/properties/${property.id}`}
-          className="block truncate text-sm font-semibold text-app-ink hover:text-app-accent"
+          className="block truncate text-sm font-semibold text-foreground hover:text-primary"
         >
           {property.title}
         </Link>
-        <p className="truncate text-xs text-app-ink-muted">
+        <p className="truncate text-xs text-muted-foreground">
           {enumLabel(tType, propertyTypeValues, property.type)}
           {property.location?.city ? ` · ${property.location.city}` : ''}
           {property.reference_number ? ` · ${property.reference_number}` : ''}
         </p>
         {showAgent ? (
-          <p className="mt-1 truncate text-xs text-app-ink-muted">
-            <span className="text-app-ink-muted/70">{t('agentPrefix')}</span>{' '}
-            <span className="font-medium text-app-ink">{property.owner?.name}</span>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            <span className="text-muted-foreground/70">{t('agentPrefix')}</span>{' '}
+            <span className="font-medium text-foreground">{property.owner?.name}</span>
           </p>
         ) : null}
       </div>
@@ -371,20 +381,20 @@ function PriceCell({ property }: { readonly property: PropertyListItem }) {
   const isRent = property.contract_type === 'rent';
   return (
     <div className="space-y-0.5">
-      <div className="text-base font-semibold text-app-ink tabular-nums">
+      <div className="text-base font-semibold text-foreground tabular-nums">
         {typeof property.price === 'number'
           ? formatCurrency(property.price, 'fr', {
               currency: property.currency ?? 'XOF',
             })
           : '—'}
         {isRent && property.rent_period ? (
-          <span className="ml-0.5 text-xs font-medium text-app-ink-muted">
+          <span className="ml-0.5 text-xs font-medium text-muted-foreground">
             /{RENT_PERIOD_SHORT[property.rent_period]}
           </span>
         ) : null}
       </div>
       {property.contract_type ? (
-        <div className="text-xs text-app-ink-muted">
+        <div className="text-xs text-muted-foreground">
           {enumLabel(tContract, contractTypeValues, property.contract_type)}
         </div>
       ) : null}
@@ -395,8 +405,8 @@ function PriceCell({ property }: { readonly property: PropertyListItem }) {
 function ActivityCell({ property }: { readonly property: PropertyListItem }) {
   const t = useTranslations('property.dashboard.list');
   return (
-    <div className="space-y-0.5 text-xs text-app-ink-muted">
-      <div className="text-app-ink">
+    <div className="space-y-0.5 text-xs text-muted-foreground">
+      <div className="text-foreground">
         <RelativeDate value={property.created_at} />
       </div>
       <div className="flex items-center gap-3">
@@ -439,7 +449,7 @@ function PropertyThumbnail({
   if (property.main_photo_url) {
     return (
       <span
-        className="relative block shrink-0 overflow-hidden rounded-lg bg-app-surface-2"
+        className="relative block shrink-0 overflow-hidden rounded-lg bg-muted"
         style={{ width: dim, height: dim }}
       >
         <Image
@@ -455,7 +465,7 @@ function PropertyThumbnail({
   return (
     <span
       aria-hidden="true"
-      className="block shrink-0 rounded-lg bg-app-surface-2"
+      className="block shrink-0 rounded-lg bg-muted"
       style={{ width: dim, height: dim }}
     />
   );
@@ -530,14 +540,14 @@ function StatusBadge({ status }: { status: string | null }) {
   return (
     <Badge
       className={cn(
-        'border-transparent bg-app-surface-2 text-app-ink',
-        status === 'available' && 'bg-emerald-50 text-emerald-700',
-        status === 'sold' && 'bg-emerald-100 text-emerald-800',
-        status === 'rented' && 'bg-blue-50 text-blue-700',
-        status === 'unavailable' && 'bg-red-50 text-red-700',
-        status === 'pending' && 'bg-amber-50 text-amber-700',
-        status === 'under_maintenance' && 'bg-orange-50 text-orange-700',
-        status === 'archived' && 'bg-stone-100 text-stone-600',
+        'border-transparent bg-muted text-foreground',
+        status === 'available' && 'bg-success/10 text-success',
+        status === 'sold' && 'bg-success/15 text-success',
+        status === 'rented' && 'bg-info/10 text-info',
+        status === 'unavailable' && 'bg-destructive/10 text-destructive',
+        status === 'pending' && 'bg-warning/10 text-warning',
+        status === 'under_maintenance' && 'bg-warning/10 text-warning',
+        status === 'archived' && 'bg-muted text-muted-foreground',
       )}
     >
       {label}
@@ -557,8 +567,8 @@ function VisibilityBadge({ visibility }: { visibility: string | null }) {
       className={cn(
         'gap-1 border-transparent text-xs',
         isPublic
-          ? 'bg-app-accent/10 text-app-accent'
-          : 'bg-app-surface-2 text-app-ink-muted',
+          ? 'bg-primary/10 text-primary'
+          : 'bg-muted text-muted-foreground',
       )}
     >
       {isPublic ? (
@@ -642,17 +652,17 @@ function BulkActionBar({
     <div
       role="region"
       aria-label={t('bulkAria')}
-      className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-app-topbar/95 px-3 py-2.5 text-sm text-white shadow-lg backdrop-blur md:inset-x-auto md:right-6"
+      className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-foreground/95 px-3 py-2.5 text-sm text-primary-foreground shadow-lg backdrop-blur md:inset-x-auto md:right-6"
     >
       <span className="font-semibold">
         {t('bulkSelected', { count: selectedCount })}
       </span>
-      <span className="hidden h-4 w-px bg-white/20 md:inline-block" aria-hidden="true" />
+      <span className="hidden h-4 w-px bg-card/20 md:inline-block" aria-hidden="true" />
       <Button
         type="button"
         size="sm"
         variant="outline"
-        className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+        className="border-card/30 bg-transparent text-primary-foreground hover:bg-card/10 hover:text-primary-foreground"
         disabled={pending}
         onClick={onArchive}
       >
@@ -667,7 +677,7 @@ function BulkActionBar({
         type="button"
         size="sm"
         variant="outline"
-        className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+        className="border-card/30 bg-transparent text-primary-foreground hover:bg-card/10 hover:text-primary-foreground"
         disabled={pending}
         onClick={onUnpublish}
       >
@@ -681,7 +691,7 @@ function BulkActionBar({
               onValueChange={(v) => setBulkAgentId((v ?? '') as string)}
               items={items}
             >
-              <SelectTrigger className="h-9 border-white/30 bg-white/10 text-white">
+              <SelectTrigger className="h-9 border-card/30 bg-card/10 text-primary-foreground">
                 <SelectValue placeholder={t('bulkReassignPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
@@ -697,7 +707,7 @@ function BulkActionBar({
             type="button"
             size="sm"
             variant="outline"
-            className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            className="border-card/30 bg-transparent text-primary-foreground hover:bg-card/10 hover:text-primary-foreground"
             disabled={pending || !bulkAgentId}
             onClick={onAssign}
           >
@@ -706,12 +716,12 @@ function BulkActionBar({
         </div>
       ) : null}
       {bulkError ? (
-        <span role="alert" className="text-red-200">
+        <span role="alert" className="text-destructive">
           {bulkError}
         </span>
       ) : null}
       {bulkMessage ? (
-        <span role="status" className="text-emerald-200">
+        <span role="status" className="text-success">
           {bulkMessage}
         </span>
       ) : null}
@@ -719,7 +729,7 @@ function BulkActionBar({
         type="button"
         onClick={onClear}
         aria-label={t('bulkClear')}
-        className="ml-auto inline-flex size-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+        className="ml-auto inline-flex size-8 items-center justify-center rounded-full text-primary-foreground/70 hover:bg-card/10 hover:text-primary-foreground"
       >
         <X aria-hidden="true" className="size-4" />
       </button>

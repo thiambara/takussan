@@ -155,7 +155,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const toast = useToast();
 
   if (isLoading) {
-    return <div className="h-48 animate-pulse rounded-xl bg-app-surface-1" />;
+    return <div className="h-48 animate-pulse rounded-xl bg-card" />;
   }
 
   if (isError || !data) {
@@ -192,14 +192,14 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         <div>
           <Link
             href="/app/bookings"
-            className="text-xs text-stone-500 hover:text-stone-700"
+            className="text-xs text-muted-foreground hover:text-muted-foreground"
           >
             {t('back')}
           </Link>
-          <h1 className="mt-1 text-2xl font-bold text-app-ink">
+          <h1 className="mt-1 text-2xl font-bold text-foreground">
             {booking.property?.title ?? tBookings('fallbackTitle', { id: String(booking.id) })}
           </h1>
-          <div className="mt-2 flex items-center gap-2 text-xs text-stone-500">
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <Badge variant={STATUS_VARIANT[booking.status]}>
               {tBookings(STATUS_LABEL_KEY[booking.status])}
             </Badge>
@@ -227,7 +227,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
               variant="ghost"
               onClick={() => setAction('cancel')}
               disabled={cancelBooking.isPending}
-              className="text-red-600 hover:text-red-700"
+              className="text-destructive hover:text-destructive"
             >
               {t('actions.cancel')}
             </Button>
@@ -236,9 +236,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">
-          <dt className="text-xs uppercase tracking-wide text-stone-500">{t('dates')}</dt>
-          <dd className="mt-1 text-stone-900">
+        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+          <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('dates')}</dt>
+          <dd className="mt-1 text-foreground">
             {booking.start_date && booking.end_date ? (
               <>
                 {formatDate(booking.start_date, locale)} → {formatDate(booking.end_date, locale)}
@@ -248,31 +248,31 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             )}
           </dd>
 
-          <dt className="mt-4 text-xs uppercase tracking-wide text-stone-500">{t('createdAt')}</dt>
-          <dd className="mt-1 text-stone-900">{formatDateTime(booking.created_at ?? booking.booking_date, locale) || '—'}</dd>
+          <dt className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">{t('createdAt')}</dt>
+          <dd className="mt-1 text-foreground">{formatDateTime(booking.created_at ?? booking.booking_date, locale) || '—'}</dd>
 
           {booking.expiration_date && (
             <>
-              <dt className="mt-4 text-xs uppercase tracking-wide text-stone-500">
+              <dt className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">
                 {t('expiresAt')}
               </dt>
-              <dd className="mt-1 text-stone-900">
+              <dd className="mt-1 text-foreground">
                 {formatDateTime(booking.expiration_date, locale)}
               </dd>
             </>
           )}
         </dl>
 
-        <dl className="rounded-xl border border-stone-200 bg-white p-5 text-sm">
-          <dt className="text-xs uppercase tracking-wide text-stone-500">{t('total')}</dt>
-          <dd className="mt-1 text-lg font-semibold text-stone-900">
+        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+          <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('total')}</dt>
+          <dd className="mt-1 text-lg font-semibold text-foreground">
             {typeof booking.total_amount === 'number'
               ? formatCurrency(booking.total_amount, locale)
               : '—'}
           </dd>
 
-          <dt className="mt-4 text-xs uppercase tracking-wide text-stone-500">{t('deposit')}</dt>
-          <dd className="mt-1 text-stone-900">
+          <dt className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">{t('deposit')}</dt>
+          <dd className="mt-1 text-foreground">
             {typeof booking.deposit_amount === 'number'
               ? formatCurrency(booking.deposit_amount, locale)
               : '—'}
@@ -286,9 +286,9 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
       </div>
 
       {booking.notes && (
-        <div className="rounded-xl border border-stone-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-stone-900">{t('message')}</h2>
-          <p className="mt-2 whitespace-pre-line text-sm text-stone-700">{booking.notes}</p>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold text-foreground">{t('message')}</h2>
+          <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">{booking.notes}</p>
         </div>
       )}
 
@@ -308,13 +308,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         />
       )}
 
-      <section className="rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">{t('payments')}</h2>
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold text-foreground">{t('payments')}</h2>
         {booking.booking_payments && booking.booking_payments.length > 0 ? (
-          <ul className="mt-3 divide-y divide-stone-100 text-sm">
+          <ul className="mt-3 divide-y divide-border text-sm">
             {booking.booking_payments.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <span className="text-stone-600">
+                <span className="text-muted-foreground">
                   {formatDateTime(p.payment_date ?? p.created_at, locale)} ·{' '}
                   {PAYMENT_TYPE_LABEL_KEY[p.payment_type]
                     ? tBookings(PAYMENT_TYPE_LABEL_KEY[p.payment_type])
@@ -329,7 +329,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                   ) : null}
                   {p.transaction_id ? <> · {tBookings('reference')} {p.transaction_id}</> : null}
                 </span>
-                <span className="flex items-center gap-2 text-stone-900">
+                <span className="flex items-center gap-2 text-foreground">
                   <span className="font-medium">
                     {formatCurrency(p.amount, locale)}
                   </span>
@@ -349,7 +349,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                   {p.status === 'paid' && (
                     <a
                       href={`/api/booking-payments/${p.id}/receipt`}
-                      className="text-xs text-app-accent hover:underline"
+                      className="text-xs text-primary hover:underline"
                     >
                       {t('receipt')}
                     </a>
@@ -359,7 +359,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-stone-500">{t('noPayments')}</p>
+          <p className="mt-3 text-sm text-muted-foreground">{t('noPayments')}</p>
         )}
       </section>
 
@@ -444,7 +444,7 @@ function BookingDecisionDialog({
           <DialogDescription>{copyKey ? t(`${copyKey}.description`) : null}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <label htmlFor="booking-action-reason" className="text-xs font-medium text-stone-600">
+          <label htmlFor="booking-action-reason" className="text-xs font-medium text-muted-foreground">
             {copyKey ? t(`${copyKey}.label`) : null}
           </label>
           <Textarea
@@ -456,7 +456,7 @@ function BookingDecisionDialog({
             required={isReasonRequired}
           />
           {isReasonRequired && reason.trim().length === 0 ? (
-            <p className="text-xs text-stone-500">{t('decision.reasonRequired')}</p>
+            <p className="text-xs text-muted-foreground">{t('decision.reasonRequired')}</p>
           ) : null}
         </div>
         <DialogFooter>
@@ -519,11 +519,11 @@ function CustomerPayCta({
   }
 
   return (
-    <section className="rounded-xl border border-app-border bg-app-surface-1 p-5">
+    <section className="rounded-xl border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-stone-900">{label}</h2>
-          <p className="mt-1 text-xs text-stone-500">{t('payCta.notice')}</p>
+          <h2 className="text-sm font-semibold text-foreground">{label}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">{t('payCta.notice')}</p>
         </div>
         <Button onClick={handleClick} disabled={createPayment.isPending}>
           {label}
@@ -558,14 +558,14 @@ function BookingTimeline({ booking, locale }: { booking: Booking; locale: Locale
   if (events.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-5">
-      <h2 className="text-sm font-semibold text-stone-900">{t('timeline.title')}</h2>
+    <section className="rounded-xl border border-border bg-card p-5">
+      <h2 className="text-sm font-semibold text-foreground">{t('timeline.title')}</h2>
       <ol className="mt-3 space-y-2 text-sm">
         {events.map((e) => (
           <li key={`${e.label}-${e.at}`} className="flex items-baseline gap-3">
-            <span className="size-1.5 shrink-0 rounded-full bg-stone-400" aria-hidden="true" />
-            <span className="text-stone-900 font-medium">{e.label}</span>
-            <span className="text-xs text-stone-500">
+            <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" aria-hidden="true" />
+            <span className="text-foreground font-medium">{e.label}</span>
+            <span className="text-xs text-muted-foreground">
               {formatDateTime(e.at, locale)}
             </span>
           </li>

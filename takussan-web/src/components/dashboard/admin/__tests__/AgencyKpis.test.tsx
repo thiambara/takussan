@@ -60,7 +60,10 @@ describe('<AgencyKpis>', () => {
         })}
       />));
 
-    expect(container.querySelector('.bg-amber-50')).not.toBeNull();
+    // Le ton `warning` porte un jeton d'état depuis TCK-374 (la palette brute est éteinte dans
+    // `src/components/charts`) ; depuis TCK-381 c'est `--warning`, pas `--chart-3` emprunté aux
+    // séries. La classe est ce qui distingue la tuile ; l'assertion suit.
+    expect(container.querySelector('[class*="bg-warning/"]')).not.toBeNull();
   });
 
   it('hides the impayés hint and danger accent when there are no overdue payments', () => {
@@ -77,6 +80,6 @@ describe('<AgencyKpis>', () => {
       />));
 
     expect(screen.queryByText(/échéances/)).toBeNull();
-    expect(container.querySelector('.bg-rose-50')).toBeNull();
+    expect(container.querySelector('[class*="bg-destructive"]')).toBeNull();
   });
 });

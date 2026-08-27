@@ -35,17 +35,17 @@ export function ProfileCustomerSection({ user }: ProfileCustomerSectionProps) {
   );
 
   return (
-    <section className="space-y-4 rounded-2xl bg-app-surface-1 p-6">
+    <section className="space-y-4 rounded-2xl bg-card p-6">
       <div>
-        <h2 className="text-lg font-bold text-app-ink">{t('title')}</h2>
-        <p className="text-sm text-app-ink-muted">
+        <h2 className="text-lg font-bold text-foreground">{t('title')}</h2>
+        <p className="text-sm text-muted-foreground">
           {t('description')}
         </p>
       </div>
 
       {query.isLoading ? (
         <div
-          className="flex items-center gap-2 rounded-md bg-white/60 px-3 py-3 text-sm text-app-ink-muted"
+          className="flex items-center gap-2 rounded-md bg-card/60 px-3 py-3 text-sm text-muted-foreground"
           data-testid="customer-prefs-loading"
         >
           <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
