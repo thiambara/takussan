@@ -131,4 +131,50 @@ est le tableau de bord de l'utilisateur — un écran qui marche — et non un �
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Ce que la re-mesure a confirmé, et le seul point qui différait.** Les trois pages portaient bien
+l'appel, `next.config.ts` ne porte pas le drapeau, et `assertCanReachAgentArea` existe. Le mécanisme
+a été vérifié **par exécution** du module installé, et pas seulement par lecture :
+
+```
+$ node -e "const {forbidden}=require('next/dist/client/components/forbidden'); …"
+  sans le drapeau : E488  « `forbidden()` is experimental… »
+  avec le drapeau : E1019, digest NEXT_HTTP_ERROR_FALLBACK;403
+```
+
+Seul écart : `leases/onboarding-pending` appelle `forbidden()` **l. 31**, pas 34 — l'import est
+l. 9. Rien d'autre du ticket n'a bougé.
+
+**Deux gardes, pas une élargie.** `assertCanReachAgencyStaffArea` (agent/admin, bailleur exclu) a
+été ajoutée à côté de `assertCanReachAgentArea` (agent/owner/admin), conformément à la contrainte.
+Le docblock de chacune dit *pourquoi* le périmètre est ce qu'il est, faute de quoi la prochaine
+factorisation les réunira.
+
+**La garde a été mise à l'épreuve dans les deux sens, et c'est ce qui l'a faite.**
+
+- 17 mutations *du dépôt* (réintroduction canonique, alias, import multiligne, `import * as`,
+  crochets, `import()` dynamique, réexport par un module tiers, référence sans appel, espace avant
+  la parenthèse, drapeau activé, 22ᵉ refus artisanal, entrée périmée, répertoire exclu…) : toutes
+  attrapées. Deux formes légitimes (mot en commentaire, mot en chaîne) restent vertes.
+- 21 mutations *de la garde elle-même* : toutes attrapées. **Trois trous réels ont été trouvés là,
+  pas ailleurs**, et corrigés :
+  1. `constats.length > 0` ne distinguait pas quel détecteur avait parlé — l'épreuve « alias »
+     restait verte alors que la détection de l'appel aliasé était morte, masquée par celle de
+     l'import. Les épreuves comparent désormais l'ensemble des **genres**.
+  2. Vider `SENTINELLES` rendait la garde muette sans la rendre rouge (un filtre sur liste vide
+     est vide). D'où `PLANCHERS`.
+  3. Un `if (false)` sur une condition de verdict passait inaperçu. Les quatre décisions sont
+     devenues des **fonctions pures** jouées sur des entrées synthétiques à chaque invocation.
+- Le test rejoue les trois pages **par exécution**, sept rôles chacune. Vérifié par ablation : en
+  restaurant `forbidden()`, 4 à 5 cas rougissent par page. La première version du cas « jamais
+  E488 » était **toothless** — le mock de `next/navigation` ne fournissait pas `forbidden`, donc
+  l'ancienne page mourait sur « forbidden is not a function » et le critère restait vert. Le mock
+  lève maintenant l'erreur réelle, et l'assertion porte sur le `digest`.
+
+**Le cliquet D est un inventaire nommé, pas un nombre** : 21 écrans de `(dashboard)` refusent sur
+le rôle sans passer par `guards.ts` (24 avant ce ticket). Un de plus est rouge ; une entrée devenue
+fausse est rouge aussi, avec « retirez la ligne ». `PLAFOND_MESURE` redit le compte à part, pour
+qu'on ne puisse pas remonter le plafond en une ligne discrète.
+
+**Limites écrites en tête du script** : un nom calculé (`nav['for'+'bidden']()`) échappe ; un champ
+d'API qui s'appellerait `forbidden` produirait un faux positif ; et aucun script ne se prémunit de
+l'amputation de son propre appel de verdict.

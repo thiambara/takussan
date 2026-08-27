@@ -55,6 +55,11 @@ on:
       - 'takussan-api/CLAUDE.md'
       - 'takussan-web/CLAUDE.md'
       - 'takussan-web/README.md'
+      # `check-auth-interrupts` compare `takussan-web/src` ET `takussan-web/next.config.ts` :
+      # l'interdiction de `forbidden()` n'a de sens que TANT QUE `experimental.authInterrupts`
+      # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
+      # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
+      - 'takussan-web/next.config.ts'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
       # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
@@ -134,6 +139,11 @@ on:
       - 'takussan-api/CLAUDE.md'
       - 'takussan-web/CLAUDE.md'
       - 'takussan-web/README.md'
+      # `check-auth-interrupts` compare `takussan-web/src` ET `takussan-web/next.config.ts` :
+      # l'interdiction de `forbidden()` n'a de sens que TANT QUE `experimental.authInterrupts`
+      # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
+      # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
+      - 'takussan-web/next.config.ts'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
       # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
@@ -297,6 +307,26 @@ jobs:
         # Elle PROUVE, elle ne cliquette pas : une classe Tailwind est un littéral, sous peine
         # de ne pas être compilée. Vérifiée par ablation (TCK-372, AC3).
         run: node scripts/check-app-tokens.mjs --report
+
+      - name: Aucun refus par `forbidden()` tant que authInterrupts est désactivé
+        # TCK-167 avait retiré `forbidden()` de six pages, posé `assertCanReachAgentArea` et
+        # décidé en AC3 que `experimental.authInterrupts` ne serait pas activé. Les trois points
+        # tenaient encore le 2026-08-27 — mais RIEN NE LES REJOUAIT : le quatrième point de son
+        # delta, un e2e des six routes, n'a jamais été fait faute de harnais. Trois pages écrites
+        # après (TCK-042, TCK-083, TCK-266) ont donc réintroduit l'appel, chacune de bonne foi,
+        # et l'une d'elles portait un docblock affirmant « les autres tombent en 403 ».
+        #
+        # Ils n'y tombaient pas. Mesuré PAR EXÉCUTION du module installé : sans le drapeau,
+        # `forbidden()` lève `E488`, la frontière `(dashboard)/error.tsx` l'attrape, et
+        # l'utilisateur non autorisé reçoit « une erreur est survenue » avec un bouton
+        # « réessayer » qui relèvera la même erreur. *Un refus n'est pas une panne.*
+        #
+        # La garde s'auto-éprouve à chaque invocation — 34 formes de source (alias, import
+        # multiligne, `import * as`, réexport, crochets, espace avant la parenthèse…) et 10
+        # décisions synthétiques — parce que le mode d'échec d'une garde n'est pas de rougir à
+        # tort, c'est de CESSER DE MATCHER. Vérifiée par ablation ET par 21 mutations de son
+        # propre code (TCK-378, AC5).
+        run: node scripts/check-auth-interrupts.mjs --report
 
       - name: Les compétences des agents vivent dans un seul répertoire
         # `.agent/` (646 fichiers) et `.agents/` (602) coexistaient, et les quatre points d'entrée
