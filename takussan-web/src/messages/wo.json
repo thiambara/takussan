@@ -236,13 +236,18 @@
   "footer": {
     "tagline": "Sa nawle bu wér ngir gis kër bi nga bëgg ci Senegaal.",
     "discover": {
+      "all": "Kër yépp",
       "featured": "Kër yu ràññeeku",
       "latest": "Yu bees yi"
     },
-    "newsletterPlaceholder": "Sa email",
-    "newsletterSubmit": "Bindu",
     "discoverHeading": "Gis",
-    "copyright": "© {year} Takussan. Sañ-sañ yépp dañu leen aar."
+    "copyright": "© {year} Takussan. Sañ-sañ yépp dañu leen aar.",
+    "professionalsHeading": "Liggéeykat yi",
+    "toolsHeading": "Sa jumtukaay yi",
+    "tools": {
+      "favorites": "Sama yu neex",
+      "compare": "Mengale"
+    }
   },
   "map": {
     "zoomIn": "Yokk",

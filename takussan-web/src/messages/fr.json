@@ -235,13 +235,18 @@
   },
   "footer": {
     "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
-    "newsletterPlaceholder": "Votre email",
-    "newsletterSubmit": "S'inscrire",
     "discoverHeading": "Découvrir",
     "copyright": "© {year} Takussan. Tous droits réservés.",
     "discover": {
+      "all": "Tous les biens",
       "featured": "Biens en vedette",
       "latest": "Nouveautés"
+    },
+    "professionalsHeading": "Professionnels",
+    "toolsHeading": "Vos outils",
+    "tools": {
+      "favorites": "Mes favoris",
+      "compare": "Comparateur"
     }
   },
   "map": {
