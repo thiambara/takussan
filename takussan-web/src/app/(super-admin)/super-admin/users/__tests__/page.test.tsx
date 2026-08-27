@@ -121,25 +121,119 @@ describe('super-admin users page', () => {
     expect(within(ligne).getByText('2FA : activée')).toBeInTheDocument();
   });
 
-  it('sends role and agency filters to the server', async () => {
-    const user = userEvent.setup();
+  /**
+   * TCK-363 — l'écran ne demandait pas de CHOISIR une agence, il demandait d'en TAPER
+   * l'identifiant numérique. Le test qui couvrait ce chemin (`getByPlaceholderText('ID agence')`
+   * puis `type('12')`) décrivait donc le défaut. Ce qui le remplace se lit en deux temps : les
+   * six filtres partent bien au serveur quand l'URL les porte, et le choix d'une agence s'écrit
+   * dans l'URL par son NOM, jamais par une saisie manuelle.
+   */
+  it('envoie au serveur les six filtres portés par l’URL — TCK-363', async () => {
+    const urlDeTest = new URLSearchParams({
+      search: 'awa',
+      role: 'agent',
+      agency: '12',
+      status: 'active',
+      email: '1',
+      twoFactor: '0',
+      page: '3',
+    });
+    mockSearchParams.get.mockImplementation((key: string) => urlDeTest.get(key));
+    mockSearchParams.toString.mockReturnValue(urlDeTest.toString());
     const spy = mockFetch();
 
     renderPage();
-    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(spy).toHaveBeenCalled());
 
-    // Pick the role via the shadcn (base-ui) Select trigger.
-    await user.click(screen.getByLabelText('Rôle'));
-    const agentOption = await screen.findByRole('option', { name: 'Agent' });
-    await user.click(agentOption);
-
-    await user.type(screen.getByPlaceholderText('ID agence'), '12');
-
-    await waitFor(() => expect(spy.mock.calls.length).toBeGreaterThanOrEqual(3));
-
-    const url = new URL(String(spy.mock.calls.at(-1)?.[0]), 'http://localhost');
+    // ⚠ PAS `calls[0]` : le sélecteur d'agence, hydraté depuis `?agency=12`, émet lui aussi une
+    // requête (le NOM de l'agence 12). On désigne donc la requête de liste par son chemin.
+    const appel = spy.mock.calls.find(([input]) =>
+      String(input).startsWith('/api/super-admin-users?'),
+    );
+    const url = new URL(String(appel?.[0]), 'http://localhost');
+    expect(url.searchParams.get('filter[search]')).toBe('awa');
     expect(url.searchParams.get('filter[role]')).toBe('agent');
     expect(url.searchParams.get('filter[agency_id]')).toBe('12');
+    expect(url.searchParams.get('filter[status]')).toBe('active');
+    expect(url.searchParams.get('filter[email_verified]')).toBe('1');
+    expect(url.searchParams.get('filter[two_factor_enabled]')).toBe('0');
+    expect(url.searchParams.get('page')).toBe('3');
+  });
+
+  it('ne demande NULLE PART la saisie manuelle d’un identifiant d’agence — AC1 TCK-363', async () => {
+    mockFetch();
+    renderPage();
+
+    await screen.findByLabelText('Agence');
+    expect(screen.queryByPlaceholderText('ID agence')).not.toBeInTheDocument();
+    // Le champ d'agence est une COMBOBOX cherchable, pas un champ numérique. Asserter le rôle
+    // ARIA plutôt que l'absence du placeholder : un `<input type="number">` renommé cocherait
+    // l'assertion précédente sans rien corriger.
+    expect(screen.getByLabelText('Agence')).toHaveAttribute('role', 'combobox');
+    expect(
+      document.querySelectorAll('input[type="number"]').length,
+    ).toBe(0);
+  });
+
+  it('choisir une agence écrit son identifiant dans l’URL — TCK-363', async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(String(input), 'http://localhost');
+        if (url.pathname === '/api/super-admin/agencies') {
+          return {
+            ok: true,
+            json: async () => ({
+              data: [{ id: 77, name: 'Ziguinchor Habitat' }],
+              meta: { total: 1, current_page: 1, last_page: 1, per_page: 20 },
+            }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({ data: [], meta: { total: 0, current_page: 1, last_page: 1 } }),
+        };
+      }),
+    );
+
+    renderPage();
+
+    await user.click(screen.getByLabelText('Agence'));
+    await user.click(await screen.findByRole('option', { name: 'Ziguinchor Habitat' }));
+
+    expect(mockReplace).toHaveBeenCalledWith(expect.stringContaining('agency=77'));
+  });
+
+  it('affiche le compte de résultats et vide l’URL à la réinitialisation — AC5 TCK-363', async () => {
+    const user = userEvent.setup();
+    mockSearchParams.get.mockImplementation((key: string) => (key === 'role' ? 'agent' : null));
+    mockSearchParams.toString.mockReturnValue('role=agent');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          data: [],
+          meta: { total: 128, current_page: 1, last_page: 1 },
+        }),
+      })),
+    );
+
+    renderPage();
+
+    expect(await screen.findByText('128 résultats')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Réinitialiser' }));
+    // `?` et non `?role=agent` : la remise à zéro vide l'URL, elle ne retire pas un filtre.
+    expect(mockReplace).toHaveBeenLastCalledWith('?');
+  });
+
+  it('« réinitialiser » est inerte tant qu’aucun filtre n’est posé — AC5 TCK-363', async () => {
+    mockFetch();
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: 'Réinitialiser' })).toBeDisabled();
   });
 
   it('mirrors the role filter to the URL (?role=…) — AC3 TCK-243', async () => {

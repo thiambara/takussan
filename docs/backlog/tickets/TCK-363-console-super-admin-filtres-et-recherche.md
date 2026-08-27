@@ -73,4 +73,51 @@ Trois défauts de la même famille, relevés le 2026-08-26 :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Quatre affirmations du ticket ont été re-mesurées, et trois étaient fausses ou incomplètes.**
+
+1. **« Aucune recherche du dépôt n'est temporisée » — faux du dépôt, vrai de la console.**
+   `src/hooks/useDebouncedValue.ts` existe depuis TCK-335 et porte DEUX formes
+   (`useDebouncedValue`, `useDebouncedCallback` avec `flush`/`cancel`). Un seul appelant :
+   `useSuggest.ts`. Le grep du ticket portait sur `src/app/(super-admin)` et
+   `src/components/admin/super` — répertoires où le compte est bien zéro. *Un grep de répertoire
+   ne mesure pas le dépôt* : la temporisation n'était pas à écrire, elle était à brancher.
+
+2. **`/properties` n'émettait PAS une requête par frappe.** Sa recherche vivait dans un
+   `<form onSubmit>` : rien ne partait avant la touche Entrée. C'est un troisième comportement,
+   pas le même défaut — et le test qui le couvrait s'appelait *« debounces search via form
+   submit »*, ce qui nommait « temporisation » quelque chose qui n'en est pas une.
+
+3. **Il y a QUATRE champs de recherche à traiter, pas trois — et le quatrième est ailleurs.**
+   `/moderation` n'a **aucun** champ de recherche (types, statut, agence, tri). Le troisième
+   écran à recherche est `/agencies`, que le ticket ne cite que dans la ligne `FilterBar`.
+   L'AC3 ne s'applique donc pas à `/moderation`.
+
+4. **`GET /api/admin/agencies` est bien la route BACKEND**, mais le front l'atteint par
+   `/api/super-admin/agencies` (route handler BFF `src/app/api/super-admin/[...path]/route.ts`,
+   qui réécrit en `/api/admin/<path>`). `filter[search]` y couvre `name`, `slug` et `email`
+   (`AgencyModerationController::index`). Aucun changement d'API.
+
+**Décisions techniques**
+
+- `AgencyCombobox` est bâti sur `@base-ui/react/combobox` avec `filter={null}` — le filtrage
+  interne est COUPÉ : filtrer côté client une liste déjà tronquée redirait le défaut corrigé.
+  Pagination par `useInfiniteQuery`, `enabled: open` (rien ne part tant que le sélecteur n'est
+  pas ouvert, là où les deux écrans chargeaient 50 agences au montage de la PAGE).
+- Le nom de l'agence hydratée depuis l'URL est résolu par `fetchAdminAgencyDetail`, et
+  seulement dans ce cas : après un choix à l'écran, le libellé est déjà connu.
+- L'indicateur d'attente est branché sur `brouillon !== valeur || isFetching`, jamais sur le
+  seul `isFetching` : pendant la fenêtre de temporisation, **aucune requête n'est en vol**. Un
+  test d'AC4 branché sur le seul état de requête reste vert avec un délai de 0 ms — vérifié par
+  ablation.
+- Le bouton « afficher plus » du popup porte `onMouseDown={e => e.preventDefault()}` : sans ça,
+  le retrait de focus ferme le popup AVANT le `click` et le bouton est inerte à la souris.
+- `FilterBar` reçoit un passe-plat `data-testid`, comme `DataState`.
+
+**Vérification par ablation** (délai ramené à 0 ms) : AC3 passe de 2 à **11 requêtes** pour dix
+caractères, et l'AC4 rougit aussi. Les deux tests sont donc non vacuous.
+
+**Reste hors périmètre, mesuré et signalé** : `src/components/admin/super/announcements.tsx`
+demande une liste d'identifiants d'agences saisie à la main (`placeholder="12,18"`). Lu à la
+lettre, l'AC1 n'est donc pas tenue à l'échelle du dépôt — elle l'est pour **toutes les barres de
+filtres** de la console. Ce champ est un formulaire de CIBLAGE multi-valué, hors du delta ; il
+demande un sélecteur multiple, à ticketer.

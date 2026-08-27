@@ -3,21 +3,23 @@
 import { useCallback, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Search, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
   DataState,
   DataTable,
+  DebouncedSearchInput,
+  FilterBar,
   PageHeader,
   StatusBadge,
   type DataTableColumn,
   type StatusTone,
 } from '@/components/console';
+import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
 import { EmptyState } from '@/components/feedback';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -49,6 +51,15 @@ type UsersResponse = {
 };
 
 const ALL = '__all__';
+
+/**
+ * TCK-363 — les six filtres de l'écran vivent dans l'URL, pas dans six `useState`.
+ *
+ * Seul `role` y était (TCK-243) ; les cinq autres mouraient à la navigation, et une vue filtrée
+ * ne se partageait pas. La table associe le nom du paramètre d'URL — court, lisible, stable —
+ * au nom du filtre d'API, qui lui appartient au backend (`filter[email_verified]`, …).
+ */
+const PARAMS_DE_FILTRE = ['search', 'role', 'agency', 'status', 'email', 'twoFactor'] as const;
 
 /** Le statut du compte → le ton du DS. `banned` et `blocked` disent la même gravité. */
 const USER_STATUS_TONES: Record<string, StatusTone> = {
@@ -159,18 +170,19 @@ function getInitials(name: string): string {
 export default function SuperAdminUsersPage() {
   const t = useTranslations('superAdmin.users');
   const tPage = useTranslations('superAdmin.pages.users');
+  const tFiltres = useTranslations('console.filterBar');
   const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [search, setSearch] = useState('');
-  // Role filter is mirrored to the URL (`?role=…`) so the view is shareable
-  // and persists across navigation (AC3, TCK-243).
-  const [role, setRole] = useState<string>(() => searchParams?.get('role') ?? ALL);
-  const [agencyId, setAgencyId] = useState('');
-  const [status, setStatus] = useState(ALL);
-  const [emailVerified, setEmailVerified] = useState(ALL);
-  const [twoFactor, setTwoFactor] = useState(ALL);
-  const [page, setPage] = useState(1);
+  // TCK-363 — les six filtres sont LUS dans l'URL. Aucun `useState` de filtre ne subsiste :
+  // deux sources pour un même filtre, c'est la garantie qu'elles divergeront.
+  const search = searchParams?.get('search') ?? '';
+  const role = searchParams?.get('role') ?? ALL;
+  const agencyId = searchParams?.get('agency') ?? '';
+  const status = searchParams?.get('status') ?? ALL;
+  const emailVerified = searchParams?.get('email') ?? ALL;
+  const twoFactor = searchParams?.get('twoFactor') ?? ALL;
+  const page = Number.parseInt(searchParams?.get('page') ?? '1', 10) || 1;
   const [target, setTarget] = useState<SuperAdminUser | null>(null);
   const impersonate = useImpersonate();
   const roleOptions = ROLE_OPTIONS.map((opt) => ({ value: opt.value, label: tPage(opt.labelKey) }));
@@ -187,28 +199,34 @@ export default function SuperAdminUsersPage() {
     page,
   };
 
-  const { data, isLoading, isError, error } = useQuery<UsersResponse, ApiError>({
+  const { data, isLoading, isFetching, isError, error } = useQuery<UsersResponse, ApiError>({
     queryKey: ['super-admin', 'users', params],
     queryFn: () => fetchUsers(params),
     staleTime: 15_000,
   });
 
-  const handleRoleChange = useCallback(
-    (next: string) => {
-      setRole(next);
-      setPage(1);
+  const updateParam = useCallback(
+    (key: string, next: string) => {
       const next_params = new URLSearchParams(searchParams?.toString() ?? '');
       if (next && next !== ALL) {
-        next_params.set('role', next);
+        next_params.set(key, next);
       } else {
-        next_params.delete('role');
+        next_params.delete(key);
       }
-      next_params.delete('page');
+      // Changer un filtre remet la pagination à sa première page — sinon on atterrit page 4
+      // d'un jeu de résultats qui n'en a plus qu'une.
+      if (key !== 'page') next_params.delete('page');
       const qs = next_params.toString();
       router.replace(qs ? `?${qs}` : '?');
     },
     [router, searchParams],
   );
+
+  const filtresPoses = PARAMS_DE_FILTRE.some((cle) => (searchParams?.get(cle) ?? '') !== '');
+
+  // « Réinitialiser » vide l'URL — pas seulement les filtres qu'on connaît : la page, le tri et
+  // tout ce qu'un ticket futur y déposera repartent aussi de leur valeur par défaut.
+  const reinitialiser = useCallback(() => router.replace('?'), [router]);
 
   const columns: DataTableColumn<SuperAdminUser>[] = [
     {
@@ -318,26 +336,28 @@ export default function SuperAdminUsersPage() {
     <div className="space-y-6">
       <PageHeader title={tPage('title')} description={tPage('subtitle')} />
 
-      <div className="grid gap-2 md:grid-cols-3 xl:grid-cols-6">
-        <div className="relative md:col-span-2">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder={tPage('searchPlaceholder')}
-            className="h-10 pl-9"
-          />
-        </div>
+      {/*
+        `data ? … : undefined` et non `?? 0` : annoncer « aucun résultat » pendant le chargement,
+        c'est répondre avant d'avoir demandé.
+      */}
+      <FilterBar
+        controlsClassName="md:grid-cols-3 xl:grid-cols-6"
+        resultCount={data ? tFiltres('results', { count: data.meta?.total ?? 0 }) : undefined}
+        onReset={reinitialiser}
+        resetLabel={tFiltres('reset')}
+        resetDisabled={!filtresPoses}
+      >
+        <DebouncedSearchInput
+          className="md:col-span-2"
+          value={search}
+          onCommit={(next) => updateParam('search', next)}
+          placeholder={tPage('searchPlaceholder')}
+          aria-label={tPage('searchAria')}
+          busy={isFetching}
+        />
         <Select
           value={role}
-          onValueChange={(next) => handleRoleChange((next ?? ALL) as string)}
+          onValueChange={(next) => updateParam('role', (next ?? ALL) as string)}
           items={roleOptions}
         >
           <SelectTrigger aria-label={tPage('roleAria')} className="h-10 w-full">
@@ -351,23 +371,14 @@ export default function SuperAdminUsersPage() {
             ))}
           </SelectContent>
         </Select>
-        <Input
-          type="number"
-          inputMode="numeric"
+        <AgencyCombobox
           value={agencyId}
-          onChange={(e) => {
-            setAgencyId(e.target.value);
-            setPage(1);
-          }}
-          placeholder={tPage('agencyIdPlaceholder')}
-          className="h-10"
+          onChange={(next) => updateParam('agency', next)}
+          label={tPage('agencyAria')}
         />
         <Select
           value={status}
-          onValueChange={(next) => {
-            setStatus((next ?? ALL) as string);
-            setPage(1);
-          }}
+          onValueChange={(next) => updateParam('status', (next ?? ALL) as string)}
           items={statusOptions}
         >
           <SelectTrigger aria-label={tPage('statusAria')} className="h-10 w-full">
@@ -383,10 +394,7 @@ export default function SuperAdminUsersPage() {
         </Select>
         <Select
           value={emailVerified}
-          onValueChange={(next) => {
-            setEmailVerified((next ?? ALL) as string);
-            setPage(1);
-          }}
+          onValueChange={(next) => updateParam('email', (next ?? ALL) as string)}
           items={emailOptions}
         >
           <SelectTrigger aria-label={tPage('emailAria')} className="h-10 w-full">
@@ -402,10 +410,7 @@ export default function SuperAdminUsersPage() {
         </Select>
         <Select
           value={twoFactor}
-          onValueChange={(next) => {
-            setTwoFactor((next ?? ALL) as string);
-            setPage(1);
-          }}
+          onValueChange={(next) => updateParam('twoFactor', (next ?? ALL) as string)}
           items={twoFactorOptions}
         >
           <SelectTrigger aria-label={tPage('twoFactorAria')} className="h-10 w-full">
@@ -419,7 +424,7 @@ export default function SuperAdminUsersPage() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FilterBar>
 
       <DataState
         data-testid="users-loading"
@@ -448,7 +453,7 @@ export default function SuperAdminUsersPage() {
         <Pagination
           page={data.meta.current_page ?? page}
           lastPage={data.meta.last_page}
-          onChange={setPage}
+          onChange={(next) => updateParam('page', String(next))}
         />
       ) : null}
 

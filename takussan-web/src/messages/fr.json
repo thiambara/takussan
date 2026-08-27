@@ -42,6 +42,22 @@
       "next": "Suivant",
       "position": "Page {page} sur {lastPage}",
       "positionSlash": "Page {page} / {lastPage}"
+    },
+    "filterBar": {
+      "results": "{count, plural, =0 {Aucun résultat} one {# résultat} other {# résultats}}",
+      "reset": "Réinitialiser"
+    },
+    "agencyCombobox": {
+      "placeholder": "Toutes agences",
+      "searching": "Recherche en cours…",
+      "noResult": "Aucune agence ne correspond",
+      "loadMore": "Afficher plus",
+      "shown": "{shown} sur {total}",
+      "openAria": "Ouvrir la liste des agences",
+      "clearAria": "Effacer l'agence sélectionnée"
+    },
+    "search": {
+      "pending": "Recherche en cours…"
     }
   },
   "nav": {
@@ -5443,8 +5459,9 @@
         "title": "Utilisateurs",
         "subtitle": "Recherche cross-tenant et impersonation pour le support.",
         "searchPlaceholder": "Nom, email, ID, téléphone",
+        "searchAria": "Rechercher un utilisateur",
         "roleAria": "Rôle",
-        "agencyIdPlaceholder": "ID agence",
+        "agencyAria": "Agence",
         "statusAria": "Statut",
         "emailAria": "Email vérifié",
         "twoFactorAria": "2FA",
@@ -5503,6 +5520,7 @@
         "statusAria": "Statut",
         "sortAria": "Tri",
         "searchPlaceholder": "Rechercher (nom, slug, email)",
+        "searchAria": "Rechercher une agence",
         "createdFromAria": "Créée à partir du",
         "createdToAria": "Créée jusqu’au",
         "statuses": {
