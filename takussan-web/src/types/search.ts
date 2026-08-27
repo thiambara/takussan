@@ -398,6 +398,25 @@ export function estControle(cle: CleDeRechercheNom): boolean {
 }
 
 /**
+ * Le PARAMÈTRE D'URL qu'une clé écrit — TCK-439.
+ *
+ * `filtersToParams` n'est pas le seul écrivain d'URL du front : la navbar en construit une à la
+ * main, à partir des `searchParams` courants, parce qu'elle doit préserver les filtres déjà posés
+ * par la barre latérale. Elle le faisait avec des LITTÉRAUX, et c'est là qu'elle a divergé
+ * d'elle-même : le bouton loupe écrivait `params.set('q', …)` ligne 137, la puce de catégorie
+ * `params.set('city', …)` ligne 163 — la MÊME saisie, deux filtres différents, vingt-six lignes
+ * d'écart. Un texte libre parti en `city` ne rend rien, et le repli conjonctif de TCK-338, qui
+ * raisonne sur les termes de `q`, ne pouvait ni l'élargir ni l'expliquer.
+ *
+ * Passer par cette fonction ne rend pas le choix de la clé automatique — il reste un choix — mais
+ * il le rend TYPÉ : `parametreDe('citye')` ne compile pas, et le nom du paramètre ne peut plus
+ * dériver de celui que la table déclare.
+ */
+export function parametreDe(cle: CleDeRechercheNom): string {
+  return SEARCH_FILTER_KEYS[cle].params[0];
+}
+
+/**
  * Le nom de la clé dont la puce DÉCRIT celle-ci, ou `undefined` si elle porte sa propre puce.
  *
  * TCK-346 — trois consommateurs en dépendent, et chacun éviterait un défaut distinct :

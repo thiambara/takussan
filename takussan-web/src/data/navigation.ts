@@ -54,11 +54,37 @@ export const moreCategories: readonly Category[] = [
   { id: '16', nameKey: 'other',      icon: 'other',        type: 'other' },
 ];
 
+/**
+ * Les entrées du MENU MOBILE de la navbar — `navLinks` n'est consommé que là (`Navbar.tsx`).
+ *
+ * ⚠ **Aucun `href: '#'`.** Deux y vivaient — `sell` et `services` — et le menu les rendait comme
+ * des liens : le panneau se refermait, la page ne bougeait pas. C'est le motif de TCK-419 (un
+ * chemin sans écran) sous sa forme la plus visible, puisqu'ici la cible n'est pas seulement
+ * absente, elle est écrite. `src/data/__tests__/navigation.test.ts` refuse désormais qu'une
+ * nouvelle entrée en porte un, et vérifie que chaque `href` résout vers une route qui existe
+ * RÉELLEMENT sous `src/app` (inventaire dérivé du système de fichiers, jamais recopié).
+ *
+ * Le sort des deux entrées mortes a été tranché séparément, parce qu'elles ne se ressemblent
+ * qu'en surface (TCK-439) :
+ *
+ * · **`sell` → `/publish`.** La destination existe (`src/app/publish/page.tsx`) et c'est
+ *   exactement le parcours que le libellé annonce : « Vendre » sur un site d'annonces, c'est
+ *   déposer un bien. La page résout elle-même où envoyer le visiteur (connexion, assistant hôte,
+ *   `/app/properties/new`, cf. TCK-254). Le menu porte par ailleurs un bouton « Publier une
+ *   annonce » : la redondance est assumée — c'est un couple intention / action, et c'est le
+ *   patron des sites du domaine (« Vendre » en navigation, « Déposer une annonce » en CTA).
+ *
+ * · **`services` → RETIRÉ.** Aucune surface de services n'existe, ni publique ni ticketée. Le
+ *   dépôt a des `ServiceProviderProfile` côté API, mais rien qu'un visiteur puisse atteindre :
+ *   pointer le lien quelque part demanderait d'inventer la page, ce que TCK-439 exclut
+ *   explicitement de son périmètre. La clé `nav.links.services` est retirée des trois
+ *   dictionnaires avec l'entrée — un libellé qui ne s'affiche plus est un piège pour la
+ *   prochaine personne qui le trouvera et croira la surface livrée.
+ */
 export const navLinks = [
-  { labelKey: 'buy',      href: '/properties?contract_type=sale', active: true },
-  { labelKey: 'rent',     href: '/properties?contract_type=rent', active: false },
-  { labelKey: 'sell',     href: '#',                              active: false },
-  { labelKey: 'services', href: '#',                              active: false },
+  { labelKey: 'buy',  href: '/properties?contract_type=sale', active: true },
+  { labelKey: 'rent', href: '/properties?contract_type=rent', active: false },
+  { labelKey: 'sell', href: '/publish',                       active: false },
 ] as const;
 
 export const footerLinks = {

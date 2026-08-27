@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,6 +15,9 @@ import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
 import { apiFetch } from '@/lib/api';
+import { parametreDe } from '@/types/search';
+import { hrefLocalise } from '@/i18n/navigation';
+import type { Locale } from '@/i18n/config';
 
 type PropertyTypeCountsResponse = {
   data: Array<{ value: string; count: number }>;
@@ -47,6 +50,7 @@ export function Navbar({ className }: NavbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoading, setUser } = useAuth();
+  const locale = useLocale() as Locale;
   const t = useTranslations('nav');
   const tCategories = useTranslations('property.types');
   const tLinks = useTranslations('nav.links');
@@ -108,7 +112,7 @@ export function Navbar({ className }: NavbarProps) {
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     setUser(null);
-    router.push('/');
+    router.push(hrefLocalise('/', locale));
   }
 
   const initials = user
@@ -126,26 +130,49 @@ export function Navbar({ className }: NavbarProps) {
 
   // ─── Navigation helpers ─────────────────────────────────────────────────────
 
+  /**
+   * L'UNIQUE constructeur d'URL de recherche de la navbar — TCK-439.
+   *
+   * ⚠ Il y en avait DEUX, et c'est ce qui a produit le défaut : ce constructeur-ci écrivait
+   * `q` (recherche plein-texte), `handleCategoryClick` écrivait `city` (égalité sur la ville),
+   * à vingt-six lignes de distance et **à partir de la même valeur `location`**. Un visiteur qui
+   * tapait « villa avec piscine » puis cliquait la puce « Villa » voyait sa saisie devenir une
+   * ville de ce nom : zéro résultat, sans un mot d'explication — et le repli conjonctif de
+   * TCK-338, qui raisonne sur les termes de `q`, ne pouvait ni l'élargir ni l'étiqueter.
+   *
+   * **Le champ a UN sens : plein-texte.** Ce n'est pas un arbitrage par défaut, c'est la voie que
+   * le ticket décrit comme la plus juste, et elle était déjà à moitié livrée : `SearchAutocomplete`
+   * distingue déjà « ville choisie dans la liste » (elle écrit `city`, et efface `location`) de
+   * « texte libre » (elle écrit `q`). La navbar n'a jamais à deviner : ce qu'elle tient dans
+   * `location` est, par construction, du texte que personne n'a choisi dans une liste.
+   *
+   * Les noms de paramètres passent par `parametreDe()` : un littéral de moins, et surtout un nom
+   * qui ne peut plus diverger de celui que `SEARCH_FILTER_KEYS` déclare.
+   */
   const buildSearchUrl = useCallback((overrides: Record<string, string> = {}) => {
     // Preserve any sidebar filter already in the URL
     const params = new URLSearchParams(searchParams.toString());
     // contract_type from transaction selector (only override if explicitly set)
-    if (transaction === 'Acheter') params.set('contract_type', 'sale');
-    if (transaction === 'Louer')   params.set('contract_type', 'rent');
+    if (transaction === 'Acheter') params.set(parametreDe('contract_type'), 'sale');
+    if (transaction === 'Louer')   params.set(parametreDe('contract_type'), 'rent');
     // free text from the searchbox maps to full-text search; selecting a
     // city/neighborhood suggestion still writes the dedicated location params.
-    if (location.trim()) params.set('q', location.trim());
+    if (location.trim()) params.set(parametreDe('q'), location.trim());
     // active category → type filter (only override if set)
-    if (activeCategory) params.set('type', activeCategory);
+    if (activeCategory) params.set(parametreDe('type'), activeCategory);
     // reset pagination on new search
-    params.delete('page');
+    params.delete(parametreDe('page'));
     // apply explicit overrides last
     Object.entries(overrides).forEach(([k, v]) => {
       if (v === '') params.delete(k); else params.set(k, v);
     });
     const qs = params.toString();
-    return `/properties${qs ? '?' + qs : ''}`;
-  }, [searchParams, transaction, location, activeCategory]);
+    // Le préfixe de langue est posé ICI et non laissé au proxy : `router.push` n'est pas un
+    // `LienLocalise`, et un chemin nu coûterait un aller-retour 307 sur le geste le plus
+    // fréquent du site (ADR-0026). `useSearch` est déjà correct par construction — il repart
+    // de `usePathname()`, qui porte la langue.
+    return hrefLocalise(`/properties${qs ? '?' + qs : ''}`, locale);
+  }, [searchParams, transaction, location, activeCategory, locale]);
 
   const handleSearch = useCallback(() => {
     router.push(buildSearchUrl());
@@ -156,15 +183,12 @@ export function Navbar({ className }: NavbarProps) {
     // Clicking a chip is mono-select: replace ?type= with this single value,
     // or clear it if the chip was already the only active type. This is
     // intentional — the multi-select side lives in the FilterSidebar.
+    //
+    // Une puce AJOUTE un critère, elle ne réinterprète pas la saisie : tout le reste de l'URL
+    // — `q` compris — vient de `buildSearchUrl`, qui est désormais le seul à l'écrire.
     const isOnlyActive = selectedTypes.length === 1 && selectedTypes[0] === type;
-    const params = new URLSearchParams(searchParams.toString());
-    if (transaction === 'Acheter') params.set('contract_type', 'sale');
-    if (transaction === 'Louer')   params.set('contract_type', 'rent');
-    if (location.trim()) params.set('city', location.trim());
-    if (isOnlyActive) params.delete('type'); else params.set('type', type);
-    params.delete('page');
-    router.push(`/properties${params.size ? '?' + params.toString() : ''}`);
-  }, [router, searchParams, transaction, location, selectedTypes]);
+    router.push(buildSearchUrl({ [parametreDe('type')]: isOnlyActive ? '' : type }));
+  }, [router, buildSearchUrl, selectedTypes]);
 
   return (
     <nav
@@ -440,7 +464,7 @@ export function Navbar({ className }: NavbarProps) {
           {/* Mobile nav links */}
           <div className="flex flex-col px-6 py-3 gap-4 border-t border-gray-100">
             {navLinks.map((link) => (
-              <a
+              <LienLocalise
                 key={link.labelKey}
                 href={link.href}
                 onClick={() => setMenuOpen(false)}
@@ -448,7 +472,7 @@ export function Navbar({ className }: NavbarProps) {
                   }`}
               >
                 {tLinks(link.labelKey)}
-              </a>
+              </LienLocalise>
             ))}
           </div>
 

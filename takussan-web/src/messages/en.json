@@ -86,8 +86,7 @@
     "links": {
       "buy": "Buy",
       "rent": "Rent",
-      "sell": "Sell",
-      "services": "Our services"
+      "sell": "Sell"
     },
     "categories": {
       "apartment": "Apartment",
