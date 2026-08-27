@@ -215,3 +215,26 @@ d'`AppServiceProvider` disait que `getRawListeners()` rendait « 2 pour les troi
 scheduler » — c'était **2 / 0 / 0** (seul `Finished` était écouté, et il l'était deux fois) —, et il
 attribuait la découverte au type de `handle()` au lieu de `handle*`.
 
+### Troisième amendement — la garde acceptait « bonne ligne, mauvais statut » (2026-08-27)
+
+`assertNotSame(Running, …)` répondait à « quelque chose a bougé », pas à « c'est juste ». Un écouteur
+qui retrouve la bonne ligne et y pose `skipped` la satisfaisait. La forme retenue joue les **deux**
+issues — code de sortie 0 puis 1 — et exige le statut que chacune commande.
+
+Quatre formes d'assertion écartées, chacune défaite en ÉCRIVANT l'écouteur qui la satisfait :
+
+| forme | ce qu'un écouteur défaillant y faisait passer |
+|---|---|
+| `assertNotEmpty(getListeners(…))` | un écouteur au corps vide |
+| `assertNotSame(Running, …)` | un statut FAUX sur la bonne ligne (`skipped`) |
+| un seul code de sortie | `finished` écrit EN DUR — le défaut d'origine du ticket, un cran plus loin |
+| **retenue : les deux codes de sortie** | rien : L1 rouge sur 0, L2 rouge sur 1 |
+
+Et la garde n'est pas seulement rouge : l'écouteur CORRECT la rend verte (L3). Il retrouve la
+dernière ligne `running` de la tâche par requête et la ferme sur `exitCode` — c'est-à-dire
+exactement la marche à suivre que le docblock de `ScheduledTaskRunStatus::Running` prescrit, dont
+l'ablation prouve donc au passage qu'elle est implémentable.
+
+*Une garde qui n'accepte aucune implémentation ne garde pas une propriété, elle interdit un
+répertoire.*
+

@@ -180,9 +180,10 @@ class SchedulerRunStatusTest extends TestCase
      * Ce test rougit le jour où quelqu'un ajoute la première — au moment exact où il faut lire le
      * docblock de `ScheduledTaskRunStatus::Running` plutôt que dix commits plus tard.
      *
-     * Il éprouve l'EFFET et non l'existence d'un écouteur : la ligne `running` doit cesser de l'être.
-     * Sa première version se contentait de `assertNotEmpty(Event::getListeners(…))`, qu'un écouteur au
-     * corps vide satisfaisait.
+     * Il éprouve l'EFFET EXACT, et non l'existence d'un écouteur : sur chacun des deux codes de
+     * sortie, la ligne `running` doit porter le statut que ce code commande. Les formes plus faibles
+     * ont toutes été défaites en écrivant l'écouteur qui les satisfait — corps vide, statut faux sur
+     * la bonne ligne, statut écrit en dur.
      *
      * *Un commentaire qui décrit une dette ne la garde pas ; un test qui rougit sur sa condition,
      * oui.*
@@ -206,41 +207,51 @@ class SchedulerRunStatusTest extends TestCase
         }
 
         /*
-         * ⚠ On éprouve l'EFFET, pas l'existence.
+         * ⚠ On éprouve l'EFFET EXACT, et pas seulement « quelque chose a bougé ».
          *
-         * `assertNotEmpty(Event::getListeners(…))` était la première forme de cette assertion, et
-         * elle promettait plus qu'elle n'éprouvait : un écouteur au corps VIDE la satisfaisait
-         * (mesuré). Un test qui accepte une coquille est de la même famille qu'un commentaire qui
-         * décrit un mécanisme absent — il fabrique une confiance que rien ne porte.
+         * Trois formes ont été écartées successivement, chacune parce qu'un écouteur défaillant la
+         * satisfaisait — vérifié en écrivant l'écouteur à chaque fois :
          *
-         * La propriété qui compte est donc jouée : une ligne `running` posée, l'événement de fin
-         * dispatché, et la ligne ne doit plus être `running`.
+         *   1. `assertNotEmpty(Event::getListeners(…))` → un écouteur au corps VIDE passait ;
+         *   2. `assertNotSame(Running, …)` → un écouteur qui pose un statut FAUX passait, du moment
+         *      qu'il touchait la bonne ligne. « Ce n'est plus `running` » n'est pas « c'est juste » ;
+         *   3. un seul code de sortie → un écouteur qui écrit `finished` EN DUR passait, ce qui est
+         *      exactement le défaut d'origine de ce ticket, réintroduit un cran plus loin.
+         *
+         * D'où la forme retenue : les DEUX issues sont jouées, et chacune doit rendre le statut que
+         * son code de sortie commande. C'est la propriété que l'écouteur manquant devra tenir, pas
+         * une approximation d'elle.
          */
         $tache = collect($reel->events())->first(fn ($t) => $t->runInBackground);
-        $tache->exitCode = 0;
+        $nom = ScheduledRunRecorder::nomDe($tache);
 
-        $ligne = ScheduledTaskRun::query()->create([
-            'task' => ScheduledRunRecorder::nomDe($tache),
-            'last_run_at' => now(),
-            'duration_ms' => null,
-            'status' => ScheduledTaskRunStatus::Running,
-        ]);
-
-        Event::dispatch(new ScheduledBackgroundTaskFinished($tache));
-
-        $this->assertNotSame(
-            ScheduledTaskRunStatus::Running,
-            $ligne->fresh()->status,
-            sprintf(
-                'Ces tâches tournent en arrière-plan : %s. Leur exécution est enregistrée `running` '
-                .'et RIEN ne la résout — `schedule:finish` dispatche `ScheduledBackgroundTaskFinished`, '
-                ."qui n'a aucun écouteur ici. Poser cet écouteur : il doit retrouver la dernière ligne "
-                .'`running` de la tâche et la fermer sur `exitCode`. La déduplication par '
-                .'`spl_object_id` du recorder ne peut PAS servir — autre processus, objet `Event` '
-                .'reconstruit par son mutex, donc la recherche se fait par requête.',
-                implode(', ', $enArrierePlan),
-            ),
+        $explication = sprintf(
+            'Ces tâches tournent en arrière-plan : %s. Leur exécution est enregistrée `running` '
+            .'et RIEN ne la résout — `schedule:finish` dispatche `ScheduledBackgroundTaskFinished`, '
+            ."qui n'a aucun écouteur ici. Poser cet écouteur : il doit retrouver la dernière ligne "
+            .'`running` de la tâche et la fermer sur `exitCode` — `finished` sur 0, `failed` sinon. '
+            .'La déduplication par `spl_object_id` du recorder ne peut PAS servir : autre processus, '
+            .'objet `Event` reconstruit par son mutex, donc la recherche se fait par requête.',
+            implode(', ', $enArrierePlan),
         );
+
+        foreach ([0 => ScheduledTaskRunStatus::Finished, 1 => ScheduledTaskRunStatus::Failed] as $exitCode => $attendu) {
+            $ligne = ScheduledTaskRun::query()->create([
+                'task' => $nom,
+                'last_run_at' => now(),
+                'duration_ms' => null,
+                'status' => ScheduledTaskRunStatus::Running,
+            ]);
+
+            $tache->exitCode = $exitCode;
+            Event::dispatch(new ScheduledBackgroundTaskFinished($tache));
+
+            $this->assertSame(
+                $attendu,
+                $ligne->fresh()->status,
+                sprintf('Code de sortie %d : statut attendu `%s`. %s', $exitCode, $attendu->value, $explication),
+            );
+        }
     }
 
     /**
