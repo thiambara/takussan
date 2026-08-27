@@ -417,11 +417,19 @@ class AppServiceProvider extends ServiceProvider
         // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
         //
         // `Application::configure()` appelle `withEvents()` par défaut (Laravel 13) : tout `app/Listeners`
-        // est DÉJÀ découvert par le type de `handle()`. Le `Event::listen(ScheduledTaskFinished::class,
-        // RecordScheduledTaskRun::class)` qui vivait ici en posait donc un SECOND, et l'écouteur tournait
-        // deux fois par exécution. Mesuré le 2026-08-27 sur le code de `dev` : deux lignes de
-        // `scheduled_task_runs` pour une seule tâche planifiée, et `Event::getRawListeners()` rendait 2
-        // pour les trois événements du scheduler. *Un enregistrement explicite par-dessus une découverte
+        // est DÉJÀ découvert. La règle exacte est `DiscoverEvents:87` — TOUTE méthode publique que
+        // `Str::is('handle*', …)` accepte, plus `__invoke`, dont le premier paramètre est typé. Donc
+        // `handle()`, mais aussi `handleRequested()`, `handleOrderCreated()`… et l'écouteur est inscrit
+        // sous la forme `Classe@methode`.
+        //
+        // Le `Event::listen(ScheduledTaskFinished::class, RecordScheduledTaskRun::class)` qui vivait ici
+        // en posait donc un SECOND — la forme nue `Classe` se résolvant vers ce même `Classe@handle` —,
+        // et l'écouteur tournait deux fois par exécution.
+        //
+        // Mesuré le 2026-08-27 sur le code de `dev` : une sonde `schedule:run` sur UNE tâche écrivait
+        // deux lignes de `scheduled_task_runs`, et `count(Event::getRawListeners()[…])` rendait
+        // **2 / 0 / 0** pour `ScheduledTaskFinished` / `Failed` / `Skipped` — seul le premier était
+        // écouté, et il l'était deux fois. *Un enregistrement explicite par-dessus une découverte
         // automatique n'est pas une redondance inoffensive : c'est un doublon silencieux.*
     }
 

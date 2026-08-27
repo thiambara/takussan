@@ -473,6 +473,46 @@ class PlatformReportingTest extends TestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * Le JUMEAU du test précédent, pour `revenue` — et il n'est pas décoratif.
+     *
+     * `ROW_SCHEMA_VERSION` est posée sur DEUX clés, construites par deux `sprintf` distincts. Mesuré :
+     * retirer le jeton de la seule clé `revenue` laissait la suite entièrement verte. *Une garde qui
+     * ne couvre qu'une moitié d'un correctif en deux endroits ne garde pas le correctif : elle garde
+     * la moitié qu'on avait sous les yeux en l'écrivant.*
+     */
+    public function test_a_revenue_envelope_cached_by_the_previous_row_shape_is_not_served(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $version = (int) Cache::get('reporting:cache_version', 0);
+
+        Cache::put("reporting:revenue:3m:month:3m:v{$version}", [
+            'rows' => [[
+                'bucket' => '1999-01',
+                'starts_at' => '1999-01-01T00:00:00+00:00',
+                'ends_at' => '1999-01-31T23:59:59+00:00',
+                'mrr' => 999.0,
+                'arr' => 11988.0,
+                'active_subscriptions' => 9,
+            ]],
+            'totals' => ['latest_mrr' => 999.0, 'latest_arr' => 11988.0, 'latest_active_subscriptions' => 9],
+            'period' => ['range' => '3m', 'granularity' => 'month'],
+            'generated_at' => '1999-01-01T00:00:00+00:00',
+        ], 600);
+
+        $rows = $this->getJson('/api/admin/reports/revenue?period=3m&granularity=month')
+            ->assertOk()
+            ->json('data.rows');
+
+        $this->assertNotSame('1999-01', $rows[0]['bucket'], "L'enveloppe de l'ancienne forme a été servie.");
+        $this->assertArrayHasKey('days', $rows[0]);
+        $this->assertArrayHasKey('partial', $rows[0]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_revenue_mrr_matches_active_subscription_sum(): void
     {
         $this->actingAsRole('super_admin');

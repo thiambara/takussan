@@ -188,3 +188,12 @@ atteint qu'au-delà de 10 000 lignes, donc jamais sous le plafond de 60 buckets 
 pourquoi il en avait besoin : *un chemin qu'aucun appel ne prend est un chemin dont personne ne
 verra la dérive.*
 
+### Second amendement (2026-08-27)
+
+`ROW_SCHEMA_VERSION` est posée sur DEUX clés, construites par deux `sprintf` distincts, et une seule
+était gardée. Mesuré : retirer le jeton de la seule clé `revenue` laissait 29 tests verts. *Une
+garde qui ne couvre qu'une moitié d'un correctif en deux endroits ne garde pas le correctif : elle
+garde la moitié qu'on avait sous les yeux en l'écrivant.* D'où
+`test_a_revenue_envelope_cached_by_the_previous_row_shape_is_not_served`, jumeau du précédent ;
+l'ablation rend désormais 1 rouge.
+

@@ -180,6 +180,10 @@ class SchedulerRunStatusTest extends TestCase
      * Ce test rougit le jour où quelqu'un ajoute la première — au moment exact où il faut lire le
      * docblock de `ScheduledTaskRunStatus::Running` plutôt que dix commits plus tard.
      *
+     * Il éprouve l'EFFET et non l'existence d'un écouteur : la ligne `running` doit cesser de l'être.
+     * Sa première version se contentait de `assertNotEmpty(Event::getListeners(…))`, qu'un écouteur au
+     * corps vide satisfaisait.
+     *
      * *Un commentaire qui décrit une dette ne la garde pas ; un test qui rougit sur sa condition,
      * oui.*
      */
@@ -201,15 +205,39 @@ class SchedulerRunStatusTest extends TestCase
             return;
         }
 
-        $this->assertNotEmpty(
-            Event::getListeners(ScheduledBackgroundTaskFinished::class),
+        /*
+         * ⚠ On éprouve l'EFFET, pas l'existence.
+         *
+         * `assertNotEmpty(Event::getListeners(…))` était la première forme de cette assertion, et
+         * elle promettait plus qu'elle n'éprouvait : un écouteur au corps VIDE la satisfaisait
+         * (mesuré). Un test qui accepte une coquille est de la même famille qu'un commentaire qui
+         * décrit un mécanisme absent — il fabrique une confiance que rien ne porte.
+         *
+         * La propriété qui compte est donc jouée : une ligne `running` posée, l'événement de fin
+         * dispatché, et la ligne ne doit plus être `running`.
+         */
+        $tache = collect($reel->events())->first(fn ($t) => $t->runInBackground);
+        $tache->exitCode = 0;
+
+        $ligne = ScheduledTaskRun::query()->create([
+            'task' => ScheduledRunRecorder::nomDe($tache),
+            'last_run_at' => now(),
+            'duration_ms' => null,
+            'status' => ScheduledTaskRunStatus::Running,
+        ]);
+
+        Event::dispatch(new ScheduledBackgroundTaskFinished($tache));
+
+        $this->assertNotSame(
+            ScheduledTaskRunStatus::Running,
+            $ligne->fresh()->status,
             sprintf(
                 'Ces tâches tournent en arrière-plan : %s. Leur exécution est enregistrée `running` '
                 .'et RIEN ne la résout — `schedule:finish` dispatche `ScheduledBackgroundTaskFinished`, '
                 ."qui n'a aucun écouteur ici. Poser cet écouteur : il doit retrouver la dernière ligne "
                 .'`running` de la tâche et la fermer sur `exitCode`. La déduplication par '
                 .'`spl_object_id` du recorder ne peut PAS servir — autre processus, objet `Event` '
-                .'reconstruit par son mutex.',
+                .'reconstruit par son mutex, donc la recherche se fait par requête.',
                 implode(', ', $enArrierePlan),
             ),
         );
@@ -220,7 +248,9 @@ class SchedulerRunStatusTest extends TestCase
      *
      * `app/Listeners` est découvert automatiquement (`Application::configure()` appelle
      * `withEvents()`), et un `Event::listen()` explicite s'y ajoute au lieu de s'y substituer. Mesuré
-     * le 2026-08-27 sur `dev` : 2 écouteurs par événement, 2 lignes pour une seule tâche planifiée.
+     * le 2026-08-27 sur `dev` : **2 / 0 / 0** écouteurs pour `ScheduledTaskFinished` / `Failed` /
+     * `Skipped` — seul le premier était écouté, et il l'était DEUX fois —, d'où deux lignes de
+     * `scheduled_task_runs` pour une seule tâche planifiée.
      *
      * ⚠⚠ **C'est le SEUL test du dépôt qui attrape le doublon, et ce n'est pas une supposition :
      * mesuré par ablation.** Remettre le `Event::listen()` explicite ne fait rougir que celui-ci —

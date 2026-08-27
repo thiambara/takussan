@@ -173,3 +173,45 @@ le double appel et n'écrit qu'une ligne, donc l'assertion de compte reste verte
 son docblock — le recorder rend le doublon invisible dans les données, ce qui est exactement ce qui
 l'a laissé vivre ailleurs dans le dépôt.
 
+### Second amendement — le compte du doublon, re-mesuré une quatrième fois (2026-08-27)
+
+**Quatre mesures successives de la même chose, toutes fausses dans le même sens : 7, puis 12/13,
+puis 15, puis 20.** La mienne (7) ne regardait que `Event::listen(` dans `AppServiceProvider` et
+comptait « événements ayant plus d'un écouteur ». La deuxième corrigeait la portée mais normalisait
+mal. La troisième — reprise d'une revue — héritait du même angle mort, et je l'ai créditée d'une
+vérification indépendante qu'elle n'était pas.
+
+**La règle exacte, lue dans `DiscoverEvents:86-94` et non déduite :**
+
+```php
+foreach ($listener->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+    if ((! Str::is('handle*', $method->name) && ! Str::is('__invoke', $method->name)) ||
+        ! isset($method->getParameters()[0])) { continue; }
+    $listenerEvents[$listener->name.'@'.$method->name] = …
+```
+
+`handle*`, **pas** `handle`. Donc `handleRequested()`, `handleOrderCreated()`… sont découvertes, et
+l'exclusion que j'avais écrite — « la forme tableau `[Classe::class, 'methode']` n'est pas
+concernée » — **est fausse**. C'est elle qui masquait six paires, dont trois traitements de webhook
+de paiement.
+
+**Le comptage juste se fait sur une identité CANONIQUE `Classe@methode`**, les trois formes
+d'enregistrement désignant le même écouteur : `Classe` nue (résolue vers `handle`, sinon
+`__invoke`), `[Classe::class, 'm']`, et `Classe@m` de la découverte.
+
+| état | paires | dont `App\Listeners` | événements |
+|---|---|---|---|
+| `dev` | **21** | **20** | 20 |
+| cette branche, après TCK-383 | **20** | **19** | 19 |
+
+Les deux lignes sont mesurées, pas déduites : l'état `dev` a été reproduit en remettant le
+`Event::listen` explicite et en retirant les deux écouteurs neufs.
+
+*Une revue qui corrige un chiffre faux par un autre chiffre faux dans le même sens ne se trompe pas
+seulement : elle donne à l'erreur l'autorité d'une vérification indépendante.*
+
+**Deux mesures fausses écrites DANS le code de ce lot, corrigées :** le commentaire
+d'`AppServiceProvider` disait que `getRawListeners()` rendait « 2 pour les trois événements du
+scheduler » — c'était **2 / 0 / 0** (seul `Finished` était écouté, et il l'était deux fois) —, et il
+attribuait la découverte au type de `handle()` au lieu de `handle*`.
+
