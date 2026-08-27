@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ArrowRight, ScrollText } from 'lucide-react';
 
 import { DataState } from '@/components/console';
@@ -25,6 +26,10 @@ const RECENT_ENTRIES = 5;
  */
 export function ConsoleRecentActivity() {
   const t = useTranslations('superAdmin.recentActivity');
+  // TCK-364 — `toLocaleString()` NU suit la locale du NAVIGATEUR, pas celle de
+  // l'application : un super-admin en `wo` sur un navigateur anglais lisait une date
+  // anglaise. Invisible au grep `'fr-FR'` de l'AC1 — il n'y a pas de littéral à trouver.
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
 
   const { data, isPending, isError, error } = useQuery<AuditLogResponse, ApiError>({
@@ -74,7 +79,7 @@ export function ConsoleRecentActivity() {
                   <span className="block truncate text-xs text-muted-foreground">{causerOf(entry, t)}</span>
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-                  {entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'}
+                  {fmt.dateTime(entry.created_at)}
                 </span>
               </li>
             ))}

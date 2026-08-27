@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 import { cn } from '@/lib/utils';
 
@@ -73,7 +74,10 @@ export function TimeSeriesChart({
   const [actif, setActif] = useState<number | null>(null);
   const clipId = useId();
 
-  const format = formatValue ?? ((value: number) => value.toLocaleString('fr-FR'));
+  // TCK-364 — la locale ACTIVE, jamais 'fr-FR' : ce composant est né après le relevé de
+  // TCK-364, dans un répertoire que son grep ne couvrait pas. Gardé par check-locale-figee.mjs.
+  const fmt = useFormatteurs();
+  const format = formatValue ?? ((value: number) => fmt.nombre(value));
 
   if (points.length === 0) {
     return (

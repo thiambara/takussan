@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchAdminReportRevenue } from '@/lib/queries/super-admin';
@@ -28,6 +29,7 @@ const GRANULARITE: GranulariteRapport = 'month';
 const PERIODS: readonly ReportPeriod[] = ['3m', '6m', '12m'];
 
 export function RevenueChart() {
+  const formatXof = useXof();
   const t = useTranslations('reporting');
   const [fenetre, setFenetre] = useState<FenetreRapport>({ period: '12m' });
   const [comparaison, setComparaison] = useState(false);
@@ -111,6 +113,7 @@ function KpiPill({ label, value }: { label: string; value: string }) {
 
 function RevenueTable({ rows }: { rows: { bucket: string; mrr: number; arr: number; active_subscriptions: number }[] }) {
   const t = useTranslations('reporting.revenue');
+  const formatXof = useXof();
 
   if (rows.length === 0) return null;
 
@@ -142,12 +145,15 @@ function RevenueTable({ rows }: { rows: { bucket: string; mrr: number; arr: numb
   );
 }
 
-/** XOF sans sous-unité — la devise n'en a pas (principe non négociable n°3). */
-function formatXof(amount: number | string | null): string {
-  const value = Number(amount ?? 0);
-  try {
-    return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', maximumFractionDigits: 0 }).format(value);
-  } catch {
-    return `${value.toLocaleString('fr-FR')} XOF`;
-  }
+/**
+ * XOF sans sous-unité — la devise n'en a pas (principe non négociable n°3).
+ *
+ * ⚠ C'est un HOOK, pas une fonction module-level, et c'est tout le point : la version
+ * module-level écrivait `'fr-FR'` en dur, parce qu'une fonction hors composant n'a pas de locale
+ * sous la main. C'est le motif exact que TCK-364 corrige, reproduit ici dans un répertoire que
+ * son relevé ne couvrait pas. Gardé par `scripts/check-locale-figee.mjs`.
+ */
+function useXof(): (amount: number | string | null) => string {
+  const fmt = useFormatteurs();
+  return (amount) => fmt.montant(Number(amount ?? 0), 'XOF', { maximumFractionDigits: 0 });
 }

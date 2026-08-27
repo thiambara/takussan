@@ -331,6 +331,25 @@ jobs:
         # mesuré est le vert qui a rendu TCK-245 `done` pendant quatre mois.
         run: node scripts/check-super-admin-tokens.mjs --report
 
+      - name: Les consoles ne figent aucune locale
+        # TCK-364 a supprimé 18 formatages `'fr-FR'` écrits en dur dans 13 fichiers. Son AC1 était
+        # un grep, il était vert, et il l'est resté exactement le temps de la fusion : trois
+        # tickets de la MÊME vague ont créé des fichiers NEUFS portant chacun le même helper
+        # module-level avec `'fr-FR'` dedans. Git n'a signalé aucun conflit — un fichier qui
+        # n'existe que d'un côté d'une fusion ne peut pas en produire — et l'AC avait été mesuré
+        # sur une base où les fautifs n'existaient pas encore.
+        #
+        #   *Un AC vérifié par un grep manuel n'est pas une garde, c'est une photographie.*
+        #
+        # La garde refuse DEUX formes, pas une : le littéral (`Intl.DateTimeFormat('fr-FR', …)`)
+        # et son inverse silencieux, `toLocaleString()` NU — qui ne fige rien mais suit la locale
+        # du NAVIGATEUR. Le second est le pire des deux : il ne rend pas la même mauvaise réponse
+        # à tout le monde, il en rend une différente par machine, donc irreproductible en test.
+        #
+        # CLIQUET — le reste (`/app`, site public, baux, calendrier) est un PLAFOND, pas une
+        # tolérance : la garde échoue s'il monte. Le porter à zéro est un autre ticket.
+        run: node scripts/check-locale-figee.mjs --report
+
       - name: Les compétences des agents vivent dans un seul répertoire
         # `.agent/` (646 fichiers) et `.agents/` (602) coexistaient, et les quatre points d'entrée
         # du dépôt désignaient `.agent/`. Le 2026-05-18, la correction « `spatie/laravel-permission`
