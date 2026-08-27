@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useTranslations } from 'next-intl';
 import { ChevronRight } from 'lucide-react';
 import type { PropertyDetail } from '@/types/property';
@@ -31,9 +31,9 @@ export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <ChevronRight className="size-3.5" aria-hidden />}
           {c.href ? (
-            <Link href={c.href} className="hover:text-slate-700 transition-colors">
+            <LienLocalise href={c.href} className="hover:text-slate-700 transition-colors">
               {c.label}
-            </Link>
+            </LienLocalise>
           ) : (
             <span className="text-stone-700">{c.label}</span>
           )}

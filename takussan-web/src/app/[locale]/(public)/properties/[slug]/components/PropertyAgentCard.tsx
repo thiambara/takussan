@@ -1,6 +1,6 @@
 'use client';
 import Image from 'next/image';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { BadgeCheck, MessageCircle, Phone } from 'lucide-react';
@@ -66,21 +66,21 @@ export function PropertyAgentCard({
         <div className="min-w-0">
           <p className="font-semibold text-stone-900 truncate">
             {owner.slug ? (
-              <Link href={`/agents/${owner.slug}`} className="hover:underline">
+              <LienLocalise href={`/agents/${owner.slug}`} className="hover:underline">
                 {owner.name}
-              </Link>
+              </LienLocalise>
             ) : (
               owner.name
             )}
           </p>
           {agency ? (
             <p className="text-sm text-stone-600 flex items-center gap-1 truncate">
-              <Link
+              <LienLocalise
                 href={`/agencies/${agency.slug}`}
                 className="hover:underline"
               >
                 {agency.name}
-              </Link>
+              </LienLocalise>
               {agency.verified && (
                 <BadgeCheck className="size-4 text-sky-500 shrink-0" aria-label={t('verifiedAria')} />
               )}

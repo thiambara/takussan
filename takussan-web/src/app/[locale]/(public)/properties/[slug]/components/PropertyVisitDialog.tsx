@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { CalendarIcon, ClockIcon, MapPinIcon, VideoIcon, KeyIcon, SparklesIcon } from 'lucide-react';
 import {
   Dialog,
@@ -166,12 +166,12 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               {t('cancel')}
             </Button>
-            <Link
+            <LienLocalise
               href={`/auth/login?redirect=/properties/${slug}`}
               className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
             >
               {t('signIn')}
-            </Link>
+            </LienLocalise>
           </div>
         </DialogContent>
       </Dialog>

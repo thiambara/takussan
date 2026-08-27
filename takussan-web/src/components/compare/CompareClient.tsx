@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search, Scale } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -167,10 +167,10 @@ function CompareEmpty() {
       title={t('title')}
       description={t('description')}
       action={
-        <Link href="/properties" className={buttonVariants()}>
+        <LienLocalise href="/properties" className={buttonVariants()}>
           <Search className="size-4" aria-hidden="true" />
           {t('cta')}
-        </Link>
+        </LienLocalise>
       }
     />
   );

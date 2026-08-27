@@ -33,31 +33,6 @@
       "ui",
       "validation"
     ],
-    "(public)": [
-      "agency",
-      "agents",
-      "announcements",
-      "bookings",
-      "common",
-      "compare",
-      "contact",
-      "errors",
-      "favorites",
-      "footer",
-      "homepage",
-      "map",
-      "messaging",
-      "meta",
-      "nav",
-      "property",
-      "publicContact",
-      "publicProfile",
-      "recentlyViewed",
-      "search",
-      "serverActions",
-      "ui",
-      "validation"
-    ],
     "onboarding": [
       "agency",
       "agents",
@@ -151,6 +126,31 @@
       "ui",
       "validation"
     ],
+    "[locale]/(public)": [
+      "agency",
+      "agents",
+      "announcements",
+      "bookings",
+      "common",
+      "compare",
+      "contact",
+      "errors",
+      "favorites",
+      "footer",
+      "homepage",
+      "map",
+      "messaging",
+      "meta",
+      "nav",
+      "property",
+      "publicContact",
+      "publicProfile",
+      "recentlyViewed",
+      "search",
+      "serverActions",
+      "ui",
+      "validation"
+    ],
     "(super-admin)/super-admin": [
       "adminTags",
       "announcements",
@@ -172,14 +172,14 @@
     ]
   },
   "plafondsPourcent": {
-    ".": 14,
+    ".": 13,
     "(auth)": 18,
-    "publish": 19,
-    "(public)": 38,
-    "onboarding": 41,
+    "publish": 18,
+    "onboarding": 42,
     "(dashboard)": 16,
-    "(dashboard)/app": 72,
+    "(dashboard)/app": 69,
     "(dashboard)/admin": 56,
-    "(super-admin)/super-admin": 41
+    "[locale]/(public)": 36,
+    "(super-admin)/super-admin": 43
   }
 }

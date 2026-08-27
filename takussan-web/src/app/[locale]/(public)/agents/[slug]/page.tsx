@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Building2 } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { Navbar } from '@/components/home/Navbar';
@@ -14,6 +14,7 @@ import {
   type PublicReview,
 } from '@/components/public/profile/ReviewsSection';
 import type { PropertyListItem } from '@/types/property';
+import { alternatesLangues } from '@/lib/alternates';
 
 interface AgentStats {
   rent_count: number;
@@ -79,6 +80,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description: agent.bio ?? summary,
+    alternates: alternatesLangues(`/agents/${slug}`),
     openGraph: {
       title,
       description: agent.bio ?? summary,
@@ -159,12 +161,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                     <Building2 className="size-4" aria-hidden />
                     <span>
                       {t('agentAt')}{' '}
-                      <Link
+                      <LienLocalise
                         href={`/agencies/${agent.agency.slug}`}
                         className="font-medium text-foreground underline-offset-4 hover:underline"
                       >
                         {agent.agency.name}
-                      </Link>
+                      </LienLocalise>
                     </span>
                   </p>
                 )}

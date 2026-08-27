@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Heart, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -116,13 +116,13 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
 
           {count > 0 && (
             <div className="px-4 py-2.5 border-t border-stone-100">
-              <Link
+              <LienLocalise
                 href={user ? '/app/favorites' : '/favorites'}
                 onClick={handleItemClick}
                 className="text-xs font-semibold text-primary hover:underline underline-offset-2"
               >
                 {t('popover.viewAll')}
-              </Link>
+              </LienLocalise>
             </div>
           )}
         </div>
@@ -174,13 +174,13 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
         <Heart className="mx-auto w-8 h-8 text-stone-300" />
         <p className="mt-2 text-sm font-semibold text-stone-700">{t('empty')}</p>
         <p className="mt-1 text-xs text-stone-500">{t('emptyHint')}</p>
-        <Link
+        <LienLocalise
           href="/properties"
           onClick={onItemClick}
           className="mt-3 inline-block text-xs font-semibold text-primary hover:underline underline-offset-2"
         >
           {t('discoverCta')}
-        </Link>
+        </LienLocalise>
       </div>
     );
   }
@@ -189,7 +189,7 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
     <ul className="max-h-96 overflow-y-auto py-1">
       {(items ?? []).slice(0, POPOVER_MAX_ITEMS).map((property) => (
         <li key={property.id} className="group flex items-center gap-3 px-3 py-2 hover:bg-stone-50 transition-colors">
-          <Link
+          <LienLocalise
             href={`/properties/${property.slug}`}
             onClick={onItemClick}
             className="flex flex-1 items-center gap-3 min-w-0"
@@ -214,7 +214,7 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
                 {formatPrice(property.price, property.currency ?? 'XOF')}
               </p>
             </div>
-          </Link>
+          </LienLocalise>
           <button
             type="button"
             onClick={() => removeOne(property.id)}

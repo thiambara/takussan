@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import Image from 'next/image';
 import { MapPin, Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -94,7 +94,7 @@ export function PropertyCard({
   );
 
   return (
-    <Link href={`/properties/${property.slug}`} className="block">
+    <LienLocalise href={`/properties/${property.slug}`} className="block">
       <div
         ref={ref}
         style={{ animationDelay: staggerDelay(index) }}
@@ -192,6 +192,6 @@ export function PropertyCard({
           </div>
         </div>
       </div>
-    </Link>
+    </LienLocalise>
   );
 }

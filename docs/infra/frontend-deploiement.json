@@ -1,19 +1,15 @@
 {
   "_lisez_moi": "Relevé MESURÉ du déploiement de takussan-web/. Source unique du mapping branche → environnement front. Prose et raisonnement : docs/infra/frontend-deploiement.md. Décision : docs/adr/0017-deploiement-du-front-pilote-par-vercel.md. Gardé par .github/workflows/front-deploy-map.yml — ne pas recopier ces valeurs ailleurs.",
-
   "mesure": {
     "date": "2026-08-20",
     "par": "API GitHub (Deployments) + sondes HTTP/DNS publiques — AUCUN accès au tableau de bord Vercel",
     "commande_mapping": "gh api --paginate 'repos/thiambara/takussan/deployments?per_page=100' -q '.[] | [.environment, .ref, .created_at, .creator.login] | @tsv'",
     "commande_variables": "curl -sS https://www.takussan.com/ | grep -o '/_next/static/[^\"]*\\.js' | sort -u  # puis grep de NEXT_PUBLIC_* dans les chunks téléchargés"
   },
-
   "projet_vercel": "thiambaras-projects/takussan",
   "mecanisme": "integration-git-vercel",
   "workflow_du_depot": null,
-
   "branche_production": "master",
-
   "branches": [
     {
       "branche": "master",
@@ -37,14 +33,28 @@
       "domaine": null
     }
   ],
-
   "domaines": [
-    { "hote": "takussan.com", "mesure_2026_08_20": "307 → https://www.takussan.com/", "serveur": "Vercel" },
-    { "hote": "www.takussan.com", "mesure_2026_08_20": "200, x-powered-by: Next.js, server: Vercel", "serveur": "Vercel" },
-    { "hote": "preview.takussan.com", "mesure_2026_08_20": "302 → vercel.com/sso-api", "serveur": "Vercel" },
-    { "hote": "app.takussan.com", "mesure_2026_08_20": "ne résout pas (dig +short vide)", "serveur": null }
+    {
+      "hote": "takussan.com",
+      "mesure_2026_08_20": "307 → https://www.takussan.com/",
+      "serveur": "Vercel"
+    },
+    {
+      "hote": "www.takussan.com",
+      "mesure_2026_08_20": "200, x-powered-by: Next.js, server: Vercel",
+      "serveur": "Vercel"
+    },
+    {
+      "hote": "preview.takussan.com",
+      "mesure_2026_08_20": "302 → vercel.com/sso-api",
+      "serveur": "Vercel"
+    },
+    {
+      "hote": "app.takussan.com",
+      "mesure_2026_08_20": "ne résout pas (dig +short vide)",
+      "serveur": null
+    }
   ],
-
   "variables_build": [
     {
       "cle": "NEXT_PUBLIC_API_URL",
@@ -55,15 +65,23 @@
       "valeur_production_mesuree": "https://api.takussan.com",
       "preuve": "chaîne inlinée dans le bundle client servi par www.takussan.com : `let e=\"https://api.takussan.com\".replace(/\\/api$/,\"\"),s=`${e}/api`` — NEXT_PUBLIC_* est substitué à la compilation, la valeur du build est donc lisible sans accès à Vercel",
       "alerte": "https://api.takussan.com/up rend 404 et https://api.takussan.com/api/properties rend un 404 nginx au 2026-08-20 : le front de production appelle une API qui n'a JAMAIS été déployée (D-04, TCK-288)"
+    },
+    {
+      "cle": "NEXT_PUBLIC_SITE_URL",
+      "obligatoire": false,
+      "usages_dans_src": 1,
+      "declaree_dans": "takussan-web/.env.example",
+      "valeur_dev": "http://localhost:3000",
+      "valeur_production_mesuree": null,
+      "preuve": "AUCUNE, et c'est le relevé juste : la variable est lue par du code (src/lib/alternates.ts) qui n'a jamais été déployé — introduit par TCK-434 sur feat/lot-g5a-i18n au 2026-08-27. Rien n'est donc inliné dans le bundle servi par www.takussan.com, et la commande_variables ci-dessus ne peut rien y trouver. `valeur_production_mesuree` reste null jusqu'à ce qu'un déploiement la rende mesurable — écrire ici une valeur attendue ferait de ce relevé une prévision.",
+      "alerte": "⚠️ NON POSÉE = DÉFAUT SORTANT. `ORIGINE_SITE` retombe sur `https://www.takussan.com`. Une PREVIEW Vercel sans cette variable émet donc des `hreflang` désignant la PRODUCTION : elle s'annonce comme la version anglaise/wolof d'un autre site, et les previews Vercel sont publiques par défaut. À poser dans le tableau de bord Vercel sur les DEUX environnements — Production `https://www.takussan.com`, Preview `https://$VERCEL_URL`. Aucune garde du dépôt ne peut vérifier qu'elle EST posée chez Vercel (le SSO ferme le tableau de bord, cf. non_mesure) ; front-deploy-map.yml garde seulement qu'elle est DÉCLARÉE ici et dans .env.example."
     }
   ],
-
   "non_mesure": [
     "L'attribution du domaine preview.takussan.com à une branche : elle vit dans le tableau de bord Vercel et le SSO empêche de la lire de l'extérieur.",
     "Le « Root Directory » du projet Vercel : le dépôt est un monorepo et rien de public ne dit que Vercel construit takussan-web/ plutôt que la racine. Le résultat prouve qu'il construit bien le front (Next.js servi), pas le réglage qui le décide.",
     "Les variables d'environnement NON préfixées NEXT_PUBLIC_ : elles ne sont pas inlinées dans le bundle. Mesuré côté dépôt : le code de takussan-web/ n'en lit AUCUNE en dehors de NODE_ENV, que Next pose lui-même."
   ],
-
   "filtre_de_chemins": {
     "presence": false,
     "mesure": "le commit 6f38de67 (2026-08-20) ne touche qu'un seul fichier, docs/backlog/tickets/TCK-320-selection-des-tests-par-impact.md, et il a produit le déploiement Preview 6001431629. L'intégration reconstruit donc le front à chaque commit, y compris ceux qui ne touchent que la documentation ou l'API."
