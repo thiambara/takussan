@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Building2, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -47,11 +48,20 @@ const SORT_OPTIONS = [
 
 type SortValue = (typeof SORT_OPTIONS)[number]['value'];
 
+/** Un `?status=` inconnu ne filtre pas sur rien : il retombe sur « tous ». */
+function seedStatus(value: string | null | undefined): string {
+  return STATUS_OPTIONS.some((option) => option.value === value) ? (value as string) : ALL;
+}
+
 export default function SuperAdminAgenciesPage() {
   const t = useTranslations('superAdmin.agencies');
   const tPage = useTranslations('superAdmin.pages.agencies');
   const messageErreur = useMessageErreurApi();
-  const [status, setStatus] = useState(ALL);
+  const searchParams = useSearchParams();
+  // TCK-360 — l'accueil de la console lie ses tuiles vers `?status=…`. Amorce SEULE : la valeur
+  // sert d'état initial et le filtre reste local ensuite. Miroiter le choix dans l'URL
+  // demanderait de câbler les cinq autres filtres de cet écran, ce que ce ticket ne fait pas.
+  const [status, setStatus] = useState(() => seedStatus(searchParams?.get('status')));
   const [search, setSearch] = useState('');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');

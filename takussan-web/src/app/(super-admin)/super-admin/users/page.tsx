@@ -167,7 +167,12 @@ export default function SuperAdminUsersPage() {
   // and persists across navigation (AC3, TCK-243).
   const [role, setRole] = useState<string>(() => searchParams?.get('role') ?? ALL);
   const [agencyId, setAgencyId] = useState('');
-  const [status, setStatus] = useState(ALL);
+  // TCK-360 — même amorce que `role` ci-dessus, pour la tuile « utilisateurs actifs » de l'accueil.
+  const [status, setStatus] = useState<string>(
+    () => (STATUS_OPTIONS.some((o) => o.value === searchParams?.get('status'))
+      ? (searchParams?.get('status') as string)
+      : ALL),
+  );
   const [emailVerified, setEmailVerified] = useState(ALL);
   const [twoFactor, setTwoFactor] = useState(ALL);
   const [page, setPage] = useState(1);

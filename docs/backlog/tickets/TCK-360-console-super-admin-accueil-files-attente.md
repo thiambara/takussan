@@ -49,21 +49,21 @@ Si un compte de file n'est pas obtenable sans charger la page complète de résu
 
 ## Delta à produire
 
-- [ ] Section « files d'attente » sur `/super-admin` : KYC, modération, demandes d'upgrade, jobs échoués — compte + lien filtré
-- [ ] Métriques rendues via `StatCard` (TCK-357) avec delta 30 jours et lien vers la vue filtrée
-- [ ] Section « activité récente » : 5 dernières entrées d'audit + lien vers `/super-admin/audit`
-- [ ] Badges `badgeKey` de la barre latérale étendus à KYC et modération
-- [ ] `/super-admin/system` : suppression de la grille dupliquée, page réduite à un index (ou supprimée si le groupe de menu suffit)
-- [ ] Tests : rendu des files (peuplée / vide), présence des liens filtrés, absence de delta quand la période manque
+- [x] Section « files d'attente » sur `/super-admin` : KYC, modération, demandes d'upgrade, jobs échoués — compte + lien filtré
+- [x] Métriques rendues via `StatCard` (TCK-357) avec delta 30 jours et lien vers la vue filtrée
+- [x] Section « activité récente » : 5 dernières entrées d'audit + lien vers `/super-admin/audit`
+- [x] Badges `badgeKey` de la barre latérale étendus à KYC et modération
+- [x] `/super-admin/system` : suppression de la grille dupliquée, page réduite à un index (ou supprimée si le groupe de menu suffit)
+- [x] Tests : rendu des files (peuplée / vide), présence des liens filtrés, absence de delta quand la période manque
 
 ## Critères d'acceptation
 
-- [ ] AC1 — depuis `/super-admin`, chacune des quatre files est atteignable **en un clic** vers sa vue déjà filtrée
-- [ ] AC2 — la grille de huit tuiles n'apparaît plus qu'à un seul endroit de la console
-- [ ] AC3 — les entrées KYC et modération de la barre latérale portent un compte, avec la même cadence que l'existant
-- [ ] AC4 — une file vide reste affichée, avec un libellé qui dit qu'elle est vide
-- [ ] AC5 — aucun delta n'est rendu lorsque l'API ne fournit pas de point de comparaison (vérifié par un test sur une réponse sans historique)
-- [ ] AC6 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+- [x] AC1 — depuis `/super-admin`, chacune des quatre files est atteignable **en un clic** vers sa vue déjà filtrée
+- [x] AC2 — la grille de huit tuiles n'apparaît plus qu'à un seul endroit de la console
+- [x] AC3 — les entrées KYC et modération de la barre latérale portent un compte, avec la même cadence que l'existant
+- [x] AC4 — une file vide reste affichée, avec un libellé qui dit qu'elle est vide
+- [x] AC5 — aucun delta n'est rendu lorsque l'API ne fournit pas de point de comparaison (vérifié par un test sur une réponse sans historique)
+- [x] AC6 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
 
 ## Hors périmètre
 
@@ -73,4 +73,50 @@ Si un compte de file n'est pas obtenable sans charger la page complète de résu
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Trois affirmations du ticket ont été re-mesurées, et une était fausse.**
+
+1. *« Si un compte de file n'est pas obtenable sans charger la page complète, un endpoint de
+   comptage dédié est à ouvrir côté API. »* — **Inutile, mesuré.** Les trois files sans endpoint
+   dédié (`kyc`, `moderation`, `jobs/failed`) passent toutes par `Controller::paginated()`, donc
+   par `App\Http\Responses\PaginationMeta`, dont `total` est une des quatre clés canoniques
+   garanties (TCK-304). Une page d'UN élément rend le compte sans charger la file. Aucun endpoint
+   n'a été ouvert.
+
+2. *« /super-admin/system réaffiche exactement la même grille de huit tuiles »* — **vrai**, les
+   deux pages montaient `<SystemMetricsGrid />`. La page est devenue un index de ses trois
+   sous-pages + les paramètres ; elle n'est pas supprimée parce que la barre latérale l'affiche
+   comme parent d'un groupe et que son `href` doit mener quelque part.
+
+3. *« Aucune file affichée sans lien vers la vue filtrée qui permet de la traiter »* — le lien
+   seul ne suffisait pas. Trois des quatre destinations ouvraient sur « tout » : le filtre de
+   `agency-upgrade-requests`, d'`agencies` et le `status` d'`users` étaient des `useState` locaux,
+   sans lecture de l'URL. Ils sont désormais **amorcés** par `?status=…` (amorce seule : le filtre
+   reste local ensuite, comme `role` sur la page utilisateurs depuis TCK-243). Sans ça, le compte
+   affiché n'aurait pas été celui qu'on trouve en cliquant.
+
+**Le delta a demandé une extension de l'API — et surtout une décision sur ce qui n'en aura jamais.**
+`/api/admin/system/metrics` ne portait aucun point de comparaison. Le bloc `trend.previous` en
+apporte un, **et seulement pour les métriques reconstructibles depuis une date** : `agencies_total`,
+`users_total`, `revenue_platform_total_paid`. Les cinq autres tuiles dérivent d'un **statut
+courant** (vérifiée / active / suspendue, utilisateurs actifs, biens publiés / en modération) : la
+ligne ne garde aucune trace de son statut d'il y a trente jours. Une clé absente est le contrat
+« pas de période de comparaison », et le front ne rend alors aucun delta (AC5). Deux gardes
+supplémentaires côté API : un point de comparaison à zéro est omis (la variation vaudrait l'âge de
+la plateforme), et le revenu n'en reçoit aucun tant qu'un encaissement `paid` porte un `paid_at`
+nul, car il manquerait du seul côté « avant ».
+
+**La tuile « utilisateurs actifs » est devenue « utilisateurs ».** Les deux nombres restent
+affichés — `active` est passé en précision — mais c'est le total qui prend la grande typographie,
+parce que c'est le seul des deux qui puisse porter une tendance.
+
+**Les comptes de file ont un seul point de déclaration**, `src/lib/queries/super-admin-queues.ts` :
+l'accueil et la barre latérale sont montés en même temps sur `/super-admin` et partagent donc la
+même clé de cache — un nombre, une requête, et un badge qui ne peut pas diverger de la ligne d'en
+face. L'invalidation immédiate après décision est acquise sans nouveau câblage : les clés sont
+préfixées par celles qu'invalident déjà les écrans de décision (`['super-admin', 'moderation']`).
+
+**Vérification.** Les gardes de l'AC5 et de l'AC4 ont été éprouvées **par ablation** (guards
+retirés → 2 tests backend et 4 tests front rougissent). ⚠ **Aucune vérification navigateur n'a été
+faite** : la console exige une session super-admin, hors de portée d'un agent délégué borné à
+600 s par commande. Les AC d'interface sont couvertes par le rendu Testing Library, pas par un
+écran.

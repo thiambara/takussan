@@ -266,6 +266,25 @@ export type SystemMetrics = {
     platform_total_paid: number;
     currency: string;
   };
+  /**
+   * TCK-360 — le point de comparaison à J-30, jamais la variation elle-même.
+   *
+   * `previous` ne porte QUE les métriques réellement reconstructibles côté API. Une clé absente
+   * signifie « pas de période de comparaison » — et c'est pour cela qu'elle est optionnelle plutôt
+   * que nullable à zéro : un `0` se soustrait, une absence non.
+   *
+   * `trend` lui-même est optionnel : une réponse antérieure au ticket (cache, mock, environnement
+   * non déployé) n'en porte pas, et l'accueil doit rendre les tuiles sans delta plutôt que planter.
+   */
+  trend?: {
+    period_days: number;
+    since: string;
+    previous: {
+      agencies_total?: number;
+      users_total?: number;
+      revenue_platform_total_paid?: number;
+    };
+  };
   generated_at: string;
 };
 

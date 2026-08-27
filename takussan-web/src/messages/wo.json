@@ -4765,12 +4765,13 @@
       "verificationRate": "{rate} % ci seetlu",
       "agenciesActive": "Yu dox",
       "agenciesSuspended": "Yu ñu bañ ba ëllëg",
-      "activeUsers": "Jëfandikukat yu dox",
-      "outOfTotal": "ci {total}",
       "publishedProperties": "Kër yu ñu génne",
       "pendingReview": "Ci moderasioŋ",
       "platformRevenue": "Ndëwlu platform bi",
-      "cumulativeRents": "Loyeer yi ñu jot ñoo boole"
+      "cumulativeRents": "Loyeer yi ñu jot ñoo boole",
+      "usersTotal": "Jëfandikukat yi",
+      "activeOutOf": "{active} yu dox",
+      "delta": "{value} % ci {days} fan"
     },
     "impersonation": {
       "banner": "Yaa ngi jëf ni {target} — sesioŋ ba {expires}.",
@@ -4879,7 +4880,8 @@
       "home": {
         "metaTitle": "Konsol Takussan",
         "title": "Konsol Takussan",
-        "subtitle": "Xool platform bi — ajaans yi, jëfandikukat yi, moderasioŋ ak ndëwlu."
+        "subtitle": "Xool platform bi — ajaans yi, jëfandikukat yi, moderasioŋ ak ndëwlu.",
+        "metricsTitle": "Doxinu platform bi"
       },
       "agencyDetail": {
         "metaTitle": "Leeralu ajaans bi"
@@ -4952,14 +4954,18 @@
       "system": {
         "metaTitle": "Sistem — Konsol Takussan",
         "title": "Sistem",
-        "subtitle": "Natt yu platform bi ak tegtal yu mag yi.",
+        "subtitle": "Ñetti xët yu teknik yu platform bi, ak tegtal yu mag yi.",
         "globalSettings": {
-          "title": "Tegtal yu mag yi",
-          "body": "Xaalis yi, format yi, njëg yi ak dig yu teknik yi ci xëtu tegtal bi lañuy tegal. Boole ak jumtukaay yu biti, mood maintenance ak feature flags dinañu ñëw ak seen tiket.",
           "openSettings": "Ubbi tegtal yi",
           "maintenance": "Mood maintenance",
           "healthcheck": "Healthcheck",
           "scheduler": "Scheduler"
+        },
+        "entries": {
+          "healthcheck": "Doxinu jumtukaay yi — base, cache, denc, mail, SMS — ak liggéey yu naxee.",
+          "maintenance": "Tëj platform bi ci jëfandikukat yi, ak bataaxal ak jamono.",
+          "scheduler": "Lu planifikatër bi di def, ak kañ la ko def mujj.",
+          "openSettings": "Xaalis yi, format yi, njëg yi ak dig yu teknik yu platform bi."
         }
       },
       "maintenance": {
@@ -5406,6 +5412,43 @@
         "reasonPlaceholder": "Leeralal lu tax, dinañu ko bind",
         "pending": "Mu ngi def…"
       }
+    },
+    "queues": {
+      "title": "Ronu xaar yi",
+      "subtitle": "Li di xaar ndogal. Rëdd bu nekk day yóbbu ci xët bi ñu koy def.",
+      "empty": "Dara du xaar",
+      "countError": "Limu bi amul",
+      "items": {
+        "kyc-pending": {
+          "label": "Dosye KYC yi",
+          "description": "Seetlu bopp bu ajaans yi yónnee, di xaar seetlu.",
+          "unit": "{count, plural, other {dosye yu war a seetlu}}"
+        },
+        "upgrade-requests-pending": {
+          "label": "Ñaan yu upgrade",
+          "description": "Ñaan yu boroom kër yi ngir jàll ci kont ajaans.",
+          "unit": "{count, plural, other {ñaan yu war a jëfe}}"
+        },
+        "moderation-pending": {
+          "label": "Moderasioŋ",
+          "description": "Kër ak xalaat yu ñu jiiñ, ci ajaans yépp.",
+          "unit": "{count, plural, other {jiiñ yu war a àtte}}"
+        },
+        "failed-jobs": {
+          "label": "Liggéey yu naxee",
+          "description": "Liggéey yu ron bi naxee te ñu koy fàttewaat.",
+          "unit": "{count, plural, other {liggéey yu war a fàttewaat}}"
+        }
+      }
+    },
+    "recentActivity": {
+      "title": "Jëf yu mujj yi",
+      "seeAll": "Odit bi bépp",
+      "error": "Mënuñu yeb jëf yu mujj yi.",
+      "emptyTitle": "Amul benn jëf bu ñu bind",
+      "emptyDescription": "Jëf yu ajaans yépp dinañu feeñ fii su ñu leen bindee.",
+      "unknownEvent": "Jëf bu amul tur",
+      "systemCauser": "Sistem"
     }
   },
   "adminSettings": {

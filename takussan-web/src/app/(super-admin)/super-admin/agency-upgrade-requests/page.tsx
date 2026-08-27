@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -70,9 +71,21 @@ const STATUS_TONES: Record<AgencyUpgradeRequestStatus, StatusTone> = {
   revoked: 'neutral',
 };
 
+/** Un `?status=` inconnu retombe sur « toutes » plutôt que de filtrer sur une valeur absente. */
+function seedStatusFilter(value: string | null | undefined): AgencyUpgradeRequestStatus | 'all' {
+  const known = STATUS_FILTER_OPTIONS.some((option) => option.value === value);
+  return known ? (value as AgencyUpgradeRequestStatus | 'all') : 'all';
+}
+
 export default function AgencyUpgradeRequestsListPage() {
   const t = useTranslations('superAdmin.pages.upgradeRequests');
-  const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>('all');
+  const searchParams = useSearchParams();
+  // TCK-360 — la file « demandes d'upgrade » de l'accueil compte les `pending` ; le lien porte
+  // donc `?status=pending`, faute de quoi le clic mènerait à « toutes » et le compte affiché ne
+  // serait pas celui qu'on trouve en arrivant. Amorce seule : le filtre reste local ensuite.
+  const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>(
+    () => seedStatusFilter(searchParams?.get('status')),
+  );
   const [submittedFrom, setSubmittedFrom] = useState('');
   const [submittedTo, setSubmittedTo] = useState('');
   const [page, setPage] = useState(1);

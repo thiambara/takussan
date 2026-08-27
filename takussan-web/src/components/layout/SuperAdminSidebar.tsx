@@ -31,7 +31,10 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { fetchAdminAgencyUpgradePendingCount } from '@/lib/queries/super-admin';
+import {
+  queueCountQueryOptions,
+  type SuperAdminQueueKey,
+} from '@/lib/queries/super-admin-queues';
 
 interface NavItem {
   href: string;
@@ -41,10 +44,14 @@ interface NavItem {
   children?: NavItem[];
   /**
    * When set, the sidebar fetches the matching badge value via react-query.
-   * Currently used for `upgrade-requests` (TCK-268) — kept generic so other
-   * queues can opt-in without re-plumbing the layout.
+   *
+   * TCK-268 a écrit ce mécanisme générique et l'a laissé avec UN seul cas — le badge d'upgrade
+   * était donc la seule entrée du menu à porter un compte, alors que trois autres files
+   * existaient. TCK-360 le branche sur les quatre : les clés, leurs `queryFn` et leur cadence
+   * vivent dans `@/lib/queries/super-admin-queues`, partagées avec la section « files » de
+   * l'accueil pour que les deux affichent LE MÊME nombre, du même cache.
    */
-  badgeKey?: 'upgrade-requests-pending';
+  badgeKey?: SuperAdminQueueKey;
 }
 
 interface NavGroup {
@@ -74,8 +81,13 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/super-admin/users', labelKey: 'users', icon: Users },
       { href: '/super-admin/super-admins', labelKey: 'superAdmins', icon: ShieldCheck },
       { href: '/super-admin/properties', labelKey: 'properties', icon: Home },
-      { href: '/super-admin/kyc', labelKey: 'kyc', icon: ShieldCheck },
-      { href: '/super-admin/moderation', labelKey: 'moderation', icon: ShieldAlert },
+      { href: '/super-admin/kyc', labelKey: 'kyc', icon: ShieldCheck, badgeKey: 'kyc-pending' },
+      {
+        href: '/super-admin/moderation',
+        labelKey: 'moderation',
+        icon: ShieldAlert,
+        badgeKey: 'moderation-pending',
+      },
     ],
   },
   {
@@ -253,23 +265,24 @@ function isActivePath(pathname: string | null, href: string) {
 }
 
 /**
- * TCK-268 — Live badge counts for sidebar entries that surface a backlog.
+ * TCK-268 / TCK-360 — Live badge counts for sidebar entries that surface a backlog.
  *
- * The polling cadence stays generous (60 s) so the sidebar never becomes a
- * tight cron; the dedicated pages can still invalidate the same query key
- * immediately after a decision is recorded.
+ * La cadence reste généreuse (60 s) pour que la barre latérale ne devienne pas un cron serré ;
+ * les écrans de décision invalident la même clé de cache et rafraîchissent donc le badge
+ * immédiatement, sans attendre le prochain tour.
+ *
+ * ⚠ Un seul `useQuery` ici, pas un par file : ce hook est appelé pour CHAQUE entrée de menu, et
+ * les règles des hooks interdisent d'en appeler un nombre variable. C'est `enabled` qui décide.
  */
-function useNavBadge(badgeKey?: NavItem['badgeKey']): number | null {
-  const upgradePending = useQuery({
-    queryKey: ['super-admin', 'agency-upgrade-requests', 'pending-count'],
-    queryFn: fetchAdminAgencyUpgradePendingCount,
-    enabled: badgeKey === 'upgrade-requests-pending',
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+function useNavBadge(badgeKey?: SuperAdminQueueKey): number | null {
+  const fallback: SuperAdminQueueKey = 'upgrade-requests-pending';
+  const options = queueCountQueryOptions(badgeKey ?? fallback);
+
+  const { data } = useQuery({
+    ...options,
+    queryKey: badgeKey ? options.queryKey : ['super-admin', 'nav-badge', 'disabled'],
+    enabled: Boolean(badgeKey),
   });
 
-  if (badgeKey === 'upgrade-requests-pending') {
-    return upgradePending.data ?? null;
-  }
-  return null;
+  return badgeKey ? (data ?? null) : null;
 }
