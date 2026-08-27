@@ -2,6 +2,7 @@
 
 namespace App\Services\Auth;
 
+use App\Models\Enums\InvitationStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Invitation;
 use App\Models\User;
@@ -81,6 +82,96 @@ class SuperAdminCooptationService
         $this->broadcastInvitedToOtherSuperAdmins($invitation, $inviter);
 
         return $invitation;
+    }
+
+    /**
+     * TCK-367 — relance d'une invitation de cooptation.
+     *
+     * Réémet le lien de l'invitation EXISTANTE (nouveau token, `expires_at`
+     * repoussé de {@see InvitationService::DEFAULT_TTL_DAYS}) : aucune
+     * seconde ligne n'est créée, ce que le garde-fou de dédup de
+     * `InvitationService::send()` rendrait de toute façon impossible sans
+     * un 409.
+     *
+     * Le cas `expired` est traité ICI et pas dans le service générique :
+     * une invitation de cooptation morte doit pouvoir repartir sans
+     * réinvitation manuelle (sinon l'inviteur passe par `invite()`, qui
+     * crée bien une SECONDE ligne — exactement ce que la contrainte du
+     * ticket interdit). On la ramène en `sent` avant de déléguer, dans la
+     * même transaction que la relance.
+     *
+     * @throws AuthorizationException if the actor is not a super_admin
+     * @throws HttpException 404 if the invitation is not a cooptation one
+     */
+    public function resendInvitation(User $actor, Invitation $invitation): Invitation
+    {
+        $this->assertInviterIsSuperAdmin($actor);
+        $this->assertIsCooptationInvitation($invitation);
+
+        if ($invitation->status === InvitationStatus::Expired) {
+            $invitation->forceFill(['status' => InvitationStatus::Sent->value])->save();
+        }
+
+        $invitation = $this->invitations->resend($invitation, $actor);
+
+        activity('Invitation')
+            ->performedOn($invitation)
+            ->causedBy($actor)
+            ->withProperties([
+                'actor_id' => $actor->id,
+                'target_email' => $invitation->email,
+                'expires_at' => $invitation->expires_at?->toIso8601String(),
+            ])
+            ->event('super_admin_invitation_resent')
+            ->log('super_admin_invitation_resent');
+
+        return $invitation;
+    }
+
+    /**
+     * TCK-367 — annulation d'une invitation de cooptation.
+     *
+     * Ne peut pas verrouiller la plateforme : seule une invitation NON
+     * acceptée est annulable, donc l'ensemble des super-admins ACTIFS est
+     * invariant par cette opération. (La révocation d'un actif est
+     * explicitement hors périmètre du ticket.)
+     *
+     * @throws AuthorizationException if the actor is not a super_admin
+     * @throws HttpException 404 if the invitation is not a cooptation one
+     */
+    public function revokeInvitation(User $actor, Invitation $invitation): Invitation
+    {
+        $this->assertInviterIsSuperAdmin($actor);
+        $this->assertIsCooptationInvitation($invitation);
+
+        $invitation = $this->invitations->revoke($invitation, $actor);
+
+        activity('Invitation')
+            ->performedOn($invitation)
+            ->causedBy($actor)
+            ->withProperties([
+                'actor_id' => $actor->id,
+                'target_email' => $invitation->email,
+            ])
+            ->event('super_admin_invitation_revoked')
+            ->log('super_admin_invitation_revoked');
+
+        return $invitation;
+    }
+
+    /**
+     * La surface de cooptation n'agit QUE sur ses propres invitations.
+     *
+     * Un 404 plutôt qu'un 403 : une invitation d'agence n'a rien à faire
+     * sous `/api/admin/super-admins/*`, et lui répondre « interdit »
+     * confirmerait son existence. Les invitations d'agence se relancent
+     * par les routes génériques `/api/invitations/{id}/*`.
+     */
+    protected function assertIsCooptationInvitation(Invitation $invitation): void
+    {
+        if ($invitation->role !== 'super_admin' || $invitation->agency_id !== null) {
+            throw new HttpException(404, __('super_admins.cooptation.errors.invitation_not_found'));
+        }
     }
 
     /**
