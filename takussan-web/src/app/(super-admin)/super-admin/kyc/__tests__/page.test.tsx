@@ -17,6 +17,7 @@ import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
 import { attendAucuneCleBrute } from '@/test/cles-brutes';
+import { REPLI_SUJET_TESTID } from '@/components/admin/super/kyc-queue';
 import SuperAdminKycPage from '../page';
 
 const mockReplace = vi.fn();
@@ -111,9 +112,17 @@ describe('file KYC super-admin', () => {
     expect(url.searchParams.get('include')).toBe('subject');
     expect(url.searchParams.get('filter[status]')).toBe('submitted');
 
-    // AC2 — la forme « Agence #12 » ne doit plus apparaître NULLE PART sur l'écran, y compris
-    // dans le panneau. C'est une assertion sur tout le DOM, pas sur la cellule : c'est ce qui
-    // attrape la ligne qu'on n'a pas pensé à regarder.
+    /*
+     * AC2 — sur le MARQUEUR de repli, et non sur une forme de libellé.
+     *
+     * La première version de cette assertion cherchait `/Agence #\d+/`. Elle était plus faible
+     * qu'elle n'en avait l'air : elle ne matchait ni « Agence supprimée (#12) » ni « User #7 »,
+     * donc un écran entièrement retombé en repli l'aurait laissée verte. `REPLI_SUJET_TESTID` est
+     * posé par `nomDuSujet` sur TOUT repli, présent et à venir — c'est la propriété, pas une de
+     * ses apparences. La regex reste en second : elle nomme la forme d'AVANT le ticket, qui est
+     * celle qu'on refuse en particulier.
+     */
+    expect(screen.queryAllByTestId(REPLI_SUJET_TESTID)).toHaveLength(0);
     expect(screen.queryByText(/Agence #\d+/)).not.toBeInTheDocument();
     attendAucuneCleBrute();
   });
@@ -124,6 +133,28 @@ describe('file KYC super-admin', () => {
     renderPage();
 
     expect(await screen.findByText('Agence supprimée (#12)')).toBeInTheDocument();
+    expect(screen.getAllByTestId(REPLI_SUJET_TESTID).length).toBeGreaterThan(0);
+  });
+
+  /**
+   * La régression EXACTE que TCK-362 ferme : une réponse SANS clé `subject` — c'est-à-dire
+   * l'`include` omis, ou `KycDossierResource` revenu à n'émettre que `subject_id`.
+   *
+   * L'écran doit alors afficher « Agence #12 » (il ne sait rien d'autre) ET le dire par le
+   * marqueur, sans AFFIRMER une suppression qu'il n'a pas constatée. Sans ce cas, le retour au
+   * défaut d'origine ne faisait rougir que l'assertion d'`include`, jamais le rendu.
+   */
+  it('AC2 — sans clé `subject`, l’écran retombe sur l’identifiant et le SIGNALE comme repli', async () => {
+    const sansSujet = dossier();
+    delete (sansSujet as Record<string, unknown>).subject;
+    mockFetch([sansSujet]);
+
+    renderPage();
+
+    expect(await screen.findByText('Agence #12')).toBeInTheDocument();
+    expect(screen.getAllByTestId(REPLI_SUJET_TESTID).length).toBeGreaterThan(0);
+    // Et surtout : l'écran n'invente pas une suppression.
+    expect(screen.queryByText(/supprimée/)).not.toBeInTheDocument();
   });
 
   it('AC1 — vérifie un dossier sans quitter la file', async () => {
