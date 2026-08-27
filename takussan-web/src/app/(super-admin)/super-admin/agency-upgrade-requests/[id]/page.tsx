@@ -32,6 +32,7 @@ import {
 } from '@/lib/queries/super-admin';
 import { PageHeader, StatusBadge, type StatusTone } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /**
  * TCK-268 — Detail page for one agency upgrade request.
@@ -45,6 +46,7 @@ export default function AgencyUpgradeRequestDetailPage() {
   // Le hook se place AVANT la sortie anticipée sur l'identifiant invalide : après, ce serait
   // un hook conditionnel, que le React Compiler (ADR-0015) refuse.
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
+  const fmt = useFormatteurs();
   const params = useParams<{ id: string }>();
   const id = Number(params?.id);
   const queryClient = useQueryClient();
@@ -79,7 +81,7 @@ export default function AgencyUpgradeRequestDetailPage() {
         <>
           <PageHeader
             title={t('requestNumber', { id: String(detail.id) })}
-            description={t('submittedOn', { date: formatDateTime(detail.submitted_at) })}
+            description={t('submittedOn', { date: fmt.dateTime(detail.submitted_at) })}
             actions={<DecisionBadge detail={detail} />}
           />
 
@@ -182,6 +184,7 @@ function RecapSection({ detail }: { readonly detail: AdminAgencyUpgradeRequestDe
 
 function HistorySection({ detail }: { readonly detail: AdminAgencyUpgradeRequestDetail }) {
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
+  const fmt = useFormatteurs();
   const agency = detail.agency;
   return (
     <Card>
@@ -200,7 +203,7 @@ function HistorySection({ detail }: { readonly detail: AdminAgencyUpgradeRequest
         <Stat
           icon={<CalendarDays className="size-4" aria-hidden="true" />}
           label={t('history.createdOn')}
-          value={agency?.created_at ? formatDate(agency.created_at) : '—'}
+          value={fmt.date(agency?.created_at)}
         />
         <Stat
           icon={<ScrollText className="size-4" aria-hidden="true" />}
@@ -237,6 +240,7 @@ function DecisionSection({
   readonly onReject: () => void;
 }) {
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
+  const fmt = useFormatteurs();
   const isPending = detail.status === 'pending';
 
   return (
@@ -262,7 +266,7 @@ function DecisionSection({
         ) : (
           <div className="space-y-3 rounded-lg border border-border bg-muted p-4">
             <DecisionBadge detail={detail} />
-            <Field label={t('decision.decidedOn')} value={formatDateTime(detail.reviewed_at)} />
+            <Field label={t('decision.decidedOn')} value={fmt.dateTime(detail.reviewed_at)} />
             {detail.reviewer ? (
               <Field
                 label={t('decision.by')}
@@ -346,16 +350,4 @@ function Stat({
       <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
     </div>
   );
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(value),
-  );
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(new Date(value));
 }

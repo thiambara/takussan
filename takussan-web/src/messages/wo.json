@@ -4752,7 +4752,19 @@
       },
       "queuePending": "Ci xaar",
       "queueProcessing": "Mu ngi dox",
-      "queueFailed24h": "Njuumte 24 waxtu"
+      "queueFailed24h": "Njuumte 24 waxtu",
+      "checks": {
+        "db": "Bank bu dóom yi",
+        "cache": "Cache",
+        "storage": "Denc",
+        "mail": "E-mail",
+        "sms": "SMS"
+      },
+      "status": {
+        "ok": "Baax na",
+        "failed": "Dafa yàqu",
+        "loading": "…"
+      }
     },
     "integrations": {
       "webhooks": {

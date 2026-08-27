@@ -33,6 +33,7 @@ import {
 import type { AdminUserDetail, AdminUserSession, AuditLogEntry } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { StatusBadge } from '@/components/console';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 export function UserDetailPage({ userId }: { userId: number }) {
   const t = useTranslations('superAdmin.userDetail');
@@ -358,6 +359,7 @@ export function UserSessionsTable({
 }) {
   const t = useTranslations('superAdmin.userDetail.sessions');
   const tRoot = useTranslations('superAdmin.userDetail');
+  const fmt = useFormatteurs();
   const [sessionToRevoke, setSessionToRevoke] = useState<AdminUserSession | null>(null);
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -381,8 +383,8 @@ export function UserSessionsTable({
                 </Button>
               </div>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{t('lastActivity', { date: formatDate(session.last_used_at) })}</p>
-            <p className="text-xs text-muted-foreground">{t('expiry', { date: formatDate(session.expires_at) })}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t('lastActivity', { date: fmt.dateTime(session.last_used_at) })}</p>
+            <p className="text-xs text-muted-foreground">{t('expiry', { date: fmt.dateTime(session.expires_at) })}</p>
           </div>
         ))}
       </CardContent>
@@ -413,6 +415,7 @@ export function UserActivityTimeline({
   userId: number;
 }) {
   const t = useTranslations('superAdmin.userDetail.activity');
+  const fmt = useFormatteurs();
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
@@ -434,7 +437,7 @@ export function UserActivityTimeline({
               <p className="text-sm text-muted-foreground">{entry.description}</p>
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="size-3" aria-hidden="true" />
-                {formatDate(entry.created_at)}
+                {fmt.dateTime(entry.created_at)}
               </p>
             </div>
           </div>
@@ -442,11 +445,6 @@ export function UserActivityTimeline({
       </CardContent>
     </Card>
   );
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
 
 function SupportReasonDialog({

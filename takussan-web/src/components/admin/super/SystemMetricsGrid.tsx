@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { DataState, StatCard } from '@/components/console';
+import { useFormatteurs, type Formatteurs } from '@/lib/format/useFormatteurs';
 import { fetchSystemMetrics } from '@/lib/queries/super-admin';
 import type { SystemMetrics, SystemMetricsResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
@@ -42,23 +43,26 @@ interface Tile {
   readonly previous?: number;
 }
 
-function formatNumber(n: number): string {
-  return new Intl.NumberFormat('fr-FR').format(n);
-}
-
-function formatCurrency(n: number, currency: string): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);
-}
-
-function formatPercent(n: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    signDisplay: 'exceptZero',
-    maximumFractionDigits: 1,
-  }).format(n);
-}
+/**
+ * TCK-364 — les options du pourcentage d'un delta, rendu dans la locale ACTIVE.
+ *
+ * Elles reconduisent à l'identique celles des trois helpers de formatage module-level qui
+ * vivaient ici et écrivaient la locale française en dur : signe explicite sauf sur zéro, une
+ * décimale au plus.
+ *
+ * ⚠ Mesuré le 2026-08-27 (Node 24) : sur les NOMBRES, la locale française métropolitaine et
+ * celle du Sénégal rendent la même chaîne — `1 234`, `+12,5`, `150 000 F CFA`. Le passage aux
+ * formatteurs de `useFormatteurs` est donc neutre en `fr`, et ne change le rendu que pour `en`
+ * et `wo`, qui lisaient jusqu'ici des nombres français.
+ */
+const OPTIONS_POURCENTAGE: Intl.NumberFormatOptions = {
+  signDisplay: 'exceptZero',
+  maximumFractionDigits: 1,
+};
 
 export function SystemMetricsGrid() {
   const t = useTranslations('superAdmin.metrics');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const { data, isPending, isError, error } = useQuery<SystemMetricsResponse, ApiError>({
     queryKey: ['super-admin', 'system-metrics'],
@@ -78,14 +82,14 @@ export function SystemMetricsGrid() {
       data-testid="system-metrics-loading"
     >
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="system-metrics-grid">
-        {(data ? tilesOf(data.data, t) : []).map((tile) => (
+        {(data ? tilesOf(data.data, t, fmt) : []).map((tile) => (
           <StatCard
             key={tile.key}
             label={tile.label}
             value={tile.value}
             hint={tile.hint}
             href={tile.href}
-            delta={deltaOf(tile, periodDays, t)}
+            delta={deltaOf(tile, periodDays, t, fmt)}
           />
         ))}
       </div>
@@ -105,6 +109,7 @@ function deltaOf(
   tile: Tile,
   periodDays: number | undefined,
   t: ReturnType<typeof useTranslations<'superAdmin.metrics'>>,
+  fmt: Formatteurs,
 ): { label: string; direction: 'up' | 'down' | 'flat' } | undefined {
   if (tile.current === undefined || tile.previous === undefined) return undefined;
   if (tile.previous === 0) return undefined;
@@ -114,14 +119,20 @@ function deltaOf(
   const rounded = Math.round(variation * 10) / 10;
 
   return {
-    label: t('delta', { value: formatPercent(rounded), days: periodDays }),
+    label: t('delta', { value: fmt.nombre(rounded, OPTIONS_POURCENTAGE), days: periodDays }),
     direction: rounded > 0 ? 'up' : rounded < 0 ? 'down' : 'flat',
   };
 }
 
+/**
+ * ⚠ `t` et `fmt` sont PASSÉS, jamais appelés ici : `tilesOf` et `deltaOf` sont hors composant —
+ * `useTranslations` et `useFormatteurs` y seraient des hooks hors rendu. C'est le même paramètre
+ * pour la même raison, et c'est ce qui permet aux deux fonctions de rester pures et testables.
+ */
 function tilesOf(
   m: SystemMetrics,
   t: ReturnType<typeof useTranslations<'superAdmin.metrics'>>,
+  fmt: Formatteurs,
 ): Tile[] {
   const previous = m.trend?.previous;
 
@@ -129,7 +140,7 @@ function tilesOf(
     {
       key: 'agenciesTotal',
       label: t('agenciesTotal'),
-      value: formatNumber(m.agencies.total),
+      value: fmt.nombre(m.agencies.total),
       href: '/super-admin/agencies',
       current: m.agencies.total,
       previous: previous?.agencies_total,
@@ -137,20 +148,20 @@ function tilesOf(
     {
       key: 'verified',
       label: t('verified'),
-      value: formatNumber(m.agencies.verified),
+      value: fmt.nombre(m.agencies.verified),
       hint: t('verificationRate', { rate: (m.agencies.verification_rate * 100).toFixed(1) }),
       href: '/super-admin/agencies',
     },
     {
       key: 'agenciesActive',
       label: t('agenciesActive'),
-      value: formatNumber(m.agencies.active),
+      value: fmt.nombre(m.agencies.active),
       href: '/super-admin/agencies?status=active',
     },
     {
       key: 'agenciesSuspended',
       label: t('agenciesSuspended'),
-      value: formatNumber(m.agencies.suspended),
+      value: fmt.nombre(m.agencies.suspended),
       href: '/super-admin/agencies?status=suspended',
     },
     {
@@ -160,8 +171,8 @@ function tilesOf(
       // à « et alors ? » qui prend la grande typographie.
       key: 'usersTotal',
       label: t('usersTotal'),
-      value: formatNumber(m.users.total),
-      hint: t('activeOutOf', { active: formatNumber(m.users.active) }),
+      value: fmt.nombre(m.users.total),
+      hint: t('activeOutOf', { active: fmt.nombre(m.users.active) }),
       href: '/super-admin/users',
       current: m.users.total,
       previous: previous?.users_total,
@@ -169,19 +180,19 @@ function tilesOf(
     {
       key: 'publishedProperties',
       label: t('publishedProperties'),
-      value: formatNumber(m.properties.published),
+      value: fmt.nombre(m.properties.published),
       href: '/super-admin/properties?filter[status]=published',
     },
     {
       key: 'pendingReview',
       label: t('pendingReview'),
-      value: formatNumber(m.properties.pending_review),
+      value: fmt.nombre(m.properties.pending_review),
       href: '/super-admin/properties?filter[status]=pending_review',
     },
     {
       key: 'platformRevenue',
       label: t('platformRevenue'),
-      value: formatCurrency(m.revenue.platform_total_paid, m.revenue.currency),
+      value: fmt.montant(m.revenue.platform_total_paid, m.revenue.currency),
       hint: t('cumulativeRents'),
       href: '/super-admin/reports',
       current: m.revenue.platform_total_paid,

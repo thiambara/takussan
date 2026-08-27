@@ -42,6 +42,7 @@ import type {
   AdminPropertyRow,
   KycDossier,
 } from '@/types/super-admin';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 
 type Action = 'verify' | 'suspend' | 'unverify';
@@ -228,6 +229,7 @@ export function AgencyKycTab({ dossier, loading, agencyId }: { dossier?: KycDoss
 export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
   const t = useTranslations('superAdmin.agencyDetail');
   const tStatus = useTranslations('superAdmin.agencyStatus');
+  const fmt = useFormatteurs();
   const status = agency.status ?? 'inactive';
   const statusKey = STATUS_KEY[status];
   const address = [agency.address?.city, agency.address?.region, agency.address?.country]
@@ -264,7 +266,7 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
               ) : (
                 <Badge variant="outline">{t('notVerified')}</Badge>
               )}
-              <span>{t('registeredOn', { date: formatDate(agency.created_at) })}</span>
+              <span>{t('registeredOn', { date: fmt.date(agency.created_at) })}</span>
               {address ? <span>{address}</span> : null}
             </div>
           </div>
@@ -333,12 +335,13 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
 
 export function AgencyHealthStrip({ health, loading }: { health?: AdminAgencyHealth; loading: boolean }) {
   const t = useTranslations('superAdmin.agencyDetail.health');
+  const fmt = useFormatteurs();
   const items = [
     { label: t('activeProperties'), value: health?.active_properties, icon: Home },
     { label: t('inModeration'), value: health?.properties_in_moderation, icon: AlertTriangle },
     { label: t('transactions30d'), value: health?.transactions_30d, icon: CreditCard },
-    { label: t('revenue30d'), value: health ? formatCurrency(health.revenue_30d) : undefined, icon: ArrowUpRight },
-    { label: t('lastPayment'), value: health?.last_platform_payment_at ? formatDate(health.last_platform_payment_at) : '—', icon: Clock },
+    { label: t('revenue30d'), value: health ? fmt.montant(health.revenue_30d) : undefined, icon: ArrowUpRight },
+    { label: t('lastPayment'), value: fmt.date(health?.last_platform_payment_at), icon: Clock },
     { label: t('openComplaints'), value: health?.open_complaints, icon: AlertTriangle },
   ];
 
@@ -390,6 +393,7 @@ export function AgencyTeamTab({ members, loading }: { members: AdminAgencyTeamMe
 
 export function AgencyPropertiesTab({ properties, loading }: { properties: AdminPropertyRow[]; loading: boolean }) {
   const t = useTranslations('superAdmin.agencyDetail.properties');
+  const fmt = useFormatteurs();
   return (
     <Card>
       <CardHeader>
@@ -406,7 +410,7 @@ export function AgencyPropertiesTab({ properties, loading }: { properties: Admin
                 {property.reference_number} · {property.status_label ?? property.status ?? '—'}
               </p>
             </div>
-            <p className="font-semibold text-foreground">{formatCurrency(property.price)}</p>
+            <p className="font-semibold text-foreground">{fmt.montant(property.price, property.currency)}</p>
           </div>
         ))}
       </CardContent>
@@ -416,6 +420,7 @@ export function AgencyPropertiesTab({ properties, loading }: { properties: Admin
 
 export function AgencyTransactionsTab({ health, loading }: { health?: AdminAgencyHealth; loading: boolean }) {
   const t = useTranslations('superAdmin.agencyDetail.transactions');
+  const fmt = useFormatteurs();
   return (
     <Card>
       <CardHeader>
@@ -427,24 +432,11 @@ export function AgencyTransactionsTab({ health, loading }: { health?: AdminAgenc
         ) : (
           <>
             <StatCard label={t('count30d')} value={String(health?.transactions_30d ?? 0)} />
-            <StatCard label={t('revenue30d')} value={formatCurrency(health?.revenue_30d ?? 0)} />
-            <StatCard label={t('lastPayment')} value={health?.last_platform_payment_at ? formatDate(health.last_platform_payment_at) : '—'} />
+            <StatCard label={t('revenue30d')} value={fmt.montant(health?.revenue_30d ?? 0)} />
+            <StatCard label={t('lastPayment')} value={fmt.date(health?.last_platform_payment_at)} />
           </>
         )}
       </CardContent>
     </Card>
   );
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(new Date(value));
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'XOF',
-    maximumFractionDigits: 0,
-  }).format(value);
 }

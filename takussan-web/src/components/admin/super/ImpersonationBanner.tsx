@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { AlertTriangle } from 'lucide-react';
 import { useImpersonationSession, useStopImpersonation } from '@/hooks/useImpersonation';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /**
  * Global non-dismissible banner shown whenever a super-admin has an active
@@ -15,14 +16,19 @@ export function ImpersonationBanner() {
   // TCK-292 — hook posé AVANT la sortie anticipée `if (!session) return null` : un
   // `useTranslations` placé après serait un hook conditionnel, refusé par le React Compiler.
   const t = useTranslations('superAdmin.impersonation');
+  const fmt = useFormatteurs();
   const session = useImpersonationSession();
   const stopMutation = useStopImpersonation();
 
   if (!session) return null;
 
   const expiresAt = new Date(session.expires_at);
+  // ⚠️ `toLocaleString()` NU suivait la locale du RUNTIME, pas celle de l'application : sur un
+  //    navigateur en anglais, la console en français affichait une date anglaise — et
+  //    réciproquement. Le grep `'fr-FR'` de TCK-364 ne pouvait pas le voir, il n'y a pas de
+  //    littéral à trouver.
   const expiresLabel = Number.isFinite(expiresAt.getTime())
-    ? expiresAt.toLocaleString()
+    ? fmt.dateTime(expiresAt)
     : t('unknownExpiry');
 
   return (

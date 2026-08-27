@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   fetchAdminAgencyUpgradeRequests,
   type AdminAgencyUpgradeRequestRow,
@@ -79,6 +80,7 @@ function seedStatusFilter(value: string | null | undefined): AgencyUpgradeReques
 
 export default function AgencyUpgradeRequestsListPage() {
   const t = useTranslations('superAdmin.pages.upgradeRequests');
+  const fmt = useFormatteurs();
   const searchParams = useSearchParams();
   // TCK-360 — la file « demandes d'upgrade » de l'accueil compte les `pending` ; le lien porte
   // donc `?status=pending`, faute de quoi le clic mènerait à « toutes » et le compte affiché ne
@@ -167,7 +169,7 @@ export default function AgencyUpgradeRequestsListPage() {
       id: 'date',
       header: t('columns.date'),
       className: 'text-muted-foreground',
-      cell: (row) => formatDateTime(row.submitted_at),
+      cell: (row) => fmt.dateTime(row.submitted_at),
     },
     {
       id: 'status',
@@ -346,11 +348,4 @@ function elapsedDaysSince(submittedAt: string | null, now: number): number | nul
   const ms = now - new Date(submittedAt).getTime();
   if (ms < 0) return 0;
   return Math.floor(ms / (1000 * 60 * 60 * 24));
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(value),
-  );
 }

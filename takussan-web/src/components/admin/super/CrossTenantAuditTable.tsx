@@ -18,9 +18,11 @@ import { fetchAuditLog } from '@/lib/queries/super-admin';
 import type { AuditLogEntry, AuditLogResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 export function CrossTenantAuditTable() {
   const t = useTranslations('superAdmin.audit');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const [event, setEvent] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -48,7 +50,7 @@ export function CrossTenantAuditTable() {
       id: 'date',
       header: t('colDate'),
       className: 'whitespace-nowrap text-muted-foreground',
-      cell: (entry) => (entry.created_at ? new Date(entry.created_at).toLocaleString() : '—'),
+      cell: (entry) => fmt.dateTime(entry.created_at),
     },
     {
       id: 'event',

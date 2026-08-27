@@ -17,6 +17,7 @@ import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader, StatusBadge } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /**
  * TCK-264 — Cooptation surface for super-admins.
@@ -27,6 +28,7 @@ import { ErrorState } from '@/components/feedback';
  */
 export default function SuperAdminsCooptationPage() {
   const t = useTranslations('superAdmin.pages.superAdmins');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -119,11 +121,7 @@ export default function SuperAdminsCooptationPage() {
                       <div className="flex-1">
                         <p className="text-sm font-semibold text-foreground">{inv.email}</p>
                         <p className="text-xs text-muted-foreground">
-                          {t('invitedOn', {
-                            date: inv.created_at
-                              ? new Date(inv.created_at).toLocaleDateString('fr-FR')
-                              : '—',
-                          })}
+                          {t('invitedOn', { date: fmt.date(inv.created_at) })}
                         </p>
                       </div>
                       <StatusBadge tone="attention" label={t('invitedBadge')} />
