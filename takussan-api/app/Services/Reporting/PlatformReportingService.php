@@ -46,12 +46,21 @@ class PlatformReportingService
      * bucketed by day / week / month. Returns the first row per bucket
      * boundary plus a `generated_at` stamp.
      */
-    public function growth(string $metric, string $period, string $granularity): array
-    {
-        $key = sprintf('reporting:growth:%s:%s:%s:v%d', $metric, $period, $granularity, $this->cacheVersion());
+    public function growth(
+        string $metric,
+        string $period,
+        string $granularity,
+        ?string $startsAt = null,
+        ?string $endsAt = null,
+    ): array {
+        $window = $this->window($period, $startsAt, $endsAt);
+        $key = sprintf(
+            'reporting:growth:%s:%s:%s:%s:v%d',
+            $metric, $period, $granularity, $this->windowKey($window), $this->cacheVersion()
+        );
 
-        return Cache::remember($key, self::CACHE_TTL_SECONDS, function () use ($metric, $period, $granularity): array {
-            $buckets = $this->bucketsFor($period, $granularity);
+        return Cache::remember($key, self::CACHE_TTL_SECONDS, function () use ($metric, $granularity, $window): array {
+            $buckets = $this->bucketsFor($window, $granularity);
             $rows = [];
             $total = 0;
 
@@ -66,7 +75,7 @@ class PlatformReportingService
                 ];
             }
 
-            return $this->envelope($rows, ['total' => $total], $period, $granularity);
+            return $this->envelope($rows, ['total' => $total], $window['range'], $granularity);
         });
     }
 
@@ -75,12 +84,20 @@ class PlatformReportingService
      * ?? plan.monthly_price_xof)` evaluated at the bucket boundary.
      * `ARR = MRR × 12`.
      */
-    public function revenue(string $period, string $granularity): array
-    {
-        $key = sprintf('reporting:revenue:%s:%s:v%d', $period, $granularity, $this->cacheVersion());
+    public function revenue(
+        string $period,
+        string $granularity,
+        ?string $startsAt = null,
+        ?string $endsAt = null,
+    ): array {
+        $window = $this->window($period, $startsAt, $endsAt);
+        $key = sprintf(
+            'reporting:revenue:%s:%s:%s:v%d',
+            $period, $granularity, $this->windowKey($window), $this->cacheVersion()
+        );
 
-        return Cache::remember($key, self::CACHE_TTL_SECONDS, function () use ($period, $granularity): array {
-            $buckets = $this->bucketsFor($period, $granularity);
+        return Cache::remember($key, self::CACHE_TTL_SECONDS, function () use ($granularity, $window): array {
+            $buckets = $this->bucketsFor($window, $granularity);
             $rows = [];
 
             foreach ($buckets as $bucket) {
@@ -99,7 +116,7 @@ class PlatformReportingService
                 'latest_mrr' => $latest['mrr'],
                 'latest_arr' => $latest['arr'],
                 'latest_active_subscriptions' => $latest['active_subscriptions'],
-            ], $period, $granularity);
+            ], $window['range'], $granularity);
         });
     }
 
@@ -214,10 +231,57 @@ class PlatformReportingService
     /**
      * @return list<array{label:string, start: Carbon, end: Carbon}>
      */
-    private function bucketsFor(string $period, string $granularity): array
+    /**
+     * Résout la FENÊTRE d'un rapport — soit le raccourci `period`, soit une plage libre.
+     *
+     * TCK-361. Jusqu'ici la fenêtre était toujours ancrée à `Carbon::now()` et `period` était une
+     * énumération fermée : ni une plage libre, ni la PÉRIODE PRÉCÉDENTE n'étaient demandables.
+     * Le front ne pouvait donc pas comparer deux fenêtres, faute de pouvoir en nommer une seconde.
+     * Les deux bornes sont additives — `period` seul se comporte exactement comme avant.
+     *
+     * @return array{start: Carbon, end: Carbon, range: string}
+     */
+    private function window(string $period, ?string $startsAt, ?string $endsAt): array
     {
+        if ($startsAt !== null && $endsAt !== null) {
+            $start = Carbon::parse($startsAt)->startOfDay();
+            $end = Carbon::parse($endsAt)->endOfDay();
+
+            // Une plage inversée rendrait zéro bucket : on la remet à l'endroit plutôt que de
+            // rendre une série vide qui ressemblerait à « aucune donnée sur la période ».
+            if ($start->greaterThan($end)) {
+                [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+            }
+
+            return [
+                'start' => $start,
+                'end' => $end,
+                'range' => sprintf('%s..%s', $start->toDateString(), $end->toDateString()),
+            ];
+        }
+
         $end = Carbon::now()->endOfDay();
-        $start = $this->periodStart($period, $end);
+
+        return ['start' => $this->periodStart($period, $end), 'end' => $end, 'range' => $period];
+    }
+
+    /**
+     * Discriminant de cache de la fenêtre.
+     *
+     * ⚠ Une plage libre DOIT entrer dans la clé : sans elle, deux fenêtres différentes du même
+     * `period` se serviraient mutuellement leur cache pendant 10 minutes — et le défaut ne se
+     * verrait qu'à la comparaison, où les deux séries deviendraient identiques.
+     */
+    private function windowKey(array $window): string
+    {
+        return $window['range'];
+    }
+
+    /** @param array{start: Carbon, end: Carbon, range: string} $window */
+    private function bucketsFor(array $window, string $granularity): array
+    {
+        $end = $window['end'];
+        $start = $window['start'];
 
         $buckets = [];
         $cursor = $start->copy();

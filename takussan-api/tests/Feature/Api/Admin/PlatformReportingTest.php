@@ -46,6 +46,110 @@ class PlatformReportingTest extends TestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * TCK-361 — la PLAGE LIBRE. Avant, `period` était une énumération fermée ancrée sur `now()` :
+     * aucune fenêtre autre que « les N derniers mois » n'était demandable.
+     */
+    public function test_growth_accepts_a_free_date_range(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $baselineFebruary = Agency::query()
+            ->whereBetween('created_at', ['2026-02-01', '2026-02-28 23:59:59'])->count();
+
+        Agency::factory()->create(['created_at' => '2026-02-10']);
+        Agency::factory()->create(['created_at' => '2026-02-11']);
+        // Hors fenêtre : présent en base, il doit rester absent de la série.
+        Agency::factory()->create(['created_at' => '2026-05-05']);
+
+        $response = $this
+            ->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-01-01&ends_at=2026-03-31')
+            ->assertOk();
+
+        $response->assertJsonPath('data.period.range', '2026-01-01..2026-03-31');
+
+        $buckets = collect($response->json('data.rows'))->pluck('bucket')->all();
+        $this->assertSame(['2026-01', '2026-02', '2026-03'], $buckets);
+
+        $feb = collect($response->json('data.rows'))->firstWhere('bucket', '2026-02');
+        $this->assertSame($baselineFebruary + 2, $feb['count']);
+
+        Carbon::setTestNow();
+    }
+
+    /**
+     * La COMPARAISON du front est un second appel sur la fenêtre décalée. Ce test éprouve ce qui
+     * la rendait impossible : deux fenêtres distinctes doivent rendre deux séries distinctes.
+     *
+     * ⚠ C'est aussi la garde du cache : la plage entre dans la clé (`windowKey`). Sans elle, le
+     * second appel resservirait la série du premier pendant 10 minutes, et la comparaison se
+     * confondrait avec la série principale sans qu'aucune erreur ne soit levée.
+     */
+    public function test_two_distinct_windows_do_not_share_a_cache_entry(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        Agency::factory()->create(['created_at' => '2026-02-10']);
+
+        $courante = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-04-01&ends_at=2026-04-30')
+            ->assertOk();
+        $precedente = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-02-01&ends_at=2026-02-28')
+            ->assertOk();
+
+        $this->assertSame(['2026-04'], collect($courante->json('data.rows'))->pluck('bucket')->all());
+        $this->assertSame(['2026-02'], collect($precedente->json('data.rows'))->pluck('bucket')->all());
+        $this->assertGreaterThan(
+            $courante->json('data.totals.total'),
+            $precedente->json('data.totals.total'),
+        );
+
+        Carbon::setTestNow();
+    }
+
+    public function test_revenue_accepts_a_free_date_range(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $response = $this
+            ->getJson('/api/admin/reports/revenue?granularity=month&starts_at=2026-01-01&ends_at=2026-02-28')
+            ->assertOk();
+
+        $response->assertJsonPath('data.period.range', '2026-01-01..2026-02-28');
+        $this->assertSame(['2026-01', '2026-02'], collect($response->json('data.rows'))->pluck('bucket')->all());
+
+        Carbon::setTestNow();
+    }
+
+    /** Une borne seule ne décrit aucune fenêtre : elle doit être refusée, pas ignorée. */
+    public function test_a_lone_range_bound_is_rejected(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/growth?metric=agencies&starts_at=2026-01-01')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+    }
+
+    /** L'export suit l'écran : la plage libre doit voyager jusqu'au fichier. */
+    public function test_export_carries_the_free_date_range(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $this->get('/api/admin/reports/growth/export?format=csv&metric=agencies&granularity=month&starts_at=2026-01-01&ends_at=2026-03-31')
+            ->assertOk();
+
+        $export = ReportExport::query()->latest('id')->firstOrFail();
+        $this->assertSame('2026-01-01', $export->parameters['starts_at']);
+        $this->assertSame('2026-03-31', $export->parameters['ends_at']);
+        $this->assertSame(3, $export->row_count);
+
+        Carbon::setTestNow();
+    }
+
     public function test_revenue_mrr_matches_active_subscription_sum(): void
     {
         $this->actingAsRole('super_admin');

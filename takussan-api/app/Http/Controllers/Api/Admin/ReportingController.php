@@ -37,6 +37,8 @@ class ReportingController extends Controller
                 (string) $request->input('metric'),
                 (string) ($request->input('period') ?? '12m'),
                 (string) ($request->input('granularity') ?? 'month'),
+                $request->input('starts_at'),
+                $request->input('ends_at'),
             ),
         ]);
     }
@@ -48,6 +50,8 @@ class ReportingController extends Controller
             'data' => $this->reporting->revenue(
                 (string) ($request->input('period') ?? '12m'),
                 (string) ($request->input('granularity') ?? 'month'),
+                $request->input('starts_at'),
+                $request->input('ends_at'),
             ),
         ]);
     }
@@ -84,10 +88,14 @@ class ReportingController extends Controller
                 (string) ($request->input('metric') ?? 'agencies'),
                 (string) ($request->input('period') ?? '12m'),
                 (string) ($request->input('granularity') ?? 'month'),
+                $request->input('starts_at'),
+                $request->input('ends_at'),
             ),
             'revenue' => $this->reporting->revenue(
                 (string) ($request->input('period') ?? '12m'),
                 (string) ($request->input('granularity') ?? 'month'),
+                $request->input('starts_at'),
+                $request->input('ends_at'),
             ),
             'cohorts' => $this->reporting->cohorts(
                 (string) ($request->input('cohort_basis') ?? 'signup_month'),
@@ -105,7 +113,7 @@ class ReportingController extends Controller
             'requested_by' => $request->user()->id,
             'report' => $report,
             'format' => $request->string('format')->toString(),
-            'parameters' => $request->only(['metric', 'period', 'granularity', 'cohort_basis', 'depth']),
+            'parameters' => $request->only(['metric', 'period', 'granularity', 'cohort_basis', 'depth', 'starts_at', 'ends_at']),
             'status' => $async ? 'queued' : 'ready',
             'row_count' => $rowCount,
             'ready_at' => $async ? null : now(),

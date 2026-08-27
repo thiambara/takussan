@@ -6848,14 +6848,19 @@
     },
     "filters": {
       "periodAria": "Period",
-      "metricAria": "Metric"
+      "metricAria": "Metric",
+      "rangeStart": "Range start",
+      "rangeEnd": "Range end",
+      "rangeApply": "Apply",
+      "rangeClear": "Clear range"
     },
     "periods": {
       "30d": "30 days",
       "90d": "90 days",
       "3m": "3 months",
       "6m": "6 months",
-      "12m": "12 months"
+      "12m": "12 months",
+      "custom": "Custom range"
     },
     "metrics": {
       "agencies": "Agencies",
@@ -6863,7 +6868,8 @@
       "listings": "Listings"
     },
     "growth": {
-      "total": "Total:"
+      "total": "Total:",
+      "chartAria": "Monthly trend — {metric}, {count} points."
     },
     "funnel": {
       "conversion": "Overall conversion:",
@@ -6872,7 +6878,9 @@
         "bookings_requested": "Bookings requested",
         "bookings_confirmed": "Bookings confirmed",
         "leases_signed": "Leases signed"
-      }
+      },
+      "empty": "No conversion over this period",
+      "emptyHint": "Pick a wider period."
     },
     "revenue": {
       "mrrCurrent": "Current MRR",
@@ -6882,12 +6890,18 @@
         "period": "Period",
         "mrr": "MRR",
         "arr": "ARR"
-      }
+      },
+      "chartAria": "Monthly MRR trend, {count} points.",
+      "chartCaption": "MRR per month, in XOF."
     },
     "cohorts": {
       "caption": "Agency cohorts by sign-up month · 12-month depth.",
       "cohort": "Cohort",
-      "size": "Size"
+      "size": "Size",
+      "empty": "No cohort at this depth",
+      "emptyHint": "No agency signed up over the months covered.",
+      "cellAria": "M{month}: {rate}% still active",
+      "cellEmpty": "M{month}: not measured yet"
     },
     "export": {
       "csv": "Export CSV",
@@ -6897,6 +6911,13 @@
       "requestedBody": "Large exports are notified by email.",
       "errorTitle": "Export failed",
       "errorBody": "Try again in a few moments."
+    },
+    "chart": {
+      "empty": "No data for this period",
+      "emptyHint": "Widen the range or pick another metric.",
+      "compare": "Compare to previous period",
+      "previous": "Previous period",
+      "pointAria": "{bucket}: {value}"
     }
   },
   "kyc": {
