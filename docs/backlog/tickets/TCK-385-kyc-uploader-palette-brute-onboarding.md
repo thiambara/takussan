@@ -1,7 +1,7 @@
 ---
 id: TCK-385
 title: "Assistants d'onboarding — la pastille KYC en palette brute, dans le seul répertoire que deux gardes se renvoient"
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: S
@@ -104,6 +104,47 @@ cran plus loin.
   ticket qui les aura comptées, pas dans celui-ci.
 
 ## Notes d'implémentation
+
+**Ce que la re-mesure du 2026-08-27 a confirmé, et ce qu'elle a contredit.**
+
+Confirmé au chiffre près : la ligne 161, les deux familles (`bg-emerald-100`, `text-emerald-800`),
+et le tableau des monteurs (Agent 3, Owner 3, Prestataire 2, console 0). Le ticket disait vrai.
+
+Contredit : **`--accent` n'est plus le bon jeton pour dire « fourni / validé »**, et la contrainte
+stricte du ticket a quand même été suivie. TCK-381 a créé `--success` le même jour, avec dans
+`globals.css` un docblock qui nomme exactement ce cas — « un accent de marque et une confirmation
+ne sont pas la même chose ». Mesuré sur la surface RÉELLE (aplat à 15 % sur le conteneur
+`bg-muted/30` de ce composant) :
+
+| | clair | sombre |
+|---|---|---|
+| avant — émeraude 800 sur émeraude 100 | 6,70:1 ✓ | ne basculait pas |
+| après — `--accent` sur `accent/15` (ton `success` de `StatusBadge`) | **4,19:1 ✗** | **3,71:1 ✗** |
+| le même aplat sur `--success` | 4,61:1 ✓ | 5,73:1 ✓ |
+
+**Le contraste BAISSE sous AA (4,5:1), et c'est écrit plutôt que tu.** Le défaut n'est pas celui
+du portage : c'est celui du ton `success` de `console/StatusBadge`, qui emprunte l'accent de
+marque. Le corriger touche toutes les pastilles de la console d'un coup — décision de charte, hors
+du delta d'un ticket `S`, et **à ouvrir**. Réemployer `StatusBadge` plutôt que recomposer une
+pastille est ce qui rend cette correction possible EN UN POINT, ce qui est l'argument du ticket.
+
+**La garde : un TROISIÈME ESPACE dans `check-super-admin-tokens.mjs`, et non une garde neuve.**
+Le ticket proposait deux voies (étendre `check-app-tokens.mjs`, ou copier le mécanisme). Aucune
+n'est prise : le fichier est déjà un moteur à espaces (`ESPACES`, `PERIMETRES`, `resteNonGarde`,
+cliquet bilatéral, témoins), et une COPIE aurait divergé le jour même — c'est le défaut que la
+moitié des gardes de ce dépôt existent pour attraper ailleurs. Coût : ~40 lignes de configuration,
+zéro ligne de mécanisme.
+
+Relevé à la naissance de l'espace : **8 fichiers gardés à zéro** (les sept de `src/app/onboarding`
+plus `KycUploader.tsx`), **24 occurrences dans le reste** — 18 dans `src/components/onboarding`
+(six assistants) et 6 dans `components/auth/TotpEnrollment.tsx`, que la clôture d'onboarding
+atteint. `src/components/onboarding` n'entre PAS dans le périmètre : l'y mettre aurait fait rougir
+la garde le jour de sa naissance. C'est exactement ce que le hors périmètre de ce ticket demande —
+elles sont désormais comptées, nommées et sous cliquet.
+
+⚠ Le test de l'AC3 ne monte PAS les trois assistants : il EXTRAIT leurs huit points de montage de
+leur source et rend le composant avec chaque jeu de props réel. Monter un assistant aurait prouvé
+UN montage — celui de l'étape atteinte — pour dix fois le coût.
 
 Le mécanisme de clôture d'import de `scripts/check-super-admin-tokens.mjs` (fonction
 `clotureDeRendu`, plus `resteNonGarde`) est directement réemployable : il part d'un répertoire de

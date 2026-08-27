@@ -1051,6 +1051,46 @@ const PERIMETRES_APP = [
     .map((d) => ({ type: 'cloture', chemin: join(WEB_SRC, 'components', d) })),
 ];
 
+/**
+ * LE PÉRIMÈTRE GARDÉ DES ASSISTANTS D'ONBOARDING (TCK-385) — deux entrées, et c'est le sujet.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * POURQUOI UN TROISIÈME ESPACE, ET PAS UNE ENTRÉE DE PLUS DANS `PERIMETRES`
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `src/components/kyc/KycUploader.tsx` n'était gardé par RIEN, et pas par accident : il vit à
+ * côté de `kyc-components.tsx`, que la console monte et que `PERIMETRES` nomme FICHIER PAR
+ * FICHIER pour ne pas embarquer ce voisin-ci. Mesuré le 2026-08-27 : `KycUploader` n'est monté
+ * que par les trois assistants d'onboarding, JAMAIS par la console — il n'est donc pas dans la
+ * clôture de `/super-admin`, il n'apparaît même pas dans son reste. Et `check-app-tokens.mjs`
+ * ne connaît que le dialecte `app-*`.
+ *
+ * *Un fichier que deux gardes se renvoient l'une à l'autre n'est pas à moitié gardé : il ne
+ * l'est pas du tout.* La réponse n'est ni d'élargir le périmètre de la console — ce qui la
+ * ferait rougir sur un écran d'onboarding, et *la réponse humaine à ce rouge-là est une
+ * exception, pas un correctif* — ni d'écrire une garde de plus : c'est de donner à
+ * `/onboarding` l'espace qu'il n'avait pas, dans le mécanisme qui existe déjà. Une COPIE de ce
+ * fichier aurait divergé le jour même, et c'est le défaut que la moitié des gardes de ce dépôt
+ * existent pour attraper ailleurs.
+ *
+ * ⚠ **`src/components/onboarding` n'y figure PAS**, et c'est une mesure : il portait
+ * **18 occurrences** de palette brute le 2026-08-27, réparties sur six assistants
+ * (`HostIndividualWizard` 6, `ServiceProviderMultiAgencyWelcome` 4, `AgencyAdminOnboardingWizard`
+ * 2, plus une bannière verte dans chacun des trois assistants portés par ce ticket). Les mettre
+ * en `dir` aurait fait rougir la garde le jour de sa naissance. Elles tombent donc dans le RESTE,
+ * qui les compte, les nomme et refuse qu'elles se multiplient — c'est exactement ce que le hors
+ * périmètre de TCK-385 demande : « elles se traitent dans un ticket qui les aura comptées ».
+ */
+const PERIMETRES_ONBOARDING = [
+  // Les six pages de routes plus leur layout : déjà à zéro le 2026-08-27. *Un répertoire déjà
+  // propre est le moins cher à mettre sous cliquet, et c'est le seul moment où ça ne coûte rien.*
+  { type: 'dir', chemin: join(WEB_SRC, 'app', 'onboarding') },
+  // La forme `file`, pour la raison exacte qui la justifie dans `PERIMETRES` : ses voisins de
+  // `src/components/kyc/` ne sont PAS rendus par les assistants (`kyc-components.tsx` l'est par
+  // la console, `AgencyKycClient.tsx` par `/admin`).
+  { type: 'file', chemin: join(WEB_SRC, 'components', 'kyc', 'KycUploader.tsx') },
+];
+
 /*
  * ⚠ `components/chat-widget` a été RETIRÉ de la liste ci-dessus, et le contrôle « clôture vide »
  * est ce qui l'a dénoncé : le widget est monté par `src/app/layout.tsx`, la racine de TOUT le
@@ -1094,6 +1134,16 @@ const TEMOINS = {
     join(WEB_SRC, 'components', 'files', 'PdfViewer.tsx'),
     join(WEB_SRC, 'components', 'shared', 'LanguageSwitcher.tsx'),
   ],
+  "assistants d'onboarding": [
+    join(WEB_SRC, 'app', 'onboarding', 'layout.tsx'),
+    join(WEB_SRC, 'app', 'onboarding', 'agent', 'page.tsx'),
+    join(WEB_SRC, 'app', 'onboarding', 'owner', 'page.tsx'),
+    join(WEB_SRC, 'app', 'onboarding', 'service-provider', 'page.tsx'),
+    // ⚠ LE témoin de ce ticket : le fichier que deux gardes se renvoyaient. Son retrait de
+    // `PERIMETRES_ONBOARDING` sortirait la garde en 0 sans un mot, sur le seul fichier pour
+    // lequel l'espace a été créé.
+    join(WEB_SRC, 'components', 'kyc', 'KycUploader.tsx'),
+  ],
   'tableau de bord /app': [
     join(WEB_SRC, 'app', '(dashboard)', 'app', 'page.tsx'),
     join(WEB_SRC, 'components', 'calendar', 'CalendarPage.tsx'),
@@ -1126,6 +1176,7 @@ const ESPACES = [
     plafondReste: RESTE_PLAFOND,
     resteBilateral: true, // ⚠ était `false` — défaut D2, cf. le docblock de RESTE_PLAFOND.
     ticketReste: 'TCK-384',
+    natureDuReste: 'primitives partagées avec le site public',
     reference: '128 le 2026-08-27, avant TCK-358',
     // 93 fichiers analysés le 2026-08-27, arbre `feat/console-lot-358-382` fusionné. Le chiffre
     // valait 92 : un fichier de mou, resserré ici parce qu'un plancher qui traîne est du silence
@@ -1210,6 +1261,7 @@ const ESPACES = [
     plafondReste: 32,
     resteBilateral: true,
     ticketReste: 'TCK-384',
+    natureDuReste: 'primitives partagées avec le site public',
     reference: '1070 le 2026-08-27, avant TCK-380/381',
     /*
      * ⚠ **225 → 266 le 2026-08-27**, et l'écart n'était pas de deux fichiers mais de QUARANTE ET
@@ -1223,6 +1275,34 @@ const ESPACES = [
      * manœuvre à trois gestes du trou T6 a besoin d'avoir sous la main.
      */
     plancherFichiers: 266,
+  },
+  {
+    libelle: "assistants d'onboarding",
+    perimetres: PERIMETRES_ONBOARDING,
+    racineCloture: join(WEB_SRC, 'app', 'onboarding'),
+    /*
+     * CLIQUET DU RESTE `/onboarding` — **24, mesuré PAR CETTE GARDE le 2026-08-27**, le jour
+     * où l'espace est né. Il n'y a donc pas de « avant » à comparer : la référence ci-dessous est
+     * le compte de l'espace ENTIER (périmètre + reste) au même instant, ce qui est le seul chiffre
+     * honnête pour un espace neuf.
+     *
+     * Le reste est ici **plus gros que le périmètre**, et c'est le contraire des deux autres
+     * espaces. Ce n'est pas un défaut de cadrage : TCK-385 met explicitement le reste des
+     * assistants hors périmètre, et il a raison de le faire — les porter demande de trancher, pour
+     * chacun, ce que sa bannière verte ou ambre VEUT DIRE. Le cliquet est là pour que ce travail
+     * reste chiffré au lieu de rester à faire.
+     *
+     * ⚠ Bilatéral, comme les deux autres : la garde échoue s'il MONTE (récidive) ET s'il descend
+     * sans que ce chiffre suive. *Un cliquet qui ne descend pas est une tolérance.*
+     */
+    plafondReste: 24,
+    resteBilateral: true,
+    ticketReste: 'TCK-385',
+    natureDuReste: "assistants d'onboarding non encore portés, plus le module TOTP",
+    reference: "24 sur la clôture entière le 2026-08-27, à la naissance de l'espace",
+    // 8 fichiers analysés le 2026-08-27, sans le moindre mou : les sept de `src/app/onboarding`
+    // (six pages plus le layout) et `KycUploader.tsx`.
+    plancherFichiers: 8,
   },
 ];
 const estTest = (chemin) => chemin.split(/[\\/]/).includes('__tests__');
@@ -1661,7 +1741,7 @@ for (const b of bilans) {
     + `rend RÉELLEMENT`,
   );
   console.log(
-    `  sans qu'un périmètre les couvre — primitives partagées avec le site public (${b.espace.ticketReste}).`,
+    `  sans qu'un périmètre les couvre — ${b.espace.natureDuReste} (${b.espace.ticketReste}).`,
   );
 }
 console.log(
