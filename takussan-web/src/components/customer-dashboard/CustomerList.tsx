@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { UserPlus } from 'lucide-react';
 
+import { DataTable, type DataTableColumn } from '@/components/console';
 import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
 import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
@@ -24,65 +25,84 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
   const { data: customers, meta } = page;
   if (!customers || customers.length === 0) return <CustomersEmpty />;
 
+  /**
+   * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
+   * (client · contact · étiquettes · pipeline · statut), éprouvé par test.
+   *
+   * ⚠ La liste de CARTES sous `md` reste une liste de cartes : `DataTable` remplace la table du
+   * bureau, pas la forme mobile — cf. la Direction UX de TCK-380, « ne pas convertir en table ce
+   * qui se lit mieux en cartes ».
+   */
+  const colonnes: readonly DataTableColumn<CustomerListItem>[] = [
+    {
+      id: 'client',
+      header: t('columns.client'),
+      cell: (customer) => (
+        <>
+          <Link
+            href={`/app/customers/${customer.id}`}
+            className="block font-semibold text-foreground hover:text-foreground"
+          >
+            {customer.first_name} {customer.last_name}
+          </Link>
+          {customer.occupation ? (
+            <p className="text-xs text-muted-foreground">{customer.occupation}</p>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      id: 'contact',
+      header: t('columns.contact'),
+      className: 'text-muted-foreground',
+      cell: (customer) => (
+        <>
+          {customer.email ? (
+            <a href={`mailto:${customer.email}`} className="hover:underline">
+              {customer.email}
+            </a>
+          ) : null}
+          {customer.email && customer.phone ? <br /> : null}
+          {customer.phone ? (
+            <a href={`tel:${customer.phone}`} className="hover:underline">
+              {customer.phone}
+            </a>
+          ) : null}
+          {!customer.email && !customer.phone ? '—' : null}
+        </>
+      ),
+    },
+    {
+      id: 'tags',
+      header: t('columns.tags'),
+      cell: (customer) =>
+        customer.tags && customer.tags.length > 0 ? (
+          <CustomerTagChips tags={customer.tags} onTagClick={onTagClick} />
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
+      id: 'pipeline',
+      header: t('columns.pipeline'),
+      cell: (customer) => <PipelineBadge stage={customer.pipeline_stage} />,
+    },
+    {
+      id: 'status',
+      header: t('columns.status'),
+      cell: (customer) => <StatusBadge status={customer.status} />,
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="hidden overflow-hidden rounded-xl bg-card md:block">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-semibold">{t('columns.client')}</th>
-              <th className="px-4 py-3 font-semibold">{t('columns.contact')}</th>
-              <th className="px-4 py-3 font-semibold">{t('columns.tags')}</th>
-              <th className="px-4 py-3 font-semibold">{t('columns.pipeline')}</th>
-              <th className="px-4 py-3 font-semibold">{t('columns.status')}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-muted">
-            {customers.map((customer) => (
-              <tr key={customer.id}>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/app/customers/${customer.id}`}
-                    className="block font-semibold text-foreground hover:text-foreground"
-                  >
-                    {customer.first_name} {customer.last_name}
-                  </Link>
-                  {customer.occupation ? (
-                    <p className="text-xs text-muted-foreground">{customer.occupation}</p>
-                  ) : null}
-                </td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {customer.email ? (
-                    <a href={`mailto:${customer.email}`} className="hover:underline">
-                      {customer.email}
-                    </a>
-                  ) : null}
-                  {customer.email && customer.phone ? <br /> : null}
-                  {customer.phone ? (
-                    <a href={`tel:${customer.phone}`} className="hover:underline">
-                      {customer.phone}
-                    </a>
-                  ) : null}
-                  {!customer.email && !customer.phone ? '—' : null}
-                </td>
-                <td className="px-4 py-3">
-                  {customer.tags && customer.tags.length > 0 ? (
-                    <CustomerTagChips tags={customer.tags} onTagClick={onTagClick} />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <PipelineBadge stage={customer.pipeline_stage} />
-                </td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={customer.status} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        className="hidden md:block"
+        caption={t('caption')}
+        columns={colonnes}
+        rows={customers}
+        rowKey={(customer) => customer.id}
+      />
 
       <ul className="space-y-3 md:hidden">
         {customers.map((customer) => (
@@ -137,9 +157,9 @@ function PipelineBadge({
       variant="outline"
       className={cn(
         'border-border bg-muted text-foreground',
-        stage === 'converted' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        stage === 'negotiating' && 'border-amber-200 bg-amber-50 text-amber-700',
-        stage === 'lost' && 'border-red-200 bg-red-50 text-red-700',
+        stage === 'converted' && 'border-success/30 bg-success/10 text-success',
+        stage === 'negotiating' && 'border-warning/30 bg-warning/10 text-warning',
+        stage === 'lost' && 'border-destructive/30 bg-destructive/10 text-destructive',
         stage === 'qualified' && 'border-primary/30 bg-primary/5 text-primary',
       )}
     >
@@ -156,8 +176,8 @@ function StatusBadge({ status }: { status: CustomerListItem['status'] }) {
       variant="outline"
       className={cn(
         'border-border bg-muted text-foreground',
-        status === 'blocked' && 'border-red-200 bg-red-50 text-red-700',
-        status === 'inactive' && 'border-stone-200 bg-stone-50 text-stone-700',
+        status === 'blocked' && 'border-destructive/30 bg-destructive/10 text-destructive',
+        status === 'inactive' && 'border-border bg-muted/50 text-muted-foreground',
       )}
     >
       {label}

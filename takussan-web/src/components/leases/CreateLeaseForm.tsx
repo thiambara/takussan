@@ -126,8 +126,8 @@ export function CreateLeaseForm() {
     >
       <FormGlobalError>{globalError}</FormGlobalError>
 
-      <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">{t('parties')}</h2>
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold text-foreground">{t('parties')}</h2>
         <input type="hidden" {...form.register('landlord_id', { valueAsNumber: true })} />
         <div className="grid gap-4 lg:grid-cols-2">
           <EntitySelect
@@ -165,7 +165,7 @@ export function CreateLeaseForm() {
             />
           </div>
         </div>
-        <div className="grid gap-3 rounded-lg bg-stone-50 p-4 text-sm sm:grid-cols-2">
+        <div className="grid gap-3 rounded-lg bg-muted/50 p-4 text-sm sm:grid-cols-2">
           <SummaryBlock
             label={t('selectedProperty')}
             value={
@@ -189,13 +189,13 @@ export function CreateLeaseForm() {
             }
           />
         </div>
-        <div className="rounded-lg border border-dashed border-stone-200 p-3 text-xs text-stone-500">
+        <div className="rounded-lg border border-dashed border-border p-3 text-xs text-muted-foreground">
           {t('guarantorsHint')}
         </div>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">{t('financialTerms')}</h2>
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold text-foreground">{t('financialTerms')}</h2>
         <FormSelect<CreateLeaseFormValues>
           control={form.control}
           name="type"
@@ -275,8 +275,8 @@ export function CreateLeaseForm() {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-xl border border-stone-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-stone-900">{t('clauses')}</h2>
+      <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold text-foreground">{t('clauses')}</h2>
         <FormTextarea<CreateLeaseFormValues>
           control={form.control}
           name="terms"
@@ -372,9 +372,9 @@ function SummaryBlock({
 }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-stone-500">{label}</p>
-      <p className="mt-1 font-medium text-stone-900">{value}</p>
-      {detail ? <p className="mt-0.5 text-xs text-stone-500">{detail}</p> : null}
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 font-medium text-foreground">{value}</p>
+      {detail ? <p className="mt-0.5 text-xs text-muted-foreground">{detail}</p> : null}
     </div>
   );
 }

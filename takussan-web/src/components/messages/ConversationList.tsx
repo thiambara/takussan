@@ -27,14 +27,14 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
     return (
       <div className="space-y-2 p-3">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-14 animate-pulse rounded-lg bg-stone-100" />
+          <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />
         ))}
       </div>
     );
   }
   if (isError) {
     return (
-      <p className="p-4 text-sm text-red-600">
+      <p className="p-4 text-sm text-destructive">
         {t('list.loadError')}
       </p>
     );
@@ -44,14 +44,14 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
 
   if (conversations.length === 0) {
     return (
-      <div className="p-6 text-center text-sm text-stone-500">
+      <div className="p-6 text-center text-sm text-muted-foreground">
         {t('list.empty')}
       </div>
     );
   }
 
   return (
-    <ul className="divide-y divide-stone-100">
+    <ul className="divide-y divide-border">
       {conversations.map((c) => (
         <ConversationRow
           key={c.id}
@@ -95,24 +95,24 @@ function ConversationRow({
         type="button"
         onClick={() => onSelect(conversation.id)}
         className={cn(
-          'flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-stone-50',
-          selected && 'bg-stone-100',
+          'flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50',
+          selected && 'bg-muted',
         )}
       >
         {isGroup ? (
           <div
-            className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-600"
+            className="relative flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
             data-testid="group-avatar-stack"
           >
             <Users className="size-5" aria-hidden />
             {groupParticipants.length > 0 && (
-              <span className="absolute -bottom-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-stone-700 px-1 text-[9px] font-bold text-white">
+              <span className="absolute -bottom-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-primary-foreground">
                 +{groupParticipants.length}
               </span>
             )}
           </div>
         ) : (
-          <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-stone-200">
+          <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-muted">
             {conversation.property?.main_photo_url ? (
               <Image
                 src={conversation.property.main_photo_url}
@@ -129,7 +129,7 @@ function ConversationRow({
             <p
               className={cn(
                 'truncate text-sm',
-                unread > 0 ? 'font-semibold text-stone-900' : 'text-stone-800',
+                unread > 0 ? 'font-semibold text-foreground' : 'text-foreground',
               )}
             >
               {conversation.subject ||
@@ -137,7 +137,7 @@ function ConversationRow({
                 t('conversationTitleFallback', { id: String(conversation.id) })}
             </p>
             {conversation.last_message_at && (
-              <span className="text-[10px] text-stone-400">
+              <span className="text-[10px] text-muted-foreground">
                 {formatDate(conversation.last_message_at, locale, { dateStyle: 'short' })}
               </span>
             )}
@@ -156,7 +156,7 @@ function ConversationRow({
             <p
               className={cn(
                 'truncate text-xs',
-                unread > 0 ? 'text-stone-700' : 'text-stone-500',
+                unread > 0 ? 'text-muted-foreground' : 'text-muted-foreground',
               )}
             >
               {conversation.last_message_preview ?? '—'}
@@ -164,7 +164,7 @@ function ConversationRow({
           </div>
         </div>
         {unread > 0 && (
-          <span className="ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-white">
+          <span className="ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-primary-foreground">
             {unread > 9 ? '9+' : unread}
           </span>
         )}

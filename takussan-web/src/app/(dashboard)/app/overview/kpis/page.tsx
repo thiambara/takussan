@@ -1,9 +1,16 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { fetchKpiConfigs, fetchKpiMetricsCatalog } from '@/lib/queries/kpis';
 import { KpiConfigList } from './KpiConfigList';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.kpis');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-032 P3 — KPI customisation per agency.
@@ -27,10 +34,7 @@ export default async function KpisPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitleFull')}</p>
-      </div>
+      <PageHeader title={t('title')} description={t('subtitleFull')} />
       <KpiConfigList
         initialConfigs={configs?.data ?? []}
         catalog={catalog?.data ?? []}

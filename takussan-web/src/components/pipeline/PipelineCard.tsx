@@ -95,7 +95,7 @@ export function PipelineCard({
             </span>
             {(customer.tasks_count ?? 0) > 0 ? (
               <span
-                className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-700 dark:text-amber-300"
+                className="flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-warning dark:text-warning"
                 title={t('openTasks')}
               >
                 <ListTodo className="size-3.5" aria-hidden />

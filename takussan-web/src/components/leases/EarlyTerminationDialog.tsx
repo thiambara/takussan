@@ -125,7 +125,7 @@ export function EarlyTerminationDialog({
 
         <div className="space-y-4">
           <div>
-            <label className="text-xs font-medium text-stone-700" htmlFor="et-effective">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="et-effective">
               {t('field_effective_date')}
             </label>
             <DatePicker
@@ -134,16 +134,16 @@ export function EarlyTerminationDialog({
               value={effectiveDate}
               onValueChange={setEffectiveDate}
             />
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {t('notice_hint', { days: noticeDays, min: minDate })}
             </p>
             {noticeViolated && (
-              <p className="mt-1 text-xs text-red-600">{t('notice_too_short')}</p>
+              <p className="mt-1 text-xs text-destructive">{t('notice_too_short')}</p>
             )}
           </div>
 
           <div>
-            <label className="text-xs font-medium text-stone-700" htmlFor="et-reason">
+            <label className="text-xs font-medium text-muted-foreground" htmlFor="et-reason">
               {t('field_reason')}
             </label>
             <Textarea
@@ -158,10 +158,10 @@ export function EarlyTerminationDialog({
           {estimate !== null && (
             <div
               data-testid="penalty-estimate"
-              className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm"
+              className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm"
             >
-              <div className="font-medium text-amber-900">{t('estimate_title')}</div>
-              <p className="mt-1 text-amber-800">
+              <div className="font-medium text-warning">{t('estimate_title')}</div>
+              <p className="mt-1 text-warning">
                 {estimate.months > 0
                   ? t('estimate_breakdown', {
                       months: estimate.months,

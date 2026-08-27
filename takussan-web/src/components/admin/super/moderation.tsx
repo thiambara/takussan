@@ -7,7 +7,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CheckCircle2, EyeOff, ShieldCheck, Trash2, XCircle } from 'lucide-react';
-import { DataTable, StatCard, StatusBadge, type DataTableColumn } from '@/components/console';
+import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
+import { DataTable, FilterBar, StatCard, StatusBadge, type DataTableColumn } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -32,7 +33,11 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 const ALL = '__all__';
 
-type AgencyOption = { id: number; name: string };
+/**
+ * Les paramètres d'URL que la barre pose. `sort` en fait partie : il est présenté ici comme un
+ * filtre (« Ancienneté »), et « réinitialiser » doit donc le reprendre aussi.
+ */
+const PARAMS_DE_FILTRE = ['filter[type]', 'filter[status]', 'filter[agency_id]', 'sort'] as const;
 
 /**
  * TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.moderation.*`).
@@ -64,8 +69,15 @@ const SORT_VALUES = [
  */
 const SENTINELLE_SANS_ITEM = 'moderation:no-item-selected';
 
-export function ModerationFilters({ agencies }: { agencies: AgencyOption[] }) {
+/**
+ * TCK-363 — le sélecteur d'agence recevait 50 agences en prop, chargées au montage de la page,
+ * et n'annonçait jamais ce qu'il coupait. Il est remplacé par `AgencyCombobox` (recherche
+ * serveur, chargement à la demande). La barre porte désormais le compte de résultats et la
+ * remise à zéro, qu'aucune barre de la console n'avait.
+ */
+export function ModerationFilters({ total }: { total?: number }) {
   const t = useTranslations('superAdmin.moderation');
+  const tFiltres = useTranslations('console.filterBar');
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentType = (searchParams.get('filter[type]') as ModerationItemType | null) ?? ALL;
@@ -84,9 +96,23 @@ export function ModerationFilters({ agencies }: { agencies: AgencyOption[] }) {
     [router, searchParams],
   );
 
+  const filtresPoses = PARAMS_DE_FILTRE.some((cle) => (searchParams.get(cle) ?? '') !== '');
+  // TCK-363 (D8) — le bouton est actif dès que le geste FERAIT quelque chose : `reinitialiser()`
+  // vide l'URL, donc la pagination aussi. Sur `?page=7` sans filtre, un bouton désactivé disait
+  // à l'utilisateur qu'il était déjà à l'état par défaut alors qu'il était page 7.
+  const surPageInterieure = (searchParams.get('page') ?? '1') !== '1';
+  const reinitialiser = useCallback(() => router.replace('?'), [router]);
+
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-card p-4 ring-1 ring-border md:flex-row md:items-end md:justify-between">
-      <div className="flex flex-wrap gap-2" aria-label={t('typesAria')}>
+    <FilterBar
+      data-testid="super-admin-moderation-filters"
+      controlsClassName="md:grid-cols-2 xl:grid-cols-4"
+      resultCount={total === undefined ? undefined : tFiltres('results', { count: total })}
+      onReset={reinitialiser}
+      resetLabel={tFiltres('reset')}
+      resetDisabled={!filtresPoses && !surPageInterieure}
+    >
+      <div className="flex flex-wrap items-center gap-2" aria-label={t('typesAria')}>
         {TYPE_VALUES.map((option) => {
           const active = currentType === option.value;
           return (
@@ -103,30 +129,24 @@ export function ModerationFilters({ agencies }: { agencies: AgencyOption[] }) {
         })}
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <FilterSelect
-          label={t('status')}
-          value={currentStatus}
-          options={STATUS_VALUES.map(({ value, key }) => ({ value, label: t(key) }))}
-          onChange={(value) => updateParam('filter[status]', value)}
-        />
-        <FilterSelect
-          label={t('agency')}
-          value={currentAgency}
-          options={[
-            { value: ALL, label: t('allAgencies') },
-            ...agencies.map((agency) => ({ value: String(agency.id), label: agency.name })),
-          ]}
-          onChange={(value) => updateParam('filter[agency_id]', value)}
-        />
-        <FilterSelect
-          label={t('age')}
-          value={currentSort}
-          options={SORT_VALUES.map(({ value, key }) => ({ value, label: t(key) }))}
-          onChange={(value) => updateParam('sort', value)}
-        />
-      </div>
-    </div>
+      <FilterSelect
+        label={t('status')}
+        value={currentStatus}
+        options={STATUS_VALUES.map(({ value, key }) => ({ value, label: t(key) }))}
+        onChange={(value) => updateParam('filter[status]', value)}
+      />
+      <AgencyCombobox
+        value={currentAgency === ALL ? '' : currentAgency}
+        onChange={(next) => updateParam('filter[agency_id]', next || ALL)}
+        label={t('agency')}
+      />
+      <FilterSelect
+        label={t('age')}
+        value={currentSort}
+        options={SORT_VALUES.map(({ value, key }) => ({ value, label: t(key) }))}
+        onChange={(value) => updateParam('sort', value)}
+      />
+    </FilterBar>
   );
 }
 

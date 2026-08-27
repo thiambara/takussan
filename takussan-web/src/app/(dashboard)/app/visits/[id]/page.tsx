@@ -1,9 +1,14 @@
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { VisitDetail } from '@/components/visits/VisitDetail';
 
-export const metadata = {
-  title: 'Visite',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.visitDetail');
+  return { title: t('metaTitle') };
+}
 
 export default async function Page({
   params,
@@ -12,9 +17,15 @@ export default async function Page({
 }) {
   await getMeAction();
   const { id } = await params;
+  const visitId = Number(id);
+
+  // Aucune garde n'existait ici : `Number('abc')` donnait `NaN`, transmis tel quel à `VisitDetail`
+  // qui interrogeait `/api/property-visits/NaN`.
+  if (!Number.isFinite(visitId) || visitId <= 0) notFound();
+
   return (
     <div className="space-y-6">
-      <VisitDetail id={Number(id)} />
+      <VisitDetail id={visitId} />
     </div>
   );
 }

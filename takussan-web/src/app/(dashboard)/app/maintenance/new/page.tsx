@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { MaintenanceNewLauncher } from '@/components/maintenance';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
 
 interface PageProps {
   readonly searchParams: Promise<{ property?: string; lease?: string }>;
@@ -29,10 +30,7 @@ export default async function Page({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <PageHeader title={t('title')} description={t('subtitle')} />
       <MaintenanceNewLauncher
         initialPropertyId={Number.isInteger(propertyId) && propertyId > 0 ? propertyId : null}
         initialLeaseId={Number.isInteger(leaseId) && leaseId > 0 ? leaseId : null}

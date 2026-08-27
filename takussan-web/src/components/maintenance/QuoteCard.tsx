@@ -71,9 +71,9 @@ export function QuoteCard({ request }: { readonly request: MaintenanceRequest })
       ) : null}
 
       {request.status === 'rejected' && request.quote_rejection_reason && (
-        <div className="mt-4 rounded-lg bg-red-50 p-3">
-          <p className="text-sm font-medium text-red-800">{t('rejection_reason')}</p>
-          <p className="mt-1 text-sm text-red-700">{request.quote_rejection_reason}</p>
+        <div className="mt-4 rounded-lg bg-destructive/10 p-3">
+          <p className="text-sm font-medium text-destructive">{t('rejection_reason')}</p>
+          <p className="mt-1 text-sm text-destructive">{request.quote_rejection_reason}</p>
         </div>
       )}
     </div>

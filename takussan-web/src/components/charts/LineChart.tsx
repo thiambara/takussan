@@ -1,5 +1,8 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { formatNumber } from '@/lib/format';
+import { pastilleLegende, traitSerie } from './palette';
 import type { ChartData } from './types';
 
 const PADDING = { top: 16, right: 16, bottom: 28, left: 40 };
@@ -20,6 +23,9 @@ type Props = {
 export function LineChart({ data, title, unit, className }: Props) {
   // Le hook se place AVANT la sortie anticipée (React Compiler, ADR-0015).
   const t = useTranslations('charts');
+  // L'axe suit la locale ACTIVE, jamais une locale écrite dans le code (TCK-374).
+  const brute = useLocale();
+  const locale = isLocale(brute) ? brute : DEFAULT_LOCALE;
   const { labels, series } = data;
   if (labels.length === 0 || series.length === 0) {
     return (
@@ -35,6 +41,8 @@ export function LineChart({ data, title, unit, className }: Props) {
   const allValues = series.flatMap((s) => s.values);
   const max = Math.max(...allValues, 0);
   const min = Math.min(...allValues, 0);
+  // Le plancher à 1 protège la division par zéro de `toPath`, et rien d'autre : il ne remonte pas
+  // jusqu'aux étiquettes, cf. `gridLines`.
   const range = Math.max(max - min, 1);
 
   const innerW = VIEW_W - PADDING.left - PADDING.right;
@@ -51,11 +59,24 @@ export function LineChart({ data, title, unit, className }: Props) {
       })
       .join(' ');
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((p) => {
+  /**
+   * Les graduations de l'axe des ordonnées.
+   *
+   * ⚠ Même correctif que `BarChart`, et le défaut y était PIRE (revue de TCK-374, défaut D5) :
+   * `range` plancherait à 1 sur une série plate, et les cinq graduations rendaient
+   * **`['0', '0', '1', '1', '1']`** — quatre étiquettes en double, sur un mois de revenus à zéro.
+   * L'étendue RÉELLE gouverne donc les étiquettes, et deux graduations qui portent le même texte
+   * une fois arrondies sont réduites à une. Le raisonnement complet est dans `BarChart.tsx`.
+   */
+  const etendue = max - min;
+  const gridLines = (etendue > 0 ? [0, 0.25, 0.5, 0.75, 1] : [0]).reduce<
+    { y: number; label: string }[]
+  >((acc, p) => {
     const y = PADDING.top + innerH * (1 - p);
-    const label = (min + range * p).toLocaleString('fr-FR', { maximumFractionDigits: 0 });
-    return { y, label };
-  });
+    const label = formatNumber(min + etendue * p, locale, { maximumFractionDigits: 0 });
+    if (acc.some((g) => g.label === label)) return acc;
+    return [...acc, { y, label }];
+  }, []);
 
   return (
     <figure className={className} data-testid="line-chart">
@@ -109,7 +130,7 @@ export function LineChart({ data, title, unit, className }: Props) {
           <path
             key={s.name}
             d={toPath(s.values)}
-            className={s.color ?? defaultColor(idx)}
+            className={s.color ?? traitSerie(idx)}
             fill="none"
             strokeWidth={2}
           />
@@ -119,21 +140,11 @@ export function LineChart({ data, title, unit, className }: Props) {
       <ul className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
         {series.map((s, idx) => (
           <li key={s.name} className="flex items-center gap-1.5">
-            <span className={`inline-block h-2 w-2 rounded-full ${legendDot(idx)}`} aria-hidden />
+            <span className={`inline-block h-2 w-2 rounded-full ${pastilleLegende(idx)}`} aria-hidden />
             <span>{s.name}</span>
           </li>
         ))}
       </ul>
     </figure>
   );
-}
-
-function defaultColor(idx: number): string {
-  const palette = ['stroke-emerald-500', 'stroke-sky-500', 'stroke-amber-500', 'stroke-rose-500'];
-  return palette[idx % palette.length];
-}
-
-function legendDot(idx: number): string {
-  const palette = ['bg-emerald-500', 'bg-sky-500', 'bg-amber-500', 'bg-rose-500'];
-  return palette[idx % palette.length];
 }

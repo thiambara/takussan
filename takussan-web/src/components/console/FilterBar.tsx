@@ -22,6 +22,8 @@ interface FilterBarProps {
   readonly className?: string;
   /** Classes de la grille des contrôles — c'est ici qu'un écran choisit son nombre de colonnes. */
   readonly controlsClassName?: string;
+  /** Même passe-plat que celui de `DataState` : la barre reste désignable par un test. */
+  readonly 'data-testid'?: string;
 }
 
 /**
@@ -40,9 +42,13 @@ export function FilterBar({
   resetDisabled = false,
   className,
   controlsClassName,
+  'data-testid': dataTestId,
 }: FilterBarProps) {
   return (
-    <section className={cn('rounded-xl bg-card p-4 ring-1 ring-border', className)}>
+    <section
+      className={cn('rounded-xl bg-card p-4 ring-1 ring-border', className)}
+      data-testid={dataTestId}
+    >
       <div className={cn('grid gap-2 md:grid-cols-3 xl:grid-cols-4', controlsClassName)}>
         {children}
       </div>

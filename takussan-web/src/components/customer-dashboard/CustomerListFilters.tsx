@@ -169,7 +169,7 @@ function TagFilter({
         className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors ${
           activeTags.length > 0
             ? 'border-primary/40 bg-primary/5 text-primary'
-            : 'border-border bg-white text-foreground hover:bg-card'
+            : 'border-border bg-card text-foreground hover:bg-card'
         }`}
       >
         <Tag className="size-3.5" aria-hidden="true" />
@@ -186,7 +186,7 @@ function TagFilter({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-border bg-white py-1.5 shadow-md">
+        <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-border bg-card py-1.5 shadow-md">
           <div className="px-3 pb-1.5 pt-1">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t('customerTags')}
@@ -206,7 +206,7 @@ function TagFilter({
                       className={`flex size-4 shrink-0 items-center justify-center rounded border ${
                         active
                           ? 'border-primary bg-primary text-primary-foreground'
-                          : 'border-border bg-white'
+                          : 'border-border bg-card'
                       }`}
                       aria-hidden="true"
                     >
@@ -231,7 +231,7 @@ function TagFilter({
                   onClear();
                   setOpen(false);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
               >
                 <X className="size-3.5" />
                 {t('clearAll')}

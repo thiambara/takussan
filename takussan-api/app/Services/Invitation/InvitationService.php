@@ -90,12 +90,12 @@ class InvitationService
         // Dedup guard: a pending `sent` invitation for the same
         // (email, invitable_type, agency_id) tuple is a 409 — the caller
         // is supposed to call `resend()` on the existing one instead.
-        $existing = Invitation::query()
-            ->where('email', $email)
-            ->where('status', InvitationStatus::Sent->value)
-            ->where('invitable_type', $invitableType)
-            ->where('agency_id', $agencyId)
-            ->first();
+        //
+        // TCK-368 — le couple gardé s'écrit UNE fois, dans
+        // {@see self::liveSlotOccupant()} : la relance interroge le même
+        // créneau avant de ressusciter une ligne périmée, et deux
+        // expressions du même couple auraient divergé.
+        $existing = $this->liveSlotOccupant($email, $invitableType, $agencyId);
 
         if ($existing !== null) {
             // 409 Conflict (HttpException, picked up by the framework's
@@ -248,37 +248,84 @@ class InvitationService
     /**
      * Resend: regenerate token, push `expires_at` forward by the default
      * TTL, clear the reminder marker (so the recipient gets one again at
-     * J+2 from "now") and re-send the email. Only valid on `sent` rows.
+     * J+2 from "now") and re-send the email.
+     *
+     * ## Recevable sur `sent` ET sur `expired` (TCK-368)
+     *
+     * Une invitation périmée devait auparavant être RÉ-ÉMISE depuis
+     * « Inviter » : `send()` ne voyant aucune ligne `sent`, il en créait une
+     * SECONDE, et le destinataire se retrouvait avec deux lignes pour une
+     * seule invitation (mesuré : `POST /api/invitations` → 201, deux lignes
+     * pour le même courriel). La relance ressuscite donc la ligne existante
+     * plutôt que d'en laisser naître une voisine — même décision que
+     * `SuperAdminCooptationService::resendInvitation()`,
+     * désormais prise ICI pour que les deux surfaces en héritent.
+     *
+     * La résurrection est la SEULE branche qui augmente le nombre de lignes
+     * `sent` d'un destinataire : elle est gardée par
+     * {@see self::assertSlotIsFree()} (409 nommant la ligne survivante)
+     * plutôt que de ressusciter à côté d'une vivante.
+     *
+     * ## Bascule, courriel et journal sont dans UNE transaction
+     *
+     * Le jeton était réécrit dans une transaction qui COMMITAIT, PUIS le
+     * courriel partait, PUIS le journal s'écrivait. Mesuré avec un envoi en
+     * échec : jeton tourné, statut `sent`, ZÉRO entrée d'audit — l'ancien
+     * lien du destinataire mort, aucun nouveau parti, et l'écran affichant
+     * une invitation « en attente » que personne n'a reçue. Le compromis
+     * inverse (commit en échec après un envoi réussi) donne un jeton absent
+     * de la base : le destinataire le voit en 404 et l'inviteur le corrige
+     * en relançant. *Le premier défaut est silencieux, le second se voit* —
+     * c'est ce qui départage (TCK-367, reconduit ici).
      */
     public function resend(Invitation $invitation, User $actor): Invitation
     {
-        if ($invitation->status !== InvitationStatus::Sent) {
+        if (! in_array($invitation->status, [InvitationStatus::Sent, InvitationStatus::Expired], true)) {
             throw ValidationException::withMessages([
                 'status' => [__('invitations.errors.cannot_resend')],
             ])->status(422);
         }
 
-        DB::transaction(function () use ($invitation): void {
-            $invitation->forceFill([
+        return DB::transaction(function () use ($invitation, $actor): Invitation {
+            // Relire SOUS le verrou : le modèle vient du route-model binding,
+            // donc d'avant la transaction. `lockForUpdate()` sur la ligne
+            // elle-même ferme la course avec les écrivains qui ne passent pas
+            // par ici (le cron `invitations:expire`, la révocation).
+            /** @var Invitation $fraiche */
+            $fraiche = Invitation::query()
+                ->whereKey($invitation->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($fraiche->status === InvitationStatus::Expired) {
+                $this->assertSlotIsFree($fraiche);
+            } elseif ($fraiche->status !== InvitationStatus::Sent) {
+                // La ligne a changé d'état entre le binding et le verrou.
+                throw ValidationException::withMessages([
+                    'status' => [__('invitations.errors.cannot_resend')],
+                ])->status(422);
+            }
+
+            $fraiche->forceFill([
+                'status' => InvitationStatus::Sent->value,
                 'token' => $this->generateUniqueToken(),
                 'expires_at' => now()->addDays(self::DEFAULT_TTL_DAYS),
                 'last_reminded_at' => null,
             ])->save();
+
+            $existingUser = User::query()->where('email', $fraiche->email)->first();
+            Mail::to($fraiche->email)
+                ->locale($this->preferredLocale($existingUser, $fraiche))
+                ->send(new InvitationMailable($fraiche));
+
+            activity('Invitation')
+                ->performedOn($fraiche)
+                ->causedBy($actor)
+                ->event('invitation_resent')
+                ->log('invitation_resent');
+
+            return $fraiche;
         });
-
-        $invitation->refresh();
-        $existingUser = User::query()->where('email', $invitation->email)->first();
-        Mail::to($invitation->email)
-            ->locale($this->preferredLocale($existingUser, $invitation))
-            ->send(new InvitationMailable($invitation));
-
-        activity('Invitation')
-            ->performedOn($invitation)
-            ->causedBy($actor)
-            ->event('invitation_resent')
-            ->log('invitation_resent');
-
-        return $invitation;
     }
 
     /**
@@ -588,6 +635,73 @@ class InvitationService
             ])
             ->event('sp_collaboration_added')
             ->log('sp_collaboration_added');
+    }
+
+    /**
+     * TCK-368 — la ligne `sent` qui occupe le créneau de dédup.
+     *
+     * Le couple est celui de `send()` : (email, invitable_type, agency_id).
+     * `Builder::where($col, null)` se traduit en `IS NULL` — les créneaux
+     * sans profil cible ni agence (cooptation) sont donc comparés
+     * correctement, ce qu'un `= NULL` littéral n'aurait jamais fait.
+     */
+    protected function liveSlotOccupant(
+        string $email,
+        ?string $invitableType,
+        int|string|null $agencyId,
+        ?int $exceptId = null,
+    ): ?Invitation {
+        $query = Invitation::query()
+            ->where('email', CaseInsensitive::fold($email))
+            ->where('status', InvitationStatus::Sent->value)
+            ->where('invitable_type', $invitableType)
+            ->where('agency_id', $agencyId);
+
+        if ($exceptId !== null) {
+            $query->whereKeyNot($exceptId);
+        }
+
+        return $query->first();
+    }
+
+    /**
+     * TCK-368 — refuse de ressusciter une invitation SUPPLANTÉE.
+     *
+     * Appelée seulement sur la branche `expired → sent` de {@see self::resend()},
+     * la seule qui augmente le nombre de lignes `sent` d'un destinataire.
+     * Relancer une ligne déjà `sent` n'en crée aucune, même périmée : le
+     * compte reste à un.
+     *
+     * Refuser vaut mieux que réutiliser silencieusement la ligne vivante :
+     * l'opérateur a cliqué sur une ligne précise, et un 409 qui NOMME la
+     * survivante lui dit laquelle relancer.
+     *
+     * ⚠ La garde ferme la séquence (l'opérateur ré-invite, puis relance la
+     * vieille ligne), PAS la course : `send()` fait un INSERT, et aucun
+     * verrou de ligne ne bloque un INSERT. La surface de cooptation ajoute
+     * pour cela un verrou consultatif porté par l'e-mail
+     * (`SuperAdminCooptationService::lockCooptationSlot()`) ; le généraliser
+     * ici demande de le retirer de là-bas — un seul point de sérialisation,
+     * pas deux — ce qui déborde de TCK-368. Ce reste est celui que `send()`
+     * portait déjà avant ce ticket.
+     *
+     * @throws HttpException 409
+     */
+    protected function assertSlotIsFree(Invitation $invitation): void
+    {
+        $vivante = $this->liveSlotOccupant(
+            (string) $invitation->email,
+            $invitation->invitable_type,
+            $invitation->agency_id,
+            (int) $invitation->getKey(),
+        );
+
+        if ($vivante !== null) {
+            throw new HttpException(
+                409,
+                __('invitations.errors.duplicate_pending', ['id' => $vivante->id]),
+            );
+        }
     }
 
     /**

@@ -1,83 +1,200 @@
 'use client';
 
-import Link from 'next/link';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Building2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { fetchAdminKycQueue } from '@/lib/queries/super-admin';
-import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { StatusBadge } from '@/components/kyc/kyc-components';
-import { PageHeader } from '@/components/console';
+import { ShieldCheck } from 'lucide-react';
 
-export default function Page() {
+import { DataState, PageHeader, Pagination, StatCard } from '@/components/console';
+import { EmptyState } from '@/components/feedback';
+import { KycDecisionPanel, KycQueueTable } from '@/components/admin/super/kyc-queue';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import type { ApiError } from '@/lib/api';
+import { fetchAdminKycQueue } from '@/lib/queries/super-admin';
+import { queueCountQueryOptions } from '@/lib/queries/super-admin-queues';
+import type { KycDossier, KycDossierStatus, KycDossiersResponse } from '@/types/super-admin';
+
+/**
+ * Les quatre états du dossier (`KycDossierStatus` côté API). Patron « la donnée porte la clé »
+ * (TCK-286) : la table est hors composant, donc hors de portée de `useTranslations`.
+ *
+ * Il n'y a **pas** d'option « tous » : `filter[status]` du back prend une valeur, et la file par
+ * défaut est celle des dossiers à instruire — c'est le seul état où une décision est possible.
+ */
+const STATUTS: readonly KycDossierStatus[] = ['submitted', 'pending', 'verified', 'rejected'];
+
+const STATUT_PAR_DEFAUT: KycDossierStatus = 'submitted';
+
+const PAR_PAGE = 20;
+
+function statutDepuisUrl(valeur: string | null): KycDossierStatus {
+  return STATUTS.includes(valeur as KycDossierStatus) ? (valeur as KycDossierStatus) : STATUT_PAR_DEFAUT;
+}
+
+export default function SuperAdminKycPage() {
   const t = useTranslations('superAdmin.pages.kyc');
-  const tPagination = useTranslations('console.pagination');
-  const [page, setPage] = useState(1);
-  const query = useQuery({
-    queryKey: ['super-admin', 'kyc', page],
-    queryFn: () => fetchAdminKycQueue({ page, perPage: 20 }),
+  const tStatus = useTranslations('kyc.status');
+  const messageErreur = useMessageErreurApi();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [selected, setSelected] = useState<KycDossier | null>(null);
+
+  /*
+   * TCK-362 (AC5) — le filtre et la page vivent dans l'URL, pas dans un `useState`.
+   *
+   * C'est la seule forme qui rende la vue partageable ET rejouée au rechargement : un état React
+   * se perd au F5, et deux opérateurs qui s'échangent « regarde les rejetés » s'échangeraient une
+   * URL qui n'affiche pas les rejetés.
+   */
+  const statut = statutDepuisUrl(searchParams?.get('filter[status]') ?? null);
+  const page = Number.parseInt(searchParams?.get('page') ?? '1', 10) || 1;
+
+  const params = useMemo(() => ({ status: statut, page, perPage: PAR_PAGE }), [statut, page]);
+
+  const query = useQuery<KycDossiersResponse, ApiError>({
+    queryKey: ['super-admin', 'kyc', 'queue', params],
+    queryFn: () => fetchAdminKycQueue(params),
+    staleTime: 15_000,
   });
+
+  /*
+   * Le compteur des dossiers À INSTRUIRE, et non le total de la page courante.
+   *
+   * ⚠ **La clé de cache n'est pas déclarée ici, et ne doit pas l'être.** C'est
+   * `queueCountQueryOptions('kyc-pending')` (TCK-360) qui la porte, parce que le MÊME nombre est
+   * affiché par le badge de `SuperAdminSidebar` — monté juste à côté par `SuperAdminShell`, sur
+   * cette page même. Une `queryKey` propre à cet écran, c'était mesuré : DEUX GET identiques
+   * `per_page=1` à chaque montage, et surtout deux entrées de cache aux cadences différentes
+   * (badge : `refetchInterval` 60 s ; tuile : aucun) — donc deux nombres pour la même chose, dans
+   * deux coins du même écran.
+   *
+   * Une requête distincte de la file (plutôt que `meta.total`) reste juste : ce chiffre doit
+   * rester vrai pendant que l'opérateur regarde les vérifiés — c'est précisément là qu'il a besoin
+   * de savoir combien reste à faire. `per_page=1` : seul `meta.total` est lu.
+   *
+   * Elle vit sous le préfixe `['super-admin', 'kyc']`, comme la file : la décision les invalide
+   * toutes les deux d'un seul appel (AC4) — et le badge avec, puisque c'est la même entrée.
+   */
+  const countQuery = useQuery<number, ApiError>(queueCountQueryOptions('kyc-pending'));
 
   const dossiers = query.data?.data ?? [];
   const meta = query.data?.meta;
 
+  const majUrl = useCallback(
+    (mutation: (params: URLSearchParams) => void) => {
+      const next = new URLSearchParams(searchParams?.toString() ?? '');
+      mutation(next);
+      const qs = next.toString();
+      router.replace(qs ? `?${qs}` : '?');
+    },
+    [router, searchParams],
+  );
+
+  const changeStatut = (valeur: KycDossierStatus) => {
+    setSelected(null);
+    majUrl((next) => {
+      next.set('filter[status]', valeur);
+      next.delete('page');
+    });
+  };
+
+  const changePage = (valeur: number) => {
+    setSelected(null);
+    majUrl((next) => next.set('page', String(valeur)));
+  };
+
+  const optionsStatut = STATUTS.map((valeur) => ({ value: valeur, label: tStatus(valeur) }));
+
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={t('title')}
-        description={t('subtitle')}
-      />
+      <PageHeader title={t('title')} description={t('subtitle')} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('submittedFiles')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {query.isLoading ? <Skeleton className="h-28" /> : null}
-          {!query.isLoading && dossiers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('empty')}</p>
-          ) : null}
-          {dossiers.map((dossier) => (
-            <div key={dossier.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Building2 className="size-4 text-primary" aria-hidden="true" />
-                  <p className="font-medium text-foreground">{t('agency', { id: String(dossier.subject_id) })}</p>
-                  <StatusBadge status={dossier.status} />
-                </div>
-                <p className="mt-1 text-sm text-muted-foreground">{t('submittedOn', { date: formatDate(dossier.submitted_at) })}</p>
-              </div>
-              <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/agencies/${dossier.subject_id}`}>
-                {t('open')}
-              </Link>
-            </div>
-          ))}
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
-              <ChevronLeft className="mr-1 size-4" aria-hidden="true" />
-              {tPagination('previous')}
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              {tPagination('positionSlash', {
-                page: String(meta?.current_page ?? page),
-                lastPage: String(meta?.last_page ?? 1),
-              })}
-            </span>
-            <Button type="button" variant="outline" size="sm" disabled={!meta || page >= meta.last_page} onClick={() => setPage((value) => value + 1)}>
-              {tPagination('next')}
-              <ChevronRight className="ml-1 size-4" aria-hidden="true" />
-            </Button>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label={t('statPending')}
+          value={countQuery.data ?? 0}
+          loading={countQuery.isLoading}
+          icon={<ShieldCheck className="size-4" aria-hidden="true" />}
+        />
+        <StatCard
+          label={t('statFiltered', { status: tStatus(statut) })}
+          value={meta?.total ?? 0}
+          loading={query.isLoading}
+        />
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-3">
+        <Select
+          value={statut}
+          onValueChange={(valeur) => changeStatut((valeur ?? STATUT_PAR_DEFAUT) as KycDossierStatus)}
+          items={optionsStatut}
+        >
+          <SelectTrigger aria-label={t('statusAria')} className="h-10 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {optionsStatut.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <DataState
+        data-testid="kyc-loading"
+        loading={query.isLoading}
+        error={query.isError ? messageErreur(query.error, t('error')) : null}
+        isEmpty={dossiers.length === 0}
+        skeletonRowClassName="h-16"
+        onRetry={() => query.refetch()}
+        retryLabel={t('retry')}
+        emptyState={
+          <EmptyState
+            icon={<ShieldCheck className="size-8" aria-hidden="true" />}
+            title={t('emptyTitle')}
+            description={t('emptyDescription')}
+          />
+        }
+      >
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-4">
+            <KycQueueTable
+              dossiers={dossiers}
+              selectedId={selected?.id ?? null}
+              onSelect={setSelected}
+            />
+            <Pagination
+              page={meta?.current_page ?? page}
+              lastPage={meta?.last_page ?? 1}
+              onChange={changePage}
+            />
           </div>
-        </CardContent>
-      </Card>
+          {/*
+            `key` — et pas un effet de remise à zéro : passer d'un dossier à l'autre doit vider le
+            motif saisi. Cf. le docblock de `KycDecisionPanel`.
+
+            ⚠ Cette seule expression empêche qu'un motif saisi pour un dossier parte avec la
+            décision d'un AUTRE. Elle n'était gardée par rien : la retirer laissait 43 tests verts,
+            faute d'un seul qui sélectionne deux dossiers de suite. Elle l'est désormais par
+            « change de dossier VIDE le motif saisi » (`__tests__/page.test.tsx`).
+          */}
+          <KycDecisionPanel
+            key={selected?.id ?? 'aucun'}
+            dossier={selected}
+            onDone={() => setSelected(null)}
+          />
+        </div>
+      </DataState>
     </div>
   );
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }

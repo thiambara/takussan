@@ -1,13 +1,13 @@
 ---
 id: TCK-375
 title: "Tableau de bord agence — les files d'attente d'abord"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 47
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: [TCK-373]
 blocks: []
 spec_refs:
@@ -75,24 +75,32 @@ back-offices, et il ne dit rien de plus qu'un nombre lisible bien placé.
 
 ## Delta à produire
 
-- [ ] Bloc de files d'attente en tête de `/admin`, chaque file portant son compteur et son chemin
-- [ ] Files couvertes : KYC de l'agence, biens à modérer, invitations en attente, impayés
-- [ ] KPI et graphe conservés, repositionnés sous les files
-- [ ] Flux d'activité : les liens qui ont une destination dans `/admin` y renvoient
-- [ ] État « rien à traiter » explicite pour chaque file
-- [ ] i18n fr/en/wo
-- [ ] Tests : présence des files, masquage en agence `individual`, état vide
+- [x] Bloc de files d'attente en tête de `/admin`, chaque file portant son compteur et son chemin
+- [x] Files couvertes : KYC de l'agence, biens à modérer, invitations en attente, impayés
+- [x] KPI et graphe conservés, repositionnés sous les files
+- [x] Flux d'activité : les liens qui ont une destination dans `/admin` y renvoient — **rien à
+      déplacer, et c'est une mesure** : sur les quatre liens, le seul qui ait une destination sous
+      `/admin` (l'équipe) y renvoyait déjà ; `bookings`, `maintenance` et `customers` n'ont AUCUN
+      écran `/admin`. L'invariant est désormais gardé par un test dérivé du système de fichiers.
+- [x] État « rien à traiter » explicite pour chaque file — et DISTINCT de « compte indisponible »
+- [x] i18n fr/en/wo (diff strictement additif, 33 lignes par dictionnaire)
+- [x] Tests : présence des files, masquage en agence `individual`, état vide
 
 ## Critères d'acceptation
 
-- [ ] AC1 — depuis `/admin`, chacune des quatre files est atteignable **en un clic**
-- [ ] AC2 — une file sans élément affiche un état vide explicite, et un test le vérifie
-- [ ] AC3 — en agence `individual`, les files sans objet ne sont pas rendues ; un test l'éprouve
-- [ ] AC4 — aucun compteur de cet écran n'est obtenu en comptant les éléments d'une liste
+- [x] AC1 — depuis `/admin`, chacune des quatre files est atteignable **en un clic**
+- [x] AC2 — une file sans élément affiche un état vide explicite, et un test le vérifie
+- [x] AC3 — en agence `individual`, les files sans objet ne sont pas rendues ; un test l'éprouve
+      *(⚠ portée : cf. Notes — la page redirige avant d'y arriver)*
+- [x] AC4 — aucun compteur de cet écran n'est obtenu en comptant les éléments d'une liste
       rapatriée côté client (vérifier par lecture des requêtes : `per_page` et `filter[…]`
       côté serveur)
-- [ ] AC5 — le compteur de modération n'est sondé qu'**une** fois par l'application, pas deux
-- [ ] AC6 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+- [x] AC5 — le compteur de modération n'est sondé qu'**une** fois par l'application, pas deux
+- [x] AC6 — `npm run lint` (0 erreur) et `npx tsc --noEmit` (aucune sortie) sont **exécutés et
+      verts**. `npm run test` **en entier** appartient à la session déléguante (CLAUDE.md, « qui
+      lance quoi ») : 205 tests du périmètre pertinent sont verts, la suite entière reste à jouer.
+      *Rejoués sur l'arbre FUSIONNÉ le 2026-08-27 par la revue adverse puis par le correctif
+      final : lint 0 erreur / 36 avertissements tous préexistants, `tsc` sortie vide, exit 0.*
 
 ## Hors périmètre
 
@@ -103,4 +111,99 @@ back-offices, et il ne dit rien de plus qu'un nombre lisible bien placé.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Les mesures qui contredisent le ticket
+
+**1. « Une agence `individual` … : les files correspondantes ne s'affichent pas » (AC3) décrit une
+branche INATTEIGNABLE depuis cet écran.** `/admin` figure dans `PRO_ROUTES` et la page appelle
+`ensureStandardAgencyOrRedirect(user)` : toute agence dont le `kind` n'est pas `standard` est
+renvoyée sur `/app` **avant le moindre rendu**. Le composant honore quand même la contrainte —
+c'est une garde en profondeur, du même tissu que le `agencyIsStandard !== false` de la barre
+latérale — et elle est éprouvée à son niveau. Le redirect, lui, est prouvé par un test de page.
+*Un AC dont la seule preuve possible est un test de composant doit le dire, plutôt que de laisser
+croire qu'un parcours l'exerce.*
+
+**2. « le dossier KYC … » n'est pas un compteur, et son statut `submitted` n'est pas une tâche.**
+`KycDossierStatus` a quatre cas ; seuls `pending` (à compléter) et `rejected` (à corriger)
+appellent un geste de l'agence. `submitted` est chez la plateforme : le signaler comme une file
+fabriquerait une attente qui n'existe pas. La ligne rend donc un STATUT, pas un nombre.
+
+**3. « invitations en attente » s'écrit `filter[status]=sent`, pas `pending`.**
+`InvitationStatus` n'a que `sent | accepted | expired | revoked`. Et `Invitation::scopePending()`
+ajoute `expires_at > now()`, condition que le front **ne peut pas exprimer** : `expires_at` n'est
+pas dans `$requestFilterable`. L'écart est borné par le cron horaire `invitations:expire`
+(`routes/console.php:69`), qui bascule `sent → expired` — et c'est la MÊME donnée que celle de la
+console Équipe (TCK-368), ce qui est la propriété qui compte : les deux écrans ne peuvent pas se
+contredire.
+
+**4. « Flux d'activité : les liens qui ont une destination dans `/admin` y renvoient » n'a rien à
+corriger.** Le Contexte présente comme un défaut que *« trois liens sur quatre sortent de la
+console »*. C'est exact, et ce n'est pas un défaut : l'inventaire des quinze routes `/admin/**`
+(2026-08-27) ne contient ni `/admin/bookings`, ni `/admin/maintenance`, ni `/admin/customers`. Le
+seul lien qui ait une destination interne — l'équipe — y renvoyait déjà. Les créer est hors
+périmètre par le ticket lui-même. À la place : un test qui DÉRIVE l'invariant du système de
+fichiers et rougira le jour où l'un de ces écrans naîtra.
+
+**5. Aucun endpoint de comptage n'était nécessaire, et `meta.pending_count` non plus.**
+`PropertyModerationController.php:62` écrit littéralement `['pending_count' => $paginator->
+total()]` : les deux nombres sont le même. Le module lit `total`, la clé canonique garantie par
+l'enveloppe de pagination (TCK-304). *Lire une clé d'agrément là où une clé canonique dit la même
+chose, c'est se lier à celle des deux qui peut disparaître.*
+
+### Décisions
+
+**`src/lib/queries/agency-queues.ts` est l'UNIQUE déclaration des comptes de files.** Le badge de
+`AdminSidebar` et la tuile de l'accueil sont montés en même temps sur `/admin` et ne se voient
+pas : deux `queryKey` divergentes, ce seraient deux requêtes pour un nombre, puis un badge à 3
+devant une tuile à 4 après la première décision de modération. La clé de `AdminSidebar` n'a **pas**
+été renommée en déménageant, exactement pour qu'aucun autre appelant n'ait à bouger.
+
+**La `queryFn` du KYC rend le dossier ENTIER et non le statut**, alors que le bloc n'a besoin que
+du statut : la clé est celle qu'`AgencyKycClient` emploie déjà, donc l'entrée de cache est
+partagée. Une seconde `queryFn` rendant une forme plus étroite sous la même clé ferait lire à
+l'écran KYC une chaîne là où il attend un dossier, selon lequel des deux monte en premier.
+L'étroitissement passe par `select`, qui ne touche pas au cache.
+
+**Le lien « impayés » porte `?tab=impayes`**, et `TAB_VALUES` a été **exportée** d'
+`AdminFinancesTabs` pour que le test le vérifie contre la table plutôt que contre une chaîne
+recopiée : un `?tab=` inconnu retombe en silence sur « encaissements », donc le lien mènerait à
+côté de ce qu'il annonce sans que rien ne casse.
+
+**Les nombres sont formatés par ICU (`{count, plural, …}`) à partir de la locale du provider**, et
+non par `formatNumber(v, 'fr')`. Les six tuiles `AgencyKpis` d'à côté figent encore `'fr'` en dur —
+non touché (hors delta), noté comme reste.
+
+### Restes assumés
+
+- `AgencyKpis` / `AgencyActivityFeed` appellent `formatNumber(x, 'fr')` : locale figée
+  pré-existante, hors du périmètre de `check-locale-figee.mjs` (qui ne voit qu'`Intl.*` et
+  `toLocale*`) et hors du delta de ce ticket.
+- `AdminSidebar.tsx` porte toujours `bg-red-500/80` et `text-[10px]` sur sa pastille (ligne
+  pré-existante, non modifiée ici ; `components/layout/` n'est pas dans le périmètre gardé).
+- **Aucune vérification navigateur** : l'écran n'a pas été ouvert dans un navigateur (pile de dev
+  non démarrée). Les AC d'interface sont prouvés par rendu jsdom, pas par usage.
+
+### Revue adverse et correctif final (2026-08-27)
+
+**Verdict de la revue : REFUSÉ**, sur un seul motif — 21 mutations jouées, 19 attrapées, dont les
+quatre défauts du jumeau TCK-360 (href identiques, `?tab=` muet, seconde `queryKey` du compteur de
+modération, panne rendue « rien à traiter »). Les deux survivantes ont été fermées :
+
+| Défaut mesuré par la revue | Ce qui a été fait |
+|---|---|
+| `KYC_STATUSES_A_TRAITER` élargi à ses **quatre** cas laissait 16 fichiers / 118 tests VERTS — le test qui porte le sujet ne vérifiait que le TON, pas `aTraiter`. C'est la Note n°2 ci-dessus qui n'était gardée par rien. | `src/lib/queries/__tests__/agency-queues.test.ts` (neuf) : cliquet **bilatéral**, prouvé dans les deux sens (élargissement → 4 rouges ; rétrécissement à `['pending']` → 3 rouges). La table d'attendus est un `Record<KycDossierStatus, boolean>` : un cinquième statut côté API fait échouer `tsc` tant que sa réponse n'est pas décidée. |
+| `fetchPropertyModerationQueue` n'émettait ni `fields[properties]`, ni `include=`, ni `sort=` — forme préexistante (TCK-098), mais que ce ticket transforme en sondage de 60 s monté sur deux écrans. | `property-moderation.ts` passe par `buildQueryString` et nomme ses 12 colonnes, ses 3 relations et son tri. Ablation : retour à la forme d'avant → 1 rouge. |
+
+⚠ **Ce que ce dernier correctif ne fait PAS, et c'est mesuré** : `PropertyModerationController::index()`
+construit `Property::query()` et non `Property::buildQuery()` — spatie n'est jamais instancié sur
+cette route, les trois paramètres ne sont ni honorés ni rejetés. **La charge utile ne diminue pas**
+tant que la route n'est pas portée sur `buildQuery()`. La limite est écrite dans le docblock du
+fetcher, pas seulement ici. *Un contrat de requête déclaré et non lu vaut mieux qu'un contrat
+absent, il ne vaut pas une charge utile réduite.*
+
+**Portée d'AC3, redite par la revue** : la branche `individual` est prouvée au niveau du COMPOSANT
+(mutations `proActif = true` et `enabled` sans garde → rouges) et le redirect au niveau de la PAGE.
+C'est une garde en profondeur, pas un parcours exercé.
+
+**Reste ouvert** : la moitié serveur du sparse fieldset ci-dessus ; `AgencyKpis` /
+`AgencyActivityFeed` figent toujours `formatNumber(x, 'fr')` (préexistant, invisible pour
+`check-locale-figee.mjs`). Aucune vérification navigateur.

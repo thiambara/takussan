@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Loader2, ShieldAlert } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Loader2, ShieldAlert } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
 
 import { useAuth } from '@/context/AuthContext';
+import { FilterBar, Pagination } from '@/components/console';
 import {
   Select,
   SelectContent,
@@ -23,6 +24,7 @@ import {
 import { ModerationQueueList } from './ModerationQueueList';
 import { ModerationDetail } from './ModerationDetail';
 
+import { useEtatUrl } from '@/hooks/useEtatUrl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
@@ -38,6 +40,19 @@ const SUBJECT_TYPE_KEYS: ReadonlyArray<{ key: string; value: string }> = [
   { key: 'user', value: 'App\\Models\\User' },
 ];
 
+/**
+ * Les clés d'URL portent le NOM DU FILTRE D'API, pas un alias.
+ *
+ * `/admin/team` et `/admin/users` avaient déjà tranché ainsi (`filter[role]`, `filter[status]`) :
+ * une URL qu'on lit dit alors ce que la requête demande, et il n'existe pas de table de
+ * correspondance à tenir entre deux vocabulaires.
+ */
+const P_STATUT = 'filter[moderation_status]';
+const P_SIGNALES = 'filter[reported]';
+const P_SUJET = 'filter[subject_type]';
+
+const PAR_PAGE = 20;
+
 export function ModerationWorkspace() {
   const t = useTranslations('admin.moderation.workspace');
   const messageErreur = useMessageErreurApi();
@@ -49,14 +64,18 @@ export function ModerationWorkspace() {
   }));
   const queryClient = useQueryClient();
 
-  const [status, setStatus] = useState<ModerationStatus | ''>('');
-  const [reported, setReported] = useState<boolean>(false);
-  const [subjectType, setSubjectType] = useState<string>('');
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  // TCK-376 — l'état vit dans l'URL, plus dans quatre `useState`. Un rechargement le gardait
+  // pour zéro écran ; un lien collé n'en transportait rien.
+  const url = useEtatUrl();
+  const status = url.lire(P_STATUT) as ModerationStatus | '';
+  const reported = url.lireBooleen(P_SIGNALES);
+  const subjectType = url.lire(P_SUJET);
+  const page = url.page;
+  const selectedId = Number.parseInt(url.lire('selected'), 10) || null;
 
   const queryKey = useMemo(
-    () => ['reviews-moderation', 'queue', { status, reported, subjectType }],
-    [status, reported, subjectType],
+    () => ['reviews-moderation', 'queue', { status, reported, subjectType, page }],
+    [status, reported, subjectType, page],
   );
 
   const { data, isLoading, isError, error } = useQuery({
@@ -66,24 +85,32 @@ export function ModerationWorkspace() {
         status: status || undefined,
         reported: reported || undefined,
         subjectType: subjectType || undefined,
+        page,
+        perPage: PAR_PAGE,
       }),
     enabled: Boolean(token),
   });
 
   const reviews = data?.data ?? [];
   const selected = reviews.find((r) => r.id === selectedId) ?? reviews[0] ?? null;
+  const meta = data?.meta;
 
   const onModerated = () => {
     queryClient.invalidateQueries({ queryKey: ['reviews-moderation'] });
-    setSelectedId(null);
+    url.selectionner(null);
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <FilterBar
+        controlsClassName="flex flex-wrap items-center gap-3"
+        resultCount={meta ? t('queued', { count: String(meta.pending_count) }) : undefined}
+      >
         <Select
           value={status || 'all'}
-          onValueChange={(value) => setStatus(value === 'all' ? '' : ((value ?? '') as ModerationStatus | ''))}
+          onValueChange={(value) =>
+            url.poserFiltres({ [P_STATUT]: value === 'all' ? null : (value ?? null) })
+          }
           items={statusOptions}
         >
           <SelectTrigger className="h-9" aria-label={t('statusAria')}>
@@ -97,7 +124,9 @@ export function ModerationWorkspace() {
         </Select>
         <Select
           value={subjectType || 'all'}
-          onValueChange={(value) => setSubjectType(value === 'all' ? '' : (value ?? ''))}
+          onValueChange={(value) =>
+            url.poserFiltres({ [P_SUJET]: value === 'all' ? null : (value ?? null) })
+          }
           items={subjectTypeOptions}
         >
           <SelectTrigger className="h-9" aria-label={t('subjectAria')}>
@@ -113,17 +142,12 @@ export function ModerationWorkspace() {
           <input
             type="checkbox"
             checked={reported}
-            onChange={(e) => setReported(e.target.checked)}
+            onChange={(e) => url.poserFiltres({ [P_SIGNALES]: e.target.checked ? '1' : null })}
             className="size-4 rounded border-input"
           />
           {t('reportedOnly')}
         </label>
-        {data?.meta ? (
-          <p className="ml-auto text-xs text-muted-foreground">
-            {t('queued', { count: String(data.meta.pending_count) })}
-          </p>
-        ) : null}
-      </div>
+      </FilterBar>
 
       {isLoading ? (
         <div className="flex items-center justify-center gap-2 rounded-xl bg-card p-12 text-sm text-muted-foreground">
@@ -137,16 +161,31 @@ export function ModerationWorkspace() {
       ) : reviews.length === 0 ? (
         <ModerationEmpty />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
-          <ModerationQueueList
-            reviews={reviews}
-            selectedId={selected?.id ?? null}
-            onSelect={(r: ModerationReview) => setSelectedId(r.id)}
-          />
-          {selected ? (
-            <ModerationDetail review={selected} onModerated={onModerated} />
+        <>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
+            <ModerationQueueList
+              reviews={reviews}
+              selectedId={selected?.id ?? null}
+              onSelect={(r: ModerationReview) => url.selectionner(r.id)}
+            />
+            {selected ? (
+              <ModerationDetail review={selected} onModerated={onModerated} />
+            ) : null}
+          </div>
+          {/*
+            `Pagination` ne rend rien à `lastPage <= 1` : l'écran d'une file courte est
+            exactement celui d'avant. La file LONGUE, elle, avait une fin inatteignable — la
+            requête ne portait aucun `page`, donc la première réponse était tout ce qui serait
+            jamais montré.
+          */}
+          {meta ? (
+            <Pagination
+              page={page}
+              lastPage={meta.last_page}
+              onChange={url.allerALaPage}
+            />
           ) : null}
-        </div>
+        </>
       )}
     </div>
   );

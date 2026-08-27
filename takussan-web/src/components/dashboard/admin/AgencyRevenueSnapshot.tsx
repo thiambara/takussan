@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { BarChart } from '@/components/charts/BarChart';
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 import { formatCurrency } from '@/lib/format';
 import { localeDateFns } from '@/lib/format/dateFnsLocale';
 import type { DashboardAgencyTimeseries } from '@/lib/queries/dashboard-agency';
@@ -39,7 +40,11 @@ function shortLabel(yyyymm: string, dfLocale: DateFnsLocale): string {
  */
 export function AgencyRevenueSnapshot({ timeseries }: Props) {
   const t = useTranslations('dashboard.agencyRevenue');
-  const dfLocale = localeDateFns(useLocale());
+  // ⚠ TCK-292 avait rebranché l'AXE sur la locale active — et laissé le TOTAL sur une locale écrite
+  // en dur, six lignes plus bas. Une correction s'arrête là où on la regarde ; c'est le même écran.
+  const brute = useLocale();
+  const locale = isLocale(brute) ? brute : DEFAULT_LOCALE;
+  const dfLocale = localeDateFns(locale);
 
   if (!timeseries || timeseries.months.length === 0) {
     return (
@@ -67,7 +72,7 @@ export function AgencyRevenueSnapshot({ timeseries }: Props) {
           {t('heading')}
         </h2>
         <p className="text-xs text-muted-foreground">
-          {t('total')} <span className="font-semibold text-foreground">{formatCurrency(total, 'fr')}</span>
+          {t('total')} <span className="font-semibold text-foreground">{formatCurrency(total, locale)}</span>
         </p>
       </header>
       <BarChart

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowUpRight, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -25,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   fetchAdminAgencyUpgradeRequests,
   type AdminAgencyUpgradeRequestRow,
@@ -60,7 +62,7 @@ const STATUS_FILTER_OPTIONS = [
 
 /**
  * Le statut de la demande → le ton du DS. Les quatre couleurs Tailwind faites main
- * (`bg-amber-100`, `bg-emerald-100`, `bg-red-100`, `bg-stone-200`) sont devenues quatre SENS ;
+ * (ambre 100, émeraude 100, rouge 100, pierre 200) sont devenues quatre SENS ;
  * la couleur se décide une fois, dans `StatusBadge`.
  */
 const STATUS_TONES: Record<AgencyUpgradeRequestStatus, StatusTone> = {
@@ -70,9 +72,22 @@ const STATUS_TONES: Record<AgencyUpgradeRequestStatus, StatusTone> = {
   revoked: 'neutral',
 };
 
+/** Un `?status=` inconnu retombe sur « toutes » plutôt que de filtrer sur une valeur absente. */
+function seedStatusFilter(value: string | null | undefined): AgencyUpgradeRequestStatus | 'all' {
+  const known = STATUS_FILTER_OPTIONS.some((option) => option.value === value);
+  return known ? (value as AgencyUpgradeRequestStatus | 'all') : 'all';
+}
+
 export default function AgencyUpgradeRequestsListPage() {
   const t = useTranslations('superAdmin.pages.upgradeRequests');
-  const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>('all');
+  const fmt = useFormatteurs();
+  const searchParams = useSearchParams();
+  // TCK-360 — la file « demandes d'upgrade » de l'accueil compte les `pending` ; le lien porte
+  // donc `?status=pending`, faute de quoi le clic mènerait à « toutes » et le compte affiché ne
+  // serait pas celui qu'on trouve en arrivant. Amorce seule : le filtre reste local ensuite.
+  const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>(
+    () => seedStatusFilter(searchParams?.get('status')),
+  );
   const [submittedFrom, setSubmittedFrom] = useState('');
   const [submittedTo, setSubmittedTo] = useState('');
   const [page, setPage] = useState(1);
@@ -154,7 +169,7 @@ export default function AgencyUpgradeRequestsListPage() {
       id: 'date',
       header: t('columns.date'),
       className: 'text-muted-foreground',
-      cell: (row) => formatDateTime(row.submitted_at),
+      cell: (row) => fmt.dateTime(row.submitted_at),
     },
     {
       id: 'status',
@@ -333,11 +348,4 @@ function elapsedDaysSince(submittedAt: string | null, now: number): number | nul
   const ms = now - new Date(submittedAt).getTime();
   if (ms < 0) return 0;
   return Math.floor(ms / (1000 * 60 * 60 * 24));
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(value),
-  );
 }

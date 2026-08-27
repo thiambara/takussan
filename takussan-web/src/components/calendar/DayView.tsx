@@ -35,8 +35,8 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
   });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
-      <div className="border-b border-stone-200 bg-stone-50 px-4 py-3 text-sm font-semibold capitalize text-stone-900">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="border-b border-border bg-muted/50 px-4 py-3 text-sm font-semibold capitalize text-foreground">
         {dayLabel}
       </div>
       {parsed.length === 0 ? (
@@ -47,7 +47,7 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
           description={t('empty_description')}
         />
       ) : (
-        <ul className="divide-y divide-stone-100">
+        <ul className="divide-y divide-border">
           {parsed.map(({ event, start }) => {
             const palette = paletteFor(event);
             const timeLabel = event.all_day
@@ -61,7 +61,7 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
                 <button
                   type="button"
                   onClick={() => onSelect(event)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-stone-50"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
                   data-testid={`calendar-event-row-${event.type}-${event.id}`}
                 >
                   <span
@@ -70,12 +70,12 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold uppercase text-stone-500">
+                      <span className="text-xs font-semibold uppercase text-muted-foreground">
                         {tCal(typeLabelKey(event.type))}
                       </span>
-                      <span className="text-xs font-medium text-stone-600">{timeLabel}</span>
+                      <span className="text-xs font-medium text-muted-foreground">{timeLabel}</span>
                     </div>
-                    <div className="truncate text-sm font-medium text-stone-900">{event.title}</div>
+                    <div className="truncate text-sm font-medium text-foreground">{event.title}</div>
                   </div>
                 </button>
               </li>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Admin\ListFailedJobsRequest;
 use App\Services\Admin\FailedJobService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,11 +12,11 @@ class FailedJobController extends Controller
 {
     public function __construct(private readonly FailedJobService $service) {}
 
-    public function index(Request $request): JsonResponse
+    public function index(ListFailedJobsRequest $request): JsonResponse
     {
         $paginator = $this->service->paginate(
             ['queue' => $request->input('filter.queue') ?? $request->input('filter')['queue'] ?? null],
-            (int) $request->input('per_page', 20),
+            $request->taillePage(),
         );
 
         return $this->paginated($paginator, $paginator->items());

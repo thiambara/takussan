@@ -27,15 +27,15 @@ export function DataExportsPanel() {
   const error = mutation.error as ApiError | null;
 
   return (
-    <section className="rounded-xl bg-white p-5 ring-1 ring-stone-200">
+    <section className="rounded-xl bg-card p-5 ring-1 ring-border">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 items-center justify-center rounded-full bg-stone-100 text-primary">
+          <div className="flex size-10 items-center justify-center rounded-full bg-muted text-primary">
             <ShieldCheck className="size-5" aria-hidden="true" />
           </div>
           <div>
-            <h2 className="font-display text-lg font-semibold text-stone-950">{t('title')}</h2>
-            <p className="mt-1 text-sm text-stone-600">{t('subtitle')}</p>
+            <h2 className="font-display text-lg font-semibold text-foreground">{t('title')}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
           </div>
         </div>
         <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
@@ -46,12 +46,12 @@ export function DataExportsPanel() {
 
       {error ? <p className="mt-3 text-sm text-destructive">{messageErreur(error)}</p> : null}
 
-      <div className="mt-5 divide-y divide-stone-100 rounded-lg border border-stone-200">
+      <div className="mt-5 divide-y divide-border rounded-lg border border-border">
         {(query.data?.data ?? []).map((dataExport) => (
           <DataExportRow key={dataExport.id} dataExport={dataExport} />
         ))}
         {!query.isLoading && (query.data?.data ?? []).length === 0 ? (
-          <p className="p-4 text-sm text-stone-500">{t('empty')}</p>
+          <p className="p-4 text-sm text-muted-foreground">{t('empty')}</p>
         ) : null}
       </div>
     </section>
@@ -64,8 +64,8 @@ function DataExportRow({ dataExport }: { dataExport: DataExport }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
       <div>
-        <p className="font-medium text-stone-950">{t('rowTitle', { id: String(dataExport.id) })}</p>
-        <p className="text-stone-600">
+        <p className="font-medium text-foreground">{t('rowTitle', { id: String(dataExport.id) })}</p>
+        <p className="text-muted-foreground">
           {t('requestedAt', { date: new Date(dataExport.requested_at).toLocaleString('fr-FR') })}
           {dataExport.expires_at
             ? t('expiresAt', { date: new Date(dataExport.expires_at).toLocaleDateString('fr-FR') })

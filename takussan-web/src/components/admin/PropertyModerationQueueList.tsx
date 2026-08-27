@@ -27,12 +27,13 @@ export function PropertyModerationQueueList({
       {properties.map((property) => {
         const isSelected = property.id === selectedId;
         return (
-          <li key={property.id}>
+          <li key={property.id} data-testid={`property-queue-item-${property.id}`}>
             <button
               type="button"
               onClick={() => onSelect(property)}
               className={cn(
                 'flex w-full flex-col gap-2 border-b border-muted p-4 text-left text-sm transition-colors',
+                'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
                 isSelected ? 'bg-muted/60' : 'hover:bg-muted/40',
               )}
               aria-pressed={isSelected}

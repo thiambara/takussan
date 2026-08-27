@@ -13,9 +13,8 @@ import {
   ModerationStats,
 } from '@/components/admin/super/moderation';
 import { Button } from '@/components/ui/button';
-import { fetchAdminAgencies, fetchModerationQueue } from '@/lib/queries/super-admin';
+import { fetchModerationQueue } from '@/lib/queries/super-admin';
 import type {
-  AdminAgenciesResponse,
   AdminModerationItem,
   AdminModerationResponse,
   ModerationItemStatus,
@@ -54,16 +53,8 @@ export default function SuperAdminModerationPage() {
     staleTime: 15_000,
   });
 
-  const agenciesQuery = useQuery<AdminAgenciesResponse, ApiError>({
-    queryKey: ['super-admin', 'agencies', 'moderation-filter'],
-    queryFn: () => fetchAdminAgencies({ perPage: 50 }),
-    staleTime: 5 * 60_000,
-  });
-
-  const agencies = useMemo(
-    () => (agenciesQuery.data?.data ?? []).map((agency) => ({ id: agency.id, name: agency.name })),
-    [agenciesQuery.data],
-  );
+  // TCK-363 — la requête `fetchAdminAgencies({ perPage: 50 })` qui vivait ici est SUPPRIMÉE :
+  // elle partait au montage de la page et rendait une liste tronquée sans le dire.
 
   const items = queueQuery.data?.data ?? [];
   const meta = queueQuery.data?.meta;
@@ -82,7 +73,7 @@ export default function SuperAdminModerationPage() {
       />
 
       <ModerationStats items={items} total={meta?.total ?? 0} />
-      <ModerationFilters agencies={agencies} />
+      <ModerationFilters total={meta?.total} />
 
       {queueQuery.isLoading ? (
         <div className="space-y-2" data-testid="moderation-loading">

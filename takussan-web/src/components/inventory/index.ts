@@ -12,3 +12,4 @@ export {
   InventoryElementStateBadge,
 } from './InventoryBadges';
 export * from './labels';
+export { InventoryLeasePicker } from './InventoryLeasePicker';

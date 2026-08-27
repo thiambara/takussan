@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
+
 import { getMeAction } from '@/app/actions/auth';
 import { BookingDetail } from '@/components/bookings/BookingDetail';
-import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.bookingDetail');
@@ -13,18 +15,17 @@ export default async function Page({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const t = await getTranslations('dashboard.pages.bookingDetail');
   await getMeAction();
   const { id } = await params;
   const bookingId = Number(id);
 
-  if (!Number.isFinite(bookingId) || bookingId <= 0) {
-    return (
-      <div className="rounded-xl bg-card p-6 text-sm text-red-600">
-        {t('notFound')}
-      </div>
-    );
-  }
+  // Un identifiant qui n'en est pas un ne désigne aucune réservation : c'est un INTROUVABLE, pas
+  // une panne. L'écran d'avant était un bloc rouge disant « introuvable » — rouge 600 de la
+  // palette brute avant TCK-381, jeton « destructive » après, et le défaut est le même dans les
+  // deux vocabulaires : il empruntait la forme de l'erreur pour dire l'absence, et proposait donc
+  // implicitement de réessayer. `notFound()` rend `app/not-found.tsx`, dans le shell, avec le
+  // retour à la liste.
+  if (!Number.isFinite(bookingId) || bookingId <= 0) notFound();
 
   return <BookingDetail bookingId={bookingId} />;
 }

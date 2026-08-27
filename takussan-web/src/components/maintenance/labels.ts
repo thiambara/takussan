@@ -19,33 +19,45 @@ import type {
   MaintenanceStatus,
 } from '@/types/maintenance';
 
+/**
+ * ⚠ TCK-381 — onze statuts, **cinq jetons**, et la réduction est délibérée.
+ *
+ * La table portait onze teintes Tailwind — `fuchsia`, `purple` et `violet` y voisinaient pour
+ * trois statuts consécutifs, que personne ne peut distinguer ni nommer. Le DS ne publie pas onze
+ * couleurs, et `StatusBadge` le dit depuis TCK-357 : *« un appelant qui aurait besoin d'un sixième
+ * ton a probablement besoin d'une colonne, pas d'une couleur de plus. »*
+ *
+ * Ce qui reste distinct est ce qui porte du SENS : à faire (`--info`), au devis (`--primary`), en
+ * cours (`--warning`), abouti (`--success`), refusé/annulé (`--destructive`), clos (`--muted`). Le
+ * libellé, lui, est toujours à côté — ce n'est pas la grille du calendrier.
+ */
 const STATUS_TONE: Record<MaintenanceStatus, string> = {
-  open: 'bg-blue-100 text-blue-800',
-  acknowledged: 'bg-indigo-100 text-indigo-800',
-  quote_requested: 'bg-fuchsia-100 text-fuchsia-800',
-  quote_submitted: 'bg-purple-100 text-purple-800',
-  approved: 'bg-lime-100 text-lime-800',
-  rejected: 'bg-rose-100 text-rose-800',
-  assigned: 'bg-violet-100 text-violet-800',
-  in_progress: 'bg-amber-100 text-amber-800',
-  completed: 'bg-emerald-100 text-emerald-800',
-  closed: 'bg-slate-200 text-slate-700',
-  cancelled: 'bg-red-100 text-red-800',
+  open: 'bg-info/15 text-info',
+  acknowledged: 'bg-info/15 text-info',
+  quote_requested: 'bg-primary/12 text-primary',
+  quote_submitted: 'bg-primary/12 text-primary',
+  approved: 'bg-success/15 text-success',
+  rejected: 'bg-destructive/15 text-destructive',
+  assigned: 'bg-info/15 text-info',
+  in_progress: 'bg-warning/15 text-warning',
+  completed: 'bg-success/15 text-success',
+  closed: 'bg-muted text-muted-foreground',
+  cancelled: 'bg-destructive/15 text-destructive',
 };
 
 export function maintenanceStatusBadgeClass(status: MaintenanceStatus): string {
-  return STATUS_TONE[status] ?? 'bg-gray-100 text-gray-700';
+  return STATUS_TONE[status] ?? 'bg-muted text-muted-foreground';
 }
 
 const PRIORITY_TONE: Record<MaintenancePriority, string> = {
-  low: 'bg-slate-100 text-slate-700',
-  normal: 'bg-sky-100 text-sky-800',
-  high: 'bg-orange-100 text-orange-800',
-  urgent: 'bg-red-100 text-red-800',
+  low: 'bg-muted text-muted-foreground',
+  normal: 'bg-info/15 text-info',
+  high: 'bg-warning/15 text-warning',
+  urgent: 'bg-destructive/15 text-destructive',
 };
 
 export function maintenancePriorityBadgeClass(priority: MaintenancePriority): string {
-  return PRIORITY_TONE[priority] ?? 'bg-gray-100 text-gray-700';
+  return PRIORITY_TONE[priority] ?? 'bg-muted text-muted-foreground';
 }
 
 /** Les cinq cas de `maintenance.quote.decisions.*`. */

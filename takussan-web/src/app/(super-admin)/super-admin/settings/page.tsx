@@ -13,6 +13,7 @@ import type { PlatformSettingsResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader } from '@/components/console';
+import { WarningBanner } from '@/components/ui/warning-banner';
 
 export default function SuperAdminSettingsPage() {
   const t = useTranslations('superAdmin.pages.settings');
@@ -33,11 +34,9 @@ export default function SuperAdminSettingsPage() {
         description={t('subtitle')}
       />
 
-      {/* Warning banner: amber Tailwind kept as documented exception (TCK-245) — no `--warning` DS token available. */}
-      <div className="flex gap-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      <WarningBanner icon={<AlertTriangle className="size-4" aria-hidden="true" />}>
         <p>{t('sensitiveNotice')}</p>
-      </div>
+      </WarningBanner>
 
       {query.isLoading ? (
         <div className="h-64 animate-pulse rounded-xl bg-muted" />

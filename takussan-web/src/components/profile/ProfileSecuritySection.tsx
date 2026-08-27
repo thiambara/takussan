@@ -30,7 +30,7 @@ export function ProfileSecuritySection() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-white p-6">
+      <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold text-foreground">{t('emailTitle')}</h3>
@@ -42,7 +42,7 @@ export function ProfileSecuritySection() {
             className={
               'rounded-full px-2 py-1 text-xs font-semibold ' +
               (emailVerified
-                ? 'bg-emerald-100 text-emerald-800'
+                ? 'bg-success/15 text-success'
                 : 'bg-card text-primary')
             }
           >

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState, useCallback } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ClipboardList, Plus } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
@@ -30,7 +30,20 @@ import {
 
 import { InventoryStatusBadge, InventoryTypeBadge } from './InventoryBadges';
 
-export function InventoryList() {
+/**
+ * TCK-379 — `canCreate` porte le geste de création, et il est passé par la PAGE (server
+ * component, qui seule connaît les rôles) plutôt que lu ici : ce composant est monté côté
+ * client, où `roles` n'est pas une source d'autorisation.
+ *
+ * ⚠ Le bouton vit dans la barre d'outils, PAS dans l'état vide. C'est tout l'objet du défaut
+ * corrigé : la liste peuplée n'offrait aucun geste, et l'état vide renvoyait vers `/app/leases`
+ * — c'est-à-dire envoyait l'agent chercher lui-même dans une autre section.
+ */
+interface InventoryListProps {
+  readonly canCreate?: boolean;
+}
+
+export function InventoryList({ canCreate = false }: InventoryListProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('inventory.list');
   const tRoot = useTranslations('inventory');
@@ -94,6 +107,15 @@ export function InventoryList() {
             </SelectContent>
           </Select>
         </div>
+        {canCreate ? (
+          <Link
+            href="/app/inventories/new"
+            className={buttonVariants({ className: 'ml-auto h-9' })}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            {t('create')}
+          </Link>
+        ) : null}
       </div>
 
       <QueryBoundary query={query}>
@@ -105,9 +127,15 @@ export function InventoryList() {
                 title={t('empty_title')}
                 description={t('empty_description')}
                 action={
-                  <Link href="/app/leases" className={buttonVariants()}>
-                    {t('empty_cta')}
-                  </Link>
+                  canCreate ? (
+                    <Link href="/app/inventories/new" className={buttonVariants()}>
+                      {t('create')}
+                    </Link>
+                  ) : (
+                    <Link href="/app/leases" className={buttonVariants()}>
+                      {t('empty_cta')}
+                    </Link>
+                  )
                 }
               />
             );

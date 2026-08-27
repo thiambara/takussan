@@ -78,7 +78,7 @@ export function PaymentsHistoryTable() {
 
         return (
           <div className="space-y-4">
-          <div className="overflow-hidden rounded-xl border border-stone-200 bg-white">
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
             <table className="w-full text-left text-sm">
               <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
@@ -91,7 +91,7 @@ export function PaymentsHistoryTable() {
                   <th className="px-3 py-2">{tTable('entity')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-border">
                 {rows.map((row) => {
                   const status = (row.status ?? 'pending') as PaymentStatus;
                   const entityLabel = row.lease_id

@@ -97,7 +97,7 @@ export function AgencyRolesList({
                       onClick={() => onSelect(role)}
                       aria-current={isSelected ? 'true' : undefined}
                       aria-label={t('actions.select_role', { name: role.name })}
-                      className="w-full px-3 py-2.5 text-left"
+                      className="w-full rounded-xl px-3 py-2.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                     >
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-foreground">{role.name}</span>

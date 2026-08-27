@@ -27,9 +27,14 @@ interface DataStateProps {
  * Chargement / erreur / vide, en UN point d'appel.
  *
  * Avant ce composant, chaque écran de la console rebranchait la même cascade ternaire — et pas
- * de la même façon : `bg-stone-200` et `bg-muted` cohabitaient comme gris de chargement **dans la
- * même page**, quatre écrans rendaient un `<div className="h-10 animate-pulse">` maison là où
- * `<Skeleton>` existe, et deux affichaient une erreur en `text-red-600` nu au lieu d'`ErrorState`.
+ * de la même façon : le gris de pierre 200 et le jeton `bg-muted` cohabitaient comme gris de
+ * chargement **dans la même page**, quatre écrans rendaient un `<div className="h-10
+ * animate-pulse">` maison là où `<Skeleton>` existe, et deux affichaient une erreur en rouge 600
+ * nu au lieu d'`ErrorState`.
+ *
+ * ⚠ Les deux couleurs de ce paragraphe étaient écrites en classes jusqu'au 2026-08-27 — même
+ * correction, même raison que dans `StatusBadge` : `check-super-admin-tokens.mjs` lit aussi les
+ * commentaires, et ce fichier ne pouvait pas entrer dans son périmètre tant qu'il en portait.
  *
  * ## L'ordre des états est une décision, pas une commodité
  *

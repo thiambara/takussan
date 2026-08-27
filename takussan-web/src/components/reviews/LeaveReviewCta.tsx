@@ -37,30 +37,30 @@ export function LeaveReviewCta({ slug, context, propertyTitle }: LeaveReviewCtaP
 
   return (
     <section
-      className="rounded-xl border border-amber-200 bg-amber-50/60 p-5"
+      className="rounded-xl border border-warning/30 bg-warning/10 p-5"
       aria-label={t('aria')}
     >
       <div className="flex flex-wrap items-start gap-4 justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden />
-            <h2 className="text-sm font-semibold text-stone-900">
+            <Star className="size-4 fill-warning text-warning" aria-hidden />
+            <h2 className="text-sm font-semibold text-foreground">
               {t('title')}
             </h2>
           </div>
-          <p className="mt-1 text-sm text-stone-600">
+          <p className="mt-1 text-sm text-muted-foreground">
             {context ?? t('body')}
             {propertyTitle && (
               <>
                 {' '}{t('forProperty')}{' '}
-                <span className="font-medium text-stone-800">{propertyTitle}</span>.
+                <span className="font-medium text-foreground">{propertyTitle}</span>.
               </>
             )}
           </p>
         </div>
         <Link
           href={`/properties/${slug}#avis`}
-          className="inline-flex items-center gap-1.5 rounded-md bg-stone-900 px-3 py-2 text-sm font-semibold text-white hover:bg-stone-800"
+          className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-foreground"
           data-testid="leave-review-cta"
         >
           {t('action')}

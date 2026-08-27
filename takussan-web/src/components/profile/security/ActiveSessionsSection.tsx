@@ -63,7 +63,7 @@ export function ActiveSessionsSection() {
   const queryError = query.error ? messageErreur(query.error) : null;
 
   return (
-    <div className="rounded-2xl border border-border bg-white p-6">
+    <div className="rounded-2xl border border-border bg-card p-6">
       <div>
         <h3 className="text-base font-semibold text-foreground">{t('title')}</h3>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -72,7 +72,7 @@ export function ActiveSessionsSection() {
       </div>
 
       {(error ?? queryError) ? (
-        <p role="alert" className="mt-3 text-sm text-red-600">
+        <p role="alert" className="mt-3 text-sm text-destructive">
           {error ?? queryError}
         </p>
       ) : null}
@@ -92,7 +92,7 @@ export function ActiveSessionsSection() {
                 <p className="text-sm font-semibold text-foreground">
                   {session.name || t('unnamed')}
                   {session.current ? (
-                    <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                    <span className="ml-2 rounded-full bg-success/15 px-2 py-0.5 text-xs font-semibold text-success">
                       {t('current')}
                     </span>
                   ) : null}
@@ -112,7 +112,7 @@ export function ActiveSessionsSection() {
                 size="sm"
                 disabled={session.current || revoke.isPending}
                 onClick={() => handleRevoke(session.id)}
-                className={session.current ? '' : 'text-red-600 hover:text-red-700'}
+                className={session.current ? '' : 'text-destructive hover:text-destructive'}
               >
                 {session.current ? t('currentShort') : t('revoke')}
               </Button>

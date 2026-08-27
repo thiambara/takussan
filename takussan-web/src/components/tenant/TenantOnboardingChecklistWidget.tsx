@@ -130,7 +130,12 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
   const handleClickItem = (item: TenantOnboardingChecklistItem): string | null => {
     switch (item) {
       case 'inventory_completed':
-        return `/app/inventories/new?lease_id=${lease.id}`;
+        // TCK-379 — le paramètre s'appelle `lease`, PAS `lease_id`. Cette ligne était le SEUL
+        // chemin entrant de `/app/inventories/new` dans tout le front, et elle n'y arrivait
+        // pas : la page lit `searchParams.lease`, donc le locataire tombait sur l'écran
+        // « aucun bail sélectionné » au lieu du formulaire. Mesuré le 2026-08-27 — le ticket,
+        // lui, décrivait ce chemin comme fonctionnel.
+        return `/app/inventories/new?lease=${lease.id}`;
       case 'first_payment':
         return `/app/payments/new?lease_id=${lease.id}`;
       // welcome_seen is owned by the modal hook ; documents_acknowledged is
@@ -201,7 +206,7 @@ function ChecklistRow({
       <span
         className={cn(
           'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border',
-          done ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-border text-muted-foreground',
+          done ? 'border-success/30 bg-success text-primary-foreground' : 'border-border text-muted-foreground',
         )}
         aria-hidden="true"
       >

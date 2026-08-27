@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -114,7 +115,7 @@ export function ReviewActionsModal({
 
   const isApprove = mode === 'approve';
   const Icon = isApprove ? CheckCircle2 : XCircle;
-  const accent = isApprove ? 'text-emerald-600' : 'text-red-600';
+  const accent = isApprove ? 'text-accent' : 'text-destructive';
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -133,7 +134,7 @@ export function ReviewActionsModal({
           <div className="space-y-1.5">
             <Label htmlFor="review-comment">
               {isApprove ? t('commentLabel') : t('reasonLabel')}
-              {isApprove ? null : <span className="ml-1 text-red-600">*</span>}
+              {isApprove ? null : <span className="ml-1 text-destructive">*</span>}
             </Label>
             <Textarea
               id="review-comment"
@@ -146,7 +147,7 @@ export function ReviewActionsModal({
               placeholder={isApprove ? t('commentPlaceholder') : t('reasonPlaceholder')}
             />
             {!isApprove ? (
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-muted-foreground">
                 {t('charCount', { count: String(trimmedLength) })}{' '}
                 {trimmedLength < REJECT_MIN_CHARS
                   ? t('charMinimum', { min: String(REJECT_MIN_CHARS) })
@@ -155,11 +156,7 @@ export function ReviewActionsModal({
             ) : null}
           </div>
 
-          {error ? (
-            <p role="alert" className="text-sm text-red-600">
-              {error}
-            </p>
-          ) : null}
+          {error ? <ErrorState message={error} /> : null}
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>

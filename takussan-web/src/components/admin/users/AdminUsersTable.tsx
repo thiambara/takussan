@@ -132,7 +132,7 @@ export function AdminUsersTable({
         <button
           type="button"
           onClick={() => onSelect(row)}
-          className="flex items-center gap-3 text-left"
+          className="flex items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <Avatar className="size-9">
             <AvatarFallback>{getInitials(row)}</AvatarFallback>
@@ -153,7 +153,10 @@ export function AdminUsersTable({
       header: t('table.email'),
       className: 'text-muted-foreground',
       cell: (row) => (
-        <a href={`mailto:${row.email}`} className="hover:underline">
+        <a
+          href={`mailto:${row.email}`}
+          className="rounded-sm hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
           {row.email}
         </a>
       ),

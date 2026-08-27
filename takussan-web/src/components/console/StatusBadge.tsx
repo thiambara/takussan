@@ -27,18 +27,23 @@ interface StatusBadgeProps {
  *
  * Elles ne citent que des jetons publiés par `globals.css` (`--accent`, `--destructive`,
  * `--primary`, `--muted`, `--secondary`). Aucune couleur Tailwind brute : au 2026-08-26, la
- * console portait huit pastilles faites main en `bg-amber-100` / `bg-emerald-100` / `bg-red-100`
- * / `bg-stone-200` / `bg-green-50`, cinq familles pour quatre statuts.
+ * console portait huit pastilles faites main en ambre 100, émeraude 100, rouge 100, pierre 200 et
+ * vert 50 — cinq familles pour quatre statuts.
  *
- * ⚠ `attention` emprunte `--primary` (terracotta) faute d'un jeton d'avertissement : le DS
- * prescrit `amber-500` mais `globals.css` ne le publie pas, et l'écrire ici rouvrirait la couleur
- * en dur que cette primitive existe pour fermer. **C'est TCK-358 qui pose le jeton**, et ce ton
- * changera d'une ligne le jour où il existe.
+ * ⚠ Ces cinq classes étaient écrites ici EN TANT QUE CLASSES jusqu'au 2026-08-27, et c'est ce qui
+ * a empêché ce fichier d'entrer dans le périmètre de `scripts/check-super-admin-tokens.mjs` : la
+ * garde n'exclut pas les commentaires, délibérément, parce qu'un docblock qui montre une classe
+ * brute est précisément la documentation périmée d'où le motif repousse. *Le récit d'une migration
+ * s'écrit en toutes lettres ; sinon c'est un presse-papier.*
+ *
+ * `attention` empruntait `--primary` (terracotta) faute d'un jeton d'avertissement ; TCK-358 a
+ * posé `--warning` dans `globals.css` et le ton l'a repris, d'une ligne, comme annoncé ici. Le
+ * détour valait mieux que la couleur en dur : il s'est refermé sans rouvrir un seul écran.
  */
 const TONE_CLASSES: Record<StatusTone, string> = {
   neutral: 'bg-muted text-muted-foreground',
   success: 'bg-accent/15 text-accent',
-  attention: 'bg-primary/12 text-primary',
+  attention: 'bg-warning/12 text-warning',
   danger: 'bg-destructive/10 text-destructive',
   info: 'bg-secondary text-secondary-foreground',
 };

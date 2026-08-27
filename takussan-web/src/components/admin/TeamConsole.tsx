@@ -15,9 +15,11 @@ import { AdminUsersTable } from '@/components/admin/users/AdminUsersTable';
 import { UserDetailDrawer } from '@/components/admin/users/UserDetailDrawer';
 import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
 import { ConfirmRemoveDialog } from '@/components/admin/ConfirmRemoveDialog';
+import { PendingInvitationsSection } from '@/components/admin/PendingInvitationsSection';
 import { fetchAdminUsers, postUserAction } from '@/lib/queries/admin-users';
 import { removeAgencyMember } from '@/lib/queries/agency-members';
 import { useAgencyRoleAssignments } from '@/lib/queries/agency-roles';
+import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 import { useCan } from '@/hooks/useCan';
 import { useAuth } from '@/context/AuthContext';
 import { ApiError } from '@/lib/api';
@@ -49,6 +51,13 @@ const ROLE_TO_TAB: Record<string, TabValue> = {
 interface TeamConsoleProps {
   readonly agencyId: number;
   readonly currentUserId: number;
+  /**
+   * TCK-368 — `kind` de l'agence active, résolu par la page. Une agence
+   * `individual` n'a pas d'équipe : la zone d'invitations ne s'affiche pas.
+   * `null` quand l'agence n'a pas pu être lue — la zone se tait alors aussi,
+   * plutôt que d'annoncer « aucune invitation » sans avoir su demander.
+   */
+  readonly agencyKind?: string | null;
 }
 
 /**
@@ -62,7 +71,7 @@ interface TeamConsoleProps {
  * intentionally hidden from `AdminUsersFilters` to avoid two controls
  * targeting the same query param.
  */
-export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
+export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: TeamConsoleProps) {
   const t = useTranslations('team.page');
   const tConsole = useTranslations('admin.team.console');
   const tCommon = useTranslations('common');
@@ -147,8 +156,29 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
   // `AgencyRolePolicy::assign` qui décide.
   const { can: canAssignRole } = useCan('team.assign_role', agencyId);
 
+  // TCK-368 — même règle pour la relance et la révocation d'une invitation, et
+  // cacher les boutons n'autorise rien : c'est `InvitationPolicy::revoke()` qui
+  // décide.
+  //
+  // ⚠ Ce commentaire affirmait « c'est `team.invite` qui les gouverne côté
+  // serveur » alors que la policy ne mentionnait AUCUNE capacité — elle jugeait
+  // sur `isAgencyAdminAt()`. Les deux prédicats DIVERGEAIENT : `team.invite`
+  // n'étant pas réservée à la plateforme, une agence peut l'attacher à un rôle
+  // personnalisé de base `Agent` (TCK-279), et cet agent voyait les deux boutons
+  // pour prendre 403 sur les deux. La policy accepte désormais la capacité en
+  // plus du profil d'admin, ce qui referme l'écart dans le sens permissif —
+  // celui qui n'invente aucune autorisation.
+  const { can: canManageInvitations } = useCan('team.invite', agencyId);
+
+  // TCK-368 — l'invalidation porte des DEUX côtés. Une invitation acceptée fait
+  // apparaître un membre et disparaître une invitation ; ne rafraîchir qu'une des
+  // deux listes laisse l'écran se contredire lui-même jusqu'au prochain
+  // rechargement.
   const invalidateList = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] }),
+    () => Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin-users', 'list'] }),
+      queryClient.invalidateQueries({ queryKey: agencyInvitationKeys.all }),
+    ]),
     [queryClient],
   );
 
@@ -192,6 +222,12 @@ export function TeamConsole({ agencyId, currentUserId }: TeamConsoleProps) {
 
   return (
     <div className="space-y-4">
+      <PendingInvitationsSection
+        agencyId={agencyId}
+        agencyKind={agencyKind}
+        canManage={canManageInvitations}
+      />
+
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList>

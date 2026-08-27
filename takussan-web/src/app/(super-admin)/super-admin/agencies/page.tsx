@@ -1,15 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, Search } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { fetchAdminAgencies } from '@/lib/queries/super-admin';
 import { AgencyModerationCard } from '@/components/admin/super/AgencyModerationCard';
 import { AgencyOnboardingDialog } from '@/components/admin/super/AgencyOnboardingDialog';
-import { Pagination } from '@/components/console';
-import { Input } from '@/components/ui/input';
+import { DebouncedSearchInput, FilterBar, Pagination } from '@/components/console';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
@@ -47,11 +47,21 @@ const SORT_OPTIONS = [
 
 type SortValue = (typeof SORT_OPTIONS)[number]['value'];
 
+/** Un `?status=` inconnu ne filtre pas sur rien : il retombe sur « tous ». */
+function seedStatus(value: string | null | undefined): string {
+  return STATUS_OPTIONS.some((option) => option.value === value) ? (value as string) : ALL;
+}
+
 export default function SuperAdminAgenciesPage() {
   const t = useTranslations('superAdmin.agencies');
   const tPage = useTranslations('superAdmin.pages.agencies');
+  const tFiltres = useTranslations('console.filterBar');
   const messageErreur = useMessageErreurApi();
-  const [status, setStatus] = useState(ALL);
+  const searchParams = useSearchParams();
+  // TCK-360 — l'accueil de la console lie ses tuiles vers `?status=…`. Amorce SEULE : la valeur
+  // sert d'état initial et le filtre reste local ensuite. Miroiter le choix dans l'URL
+  // demanderait de câbler les cinq autres filtres de cet écran, ce que ce ticket ne fait pas.
+  const [status, setStatus] = useState(() => seedStatus(searchParams?.get('status')));
   const [search, setSearch] = useState('');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
@@ -70,11 +80,25 @@ export default function SuperAdminAgenciesPage() {
     perPage: 15,
   };
 
-  const { data, isLoading, isError, error } = useQuery<AdminAgenciesResponse, ApiError>({
+  const { data, isLoading, isFetching, isError, error } = useQuery<AdminAgenciesResponse, ApiError>({
     queryKey: ['super-admin', 'agencies', params],
     queryFn: () => fetchAdminAgencies(params),
     staleTime: 15_000,
   });
+
+  // Le tri n'est pas un filtre : il ne compte pas dans « des filtres sont posés », mais la
+  // remise à zéro le reprend quand même — c'est ce que « valeur par défaut » veut dire.
+  const filtresPoses =
+    status !== ALL || search !== '' || createdFrom !== '' || createdTo !== '';
+
+  const reinitialiser = useCallback(() => {
+    setStatus(ALL);
+    setSearch('');
+    setCreatedFrom('');
+    setCreatedTo('');
+    setSort('-created_at');
+    setPage(1);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -84,7 +108,14 @@ export default function SuperAdminAgenciesPage() {
         actions={<AgencyOnboardingDialog />}
       />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <FilterBar
+        data-testid="super-admin-agencies-filters"
+        controlsClassName="md:grid-cols-2 xl:grid-cols-5"
+        resultCount={data ? tFiltres('results', { count: data.meta.total }) : undefined}
+        onReset={reinitialiser}
+        resetLabel={tFiltres('reset')}
+        resetDisabled={!filtresPoses}
+      >
         <Select
           value={status}
           onValueChange={(next) => {
@@ -93,7 +124,7 @@ export default function SuperAdminAgenciesPage() {
           }}
           items={statusOptions}
         >
-          <SelectTrigger aria-label={tPage('statusAria')} className="h-10">
+          <SelectTrigger aria-label={tPage('statusAria')} className="h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -105,22 +136,16 @@ export default function SuperAdminAgenciesPage() {
           </SelectContent>
         </Select>
 
-        <div className="relative min-w-64 flex-1">
-          <Search
-            aria-hidden
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder={tPage('searchPlaceholder')}
-            className="h-10 pl-9"
-          />
-        </div>
+        <DebouncedSearchInput
+          value={search}
+          onCommit={(next) => {
+            setSearch(next);
+            setPage(1);
+          }}
+          placeholder={tPage('searchPlaceholder')}
+          aria-label={tPage('searchAria')}
+          busy={isFetching}
+        />
 
         <DatePicker
           value={createdFrom}
@@ -129,8 +154,7 @@ export default function SuperAdminAgenciesPage() {
             setPage(1);
           }}
           aria-label={tPage('createdFromAria')}
-          buttonClassName="h-10"
-          className="w-44"
+          buttonClassName="h-10 w-full"
         />
         <DatePicker
           value={createdTo}
@@ -139,8 +163,7 @@ export default function SuperAdminAgenciesPage() {
             setPage(1);
           }}
           aria-label={tPage('createdToAria')}
-          buttonClassName="h-10"
-          className="w-44"
+          buttonClassName="h-10 w-full"
         />
 
         <Select
@@ -151,7 +174,7 @@ export default function SuperAdminAgenciesPage() {
           }}
           items={sortOptions}
         >
-          <SelectTrigger aria-label={tPage('sortAria')} className="h-10">
+          <SelectTrigger aria-label={tPage('sortAria')} className="h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -162,7 +185,7 @@ export default function SuperAdminAgenciesPage() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </FilterBar>
 
       {isLoading ? (
         <div className="grid gap-3 sm:grid-cols-2" data-testid="agencies-loading">

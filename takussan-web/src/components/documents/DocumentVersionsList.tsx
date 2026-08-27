@@ -299,7 +299,7 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium text-foreground">{version.file_name}</span>
           {version.is_active ? (
-            <span className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-600">
+            <span className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
               <CheckCircle2 className="size-3" aria-hidden="true" />
               {t('active')}
             </span>
@@ -411,7 +411,7 @@ export function DocumentVersionsList({
                 e.stopPropagation();
                 setUploadOpen(true);
               }}
-              className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-white transition-opacity hover:opacity-90"
+              className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
               aria-label={t('add_title')}
             >
               <UploadCloud className="size-3" aria-hidden="true" />

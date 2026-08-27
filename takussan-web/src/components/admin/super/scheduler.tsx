@@ -5,11 +5,13 @@ import { useTranslations } from 'next-intl';
 import { Timer } from 'lucide-react';
 import { DataTable, type DataTableColumn } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { fetchScheduler } from '@/lib/queries/super-admin';
 import type { ScheduledTask } from '@/types/super-admin';
 
 export function ScheduledTaskTable() {
   const t = useTranslations('superAdmin.scheduler');
+  const fmt = useFormatteurs();
   const query = useQuery({
     queryKey: ['super-admin', 'scheduler'],
     queryFn: fetchScheduler,
@@ -23,7 +25,7 @@ export function ScheduledTaskTable() {
       id: 'lastRun',
       header: t('colLastRun'),
       className: 'text-muted-foreground',
-      cell: (task) => (task.last_run_at ? new Date(task.last_run_at).toLocaleString('fr-FR') : '—'),
+      cell: (task) => fmt.dateTime(task.last_run_at),
     },
     {
       id: 'avgDuration',

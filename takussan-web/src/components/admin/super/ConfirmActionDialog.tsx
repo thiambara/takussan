@@ -60,15 +60,15 @@ export function ConfirmActionDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-stone-700">
-            {t('typePrompt')} <code className="rounded bg-stone-100 px-1">{confirmPhrase}</code>
+          <label className="text-xs font-semibold text-muted-foreground">
+            {t('typePrompt')} <code className="rounded bg-muted px-1">{confirmPhrase}</code>
           </label>
           <input
             type="text"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             data-testid="confirm-action-input"
-            className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm outline-none focus:border-amber-500"
+            className="w-full rounded-md border border-border px-3 py-2 text-sm outline-none focus:border-ring"
             autoComplete="off"
           />
         </div>

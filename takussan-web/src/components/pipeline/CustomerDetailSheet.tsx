@@ -285,7 +285,7 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
               className="rounded-md border border-muted bg-card p-3 text-sm"
             >
               {n.pinned ? (
-                <span className="mb-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
+                <span className="mb-1 inline-block rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning dark:text-warning">
                   {t('notes.pinned')}
                 </span>
               ) : null}

@@ -48,7 +48,7 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
 
   if (success) {
     return (
-      <p className="text-sm text-emerald-600">
+      <p className="text-sm text-success">
         {t('success', { role: role === 'customer' ? t('roleVisitor') : t('roleAgent') })}
       </p>
     );
@@ -56,11 +56,11 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <p className="text-sm font-medium text-stone-900">
+      <p className="text-sm font-medium text-foreground">
         {role === 'customer' ? t('titleCustomer') : t('titleAgent')}
       </p>
       <label className="block space-y-1 text-sm">
-        <span className="text-stone-700">{t('ratingLabel')}</span>
+        <span className="text-muted-foreground">{t('ratingLabel')}</span>
         <div className="flex gap-1">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
@@ -69,8 +69,8 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
               onClick={() => setRating(n)}
               className={`size-8 rounded-full border text-sm font-semibold ${
                 n <= rating
-                  ? 'border-amber-500 bg-amber-100 text-amber-700'
-                  : 'border-stone-200 bg-white text-stone-500'
+                  ? 'border-warning/30 bg-warning/15 text-warning'
+                  : 'border-border bg-card text-muted-foreground'
               }`}
               aria-label={t('starsAria', { count: String(n) })}
             >
@@ -80,7 +80,7 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
         </div>
       </label>
       <label className="block space-y-1 text-sm">
-        <span className="text-stone-700">{t('commentLabel')}</span>
+        <span className="text-muted-foreground">{t('commentLabel')}</span>
         <Textarea
           rows={3}
           value={comment}
@@ -90,7 +90,7 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
           }
         />
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" disabled={mutation.isPending}>
         {mutation.isPending ? t('submitting') : t('submit')}
       </Button>

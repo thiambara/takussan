@@ -122,19 +122,19 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
     <li>
       <Link
         href={`/app/bookings/${booking.id}`}
-        className="block rounded-xl border border-stone-200 bg-white p-4 transition-shadow hover:shadow-sm"
+        className="block rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
       >
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h3 className="truncate text-sm font-semibold text-stone-900">
+              <h3 className="truncate text-sm font-semibold text-foreground">
                 {booking.property?.title ?? t('fallbackTitle', { id: String(booking.id) })}
               </h3>
               <Badge variant={STATUS_VARIANT[booking.status]}>
                 {t(STATUS_LABEL_KEY[booking.status])}
               </Badge>
             </div>
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {booking.start_date && booking.end_date ? (
                 <>
                   {formatDate(booking.start_date, locale)} → {formatDate(booking.end_date, locale)}
@@ -147,11 +147,11 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
           </div>
           {typeof booking.total_amount === 'number' && (
             <div className="text-right">
-              <p className="text-sm font-semibold text-stone-900">
+              <p className="text-sm font-semibold text-foreground">
                 {formatCurrency(booking.total_amount, locale)}
               </p>
               {booking.deposit_paid && (
-                <p className="text-xs text-emerald-600">{t('list.depositPaid')}</p>
+                <p className="text-xs text-success">{t('list.depositPaid')}</p>
               )}
             </div>
           )}

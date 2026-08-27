@@ -75,6 +75,19 @@ interface DataTableProps<Row> {
    */
   readonly emptyState?: ReactNode;
   readonly density?: 'default' | 'compact';
+  /**
+   * Épingle la ligne d'en-tête en haut de la zone de défilement.
+   *
+   * ⚠ **Ajouté par TCK-380 pour NE PAS perdre un comportement existant, pas pour en offrir un
+   * neuf.** La table du tableau de bord des biens portait déjà `sticky top-0 z-10 bg-muted/70
+   * backdrop-blur` sur son `<thead>` ; convertir sans cette option l'aurait retiré en silence, et
+   * un `<table>` conservé « à titre exceptionnel » aurait rouvert exactement ce que cette
+   * primitive ferme (TCK-380, contraintes strictes).
+   *
+   * L'opacité et le flou viennent AVEC : un en-tête épinglé sur un fond translucide laisse voir
+   * les lignes défiler dessous, et c'est ce que l'écran rendait déjà.
+   */
+  readonly stickyHeader?: boolean;
   /** Classes du cadre extérieur (marges, `col-span`, …). */
   readonly className?: string;
   readonly 'data-testid'?: string;
@@ -114,6 +127,7 @@ export function DataTable<Row>({
   sort,
   emptyState,
   density = 'default',
+  stickyHeader = false,
   className,
   'data-testid': dataTestId,
 }: DataTableProps<Row>) {
@@ -128,7 +142,12 @@ export function DataTable<Row>({
     >
       <Table>
         <TableCaption className="sr-only">{caption}</TableCaption>
-        <TableHeader className="bg-muted/60">
+        <TableHeader
+          className={cn(
+            'bg-muted/60',
+            stickyHeader && 'sticky top-0 z-10 bg-muted/70 backdrop-blur',
+          )}
+        >
           <TableRow className="hover:bg-transparent">
             {columns.map((column) => (
               <DataTableHeaderCell
@@ -205,7 +224,16 @@ function DataTableHeaderCell<Row>({
         <button
           type="button"
           onClick={() => sort!.onChange(descending ? column.sortKey! : `-${column.sortKey}`)}
-          className="inline-flex items-center gap-1 uppercase transition-colors hover:text-foreground"
+          // TCK-371 — l'en-tête de tri est un bouton ÉCRIT À LA MAIN : il n'hérite pas de
+          // l'anneau de la primitive `Button`. Jeton `--ring` PLEIN, jamais `ring-ring/50`
+          // (l'idiome de `Button`), qui mesure 2,12:1 sur `--card` — sous les 3:1 de
+          // WCAG 1.4.11. Mesuré à pleine opacité sur les trois fonds possibles de cette
+          // primitive partagée (console agence, console super-admin et `/app` la montent) :
+          //   clair  — `--card` #ffffff 5,32:1 · `--background` #fcf9f3 5,06:1
+          //            `bg-muted/60` sur `--card` (#f7f4ec, le fond RÉEL de cet en-tête) 4,82:1
+          //   sombre — `--card` #2a2018 4,83:1 · `--background` #1f1812 5,31:1
+          //            `bg-muted/60` sur `--card` (#34281f) 4,32:1
+          className="inline-flex items-center gap-1 uppercase transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           aria-label={column.sortLabel}
         >
           {column.header}

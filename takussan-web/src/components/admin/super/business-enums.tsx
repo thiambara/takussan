@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { WarningBanner } from '@/components/ui/warning-banner';
 import {
   deleteBusinessEnumValue,
   patchBusinessEnumValue,
@@ -31,7 +32,7 @@ export function EnumList({
 }) {
   const t = useTranslations('superAdmin.enums');
   return (
-    <nav className="rounded-xl bg-white p-2 ring-1 ring-stone-200" aria-label={t('navLabel')}>
+    <nav className="rounded-xl bg-card p-2 ring-1 ring-border" aria-label={t('navLabel')}>
       {enums.map((item) => (
         <Button
           key={item.key}
@@ -196,10 +197,12 @@ function EnumValueDialogForm({
       <DialogHeader>
         <DialogTitle>{editing ? t('editValue') : t('addValue')}</DialogTitle>
       </DialogHeader>
-      <div className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-950 ring-1 ring-amber-200">
-        <AlertTriangle className="mr-2 inline size-4" aria-hidden="true" />
+      <WarningBanner
+        className="rounded-md px-3 py-2"
+        icon={<AlertTriangle className="size-4" aria-hidden="true" />}
+      >
         {t('warning')}
-      </div>
+      </WarningBanner>
       <div className="space-y-3">
         <label className="block text-sm font-medium">
           <span className="mb-1 block">{t('value')}</span>

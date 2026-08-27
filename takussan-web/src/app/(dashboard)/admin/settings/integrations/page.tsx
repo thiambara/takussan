@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchIntegrationsAction } from '@/app/actions/admin-settings';
-import { isAdmin } from '@/lib/roles';
+import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { IntegrationsManager } from '@/components/admin-settings/IntegrationsManager';
 import { SettingsTabs } from '@/components/admin-settings/SettingsTabs';
 import { PageHeader } from '@/components/console';
@@ -12,6 +12,11 @@ import { getTranslations } from 'next-intl/server';
 /**
  * Admin — integrations page (TCK-068). Cards per provider with configure /
  * test / toggle actions.
+ *
+ * TCK-370 — la garde reste `isAdmin`, comme l'API : `routes/api/integrations.php` ne pose
+ * qu'`auth:sanctum` et `IntegrationController` laisse entrer un `agency_admin` sur SON agence.
+ * Ce qui change, c'est que l'onglet « Général » n'est plus proposé à qui `/admin/settings`
+ * rejetterait.
  */
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +36,7 @@ export default async function Page() {
       <PageHeader
         title={t('title')}
         description={t('subtitle')}
-        actions={<SettingsTabs active="integrations" />}
+        actions={<SettingsTabs active="integrations" canSeeGeneral={isSuperAdmin(user.roles)} />}
       />
 
       {!result.ok ? (

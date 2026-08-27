@@ -29,6 +29,14 @@ function buildSummary(overrides: Partial<DashboardAgencySummary> = {}): Dashboar
 }
 
 describe('<AgencyActivityFeed>', () => {
+  it('groupe ses compteurs selon la locale ACTIVE, pas une locale écrite en dur (TCK-374)', () => {
+    // Un compteur à quatre chiffres est le seul qui distingue les locales : en dessous, `12 345` et
+    // `12,345` se confondent avec `345`, et l'assertion resterait verte sur une locale figée.
+    render(withIntl(<AgencyActivityFeed summary={buildSummary({ customers_count: 12_345 })} />, 'en'));
+    expect(screen.getByText('12,345')).toBeInTheDocument();
+    expect(screen.queryByText(/12\s345/)).toBeNull();
+  });
+
   it('lists the four operational counters with deep links', () => {
     const { container } = render(withIntl(<AgencyActivityFeed summary={buildSummary()} />));
 

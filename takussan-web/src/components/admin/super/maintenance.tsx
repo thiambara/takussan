@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { WarningBanner } from '@/components/ui/warning-banner';
 import { cancelMaintenance, scheduleMaintenance } from '@/lib/queries/super-admin';
 import type { MaintenanceMode, MaintenanceSeverity, MaintenanceStatus } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.maintenance.modes.*`). */
 const MODES: MaintenanceMode[] = ['banner', 'read_only', 'down'];
@@ -22,6 +24,7 @@ const SEVERITIES: MaintenanceSeverity[] = ['info', 'scheduled', 'interruption'];
 
 export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) {
   const t = useTranslations('superAdmin.maintenance');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [startsAt, setStartsAt] = useState('');
@@ -64,16 +67,16 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <section className="rounded-xl bg-white p-5 ring-1 ring-stone-200">
-        <h2 className="font-display text-xl font-semibold text-stone-950">{t('currentState')}</h2>
-        <div className="mt-4 rounded-lg bg-stone-50 p-4 text-sm text-stone-700 ring-1 ring-stone-200">
+      <section className="rounded-xl bg-card p-5 ring-1 ring-border">
+        <h2 className="font-display text-xl font-semibold text-foreground">{t('currentState')}</h2>
+        <div className="mt-4 rounded-lg bg-muted p-4 text-sm text-muted-foreground ring-1 ring-border">
           {status.window ? (
             <div className="space-y-2">
               <p className="font-semibold">{status.active ? t('active') : t('scheduled')}</p>
               <p>{status.window.messages.fr}</p>
               <p>{t('windowRange', {
-                start: new Date(status.window.starts_at).toLocaleString('fr-SN'),
-                end: new Date(status.window.ends_at).toLocaleString('fr-SN'),
+                start: fmt.dateTime(status.window.starts_at),
+                end: fmt.dateTime(status.window.ends_at),
               })}</p>
               <p>{t('modeValue', { mode: status.window.mode })}</p>
             </div>
@@ -87,8 +90,8 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
         </Button>
       </section>
 
-      <section className="rounded-xl bg-white p-5 ring-1 ring-stone-200">
-        <h2 className="font-display text-xl font-semibold text-stone-950">{t('scheduleWindow')}</h2>
+      <section className="rounded-xl bg-card p-5 ring-1 ring-border">
+        <h2 className="font-display text-xl font-semibold text-foreground">{t('scheduleWindow')}</h2>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-start">{t('start')}</Label>
@@ -125,10 +128,12 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
             <Textarea id="maintenance-wo" value={wo} onChange={(event) => setWo(event.target.value)} />
           </label>
         </div>
-        <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-950 ring-1 ring-amber-200">
-          <CalendarClock className="mr-2 inline size-4" aria-hidden="true" />
+        <WarningBanner
+          className="mt-4 rounded-lg px-3 py-2"
+          icon={<CalendarClock className="size-4" aria-hidden="true" />}
+        >
           {fr}
-        </div>
+        </WarningBanner>
         {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
         <Button type="button" className="mt-4" onClick={() => schedule.mutate()} disabled={invalid || schedule.isPending}>
           <Save className="size-4" aria-hidden="true" />
@@ -152,7 +157,7 @@ function Segmented<T extends string>({
 }) {
   return (
     <div className="mt-4">
-      <p className="mb-2 text-sm font-medium text-stone-700">{label}</p>
+      <p className="mb-2 text-sm font-medium text-muted-foreground">{label}</p>
       <div className="flex flex-wrap gap-2">
         {options.map((option) => (
           <Button

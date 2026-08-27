@@ -173,7 +173,7 @@ export function DocumentShareDialog({
 
         {error ? <ErrorState message={error} /> : null}
 
-        <div className="space-y-3 rounded-xl border border-stone-200 bg-white p-4">
+        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
               <Label htmlFor="share-ttl" className="mb-1.5 block text-sm font-medium">
@@ -243,7 +243,7 @@ export function DocumentShareDialog({
                 return (
                   <li
                     key={link.id}
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-stone-200 bg-white px-3 py-2 text-xs"
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs"
                   >
                     <Input
                       readOnly

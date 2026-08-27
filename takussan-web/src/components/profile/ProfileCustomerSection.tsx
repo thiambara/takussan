@@ -45,7 +45,7 @@ export function ProfileCustomerSection({ user }: ProfileCustomerSectionProps) {
 
       {query.isLoading ? (
         <div
-          className="flex items-center gap-2 rounded-md bg-white/60 px-3 py-3 text-sm text-muted-foreground"
+          className="flex items-center gap-2 rounded-md bg-card/60 px-3 py-3 text-sm text-muted-foreground"
           data-testid="customer-prefs-loading"
         >
           <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />

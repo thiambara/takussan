@@ -129,7 +129,7 @@ export function MyProfilesSection() {
             <li
               key={profile.id}
               data-testid={`my-profile-card-${profile.id}`}
-              className="space-y-3 rounded-xl bg-white p-4 ring-1 ring-muted"
+              className="space-y-3 rounded-xl bg-card p-4 ring-1 ring-muted"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="space-y-1">
@@ -138,7 +138,7 @@ export function MyProfilesSection() {
                     <ProfileBadge profile={profile} />
                     {profile.status ? <span>· {profile.status}</span> : null}
                     {isActive ? (
-                      <span className="font-medium text-emerald-700">{t('activeProfile')}</span>
+                      <span className="font-medium text-success">{t('activeProfile')}</span>
                     ) : null}
                   </div>
                 </div>

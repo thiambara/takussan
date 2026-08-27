@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { getTranslations } from 'next-intl/server';
 
 import { ApiError, messageErreurApi } from '@/lib/api';
-import { getToken } from '@/lib/session';
+import { getActiveProfileId, getToken } from '@/lib/session';
 import {
   createIntegration,
   deleteIntegration,
@@ -28,6 +28,19 @@ import type { PaginatedResponse } from '@/types/api';
 
 /**
  * Admin settings & integrations server actions — TCK-068.
+ *
+ * ⚠️ **Chaque appel passe `await getActiveProfileId()`, sans exception.**
+ *
+ * `getToken()` dit QUI appelle ; il ne dit pas DEPUIS QUELLE AGENCE. Pour un
+ * `agency_admin` mono-agence les deux se confondent, et c'est ce qui a rendu
+ * l'omission invisible ici pendant que `admin-agency.ts` la corrigeait de son
+ * côté. Pour un multi-agences, `ResolveActiveProfile` refuse de deviner :
+ * `user.agency_id` reste `null`, et les cinq endpoints de ce module abandonnent
+ * en **403** — mesuré. Le détail du mécanisme est dans l'en-tête de
+ * `lib/queries/settings.ts`.
+ *
+ * *Deux requêtes qui portent la même identité doivent porter le même contexte,
+ * sinon elles ne parlent pas du même utilisateur.*
  */
 
 type ActionResult<T = void> =
@@ -77,7 +90,7 @@ export async function fetchSettingsAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await fetchSettings(auth.token, params);
+    const data = await fetchSettings(auth.token, params, await getActiveProfileId());
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -93,7 +106,7 @@ export async function upsertSettingAction(payload: {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await upsertSetting(auth.token, payload);
+    const data = await upsertSetting(auth.token, payload, await getActiveProfileId());
     revalidatePath('/admin/settings');
     return { ok: true, data };
   } catch (e) {
@@ -108,7 +121,7 @@ export async function updateSettingAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await updateSetting(auth.token, settingId, value);
+    const data = await updateSetting(auth.token, settingId, value, await getActiveProfileId());
     revalidatePath('/admin/settings');
     return { ok: true, data };
   } catch (e) {
@@ -120,7 +133,7 @@ export async function deleteSettingAction(settingId: number): Promise<ActionResu
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    await deleteSetting(auth.token, settingId);
+    await deleteSetting(auth.token, settingId, await getActiveProfileId());
     revalidatePath('/admin/settings');
     return { ok: true };
   } catch (e) {
@@ -134,7 +147,7 @@ export async function fetchIntegrationsAction(): Promise<
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await fetchIntegrations(auth.token);
+    const data = await fetchIntegrations(auth.token, {}, await getActiveProfileId());
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -147,7 +160,7 @@ export async function createIntegrationAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await createIntegration(auth.token, payload);
+    const data = await createIntegration(auth.token, payload, await getActiveProfileId());
     revalidatePath('/admin/settings/integrations');
     return { ok: true, data };
   } catch (e) {
@@ -162,7 +175,12 @@ export async function updateIntegrationAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await updateIntegration(auth.token, integrationId, payload);
+    const data = await updateIntegration(
+      auth.token,
+      integrationId,
+      payload,
+      await getActiveProfileId(),
+    );
     revalidatePath('/admin/settings/integrations');
     return { ok: true, data };
   } catch (e) {
@@ -176,7 +194,7 @@ export async function testIntegrationAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    const data = await testIntegration(auth.token, integrationId);
+    const data = await testIntegration(auth.token, integrationId, await getActiveProfileId());
     return { ok: true, data };
   } catch (e) {
     return { ok: false, ...(await mapError(e)) };
@@ -189,7 +207,7 @@ export async function deleteIntegrationAction(
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
   try {
-    await deleteIntegration(auth.token, integrationId);
+    await deleteIntegration(auth.token, integrationId, await getActiveProfileId());
     revalidatePath('/admin/settings/integrations');
     return { ok: true };
   } catch (e) {

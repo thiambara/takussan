@@ -184,10 +184,10 @@ function ReviewOpportunitiesList() {
     <ul className="space-y-3">
       {entries.map((entry) => (
         <li key={entry.key}>
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-stone-200 bg-white p-4">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-stone-900">{entry.title}</p>
-              <p className="mt-0.5 text-xs text-stone-500">
+              <p className="truncate text-sm font-semibold text-foreground">{entry.title}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {t(entry.contextKey)}
                 {entry.date && <> · {new Date(entry.date).toLocaleDateString('fr-FR')}</>}
               </p>
@@ -195,13 +195,13 @@ function ReviewOpportunitiesList() {
             <div className="flex items-center gap-2">
               <Link
                 href={entry.href}
-                className="text-xs text-stone-500 hover:text-stone-800"
+                className="text-xs text-muted-foreground hover:text-foreground"
               >
                 {t('details')}
               </Link>
               <Link
                 href={`/properties/${entry.slug}#avis`}
-                className="inline-flex items-center gap-1.5 rounded-md bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-800"
+                className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-foreground"
               >
                 <Star className="size-3" aria-hidden />
                 {tReviewCta('action')}
@@ -229,17 +229,17 @@ function AuthoredReviewCard({
     : null;
 
   return (
-    <article className="rounded-xl border border-stone-200 bg-white p-4">
+    <article className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           {targetHref ? (
-            <Link href={targetHref} className="truncate text-sm font-semibold text-stone-900 hover:underline">
+            <Link href={targetHref} className="truncate text-sm font-semibold text-foreground hover:underline">
               {targetTitle}
             </Link>
           ) : (
-            <p className="truncate text-sm font-semibold text-stone-900">{targetTitle}</p>
+            <p className="truncate text-sm font-semibold text-foreground">{targetTitle}</p>
           )}
-          <p className="mt-0.5 text-xs text-stone-500">
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {date || t('unknownDate')}
             {review.target?.subtitle ? <> · {review.target.subtitle}</> : null}
           </p>
@@ -250,9 +250,9 @@ function AuthoredReviewCard({
         </div>
       </div>
       {review.title ? (
-        <p className="mt-3 text-sm font-medium text-stone-900">{review.title}</p>
+        <p className="mt-3 text-sm font-medium text-foreground">{review.title}</p>
       ) : null}
-      <p className="mt-1 whitespace-pre-line text-sm text-stone-700">
+      <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
         {review.content ?? t('noComment')}
       </p>
     </article>
@@ -298,7 +298,7 @@ function OwnerReviewsInbox() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 rounded-xl border border-stone-200 bg-white p-4 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2">
         <Select value={propertyFilter} onValueChange={(value) => setPropertyFilter(value ?? 'all')}>
           <SelectTrigger aria-label={t('filterByProperty')}>
             <SelectValue placeholder={t('allProperties')} />
@@ -371,11 +371,11 @@ function OwnerReviewCard({ review }: { review: ReviewWithProperty }) {
   }
 
   return (
-    <li className="rounded-xl border border-stone-200 bg-white p-4">
+    <li className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-stone-900">{review.property.title}</p>
-          <p className="mt-0.5 text-xs text-stone-500">
+          <p className="truncate text-sm font-semibold text-foreground">{review.property.title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {review.author.name} · {review.created_at ? formatDate(review.created_at, 'fr') : t('unknownDate')}
           </p>
         </div>
@@ -385,14 +385,14 @@ function OwnerReviewCard({ review }: { review: ReviewWithProperty }) {
         </div>
       </div>
       {review.title ? (
-        <p className="mt-3 text-sm font-medium text-stone-900">{review.title}</p>
+        <p className="mt-3 text-sm font-medium text-foreground">{review.title}</p>
       ) : null}
-      <p className="mt-1 whitespace-pre-line text-sm text-stone-700">
+      <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
         {review.content ?? t('noComment')}
       </p>
       {review.reply_content ? (
-        <div className="mt-3 rounded-lg bg-stone-50 p-3 text-sm text-stone-700">
-          <p className="text-xs font-medium uppercase tracking-wide text-stone-500">{t('yourReply')}</p>
+        <div className="mt-3 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t('yourReply')}</p>
           <p className="mt-1 whitespace-pre-line">{review.reply_content}</p>
         </div>
       ) : null}

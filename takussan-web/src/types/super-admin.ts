@@ -62,10 +62,25 @@ export type KycDocument = {
   expires_at: string;
 };
 
+/**
+ * Le SUJET du dossier, tel que `KycDossierResource` l'émet quand la relation est chargée
+ * (TCK-362). Optionnel parce que la ressource ne le pose que sous `whenLoaded` : un appelant qui
+ * n'envoie pas `include=subject` n'obtient rien, et lire `subject!.name` serait un mensonge de
+ * typage. `name` est nul pour tout sujet qui n'est pas une agence — aucun n'ouvre de dossier
+ * aujourd'hui, mais le champ est polymorphe côté base.
+ */
+export type KycDossierSubject = {
+  id: number;
+  type: string;
+  name: string | null;
+  slug: string | null;
+};
+
 export type KycDossier = {
   id: number;
   subject_type: string;
   subject_id: number;
+  subject?: KycDossierSubject | null;
   status: KycDossierStatus;
   submitted_at: string | null;
   reviewed_at: string | null;
@@ -265,6 +280,25 @@ export type SystemMetrics = {
   revenue: {
     platform_total_paid: number;
     currency: string;
+  };
+  /**
+   * TCK-360 — le point de comparaison à J-30, jamais la variation elle-même.
+   *
+   * `previous` ne porte QUE les métriques réellement reconstructibles côté API. Une clé absente
+   * signifie « pas de période de comparaison » — et c'est pour cela qu'elle est optionnelle plutôt
+   * que nullable à zéro : un `0` se soustrait, une absence non.
+   *
+   * `trend` lui-même est optionnel : une réponse antérieure au ticket (cache, mock, environnement
+   * non déployé) n'en porte pas, et l'accueil doit rendre les tuiles sans delta plutôt que planter.
+   */
+  trend?: {
+    period_days: number;
+    since: string;
+    previous: {
+      agencies_total?: number;
+      users_total?: number;
+      revenue_platform_total_paid?: number;
+    };
   };
   generated_at: string;
 };
@@ -645,6 +679,20 @@ export type FailedJobsResponse = {
     last_page: number;
     per_page: number;
   };
+};
+
+/**
+ * Le détail d'UN job échoué (`GET /api/admin/jobs/failed/{id}`).
+ *
+ * Même forme que `FailedJob`, mais `payload` et `exception` y arrivent ENTIERS : c'est la liste
+ * qui les tronque, côté serveur, à 1024 caractères (`FailedJobService::present($job, true)`).
+ * D'où le type distinct plutôt qu'un `FailedJob` réutilisé — les deux se ressemblent et ne
+ * portent pas la même chose (TCK-365).
+ */
+export type FailedJobDetailResponse = {
+  data: FailedJob;
+  /** L'API prévient que le payload complet peut porter des données sensibles. */
+  warning?: string;
 };
 
 export type ScheduledTask = {

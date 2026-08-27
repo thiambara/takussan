@@ -30,7 +30,9 @@ import {
   fetchAdminAgencyUpgradeRequest,
   type AdminAgencyUpgradeRequestDetail,
 } from '@/lib/queries/super-admin';
-import { PageHeader } from '@/components/console';
+import { PageHeader, StatusBadge, type StatusTone } from '@/components/console';
+import { ErrorState } from '@/components/feedback';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /**
  * TCK-268 — Detail page for one agency upgrade request.
@@ -44,6 +46,7 @@ export default function AgencyUpgradeRequestDetailPage() {
   // Le hook se place AVANT la sortie anticipée sur l'identifiant invalide : après, ce serait
   // un hook conditionnel, que le React Compiler (ADR-0015) refuse.
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
+  const fmt = useFormatteurs();
   const params = useParams<{ id: string }>();
   const id = Number(params?.id);
   const queryClient = useQueryClient();
@@ -60,7 +63,7 @@ export default function AgencyUpgradeRequestDetailPage() {
     return (
       <div className="space-y-4">
         <BackLink />
-        <p className="text-sm text-red-600">{t('invalidId')}</p>
+        <ErrorState message={t('invalidId')} />
       </div>
     );
   }
@@ -72,17 +75,13 @@ export default function AgencyUpgradeRequestDetailPage() {
       <BackLink />
 
       {query.isLoading ? <Skeleton className="h-64" /> : null}
-      {query.isError ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-red-600">{t('loadError')}</CardContent>
-        </Card>
-      ) : null}
+      {query.isError ? <ErrorState message={t('loadError')} /> : null}
 
       {detail ? (
         <>
           <PageHeader
             title={t('requestNumber', { id: String(detail.id) })}
-            description={t('submittedOn', { date: formatDateTime(detail.submitted_at) })}
+            description={t('submittedOn', { date: fmt.dateTime(detail.submitted_at) })}
             actions={<DecisionBadge detail={detail} />}
           />
 
@@ -127,7 +126,7 @@ function BackLink() {
   return (
     <Link
       href="/super-admin/agency-upgrade-requests"
-      className="inline-flex items-center gap-1 text-sm text-stone-600 transition-colors hover:text-stone-900"
+      className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
       <ArrowLeft className="size-4" aria-hidden="true" />
       {t('back')}
@@ -142,7 +141,7 @@ function RecapSection({ detail }: { readonly detail: AdminAgencyUpgradeRequestDe
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-amber-600" aria-hidden="true" />
+          <ClipboardList className="size-4 text-primary" aria-hidden="true" />
           {t('recap.title')}
         </CardTitle>
       </CardHeader>
@@ -161,7 +160,7 @@ function RecapSection({ detail }: { readonly detail: AdminAgencyUpgradeRequestDe
 
         <div className="space-y-3">
           <p className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <FileText className="size-4 text-stone-500" aria-hidden="true" />
+            <FileText className="size-4 text-muted-foreground" aria-hidden="true" />
             {t('recap.legalDocs', { count: String(docs.length) })}
           </p>
           {docs.length === 0 ? (
@@ -185,12 +184,13 @@ function RecapSection({ detail }: { readonly detail: AdminAgencyUpgradeRequestDe
 
 function HistorySection({ detail }: { readonly detail: AdminAgencyUpgradeRequestDetail }) {
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
+  const fmt = useFormatteurs();
   const agency = detail.agency;
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Building2 className="size-4 text-amber-600" aria-hidden="true" />
+          <Building2 className="size-4 text-primary" aria-hidden="true" />
           {t('history.title')}
         </CardTitle>
       </CardHeader>
@@ -203,7 +203,7 @@ function HistorySection({ detail }: { readonly detail: AdminAgencyUpgradeRequest
         <Stat
           icon={<CalendarDays className="size-4" aria-hidden="true" />}
           label={t('history.createdOn')}
-          value={agency?.created_at ? formatDate(agency.created_at) : '—'}
+          value={fmt.date(agency?.created_at)}
         />
         <Stat
           icon={<ScrollText className="size-4" aria-hidden="true" />}
@@ -240,13 +240,14 @@ function DecisionSection({
   readonly onReject: () => void;
 }) {
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
+  const fmt = useFormatteurs();
   const isPending = detail.status === 'pending';
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <ShieldCheck className="size-4 text-amber-600" aria-hidden="true" />
+          <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
           {t('decision.title')}
         </CardTitle>
       </CardHeader>
@@ -263,9 +264,9 @@ function DecisionSection({
             </Button>
           </div>
         ) : (
-          <div className="space-y-3 rounded-lg border border-stone-200 bg-stone-50 p-4">
+          <div className="space-y-3 rounded-lg border border-border bg-muted p-4">
             <DecisionBadge detail={detail} />
-            <Field label={t('decision.decidedOn')} value={formatDateTime(detail.reviewed_at)} />
+            <Field label={t('decision.decidedOn')} value={fmt.dateTime(detail.reviewed_at)} />
             {detail.reviewer ? (
               <Field
                 label={t('decision.by')}
@@ -292,22 +293,18 @@ function DecisionBadge({ detail }: { readonly detail: AdminAgencyUpgradeRequestD
   const t = useTranslations('superAdmin.pages.upgradeRequestDetail');
   // ⚠ Ces libellés ne sont PAS ceux d'`agency.upgrade.status.badges` (côté agence), qui dit
   // « Refusée » là où cette console dit « Rejetée ». Tables volontairement distinctes.
-  const map: Record<string, { labelKey: string; className: string }> = {
-    pending: { labelKey: 'status.pending', className: 'bg-amber-100 text-amber-900' },
-    approved: { labelKey: 'status.approved', className: 'bg-emerald-100 text-emerald-900' },
-    rejected: { labelKey: 'status.rejected', className: 'bg-red-100 text-red-900' },
-    revoked: { labelKey: 'status.revoked', className: 'bg-stone-200 text-stone-800' },
+  // TCK-358 — mêmes SENS que la liste (`STATUS_TONES` de `../page.tsx`), même primitive : les
+  // quatre couleurs faites main qui vivaient ici étaient une seconde table de vérité de la
+  // couleur, à un statut près de diverger de celle de la liste.
+  const map: Record<string, { labelKey: string; tone: StatusTone }> = {
+    pending: { labelKey: 'status.pending', tone: 'attention' },
+    approved: { labelKey: 'status.approved', tone: 'success' },
+    rejected: { labelKey: 'status.rejected', tone: 'danger' },
+    revoked: { labelKey: 'status.revoked', tone: 'neutral' },
   };
   const conf = map[detail.status];
   const label = conf ? t(conf.labelKey) : detail.status;
-  const className = conf?.className ?? 'bg-stone-200 text-stone-800';
-  return (
-    <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${className}`}
-    >
-      {label}
-    </span>
-  );
+  return <StatusBadge tone={conf?.tone ?? 'neutral'} label={label} className="px-2.5 py-1" />;
 }
 
 function Field({
@@ -345,7 +342,7 @@ function Stat({
   readonly value: string;
 }) {
   return (
-    <div className="rounded-lg border border-stone-200 bg-stone-50 p-3">
+    <div className="rounded-lg border border-border bg-muted p-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
         {icon}
         <span>{label}</span>
@@ -353,16 +350,4 @@ function Stat({
       <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
     </div>
   );
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(value),
-  );
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' }).format(new Date(value));
 }

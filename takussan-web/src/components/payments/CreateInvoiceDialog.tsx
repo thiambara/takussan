@@ -200,7 +200,7 @@ export function CreateInvoiceDialog({
               {fields.map((field, index) => (
                 <li
                   key={field.id}
-                  className="grid grid-cols-1 items-start gap-2 rounded-lg border border-stone-200 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_110px_130px_40px]"
+                  className="grid grid-cols-1 items-start gap-2 rounded-lg border border-border bg-card p-3 sm:grid-cols-[minmax(0,1fr)_110px_130px_40px]"
                 >
                   <FormInput<CreateInvoiceFormValues>
                     control={form.control}

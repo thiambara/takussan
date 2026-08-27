@@ -28,10 +28,10 @@ export function MessagesPage() {
   const [groupOpen, setGroupOpen] = useState(false);
 
   return (
-    <div className="grid h-[calc(100vh-12rem)] grid-cols-[320px_1fr] overflow-hidden rounded-xl border border-stone-200 bg-white">
-      <aside className="flex flex-col border-r border-stone-200">
-        <div className="flex items-center justify-between border-b border-stone-200 p-2">
-          <h2 className="text-sm font-semibold text-stone-700">{t('listHeading')}</h2>
+    <div className="grid h-[calc(100vh-12rem)] grid-cols-[320px_1fr] overflow-hidden rounded-xl border border-border bg-card">
+      <aside className="flex flex-col border-r border-border">
+        <div className="flex items-center justify-between border-b border-border p-2">
+          <h2 className="text-sm font-semibold text-muted-foreground">{t('listHeading')}</h2>
           <Button
             type="button"
             size="sm"
@@ -51,7 +51,7 @@ export function MessagesPage() {
         {selectedId ? (
           <ChatView conversationId={selectedId} />
         ) : (
-          <div className="flex flex-1 items-center justify-center bg-stone-50 p-8 text-center text-sm text-stone-500">
+          <div className="flex flex-1 items-center justify-center bg-muted/50 p-8 text-center text-sm text-muted-foreground">
             {t('emptyState')}
           </div>
         )}

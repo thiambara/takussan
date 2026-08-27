@@ -1,13 +1,13 @@
 ---
 id: TCK-369
 title: "Délégation temporaire de rôles — l'écran que TCK-108 n'a pas livré"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 47
 created: 2026-08-26
-updated: 2026-08-26
+updated: 2026-08-27
 depends_on: []
 blocks: []
 spec_refs:
@@ -87,26 +87,35 @@ en trois champs — qui, quel rôle, jusqu'à quand.
 
 ## Delta à produire
 
-- [ ] Requêtes et mutations pour les trois endpoints
-- [ ] Section « délégations » sur `/admin/roles`
-- [ ] Formulaire de création (membre, rôle, période)
-- [ ] Révocation avec confirmation
+- [x] Requêtes et mutations pour les trois endpoints
+      <br>`per_page` seul sur l'URL de lecture, et un test fige cette forme : `sort=` **casse l'ordre** sur cet endpoint et `fields[]` y est ignoré (cf. notes, mesuré).
+- [x] Section « délégations » sur `/admin/roles`
+- [x] Formulaire de création (membre, rôle, période)
+- [x] Révocation avec confirmation
 - [ ] Entrée dans `PRO_ROUTES` + garde SSR si la section ouvre une route propre
-- [ ] i18n fr/en/wo, les trois locales dans le même commit
-- [ ] Tests couvrant la création, la révocation, et le rendu des trois statuts
+      <br>**Sans objet : la condition n'est pas remplie.** La section vit sous `/admin/roles`, déjà dans `PRO_ROUTES` et déjà gardée en SSR par `ensureStandardAgencyOrRedirect`. Aucune route propre n'a été ouverte ; une entrée de plus n'aurait rien gardé.
+- [x] i18n fr/en/wo, les trois locales dans le même commit
+- [x] Tests couvrant la création, la révocation, et le rendu des trois statuts
+      <br>**Quatre statuts, pas trois** (`scheduled`, `active`, `expired`, `revoked`), rendus et distincts deux à deux. 13 tests, 10 ablations de l'implémenteur + 4 inventées par la revue + 2 par le correcteur, toutes rouges.
 
 ## Critères d'acceptation
 
 - [ ] AC1 — une délégation créée depuis l'écran apparaît en `scheduled` sans rechargement
-- [ ] AC2 — les trois statuts se distinguent visuellement, et l'un d'eux au moins est éprouvé
+      <br>**Sans objet TEL QU'ÉCRIT, et le cocher aurait été un défaut** : `RoleDelegationService::create()` pose `Active` dès que `starts_at` est nul ou déjà passé, `Scheduled` sinon. Afficher « Programmée » sur des droits déjà accordés est précisément le mensonge à ne pas écrire. **L'intention de l'AC — apparition immédiate, sans rechargement — est tenue et testée sur les DEUX branches** : l'écran rend le statut que porte la réponse 201, jamais une supposition.
+- [x] AC2 — les trois statuts se distinguent visuellement, et l'un d'eux au moins est éprouvé
       par un test qui **échouerait** si les trois rendaient pareil
+      <br>Quatre statuts, distincts deux à deux, ablation-vérifiés.
 - [ ] AC3 — la révocation retire la délégation de la liste et un test le vérifie
-- [ ] AC4 — un 422 du backend (auto-délégation, durée excessive) s'affiche en clair et non en
+      <br>**Sans objet : l'AC contredit la direction UX du même ticket** (« l'expirée s'efface sans disparaître »), et le backend tranche contre lui — `DELETE` rend **200 avec la ligne passée à `revoked`**, `revoked_at` et `revoked_by` renseignés ; il n'efface pas. La faire disparaître effacerait à l'écran une trace d'audit que la base garde. **Ce qui est livré et testé** : la ligne quitte les délégations *en vigueur* (plus de badge actif, plus de bouton de révocation) et reste affichée, estompée.
+- [x] AC4 — un 422 du backend (auto-délégation, durée excessive) s'affiche en clair et non en
       erreur générique
-- [ ] AC5 — `grep -rl "role_delegations" takussan-web/messages` retourne les **trois** locales
-- [ ] AC6 — un `agency_admin` sans la capacité requise ne voit pas le bouton de création, et
+- [x] AC5 — `grep -rl "role_delegations" takussan-web/messages` retourne les **trois** locales
+      <br>Exécuté le 2026-08-27 sur le chemin réel du dépôt (`takussan-web/src/messages`) : `en.json`, `fr.json`, `wo.json`.
+- [x] AC6 — un `agency_admin` sans la capacité requise ne voit pas le bouton de création, et
       `useCan` n'est pas la seule garde (la policy répond 403 : le vérifier)
+      <br>Les deux moitiés exécutées — mais **l'écran et le serveur ne posent pas la même question** : le bouton est gardé par `team.assign_role`, `RoleDelegationPolicy` garde par TYPE de profil (`isAgencyAdminAt`), et le catalogue `Capability` n'a aucun cas `delegations.*`. C'est le serveur qui décide, donc l'AC tient ; l'écart est l'objet de **[TCK-395](TCK-395-delegation-role-delegue-sans-rapport-avec-les-capacites.md)**.
 - [ ] AC7 — `npm run lint`, `npx tsc --noEmit`, `npm run test` passent
+      <br>**Deux tiers exécutés.** `npx tsc --noEmit` → exit 0 sur l'arbre fusionné (2026-08-27), `npm run lint` → 0 erreur. **`npm run test` en ENTIER : non lancé** (règle « Qui lance quoi »). Périmètre joué par le correcteur : 8 fichiers / 58 tests verts. **Se coche par le rituel de fin de branche, machine au repos.**
 
 ## Hors périmètre
 
@@ -117,4 +126,133 @@ en trois champs — qui, quel rôle, jusqu'à quand.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Quatre mesures ont contredit ce ticket. Elles gouvernent le code livré.**
+
+1. **AC1 est faux tel qu'écrit.** « Une délégation créée apparaît en `scheduled` » n'a pas de
+   condition dans l'AC ; le backend en a une. `RoleDelegationService::create()` pose `Active` dès
+   que `starts_at` est nul ou déjà passé, `Scheduled` sinon. L'écran affiche donc **le statut que
+   la réponse 201 porte**, jamais une supposition — et un test éprouve les deux branches. Cocher
+   AC1 littéralement aurait voulu dire afficher « Programmée » sur des droits déjà accordés.
+
+2. **Il y a quatre statuts, pas trois** (`scheduled`, `active`, `expired`, `revoked`). Les quatre
+   sont rendus, et distincts deux à deux.
+
+3. **`sort=` et `fields[]` ne sont pas refusés par cet endpoint — ils sont ignorés, et `sort=`
+   casse l'ordre.** `RoleDelegationController::index` ne déclare ni `allowedSorts` ni
+   `allowedFields` ; spatie n'exécute alors jamais ses contrôles (`ensureAllSortsExist()` n'est
+   appelée que depuis `allowedSorts()`). Mesuré sur trois délégations de dates distinctes :
+
+   ```
+   GET …/role-delegations                  → ids 3,2,1   (le -created_at du contrôleur)
+   GET …/role-delegations?sort=-created_at → ids 1,2,3   ← l'ordre est PERDU, sans erreur
+   GET …/role-delegations?fields[…]=id     → 19 clés     ← le champ est IGNORÉ
+   ```
+
+   Appliquer la règle « sparse fieldsets obligatoires » ici aurait donc **dé-trié la liste** tout
+   en donnant l'illusion d'un fieldset. Le module de requêtes n'envoie que `per_page`, et un test
+   fige cette forme d'URL.
+
+4. **AC3 contredit la direction UX du même ticket.** « La révocation retire la délégation de la
+   liste » face à « l'expirée s'efface sans disparaître ». Le backend tranche : `DELETE` rend
+   **200 avec la ligne passée à `revoked`**, `revoked_at` et `revoked_by` renseignés — il
+   n'efface pas. La ligne reste donc affichée, estompée, et quitte les délégations *en vigueur*
+   (plus de bouton de révocation, plus de badge actif). La faire disparaître effacerait à l'écran
+   une trace d'audit que la base garde.
+
+**Un cinquième point n'était dans aucun AC, et c'est le plus coûteux.**
+`HasProfiles::hasActiveAgencyDelegation()` exige `status = active` **ET** `ends_at > now()` : les
+droits tombent à la seconde où `ends_at` passe. La colonne `status`, elle, n'est réécrite que par
+`ProcessRoleDelegationsJob`, toutes les 5 minutes. Pendant cette fenêtre l'API sert
+`status: "active"` pour une délégation qui n'accorde plus rien. L'écran rend donc le **statut
+effectif** (`statutEffectif()`), qui relit la condition de la policy sur les mêmes données. La
+symétrie inverse n'est délibérément pas faite : un `scheduled` dont le `starts_at` est passé
+n'accorde toujours rien, « Programmée » y est exact.
+
+**Le bouton est gardé par `team.assign_role`, et ce n'est pas ce que la policy demande.** Le
+catalogue `Capability` n'a aucun cas `delegations.*` ; `RoleDelegationPolicy` garde par TYPE de
+profil (`isAgencyAdminAt`). L'écran et le serveur ne posent donc pas la même question, et c'est le
+serveur qui décide. Avec deux autres mesures — deux des trois rôles délégables n'accordent
+strictement rien, et un délégant peut accorder plus qu'il ne détient — cela fait l'objet de
+**[TCK-395](TCK-395-delegation-role-delegue-sans-rapport-avec-les-capacites.md)**.
+
+**Pas de nouvelle route.** La section vit sous `/admin/roles`, déjà dans `PRO_ROUTES` et déjà
+gardée en SSR par `ensureStandardAgencyOrRedirect`. Une entrée de plus n'aurait rien gardé.
+
+**Les libellés `role_label` / `status_label` de `RoleDelegationResource` ne sont pas affichés** —
+ils sont en français en dur dans le PHP (principe non négociable n°5). Ils sont volontairement
+présents dans le double de test : sans eux, le test qui vérifie qu'on ne les rend pas ne
+prouverait rien.
+
+**Dix ablations ont été jouées**, chacune faisant rougir le test qu'elle vise et lui seul.
+
+
+## Reprise après revue adverse — 2026-08-27
+
+La revue a rendu **« accepté avec réserves »** : les 8 AC exécutés, les 10 ablations rejouées ou
+inventées confirmées, et le versant droits sondé sain par 9 sondes PHPUnit hors dépôt (expiration
+appliquée à la lecture, révocation immédiate, frontière d'agence tenue dans les deux sens, chaîne
+de délégations refusée). **Deux réserves ont été levées ; toutes deux portaient sur l'HORLOGE, et
+la seconde était un vrai défaut de droits.**
+
+### 1. Les fixtures pourrissaient par l'horloge — et le correctif a d'abord pourri lui aussi
+
+`statutEffectif()` compare `ends_at` à `Date.now()`, et les fixtures portaient des dates en dur
+(`'2026-12-31T23:59:59+00:00'`). Mesuré par la revue, **code de production intact** : reculer cette
+seule date d'un an rendait **5 rouges sur 12** ; les reculer toutes, **9 sur 57**. Ces tests
+seraient devenus rouges le 2027-01-01 sur un dépôt que personne n'aurait touché — et ce jour-là ils
+auraient accusé le dernier commit venu.
+
+Les deux fichiers de test n'ont plus aucune date en dur : les décalages sont exprimés par rapport à
+l'instant du test (`enJours(120)`, `dans(-30)`, `saisieDans(160)` pour les `<input type="date">`).
+
+**Et la première version du correctif ne suffisait pas.** L'ablation qui le vérifie — avancer
+l'horloge de test d'un an avec `vi.setSystemTime`, sans toucher au code de production — a rendu
+**3 rouges** : le tableau `LES_QUATRE` était construit au CHARGEMENT du module, donc calé sur
+`Date.now()` à l'import et non sur l'instant du test. *Une date relative évaluée trop tôt est une
+date en dur qui s'ignore.* C'est désormais une fonction, `lesQuatre()`.
+
+Preuve dans les deux sens, même harnais d'horloge :
+
+| Fichier de fixtures | Horloge +1 an | Horloge +10 ans |
+|---|---|---|
+| version d'origine (dates en dur) | **5 rouges / 12** | — |
+| version corrigée | **13 verts / 13** | **13 verts / 13** |
+
+### 2. L'horloge du navigateur pouvait retirer le bouton de révocation d'une délégation vivante
+
+Le défaut : le bouton « Révoquer » était offert sur le statut **effectif**, calculé en comparant
+`ends_at` à l'horloge du NAVIGATEUR. Un poste dont l'horloge avance — dérive, fuseau mal réglé,
+machine virtuelle réveillée — franchit `ends_at` avant le serveur. La ligne passait à « Expirée »
+en avance et **le bouton disparaissait**, alors que `hasActiveAgencyDelegation` évalue
+`ends_at > now()` avec l'horloge SERVEUR et que le DELETE aurait été accepté.
+
+**C'est une délégation qui accorde encore des droits et qu'on ne peut plus retirer parce qu'on
+croit qu'elle est finie** — sur l'écran prévu pour ça, et sur l'action qui y est l'action d'urgence.
+Le test livré au premier tour figeait ce comportement, bouton absent compris.
+
+Ce qui est OFFERT se décide désormais sur `delegation.status`, la valeur que rend la même machine
+que celle qui arbitre le DELETE. Ce qui est AFFICHÉ — estompage et badge « Expirée » — reste sur le
+statut effectif : annoncer « Active » sur des droits peut-être éteints serait le mensonge inverse,
+et il est pire.
+
+**Le geste de trop ne coûte rien, le geste manquant n'a aucun recours.**
+`RoleDelegationService::revoke()` sort en tête si la ligne n'est ni `Active` ni `Scheduled` : la
+révocation est idempotente. C'est ce qui rend l'asymétrie du correctif légitime — on ne symétrise
+pas deux erreurs dont les coûts diffèrent d'un ordre de grandeur.
+
+Couvert par un test dédié (« garde « Révoquer » quand le SERVEUR dit encore active, même si
+l'horloge locale a franchi ends_at », `ends_at` à −30 s, l'ordre de grandeur d'une dérive
+ordinaire). **Ablation A9** — revenir à `estDelegationRevocable(statut)` : **1 rouge, celui-là et
+lui seul**, md5 du fichier restauré à l'identique.
+
+### Ce qui reste ouvert
+
+- **[TCK-395](TCK-395-delegation-role-delegue-sans-rapport-avec-les-capacites.md)** — inchangé, et
+  c'est le point le plus lourd du lot : une délégation `agency_admin` accorde un droit de policy
+  que le modèle de capacités ne voit jamais passer, et déléguer `agent` ou `owner` n'accorde
+  **rien** nulle part. Confirmé par exécution (sonde P9), pas par lecture.
+- **Aucune vérification NAVIGATEUR** n'a été faite : le rendu réel des quatre variantes de badge en
+  thème clair et sombre, et le comportement d'`<input type="date">` hors jsdom, restent non vus.
+- La revue signale aussi une ligne `active` tombée hors de la page 1 (`per_page: 100`, sans
+  pagination) qui deviendrait invisible donc non révocable. C'est la convention en vigueur de
+  l'écran (`agency-roles.ts:72` fait pareil) et ce n'est pas ticketé.

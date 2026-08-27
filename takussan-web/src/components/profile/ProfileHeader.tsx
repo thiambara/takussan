@@ -124,7 +124,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
         {currentUser.avatar_url ? (
           <AvatarImage src={currentUser.avatar_url} alt={currentUser.full_name} />
         ) : null}
-        <AvatarFallback className="bg-foreground text-2xl text-white">{initials}</AvatarFallback>
+        <AvatarFallback className="bg-foreground text-2xl text-primary-foreground">{initials}</AvatarFallback>
       </Avatar>
       <div className="space-y-1">
         <h1 className="text-2xl font-bold text-foreground">{currentUser.full_name}</h1>
@@ -166,7 +166,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                 onChange={handleAvatarChange}
               />
               {avatarError ? (
-                <p role="alert" className="text-sm text-red-600">
+                <p role="alert" className="text-sm text-destructive">
                   {avatarError}
                 </p>
               ) : null}
@@ -175,7 +175,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
                   <div className="flex items-center gap-3">
                     <Avatar className="size-10">
                       <AvatarImage src={dialogAvatarSrc} alt={currentUser.full_name} />
-                      <AvatarFallback className="bg-foreground text-xs text-white">
+                      <AvatarFallback className="bg-foreground text-xs text-primary-foreground">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
@@ -233,7 +233,7 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
               />
             </div>
             {error ? (
-              <p role="alert" className="text-sm text-red-600">
+              <p role="alert" className="text-sm text-destructive">
                 {error}
               </p>
             ) : null}

@@ -1,8 +1,15 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileReviewsList } from '@/components/profile/ProfileReviewsList';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.profileReviews');
+  return { title: t('metaTitle') };
+}
 
 export default async function ProfileReviewsPage() {
   const t = await getTranslations('dashboard.pages.profileReviews');
@@ -12,21 +19,21 @@ export default async function ProfileReviewsPage() {
 
   return (
     <ProfileLayout>
-      <header className="space-y-1">
-        <nav className="text-sm text-muted-foreground">
-          <Link href="/app/profile" className="hover:underline">
-            {t('breadcrumbProfile')}
-          </Link>
-          <span aria-hidden="true" className="mx-1">
-            /
+      <PageHeader
+        eyebrow={
+          <span className="normal-case tracking-normal">
+            <Link href="/app/profile" className="hover:underline">
+              {t('breadcrumbProfile')}
+            </Link>
+            <span aria-hidden="true" className="mx-1">
+              /
+            </span>
+            <span>{t('breadcrumbCurrent')}</span>
           </span>
-          <span>{t('breadcrumbCurrent')}</span>
-        </nav>
-        <h1 className="font-display text-2xl font-bold text-foreground">
-          {t('title')}
-        </h1>
-        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+        }
+        title={t('title')}
+        description={t('subtitle')}
+      />
 
       <ProfileReviewsList roles={user.roles} />
     </ProfileLayout>

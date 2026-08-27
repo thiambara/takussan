@@ -42,7 +42,7 @@ export function SystemMessageBubble({ message }: SystemMessageBubbleProps) {
 
   return (
     <li className="flex justify-center">
-      <span className="rounded-full bg-stone-200 px-3 py-1 text-[11px] text-stone-600">
+      <span className="rounded-full bg-muted px-3 py-1 text-[11px] text-muted-foreground">
         {text}
       </span>
     </li>
