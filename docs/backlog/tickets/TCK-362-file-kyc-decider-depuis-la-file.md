@@ -75,4 +75,34 @@ L'écran actuel liste des dossiers, affiche « Agence #12 » — l'identifiant t
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Le ticket disait « le nom de l'agence est à obtenir via `include=` » — et l'`include` ne suffisait
+pas.** `KycController::index` chargeait `subject` depuis toujours (`->with(['subject', 'reviewer'])`)
+et `fetchAdminAgencyKyc` envoyait déjà `include=subject,reviewer` ; ce qui manquait était côté
+SORTIE : `KycDossierResource` n'émettait que `subject_id`. La relation était chargée et jamais
+sérialisée. Le correctif touche donc l'API (`KycDossierResource`), ce que le ticket ne prévoyait pas.
+
+**Le motif n'est exigé que pour le REJET**, contrairement au patron de `ModerationDecisionPanel` qui
+l'exige pour ses quatre décisions : `KycController::verify` ne prend aucun motif, et
+`RejectKycDossierRequest` pose `min:5`. Le plancher de 5 est recopié dans `kyc-queue.tsx`
+(`MOTIF_LONGUEUR_MIN`) faute de contrat qui le transporte.
+
+**Le bouton « Rejeter » reste actif sans motif et l'annonce** au lieu d'être désactivé — c'est ce qui
+rend AC3 éprouvable en soumettant réellement, et un bouton grisé sans explication renvoie l'opérateur
+chercher ce qui bloque.
+
+**Le motif se vide par `key={dossier.id}` sur le panneau, pas par un effet.** Le React Compiler
+(ADR-0015) refuse `setState` synchrone dans un `useEffect`
+(`Calling setState synchronously within an effect can trigger cascading renders`).
+
+**Le compteur « À instruire » est une requête distincte** (`per_page=1`, seul `meta.total` est lu)
+plutôt que `meta.total` de la file : il doit rester juste quand l'opérateur regarde les vérifiés. Il
+vit sous le préfixe `['super-admin', 'kyc']`, donc la décision l'invalide avec la file en un appel.
+
+**Vérifié par ablation** — chaque garde retirée fait rougir son test : `include=subject` (1 rouge),
+la garde du motif (1), l'invalidation (1), le filtre écrit dans l'URL (1), et le `subject` de la
+ressource côté API (1).
+
+⚠ **Le `N+1` de médias n'est PAS traité** : `KycDossierResource` appelle `getMedia('documents')` par
+dossier, soit une requête par ligne de file. Hors périmètre de ce ticket (qui ne parle que du nom de
+l'agence), mais le test API le contourne explicitement en ne comptant que les requêtes touchant
+`agencies` — un compteur global confondrait les deux.

@@ -6,6 +6,7 @@ import type {
   AdminAgencyTeamResponse,
   KycDossierResponse,
   KycDossiersResponse,
+  KycDossierStatus,
   PlanPayload,
   PlanResponse,
   PlansResponse,
@@ -160,13 +161,21 @@ export async function fetchAdminAgencyKyc(agencyId: number): Promise<KycDossierR
   return jsonOrThrow<KycDossierResponse>(res);
 }
 
+/**
+ * La file KYC du super-admin.
+ *
+ * TCK-362 — `include=subject` n'est PAS décoratif : sans lui `KycDossierResource` n'émet que
+ * `subject_id`, et l'écran retombe sur « Agence #12 ». C'est UN `include` pour toute la page,
+ * jamais une requête par ligne.
+ */
 export async function fetchAdminKycQueue(params: {
-  status?: 'pending' | 'submitted' | 'verified' | 'rejected';
+  status?: KycDossierStatus;
   page?: number;
   perPage?: number;
 } = {}): Promise<KycDossiersResponse> {
   const qs = new URLSearchParams();
   qs.set('fields[kyc_dossiers]', KYC_DOSSIER_FIELDS);
+  qs.set('include', 'subject');
   qs.set('filter[subject_type]', 'Agency');
   qs.set('filter[status]', params.status ?? 'submitted');
   qs.set('sort', 'submitted_at');
