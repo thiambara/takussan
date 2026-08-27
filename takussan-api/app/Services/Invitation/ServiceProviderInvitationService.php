@@ -4,6 +4,7 @@ namespace App\Services\Invitation;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\Capability;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Invitation;
@@ -210,8 +211,12 @@ class ServiceProviderInvitationService
             return;
         }
 
+        // TCK-395 — voir `MembershipCapabilityResolver::delegationAllows()` : la
+        // délégation passe désormais par le pivot et est bornée par les
+        // capacités propres du délégant, au lieu d'accorder l'agency_admin
+        // plein sur un simple test de chaîne.
         $allowed = $inviter->isAgencyAdminAt((int) $agency->id)
-            || $inviter->hasActiveAgencyDelegation((int) $agency->id, 'agency_admin');
+            || $inviter->canActAt(Capability::TeamInvite, $agency);
 
         if (! $allowed) {
             throw new HttpException(403, __('service_providers.invite.errors.permission_denied'));

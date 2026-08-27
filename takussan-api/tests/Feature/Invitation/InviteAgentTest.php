@@ -146,9 +146,21 @@ class InviteAgentTest extends TestCase
         // `RoleDelegation` (TCK-108) et non plus par `givePermissionTo`
         // sur spatie. Une délégation active de `agency_admin` autorise
         // les actions team.*.
+        // TCK-395 — le délégant est un VRAI `agency_admin`, et non plus l'agent
+        // lui-même. La ligne écrite ici portait `delegator_id => $agent->id` :
+        // une AUTO-délégation, que `RoleDelegationService::create()` refuse
+        // explicitement (`self_delegation`) et que l'API ne peut donc pas
+        // produire. Elle passait parce que la délégation était honorée sur un
+        // simple test de CHAÎNE — un agent sans aucune capacité s'accordait
+        // à lui-même l'agency_admin plein. Depuis TCK-395, une délégation ne
+        // confère que ce que son délégant détient : ce cas mesure désormais
+        // une délégation que l'API sait émettre.
+        $delegant = User::factory()->create(['agency_id' => $agency->id]);
+        $this->materializeRoleProfile($delegant, 'agency_admin', $agency);
+
         RoleDelegation::create([
             'user_id' => $agent->id,
-            'delegator_id' => $agent->id,
+            'delegator_id' => $delegant->id,
             'agency_id' => $agency->id,
             'role' => 'agency_admin',
             'starts_at' => now(),
