@@ -18,14 +18,14 @@ vi.mock('next/link', () => ({
  */
 describe('<SettingsTabs>', () => {
   it('marque l’onglet général comme page courante, et lui seul', async () => {
-    render(await SettingsTabs({ active: 'general' }));
+    render(await SettingsTabs({ active: 'general', canSeeGeneral: true }));
 
     expect(screen.getByRole('link', { name: 'Général' })).toHaveAttribute('aria-current', 'page');
     expect(screen.getByRole('link', { name: 'Intégrations' })).not.toHaveAttribute('aria-current');
   });
 
   it('marque l’onglet intégrations comme page courante, et lui seul', async () => {
-    render(await SettingsTabs({ active: 'integrations' }));
+    render(await SettingsTabs({ active: 'integrations', canSeeGeneral: true }));
 
     expect(screen.getByRole('link', { name: 'Intégrations' })).toHaveAttribute(
       'aria-current',
@@ -35,7 +35,7 @@ describe('<SettingsTabs>', () => {
   });
 
   it('pointe sur les deux routes de la section', async () => {
-    render(await SettingsTabs({ active: 'general' }));
+    render(await SettingsTabs({ active: 'general', canSeeGeneral: true }));
 
     expect(screen.getByRole('link', { name: 'Général' })).toHaveAttribute(
       'href',
@@ -44,6 +44,22 @@ describe('<SettingsTabs>', () => {
     expect(screen.getByRole('link', { name: 'Intégrations' })).toHaveAttribute(
       'href',
       '/admin/settings/integrations',
+    );
+  });
+
+  /**
+   * TCK-370 — l'onglet « Général » pointe sur `/admin/settings`, qui redirige tout
+   * non-super-admin vers `/admin`. Un `agency_admin` arrivé sur les intégrations depuis le menu
+   * y trouvait donc un lien qui l'éjectait. Ce test rougit si le filtre disparaît : il ne
+   * suffit pas que le lien EXISTE, il faut qu'il n'existe pas pour qui la page rejette.
+   */
+  it('retire l’onglet général quand l’acteur n’y a pas accès', async () => {
+    render(await SettingsTabs({ active: 'integrations', canSeeGeneral: false }));
+
+    expect(screen.queryByRole('link', { name: 'Général' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Intégrations' })).toHaveAttribute(
+      'aria-current',
+      'page',
     );
   });
 });

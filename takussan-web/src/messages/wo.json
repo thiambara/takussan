@@ -147,7 +147,8 @@
       "backToPersonal": "Dellu ci sama bérébu bopp",
       "proLocked": "Kont pro rekk",
       "pendingBadge": "{count} ñu séq",
-      "roles": "Wàll yi"
+      "roles": "Wàll yi",
+      "integrations": "Ay jokkoo"
     },
     "superAdmin": {
       "eyebrow": "Konsol Takussan",
@@ -2928,6 +2929,12 @@
     }
   },
   "admin": {
+    "notices": {
+      "tagsPlatformManaged": {
+        "title": "Plaatform bi moo yor tag yi",
+        "body": "Amul benn xët « Tag » ci wàllu ajaas bi : Takussan moo yor limu tag yi ngir mu bokk ci katalog bi yépp. Ñu delloo na la ci taablo bi."
+      }
+    },
     "moderation": {
       "reviews": {
         "empty_title": "Amul avis bu ñu war a xool",
@@ -3443,6 +3450,16 @@
       }
     },
     "agencyConfig": {
+      "watermarks": {
+        "title": "Filigraanu nataal yi",
+        "description": "Dafay delluwaat filigraanu ajaas bi ci nataali kër yi mu am yépp. Baax na bu logo bi soppikoo.",
+        "action": "Defaraat filigraan yi",
+        "confirmTitle": "Ndax nga bëgg a defaraat filigraan yi yépp ?",
+        "confirmBody": "Nataali kër yi ajaas bi am yépp dinañu leen liggéeyaat ci ginnaaw. Man na yàgg ay simili te dafay wuutu fiise yi fi nekk.",
+        "confirmAction": "Tàmbali defaraat bi",
+        "pending": "Mu ngi dem…",
+        "queued": "Yónnee nañu ndigal bi : liggéey bi dafay wéy ci ginnaaw."
+      },
       "successSaved": "Soppi yi denc nañu leen.",
       "logoUpdated": "Logo bi yeesal nañu ko.",
       "identity": {

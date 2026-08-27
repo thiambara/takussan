@@ -17,14 +17,27 @@ import { cn } from '@/lib/utils';
  *
  * Composant SERVEUR (`getTranslations`) : les deux pages qui le montent le sont aussi, et le
  * rendre client aurait embarqué une frontière pour trois libellés.
+ *
+ * TCK-370 — `canSeeGeneral` est REQUIS, pas optionnel avec un défaut permissif. `/admin/settings`
+ * redirige tout non-super-admin vers `/admin` (son API, `routes/api/admin.php`, est sous le
+ * middleware `super-admin`) : montrer l'onglet « Général » à un `agency_admin` lui offrait un
+ * lien qui l'éjectait de l'écran qu'il venait d'ouvrir. Le rendre obligatoire fait porter la
+ * question par le typage à CHAQUE site d'appel — un défaut à `true` aurait ramené le défaut au
+ * premier écran ajouté.
  */
-export async function SettingsTabs({ active }: { readonly active: 'general' | 'integrations' }) {
+export async function SettingsTabs({
+  active,
+  canSeeGeneral,
+}: {
+  readonly active: 'general' | 'integrations';
+  readonly canSeeGeneral: boolean;
+}) {
   const t = await getTranslations('admin.pages.settings');
 
   const onglets = [
     { cle: 'general', href: '/admin/settings', label: t('tabGeneral') },
     { cle: 'integrations', href: '/admin/settings/integrations', label: t('tabIntegrations') },
-  ] as const;
+  ].filter((onglet) => onglet.cle !== 'general' || canSeeGeneral);
 
   return (
     <nav className="flex flex-wrap gap-2" aria-label={t('navAria')}>

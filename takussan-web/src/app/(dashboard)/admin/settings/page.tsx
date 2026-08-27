@@ -37,7 +37,7 @@ export default async function Page() {
       <PageHeader
         title={t('title')}
         description={t('subtitle')}
-        actions={<SettingsTabs active="general" />}
+        actions={<SettingsTabs active="general" canSeeGeneral />}
       />
 
       {!result.ok ? (

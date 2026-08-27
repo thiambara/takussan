@@ -88,4 +88,57 @@ en silence.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit (2026-08-27)
+
+Les quatre constats du tableau ont été rejoués un par un. **Trois sont exacts au mot près.** Ce
+qui ne l'était pas est le **Contrat de données**, et il l'était dans le sens qui fait perdre du
+temps :
+
+> « Le taux de commission par défaut est déjà servi par `/api/dashboard/agency`, que la page monte
+> déjà. »
+
+Faux sur les deux moitiés.
+
+- `DashboardAgencyService` rend `finance.commission_month` — une **somme** de
+  `leases.commission_amount` sur le mois — et aucun taux. `DashboardAgencyPayload`
+  (`src/lib/queries/dashboard-agency.ts`) n'a aucun champ de taux.
+- `/admin/finances/page.tsx` ne monte pas cet endpoint. La page qui l'appelle est `/admin`.
+
+La source réelle est `agencies.commission_rate`, déjà présente dans `AGENCY_ADMIN_FIELDS` et déjà
+servie par `fetchAgencyAction` — celle-là même dont `/admin/agency` pré-remplit son champ
+« Commission ». Les deux écrans lisent donc désormais la même colonne. *Un ticket qui nomme la
+mauvaise source fait écrire un endpoint qui existait déjà ailleurs.*
+
+Deux précisions mineures, sans effet sur le delta : le renvoi `AdminSidebar.tsx:56-90` désigne en
+fait `buildAdminItems` (50-90), l'entrée super-admin étant à 86-88 ; et le défaut n°4 est un cran
+plus profond que décrit — `AdminFinancesClient` ne **portait pas** la prop, il ne se contentait pas
+de ne pas la passer.
+
+### Décisions non évidentes
+
+**`AdminNotice` est scindé en un résolveur `async` et un bandeau synchrone.** Ce n'est pas du
+style : React ne rend pas un composant `async` imbriqué sous un autre (mesuré — l'arbre entier
+suspend et le test ne voit qu'un `<div />` vide, donc ne distingue plus « le bandeau manque » de
+« rien ne s'affiche »). Le défaut corrigé ici a vécu précisément parce que ce chemin n'était
+éprouvé nulle part. Même contrainte rencontrée sur `SettingsTabs`, traitée là par un doublon qui
+**capture les props réelles de la page** et les rejoue sur le vrai composant (`importActual`).
+
+**`SettingsTabs.canSeeGeneral` est requis, sans défaut.** Un défaut à `true` aurait ramené
+l'onglet éjectant au premier écran ajouté ; le typage pose la question à chaque site d'appel.
+
+**Le bouton de filigranes ne cache pas le refus.** La garde serveur (`primary_admin_id` ou
+super-admin) est plus étroite que l'`isAdmin` qui ouvre `/admin/agency`. Le bouton reste visible
+et l'erreur 403 est affichée : le masquer aurait supprimé le message en même temps que le geste.
+Il est monté **hors** du `<form>` d'`AgencyConfigForm` — un test le vérifie.
+
+**`/app/payments` porte le même défaut n°4 et n'est PAS corrigé** : `PaymentsTabs` accepte
+`defaultCommissionRate` et `app/payments/page.tsx` monte `<PaymentsTabs />` nu. Hors périmètre —
+le ticket ne nomme que le chemin admin.
+
+### Vérification
+
+Chaque correctif a été **retiré puis rejoué** pour vérifier que ses tests rougissent : les deux
+côtés du fil `notice`, l'entrée de menu, le surlignage par préfixe, `canSeeGeneral` au site
+d'appel comme dans le composant, la confirmation du dialogue, et les deux maillons du taux de
+commission. La valeur d'épreuve du taux est **7,5** et non 0 — le défaut se manifestait en `?? 0`,
+donc une agence à 0 % aurait rendu le test vert avec et sans le correctif.

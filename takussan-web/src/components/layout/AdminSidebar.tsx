@@ -16,6 +16,7 @@ import {
   Shield,
   Briefcase,
   Lock,
+  Plug,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
@@ -80,6 +81,18 @@ function buildAdminItems(
     badge: propertyPendingCount || undefined,
   });
   items.push({ href: '/admin/audit', labelKey: 'auditLog', icon: FileText });
+  // TCK-370 — les intégrations suivent ce que l'API autorise, pas ce que le menu supposait.
+  // `routes/api/integrations.php` ne pose qu'`auth:sanctum`, et `IntegrationController::index`
+  // laisse entrer un `agency_admin` sur SON agence (`isAgencyAdminAt`). L'entrée n'existait
+  // nulle part : `/admin/settings/integrations` n'était atteignable que par l'onglet de
+  // `/admin/settings`, page réservée au super-admin — donc par aucun chemin pour un
+  // `agency_admin`. Elle est poussée à tout admin ; le layout `(dashboard)/admin` a déjà
+  // écarté les autres rôles.
+  items.push({
+    href: '/admin/settings/integrations',
+    labelKey: 'integrations',
+    icon: Plug,
+  });
   // `/api/admin/settings` is super-admin-only at the route middleware level
   // (`routes/api/admin.php` group), so showing this entry to agency_admin
   // only leads to a broken page. Restrict to super_admin.
@@ -189,10 +202,14 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
       </div>
       <nav className="flex-1 overflow-y-auto space-y-1 px-3">
         {items.map((item) => {
-          // Exact match for the dashboard root, prefix match for nested routes
-          // so "Paramètres" stays highlighted on /admin/settings/tags etc.
+          // Exact match for the dashboard root, prefix match for nested routes.
+          // TCK-370 — `/admin/settings` rejoint la liste des correspondances EXACTES : depuis
+          // qu'« Intégrations » est une entrée à part entière, un préfixe allumerait les deux
+          // lignes à la fois sur `/admin/settings/integrations`.
           const active =
-            item.href === '/admin' || item.href === '/admin/agency'
+            item.href === '/admin'
+            || item.href === '/admin/agency'
+            || item.href === '/admin/settings'
               ? pathname === item.href
               : pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
