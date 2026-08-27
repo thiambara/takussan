@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
@@ -30,15 +29,13 @@ export const dynamic = 'force-dynamic';
  */
 export default async function Page() {
   const user = await getMeAction();
+
+  // TCK-426 — les QUATRE refus de cette page (jeton absent, rôle non-admin, absence de contexte
+  // d'agence, agence illisible) ont remonté dans `settings/agency/upgrade/layout.tsx`. Sous le
+  // `loading.tsx` de ce segment, aucun ne rendait son statut. Ne reste ici que du narrowing.
   const token = await getToken();
-  if (!token) redirect('/auth/login?redirect=/app/settings/agency/upgrade');
-
-  const isAdmin =
-    user.roles.includes('agency_admin') || user.roles.includes('super_admin');
-  if (!isAdmin) redirect('/app');
-
   const agencyId = user.agency_id;
-  if (!agencyId) redirect('/app');
+  if (!token || !agencyId) return null;
 
   const [agency, listing] = await Promise.all([
     resolveAgencyOrNull(token, agencyId, 'settings/agency/upgrade', 'decision'),
@@ -59,7 +56,11 @@ export default async function Page() {
   //
   // *Quand le commentaire et le code divergent, vérifier lequel des deux avait raison ; ici,
   // c'était le commentaire.*
-  if (!agency) redirect('/app');
+  //
+  // ⚠ TCK-426 — le REFUS lui-même est dans `layout.tsx`, avec ce raisonnement et ce même
+  // `'decision'` ; la résolution est mémoïsée, donc la rappeler ici ne coûte rien. Ce qui reste
+  // ci-dessous est du narrowing : le layout a déjà renvoyé, `agency` ne peut pas être `null`.
+  if (!agency) return null;
 
   const t = await getTranslations('agency.upgrade.page');
 

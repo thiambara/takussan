@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
-import { redirect } from 'next/navigation';
+import { isAdmin, isAgent } from '@/lib/roles';
 import { ExportForm } from './ExportForm';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
@@ -19,9 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ExportsPage() {
   const t = await getTranslations('dashboard.pages.exports');
   const user = await getMeAction();
-  if (!isAdmin(user.roles) && !isAgent(user.roles) && !isOwner(user.roles)) {
-    redirect('/app/overview');
-  }
+  // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
 
   const canExportCustomers = isAdmin(user.roles) || isAgent(user.roles);
 

@@ -6,7 +6,6 @@ import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { TenantOnboardingPendingList } from '@/components/leases/TenantOnboardingPendingList';
 import { isSuperAdmin } from '@/lib/roles';
-import { assertCanReachAgencyStaffArea } from '@/lib/auth/guards';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.onboardingPending');
@@ -18,8 +17,10 @@ export async function generateMetadata(): Promise<Metadata> {
  * d'onboarding est encore ouverte > 7 j (l'EDL d'entrée est typiquement
  * en cause). Réservée aux membres `agency_admin` / `agent` et au
  * `super_admin` — le bailleur EXCLU. Les autres sont REDIRIGÉS vers `/app` par
- * `assertCanReachAgencyStaffArea` : `forbidden()` ne rendait pas un 403 mais un écran de
- * panne, le drapeau `experimental.authInterrupts` étant délibérément absent (TCK-378).
+ * `assertCanReachAgencyStaffArea`, appelée depuis le `layout.tsx` de ce segment et non plus
+ * d'ici (TCK-426 — sous le `loading.tsx`, le refus rendait 200 au lieu de 307) :
+ * `forbidden()` ne rendait pas un 403 mais un écran de panne, le drapeau
+ * `experimental.authInterrupts` étant délibérément absent (TCK-378).
  */
 export default async function Page() {
   const t = await getTranslations('dashboard.onboardingPending');
@@ -28,8 +29,6 @@ export default async function Page() {
   if (isSuperAdmin(user.roles) && !user.agency_id) {
     return <NoAgencyState title={t('title')} />;
   }
-
-  assertCanReachAgencyStaffArea(user.roles);
 
   if (!user.agency_id) {
     return <NoAgencyState title={t('title')} />;

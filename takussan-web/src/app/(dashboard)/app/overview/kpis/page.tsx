@@ -1,7 +1,4 @@
 import type { Metadata } from 'next';
-import { getMeAction } from '@/app/actions/auth';
-import { isAdmin } from '@/lib/roles';
-import { redirect } from 'next/navigation';
 import { fetchKpiConfigs, fetchKpiMetricsCatalog } from '@/lib/queries/kpis';
 import { KpiConfigList } from './KpiConfigList';
 import { getTranslations } from 'next-intl/server';
@@ -27,8 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function KpisPage() {
   const t = await getTranslations('dashboard.pages.kpis');
-  const user = await getMeAction();
-  if (!isAdmin(user.roles)) redirect('/app/overview');
+  // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
 
   const [configs, catalog] = await Promise.all([fetchKpiConfigs(), fetchKpiMetricsCatalog()]);
 

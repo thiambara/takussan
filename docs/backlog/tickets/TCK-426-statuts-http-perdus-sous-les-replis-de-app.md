@@ -124,7 +124,95 @@ Deux conséquences que le ticket ne pouvait pas avoir :
 - Et il n'existe **aucune** échappatoire par la synchronicité : une page non-`async` perd son
   statut exactement comme une page `async`.
 
-### 3. Ce qui est FAIT dans ce ticket
+### 3. Ce qui est FAIT dans ce ticket — les 23 refus d'autorisation, mesurés en vrai
+
+**Le tableau du § 1 sous-comptait, et la re-mesure l'a montré.** Les « 32 appels sur 15 pages » ne
+comptent que les `redirect()` LITTÉRAUX d'un `page.tsx`. **Neuf refus de plus** sont délégués à
+`assertCanReachAgentArea` / `assertCanReachAgencyStaffArea` (`src/lib/auth/guards.ts`) — ils
+s'exécutent depuis la page, donc sous la frontière, exactement comme les autres, et ils n'apparaissent
+dans aucun relevé du ticket : `calendar`, `crm/pipeline`, `customers/new`, `properties/new`,
+`leases/onboarding-pending`, plus `customers`, `customers/[id]`, `properties`, `properties/[id]`.
+*Un inventaire qui compte une écriture ne compte pas une population.*
+
+#### Les gestes
+
+1. **`app/page.tsx` + `app/loading.tsx` → `app/(accueil)/`.** Plus d'ancêtre universel sur `/app`.
+   Coût mesuré : une seule page perdait ce repli, `/app/crm`, qui ne rend aucun document.
+2. **`overview/loading.tsx` descend dans les SEPT vues.** L'aiguilleur par rôle `overview/page.tsx`
+   — 7 des 32 `redirect()`, la page que tout utilisateur traverse — sort de la portée du repli.
+3. **`leases/` et `maintenance/` : page de liste + repli dans un groupe `(liste)`.** Voir le § 3 bis,
+   c'est la mesure de bout en bout qui l'a exigé.
+4. **QUATORZE `layout.tsx` de garde**, un par segment qui refuse : `owners`, `maintenance/providers`,
+   `settings/agency/upgrade`, `customers` (couvre aussi `new` et `[id]`), `properties` (idem),
+   `calendar`, `crm/pipeline`, `leases/onboarding-pending`, et les six vues d'`overview`. **23 refus
+   remontés.** Aucun appel d'API de plus : `getMeAction` et `resolveAgencyOrNull` sont mémoïsés par
+   requête.
+
+#### La vérification de bout en bout, sur l'application réelle
+
+API Laravel servie sur `127.0.0.1:8002` contre le PostgreSQL du dépôt, front en `next dev -p 3999`,
+jeton Sanctum d'un `service_provider` réel du jeu de données (`provider1@dakarimmo.sn`,
+`roles: ['service_provider']`) déposé dans le cookie `auth_token` :
+
+```
+/app/owners /app/customers /app/customers/new /app/customers/12 /app/properties
+/app/properties/new /app/properties/12 /app/calendar /app/crm/pipeline
+/app/maintenance/providers /app/leases/onboarding-pending /app/settings/agency/upgrade
+                                                     → 307 → /app          (12/12)
+/app/overview/{agent,kpis,alerts,exports,owner,agency} → 307 → /app/overview ( 6/6 )
+```
+
+**18 refus sur 18 rendent un vrai 307 avec son `Location`.** Contrôles positifs, tous verts :
+un `agent` obtient 200 sur les neuf surfaces qui lui reviennent, un `agency_admin` 200 sur `owners`,
+`overview/agency`, `settings/agency/upgrade`, `overview/kpis` ; `/app/crm` rend **308** vers
+`/app/customers` ; `/app/overview` rend **307** vers `/app/overview/agent` ; non authentifié, `/app`
+et `/app/owners` rendent 307 vers `/auth/login`.
+
+**Et aucun squelette n'est perdu** : `data-testid="route-skeleton"` est présent dans le HTML servi
+de `/app`, `/app/customers`, `/app/leases`, `/app/maintenance`, `/app/overview/agent`, `/app/owners`.
+
+### 3 bis. Le trou que seule la mesure a trouvé
+
+Quatorze layouts corrects, **deux au mauvais étage.** `maintenance/loading.tsx` et
+`leases/loading.tsx` étaient les ANCÊTRES de `maintenance/providers/layout.tsx` et
+`leases/onboarding-pending/layout.tsx` — et un repli d'ancêtre efface le statut d'un layout
+descendant aussi sûrement que celui d'une page (ligne 9 du tableau du § 2). Sur le premier passage
+de sondes en vrai, dix-sept routes rendaient 307 et `/app/maintenance/providers` rendait **200**.
+
+Rien dans la relecture ne le montrait : les deux layouts étaient justes, au bon endroit *dans leur
+segment*. C'est l'étage au-dessus qui n'allait pas. Les deux replis sont descendus dans un groupe
+`(liste)` avec la page de liste qu'ils servaient, et une règle de `etats-de-route.test.ts` refuse
+désormais tout layout de refus posé sous un repli d'ancêtre.
+
+> *Une règle vraie appliquée au bon fichier peut rester fausse d'un étage, et aucune relecture ne
+> le dit — seule une requête le dit.*
+
+### 3 ter. Ce que les gardes ont appris
+
+Trois gardes du dépôt raisonnaient « la protection est dans la page ». Elles sont passées au rouge,
+et **elles avaient raison de parler, tort de conclure** :
+
+- `scripts/check-pro-routes.mjs` annonçait `/app/owners` « ne porte aucune garde reconnaissable » au
+  moment exact où sa garde devenait plus forte. Il lit désormais la page ET ses `layout.tsx`
+  d'ancêtres — le même raisonnement que son suivi dans le helper. Son détecteur de *fail-open* est
+  passé fichier par fichier : sur une concaténation, la fenêtre « entre `getToken()` et la décision »
+  enjambait la frontière entre deux fichiers et fabriquait un faux positif parfait.
+- `scripts/check-auth-interrupts.mjs` : neuf entrées de `REFUS_ARTISANAL` ont changé de fichier,
+  aucune de nature. `PLAFOND_MESURE` reste à 22.
+- `takussan-web/scripts/check-i18n-namespaces.mjs` exigeait un `messagesPour` de chaque `layout.tsx`.
+  Un layout qui rend exactement `<>{children}</>` sans aucune API de traduction est **transparent**
+  pour next-intl : il ne monte aucun provider, donc son sous-arbre reçoit ce qu'il recevait déjà.
+  L'exemption est dérivée et étroite (les deux conditions), et éprouvée par ablation — un layout qui
+  rendrait la moindre chrome traduite retombe dans le contrôle.
+
+### 3 quater. Ce qui n'est PAS fait — et c'est un ticket
+
+Les **9 `notFound()` sur 8 pages de détail**, plus le `redirect()` du `catch` 401/403 de
+`properties/[id]`. Ils réagissent à la RÉPONSE de l'API, pas à l'utilisateur : les remonter demande
+de remonter la **requête**, ce qui change la forme des pages. →
+**[TCK-442](TCK-442-notfound-des-pages-de-detail-sous-les-replis.md)**.
+
+### 3 quinquies. Historique — le premier passage de ce ticket
 
 Deux gestes, choisis parce qu'ils sont **dérivables d'une règle sans exception** :
 
@@ -149,7 +237,7 @@ squelette que personne ne voit. Les deux seules pages muettes de `/app` sont exa
 `overview` (le test le dérive, il ne le liste pas). Ablation jouée dans les deux sens : remettre
 `app/loading.tsx` → rouge sur les deux ; remettre `overview/loading.tsx` → rouge sur `overview`.
 
-### 4. Ce qui n'est PAS fait, et ce que ça coûterait
+### 4. Ce qui n'était PAS fait au premier passage (repris depuis, sauf la famille c)
 
 **24 `redirect()` et 9 `notFound()` restent sous une frontière**, sur des pages qui, elles,
 rendent un document. Le remède est connu et mesuré (ligne 8 du tableau) mais il n'est pas gratuit :

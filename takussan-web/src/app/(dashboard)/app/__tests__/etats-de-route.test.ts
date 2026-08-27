@@ -250,6 +250,34 @@ describe('TCK-382 — inventaire', () => {
  * demande de remonter la décision dans un `layout.tsx` par segment. Chiffré et priorisé dans
  * TCK-426 — *ce fichier dit ce qu'il garde, pas ce qu'on aimerait qu'il garde.*
  */
+/**
+ * L'indice `i` tombe-t-il DANS un bloc `catch (…) { … }` ?
+ *
+ * On compte les accolades : à chaque `catch (…) {` rencontré on empile la profondeur d'ouverture,
+ * et on dépile quand on repasse en dessous. Rustique, et suffisant sur du code TS formaté — mais
+ * la limite est réelle et vaut d'être dite : une accolade dans une chaîne ou une expression
+ * régulière fausserait le compte. Le test « délimite bien ce qui reste dû » est là pour ça : il
+ * rougit si cette fonction se met à rendre `true` trop souvent.
+ */
+function estDansUnCatch(source: string, i: number): boolean {
+  const debuts: number[] = [];
+  let profondeur = 0;
+  let attendAccolade = false;
+  for (let k = 0; k < i; k += 1) {
+    if (source.startsWith('catch', k) && /catch\s*(\([^)]*\))?\s*\{/.test(source.slice(k, k + 60))) {
+      attendAccolade = true;
+    }
+    if (source[k] === '{') {
+      profondeur += 1;
+      if (attendAccolade) { debuts.push(profondeur); attendAccolade = false; }
+    } else if (source[k] === '}') {
+      while (debuts.length && debuts[debuts.length - 1] > profondeur - 1) debuts.pop();
+      profondeur -= 1;
+    }
+  }
+  return debuts.length > 0;
+}
+
 describe('TCK-426 — aucune page muette sous une frontière de suspension', () => {
   it('aucune redirection nue de /app ne vit sous un loading.tsx', () => {
     const sous: string[] = [];
@@ -268,6 +296,115 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
     expect(
       sous,
       'ces pages ne rendent rien et perdent pourtant leur statut HTTP : ' + sous.join(', '),
+    ).toEqual([]);
+  });
+
+  it('aucune page ne refuse un UTILISATEUR depuis sous une frontière', () => {
+    // LA RÈGLE, et elle est à zéro exception. Un refus fondé sur l'utilisateur — son rôle, son
+    // jeton, son agence — se décide AVANT toute donnée, donc il peut toujours vivre dans un
+    // `layout.tsx`, au-dessus du repli. TCK-426 y a remonté 23 refus répartis sur 14 segments.
+    //
+    // La frontière avec ce qui RESTE est dérivée, pas listée : un refus écrit dans un bloc
+    // `catch` réagit à la RÉPONSE de l'API (« ce dossier-ci n'est pas le vôtre »), pas à
+    // l'utilisateur. Le remonter demande de remonter la REQUÊTE, ce qui change la forme des
+    // pages de détail — c'est le périmètre de TCK-442, et c'est pour ça que ce test l'exclut au
+    // lieu de le tolérer. *Une exception dérivée d'une propriété du code se referme toute seule
+    // le jour où le code change ; une exception écrite dans une liste, jamais.*
+    const REFUS = /\b(permanentRedirect|redirect)\s*\(|\bassertCanReach\w*\s*\(/g;
+    const fautifs: string[] = [];
+
+    for (const page of PAGES) {
+      let dossier = page.segment;
+      let couverte = false;
+      for (;;) {
+        if (existsSync(join(dossier, 'loading.tsx'))) { couverte = true; break; }
+        if (dossier === APP) break;
+        dossier = dirname(dossier);
+      }
+      if (!couverte) continue;
+
+      const source = sansCommentaires(page.source)
+        .split('\n')
+        .filter((l) => !/^\s*import\b/.test(l))
+        .join('\n');
+
+      for (const trouve of source.matchAll(REFUS)) {
+        if (!estDansUnCatch(source, trouve.index ?? 0)) {
+          const ligne = source.slice(0, trouve.index).split('\n').length;
+          fautifs.push(`${page.rel}:${ligne} → ${trouve[0]}`);
+        }
+      }
+    }
+
+    expect(
+      fautifs,
+      'ces refus rendent 200 + le squelette de la route interdite au lieu de leur statut ; ' +
+        `remonte-les dans le layout.tsx de leur segment : ${fautifs.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('délimite bien ce qui reste dû à TCK-442 (non-vacuité de la règle ci-dessus)', () => {
+    // Le pendant obligatoire : si `estDansUnCatch` se mettait à rendre `true` partout — une
+    // accolade mal comptée suffit — la règle ci-dessus passerait au vert en n'examinant rien.
+    // On fige donc ce que l'exclusion couvre RÉELLEMENT. Une entrée de plus est un acte
+    // conscient, une entrée de moins est un progrès à retirer d'ici.
+    const dansCatch: string[] = [];
+    for (const page of PAGES) {
+      const source = sansCommentaires(page.source);
+      for (const trouve of source.matchAll(/\b(permanentRedirect|redirect)\s*\(/g)) {
+        if (estDansUnCatch(source, trouve.index ?? 0)) dansCatch.push(page.rel);
+      }
+    }
+    expect([...new Set(dansCatch)].sort()).toEqual(['properties/[id]/page.tsx']);
+  });
+
+  it("aucun layout qui refuse ne vit SOUS le repli d'un ancêtre", () => {
+    // LA RÈGLE QUE LA RELECTURE N'AURAIT PAS TROUVÉE, et qui a coûté deux routes.
+    //
+    // Remonter une garde dans le `layout.tsx` de son segment ne suffit pas : il faut encore
+    // qu'aucun `loading.tsx` ne soit posé PLUS HAUT. Un repli d'ancêtre efface le statut d'un
+    // layout descendant aussi sûrement que celui d'une page — mesuré par sonde
+    // (layout qui redirige sous un repli d'ancêtre → 200), puis constaté sur l'application
+    // réelle : `maintenance/loading.tsx` couvrait `maintenance/providers/layout.tsx`, et un
+    // prestataire recevait 200 là où les seize autres surfaces agence lui rendaient 307.
+    // `leases/loading.tsx` faisait de même au-dessus de `leases/onboarding-pending`.
+    //
+    // Les deux replis sont descendus dans un groupe `(liste)` avec la page de liste qu'ils
+    // servaient. *Quatorze layouts justes, deux au mauvais étage : c'est la mesure de bout en
+    // bout qui l'a dit, pas la relecture — d'où cette règle, pour que la prochaine fois ce soit
+    // la CI.*
+    const REFUS = /\b(permanentRedirect|redirect)\s*\(|\bassertCanReach\w*\s*\(/;
+    const fautifs: string[] = [];
+
+    const parcours = (dir: string) => {
+      for (const entree of readdirSync(dir, { withFileTypes: true })) {
+        const chemin = join(dir, entree.name);
+        if (entree.isDirectory()) {
+          if (entree.name !== '__tests__') parcours(chemin);
+          continue;
+        }
+        if (entree.name !== 'layout.tsx') continue;
+        if (!REFUS.test(sansCommentaires(readFileSync(chemin, 'utf8')))) continue;
+
+        // Un repli STRICTEMENT au-dessus du segment de ce layout.
+        let ancetre = dirname(dir);
+        for (;;) {
+          if (existsSync(join(ancetre, 'loading.tsx'))) {
+            const ou = relative(APP, ancetre);
+            fautifs.push(`${relative(APP, chemin)} ← ${ou ? `${ou}/loading.tsx` : 'app/loading.tsx (RACINE)'}`);
+            break;
+          }
+          if (ancetre === APP || !ancetre.startsWith(APP)) break;
+          ancetre = dirname(ancetre);
+        }
+      }
+    };
+    parcours(APP);
+
+    expect(
+      fautifs,
+      "ces layouts refusent depuis SOUS un repli d'ancêtre : leur redirection rend 200. " +
+        `Descends le repli de l'ancêtre dans un groupe de routes : ${fautifs.join(', ')}`,
     ).toEqual([]);
   });
 

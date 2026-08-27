@@ -1,9 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { getMeAction } from '@/app/actions/auth';
-import { isAdmin, isOwner } from '@/lib/roles';
-import { redirect } from 'next/navigation';
 import { fetchOwnerDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
@@ -23,10 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /** TCK-032 P1 — owner (landlord) dashboard. */
 export default async function OwnerDashboardPage() {
   const t = await getTranslations('dashboard.owner');
-  const user = await getMeAction();
-  if (!isOwner(user.roles) && !isAdmin(user.roles)) {
-    redirect('/app/overview');
-  }
+  // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
 
   const payload = await fetchOwnerDashboard();
   if (!payload) {
