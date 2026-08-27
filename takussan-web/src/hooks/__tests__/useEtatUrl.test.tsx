@@ -150,16 +150,12 @@ describe('useEtatUrl', () => {
       expect(derniereUrl().has('selected')).toBe(false);
     });
 
-    it('toutReinitialiser vide l’URL — et écrit « ? », jamais la chaîne vide', () => {
-      const { result } = monte('filter[search]=Dakar&page=9&selected=3');
-      act(() => result.current.toutReinitialiser());
-      // `router.replace('')` GARDERAIT la query string courante au lieu de la vider.
+    // `router.replace('')` GARDERAIT la query string courante au lieu de la vider — d'où le
+    // « ? » seul, sur le chemin qui retire le dernier paramètre.
+    it('écrit « ? » et jamais la chaîne vide quand il ne reste rien', () => {
+      const { result } = monte('filter[search]=Dakar');
+      act(() => result.current.poserFiltres({ 'filter[search]': null }));
       expect(replace).toHaveBeenLastCalledWith('?');
-    });
-
-    it('aDesParametres distingue une URL nue d’une URL filtrée', () => {
-      expect(monte('').result.current.aDesParametres).toBe(false);
-      expect(monte('filter[search]=Dakar').result.current.aDesParametres).toBe(true);
     });
   });
 });

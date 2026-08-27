@@ -292,7 +292,12 @@ describe('<AuditTrail> (TCK-376)', () => {
       resolve(process.cwd(), 'src/components/admin/AuditTrail.tsx'),
       'utf8',
     );
-    expect(source).not.toMatch(/showExportMenu|setShowExportMenu|useState\([^)]*\)[^;]*Menu/);
+    // ⚠ On ne cherche PAS le nom `showExportMenu` : le renommer suffirait à recocher.
+    // On énumère les `useState` du fichier et on refuse tout NOM d'état d'ouverture, quel
+    // qu'il soit — c'est la propriété que l'AC nomme, pas l'identifiant qu'elle portait.
+    const etats = [...source.matchAll(/const\s+\[\s*(\w+)\s*,/g)].map((m) => m[1]);
+    expect(etats).not.toHaveLength(0); // le fichier a bien des états : l'extraction marche
+    expect(etats.filter((n) => /open|ouvert|show|menu|visible|expanded/i.test(n))).toEqual([]);
     expect(source).toContain('DropdownMenuTrigger');
   });
 });

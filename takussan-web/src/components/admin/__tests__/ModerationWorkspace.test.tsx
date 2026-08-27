@@ -214,6 +214,15 @@ describe('<ModerationWorkspace> — état d’URL et pagination (TCK-376)', () =
       page: 3,
       perPage: 20,
     });
+
+    // ...ET ce que la BARRE affiche. Un écran qui enverrait les bons filtres au serveur en
+    // montrant « Tous les statuts » serait vert sur l'assertion ci-dessus et faux à l'usage :
+    // l'utilisateur ne saurait pas ce qu'il regarde, et le premier clic sur un autre filtre
+    // écraserait celui qu'il croyait absent.
+    expect(screen.getByRole('combobox', { name: 'Filtrer par statut' })).toHaveTextContent('Signalés');
+    expect(screen.getByRole('combobox', { name: 'Type de sujet' })).toHaveTextContent('Biens');
+    expect(screen.getByLabelText(/signalés uniquement/i)).toBeChecked();
+    expect(screen.getByText('Page 3 sur 3')).toBeInTheDocument();
   });
 
   it('AC1 — n’envoie AUCUN filtre quand l’URL est nue', async () => {
@@ -227,6 +236,9 @@ describe('<ModerationWorkspace> — état d’URL et pagination (TCK-376)', () =
       page: 1,
       perPage: 20,
     });
+    expect(screen.getByRole('combobox', { name: 'Filtrer par statut' })).toHaveTextContent('Tous les statuts');
+    expect(screen.getByRole('combobox', { name: 'Type de sujet' })).toHaveTextContent('Tous les sujets');
+    expect(screen.getByLabelText(/signalés uniquement/i)).not.toBeChecked();
   });
 
   it('AC1 — la sélection est portée par l’URL, et le clic l’y écrit', async () => {

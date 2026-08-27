@@ -25,11 +25,15 @@ export interface EtatUrl {
   readonly allerALaPage: (page: number) => void;
   /** Sélectionne une ligne de la file. Ne touche ni aux filtres ni à la page. */
   readonly selectionner: (id: number | null) => void;
-  /** Retire tout : filtres, page et sélection. L'URL redevient nue. */
-  readonly toutReinitialiser: () => void;
-  /** `true` dès qu'un paramètre est posé — de quoi désactiver « réinitialiser ». */
-  readonly aDesParametres: boolean;
 }
+
+/*
+ * ⚠ Ce hook n'expose DÉLIBÉRÉMENT ni « tout réinitialiser » ni « des filtres sont posés ».
+ * Les deux avaient été écrits, testés, et n'étaient appelés par aucun écran : une API que seule
+ * sa propre suite exerce est un mutant survivant en attente — on peut l'amputer sans rien casser
+ * de visible. La remise à zéro des filtres n'est pas dans le delta de TCK-376 ; le jour où un
+ * écran la demande, elle revient avec son appelant.
+ */
 
 /** Les deux clés que `poserFiltres` retire systématiquement. */
 const CLES_DE_POSITION = ['page', 'selected'] as const;
@@ -124,20 +128,5 @@ export function useEtatUrl(): EtatUrl {
     [ecrire],
   );
 
-  const toutReinitialiser = useCallback(() => {
-    router.replace('?');
-  }, [router]);
-
-  const aDesParametres = useMemo(() => searchParams.toString().length > 0, [searchParams]);
-
-  return {
-    lire,
-    lireBooleen,
-    page,
-    poserFiltres,
-    allerALaPage,
-    selectionner,
-    toutReinitialiser,
-    aDesParametres,
-  };
+  return { lire, lireBooleen, page, poserFiltres, allerALaPage, selectionner };
 }
