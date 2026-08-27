@@ -75,6 +75,20 @@ class MembershipCapabilityResolver
     }
 
     /**
+     * Les capacités que le user tient EN PROPRE, délégations exclues.
+     *
+     * TCK-395 (revue) — exposée parce qu'un geste au moins doit pouvoir exiger
+     * la détention propre : **déléguer**. `RoleDelegationPolicy` l'emprunte.
+     * Laisser ce geste passer par `allows()` rendait le droit de déléguer
+     * lui-même délégable, et fabriquait exactement le défaut que TCK-395
+     * ferme — cf. le docblock de la policy.
+     */
+    public function allowsDirectly(User $user, Capability $capability, ?Agency $agency = null): bool
+    {
+        return $this->resolveDirect($user, $capability, $agency);
+    }
+
+    /**
      * Les capacités que le user tient de LUI-MÊME — profil plateforme ou
      * `AgencyRole` porté par un de ses profils dans l'agence. **Aucune
      * délégation n'est consultée ici, et c'est structurel** : c'est cette

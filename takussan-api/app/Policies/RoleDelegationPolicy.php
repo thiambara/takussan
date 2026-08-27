@@ -30,6 +30,28 @@ class RoleDelegationPolicy
      * `primary_admin_id` reste un court-circuit : le porteur du compte de
      * l'agence ne peut pas se retrouver enfermé dehors par l'édition d'un
      * rôle, y compris la sienne.
+     *
+     * ⚠ **`canActDirectlyAt()` et non `canActAt()`, et c'est tout le sujet.**
+     * Relevé par la passe adverse : `canActAt()` consulte désormais les
+     * délégations, si bien qu'un DÉLÉGUÉ — bénéficiaire d'une délégation
+     * `agency_admin`, sans `AgencyAdminProfile` — obtenait 200 sur la liste et
+     * **201 sur la création**, là où il recevait 403 et 403 avant TCK-395.
+     *
+     * Le droit de déléguer devenait donc lui-même délégable, et la
+     * sous-délégation ainsi créée n'accordait **rien** : par la règle de
+     * non-transitivité que ce même ticket installe, son délégant ne détient
+     * rien en propre. Le résultat aurait été, mot pour mot, la Mesure 1 du
+     * ticket — *« écrit une ligne, émet trois événements, envoie deux
+     * notifications, s'affiche Active, et n'accorde rien nulle part »*. Fermer
+     * la porte et rouvrir la fenêtre.
+     *
+     * D'où l'arbitrage : **déléguer exige de détenir `team.delegate_role` EN
+     * PROPRE.** C'est aussi ce qui restitue exactement le comportement d'avant
+     * le ticket pour un délégué (403), tout en remplaçant le test de type de
+     * profil par une capacité. L'autre issue possible — accepter la création
+     * puis refuser les délégations inertes — demanderait de simuler la
+     * résolution à l'écriture pour un résultat identique, et laisserait au
+     * délégué un pouvoir que personne n'a voulu lui donner.
      */
     public function viewAny(User $user, Agency $agency): bool
     {
@@ -38,7 +60,7 @@ class RoleDelegationPolicy
         }
 
         return $agency->primary_admin_id === $user->id
-            || $user->canActAt(Capability::TeamDelegateRole, $agency);
+            || $user->canActDirectlyAt(Capability::TeamDelegateRole, $agency);
     }
 
     /**

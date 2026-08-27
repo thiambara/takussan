@@ -122,6 +122,63 @@ class InviteAgentTest extends TestCase
         ])->assertStatus(403);
     }
 
+    /**
+     * TCK-392, AC4 — **la moitié qui n'avait pas été mesurée.**
+     *
+     * AC4 dit « une agence `individual` ne voit aucun de CES GESTES, et l'API
+     * LES refuse (403) même si l'écran est contourné » : au pluriel. TCK-392
+     * fait précisément de « Ajouter un compte existant » un second bouton,
+     * nommé et distinct — le geste entre donc dans le champ d'AC4.
+     *
+     * Mesuré par la passe adverse, et reproduit ici avant correction :
+     * `POST /agencies/{id}/members` rendait **200** sur une agence
+     * `individual`, quand son jumeau `agents/invite` (le cas juste au-dessus)
+     * rendait 403. L'administrateur d'une agence individuelle pouvait s'y
+     * rattacher un agent en contournant simplement l'écran — ce que le modèle
+     * `individual` (host solo, « pas d'invitation de collaborateurs internes »)
+     * existe pour interdire.
+     *
+     * `AddAgentAgencyRequest::authorize()` délègue à `AgencyPolicy@update`, qui
+     * ne juge pas le `kind` ; le garde vit donc dans `addAgent()`.
+     */
+    public function test_individual_agency_cannot_add_an_existing_account_as_member(): void
+    {
+        Mail::fake();
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+
+        $existant = User::factory()->create();
+
+        $this->postJson("/api/agencies/{$agency->id}/members", [
+            'email' => $existant->email,
+            'role' => 'agent',
+        ])->assertStatus(403);
+
+        $this->assertDatabaseMissing('agent_profiles', [
+            'user_id' => $existant->id,
+            'agency_id' => $agency->id,
+        ]);
+    }
+
+    /** Témoin : le même geste reste ouvert sur une agence `standard`. */
+    public function test_standard_agency_can_still_add_an_existing_account_as_member(): void
+    {
+        Mail::fake();
+        [$agency] = $this->standardAgencyWithAdmin();
+
+        $existant = User::factory()->create();
+
+        $this->postJson("/api/agencies/{$agency->id}/members", [
+            'email' => $existant->email,
+            'role' => 'agent',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('agent_profiles', [
+            'user_id' => $existant->id,
+            'agency_id' => $agency->id,
+        ]);
+    }
+
     public function test_agent_without_manage_team_permission_gets_403(): void
     {
         Mail::fake();
