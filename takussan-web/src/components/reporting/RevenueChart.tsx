@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchAdminReportRevenue } from '@/lib/queries/super-admin';
 import type { ReportPeriod } from '@/types/super-admin';
+import { ReportError } from './ReportError';
 import { ReportExportButton } from './ReportExportButton';
 import { ReportWindowControls } from './ReportWindowControls';
 import { TimeSeriesChart } from './TimeSeriesChart';
@@ -79,6 +80,8 @@ export function RevenueChart() {
 
       {query.isLoading ? (
         <Skeleton className="h-72 rounded-xl" />
+      ) : query.error ? (
+        <ReportError erreur={query.error} />
       ) : (
         <>
           <Card>

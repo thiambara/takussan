@@ -13,6 +13,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 
 /**
  * TCK-227 — Cross-tenant reporting (super-admin only). All aggregations are
@@ -23,6 +24,38 @@ use Illuminate\Support\Facades\Cache;
 class PlatformReportingService
 {
     private const CACHE_TTL_SECONDS = 600; // 10 min — see AC.
+
+    /**
+     * TCK-389 — plafond de découpage. Un bucket est une requête SQL : sans plafond, une plage non
+     * bornée éventaille autant de requêtes qu'elle contient d'intervalles.
+     *
+     * Le plafond n'a jamais été le défaut. Le défaut était son SILENCE : `bucketsFor()` sortait de
+     * boucle par `break`, et l'enveloppe continuait d'annoncer la plage DEMANDÉE. Mesuré le
+     * 2026-08-27, avant correctif :
+     *
+     *     growth('agencies', '12m', 'day', '2020-01-01', '2026-01-01')
+     *     → buckets=60  premier=2020-01-01  dernier=2020-02-29  range=2020-01-01..2026-01-01
+     *
+     * Six ans annoncés, deux mois mesurés, `totals.total` comptant les seconds sous l'étiquette des
+     * premiers. Aucun statut d'erreur, aucun drapeau, aucun compteur.
+     *
+     * **Voie retenue : REFUSER** (voie 1 du ticket), et non « dire ». Deux raisons :
+     *
+     *  1. Un rapport tronqué qui s'annonce tronqué reste un rapport qu'on peut lire de travers ;
+     *     un 422 ne se lit pas de travers. Le ticket demandait qu'un rapport tronqué ne PUISSE PAS
+     *     se lire comme un rapport complet — le refus est la seule forme qui le garantit.
+     *  2. L'export CSV emprunte le même service (`ReportingController::export`), et c'est
+     *     précisément le fichier qu'on relit hors contexte. Un drapeau de troncature aurait dû
+     *     voyager jusque dans les colonnes du CSV pour servir à quelque chose ; le refus vaut pour
+     *     l'export sans une ligne de plus.
+     *
+     * ⚠ Le refus est levé ICI, dans le service, et non dans les `FormRequest`. Trois requêtes
+     * (`Growth`, `Revenue`, `ReportExport`) mènent au même découpage, et le nombre d'intervalles ne
+     * se déduit pas des paramètres seuls : le raccourci `period` est résolu contre `Carbon::now()`.
+     * Une règle de validation aurait recopié `bucketsFor()` — et deux copies d'une même borne
+     * divergent.
+     */
+    public const MAX_BUCKETS = 60;
 
     private const CACHE_VERSION_KEY = 'reporting:cache_version';
 
@@ -315,13 +348,35 @@ class PlatformReportingService
                 default => $cursor->copy()->addMonthNoOverflow(),
             };
 
-            if (count($buckets) >= 60) {
-                // Hard cap so a malicious / accidental call doesn't fan out.
-                break;
+            // TCK-389 — le `break` d'avant rendait une série tronquée sous l'étiquette de la plage
+            // demandée. On refuse au lieu de tronquer, et on refuse AVANT de produire quoi que ce
+            // soit : rien n'est mis en cache, aucune ligne d'export n'est écrite.
+            if (count($buckets) >= self::MAX_BUCKETS && $cursor->lessThanOrEqualTo($end)) {
+                $this->refuserPlageTropLarge($window, $granularity);
             }
         }
 
         return $buckets;
+    }
+
+    /**
+     * 422 nommant la contrainte, sur le champ que l'appelant peut effectivement changer.
+     *
+     * Sur une plage libre, c'est `ends_at` ; sur un raccourci `period`, l'appelant n'a d'autre prise
+     * que la granularité. Pointer `starts_at` sur un raccourci désignerait un champ qu'il n'a pas
+     * envoyé.
+     */
+    private function refuserPlageTropLarge(array $window, string $granularity): never
+    {
+        $champ = str_contains($window['range'], '..') ? 'ends_at' : 'granularity';
+
+        throw ValidationException::withMessages([
+            $champ => [sprintf(
+                'La plage demandée dépasse le plafond de %d intervalles « %s ». Réduisez la plage ou élargissez la granularité.',
+                self::MAX_BUCKETS,
+                $granularity,
+            )],
+        ]);
     }
 
     private function countInBucket(string $metric, Carbon $start, Carbon $end): int

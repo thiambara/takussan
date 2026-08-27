@@ -7285,6 +7285,10 @@
       "compare": "Compare to previous period",
       "previous": "Previous period",
       "pointAria": "{bucket}: {value}"
+    },
+    "error": {
+      "title": "The report could not be computed",
+      "fallback": "Try again, or narrow the requested range."
     }
   },
   "kyc": {

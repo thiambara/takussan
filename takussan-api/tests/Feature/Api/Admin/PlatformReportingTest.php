@@ -228,6 +228,85 @@ class PlatformReportingTest extends TestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * TCK-389 — AC1 / AC2 : une plage plus large que le plafond est REFUSÉE, et ne rend plus une
+     * série de deux mois sous une enveloppe qui annonce six ans.
+     *
+     * La sonde du ticket, mesurée le 2026-08-27 avant correctif :
+     *     buckets=60  premier=2020-01-01  dernier=2020-02-29  range=2020-01-01..2026-01-01
+     */
+    public function test_a_range_wider_than_the_bucket_cap_is_refused(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $reponse = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=day&starts_at=2020-01-01&ends_at=2026-01-01')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+
+        // Ce que le défaut rendait : une enveloppe. Il ne doit plus rien rendre du tout.
+        $this->assertNull($reponse->json('data'));
+        $this->assertStringContainsString('60', (string) $reponse->json('errors.ends_at.0'));
+    }
+
+    /** La borne est le plafond LUI-MÊME : 60 intervalles passent, 61 ne passent pas. */
+    public function test_the_cap_is_exactly_sixty_buckets(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        // 2021-01 → 2025-12 : soixante mois pile.
+        $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2021-01-01&ends_at=2025-12-31')
+            ->assertOk()
+            ->assertJsonCount(60, 'data.rows');
+
+        // Un jour de plus fait basculer dans un soixante-et-unième bucket.
+        $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2021-01-01&ends_at=2026-01-01')
+            ->assertStatus(422);
+    }
+
+    /** Le raccourci `period` emprunte le même découpage : `12m` en granularité `day` le dépasse. */
+    public function test_the_period_shortcut_is_bound_by_the_same_cap(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/growth?metric=agencies&period=12m&granularity=day')
+            ->assertStatus(422)
+            // Sur un raccourci, l'appelant n'a de prise que sur la granularité.
+            ->assertJsonValidationErrors(['granularity']);
+
+        $this->getJson('/api/admin/reports/growth?metric=agencies&period=12m&granularity=month')
+            ->assertOk();
+    }
+
+    /** Revenu emprunte le même découpage que Croissance. */
+    public function test_revenue_is_bound_by_the_same_cap(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/revenue?granularity=day&starts_at=2020-01-01&ends_at=2026-01-01')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+    }
+
+    /**
+     * TCK-389 — AC3 : l'export emprunte le même service, donc le même refus.
+     *
+     * Un fichier est précisément ce qu'on relit hors contexte : un CSV tronqué au soixantième
+     * intervalle n'a rien qui dise, à la relecture, qu'il ne couvre pas la plage de son nom.
+     */
+    public function test_an_export_wider_than_the_cap_is_refused_and_writes_nothing(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/growth/export?format=csv&metric=agencies&granularity=day&starts_at=2020-01-01&ends_at=2026-01-01')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+
+        // Le refus arrive AVANT la ligne d'export et avant la trace d'audit : ni l'une ni l'autre
+        // ne doit rester derrière une demande qui n'a rien produit.
+        $this->assertSame(0, ReportExport::query()->count());
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_report_exported')->exists());
+    }
+
     public function test_revenue_mrr_matches_active_subscription_sum(): void
     {
         $this->actingAsRole('super_admin');

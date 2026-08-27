@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+import { ApiError } from '@/lib/api';
 import { ToastProvider } from '@/components/ui/toast';
 import { withIntl } from '@/test/intl';
 
@@ -182,6 +183,28 @@ describe('<GrowthChart> (TCK-361)', () => {
     });
 
     expect(await screen.findByTestId('serie-comparaison')).toBeInTheDocument();
+  });
+
+  /**
+   * TCK-389 — un REFUS du serveur ne doit pas se lire comme une absence de données.
+   *
+   * Le plafond de 60 buckets tronquait en silence ; il rend désormais 422. Sans ce rendu, l'écran
+   * afficherait `rows = []`, c'est-à-dire « Aucune donnée sur cette période » : la troncature
+   * silencieuse aurait changé de forme, pas disparu.
+   */
+  it('affiche la contrainte nommée par le serveur au lieu de l’état vide', async () => {
+    const contrainte = 'La plage demandée dépasse le plafond de 60 intervalles « month ». Réduisez la plage ou élargissez la granularité.';
+    fetchAdminReportGrowth.mockRejectedValue(new ApiError(422, {
+      message: contrainte,
+      errors: { ends_at: [contrainte] },
+    }));
+
+    rendre();
+
+    // Ce que l'utilisateur LIT : la borne, et le mot « plafond ».
+    expect(await screen.findByText(/dépasse le plafond de 60 intervalles/)).toBeInTheDocument();
+    expect(screen.queryByTestId('timeseries-empty')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('timeseries-chart')).not.toBeInTheDocument();
   });
 
   /** La bascule est un vrai contrôle à deux états, pas un bouton muet. */

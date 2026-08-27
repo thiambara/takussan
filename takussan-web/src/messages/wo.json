@@ -7285,6 +7285,10 @@
       "compare": "Mengale ak jamono ji jiitu",
       "previous": "Jamono ji jiitu",
       "pointAria": "{bucket} : {value}"
+    },
+    "error": {
+      "title": "Rapport bi mënuñu koo jël",
+      "fallback": "Jéemaatal, walla wàññi diir bi nga laaj."
     }
   },
   "kyc": {

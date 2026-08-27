@@ -7285,6 +7285,10 @@
       "compare": "Comparer à la période précédente",
       "previous": "Période précédente",
       "pointAria": "{bucket} : {value}"
+    },
+    "error": {
+      "title": "Le rapport n'a pas pu être calculé",
+      "fallback": "Réessayez, ou réduisez la plage demandée."
     }
   },
   "kyc": {
