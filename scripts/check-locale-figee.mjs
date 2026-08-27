@@ -608,7 +608,8 @@ const PLAFOND_CONSOLE = 1; // mesuré le 2026-08-27
  *
  * Même plancher/plafond que ci-dessus.
  */
-const PLAFOND_RESTE = 50; // mesuré le 2026-08-27
+const PLAFOND_RESTE = 48; // mesuré le 2026-08-27, resserré de 50 à 48 à la fusion de la vague 3
+//                          (TCK-374 a porté deux graphiques de `/app` sur la locale active).
 
 const consoleCompte = compter(consoleHorsPerimetre);
 const resteCompte = compter(reste);
