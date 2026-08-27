@@ -3246,6 +3246,67 @@
           "edit_custom": "Soppi wàll bu ñu jagleel",
           "delete_custom": "Far wàll bu ñu jagleel"
         }
+      },
+      "role_delegations": {
+        "heading": "Wàll yu ñu jox ci diir",
+        "description": "Jox nga way-bokk wàll ci diir bu wóor. Day tàmbali te day jeex ci boppam ; mën nga koo dakkal saa su nekk.",
+        "empty_title": "Amul wàll bu ñu jox",
+        "empty_description": "Kenn du jëfandikoo wàll bu ñu jox léegi. Sosal benn ngir wuutu ku dem ci noflaay.",
+        "unknown_member": "Way-bokk #{id}",
+        "columns": {
+          "member": "Ku ko jot",
+          "role": "Wàll bi ñu jox",
+          "period": "Diir bi",
+          "status": "Naka la mel",
+          "actions": "Jëf yi"
+        },
+        "statuses": {
+          "active": "Di dox",
+          "scheduled": "Di ñëw",
+          "expired": "Jeex na",
+          "revoked": "Ñu ko dakkal"
+        },
+        "roles": {
+          "agency_admin": "Njiitu ajaans",
+          "agent": "Ajaŋ",
+          "owner": "Boroom kër"
+        },
+        "period": {
+          "range": "Ci {start} ba {end}",
+          "until": "Ba {end}"
+        },
+        "actions": {
+          "create": "Jox wàll",
+          "revoke": "Dakkal",
+          "revoke_named": "Dakkal wàll bi ñu jox {name}"
+        },
+        "errors": {
+          "load": "Mënuñu yeb wàll yi ñu jox.",
+          "create": "Mënuñu sos wàll bi ñu war a jox.",
+          "revoke": "Mënuñu dakkal wàll bi."
+        },
+        "create": {
+          "title": "Jox wàll",
+          "description": "Ñetti mbir doy na : kan, ban wàll, ba kañ.",
+          "member_label": "Ku ko jot",
+          "member_placeholder": "Tànnal way-bokk",
+          "no_member": "Amul beneen way-bokku ajaans bu mën a jot wàll.",
+          "role_label": "Wàll bi ñuy jox",
+          "starts_at_label": "Tàmbali (bu ñu soxlawul)",
+          "starts_at_hint": "Su amul bés, wàll bi day tàmbali léegi.",
+          "ends_at_label": "Mujj",
+          "max_duration_hint": "Bu ëpp {days} fan lu jóge tey.",
+          "reason_label": "Lu tax (bu ñu soxlawul)",
+          "reason_placeholder": "Noflaay, tukki, wuutu…",
+          "submit": "Jox",
+          "submitting": "Ñu ngi jox…"
+        },
+        "revoke": {
+          "title": "Ndax dañuy dakkal wàll bii ?",
+          "description": "{name} dina ñàkk wàll bi ñu ko jox léegi, du xaar {end}. Rëdd bi dina des, ci « Ñu ko dakkal ».",
+          "submit": "Dakkal",
+          "submitting": "Ñu ngi dakkal…"
+        }
       }
     },
     "pages": {
