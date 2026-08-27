@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * TCK-370, défaut n°1 — **le fil entre les deux bouts d'une redirection**.
@@ -110,5 +112,74 @@ describe('/admin/settings/tags → /admin', () => {
     render(await PageAdmin({ searchParams: Promise.resolve({}) }));
 
     expect(screen.queryByTestId('admin-notice')).toBeNull();
+  });
+});
+
+/**
+ * TCK-430 — LA DÉCISION, pas seulement le fil.
+ *
+ * TCK-370 a réparé le `?notice=` ; ce ticket-ci a borné sa valeur. Re-mesuré le 2026-08-27 :
+ *
+ *     $ grep -rn "settings/tags" takussan-web/src/ | grep -v __tests__
+ *     src/lib/admin/notices.ts:8 · :12 · :22          (trois commentaires)
+ *     $ grep -rn 'href="/admin/settings/tags"' takussan-web/src/
+ *     (aucun résultat)
+ *
+ * Décision retenue : **assumer la souche**. Elle a un ayant droit réel — entre TCK-066 et
+ * TCK-213 la route montait `TagsManager` et DEUX bandeaux d'onglets y menaient (le détail et
+ * ses commandes sont en tête de `settings/tags/page.tsx`). Elle répond donc à d'anciens
+ * marque-pages, et à eux seuls.
+ *
+ * Ce test est le TRIPWIRE de cette décision. Il ne vérifie pas qu'un lien existe : il vérifie
+ * qu'il n'en existe toujours aucun. Le jour où quelqu'un en ajoute un, il rougit — non pas
+ * parce que le lien serait interdit, mais parce qu'un chemin entrant vers une page qui redirige
+ * aussitôt est le deuxième geste mort, et qu'il faut alors ouvrir un vrai écran plutôt qu'une
+ * entrée de menu. *Une décision qui ne vit que dans un commentaire se défait au premier réflexe.*
+ */
+describe('/admin/settings/tags — la souche est assumée (TCK-430)', () => {
+  const SRC = path.resolve(__dirname, '../../../..'); // → src/
+  const SOUCHE = path.join(SRC, 'app/(dashboard)/admin/settings/tags');
+
+  function fichiersSources(dir: string): string[] {
+    const sortie: string[] = [];
+    for (const entree of fs.readdirSync(dir, { withFileTypes: true })) {
+      const complet = path.join(dir, entree.name);
+      if (entree.isDirectory()) {
+        if (entree.name === '__tests__' || entree.name === 'node_modules') continue;
+        sortie.push(...fichiersSources(complet));
+      } else if (/\.(ts|tsx)$/.test(entree.name) && !/\.(test|spec)\.tsx?$/.test(entree.name)) {
+        sortie.push(complet);
+      }
+    }
+    return sortie;
+  }
+
+  it('ne porte aucun lien entrant — et la page dit pourquoi', () => {
+    // Un LIEN, pas une mention : la route et un producteur de navigation sur la même ligne. Les
+    // trois lignes de `lib/admin/notices.ts` qui la citent sont des commentaires explicatifs et
+    // ne doivent pas compter — sans quoi cette garde rougirait sur de la documentation juste.
+    const producteur = /href|router\s*\.\s*(push|replace)|\b(permanent)?[Rr]edirect\s*\(/i;
+    const liens: string[] = [];
+
+    for (const fichier of fichiersSources(SRC)) {
+      if (fichier.startsWith(SOUCHE)) continue; // la souche elle-même n'est pas un chemin entrant
+      fs.readFileSync(fichier, 'utf8')
+        .split('\n')
+        .forEach((ligne, i) => {
+          const nue = ligne.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
+          if (nue.includes('/admin/settings/tags') && producteur.test(nue)) {
+            liens.push(`${path.relative(SRC, fichier)}:${i + 1}`);
+          }
+        });
+    }
+
+    expect(liens).toEqual([]);
+
+    // Et la souche PORTE sa raison d'être, en tête, avec ses commandes de mesure — sinon la
+    // ligne du `grep` ci-dessus reste inexplicable sans lire le ticket (AC de TCK-430).
+    const source = fs.readFileSync(path.join(SOUCHE, 'page.tsx'), 'utf8');
+    expect(source).toMatch(/SOUCHE DE REDIRECTION ASSUM/);
+    expect(source).toMatch(/TCK-213/);
+    expect(source).toMatch(/marque-pages/);
   });
 });
