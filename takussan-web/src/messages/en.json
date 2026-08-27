@@ -5222,12 +5222,13 @@
       "verificationRate": "{rate}% verified",
       "agenciesActive": "Active",
       "agenciesSuspended": "Suspended",
-      "activeUsers": "Active users",
-      "outOfTotal": "of {total}",
       "publishedProperties": "Published properties",
       "pendingReview": "Under moderation",
       "platformRevenue": "Platform revenue",
-      "cumulativeRents": "Cumulative rent collected"
+      "cumulativeRents": "Cumulative rent collected",
+      "usersTotal": "Users",
+      "activeOutOf": "{active} active",
+      "delta": "{value}% over {days} days"
     },
     "impersonation": {
       "banner": "You are acting as {target} — session until {expires}.",
@@ -5336,7 +5337,8 @@
       "home": {
         "metaTitle": "Takussan Console",
         "title": "Takussan Console",
-        "subtitle": "Platform view — agencies, users, moderation and revenue."
+        "subtitle": "Platform view — agencies, users, moderation and revenue.",
+        "metricsTitle": "Platform state"
       },
       "agencyDetail": {
         "metaTitle": "Agency details"
@@ -5409,14 +5411,18 @@
       "system": {
         "metaTitle": "System — Takussan Console",
         "title": "System",
-        "subtitle": "Platform metrics and global settings.",
+        "subtitle": "The three technical screens of the platform, plus the global settings.",
         "globalSettings": {
-          "title": "Global settings",
-          "body": "Currencies, formats, fees and technical limits are set on the dedicated settings page. Third-party integrations, maintenance mode and feature flags will land with their own tickets.",
           "openSettings": "Open settings",
           "maintenance": "Maintenance mode",
           "healthcheck": "Healthcheck",
           "scheduler": "Scheduler"
+        },
+        "entries": {
+          "healthcheck": "Dependency status — database, cache, storage, mail, SMS — and failed jobs.",
+          "maintenance": "Close the platform to users, with a message and a time window.",
+          "scheduler": "What the scheduler runs, and when it last ran it.",
+          "openSettings": "Currencies, formats, fees and technical limits of the platform."
         }
       },
       "maintenance": {
@@ -5863,6 +5869,43 @@
         "reasonPlaceholder": "Describe the audited reason",
         "pending": "Executing…"
       }
+    },
+    "queues": {
+      "title": "Queues",
+      "subtitle": "What is waiting for a decision. Each row opens the view where it gets handled.",
+      "empty": "Nothing pending",
+      "countError": "Count unavailable",
+      "items": {
+        "kyc-pending": {
+          "label": "KYC files",
+          "description": "Submitted agency identity checks, awaiting review.",
+          "unit": "{count, plural, one {file to review} other {files to review}}"
+        },
+        "upgrade-requests-pending": {
+          "label": "Upgrade requests",
+          "description": "Agency-account upgrades submitted by owners.",
+          "unit": "{count, plural, one {request to handle} other {requests to handle}}"
+        },
+        "moderation-pending": {
+          "label": "Moderation",
+          "description": "Reported properties and reviews, across every agency.",
+          "unit": "{count, plural, one {report to settle} other {reports to settle}}"
+        },
+        "failed-jobs": {
+          "label": "Failed jobs",
+          "description": "Queue jobs that failed and have not been retried.",
+          "unit": "{count, plural, one {job to retry} other {jobs to retry}}"
+        }
+      }
+    },
+    "recentActivity": {
+      "title": "Recent activity",
+      "seeAll": "Full audit log",
+      "error": "Recent activity could not be loaded.",
+      "emptyTitle": "No activity recorded",
+      "emptyDescription": "Cross-agency actions will show up here as soon as they are logged.",
+      "unknownEvent": "Unlabelled event",
+      "systemCauser": "System"
     }
   },
   "adminSettings": {

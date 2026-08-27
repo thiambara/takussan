@@ -5222,12 +5222,13 @@
       "verificationRate": "{rate} % de vérification",
       "agenciesActive": "Actives",
       "agenciesSuspended": "Suspendues",
-      "activeUsers": "Utilisateurs actifs",
-      "outOfTotal": "sur {total}",
       "publishedProperties": "Biens publiés",
       "pendingReview": "En modération",
       "platformRevenue": "Revenu plateforme",
-      "cumulativeRents": "Loyers encaissés cumulés"
+      "cumulativeRents": "Loyers encaissés cumulés",
+      "usersTotal": "Utilisateurs",
+      "activeOutOf": "{active} actifs",
+      "delta": "{value} % sur {days} jours"
     },
     "impersonation": {
       "banner": "Vous agissez en tant que {target} — session jusqu'à {expires}.",
@@ -5336,7 +5337,8 @@
       "home": {
         "metaTitle": "Console Takussan",
         "title": "Console Takussan",
-        "subtitle": "Vue plateforme — agences, utilisateurs, modération et revenu."
+        "subtitle": "Vue plateforme — agences, utilisateurs, modération et revenu.",
+        "metricsTitle": "État de la plateforme"
       },
       "agencyDetail": {
         "metaTitle": "Détail agence"
@@ -5409,14 +5411,18 @@
       "system": {
         "metaTitle": "Système — Console Takussan",
         "title": "Système",
-        "subtitle": "Mesures plateforme et paramètres globaux.",
+        "subtitle": "Les trois écrans techniques de la plateforme, et les paramètres globaux.",
         "globalSettings": {
-          "title": "Paramètres globaux",
-          "body": "Les devises, formats, frais et limites techniques se règlent dans la page paramètres dédiée. Intégrations tierces, mode maintenance et feature flags arriveront avec les tickets dédiés.",
           "openSettings": "Ouvrir les paramètres",
           "maintenance": "Mode maintenance",
           "healthcheck": "Healthcheck",
           "scheduler": "Scheduler"
+        },
+        "entries": {
+          "healthcheck": "État des dépendances — base, cache, stockage, mail, SMS — et jobs échoués.",
+          "maintenance": "Fermer la plateforme aux utilisateurs, avec un message et une fenêtre.",
+          "scheduler": "Ce que le planificateur exécute, et quand il l'a fait pour la dernière fois.",
+          "openSettings": "Devises, formats, frais et limites techniques de la plateforme."
         }
       },
       "maintenance": {
@@ -5863,6 +5869,43 @@
         "reasonPlaceholder": "Décrivez la raison auditée",
         "pending": "Exécution…"
       }
+    },
+    "queues": {
+      "title": "Files d'attente",
+      "subtitle": "Ce qui attend une décision. Chaque ligne mène à la vue où on la traite.",
+      "empty": "Rien en attente",
+      "countError": "Compte indisponible",
+      "items": {
+        "kyc-pending": {
+          "label": "Dossiers KYC",
+          "description": "Vérifications d'identité d'agence soumises, en attente d'examen.",
+          "unit": "{count, plural, one {dossier à examiner} other {dossiers à examiner}}"
+        },
+        "upgrade-requests-pending": {
+          "label": "Demandes d'upgrade",
+          "description": "Passages en compte agence soumis par des propriétaires.",
+          "unit": "{count, plural, one {demande à traiter} other {demandes à traiter}}"
+        },
+        "moderation-pending": {
+          "label": "Modération",
+          "description": "Biens et avis signalés, toutes agences confondues.",
+          "unit": "{count, plural, one {signalement à trancher} other {signalements à trancher}}"
+        },
+        "failed-jobs": {
+          "label": "Jobs échoués",
+          "description": "Tâches de file qui ont échoué et n'ont pas été rejouées.",
+          "unit": "{count, plural, one {job à rejouer} other {jobs à rejouer}}"
+        }
+      }
+    },
+    "recentActivity": {
+      "title": "Activité récente",
+      "seeAll": "Tout l'audit",
+      "error": "Impossible de charger l'activité récente.",
+      "emptyTitle": "Aucune activité enregistrée",
+      "emptyDescription": "Les actions cross-agences apparaîtront ici dès leur journalisation.",
+      "unknownEvent": "Événement sans libellé",
+      "systemCauser": "Système"
     }
   },
   "adminSettings": {
