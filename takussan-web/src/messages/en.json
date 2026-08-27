@@ -138,7 +138,20 @@
       "calendar": "Calendar",
       "onboardingPending": "Pending onboardings",
       "administration": "Administration",
-      "proLocked": "Pro accounts only"
+      "proLocked": "Pro accounts only",
+      "navLabel": "Dashboard navigation",
+      "sections": {
+        "catalog": "Catalogue",
+        "discover": "Discover",
+        "requests": "Requests",
+        "engagements": "Commitments",
+        "manage": "Management",
+        "admin": "Administration"
+      },
+      "counters": {
+        "unreadMessages": "{count, plural, one {# unread message} other {# unread messages}}",
+        "pendingVisits": "{count, plural, one {# pending visit request} other {# pending visit requests}}"
+      }
     },
     "admin": {
       "dashboard": "Dashboard",

@@ -144,4 +144,86 @@ jamais un appel pour un rôle qui n'a pas la ligne.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit (2026-08-27)
+
+| Affirmation du ticket | Mesuré |
+|---|---|
+| `GET /api/visits?filter[status]=pending`, compte dans `meta` « la forme exacte qu'`AdminSidebar` emploie » | **Faux sur trois points.** L'endpoint est `/api/property-visits` (`routes/api/property-visits.php`). Il n'existe **aucun** statut `pending` : `App\Models\Enums\VisitStatus` en compte cinq — `scheduled`, `confirmed`, `completed`, `cancelled`, `no_show` — et « en attente » est `scheduled`, que le front rend déjà « Demandée ». Le compte est `meta.total` ; `meta.pending_count` n'existe que sur les deux files de modération, qui l'ajoutent. |
+| « les **trois** couples de routes imbriquées » | **Cinq.** Aux trois nommés (`/app`, `/app/properties` ⊃ `/new`, `/app/leases` ⊃ `/onboarding-pending`) s'ajoutent `/app/maintenance` ⊃ `/app/maintenance/providers` et `/app/overview` ⊃ ses **quatre** filles (`exports`, `agency`, `kpis`, `alerts`). Une liste explicite de racines aurait donc été fausse le jour de sa rédaction — d'où le départage **par longueur** plutôt que par énumération. |
+| « `useConversations` sonde déjà toutes les 10 s — la donnée existe, le menu ne la lit pas » | **Exact, et meilleur que ça** : `ChatWidget` est monté dans `src/app/layout.tsx`, donc `useConversations()` tourne déjà sur toute page authentifiée. La clé de requête étant identique, la pastille « Messagerie » coûte **zéro requête**. |
+| « 23 entrées à plat pour un `agency_admin`, treize pour un `customer` » | **Exact**, et la liste des 23 du Contexte est juste, entrée pour entrée. Relevé complet des sept rôles : 23 (`agency_admin`, `super_admin`), 18 (`agent`), 16 (`owner`), 13 (`customer`), 10 (`service_provider`), **9 (`tenant`)**. |
+| « douze routes de `/app` sur quarante-six » | **Exact** (46 `page.tsx` sous `(dashboard)/app`), mais **sous-estimé** : `/app/crm`, `/app/crm/pipeline`, `/app/overview/{agent,owner,tenant}`, `/app/profile/notifications`, `/app/account/privacy`, `/app/payments/return` et `/app/settings/agency/upgrade` n'étaient pas surlignées non plus. |
+| Renvois de lignes du tableau comparatif | `NAV_GROUPS` l. 56 ✓, `isActivePath` l. 249 ✓, `AdminSidebar` l. 194-197 ✓. `AppSidebar` : `pathname === item.href` était **l. 334**, pas 316. |
+
+### AC6 n'a aujourd'hui aucune prise sur la réalité, et c'est dit
+
+`/app/messages` et `/app/visits` sont poussées **sans aucune garde de rôle** : les sept rôles les
+voient. La branche `enabled: false` n'est donc atteinte par aucun rôle réel. `countersToPoll` est
+exportée et éprouvée sur une liste construite, plus un test qui **épingle le constat** — il rougira
+le jour où TCK-379 gardera l'une des deux, et c'est à ce moment-là que la branche deviendra
+observable. *Un critère coché par une branche que rien n'exécute n'est pas couvert.*
+
+### Deux défauts mesurés hors du « Delta à produire », dont un corrigé
+
+- **L'entrée cadenassée mesurait 2,51:1.** `opacity-60` compose `--muted-foreground` (#6e655a) sur
+  `--card` (#ffffff) — très en dessous du 4,5:1 de WCAG AA, et aucune opacité intermédiaire ne
+  sauve la paire (0,9 → 4,57 ; 0,8 → 3,70). `opacity-60` est **retiré** : 5,72:1, le cadenas, le
+  `cursor-not-allowed`, le `title` et l'`aria-disabled` portant seuls la sémantique. *Encoder
+  « désactivé » dans un contraste illisible, c'est le dire à ceux qui le voyaient déjà.*
+- **`AdminSidebar` allumait DEUX entrées** sur `/admin/moderation/properties` pour un super-admin,
+  `/admin/moderation` et `/admin/moderation/properties` étant deux préfixes valides. Corrigé
+  gratuitement par le passage au plus-long-préfixe. Non corrigé, en revanche : son entrée
+  cadenassée (`text-white/40 opacity-60` sur `--foreground`) est bien pire que celle de `/app` —
+  c'est de la palette, donc TCK-380/381.
+
+### Les sept contrastes de la barre, recalculés
+
+sRGB → luminance relative WCAG 2.x, **alpha composé avant le calcul**, sur le fond **réel** —
+l'`<aside>` est `bg-card` (#ffffff) et non `--background` (#fcf9f3), qu'il masque.
+
+| Paire | Fond | Mesure | Seuil |
+|---|---|---|---|
+| entrée inactive `--muted-foreground` | `--card` | **5,72:1** | 4,5 |
+| entrée inactive au survol | `--muted` | **4,85:1** | 4,5 |
+| entrée active `--foreground` | `--border` | **13,94:1** | 4,5 |
+| libellé de section `--muted-foreground` | `--card` | **5,72:1** | 4,5 |
+| pastille `--primary-foreground` | `--primary` | **5,06:1** | 4,5 |
+| anneau `--ring` (peint HORS border-box) | `--card` | **5,32:1** | 3 |
+| anneau `--ring` (bord interne, entrée active) | `--border` | **4,23:1** | 3 |
+
+Trois mesures ont **écarté** un choix : `--muted-foreground` à 70 % pour le libellé de section
+(3,03:1 — refusé, il reste à pleine opacité) ; une règle `border` entre sections (1,26:1 sur
+`--card` — la césure est portée par la typographie et l'espacement, pas par un trait) ; et le fond
+supposé `--background` au lieu de `--card`, qui aurait annoncé 5,44 pour une paire qui en mesure
+5,72. **Aucun `ring-offset` n'est nécessaire ici** — contrairement au shell super-admin (TCK-359),
+où `--ring` et `--sidebar-primary` se confondent sur fond sombre.
+
+### Décisions de structure
+
+- La règle de surlignage vit dans **`src/lib/navigation/active-path.ts`**, avec **deux** formes.
+  `resolveActiveHref` (le plus long préfixe, un seul gagnant) pour `AppSidebar` et `AdminSidebar` ;
+  `isActiveHref` (préfixe simple) pour `SuperAdminSidebar`, **délibérément** : ses entrées ont des
+  `children` rendus sous leur parent, et le plus-long-préfixe éteindrait le parent. La différence
+  est un choix de rendu, pas un oubli.
+- Le départage **par longueur** remplace l'énumération des couples imbriqués : une liste écrite à
+  la main aurait manqué deux couples sur cinq le jour même (cf. tableau ci-dessus).
+- `aria-current="page"` est posé sur l'entrée **active** (donc aussi sur une page de détail), et
+  non sur la seule égalité stricte : avec le plus-long-préfixe, une seule entrée est active à la
+  fois, ce qui rend l'attribut non ambigu.
+- La section `primary` n'a **pas** de libellé, et c'est la DONNÉE qui le dit (`SECTION_LABEL_KEYS`
+  vaut `null`), pas un test sur son nom dans le rendu.
+
+### Vérification par ablation
+
+Onze régressions rejouées sur les 65 tests des deux fichiers neufs, **rouges à chaque fois**,
+vertes au retour : retour à `pathname === item.href` (13 rouges) · préfixe sans départage par
+longueur (11) · `/app` retiré des racines exactes (3) · `aria-current` retiré d'`AdminSidebar` (2)
+· compteur peint à zéro (3) · cadenas qui ne coupe plus le sondage (1) · `opacity-60` rendu à
+l'entrée cadenassée (1) · `aria-label` du `<nav>` retiré (1) · anneau de focus retiré (1) ·
+sections vides conservées (2) · une entrée de plus pour un rôle (9).
+
+### Non vérifié
+
+Aucune vérification navigateur : tout est calculé ou exécuté sous jsdom. En particulier
+l'apparence réelle des césures et de la pastille, et le comportement de la barre repliée en tiroir
+sur mobile.

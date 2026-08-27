@@ -129,7 +129,20 @@
       "calendar": "Arminaat",
       "onboardingPending": "Dugg yi séq",
       "administration": "Yoonu njiit",
-      "proLocked": "Kont pro rekk"
+      "proLocked": "Kont pro rekk",
+      "navLabel": "Joowiin bu tablo bi",
+      "sections": {
+        "catalog": "Katalog",
+        "discover": "Gis",
+        "requests": "Ñaan",
+        "engagements": "Digante",
+        "manage": "Yóbbal",
+        "admin": "Doxal"
+      },
+      "counters": {
+        "unreadMessages": "{count, plural, one {# bataaxal bu ñu jàngul} other {# bataaxal yu ñu jàngul}}",
+        "pendingVisits": "{count, plural, one {# ñaan gis-gis bu di xaar} other {# ñaan gis-gis yu di xaar}}"
+      }
     },
     "admin": {
       "dashboard": "Taablo",
