@@ -1,8 +1,7 @@
-import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin, isAgent, isOwner } from '@/lib/roles';
+import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PipelineKanban } from '@/components/pipeline/PipelineKanban';
 
 /**
@@ -16,9 +15,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   const me = await getMeAction();
-  if (!(isAgent(me.roles) || isOwner(me.roles) || isAdmin(me.roles))) {
-    forbidden();
-  }
+  assertCanReachAgentArea(me.roles);
   const t = await getTranslations('crm.pipeline');
 
   return (
