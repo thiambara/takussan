@@ -108,6 +108,84 @@ class PlatformReportingTest extends TestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * TCK-361 / D5 — **la borne BASSE d'une plage libre borne réellement le premier bucket.**
+     *
+     * `bucketsFor` ramenait la borne HAUTE du dernier bucket à `end` et laissait la borne basse du
+     * premier à `startOfMonth($cursor)`. Une fenêtre qui ne commence pas un 1er du mois comptait
+     * donc tout le début du mois — quatorze jours ici — sous une étiquette que l'utilisateur a
+     * lui-même choisie. Le chiffre était faux, sans erreur, dans la fonctionnalité que ce ticket
+     * introduit.
+     *
+     * L'asymétrie ne se voyait pas à l'œil parce que les deux bornes ne sont pas écrites au même
+     * endroit : l'une est un `match`, l'autre un `if` trois lignes plus bas.
+     */
+    public function test_a_free_range_starting_mid_month_ignores_what_precedes_its_lower_bound(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $baseline = Agency::query()
+            ->whereBetween('created_at', ['2026-03-15', '2026-03-31 23:59:59'])->count();
+        $baselineFevrier = Agency::query()
+            ->whereBetween('created_at', ['2026-02-01', '2026-02-28 23:59:59'])->count();
+
+        Agency::factory()->create(['created_at' => '2026-03-02']); // AVANT la borne demandée.
+        Agency::factory()->create(['created_at' => '2026-03-20']); // dans la fenêtre.
+
+        $response = $this
+            ->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-03-15&ends_at=2026-03-31')
+            ->assertOk();
+
+        $rows = $response->json('data.rows');
+        $this->assertSame(['2026-03'], collect($rows)->pluck('bucket')->all());
+        $this->assertStringStartsWith('2026-03-15', $rows[0]['starts_at'], 'Le premier bucket doit COMMENCER à la borne demandée.');
+        $this->assertSame($baseline + 1, $rows[0]['count']);
+        $this->assertSame($baseline + 1, $response->json('data.totals.total'));
+
+        // AC4 — la comparaison est un second appel sur la fenêtre décalée, elle calée sur des 1ers
+        // du mois. Tant que le premier bucket de la série principale débordait, on comparait un
+        // bucket gonflé à un bucket propre : l'écart affiché était un artefact de bornage.
+        $precedente = $this
+            ->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-02-01&ends_at=2026-02-28')
+            ->assertOk();
+
+        $this->assertSame(['2026-02'], collect($precedente->json('data.rows'))->pluck('bucket')->all());
+        $this->assertSame(
+            $baselineFevrier,
+            $precedente->json('data.totals.total'),
+            "L'agence du 2 mars n'appartient à AUCUNE des deux fenêtres : ni à mars-15..31, ni à février.",
+        );
+
+        Carbon::setTestNow();
+    }
+
+    /**
+     * TCK-361 / D1 — le JUMEAU de `test_two_distinct_windows_do_not_share_a_cache_entry`, côté
+     * REVENUS. Le même défaut (`windowKey` absent de la clé) était attrapé sur `growth` et sur rien
+     * d'autre : remplacer `$this->windowKey($window)` par une constante à la ligne de `revenue()`
+     * laissait la suite entièrement verte. Or AC4 exige la comparaison sur croissance ET revenus —
+     * et c'est précisément là que le défaut se voit le moins : la série de comparaison devient
+     * byte-identique à la principale, sans qu'aucune erreur ne soit levée.
+     */
+    public function test_two_distinct_revenue_windows_do_not_share_a_cache_entry(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $courante = $this->getJson('/api/admin/reports/revenue?granularity=month&starts_at=2026-04-01&ends_at=2026-04-30')
+            ->assertOk();
+        $precedente = $this->getJson('/api/admin/reports/revenue?granularity=month&starts_at=2026-02-01&ends_at=2026-02-28')
+            ->assertOk();
+
+        $this->assertSame(['2026-04'], collect($courante->json('data.rows'))->pluck('bucket')->all());
+        $this->assertSame(['2026-02'], collect($precedente->json('data.rows'))->pluck('bucket')->all());
+        $this->assertSame('2026-04-01..2026-04-30', $courante->json('data.period.range'));
+        $this->assertSame('2026-02-01..2026-02-28', $precedente->json('data.period.range'));
+
+        Carbon::setTestNow();
+    }
+
     public function test_revenue_accepts_a_free_date_range(): void
     {
         Carbon::setTestNow('2026-05-15');

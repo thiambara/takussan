@@ -14,6 +14,29 @@ vi.mock('@/lib/queries/super-admin', () => ({
   exportAdminReport: (...args: unknown[]) => exportAdminReport(...args),
 }));
 
+/**
+ * Le sélecteur de dates est un popover + calendrier (primitive partagée, TCK-357) : le piloter au
+ * clavier ferait dépendre ce test de la locale du calendrier, qui n'est pas son sujet. Il est
+ * remplacé par le `<input type="date">` qu'il remplace lui-même en production — même contrat de
+ * valeur (`YYYY-MM-DD` ou chaîne vide), même `data-testid`.
+ */
+vi.mock('@/components/ui/date-picker', () => ({
+  DatePicker: ({ value, onValueChange, 'data-testid': testId, 'aria-label': label }: {
+    value?: string;
+    onValueChange: (v: string) => void;
+    'data-testid'?: string;
+    'aria-label'?: string;
+  }) => (
+    <input
+      type="date"
+      aria-label={label}
+      data-testid={testId}
+      value={value ?? ''}
+      onChange={(e) => onValueChange(e.target.value)}
+    />
+  ),
+}));
+
 const { GrowthChart } = await import('../GrowthChart');
 
 function enveloppe(rows: Array<{ bucket: string; count: number }>) {
@@ -68,21 +91,73 @@ describe('<GrowthChart> (TCK-361)', () => {
   });
 
   /**
-   * AC5 — l'export porte les filtres ACTIFS. Le défaut qu'il ferme est silencieux : un export
-   * figé sur les paramètres par défaut télécharge un fichier plausible, simplement pas celui
-   * qu'on regardait.
+   * AC5 — l'export porte les filtres ACTIFS.
+   *
+   * ⚠ **Ce test DÉPLACE les filtres avant d'exporter, et c'est tout son objet.** Sa première
+   * version montait le composant dans son état par défaut (`agencies` / `12m`) et vérifiait que
+   * l'export recevait… `agencies` / `12m`. Une revue adverse l'a défait en une mutation : un export
+   * ENTIÈREMENT figé en dur — `params={{ metric: 'agencies', granularity: 'month', period: '12m' }}`
+   * — le laissait vert, c'est-à-dire exactement le défaut que l'AC ferme (« un export figé sur les
+   * paramètres par défaut télécharge un fichier plausible, simplement pas celui qu'on regardait »).
+   *
+   * D'où deux valeurs qui ne sont celles d'AUCUN défaut : la métrique passe à `users` et la période
+   * à `3m`. Un export figé ne peut plus les produire, quelle que soit la constante choisie.
    */
-  it("transmet à l'export la métrique affichée", async () => {
+  it("transmet à l'export les filtres RÉELLEMENT posés, pas ceux par défaut", async () => {
     const user = userEvent.setup();
     rendre();
     await screen.findByTestId('timeseries-chart');
+
+    // Les options vivent dans un portail : elles ne se rendent qu'une fois le déclencheur ouvert.
+    await user.click(screen.getByLabelText('Métrique'));
+    await user.click(await screen.findByRole('option', { name: 'Utilisateurs' }));
+
+    await user.click(screen.getByLabelText('Période'));
+    await user.click(await screen.findByRole('option', { name: '3 mois' }));
+
+    // La série affichée doit d'abord AVOIR bougé : exporter les filtres d'un graphique qui n'a pas
+    // suivi ne vaudrait pas mieux que l'inverse.
+    await waitFor(() => expect(fetchAdminReportGrowth).toHaveBeenCalledWith(
+      expect.objectContaining({ metric: 'users', period: '3m' }),
+    ));
+
+    await user.click(screen.getByRole('button', { name: /exporter csv/i }));
+
+    await waitFor(() => expect(exportAdminReport).toHaveBeenCalledWith('growth', {
+      metric: 'users',
+      granularity: 'month',
+      period: '3m',
+    }));
+  });
+
+  /**
+   * AC5, second versant — une PLAGE LIBRE voyage jusqu'à l'export, et elle y remplace `period`.
+   *
+   * C'est le versant qu'aucune constante ne peut imiter : un export figé sur un raccourci n'émettra
+   * jamais `starts_at`. Le sélecteur de dates est ici remplacé par un `<input type="date">` — c'est
+   * une primitive partagée (TCK-357), gardée par ses propres tests ; ce qui est éprouvé ici, c'est
+   * le CHEMIN qui va de la fenêtre posée à la requête et au téléchargement.
+   */
+  it("transmet à l'export une plage libre, à la place du raccourci", async () => {
+    const user = userEvent.setup();
+    rendre();
+    await screen.findByTestId('timeseries-chart');
+
+    await user.type(screen.getByTestId('plage-debut'), '2026-03-15');
+    await user.type(screen.getByTestId('plage-fin'), '2026-03-31');
+    await user.click(screen.getByRole('button', { name: 'Appliquer' }));
+
+    await waitFor(() => expect(fetchAdminReportGrowth).toHaveBeenCalledWith(
+      expect.objectContaining({ starts_at: '2026-03-15', ends_at: '2026-03-31' }),
+    ));
 
     await user.click(screen.getByRole('button', { name: /exporter csv/i }));
 
     await waitFor(() => expect(exportAdminReport).toHaveBeenCalledWith('growth', {
       metric: 'agencies',
       granularity: 'month',
-      period: '12m',
+      starts_at: '2026-03-15',
+      ends_at: '2026-03-31',
     }));
   });
 

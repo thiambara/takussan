@@ -160,9 +160,32 @@ interface SuperAdminSidebarProps {
  * traduction littérale de l'ancien fond ambre 500 à 15 % + encre ambre 200 aurait donné du
  * terracotta sur
  * du terracotta à 20 % : **3,59:1**, sous le plancher AA de 4,5:1 pour du texte normal. Le plein
- * mesure 5,31:1 (encre `--sidebar-primary-foreground` sur `--sidebar-primary`). Les mesures de
- * cette barre, prises le 2026-08-27 : libellé inactif 10,16:1 · libellé de groupe 8,08:1 ·
- * survol 8,59:1 · lien de retour 10,16:1.
+ * mesure 5,31:1 (encre `--sidebar-primary-foreground` sur `--sidebar-primary`).
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-359 — LES MESURES DE CETTE BARRE VIVENT ICI, ET NULLE PART AILLEURS
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Ce fichier a porté DEUX nombres contradictoires pour la MÊME paire — 8,08:1 dans ce docblock,
+ * 7,91:1 dans le commentaire du libellé de groupe, tous deux écrits le même jour. Le second était
+ * faux, et il n'était pas décoratif : il ancrait une consigne opérationnelle (« ne pas redescendre
+ * sous 70 % »), donc il faisait croire à 0,17 de marge en moins qu'il n'y en a. *Deux endroits qui
+ * portent le même chiffre finissent par en porter deux différents* — le chiffre est donc écrit une
+ * seule fois, ici, et les commentaires de rendu renvoient à ce bloc sans le recopier.
+ *
+ * Recalculé le 2026-08-27 (WCAG 2.x, composition alpha en sRGB avant le calcul), contexte `dark` :
+ *
+ *   libellé de groupe   `--sidebar-foreground` @70 % / `--sidebar`  ....  8,0781:1
+ *   item inactif        `--sidebar-foreground` @85 % / `--sidebar`  ....  11,27:1
+ *   sous-item & retour  `--sidebar-foreground` @80 % / `--sidebar`  ....  10,13:1
+ *   survol              `--sidebar-accent-foreground` / `--sidebar-accent`   12,53:1
+ *   item actif & badge  `--sidebar-primary-foreground` / `--sidebar-primary`  5,31:1
+ *   sous-item actif     idem sur `--sidebar-primary`@90 % aplati sur `--sidebar`  4,60:1
+ *   eyebrow             `--sidebar-primary` / `--sidebar`  ...............  4,83:1
+ *   titre               `--sidebar-foreground` / `--sidebar`  ............  15,16:1
+ *
+ * Le relevé complet du shell (topbar, onglets, tables, anneaux) est dans les notes
+ * d'implémentation de TCK-359.
  */
 export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarProps) {
   const pathname = usePathname();
@@ -187,10 +210,10 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
         {NAV_GROUPS.map((group) => (
           <div key={group.labelKey} className="space-y-1">
             {/*
-              TCK-359 — le libellé de groupe doit tenir 4,5:1 sur le fond de la barre. `stone-500`
-              (3,64:1) échouait ; le jeton `--sidebar-foreground` à 70 % mesure 7,91:1 sur
-              `--sidebar` en contexte sombre (#fcf9f3 @70% sur #2a2018). Ne pas redescendre
-              l'opacité sous 70 % sans recalculer.
+              TCK-359 — le libellé de groupe doit tenir 4,5:1 sur le fond de la barre ; `stone-500`
+              (3,65:1) échouait. L'opacité de 70 % n'est pas un réglage d'œil : elle est mesurée,
+              et le chiffre est dans le docblock du composant — un seul endroit, délibérément.
+              Ne pas la redescendre sans y refaire la mesure.
             */}
             <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
               {tGroups(group.labelKey)}
@@ -210,7 +233,7 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
         <Link
           href="/app"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
         >
           <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
           <span className="truncate">{t('backToPersonal')}</span>
@@ -244,9 +267,17 @@ function SuperAdminNavItem({
         aria-current={current ? 'page' : undefined}
         className={cn(
           'flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
-          // TCK-359 — anneau de focus explicite : sur `stone-900` le contour par défaut du
-          // navigateur est quasi invisible. `ring-ring` = jeton `--ring`, jamais un hex.
+          // TCK-359 — anneau de focus explicite : sur une surface sombre le contour par défaut
+          // du navigateur est quasi invisible. `ring-ring` = jeton `--ring`, jamais un hex.
+          //
+          // ⚠ `ring-offset-2 ring-offset-sidebar` n'est PAS cosmétique. En contexte `dark`,
+          // `--ring` et `--sidebar-primary` sont le même octet (#c87a52) : sans liseré, focaliser
+          // l'entrée ACTIVE — celle que l'utilisateur clavier atteint en premier, `aria-current` —
+          // peint un anneau de la couleur EXACTE de la pastille, soit 1,00:1. Le liseré de 2 px en
+          // `--sidebar` rétablit 4,83:1 des deux côtés (liseré/pastille et anneau/liseré). Sur les
+          // entrées non actives il est invisible par construction : sa couleur est celle du fond.
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar',
           active
             ? 'bg-sidebar-primary font-semibold text-sidebar-primary-foreground'
             : 'text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
@@ -277,7 +308,10 @@ function SuperAdminNavItem({
                 aria-current={childActive ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
+                  // Même raison que l'entrée parente : la pastille active porte `--sidebar-primary`,
+                  // qui EST `--ring` en contexte `dark`. Cf. le commentaire ci-dessus.
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar',
                   childActive
                     ? 'bg-sidebar-primary/90 font-semibold text-sidebar-primary-foreground'
                     : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',

@@ -27,8 +27,14 @@ interface StatusBadgeProps {
  *
  * Elles ne citent que des jetons publiés par `globals.css` (`--accent`, `--destructive`,
  * `--primary`, `--muted`, `--secondary`). Aucune couleur Tailwind brute : au 2026-08-26, la
- * console portait huit pastilles faites main en `bg-amber-100` / `bg-emerald-100` / `bg-red-100`
- * / `bg-stone-200` / `bg-green-50`, cinq familles pour quatre statuts.
+ * console portait huit pastilles faites main en ambre 100, émeraude 100, rouge 100, pierre 200 et
+ * vert 50 — cinq familles pour quatre statuts.
+ *
+ * ⚠ Ces cinq classes étaient écrites ici EN TANT QUE CLASSES jusqu'au 2026-08-27, et c'est ce qui
+ * a empêché ce fichier d'entrer dans le périmètre de `scripts/check-super-admin-tokens.mjs` : la
+ * garde n'exclut pas les commentaires, délibérément, parce qu'un docblock qui montre une classe
+ * brute est précisément la documentation périmée d'où le motif repousse. *Le récit d'une migration
+ * s'écrit en toutes lettres ; sinon c'est un presse-papier.*
  *
  * `attention` empruntait `--primary` (terracotta) faute d'un jeton d'avertissement ; TCK-358 a
  * posé `--warning` dans `globals.css` et le ton l'a repris, d'une ligne, comme annoncé ici. Le

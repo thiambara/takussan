@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl';
 
 import { postKycReview } from '@/lib/queries/super-admin';
 import { submitAgencyKyc, uploadAgencyKycDocument } from '@/lib/queries/kyc';
+import { StatusBadge as ConsoleStatusBadge, type StatusTone } from '@/components/console/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -220,12 +221,51 @@ export function KycReviewPanel({ dossier, agencyId }: { dossier: KycDossier; age
   );
 }
 
+/**
+ * Le ton de chaque statut de dossier KYC — quatre statuts, quatre tons SÉMANTIQUES.
+ *
+ * ─── TCK-358 ─ pourquoi cette pastille a changé de forme ───
+ *
+ * Elle composait ses quatre cas à la main sur `<Badge>`, dont un qui posait le jeton d'accent en
+ * aplat et écrivait le texte en BLANC LITTÉRAL (la couleur nommée, écrite en toutes lettres ici
+ * parce que la garde lit aussi les commentaires) — exactement la forme que le contrôle B de
+ * `check-super-admin-tokens.mjs` refuse, et qui passait parce que ce fichier n'était dans aucun
+ * de ses quatre périmètres. Il
+ * est pourtant rendu DANS la console super-admin : `admin/super/agency-detail.tsx` (lui, gardé)
+ * importe `KycReviewPanel` et `KycDossierTimeline` d'ici. *La garde regardait le fichier qui
+ * importe, pas celui qui rend la couleur.*
+ *
+ * ⚠ `AgencyKycClient` monte lui aussi `KycDossierTimeline`, côté agence : le changement de
+ * vocabulaire y vaut également, et c'est voulu — un dossier vérifié ne doit pas se colorer
+ * autrement selon qui le regarde.
+ *
+ * ⚠ `submitted` porte `attention` et NON `info`, et l'écart n'est pas cosmétique — il a existé
+ * une demi-journée. TCK-362 réécrivait `admin/super/kyc-queue.tsx` au même moment avec sa propre
+ * table (`KYC_STATUS_TONES`), qui donnait `attention` à `submitted` quand celle-ci donnait
+ * `info` : **le même statut métier, deux couleurs, dans deux écrans qui se suivent**. Arbitré ici
+ * le 2026-08-27, et arbitré sur le SENS, pas sur l'ancienneté :
+ *
+ *   `attention` = une décision est attendue de l'opérateur.  `info` = c'est décidé, ça suit son
+ *   cours, il n'y a rien à faire.
+ *
+ * Un dossier `submitted` attend une revue : c'est le seul statut de cette table qui appelle un
+ * geste. Le même critère donne `pending` → `neutral` (le dossier existe, l'agence ne l'a pas
+ * encore envoyé — rien n'est attendu du super-admin). Aucun statut de ce cycle ne relève d'`info`,
+ * et laisser un ton inutilisé vaut mieux que de l'employer pour éviter un trou dans la liste.
+ *
+ * *Deux tables de tons pour un même vocabulaire métier, c'est la palette brute qui revient sous
+ * un autre nom* — celle-ci et `KYC_STATUS_TONES` bougent ensemble ou pas du tout.
+ */
+const STATUS_TONE: Record<KycDossierStatus, StatusTone> = {
+  pending: 'neutral',
+  submitted: 'attention',
+  verified: 'success',
+  rejected: 'danger',
+};
+
 export function StatusBadge({ status }: { status: KycDossierStatus }) {
   const t = useTranslations('kyc.status');
-  if (status === 'verified') return <Badge className="bg-accent text-white hover:bg-accent">{t(status)}</Badge>;
-  if (status === 'rejected') return <Badge variant="destructive">{t(status)}</Badge>;
-  if (status === 'submitted') return <Badge className="bg-primary text-primary-foreground hover:bg-primary">{t(status)}</Badge>;
-  return <Badge variant="outline">{t(status)}</Badge>;
+  return <ConsoleStatusBadge label={t(status)} tone={STATUS_TONE[status]} data-testid={`kyc-status-${status}`} />;
 }
 
 function formatDate(value: string | null): string {

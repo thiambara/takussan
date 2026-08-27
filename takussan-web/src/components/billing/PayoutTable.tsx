@@ -1,31 +1,50 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { PlatformPayout, PlatformPayoutStatus } from '@/types/super-admin';
 
 /**
  * ⚠ La table de LIBELLÉS qui vivait ici a été retirée par TCK-292 : les statuts se résolvent sous
- * `billing.platformPayouts.status.*`, la clé étant la valeur d'enum. Ce qui reste est la TEINTE,
+ * `billing.platformPayouts.status.*`, la clé étant la valeur d'enum. Ce qui reste est le TON,
  * qui n'est pas du texte.
+ *
+ * ─── TCK-358 ─ pourquoi ces six lignes ont changé ───
+ *
+ * Elles portaient six triplets de palette Tailwind brute — ambre, bleu, violet, émeraude, rouge,
+ * neutre — c'est-à-dire SIX familles pour six statuts, décidées ici et nulle part ailleurs.
+ * C'étaient littéralement les « pastilles faites main » que `StatusBadge` existe pour remplacer,
+ * et elles étaient rendues DANS la console super-admin (`/super-admin/payouts` →
+ * `AdminPayoutsClient` → ce fichier) sans qu'aucune garde ne les voie : le périmètre de
+ * `check-super-admin-tokens.mjs` nommait quatre répertoires, et `src/components/billing` n'en
+ * était pas. *Un périmètre est une liste de répertoires ; un écran est un graphe de rendu — les
+ * deux ne coïncident jamais tout seuls.*
+ *
+ * Le mapping fait DEUX tons de moins que l'ancien, et c'est délibéré : `StatusBadge` n'en publie
+ * que cinq, et son propre docblock pose qu'un sixième ton signifie qu'on avait besoin d'une
+ * colonne, pas d'une couleur. `approved` et `processing` partagent donc `info` — tous deux
+ * disent « décidé, pas encore versé », et c'est le LIBELLÉ, traduit, qui les distingue. La
+ * couleur porte l'état d'avancement, pas l'identité du statut.
+ *
+ * ⚠ Ce composant sert AUSSI la console agence (`AgencyPayoutsClient`) et le panneau de détail
+ * (`PayoutDetailPanel`) : le changement de vocabulaire y est le même, ce qui est l'effet
+ * recherché — une pastille de statut ne doit pas changer de langue de couleur selon l'écran qui
+ * la monte.
  */
-const STATUS_TONE: Record<PlatformPayoutStatus, string> = {
-  pending: 'bg-amber-50 text-amber-800 ring-amber-200',
-  approved: 'bg-blue-50 text-blue-800 ring-blue-200',
-  processing: 'bg-violet-50 text-violet-800 ring-violet-200',
-  paid: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-  failed: 'bg-red-50 text-red-800 ring-red-200',
-  cancelled: 'bg-neutral-100 text-neutral-700 ring-neutral-200',
+const STATUS_TONE: Record<PlatformPayoutStatus, StatusTone> = {
+  pending: 'attention',
+  approved: 'info',
+  processing: 'info',
+  paid: 'success',
+  failed: 'danger',
+  cancelled: 'neutral',
 };
 
 export function PayoutStatusPill({ status }: { status: PlatformPayoutStatus }) {
   const tStatus = useTranslations('billing.platformPayouts.status');
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_TONE[status]}`}>
-      {tStatus(status)}
-    </span>
-  );
+  return <StatusBadge label={tStatus(status)} tone={STATUS_TONE[status]} data-testid={`payout-status-${status}`} />;
 }
 
 export function formatXof(amount: number, currency: string): string {

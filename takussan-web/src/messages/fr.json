@@ -5452,6 +5452,8 @@
           "action": "Actions"
         },
         "agencyFallback": "Agence supprimée (#{id})",
+        "agencyUnknown": "Agence #{id}",
+        "subjectFallback": "{type} #{id}",
         "dossierRef": "Dossier #{id}",
         "documentsCount": "{present}/{total}",
         "review": "Instruire",
@@ -5467,6 +5469,8 @@
         "reject": "Rejeter",
         "notReviewable": "Seul un dossier soumis peut être instruit.",
         "decisionFailed": "La décision n'a pas pu être enregistrée.",
+        "staleDecision": "Ce dossier n'est plus à instruire : sa décision vient d'être prise ailleurs. La file a été rafraîchie.",
+        "incompleteDossier": "Une pièce obligatoire manque à ce dossier. La file a été rafraîchie.",
         "error": "Impossible de charger la file KYC.",
         "retry": "Réessayer",
         "emptyTitle": "Rien à instruire",

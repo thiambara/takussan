@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**364 tickets** — 37 ouverts, 326 livrés.
+**369 tickets** — 42 ouverts, 326 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 36 |
+| 📋 Todo | 41 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -69,6 +69,11 @@
 - [TCK-380](tickets/TCK-380-app-adopter-les-primitives-partagees.md) — Tableau de bord /app — adopter les primitives partagées que les deux consoles ont déjà `M · P2 · front`
 - [TCK-381](tickets/TCK-381-app-palette-brute-et-cliquet.md) — Tableau de bord /app — éteindre la palette Tailwind brute, et étendre le cliquet à ce qu'il ne couvre pas `M · P2 · front`
 - [TCK-382](tickets/TCK-382-app-attente-introuvable-et-titre-onglet.md) — Tableau de bord /app — l'attente, l'introuvable et le titre d'onglet : trois états que quarante écrans ne rendent pas `S · P2 · front`
+- [TCK-384](tickets/TCK-384-primitives-partagees-couleur-brute.md) — Primitives partagées — la couleur brute que la console rend sans pouvoir la garder `M · P2 · front`
+- [TCK-385](tickets/TCK-385-kyc-uploader-palette-brute-onboarding.md) — Assistants d'onboarding — la pastille KYC en palette brute, dans le seul répertoire que deux gardes se renvoient `S · P2 · front`
+- [TCK-388](tickets/TCK-388-comparaison-de-durees-inegales-sur-plage-partielle.md) — Rapports — la comparaison oppose des durées inégales dès que la plage ne couvre pas des mois entiers `M · P2 · back`
+- [TCK-389](tickets/TCK-389-plafond-de-60-buckets-tronque-en-silence.md) — Rapports — le plafond de 60 buckets tronque une plage choisie sans le dire `S · P2 · back`
+- [TCK-390](tickets/TCK-390-agences-filtre-is-verified.md) — Agences — ouvrir le filtre `is_verified`, sans quoi la tuile « Vérifiées » de l'accueil ne mène nulle part `S · P2 · full`
 
 ## 🚧 Doing
 

@@ -21,12 +21,14 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
  * affichage* : elle ne répond pas à « et alors ? ». Chaque tuile porte désormais un `href` vers la
  * liste déjà filtrée qui l'explique, et le rendu passe par `StatCard` (TCK-357).
  *
- * ⚠ **Cinq des huit tuiles n'auront JAMAIS de delta, et c'est voulu.** L'API ne renvoie un point
- * de comparaison que pour les métriques reconstructibles depuis une date de création ; celles qui
- * dérivent d'un statut courant (vérifiées, actives, suspendues, utilisateurs actifs, biens
- * publiés / en modération) n'en ont pas, faute d'historique — le raisonnement est dans le docblock
- * de `SystemMetricsController`. Une clé absente de `trend.previous` ne se remplace donc pas par un
- * zéro : elle supprime le delta.
+ * ⚠ **Cinq des huit tuiles n'auront JAMAIS de delta, et c'est voulu** : vérifiées, actives,
+ * suspendues, biens publiés, en modération. L'API ne renvoie un point de comparaison que pour les
+ * métriques reconstructibles depuis une date de création ; celles qui dérivent d'un statut courant
+ * n'en ont pas, faute d'historique — le raisonnement est dans le docblock de
+ * `SystemMetricsController`, qui en compte HUIT parce qu'il dénombre des métriques de la réponse
+ * et non des tuiles (`users.active` et `verification_rate` sont ici des précisions sous une autre
+ * tuile, `leases.active` n'est pas rendue). Une clé absente de `trend.previous` ne se remplace
+ * donc pas par un zéro : elle supprime le delta.
  */
 
 interface Tile {

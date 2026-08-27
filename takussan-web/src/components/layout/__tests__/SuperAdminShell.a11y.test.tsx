@@ -109,6 +109,42 @@ describe('SuperAdminShell — lien d’évitement (TCK-359)', () => {
     expect(lien.className).toContain('sr-only');
     expect(lien.className).toContain('focus:not-sr-only');
   });
+
+  /**
+   * TCK-359, revue adverse — CE TEST EXISTE PARCE QUE DEUX ABLATIONS RESTAIENT VERTES.
+   *
+   * Les deux assertions ci-dessus (`sr-only` / `focus:not-sr-only`) gardent la VISIBILITÉ du lien,
+   * et rien d'autre. Mesuré : on pouvait supprimer l'intégralité de son anneau de focus, ou
+   * l'intégralité de son positionnement, sans faire rougir un seul des 7 tests — c'est-à-dire
+   * régresser exactement le défaut que ce ticket corrige ailleurs, tout en cochant AC3.
+   *
+   * Les deux moitiés sont donc gardées classe par classe, et pas par une sous-chaîne qui
+   * survivrait à la disparition de la moitié des utilitaires :
+   *
+   *   (a) l'anneau — un lien d'évitement sans indicateur de focus est un lien d'évitement qu'on
+   *       atteint sans le voir. `--ring` (#a85332) sur le `--muted` du shell mesure 4,51:1,
+   *       au-dessus du seuil 3 de SC 1.4.11 (mesuré le 2026-08-27).
+   *   (b) le positionnement — au focus, `focus:not-sr-only` rend au lien ses dimensions. Sans
+   *       `focus:absolute`, il redevient un élément de FLUX dans un `h-screen flex-col` : la
+   *       topbar et le `<main>` se décalent vers le bas à la première tabulation. Sans
+   *       `focus:z-50`, il passe sous l'`ImpersonationBanner`.
+   */
+  it('garde son anneau de focus ET son positionnement flottant', () => {
+    renderShell();
+
+    const classes = screen
+      .getByRole('link', { name: 'Aller au contenu principal' })
+      .className.split(/\s+/);
+
+    // (a) l'affordance de focus, jeton compris — un hex en dur ne suivrait pas le thème.
+    for (const classe of ['focus:outline-none', 'focus:ring-2', 'focus:ring-ring']) {
+      expect(classes).toContain(classe);
+    }
+    // (b) le retrait du flux, sinon le focus pousse tout le shell.
+    for (const classe of ['focus:absolute', 'focus:left-4', 'focus:top-4', 'focus:z-50']) {
+      expect(classes).toContain(classe);
+    }
+  });
 });
 
 describe('SuperAdminSidebar — focus clavier (TCK-359)', () => {
@@ -157,5 +193,73 @@ describe('SuperAdminSidebar — focus clavier (TCK-359)', () => {
     expect(libelle.className).not.toContain('text-stone-500');
     expect(libelle.className).toContain('text-sidebar-foreground/70');
     expect(container.innerHTML).not.toMatch(/text-stone-\d/);
+  });
+});
+
+describe('SuperAdminSidebar — l’anneau de focus sur l’entrée ACTIVE (TCK-359)', () => {
+  /**
+   * Revue adverse : en contexte `dark`, `--ring` et `--sidebar-primary` sont le MÊME octet
+   * (#c87a52). L'entrée active étant une pastille pleine `bg-sidebar-primary` (choix TCK-358), la
+   * focaliser peignait un anneau de la couleur exacte de la pastille — **1,00:1**. C'est la
+   * première entrée qu'atteint un utilisateur clavier (`aria-current="page"`), et l'état
+   * « actif + focalisé » ne se lisait pas comme un focus : la pastille grossissait de 2 px.
+   *
+   * Le liseré `ring-offset-sidebar` de 2 px rétablit 4,83:1 des deux côtés (liseré/pastille et
+   * anneau/liseré), mesuré le 2026-08-27. Il est gardé ici parce qu'aucune assertion sur
+   * `ring-ring` ne peut le voir : les deux jetons rendent la même couleur.
+   */
+  it('pose un liseré d’offset sur l’entrée active, sans quoi l’anneau se confond avec la pastille', () => {
+    const { container } = renderSidebar();
+
+    const active = container.querySelector<HTMLElement>('[aria-current="page"]');
+    expect(active).not.toBeNull();
+    expect(active!.className).toContain('bg-sidebar-primary');
+
+    const classes = active!.className.split(/\s+/);
+    expect(classes).toContain('focus-visible:ring-offset-2');
+    // Le jeton du FOND de la barre, pas une couleur en dur : la garde de TCK-358 refuse les deux
+    // autres formes, et `ring-offset-2` seul retomberait sur le blanc par défaut de Tailwind.
+    expect(classes).toContain('focus-visible:ring-offset-sidebar');
+  });
+
+  it('pose le même liseré sur les trois types de liens', () => {
+    renderSidebar();
+
+    const entree = screen.getByRole('link', { name: 'Agences' });
+    const sousEntree = screen.getByRole('link', { name: 'Santé' });
+    const retour = screen.getByRole('link', { name: "Retour à l'espace perso" });
+
+    for (const lien of [entree, sousEntree, retour]) {
+      const classes = lien.className.split(/\s+/);
+      expect(classes).toContain('focus-visible:ring-offset-2');
+      expect(classes).toContain('focus-visible:ring-offset-sidebar');
+    }
+  });
+});
+
+describe('SuperAdminTopbar — focus clavier (TCK-359)', () => {
+  /**
+   * Revue adverse : `grep -c focus-visible SuperAdminTopbar.tsx` rendait **0**. AC2 ne nomme que
+   * la barre latérale, mais l'objectif utilisateur du ticket porte sur le SHELL — et le bouton de
+   * menu est le premier focalisable après le lien d'évitement en viewport mobile. Sur le
+   * `--background` sombre de la barre (#1f1812), le contour par défaut du navigateur est le même
+   * quasi-rien qui a motivé le ticket pour la barre latérale.
+   *
+   * `--ring` (#c87a52) sur ce fond mesure 5,31:1 (seuil 3, SC 1.4.11), mesuré le 2026-08-27.
+   * Pas de `ring-offset` ici : rien dans cette barre n'est rempli de `--primary`, l'anneau ne peut
+   * donc pas se confondre avec ce qu'il entoure.
+   */
+  it('porte un anneau `focus-visible:ring-ring` sur le bouton de menu et sur le lien de marque', () => {
+    renderShell();
+
+    const boutonMenu = screen.getByRole('button', { name: 'Ouvrir le menu' });
+    const marque = screen.getByRole('link', { name: 'Takussan · Console' });
+
+    for (const cible of [boutonMenu, marque]) {
+      const classes = cible.className.split(/\s+/);
+      expect(classes).toContain('focus-visible:outline-none');
+      expect(classes).toContain('focus-visible:ring-2');
+      expect(classes).toContain('focus-visible:ring-ring');
+    }
   });
 });

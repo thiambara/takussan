@@ -4996,6 +4996,8 @@
           "action": "Jëf"
         },
         "agencyFallback": "Ajaans bu ñu far (#{id})",
+        "agencyUnknown": "Ajaans #{id}",
+        "subjectFallback": "{type} #{id}",
         "dossierRef": "Dosye #{id}",
         "documentsCount": "{present}/{total}",
         "review": "Saytu",
@@ -5011,6 +5013,8 @@
         "reject": "Bañ",
         "notReviewable": "Ku dosye bu ñu yónnee rekk la ñu man a saytu.",
         "decisionFailed": "Dogal bi mënul a ñu ko denc.",
+        "staleDecision": "Dosye bii dañu ko saytu ba noppi ci beneen barab. Liiñ bi dañu ko yeesalaat.",
+        "incompleteDossier": "Am na kayit bu war ci dosye bii te amul. Liiñ bi dañu ko yeesalaat.",
         "error": "Mënul a ubbi liiñu KYC bi.",
         "retry": "Jéemaat",
         "emptyTitle": "Amul lu ñu war a saytu",

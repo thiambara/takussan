@@ -91,17 +91,35 @@ export function TimeSeriesChart({
     );
   }
 
-  const comparaison = comparison && comparison.points.length > 0 ? comparison : null;
-  const echelleMax = niceMax([
+  /**
+   * D9 — une comparaison PLUS COURTE que la série principale est traitée comme ABSENTE.
+   *
+   * `chemin()` la tronque à la longueur de la principale : trois points contre un rendaient
+   * `d="M56.0,223.0"`, un `MoveTo` seul, qui ne trace rien — pendant que le nœud
+   * `data-testid="serie-comparaison"` restait présent. L'AC4 se cochait donc sur une comparaison
+   * invisible. Et elle serait de toute façon désalignée : l'alignement des deux séries est
+   * positionnel, deux longueurs différentes le décalent d'un cran, en silence.
+   */
+  const comparaison = comparison && comparison.points.length >= points.length ? comparison : null;
+  const echelle = echelleDomaine([
     ...points.map((p) => p.value),
     ...(comparaison?.points.map((p) => p.value) ?? []),
   ]);
+  const etendue = echelle.max - echelle.min;
 
   // Un point unique n'a pas d'intervalle : on le centre au lieu de diviser par zéro.
   const solo = points.length === 1;
   const xPour = (index: number) =>
     solo ? PADDING.left + INNER_W / 2 : PADDING.left + (INNER_W / (points.length - 1)) * index;
-  const yPour = (value: number) => PADDING.top + INNER_H - (value / echelleMax) * INNER_H;
+  const yPour = (value: number) =>
+    PADDING.top + INNER_H - ((value - echelle.min) / etendue) * INNER_H;
+
+  /**
+   * Ligne de base de l'aire : le ZÉRO, ramené dans le domaine quand il en sort. Le bas du cadre
+   * n'est le zéro que sur une série entièrement positive — sur une série qui descend sous zéro,
+   * remplir jusqu'au bas du cadre remplirait la partie négative à l'envers.
+   */
+  const yBase = yPour(Math.min(Math.max(0, echelle.min), echelle.max));
 
   const chemin = (serie: SeriePoint[]) =>
     serie
@@ -111,10 +129,10 @@ export function TimeSeriesChart({
 
   const aire = solo
     ? ''
-    : `${chemin(points)} L${xPour(points.length - 1).toFixed(1)},${(PADDING.top + INNER_H).toFixed(1)} L${xPour(0).toFixed(1)},${(PADDING.top + INNER_H).toFixed(1)} Z`;
+    : `${chemin(points)} L${xPour(points.length - 1).toFixed(1)},${yBase.toFixed(1)} L${xPour(0).toFixed(1)},${yBase.toFixed(1)} Z`;
 
   const graduations = Array.from({ length: Y_TICKS + 1 }, (_, i) => {
-    const valeur = (echelleMax / Y_TICKS) * i;
+    const valeur = echelle.min + (etendue / Y_TICKS) * i;
     return { valeur, y: yPour(valeur) };
   });
 
@@ -184,7 +202,17 @@ export function TimeSeriesChart({
 
           <g clipPath={`url(#${clipId})`}>
             {/* Comparaison D'ABORD, donc sous la série principale : elle ne doit jamais dominer. */}
-            {comparaison && (
+            {comparaison && (solo ? (
+              // Un point unique n'a pas de chemin : `M x,y` seul ne trace rien. La comparaison se
+              // rend alors par le seul objet qui ait un sens à un point — un point.
+              <circle
+                cx={xPour(0)}
+                cy={yPour(comparaison.points[0].value)}
+                r={3.5}
+                className="fill-chart-4"
+                data-testid="serie-comparaison"
+              />
+            ) : (
               <path
                 d={chemin(comparaison.points)}
                 fill="none"
@@ -193,7 +221,7 @@ export function TimeSeriesChart({
                 className="stroke-chart-4"
                 data-testid="serie-comparaison"
               />
-            )}
+            ))}
             {!solo && <path d={aire} className="fill-chart-1/10" stroke="none" />}
             <path
               d={chemin(points)}
@@ -288,18 +316,36 @@ export function TimeSeriesChart({
 }
 
 /**
- * Plafond d'échelle « rond » — 1, 2 ou 5 × 10ⁿ au-dessus du maximum.
+ * DOMAINE de l'axe des ordonnées — bornes « rondes » de part et d'autre de zéro.
  *
- * Sans lui, les graduations tombent sur des valeurs comme `2 847,33`, qu'un axe ne sert à rien à
- * porter. Le repli à 1 couvre la série entièrement nulle : `max = 0` rendrait une division par
- * zéro, donc un axe de `NaN`.
+ * ⚠ Il remplace un `niceMax` qui pliait tout à `Math.max(0, ...valeurs)` : une série entièrement
+ * NÉGATIVE y retombait sur un plafond de 1, et l'axe se graduait 0 / 0,25 / 0,5 / 0,75 / 1 pendant
+ * que le tracé partait vingt-cinq fois sous le cadre, où le `clipPath` l'effaçait. Aucun `NaN`,
+ * aucune erreur : un graphique vide sous un axe qui ment. Aucune donnée d'aujourd'hui n'y descend
+ * (des comptes, un MRR en `COALESCE(SUM(…), 0)`) — mais une variation nette, une marge ou un solde
+ * y descendraient, et rien n'aurait prévenu.
+ *
+ * Zéro reste TOUJOURS dans le domaine : une série positive se lit depuis zéro, sinon deux séries
+ * plates à 3 et à 3000 se ressemblent encore.
  */
-function niceMax(valeurs: number[]): number {
-  const max = Math.max(0, ...valeurs.filter((v) => Number.isFinite(v)));
-  if (max <= 0) return 1;
+function echelleDomaine(valeurs: number[]): { min: number; max: number } {
+  const finies = valeurs.filter((v) => Number.isFinite(v));
+  const max = borneRonde(Math.max(0, ...finies));
+  const min = -borneRonde(-Math.min(0, ...finies));
 
-  const magnitude = 10 ** Math.floor(Math.log10(max));
-  const normalise = max / magnitude;
+  // Série entièrement nulle : `min = max = 0` diviserait par zéro, donc un axe de `NaN`.
+  return min === 0 && max === 0 ? { min: 0, max: 1 } : { min, max };
+}
+
+/**
+ * Borne « ronde » — 1, 2 ou 5 × 10ⁿ au-dessus de la valeur. Sans elle, les graduations tombent sur
+ * des valeurs comme `2 847,33`, qu'un axe ne sert à rien à porter.
+ */
+function borneRonde(valeur: number): number {
+  if (valeur <= 0) return 0;
+
+  const magnitude = 10 ** Math.floor(Math.log10(valeur));
+  const normalise = valeur / magnitude;
   const pas = normalise <= 1 ? 1 : normalise <= 2 ? 2 : normalise <= 5 ? 5 : 10;
 
   return pas * magnitude;

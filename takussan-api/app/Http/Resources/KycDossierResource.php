@@ -28,9 +28,12 @@ class KycDossierResource extends BaseResource
              * chargée et jamais sérialisée — l'écran n'avait donc PAS le choix entre le nom et
              * l'identifiant, il n'avait que l'identifiant.
              *
-             * `whenLoaded` et pas un accès direct : `show()` et `agency()` chargent aussi la
-             * relation, mais rien ne garantit qu'un futur appelant le fasse, et un `N+1` par ligne
-             * de file est précisément ce que le ticket interdit.
+             * `whenLoaded` et pas un accès direct : un `N+1` par ligne de file est précisément ce
+             * que le ticket interdit. Le prix de `whenLoaded`, c'est que le champ DISPARAÎT en
+             * silence chez un appelant qui n'a pas chargé la relation — ce qui était le cas de
+             * `KycWorkflowService::dossierForAgency()` (deux routes servies sans `subject`,
+             * `include=subject` ignoré sans erreur). Les CINQ chemins qui servent cette ressource
+             * chargent désormais la relation, et `KycWorkflowTest` le tient route par route.
              *
              * Le `name` est typé par `instanceof Agency` plutôt que lu par `->name` : `subject`
              * est un `morphTo`, et seul `Agency` ouvre un dossier aujourd'hui

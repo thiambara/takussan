@@ -29,7 +29,7 @@ describe('fenêtre de rapport (TCK-361)', () => {
       const precedente = fenetrePrecedente([
         { starts_at: '2026-03-01T00:00:00+00:00', ends_at: '2026-03-31T23:59:59+00:00' },
         { starts_at: '2026-04-01T00:00:00+00:00', ends_at: '2026-04-30T23:59:59+00:00' },
-      ]);
+      ], 'month');
 
       expect(precedente).not.toBeNull();
       // Deux buckets affichés → DEUX buckets comparés, collés à la borne de gauche.
@@ -37,12 +37,49 @@ describe('fenêtre de rapport (TCK-361)', () => {
       expect(precedente!.ends_at).toBe('2026-02-28');
     });
 
+    /**
+     * D8 — **la granularité est un paramètre, pas un commentaire.**
+     *
+     * Elle était une « précondition » écrite en prose : trois buckets JOURNALIERS rendaient
+     * `2025-12-01 → 2026-02-28`, trois MOIS au lieu de trois jours — une comparaison fausse d'un
+     * facteur 30, silencieuse. Les deux appelants passaient `month`, donc rien ne rougissait ; le
+     * défaut attendait le premier sélecteur de granularité.
+     */
+    it('décale de trois JOURS des buckets journaliers, pas de trois mois', () => {
+      const precedente = fenetrePrecedente([
+        { starts_at: '2026-03-10T00:00:00+00:00', ends_at: '2026-03-10T23:59:59+00:00' },
+        { starts_at: '2026-03-11T00:00:00+00:00', ends_at: '2026-03-11T23:59:59+00:00' },
+        { starts_at: '2026-03-12T00:00:00+00:00', ends_at: '2026-03-12T23:59:59+00:00' },
+      ], 'day');
+
+      expect(precedente).toEqual({ starts_at: '2026-03-07', ends_at: '2026-03-09' });
+    });
+
+    it('décale de deux SEMAINES des buckets hebdomadaires', () => {
+      const precedente = fenetrePrecedente([
+        { starts_at: '2026-03-09T00:00:00+00:00', ends_at: '2026-03-15T23:59:59+00:00' },
+        { starts_at: '2026-03-16T00:00:00+00:00', ends_at: '2026-03-22T23:59:59+00:00' },
+      ], 'week');
+
+      expect(precedente).toEqual({ starts_at: '2026-02-23', ends_at: '2026-03-08' });
+    });
+
+    /** Le décalage traverse les bornes de mois sans arithmétique maison — `Date` le fait. */
+    it('traverse une borne de mois en granularité journalière', () => {
+      const precedente = fenetrePrecedente([
+        { starts_at: '2026-03-01T00:00:00+00:00', ends_at: '2026-03-01T23:59:59+00:00' },
+        { starts_at: '2026-03-02T00:00:00+00:00', ends_at: '2026-03-02T23:59:59+00:00' },
+      ], 'day');
+
+      expect(precedente).toEqual({ starts_at: '2026-02-27', ends_at: '2026-02-28' });
+    });
+
     it('rend null sur une série vide — il n’y a alors rien à comparer', () => {
-      expect(fenetrePrecedente([])).toBeNull();
+      expect(fenetrePrecedente([], 'month')).toBeNull();
     });
 
     it('rend null sur des bornes illisibles plutôt qu’une fenêtre de NaN', () => {
-      expect(fenetrePrecedente([{ starts_at: 'pas-une-date', ends_at: 'non plus' }])).toBeNull();
+      expect(fenetrePrecedente([{ starts_at: 'pas-une-date', ends_at: 'non plus' }], 'month')).toBeNull();
     });
   });
 

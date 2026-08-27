@@ -308,12 +308,27 @@ jobs:
         # `src/components/super-admin`. Trois vocabulaires cohabitaient — jetons du DS, palette
         # brute, dialecte `app-*` — et six fichiers en mélangeaient deux.
         #
-        # D'où les QUATRE périmètres nommés dans `PERIMETRES`, et une liste de familles qui est
-        # celle de Tailwind et non celle du relevé : recopier les dix familles que la console
+        # D'où les périmètres nommés dans `PERIMETRES`, et une liste de familles qui est celle
+        # de Tailwind et non celle du relevé : recopier les dix familles que la console
         # utilisait ce jour-là laisserait passer le premier `bg-teal-100` venu.
         #
-        # Elle PROUVE, elle ne cliquette pas : une classe Tailwind est un littéral, sous peine
-        # de ne pas être compilée. Vérifiée par ablation (TCK-358, AC3).
+        # ⚠ Cette étape fait DEUX choses, et une seule des deux est une preuve.
+        #
+        #   PREUVE — le PÉRIMÈTRE GARDÉ doit être à zéro. Une classe Tailwind est un littéral,
+        #   sous peine de ne pas être compilée : une lecture de texte suffit, sans heuristique.
+        #   Vérifiée par ablation (TCK-358, AC3), et re-vérifiée par 20 mutations dont 6 formes
+        #   que la version d'origine passait au vert.
+        #
+        #   CLIQUET — le RESTE NON GARDÉ. La revue adverse de TCK-358 a montré que le périmètre
+        #   est une liste de répertoires quand l'écran est un graphe de rendu : la garde sortait
+        #   en 0 pendant que `/super-admin/payouts` rendait six pastilles de palette brute, deux
+        #   maillons plus loin dans `src/components/billing`. La garde calcule donc aussi la
+        #   clôture des imports depuis `src/app/(super-admin)/**`, en retire le périmètre gardé,
+        #   et REFUSE que le compte du reste monte. Ce reste vit dans des primitives partagées
+        #   avec `/app` et le site public (`ui/`, `forms/`, `files/`) : les porter est TCK-384.
+        #
+        # `--report` imprime les deux, et c'est délibéré : un vert qui ne dit pas ce qu'il a
+        # mesuré est le vert qui a rendu TCK-245 `done` pendant quatre mois.
         run: node scripts/check-super-admin-tokens.mjs --report
 
       - name: Les compétences des agents vivent dans un seul répertoire

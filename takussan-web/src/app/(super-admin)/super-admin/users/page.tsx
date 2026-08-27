@@ -167,12 +167,12 @@ export default function SuperAdminUsersPage() {
   // and persists across navigation (AC3, TCK-243).
   const [role, setRole] = useState<string>(() => searchParams?.get('role') ?? ALL);
   const [agencyId, setAgencyId] = useState('');
-  // TCK-360 — même amorce que `role` ci-dessus, pour la tuile « utilisateurs actifs » de l'accueil.
-  const [status, setStatus] = useState<string>(
-    () => (STATUS_OPTIONS.some((o) => o.value === searchParams?.get('status'))
-      ? (searchParams?.get('status') as string)
-      : ALL),
-  );
+  // Pas d'amorce par l'URL ici, contrairement à `role` juste au-dessus. TCK-360 en avait posé une
+  // pour une tuile « utilisateurs actifs » de l'accueil, tuile ensuite INVERSÉE en « utilisateurs
+  // (total) » — son `href` est `/super-admin/users`, sans `?status=`. Mesuré le 2026-08-27 :
+  // `grep -rn 'users?status=' src/` → 0 producteur. L'amorce ne servait donc plus personne ; elle
+  // se rétablira le jour où un lien la produira, pas avant.
+  const [status, setStatus] = useState<string>(ALL);
   const [emailVerified, setEmailVerified] = useState(ALL);
   const [twoFactor, setTwoFactor] = useState(ALL);
   const [page, setPage] = useState(1);

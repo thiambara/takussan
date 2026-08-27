@@ -11,16 +11,46 @@ use App\Models\Enums\PlatformProfileLevel;
 use App\Models\KycDossier;
 use App\Models\User;
 use App\Services\Model\NotificationService;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\UploadedFile;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
-use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class KycWorkflowService
 {
     public const AGENCY_REQUIRED_DOCUMENTS = ['rccm', 'ninea', 'director_id'];
 
+    /**
+     * Les codes stables que les refus de ce service émettent, en plus de leur `message`.
+     *
+     * TCK-362 — le `message` de ces aborts est en ANGLAIS et codé en dur. Tant qu'il était la
+     * SEULE chose que la réponse portait, le front n'avait rien d'autre à afficher : la file KYC
+     * du super-admin montrait « Only submitted KYC dossiers can be reviewed. » mot pour mot à un
+     * opérateur francophone, parce que `messageErreurApi` préfère délibérément la prose serveur
+     * (elle est censée être déjà localisée par `Accept-Language` — ce que ces aborts ne sont pas).
+     *
+     * Le code est la DONNÉE dont le front a besoin pour posséder son texte (principe non
+     * négociable n°5). Le `message` reste inchangé — il n'est pas retiré, il cesse d'être le seul
+     * moyen de savoir DE QUOI il s'agit.
+     */
+    public const CODE_LOCKED = 'kyc.locked';
+
+    public const CODE_UNKNOWN_DOCUMENT_TYPE = 'kyc.unknown_document_type';
+
+    public const CODE_NOT_TRANSITIONABLE = 'kyc.not_transitionable';
+
+    public const CODE_DOCUMENTS_MISSING = 'kyc.documents_missing';
+
     public function __construct(private readonly NotificationService $notifications) {}
 
+    /**
+     * ⚠ `->load('subject')` n'est pas décoratif — TCK-362.
+     *
+     * Cette méthode sert `GET /api/admin/agencies/{a}/kyc` et `GET /api/agencies/{a}/kyc`, qui ne
+     * passent PAS par `buildQuery` : l'`include=subject` que le front envoie sur ces deux routes
+     * n'y a aucun effet, et `KycDossierResource::whenLoaded('subject')` omettait le champ **en
+     * silence**. Un `include` ignoré sans erreur est un piège posé pour le prochain appelant : il
+     * lit `subject`, obtient `undefined`, et cherche le défaut côté front.
+     */
     public function dossierForAgency(Agency $agency): KycDossier
     {
         return KycDossier::query()->firstOrCreate([
@@ -29,13 +59,15 @@ class KycWorkflowService
         ], [
             'status' => KycDossierStatus::Pending,
             'metadata' => [],
-        ]);
+        ])->load('subject');
     }
 
     public function upload(KycDossier $dossier, UploadedFile $file, string $documentType): Media
     {
         $this->assertNotVerified($dossier);
-        abort_unless(in_array($documentType, self::AGENCY_REQUIRED_DOCUMENTS, true), 422, 'Unknown KYC document type.');
+        if (! in_array($documentType, self::AGENCY_REQUIRED_DOCUMENTS, true)) {
+            $this->refuse(self::CODE_UNKNOWN_DOCUMENT_TYPE, 'Unknown KYC document type.');
+        }
 
         return $dossier
             ->addMedia($file)
@@ -123,15 +155,31 @@ class KycWorkflowService
     private function assertNotVerified(KycDossier $dossier): void
     {
         if ($dossier->status === KycDossierStatus::Verified) {
-            throw new HttpException(422, 'Verified KYC dossiers are locked.');
+            $this->refuse(self::CODE_LOCKED, 'Verified KYC dossiers are locked.');
         }
     }
 
     private function assertTransitionable(KycDossier $dossier): void
     {
         if ($dossier->status !== KycDossierStatus::Submitted) {
-            throw new HttpException(422, 'Only submitted KYC dossiers can be reviewed.');
+            $this->refuse(self::CODE_NOT_TRANSITIONABLE, 'Only submitted KYC dossiers can be reviewed.');
         }
+    }
+
+    /**
+     * Un refus 422 qui porte un CODE en plus de son message.
+     *
+     * `HttpException` ne sait transporter qu'un `message` : le rendu de Laravel en fait
+     * `{"message": …}` et rien d'autre. Une réponse construite ici ajoute la seule clé qui
+     * manquait — la forme du corps est inchangée par ailleurs, et un appelant qui ne lit que
+     * `message` ne voit aucune différence.
+     */
+    private function refuse(string $code, string $message): never
+    {
+        throw new HttpResponseException(response()->json([
+            'message' => $message,
+            'code' => $code,
+        ], 422));
     }
 
     private function assertRequiredDocuments(KycDossier $dossier): void
@@ -145,7 +193,7 @@ class KycWorkflowService
 
         $missing = array_values(array_diff(self::AGENCY_REQUIRED_DOCUMENTS, $present));
         if ($missing !== []) {
-            throw new HttpException(422, 'Missing required KYC documents: '.implode(', ', $missing));
+            $this->refuse(self::CODE_DOCUMENTS_MISSING, 'Missing required KYC documents: '.implode(', ', $missing));
         }
     }
 

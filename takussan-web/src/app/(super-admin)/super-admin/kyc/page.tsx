@@ -19,6 +19,7 @@ import {
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import type { ApiError } from '@/lib/api';
 import { fetchAdminKycQueue } from '@/lib/queries/super-admin';
+import { queueCountQueryOptions } from '@/lib/queries/super-admin-queues';
 import type { KycDossier, KycDossierStatus, KycDossiersResponse } from '@/types/super-admin';
 
 /**
@@ -67,16 +68,22 @@ export default function SuperAdminKycPage() {
   /*
    * Le compteur des dossiers À INSTRUIRE, et non le total de la page courante.
    *
-   * Il vit sous le même préfixe `['super-admin', 'kyc']` que la file : la décision les invalide
-   * tous les deux d'un seul appel (AC4). Une requête distincte plutôt que `meta.total` parce que
-   * ce chiffre doit rester juste quand l'opérateur regarde les vérifiés — c'est précisément là
-   * qu'il a besoin de savoir combien reste à faire. `per_page=1` : seul `meta.total` est lu.
+   * ⚠ **La clé de cache n'est pas déclarée ici, et ne doit pas l'être.** C'est
+   * `queueCountQueryOptions('kyc-pending')` (TCK-360) qui la porte, parce que le MÊME nombre est
+   * affiché par le badge de `SuperAdminSidebar` — monté juste à côté par `SuperAdminShell`, sur
+   * cette page même. Une `queryKey` propre à cet écran, c'était mesuré : DEUX GET identiques
+   * `per_page=1` à chaque montage, et surtout deux entrées de cache aux cadences différentes
+   * (badge : `refetchInterval` 60 s ; tuile : aucun) — donc deux nombres pour la même chose, dans
+   * deux coins du même écran.
+   *
+   * Une requête distincte de la file (plutôt que `meta.total`) reste juste : ce chiffre doit
+   * rester vrai pendant que l'opérateur regarde les vérifiés — c'est précisément là qu'il a besoin
+   * de savoir combien reste à faire. `per_page=1` : seul `meta.total` est lu.
+   *
+   * Elle vit sous le préfixe `['super-admin', 'kyc']`, comme la file : la décision les invalide
+   * toutes les deux d'un seul appel (AC4) — et le badge avec, puisque c'est la même entrée.
    */
-  const countQuery = useQuery<KycDossiersResponse, ApiError>({
-    queryKey: ['super-admin', 'kyc', 'count', STATUT_PAR_DEFAUT],
-    queryFn: () => fetchAdminKycQueue({ status: STATUT_PAR_DEFAUT, perPage: 1 }),
-    staleTime: 15_000,
-  });
+  const countQuery = useQuery<number, ApiError>(queueCountQueryOptions('kyc-pending'));
 
   const dossiers = query.data?.data ?? [];
   const meta = query.data?.meta;
@@ -113,7 +120,7 @@ export default function SuperAdminKycPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label={t('statPending')}
-          value={countQuery.data?.meta.total ?? 0}
+          value={countQuery.data ?? 0}
           loading={countQuery.isLoading}
           icon={<ShieldCheck className="size-4" aria-hidden="true" />}
         />
@@ -175,6 +182,11 @@ export default function SuperAdminKycPage() {
           {/*
             `key` — et pas un effet de remise à zéro : passer d'un dossier à l'autre doit vider le
             motif saisi. Cf. le docblock de `KycDecisionPanel`.
+
+            ⚠ Cette seule expression empêche qu'un motif saisi pour un dossier parte avec la
+            décision d'un AUTRE. Elle n'était gardée par rien : la retirer laissait 43 tests verts,
+            faute d'un seul qui sélectionne deux dossiers de suite. Elle l'est désormais par
+            « change de dossier VIDE le motif saisi » (`__tests__/page.test.tsx`).
           */}
           <KycDecisionPanel
             key={selected?.id ?? 'aucun'}

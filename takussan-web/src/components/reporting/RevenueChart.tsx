@@ -10,7 +10,19 @@ import type { ReportPeriod } from '@/types/super-admin';
 import { ReportExportButton } from './ReportExportButton';
 import { ReportWindowControls } from './ReportWindowControls';
 import { TimeSeriesChart } from './TimeSeriesChart';
-import { fenetrePrecedente, parametresFenetre, type FenetreRapport } from './window';
+import {
+  fenetrePrecedente,
+  parametresFenetre,
+  type FenetreRapport,
+  type GranulariteRapport,
+} from './window';
+
+/**
+ * La granularité est déclarée UNE fois : la requête et la fenêtre de comparaison la lisent
+ * toutes deux ici. `fenetrePrecedente` l'exige désormais — un décalage calculé en mois sur des
+ * buckets journaliers se tromperait d'un facteur 30 sans lever d'erreur (TCK-361, D8).
+ */
+const GRANULARITE: GranulariteRapport = 'month';
 
 /** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
 const PERIODS: readonly ReportPeriod[] = ['3m', '6m', '12m'];
@@ -24,17 +36,17 @@ export function RevenueChart() {
 
   const query = useQuery({
     queryKey: ['super-admin', 'reports', 'revenue', parametres],
-    queryFn: () => fetchAdminReportRevenue({ granularity: 'month', ...parametres }),
+    queryFn: () => fetchAdminReportRevenue({ granularity: GRANULARITE, ...parametres }),
   });
 
   const rows = query.data?.data.rows ?? [];
   const totals = query.data?.data.totals ?? { latest_mrr: 0, latest_arr: 0, latest_active_subscriptions: 0 };
 
   // Second appel sur la fenêtre décalée — cf. `fenetrePrecedente`, qui la déduit de la RÉPONSE.
-  const fenetreDecalee = fenetrePrecedente(rows);
+  const fenetreDecalee = fenetrePrecedente(rows, GRANULARITE);
   const queryComparaison = useQuery({
     queryKey: ['super-admin', 'reports', 'revenue', 'comparaison', fenetreDecalee],
-    queryFn: () => fetchAdminReportRevenue({ granularity: 'month', ...fenetreDecalee! }),
+    queryFn: () => fetchAdminReportRevenue({ granularity: GRANULARITE, ...fenetreDecalee! }),
     enabled: comparaison && fenetreDecalee !== null,
   });
 
@@ -59,7 +71,7 @@ export function RevenueChart() {
           <KpiPill label={t('revenue.arrCurrent')} value={formatXof(totals.latest_arr)} />
           <KpiPill label={t('revenue.activeSubscriptions')} value={String(totals.latest_active_subscriptions ?? 0)} />
           {/* L'export porte EXACTEMENT la fenêtre affichée (AC5) — même source que la requête. */}
-          <ReportExportButton report="revenue" params={{ granularity: 'month', ...parametres }} />
+          <ReportExportButton report="revenue" params={{ granularity: GRANULARITE, ...parametres }} />
         </CardContent>
       </Card>
 

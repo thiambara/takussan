@@ -10,7 +10,7 @@ import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import type { ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import { postKycReview } from '@/lib/queries/super-admin';
 import type { KycDossier, KycDossierStatus } from '@/types/super-admin';
 import { cn } from '@/lib/utils';
@@ -45,17 +45,80 @@ const MOTIF_LONGUEUR_MIN = 5;
 const DOCUMENTS_REQUIS = ['rccm', 'ninea', 'director_id'] as const;
 
 /**
- * Le nom de l'agence, et l'identifiant seulement en repli.
+ * Le marqueur DOM d'un libellé de sujet qui est un repli — cf. `nomDuSujet`.
+ *
+ * Il ne sert qu'aux tests, et c'est délibéré : l'AC2 doit pouvoir affirmer « aucune ligne ne
+ * retombe sur un repli » sans énumérer les libellés de repli, qui changent. La version précédente
+ * cherchait `/Agence #\d+/` — une forme qui ne matchait NI « Agence supprimée (#12) » NI
+ * « User #7 » : l'assertion restait verte sur un écran entièrement en repli.
+ */
+export const REPLI_SUJET_TESTID = 'kyc-subject-fallback';
+
+/**
+ * Les codes que `KycWorkflowService` émet sur ses refus 422 — les seuls que CE panneau peut
+ * atteindre.
+ *
+ * ⚠ Le `message` de ces refus est de l'ANGLAIS codé en dur côté serveur, et `messageErreurApi`
+ * préfère délibérément la prose serveur (elle la suppose localisée par `Accept-Language`, ce
+ * qu'un `abort()` n'est pas). Le repli `t('decisionFailed')` écrit pour ces cas n'était donc
+ * JAMAIS atteint : « Only submitted KYC dossiers can be reviewed. » s'affichait mot pour mot à un
+ * opérateur francophone — principe non négociable n°5 violé sur le chemin même que TCK-362 ouvre.
+ *
+ * Le cas se rencontre normalement, pas exceptionnellement : `staleTime` vaut 15 s et rien ne
+ * rafraîchit la file toute seule, donc deux opérateurs — ou un seul revenu à son onglet — voient
+ * un statut périmé.
+ */
+const CODES_REFUS_KYC = {
+  transitionRefusee: 'kyc.not_transitionable',
+  documentsManquants: 'kyc.documents_missing',
+} as const;
+
+/** Le `code` d'un refus 422 de l'API KYC, quand il y en a un. */
+function codeRefusKyc(erreur: unknown): string | undefined {
+  if (!(erreur instanceof ApiError) || erreur.status !== 422) return undefined;
+  const corps = erreur.data;
+  if (!corps || typeof corps !== 'object' || !('code' in corps)) return undefined;
+  const brut = (corps as { code?: unknown }).code;
+  return typeof brut === 'string' ? brut : undefined;
+}
+
+/**
+ * Le libellé du sujet — et, quand ce n'en est pas un, le fait que c'est un REPLI.
  *
  * TCK-362 (AC2) — l'écran affichait « Agence #12 » pour TOUTES les lignes : `KycDossierResource`
- * n'émettait pas le sujet. Il l'émet désormais sous `include=subject` ; ce repli ne sert donc plus
- * qu'un dossier dont le sujet a été supprimé, où l'identifiant est la seule chose qui reste.
+ * n'émettait pas le sujet. Il l'émet désormais sous `include=subject`.
+ *
+ * ⚠ **Les trois cas de repli ne disent PAS la même chose, et un seul autorise « supprimée ».**
+ * La première version les confondait sous `agencyFallback` (« Agence supprimée (#12) ») : l'écran
+ * AFFIRMAIT une suppression qu'il n'avait pas constatée, y compris sur TOUTES les lignes le jour
+ * où l'API cesserait d'émettre `subject`. Une console qui affirme ce qu'elle ne sait pas est pire
+ * qu'une console qui l'avoue — c'est sur cet écran que se décide la vie d'une agence.
+ *
+ * | ce que la réponse porte | ce qu'on sait | libellé |
+ * |---|---|---|
+ * | `subject: {name: 'Dakar Immo'}` | le nom | « Dakar Immo » |
+ * | `subject: null` | le sujet est **supprimé** | « Agence supprimée (#12) » |
+ * | `subject: {type: 'User'}` | un sujet d'un AUTRE type | « User #7 » |
+ * | pas de clé `subject` | **rien** — l'`include` a été omis | « Agence #12 » |
+ *
+ * Le dernier cas rend délibérément la forme d'AVANT le ticket : c'est celle que l'assertion d'AC2
+ * cherche. Et `repli` est rendu dans le DOM (`data-testid`), pour que cette assertion attrape
+ * **tout** repli, y compris un cinquième qu'on ajouterait demain.
  */
 export function nomDuSujet(
   dossier: KycDossier,
   t: (key: string, values?: Record<string, string>) => string,
-): string {
-  return dossier.subject?.name?.trim() || t('agencyFallback', { id: String(dossier.subject_id) });
+): { libelle: string; repli: boolean } {
+  const id = String(dossier.subject_id);
+
+  // `undefined` ≠ `null` : l'un dit « je n'ai pas demandé le sujet », l'autre « il n'y en a plus ».
+  if (dossier.subject === undefined) return { libelle: t('agencyUnknown', { id }), repli: true };
+  if (dossier.subject === null) return { libelle: t('agencyFallback', { id }), repli: true };
+
+  const nom = dossier.subject.name?.trim();
+  if (nom) return { libelle: nom, repli: false };
+
+  return { libelle: t('subjectFallback', { type: dossier.subject.type, id }), repli: true };
 }
 
 export function KycQueueTable({
@@ -74,17 +137,25 @@ export function KycQueueTable({
     {
       id: 'agency',
       header: t('columns.agency'),
-      cell: (dossier) => (
-        <div className="flex min-w-0 items-center gap-3">
-          <Building2 className="size-4 shrink-0 text-primary" aria-hidden="true" />
-          <div className="min-w-0">
-            <p className="truncate font-semibold text-foreground">{nomDuSujet(dossier, t)}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {t('dossierRef', { id: String(dossier.id) })}
-            </p>
+      cell: (dossier) => {
+        const sujet = nomDuSujet(dossier, t);
+        return (
+          <div className="flex min-w-0 items-center gap-3">
+            <Building2 className="size-4 shrink-0 text-primary" aria-hidden="true" />
+            <div className="min-w-0">
+              <p
+                className="truncate font-semibold text-foreground"
+                data-testid={sujet.repli ? REPLI_SUJET_TESTID : undefined}
+              >
+                {sujet.libelle}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {t('dossierRef', { id: String(dossier.id) })}
+              </p>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       id: 'status',
@@ -198,7 +269,21 @@ export function KycDecisionPanel({
       ]);
       onDone();
     },
-    onError: (err: ApiError) => setError(messageErreur(err, t('decisionFailed'))),
+    /*
+     * ⚠ Les deux refus de workflow sont NOMMÉS avant tout repli sur la prose serveur — cf.
+     * `CODES_REFUS_KYC`. Le front possède ces deux libellés, et il redemande la file dans la
+     * foulée : dans les deux cas, ce que l'écran affiche est périmé, et le dire sans le corriger
+     * laisserait l'opérateur recliquer sur la même ligne.
+     */
+    onError: (err: ApiError) => {
+      const code = codeRefusKyc(err);
+      if (code === CODES_REFUS_KYC.transitionRefusee || code === CODES_REFUS_KYC.documentsManquants) {
+        setError(t(code === CODES_REFUS_KYC.transitionRefusee ? 'staleDecision' : 'incompleteDossier'));
+        void queryClient.invalidateQueries({ queryKey: ['super-admin', 'kyc'] });
+        return;
+      }
+      setError(messageErreur(err, t('decisionFailed')));
+    },
   });
 
   if (!dossier) {
@@ -210,7 +295,18 @@ export function KycDecisionPanel({
     );
   }
 
+  const sujet = nomDuSujet(dossier, t);
   const instruisible = dossier.status === STATUT_INSTRUISIBLE;
+  /*
+   * ⚠ `.trim()` des DEUX côtés — la garde ici, et le corps envoyé plus haut.
+   *
+   * Sans le premier, six espaces passent la garde du front, partent sur le réseau et reviennent
+   * en 422 : `TrimStrings` (middleware GLOBAL de Laravel) replie la chaîne à vide avant
+   * `RejectKycDossierRequest`, et l'opérateur reçoit une erreur de validation à la place du
+   * message que le front lui avait promis. Sans le second, un motif entouré d'espaces est
+   * journalisé en audit tel quel. Les deux sont gardés (« un motif d'espaces », « un motif
+   * entouré d'espaces »), parce que les retirer laissait la suite verte.
+   */
   const motifTropCourt = reason.trim().length < MOTIF_LONGUEUR_MIN;
 
   const rejeter = () => {
@@ -228,8 +324,11 @@ export function KycDecisionPanel({
           <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             {t('decisionTitle')}
           </p>
-          <h2 className="mt-1 truncate font-display text-lg font-semibold text-foreground">
-            {nomDuSujet(dossier, t)}
+          <h2
+            className="mt-1 truncate font-display text-lg font-semibold text-foreground"
+            data-testid={sujet.repli ? REPLI_SUJET_TESTID : undefined}
+          >
+            {sujet.libelle}
           </h2>
           <p className="text-xs text-muted-foreground">{t('dossierRef', { id: String(dossier.id) })}</p>
         </div>

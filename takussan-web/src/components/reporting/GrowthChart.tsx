@@ -17,7 +17,19 @@ import type { GrowthMetric, ReportPeriod } from '@/types/super-admin';
 import { ReportExportButton } from './ReportExportButton';
 import { ReportWindowControls } from './ReportWindowControls';
 import { TimeSeriesChart } from './TimeSeriesChart';
-import { fenetrePrecedente, parametresFenetre, type FenetreRapport } from './window';
+import {
+  fenetrePrecedente,
+  parametresFenetre,
+  type FenetreRapport,
+  type GranulariteRapport,
+} from './window';
+
+/**
+ * La granularité est déclarée UNE fois : la requête et la fenêtre de comparaison la lisent
+ * toutes deux ici. `fenetrePrecedente` l'exige désormais — un décalage calculé en mois sur des
+ * buckets journaliers se tromperait d'un facteur 30 sans lever d'erreur (TCK-361, D8).
+ */
+const GRANULARITE: GranulariteRapport = 'month';
 
 /** La donnée porte la CLÉ, le rendu la résout (patron TCK-286). */
 const METRICS: readonly GrowthMetric[] = ['agencies', 'users', 'listings'];
@@ -35,7 +47,7 @@ export function GrowthChart() {
 
   const query = useQuery({
     queryKey: ['super-admin', 'reports', 'growth', metric, parametres],
-    queryFn: () => fetchAdminReportGrowth({ metric, granularity: 'month', ...parametres }),
+    queryFn: () => fetchAdminReportGrowth({ metric, granularity: GRANULARITE, ...parametres }),
   });
 
   const rows = query.data?.data.rows ?? [];
@@ -45,10 +57,10 @@ export function GrowthChart() {
    * a rendues — jamais recalculée depuis le raccourci, qui ne dit pas quelles dates le serveur a
    * retenues. `enabled` la retient donc jusqu'à ce que la série principale ait répondu.
    */
-  const fenetreDecalee = fenetrePrecedente(rows);
+  const fenetreDecalee = fenetrePrecedente(rows, GRANULARITE);
   const queryComparaison = useQuery({
     queryKey: ['super-admin', 'reports', 'growth', metric, 'comparaison', fenetreDecalee],
-    queryFn: () => fetchAdminReportGrowth({ metric, granularity: 'month', ...fenetreDecalee! }),
+    queryFn: () => fetchAdminReportGrowth({ metric, granularity: GRANULARITE, ...fenetreDecalee! }),
     enabled: comparaison && fenetreDecalee !== null,
   });
 
@@ -92,7 +104,7 @@ export function GrowthChart() {
           */}
           <ReportExportButton
             report="growth"
-            params={{ metric, granularity: 'month', ...parametres }}
+            params={{ metric, granularity: GRANULARITE, ...parametres }}
           />
         </CardContent>
       </Card>

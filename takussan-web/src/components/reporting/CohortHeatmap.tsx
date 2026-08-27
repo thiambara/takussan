@@ -80,10 +80,15 @@ function EnteteCohortes({ caption }: { caption: string }) {
 }
 
 /**
- * L'intensité sort du jeton `--chart-1`, pas d'un `rgba()` écrit à la main (TCK-361) : la valeur
- * en dur `rgba(217, 119, 6, …)` était un ambre étranger à la charte, et surtout FIGÉ — le bloc
- * sombre de `globals.css` ne pouvait pas l'atteindre, donc la carte de chaleur restait claire en
- * thème sombre. `color-mix` garde la teinte du jeton et n'en fait varier que l'opacité.
+ * L'intensité sort du jeton `--chart-1`, pas d'une couleur écrite à la main (TCK-361) : la valeur
+ * en dur — un ambre 217/119/6 posé en canaux rouge-vert-bleu — était étrangère à la charte, et
+ * surtout FIGÉE : le bloc sombre de `globals.css` ne pouvait pas l'atteindre, donc la carte de
+ * chaleur restait claire en thème sombre. `color-mix` garde la teinte du jeton et n'en fait varier
+ * que l'opacité.
+ *
+ * ⚠ Le récit s'écrit ici en toutes lettres, jamais en syntaxe copiable : un docblock qui montre la
+ * forme interdite est exactement la documentation périmée qui fait repousser le motif — et il
+ * ferait rougir `couleurs-issues-des-jetons.test.ts`, qui n'exempte pas les commentaires.
  *
  * L'attribut `title` a disparu : il n'était ni atteignable au clavier ni lisible sur mobile, et le
  * taux exact qu'il portait n'existait donc pour presque personne. Il est désormais dans le

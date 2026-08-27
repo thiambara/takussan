@@ -12,6 +12,20 @@ function serie(n: number) {
   }));
 }
 
+/** Bornes du cadre de tracé — `PADDING.top` et `PADDING.top + INNER_H` de `TimeSeriesChart`. */
+const HAUT = 16;
+const BAS = 246;
+
+/** Les ordonnées d'un chemin `M…,… L…,…` — ce qu'un `clipPath` efface sans rien dire. */
+function ordonnees(d: string): number[] {
+  return [...d.matchAll(/[ML](-?[\d.]+),(-?[\d.]+)/g)].map((m) => Number(m[2]));
+}
+
+/** Un libellé d'axe en nombre, quelle que soit la locale (espace fine, virgule, signe moins Unicode). */
+function nombreDeLEtiquette(texte: string): number {
+  return Number(texte.replace(/\u2212/g, '-').replace(/[\s\u00a0\u202f]/g, '').replace(',', '.'));
+}
+
 function rendre(props: Partial<Parameters<typeof TimeSeriesChart>[0]> = {}) {
   return render(
     withIntl(
@@ -131,6 +145,71 @@ describe('<TimeSeriesChart> (TCK-361)', () => {
     rendre({ points: serie(3), comparison: null });
 
     expect(screen.queryByTestId('serie-comparaison')).toBeNull();
+  });
+
+  /**
+   * D7 — **l'échelle a un domaine NÉGATIF.**
+   *
+   * `Math.max(0, ...valeurs)` faisait retomber une série entièrement négative sur un plafond de 1 :
+   * l'axe se graduait 0 / 0,25 / … / 1 pendant que le tracé partait à `y = 7146` dans un cadre de
+   * 280, où le `clipPath` l'effaçait. Aucun `NaN`, aucune erreur — un graphique vide sous un axe qui
+   * ment, ce qu'aucune assertion « pas de NaN » n'attrape.
+   *
+   * Le contrôle porte donc sur la GÉOMÉTRIE, pas sur les libellés : un axe faux peut se graduer
+   * proprement, un tracé hors cadre ne peut pas se cacher.
+   */
+  it.each([
+    ['entièrement négative', [-30, -10]],
+    ['mixte', [-30, 60]],
+  ])('garde une série %s DANS le cadre', (_libelle, valeurs) => {
+    rendre({ points: valeurs.map((value, i) => ({ bucket: `2026-0${i + 1}`, value })) });
+
+    const y = ordonnees(screen.getByTestId('serie-principale').getAttribute('d')!);
+
+    expect(y).toHaveLength(valeurs.length);
+    for (const valeur of y) {
+      expect(valeur).toBeGreaterThanOrEqual(HAUT);
+      expect(valeur).toBeLessThanOrEqual(BAS);
+    }
+    // Les deux points restent DISTINCTS : un domaine effondré les empilerait sur la même ligne.
+    expect(new Set(y).size).toBe(valeurs.length);
+
+    // …et l'axe le DIT : au moins une graduation porte une valeur négative.
+    const svg = screen.getByTestId('timeseries-chart').querySelector('svg')!;
+    const nombres = Array.from(svg.querySelectorAll('text'))
+      .map((t) => nombreDeLEtiquette(t.textContent ?? ''))
+      .filter((n) => !Number.isNaN(n));
+    expect(nombres.some((n) => n < 0)).toBe(true);
+  });
+
+  /**
+   * D9 — une comparaison PLUS COURTE que la série principale n'est pas rendue du tout.
+   *
+   * Elle l'était : `chemin()` la tronquait à la longueur de la principale, ce qui donnait
+   * `d="M56.0,223.0"` — un `MoveTo` seul, qui ne trace rien — pendant que le nœud
+   * `serie-comparaison` restait présent. L'AC4 se cochait alors sur une comparaison INVISIBLE.
+   */
+  it('ne rend aucune comparaison plus courte que la série principale', () => {
+    rendre({
+      points: serie(3),
+      comparison: { label: 'Période précédente', points: serie(1) },
+    });
+
+    expect(screen.queryByTestId('serie-comparaison')).toBeNull();
+    // Et sa légende disparaît avec elle : une entrée de légende sans tracé est un mensonge.
+    expect(screen.queryByText('Période précédente')).toBeNull();
+  });
+
+  /** À un point unique, la comparaison se rend en POINT — `M x,y` seul ne tracerait rien. */
+  it('rend la comparaison d’un point unique comme un point visible', () => {
+    rendre({
+      points: serie(1),
+      comparison: { label: 'Période précédente', points: [{ bucket: '2025-12', value: 4 }] },
+    });
+
+    const comparaison = screen.getByTestId('serie-comparaison');
+    expect(comparaison.tagName.toLowerCase()).toBe('circle');
+    expect(Number(comparaison.getAttribute('r'))).toBeGreaterThan(0);
   });
 
   /** Une série entièrement nulle ne doit pas rendre un axe de `NaN` (division par `max = 0`). */

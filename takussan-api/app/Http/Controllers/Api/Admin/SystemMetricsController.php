@@ -26,13 +26,22 @@ use Illuminate\Http\JsonResponse;
  * front (c'est lui qui possède le texte affiché) ; ce qui appartient à l'API, c'est **la valeur
  * qu'avait la métrique à la date de coupure**, ou son absence.
  *
- * ⚠ Trois des huit métriques n'ont PAS de point de comparaison, et n'en auront pas sans table
- * d'historique : `verified` / `active` / `suspended`, `users.active`, `properties.published` et
- * `pending_review` sont dérivées d'un **statut courant**. La ligne ne porte aucune trace de ce
- * qu'était son statut il y a trente jours — une agence suspendue hier compte aujourd'hui comme
- * suspendue depuis toujours. *Une tendance reconstruite depuis un statut courant n'est pas une
- * mesure, c'est une invention* ; ces métriques sont donc absentes de `previous`, et le front ne
- * rend alors aucun delta (contrainte du ticket : « jamais de tendance inventée »).
+ * ⚠ HUIT des onze métriques de cette réponse n'ont PAS de point de comparaison, et n'en auront
+ * pas sans table d'historique. Comptées PAR EXÉCUTION sur la réponse elle-même (2026-08-27) :
+ * `agencies.verified` / `active` / `suspended` / `verification_rate`, `users.active`,
+ * `properties.published`, `properties.pending_review`, `leases.active`. Toutes dérivent d'un
+ * **statut courant** : la ligne ne porte aucune trace de ce qu'était son statut il y a trente
+ * jours — une agence suspendue hier compte aujourd'hui comme suspendue depuis toujours. *Une
+ * tendance reconstruite depuis un statut courant n'est pas une mesure, c'est une invention* ; ces
+ * métriques sont donc absentes de `previous`, et le front ne rend alors aucun delta (contrainte
+ * du ticket : « jamais de tendance inventée »).
+ *
+ * ⚠ Ce HUIT ne contredit pas le CINQ du ticket et du front : les deux ne comptent pas la même
+ * chose. Ici, des métriques de la réponse ; là-bas, des TUILES de l'accueil — cinq des huit n'ont
+ * jamais de delta. `users.active` et `verification_rate` y sont des précisions sous une autre
+ * tuile, et `leases.active` n'y est pas rendue du tout. Le docblock précédent écrivait « trois
+ * des huit » puis en énumérait six : il mélangeait les deux dénombrements et n'en donnait aucun
+ * juste.
  *
  * ⚠ Ce que `previous` reconstruit exactement : « les enregistrements ENCORE présents dont la
  * création précède la coupure ». Ce n'est pas un instantané — `Agency` et `User` portent

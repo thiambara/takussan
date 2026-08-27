@@ -5452,6 +5452,8 @@
           "action": "Actions"
         },
         "agencyFallback": "Deleted agency (#{id})",
+        "agencyUnknown": "Agency #{id}",
+        "subjectFallback": "{type} #{id}",
         "dossierRef": "File #{id}",
         "documentsCount": "{present}/{total}",
         "review": "Review",
@@ -5467,6 +5469,8 @@
         "reject": "Reject",
         "notReviewable": "Only a submitted file can be reviewed.",
         "decisionFailed": "The decision could not be saved.",
+        "staleDecision": "This file is no longer reviewable: it has just been decided elsewhere. The queue has been refreshed.",
+        "incompleteDossier": "A required document is missing from this file. The queue has been refreshed.",
         "error": "The KYC queue could not be loaded.",
         "retry": "Try again",
         "emptyTitle": "Nothing to review",

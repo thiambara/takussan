@@ -294,6 +294,15 @@ class PlatformReportingService
                 default => [$cursor->copy()->startOfMonth(), $cursor->copy()->endOfMonth(), $cursor->format('Y-m')],
             };
 
+            // Les DEUX bornes du bucket sont ramenées dans la fenêtre, et c'est une symétrie, pas
+            // une précaution : `startOfMonth()` / `startOfWeek()` reculent AVANT `$start` dès que
+            // la fenêtre ne commence pas sur une frontière de bucket. Seule la borne haute était
+            // ramenée — une plage libre commençant un 15 comptait donc les quatorze jours qui la
+            // précèdent, sous une étiquette que l'utilisateur avait lui-même choisie (D5, TCK-361).
+            if ($bucketStart->lessThan($start)) {
+                $bucketStart = $start->copy();
+            }
+
             if ($bucketEnd->greaterThan($end)) {
                 $bucketEnd = $end->copy();
             }
