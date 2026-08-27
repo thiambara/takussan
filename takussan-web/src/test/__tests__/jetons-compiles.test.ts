@@ -22,24 +22,41 @@
  * les deux valeurs côte à côte.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
- * ET LE SECOND, PLUS COÛTEUX : UN JETON QUI N'EXISTE PAS NE FAIT PAS D'ERREUR
+ * CE QUE CE FICHIER A PROMIS ET N'A JAMAIS SU FAIRE — retiré le 2026-08-27
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
- * Une classe dont le jeton n'est pas déclaré ne casse RIEN : Tailwind n'émet simplement aucune
- * règle, la couleur disparaît, et ni `tsc`, ni ESLint, ni le build, ni la garde de jetons ne
- * voient quoi que ce soit.
+ * Il portait un quatrième contrôle, « toute classe de couleur écrite par la chrome est ÉMISE par
+ * la compilation », présenté comme *le seul mécanisme du dépôt capable de voir un jeton absent*.
+ * **Il ne pouvait rien voir du tout, et il a été supprimé plutôt que désactivé** — un cas mis en
+ * sommeil est une invitation à le réactiver sans le corriger.
  *
- * **Ce n'est pas une hypothèse : ce fichier est né d'une occurrence réelle.** TCK-440 avait
- * converti les quatre VOILES de la surface publique (`bg-black/<alpha>` → le jeton de voile) alors
- * que ce jeton vit sur une AUTRE branche. Compilation à l'appui, les quatre classes n'émettaient
- * rien : le fond de la lightbox, celui du tiroir de filtres, la surimpression de galerie et la
- * pastille d'horodatage devenaient TRANSPARENTS, sans un signal. La conversion a donc été annulée
- * — une branche doit être cohérente seule — et **différée à l'intégration, où ce test est
- * précisément ce qui la rendra sûre** : il rougit si la classe est écrite avant le jeton.
+ * Le défaut, relevé par la revue adverse : le relevé des classes était filtré sur
+ * `radical in JETONS_CLAIR`. Une classe dont le jeton n'existe PAS était donc écartée **avant**
+ * d'être contrôlée — c'est-à-dire exactement le cas que le contrôle prétendait attraper.
+ * L'ensemble des manquantes était vide par construction, jamais par mesure.
  *
- * Le contrôle est donc : **toute classe de couleur que la chrome publique écrit réellement doit
- * être ÉMISE par la compilation.** C'est le seul contrôle du dépôt qui puisse attraper un jeton
- * absent — les gardes de jetons, elles, ne savent rien de l'existence des jetons.
+ * Et d'un cran plus loin : ce même relevé filtré alimente encore aujourd'hui {@link contenuCompile}
+ * ci-dessous. La classe écartée n'était donc ni dans la liste contrôlée, ni dans la feuille où on
+ * la cherchait — **la boucle était fermée aux deux bouts par la même liste.**
+ *
+ * ⚠ Ce qui rend le cas exemplaire, et pourquoi il ne faut pas le réécrire à l'identique : sa
+ * première version portait une exception nommée pour le jeton qu'on cherchait. Elle a bel et bien
+ * rougi sur les quatre voiles concernés — **parce qu'on lui avait soufflé le nom.** Une garde qui
+ * ne connaît que la liste des valeurs valides et écarte le reste ne garde rien : *« le reste » est
+ * précisément le défaut.*
+ *
+ * La forme correcte est plus SIMPLE que la fausse — aucune liste, le compilateur arbitre — et elle
+ * est mesurée dans [TCK-453](../../../../docs/backlog/tickets/TCK-453-classes-non-emises.md), avec
+ * le coût réel qu'elle déplace sur l'extracteur. **Ne pas la réintroduire ici sans sa ligne de
+ * base de faux positifs**, qui est une condition de livraison et non un détail.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * CE QUE CE FICHIER FAIT, LUI, ET QUI TIENT
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Trois contrôles, tous portant sur des VALEURS lues dans la feuille réellement compilée : les
+ * deux tables de `contraste-wcag.ts` confrontées à `:root` et à `.dark`, et l'identité de valeur
+ * entre le blanc figé et les jetons de surface. Aucun ne dépend du relevé de classes.
  */
 import { readFileSync, readdirSync, statSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -88,8 +105,15 @@ function fichiersDe(dir: string, acc: string[] = []): string[] {
   return acc;
 }
 
-/** Les classes de couleur RÉELLEMENT écrites par la chrome publique. */
-function classesDeCouleurDuPerimetre(): string[] {
+/**
+ * Un ÉCHANTILLON de classes réelles, servant uniquement à donner du contenu à compiler.
+ *
+ * ⚠ **Ce n'est pas une garde et ça ne peut pas en être une** : le filtre `radical in JETONS_CLAIR`
+ * ci-dessous écarte par construction toute classe dont le jeton n'existe pas. C'est acceptable ICI
+ * — on veut seulement que Tailwind ait des utilitaires à émettre — et c'était le défaut fatal du
+ * contrôle retiré (cf. l'en-tête, et TCK-453). Ne pas rebâtir un contrôle sur cette fonction.
+ */
+function contenuCompile(): string[] {
   const MOTIF = /\b(?:[a-z-]+(?::[a-z0-9[\]=_-]+)*:)?(?:bg|text|border|ring)-[a-z][a-z0-9/.-]*/g;
   const vues = new Set<string>();
   for (const dir of PERIMETRE) {
@@ -112,7 +136,7 @@ beforeAll(async () => {
   const contenu = join(dossier, 'contenu.html');
   writeFileSync(
     contenu,
-    classesDeCouleurDuPerimetre().map((c) => `<i class="${c}"></i>`).join('\n'),
+    contenuCompile().map((c) => `<i class="${c}"></i>`).join('\n'),
   );
 
   // `source(none)` + un `@source` explicite : sans ça Tailwind balaie tout le dépôt, ce qui rend
@@ -183,25 +207,4 @@ describe('jetons du design system, confrontés à la compilation Tailwind', () =
     expect(normalise(racine.popover!)).toBe(normalise(blanc!));
   });
 
-  it("toute classe de couleur écrite par la chrome publique est ÉMISE par la compilation", () => {
-    // ⚠ LE contrôle qui manquait. Une classe dont le jeton n'est pas déclaré ne produit AUCUNE
-    // règle et AUCUNE erreur : le voile devient transparent, en silence. C'est exactement ce qui
-    // est arrivé aux quatre `bg-scrim/*` de la surface publique, écrits avant que `--scrim`
-    // n'existe sur cette branche.
-    const classes = classesDeCouleurDuPerimetre();
-    expect(classes.length, 'aucune classe relevée — le relevé est cassé, pas la chrome').toBeGreaterThan(10);
-
-    // ⚠ Tailwind ÉCHAPPE `/` et `.` dans le sélecteur émis (`.bg-scrim\\/40 {`), et les
-    // utilitaires sont INDENTÉS dans `@layer utilities`. Une recherche par expression régulière
-    // ancrée en début de ligne rend « tout est absent » — un rouge qui accuse la chrome alors
-    // que c'est le relevé qui est faux. On cherche donc le sélecteur littéral.
-    const absentes = classes.filter(
-      (classe) => !compile.includes(`.${classe.replace(/([/.])/g, '\\$1')} {`),
-    );
-
-    expect(
-      absentes,
-      "classe(s) écrite(s) par la chrome mais qu'aucune règle CSS ne définit — jeton absent de globals.css",
-    ).toEqual([]);
-  });
 });
