@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -172,9 +172,9 @@ export function Navbar({ className }: NavbarProps) {
     >
       <div className="flex items-start gap-4 px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
-        <Link href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
+        <LienLocalise href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
           {tCommon('appName')}
-        </Link>
+        </LienLocalise>
 
         {/* Center column: Search bar + Categories stacked, left-aligned — desktop */}
         <div className="hidden md:flex flex-col max-w-xl w-full mx-auto gap-0">
@@ -284,13 +284,13 @@ export function Navbar({ className }: NavbarProps) {
             <div className="size-8 rounded-full bg-gray-100 animate-pulse" />
           ) : user ? (
             <>
-              <Link
+              <LienLocalise
                 href="/publish"
                 onClick={armPublishIntent}
                 className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
               >
                 {t('publish')}
-              </Link>
+              </LienLocalise>
               <div ref={userMenuRef} className="relative">
                 <button
                   onClick={() => setUserMenuOpen((v) => !v)}
@@ -312,14 +312,14 @@ export function Navbar({ className }: NavbarProps) {
                       <p className="text-sm font-semibold text-slate-800 truncate">{user.first_name} {user.last_name}</p>
                       <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                     </div>
-                    <Link
+                    <LienLocalise
                       href="/app/profile"
                       onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-gray-50 transition-colors"
                     >
                       <UserCircle className="size-4 text-slate-400" />
                       {t('myProfile')}
-                    </Link>
+                    </LienLocalise>
                     <button
                       onClick={handleLogout}
                       className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-gray-50 transition-colors"
@@ -333,19 +333,19 @@ export function Navbar({ className }: NavbarProps) {
             </>
           ) : (
             <>
-              <Link
+              <LienLocalise
                 href="/auth/login"
                 className="inline-flex items-center text-sm font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap"
               >
                 {t('login')}
-              </Link>
-              <Link
+              </LienLocalise>
+              <LienLocalise
                 href="/publish"
                 onClick={armPublishIntent}
                 className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
               >
                 {t('publish')}
-              </Link>
+              </LienLocalise>
             </>
           )}
         </div>
@@ -466,21 +466,21 @@ export function Navbar({ className }: NavbarProps) {
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
                 </div>
-                <Link
+                <LienLocalise
                   href="/app/profile"
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-2.5 text-sm text-slate-700 py-1"
                 >
                   <UserCircle className="size-4 text-slate-400" />
                   {t('myProfile')}
-                </Link>
-                <Link
+                </LienLocalise>
+                <LienLocalise
                   href="/publish"
                   onClick={() => { armPublishIntent(); setMenuOpen(false); }}
                   className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                 >
                   {t('publishListing')}
-                </Link>
+                </LienLocalise>
                 <button
                   onClick={() => { setMenuOpen(false); void handleLogout(); }}
                   className="flex items-center gap-2.5 text-sm text-slate-700 py-1"
@@ -491,16 +491,16 @@ export function Navbar({ className }: NavbarProps) {
               </>
             ) : (
               <>
-                <Link href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm h-auto py-1 justify-start' })}>
+                <LienLocalise href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-slate-600 font-medium text-sm h-auto py-1 justify-start' })}>
                   {t('login')}
-                </Link>
-                <Link
+                </LienLocalise>
+                <LienLocalise
                   href="/publish"
                   onClick={() => { armPublishIntent(); setMenuOpen(false); }}
                   className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                 >
                   {t('publishListing')}
-                </Link>
+                </LienLocalise>
               </>
             )}
           </div>

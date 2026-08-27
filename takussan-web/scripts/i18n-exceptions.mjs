@@ -153,6 +153,17 @@ export const EXCEPTIONS_JUSTIFIEES = [
       + "recherché.",
   },
   {
+    fichier: 'src/lib/alternates.ts',
+    litteral: 'localisées (console, /auth, /api…) n’ont pas de version par',
+    famille: 'TECHNIQUE',
+    raison:
+      "Message d'erreur destiné au DÉVELOPPEUR : `alternatesLangues()` le lève quand on lui "
+      + "passe un chemin de surface NON localisée (`/app/…`, `/api/…`). Ce n'est pas un état que "
+      + "l'utilisateur peut atteindre — c'est un appel qui n'aurait pas dû être écrit, et il "
+      + "casse le rendu de la page avant qu'aucun écran n'existe. Il dit quoi corriger dans le "
+      + "code, pas quoi faire à l'utilisateur.",
+  },
+  {
     fichier: 'src/context/AuthContext.tsx',
     litteral: 'AuthProvider is missing. Wrap the app tree in <AuthProvider>',
     famille: 'TECHNIQUE',
@@ -254,7 +265,7 @@ export const EXCEPTIONS_JUSTIFIEES = [
 
   // ── BALISAGE ──────────────────────────────────────────────────────────────────────────────────
   {
-    fichier: 'src/app/(public)/properties/[slug]/components/PropertyLocationMapInner.tsx',
+    fichier: 'src/app/[locale]/(public)/properties/[slug]/components/PropertyLocationMapInner.tsx',
     motif: /^<\?xml version/,
     famille: 'BALISAGE',
     raison:
@@ -290,8 +301,8 @@ export const EXCEPTIONS_JUSTIFIEES = [
   },
 
   // ── PLAYGROUND ────────────────────────────────────────────────────────────────────────────────
-  { fichier: 'src/app/(public)/playground/page.tsx', motif: /^(Takussan|POC ·|Connexion|Publier|© Takussan — POC playground|Palette|· Typo)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
-  { fichier: 'src/app/(public)/playground/page.tsx', motif: /^title="(Pour ton prochain logement|Sélection de la semaine|Tout juste publié)"$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
+  { fichier: 'src/app/[locale]/(public)/playground/page.tsx', motif: /^(Takussan|POC ·|Connexion|Publier|© Takussan — POC playground|Palette|· Typo)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
+  { fichier: 'src/app/[locale]/(public)/playground/page.tsx', motif: /^title="(Pour ton prochain logement|Sélection de la semaine|Tout juste publié)"$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PaletteSwitcher.tsx', motif: /^(Côtier|\(fond clair\)|aria-label="Palette de couleurs")$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/TypographySwitcher.tsx', motif: /^(Éditorial|aria-label="Typographie"|Aa)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyRowLocal.tsx', motif: /^(Wide horizontal|Variante :|Tout voir|aria-label="(Précédent|Suivant)"|Pas encore de biens dans cette sélection\.)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },

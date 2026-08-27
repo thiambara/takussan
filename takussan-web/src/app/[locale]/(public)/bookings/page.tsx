@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Compass, SearchX } from 'lucide-react';
 
@@ -42,9 +42,9 @@ export default async function BookingPage({
           title={t('no_property_title')}
           description={t('no_property_description')}
           action={
-            <Link href="/properties" className={buttonVariants()}>
+            <LienLocalise href="/properties" className={buttonVariants()}>
               {t('browse_cta')}
-            </Link>
+            </LienLocalise>
           }
         />
       </div>
@@ -71,9 +71,9 @@ export default async function BookingPage({
           title={t('not_found_title')}
           description={t('not_found_description')}
           action={
-            <Link href="/properties" className={buttonVariants()}>
+            <LienLocalise href="/properties" className={buttonVariants()}>
               {t('browse_cta')}
-            </Link>
+            </LienLocalise>
           }
         />
       </div>

@@ -5,6 +5,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { ErrorState } from '@/components/feedback';
 import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
+import { alternatesLangues } from '@/lib/alternates';
 import { jsonLdRealEstateListing } from '@/lib/jsonld-property';
 import { getProperty } from '@/lib/queries/public-property';
 
@@ -80,6 +81,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
+    // hreflang — ADR-0026 §1. C'est l'objectif utilisateur de TCK-434 rendu vérifiable : un lien
+    // partagé porte sa langue, et les deux autres versions de LA MÊME fiche sont nommées.
+    alternates: alternatesLangues(`/properties/${slug}`),
     openGraph: {
       title: socialTitle,
       description,

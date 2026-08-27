@@ -4,12 +4,15 @@ import { getTranslations } from 'next-intl/server';
 import { PropertiesDiscoveryPage } from '@/components/property/PropertiesDiscoveryPage';
 
 import { PropertiesSkeleton } from './loading';
+import { alternatesLangues } from '@/lib/alternates';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta.properties');
   return {
     title: t('title'),
     description: t('description'),
+    // hreflang — ADR-0026 §1. Le chemin est donné SANS langue : `alternatesLangues` les décline.
+    alternates: alternatesLangues('/properties'),
   };
 }
 

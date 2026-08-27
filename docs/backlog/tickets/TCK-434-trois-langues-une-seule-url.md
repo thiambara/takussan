@@ -1,7 +1,7 @@
 ---
 id: TCK-434
 title: "Trois langues servies sur une seule URL : aucune indexation par langue n'est possible, et le choix n'est pas partageable"
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: L
@@ -120,4 +120,28 @@ Aucune bannière ni fenêtre de suggestion de langue : une redirection automatiq
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Deux affirmations de ce ticket ont été contredites par la re-mesure, et les deux ont changé la
+décision.** Le détail est dans [ADR-0026](../../adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md)
+§Contexte ; en résumé :
+
+1. **« Le `matcher` du proxy ne voit aucune route publique » — faux.** Next n'extrait la
+   configuration que d'un export nommé `config` ; `proxyConfig` n'apparaît nulle part dans le
+   paquet. Le `matcher` n'a donc jamais été appliqué et le proxy tournait sur TOUT — mesuré par
+   instrumentation sur un `next dev`. Le nom est corrigé, ce qui rend le `matcher` réellement
+   appliqué pour la première fois : `/api`, `_next` et les fichiers à extension en sortent.
+2. **« Le wolof est un dictionnaire partiel » — faux.** 5 338 clés sur 5 338, et 95,4 % des valeurs
+   distinctes du français, contre 92,5 % pour l'anglais. La question « `wo` mérite-t-il une URL
+   propre dès maintenant ? » n'avait pas lieu d'être.
+
+**La décision qui ne figurait dans aucune des deux : l'URL recopie sa langue dans le cookie.** Sans
+elle, le destinataire d'un lien partagé — qui n'a aucun cookie — perd la langue au premier clic sur
+un lien interne non préfixé. C'est ce report qui rend la migration des ~50 fichiers portant un lien
+public facultative plutôt que bloquante (26 sont passés à `LienLocalise`).
+
+**Redirection en 307, pas 308**, et c'est délibéré : la cible dépend du demandeur, pas de l'URL
+source. Un permanent épinglerait la langue du premier visiteur sur tous les suivants.
+
+**Suites non couvertes** : `docs/features.md` §2.8 ne mentionne toujours pas l'URL par langue — hors
+« Delta à produire », à traiter par `/sync-specs`. Les alternatives `hreflang` sont des URL absolues
+bâties sur `NEXT_PUBLIC_SITE_URL` (défaut `https://www.takussan.com`) : les prévisualisations Vercel
+doivent poser cette variable, et TCK-433 posera `metadataBase`.

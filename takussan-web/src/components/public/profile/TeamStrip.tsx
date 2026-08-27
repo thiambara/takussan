@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -98,9 +98,9 @@ export function TeamStrip({ agents }: TeamStripProps) {
               className="min-w-[280px] max-w-[320px] shrink-0 snap-start"
             >
               {a.slug ? (
-                <Link href={`/agents/${a.slug}`} className="block h-full">
+                <LienLocalise href={`/agents/${a.slug}`} className="block h-full">
                   {Inner}
-                </Link>
+                </LienLocalise>
               ) : (
                 Inner
               )}

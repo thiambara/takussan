@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Clock, MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
@@ -40,7 +40,7 @@ export function PropertyCardStandard({
       className="group w-[290px] shrink-0 animate-card-enter"
       style={{ animationDelay: staggerDelay(index) }}
     >
-      <Link href={`/properties/${property.slug}`} className="block">
+      <LienLocalise href={`/properties/${property.slug}`} className="block">
         <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted">
           <Image
             src={photo}
@@ -111,7 +111,7 @@ export function PropertyCardStandard({
             )}
           </div>
         </div>
-      </Link>
+      </LienLocalise>
     </article>
   );
 }

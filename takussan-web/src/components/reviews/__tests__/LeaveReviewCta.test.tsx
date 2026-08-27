@@ -10,7 +10,9 @@ describe('<LeaveReviewCta>', () => {
     render(withIntl(<LeaveReviewCta slug="villa-nord-dakar" propertyTitle="Villa Nord Dakar" />));
 
     const link = screen.getByRole('link', { name: /laisser un avis/i });
-    expect(link).toHaveAttribute('href', '/properties/villa-nord-dakar#avis');
+    // TCK-434 : le lien porte la langue, et l'ancre `#avis` la traverse — c'est cette seconde
+    // moitié que le test garde.
+    expect(link).toHaveAttribute('href', '/fr/properties/villa-nord-dakar#avis');
     expect(screen.getByText(/Villa Nord Dakar/)).toBeInTheDocument();
   });
 
