@@ -28,6 +28,23 @@ import { useAuth } from '@/context/AuthContext';
 import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
 
+/**
+ * TCK-371 — l'anneau de focus de la barre `/admin`.
+ *
+ * Le jeton `--ring` à PLEINE opacité, jamais `outline-ring/50` : sur le fond de la barre
+ * (`bg-foreground` = #1f1812), le jeton plein mesure **3,30:1** et le même à 50 % **1,73:1**,
+ * sous les 3:1 qu'exige WCAG 1.4.11 pour un indicateur non textuel. Le second est pourtant
+ * l'idiome de la primitive `Button` (`ui/button.tsx`) — il ne se recopie pas sur ce fond-là.
+ *
+ * `outline-2` rend `outline-style: solid`, ce qui écrase l'`outline: auto` du navigateur :
+ * sans cela Chrome et Safari ignorent `outline-color` et la couleur mesurée ne s'applique pas.
+ *
+ * Décalage NÉGATIF : le `<nav>` est en `overflow-y-auto`, et dès qu'un axe n'est pas `visible`
+ * l'autre calcule `auto` (CSS Overflow 3 §3) — un anneau sortant serait rogné.
+ */
+const ANNEAU_FOCUS =
+  'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';
+
 interface NavItem {
   href: string;
   /** CLÉ de libellé sous `nav.admin`, pas le libellé : `buildAdminItems` est hors composant. */
@@ -107,7 +124,13 @@ function AdminItem({
         role="link"
         aria-disabled="true"
         title={t('proLocked')}
-        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/40 opacity-60"
+        // TCK-371 — `text-white/40` ET `opacity-60` composaient un alpha effectif de 0,24 :
+        // encre #554f4b sur le fond de la barre (`bg-foreground` = #1f1812), soit **2,18:1**,
+        // très en dessous des 4,5:1 exigés. L'opacité portait l'interdit une troisième fois,
+        // après le cadenas et le curseur. Un seul alpha, plus haut : #9a9794 sur #1f1812 =
+        // **6,04:1**, et l'entrée reste plus sourde que l'item inactif (`text-white/70`,
+        // 9,04:1) qu'elle doit continuer de se distinguer.
+        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/55"
       >
         <Icon className="size-4 shrink-0" />
         <span className="truncate flex-1">{label}</span>
@@ -121,6 +144,7 @@ function AdminItem({
       onClick={onNavigate}
       className={cn(
         'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+        ANNEAU_FOCUS,
         active
           ? 'bg-white/10 font-semibold text-white'
           : 'text-white/70 hover:bg-white/5',
@@ -181,7 +205,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         <Link
           href="/"
           onClick={onNavigate}
-          className="text-xl font-bold tracking-tighter text-white"
+          className={`text-xl font-bold tracking-tighter text-white rounded-sm ${ANNEAU_FOCUS}`}
         >
           {tCommon('appName')}
         </Link>
@@ -209,7 +233,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         <Link
           href="/app"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 hover:bg-white/5"
+          className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 hover:bg-white/5 ${ANNEAU_FOCUS}`}
         >
           <ArrowLeft className="size-4 shrink-0" />
           <span>{t('backToPersonal')}</span>
@@ -217,7 +241,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         <Link
           href="/app/profile"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-white/5"
+          className={`flex items-center gap-3 rounded-md px-3 py-2 hover:bg-white/5 ${ANNEAU_FOCUS}`}
         >
           <Avatar className="size-9">
             {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}

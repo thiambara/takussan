@@ -33,6 +33,7 @@ export function PropertyModerationQueueList({
               onClick={() => onSelect(property)}
               className={cn(
                 'flex w-full flex-col gap-2 border-b border-muted p-4 text-left text-sm transition-colors',
+                'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
                 isSelected ? 'bg-muted/60' : 'hover:bg-muted/40',
               )}
               aria-pressed={isSelected}
