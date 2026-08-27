@@ -4274,6 +4274,67 @@
           "edit_custom": "Edit a custom role",
           "delete_custom": "Delete a custom role"
         }
+      },
+      "role_delegations": {
+        "heading": "Temporary delegations",
+        "description": "Hand a role to a member for a bounded period. The delegation starts and ends on its own; you can cut it short at any time.",
+        "empty_title": "No delegation",
+        "empty_description": "Nobody is borrowing a role right now. Create a delegation to cover a leave or an absence.",
+        "unknown_member": "Member #{id}",
+        "columns": {
+          "member": "Beneficiary",
+          "role": "Delegated role",
+          "period": "Period",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "statuses": {
+          "active": "Active",
+          "scheduled": "Scheduled",
+          "expired": "Expired",
+          "revoked": "Revoked"
+        },
+        "roles": {
+          "agency_admin": "Agency administrator",
+          "agent": "Agent",
+          "owner": "Owner"
+        },
+        "period": {
+          "range": "From {start} to {end}",
+          "until": "Until {end}"
+        },
+        "actions": {
+          "create": "Delegate a role",
+          "revoke": "Revoke",
+          "revoke_named": "Revoke {name}'s delegation"
+        },
+        "errors": {
+          "load": "Delegations could not be loaded.",
+          "create": "The delegation could not be created.",
+          "revoke": "The delegation could not be revoked."
+        },
+        "create": {
+          "title": "Delegate a role",
+          "description": "Three things are enough: to whom, which role, and until when.",
+          "member_label": "Beneficiary",
+          "member_placeholder": "Pick a member",
+          "no_member": "No other agency member can receive a delegation.",
+          "role_label": "Role to delegate",
+          "starts_at_label": "Start (optional)",
+          "starts_at_hint": "With no date, the delegation takes effect immediately.",
+          "ends_at_label": "End",
+          "max_duration_hint": "At most {days} days from today.",
+          "reason_label": "Reason (optional)",
+          "reason_placeholder": "Leave, assignment, cover…",
+          "submit": "Delegate",
+          "submitting": "Delegating…"
+        },
+        "revoke": {
+          "title": "Revoke this delegation?",
+          "description": "{name} will lose the delegated role immediately, without waiting for {end}. The row stays visible, as “Revoked”.",
+          "submit": "Revoke",
+          "submitting": "Revoking…"
+        }
       }
     },
     "pages": {

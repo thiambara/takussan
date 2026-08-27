@@ -4274,6 +4274,67 @@
           "edit_custom": "Modifier un rôle personnalisé",
           "delete_custom": "Supprimer un rôle personnalisé"
         }
+      },
+      "role_delegations": {
+        "heading": "Délégations temporaires",
+        "description": "Confiez un rôle à un membre sur une période bornée. La délégation prend effet et s'arrête d'elle-même ; vous pouvez l'interrompre à tout moment.",
+        "empty_title": "Aucune délégation",
+        "empty_description": "Personne n'emprunte de rôle en ce moment. Créez une délégation pour couvrir un congé ou une absence.",
+        "unknown_member": "Membre #{id}",
+        "columns": {
+          "member": "Bénéficiaire",
+          "role": "Rôle délégué",
+          "period": "Période",
+          "status": "Statut",
+          "actions": "Actions"
+        },
+        "statuses": {
+          "active": "Active",
+          "scheduled": "Programmée",
+          "expired": "Expirée",
+          "revoked": "Révoquée"
+        },
+        "roles": {
+          "agency_admin": "Administrateur d'agence",
+          "agent": "Agent",
+          "owner": "Propriétaire"
+        },
+        "period": {
+          "range": "Du {start} au {end}",
+          "until": "Jusqu'au {end}"
+        },
+        "actions": {
+          "create": "Déléguer un rôle",
+          "revoke": "Révoquer",
+          "revoke_named": "Révoquer la délégation de {name}"
+        },
+        "errors": {
+          "load": "Impossible de charger les délégations.",
+          "create": "La délégation n'a pas pu être créée.",
+          "revoke": "La délégation n'a pas pu être révoquée."
+        },
+        "create": {
+          "title": "Déléguer un rôle",
+          "description": "Trois informations suffisent : à qui, quel rôle, et jusqu’à quand.",
+          "member_label": "Bénéficiaire",
+          "member_placeholder": "Choisir un membre",
+          "no_member": "Aucun autre membre de l'agence ne peut recevoir de délégation.",
+          "role_label": "Rôle à déléguer",
+          "starts_at_label": "Début (facultatif)",
+          "starts_at_hint": "Sans date, la délégation prend effet immédiatement.",
+          "ends_at_label": "Fin",
+          "max_duration_hint": "Au plus {days} jours après aujourd'hui.",
+          "reason_label": "Motif (facultatif)",
+          "reason_placeholder": "Congé, mission, remplacement…",
+          "submit": "Déléguer",
+          "submitting": "Délégation…"
+        },
+        "revoke": {
+          "title": "Révoquer cette délégation ?",
+          "description": "{name} perdra le rôle délégué immédiatement, sans attendre le {end}. La ligne restera visible, en « Révoquée ».",
+          "submit": "Révoquer",
+          "submitting": "Révocation…"
+        }
       }
     },
     "pages": {

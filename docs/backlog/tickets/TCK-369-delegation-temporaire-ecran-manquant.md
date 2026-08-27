@@ -117,4 +117,62 @@ en trois champs — qui, quel rôle, jusqu'à quand.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Quatre mesures ont contredit ce ticket. Elles gouvernent le code livré.**
+
+1. **AC1 est faux tel qu'écrit.** « Une délégation créée apparaît en `scheduled` » n'a pas de
+   condition dans l'AC ; le backend en a une. `RoleDelegationService::create()` pose `Active` dès
+   que `starts_at` est nul ou déjà passé, `Scheduled` sinon. L'écran affiche donc **le statut que
+   la réponse 201 porte**, jamais une supposition — et un test éprouve les deux branches. Cocher
+   AC1 littéralement aurait voulu dire afficher « Programmée » sur des droits déjà accordés.
+
+2. **Il y a quatre statuts, pas trois** (`scheduled`, `active`, `expired`, `revoked`). Les quatre
+   sont rendus, et distincts deux à deux.
+
+3. **`sort=` et `fields[]` ne sont pas refusés par cet endpoint — ils sont ignorés, et `sort=`
+   casse l'ordre.** `RoleDelegationController::index` ne déclare ni `allowedSorts` ni
+   `allowedFields` ; spatie n'exécute alors jamais ses contrôles (`ensureAllSortsExist()` n'est
+   appelée que depuis `allowedSorts()`). Mesuré sur trois délégations de dates distinctes :
+
+   ```
+   GET …/role-delegations                  → ids 3,2,1   (le -created_at du contrôleur)
+   GET …/role-delegations?sort=-created_at → ids 1,2,3   ← l'ordre est PERDU, sans erreur
+   GET …/role-delegations?fields[…]=id     → 19 clés     ← le champ est IGNORÉ
+   ```
+
+   Appliquer la règle « sparse fieldsets obligatoires » ici aurait donc **dé-trié la liste** tout
+   en donnant l'illusion d'un fieldset. Le module de requêtes n'envoie que `per_page`, et un test
+   fige cette forme d'URL.
+
+4. **AC3 contredit la direction UX du même ticket.** « La révocation retire la délégation de la
+   liste » face à « l'expirée s'efface sans disparaître ». Le backend tranche : `DELETE` rend
+   **200 avec la ligne passée à `revoked`**, `revoked_at` et `revoked_by` renseignés — il
+   n'efface pas. La ligne reste donc affichée, estompée, et quitte les délégations *en vigueur*
+   (plus de bouton de révocation, plus de badge actif). La faire disparaître effacerait à l'écran
+   une trace d'audit que la base garde.
+
+**Un cinquième point n'était dans aucun AC, et c'est le plus coûteux.**
+`HasProfiles::hasActiveAgencyDelegation()` exige `status = active` **ET** `ends_at > now()` : les
+droits tombent à la seconde où `ends_at` passe. La colonne `status`, elle, n'est réécrite que par
+`ProcessRoleDelegationsJob`, toutes les 5 minutes. Pendant cette fenêtre l'API sert
+`status: "active"` pour une délégation qui n'accorde plus rien. L'écran rend donc le **statut
+effectif** (`statutEffectif()`), qui relit la condition de la policy sur les mêmes données. La
+symétrie inverse n'est délibérément pas faite : un `scheduled` dont le `starts_at` est passé
+n'accorde toujours rien, « Programmée » y est exact.
+
+**Le bouton est gardé par `team.assign_role`, et ce n'est pas ce que la policy demande.** Le
+catalogue `Capability` n'a aucun cas `delegations.*` ; `RoleDelegationPolicy` garde par TYPE de
+profil (`isAgencyAdminAt`). L'écran et le serveur ne posent donc pas la même question, et c'est le
+serveur qui décide. Avec deux autres mesures — deux des trois rôles délégables n'accordent
+strictement rien, et un délégant peut accorder plus qu'il ne détient — cela fait l'objet de
+**[TCK-395](TCK-395-delegation-role-delegue-sans-rapport-avec-les-capacites.md)**.
+
+**Pas de nouvelle route.** La section vit sous `/admin/roles`, déjà dans `PRO_ROUTES` et déjà
+gardée en SSR par `ensureStandardAgencyOrRedirect`. Une entrée de plus n'aurait rien gardé.
+
+**Les libellés `role_label` / `status_label` de `RoleDelegationResource` ne sont pas affichés** —
+ils sont en français en dur dans le PHP (principe non négociable n°5). Ils sont volontairement
+présents dans le double de test : sans eux, le test qui vérifie qu'on ne les rend pas ne
+prouverait rien.
+
+**Dix ablations ont été jouées**, chacune faisant rougir le test qu'elle vise et lui seul.
+
