@@ -1,9 +1,9 @@
 /**
  * La palette de séries des graphiques — jetons `--chart-*` du design system, et rien d'autre
- * (TCK-374).
+ * (TCK-374, complétée par TCK-404).
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
- * POURQUOI CE MODULE, ET POURQUOI IL EXCLUT `--chart-3`
+ * POURQUOI CE MODULE, ET POURQUOI IL A EXCLU `--chart-3` PENDANT UNE JOURNÉE
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
  * `BarChart` et `LineChart` portaient chacun DEUX tables de couleurs écrites à la main — une pour
@@ -24,16 +24,35 @@
  * ce qui est exactement le genre d'écart qu'une palette employée « telle quelle » propage sans
  * bruit.
  *
- * D'où la forme retenue : l'ordre des séries n'est pas `1,2,3,4,5` mais **`1,2,4,5`**, les quatre
- * jetons qui atteignent 3:1 dans LES DEUX thèmes. Relevé complet, `bin`-reproductible par le
- * script cité dans le rapport du ticket :
+ * D'où la forme retenue par TCK-374 : l'ordre des séries n'était pas `1,2,3,4,5` mais `1,2,4,5`,
+ * les quatre jetons qui atteignaient 3:1 dans LES DEUX thèmes.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * ⚠ **TCK-404 A CORRIGÉ LE JETON, ET L'ORDRE EST REDEVENU CELUI DE LA CHARTE (2026-08-27).**
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * La valeur claire de `--chart-3` est passée de `#c89a4a` à `#ad8034` — même teinte (38°), même
+ * saturation (54 %), clarté HSL de 54 % à 44 %. Relevé complet, reproductible par
+ * `node scripts/check-chart-contrast.mjs --report` :
  *
  *                clair (sur #ffffff)      sombre (sur #2a2018)
  *     --chart-1   #a85332   5,32:1  ✓      #c87a52   4,83:1  ✓
  *     --chart-2   #5d6e4f   5,51:1  ✓      #7d8d6e   4,48:1  ✓
- *     --chart-3   #c89a4a   2,57:1  ✗      #d6b66c   8,17:1  ✓   ← écarté
+ *     --chart-3   #ad8034   3,55:1  ✓      #d6b66c   8,17:1  ✓   ← corrigé (était 2,57:1)
  *     --chart-4   #6e655a   5,72:1  ✓      #b8aa97   7,01:1  ✓
  *     --chart-5   #1f1812  17,53:1  ✓      #fcf9f3  15,16:1  ✓
+ *
+ * ⚠ **Ce que la décision N'A PAS eu à arbitrer**, contrairement à ce que TCK-404 annonçait : le
+ * ticket bloquait la correction sur un second rôle — « l'ambre sert aussi de fond, le ton
+ * `warning` de `StatCard` le porte à 15 % ». Mesuré le jour de l'implémentation, c'est PÉRIMÉ :
+ * TCK-381 a fait passer ce ton sur `--warning`, et `SURFACES` de la garde de contraste a perdu
+ * son exemption `bg-chart-3/15` au même moment. Corriger la valeur ne cassait donc aucun second
+ * usage — il n'y en avait plus. *Un ticket qui hérite d'un obstacle doit re-mesurer l'obstacle,
+ * pas seulement le défaut.*
+ *
+ * ⚠ **L'ORDRE CHANGE CE QUE VOIT UN GRAPHIQUE À TROIS SÉRIES** : la troisième passe de
+ * `--chart-4` (taupe) à `--chart-3` (ocre). C'est la restauration voulue — la charte se lit
+ * `1,2,3,4,5` — mais ce n'est pas un changement neutre, et c'est pourquoi il est écrit ici.
  *
  * ⚠ **Cette table n'est plus le seul endroit mesuré, depuis la revue du 2026-08-27.**
  * `scripts/check-chart-contrast.mjs` lit désormais tout `components/charts` ET
@@ -44,10 +63,11 @@
  * PAS une série (un fond de tuile, un aplat sous une courbe) se déclare dans `SURFACES` de la
  * garde, avec sa mesure et sa raison.
  *
- * Corriger `--chart-3` lui-même serait la vraie fin de course — c'est un jeton documenté, employé
- * ailleurs que dans les séries — mais c'est une décision de charte, pas un delta de ce ticket :
- * elle est portée par **TCK-404**. Tant qu'elle n'est pas prise, l'exclure ici est le seul moyen
- * que « la série est lisible » soit vrai plutôt que déclaré.
+ * ⚠ Il reste UN consommateur de `--chart-3` hors des séries, trouvé en implémentant TCK-404 et
+ * **non corrigé** : `components/profile/ProfileBadge.tsx` rend `bg-chart-3/20 text-chart-3` —
+ * donc du TEXTE sur un aplat de lui-même. Mesuré : 2,17:1 avant la correction, 2,90:1 après.
+ * Amélioré, toujours sous les 4,5:1 d'AA, et hors du périmètre de la garde de contraste (qui ne
+ * lit que `components/charts` et `components/reporting`). Signalé, pas refermé.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * ⚠ POURQUOI DES LITTÉRAUX ENTIERS ET JAMAIS `` `fill-chart-${n}` ``
@@ -63,12 +83,14 @@
 /**
  * Les remplissages de série (`BarChart`), dans l'ordre d'attribution.
  *
- * L'ordre est celui de la charte moins `--chart-3` (cf. en-tête). Ne pas réordonner sans
- * remesurer : la position 1 est celle d'une série solitaire, donc celle qu'on voit toujours.
+ * L'ordre est celui de la charte, `1,2,3,4,5`, depuis que TCK-404 a corrigé `--chart-3`
+ * (cf. en-tête). Ne pas réordonner sans remesurer : la position 1 est celle d'une série
+ * solitaire, donc celle qu'on voit toujours.
  */
 export const REMPLISSAGES_SERIE = [
   'fill-chart-1',
   'fill-chart-2',
+  'fill-chart-3',
   'fill-chart-4',
   'fill-chart-5',
 ] as const;
@@ -77,6 +99,7 @@ export const REMPLISSAGES_SERIE = [
 export const TRAITS_SERIE = [
   'stroke-chart-1',
   'stroke-chart-2',
+  'stroke-chart-3',
   'stroke-chart-4',
   'stroke-chart-5',
 ] as const;
@@ -85,6 +108,7 @@ export const TRAITS_SERIE = [
 export const PASTILLES_LEGENDE = [
   'bg-chart-1',
   'bg-chart-2',
+  'bg-chart-3',
   'bg-chart-4',
   'bg-chart-5',
 ] as const;
@@ -104,17 +128,17 @@ export type PastilleLegende = (typeof PASTILLES_LEGENDE)[number];
  */
 export type ChartSeriesColor = RemplissageSerie | TraitSerie;
 
-/** Le remplissage de la série d'indice `idx` — cycle au-delà de quatre séries. */
+/** Le remplissage de la série d'indice `idx` — cycle au-delà de cinq séries. */
 export function remplissageSerie(idx: number): RemplissageSerie {
   return REMPLISSAGES_SERIE[indice(idx, REMPLISSAGES_SERIE.length)];
 }
 
-/** Le trait de la série d'indice `idx` — cycle au-delà de quatre séries. */
+/** Le trait de la série d'indice `idx` — cycle au-delà de cinq séries. */
 export function traitSerie(idx: number): TraitSerie {
   return TRAITS_SERIE[indice(idx, TRAITS_SERIE.length)];
 }
 
-/** La pastille de légende de la série d'indice `idx` — cycle au-delà de quatre séries. */
+/** La pastille de légende de la série d'indice `idx` — cycle au-delà de cinq séries. */
 export function pastilleLegende(idx: number): PastilleLegende {
   return PASTILLES_LEGENDE[indice(idx, PASTILLES_LEGENDE.length)];
 }
@@ -122,7 +146,7 @@ export function pastilleLegende(idx: number): PastilleLegende {
 /**
  * Le modulo, mais qui rend toujours un indice VALIDE.
  *
- * `(-1) % 4` vaut `-1` en JavaScript, et `tableau[-1]` est `undefined` : une pastille sans classe,
+ * `(-1) % 5` vaut `-1` en JavaScript, et `tableau[-1]` est `undefined` : une pastille sans classe,
  * donc une pastille invisible, sans que rien ne casse. Le repli explicite coûte une ligne et
  * supprime le cas.
  */

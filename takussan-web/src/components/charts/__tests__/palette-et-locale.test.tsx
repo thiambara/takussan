@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 import { withIntl } from '@/test/intl';
+import { SEUIL_NON_TEXTUEL, contraste, fmt } from '@/test/contraste-wcag';
 import type {
   DashboardAgencySummary,
   DashboardAgencyTimeseries,
@@ -47,22 +51,54 @@ describe('palette de séries (AC2 / AC3)', () => {
     }
   });
 
-  it("écarte `--chart-3`, mesuré à 2,57:1 sur `--card` clair (seuil WCAG 1.4.11 : 3:1)", () => {
-    // ⚠ L'assertion porte sur le NUMÉRO écarté, pas sur la longueur de la table : une table de
-    // quatre entrées dont l'une serait `chart-3` passerait un contrôle de taille.
+  it("porte les CINQ jetons de la charte depuis que TCK-404 a corrigé `--chart-3`", () => {
+    // ⚠ Ce cas affirmait l'INVERSE jusqu'au 2026-08-27 : `--chart-3` était écarté pour son
+    // 2,57:1 sur `--card` clair. TCK-404 a corrigé la valeur (`#c89a4a` → `#ad8034`, 3,55:1) et
+    // l'ordre est redevenu celui de la charte. L'assertion porte toujours sur les NUMÉROS, pas
+    // sur la longueur de la table : une table de cinq entrées dont deux seraient `chart-1`
+    // passerait un contrôle de taille.
     const numeros = [...REMPLISSAGES_SERIE, ...TRAITS_SERIE, ...PASTILLES_LEGENDE].map(
       (c) => c.slice(-1),
     );
-    expect(numeros).not.toContain('3');
-    expect(new Set(numeros)).toEqual(new Set(['1', '2', '4', '5']));
+    expect(new Set(numeros)).toEqual(new Set(['1', '2', '3', '4', '5']));
+  });
+
+  it('⚠ `--chart-3` atteint 3:1 sur `--card` dans LES DEUX thèmes — lu dans `globals.css`', () => {
+    // ────────────────────────────────────────────────────────────────────────────────────────
+    // Ce cas lit la FEUILLE, pas une copie. C'est ce qui le distingue du harnais
+    // `src/test/contraste-wcag.ts`, qui recopie les jetons à dessein : ici la question porte sur
+    // la VALEUR du jeton elle-même, et une valeur recopiée ne peut pas dire qu'elle a changé.
+    //
+    // Il double `scripts/check-chart-contrast.mjs` volontairement. La garde tourne en CI ; ce
+    // cas-ci rougit dans la boucle de `npm run test`, là où le jeton se modifie.
+    // ────────────────────────────────────────────────────────────────────────────────────────
+    const css = readFileSync(join(__dirname, '..', '..', '..', 'app', 'globals.css'), 'utf8');
+    const bloc = (selecteur: string) => {
+      const i = css.indexOf(`${selecteur} {`);
+      expect(i, `bloc ${selecteur} introuvable dans globals.css`).toBeGreaterThan(-1);
+      return css.slice(i, css.indexOf('\n}', i));
+    };
+    const jeton = (source: string, nom: string) => {
+      const m = source.match(new RegExp(`--${nom}\\s*:\\s*(#[0-9a-fA-F]{6})\\s*;`));
+      expect(m, `--${nom} introuvable`).not.toBeNull();
+      return (m as RegExpMatchArray)[1];
+    };
+
+    for (const [theme, selecteur] of [['clair', ':root'], ['sombre', '.dark']] as const) {
+      const source = bloc(selecteur);
+      const ratio = contraste(jeton(source, 'chart-3'), jeton(source, 'card'));
+      expect(ratio, `--chart-3 en ${theme} : ${fmt(ratio)}`).toBeGreaterThanOrEqual(
+        SEUIL_NON_TEXTUEL,
+      );
+    }
   });
 
   it('cycle sur un indice hors bornes au lieu de rendre une classe absente', () => {
-    // `(-1) % 4 === -1` en JavaScript : sans le repli, la pastille n'aurait AUCUNE classe — donc
+    // `(-1) % 5 === -1` en JavaScript : sans le repli, la pastille n'aurait AUCUNE classe — donc
     // aucune couleur, sans que rien ne casse.
     for (const attribuer of [remplissageSerie, traitSerie, pastilleLegende]) {
-      for (const idx of [-1, 0, 4, 7, Number.NaN]) {
-        expect(attribuer(idx)).toMatch(/^(fill|stroke|bg)-chart-[1245]$/);
+      for (const idx of [-1, 0, 5, 9, Number.NaN]) {
+        expect(attribuer(idx)).toMatch(/^(fill|stroke|bg)-chart-[1-5]$/);
       }
     }
   });
@@ -90,7 +126,10 @@ describe('palette de séries (AC2 / AC3)', () => {
         }}
       />));
     const classes = [...container.querySelectorAll('rect')].map((r) => r.getAttribute('class'));
-    expect(classes).toEqual(['fill-chart-1', 'fill-chart-2', 'fill-chart-4']);
+    // ⚠ La TROISIÈME valait `fill-chart-4` jusqu'au 2026-08-27 : `--chart-3` était écarté de la
+    // table. TCK-404 l'a corrigé et l'ordre de la charte (`1,2,3,4,5`) est restauré — ce cas est
+    // l'endroit où ce changement se voit, et c'est pourquoi il porte les classes en toutes lettres.
+    expect(classes).toEqual(['fill-chart-1', 'fill-chart-2', 'fill-chart-3']);
     expect(new Set(classes).size).toBe(3);
   });
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-404
 title: "`--chart-3` rend 2,57:1 sur `--card` en thème clair — décider de la valeur ou du rôle"
-status: todo
+status: doing
 phase: P2
 family: front
 estimate: S
@@ -86,4 +86,48 @@ casserait ce second usage. Les deux rôles doivent être tranchés ensemble.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**LA DÉCISION : corriger la valeur.** `--chart-3` passe de `#c89a4a` à `#ad8034` en `:root`. La
+valeur `.dark` (`#d6b66c`, 8,17:1) ne bouge pas — elle n'a jamais été en défaut.
+
+La valeur retenue garde la **teinte (38°)** et la **saturation (54 %)** de la charte au chiffre
+près : seule la clarté HSL descend, de 54 % à 44 %. Ce n'est pas une couleur nouvelle, c'est la
+même assez foncée pour se voir sur du blanc. Mesuré, pas estimé :
+
+    #ad8034 sur --card #ffffff .......... 3,55:1   (seuil 1.4.11 : 3:1)
+    #ad8034 sur --background #fcf9f3 .... 3,38:1
+
+3,55:1 place le jeton au niveau du minimum déjà toléré par la garde (3,59:1 pour `bg-chart-1/80`),
+pas au ras du seuil.
+
+**⚠ CE QUE LA RE-MESURE A CONTREDIT — et c'est ce qui a rendu la décision facile.**
+
+La section « Direction UX / Artistique » de ce ticket bloquait la correction sur un second rôle :
+« l'ambre de la charte sert aussi de fond, le ton `warning` de `StatCard` le porte à 15 %, les deux
+rôles doivent être tranchés ensemble ». **Mesuré le 2026-08-27 : c'est PÉRIMÉ.** TCK-381 a fait
+passer ce ton sur `bg-warning/10`, et l'exemption `bg-chart-3/15` a disparu de `SURFACES` de
+`scripts/check-chart-contrast.mjs` au même moment. Il n'y avait plus deux rôles à arbitrer.
+**L'AC3 (« aucune régression sur le ton `warning` de `StatCard` ») est donc VACUE** : `StatCard` ne
+touche plus `--chart-3`. Vérifiée quand même, par lecture du fichier et par la garde.
+
+*Un ticket qui hérite d'un obstacle doit re-mesurer l'obstacle, pas seulement le défaut.*
+
+**Un consommateur trouvé, NON corrigé, et signalé.** `components/profile/ProfileBadge.tsx:55` rend
+`bg-chart-3/20 text-chart-3` — du TEXTE sur un aplat de lui-même : **2,17:1 avant, 2,90:1 après**.
+Amélioré gratuitement par la correction, toujours sous les 4,5:1 d'AA, et hors du périmètre de
+`check-chart-contrast.mjs` (qui ne lit que `components/charts` et `components/reporting`). C'est
+ce consommateur qui a tranché entre les deux voies : **rétrograder le rôle n'aurait rien corrigé et
+aurait entériné cet usage-là**, puisque « ce n'est pas une couleur de série » ne dit rien de son
+emploi comme encre. À ouvrir en ticket.
+
+Le docblock de `charts/StatCard.tsx` affirmait « `--chart-3` n'a plus AUCUNE occurrence hors des
+séries ». C'était faux de celle-ci, et pour la raison exacte qui la rend coûteuse : elle est hors
+du périmètre de la garde. *Un « aucune » vérifié dans le périmètre d'une garde est un « aucune dans
+ce périmètre ».* Corrigé dans le docblock.
+
+**⚠ Conséquence à connaître** : l'ordre des séries redevient `1,2,3,4,5`, donc un graphique à trois
+séries voit sa troisième passer de taupe (`--chart-4`) à ocre (`--chart-3`).
+
+**Un test double la garde**, et lit `globals.css` plutôt qu'une copie : le harnais
+`src/test/contraste-wcag.ts` recopie les jetons à dessein, mais une valeur recopiée ne peut pas
+dire qu'elle a changé. La garde tourne en CI ; ce cas-ci rougit dans la boucle de `npm run test`,
+là où le jeton se modifie. Ablation rejouée : rétablir `#c89a4a` fait rougir les deux.

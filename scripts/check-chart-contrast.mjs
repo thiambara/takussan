@@ -165,9 +165,13 @@ const SURFACES = [
    * cessent d'emprunter — `StatCard` porte désormais `bg-warning/10`, hors de la portée de
    * cette garde, qui ne lit que les `--chart-*`.
    *
-   * `--chart-3` n'a donc PLUS AUCUNE occurrence dans le périmètre. Il reste écarté des séries
-   * pour son 2,57:1 en clair, et l'auto-épreuve continue d'ancrer cette valeur : c'est ce qui
-   * empêche TCK-404 d'être oublié maintenant que plus rien ne l'emploie.
+   * `--chart-3` n'avait donc PLUS AUCUNE occurrence dans le périmètre, et restait écarté des
+   * séries pour son 2,57:1 en clair.
+   *
+   * ⚠ **TCK-404 l'a corrigé le 2026-08-27** — `#c89a4a` → `#ad8034`, 3,55:1 sur `--card` clair —
+   * et il est rentré dans les trois tables de `charts/palette.ts`. Il n'a plus d'entrée ici parce
+   * qu'il n'est plus une exception : il est une SÉRIE, mesurée avec les quatre autres. C'est
+   * l'inverse exact du geste de TCK-374, qui l'avait sorti de la table sans le corriger.
    */
 ];
 
@@ -199,12 +203,18 @@ const SURFACES_INLINE = [
  *
  *     fill-chart-{1,2,4,5}  stroke-chart-{1,2,4,5}  bg-chart-{1,2,4,5}  bg-chart-1/80  border-chart-4
  *
+ * ⚠ **28 → 34 le 2026-08-27, par TCK-404** : `--chart-3` est rentré dans les trois tables de
+ * `charts/palette.ts` après correction de sa valeur claire (2,57:1 → 3,55:1). Trois formes de
+ * plus — `fill-chart-3`, `stroke-chart-3`, `bg-chart-3` — donc six mesures de plus. Le compte
+ * monte ici parce que la charte est REDEVENUE complète, pas parce qu'on a ajouté une série :
+ * c'est le premier mouvement de ce cliquet, et il fallait qu'il soit expliqué plutôt que subi.
+ *
  * ⚠ **C'est un CLIQUET : la garde échoue s'il monte ET s'il descend.** Une garde à lecture de
  * texte ne meurt pas en rougissant, elle meurt en ne trouvant plus rien — et un compte qui baisse
  * tout seul est le seul signal que ça vient d'arriver. Ajouter ou retirer une série est légitime :
  * corriger ce chiffre ici, AVEC SA DATE, fait partie du geste.
  */
-const MESURES_ATTENDUES = 28;
+const MESURES_ATTENDUES = 34;
 
 function lire(chemin) {
   try {

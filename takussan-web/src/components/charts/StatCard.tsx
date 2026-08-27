@@ -38,10 +38,19 @@ type Props = {
  * n'hérite de celle du conteneur. *Une mesure ne cesse pas de valoir parce que la valeur a
  * changé.*
  *
- * `--chart-3` n'a donc plus AUCUNE occurrence hors des séries, où il reste écarté pour son
- * 2,57:1 en clair (cf. `./palette`, TCK-404). Son exemption dans `SURFACES` de
- * `scripts/check-chart-contrast.mjs` est tombée avec lui — cette garde-là fait échouer une
- * exemption qui ne correspond plus à rien.
+ * `--chart-3` n'a donc plus aucune occurrence DANS CE PÉRIMÈTRE hors des séries, et son exemption
+ * dans `SURFACES` de `scripts/check-chart-contrast.mjs` est tombée avec lui — cette garde-là fait
+ * échouer une exemption qui ne correspond plus à rien.
+ *
+ * ⚠ **Ce paragraphe a écrit « plus AUCUNE occurrence » pendant une journée, et c'était faux d'une
+ * occurrence** : `components/profile/ProfileBadge.tsx` rend `bg-chart-3/20 text-chart-3`. Elle
+ * échappait au constat pour la raison exacte qui la rend coûteuse — elle est hors du périmètre de
+ * la garde, qui ne lit que `components/charts` et `components/reporting`. *Un « aucune » vérifié
+ * dans le périmètre d'une garde est un « aucune dans ce périmètre ».* (Mesuré en implémentant
+ * TCK-404, 2026-08-27.)
+ *
+ * `--chart-3` n'est plus écarté des séries : TCK-404 a corrigé sa valeur claire (2,57:1 → 3,55:1)
+ * et l'ordre de `./palette` est redevenu `1,2,3,4,5`.
  */
 const accents: Record<NonNullable<Props['accent']>, string> = {
   default: 'bg-card',

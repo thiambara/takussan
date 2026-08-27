@@ -86,6 +86,60 @@ trou), et `--background` est déjà clair en thème clair.
 à l'autre bout de l'échelle. **Ce sont les deux seules couleurs fonctionnelles du produit ; toute
 troisième candidate doit s'écrire ici avant d'exister.**
 
+### Couleurs de série des graphiques
+
+Cinq jetons, `--chart-1` à `--chart-5`, attribués **dans cet ordre** par
+`takussan-web/src/components/charts/palette.ts` — jamais écrits à la main dans un graphique.
+Le seuil applicable est celui de **WCAG 2.2 §1.4.11 (3:1)** : une couleur de série est un objet
+graphique porteur de sens. Mesures sur `--card`, `node scripts/check-chart-contrast.mjs --report`,
+2026-08-27 :
+
+| Jeton | Clair | sur `--card` #ffffff | Sombre | sur `--card` #2a2018 |
+|---|---|---|---|---|
+| `--chart-1` | `#a85332` | 5,32:1 | `#c87a52` | 4,83:1 |
+| `--chart-2` | `#5d6e4f` | 5,51:1 | `#7d8d6e` | 4,48:1 |
+| `--chart-3` | `#ad8034` | 3,55:1 | `#d6b66c` | 8,17:1 |
+| `--chart-4` | `#6e655a` | 5,72:1 | `#b8aa97` | 7,01:1 |
+| `--chart-5` | `#1f1812` | 17,53:1 | `#fcf9f3` | 15,16:1 |
+
+> **DÉCISION TCK-404 (2026-08-27) — `--chart-3` EST une couleur de série, et sa valeur claire a
+> été corrigée pour que ce soit vrai.**
+>
+> Le jeton valait `#c89a4a` et rendait **2,57:1** sur `--card` clair — sous le seuil, et moins bien
+> que la couleur hors charte qu'il était censé remplacer. TCK-374 l'avait **écarté** de l'ordre des
+> séries plutôt que corrigé, laissant une charte de cinq jetons dont un ne servait à rien.
+>
+> Les deux voies possibles étaient « corriger la valeur » et « acter qu'il n'est pas une couleur de
+> série ». **La première est retenue**, sur trois mesures :
+>
+> 1. L'obstacle que le ticket citait est PÉRIMÉ. Il bloquait la correction sur « l'ambre sert aussi
+>    de fond, le ton `warning` de `StatCard` le porte à 15 % ». Mesuré : depuis TCK-381 cette tuile
+>    rend `bg-warning/10`, et `--chart-3` n'a plus **aucun** usage de fond. Il n'y avait plus deux
+>    rôles à arbitrer ensemble, il n'en restait qu'un.
+> 2. Rétrograder le rôle n'aurait rien corrigé, et aurait *entériné* le seul usage restant :
+>    `components/profile/ProfileBadge.tsx` rend `bg-chart-3/20 text-chart-3`, soit du TEXTE sur un
+>    aplat de lui-même — 2,17:1 avant la correction, 2,90:1 après. Toujours sous AA ; amélioré
+>    gratuitement par la correction, ce que la rétrogradation n'aurait pas fait.
+> 3. En thème SOMBRE le jeton était irréprochable (8,17:1) — le défaut n'existait qu'en clair.
+>    C'est la valeur claire qui était fausse, pas le rôle.
+>
+> La valeur retenue, `#ad8034`, garde la **teinte (38°)** et la **saturation (54 %)** de la charte
+> au chiffre près : seule la clarté HSL descend, de 54 % à 44 %. Ce n'est pas une couleur nouvelle,
+> c'est la même assez foncée pour se voir sur du blanc. La valeur sombre (`#d6b66c`) ne bouge pas.
+>
+> ⚠ **Conséquence à connaître** : un graphique à trois séries voit sa troisième passer de taupe
+> (`--chart-4`) à ocre (`--chart-3`). C'est la restauration de l'ordre de la charte, pas un effet
+> de bord.
+
+### Règle fondamentale — design tokens
+
+> **Zéro valeur hex arbitraire dans le code.** Toute couleur passe par une variable CSS définie dans `src/app/globals.css` et exposée via `@theme inline`. Changer la palette demain = modifier `globals.css`, rien d'autre.
+
+Interdits :
+- `#0050cb` ou tout autre hex hardcodé pour la marque (ancien bleu Takussan retiré avec TCK-129).
+- `text-blue-*`, `bg-blue-*` pour la marque.
+- Dupliquer un hex Lin dans un composant — toujours via le token.
+
 ## Espacement & Layout
 
 - **Espace blanc généreux** : toujours pencher en faveur de plus d'espace, pas moins. Le DS Lin laisse respirer les photos — c'est un choix produit.
