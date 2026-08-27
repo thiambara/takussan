@@ -122,9 +122,35 @@ interface SuperAdminSidebarProps {
 }
 
 /**
- * Distinct sidebar for the super-admin area (TCK-145). Dark stone palette
- * + ocre accents to make the cross-tenant context unmistakable next to the
- * agency-side `(dashboard)` look-and-feel.
+ * Distinct sidebar for the super-admin area (TCK-145) : surface sombre + accent ocre, pour que
+ * le contexte cross-tenant ne se confonde jamais avec le `(dashboard)` agence.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-358 — la surface reste sombre, la palette Tailwind brute disparaît
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Cette barre portait 16 utilitaires `stone-*` / `amber-*` en dur. Les remplacer par des jetons
+ * clairs aurait éteint la distinction ; en inventer un jeu parallèle (`--console-sidebar-*`)
+ * aurait rouvert exactement le doublon de vocabulaire que `scripts/check-app-tokens.mjs` a
+ * fermé sur `--app-*`.
+ *
+ * La barre porte donc la classe `dark` : `globals.css` y redéfinit déjà `--sidebar`,
+ * `--sidebar-foreground`, `--sidebar-primary` et leurs voisins sur la rampe sombre. Un seul
+ * vocabulaire, une seule source de valeurs, et un effet de bord qui était un défaut avant :
+ * toute primitive shadcn montée ici hérite maintenant du thème sombre au lieu de rendre en
+ * clair sur fond sombre. `SuperAdminTopbar` et le `SheetContent` mobile de `SuperAdminShell`
+ * suivent le même mécanisme.
+ *
+ * ⚠ La classe `dark` n'est PAS le mode sombre de l'utilisateur : c'est une surface
+ * délibérément sombre en permanence. Basculer le thème global ne la change pas — c'est voulu.
+ *
+ * ⚠ L'entrée ACTIVE est une pastille pleine (`bg-sidebar-primary`), pas un fond teinté. La
+ * traduction littérale de l'ancien fond ambre 500 à 15 % + encre ambre 200 aurait donné du
+ * terracotta sur
+ * du terracotta à 20 % : **3,59:1**, sous le plancher AA de 4,5:1 pour du texte normal. Le plein
+ * mesure 5,31:1 (encre `--sidebar-primary-foreground` sur `--sidebar-primary`). Les mesures de
+ * cette barre, prises le 2026-08-27 : libellé inactif 10,16:1 · libellé de groupe 8,08:1 ·
+ * survol 8,59:1 · lien de retour 10,16:1.
  */
 export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarProps) {
   const pathname = usePathname();
@@ -134,13 +160,13 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
   return (
     <aside
       className={cn(
-        'flex h-full w-64 shrink-0 flex-col overflow-hidden bg-stone-900 text-sm text-stone-200',
+        'dark flex h-full w-64 shrink-0 flex-col overflow-hidden bg-sidebar text-sm text-sidebar-foreground',
         className,
       )}
     >
       <div className="shrink-0 px-5 pb-4 pt-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-300">{t('eyebrow')}</p>
-        <p className="mt-1 text-base font-semibold text-white">{t('title')}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sidebar-primary">{t('eyebrow')}</p>
+        <p className="mt-1 text-base font-semibold text-sidebar-foreground">{t('title')}</p>
       </div>
       <nav
         aria-label={t('ariaNav')}
@@ -148,7 +174,7 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
       >
         {NAV_GROUPS.map((group) => (
           <div key={group.labelKey} className="space-y-1">
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
               {tGroups(group.labelKey)}
             </p>
             {group.items.map((item) => (
@@ -162,11 +188,11 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
           </div>
         ))}
       </nav>
-      <div className="shrink-0 border-t border-white/10 px-3 py-3">
+      <div className="shrink-0 border-t border-sidebar-border px-3 py-3">
         <Link
           href="/app"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-stone-400 transition-colors hover:bg-stone-800 hover:text-white"
+          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         >
           <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
           <span className="truncate">{t('backToPersonal')}</span>
@@ -201,8 +227,8 @@ function SuperAdminNavItem({
         className={cn(
           'flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
           active
-            ? 'bg-amber-500/15 font-semibold text-amber-200'
-            : 'text-stone-300 hover:bg-stone-800 hover:text-white',
+            ? 'bg-sidebar-primary font-semibold text-sidebar-primary-foreground'
+            : 'text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
         )}
       >
         <Icon className="size-4 shrink-0" aria-hidden="true" />
@@ -210,14 +236,14 @@ function SuperAdminNavItem({
         {badge && badge > 0 ? (
           <span
             aria-label={t('pendingBadge', { count: badge })}
-            className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-semibold text-stone-900"
+            className="inline-flex min-w-5 items-center justify-center rounded-full bg-sidebar-primary px-1.5 text-[11px] font-semibold text-sidebar-primary-foreground"
           >
             {badge > 99 ? '99+' : badge}
           </span>
         ) : null}
       </Link>
       {item.children?.length ? (
-        <div className="ml-5 space-y-1 border-l border-white/10 pl-2">
+        <div className="ml-5 space-y-1 border-l border-sidebar-border pl-2">
           {item.children.map((child) => {
             const childActive = isActivePath(pathname, child.href);
             const ChildIcon = child.icon;
@@ -231,8 +257,8 @@ function SuperAdminNavItem({
                 className={cn(
                   'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
                   childActive
-                    ? 'bg-amber-500/10 font-semibold text-amber-200'
-                    : 'text-stone-400 hover:bg-stone-800 hover:text-white',
+                    ? 'bg-sidebar-primary/90 font-semibold text-sidebar-primary-foreground'
+                    : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                 )}
               >
                 <ChildIcon className="size-3.5 shrink-0" aria-hidden="true" />

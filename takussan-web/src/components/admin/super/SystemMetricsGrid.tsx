@@ -35,7 +35,7 @@ export function SystemMetricsGrid() {
     return (
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="system-metrics-loading">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-stone-200" aria-hidden="true" />
+          <div key={i} className="h-24 animate-pulse rounded-xl bg-muted" aria-hidden="true" />
         ))}
       </div>
     );
@@ -74,10 +74,10 @@ export function SystemMetricsGrid() {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="system-metrics-grid">
       {tiles.map((tile) => (
-        <div key={tile.label} className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
-          <p className="text-xs font-semibold uppercase tracking-wide text-stone-500">{tile.label}</p>
-          <p className="mt-1 text-2xl font-bold text-stone-900">{tile.value}</p>
-          {tile.hint ? <p className="mt-1 text-xs text-stone-500">{tile.hint}</p> : null}
+        <div key={tile.label} className="rounded-xl bg-card p-4 ring-1 ring-border">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tile.label}</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{tile.value}</p>
+          {tile.hint ? <p className="mt-1 text-xs text-muted-foreground">{tile.hint}</p> : null}
         </div>
       ))}
     </div>

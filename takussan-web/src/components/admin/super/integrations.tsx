@@ -57,22 +57,22 @@ export function IntegrationCard({
 }) {
   const t = useTranslations('superAdmin.integrations');
   return (
-    <article className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
+    <article className="rounded-xl bg-card p-4 ring-1 ring-border">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold text-stone-950">{integration.label}</h3>
-          <p className="mt-1 text-sm text-stone-500">{integration.provider}</p>
+          <h3 className="font-display text-lg font-semibold text-foreground">{integration.label}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{integration.provider}</p>
         </div>
         <Badge variant={statusTone[integration.status] ?? 'outline'}>{integration.status}</Badge>
       </div>
       <dl className="mt-4 space-y-2 text-sm">
         {Object.entries(integration.masked_credentials).slice(0, 2).map(([key, value]) => (
           <div key={key} className="flex items-center justify-between gap-3">
-            <dt className="flex items-center gap-2 text-stone-500">
+            <dt className="flex items-center gap-2 text-muted-foreground">
               <KeyRound className="size-4" aria-hidden="true" />
               {key}
             </dt>
-            <dd className="font-mono text-xs text-stone-700">{value}</dd>
+            <dd className="font-mono text-xs text-muted-foreground">{value}</dd>
           </div>
         ))}
       </dl>
@@ -109,7 +109,7 @@ export function IntegrationTestButton({ integrationId }: { integrationId: number
         <TestTube2 className="size-4" aria-hidden="true" />
         {t('test')}
       </Button>
-      {message ? <span className="text-xs text-stone-500">{message}</span> : null}
+      {message ? <span className="text-xs text-muted-foreground">{message}</span> : null}
     </div>
   );
 }
@@ -157,7 +157,7 @@ export function IntegrationEditDialog({
           <DialogTitle>{integration ? t('editIntegration', { label: integration.label }) : t('editGeneric')}</DialogTitle>
         </DialogHeader>
         {schema.isLoading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-stone-200" />
+          <div className="h-32 animate-pulse rounded-lg bg-muted" />
         ) : (
           <div className="space-y-3">
             {fields.map((field) => (
@@ -172,7 +172,7 @@ export function IntegrationEditDialog({
                 />
               </div>
             ))}
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-muted-foreground">
               {t('maskedHint')}
             </p>
           </div>

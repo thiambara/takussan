@@ -39,7 +39,7 @@ export function NotificationEventList({
   }, [items]);
 
   return (
-    <nav className="rounded-xl bg-white p-2 ring-1 ring-stone-200" aria-label={t('eventsNav')}>
+    <nav className="rounded-xl bg-card p-2 ring-1 ring-border" aria-label={t('eventsNav')}>
       {events.map((item) => (
         <Button
           key={item.event}
@@ -94,11 +94,11 @@ export function TemplateEditor({
   const smsSegments = detail.channel === 'sms' ? Math.ceil((current.body.length || 1) / 160) : null;
 
   return (
-    <section className="rounded-xl bg-white ring-1 ring-stone-200">
-      <div className="flex flex-col gap-3 border-b border-stone-200 p-4 md:flex-row md:items-start md:justify-between">
+    <section className="rounded-xl bg-card ring-1 ring-border">
+      <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="font-display text-xl font-semibold text-stone-950">{detail.name}</h2>
-          <p className="mt-1 text-sm text-stone-600">{detail.event}</p>
+          <h2 className="font-display text-xl font-semibold text-foreground">{detail.name}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{detail.event}</p>
           <div className="mt-2 flex flex-wrap gap-1">
             {detail.placeholders.map((placeholder) => (
               <Badge key={placeholder} variant="outline">{`{{ ${placeholder} }}`}</Badge>
@@ -194,9 +194,9 @@ export function TemplatePreviewDialog({
         <DialogHeader>
           <DialogTitle>{t('previewTitle')}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3 rounded-lg bg-stone-50 p-4 text-sm">
-          {preview?.subject ? <p className="font-semibold text-stone-950">{preview.subject}</p> : null}
-          <p className="whitespace-pre-wrap text-stone-700">{preview?.body}</p>
+        <div className="space-y-3 rounded-lg bg-muted p-4 text-sm">
+          {preview?.subject ? <p className="font-semibold text-foreground">{preview.subject}</p> : null}
+          <p className="whitespace-pre-wrap text-muted-foreground">{preview?.body}</p>
         </div>
       </DialogContent>
     </Dialog>

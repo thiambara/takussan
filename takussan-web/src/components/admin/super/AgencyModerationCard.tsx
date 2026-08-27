@@ -85,7 +85,7 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
   return (
     <article
       data-testid={`agency-card-${agency.id}`}
-      className="space-y-3 rounded-xl bg-white p-4 ring-1 ring-stone-200"
+      className="space-y-3 rounded-xl bg-card p-4 ring-1 ring-border"
     >
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex min-w-0 items-start gap-3">
@@ -96,20 +96,20 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
               width={44}
               height={44}
               unoptimized
-              className="size-11 rounded-md border border-stone-200 object-cover"
+              className="size-11 rounded-md border border-border object-cover"
             />
           ) : (
-            <div className="flex size-11 items-center justify-center rounded-md bg-stone-100 text-sm font-semibold text-stone-700">
+            <div className="flex size-11 items-center justify-center rounded-md bg-muted text-sm font-semibold text-muted-foreground">
               {agency.name.slice(0, 2).toUpperCase()}
             </div>
           )}
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-stone-900">
-              <Link className="hover:text-amber-700" href={`/super-admin/agencies/${agency.id}`}>
+            <h3 className="truncate text-base font-semibold text-foreground">
+              <Link className="hover:text-primary" href={`/super-admin/agencies/${agency.id}`}>
                 {agency.name}
               </Link>
             </h3>
-            <p className="truncate text-xs text-stone-500">/{agency.slug}</p>
+            <p className="truncate text-xs text-muted-foreground">/{agency.slug}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -121,29 +121,29 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
         </div>
       </header>
 
-      <dl className="grid grid-cols-2 gap-2 text-xs text-stone-600 lg:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-2 text-xs text-muted-foreground lg:grid-cols-3">
         <div>
-          <dt className="font-semibold text-stone-700">{t('email')}</dt>
+          <dt className="font-semibold text-muted-foreground">{t('email')}</dt>
           <dd className="truncate">{agency.email ?? '—'}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">{t('license')}</dt>
+          <dt className="font-semibold text-muted-foreground">{t('license')}</dt>
           <dd>{agency.license_number ?? '—'}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">{t('members')}</dt>
+          <dt className="font-semibold text-muted-foreground">{t('members')}</dt>
           <dd className="tabular-nums">{agency.members_count}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">{t('properties')}</dt>
+          <dt className="font-semibold text-muted-foreground">{t('properties')}</dt>
           <dd className="tabular-nums">{agency.properties_count}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">{t('createdAt')}</dt>
+          <dt className="font-semibold text-muted-foreground">{t('createdAt')}</dt>
           <dd>{formatDate(agency.created_at)}</dd>
         </div>
         <div>
-          <dt className="font-semibold text-stone-700">{t('lastActivity')}</dt>
+          <dt className="font-semibold text-muted-foreground">{t('lastActivity')}</dt>
           <dd>{formatDate(agency.last_activity_at)}</dd>
         </div>
       </dl>
