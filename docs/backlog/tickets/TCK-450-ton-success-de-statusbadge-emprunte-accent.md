@@ -61,13 +61,18 @@ pas tenir (aucun serveur de développement dans son lot) et que celui-ci porte.
 
 ### Le rayon d'action, relevé le 2026-08-27
 
-**21 sites de résolution dans 20 fichiers**, dont **14 passent par une table** — un `grep` de
-`tone="success"` n'en voit que 7 et fait croire à un rayon trois fois plus petit.
+**20 sites de résolution dans 19 fichiers**, dont **14 passent par une table** — un `grep` de
+`tone="success"` n'en voit que 6 et fait croire à un rayon trois fois plus petit.
+
+⚠ Ce tableau a compté **21 sites dans 20 fichiers** pendant une demi-journée. Le 21ᵉ était
+`app/(dashboard)/app/properties/page.tsx:148`, et il n'en est pas un : son `tone: 'success'` est
+une prop de `PropertyKpiStrip`, dont l'union est `'neutral' | 'success' | 'accent' | 'muted'` —
+un type HOMONYME de `StatusTone`, pas le même — et sa table rend déjà `bg-success/10`. *Deux
+unions qui partagent un nom de membre se ressemblent dans un `grep` et n'ont rien à voir.*
 
 | Fichier | l. | Mode | Ce qui devient `--success` |
 |---|---|---|---|
 | `app/(super-admin)/super-admin/super-admins/page.tsx` | 363 | littéral | l'invitation acceptée |
-| `app/(dashboard)/app/properties/page.tsx` | 148 | littéral | le bien publié |
 | `components/kyc/KycUploader.tsx` | 190 | littéral | « document fourni » (TCK-385) |
 | `components/admin/super/user-detail.tsx` | 126 | littéral | le compte |
 | `components/admin/super/agency-detail.tsx` | 262 | littéral | l'agence |
@@ -91,8 +96,11 @@ pas tenir (aucun serveur de développement dans son lot) et que celui-ci porte.
 Le relevé se reprend, il ne se recopie pas :
 
 ```bash
-grep -rn "tone=\"success\"\|'success'" takussan-web/src --include="*.tsx" --include="*.ts" \
-  | grep -v __tests__ | grep -vE "type: 'success'|status.*'success'"
+# ⚠ filtrer sur le TYPE, pas sur la chaîne : `'success'` est aussi un membre de l'union de
+# `PropertyKpiStrip`, un ton de toast, et un état de `useCompare`. Seuls comptent les sites
+# typés `StatusTone`.
+grep -rln "StatusTone\|StatusBadge" takussan-web/src --include="*.tsx" --include="*.ts" \
+  | grep -v __tests__ | xargs grep -n "'success'\|tone=\"success\""
 ```
 
 ## Contrat de données
@@ -169,6 +177,15 @@ un statut « active ».
   ticket à part.
 - **Le jeton `--success` lui-même**, dont les valeurs et les contrastes ont été posés et mesurés
   par TCK-381. Ce ticket le CONSOMME.
+- **`components/announcements/GlobalAnnouncementBanner.tsx`**, et c'est l'exclusion qui mérite un
+  ticket à elle seule. Il rend la MÊME donnée que l'entrée `success` de
+  `admin/super/announcements.tsx` — `Announcement['severity']` — mais en palette Tailwind BRUTE :
+  `border-emerald-300 bg-emerald-900 text-emerald-50`, trois familles pour une sévérité. Deux
+  rendus d'un seul concept, dont un seul passe par `StatusBadge`. Il échappe de surcroît à
+  `check-super-admin-tokens.mjs` parce qu'il est monté par `src/app/layout.tsx`, la racine de tout
+  le site : c'est le trou T5 que la garde déclare (« la bannière de maintenance globale »
+  échappe au compte). **Corriger `StatusBadge` sans lui laisserait la console en `--success` et
+  la bannière publique en émeraude.** À traiter dans un ticket qui l'aura mesuré.
 - Le vocabulaire des toasts (`toast.add({ type: 'success' })`), qui passe par `ui/toast.tsx` et
   porte déjà `--success` depuis TCK-384.
 
