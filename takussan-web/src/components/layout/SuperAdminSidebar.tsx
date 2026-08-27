@@ -148,7 +148,8 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
       >
         {NAV_GROUPS.map((group) => (
           <div key={group.labelKey} className="space-y-1">
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+            {/* TCK-359 — `stone-400` et non `stone-500` : 6,76:1 sur `stone-900` contre 3,64:1. */}
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-400">
               {tGroups(group.labelKey)}
             </p>
             {group.items.map((item) => (
@@ -166,7 +167,7 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
         <Link
           href="/app"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-stone-400 transition-colors hover:bg-stone-800 hover:text-white"
+          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-stone-400 transition-colors hover:bg-stone-800 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
           <span className="truncate">{t('backToPersonal')}</span>
@@ -200,6 +201,9 @@ function SuperAdminNavItem({
         aria-current={current ? 'page' : undefined}
         className={cn(
           'flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
+          // TCK-359 — anneau de focus explicite : sur `stone-900` le contour par défaut du
+          // navigateur est quasi invisible. `ring-ring` = jeton `--ring`, jamais un hex.
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           active
             ? 'bg-amber-500/15 font-semibold text-amber-200'
             : 'text-stone-300 hover:bg-stone-800 hover:text-white',
@@ -230,6 +234,7 @@ function SuperAdminNavItem({
                 aria-current={childActive ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   childActive
                     ? 'bg-amber-500/10 font-semibold text-amber-200'
                     : 'text-stone-400 hover:bg-stone-800 hover:text-white',

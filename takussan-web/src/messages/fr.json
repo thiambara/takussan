@@ -146,6 +146,7 @@
       "backToPersonal": "Retour à l'espace perso",
       "pendingBadge": "{count} en attente",
       "topbarBrand": "Takussan · Console",
+      "skipToContent": "Aller au contenu principal",
       "groups": {
         "overview": "Vue d'ensemble",
         "operations": "Opérations",
