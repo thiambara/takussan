@@ -167,6 +167,7 @@
         "audit": "Toppatoo",
         "system": "Sistem",
         "health": "Wér-gi-yaram",
+        "failedJobs": "Jobs yi ñàkk",
         "maintenance": "Defar",
         "scheduler": "Arminaatkat"
       }
@@ -4719,6 +4720,30 @@
       "colAvgDuration": "Diir bu digg",
       "tableCaption": "Liggéey yu planifiye ak dooru mujj gi"
     },
+    "failedJobs": {
+      "empty_title": "Amul benn job bu ñàkk",
+      "empty_description": "Fiiru jobs yi dafay dox te amul njumte.",
+      "statTotal": "Jobs yu ñàkk",
+      "retryAll": "Dellu jëfe lépp",
+      "retry": "Dellu jëfe",
+      "detail": "Xibaar yu mat",
+      "colQueue": "Fiir",
+      "colPayload": "Payload",
+      "colFailedAt": "Ñàkk",
+      "colActions": "Jëf yi",
+      "tableCaption": "Jobs yu ñàkk ci fiiru liggéey bi",
+      "loadError": "Njumte ci yeb jobs yu ñàkk yi.",
+      "detailTitle": "Xibaaru job bi ñàkk",
+      "detailSubtitle": "Payload ak exception bu mat, ni ko fiir bi bindee.",
+      "detailError": "Njumte ci yeb xibaaru job bi.",
+      "detailConnection": "Konesioŋ",
+      "detailUuid": "UUID",
+      "detailException": "Exception",
+      "confirmRetryAllTitle": "Dellu jëfe jobs yépp yu ñàkk",
+      "confirmRetryAllDescription": "{count} job(s) yu ñàkk dinañu dellu ci fiir bi benn yoon. Su weesoo 500, API bi dina ko bañ.",
+      "confirmDeleteTitle": "Far benn job bu ñàkk",
+      "confirmDeleteDescription": "{count} job bu ñàkk (#{id}) dinañu ko far ba fàww, ak payload bi ak tarawu bi."
+    },
     "systemHealth": {
       "failedJobs": {
         "empty_title": "Amul benn liggéey bu antuwul",
@@ -4911,6 +4936,10 @@
       "systemHealth": {
         "title": "Healthcheck",
         "subtitle": "Tegtal yi, liiñ yi ak liggéey yu antuwul, ak yeesal bu boppam."
+      },
+      "failedJobs": {
+        "title": "Jobs yi ñàkk",
+        "subtitle": "Fiiru liggéey: lu ñàkk, tarawu bi mat, ak dellu ko jëfe."
       },
       "scheduler": {
         "title": "Scheduler",

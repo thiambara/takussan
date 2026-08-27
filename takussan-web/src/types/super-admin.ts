@@ -647,6 +647,20 @@ export type FailedJobsResponse = {
   };
 };
 
+/**
+ * Le détail d'UN job échoué (`GET /api/admin/jobs/failed/{id}`).
+ *
+ * Même forme que `FailedJob`, mais `payload` et `exception` y arrivent ENTIERS : c'est la liste
+ * qui les tronque, côté serveur, à 1024 caractères (`FailedJobService::present($job, true)`).
+ * D'où le type distinct plutôt qu'un `FailedJob` réutilisé — les deux se ressemblent et ne
+ * portent pas la même chose (TCK-365).
+ */
+export type FailedJobDetailResponse = {
+  data: FailedJob;
+  /** L'API prévient que le payload complet peut porter des données sensibles. */
+  warning?: string;
+};
+
 export type ScheduledTask = {
   task: string;
   last_run_at: string | null;
