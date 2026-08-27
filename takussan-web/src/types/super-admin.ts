@@ -62,10 +62,25 @@ export type KycDocument = {
   expires_at: string;
 };
 
+/**
+ * Le SUJET du dossier, tel que `KycDossierResource` l'émet quand la relation est chargée
+ * (TCK-362). Optionnel parce que la ressource ne le pose que sous `whenLoaded` : un appelant qui
+ * n'envoie pas `include=subject` n'obtient rien, et lire `subject!.name` serait un mensonge de
+ * typage. `name` est nul pour tout sujet qui n'est pas une agence — aucun n'ouvre de dossier
+ * aujourd'hui, mais le champ est polymorphe côté base.
+ */
+export type KycDossierSubject = {
+  id: number;
+  type: string;
+  name: string | null;
+  slug: string | null;
+};
+
 export type KycDossier = {
   id: number;
   subject_type: string;
   subject_id: number;
+  subject?: KycDossierSubject | null;
   status: KycDossierStatus;
   submitted_at: string | null;
   reviewed_at: string | null;

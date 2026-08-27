@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Models\Agency;
 use App\Models\KycDossier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
@@ -18,6 +19,38 @@ class KycDossierResource extends BaseResource
             'id' => $dossier->id,
             'subject_type' => class_basename($dossier->subject_type),
             'subject_id' => $dossier->subject_id,
+            /*
+             * TCK-362 — le SUJET du dossier, et pas seulement sa clé étrangère.
+             *
+             * La file KYC du super-admin affichait « Agence #12 » : `subject_id` était la seule
+             * chose que cette ressource émettait du sujet, alors que `KycController::index` charge
+             * `subject` depuis toujours (`->with(['subject', 'reviewer'])`). La relation était
+             * chargée et jamais sérialisée — l'écran n'avait donc PAS le choix entre le nom et
+             * l'identifiant, il n'avait que l'identifiant.
+             *
+             * `whenLoaded` et pas un accès direct : `show()` et `agency()` chargent aussi la
+             * relation, mais rien ne garantit qu'un futur appelant le fasse, et un `N+1` par ligne
+             * de file est précisément ce que le ticket interdit.
+             *
+             * Le `name` est typé par `instanceof Agency` plutôt que lu par `->name` : `subject`
+             * est un `morphTo`, et seul `Agency` ouvre un dossier aujourd'hui
+             * (`KycWorkflowService::dossierForAgency`). Un sujet d'un autre type rendrait un `name`
+             * nul plutôt qu'une erreur de propriété inconnue.
+             */
+            'subject' => $this->whenLoaded('subject', function () use ($dossier): ?array {
+                $subject = $dossier->subject;
+
+                if ($subject === null) {
+                    return null;
+                }
+
+                return [
+                    'id' => $subject->getKey(),
+                    'type' => class_basename($subject),
+                    'name' => $subject instanceof Agency ? $subject->name : null,
+                    'slug' => $subject instanceof Agency ? $subject->slug : null,
+                ];
+            }),
             'status' => $this->enumValue($dossier->status),
             'submitted_at' => $this->iso($dossier->submitted_at),
             'reviewed_at' => $this->iso($dossier->reviewed_at),

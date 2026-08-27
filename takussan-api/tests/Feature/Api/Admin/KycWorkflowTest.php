@@ -9,6 +9,7 @@ use App\Models\KycDossier;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -161,6 +162,55 @@ class KycWorkflowTest extends TestCase
             ->assertJsonPath('data.0.id', $older->id)
             ->assertJsonPath('data.1.id', $newer->id)
             ->assertJsonPath('meta.total', 2);
+    }
+
+    /**
+     * TCK-362 — la file doit porter le NOM de l'agence, pas seulement sa clé.
+     *
+     * L'écran `/super-admin/kyc` affichait « Agence #12 » faute d'autre chose à afficher :
+     * `KycController::index` chargeait `subject` depuis toujours, et `KycDossierResource` ne
+     * l'émettait pas. Le test porte donc sur la SORTIE — un nom lisible dans la charge utile —
+     * et non sur le `->with()` du contrôleur, qui était déjà juste et ne prouvait rien.
+     */
+    public function test_kyc_queue_exposes_the_agency_name_without_a_query_per_row(): void
+    {
+        $this->actingAsRole('super_admin');
+        $agency = Agency::factory()->create(['name' => 'Dakar Immo Sarl']);
+        $dossier = $this->submittedDossierWithDocuments($agency);
+
+        /*
+         * On ne compte PAS toutes les requêtes : `KycDossierResource` appelle `getMedia()` par
+         * dossier, ce qui est un `N+1` de médias — réel, mais hors du périmètre de ce ticket, et
+         * un compteur global le confondrait avec celui qu'on ferme ici. On ne compte donc que les
+         * requêtes qui touchent `agencies` : c'est exactement la propriété que le ticket demande.
+         */
+        $requetesAgences = 0;
+        DB::listen(function ($requete) use (&$requetesAgences): void {
+            if (str_contains($requete->sql, 'agencies')) {
+                $requetesAgences++;
+            }
+        });
+
+        $this->getJson('/api/admin/kyc?filter[status]=submitted&filter[subject_type]=Agency&per_page=10')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $dossier->id)
+            ->assertJsonPath('data.0.subject.id', $agency->id)
+            ->assertJsonPath('data.0.subject.type', 'Agency')
+            ->assertJsonPath('data.0.subject.name', 'Dakar Immo Sarl');
+
+        // UNE seule requête sur `agencies` pour un dossier — le `morphTo` groupé.
+        $this->assertSame(1, $requetesAgences);
+
+        $this->submittedDossierWithDocuments(Agency::factory()->create());
+        $this->submittedDossierWithDocuments(Agency::factory()->create());
+
+        $requetesAgences = 0;
+        $this->getJson('/api/admin/kyc?filter[status]=submitted&filter[subject_type]=Agency&per_page=10')
+            ->assertOk()
+            ->assertJsonCount(3, 'data');
+
+        // Toujours UNE, pour trois dossiers : trois auraient trahi la lecture ligne à ligne.
+        $this->assertSame(1, $requetesAgences);
     }
 
     private function submittedDossierWithDocuments(Agency $agency, mixed $submittedAt = null): KycDossier
