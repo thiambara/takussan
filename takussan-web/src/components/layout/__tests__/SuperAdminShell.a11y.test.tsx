@@ -17,7 +17,7 @@ import userEvent from '@testing-library/user-event';
 import { withIntl } from '@/test/intl';
 import type { User } from '@/types/user';
 import { SUPER_ADMIN_MAIN_ID, SuperAdminShell } from '../SuperAdminShell';
-import { SuperAdminSidebar } from '../SuperAdminSidebar';
+import { NAV_GROUPS, SuperAdminSidebar } from '../SuperAdminSidebar';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -167,13 +167,23 @@ describe('SuperAdminSidebar — focus clavier (TCK-359)', () => {
     }
   });
 
-  it('reste entièrement parcourable au clavier — 24 entrées, aucune piégée', async () => {
+  it('reste entièrement parcourable au clavier — toutes les entrées, aucune piégée', async () => {
     const utilisateur = userEvent.setup();
     renderSidebar();
 
+    // Le compte est DÉRIVÉ de la table de navigation, jamais écrit en dur : la version figée
+    // (« 25 ») est devenue rouge quand TCK-365 a ajouté l'entrée « jobs échoués », c'est-à-dire
+    // sur un ajout légitime que ce test n'a aucune raison de refuser. Ce qu'il garde est que
+    // CHAQUE entrée déclarée est rendue en lien, et qu'aucune n'est piégée hors du parcours.
+    const attendu =
+      NAV_GROUPS.reduce(
+        (n, groupe) =>
+          n + groupe.items.reduce((m, item) => m + 1 + (item.children?.length ?? 0), 0),
+        0,
+      ) + 1; // + le lien « retour à l'espace perso »
+
     const liens = screen.getAllByRole('link');
-    // 24 entrées de menu (21 de premier niveau + 3 sous-entrées de `system`) + le retour perso.
-    expect(liens).toHaveLength(25);
+    expect(liens).toHaveLength(attendu);
 
     await utilisateur.tab();
     expect(document.activeElement).toBe(liens[0]);
@@ -184,7 +194,7 @@ describe('SuperAdminSidebar — focus clavier (TCK-359)', () => {
 
   // TCK-359 puis TCK-358 : le correctif d'origine passait `stone-500` (3,64:1) à `stone-400`
   // (6,76:1) ; l'extinction de la palette brute l'a porté sur le jeton `--sidebar-foreground` à
-  // 70 %, qui mesure 7,91:1 sur `--sidebar` en contexte sombre. Le test garde les deux moitiés :
+  // 70 %, qui mesure 8,08:1 sur `--sidebar` en contexte sombre. Le test garde les deux moitiés :
   // plus aucune couleur brute, et une opacité qui ne redescend pas sous 70 %.
   it('n’affiche plus les libellés de groupe en couleur brute, et garde ≥ 4,5:1', () => {
     const { container } = renderSidebar();

@@ -61,7 +61,16 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+/**
+ * ⚠ EXPORTÉ pour les tests, et uniquement pour eux.
+ *
+ * Le test de parcours clavier comptait les liens **en dur** (« 25 ») ; TCK-365 a ajouté une
+ * entrée « jobs échoués » et le test est devenu rouge sur un ajout parfaitement légitime, dans un
+ * fichier qui n'avait rien à voir. *Un test qui fige un nombre au lieu de le dériver ne garde pas
+ * ce nombre : il garde la date à laquelle on l'a écrit.* Le test dérive désormais son compte
+ * d'ici.
+ */
+export const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: 'overview',
     items: [
