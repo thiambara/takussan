@@ -61,4 +61,48 @@ Le super-admin corrige une annonce diffusée — une faute, une date, un ciblage
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Front seul — l'API n'a pas bougé.** `PATCH /api/admin/announcements/{announcement}` existe
+(`routes/api/admin.php:192`), le contrôleur, `UpdateAnnouncementRequest` et le proxy BFF
+`src/app/api/super-admin/[...path]/route.ts` (qui exporte déjà `PATCH`) aussi. La chaîne était
+complète de bout en bout ; il ne manquait que l'appelant.
+
+**Ce que la mesure a rendu, contre ce que le ticket demandait de constater :**
+
+- **Éditer ne republie pas et ne réarme aucun `dismissal`.** `AnnouncementController::update()`
+  fait un simple `$announcement->update(...)` ; les fermetures sont des lignes
+  `announcement_dismissals` sur `(announcement_id, user_id)` qu'aucun code de la mise à jour ne
+  touche, et `AnnouncementResolver::activeFor()` les exclut toujours. Constaté dans le code, pas
+  supposé.
+- **Un effet de bord réel, non couvert par le ticket** : `AnnouncementResolver::dismiss()` refuse
+  de créer une fermeture quand `severity === critical && is_active`. Faire passer une annonce
+  vivante en `critical` par l'édition la rend donc *non fermable* pour la suite — les fermetures
+  déjà posées, elles, restent valides.
+- **`ends_at` porte `after:starts_at` même en PATCH.** Un PATCH partiel qui enverrait `ends_at`
+  sans `starts_at` serait refusé (`starts_at` absent → la règle compare à `null`). L'écran émet
+  toujours la charge complète, ce qui contourne le piège sans le corriger.
+- **Deux des slugs de rôle qui circulent dans le front ne ciblent personne.** `tenant` et
+  `customer` (présents dans `superAdmin.pages.users.roles`) ne font pas partie des six valeurs que
+  `User::profileTypes()` peut rendre, or `matches()` intersecte le segment avec elle. Le champ
+  libre séparé par des virgules les acceptait en silence. La liste de cases à cocher est écrite
+  sur les six vraies valeurs.
+
+**Trois décisions non évidentes :**
+
+1. **`draft` = « `is_active` faux », et c'est tout ce que la base permet.** Il n'existe aucune
+   colonne d'état : les quatre états affichés (`draft` / `scheduled` / `live` / `expired`) sont
+   `scopeCurrentlyVisible()` décomposé. Rien ne distingue un brouillon jamais diffusé d'une
+   annonce désactivée après coup — l'écran ne prétend pas le contraire.
+2. **Le ciblage par agence est recopié tel quel dans le formulaire, jamais résolu-puis-réémis.**
+   La liste d'agences est paginée à 100 ; un identifiant hors de cette page est conservé et rendu
+   en pastille `Agence #{id}`. Une résolution qui aurait perdu l'inconnu aurait rétréci la cible en
+   silence — c'est exactement le cas que l'ablation a servi à vérifier (le test AC3 rougit quand on
+   filtre un identifiant hors page).
+3. **`isoToLocalInput()` remplace `toISOString().slice(0, 16)` pour remplir les champs de date.**
+   `toPayload` relit la valeur avec `new Date(...)`, qui l'interprète en heure locale : rendre de
+   l'UTC dans le champ décalait la date à chaque aller-retour d'édition.
+
+**Au passage, dans le même fichier** : la pastille de sévérité affichait le slug brut
+(`announcement.severity`) alors que `superAdmin.announcements.severities.*` existait depuis
+TCK-292 ; et les quatre couleurs Tailwind brutes du panneau de composition (`bg-white`,
+`ring-stone-200`, `text-stone-950`, `text-stone-500`) sont passées en jetons — TCK-358 fait la
+même conversion sur la même branche d'intégration.

@@ -5163,7 +5163,40 @@
         "warning": "Alerte",
         "critical": "Critique"
       },
-      "tableCaption": "Annonces cross-tenant programmées"
+      "tableCaption": "Annonces cross-tenant programmées",
+      "colState": "État",
+      "states": {
+        "draft": "Brouillon",
+        "scheduled": "Programmée",
+        "live": "En diffusion",
+        "expired": "Expirée"
+      },
+      "severity": "Sévérité",
+      "diffusion": "Diffusion",
+      "editTitle": "Modifier l'annonce",
+      "edit": "Éditer",
+      "editRow": "Éditer l'annonce {title}",
+      "cancelEdit": "Annuler",
+      "save": "Enregistrer les modifications",
+      "editingLiveNotice": "Cette annonce est en cours de diffusion : la correction s'applique immédiatement, sans republier l'annonce ni rouvrir celles que les utilisateurs ont déjà fermées.",
+      "editingDraftNotice": "Cette annonce n'est pas diffusée : elle le sera dès que la diffusion sera activée.",
+      "titleFieldLabel": "Titre {locale}",
+      "bodyFieldLabel": "Message {locale}",
+      "roleLabels": {
+        "super_admin": "Super-admin",
+        "agency_admin": "Admin agence",
+        "agent": "Agent",
+        "owner": "Propriétaire",
+        "broker": "Courtier",
+        "service_provider": "Prestataire"
+      },
+      "rolesHint": "Aucun rôle coché : l'annonce n'est pas restreinte par rôle.",
+      "agenciesEmpty": "Aucune agence ciblée : l'annonce n'est pas restreinte par agence.",
+      "agencySearch": "Rechercher une agence",
+      "agenciesLoading": "Chargement des agences…",
+      "agenciesNoMatch": "Aucune agence ne correspond.",
+      "agencyUnknown": "Agence #{id}",
+      "agencyRemove": "Retirer {name} du ciblage"
     },
     "scheduler": {
       "empty_title": "Aucun run capturé",
