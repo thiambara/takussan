@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { DEFAULT_LOCALE } from '@/i18n/config';
+import { DEFAULT_LOCALE, type Locale } from '@/i18n/config';
 import { LOCALES_INDEXABLES, cheminLocalise, estCheminLocalisable } from '@/i18n/routing';
 
 /**
@@ -144,11 +144,12 @@ export const ORIGINE_SITE = resoudreOrigineSite({
  * formes reviendrait à laisser un appelant croire qu'il déclare `fr` alors qu'il déclare la langue
  * courante.
  *
- * ⚠️ **Les URL sont ABSOLUES, délibérément.** `alternates.languages` accepte des chemins relatifs,
- * que Next résout contre `metadataBase` — absent de ce dépôt au 2026-08-27, et objet de TCK-433.
- * Sans lui, Next replie silencieusement sur `http://localhost:3000` : le `hreflang` sortirait en
- * production en pointant vers la machine du développeur. Une URL absolue ne dépend d'aucun réglage
- * que ce fichier ne contrôle pas, et reste juste le jour où TCK-433 posera `metadataBase`.
+ * ⚠️ **Les URL restent ABSOLUES, MÊME depuis que `metadataBase` est posé** (TCK-433, dans
+ * `src/app/layout.tsx`). `alternates.languages` accepte des chemins relatifs, que Next résout
+ * contre `metadataBase` ; les repasser en relatif ferait dépendre chaque `hreflang` d'un réglage
+ * qui vit ailleurs, et dont le repli est SILENCIEUX — sans `metadataBase`, Next retombe sur
+ * `http://localhost:3000` et le `hreflang` sort en production en pointant la machine du
+ * développeur. Une URL absolue ne dépend de rien qu'on puisse retirer sans s'en apercevoir.
  *
  * `x-default` pointe vers le français. Il a une cible RÉELLE et distincte — c'est l'argument
  * principal du préfixe systématique d'ADR-0026 §1 : en `as-needed`, `x-default` et `hreflang="fr"`
@@ -169,4 +170,38 @@ export function alternatesLangues(chemin: string): NonNullable<Metadata['alterna
   languages['x-default'] = `${ORIGINE_SITE}${cheminLocalise(chemin, DEFAULT_LOCALE)}`;
 
   return { languages };
+}
+
+
+/**
+ * Les `alternates` COMPLETS d'une page publique : la canonique **et** les `hreflang` — TCK-433.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LES DEUX NE SE DÉCLARENT PAS SÉPARÉMENT, ET C'EST TOUT L'INTÉRÊT DE CE POINT UNIQUE
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Une canonique qui désigne une URL et des `hreflang` qui en désignent d'autres sont un signal
+ * contradictoire : Google ignore alors le groupe entier. Les deux se dérivent donc ici du MÊME
+ * chemin — le chemin **canonique**, pas celui que le visiteur a demandé. Sur
+ * `/fr/properties?type=villa&page=3`, la canonique et les trois `hreflang` désignent tous
+ * `…/properties?type=villa`, chacun dans sa langue.
+ *
+ * ⚠️ **La canonique porte le PRÉFIXE de langue de la page courante.** Depuis TCK-434 il n'existe
+ * plus aucune URL publique sans préfixe : `/properties/x` rend 307. Une canonique non préfixée
+ * désignerait donc une redirection comme version de référence.
+ *
+ * `chemin` accepte une chaîne de requête (`/properties?type=villa`) : `cheminLocalise` n'agit que
+ * sur le premier segment, et `estCheminLocalisable` ne regarde l'extension que du dernier — un
+ * `?` n'en est pas une. Verrouillé par les tests de ce module.
+ */
+export function alternatesPubliques(
+  chemin: string,
+  locale: Locale,
+): NonNullable<Metadata['alternates']> {
+  const { languages } = alternatesLangues(chemin);
+
+  return {
+    canonical: `${ORIGINE_SITE}${cheminLocalise(chemin, locale)}`,
+    languages,
+  };
 }

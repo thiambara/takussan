@@ -15,7 +15,8 @@ import {
 } from '@/components/public/profile/ReviewsSection';
 import { TeamStrip } from '@/components/public/profile/TeamStrip';
 import type { PropertyListItem } from '@/types/property';
-import { alternatesLangues } from '@/lib/alternates';
+import { alternatesPubliques } from '@/lib/alternates';
+import { isLocale } from '@/i18n/config';
 
 interface AgencyAgentDto {
   id: number;
@@ -75,6 +76,8 @@ async function loadAgency(slug: string): Promise<AgencyDto | null> {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const brut = await getLocale();
+  const locale = isLocale(brut) ? brut : 'fr';
   const t = await getTranslations('agency.publicPage');
   const agency = await loadAgency(slug);
   if (!agency) {
@@ -89,7 +92,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description: agency.description ?? summary ?? undefined,
-    alternates: alternatesLangues(`/agencies/${slug}`),
+    // Canonique + hreflang, dérivés du même chemin (TCK-433). Un profil public n'a pas de
+    // variante d'URL à replier ; sans canonique explicite, Next n'en émet simplement aucune.
+    alternates: alternatesPubliques(`/agencies/${slug}`, locale),
     openGraph: {
       title,
       description: agency.description ?? summary ?? undefined,

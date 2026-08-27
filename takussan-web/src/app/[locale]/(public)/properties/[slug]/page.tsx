@@ -2,10 +2,12 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
+import { isLocale } from '@/i18n/config';
+
 import { ErrorState } from '@/components/feedback';
 import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
-import { alternatesLangues } from '@/lib/alternates';
+import { alternatesPubliques } from '@/lib/alternates';
 import { jsonLdRealEstateListing } from '@/lib/jsonld-property';
 import { getProperty } from '@/lib/queries/public-property';
 
@@ -27,7 +29,9 @@ type Props = {
  */
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const resultat = await getProperty(slug, await getLocale());
+  const brut = await getLocale();
+  const locale = isLocale(brut) ? brut : 'fr';
+  const resultat = await getProperty(slug, locale);
 
   // ⚠️ **`notFound()` est appelé ICI, et pas seulement dans la page — c'est ce qui décide du
   // CODE HTTP.** Mesuré le 2026-08-21 sur `next start` ET sur `next dev` : avec l'appel dans le
@@ -81,9 +85,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    // hreflang — ADR-0026 §1. C'est l'objectif utilisateur de TCK-434 rendu vérifiable : un lien
-    // partagé porte sa langue, et les deux autres versions de LA MÊME fiche sont nommées.
-    alternates: alternatesLangues(`/properties/${slug}`),
+    // Canonique + hreflang — ADR-0026 §1, TCK-433. C'est l'objectif utilisateur de TCK-434 rendu
+    // vérifiable : un lien partagé porte sa langue, et les deux autres versions de LA MÊME fiche
+    // sont nommées. La canonique désigne cette fiche-ci, dans la langue servie : une fiche n'a pas
+    // de variante d'URL à replier, mais sans canonique explicite Next n'en émet aucune.
+    alternates: alternatesPubliques(`/properties/${slug}`, locale),
     openGraph: {
       title: socialTitle,
       description,

@@ -283,6 +283,12 @@
       "title": "Rechercher des biens",
       "description": "Trouvez des appartements, villas, terrains, bureaux et bien plus au Sénégal. Filtrez par prix, type, localisation et surface, visualisez les biens sur une carte interactive."
     },
+    "propertiesFiltered": {
+      "titleContract": "{contract, select, rent {{subject} à louer} sale {{subject} à vendre} other {{subject}}}",
+      "titleCity": "{subject} à {city}",
+      "subjectAny": "Biens immobiliers",
+      "description": "{title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier."
+    },
     "compare": {
       "title": "Comparer des biens",
       "description": "Comparez jusqu'à 4 biens côte à côte : prix, surface, pièces, amenités et localisation."

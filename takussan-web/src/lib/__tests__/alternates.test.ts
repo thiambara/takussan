@@ -12,6 +12,15 @@ import { estCheminLocalisable } from '@/i18n/routing';
  * fonction : le dernier test descend jusqu'au proxy et au routeur de fichiers. Un `hreflang` vers
  * une URL que le proxy redirigerait, ou vers un chemin qu'aucune route ne sert, fait rougir.
  */
+/** Les cinq pages publiques qui déclarent des alternatives. */
+const PAGES_PUBLIQUES = [
+  'src/app/[locale]/(public)/page.tsx',
+  'src/app/[locale]/(public)/properties/(liste)/page.tsx',
+  'src/app/[locale]/(public)/properties/[slug]/page.tsx',
+  'src/app/[locale]/(public)/agencies/[slug]/page.tsx',
+  'src/app/[locale]/(public)/agents/[slug]/page.tsx',
+] as const;
+
 describe('alternatesLangues', () => {
   it('déclare les trois langues, plus x-default', () => {
     const { languages } = alternatesLangues('/properties/mon-slug');
@@ -78,31 +87,36 @@ describe('AC3 (seconde moitié) — les URL pointées sont servies', () => {
     // La forme des trois URL est `/<langue>/properties/<slug>` : la route qui les sert est
     // `src/app/[locale]/(public)/properties/[slug]/page.tsx`. Si le groupe public remontait d'un
     // cran, ce test rougirait — et c'est exactement la régression qui rendrait le hreflang menteur.
-    for (const route of [
-      'src/app/[locale]/(public)/page.tsx',
-      'src/app/[locale]/(public)/properties/(liste)/page.tsx',
-      'src/app/[locale]/(public)/properties/[slug]/page.tsx',
-      'src/app/[locale]/(public)/agencies/[slug]/page.tsx',
-      'src/app/[locale]/(public)/agents/[slug]/page.tsx',
-    ]) {
+    for (const route of PAGES_PUBLIQUES) {
       expect(existsSync(route), route).toBe(true);
     }
   });
 
   it('chaque page publique qui déclare des alternatives passe un chemin SANS langue', async () => {
-    // Le piège que `alternatesLangues` ne peut pas voir seule : `alternatesLangues('/fr/properties')`
-    // rendrait trois URL correctes… et ferait dire à `hreflang="en"` une URL qui n'est pas celle de
-    // la page. On garde donc la forme de l'argument au point d'appel.
+    // Le piège que la fabrique ne peut pas voir seule : lui passer `'/fr/properties'` rendrait
+    // trois URL correctes… et ferait dire à `hreflang="en"` une URL qui n'est pas celle de la
+    // page. On garde donc la forme de l'argument au POINT D'APPEL.
+    //
+    // ⚠ Le point d'appel a changé avec TCK-433 : les cinq pages appellent désormais
+    // `alternatesPubliques(chemin, locale)` — la canonique et les `hreflang` se dérivent du même
+    // chemin, sans quoi ils se contrediraient. Le scan suit les deux noms : `alternatesLangues`
+    // reste la fabrique des seuls `hreflang`, et rien n'interdit qu'une page la reprenne.
     const { readFileSync } = await import('node:fs');
-    const appels = [
-      'src/app/[locale]/(public)/page.tsx',
-      'src/app/[locale]/(public)/properties/(liste)/page.tsx',
-      'src/app/[locale]/(public)/properties/[slug]/page.tsx',
-      'src/app/[locale]/(public)/agencies/[slug]/page.tsx',
-      'src/app/[locale]/(public)/agents/[slug]/page.tsx',
-    ].flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/alternatesLangues\(([`'"])([^`'"]*)\1\)/g)]);
+    const FABRIQUE = /alternates(?:Langues|Publiques)\(\s*([`'"])([^`'"]*)\1/g;
+    const sources = PAGES_PUBLIQUES.map((f) => [f, readFileSync(f, 'utf8')] as const);
 
-    expect(appels.length).toBe(5);
+    // Toutes déclarent des alternatives — sans ce compte, une page qui perdrait son appel
+    // laisserait la boucle ci-dessous verte sur zéro occurrence.
+    for (const [fichier, source] of sources) {
+      expect(source.includes('alternatesPubliques('), fichier).toBe(true);
+    }
+
+    const appels = sources.flatMap(([, source]) => [...source.matchAll(FABRIQUE)]);
+
+    // Quatre littéraux sur cinq pages : `/properties` passe un chemin CALCULÉ
+    // (`cheminCanoniqueDeLaListe`), que ce scan ne peut pas lire. Il est éprouvé pour ce qu'il
+    // rend, dans `src/app/[locale]/(public)/properties/(liste)/__tests__/metadata.test.ts`.
+    expect(appels.length).toBe(4);
     for (const [, , chemin] of appels) {
       expect(chemin!.startsWith('/'), chemin).toBe(true);
       expect(estCheminLocalisable(chemin!.replace(/\$\{[^}]*\}/g, 'x')), chemin).toBe(true);

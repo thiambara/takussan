@@ -98,4 +98,77 @@ qui doit dire ce que la page montre plutôt que rester générique.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit dans ce ticket
+
+Le ticket a été écrit **avant** TCK-434.
+
+1. **« aucune occurrence de `metadataBase`, `alternates` ou `canonical` ».** Faux pour
+   `alternates` : TCK-434 en a posé sur **cinq** pages publiques (accueil, liste, fiche, agence,
+   agent) — des `hreflang`, en URL absolues. `metadataBase` et `canonical`, eux, étaient bien
+   absents. La conséquence pratique est que la canonique ne s'ajoute pas *à côté* des `hreflang` :
+   les deux doivent se dériver du **même** chemin, sinon ils se contredisent et Google ignore le
+   groupe entier. D'où `alternatesPubliques(chemin, locale)`, un seul point qui rend les deux.
+
+2. **Toute canonique doit porter un PRÉFIXE DE LANGUE.** Il n'existe plus aucune URL publique sans
+   préfixe : `/properties/x` rend 307. Une canonique non préfixée désignerait donc une redirection
+   comme version de référence.
+
+3. **`metadataBase` ne dispense PAS les `hreflang` d'être absolus** — et les repasser en relatif
+   « pour en profiter » serait une régression : sans `metadataBase`, Next replie **en silence** sur
+   `http://localhost:3000`. C'est écrit dans le docblock de `src/lib/alternates.ts`.
+
+### La règle de canonicité, et pourquoi celle-là
+
+Trois clés gardent leur URL indexable — `contract_type`, `type`, `city` — sur un critère unique :
+**leur ensemble de valeurs est fini et énumérable** (2, 16, les villes du catalogue), elles nomment
+une intention de recherche, et elles ont déjà un libellé traduit. Les dix-sept autres filtres se
+replient sur la page nue.
+
+**`page`, `sort` et `per_page` se replient aussi**, ce qui est le point le plus discutable et
+mérite d'être relu :
+
+- la liste est rendue **côté client** (`PropertiesDiscoveryPage` lit `useSearchParams`) : un
+  explorateur reçoit la même coque HTML sur `?page=1` et sur `?page=42`. Les déclarer distinctes
+  affirmerait une différence que le document servi ne porte pas ;
+- **aucune fiche n'en dépend pour être découverte** depuis TCK-431 : `/sitemap.xml` liste chaque
+  bien publié, dans les trois langues.
+
+⚠ **TCK-432 fera tomber la première de ces deux raisons.** La décision doit être reprise le jour où
+la liste passera en rendu serveur. C'est écrit dans `src/lib/canonique.ts`, à l'endroit qui applique
+la règle.
+
+`CLES_ECARTEES` est **dérivée** de `CLES_DE_RECHERCHE` moins les retenues, et un test vérifie que la
+partition couvre les 23 clés : une clé ajoutée à `SEARCH_FILTER_KEYS` sans décision de canonicité
+fait rougir.
+
+### Décisions non évidentes
+
+- **`metadataBase` est posé à la RACINE** (`src/app/layout.tsx`), pas sous `[locale]/(public)` :
+  la `metadata` d'un layout imbriqué ne couvre que ses descendants, et la console, `/auth` et
+  `/onboarding` en resteraient privés.
+
+- **Le titre est composé de DEUX gabarits ICU** (`titleContract`, `titleCity`) et non concaténé :
+  chaque langue décide de son ordre et de sa préposition. Une concaténation
+  `${type} ${contrat} à ${ville}` aurait figé la syntaxe française dans les trois.
+
+- **Le test de titre emploie `createTranslator` de next-intl, pas un double.** Le double naïf
+  employé ailleurs dans ce dépôt (`gabarit.replace(/\{(\w+)\}/g, …)`) ne comprend pas `select` :
+  il rendrait le gabarit brut et le test serait vert sur un titre illisible.
+
+- **AC4 est éprouvé avec le résolveur de Next lui-même**
+  (`next/dist/lib/metadata/resolvers/resolve-url`), sur une image **relative**, et l'ablation est
+  écrite dans le test : la même image sans `metadataBase` ne devient pas absolue. Réimplémenter
+  `new URL(a, b)` aurait donné un test vert quel que soit le comportement réel du framework.
+
+### Vérification de bout en bout
+
+`next start`, HTML servi :
+
+```
+/fr/properties?type=villa&page=3&sort=-created_at&per_page=48
+  <title>Villa — Takussan</title>
+  <link rel="canonical" href="https://www.takussan.com/fr/properties?type=villa"/>
+  4 × <link rel="alternate" hrefLang=…> vers la MÊME canonique, par langue
+/en/properties?city=Dakar   → <title>Properties in Dakar — Takussan</title>
+/wo/playground              → <meta name="robots" content="noindex, nofollow"/>
+```

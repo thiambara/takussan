@@ -283,6 +283,12 @@
       "title": "Search properties",
       "description": "Find apartments, villas, land, offices and more in Senegal. Filter by price, type, location and surface, visualize listings on an interactive map."
     },
+    "propertiesFiltered": {
+      "titleContract": "{contract, select, rent {{subject} for rent} sale {{subject} for sale} other {{subject}}}",
+      "titleCity": "{subject} in {city}",
+      "subjectAny": "Properties",
+      "description": "{title} on Takussan: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood."
+    },
     "compare": {
       "title": "Compare properties",
       "description": "Compare up to 4 properties side by side: price, surface, rooms, amenities and location."

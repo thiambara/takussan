@@ -14,7 +14,8 @@ import {
   type PublicReview,
 } from '@/components/public/profile/ReviewsSection';
 import type { PropertyListItem } from '@/types/property';
-import { alternatesLangues } from '@/lib/alternates';
+import { alternatesPubliques } from '@/lib/alternates';
+import { isLocale } from '@/i18n/config';
 
 interface AgentStats {
   rent_count: number;
@@ -68,6 +69,8 @@ async function loadAgent(slug: string): Promise<AgentDto | null> {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  const brut = await getLocale();
+  const locale = isLocale(brut) ? brut : 'fr';
   const t = await getTranslations('agents.publicPage');
   const agent = await loadAgent(slug);
   if (!agent) {
@@ -80,7 +83,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description: agent.bio ?? summary,
-    alternates: alternatesLangues(`/agents/${slug}`),
+    // Canonique + hreflang, dérivés du même chemin (TCK-433). Un profil public n'a pas de
+    // variante d'URL à replier ; sans canonique explicite, Next n'en émet simplement aucune.
+    alternates: alternatesPubliques(`/agents/${slug}`, locale),
     openGraph: {
       title,
       description: agent.bio ?? summary,
