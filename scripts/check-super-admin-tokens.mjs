@@ -193,11 +193,38 @@
  *        porte légitimement ses hexadécimaux, et les refuser ferait de cette garde une garde
  *        qu'on contourne. Mesuré le 2026-08-27 : **zéro `.svg` sous `takussan-web/src`** (les
  *        cinq du dépôt sont dans `public/`, hors de tout périmètre). Le trou est réel et vide.
+ *   T9 · **Une DÉCLARATION CSS ordinaire, dans un fichier `.css` d'un répertoire gardé.** Les
+ *        contrôles A/B/C cherchent une classe, D et F un crochet, E un `=` : aucun ne voit
+ *        `background-color: #f5f5f4;` écrit dans une feuille. Signalé par la revue adverse de
+ *        TCK-384. **Le trou est réel et VIDE, mesuré le 2026-08-27 : zéro fichier `.css` sous
+ *        un périmètre gardé** — les deux du dépôt sont `src/app/globals.css`, contrôlé à part
+ *        (cf. {@link JETONS}) et hors de tout périmètre, et `src/app/(public)/playground/
+ *        playground.css`, hors périmètre lui aussi. Non fermé : un contrôle de déclaration ne
+ *        peut pas s'appliquer aux `.tsx` sans faux positifs (une prose de docblock y écrit
+ *        légitimement `--warning: #8a5410`), et le restreindre aux `.css` demanderait à
+ *        {@link analyser} de connaître le type des fichiers — un mécanisme neuf pour un
+ *        ensemble vide. Même statut que T8, et même raison de l'écrire : il vaut mieux
+ *        déclaré que redécouvert.
  *
  * **Les commentaires ne sont pas retirés avant analyse**, délibérément et pour la même raison
  * que `check-app-tokens.mjs` : un docblock qui montre `bg-stone-100` est exactement la
  * documentation périmée qui fait repousser le motif. Le récit d'une migration s'écrit en toutes
  * lettres (« pierre 100 »), pas en classes copiables.
+ *
+ * ⚠⚠ **ET `scripts/check-chart-contrast.mjs` FAIT L'INVERSE, exprès.** Elle DÉPOUILLE les
+ * commentaires avant d'analyser (`sansCommentaires`), parce que l'en-tête de
+ * `charts/palette.ts` cite la forme qu'elle interdit et qu'une garde qui rougit sur la
+ * documentation de sa propre règle se fait désarmer avant d'avoir servi. Deux gardes du même
+ * dépôt, politique opposée sur le même point, chacune pour une bonne raison :
+ *
+ *     ici (vocabulaire)   un commentaire qui MONTRE une classe brute est un presse-papier
+ *                         → il est LU, et le récit s'écrit en toutes lettres.
+ *     là (contraste)      un commentaire qui CITE le jeton qu'il interdit est de la pédagogie
+ *                         → il est DÉPOUILLÉ, et seul le code est mesuré.
+ *
+ * *Un relecteur qui sonde l'une avec le réflexe de l'autre rapportera un trou qui n'existe
+ * pas* — c'est arrivé à la revue adverse de TCK-404, le 2026-08-27, sur le cliquet de la garde
+ * de contraste. Les deux en-têtes portent désormais ce paragraphe.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * T2 — LE PÉRIMÈTRE N'EST PAS L'ÉCRAN, et c'est le défaut de TCK-245 d'un cran plus haut
@@ -511,7 +538,12 @@ function construireControles({
    * précisément ce que le contrôle D existe pour empêcher.
    */
   const D_MOTIFS = [
-    '#[0-9a-fA-F]{3,8}',
+    // ⚠ `(?<!url\()` : `url(#degrade-lin)` n'est pas une couleur, c'est une RÉFÉRENCE — et un
+    // identifiant fait de caractères hexadécimaux (`#f00ba7`) lui ressemble à s'y méprendre. Le
+    // contrôle E connaissait déjà ce faux positif et le fermait par un `(?!url\()` en tête de
+    // chaîne ; les contrôles D et F, eux, lisent le MILIEU d'une valeur, où ce garde-là ne peut
+    // pas se poser. Le regard arrière le remplace, et il sert les trois d'un coup.
+    '(?<!url\\()#[0-9a-fA-F]{3,8}',
     '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\(',
     `(?<![a-zA-Z0-9-])(?:${couleurs.join('|')})(?![a-zA-Z0-9-])`,
   ];
@@ -543,12 +575,45 @@ function construireControles({
     'g',
   );
 
+  /**
+   * F · la PROPRIÉTÉ ARBITRAIRE porteuse d'une couleur littérale : `[background-color:#f5f5f4]`,
+   * `[color:red]`, `[fill:#a85332]`, `[--pastille:#a85332]`, `hover:[color:red]`.
+   *
+   * ⚠ **Ce contrôle est né d'un refus, pas d'une prévoyance** — revue adverse de TCK-384, le
+   * 2026-08-27. Le contrôle D exige un PRÉFIXE (`bg-[`, `text-[`, `shadow-[`) ; Tailwind v4
+   * accepte une seconde syntaxe qui n'en a aucun, où la propriété CSS s'écrit DANS les crochets.
+   * Douze formes ont été déposées une à une dans un fichier du périmètre gardé : **les douze
+   * sortaient en 0.** Et elles compilent — vérifié avec le Tailwind 4.2.2 du projet :
+   * `[background-color:#f5f5f4]` rend `.[background-color\:\#f5f5f4]{background-color:#f5f5f4}`.
+   *
+   * **Le cas qui fait le plus mal est `[fill:#a85332]`** : c'est très exactement ce que le
+   * contrôle E venait d'être ajouté pour attraper, écrit en CLASSE au lieu d'un attribut. Deux
+   * syntaxes frères, une seule gardée.
+   *
+   * ⚠ Ce n'est PAS le trou T1. Un style inline est un objet JS ; ceci est du TEXTE, attrapable
+   * exactement comme D. *Un en-tête qui énumère ses trous et en oublie un fait croire à
+   * l'exhaustivité — il est pire qu'un en-tête muet.*
+   *
+   * Ce qu'il ne refuse PAS, et qui est vérifié par `EPREUVE` : `supports-[display:grid]` (une
+   * propriété sans couleur), `[&>svg]:size-3` (un sélecteur, sans `:` dans les crochets),
+   * `max-w-[calc(100%-2rem)]`, `[--pastille:var(--chart-1)]` (une lecture de jeton),
+   * `[transition:color_120ms_ease]` — et la raison de ce dernier n'est PAS celle qu'on croit :
+   * `color` n'est pas dans {@link COULEURS_CSS}, parce que ce n'est pas une couleur nommée de
+   * CSS. Ce n'est donc pas une frontière de mot qui le sauve, c'est la liste. La forme est dans
+   * `EPREUVE` pour que ce résultat soit fixé plutôt que supposé.
+   */
+  const PROPRIETE = new RegExp(
+    `\\[(?:--)?[a-zA-Z][a-zA-Z0-9-]*\\s*:[^\\]]*(?:${D_MOTIFS.join('|')})[^\\]]*\\]`,
+    'g',
+  );
+
   return [
     ['A', 'échelle Tailwind brute (bg-stone-100, text-amber-700…)', ECHELLE],
     ['B', 'couleur nommée en dur (bg-white, text-black…)', NOMMEES],
     ['C', 'dialecte app-* (éteint par TCK-372)', APP_DIALECTE],
     ['D', 'couleur littérale en valeur arbitraire (bg-[#f5f5f4], bg-[rgb(…)], text-[red]…)', ARBITRAIRE],
     ['E', 'couleur littérale en attribut de présentation (fill="#a85332", stroke="red"…)', ATTRIBUT],
+    ['F', 'couleur littérale en propriété arbitraire ([background-color:#f5f5f4], [color:red]…)', PROPRIETE],
   ];
 }
 
@@ -768,6 +833,41 @@ const EPREUVE = [
   //     CSS noyée dans un `color-mix` — les deux formes les plus proches d'un faux négatif du
   //     contrôle D, l'une par sa brièveté, l'autre par le conteneur qui l'enveloppe.
   ['to-[#0f0]', true], ['bg-[color-mix(in_srgb,rebeccapurple_50%,transparent)]', true],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // L · LA PROPRIÉTÉ ARBITRAIRE — le contrôle F, né du REFUS de TCK-384 par la revue adverse.
+  //
+  // ⚠ Les quatorze premières SORTAIENT TOUTES EN 0 avant le 2026-08-27, dans un fichier du
+  // périmètre gardé, et elles compilent : Tailwind v4 accepte une syntaxe où la propriété CSS
+  // s'écrit DANS les crochets, sans préfixe — celui que le contrôle D exige. Vérifié avec le
+  // Tailwind 4.2.2 du projet : `[background-color:#f5f5f4]` rend une vraie règle.
+  //
+  // `[fill:#a85332]` est le cas qui fait le plus mal : c'est exactement ce que le contrôle E
+  // venait d'être ajouté pour attraper, écrit en classe plutôt qu'en attribut.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['[background-color:#f5f5f4]', true], ['[color:red]', true],
+  ['[border-color:oklch(0.7_0.2_30)]', true], ['[box-shadow:0_0_0_1px_#a85332]', true],
+  ['[background:linear-gradient(#000,#fff)]', true], ['[fill:#a85332]', true],
+  ['[--pastille:#a85332]', true], ['hover:[color:red]', true],
+  ['dark:[background-color:#000]', true], ['[stroke:rebeccapurple]', true],
+  ['[outline-color:#fff]', true], ['[caret-color:hsl(12_55%_43%)]', true],
+  ['[accent-color:rgb(1,2,3)]', true], ['md:[--voile:#0003]', true],
+
+  // …et la moitié qui décide si le contrôle F sera contourné : une propriété arbitraire SANS
+  // couleur, un sélecteur entre crochets, une lecture de jeton, une référence de dégradé.
+  ['supports-[display:grid]', false], ['[&>svg]:size-3', false], ['[&_a]:underline', false],
+  ['max-w-[calc(100%-2rem)]', false], ['grid-cols-[repeat(3,minmax(0,1fr))]', false],
+  ['[--pastille:var(--chart-1)]', false], ['[grid-template-columns:1fr_auto]', false],
+  ['data-[state=open]:bg-muted', false], ['[font-feature-settings:"tnum"]', false],
+  // ⚠ `color` n'est pas une couleur NOMMÉE de CSS — il n'est pas dans `COULEURS_CSS`. Ce n'est
+  //   donc pas une frontière de mot qui sauve cette forme, c'est la liste. Fixé ici plutôt que
+  //   supposé.
+  ['[transition:color_120ms_ease]', false],
+  // ⚠ `url(#degrade-lin)` est une RÉFÉRENCE, pas une couleur — et un identifiant hexadécimal
+  //   (`url(#f00ba7)`) lui ressemble à s'y méprendre. C'est le regard arrière `(?<!url\()` du
+  //   premier motif de `D_MOTIFS` qui les sauve, et il sert D, E et F d'un coup.
+  ['[background:url(#degrade-lin)]', false], ['[background-image:url(/fond.svg)]', false],
+  ['bg-[url(#f00ba7)]', false],
 
   // K · LE JETON DE VOILE, créé par TCK-384 — il ne doit PAS rougir, sinon la substitution que la
   //     garde exige se ferait refuser par elle. Même rôle que le bloc M4 pour TCK-381.
@@ -1758,5 +1858,6 @@ console.log('  n\'est décidée en dehors de `globals.css` — fichier qu\'elle 
 console.log('  2026-08-27 : elle l\'affirmait sans le lire. Trous déclarés, en tête de fichier :');
 console.log('  T1 style inline et expression JSX, T2 périmètre (ci-dessus, sous cliquet),');
 console.log('  T3 justesse du rendu, T4 listes énumérées, T5 racine de clôture, T6 réécriture');
-console.log('  de la garde, T7 noms CSS non ablatés un à un, T8 fichiers .svg. Détail : --report.');
+console.log('  de la garde, T7 noms CSS non ablatés un à un, T8 fichiers .svg,');
+console.log('  T9 déclaration CSS ordinaire dans un .css gardé. Détail : --report.');
 process.exit(0);

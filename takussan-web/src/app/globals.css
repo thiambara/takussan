@@ -287,8 +287,19 @@
  *
  * ⚠ La dérogation porte sur le JETON, pas sur la couleur : un utilitaire de fond noir littéral
  * reste refusé par `scripts/check-super-admin-tokens.mjs` (contrôle B) partout dans les
- * périmètres gardés, à toutes les opacités — seul `bg-scrim/*` passe, parce qu'il LIT une valeur
- * décidée ici. Vérifié par mutation le 2026-08-27, dans les deux sens.
+ * périmètres gardés, à toutes les opacités — seul `bg-scrim/*` passe. Vérifié par mutation le
+ * 2026-08-27, dans les deux sens.
+ *
+ * ⚠⚠ **Mais il ne passe PAS parce que la garde reconnaîtrait le jeton — elle ne connaît aucun
+ * jeton.** Elle refuse une liste FERMÉE de formes (les 22 familles Tailwind, `white`, `black`,
+ * les couleurs littérales) et laisse passer tout le reste : mesuré le 2026-08-27,
+ * `bg-jeton-qui-nexiste-pas`, `border-zzz` et `text-inventé` passent tous les six contrôles, et
+ * rendent transparent à l'exécution. `bg-scrim/30` est admis par la même porte qu'eux.
+ *
+ * La formulation « la garde sait qu'un jeton est déclaré, pas quels utilitaires il a le droit de
+ * prendre » a vécu une journée ici et elle était FAUSSE dans le sens flatteur — corrigée à la
+ * revue adverse de TCK-384. *Décrire une garde comme plus savante qu'elle n'est, c'est fabriquer
+ * la confiance qu'elle ne mérite pas.*
  *
  * ⚠⚠ Ce paragraphe a fait ROUGIR la garde en écrivant la classe noire en toutes lettres, et
  * c'est la meilleure preuve qu'il pouvait donner : le contrôle B lit `globals.css` comme le

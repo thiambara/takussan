@@ -19,9 +19,15 @@ export interface FormSuccessProps {
  *
  * Contraste mesuré (WCAG 2.1, 2026-08-27) :
  *
- *   avant   vert 700 #008236 sur vert 50 #f0fdf4 ............ 4,72:1
- *   après   --success #3f6b45 sur success/5 sur --card ...... 5,78:1   (AA texte normal)
- *   après   --success #8fbf87 sur success/10 sur --card sombre .. 6,26:1
+ *   avant   vert 700 #008236 sur vert 50 #f0fdf4 ............... 4,72:1
+ *   après   --success #3f6b45 sur success/5 sur --card ......... 5,78:1   (AA texte normal)
+ *   après   --success #8fbf87 sur success/5 sur --card sombre ... 6,91:1
+ *
+ * ⚠ La dernière ligne a écrit « success/10 … 6,26:1 » pendant une journée — la mauvaise
+ * OPACITÉ, donc le mauvais ratio, sur la bonne couleur. La classe rendue est `bg-success/5`.
+ * Même erreur exactement que celle de `FormError`, commise dans le même geste. *Un chiffre
+ * annoncé plus bas que la réalité reste un chiffre faux* : c'est sur lui qu'on resserre un
+ * seuil. (Revue adverse de TCK-384, 2026-08-27.)
  *
  * Le `-50` ne se retournait pas sous `.dark` : `#f0fdf4` y restait `#f0fdf4`, avec du vert 700
  * par-dessus sur une page sombre. Un aplat à canal alpha se pose sur `--card` et suit le thème

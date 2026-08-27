@@ -53,7 +53,12 @@ export interface FormGlobalErrorProps {
  * Les deux encres sont le MÊME hexadécimal — `--destructive` vaut `oklch(0.577 0.245 27.325)`,
  * qui est exactement la définition de rouge 600 en Tailwind v4. Le gain n'est donc pas le
  * contraste en clair : c'est le thème SOMBRE, où `#fef2f2` restait `#fef2f2` sous `.dark`
- * pendant que `--destructive` bascule (4,78:1 sur `--card` sombre).
+ * pendant que `--destructive` bascule — **5,16:1 sur `--card` sombre**.
+ *
+ * ⚠ Ce docblock a écrit **4,78:1** pendant une journée, et l'erreur mérite d'être nommée : c'est
+ * le ratio de `destructive/10`, pas celui de `destructive/5` que ce bandeau rend. J'avais mesuré
+ * la bonne couleur sur la mauvaise opacité. *Se tromper dans le sens PRUDENT reste se tromper* —
+ * quelqu'un resserre un seuil sur ces nombres-là. (Revue adverse de TCK-384, 2026-08-27.)
  *
  * ⚠ Ni l'un ni l'autre n'atteint les 4,5:1 d'AA pour du texte normal. C'est un CONSTAT, pas un
  * correctif de ce ticket : le porter demanderait de changer la valeur de `--destructive`, qui

@@ -215,15 +215,55 @@ sens**, sur un fichier du périmètre gardé :
 | encre noire littérale, anneau noir littéral, fond blanc à 20 % | **refusé** (3 formes) |
 | `bg-scrim/10`, `bg-scrim/30`, `bg-scrim/55` | accepté |
 
-⚠ **Trou résiduel, mesuré et NON fermé** : `text-scrim` et `ring-scrim/20` sont acceptés eux
-aussi. La garde ne connaît pas la sémantique d'un jeton — elle sait qu'il est déclaré dans
-`globals.css`, pas quels utilitaires il a le droit de prendre (même limite que `text-card` ou
-`bg-muted-foreground`). Fermer ça demanderait à la garde de porter une table jeton → utilitaires
-admis, ce qui est un mécanisme neuf, pas un réglage.
+⚠ **Trou résiduel, mesuré et NON fermé — et ma première description en était trop flatteuse.**
+`text-scrim` et `ring-scrim/20` passent eux aussi. J'avais écrit « la garde sait qu'un jeton est
+déclaré dans `globals.css`, pas quels utilitaires il a le droit de prendre » : **elle ne sait
+RIEN des jetons.** Mesuré à la revue adverse — `bg-jeton-qui-nexiste-pas`, `border-zzz` et
+`text-inventé` passent les six contrôles et rendent transparent à l'exécution. La garde refuse une
+liste FERMÉE de formes et laisse passer tout le reste ; `bg-scrim/30` entre par la même porte que
+`border-zzz`. Le trou est donc bien plus large que « quels utilitaires un jeton peut prendre » :
+c'est « aucune vérification qu'un utilitaire de couleur désigne quelque chose ». *Décrire une
+garde comme plus savante qu'elle n'est, c'est fabriquer la confiance qu'elle ne mérite pas.*
 
 ⚠ **La garde a fait rougir le docblock que j'écrivais pour la documenter**, parce qu'il citait la
 classe noire en toutes lettres — le contrôle B lit `globals.css`, commentaires compris. C'est la
 meilleure preuve que la dérogation est étroite, et la classe y est décrite plutôt que citée.
+
+**REFUS DE LA REVUE ADVERSE, ET LE TROU QU'IL A OUVERT (2026-08-27).**
+
+Le lot a été REFUSÉ sur un trou de garde, reproduit puis fermé. **Toute PROPRIÉTÉ ARBITRAIRE
+Tailwind v4 portant une couleur littérale traversait la garde** dans un fichier du périmètre
+gardé — `[background-color:#f5f5f4]`, `[color:red]`, `[fill:#a85332]`, `[--pastille:#a85332]`,
+sous `hover:` et `dark:` compris. Le contrôle D exige un PRÉFIXE (`bg-[`, `text-[`) ; cette
+seconde syntaxe de Tailwind n'en a aucun.
+
+Reproduit avant de corriger : **12 formes déposées une à une, 12 fois exit 0**, dont deux de mon
+invention que la revue n'avait pas listées (`[outline-color:#fff]`, `[caret-color:hsl(…)]`). Et
+elles compilent — vérifié avec le Tailwind 4.2.2 du projet.
+
+**`[fill:#a85332]` est le cas qui fait le plus mal** : c'est exactement ce que le contrôle E
+venait d'être ajouté pour attraper, écrit en classe plutôt qu'en attribut. Deux syntaxes frères,
+une seule gardée — et mon lot ÉTENDAIT cette garde à quatre répertoires en annonçant « 0 classe
+de couleur hors jetons sur 130 fichiers gardés ».
+
+Fermé par un **contrôle F**, plus un regard arrière `(?<!url\()` sur le motif hexadécimal qui
+sert D, E et F d'un coup (`url(#degrade-lin)` est une référence, pas une couleur). Éprouvé dans
+les deux sens : **14 formes attrapées, 13 ignorées** — dont `supports-[display:grid]`,
+`[&>svg]:size-3`, `[--pastille:var(--chart-1)]`, `[transition:color_120ms_ease]` et
+`[background:url(#degrade-lin)]`. Les 27 sont dans `EPREUVE`. Zéro faux positif sur les 404
+fichiers gardés.
+
+**Un trou de plus est DÉCLARÉ plutôt que fermé, T9** : une déclaration CSS ordinaire
+(`background-color: #f5f5f4;`) dans un fichier `.css` d'un répertoire gardé n'est vue par aucun
+contrôle. Réel et VIDE — mesuré : zéro `.css` sous un périmètre gardé, les deux du dépôt étant
+`globals.css` (contrôlé à part) et `playground.css` (hors périmètre). Le fermer demanderait à
+`analyser()` de connaître le type des fichiers, un mécanisme neuf pour un ensemble vide.
+
+**Et deux chiffres de docblock étaient FAUX**, tous deux annoncés plus bas que la réalité :
+`FormError` sur `--card` sombre valait **5,16:1** et non 4,78, `FormSuccess` **6,91:1** et non
+6,26 — dans les deux cas j'avais mesuré la bonne couleur sur la MAUVAISE OPACITÉ (`/10` pour une
+classe en `/5`), et le second docblock nommait même « success/10 ». *Se tromper dans le sens
+prudent reste se tromper : c'est sur ces nombres-là qu'on resserre un seuil.*
 
 L'en-tête de `scripts/check-super-admin-tokens.mjs` porte le raisonnement complet : pourquoi le
 périmètre n'est pas l'écran, pourquoi la clôture d'import se trompe toujours du côté prudent, et
