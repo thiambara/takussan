@@ -23,6 +23,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | 🏠 | Locataire / Acheteur (Customer) |
 | 🏢 | Bailleur / Propriétaire (owner) |
 | 🧑‍💼 | Agent immobilier |
+| 🔧 | Prestataire de service (service provider) |
 | 🛡️ | Admin d'agence / Super-admin |
 
 | Code | Signification |
@@ -40,9 +41,9 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 45 fonctionnalités
 3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 38 fonctionnalités
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 68 fonctionnalités
-5. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 63 fonctionnalités
-6. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 55 fonctionnalités
-7. [⚠️ 🔧 — acteur non déclaré dans la légende de `features.md`](#acteur-non-déclaré-dans-la-légende-de-featuresmd) — 1 fonctionnalité
+5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 4 fonctionnalités
+6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 63 fonctionnalités
+7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 55 fonctionnalités
 
 ---
 
@@ -248,7 +249,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §1.8 | Consulter l'historique des interventions par bien |
-| P2 | §1.8 | Demande de devis et validation avant travaux |
+| P2 | §1.8 | Demande de devis et validation avant travaux — le donneur d'ordre demande, approuve ou refuse ; le prestataire assigné est seul à soumettre le devis |
 
 ### §1.9 État des lieux & inventaires
 
@@ -363,7 +364,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.8 | Assigner un prestataire (service provider) |
 | P1 | §1.8 | Suivi des statuts (nouveau, en cours, résolu, annulé) |
 | P1 | §1.8 | Ajouter photos et rapport après intervention |
-| P2 | §1.8 | Demande de devis et validation avant travaux |
+| P2 | §1.8 | Demande de devis et validation avant travaux — le donneur d'ordre demande, approuve ou refuse ; le prestataire assigné est seul à soumettre le devis |
 | P2 | §1.8 | Priorisation des demandes (urgent, normal, bas) |
 | P3 | §1.8 | Contrats de maintenance récurrents |
 
@@ -408,6 +409,24 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | Prio | Domaine | Fonctionnalité |
 |------|---------|----------------|
 | P1 | §2.5 | Dashboard agent (pipeline, commissions, tâches) |
+
+---
+
+## 🔧 Prestataire de service (service provider)
+
+### §1.8 Maintenance & interventions
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §1.8 | Suivi des statuts (nouveau, en cours, résolu, annulé) |
+| P1 | §1.8 | Ajouter photos et rapport après intervention |
+| P2 | §1.8 | Demande de devis et validation avant travaux — le donneur d'ordre demande, approuve ou refuse ; le prestataire assigné est seul à soumettre le devis |
+
+### §2.1 Authentification & comptes
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §2.1 | Wizard onboarding Service Provider post-acceptation invitation — vérification téléphone OTP, KYC (pièce d'identité, métiers multi-select, zones, tarifs indicatifs, assurance RC pro optionnelle valorisée), disponibilités hebdomadaires, accès direct à la 1ère intervention si invitation déclenchée par une demande active. Multi-rattachement à plusieurs agences via plusieurs `ServiceProviderAgencyCollaboration` sans dupliquer le compte. |
 
 ---
 
@@ -619,24 +638,10 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ---
 
-## ⚠️ 🔧 — acteur non déclaré dans la légende de `features.md`
-
-> Ce jeton apparaît dans la colonne « Acteurs » de `features.md` sans figurer dans son tableau `### Acteurs`. Le générateur le remonte plutôt que de le taire : c'est un défaut de la source, pas de la vue.
-
-### §2.1 Authentification & comptes
-
-| Prio | Domaine | Fonctionnalité |
-|------|---------|----------------|
-| P1 | §2.1 | Wizard onboarding Service Provider post-acceptation invitation — vérification téléphone OTP, KYC (pièce d'identité, métiers multi-select, zones, tarifs indicatifs, assurance RC pro optionnelle valorisée), disponibilités hebdomadaires, accès direct à la 1ère intervention si invitation déclenchée par une demande active. Multi-rattachement à plusieurs agences via plusieurs `ServiceProviderAgencyCollaboration` sans dupliquer le compte. |
-
----
-
 ## Provenance
 
 - Source : [`features.md`](./features.md) — **233** lignes de fonctionnalité lues,
-  réparties en **283** placements (une ligne multi-acteurs compte une fois par acteur).
+  réparties en **286** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.
-
-> ⚠️ 1 jeton(s) de la colonne « Acteurs » ne figurent pas dans la légende de `features.md` : 🔧. À corriger dans la source.
