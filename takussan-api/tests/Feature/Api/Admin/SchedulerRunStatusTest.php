@@ -4,6 +4,8 @@ namespace Tests\Feature\Api\Admin;
 
 use App\Models\Enums\ScheduledTaskRunStatus;
 use App\Models\ScheduledTaskRun;
+use App\Services\Admin\ScheduledRunRecorder;
+use Illuminate\Console\Events\ScheduledBackgroundTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Console\Events\ScheduledTaskSkipped;
@@ -144,9 +146,14 @@ class SchedulerRunStatusTest extends TestCase
     /**
      * Une tâche DÉTACHÉE n'a pas encore de code de sortie — et « pas encore » n'est pas « a réussi ».
      *
-     * C'est le seul cas que le seul écouteur d'échec ne rattrape pas : le framework ne lève rien sur
-     * une tâche `runInBackground()`, donc `ScheduledTaskFailed` ne passe jamais. Sans la branche
+     * C'est le seul cas que l'écouteur d'échec ne rattrape pas : le framework ne lève rien sur une
+     * tâche `runInBackground()`, donc `ScheduledTaskFailed` ne passe jamais. Sans la branche
      * `exitCode === null`, une tâche dont personne n'a vu la fin s'afficherait `finished`.
+     *
+     * ⚠ **Ce test dispatche l'événement À LA MAIN, et c'est un aveu, pas une commodité.** Aucune des
+     * 22 tâches planifiées n'utilise `runInBackground()` (mesuré) : il n'existe aujourd'hui AUCUN
+     * chemin réel vers cette branche. Ce qui est éprouvé ici est la branche, pas son déclenchement —
+     * et le test suivant garde la condition qui rend cet aveu périmé.
      */
     public function test_a_task_with_no_exit_code_yet_is_not_recorded_as_finished(): void
     {
@@ -162,11 +169,68 @@ class SchedulerRunStatusTest extends TestCase
     }
 
     /**
+     * Le statut `running` est une IMPASSE : rien ne le résout, et ce test le dit.
+     *
+     * `schedule:finish` dispatche `ScheduledBackgroundTaskFinished` — un événement DIFFÉRENT de
+     * `ScheduledTaskFinished` —, et ce dépôt n'a aucun écouteur pour lui. Une ligne posée à
+     * `running` y resterait pour toujours, et l'écran afficherait une tâche perpétuellement « en
+     * cours ».
+     *
+     * Aujourd'hui la condition n'est atteinte par personne : `runInBackground` = 0 sur 22 tâches.
+     * Ce test rougit le jour où quelqu'un ajoute la première — au moment exact où il faut lire le
+     * docblock de `ScheduledTaskRunStatus::Running` plutôt que dix commits plus tard.
+     *
+     * *Un commentaire qui décrit une dette ne la garde pas ; un test qui rougit sur sa condition,
+     * oui.*
+     */
+    public function test_a_background_task_would_leave_its_run_stuck_in_running(): void
+    {
+        $this->app->make(Kernel::class)->bootstrap();
+        $reel = $this->app->make(Schedule::class);
+
+        $enArrierePlan = collect($reel->events())
+            ->filter(fn ($tache) => $tache->runInBackground)
+            ->map(fn ($tache) => ScheduledRunRecorder::nomDe($tache))
+            ->values()
+            ->all();
+
+        if ($enArrierePlan === []) {
+            // L'état mesuré : aucune tâche détachée, donc la branche `running` est inatteignable.
+            $this->assertSame([], $enArrierePlan);
+
+            return;
+        }
+
+        $this->assertNotEmpty(
+            Event::getListeners(ScheduledBackgroundTaskFinished::class),
+            sprintf(
+                'Ces tâches tournent en arrière-plan : %s. Leur exécution est enregistrée `running` '
+                .'et RIEN ne la résout — `schedule:finish` dispatche `ScheduledBackgroundTaskFinished`, '
+                ."qui n'a aucun écouteur ici. Poser cet écouteur : il doit retrouver la dernière ligne "
+                .'`running` de la tâche et la fermer sur `exitCode`. La déduplication par '
+                .'`spl_object_id` du recorder ne peut PAS servir — autre processus, objet `Event` '
+                .'reconstruit par son mutex.',
+                implode(', ', $enArrierePlan),
+            ),
+        );
+    }
+
+    /**
      * Un écouteur enregistré DEUX fois écrit deux lignes pour une exécution.
      *
      * `app/Listeners` est découvert automatiquement (`Application::configure()` appelle
      * `withEvents()`), et un `Event::listen()` explicite s'y ajoute au lieu de s'y substituer. Mesuré
      * le 2026-08-27 sur `dev` : 2 écouteurs par événement, 2 lignes pour une seule tâche planifiée.
+     *
+     * ⚠⚠ **C'est le SEUL test du dépôt qui attrape le doublon, et ce n'est pas une supposition :
+     * mesuré par ablation.** Remettre le `Event::listen()` explicite ne fait rougir que celui-ci —
+     * l'assertion de compte de `test_a_failing_scheduled_task…` reste VERTE, parce que la
+     * déduplication par `spl_object_id` de `ScheduledRunRecorder` absorbe le double enregistrement
+     * et n'écrit qu'une ligne quand même.
+     *
+     * Autrement dit : le recorder rend le doublon INVISIBLE dans les données, ce qui est
+     * exactement ce qui l'a laissé vivre trois mois ailleurs dans le dépôt. Le supprimer, c'est
+     * rouvrir le motif sans aucun rouge.
      */
     public function test_each_scheduler_event_is_listened_to_exactly_once(): void
     {

@@ -135,3 +135,41 @@ singleton qui indexe la ligne écrite par `spl_object_id($task)` — le framewor
 
 **`average_duration_ms` à zéro.** L'écran rendait `—` sur `task.average_duration_ms ? … : '—'` :
 une tâche mesurée à 0 ms se lisait « jamais exécutée ». Passé à `!== null`.
+
+### Amendement après passe adverse (2026-08-27)
+
+**Le docblock de `ScheduledTaskRunStatus::Running` affirmait quelque chose de faux, dans le ticket
+même qui existe pour qu'un statut cesse de mentir.** Il disait que l'issue d'une tâche détachée
+« arrive plus tard, dans un AUTRE processus (`schedule:finish`) », ce qui se lit « le statut se
+répare tout seul ». Re-mesuré :
+
+```
+ScheduleFinishCommand:48                → dispatch(new ScheduledBackgroundTaskFinished($event))
+grep -rn 'ScheduledBackgroundTaskFinished' app/ routes/   → rien
+Event::getListeners(ScheduledBackgroundTaskFinished)      → 0
+tâches planifiées = 22, dont runInBackground = 0
+```
+
+`ScheduledBackgroundTaskFinished` est un événement **différent** de `ScheduledTaskFinished`, et il
+n'a **aucun** écouteur ici. Une ligne posée à `running` reste `running` pour toujours.
+
+**Voie retenue : garder la branche défensive et NOMMER l'impasse** — plutôt que poser l'écouteur
+manquant, qu'aucune des 22 tâches n'atteindrait et dont la correction (retrouver la bonne ligne
+`running` depuis un autre processus, l'identité d'objet ne survivant pas) ne serait vérifiable par
+aucun chemin réel. Écrire du code que rien n'exerce était le plus mauvais des deux.
+
+**Et le commentaire est doublé d'une garde**, parce qu'un commentaire ne garde rien :
+`test_a_background_task_would_leave_its_run_stuck_in_running` lit le planificateur RÉEL et exige un
+écouteur de `ScheduledBackgroundTaskFinished` dès qu'une tâche passe en `runInBackground()`. Vérifié
+par ablation : en ajoutant une tâche détachée à `routes/console.php`, le test rougit en imprimant
+quoi faire.
+
+**Le test de la branche `exitCode === null` dit désormais ce qu'il est** : un test de la branche, pas
+de son déclenchement — aucun chemin réel n'y mène aujourd'hui.
+
+**`test_each_scheduler_event_is_listened_to_exactly_once` est le SEUL test qui attrape le doublon
+d'enregistrement**, mesuré par ablation : la déduplication par `spl_object_id` du recorder absorbe
+le double appel et n'écrit qu'une ligne, donc l'assertion de compte reste verte. C'est écrit dans
+son docblock — le recorder rend le doublon invisible dans les données, ce qui est exactement ce qui
+l'a laissé vivre ailleurs dans le dépôt.
+

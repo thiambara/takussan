@@ -60,6 +60,24 @@ class PlatformReportingService
     private const CACHE_VERSION_KEY = 'reporting:cache_version';
 
     /**
+     * TCK-388 — VERSION DE FORME des lignes, à incrémenter dès que la structure d'une ligne change.
+     *
+     * Sans elle, un déploiement laisse servir pendant tout le TTL (600 s, redis en production) des
+     * enveloppes mises en cache par le code PRÉCÉDENT : des lignes sans `days` ni `partial`, alors
+     * que `GrowthRow` les déclare obligatoires côté front. Rien ne plante, et c'est bien le
+     * problème — pendant dix minutes l'écran rend EXACTEMENT le comportement que ce ticket corrige,
+     * sans qu'aucune trace ne le dise. Le défaut se répare tout seul, ce qui est la meilleure façon
+     * de ne jamais le comprendre s'il se produit ailleurs.
+     *
+     * ⚠ Elle remplace une action de déploiement (« penser à appeler `bumpCacheVersion()` »).
+     * *Une invalidation qui dépend d'un geste humain au bon moment n'est pas une invalidation.*
+     * `bumpCacheVersion()` reste ce qu'il était : l'invalidation ÉVÉNEMENTIELLE (création d'agence).
+     *
+     * Historique : 1 = forme d'origine (TCK-227) ; 2 = `days` / `partial` par ligne (TCK-388).
+     */
+    private const ROW_SCHEMA_VERSION = 2;
+
+    /**
      * Bumped every time an Agency is created (see AppServiceProvider). Lets
      * us invalidate every reporting cache key with O(1) work — the version
      * suffix makes the old keys cold-miss.
@@ -88,8 +106,8 @@ class PlatformReportingService
     ): array {
         $window = $this->window($period, $startsAt, $endsAt);
         $key = sprintf(
-            'reporting:growth:%s:%s:%s:%s:v%d',
-            $metric, $period, $granularity, $this->windowKey($window), $this->cacheVersion()
+            'reporting:growth:%s:%s:%s:%s:v%d:s%d',
+            $metric, $period, $granularity, $this->windowKey($window), $this->cacheVersion(), self::ROW_SCHEMA_VERSION
         );
 
         return Cache::remember($key, self::CACHE_TTL_SECONDS, function () use ($metric, $granularity, $window): array {
@@ -127,8 +145,8 @@ class PlatformReportingService
     ): array {
         $window = $this->window($period, $startsAt, $endsAt);
         $key = sprintf(
-            'reporting:revenue:%s:%s:%s:v%d',
-            $period, $granularity, $this->windowKey($window), $this->cacheVersion()
+            'reporting:revenue:%s:%s:%s:v%d:s%d',
+            $period, $granularity, $this->windowKey($window), $this->cacheVersion(), self::ROW_SCHEMA_VERSION
         );
 
         return Cache::remember($key, self::CACHE_TTL_SECONDS, function () use ($granularity, $window): array {

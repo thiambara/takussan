@@ -26,9 +26,30 @@ enum ScheduledTaskRunStatus: string
 
     /**
      * Le code de sortie n'est PAS connu au moment où l'on enregistre — cas d'une tâche
-     * `runInBackground()`, dont le processus est détaché et dont l'issue arrive plus tard, dans un
-     * AUTRE processus (`schedule:finish`). Enregistrer `finished` ici rendrait « a réussi » sur une
-     * tâche dont personne n'a encore vu la fin.
+     * `runInBackground()`, dont le processus est détaché. Enregistrer `finished` ici rendrait
+     * « a réussi » sur une tâche dont personne n'a vu la fin.
+     *
+     * ⚠⚠ **RIEN NE RÉSOUT CE STATUT AUJOURD'HUI, ET C'EST UNE IMPASSE ASSUMÉE, PAS UN OUBLI.**
+     * Mesuré le 2026-08-27 :
+     *
+     *   - `ScheduleFinishCommand:48` dispatche `ScheduledBackgroundTaskFinished` — un événement
+     *     **DIFFÉRENT** de `ScheduledTaskFinished`, dans un autre processus ;
+     *   - `grep -rn 'ScheduledBackgroundTaskFinished' app/ routes/` → **rien**, et
+     *     `Event::getListeners(ScheduledBackgroundTaskFinished::class)` → **0**.
+     *
+     * Une ligne posée à `running` reste donc `running` **pour toujours**, et l'écran afficherait une
+     * tâche perpétuellement « en cours ». Le cas n'est atteint par **aucune** des 22 tâches
+     * planifiées (`runInBackground` = 0, mesuré), c'est pourquoi la branche reste défensive plutôt
+     * que résolue.
+     *
+     * **Le jour où une tâche passe en `runInBackground()`**, il faut un écouteur de
+     * `ScheduledBackgroundTaskFinished` qui retrouve la dernière ligne `running` de cette tâche et
+     * la ferme sur `$event->task->exitCode`. ⚠ La déduplication par `spl_object_id` de
+     * `ScheduledRunRecorder` **ne peut pas** servir : `schedule:finish` tourne dans un autre
+     * processus et reconstruit l'objet `Event` par son mutex, donc l'identité d'objet ne survit pas.
+     *
+     * `SchedulerRunStatusTest::test_a_background_task_would_leave_its_run_stuck_in_running` rougit
+     * le jour où cette condition change — *un commentaire ne garde rien ; c'est le test qui garde.*
      */
     case Running = 'running';
 }

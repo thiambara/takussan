@@ -165,3 +165,26 @@ exactement l'information que ce ticket ajoute.
 **Hors AC, dans la même passe** : `enveloppe()` du test de `GrowthChart` porte un mois plein par
 défaut, sinon toute série de test aurait déclenché la mention d'inégalité.
 
+### Amendement après passe adverse (2026-08-27)
+
+**Le cache servait l'ancienne forme pendant dix minutes après déploiement.** Le changement de forme
+des lignes est invisible d'une clé de cache : `growth`/`revenue` auraient rendu des enveloppes sans
+`days` ni `partial` pendant tout le TTL (600 s, redis en production), alors que `GrowthRow` les
+déclare obligatoires. Rien ne plante — l'écran rend simplement, pendant dix minutes, le comportement
+exact que ce ticket corrige.
+
+Corrigé par une `ROW_SCHEMA_VERSION` dans la clé, **et non par un appel à `bumpCacheVersion()` au
+déploiement** : *une invalidation qui dépend d'un geste humain au bon moment n'est pas une
+invalidation.* La prochaine forme de ligne incrémente la constante ; il n'y a plus d'action de
+déploiement à retenir. `bumpCacheVersion()` garde son rôle : l'invalidation événementielle.
+
+Gardé par `test_an_envelope_cached_by_the_previous_row_shape_is_not_served`, qui empoisonne la clé
+d'avant et vérifie qu'elle n'est pas servie. Le test reproduit cette clé à la main, ce qui est
+fragile et assumé : il ne peut pas la demander au service, dont c'est le secret.
+
+**`GenerateReportExport::toCsv()` a désormais un test**
+(`test_the_async_export_writes_the_same_csv_as_the_synchronous_one`). Le chemin asynchrone n'est
+atteint qu'au-delà de 10 000 lignes, donc jamais sous le plafond de 60 buckets — c'est précisément
+pourquoi il en avait besoin : *un chemin qu'aucun appel ne prend est un chemin dont personne ne
+verra la dérive.*
+

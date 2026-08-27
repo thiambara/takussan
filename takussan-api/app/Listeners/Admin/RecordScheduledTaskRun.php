@@ -22,7 +22,10 @@ class RecordScheduledTaskRun
         $exitCode = $event->task->exitCode;
 
         $status = match (true) {
-            // Tâche détachée : `finish()` n'a pas été appelé, l'issue n'existe pas encore.
+            // Tâche détachée : `finish()` n'a pas été appelé, l'issue n'existe pas encore — et
+            // ⚠ RIEN ne la résoudra : ce dépôt n'a aucun écouteur de `ScheduledBackgroundTaskFinished`,
+            // qui est l'événement (différent) dispatché par `schedule:finish`. Voir le docblock de
+            // `ScheduledTaskRunStatus::Running`, qui porte la mesure et ce qu'il faudra faire.
             $exitCode === null => ScheduledTaskRunStatus::Running,
             $exitCode === 0 => ScheduledTaskRunStatus::Finished,
             default => ScheduledTaskRunStatus::Failed,

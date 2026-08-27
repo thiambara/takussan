@@ -2,14 +2,17 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Jobs\Reporting\GenerateReportExport;
 use App\Models\Agency;
 use App\Models\AgencySubscription;
 use App\Models\Enums\AgencySubscriptionStatus;
 use App\Models\Plan;
 use App\Models\ReportExport;
+use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -384,6 +387,90 @@ class PlatformReportingTest extends TestCase
 
         $this->assertSame([31, 28, 31], array_column($rows, 'days'));
         $this->assertSame([false, false, false], array_column($rows, 'partial'));
+    }
+
+    /**
+     * TCK-388 — l'export ASYNCHRONE écrit le même CSV que le synchrone, booléens compris.
+     *
+     * Les deux chemins ont deux écrivains distincts : `ReportingController::downloadPayload()` et
+     * `GenerateReportExport::toCsv()`. Le second n'est atteint qu'au-delà de 10 000 lignes, donc
+     * jamais sur growth/revenue tant que le découpage est plafonné à 60 buckets — c'est
+     * précisément pourquoi il a besoin d'un test : *un chemin qu'aucun appel ne prend est un
+     * chemin dont personne ne verra la dérive.* Le jour où le seuil bouge, c'est ici que ça
+     * rougira, et pas en production.
+     */
+    public function test_the_async_export_writes_the_same_csv_as_the_synchronous_one(): void
+    {
+        Storage::fake('local');
+        Carbon::setTestNow('2026-05-15');
+        $acteur = $this->actingAsRole('super_admin');
+
+        $export = ReportExport::query()->create([
+            'requested_by' => $acteur->id,
+            'report' => 'growth',
+            'format' => 'csv',
+            'parameters' => ['metric' => 'agencies', 'period' => '3m', 'granularity' => 'month'],
+            'status' => 'queued',
+            'row_count' => 0,
+        ]);
+
+        (new GenerateReportExport($export->id))->handle(app(PlatformReportingService::class));
+
+        $csv = Storage::disk('local')->get($export->fresh()->archive_path);
+        $entete = str_replace('"', '', strtok($csv, "\n"));
+
+        $this->assertSame('bucket,starts_at,ends_at,days,partial,count', $entete);
+        // Les DEUX valeurs en toutes lettres : `period=3m` rend un premier bucket partiel (14 j)
+        // et des mois pleins ensuite, donc le fichier porte `true` ET `false`.
+        $this->assertStringContainsString('true', str_replace('"', '', $csv));
+        $this->assertStringContainsString('false', str_replace('"', '', $csv));
+
+        Carbon::setTestNow();
+    }
+
+    /**
+     * TCK-388 — une enveloppe mise en cache par le code PRÉCÉDENT ne doit pas être servie.
+     *
+     * Le changement de forme des lignes (`days` / `partial`) est invisible du cache : la clé
+     * d'avant reste valide, et pendant tout le TTL (600 s, redis en production) l'écran rendrait
+     * EXACTEMENT le comportement que ce ticket corrige, sans qu'aucune trace ne le dise. Le défaut
+     * se répare tout seul au bout de dix minutes — la meilleure façon de ne jamais le comprendre
+     * s'il se reproduit ailleurs.
+     *
+     * ⚠ Ce test REPRODUIT À LA MAIN la clé d'avant TCK-388, et c'est délibérément fragile : il ne
+     * peut pas la demander au service, dont c'est justement le secret. Il rougira si le format de
+     * clé change pour une autre raison — c'est le prix d'une garde sur un cache, et il est plus bas
+     * que celui d'une invalidation qui dépend d'un geste humain au moment du déploiement.
+     */
+    public function test_an_envelope_cached_by_the_previous_row_shape_is_not_served(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        // La version ÉVÉNEMENTIELLE se lit après `actingAsRole`, qui crée une agence et l'incrémente.
+        $version = (int) Cache::get('reporting:cache_version', 0);
+
+        Cache::put("reporting:growth:agencies:3m:month:3m:v{$version}", [
+            'rows' => [[
+                'bucket' => '1999-01',
+                'starts_at' => '1999-01-01T00:00:00+00:00',
+                'ends_at' => '1999-01-31T23:59:59+00:00',
+                'count' => 999,
+            ]],
+            'totals' => ['total' => 999],
+            'period' => ['range' => '3m', 'granularity' => 'month'],
+            'generated_at' => '1999-01-01T00:00:00+00:00',
+        ], 600);
+
+        $rows = $this->getJson('/api/admin/reports/growth?metric=agencies&period=3m&granularity=month')
+            ->assertOk()
+            ->json('data.rows');
+
+        $this->assertNotSame('1999-01', $rows[0]['bucket'], "L'enveloppe de l'ancienne forme a été servie.");
+        $this->assertArrayHasKey('days', $rows[0]);
+        $this->assertArrayHasKey('partial', $rows[0]);
+
+        Carbon::setTestNow();
     }
 
     public function test_revenue_mrr_matches_active_subscription_sum(): void
