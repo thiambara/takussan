@@ -89,9 +89,12 @@ casserait ce second usage. Les deux rôles doivent être tranchés ensemble.
 **LA DÉCISION : corriger la valeur.** `--chart-3` passe de `#c89a4a` à `#ad8034` en `:root`. La
 valeur `.dark` (`#d6b66c`, 8,17:1) ne bouge pas — elle n'a jamais été en défaut.
 
-La valeur retenue garde la **teinte (38°)** et la **saturation (54 %)** de la charte au chiffre
-près : seule la clarté HSL descend, de 54 % à 44 %. Ce n'est pas une couleur nouvelle, c'est la
-même assez foncée pour se voir sur du blanc. Mesuré, pas estimé :
+La valeur retenue ne fait descendre que la **clarté** ; teinte et saturation bougent de moins
+d'un demi-point — mesuré en HSL et non arrondi : teinte **38,10° → 37,69°**, saturation
+**53,39 % → 53,78 %**, clarté **53,73 % → 44,12 %**. (Ce ticket a d'abord écrit « même teinte,
+même saturation, au chiffre près » : trois arrondis présentés comme trois égalités, corrigé à la
+revue.) Ce n'est pas une couleur nouvelle, c'est la même assez foncée pour se voir sur du blanc.
+Contrastes mesurés, pas estimés :
 
     #ad8034 sur --card #ffffff .......... 3,55:1   (seuil 1.4.11 : 3:1)
     #ad8034 sur --background #fcf9f3 .... 3,38:1

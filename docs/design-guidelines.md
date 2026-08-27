@@ -129,9 +129,17 @@ graphique porteur de sens. Mesures par `node scripts/check-chart-contrast.mjs --
 > 3. En thème SOMBRE le jeton était irréprochable (8,17:1) — le défaut n'existait qu'en clair.
 >    C'est la valeur claire qui était fausse, pas le rôle.
 >
-> La valeur retenue, `#ad8034`, garde la **teinte (38°)** et la **saturation (54 %)** de la charte
-> au chiffre près : seule la clarté HSL descend, de 54 % à 44 %. Ce n'est pas une couleur nouvelle,
-> c'est la même assez foncée pour se voir sur du blanc. La valeur sombre (`#d6b66c`) ne bouge pas.
+> La valeur retenue, `#ad8034`, ne fait descendre que la **clarté** HSL ; teinte et saturation
+> bougent de moins d'un demi-point. Mesuré, et non arrondi :
+>
+> | | `#c89a4a` | `#ad8034` | écart |
+> |---|---|---|---|
+> | teinte | 38,10° | 37,69° | −0,41° |
+> | saturation | 53,39 % | 53,78 % | +0,39 pt |
+> | clarté | 53,73 % | 44,12 % | **−9,61 pt** |
+>
+> Ce n'est pas une couleur nouvelle, c'est la même assez foncée pour se voir sur du blanc. La
+> valeur sombre (`#d6b66c`) ne bouge pas.
 >
 > ⚠ **Conséquence à connaître** : un graphique à trois séries voit sa troisième passer de taupe
 > (`--chart-4`) à ocre (`--chart-3`). C'est la restauration de l'ordre de la charte, pas un effet

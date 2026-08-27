@@ -38,8 +38,15 @@
  * ⚠ **TCK-404 A CORRIGÉ LE JETON, ET L'ORDRE EST REDEVENU CELUI DE LA CHARTE (2026-08-27).**
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
- * La valeur claire de `--chart-3` est passée de `#c89a4a` à `#ad8034` — même teinte (38°), même
- * saturation (54 %), clarté HSL de 54 % à 44 %. Relevé complet, reproductible par
+ * La valeur claire de `--chart-3` est passée de `#c89a4a` à `#ad8034`. Mesuré en HSL :
+ * **teinte 38,10° → 37,69°, saturation 53,39 % → 53,78 %, clarté 53,73 % → 44,12 %.**
+ *
+ * ⚠ Ce docblock a écrit « même teinte (38°), même saturation (54 %) … au chiffre près » pendant
+ * une journée, et c'était trois arrondis présentés comme trois égalités : la teinte bouge de
+ * 0,41°, la saturation de 0,39 point. L'INTENTION tient — ne descendre que la clarté, ne pas
+ * quitter la famille chromatique — mais elle n'est pas la mesure, et *un arrondi qu'on présente
+ * comme une égalité est un chiffre sur lequel quelqu'un resserrera un seuil*. Relevé complet,
+ * reproductible par
  * `node scripts/check-chart-contrast.mjs --report` :
  *
  *                clair (sur #ffffff)      sombre (sur #2a2018)

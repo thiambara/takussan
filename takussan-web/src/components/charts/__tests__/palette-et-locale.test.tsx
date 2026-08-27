@@ -86,8 +86,9 @@ describe('palette de séries (AC2 / AC3)', () => {
 
     // ⚠ LES DEUX RATIOS SONT ÉCRITS, pas seulement le seuil. Une assertion `>= 3` reste verte
     // sur n'importe quelle valeur plus foncée : elle garde le SEUIL, pas la DÉCISION. TCK-404 a
-    // choisi `#ad8034` pour une raison précise — garder la teinte (38°) et la saturation (54 %)
-    // de la charte, ne baisser que la clarté — et c'est cette valeur-là qui doit être défendue.
+    // choisi `#ad8034` pour une raison précise — ne faire descendre QUE la clarté HSL (53,73 %
+    // → 44,12 %) en laissant la teinte et la saturation à moins d'un demi-point (38,10° → 37,69°,
+    // 53,39 % → 53,78 %) — et c'est cette valeur-là qui doit être défendue.
     // Un successeur qui assombrirait le jeton « pour avoir de la marge » sortirait de la charte
     // sans qu'aucun test ne le dise. Les deux bornes ensemble : le seuil ET la valeur.
     const ATTENDU: Record<string, Record<string, number>> = {

@@ -105,9 +105,10 @@
    * (#ffffff) — sous les 3:1 qu'exige WCAG 2.2 §1.4.11 pour un objet graphique porteur de sens.
    * TCK-374 l'avait ÉCARTÉ de l'ordre des séries plutôt que corrigé ; TCK-404 porte la décision.
    *
-   * La valeur retenue garde la TEINTE (38°) et la SATURATION (54 %) de la charte au chiffre
-   * près : seule la clarté HSL descend, de 54 % à 44 %. Ce n'est donc pas une couleur nouvelle,
-   * c'est la même couleur assez foncée pour se voir sur du blanc.
+   * La valeur retenue ne fait descendre que la CLARTÉ ; teinte et saturation bougent de moins
+   * d'un demi-point. Mesuré en HSL, et non arrondi — teinte 38,10° → 37,69°, saturation
+   * 53,39 % → 53,78 %, clarté 53,73 % → 44,12 %. Ce n'est donc pas une couleur nouvelle, c'est
+   * la même couleur assez foncée pour se voir sur du blanc.
    *
    *   #ad8034 sur --card #ffffff .......... 3,55:1   (seuil 1.4.11 : 3:1)
    *   #ad8034 sur --background #fcf9f3 .... 3,38:1

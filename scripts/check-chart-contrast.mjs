@@ -97,6 +97,25 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/*
+ * ⚠⚠ **CETTE GARDE DÉPOUILLE LES COMMENTAIRES ({@link sansCommentaires}), et
+ * `scripts/check-super-admin-tokens.mjs` FAIT L'INVERSE, exprès.** Deux gardes du même dépôt,
+ * politique opposée sur le même point, chacune pour une bonne raison :
+ *
+ *     ici (contraste)     un commentaire qui CITE le jeton qu'il interdit est de la pédagogie —
+ *                         l'en-tête de `charts/palette.ts` écrit `fill-chart-${n}` pour dire
+ *                         pourquoi c'est interdit. Une garde qui rougit sur la documentation de
+ *                         sa propre règle se fait désarmer avant d'avoir servi. → DÉPOUILLÉ.
+ *     là (vocabulaire)    un commentaire qui MONTRE une classe de palette brute est un
+ *                         presse-papier : c'est la documentation périmée d'où le motif repousse.
+ *                         → LU.
+ *
+ * *Un relecteur qui sonde l'une avec le réflexe de l'autre rapportera un trou qui n'existe pas.*
+ * C'est arrivé le 2026-08-27, à la revue adverse de TCK-404 : une classe déposée dans un
+ * COMMENTAIRE n'a pas fait bouger le compte de cette garde, et il s'en est fallu de peu que le
+ * fait soit rapporté comme un défaut. Il est écrit ici, et dans l'autre en-tête, pour la
+ * prochaine fois.
+ */
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
 const SRC = join(ROOT, 'takussan-web', 'src');
