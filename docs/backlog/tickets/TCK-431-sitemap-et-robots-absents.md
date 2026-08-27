@@ -117,4 +117,70 @@ surface publique.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit dans ce ticket
+
+Le ticket a été écrit **avant** TCK-434. Quatre de ses affirmations ne tenaient plus le 2026-08-27 :
+
+1. **« Variable d'environnement […] ajoutée aux deux fichiers gardés par
+   `scripts/check-env-parity.mjs` ».** Cette garde compare `takussan-api/.env.example` et
+   `takussan-api/.env.docker` — **côté API uniquement**. La variable d'URL publique est lue par le
+   FRONT (`NEXT_PUBLIC_SITE_URL`, `src/lib/alternates.ts`), dont le seul fichier d'environnement
+   suivi par git est `takussan-web/.env.example` : `takussan-web/.gitignore` n'excepte que celui-là.
+   L'y déclarer côté API aurait été un mensonge de plus.
+
+2. **La garde qui manquait existait déjà, et elle était ROUGE.** Le job `variables` de
+   `.github/workflows/front-deploy-map.yml` exige que toute `NEXT_PUBLIC_*` lue par
+   `takussan-web/src` soit déclarée dans `.env.example` **et** relevée dans
+   `docs/infra/frontend-deploiement.json`. TCK-434 a introduit `NEXT_PUBLIC_SITE_URL` sans faire ni
+   l'un ni l'autre. Reproduit localement avant correctif : deux écarts. Elle vit désormais dans
+   `scripts/check-front-env-keys.mjs`, que le workflow appelle — *une garde qui ne se déclenche
+   qu'en `pull_request` ne peut pas être jouée avant de pousser, et c'est exactement l'intervalle
+   pendant lequel la clé est passée.*
+
+3. **`src/app/(public)/playground/page.tsx` n'existe plus** : la page vit sous
+   `src/app/[locale]/(public)/`, et TOUTES les URL publiques portent un préfixe de langue. Le
+   playground était donc indexable sur **trois** URL, pas une.
+
+4. **Le sort du playground est le RETRAIT DE L'INDEXABILITÉ, pas le retrait de la page.** Le ticket
+   ouvrait la porte à sa suppression ; `docs/design-guidelines.md` § « Outils de dev » et TCK-129
+   (« à conserver comme outil de dev ») l'interdisent. La page est scindée en un composant SERVEUR
+   qui porte `robots: { index: false }` et un `PlaygroundClient.tsx` qui garde le POC — un
+   composant client ne peut pas déclarer de métadonnée, et c'était la seule raison du découpage.
+   ⚠ Il n'est **pas** interdit dans `robots.txt` : un moteur qui a l'interdiction de charger l'URL
+   ne lit jamais le `noindex` qu'elle porte.
+
+### Décisions non évidentes
+
+- **Un endpoint dédié, `GET /api/public/properties/sitemap`.** Le ticket désignait
+  `/public/properties` comme source. Re-mesuré : il rend `PropertyResource` (47 clés + `address` +
+  `media`), n'accepte aucun `fields[properties]` (il n'est pas bâti sur spatie) et n'a **aucun**
+  plafond de `per_page`. Énumérer le catalogue par cette route reviendrait à le télécharger en
+  entier pour en extraire deux colonnes. Le nouvel endpoint émet `slug` + `updated_at`, plafonne
+  `per_page` à 1000 et trie par `id` — un ordre **total**, sans quoi deux pages successives d'un
+  tri sur colonnes non uniques peuvent rendre deux fois la même ligne sous PostgreSQL.
+
+- **Next n'échappe RIEN dans `<loc>`.** Mesuré dans
+  `node_modules/next/dist/build/webpack/loaders/metadata/resolve-route-data.js` :
+  `content += \`<loc>${item.url}</loc>\``. Un `&` dans un slug rendrait le sitemap **entier**
+  invalide. `cheminDeFiche()` encode le slug ; c'est à la fois l'URL juste et du XML valide.
+
+- **Le dépassement de 50 000 URL ÉCHOUE, il ne tronque pas.** Une troncature rendrait un sitemap
+  valide, plus court, et muet sur ce qu'il laisse dehors. La forme retenue accueille le découpage
+  par `generateSitemaps()` sans réécriture : `construireSitemap` prend une liste de pages.
+
+- **La seule dégradation admise est l'API injoignable**, et elle est journalisée en nommant la
+  source. `https://api.takussan.com` rend 404 (D-04, TCK-288) alors que le front est en
+  production : faire échouer la génération bloquerait le déploiement du front sur une panne
+  d'infrastructure qu'aucun commit de ce dépôt ne peut corriger. Constaté au build : la source
+  `catalogue` échoue, le message sort, `/sitemap.xml` est produit avec ses pages statiques.
+
+- **Le point d'extension de TCK-436 est nommé**, pas laissé en `TODO` : `SOURCES` dans
+  `src/app/sitemap.ts` et `ROUTES_DYNAMIQUES_PUBLIQUES` dans `src/lib/sitemap.ts`. Un test de
+  couverture (`src/lib/__tests__/sitemap-couverture.test.ts`) marche l'arborescence réelle de
+  `src/app/[locale]/(public)/` et rougit sur toute route dynamique publique non tranchée.
+
+### Vérification de bout en bout
+
+API servie sur 8002 (251 biens publics), `npm run build` : **759 `<loc>`** = (251 + 2) × 3 langues,
+XML bien formé (`xml.dom.minidom`), une fiche présente dans les trois langues avec ses quatre
+`xhtml:link`. `robots.txt` porte les sept interdictions et la directive `Sitemap:` absolue.

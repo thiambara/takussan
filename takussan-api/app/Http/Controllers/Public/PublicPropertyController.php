@@ -17,6 +17,7 @@ use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
 use App\Http\Resources\BookingResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertyResource;
+use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Booking;
@@ -73,6 +74,12 @@ class PublicPropertyController extends Controller
      */
     public const BY_IDS_MAX_IDS = 20;
 
+    /**
+     * Plafond dur de `GET /public/properties/sitemap` (TCK-431). Le front pagine dessus
+     * (`takussan-web/src/lib/queries/sitemap-catalogue.ts` : `TAILLE_DE_PAGE_SITEMAP`).
+     */
+    public const SITEMAP_MAX_PER_PAGE = 1000;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = Property::query()
@@ -93,6 +100,44 @@ class PublicPropertyController extends Controller
         $properties = $query->paginate((int) $request->input('per_page', 20));
 
         return PropertyResource::collection($properties);
+    }
+
+    /**
+     * L'énumération du catalogue indexable, pour `/sitemap.xml` du site public (TCK-431).
+     *
+     * GET /api/public/properties/sitemap?page=…&per_page=…
+     *
+     * **Trois décisions, chacune contre un mode de défaillance mesuré.**
+     *
+     * 1. **`scopePublic()` SEUL décide de ce qui entre.** C'est déjà le prédicat qui décide de ce
+     *    qu'une fiche publique sert : réécrire ici la condition « publié » ferait diverger le
+     *    sitemap de la fiche, et un sitemap qui annonce des URL rendant 404 est pire que pas de
+     *    sitemap. `index()` ci-dessus y ajoute `whereNot(status, Draft)` — redondant, `public()`
+     *    exclut déjà `Draft` avec sept autres statuts.
+     *
+     * 2. **`per_page` est PLAFONNÉ, ici et pas ailleurs.** `index()` accepte n'importe quelle
+     *    valeur (`paginate((int) $request->input('per_page', 20))`) ; sur une route anonyme qui
+     *    énumère tout le catalogue, ce serait une invitation à demander le catalogue entier d'un
+     *    coup. Le plafond est aussi un contrat avec le front, qui pagine dessus
+     *    (`takussan-web/src/lib/queries/sitemap-catalogue.ts`).
+     *
+     * 3. **`orderBy('id')` — un ordre TOTAL et STABLE.** `index()` trie par `featured` puis
+     *    `published_at`, deux colonnes non uniques : sous PostgreSQL, deux pages successives d'un
+     *    tel tri peuvent rendre deux fois la même ligne et jamais une autre, sans que rien ne
+     *    rougisse. Pour une énumération complète, l'ordre doit départager toutes les lignes.
+     */
+    public function sitemap(Request $request): JsonResponse
+    {
+        $perPage = (int) $request->input('per_page', self::SITEMAP_MAX_PER_PAGE);
+        $perPage = max(1, min($perPage, self::SITEMAP_MAX_PER_PAGE));
+
+        $properties = Property::query()
+            ->public()
+            ->select(['id', 'slug', 'updated_at'])
+            ->orderBy('id')
+            ->paginate($perPage);
+
+        return $this->paginated($properties, PropertySitemapResource::collection($properties->getCollection()));
     }
 
     /**

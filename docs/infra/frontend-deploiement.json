@@ -55,13 +55,24 @@
       "valeur_production_mesuree": "https://api.takussan.com",
       "preuve": "chaîne inlinée dans le bundle client servi par www.takussan.com : `let e=\"https://api.takussan.com\".replace(/\\/api$/,\"\"),s=`${e}/api`` — NEXT_PUBLIC_* est substitué à la compilation, la valeur du build est donc lisible sans accès à Vercel",
       "alerte": "https://api.takussan.com/up rend 404 et https://api.takussan.com/api/properties rend un 404 nginx au 2026-08-20 : le front de production appelle une API qui n'a JAMAIS été déployée (D-04, TCK-288)"
+    },
+    {
+      "cle": "NEXT_PUBLIC_SITE_URL",
+      "obligatoire": false,
+      "usages_dans_src": 1,
+      "declaree_dans": "takussan-web/.env.example",
+      "valeur_dev": "(vide)",
+      "valeur_production_mesuree": "NON MESURÉE — la clé est lue par le code depuis TCK-434 (2026-08-27) et n'existait dans aucun build de production au moment du relevé. Vide, le code replie sur l'origine mesurée https://www.takussan.com.",
+      "preuve": "src/lib/alternates.ts : `resoudreOrigineSite({ siteUrl: process.env.NEXT_PUBLIC_SITE_URL, … })` — unique site de lecture, mesuré le 2026-08-27 par `grep -rhoE 'process\\.env\\.NEXT_PUBLIC_[A-Za-z0-9_]+' takussan-web/src`",
+      "alerte": "Facultative en Production ET en Preview, mais pour des raisons opposées. En Production le défaut EST la bonne valeur. En Preview, le code déduit l'hôte de VERCEL_URL / NEXT_PUBLIC_VERCEL_URL : si le projet Vercel n'expose pas ses variables système ET que la valeur nue est absente, la génération ÉCHOUE bruyamment plutôt que de faire pointer les hreflang, le canonical et le sitemap d'une prévisualisation vers la production. Ce réglage-là fait partie de ce que le dépôt ne peut pas mesurer (cf. non_mesure)."
     }
   ],
 
   "non_mesure": [
     "L'attribution du domaine preview.takussan.com à une branche : elle vit dans le tableau de bord Vercel et le SSO empêche de la lire de l'extérieur.",
     "Le « Root Directory » du projet Vercel : le dépôt est un monorepo et rien de public ne dit que Vercel construit takussan-web/ plutôt que la racine. Le résultat prouve qu'il construit bien le front (Next.js servi), pas le réglage qui le décide.",
-    "Les variables d'environnement NON préfixées NEXT_PUBLIC_ : elles ne sont pas inlinées dans le bundle. Mesuré côté dépôt : le code de takussan-web/ n'en lit AUCUNE en dehors de NODE_ENV, que Next pose lui-même."
+    "Les variables d'environnement NON préfixées NEXT_PUBLIC_ : elles ne sont pas inlinées dans le bundle. Mesuré côté dépôt le 2026-08-27, le code de takussan-web/ en lit DEUX en dehors de NODE_ENV — VERCEL_ENV et VERCEL_URL, des variables SYSTÈME de Vercel lues côté serveur uniquement, et seulement en repli de leurs jumelles NEXT_PUBLIC_. Elles ne sont ni à déclarer ni à relever : c'est Vercel qui les pose.",
+    "Le réglage « Automatically expose System Environment Variables » du projet Vercel, dont dépend l'existence de NEXT_PUBLIC_VERCEL_ENV / NEXT_PUBLIC_VERCEL_URL. Le code lit les deux formes précisément parce que ce réglage n'est pas mesurable d'ici."
   ],
 
   "filtre_de_chemins": {

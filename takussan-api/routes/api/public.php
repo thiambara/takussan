@@ -51,6 +51,19 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('properties/discovery', [PublicPropertyController::class, 'discovery'])
         ->name('properties.discovery');
 
+    // TCK-431 — l'énumération du catalogue indexable pour `/sitemap.xml` du site public.
+    // Segment littéral : elle DOIT rester au-dessus de `properties/{slug}`, sans quoi elle est
+    // avalée comme un slug — c'est le piège que le commentaire de `discovery` signale déjà, et il
+    // ne produit pas d'erreur, il produit un 404 sur une fiche nommée « sitemap ».
+    //
+    // Aucun `cache.headers` : le corps ne varie PAS avec l'appelant (ni `PropertyResource` ni
+    // e-mail ici, seulement `slug` et `updated_at`), mais l'unique appelant est le SERVEUR Next,
+    // dont le `fetch` est `no-store` par défaut sous Next 16 — il n'émettra jamais
+    // d'`If-None-Match`. Un ETag ici ne servirait personne (même mesure que pour la fiche,
+    // TCK-341).
+    Route::get('properties/sitemap', [PublicPropertyController::class, 'sitemap'])
+        ->name('properties.sitemap');
+
     Route::get('properties/compare', [PublicPropertyController::class, 'compare'])
         ->middleware('throttle:30,1')
         ->name('properties.compare');

@@ -31,6 +31,7 @@ on:
       - 'docs/infra/frontend-deploiement.json'
       - 'docs/infra/frontend-deploiement.md'
       - 'takussan-web/**'
+      - 'scripts/check-front-env-keys.mjs'
       - '.github/workflows/front-deploy-map.yml'
   # La dérive du mapping ne se produit PAS dans une PR : elle se produit dans le tableau de bord
   # Vercel, un jour où personne ne pousse. Une garde qui ne tourne qu'en PR ne l'attraperait
@@ -55,57 +56,18 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: NEXT_PUBLIC_* lues par le front ⊆ déclarées ET relevées
-        # `NEXT_PUBLIC_*` est SUBSTITUÉE À LA COMPILATION : une clé absente de l'environnement de
-        # build ne casse pas le build, elle produit `undefined` dans le bundle livré, et le défaut
-        # ne se voit qu'à l'exécution, en production, sur une requête qui part vers
-        # `undefined/api/...`. C'est exactement le genre d'écart qu'aucun test ne rattrape.
-        run: |
-          # `-e` est DEJA pose par le runner (`bash -e {0}`) : l'ecrire ici rend le script
-          # identique en CI et en local, au lieu de deux comportements pour un meme fichier.
-          set -euo pipefail
-          RELEVE=docs/infra/frontend-deploiement.json
-
-          # `|| true` sur CHAQUE grep, et le vide traité comme un résultat : un grep sans
-          # correspondance sort en 1, et sous `set -e` la garde mourrait AVANT sa première ligne —
-          # muette, et verte à l'œil de qui parcourt les logs. C'est le défaut D-44 transposé ici.
-          utilisees=$(grep -rhoE 'process\.env\.NEXT_PUBLIC_[A-Za-z0-9_]+' \
-                        takussan-web/src takussan-web/next.config.ts 2>/dev/null \
-                      | sed 's/^process\.env\.//' | sort -u || true)
-          declarees=$(grep -oE '^[A-Za-z0-9_]+' takussan-web/.env.example 2>/dev/null | sort -u || true)
-          relevees=$(jq -r '.variables_build[].cle' "$RELEVE" 2>/dev/null | sort -u || true)
-
-          echo "· lues par le code front   : ${utilisees:-<aucune>}" | tr '\n' ' '; echo
-          echo "· déclarées (.env.example) : ${declarees:-<aucune>}" | tr '\n' ' '; echo
-          echo "· relevées (relevé JSON)   : ${relevees:-<aucune>}" | tr '\n' ' '; echo
-
-          statut=0
-          if [ -z "$utilisees" ]; then
-            echo "✗ aucune variable NEXT_PUBLIC_* trouvée dans takussan-web/src : la garde ne mesure plus rien."
-            echo "  (elle en a mesuré une, NEXT_PUBLIC_API_URL, à 39 usages le 2026-08-20 — une"
-            echo "   disparition totale est un déplacement de fichiers, pas un progrès.)"
-            exit 1
-          fi
-
-          manquantes=$(comm -23 <(printf '%s\n' "$utilisees") <(printf '%s\n' "$declarees"))
-          if [ -n "$manquantes" ]; then
-            statut=1
-            echo "✗ lues par le build mais ABSENTES de takussan-web/.env.example :"
-            printf '    %s\n' $manquantes
-            echo "  → le build Vercel les prendra a undefined sans le dire. Déclarer la clé."
-          fi
-
-          hors_releve=$(comm -23 <(printf '%s\n' "$utilisees") <(printf '%s\n' "$relevees"))
-          if [ -n "$hors_releve" ]; then
-            statut=1
-            echo "✗ lues par le build mais ABSENTES de $RELEVE :"
-            printf '    %s\n' $hors_releve
-            echo "  → la valeur servie en Production/Preview n'est consignée nulle part dans le dépôt."
-          fi
-
-          if [ "$statut" -eq 0 ]; then
-            echo "✓ toute variable NEXT_PUBLIC_* lue par le front est déclarée ET relevée"
-          fi
-          exit "$statut"
+        # ⚠ Cette vérification VIVAIT ICI, en bash, et c'est ce qui l'a rendue inopérante entre
+        # TCK-434 et TCK-431 : ce workflow ne se déclenche qu'en `pull_request` et sur un cron
+        # hebdomadaire, donc personne ne pouvait la JOUER avant de pousser. `NEXT_PUBLIC_SITE_URL`
+        # a ainsi été introduite sans être déclarée ni relevée, et le trou n'a été vu qu'en
+        # relisant le workflow.
+        #
+        # Elle est désormais `scripts/check-front-env-keys.mjs` — même logique, mêmes deux
+        # comparaisons (code → `.env.example`, code → relevé), plus ses propres contrôles de
+        # non-vacuité. Elle se joue en local par `node scripts/check-front-env-keys.mjs`, et la
+        # commande d'inventaire du `CLAUDE.md` racine (`for g in scripts/check-*.mjs`) la trouve.
+        # *Une garde qui ne vit que dans un workflow n'est pas dans l'inventaire des gardes.*
+        run: node scripts/check-front-env-keys.mjs --report
 
   mapping:
     name: Le mapping branche → environnement tient encore

@@ -94,9 +94,18 @@ const R_POC_PLAYGROUND =
   "Page de démonstration du design system « Ancrage Local Contemporain » (`/playground`), et non "
   + "une surface produit : elle sert à comparer sept palettes et trois typographies au runtime. "
   + "Traduire un POC fige dans le dictionnaire des libellés qui n'ont pas de propriétaire produit, "
-  + "et laisse croire qu'un écran de plus est internationalisé. ⚠ La route est publiquement "
-  + "atteignable — c'est un défaut en soi, et il relève de la suppression du POC, pas de sa "
-  + "traduction.";
+  + "et laisse croire qu'un écran de plus est internationalisé. ⚠ La route reste publiquement "
+  + "ATTEIGNABLE — c'est assumé : `docs/design-guidelines.md` et TCK-129 en font un outil de dev à "
+  + "conserver. Elle n'est plus INDEXABLE depuis TCK-431 : `page.tsx` déclare `robots: { index: "
+  + "false }`, ce qui était le vrai défaut. L'énoncé précédent concluait à la suppression du POC ; "
+  + "la documentation qui fait autorité disait l'inverse.";
+
+const R_ERREUR_SITEMAP =
+  "Fragment d'un message d'`Error` levée pendant la GÉNÉRATION de `/sitemap.xml`, `/robots.txt` ou "
+  + "des `hreflang` (TCK-431). Il s'écrit dans le journal de build et son lecteur est le "
+  + "développeur, pas le visiteur : le traduire le rendrait dans la langue de quelqu'un qui n'est "
+  + "pas là, et le ferait dépendre du dictionnaire qu'une panne d'i18n aurait justement cassé. "
+  + "Chacun de ces messages NOMME la variable d'environnement à corriger — c'est sa raison d'être.";
 
 const R_ZONE_SENEGAL =
   "Toponyme sénégalais dans une liste de suggestions de zones d'intervention. Un nom de ville ou "
@@ -300,9 +309,29 @@ export const EXCEPTIONS_JUSTIFIEES = [
       + "personne.",
   },
 
+  // ── TECHNIQUE — messages d'ERREUR de la génération du sitemap (TCK-431) ───────────────────────
+  //
+  // Ces trois fichiers n'ont AUCUN rendu : ils produisent `/sitemap.xml`, `/robots.txt` et les
+  // `hreflang`. Leurs seuls littéraux de prose sont des fragments d'`Error` levées à la
+  // génération — elles s'écrivent dans le journal de build, jamais dans une page. Les traduire
+  // reviendrait à faire dépendre un message de panne du dictionnaire qu'on est peut-être en train
+  // de casser, et à le rendre dans la langue du VISITEUR pour un lecteur qui est le développeur.
+  //
+  // Suivi jusqu'au rendu avant d'écrire ces entrées : les six occurrences sont toutes des
+  // arguments de `new Error(...)`, et les tests d'ablation les éprouvent par `toThrow(/…/)`.
+  { fichier: 'src/lib/alternates.ts', motif: /^schéma compris — par exemple/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  { fichier: 'src/lib/alternates.ts', motif: /^que ses pages canoniques sont celles de la production/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  { fichier: 'src/lib/sitemap.ts', motif: /^Une URL relative dans un <loc>/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  { fichier: 'src/lib/sitemap.ts', motif: /^generateSitemaps\(\) plutôt que tronquer/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  { fichier: 'src/lib/sitemap.ts', motif: /^muet sur ce qu'il laisse dehors\.$/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  { fichier: 'src/lib/queries/sitemap-catalogue.ts', motif: /^sitemap peut porter/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+
   // ── PLAYGROUND ────────────────────────────────────────────────────────────────────────────────
-  { fichier: 'src/app/[locale]/(public)/playground/page.tsx', motif: /^(Takussan|POC ·|Connexion|Publier|© Takussan — POC playground|Palette|· Typo)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
-  { fichier: 'src/app/[locale]/(public)/playground/page.tsx', motif: /^title="(Pour ton prochain logement|Sélection de la semaine|Tout juste publié)"$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
+  // TCK-431 — le corps du POC vit dans `PlaygroundClient.tsx` : `page.tsx` est devenu un composant
+  // SERVEUR qui ne porte plus que `robots: { index: false }`. Un composant client ne peut pas
+  // déclarer de métadonnée, et c'était la condition du `noindex`.
+  { fichier: 'src/app/[locale]/(public)/playground/PlaygroundClient.tsx', motif: /^(Takussan|POC ·|Connexion|Publier|© Takussan — POC playground|Palette|· Typo)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
+  { fichier: 'src/app/[locale]/(public)/playground/PlaygroundClient.tsx', motif: /^title="(Pour ton prochain logement|Sélection de la semaine|Tout juste publié)"$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PaletteSwitcher.tsx', motif: /^(Côtier|\(fond clair\)|aria-label="Palette de couleurs")$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/TypographySwitcher.tsx', motif: /^(Éditorial|aria-label="Typographie"|Aa)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
   { fichier: 'src/components/playground/PropertyRowLocal.tsx', motif: /^(Wide horizontal|Variante :|Tout voir|aria-label="(Précédent|Suivant)"|Pas encore de biens dans cette sélection\.)$/, famille: 'PLAYGROUND', raison: R_POC_PLAYGROUND },
