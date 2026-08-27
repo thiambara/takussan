@@ -8,6 +8,8 @@ import { ErrorState } from '@/components/feedback';
 import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
 import { alternatesPubliques } from '@/lib/alternates';
+import { DonneesStructurees } from '@/lib/jsonld';
+import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
 import { jsonLdRealEstateListing } from '@/lib/jsonld-property';
 import { getProperty } from '@/lib/queries/public-property';
 
@@ -105,15 +107,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-/**
- * Sérialisation d'un JSON-LD destiné à `dangerouslySetInnerHTML`.
- *
- * `</script>` dans une description de bien terminerait la balise ; `<` est donc échappé en
- * `\u003c`, une séquence que JSON comprend et que l'analyseur HTML ne voit pas.
+/*
+ * ⚠️ `scriptJsonLd` vivait ICI, en copie privée (TCK-335). Il est passé dans `@/lib/jsonld`
+ * (TCK-435) : trois surfaces de plus émettent désormais du JSON-LD, et un échappement recopié
+ * quatre fois est un échappement qu'on oublie une fois. Un `</script>` oublié n'est pas un
+ * balisage invalide — c'est une balise HTML fermée au milieu du document.
  */
-function scriptJsonLd(donnees: unknown): string {
-  return JSON.stringify(donnees).replace(/</g, '\\u003c');
-}
 
 /**
  * L'API n'a pas répondu — **et on ne dit surtout pas que le bien n'existe pas.**
@@ -139,7 +138,9 @@ async function bienIndisponible() {
 
 export default async function PropertyDetailPage({ params }: Props) {
   const { slug } = await params;
-  const resultat = await getProperty(slug, await getLocale());
+  const brut = await getLocale();
+  const locale = isLocale(brut) ? brut : 'fr';
+  const resultat = await getProperty(slug, locale);
 
   // Un 404 amont produit un VRAI 404 — statut compris. C'est la seule panne dont on sache
   // qu'elle signifie « ce bien n'existe pas ».
@@ -150,9 +151,17 @@ export default async function PropertyDetailPage({ params }: Props) {
       await bienIndisponible()
     ) : (
       <>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: scriptJsonLd(jsonLdRealEstateListing(resultat.bien)) }}
+        <DonneesStructurees donnees={jsonLdRealEstateListing(resultat.bien, locale)} />
+        {/*
+          Le fil d'Ariane BALISÉ (TCK-435 · AC1) — mêmes maillons, même ordre que celui affiché
+          par `PropertyBreadcrumb`, parce que les deux appellent `maillonsDeFiche`. Le traducteur
+          est celui du serveur ; le composant passe le sien, côté client.
+        */}
+        <DonneesStructurees
+          donnees={jsonLdFilDAriane(
+            maillonsDeFiche(resultat.bien, await getTranslations('property.detail')),
+            locale,
+          )}
         />
         <PropertyDetailContent property={resultat.bien} />
       </>

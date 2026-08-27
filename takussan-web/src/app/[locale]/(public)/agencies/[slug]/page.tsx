@@ -17,6 +17,8 @@ import { TeamStrip } from '@/components/public/profile/TeamStrip';
 import type { PropertyListItem } from '@/types/property';
 import { alternatesPubliques } from '@/lib/alternates';
 import { isLocale } from '@/i18n/config';
+import { DonneesStructurees } from '@/lib/jsonld';
+import { jsonLdAgence } from '@/lib/jsonld-profil';
 
 interface AgencyAgentDto {
   id: number;
@@ -118,6 +120,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const agency = await loadAgency(slug);
   if (!agency) notFound();
 
+  const brutLocale = await getLocale();
+  const locale = isLocale(brutLocale) ? brutLocale : 'fr';
+
   const stats = agency.stats;
   const reviews = agency.reviews;
 
@@ -134,6 +139,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
   return (
     <div className="min-h-screen bg-background">
+      {/*
+        TCK-435 — le balisage n'affirme QUE ce que la page rend : la note agrégée n'est émise
+        qu'au-dessus de zéro avis, la ville nulle ne devient pas la chaîne « null », et le
+        contact ne dépasse pas ce que `ContactSheet` publie déjà.
+      */}
+      <DonneesStructurees donnees={jsonLdAgence(agency, locale)} />
       <Navbar />
       <div className="h-[133px]" />
 

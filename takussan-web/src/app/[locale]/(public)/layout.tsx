@@ -8,6 +8,8 @@ import { CompareProvider } from '@/context/CompareContext';
 import { CompareFloatingBar } from '@/components/compare/CompareFloatingBar';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
 import { isLocale } from '@/i18n/config';
+import { DonneesStructurees } from '@/lib/jsonld';
+import { jsonLdOrganisation, jsonLdSiteWeb } from '@/lib/jsonld-site';
 
 type LocaleParams = { readonly params: Promise<{ locale: string }> };
 
@@ -70,6 +72,15 @@ export default async function PublicLayout({
 
   return (
     <IntlProvider messages={await messagesPour('[locale]/(public)')}>
+      {/*
+        `Organization` et `WebSite` — TCK-435 · AC5, ÉMIS ICI ET NULLE PART AILLEURS.
+
+        Un layout est rendu exactement une fois par page : c'est la seule structure qui garantisse
+        l'unicité sans convention. Les poser dans la `Navbar` ou le `Footer` les dupliquerait sur
+        toute page qui monte les deux — c'est le mode de défaillance que l'AC nomme.
+      */}
+      <DonneesStructurees donnees={jsonLdOrganisation(locale)} />
+      <DonneesStructurees donnees={jsonLdSiteWeb(locale)} />
       <ToastProvider>
         <CompareProvider>
           {children}

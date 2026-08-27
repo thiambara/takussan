@@ -100,6 +100,13 @@ const R_POC_PLAYGROUND =
   + "false }`, ce qui était le vrai défaut. L'énoncé précédent concluait à la suppression du POC ; "
   + "la documentation qui fait autorité disait l'inverse.";
 
+const R_JETON_SCHEMA_ORG =
+  "Valeur normative de `query-input` dans une `SearchAction` de schema.org : la chaîne EST le "
+  + "vocabulaire, au même titre que `@type` ou `https://schema.org`. Elle n'est pas rendue, elle est "
+  + "sérialisée dans un `<script type=\"application/ld+json\">` et lue par un moteur — traduire "
+  + "`required name=search_term_string` rendrait la déclaration invalide, donc ignorée. Suivi "
+  + "jusqu'à sa sortie : `jsonLdSiteWeb` n'a aucun autre consommateur que `DonneesStructurees`.";
+
 const R_ERREUR_SITEMAP =
   "Fragment d'un message d'`Error` levée pendant la GÉNÉRATION de `/sitemap.xml`, `/robots.txt` ou "
   + "des `hreflang` (TCK-431). Il s'écrit dans le journal de build et son lecteur est le "
@@ -325,6 +332,9 @@ export const EXCEPTIONS_JUSTIFIEES = [
   { fichier: 'src/lib/sitemap.ts', motif: /^generateSitemaps\(\) plutôt que tronquer/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/sitemap.ts', motif: /^muet sur ce qu'il laisse dehors\.$/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/queries/sitemap-catalogue.ts', motif: /^sitemap peut porter/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+
+  // ── TECHNIQUE — un JETON du vocabulaire schema.org (TCK-435) ───────────────────────────────────
+  { fichier: 'src/lib/jsonld-site.ts', litteral: 'required name=search_term_string', famille: 'TECHNIQUE', raison: R_JETON_SCHEMA_ORG },
 
   // ── PLAYGROUND ────────────────────────────────────────────────────────────────────────────────
   // TCK-431 — le corps du POC vit dans `PlaygroundClient.tsx` : `page.tsx` est devenu un composant

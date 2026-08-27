@@ -1,4 +1,7 @@
+import type { Locale } from '@/i18n/config';
 import type { PropertyDetail, PropertyType } from '@/types/property';
+
+import { urlAbsolue } from './jsonld';
 
 /**
  * Le sous-type schema.org du `mainEntity` d'une annonce, par type de bien.
@@ -61,8 +64,12 @@ function sansVides(noeud: Noeud): Noeud {
  *    une coordonnée fausse est pire qu'une coordonnée absente.
  * 3. **`priceCurrency` par défaut `XOF`**, la devise du catalogue, quand l'API ne la précise pas.
  */
-export function jsonLdRealEstateListing(property: PropertyDetail): Noeud {
-  const url = `/properties/${property.slug}`;
+export function jsonLdRealEstateListing(property: PropertyDetail, locale: Locale): Noeud {
+  // ⚠️ **ABSOLUE et PRÉFIXÉE de la langue, depuis TCK-435.** Elle valait `/properties/<slug>` :
+  // une URL relative dans un JSON-LD est résolue contre l'URL du DOCUMENT, donc, sur
+  // `/fr/properties/x`, elle désignait `https://hôte/properties/x` — qui rend **307** depuis
+  // TCK-434. Le balisage annonçait une redirection comme identité du bien.
+  const url = urlAbsolue(`/properties/${encodeURIComponent(property.slug)}`, locale);
   const { latitude, longitude } = property.location;
 
   const geo =

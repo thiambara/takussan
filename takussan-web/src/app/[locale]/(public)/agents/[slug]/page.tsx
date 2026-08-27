@@ -16,6 +16,8 @@ import {
 import type { PropertyListItem } from '@/types/property';
 import { alternatesPubliques } from '@/lib/alternates';
 import { isLocale } from '@/i18n/config';
+import { DonneesStructurees } from '@/lib/jsonld';
+import { jsonLdAgent } from '@/lib/jsonld-profil';
 
 interface AgentStats {
   rent_count: number;
@@ -109,6 +111,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
   const agent = await loadAgent(slug);
   if (!agent) notFound();
 
+  const brutLocale = await getLocale();
+  const locale = isLocale(brutLocale) ? brutLocale : 'fr';
+
   const stats = agent.stats;
   const reviews = agent.reviews;
 
@@ -121,6 +126,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
   return (
     <div className="min-h-screen bg-background">
+      {/*
+        TCK-435 — le balisage n'affirme QUE ce que la page rend : la note agrégée n'est émise
+        qu'au-dessus de zéro avis, la ville nulle ne devient pas la chaîne « null », et le
+        contact ne dépasse pas ce que `ContactSheet` publie déjà.
+      */}
+      <DonneesStructurees donnees={jsonLdAgent(agent, locale)} />
       <Navbar />
       <div className="h-[133px]" />
 
