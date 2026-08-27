@@ -177,6 +177,36 @@ export async function submitContactLead(
   }
 }
 
+/**
+ * TCK-441 — contact ANONYME d'un AGENT, jumelle de `submitContactLead` ci-dessus.
+ *
+ * Elle remplace le `mailto:` que la fiche d'agent composait à partir de `agent.email`,
+ * c'est-à-dire l'adresse de CONNEXION de l'agent, servie jusqu'ici sur un endpoint public
+ * énumérable par slug.
+ *
+ * ⚠️ Aucun jeton n'est lu, et c'est délibéré : le régime du contact public de ce dépôt est
+ * anonyme depuis TCK-161. La barrière est le `throttle` côté API et le pot de miel `company`,
+ * jamais un compte à créer.
+ *
+ * Elle vit dans ce module — et non dans un module « agent » — parce qu'elle partage
+ * `errorFromApi` avec sa jumelle : deux mappings d'erreur pour le même formulaire
+ * divergeraient sans que rien ne le dise.
+ */
+export async function submitAgentContactLead(
+  slug: string,
+  payload: { name: string; email: string; phone?: string; message: string; company?: string },
+): Promise<ActionResult> {
+  try {
+    await apiRequest(`/api/public/agents/${encodeURIComponent(slug)}/contact-lead`, {
+      method: 'POST',
+      body: payload,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, ...(await errorFromApi(e)) };
+  }
+}
+
 export async function submitReview(
   propertyId: number,
   payload: { rating: number; title?: string; content?: string },

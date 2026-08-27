@@ -27,7 +27,9 @@ interface AgentDto {
   slug: string;
   full_name: string;
   bio?: string | null;
-  email: string | null;
+  // TCK-441 — `email` N'EST PLUS servi par l'API : c'est l'adresse de CONNEXION de l'agent, et
+  // elle a quitté la charge publique. Le contact passe par le formulaire anonyme de
+  // `ContactSheet`, sans compte à créer.
   phone: string | null;
   city?: string | null;
   preferred_language?: string | null;
@@ -204,7 +206,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
               )}
               <ContactSheet
                 name={agent.full_name}
-                email={agent.email}
+                agentSlug={agent.slug}
                 phone={agent.phone}
                 subject={t('contactSubject', { name: agent.full_name })}
               />

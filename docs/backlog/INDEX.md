@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**378 tickets** — 28 ouverts, 349 livrés.
+**389 tickets** — 38 ouverts, 350 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 27 |
+| 📋 Todo | 37 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 349 |
+| ✅ Done | 350 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -60,6 +60,16 @@
 - [TCK-420](tickets/TCK-420-acteur-prestataire-absent-de-features.md) — L'acteur 🔧 (prestataire) n'est pas dans la légende de features.md, et un générateur du dépôt le dit depuis longtemps `S · P2 · technique`
 - [TCK-426](tickets/TCK-426-statuts-http-perdus-sous-les-replis-de-app.md) — Les replis de /app effacent 404, 307 et 308 : un refus d'autorisation rend désormais 200 et le squelette de la page interdite `M · P3 · front`
 - [TCK-430](tickets/TCK-430-admin-settings-tags-sans-chemin-entrant.md) — `/admin/settings/tags` n'a aucun chemin entrant — le bandeau réparé n'est vu que sur une URL tapée à la main `S · P3 · front`
+- [TCK-431](tickets/TCK-431-sitemap-et-robots-absents.md) — Le catalogue public n'est déclaré à aucun crawler : ni sitemap, ni robots, et un POC de design indexable `M · P1 · front`
+- [TCK-432](tickets/TCK-432-accueil-et-liste-sans-rendu-serveur.md) — La page d'accueil et /properties ne rendent aucun bien côté serveur, et ni l'une ni l'autre n'a de `<h1>` `L · P1 · front`
+- [TCK-433](tickets/TCK-433-canonical-et-metadatabase-absents.md) — Aucune URL canonique nulle part : `/properties` se démultiplie en autant de doublons qu'il y a de combinaisons de filtres `S · P2 · front`
+- [TCK-434](tickets/TCK-434-trois-langues-une-seule-url.md) — Trois langues servies sur une seule URL : aucune indexation par langue n'est possible, et le choix n'est pas partageable `L · P2 · front`
+- [TCK-435](tickets/TCK-435-donnees-structurees-incompletes.md) — Une seule page du site public porte des données structurées — le fil d'Ariane, l'organisation et les profils n'en ont aucune `S · P2 · front`
+- [TCK-436](tickets/TCK-436-index-agences-et-agents.md) — `/agencies` et `/agents` n'existent pas : deux surfaces publiques soignées n'ont qu'un seul chemin entrant `M · P2 · full`
+- [TCK-437](tickets/TCK-437-pied-de-page-public.md) — Le pied de page public : un formulaire d'inscription qui ne mène nulle part, deux liens, et deux rechargements complets `S · P2 · front`
+- [TCK-438](tickets/TCK-438-attente-et-introuvable-du-site-public.md) — L'attente et l'introuvable de la section publique : quatre écrans sans état de chargement, et un 404 racine qui n'existe pas `M · P1 · front`
+- [TCK-439](tickets/TCK-439-champ-de-recherche-a-deux-filtres.md) — Le même champ de recherche écrit `q` ou `city` selon le bouton cliqué — et deux entrées du menu mobile mènent à `#` `S · P1 · bug`
+- [TCK-440](tickets/TCK-440-chrome-publique-en-palette-brute.md) — La chrome publique en palette brute : 121 classes hors tokens, dont la navbar et un pied de page entièrement hors palette `M · P2 · front`
 
 ## 🚧 Doing
 
@@ -75,7 +85,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 349
+## ✅ Done — 350
+
+<details>
+<summary><strong>Vague 49 — Site public — audit design & fonctionnel (2026-08-27)</strong> — 1 ticket</summary>
+
+- [TCK-441](tickets/TCK-441-contact-personnel-agent-sans-authentification.md) — L'adresse de CONNEXION d'un agent est publiée sur un endpoint public énumérable — là où l'API voisine la retire pour les mêmes personnes `S · P1 · back`
+
+</details>
 
 <details>
 <summary><strong>Vague 48 — Tableau de bord /app — audit design & fonctionnel (2026-08-26)</strong> — 6 tickets</summary>

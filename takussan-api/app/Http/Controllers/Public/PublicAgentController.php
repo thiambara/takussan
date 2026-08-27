@@ -3,14 +3,18 @@
 namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Base\Controller;
+use App\Http\Requests\Public\ContactLeadPublicRequest;
 use App\Http\Resources\PropertyResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
+use App\Models\PropertyContactLead;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -87,7 +91,15 @@ class PublicAgentController extends Controller
                 'first_name' => $agent->first_name,
                 'last_name' => $agent->last_name,
                 'full_name' => trim($agent->first_name.' '.$agent->last_name),
-                'email' => $agent->email,
+                // TCK-441 — `email` N'EST PAS servi ici, et c'est le coeur du ticket.
+                // `User::$email` est l'IDENTIFIANT DE CONNEXION : `fillable` a cote de
+                // `password`, normalise en minuscules pour l'index unique. Le publier sur un
+                // endpoint anonyme et enumerable par slug, c'est offrir la moitie du formulaire
+                // de connexion — et c'est exactement ce que PublicAgencyController retire deja
+                // pour ces memes personnes, que `TeamStrip` liait pourtant jusqu'ici.
+                //
+                // Le TELEPHONE reste public : c'est une coordonnee de joignabilite, pas un
+                // identifiant, et un agent immobilier veut etre appele. Decision du ticket.
                 'phone' => $agent->phone,
                 'avatar_url' => $agent->avatar_url ?? null,
                 'bio' => $agent->bio,
@@ -116,6 +128,61 @@ class PublicAgentController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /**
+     * TCK-441 — contact ANONYME d'un agent, en remplacement du `mailto:` retire ci-dessus.
+     *
+     * ⚠️ Aucune authentification, et c'est deliberé : le regime du contact public de ce depot est
+     * celui de `properties/{slug}/contact-lead`, anonyme depuis TCK-161. La barriere est le
+     * `throttle` et le pot de miel, jamais un compte a creer. Un ticket qui rendrait le contact
+     * d'un agent plus difficile qu'avant aurait manque son objet.
+     *
+     * La piste est rattachee a l'AGENCE de l'agent — frontiere d'isolation, principe n°2 — et
+     * porte `property_id` a null : c'est ce que la migration de ce ticket a rendu possible.
+     */
+    public function contactLead(
+        ContactLeadPublicRequest $request,
+        NotificationService $notifications,
+        string $slug,
+    ): JsonResponse {
+        $data = $request->validated();
+
+        $agent = User::query()
+            ->where('username', $slug)
+            ->where('status', 'active')
+            ->with('agency')
+            ->first();
+
+        abort_if($agent === null, 404);
+
+        // Pot de miel : on accepte sans rien ecrire, exactement comme le contact d'un bien.
+        // Repondre 422 apprendrait au robot quel champ eviter.
+        if (! empty($data['company'])) {
+            return $this->json(['data' => ['accepted' => true]], 201);
+        }
+
+        $lead = PropertyContactLead::create([
+            'property_id' => null,
+            'agency_id' => $agent->agency?->id,
+            'recipient_user_id' => $agent->id,
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'message' => $data['message'],
+            'ip' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 255),
+        ]);
+
+        $notifications->notify(
+            $agent,
+            NotificationType::Message,
+            'Nouveau lead anonyme',
+            $data['name'].' ('.$data['email'].') : '.mb_strimwidth($data['message'], 0, 80, '…'),
+            ['agent_id' => $agent->id, 'lead_id' => $lead->id],
+        );
+
+        return $this->json(['data' => ['accepted' => true]], 201);
     }
 
     /**

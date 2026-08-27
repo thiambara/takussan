@@ -6,8 +6,11 @@ use App\Http\Requests\BaseFormRequest;
 
 /**
  * TCK-304/305 — extrait de PublicPropertyController::contactLead(), ou les regles etaient inline.
+ *
+ * TCK-441 — partagee avec PublicAgentController::contactLead() : le meme formulaire, les memes
+ * regles, un seul endroit. Deux copies de ces six lignes divergeraient sans que rien ne le dise.
  */
-class ContactLeadPublicPropertyRequest extends BaseFormRequest
+class ContactLeadPublicRequest extends BaseFormRequest
 {
     /**
      * L'autorisation reste dans le controleur / la policy (principes 1 et 2, TCK-306).
