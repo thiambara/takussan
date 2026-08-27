@@ -6478,7 +6478,8 @@
       "backToList": "Dellu ci limu bi",
       "title": "Ñaan #{id}",
       "subtitle": "Topptoo liggéey bi",
-      "back": "Dellu"
+      "back": "Dellu",
+      "metaTitle": "Ñaanu defaraat"
     },
     "onboardingPending": {
       "metaTitle": "Dugg yuy xaar",
@@ -6524,7 +6525,8 @@
       },
       "payments": {
         "title": "Pey yi",
-        "subtitle": "Taariix, fakteer ak peymaanu boroom kër — benn topptoo."
+        "subtitle": "Taariix, fakteer ak peymaanu boroom kër — benn topptoo.",
+        "metaTitle": "Pey yi"
       },
       "calendar": {
         "metaTitle": "Arminaat",
@@ -6548,7 +6550,8 @@
         "title": "Kiliyaan yi (CRM)",
         "subtitle": "Topp say jokkoo, seen tolluwaay ci pipeline bi ak seen dokimaa.",
         "add": "Yokk benn kiliyaan",
-        "pipelineView": "Xool pipeline bi"
+        "pipelineView": "Xool pipeline bi",
+        "metaTitle": "Kiliyaan yi (CRM)"
       },
       "customerNew": {
         "metaTitle": "Yokk benn kiliyaan",
@@ -6583,7 +6586,8 @@
         "breadcrumbProfile": "Profil",
         "breadcrumbCurrent": "Xalaat yi",
         "title": "Say xalaat",
-        "subtitle": "Gis xalaat yi nga génne, seen nekkin, ak dal walla kontaraa yi man a jot xalaat."
+        "subtitle": "Gis xalaat yi nga génne, seen nekkin, ak dal walla kontaraa yi man a jot xalaat.",
+        "metaTitle": "Say xalaat"
       },
       "bookingDetail": {
         "metaTitle": "Réservasioŋ",
@@ -6592,7 +6596,8 @@
       "alerts": {
         "title": "Yégle yu dig",
         "subtitle": "Tëralal yégle yiy dox bu màndarga yi weesoo benn dig.",
-        "subtitleFull": "Tëralal yégle yiy dox bu KPI yi weesoo benn dig. Ñu koy natt waxtu wu nekk."
+        "subtitleFull": "Tëralal yégle yiy dox bu KPI yi weesoo benn dig. Ñu koy natt waxtu wu nekk.",
+        "metaTitle": "Yégle yu dig"
       },
       "exports": {
         "metaTitle": "Ekspoor yi",
@@ -6602,25 +6607,53 @@
       "kpis": {
         "title": "KPI yu ñu tëral",
         "subtitle": "Tànnal màndarga yi nga bëgg ci sa tablo.",
-        "subtitleFull": "Tànnal màndarga yi nga bëgg ci tablo bu sa ajaas."
+        "subtitleFull": "Tànnal màndarga yi nga bëgg ci tablo bu sa ajaas.",
+        "metaTitle": "KPI yu ñu tëral"
       },
       "home": {
         "noAgency": "Tablo bi",
         "greeting": "Salaam {name}",
-        "subtitle": "Wonewu say jëf"
+        "subtitle": "Wonewu say jëf",
+        "metaTitle": "Tablo bi"
       },
       "propertyDetail": {
         "metaTitle": "Fiisu kër",
         "eyebrow": "Kër · {reference}"
       },
       "leaseDetail": {
-        "metaTitleFallback": "Gisuñu kontaraa bi"
+        "metaTitleFallback": "Gisuñu kontaraa bi",
+        "metaTitleWithId": "Kontaraa #{id}",
+        "metaTitleWithReference": "Kontaraa {reference}"
       },
       "providers": {
         "metaTitle": "Téereb jottalikat yi"
       },
       "upgrade": {
         "metaTitle": "Jóg ci pro"
+      },
+      "crmPipeline": {
+        "metaTitle": "Pipeline prospects"
+      },
+      "documentDetail": {
+        "metaTitle": "Kayit bi"
+      },
+      "inventoryNew": {
+        "metaTitle": "Limu kër bu bees"
+      },
+      "overviewAgency": {
+        "metaTitle": "Wonewu ajaas"
+      },
+      "overviewOwner": {
+        "metaTitle": "Wonewu boroom kër"
+      },
+      "overviewTenant": {
+        "metaTitle": "Sama nekkin"
+      },
+      "paymentReturn": {
+        "metaTitle": "Dellusiwu pey bi"
+      },
+      "visitDetail": {
+        "metaTitle": "Gis-gisu wisit"
       }
     },
     "welcome": "Salaam, {name}",
@@ -6730,6 +6763,12 @@
       "empty": "Amul xibaar bu ñu man a wone ba tey.",
       "total": "Lëmboo lépp :",
       "seriesName": "Njariñ"
+    },
+    "notFound": {
+      "title": "Gisuñu ko",
+      "description": "Mbir mii amul, walla bokkul ci sa ajaas. Xoolaatal lien bi, walla dellul ci limu bi.",
+      "backToList": "Dellu ci limu bi",
+      "backToDashboard": "Dellu ci tablo bi"
     }
   },
   "meta": {

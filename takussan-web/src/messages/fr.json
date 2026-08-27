@@ -1271,7 +1271,8 @@
       "backToList": "Retour à la liste",
       "title": "Demande #{id}",
       "subtitle": "Suivi de l'intervention",
-      "back": "Retour"
+      "back": "Retour",
+      "metaTitle": "Demande de maintenance"
     },
     "onboardingPending": {
       "metaTitle": "Onboardings en attente",
@@ -1317,7 +1318,8 @@
       },
       "payments": {
         "title": "Paiements",
-        "subtitle": "Historique, factures et reversements bailleurs — suivi unifié."
+        "subtitle": "Historique, factures et reversements bailleurs — suivi unifié.",
+        "metaTitle": "Paiements"
       },
       "calendar": {
         "metaTitle": "Calendrier",
@@ -1341,7 +1343,8 @@
         "title": "Clients (CRM)",
         "subtitle": "Suivez vos contacts, leurs étapes de pipeline et leurs documents.",
         "add": "Ajouter un client",
-        "pipelineView": "Vue pipeline"
+        "pipelineView": "Vue pipeline",
+        "metaTitle": "Clients (CRM)"
       },
       "customerNew": {
         "metaTitle": "Ajouter un client",
@@ -1376,7 +1379,8 @@
         "breadcrumbProfile": "Profil",
         "breadcrumbCurrent": "Avis",
         "title": "Vos avis",
-        "subtitle": "Retrouvez les avis que vous avez publiés, leurs statuts, et les séjours ou baux encore éligibles à un avis public."
+        "subtitle": "Retrouvez les avis que vous avez publiés, leurs statuts, et les séjours ou baux encore éligibles à un avis public.",
+        "metaTitle": "Vos avis"
       },
       "bookingDetail": {
         "metaTitle": "Réservation",
@@ -1385,7 +1389,8 @@
       "alerts": {
         "title": "Alertes de seuil",
         "subtitle": "Configurez les alertes déclenchées lorsque certains indicateurs franchissent un seuil.",
-        "subtitleFull": "Configurez les alertes déclenchées lorsque certains KPIs franchissent un seuil. Évaluées toutes les heures."
+        "subtitleFull": "Configurez les alertes déclenchées lorsque certains KPIs franchissent un seuil. Évaluées toutes les heures.",
+        "metaTitle": "Alertes de seuil"
       },
       "exports": {
         "metaTitle": "Exports",
@@ -1395,25 +1400,53 @@
       "kpis": {
         "title": "KPIs personnalisés",
         "subtitle": "Choisissez les indicateurs à mettre en avant sur votre tableau de bord.",
-        "subtitleFull": "Choisissez les indicateurs à mettre en avant sur le tableau de bord de votre agence."
+        "subtitleFull": "Choisissez les indicateurs à mettre en avant sur le tableau de bord de votre agence.",
+        "metaTitle": "KPIs personnalisés"
       },
       "home": {
         "noAgency": "Tableau de bord",
         "greeting": "Bonjour {name}",
-        "subtitle": "Vue d'ensemble de votre activité"
+        "subtitle": "Vue d'ensemble de votre activité",
+        "metaTitle": "Tableau de bord"
       },
       "propertyDetail": {
         "metaTitle": "Fiche bien",
         "eyebrow": "Bien · {reference}"
       },
       "leaseDetail": {
-        "metaTitleFallback": "Bail introuvable"
+        "metaTitleFallback": "Bail introuvable",
+        "metaTitleWithId": "Bail #{id}",
+        "metaTitleWithReference": "Bail {reference}"
       },
       "providers": {
         "metaTitle": "Carnet prestataires"
       },
       "upgrade": {
         "metaTitle": "Passer en pro"
+      },
+      "crmPipeline": {
+        "metaTitle": "Pipeline de prospects"
+      },
+      "documentDetail": {
+        "metaTitle": "Fiche document"
+      },
+      "inventoryNew": {
+        "metaTitle": "Nouvel état des lieux"
+      },
+      "overviewAgency": {
+        "metaTitle": "Vue agence"
+      },
+      "overviewOwner": {
+        "metaTitle": "Vue bailleur"
+      },
+      "overviewTenant": {
+        "metaTitle": "Ma situation"
+      },
+      "paymentReturn": {
+        "metaTitle": "Retour de paiement"
+      },
+      "visitDetail": {
+        "metaTitle": "Fiche visite"
       }
     },
     "empty": {
@@ -1518,6 +1551,12 @@
       "empty": "Pas encore de données à afficher.",
       "total": "Total :",
       "seriesName": "Revenus"
+    },
+    "notFound": {
+      "title": "Introuvable",
+      "description": "Cet élément n'existe pas, ou il ne relève pas de votre agence. Vérifiez le lien, ou revenez à la liste.",
+      "backToList": "Revenir à la liste",
+      "backToDashboard": "Retour au tableau de bord"
     }
   },
   "errors": {

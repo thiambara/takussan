@@ -3,10 +3,6 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.profile');
-  return { title: t('metaTitle') };
-}
 import { isAgent, isOwner, isCustomer, isAdmin } from '@/lib/roles';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
@@ -20,6 +16,11 @@ import { MyProfilesSection } from '@/components/profile/MyProfilesSection';
 // `buttonVariants()` sur un `<Link>`, et non le wrapper polymorphe de shadcn/Radix que le ticket
 // prescrivait : ce dépôt n'a aucune dépendance Radix, cette API n'existe pas ici.
 import { buttonVariants } from '@/components/ui/button';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.profile');
+  return { title: t('metaTitle') };
+}
 
 export default async function ProfilePage() {
   const t = await getTranslations('dashboard.profile');

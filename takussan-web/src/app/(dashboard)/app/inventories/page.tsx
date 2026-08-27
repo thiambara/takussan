@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.inventories');
-  return { title: t('metaTitle') };
-}
 import { InventoryList } from '@/components/inventory';
 import { getTranslations } from 'next-intl/server';
 import { isAdmin, isAgent } from '@/lib/roles';
 import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.inventories');
+  return { title: t('metaTitle') };
+}
 
 export default async function Page() {
   const t = await getTranslations('dashboard.pages.inventories');

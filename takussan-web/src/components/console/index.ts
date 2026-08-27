@@ -10,6 +10,8 @@ export { PageHeader } from './PageHeader';
 export type { PageHeaderProps } from './PageHeader';
 export { Pagination } from './Pagination';
 export type { PaginationProps } from './Pagination';
+export { RouteSkeleton } from './RouteSkeleton';
+export type { RouteSkeletonProps, RouteSkeletonVariant } from './RouteSkeleton';
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
 export { StatusBadge } from './StatusBadge';

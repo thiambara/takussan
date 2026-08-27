@@ -139,4 +139,99 @@ requête de résolution de référence avec son propre `fields[leases]` — cett
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit dans ce ticket
+
+| Le ticket écrivait | Mesuré le 2026-08-27 |
+|---|---|
+| « **dix pages** de `/app` attendent une donnée côté serveur » | **43 sur 46.** Toutes appellent `getMeAction()`, qui est un vrai aller-retour vers `/api/users/me`. Même en ne comptant que les pages qui font une requête *au-delà* de l'authentification, il y en a **16**, pas 10 : le tableau du ticket oublie `customers`, `customers/[id]`, `maintenance/providers`, `overview/kpis`, `owners` et `settings/agency/upgrade`. Les trois pages qui n'attendent rien sont `account/privacy`, `crm` (redirection nue) et `payments/return` (module client). |
+| « `notFound()` n'est appelé que par `properties/[id]` » | Exact. Et `app/properties/loading.tsx` — le seul repli qui existait — se trouve **précisément au-dessus** de ce seul `notFound()` : ce 404 était donc déjà servi en 200. Personne ne l'avait mesuré (→ TCK-426). |
+| « **17 pages sur 46** n'ont pas de `generateMetadata` et héritent du titre générique » | 17 sur 46 est exact au fichier près, mais **deux d'entre elles ont bien un titre** : `customers/page.tsx` portait `export const metadata = { title: 'Clients (CRM)' }` et `visits/[id]` `{ title: 'Visite' }`. Ce ne sont pas des titres manquants, ce sont **deux libellés français de plus écrits en dur** — le défaut que le ticket n'attribuait qu'à `leases/[id]`. Les pages qui héritent réellement du titre générique sont **15**. |
+| « les trois dictionnaires sont complets à **5038 clés** chacun » | **5028** avant ce ticket (`node scripts/check-i18n.mjs`). La parité, elle, était bien de 0/0. |
+| « **14 pages** déclarent `generateMetadata` au milieu de leur bloc d'imports » | **14**, exact. |
+
+### Trois décisions, chacune prise sur une mesure et non sur une lecture
+
+**1 — Le `not-found.tsx` est sous `app/`, pas sous `(dashboard)`.** Le *Delta à produire* demandait
+`(dashboard)` ; l'AC2 exigeait la barre latérale. Les deux ne sont conciliables que sous `app/`,
+dont le `layout.tsx` monte `AppShell`. Vérifié par sonde jetable (`next dev`, Next 16.3.1) : un
+`not-found.tsx` de segment est rendu **à l'intérieur du `layout.tsx` de son segment**, et des
+layouts plus profonds le sont aussi.
+
+**2 — « Segment propre », et non « segment ou parent ».** L'AC1 écrite au ticket est
+**invérifiable** : `app/loading.tsx` étant l'ancêtre de tout `/app`, aucune page ne peut jamais
+manquer de repli une fois qu'il existe — le test qu'elle décrit serait vert quoi qu'on ajoute.
+La règle tenue est donc plus étroite (repli dans le segment de la page, ou dans un ancêtre
+**strictement sous** `app/`) et elle rougit réellement : vérifié par ablation, retirer
+`payments/loading.tsx` — pourtant enfant direct d'`app/` — fait échouer le test.
+
+**3 — Deux pages sont exemptées de titre, par une règle DÉRIVÉE.** `crm/page.tsx` et
+`overview/page.tsx` ne rendent aucun JSX : ce sont des aiguilleurs qui redirigent toujours. Un
+titre y serait du code mort, et celui d'`overview` aurait dupliqué un libellé existant. Le test
+ne porte pas une liste d'exemptions : il détecte l'absence de rendu, et **fige la taille** de
+l'ensemble ainsi obtenu à deux.
+
+### L'échange assumé sur les statuts HTTP
+
+Un `loading.tsx` fait partir la coque **et le code de réponse** avant que la page n'ait décidé.
+Mesuré par ablation : `notFound()` passe de 404 à 200, `redirect()` de 307 à 200 + coque. L'écran
+final reste juste dans les deux cas ; seul le statut change. L'échange est acceptable ici — `/app`
+est `noindex`, derrière authentification, et la redirection d'authentification vit dans le layout
+du groupe, donc **au-dessus** de toute frontière posée ici (`GET /app` non authentifié rend
+toujours 307). Il ne l'est pas ailleurs : le catalogue public est tenu par TCK-335. Le détail, et
+la question laissée ouverte, sont dans **TCK-426**.
+
+### Le retour de paiement a dû être scindé
+
+`payments/return/page.tsx` est `'use client'`, et Next interdit à un module client d'exporter
+`generateMetadata`. Un `layout.tsx` de segment aurait suffi — mais
+`scripts/check-i18n-namespaces.mjs` traite tout `layout.tsx` comme une frontière de dictionnaire :
+mesuré, elle aurait dû déclarer **38 espaces de noms**, c'est-à-dire recopier celui de son parent
+pour un provider imbriqué n'ajoutant rien. Le corps client est donc déplacé tel quel
+(`git mv`, aucune ligne du corps touchée) et `page.tsx` ne fait plus que porter le titre et le
+monter.
+
+### Un défaut trouvé par un test et corrigé
+
+`listePour('/admin/properties/9')` rendait `/app/properties` : la fonction ne vérifiait pas
+l'espace de tête. Sans effet en production — la frontière ne voit que `/app` — mais une fonction
+exportée finit ailleurs.
+
+### Ce que la revue adverse a trouvé, et qui est corrigé
+
+Cinq défauts, tous dans les **gardes** et non dans le comportement livré — c'est le motif :
+*un test écrit après le correctif mesure ce qu'on a fait, pas ce qu'on voulait tenir.*
+
+1. **Le plus grave, et il touchait le rendu.** `not-found.tsx` était entièrement `'use client'`.
+   Mesuré ensuite par sonde jetable, sur `next dev` **et** sur `next build` + `next start` : un
+   `not-found.tsx` client **n'apparaît pas dans le HTML de la réponse 404** — l'écran reste vide
+   jusqu'à l'hydratation ; un composant serveur y apparaît. L'écran est donc redevenu serveur, et
+   seul le raccourci contextuel (qui exige `usePathname()`) vit dans `RetourVersLaListe`.
+   Vérifié aussi au navigateur : `usePathname()` dans la frontière rend bien l'URL **demandée**,
+   y compris sur une navigation douce — c'était la dernière affirmation du lot qui restait une
+   déduction.
+2. **La garde AC1 était aveugle, pas bruyante.** `source.slice(source.search(…))` : `search` rend
+   `-1`, et `slice(-1)` rend le dernier caractère — un corps non vide et sans `await`. Une page
+   écrite `const Page = async () => {…}; export default Page;` passait donc pour « n'attend
+   aucune donnée ». Deux formes légales mesurées vertes sans repli. Un export non localisé fait
+   désormais échouer un test dédié.
+3. **Le cliquet « toute page de détail appelle `notFound()` » se prouvait lui-même** : il lisait
+   la source brute, et les docblocks de ces pages *expliquent* le passage à `notFound()`.
+   Ablation mesurée : retirer l'appel de `bookings/[id]` laissait le test vert. Il lit maintenant
+   la source débarrassée de ses commentaires.
+4. **Deux périmètres calculés excluaient ce qu'ils mesuraient** : la table des retours ne
+   regardait que les répertoires nommés littéralement `[id]` (un `[slug]` passait) ; la garde des
+   titres en dur ne voyait que `title: '…'` (une constante littérale et une concaténation
+   `t('x') + ' — suffixe'` passaient). Les trois échappées ont été reproduites, puis fermées.
+5. **Deux affirmations écrites plus larges que la mesure** : l'échange sur les statuts était
+   présenté comme ne touchant que l'authentification. Re-mesuré : **32 `redirect()` sur 15 pages**
+   de `/app`, en grande majorité des refus d'**autorisation**, dont trois redirections
+   d'authentification *en page*. Et un commentaire de test citait un `payments/return/layout.tsx`
+   qui n'existe pas, en justifiant une branche morte. Les deux sont corrigés ici et dans TCK-426.
+
+Restent, signalés et non corrigés : **8 clés i18n orphelines** dans `crm.customerDetail`,
+`dashboard.inventoryDetail`, `dashboard.maintenanceDetail` et `dashboard.pages.bookingDetail`
+(les écrans locaux qu'elles servaient ont été remplacés par `notFound()`) — non supprimées pour
+tenir la consigne de diff strictement additif sur les dictionnaires. Et **cinq pages de détail sur
+huit ne traduisent pas un 404 de l'API en introuvable**, parce qu'elles délèguent la requête à un
+composant client : `/app/bookings/999999` (identifiant bien formé, objet inexistant) rend encore
+l'écran du composant client. C'est une limite nommée dans le cliquet, pas un oubli.

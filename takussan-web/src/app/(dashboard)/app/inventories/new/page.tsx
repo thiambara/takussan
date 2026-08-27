@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { InventoryForm, InventoryLeasePicker } from '@/components/inventory';
 import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.inventoryNew');
+  return { title: t('metaTitle') };
+}
 
 interface PageProps {
   readonly searchParams: Promise<{ lease?: string }>;

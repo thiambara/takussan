@@ -4,8 +4,6 @@ import { buttonVariants } from '@/components/ui/button';
 import { redirect } from 'next/navigation';
 import { KanbanSquare, UserPlus } from 'lucide-react';
 
-export const metadata: Metadata = { title: 'Clients (CRM)' };
-
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
 import {
@@ -18,6 +16,11 @@ import { CustomerListFilters } from '@/components/customer-dashboard/CustomerLis
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.customers');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-042 — dashboard agent CRM, liste des clients.

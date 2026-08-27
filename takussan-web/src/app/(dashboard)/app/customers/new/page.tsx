@@ -2,14 +2,15 @@ import type { Metadata } from 'next';
 
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.customerNew');
-  return { title: t('metaTitle') };
-}
 import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { CustomerForm } from '@/components/customer-form';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.customerNew');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-042 — ajout d'un client CRM.

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
@@ -5,6 +6,11 @@ import { fetchThresholdAlerts } from '@/lib/queries/alerts';
 import { AlertList } from './AlertList';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.alerts');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-032 P3 — threshold alerts admin page.

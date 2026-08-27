@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
@@ -13,6 +14,11 @@ import { getToken } from '@/lib/session';
 import type { PaginatedResponse } from '@/types/api';
 import type { Payout } from '@/types/invoice';
 import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.overviewOwner');
+  return { title: t('metaTitle') };
+}
 
 /** TCK-032 P1 — owner (landlord) dashboard. */
 export default async function OwnerDashboardPage() {

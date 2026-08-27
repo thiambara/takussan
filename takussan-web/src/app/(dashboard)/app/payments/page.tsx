@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { PaymentsTabs } from '@/components/payments/PaymentsTabs';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.payments');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-063 — page principale des paiements. Expose 3 onglets :

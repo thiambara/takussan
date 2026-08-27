@@ -1,16 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.customerDetail');
-  return { title: t('metaTitle') };
-}
 import { getToken } from '@/lib/session';
 import { ApiError } from '@/lib/api';
 import {
@@ -42,6 +38,11 @@ import { PageHeader } from '@/components/console';
  * relations).
  */
 
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.customerDetail');
+  return { title: t('metaTitle') };
+}
+
 export const dynamic = 'force-dynamic';
 
 type Params = Promise<{ id: string }>;
@@ -64,15 +65,11 @@ export default async function Page({ params }: { params: Params }) {
   const tStage = await getTranslations(CUSTOMER_ENUM_NAMESPACES.pipelineStage);
 
   const customerId = Number.parseInt(id, 10);
-  if (!Number.isFinite(customerId)) {
-    return (
-      <CustomerDetailUnavailable
-        title={t('not_found_title')}
-        message={t('invalid_id_message')}
-        backLabel={t('back_cta')}
-      />
-    );
-  }
+  // Identifiant illisible et 404 de l'API disent la MÊME chose à l'utilisateur — « cette fiche
+  // n'existe pas, ou elle n'est pas la vôtre » — et se rendent donc au même endroit
+  // (`app/not-found.tsx`). Le 403 ci-dessous, lui, en dit une AUTRE : la fiche existe et
+  // l'agence n'est pas la vôtre. Les fondre aurait fait de l'écran d'accès refusé un introuvable.
+  if (!Number.isFinite(customerId) || customerId <= 0) notFound();
 
   let customer;
   let notes;
@@ -86,15 +83,7 @@ export default async function Page({ params }: { params: Params }) {
       fetchCrmTags(token).catch(() => []),
     ]);
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) {
-      return (
-        <CustomerDetailUnavailable
-          title={t('not_found_title')}
-          message={t('not_found_message')}
-          backLabel={t('back_cta')}
-        />
-      );
-    }
+    if (e instanceof ApiError && e.status === 404) notFound();
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       return (
         <CustomerDetailUnavailable
