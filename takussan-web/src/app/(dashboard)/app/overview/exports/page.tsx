@@ -9,6 +9,7 @@ import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { ExportForm } from './ExportForm';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
 
 /**
  * TCK-032 P2 — download centre. Agency staff + owners see all entities; owners
@@ -25,10 +26,7 @@ export default async function ExportsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <PageHeader title={t('title')} description={t('subtitle')} />
       <ExportForm canExportCustomers={canExportCustomers} />
     </div>
   );

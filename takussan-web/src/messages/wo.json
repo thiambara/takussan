@@ -770,7 +770,8 @@
         "pipeline": "Pipeline",
         "status": "Nekkin"
       },
-      "pagination": "{total, plural, other {# kiliyaan}} — xët {page} ci {pages}"
+      "pagination": "{total, plural, other {# kiliyaan}} — xët {page} ci {pages}",
+      "caption": "Limu kiliyaan yi"
     },
     "customerDetail": {
       "relationships": {
@@ -3912,7 +3913,8 @@
         "bulkError": "Aksioŋ bu booloo bi antuwul.",
         "bulkArchived": "Denc nañu kër yi.",
         "bulkUnpublished": "Dindi nañu leen ci génn gi.",
-        "bulkAssigned": "Soppi nañu ajaŋ bi."
+        "bulkAssigned": "Soppi nañu ajaŋ bi.",
+        "caption": "Limu kër yi ci tablo bi"
       },
       "filters": {
         "searchLabel": "Seet ab kër",

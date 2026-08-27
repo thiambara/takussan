@@ -925,7 +925,8 @@
         "bulkError": "Action en lot impossible.",
         "bulkArchived": "Biens archivés.",
         "bulkUnpublished": "Biens dépubliés.",
-        "bulkAssigned": "Agent assigné mis à jour."
+        "bulkAssigned": "Agent assigné mis à jour.",
+        "caption": "Liste des biens du tableau de bord"
       },
       "filters": {
         "searchLabel": "Rechercher un bien",
@@ -1795,7 +1796,8 @@
         "pipeline": "Pipeline",
         "status": "Statut"
       },
-      "pagination": "{total, plural, one {# client} other {# clients}} — page {page} sur {pages}"
+      "pagination": "{total, plural, one {# client} other {# clients}} — page {page} sur {pages}",
+      "caption": "Liste des clients"
     },
     "customerDetail": {
       "relationships": {

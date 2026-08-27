@@ -6,6 +6,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { EmptyState } from '@/components/feedback';
 import { InventoryForm } from '@/components/inventory';
 import { buttonVariants } from '@/components/ui/button';
+import { PageHeader } from '@/components/console';
 
 interface PageProps {
   readonly searchParams: Promise<{ lease?: string }>;
@@ -25,10 +26,7 @@ export default async function Page({ searchParams }: PageProps) {
   if (!Number.isInteger(leaseId) || leaseId <= 0) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">{t('pickLeaseTitle')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('pickLeaseSubtitle')}</p>
-        </div>
+        <PageHeader title={t('pickLeaseTitle')} description={t('pickLeaseSubtitle')} />
         <EmptyState
           icon={<FileSearch className="size-8" aria-hidden="true" />}
           title={t('no_lease_title')}
@@ -45,10 +43,7 @@ export default async function Page({ searchParams }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('formTitle')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('formSubtitle')}</p>
-      </div>
+      <PageHeader title={t('formTitle')} description={t('formSubtitle')} />
       <InventoryForm leaseId={leaseId} />
     </div>
   );

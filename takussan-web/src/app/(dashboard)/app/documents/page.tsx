@@ -7,6 +7,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 import { DocumentsLibrary } from '@/components/documents/DocumentsLibrary';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
 
 /**
  * TCK-062 — bibliothèque centralisée des documents avec filtres, upload
@@ -20,10 +21,7 @@ export default async function Page() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+      <PageHeader title={t('title')} description={t('subtitle')} />
       <DocumentsLibrary />
     </div>
   );

@@ -15,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { DataTable, type DataTableColumn } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -133,74 +134,83 @@ export function PropertyList({
 
   const selectedCount = selectedIds.length;
 
+  /**
+   * Les six colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
+   * (sélection · bien · prix · activité · statut · actions), éprouvé par test.
+   *
+   * La colonne de sélection garde son en-tête à la case à cocher « tout sélectionner » : c'est
+   * un CONTRÔLE, pas un libellé, donc ni `headerSrOnly` ni titre inventé.
+   */
+  const colonnes: readonly DataTableColumn<PropertyListItem>[] = [
+    {
+      id: 'select',
+      header: (
+        <input
+          type="checkbox"
+          aria-label={t('selectAll')}
+          checked={allVisibleSelected}
+          onChange={toggleAll}
+          className="size-4 rounded border-border"
+        />
+      ),
+      className: 'w-10',
+      cell: (property) => (
+        <input
+          type="checkbox"
+          aria-label={t('selectOne', { title: property.title })}
+          checked={selectedIds.includes(property.id)}
+          onChange={() => toggleOne(property.id)}
+          className="size-4 rounded border-border"
+        />
+      ),
+    },
+    {
+      id: 'property',
+      header: t('headers.property'),
+      cell: (property) => <BienCell property={property} currentUserId={currentUserId} />,
+    },
+    { id: 'price', header: t('headers.price'), cell: (property) => <PriceCell property={property} /> },
+    {
+      id: 'activity',
+      header: t('headers.activity'),
+      cell: (property) => <ActivityCell property={property} />,
+    },
+    {
+      id: 'status',
+      header: t('headers.status'),
+      cell: (property) => (
+        <StatusStack status={property.status} visibility={property.visibility} />
+      ),
+    },
+    {
+      id: 'actions',
+      header: t('headers.actions'),
+      align: 'end',
+      cell: (property) => (
+        <div className="flex items-center justify-end">
+          <PropertyRowActions property={property} />
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      {/* Desktop table — 6 columns */}
-      <div className="hidden overflow-hidden rounded-xl bg-card md:block">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-muted/70 backdrop-blur">
-            <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="w-10 px-4 py-3 font-semibold">
-                <input
-                  type="checkbox"
-                  aria-label={t('selectAll')}
-                  checked={allVisibleSelected}
-                  onChange={toggleAll}
-                  className="size-4 rounded border-stone-300"
-                />
-              </th>
-              <th className="px-4 py-3 font-semibold">{t('headers.property')}</th>
-              <th className="px-4 py-3 font-semibold">{t('headers.price')}</th>
-              <th className="px-4 py-3 font-semibold">{t('headers.activity')}</th>
-              <th className="px-4 py-3 font-semibold">{t('headers.status')}</th>
-              <th className="px-4 py-3 font-semibold text-right">
-                {t('headers.actions')}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-muted/60">
-            {properties.map((property) => (
-              <tr
-                key={property.id}
-                className={cn(
-                  'align-middle transition-colors hover:bg-muted/30',
-                  selectedIds.includes(property.id) && 'bg-primary/5',
-                )}
-              >
-                <td className="px-4 py-4">
-                  <input
-                    type="checkbox"
-                    aria-label={t('selectOne', { title: property.title })}
-                    checked={selectedIds.includes(property.id)}
-                    onChange={() => toggleOne(property.id)}
-                    className="size-4 rounded border-stone-300"
-                  />
-                </td>
-                <td className="px-4 py-4">
-                  <BienCell property={property} currentUserId={currentUserId} />
-                </td>
-                <td className="px-4 py-4">
-                  <PriceCell property={property} />
-                </td>
-                <td className="px-4 py-4">
-                  <ActivityCell property={property} />
-                </td>
-                <td className="px-4 py-4">
-                  <StatusStack
-                    status={property.status}
-                    visibility={property.visibility}
-                  />
-                </td>
-                <td className="px-4 py-4 text-right">
-                  <div className="flex items-center justify-end">
-                    <PropertyRowActions property={property} />
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {/* Table du bureau — 6 colonnes. La liste de cartes sous `md` reste des CARTES. */}
+      <DataTable
+        className="hidden md:block"
+        caption={t('caption')}
+        columns={colonnes}
+        rows={properties}
+        rowKey={(property) => property.id}
+        rowProps={(property) => ({
+          className: cn(
+            'align-middle transition-colors hover:bg-muted/30',
+            selectedIds.includes(property.id) && 'bg-primary/5',
+          ),
+        })}
+        stickyHeader
+      />
 
       {/* Mobile cards — compact horizontal layout */}
       <ul className="space-y-3 md:hidden">

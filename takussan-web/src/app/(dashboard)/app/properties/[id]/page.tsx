@@ -18,6 +18,7 @@ import { PropertyStatusBadge } from '@/components/property-dashboard/PropertySta
 import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
 import { PropertyModerationBanner } from '@/components/property-form/PropertyModerationBanner';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
 
 /**
  * TCK-041 — page d'édition d'un bien existant.
@@ -52,15 +53,11 @@ export default async function Page({ params }: { params: Params }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            {t('eyebrow', { reference: property.reference_number ?? `#${property.id}` })}
-          </p>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground">
-            {property.title}
-          </h1>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+      <PageHeader
+        eyebrow={t('eyebrow', { reference: property.reference_number ?? `#${property.id}` })}
+        title={property.title}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
             <PropertyStatusBadge
               status={property.status}
               statusLabel={property.status_label}
@@ -73,10 +70,10 @@ export default async function Page({ params }: { params: Params }) {
                 : ''}
               {property.location?.city ? ` · ${property.location.city}` : ''}
             </span>
-          </div>
-        </div>
-        <PropertyHeaderActions property={property} />
-      </header>
+          </span>
+        }
+        actions={<PropertyHeaderActions property={property} />}
+      />
 
       <PropertyModerationBanner property={property} />
 

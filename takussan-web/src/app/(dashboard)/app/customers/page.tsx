@@ -17,6 +17,7 @@ import { CustomerList } from '@/components/customer-dashboard/CustomerList';
 import { CustomerListFilters } from '@/components/customer-dashboard/CustomerListFilters';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { getTranslations } from 'next-intl/server';
+import { PageHeader } from '@/components/console';
 
 /**
  * TCK-042 — dashboard agent CRM, liste des clients.
@@ -60,19 +61,16 @@ export default async function Page({
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <Link
-          href="/app/customers/new"
-          className={buttonVariants({ size: 'lg' })}
-        >
-          <UserPlus className="size-4" aria-hidden="true" />
-          {t('add')}
-        </Link>
-      </header>
+      <PageHeader
+        title={t('title')}
+        description={t('subtitle')}
+        actions={
+          <Link href="/app/customers/new" className={buttonVariants({ size: 'lg' })}>
+            <UserPlus className="size-4" aria-hidden="true" />
+            {t('add')}
+          </Link>
+        }
+      />
 
       <CustomerListFilters crmTags={crmTags} />
 

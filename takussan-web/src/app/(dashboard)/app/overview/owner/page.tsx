@@ -12,6 +12,7 @@ import { apiRequest, buildQueryString } from '@/lib/api';
 import { getToken } from '@/lib/session';
 import type { PaginatedResponse } from '@/types/api';
 import type { Payout } from '@/types/invoice';
+import { PageHeader } from '@/components/console';
 
 /** TCK-032 P1 — owner (landlord) dashboard. */
 export default async function OwnerDashboardPage() {
@@ -24,10 +25,7 @@ export default async function OwnerDashboardPage() {
   const payload = await fetchOwnerDashboard();
   if (!payload) {
     return (
-      <div className="space-y-2">
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('loadError')}</p>
-      </div>
+      <PageHeader title={t('title')} description={t('loadError')} />
     );
   }
   const data = payload.data;
@@ -36,15 +34,10 @@ export default async function OwnerDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('subtitle', {
+      <PageHeader title={t('title')} description={t('subtitle', {
             start: data.period.start.slice(0, 10),
             end: data.period.end.slice(0, 10),
-          })}
-        </p>
-      </div>
+          })} />
 
       {(data.portfolio?.total ?? 0) === 0 && (
         <section className="rounded-2xl border border-dashed border-stone-200 bg-white p-6">

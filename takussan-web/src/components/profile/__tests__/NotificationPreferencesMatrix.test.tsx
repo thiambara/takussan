@@ -88,8 +88,31 @@ describe('<NotificationPreferencesMatrix>', () => {
     render(wrap(<NotificationPreferencesMatrix />));
 
     await waitFor(() => expect(screen.getByText('Nouveau message')).toBeInTheDocument());
-    expect(screen.getByText('Réservations')).toBeInTheDocument();
+    // ⚠ « Réservations » apparaît DEUX fois depuis TCK-380 : le titre visible du groupe, et la
+    // `<caption class="sr-only">` que `DataTable` pose sur chaque table — la légende que la table
+    // faite main n'avait pas. Le test vise donc le titre, et le second `getAllByText` prouve que
+    // la légende existe bien plutôt que de la laisser disparaître sans bruit.
+    expect(screen.getByRole('heading', { name: 'Réservations' })).toBeInTheDocument();
+    expect(screen.getAllByText('Réservations')).toHaveLength(2);
     expect(screen.getByText(/téléphone n'est pas vérifié/i)).toBeInTheDocument();
+  });
+
+  /**
+   * TCK-380 · AC3 — la matrice convertie garde ses colonnes, dans l'ordre : l'événement d'abord,
+   * puis UN canal par colonne, dans l'ordre rendu par l'API. Relevé sur les `<th>` de la table
+   * faite main à la révision `73ca883b`.
+   */
+  it('garde ses colonnes après le passage sur DataTable (AC3 de TCK-380)', async () => {
+    getMock.mockResolvedValue({ ok: true, data: buildGrid() });
+    render(wrap(<NotificationPreferencesMatrix />));
+
+    await waitFor(() => expect(screen.getByText('Nouveau message')).toBeInTheDocument());
+
+    const table = screen.getByRole('table', { name: 'Messages' });
+    const entetes = within(table)
+      .getAllByRole('columnheader')
+      .map((th) => th.textContent?.trim());
+    expect(entetes).toEqual(['Événement', 'In-app', 'Email', 'Push', 'SMS']);
   });
 
   it('toggles a cell and calls the update action', async () => {

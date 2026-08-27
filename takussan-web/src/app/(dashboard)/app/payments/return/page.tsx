@@ -9,6 +9,7 @@ import {
   type GatewayPaymentType,
 } from '@/hooks/useInitiatePayment';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/console';
 
 const POLL_INTERVAL_MS = 15_000;
 const MAX_POLL_DURATION_MS = 120_000; // 2 min
@@ -82,8 +83,11 @@ function PaymentReturnInner() {
   if (!paymentType || !paymentId) {
     return (
       <main className="mx-auto max-w-md py-16 text-center">
-        <h1 className="font-display text-2xl font-semibold text-foreground">{t('return.invalid.title')}</h1>
-        <p className="mt-3 text-sm text-stone-600">{t('return.invalid.body')}</p>
+        <PageHeader
+          className="items-center md:flex-col md:items-center"
+          title={t('return.invalid.title')}
+          description={t('return.invalid.body')}
+        />
         <div className="mt-6">
           <Button onClick={() => router.push('/app/payments')}>{t('return.actions.backToPayments')}</Button>
         </div>
@@ -93,17 +97,24 @@ function PaymentReturnInner() {
 
   return (
     <main className="mx-auto max-w-md py-16 text-center">
-      <h1 className="font-display text-2xl font-semibold text-foreground">
-        {bucket === 'success' && t('return.success.title')}
-        {bucket === 'failed' && t('return.failed.title')}
-        {bucket === 'pending' && t('return.pending.title')}
-        {bucket === 'unknown' && t('return.unknown.title')}
-      </h1>
-      <p className="mt-3 text-sm text-stone-600">
-        {bucket === 'success' && t('return.success.body')}
-        {bucket === 'failed' && t('return.failed.body')}
-        {(bucket === 'pending' || bucket === 'unknown') && t('return.pending.body')}
-      </p>
+      <PageHeader
+        className="items-center md:flex-col md:items-center"
+        title={
+          <>
+            {bucket === 'success' && t('return.success.title')}
+            {bucket === 'failed' && t('return.failed.title')}
+            {bucket === 'pending' && t('return.pending.title')}
+            {bucket === 'unknown' && t('return.unknown.title')}
+          </>
+        }
+        description={
+          <>
+            {bucket === 'success' && t('return.success.body')}
+            {bucket === 'failed' && t('return.failed.body')}
+            {(bucket === 'pending' || bucket === 'unknown') && t('return.pending.body')}
+          </>
+        }
+      />
       {isVerifying && (
         // `role="status"` + `aria-live` restent sur le PARENT : un composant qui reposerait son
         // propre rôle créerait un double signalement. L'icône lucide remplace le spinner CSS

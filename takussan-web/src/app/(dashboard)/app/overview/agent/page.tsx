@@ -13,6 +13,7 @@ import { BarChart } from '@/components/charts/BarChart';
 import { LineChart } from '@/components/charts/LineChart';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
+import { PageHeader } from '@/components/console';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.agent');
@@ -40,10 +41,7 @@ export default async function AgentDashboardPage() {
   const payload = await fetchAgentDashboard();
   if (!payload) {
     return (
-      <div className="space-y-2">
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('loadError')}</p>
-      </div>
+      <PageHeader title={t('title')} description={t('loadError')} />
     );
   }
   const data = payload.data;
@@ -53,15 +51,10 @@ export default async function AgentDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('subtitle', {
+      <PageHeader title={t('title')} description={t('subtitle', {
             start: formatDate(data.period.start, LOCALE),
             end: formatDate(data.period.end, LOCALE),
-          })}
-        </p>
-      </div>
+          })} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
         <StatCard

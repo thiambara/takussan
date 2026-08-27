@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useMemo, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { DataTable, type DataTableColumn } from '@/components/console';
 import { Button } from '@/components/ui/button';
 import {
   getNotificationPreferencesAction,
@@ -179,6 +180,56 @@ export function NotificationPreferencesMatrix() {
   const channels = data.channels;
   const displayError = localError ?? (query.error ? messageErreur(query.error) : null);
 
+  /**
+   * Les colonnes de la matrice : l'événement, puis UNE par canal — dans l'ordre de `channels`,
+   * donc exactement celui de la table faite main. La ligne EST l'événement (`rows={group.events}`),
+   * ce qui laisse la grille se construire depuis la donnée plutôt que depuis deux boucles JSX
+   * imbriquées qui pouvaient diverger.
+   */
+  const colonnes: readonly DataTableColumn<string>[] = [
+    {
+      id: 'event',
+      header: t('eventColumn'),
+      className: 'text-foreground',
+      cell: (event) => labelEvenement(event),
+    },
+    ...channels.map<DataTableColumn<string>>((channel) => ({
+      id: channel,
+      header: t(`channels.${channel}`),
+      className: 'text-center',
+      cell: (event) => {
+        const cell = cellMap.get(cellKey(event, channel));
+        if (!cell) return '—';
+        const title =
+          cell.reason === 'inapp_always_on'
+            ? t('reasons.inappAlwaysOn')
+            : cell.reason === 'phone_not_verified'
+              ? t('reasons.phoneNotVerified')
+              : undefined;
+        return (
+          <label
+            className={
+              'inline-flex cursor-pointer items-center ' +
+              (cell.locked ? 'cursor-not-allowed opacity-60' : '')
+            }
+            title={title}
+          >
+            <input
+              type="checkbox"
+              disabled={cell.locked || mutation.isPending}
+              checked={cell.enabled}
+              onChange={(e) => toggle(event, channel, e.target.checked)}
+              aria-label={t('toggleAria', {
+                event: labelEvenement(event),
+                channel: t(`channels.${channel}`),
+              })}
+            />
+          </label>
+        );
+      },
+    })),
+  ];
+
   return (
     <div className="space-y-6">
       {displayError ? (
@@ -208,58 +259,14 @@ export function NotificationPreferencesMatrix() {
             <h3 className="text-sm font-bold text-foreground">{t(`groups.${group.key}`)}</h3>
           </header>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2">{t('eventColumn')}</th>
-                  {channels.map((channel) => (
-                    <th key={channel} className="px-4 py-2 text-center">
-                      {t(`channels.${channel}`)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {group.events.map((event) => (
-                  <tr key={event} className="border-t border-border">
-                    <td className="px-4 py-2 text-foreground">
-                      {labelEvenement(event)}
-                    </td>
-                    {channels.map((channel) => {
-                      const cell = cellMap.get(cellKey(event, channel));
-                      if (!cell) return <td key={channel} className="px-4 py-2 text-center">—</td>;
-                      const title =
-                        cell.reason === 'inapp_always_on'
-                          ? t('reasons.inappAlwaysOn')
-                          : cell.reason === 'phone_not_verified'
-                            ? t('reasons.phoneNotVerified')
-                            : undefined;
-                      return (
-                        <td key={channel} className="px-4 py-2 text-center">
-                          <label
-                            className={
-                              'inline-flex cursor-pointer items-center ' +
-                              (cell.locked ? 'cursor-not-allowed opacity-60' : '')
-                            }
-                            title={title}
-                          >
-                            <input
-                              type="checkbox"
-                              disabled={cell.locked || mutation.isPending}
-                              checked={cell.enabled}
-                              onChange={(e) => toggle(event, channel, e.target.checked)}
-                              aria-label={t('toggleAria', { event: labelEvenement(event), channel: t(`channels.${channel}`) })}
-                            />
-                          </label>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            className="rounded-none bg-transparent ring-0"
+            caption={t(`groups.${group.key}`)}
+            columns={colonnes}
+            rows={group.events}
+            rowKey={(event) => event}
+            density="compact"
+          />
         </section>
       ))}
 

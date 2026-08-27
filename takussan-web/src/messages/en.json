@@ -949,7 +949,8 @@
         "bulkError": "Bulk action failed.",
         "bulkArchived": "Properties archived.",
         "bulkUnpublished": "Properties unpublished.",
-        "bulkAssigned": "Assigned agent updated."
+        "bulkAssigned": "Assigned agent updated.",
+        "caption": "Dashboard property list"
       },
       "filters": {
         "searchLabel": "Search a property",
@@ -1819,7 +1820,8 @@
         "pipeline": "Pipeline",
         "status": "Status"
       },
-      "pagination": "{total, plural, one {# customer} other {# customers}} — page {page} of {pages}"
+      "pagination": "{total, plural, one {# customer} other {# customers}} — page {page} of {pages}",
+      "caption": "Customer list"
     },
     "customerDetail": {
       "relationships": {

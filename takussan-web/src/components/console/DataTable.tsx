@@ -75,6 +75,19 @@ interface DataTableProps<Row> {
    */
   readonly emptyState?: ReactNode;
   readonly density?: 'default' | 'compact';
+  /**
+   * Épingle la ligne d'en-tête en haut de la zone de défilement.
+   *
+   * ⚠ **Ajouté par TCK-380 pour NE PAS perdre un comportement existant, pas pour en offrir un
+   * neuf.** La table du tableau de bord des biens portait déjà `sticky top-0 z-10 bg-muted/70
+   * backdrop-blur` sur son `<thead>` ; convertir sans cette option l'aurait retiré en silence, et
+   * un `<table>` conservé « à titre exceptionnel » aurait rouvert exactement ce que cette
+   * primitive ferme (TCK-380, contraintes strictes).
+   *
+   * L'opacité et le flou viennent AVEC : un en-tête épinglé sur un fond translucide laisse voir
+   * les lignes défiler dessous, et c'est ce que l'écran rendait déjà.
+   */
+  readonly stickyHeader?: boolean;
   /** Classes du cadre extérieur (marges, `col-span`, …). */
   readonly className?: string;
   readonly 'data-testid'?: string;
@@ -114,6 +127,7 @@ export function DataTable<Row>({
   sort,
   emptyState,
   density = 'default',
+  stickyHeader = false,
   className,
   'data-testid': dataTestId,
 }: DataTableProps<Row>) {
@@ -128,7 +142,12 @@ export function DataTable<Row>({
     >
       <Table>
         <TableCaption className="sr-only">{caption}</TableCaption>
-        <TableHeader className="bg-muted/60">
+        <TableHeader
+          className={cn(
+            'bg-muted/60',
+            stickyHeader && 'sticky top-0 z-10 bg-muted/70 backdrop-blur',
+          )}
+        >
           <TableRow className="hover:bg-transparent">
             {columns.map((column) => (
               <DataTableHeaderCell
