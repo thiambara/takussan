@@ -18,7 +18,15 @@ import { PayoutsTable } from '@/components/payments/PayoutsTable';
 import { OverduePaymentsTable } from './OverduePaymentsTable';
 import { useTranslations } from 'next-intl';
 
-const TAB_VALUES = ['encaissements', 'factures', 'reversements', 'impayes'] as const;
+/**
+ * Les valeurs acceptées par `?tab=`.
+ *
+ * **Exportée depuis TCK-375** : le bloc de files de `/admin` renvoie vers
+ * `/admin/finances?tab=impayes`, et un lien vers un onglet inexistant retomberait en silence sur
+ * « encaissements » — la ligne mènerait à côté de ce qu'elle annonce, sans qu'aucun test ne le
+ * voie. L'invariant se vérifie contre CETTE table, jamais contre une chaîne recopiée.
+ */
+export const TAB_VALUES = ['encaissements', 'factures', 'reversements', 'impayes'] as const;
 type TabValue = (typeof TAB_VALUES)[number];
 
 function isTabValue(value: string | null): value is TabValue {

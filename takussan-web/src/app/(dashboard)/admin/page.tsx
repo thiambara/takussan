@@ -2,12 +2,14 @@ import { getMeAction } from '@/app/actions/auth';
 import { AgencyActivityFeed } from '@/components/dashboard/admin/AgencyActivityFeed';
 import { AgencyDegradedState } from '@/components/dashboard/admin/AgencyDegradedState';
 import { AgencyKpis } from '@/components/dashboard/admin/AgencyKpis';
+import { AgencyQueues } from '@/components/dashboard/admin/AgencyQueues';
 import { AgencyRevenueSnapshot } from '@/components/dashboard/admin/AgencyRevenueSnapshot';
 import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
-import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
+import { ensureStandardAgencyOrRedirect, resolveAgencyOrNull } from '@/lib/access/server-guards';
+import { getToken } from '@/lib/session';
 import { getTranslations } from 'next-intl/server';
 
 export default async function Page() {
@@ -21,6 +23,30 @@ export default async function Page() {
 
   await ensureStandardAgencyOrRedirect(user);
 
+  const agencyId = typeof user.agency_id === 'number' ? user.agency_id : null;
+
+  // TCK-375 — le `kind` de l'agence, pour que les files sans objet en `individual` ne soient pas
+  // rendues (contrainte métier du ticket).
+  //
+  // ⚠️ **Aucune requête supplémentaire** : `resolveAgencyOrNull` passe par `agenceDuRendu`, qui
+  // est `cache()`é par React pour la durée du rendu — le layout vient de faire exactement le même
+  // appel pour son cadenas, et celui-ci lit sa promesse.
+  //
+  // ⚠️ **Et il rend `true` sur cet écran, toujours.** Mesuré le 2026-08-27 : `/admin` figure dans
+  // `PRO_ROUTES` et l'`ensureStandardAgencyOrRedirect` ci-dessus renvoie sur `/app` toute agence
+  // dont le `kind` n'est pas `standard`. La branche `individual` du bloc de files est donc
+  // INATTEIGNABLE DEPUIS CETTE PAGE aujourd'hui — elle est éprouvée au niveau du composant, et
+  // c'est une garde en profondeur, pas un chemin vivant. *Câbler une valeur constante en dur
+  // aurait supprimé la garde le jour où le redirect bouge ; la lire la fait suivre.*
+  let agencyIsStandard: boolean | undefined;
+  if (agencyId !== null) {
+    const token = await getToken();
+    const agency = token
+      ? await resolveAgencyOrNull(token, agencyId, 'admin/page (files d’attente)')
+      : null;
+    agencyIsStandard = agency ? agency.kind === 'standard' : undefined;
+  }
+
   const payload = await fetchDashboardAgency({ withTimeseries: true });
 
   return (
@@ -32,6 +58,13 @@ export default async function Page() {
 
       {payload ? (
         <>
+          {/* TCK-375 — les files AVANT les KPI : ce qui demande une action passe avant ce qui
+              décrit un état. Les KPI restent, ils cessent d'occuper la première ligne. */}
+          <AgencyQueues
+            agencyId={agencyId}
+            agencyIsStandard={agencyIsStandard}
+            overdueCount={payload.data.finance.overdue_count}
+          />
           <AgencyKpis summary={payload.data} />
           <div className="grid gap-6 lg:grid-cols-2">
             <AgencyActivityFeed summary={payload.data} />
