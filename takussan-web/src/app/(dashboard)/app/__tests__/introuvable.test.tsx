@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -84,10 +84,38 @@ describe('TCK-382 / AC2 — l’écran introuvable', () => {
   });
 });
 
+describe('TCK-382 — l’écran introuvable est rendu par le SERVEUR', () => {
+  it('not-found.tsx n’est pas un module client', () => {
+    // Mesuré le 2026-08-27 par sonde jetable, sur `next dev` ET sur `next build` + `next start` :
+    // un `not-found.tsx` marqué `'use client'` n'apparaît PAS dans le HTML de la réponse 404 —
+    // l'écran reste vide jusqu'à l'hydratation. Un composant SERVEUR y apparaît.
+    //
+    // Ce test lit une directive, pas un rendu : jsdom ne peut pas observer le HTML que Next
+    // produit. C'est un cliquet sur la CAUSE, comme
+    // `(public)/properties/[slug]/__tests__/pas-de-frontiere-de-suspension.test.ts`.
+    const source = readFileSync(join(APP, 'not-found.tsx'), 'utf8');
+    expect(source.split('\n').slice(0, 3).join('\n')).not.toMatch(/['"]use client['"]/);
+  });
+
+  it('le seul morceau client est le raccourci contextuel', () => {
+    // Non-vacuité : si `RetourVersLaListe` cessait d'être client, `usePathname()` casserait —
+    // et l'assertion ci-dessus resterait verte en ayant supprimé la fonctionnalité.
+    const source = readFileSync(join(APP, 'RetourVersLaListe.tsx'), 'utf8');
+    expect(source.split('\n')[0]).toMatch(/['"]use client['"]/);
+    expect(source).toContain('usePathname');
+  });
+});
+
 describe('TCK-382 — la table des listes ne peut pas se périmer', () => {
+  // ⚠ Tout segment DYNAMIQUE, pas seulement `[id]`. La version d'origine testait le nom
+  // littéral `[id]` : une route de détail nommée `[slug]` — convention déjà employée par
+  // `(public)/properties/[slug]` — ou `[factureId]` passait au vert sans chemin de retour.
+  const estDynamique = (nom: string) => /^\[.+\]$/.test(nom);
   const sectionsAvecDetail = readdirSync(APP, { withFileTypes: true })
     .filter((e) => e.isDirectory() && e.name !== '__tests__')
-    .filter((e) => existsSync(join(APP, e.name, '[id]')))
+    .filter((e) =>
+      readdirSync(join(APP, e.name), { withFileTypes: true })
+        .some((enfant) => enfant.isDirectory() && estDynamique(enfant.name)))
     .map((e) => e.name)
     .sort();
 

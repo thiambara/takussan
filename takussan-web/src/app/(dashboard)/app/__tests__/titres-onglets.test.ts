@@ -41,10 +41,14 @@ interface Titre {
 
 /** Les clés `t('…')` d'un bloc `generateMetadata`, préfixées par l'espace de noms qu'il ouvre. */
 function clesDeMetadata(source: string): string[] {
-  const debut = source.search(/export\s+(async\s+)?function\s+generateMetadata/);
+  // Les DEUX formes légales sous Next. Ne reconnaître que `function` faisait rougir une page
+  // juste écrite `export const generateMetadata = async () => …` avec le message trompeur
+  // « ne lit aucune clé » — et `etats-de-route.test.ts` acceptait déjà les deux : deux gardes
+  // du même lot n'étaient pas d'accord sur ce qu'est une `generateMetadata`.
+  const debut = source.search(/export\s+(async\s+)?(function\s+generateMetadata|const\s+generateMetadata\s*=)/);
   if (debut < 0) return [];
   const bloc = source.slice(debut);
-  const fin = bloc.indexOf('\n}\n');
+  const fin = bloc.search(/\n\}[;\n]/);
   const corps = fin > 0 ? bloc.slice(0, fin) : bloc;
   const espace = corps.match(/getTranslations\('([^']+)'\)/)?.[1];
   if (!espace) return [];
@@ -103,14 +107,22 @@ describe('TCK-382 / AC4 — les titres d’onglet', () => {
   });
 
   it.each(['fr', 'en', 'wo'])('deux pages ne rendent pas le même titre en %s', (langue) => {
+    // TOUS les titres que chaque page peut rendre, pas seulement le premier du fichier.
+    // Mesuré sur la version d'origine : `leases/[id]` était éprouvée sur `metaTitleFallback`
+    // (« Bail introuvable »), donc jamais sur le titre qu'elle rend dans le cas nominal.
     const vus = new Map<string, string>();
     const doublons: string[] = [];
     for (const titre of TITRES) {
-      const valeur = resous(DICTIONNAIRES[langue], titre.cles[0]);
-      if (typeof valeur !== 'string') continue;
-      const precedent = vus.get(valeur);
-      if (precedent) doublons.push(`« ${valeur} » : ${precedent} et ${titre.rel}`);
-      else vus.set(valeur, titre.rel);
+      for (const cle of titre.cles) {
+        const valeur = resous(DICTIONNAIRES[langue], cle);
+        if (typeof valeur !== 'string') continue;
+        const precedent = vus.get(valeur);
+        if (precedent && precedent !== titre.rel) {
+          doublons.push(`« ${valeur} » : ${precedent} et ${titre.rel}`);
+        } else if (!precedent) {
+          vus.set(valeur, titre.rel);
+        }
+      }
     }
     expect(doublons, doublons.join(' | ')).toEqual([]);
   });

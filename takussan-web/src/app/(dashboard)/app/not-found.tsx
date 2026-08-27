@@ -1,13 +1,10 @@
-'use client';
-
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { SearchX } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
-import { listePour } from '@/lib/navigation/app-sections';
+import { RetourVersLaListe } from './RetourVersLaListe';
 
 /**
  * L'introuvable DU TABLEAU DE BORD — et le mot « du » porte tout le fichier.
@@ -44,13 +41,17 @@ import { listePour } from '@/lib/navigation/app-sections';
  *
  * `usePathname()` donne l'URL demandée ; la première section après `/app/` désigne la liste dont
  * l'objet manquant relève (`@/lib/navigation/app-sections`). Cette table est gardée par
- * `__tests__/introuvable.test.tsx`, qui échoue si un segment `[id]` apparaît sous `/app` sans y
- * figurer, ou si une destination citée n'a pas de `page.tsx` sur le disque.
+ * `__tests__/introuvable.test.tsx`, qui échoue si un segment dynamique apparaît sous `/app` sans
+ * y figurer, ou si une destination citée n'a pas de `page.tsx` sur le disque.
+ *
+ * ⚠ **Ce fichier n'est PAS `'use client'`, et ce n'est pas un détail de style.** Mesuré : un
+ * `not-found.tsx` client n'est pas rendu dans le HTML de la réponse 404 — l'écran reste vide
+ * jusqu'à l'hydratation. Le message et le retour au tableau de bord sont donc servis par le
+ * serveur ; seul le raccourci contextuel vit dans `RetourVersLaListe`, qui porte le relevé.
  */
 
 export default function AppNotFound() {
   const t = useTranslations('dashboard.notFound');
-  const liste = listePour(usePathname());
 
   return (
     <EmptyState
@@ -60,15 +61,8 @@ export default function AppNotFound() {
       description={t('description')}
       action={
         <div className="flex flex-wrap items-center justify-center gap-2">
-          {liste ? (
-            <Link href={liste} className={buttonVariants()}>
-              {t('backToList')}
-            </Link>
-          ) : null}
-          <Link
-            href="/app"
-            className={buttonVariants({ variant: liste ? 'outline' : 'default' })}
-          >
+          <RetourVersLaListe />
+          <Link href="/app" className={buttonVariants({ variant: 'outline' })}>
             {t('backToDashboard')}
           </Link>
         </div>

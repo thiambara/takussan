@@ -45,12 +45,32 @@ import { fileURLToPath } from 'node:url';
  * navigateur suit bien la redirection portée par le flux RSC. Seul le statut change — et `curl`,
  * lui, s'arrête sur le squelette.
  *
- * **C'est un échange, pas un oubli.** Il est acceptable ICI et nulle part ailleurs, pour trois
- * raisons qui tiennent ensemble : `(dashboard)/layout.tsx` pose `robots: { index: false }` sur
- * tout `/app` (aucun indexeur ne lit ces statuts), l'espace est derrière l'authentification
- * (aucun client sans JS ne l'atteint), et la redirection d'authentification elle-même est
- * **au-dessus** de toute frontière posée ici — vérifié : `GET /app` non authentifié rend 307
- * avec `app/loading.tsx` en place, parce que le `redirect()` vit dans le layout du groupe.
+ * **C'est un échange, pas un oubli** — et il est plus large que le seul introuvable, ce qu'une
+ * première rédaction de ce docblock passait sous silence. `app/loading.tsx` étant l'ancêtre de
+ * tout `/app`, l'échange est TOTAL, jamais segmentaire : il couvre les **32 appels de
+ * `redirect()`/`permanentRedirect()` répartis sur 15 pages** de `/app` (relevé sur la source
+ * débarrassée de ses commentaires), dont la grande majorité sont des refus d'**autorisation** —
+ * `owners`, `maintenance/providers`, `settings/agency/upgrade`, `overview/*`, `properties/[id]`,
+ * `customers/[id]` — et non d'authentification. Trois pages y font même une redirection
+ * d'authentification EN PAGE (`owners:36`, `maintenance/providers:34`,
+ * `settings/agency/upgrade:34`).
+ *
+ * Ce qui change alors dépasse le statut : un utilisateur sans le droit reçoit 200 + `AppShell` +
+ * **le squelette de la route interdite**, puis rebondit côté client. Là où il y avait un renvoi
+ * serveur immédiat, il y a un bref aperçu de la page qu'il n'a pas le droit de voir. Aucun
+ * contenu ne fuit — le squelette ne porte aucune donnée — mais l'écran ment une fraction de
+ * seconde. `crm/page.tsx` perd de même son 308, celui dont le commentaire dit qu'il existe pour
+ * que les liens en favori résolvent encore.
+ *
+ * L'échange reste assumé, pour trois raisons qui tiennent ensemble : `(dashboard)/layout.tsx`
+ * pose `robots: { index: false }` sur tout `/app` (aucun indexeur ne lit ces statuts), l'espace
+ * est derrière l'authentification (aucun client sans JS ne l'atteint), et la garde
+ * d'authentification DU GROUPE est **au-dessus** de toute frontière posée ici — vérifié : `GET
+ * /app` non authentifié rend 307 avec `app/loading.tsx` en place, parce que ce `redirect()` vit
+ * dans le layout. Une visite en favori depuis un navigateur déconnecté fonctionne donc encore.
+ *
+ * ⚠ Aucune suite e2e n'existe dans ce dépôt (`npm run test` = vitest/jsdom) : rien ne garde ces
+ * statuts, ni avant ni après. C'est l'objet de TCK-426, qui nomme l'autorisation.
  *
  * ⚠ Sur le catalogue PUBLIC, le même échange est inacceptable et le dépôt l'a déjà payé :
  * TCK-335 a SUPPRIMÉ `properties/[slug]/loading.tsx` pour rendre un vrai 404 à l'indexation, et
@@ -79,9 +99,30 @@ interface Page {
   /** Répertoire du segment. */
   readonly segment: string;
   readonly source: string;
-  /** Corps de l'export par défaut. */
-  readonly corps: string;
+  /** Corps de l'export par défaut, ou `null` quand il n'a pas pu être localisé. */
+  readonly corps: string | null;
 }
+
+/**
+ * Les trois formes d'export par défaut que ce fichier sait lire.
+ *
+ * ⚠ Une quatrième forme rendait cette garde AVEUGLE, et non bruyante : la version d'origine
+ * faisait `corps = source.slice(search(...))`, or `search` rend `-1` quand il ne trouve rien, et
+ * `slice(-1)` rend le dernier caractère — un corps non vide et sans aucun `await`. Une page
+ * écrite `const Page = async () => {…}; export default Page;` passait donc pour « n'attend
+ * aucune donnée » et n'avait besoin d'aucun repli. Mesuré : deux formes légales passaient au
+ * vert sans `loading.tsx`. Le dépôt en utilise déjà une variante ailleurs
+ * (`admin/properties/page.tsx` réexporte `export { default } from …`).
+ *
+ * Un corps illisible est désormais `null`, et le premier test de ce fichier échoue dessus. *Une
+ * garde qui ne sait pas lire un fichier doit le DIRE, jamais le compter comme conforme.*
+ */
+const FORMES_EXPORT_DEFAUT: readonly RegExp[] = [
+  /export default (async )?function/,          // export default async function Page() {}
+  /export default (async )?\(/,                // export default async (props) => {}
+  /export default [A-Za-z_$][\w$]*\s*;/,       // const Page = …; export default Page;
+  /export \{[^}]*\bdefault\b[^}]*\}/,         // export { default } from '…'
+];
 
 function pagesDeApp(): Page[] {
   const sortie: Page[] = [];
@@ -93,13 +134,21 @@ function pagesDeApp(): Page[] {
         parcours(chemin);
       } else if (entree.name === 'page.tsx') {
         const source = readFileSync(chemin, 'utf8');
-        const debut = source.search(/export default (async )?function/);
+        // Une déclaration `export default function` ouvre le corps à sa position ; les trois
+        // autres formes désignent un symbole défini plus haut, et le corps utile est alors le
+        // fichier entier moins ses imports.
+        const declaration = source.search(FORMES_EXPORT_DEFAUT[0]);
+        const reconnue = FORMES_EXPORT_DEFAUT.some((forme) => forme.test(source));
         sortie.push({
           fichier: chemin,
           rel: relative(APP, chemin),
           segment: dir,
           source,
-          corps: debut >= 0 ? source.slice(debut) : '',
+          corps: declaration >= 0
+            ? source.slice(declaration)
+            : reconnue
+              ? source.split('\n').filter((l) => !/^import\s/.test(l)).join('\n')
+              : null,
         });
       }
     }
@@ -108,14 +157,25 @@ function pagesDeApp(): Page[] {
   return sortie.sort((a, b) => a.rel.localeCompare(b.rel));
 }
 
+/** Le code seul : ni `//`, ni `/* … *\/`. Une garde ne doit jamais lire ses propres motifs. */
+function sansCommentaires(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .map((l) => l.replace(/\/\/.*$/, ''))
+    .join('\n');
+}
+
 /** Une page qui ne rend jamais de JSX ne produit aucun document : ni onglet, ni attente. */
 function estUneRedirectionSeule(page: Page): boolean {
+  if (page.corps === null) return false;
   const redirige = /\b(permanentRedirect|redirect)\(/.test(page.corps);
   const rendDuJsx = /return\s*\(|return\s*</.test(page.corps);
   return redirige && !rendDuJsx;
 }
 
 function attendUneDonneeServeur(page: Page): boolean {
+  if (page.corps === null) return false; // signalé par le test « toute page est analysable »
   if (/^\s*['"]use client['"]/m.test(page.source.split('\n').slice(0, 3).join('\n'))) return false;
   const appels = [...page.corps.matchAll(/await\s+([A-Za-z0-9_.$]+)\s*\(/g)].map((m) => m[1]);
   return appels.some((nom) => !AWAITS_SANS_RESEAU.test(nom));
@@ -128,6 +188,15 @@ describe('TCK-382 — inventaire', () => {
     // Si ce relevé tombait à zéro — un glob cassé, un renommage de répertoire — chacune des
     // assertions ci-dessous passerait au vert en ayant mesuré l'ensemble vide.
     expect(PAGES.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it('toute page est analysable — sinon la garde se tait au lieu de rougir', () => {
+    const illisibles = PAGES.filter((p) => p.corps === null).map((p) => p.rel);
+    expect(
+      illisibles,
+      `export par défaut non localisé : ${illisibles.join(', ')} — ajouter la forme à ` +
+        'FORMES_EXPORT_DEFAUT, sans quoi ces pages échappent à TOUTES les règles de ce fichier',
+    ).toEqual([]);
   });
 
   it('deux pages seulement ne rendent aucun document, et ce sont des redirections nues', () => {
@@ -178,18 +247,50 @@ describe('TCK-382 / AC1 — l’attente', () => {
   });
 });
 
+describe('TCK-382 — l’introuvable est branché sur toutes les pages de détail', () => {
+  const DETAILS = PAGES.filter((p) => /\[[^\]]+\]\/page\.tsx$/.test(p.rel));
+
+  it('relève les pages de détail (non-vacuité)', () => {
+    expect(DETAILS.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('chacune appelle notFound() sur un identifiant illisible', () => {
+    // Trois d'entre elles ont un test de comportement dédié (`customers`, `leases`,
+    // `properties`). Pour les cinq autres, l'appel n'est tenu que par ce cliquet : sans lui,
+    // retirer leur `notFound()` serait SILENCIEUX.
+    //
+    // ⚠ Ce que ce cliquet NE dit PAS : que la page traduit un 404 de l'API en introuvable.
+    // Seules `properties/[id]` et `customers/[id]` le font — les cinq autres délèguent la
+    // requête à un composant client, où `notFound()` n'existe pas. `/app/bookings/999999`
+    // (identifiant bien formé, réservation inexistante) ne rend donc PAS l'introuvable.
+    // C'est une limite connue, pas un oubli : elle demande de remonter la requête côté
+    // serveur, ce que le ticket met hors périmètre (« le contenu des pages »).
+    // ⚠ Sur la source DÉBARRASSÉE de ses commentaires. Première version : le cliquet lisait
+    // `page.source` brut, et les docblocks de ces pages *expliquent* le passage à `notFound()`.
+    // Ablation mesurée : retirer l'appel de `bookings/[id]` laissait le test VERT, parce que le
+    // commentaire qui le justifiait le contenait encore. *Une garde qui lit ses propres
+    // explications se prouve elle-même.*
+    const sans = DETAILS.filter((p) => !/\bnotFound\(\)/.test(sansCommentaires(p.source)))
+      .map((p) => p.rel);
+    expect(sans, `pages de détail sans notFound() : ${sans.join(', ')}`).toEqual([]);
+  });
+});
+
 describe('TCK-382 / AC4 & AC6 — le titre d’onglet', () => {
   it('aucune page rendant un document n’est dépourvue de generateMetadata', () => {
     const sans: string[] = [];
     for (const page of PAGES) {
       if (estUneRedirectionSeule(page)) continue;
       if (/generateMetadata/.test(page.source)) continue;
-      // Un module 'use client' ne PEUT PAS exporter generateMetadata : Next l'interdit. Le titre
-      // vit alors dans le layout du segment (`payments/return/layout.tsx`).
-      const layout = join(page.segment, 'layout.tsx');
-      if (existsSync(layout) && /generateMetadata/.test(readFileSync(layout, 'utf8'))) continue;
       sans.push(page.rel);
     }
+    // ⚠ AUCUN repli vers un `layout.tsx` de segment ici, et c'est délibéré. Une version
+    // antérieure de ce test en offrait un, en citant un `payments/return/layout.tsx` qui
+    // n'existe pas : la scission page serveur / composant client lui a été PRÉFÉRÉE, parce
+    // qu'un `layout.tsx` ouvre une frontière de dictionnaire de 38 espaces de noms
+    // (`scripts/check-i18n-namespaces.mjs`). Une branche morte adossée à une justification
+    // fausse est pire qu'une règle stricte : elle décrit un mécanisme que personne ne peut
+    // relire.
     expect(sans, `pages sans titre d'onglet : ${sans.join(', ')}`).toEqual([]);
   });
 
@@ -210,12 +311,33 @@ describe('TCK-382 / AC4 & AC6 — le titre d’onglet', () => {
   it('aucun titre d’onglet n’est écrit en dur', () => {
     // `visits/[id]` rendait `export const metadata = { title: 'Visite' }` et `customers`
     // `{ title: 'Clients (CRM)' }` — deux libellés français dans le code, qu'aucune garde n'a
-    // vus : le contrôle B de check-i18n.mjs ne lit pas les propriétés d'objet, et il le dit.
+    // vus : le contrôle B de check-i18n.mjs ne lit ni les propriétés d'objet ni les gabarits
+    // interpolés, et il le dit lui-même dans sa sortie.
+    //
+    // ⚠ Cette règle porte sur la VALEUR de `title`, pas sur une seule de ses écritures. Une
+    // première version ne cherchait que `title:` suivi d'un guillemet ; deux échappées
+    // mesurées la traversaient — `title: UNE_CONSTANTE` définie plus haut, et surtout
+    // `title: t('x') + ' — suffixe français'`, la forme réaliste. La règle est donc : ce que
+    // `title:` reçoit doit être un appel de traduction, ou un identifiant qui n'est lié à
+    // aucun littéral du fichier — et aucune concaténation avec un littéral.
     const fautifs: string[] = [];
     for (const page of PAGES) {
-      for (const [i, ligne] of page.source.split('\n').entries()) {
-        if (/^\s*\*/.test(ligne)) continue; // docblock
-        if (/title:\s*['"`]/.test(ligne)) fautifs.push(`${page.rel}:${i + 1}`);
+      const lignes = page.source.split('\n');
+      // Les identifiants du fichier liés à un littéral de chaîne : `const X = 'texte'`.
+      const constantesLitterales = new Set(
+        [...page.source.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*['"`]/g)]
+          .map((m) => m[1]),
+      );
+      for (const [i, ligne] of lignes.entries()) {
+        if (/^\s*\*/.test(ligne) || /^\s*\/\//.test(ligne)) continue; // commentaires
+        const brut = ligne.match(/\btitle:\s*(.+?)$/)?.[1];
+        if (brut === undefined) continue;
+        // La valeur, débarrassée de la ponctuation de fin de ligne : `X };`, `X,`, `X)` …
+        const valeur = brut.replace(/[\s,;)}\]]+$/, '');
+        const litteralDirect = /^['"`]/.test(valeur);
+        const concatenation = /[+`].*['"`]/.test(valeur) && /['"`][^'"`]*[A-Za-zÀ-ÿ]/.test(valeur);
+        const constante = constantesLitterales.has(valeur);
+        if (litteralDirect || concatenation || constante) fautifs.push(`${page.rel}:${i + 1}`);
       }
     }
     expect(fautifs, `titres codés en dur : ${fautifs.join(', ')}`).toEqual([]);
