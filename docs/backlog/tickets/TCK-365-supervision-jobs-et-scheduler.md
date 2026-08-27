@@ -70,4 +70,57 @@ Endpoints existants ; un seul n'est aujourd'hui appelé par personne :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+### Ce que la mesure a contredit dans ce ticket
+
+1. **« Le payload est tronqué à l'écran »** — la troncature n'est PAS à l'écran, elle est **côté
+   serveur** : `FailedJobService::present($job, truncate: true)` coupe `payload` **et** `exception`
+   à 1024 caractères (1021 + `...`) pour la liste, et `find()` les rend entiers pour le détail. Un
+   « déplier » sur la ligne déjà reçue n'aurait donc jamais rendu que la troncature — seul l'appel
+   à `GET /api/admin/jobs/failed/{id}` porte la trace. Le `max-w-xl truncate` du front, lui, ne
+   coupait qu'un texte déjà coupé.
+
+2. **Le statut du scheduler : la donnée n'existe pas, et l'exposer serait un mensonge.**
+   `scheduled_task_runs` **a** une colonne `status` — mais `RecordScheduledTaskRun` y écrit
+   `'finished'` **en dur**, et n'écoute que `ScheduledTaskFinished`, que `ScheduleRunCommand`
+   dispatche **avant** le contrôle du code de sortie. `ScheduledTaskFailed` et
+   `ScheduledTaskSkipped` n'ont aucun écouteur. Une exécution en échec est enregistrée `finished`
+   comme une réussie. Conformément à la contrainte du ticket, rien n'a été inventé côté front :
+   le besoin est ouvert en **[TCK-383](TCK-383-statut-reel-des-executions-du-scheduler.md)**.
+
+3. **Corollaire non prévu : la colonne « Durée moyenne » de `/system/scheduler` est toujours vide.**
+   Le même listener écrit `'duration_ms' => null` alors que `ScheduledTaskFinished::$runtime` porte
+   la durée. `avg()` d'une colonne toujours nulle rend `null` : l'écran rend `—` pour chaque tâche
+   depuis l'origine. Repris dans TCK-383 — ce n'est pas un état vide, c'est une mesure jetée.
+
+4. **`retry-all` a une borne dure côté API** que le front n'annonçait nulle part :
+   `FailedJobService::BULK_RETRY_LIMIT = 500`, au-delà de laquelle le service rend un **409**. La
+   confirmation le dit maintenant, dans le même texte que le compte.
+
+### Décisions
+
+- **La table déménage** de `system-health` vers `/super-admin/system/jobs`, avec son entrée de menu
+  sous « Système ». `system-health` garde les sondes et les trois compteurs de file, et la tuile
+  « Échecs 24h » devient le lien vers la nouvelle page — c'est la porte qu'on pousse quand on
+  regarde la santé et qu'on voit un nombre non nul.
+- **Le compte annoncé dans la confirmation de `retry-all` est `meta.total`**, pas la longueur de la
+  page courante : `retry-all` porte sur la file entière, annoncer 20 sur une file de 300 serait une
+  confirmation qui ment.
+- **Le rejeu d'un job unique reste sans confirmation.** La contrainte vise « toute action
+  destructive ou massive » ; un rejeu unitaire n'est ni l'un ni l'autre, et le passer sous
+  `ConfirmActionDialog` (qui exige de retaper une phrase) rendrait l'action la plus courante de la
+  page plus coûteuse que la purge.
+- **Cadence à 60 s** sur la nouvelle page, contre 30 s sur `system-health` : un refetch au milieu de
+  la lecture d'un payload réordonne les lignes sous le curseur.
+
+### Gotcha de test
+
+`react-query` v5 passe un **second argument** (le contexte de mutation) au `mutationFn` :
+`expect(deleteFailedJob).toHaveBeenCalledWith(1)` échoue sur un appel pourtant juste. Asserter
+`mock.calls[0][0]`.
+
+### Vérification par ablation
+
+Les deux AC qui pouvaient être cochées par le comportement d'avant ont été éprouvées en cassant
+l'implémentation : détail rendant le payload tronqué à 1024, et `Pagination` retirée. Les deux tests
+correspondants rougissent (`2 failed | 5 passed`), puis reverdissent une fois l'ablation annulée
+(`7 passed`).

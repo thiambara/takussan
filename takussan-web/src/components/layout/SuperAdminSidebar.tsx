@@ -16,6 +16,7 @@ import {
   Home,
   LayoutDashboard,
   ListTree,
+  ListX,
   Megaphone,
   PlugZap,
   Send,
@@ -120,6 +121,9 @@ const NAV_GROUPS: NavGroup[] = [
         icon: Settings2,
         children: [
           { href: '/super-admin/system/health', labelKey: 'health', icon: Activity },
+          // TCK-365 — les jobs échoués vivaient au bas de `/system/health`, sans entrée de menu :
+          // on n'y arrivait qu'en sachant déjà que la page existait.
+          { href: '/super-admin/system/jobs', labelKey: 'failedJobs', icon: ListX },
           { href: '/super-admin/system/maintenance', labelKey: 'maintenance', icon: Wrench },
           { href: '/super-admin/system/scheduler', labelKey: 'scheduler', icon: CalendarClock },
         ],

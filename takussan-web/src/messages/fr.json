@@ -193,6 +193,7 @@
         "audit": "Audit",
         "system": "Système",
         "health": "Santé",
+        "failedJobs": "Jobs échoués",
         "maintenance": "Maintenance",
         "scheduler": "Planificateur"
       }
@@ -5192,6 +5193,30 @@
       "colAvgDuration": "Durée moyenne",
       "tableCaption": "Tâches planifiées et dernière exécution"
     },
+    "failedJobs": {
+      "empty_title": "Aucun job échoué",
+      "empty_description": "La file de jobs tourne sans erreur.",
+      "statTotal": "Jobs en échec",
+      "retryAll": "Rejouer tout",
+      "retry": "Rejouer",
+      "detail": "Détail",
+      "colQueue": "Queue",
+      "colPayload": "Payload",
+      "colFailedAt": "Échec",
+      "colActions": "Actions",
+      "tableCaption": "Jobs en échec de la file de traitement",
+      "loadError": "Erreur de chargement des jobs échoués.",
+      "detailTitle": "Détail du job échoué",
+      "detailSubtitle": "Payload et exception complets, tels que la file les a enregistrés.",
+      "detailError": "Erreur de chargement du détail du job.",
+      "detailConnection": "Connexion",
+      "detailUuid": "UUID",
+      "detailException": "Exception",
+      "confirmRetryAllTitle": "Rejouer tous les jobs échoués",
+      "confirmRetryAllDescription": "{count} job(s) échoué(s) seront remis en file d'un seul coup. Au-delà de 500, l'API refuse le lot.",
+      "confirmDeleteTitle": "Supprimer un job échoué",
+      "confirmDeleteDescription": "{count} job échoué (#{id}) sera purgé définitivement, avec son payload et sa trace."
+    },
     "systemHealth": {
       "failedJobs": {
         "empty_title": "Aucun job échoué",
@@ -5398,6 +5423,10 @@
       "systemHealth": {
         "title": "Healthcheck",
         "subtitle": "Dépendances, queues et échecs jobs avec rafraîchissement automatique."
+      },
+      "failedJobs": {
+        "title": "Jobs échoués",
+        "subtitle": "File de traitement : ce qui a échoué, la trace complète, et le rejeu."
       },
       "scheduler": {
         "title": "Scheduler",

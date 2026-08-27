@@ -47,6 +47,7 @@ import type {
   AnnouncementSegment,
   DataExport,
   PlatformHealthResponse,
+  FailedJobDetailResponse,
   FailedJobsResponse,
   SchedulerResponse,
   PlatformPayoutsResponse,
@@ -876,6 +877,18 @@ export async function fetchFailedJobs(params: { page?: number; perPage?: number 
   if (params.page) qs.set('page', String(params.page));
   const res = await fetch(`/api/super-admin/jobs/failed?${qs.toString()}`, { credentials: 'include' });
   return jsonOrThrow<FailedJobsResponse>(res);
+}
+
+/**
+ * Le détail d'un job, chargé À LA DEMANDE (TCK-365).
+ *
+ * La liste tronque `payload` et `exception` à 1024 caractères CÔTÉ SERVEUR : déplier une ligne
+ * déjà reçue ne rendrait donc jamais que la troncature. Seul cet appel rend la trace entière —
+ * et c'est aussi pourquoi il n'est pas préchargé pour chaque ligne.
+ */
+export async function fetchFailedJob(id: number): Promise<FailedJobDetailResponse> {
+  const res = await fetch(`/api/super-admin/jobs/failed/${id}`, { credentials: 'include' });
+  return jsonOrThrow<FailedJobDetailResponse>(res);
 }
 
 export async function retryFailedJob(id: number): Promise<{ data: { retried: boolean } }> {
