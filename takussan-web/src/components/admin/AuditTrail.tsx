@@ -299,14 +299,14 @@ export function AuditTrail() {
               <div className="absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-lg border border-border bg-background shadow-md">
                 <button
                   onClick={() => handleExport('csv')}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                 >
                   <FileText className="h-4 w-4 text-muted-foreground" />
                   CSV
                 </button>
                 <button
                   onClick={() => handleExport('xlsx')}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                 >
                   <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
                   Excel (XLSX)

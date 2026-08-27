@@ -106,14 +106,14 @@ export function CapabilityMatrix({
             <button
               type="button"
               onClick={() => onChange([...grantable])}
-              className="rounded-md border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted"
+              className="rounded-md border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {t('matrix.select_all')}
             </button>
             <button
               type="button"
               onClick={() => onChange([])}
-              className="rounded-md border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted"
+              className="rounded-md border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {t('matrix.clear')}
             </button>
@@ -137,7 +137,7 @@ export function CapabilityMatrix({
                 onClick={() => toggleDomain(group.domain)}
                 aria-expanded={!isCollapsed}
                 aria-label={t('matrix.toggle_domain', { domain: domainLabel(group.domain) })}
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
               >
                 <span className="font-semibold text-foreground">{domainLabel(group.domain)}</span>
                 <span className="flex items-center gap-2 text-xs text-muted-foreground">

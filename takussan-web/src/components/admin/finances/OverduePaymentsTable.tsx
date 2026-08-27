@@ -112,7 +112,10 @@ export function OverduePaymentsTable() {
             ? `/app/bookings/${row.booking_id}`
             : null;
         return entityHref ? (
-          <Link href={entityHref} className="underline-offset-2 hover:underline">
+          <Link
+            href={entityHref}
+            className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
             {entityLabel}
           </Link>
         ) : (
