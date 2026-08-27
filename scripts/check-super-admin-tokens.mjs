@@ -193,6 +193,18 @@
  *        porte légitimement ses hexadécimaux, et les refuser ferait de cette garde une garde
  *        qu'on contourne. Mesuré le 2026-08-27 : **zéro `.svg` sous `takussan-web/src`** (les
  *        cinq du dépôt sont dans `public/`, hors de tout périmètre). Le trou est réel et vide.
+ *  T10 · **Une valeur SÉPARÉE DE SON ATTRIBUT PAR UNE FIN DE LIGNE.** {@link analyser} lit le
+ *        fichier LIGNE PAR LIGNE — c'est ce qui permet de rapporter un numéro de ligne — et les
+ *        six motifs sont donc bornés à une ligne. `<rect fill=\n  "#a85332" />` traverse la
+ *        garde ; `<rect fill="#a85332" />` est attrapé. Vérifié dans les deux sens le
+ *        2026-08-27, signalé par la revue adverse de la passe 2. La même borne vaut pour une
+ *        valeur arbitraire coupée par un retour à la ligne dans un gabarit.
+ *        **Non fermé, et le motif du refus est un arbitrage, pas une paresse** : analyser le
+ *        fichier entier d'un bloc ferait perdre le numéro de ligne, qui est ce qui rend un rouge
+ *        de cette garde ACTIONNABLE. Le garder tout en cousant les lignes demanderait de tenir
+ *        une table de correspondance décalage → ligne, un mécanisme neuf. *Le trou est réel ;
+ *        aucune occurrence n'existe dans le dépôt (mesuré), et un attribut JSX coupé après son
+ *        `=` est une forme que Prettier défait.*
  *   T9 · **Une DÉCLARATION CSS ordinaire, dans un fichier `.css` d'un répertoire gardé.** Les
  *        contrôles A/B/C cherchent une classe, D et F un crochet, E un `=` : aucun ne voit
  *        `background-color: #f5f5f4;` écrit dans une feuille. Signalé par la revue adverse de
@@ -543,13 +555,50 @@ function construireControles({
     // contrôle E connaissait déjà ce faux positif et le fermait par un `(?!url\()` en tête de
     // chaîne ; les contrôles D et F, eux, lisent le MILIEU d'une valeur, où ce garde-là ne peut
     // pas se poser. Le regard arrière le remplace, et il sert les trois d'un coup.
-    '(?<!url\\()#[0-9a-fA-F]{3,8}',
-    '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\(',
+    //
+    // ⚠⚠ Le SECOND regard arrière a été ajouté par la revue adverse de la passe 2 : la forme
+    // GUILLEMETÉE `url("#f00ba7")` tombait, et la forme `url(_#f00ba7)` aussi — dans une valeur
+    // arbitraire, Tailwind écrit les espaces avec des `_`. Les deux regards couvrent donc `url(`,
+    // `url("`, `url('` et `url(_`. Résiduel DÉCLARÉ : `url(__#…`, deux séparateurs, que personne
+    // n'écrit — l'empiler serait payer une lookbehind par caractère.
+    //
+    // ⚠ La leçon de méthode de cette correction vaut plus que la correction : la première sonde du
+    // regard arrière fut `<rect fill="url( #degrade-lin )" />`, ACCEPTÉE — et c'est le `(?!url\()`
+    // ancré en TÊTE du contrôle E qui la sauvait, pas le regard arrière. *Deux mécanismes qui
+    // produisent le même vert : le second est celui qu'on croit avoir vérifié.* Le vrai test du
+    // regard arrière est une valeur ARBITRAIRE, où aucun ancrage de tête n'existe.
+    '(?<!url\\()(?<!url\\([\'"_])#[0-9a-fA-F]{3,8}',
+    // ⚠ `(?![\s_]*from[\s_])` exempte la SYNTAXE DE COULEUR RELATIVE — `rgb(from var(--primary)
+    // r g b / 50%)`, `oklch(from var(--chart-1) l c h)`. Elle ne DÉCIDE aucune couleur : elle en
+    // LIT une et la transforme, exactement comme `color-mix`, et le docblock de ce contrôle
+    // promet qu'une lecture de jeton est acceptée. Elle était pourtant refusée — la garde
+    // refusait donc la meilleure façon de dériver une couleur d'un jeton, et *une garde qui
+    // refuse la bonne façon de faire pousse à contourner la garde*. Le `[\s_]` final, et non
+    // `\b`, parce que dans une valeur arbitraire `from` est suivi d'un `_`, qui est un caractère
+    // de mot : `\bfrom\b` n'y coupe pas.
+    '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\((?![\\s_]*from[\\s_])',
     `(?<![a-zA-Z0-9-])(?:${couleurs.join('|')})(?![a-zA-Z0-9-])`,
   ];
+  /*
+   * ⚠ LE DRAPEAU `i`, sur D, E et F — et sur EUX SEULS. Revue adverse de la passe 2.
+   *
+   * Mesuré : `bg-[RED]`, `bg-[RGB(1,2,3)]`, `[Color:Red]` et `FILL="#A85332"` traversaient les
+   * trois contrôles. Une majuscule suffisait. **Le motif hexadécimal, lui, n'a JAMAIS eu le
+   * défaut** — sa classe `[0-9a-fA-F]` porte déjà les deux casses, et c'est pourquoi l'exemple
+   * `[BACKGROUND-COLOR:#F5F5F4]` de la revue était en réalité DÉJÀ attrapé. Les trous étaient
+   * ailleurs, et il y en avait trois : la liste des couleurs NOMMÉES, l'alternance des FONCTIONS
+   * de couleur, et l'alternance des ATTRIBUTS de peinture.
+   *
+   * ⚠⚠ **A, B et C n'ont PAS ce drapeau, et ce n'est pas un oubli.** Une classe d'utilitaire
+   * Tailwind est sensible à la casse : `BG-STONE-100` n'existe pas, ne compile pas, et rougir
+   * dessus ferait de cette garde une garde qu'on contourne. `EPREUVE` fige les deux résultats —
+   * `['BG-STONE-100', false]` d'un côté, les cinq formes de casse du bloc M de l'autre. *Le CSS
+   * d'une valeur arbitraire est insensible à la casse ; le nom d'un utilitaire ne l'est pas.
+   * Deux règles opposées dans le même fichier, chacune pour une bonne raison.*
+   */
   const ARBITRAIRE = new RegExp(
     `\\b(?:${P})-\\[[^\\]]*(?:${D_MOTIFS.join('|')})[^\\]]*\\]`,
-    'g',
+    'gi',
   );
 
   /**
@@ -572,7 +621,7 @@ function construireControles({
     `\\b(?:${attributs.join('|')})\\s*=\\s*`
     + `(?:"(?!url\\()[^"]*(?:${D_MOTIFS.join('|')})[^"]*"`
     + `|'(?!url\\()[^']*(?:${D_MOTIFS.join('|')})[^']*')`,
-    'g',
+    'gi',
   );
 
   /**
@@ -604,7 +653,7 @@ function construireControles({
    */
   const PROPRIETE = new RegExp(
     `\\[(?:--)?[a-zA-Z][a-zA-Z0-9-]*\\s*:[^\\]]*(?:${D_MOTIFS.join('|')})[^\\]]*\\]`,
-    'g',
+    'gi',
   );
 
   return [
@@ -868,6 +917,54 @@ const EPREUVE = [
   //   premier motif de `D_MOTIFS` qui les sauve, et il sert D, E et F d'un coup.
   ['[background:url(#degrade-lin)]', false], ['[background-image:url(/fond.svg)]', false],
   ['bg-[url(#f00ba7)]', false],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // M · LA CASSE — cinq formes, parce qu'une seule aurait menti sur l'étendue du trou.
+  //
+  // ⚠ Revue adverse de la passe 2 : `bg-[RED]`, `bg-[RGB(1,2,3)]`, `[Color:Red]` et
+  // `FILL="#A85332"` traversaient D, E et F. Une majuscule suffisait à contourner le contrôle qui
+  // venait d'être ajouté pour fermer un trou.
+  //
+  // ⚠⚠ **Le motif HEXADÉCIMAL n'a jamais eu ce défaut** — sa classe `[0-9a-fA-F]` porte déjà les
+  // deux casses. C'est pourquoi l'exemple donné par la revue, `[BACKGROUND-COLOR:#F5F5F4]`, était
+  // en réalité DÉJÀ attrapé : le refus était juste, l'illustration ne l'était pas. Les trous
+  // étaient ailleurs, et il y en avait TROIS — la liste des couleurs NOMMÉES, l'alternance des
+  // FONCTIONS de couleur, et celle des ATTRIBUTS de peinture. D'où cinq formes : une par surface,
+  // plus un mélange. *Une seule forme d'épreuve aurait prouvé le drapeau, pas la portée.*
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['bg-[RED]', true],                          // la couleur NOMMÉE
+  ['bg-[RGB(1,2,3)]', true],                   // la FONCTION de couleur
+  ['FILL="#A85332"', true],                    // l'ATTRIBUT de peinture
+  ['bg-[#F5F5F4]', true],                      // l'hexadécimal — déjà couvert, figé ici
+  ['[BoX-ShAdOw:0_0_0_1px_#A85332]', true],    // le mélange, en propriété arbitraire
+  ['STROKE="RebeccaPurple"', true], ['[--Pastille:#A85332]', true],
+  // ⚠ …et la moitié qui empêche le drapeau `i` de déborder : un NOM D'UTILITAIRE Tailwind est
+  //   sensible à la casse, `BG-STONE-100` n'existe pas et ne compile pas. A, B et C n'ont donc
+  //   PAS ce drapeau, et cette ligne est ce qui le prouve — elle vit déjà plus haut sous M2, elle
+  //   est rappelée ici parce que c'est la contrainte que le correctif de casse aurait pu casser.
+  ['BG-CARD', false], ['TEXT-MUTED-FOREGROUND', false],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // N · LA COULEUR RELATIVE — `rgb(from …)`, une LECTURE de jeton, donc acceptée.
+  //
+  // ⚠ Elle était REFUSÉE, alors que le docblock du contrôle D promet qu'une lecture de jeton est
+  // acceptée : la garde refusait la meilleure façon de dériver une couleur d'un jeton. *Une garde
+  // qui refuse la bonne façon de faire pousse à contourner la garde* — et la sortie de secours la
+  // moins chère devant ce refus-là aurait été de réinjecter un hexadécimal, précisément ce que le
+  // contrôle D existe pour empêcher. Même raisonnement, mot pour mot, que l'exemption de
+  // `color-mix` : le conteneur ne décide aucune couleur, il en lit une.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['bg-[rgb(from_var(--primary)_r_g_b_/_50%)]', false],
+  ['bg-[oklch(from_var(--chart-1)_l_c_h_/_0.5)]', false],
+  ['[background-color:rgb(from_var(--x)_r_g_b)]', false],
+  ['fill="rgb(from var(--chart-1) r g b)"', false],
+  ['bg-[RGB(FROM_var(--x)_r_g_b)]', false],    // …et sous le drapeau `i`, sans quoi N défait M
+  // ⚠ Ce qui doit RESTER refusé : un `from` qui n'ouvre pas une couleur relative.
+  ['bg-[rgb(1,2,3)]', true], ['bg-[color(display-p3_1_0_0)]', true],
+
+  // O · L'URL GUILLEMETÉE — le regard arrière élargi (mineur de la passe 2).
+  ['bg-[url("#f00ba7")]', false], ["bg-[url('#f00ba7')]", false], ['bg-[url(_#f00ba7)]', false],
+  ['[background:url("#f00ba7")]', false],
 
   // K · LE JETON DE VOILE, créé par TCK-384 — il ne doit PAS rougir, sinon la substitution que la
   //     garde exige se ferait refuser par elle. Même rôle que le bloc M4 pour TCK-381.
@@ -1859,5 +1956,6 @@ console.log('  2026-08-27 : elle l\'affirmait sans le lire. Trous déclarés, en
 console.log('  T1 style inline et expression JSX, T2 périmètre (ci-dessus, sous cliquet),');
 console.log('  T3 justesse du rendu, T4 listes énumérées, T5 racine de clôture, T6 réécriture');
 console.log('  de la garde, T7 noms CSS non ablatés un à un, T8 fichiers .svg,');
-console.log('  T9 déclaration CSS ordinaire dans un .css gardé. Détail : --report.');
+console.log('  T9 déclaration CSS ordinaire dans un .css gardé, T10 valeur séparée de');
+console.log('  son attribut par une fin de ligne. Détail : --report.');
 process.exit(0);
