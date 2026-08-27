@@ -107,6 +107,13 @@ const STATUS_ROW: Record<RoleDelegationStatus, string> = {
  * `starts_at` est passé n'accorde rien tant que le job ne l'a pas activée
  * (`status` doit valoir `Active`). « Programmée » y reste donc exact, et la
  * corriger en « Active » serait le mensonge inverse.
+ *
+ * ⚠️⚠️ **Ce statut sert à AFFICHER, jamais à décider de ce qu'on offre.** Il
+ * est calculé avec l'horloge du navigateur, qui n'est pas celle qui applique
+ * les droits : une horloge en avance le ferait basculer à `expired` pendant
+ * que le serveur honore encore la délégation. Ce qu'on PROPOSE se décide donc
+ * sur `delegation.status` — la valeur que rend la même machine que celle qui
+ * arbitre le DELETE (détail au site d'appel, colonne des actions).
  */
 export function statutEffectif(
   delegation: RoleDelegation,
@@ -289,7 +296,32 @@ export function RoleDelegationsSection({ agencyId }: RoleDelegationsSectionProps
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    {canDelegate && estDelegationRevocable(statut) ? (
+                    {/*
+                      ⚠️ **Le bouton se décide sur `delegation.status`, pas sur `statut`.**
+
+                      `statut` est le statut EFFECTIF, calculé ici en comparant `ends_at` à
+                      l'horloge du NAVIGATEUR. C'est la bonne source pour ce qu'on AFFICHE — un
+                      badge « Active » sur des droits éteints rassure à tort — et la mauvaise
+                      pour ce qu'on OFFRE.
+
+                      Le scénario, mesuré : un poste dont l'horloge avance (dérive, fuseau mal
+                      réglé, machine virtuelle réveillée) franchit `ends_at` avant le serveur. La
+                      ligne passe à « Expirée » en avance et, si le bouton suivait ce statut, la
+                      révocation DISPARAÎTRAIT — alors que le serveur, lui, honore encore la
+                      délégation (`hasActiveAgencyDelegation` évalue `ends_at > now()` avec SON
+                      horloge) et accepterait toujours le DELETE. *C'est une délégation qu'on ne
+                      peut plus retirer parce qu'on croit qu'elle est finie* — et sur un écran de
+                      droits, la révocation est précisément l'action d'urgence qu'on ne masque
+                      jamais sur une donnée non fiable.
+
+                      Le geste offert de trop ne coûte rien : `RoleDelegationService::revoke()`
+                      sort en tête sur `expired` et `revoked`, la révocation est idempotente. Le
+                      geste retiré de trop, lui, n'a aucun recours depuis cet écran.
+
+                      L'estompage et le badge « Expirée » restent sur le statut effectif : le
+                      mensonge inverse — annoncer « Active » sur des droits éteints — est pire.
+                    */}
+                    {canDelegate && estDelegationRevocable(delegation.status) ? (
                       <Button
                         variant="ghost"
                         size="sm"

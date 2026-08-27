@@ -35,6 +35,15 @@
  *     --chart-4   #6e655a   5,72:1  ✓      #b8aa97   7,01:1  ✓
  *     --chart-5   #1f1812  17,53:1  ✓      #fcf9f3  15,16:1  ✓
  *
+ * ⚠ **Cette table n'est plus le seul endroit mesuré, depuis la revue du 2026-08-27.**
+ * `scripts/check-chart-contrast.mjs` lit désormais tout `components/charts` ET
+ * `components/reporting` : les onze classes de jeton écrites en dur dans `TimeSeriesChart`,
+ * `FunnelChart` et `StatCard` vivaient hors de sa portée, et le nom de la garde promettait plus
+ * qu'elle ne tenait. Écrire un jeton de série ailleurs qu'ici reste une mauvaise idée — c'est une
+ * table de plus à tenir alignée — mais ce n'est plus une façon d'échapper à la mesure. Ce qui n'est
+ * PAS une série (un fond de tuile, un aplat sous une courbe) se déclare dans `SURFACES` de la
+ * garde, avec sa mesure et sa raison.
+ *
  * Corriger `--chart-3` lui-même serait la vraie fin de course — c'est un jeton documenté, employé
  * ailleurs que dans les séries — mais c'est une décision de charte, pas un delta de ce ticket :
  * elle est portée par **TCK-404**. Tant qu'elle n'est pas prise, l'exclure ici est le seul moyen

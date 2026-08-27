@@ -30,21 +30,56 @@ import { fetchModerationQueue } from '@/lib/queries/reviews-moderation';
 import { fetchPropertyModerationQueue } from '@/lib/queries/property-moderation';
 
 /**
- * TCK-371 — l'anneau de focus de la barre `/admin`.
+ * TCK-371 (revue adverse) — l'anneau de focus de la barre `/admin`.
  *
- * Le jeton `--ring` à PLEINE opacité, jamais `outline-ring/50` : sur le fond de la barre
- * (`bg-foreground` = #1f1812), le jeton plein mesure **3,30:1** et le même à 50 % **1,73:1**,
- * sous les 3:1 qu'exige WCAG 1.4.11 pour un indicateur non textuel. Le second est pourtant
- * l'idiome de la primitive `Button` (`ui/button.tsx`) — il ne se recopie pas sur ce fond-là.
+ * ## Pourquoi PAS le jeton `--ring` ici : c'est la GÉOMÉTRIE, pas la couleur
+ *
+ * `outline-2` + `-outline-offset-2` remplit exactement la bande de 2 px la plus EXTÉRIEURE de
+ * l'élément. Son bord externe jouxte le fond de la barre — mais son bord INTERNE jouxte le fond
+ * PROPRE de l'entrée, et c'est celui-là qui avait été oublié. Les trois fonds réels de la barre,
+ * mesurés (WCAG 2.1, alpha composé AVANT le calcul) :
+ *
+ *   fond de l'entrée                            `outline-ring` #a85332   `outline-white`
+ *   barre nue        `bg-foreground` #1f1812             3,30:1              17,53:1
+ *   entrée ACTIVE    `bg-white/10`   #352f2a             2,48:1  ✗ ÉCHEC     13,17:1
+ *   entrée SURVOLÉE  `bg-white/5`    #2a241e             2,89:1  ✗ ÉCHEC     15,39:1
+ *
+ * Deux des trois tombaient sous les 3:1 de WCAG 1.4.11 — dont celui de l'entrée ACTIVE, et il y
+ * en a exactement UNE sur CHAQUE page `/admin`. Le cas survolé n'est pas théorique : c'est la
+ * souris qui repose sur la liste pendant que le clavier y navigue.
+ *
+ * `white` tient sur les trois, et tient ENCORE (5,32:1) si le fond de l'entrée active devenait
+ * `--primary` un jour — l'ablation qui rendait l'anneau `--ring` identique à son propre fond,
+ * 1,00:1, invisible, sans un seul test rouge. C'est un anneau qui ne dépend d'aucune hypothèse
+ * sur ce qu'il recouvre, et c'est le vocabulaire que la barre parle déjà (`text-white`,
+ * `bg-white/10`). ⚠ `outline-ring/50`, l'idiome de `ui/button.tsx`, mesure 1,73:1 ici : il ne se
+ * recopie pas sur ce fond-là.
  *
  * `outline-2` rend `outline-style: solid`, ce qui écrase l'`outline: auto` du navigateur :
  * sans cela Chrome et Safari ignorent `outline-color` et la couleur mesurée ne s'applique pas.
  *
- * Décalage NÉGATIF : le `<nav>` est en `overflow-y-auto`, et dès qu'un axe n'est pas `visible`
- * l'autre calcule `auto` (CSS Overflow 3 §3) — un anneau sortant serait rogné.
+ * ## Deux décalages, et le critère du choix est : « le conteneur coupe-t-il ? »
+ *
+ * Le `<nav>` est en `overflow-y-auto`, et dès qu'un axe n'est pas `visible` l'autre calcule
+ * `auto` (CSS Overflow 3 §3) : un anneau SORTANT y serait rogné. Les items de nav prennent donc
+ * le décalage NÉGATIF.
+ *
+ * ⚠ Cette justification ne vaut QUE pour eux — elle était appliquée à tort aux trois autres
+ * liens. Le logo vit dans un `<div className="px-6 py-5">` et les deux liens de pied dans un
+ * `<div className="space-y-2 px-3 pb-4">` : aucun conteneur qui coupe. Pire, sur le logo — lien
+ * EN LIGNE sans padding vertical — un anneau rentrant est tracé de 2 à 4 px À L'INTÉRIEUR d'une
+ * boîte dont la demi-marge vaut 4 px : il affleure les glyphes au lieu de les entourer. Ces
+ * trois-là prennent le décalage SORTANT.
+ *
+ * Les chiffres ci-dessus sont REJOUÉS par `__tests__/AdminSidebar.a11y.test.tsx`, qui les
+ * recalcule sur le fond réel remonté du DOM — pas sur une chaîne de classes.
  */
 const ANNEAU_FOCUS =
-  'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';
+  'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-white';
+
+/** Le même anneau, décalé vers l'EXTÉRIEUR — pour les liens qu'aucun conteneur ne rogne. */
+const ANNEAU_FOCUS_SORTANT =
+  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white';
 
 interface NavItem {
   href: string;
@@ -136,6 +171,17 @@ function AdminItem({
       <span
         role="link"
         aria-disabled="true"
+        // TCK-371, revue adverse — l'entrée verrouillée est ATTEIGNABLE AU CLAVIER, et sa raison
+        // est LISIBLE par un lecteur d'écran.
+        //
+        // Elle était `aria-disabled` sans `tabIndex` : donc hors de l'ordre de tabulation, et le
+        // `title` — SEUL endroit où la raison du cadenas était écrite — n'est servi qu'à la
+        // souris. L'objectif du ticket (« l'admin LIT ce qu'un passage en standard lui
+        // débloquerait ») n'était atteint qu'au pointeur. `tabIndex={0}` sur un élément
+        // `aria-disabled` est le motif « désactivé mais découvrable » : il reste inopérant — pas
+        // de `href`, pas de `onClick` — mais il s'annonce, et le `sr-only` ci-dessous entre dans
+        // son nom accessible. Le `title` reste pour l'infobulle du pointeur.
+        tabIndex={0}
         title={t('proLocked')}
         // TCK-371 — `text-white/40` ET `opacity-60` composaient un alpha effectif de 0,24 :
         // encre #554f4b sur le fond de la barre (`bg-foreground` = #1f1812), soit **2,18:1**,
@@ -143,10 +189,14 @@ function AdminItem({
         // après le cadenas et le curseur. Un seul alpha, plus haut : #9a9794 sur #1f1812 =
         // **6,04:1**, et l'entrée reste plus sourde que l'item inactif (`text-white/70`,
         // 9,04:1) qu'elle doit continuer de se distinguer.
-        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/55"
+        className={cn(
+          'flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/55',
+          ANNEAU_FOCUS,
+        )}
       >
         <Icon className="size-4 shrink-0" />
         <span className="truncate flex-1">{label}</span>
+        <span className="sr-only">{t('proLocked')}</span>
         <Lock className="ml-auto size-3.5 shrink-0" aria-hidden />
       </span>
     );
@@ -218,7 +268,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         <Link
           href="/"
           onClick={onNavigate}
-          className={`text-xl font-bold tracking-tighter text-white rounded-sm ${ANNEAU_FOCUS}`}
+          className={`text-xl font-bold tracking-tighter text-white rounded-sm ${ANNEAU_FOCUS_SORTANT}`}
         >
           {tCommon('appName')}
         </Link>
@@ -250,7 +300,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         <Link
           href="/app"
           onClick={onNavigate}
-          className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 hover:bg-white/5 ${ANNEAU_FOCUS}`}
+          className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm text-white/70 hover:bg-white/5 ${ANNEAU_FOCUS_SORTANT}`}
         >
           <ArrowLeft className="size-4 shrink-0" />
           <span>{t('backToPersonal')}</span>
@@ -258,7 +308,7 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
         <Link
           href="/app/profile"
           onClick={onNavigate}
-          className={`flex items-center gap-3 rounded-md px-3 py-2 hover:bg-white/5 ${ANNEAU_FOCUS}`}
+          className={`flex items-center gap-3 rounded-md px-3 py-2 hover:bg-white/5 ${ANNEAU_FOCUS_SORTANT}`}
         >
           <Avatar className="size-9">
             {user.avatar_url ? <AvatarImage src={user.avatar_url} alt={user.full_name} /> : null}

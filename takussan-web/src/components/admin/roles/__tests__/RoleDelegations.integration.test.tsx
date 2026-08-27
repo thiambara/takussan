@@ -44,6 +44,24 @@ interface Refus {
   readonly corps: unknown;
 }
 
+/**
+ * **Aucune date en dur, ici non plus.** Le serveur en mémoire décide
+ * `active`/`scheduled` en comparant `starts_at` à `new Date()`, et l'écran
+ * décide `active`/`expired` en comparant `ends_at` à l'horloge : une date
+ * figée dans une fixture est une bombe à retardement, pas une donnée.
+ *
+ * Les champs de formulaire sont des `<input type="date">` : ils veulent
+ * `AAAA-MM-JJ`, et c'est cette chaîne-là que le POST porte ensuite. D'où deux
+ * fabriques distinctes — l'une ISO complète pour les fixtures, l'autre en date
+ * seule pour la saisie.
+ */
+const JOUR = 86_400_000;
+
+const isoDans = (jours: number): string => new Date(Date.now() + jours * JOUR).toISOString();
+
+const saisieDans = (jours: number): string =>
+  new Date(Date.now() + jours * JOUR).toISOString().slice(0, 10);
+
 /** L'état du « serveur » pour un test — mutable, comme une base. */
 let delegations: RoleDelegation[] = [];
 let refusProchainPost: Refus | null = null;
@@ -64,13 +82,13 @@ function fabrique(
     role: 'agent',
     status,
     starts_at: null,
-    ends_at: '2026-12-31T00:00:00+00:00',
+    ends_at: isoDans(120),
     reason: null,
     activated_at: null,
     expired_at: null,
     revoked_at: null,
-    created_at: '2026-08-01T10:00:00+00:00',
-    updated_at: '2026-08-01T10:00:00+00:00',
+    created_at: isoDans(-26),
+    updated_at: isoDans(-26),
     ...over,
   } as RoleDelegation;
 }
@@ -123,7 +141,7 @@ function serveur() {
         const id = Number(url.split('/role-delegations/')[1]?.split('?')[0]);
         // ⚠ Le DELETE ne supprime pas : il rend 200 avec la ligne passée à
         // `revoked`, `revoked_at` et `revoked_by` renseignés.
-        const revoquee = { ...fabrique(id, 'revoked'), revoked_at: '2026-08-27T09:00:00+00:00' };
+        const revoquee = { ...fabrique(id, 'revoked'), revoked_at: isoDans(0) };
         delegations = delegations.map((d) => (d.id === id ? (revoquee as RoleDelegation) : d));
         return reponse(200, { data: revoquee });
       }
@@ -188,8 +206,10 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
     const dialogue = await ouvreLeFormulaire(user);
     await user.selectOptions(within(dialogue).getByLabelText('Bénéficiaire'), '42');
     await user.selectOptions(within(dialogue).getByLabelText('Rôle à déléguer'), 'agent');
-    await user.type(within(dialogue).getByLabelText('Début (facultatif)'), '2027-01-04');
-    await user.type(within(dialogue).getByLabelText('Fin'), '2027-02-04');
+    const debut = saisieDans(130);
+    const fin = saisieDans(160);
+    await user.type(within(dialogue).getByLabelText('Début (facultatif)'), debut);
+    await user.type(within(dialogue).getByLabelText('Fin'), fin);
     await user.click(within(dialogue).getByRole('button', { name: 'Déléguer' }));
 
     expect(await screen.findByTestId('delegation-status-scheduled')).toHaveTextContent(
@@ -203,8 +223,8 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
     expect(posts[0].corps).toMatchObject({
       user_id: 42,
       role: 'agent',
-      starts_at: '2027-01-04',
-      ends_at: '2027-02-04',
+      starts_at: debut,
+      ends_at: fin,
     });
   });
 
@@ -222,7 +242,7 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
 
     const dialogue = await ouvreLeFormulaire(user);
     await user.selectOptions(within(dialogue).getByLabelText('Bénéficiaire'), '42');
-    await user.type(within(dialogue).getByLabelText('Fin'), '2027-02-04');
+    await user.type(within(dialogue).getByLabelText('Fin'), saisieDans(160));
     await user.click(within(dialogue).getByRole('button', { name: 'Déléguer' }));
 
     expect(await screen.findByTestId('delegation-status-active')).toHaveTextContent('Active');
@@ -285,7 +305,7 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
 
     const dialogue = await ouvreLeFormulaire(user);
     await user.selectOptions(within(dialogue).getByLabelText('Bénéficiaire'), '42');
-    await user.type(within(dialogue).getByLabelText('Fin'), '2027-02-04');
+    await user.type(within(dialogue).getByLabelText('Fin'), saisieDans(160));
     await user.click(within(dialogue).getByRole('button', { name: 'Déléguer' }));
 
     const refus = await screen.findByTestId('delegation-refus');
@@ -318,7 +338,7 @@ describe('délégations — la chaîne complète (TCK-369)', () => {
 
     const dialogue = await ouvreLeFormulaire(user);
     await user.selectOptions(within(dialogue).getByLabelText('Bénéficiaire'), '42');
-    await user.type(within(dialogue).getByLabelText('Fin'), '2030-02-04');
+    await user.type(within(dialogue).getByLabelText('Fin'), saisieDans(1200));
     await user.click(within(dialogue).getByRole('button', { name: 'Déléguer' }));
 
     const refus = await screen.findByTestId('delegation-refus');

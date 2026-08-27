@@ -196,10 +196,94 @@ describe("tableau de bord agence rendu en `en` (AC4)", () => {
     expect(screen.queryByText(/1 234 000/)).toBeNull();
   });
 
+  it('⚠ rend les tuiles KPI en `wo` avec UNE seule convention de nombre (D1)', () => {
+    // ────────────────────────────────────────────────────────────────────────────────────────
+    // LA RÉGRESSION QUE CE TICKET A RENDUE ATTEIGNABLE, et qu'aucun des 14 cas d'origine ne
+    // voyait — ils ne rendaient que `fr` et `en`, ce que l'AC4 demandait littéralement.
+    //
+    // `AgencyKpis` passait `'fr'` EN DUR sur ses dix sites ; TCK-374 les a portés sur la locale
+    // ACTIVE. En `wo`, `formatNumber` partait alors dans les données CLDR de `wo` (groupement par
+    // POINT) tandis que `formatCurrency`, lui, atteignait bien `fr-SN` (espace) :
+    //
+    //     « Kër yi 12.345 … Njariñu weer wi 1 234 000 F CFA »   ← DEUX conventions, MÊME carte
+    //
+    // L'assertion porte donc sur les deux valeurs ENSEMBLE, dans un seul rendu. Un correctif qui
+    // n'alignerait qu'une des deux tables de `@/lib/format` la laisserait rouge — c'est ce qui la
+    // distingue d'un simple `getByText('12 345')`.
+    // ────────────────────────────────────────────────────────────────────────────────────────
+    render(withIntl(<AgencyKpis summary={SOMME_AGENCE} />, 'wo'));
+
+    const espaces = (s: string) => s.replace(/\p{White_Space}/gu, '');
+    const nombre = screen.getByText((_, n) => espaces(n?.textContent ?? '') === '12345');
+    const montant = screen.getByText((_, n) => espaces(n?.textContent ?? '') === '1234000FCFA');
+
+    expect(nombre.textContent).not.toContain('.');
+    expect(montant.textContent).not.toContain('.');
+    // …et le groupement est le MÊME des deux côtés, ce qu'un point contre une espace violait.
+    expect(screen.queryByText(/12\.345/)).toBeNull();
+  });
+
   it('rend le même total à la française sous la locale `fr`', () => {
     render(withIntl(<AgencyRevenueSnapshot timeseries={timeseries} />, 'fr'));
     expect(screen.getByText(/3\s?000\s?000/)).toBeInTheDocument();
     expect(screen.queryByText(/3,000,000/)).toBeNull();
+  });
+});
+
+describe("axe de `BarChart` — l'échelle ne s'invente pas de maximum (D5)", () => {
+  /**
+   * ⚠ Ces trois cas viennent de la revue adverse de TCK-374, et ils portent un défaut ORDINAIRE.
+   *
+   * `range = Math.max(max - min, 1)` protège la division par zéro. Ce plancher remontait jusqu'aux
+   * étiquettes : une agence sans revenu du mois — pas un cas limite, l'état d'une agence neuve —
+   * lisait `['0', '1', '1']` au-dessus d'un graphique plat. Deux étiquettes identiques, et une
+   * échelle qui annonce un maximum que rien n'atteint.
+   */
+  it('ne rend QU’UNE graduation quand toutes les valeurs sont à zéro', () => {
+    const { container } = render(withIntl(<BarChart
+        data={{ labels: ['Jan', 'Fév'], series: [{ name: 'Revenus', values: [0, 0] }] }}
+      />));
+
+    // Avant le correctif : ['0', '1', '1'].
+    expect(etiquettesAxe(container)).toEqual(['0']);
+  });
+
+  it('ne rend pas deux fois la même étiquette sur une étendue FRACTIONNAIRE', () => {
+    // Même défaut, valeurs non nulles : une étendue de 0,6 passait sous le plancher de 1, et
+    // l'arrondi à l'entier rendait ['0', '1', '1']. Ce n'est pas un cas voisin, c'est le même.
+    const { container } = render(withIntl(<BarChart
+        data={{ labels: ['A', 'B'], series: [{ name: 'Taux', values: [0.2, 0.6] }] }}
+      />));
+    const etiquettes = etiquettesAxe(container);
+
+    expect(new Set(etiquettes).size).toBe(etiquettes.length);
+  });
+
+  it('⚠ `LineChart` portait le MÊME défaut, en pire — quatre étiquettes en double', () => {
+    // Mesuré avant correctif : ['0', '0', '1', '1', '1'] sur cinq graduations.
+    const { container } = render(withIntl(<LineChart
+        data={{ labels: ['Jan', 'Fév'], series: [{ name: 'Revenus', values: [0, 0] }] }}
+      />));
+
+    expect(etiquettesAxe(container)).toEqual(['0']);
+  });
+
+  it('`LineChart` garde ses cinq graduations dès qu’il y a une étendue', () => {
+    const { container } = render(withIntl(<LineChart
+        data={{ labels: ['A', 'B'], series: [{ name: 'Revenus', values: [0, 2_000_000] }] }}
+      />, 'en'));
+
+    expect(etiquettesAxe(container))
+      .toEqual(['0', '500,000', '1,000,000', '1,500,000', '2,000,000']);
+  });
+
+  it('garde ses trois graduations, et les BONNES, dès qu’il y a une étendue', () => {
+    // Le filet ne doit pas manger l'axe du cas nominal — c'est le risque exact d'une déduplication.
+    const { container } = render(withIntl(<BarChart
+        data={{ labels: ['A', 'B'], series: [{ name: 'Revenus', values: [0, 2_000_000] }] }}
+      />, 'en'));
+
+    expect(etiquettesAxe(container)).toEqual(['0', '1,000,000', '2,000,000']);
   });
 });
 
@@ -220,6 +304,19 @@ describe('sondes de domaine (constats, hors AC)', () => {
     // La barre négative est rendue à hauteur ZÉRO — invisible, sans erreur ni avertissement.
     expect(hauteurs[0]).toBe(0);
     expect(hauteurs[1]).toBeGreaterThan(0);
+  });
+
+  it('⚠ série ENTIÈREMENT négative : l’axe ne ment plus, mais rien ne se trace (TCK-405)', () => {
+    // La revue a montré que TCK-405 décrivait un défaut de moins que ce qu'il portait : l'axe
+    // rendait ['0', '1', '1'] par-dessus des barres invisibles. Le correctif D5 traite l'AXE ;
+    // le domaine ancré à zéro, lui, reste entier et reste l'objet de TCK-405.
+    const { container } = render(withIntl(<BarChart
+        data={{ labels: ['A', 'B'], series: [{ name: 'Solde', values: [-500, -300] }] }}
+      />));
+
+    expect(etiquettesAxe(container)).toEqual(['0']);
+    expect([...container.querySelectorAll('rect')].map((r) => Number(r.getAttribute('height'))))
+      .toEqual([0, 0]);
   });
 
   it('`LineChart`, lui, ouvre son domaine aux négatifs et trace DANS le cadre', () => {

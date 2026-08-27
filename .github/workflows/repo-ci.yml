@@ -361,13 +361,27 @@ jobs:
       - name: Les couleurs de série des graphiques atteignent 3:1 sur --card
         # TCK-374. L'AC ne demandait qu'un contraste « calculé et reporté dans la PR » — donc un
         # nombre vrai le jour où on l'écrit, que personne ne rejoue. Or la matière première est un
-        # HEX dans `globals.css` : elle bougera. La garde recalcule les deux thèmes à partir de la
-        # source, `charts/palette.ts` disant QUELS jetons servent de couleur de série.
+        # HEX dans `globals.css` : elle bougera. La garde recalcule les deux thèmes à partir des
+        # SOURCES, qui disent quels jetons servent de couleur et sous quelle forme.
         #
         # Ce qu'elle a attrapé le jour de sa pose : `--chart-3` (#c89a4a) rend 2,57:1 sur `--card`
         # en thème CLAIR — moins bien que l'`emerald-500` hors charte qu'il devait remplacer, et
         # irréprochable en sombre (8,17:1). Un défaut d'un seul thème, dans une charte qu'on
-        # croyait « suffire à régler le contraste ». Vérifiée par ablation (3 mutations, 3 rouges).
+        # croyait « suffire à régler le contraste ».
+        #
+        # ⚠ RÉÉCRITE le 2026-08-27 par la revue de TCK-374, et le motif mérite d'être ici. La
+        # première version ne lisait QUE `charts/palette.ts`, avec une expression régulière qui
+        # exigeait un chiffre unique suivi d'une apostrophe. Sur douze mutations, elle en attrapait
+        # TROIS — et six sortaient en 0 : un `/50` d'opacité (le trait rend alors 2,11:1), un jeton
+        # à deux chiffres, un hex arbitraire, un thème retiré de sa propre table, un seuil abaissé
+        # de 3 à 1, et l'amputation de son alternative `bg`, dont le compte affiché ne bougeait
+        # même pas. Onze classes de jeton vivaient par ailleurs hors de son périmètre.
+        #
+        # La version actuelle lit `components/charts` ET `components/reporting`, refuse toute
+        # forme qu'elle ne sait pas interpréter au lieu de l'omettre, exige que ce qui n'est pas
+        # une série se DÉCLARE avec sa mesure, et s'auto-éprouve (constantes ancrées, témoins de
+        # périmètre, valeur de contrôle, cliquet à 28 mesures qui échoue dans les deux sens).
+        # Vérifiée par ablation : 14 mutations, 14 rouges.
         run: node scripts/check-chart-contrast.mjs --report
 
       - name: Les compétences des agents vivent dans un seul répertoire

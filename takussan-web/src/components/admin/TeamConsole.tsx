@@ -156,9 +156,18 @@ export function TeamConsole({ agencyId, currentUserId, agencyKind = null }: Team
   // `AgencyRolePolicy::assign` qui décide.
   const { can: canAssignRole } = useCan('team.assign_role', agencyId);
 
-  // TCK-368 — même règle pour la relance et la révocation d'une invitation :
-  // c'est `team.invite` qui les gouverne côté serveur (`InvitationPolicy`), et
-  // cacher les boutons n'autorise rien.
+  // TCK-368 — même règle pour la relance et la révocation d'une invitation, et
+  // cacher les boutons n'autorise rien : c'est `InvitationPolicy::revoke()` qui
+  // décide.
+  //
+  // ⚠ Ce commentaire affirmait « c'est `team.invite` qui les gouverne côté
+  // serveur » alors que la policy ne mentionnait AUCUNE capacité — elle jugeait
+  // sur `isAgencyAdminAt()`. Les deux prédicats DIVERGEAIENT : `team.invite`
+  // n'étant pas réservée à la plateforme, une agence peut l'attacher à un rôle
+  // personnalisé de base `Agent` (TCK-279), et cet agent voyait les deux boutons
+  // pour prendre 403 sur les deux. La policy accepte désormais la capacité en
+  // plus du profil d'admin, ce qui referme l'écart dans le sens permissif —
+  // celui qui n'invente aucune autorisation.
   const { can: canManageInvitations } = useCan('team.invite', agencyId);
 
   // TCK-368 — l'invalidation porte des DEUX côtés. Une invitation acceptée fait

@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Ban, Loader2, MailCheck, MailPlus } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/console';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -24,6 +25,7 @@ import { formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 import {
   agencyInvitationKeys,
+  DEFAULT_PER_PAGE,
   fetchPendingAgencyInvitations,
   resendInvitation,
   revokeInvitation,
@@ -55,12 +57,35 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
  * et c'est voulu : la redondance coûte une comparaison de chaîne, alors qu'une
  * garde unique dont on hérite le jour où la page bouge coûte une fuite.
  *
- * ## Les gestes sont gardés par CAPACITÉ, pas par type de profil
+ * ## Les gestes sont gardés par CAPACITÉ, des DEUX côtés
  *
  * `canManage` vient de `useCan('team.invite', agencyId)`. ⚠ Cacher un bouton
  * n'autorise rien : c'est `InvitationPolicy::revoke()` / `::resend()` qui décide,
  * et la liste elle-même reste lisible sans la capacité — voir une invitation en
  * attente n'est pas la même chose que pouvoir agir dessus.
+ *
+ * ⚠ Ce docblock affirmait « c'est `team.invite` qui les gouverne côté serveur »
+ * alors que `InvitationPolicy` ne mentionnait AUCUNE capacité : elle jugeait sur
+ * `isAgencyAdminAt()`. Un agent à qui l'agence avait délégué `team.invite`
+ * (TCK-279) voyait donc les deux boutons et prenait 403 sur les deux. La policy
+ * accepte désormais la capacité **en plus** du profil d'admin — les deux gardes
+ * disent la même chose, et cette phrase est redevenue vraie.
+ *
+ * ## Une invitation MORTE reste à l'écran, et se dit morte
+ *
+ * La section listait `filter[status]=sent`. Une invitation périmée s'évaporait
+ * donc dès que le cron `invitations:expire` la marquait — sans geste de l'admin,
+ * alors que l'objectif du ticket est « il la voit tant qu'elle n'est pas
+ * acceptée » — et la ré-inviter posait une SECONDE ligne. Elle reste désormais
+ * listée, marquée par `is_expired` (le champ que TCK-367 a ajouté pour ça, sur
+ * cette même branche), et « Relancer » la ressuscite au lieu d'en créer une
+ * voisine.
+ *
+ * ## Le compte affiché est celui du SERVEUR
+ *
+ * Le badge rendait `rows.length` : à 13 invitations, dix lignes et un badge
+ * « 10 ». Un compte faux à l'écran, pas seulement une troncature. Il rend
+ * `meta.total`, et la pagination rend les trois autres atteignables.
  *
  * ## La relance ne se confirme pas, la révocation si
  *
@@ -103,6 +128,7 @@ export function PendingInvitationsSection({
   const { token } = useAuth();
 
   const [pendingRevoke, setPendingRevoke] = useState<PendingAgencyInvitation | null>(null);
+  const [page, setPage] = useState(1);
 
   // Une agence sans équipe ne fait AUCUNE requête : la garde précède le hook de
   // données par `enabled`, pas par un early-return — les hooks se déclarent tous,
@@ -110,11 +136,14 @@ export function PendingInvitationsSection({
   const isTeamAgency = agencyKind === 'standard';
 
   const invitationsQuery = useQuery({
-    queryKey: agencyInvitationKeys.pending(agencyId),
-    queryFn: () => fetchPendingAgencyInvitations(token ?? ''),
+    queryKey: agencyInvitationKeys.pending(agencyId, page),
+    queryFn: () => fetchPendingAgencyInvitations(token ?? '', { page, perPage: DEFAULT_PER_PAGE }),
     enabled: isTeamAgency && Boolean(token),
     staleTime: 15_000,
   });
+
+  const rows = invitationsQuery.data?.data ?? [];
+  const meta = invitationsQuery.data?.meta;
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: agencyInvitationKeys.all });
@@ -147,6 +176,12 @@ export function PendingInvitationsSection({
         title: t('toasts.revokeSuccess', { email: invitation.email }),
         type: 'success',
       });
+      // Révoquer la DERNIÈRE ligne d'une page laisserait l'admin sur une page
+      // qui n'existe plus : l'API rendrait une liste vide et la section se
+      // replierait entièrement, alors qu'il reste des invitations en attente.
+      if (rows.length === 1 && page > 1) {
+        setPage(page - 1);
+      }
       await invalidate();
     },
     onError: (error) => {
@@ -160,8 +195,6 @@ export function PendingInvitationsSection({
   });
 
   if (!isTeamAgency) return null;
-
-  const rows = invitationsQuery.data?.data ?? [];
 
   // Le chargement ne montre qu'une bande de squelette, sans titre : afficher
   // « Invitations en attente » avant de savoir s'il y en a fait apparaître puis
@@ -205,7 +238,9 @@ export function PendingInvitationsSection({
         >
           <MailPlus className="size-4 text-muted-foreground" aria-hidden="true" />
           {t('title')}
-          <Badge variant="secondary">{rows.length}</Badge>
+          <Badge variant="secondary" data-testid="pending-invitations-count">
+            {meta?.total ?? rows.length}
+          </Badge>
         </h2>
         <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
       </div>
@@ -219,6 +254,7 @@ export function PendingInvitationsSection({
               <th scope="col" className="py-2 pr-3 font-semibold">{t('columns.email')}</th>
               <th scope="col" className="py-2 pr-3 font-semibold">{t('columns.role')}</th>
               <th scope="col" className="py-2 pr-3 font-semibold">{t('columns.sentAt')}</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">{t('columns.state')}</th>
               {canManage ? (
                 <th scope="col" className="py-2 text-right font-semibold">
                   {t('columns.actions')}
@@ -240,6 +276,15 @@ export function PendingInvitationsSection({
                   </td>
                   <td className="py-2 pr-3 text-muted-foreground">
                     {invitation.created_at ? formatDate(invitation.created_at, locale) : '—'}
+                  </td>
+                  <td className="py-2 pr-3">
+                    {invitation.is_expired ? (
+                      <Badge variant="destructive" data-testid={`invitation-expired-${invitation.id}`}>
+                        {t('states.expired')}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">{t('states.pending')}</Badge>
+                    )}
                   </td>
                   {canManage ? (
                     <td className="py-2 text-right">
@@ -275,6 +320,18 @@ export function PendingInvitationsSection({
           </tbody>
         </table>
       </div>
+
+      {/* La pagination est ce qui rend les invitations au-delà de la première
+          page atteignables. Sans elle, à 13 invitations, trois étaient
+          invisibles ET inactionnables — ni relançables, ni révocables, c'est-à-
+          dire l'objectif même de cette section. `Pagination` ne rend rien sur
+          une seule page. */}
+      <Pagination
+        className="mt-3"
+        page={meta?.current_page ?? page}
+        lastPage={meta?.last_page ?? 1}
+        onChange={setPage}
+      />
 
       <Dialog
         open={pendingRevoke !== null}

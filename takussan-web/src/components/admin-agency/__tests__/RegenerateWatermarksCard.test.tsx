@@ -80,6 +80,52 @@ describe('<RegenerateWatermarksCard>', () => {
       ).toBeInTheDocument();
     });
 
+  /**
+   * **La panne que l'action serveur ne peut PAS attraper.**
+   *
+   * `regenerateAgencyWatermarksAction` mappe les erreurs de l'API en `{ ok: false, message }`.
+   * Elle ne peut rien contre une panne du transport qui la porte : réseau coupé, déploiement en
+   * cours, 500 du runtime des server actions. L'appel *rejette* alors — il ne rend rien à mapper.
+   *
+   * Mesuré avant correctif, avec exactement ce double : `alert` = AUCUN, `status` = AUCUN, le
+   * dialogue se referme, et une « Unhandled Error » remonte dans vitest. L'utilisateur confirme
+   * une opération lourde et l'écran ne dit rien — alors il reclique.
+   *
+   * Ce test rougit sans le `try/catch` (ablation A12) et lui seul.
+   */
+  it("dit la panne de TRANSPORT au lieu de se taire quand l'action rejette", async () => {
+    actionMock.mockRejectedValue(new Error('TypeError: Failed to fetch'));
+    const user = userEvent.setup();
+    await monte();
+
+    await user.click(screen.getByRole('button', { name: /Regénérer les filigranes/ }));
+    await user.click(await screen.findByRole('button', { name: 'Lancer la regénération' }));
+
+    // Un message, et un message qui ORIENTE : le serveur n'a pas été joint.
+    expect(await screen.findByRole('alert')).toHaveTextContent('Impossible de joindre le serveur.');
+    // ⚠ Et surtout PAS de succès : se taire est mauvais, mentir serait pire.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Le versant opposé du même correctif. Un `catch` qui laisserait le dialogue de confirmation
+   * ouvert donnerait un second bouton « Lancer la regénération » à cliquer, sur un traitement qui
+   * a peut-être déjà démarré côté serveur — la panne peut être au RETOUR.
+   */
+  it('referme la confirmation même quand l’appel explose', async () => {
+    actionMock.mockRejectedValue(new Error('500'));
+    const user = userEvent.setup();
+    await monte();
+
+    await user.click(screen.getByRole('button', { name: /Regénérer les filigranes/ }));
+    await user.click(await screen.findByRole('button', { name: 'Lancer la regénération' }));
+
+    await screen.findByRole('alert');
+    expect(
+      screen.queryByRole('button', { name: 'Lancer la regénération' }),
+    ).not.toBeInTheDocument();
+  });
+
   it("affiche le refus du serveur plutôt que de masquer le bouton", async () => {
     // La garde serveur est `primary_admin_id === user->id` ou super-admin — plus étroite que
     // l'`isAdmin` qui ouvre la page. Un agency_admin secondaire DOIT voir le refus.

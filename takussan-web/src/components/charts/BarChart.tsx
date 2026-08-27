@@ -38,6 +38,8 @@ export function BarChart({ data, title, unit, className }: Props) {
   const allValues = series.flatMap((s) => s.values);
   const max = Math.max(...allValues, 0);
   const min = 0;
+  // L'échelle des HAUTEURS ne peut pas diviser par zéro. Le plancher à 1 est là pour ça, et
+  // pour ça seulement — il ne doit PAS remonter jusqu'aux étiquettes, cf. `graduations`.
   const range = Math.max(max - min, 1);
 
   const innerW = VIEW_W - PADDING.left - PADDING.right;
@@ -47,11 +49,39 @@ export function BarChart({ data, title, unit, className }: Props) {
   const seriesCount = series.length;
   const barW = Math.max(4, (groupW * 0.7) / seriesCount);
 
-  const gridLines = [0, 0.5, 1].map((p) => {
-    const y = PADDING.top + innerH * (1 - p);
-    const label = formatNumber(min + range * p, locale, { maximumFractionDigits: 0 });
-    return { y, label };
-  });
+  /**
+   * Les graduations de l'axe des ordonnées.
+   *
+   * ────────────────────────────────────────────────────────────────────────────────────────────
+   * ⚠ POURQUOI L'ÉTIQUETTE NE SE CALCULE PAS SUR `range` (revue de TCK-374, défaut D5)
+   * ────────────────────────────────────────────────────────────────────────────────────────────
+   *
+   * `range` vaut `Math.max(max - min, 1)` : quand la série est PLATE, ce plancher invente un
+   * maximum de 1 que rien n'atteint. Le cas n'a rien d'une limite — c'est **un mois de revenus à
+   * zéro, l'état ordinaire d'une agence neuve**. L'axe rendait alors :
+   *
+   *     ['0', '1', '1']   ← deux étiquettes IDENTIQUES, et une échelle qui prétend monter à 1
+   *                          au-dessus d'un graphique entièrement plat
+   *
+   * Les étiquettes se calculent donc sur l'étendue RÉELLE (`max - min`), pas sur le plancher. Et
+   * quand cette étendue est nulle, l'axe ne porte plus qu'UNE graduation, sur la ligne de base :
+   * il n'y a qu'une valeur à nommer, en annoncer trois serait la répéter.
+   *
+   * Le repli sur `formatNumber` reste `maximumFractionDigits: 0` — d'où le second filet : deux
+   * graduations qui, une fois ARRONDIES, portent le même texte sont réduites à une. Une étendue
+   * fractionnaire (une série de taux entre 0 et 1) reproduisait exactement le même défaut avec des
+   * valeurs non nulles ; c'est le même défaut, pas un cas voisin.
+   */
+  const etendue = max - min;
+  const gridLines = (etendue > 0 ? [0, 0.5, 1] : [0]).reduce<{ y: number; label: string }[]>(
+    (acc, p) => {
+      const y = PADDING.top + innerH * (1 - p);
+      const label = formatNumber(min + etendue * p, locale, { maximumFractionDigits: 0 });
+      if (acc.some((g) => g.label === label)) return acc;
+      return [...acc, { y, label }];
+    },
+    [],
+  );
 
   return (
     <figure className={className} data-testid="bar-chart">

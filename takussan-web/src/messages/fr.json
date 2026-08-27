@@ -4452,7 +4452,8 @@
           "email": "Destinataire",
           "role": "Rôle",
           "sentAt": "Envoyée le",
-          "actions": "Actions"
+          "actions": "Actions",
+          "state": "État"
         },
         "roles": {
           "owner": "Propriétaire",
@@ -4461,6 +4462,10 @@
           "agent_manager": "Responsable d'agents",
           "agency_admin": "Administrateur",
           "service_provider": "Prestataire"
+        },
+        "states": {
+          "pending": "En attente",
+          "expired": "Expirée"
         },
         "actions": {
           "resend": "Relancer",

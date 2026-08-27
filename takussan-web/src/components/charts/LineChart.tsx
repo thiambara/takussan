@@ -41,6 +41,8 @@ export function LineChart({ data, title, unit, className }: Props) {
   const allValues = series.flatMap((s) => s.values);
   const max = Math.max(...allValues, 0);
   const min = Math.min(...allValues, 0);
+  // Le plancher à 1 protège la division par zéro de `toPath`, et rien d'autre : il ne remonte pas
+  // jusqu'aux étiquettes, cf. `gridLines`.
   const range = Math.max(max - min, 1);
 
   const innerW = VIEW_W - PADDING.left - PADDING.right;
@@ -57,11 +59,24 @@ export function LineChart({ data, title, unit, className }: Props) {
       })
       .join(' ');
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map((p) => {
+  /**
+   * Les graduations de l'axe des ordonnées.
+   *
+   * ⚠ Même correctif que `BarChart`, et le défaut y était PIRE (revue de TCK-374, défaut D5) :
+   * `range` plancherait à 1 sur une série plate, et les cinq graduations rendaient
+   * **`['0', '0', '1', '1', '1']`** — quatre étiquettes en double, sur un mois de revenus à zéro.
+   * L'étendue RÉELLE gouverne donc les étiquettes, et deux graduations qui portent le même texte
+   * une fois arrondies sont réduites à une. Le raisonnement complet est dans `BarChart.tsx`.
+   */
+  const etendue = max - min;
+  const gridLines = (etendue > 0 ? [0, 0.25, 0.5, 0.75, 1] : [0]).reduce<
+    { y: number; label: string }[]
+  >((acc, p) => {
     const y = PADDING.top + innerH * (1 - p);
-    const label = formatNumber(min + range * p, locale, { maximumFractionDigits: 0 });
-    return { y, label };
-  });
+    const label = formatNumber(min + etendue * p, locale, { maximumFractionDigits: 0 });
+    if (acc.some((g) => g.label === label)) return acc;
+    return [...acc, { y, label }];
+  }, []);
 
   return (
     <figure className={className} data-testid="line-chart">

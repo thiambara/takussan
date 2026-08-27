@@ -23,6 +23,30 @@ vi.mock('@/lib/queries/role-delegations', () => ({
 vi.mock('@/hooks/useCan', () => ({ useCanAll: vi.fn() }));
 
 /**
+ * **Aucune date en dur dans ce fichier, et c'est une correction, pas un
+ * style.** `statutEffectif()` compare `ends_at` à l'horloge : une fixture
+ * datée fige donc une position par rapport à un instant qui, lui, avance.
+ *
+ * Mesuré par ablation sur la version précédente, code de production INTACT :
+ * reculer la seule date `2026-12-31` d'un an rendait **5 rouges sur 12** ; les
+ * reculer toutes, **9 sur 57**. Ces tests seraient devenus rouges tout seuls
+ * le 2027-01-01, sur un dépôt que personne n'aurait touché — et ce jour-là ils
+ * auraient accusé le dernier commit venu. *Un rouge qu'on corrige en repoussant
+ * une date n'a rien gardé entre-temps.*
+ *
+ * Les décalages sont donc exprimés **par rapport à l'instant du test**. Ils
+ * sont évalués à la construction de la fixture, c'est-à-dire dans le test
+ * lui-même — pas au chargement du module.
+ */
+const JOUR = 86_400_000;
+
+/** Un instant décalé de `secondes` par rapport à maintenant (négatif = passé). */
+const dans = (secondes: number): string => new Date(Date.now() + secondes * 1000).toISOString();
+
+/** Idem en jours, pour les décalages qui se lisent mieux ainsi. */
+const enJours = (jours: number): string => new Date(Date.now() + jours * JOUR).toISOString();
+
+/**
  * Une délégation telle que `RoleDelegationResource` la sérialise —
  * **`role_label` et `status_label` compris**. Ils sont ici volontairement :
  * un test qui ne les envoie pas ne peut pas prouver qu'on ne les affiche pas.
@@ -42,27 +66,36 @@ function delegation(
     role: 'agent',
     status,
     starts_at: null,
-    ends_at: '2026-12-31T23:59:59+00:00',
+    ends_at: enJours(120),
     reason: null,
     activated_at: null,
     expired_at: null,
     revoked_at: null,
-    created_at: '2026-08-01T10:00:00+00:00',
-    updated_at: '2026-08-01T10:00:00+00:00',
+    created_at: enJours(-26),
+    updated_at: enJours(-26),
     status_label: status === 'scheduled' ? 'À venir' : status === 'expired' ? 'Expiré' : 'X',
     ...over,
   } as RoleDelegation;
 }
 
-const LES_QUATRE = [
+/**
+ * ⚠️ Une FONCTION, pas une constante — et l'ablation A8 l'a prouvé nécessaire.
+ *
+ * Un tableau construit au chargement du module fige `Date.now()` à l'import,
+ * pas au test. Sous une horloge décalée (A8 : +1 an), les fixtures restaient
+ * calées sur l'instant d'import et **trois tests rougissaient** : le
+ * pourrissement était déplacé, pas supprimé. *Une date relative évaluée trop
+ * tôt est une date en dur qui s'ignore.*
+ */
+const lesQuatre = (): RoleDelegation[] => [
   delegation(1, 'expired'),
   delegation(2, 'revoked'),
-  delegation(3, 'scheduled', { starts_at: '2026-10-01T00:00:00+00:00' }),
+  delegation(3, 'scheduled', { starts_at: enJours(30) }),
   delegation(4, 'active'),
 ];
 
 function monte(options: { delegations?: RoleDelegation[]; peutDeleguer?: boolean } = {}) {
-  const { delegations = LES_QUATRE, peutDeleguer = true } = options;
+  const { delegations = lesQuatre(), peutDeleguer = true } = options;
 
   vi.mocked(useRoleDelegations).mockReturnValue({
     data: { data: delegations, meta: { total: delegations.length } },
@@ -230,20 +263,52 @@ describe('<RoleDelegationsSection> — TCK-369', () => {
     monte({
       delegations: [
         // Le job n'est pas encore passé : le serveur dit toujours « active ».
-        delegation(5, 'active', { ends_at: '2026-08-01T00:00:00+00:00' }),
+        delegation(5, 'active', { ends_at: enJours(-26) }),
       ],
     });
 
     expect(screen.getByTestId('delegation-status-expired')).toHaveTextContent('Expirée');
     expect(screen.queryByTestId('delegation-status-active')).not.toBeInTheDocument();
-    // Révoquer une délégation qui n'accorde plus rien est un geste vide.
+    expect(document.querySelector('tr[data-status="expired"]')?.className).toContain(
+      'opacity-60',
+    );
+  });
+
+  /**
+   * **Le versant DROITS du test précédent, et il va dans l'autre sens.**
+   *
+   * Le statut effectif est calculé avec l'horloge du NAVIGATEUR. Un poste dont
+   * l'horloge avance — dérive, fuseau mal réglé, VM réveillée — franchit
+   * `ends_at` avant le serveur. Si le bouton « Révoquer » suivait ce statut, il
+   * disparaîtrait pendant que le serveur, lui, honore toujours la délégation
+   * (`hasActiveAgencyDelegation` compare `ends_at` à SON `now()`) : une
+   * délégation qui accorde encore des droits, et plus aucun moyen de la retirer
+   * depuis l'écran prévu pour ça.
+   *
+   * Trente secondes suffisent à le prouver — c'est l'ordre de grandeur d'une
+   * dérive d'horloge ordinaire, et `dataUpdatedAt` étant absent du double, le
+   * composant compare à `Date.now()`.
+   *
+   * Ce test rougit sur la version d'origine (`estDelegationRevocable(statut)`)
+   * et passe sur la corrigée (`estDelegationRevocable(delegation.status)`) —
+   * ablation A9.
+   */
+  it("garde « Révoquer » quand le SERVEUR dit encore active, même si l'horloge locale a franchi ends_at", () => {
+    monte({ delegations: [delegation(8, 'active', { ends_at: dans(-30) })] });
+
+    // L'affichage suit l'horloge locale : c'est le moindre mal, annoncer
+    // « Active » sur des droits peut-être éteints serait pire.
+    expect(screen.getByTestId('delegation-status-expired')).toHaveTextContent('Expirée');
+    // L'OFFRE, elle, suit le serveur. `RoleDelegationService::revoke` sort en
+    // tête si la ligne est déjà close : le geste de trop est sans effet, le
+    // geste manquant est sans recours.
     expect(
-      screen.queryByRole('button', { name: /Révoquer la délégation/ }),
-    ).not.toBeInTheDocument();
+      screen.getByRole('button', { name: 'Révoquer la délégation de Awa Diop 8' }),
+    ).toBeInTheDocument();
   });
 
   it('laisse « active » une délégation dont ends_at est encore devant', () => {
-    monte({ delegations: [delegation(6, 'active', { ends_at: '2027-08-01T00:00:00+00:00' })] });
+    monte({ delegations: [delegation(6, 'active', { ends_at: enJours(340) })] });
 
     expect(screen.getByTestId('delegation-status-active')).toHaveTextContent('Active');
     expect(
@@ -260,8 +325,8 @@ describe('<RoleDelegationsSection> — TCK-369', () => {
     monte({
       delegations: [
         delegation(7, 'scheduled', {
-          starts_at: '2026-08-01T00:00:00+00:00',
-          ends_at: '2027-08-01T00:00:00+00:00',
+          starts_at: enJours(-26),
+          ends_at: enJours(340),
         }),
       ],
     });

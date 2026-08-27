@@ -36,21 +36,52 @@ import { regenerateAgencyWatermarksAction } from '@/app/actions/admin-agency';
 export function RegenerateWatermarksCard({ agencyId }: { readonly agencyId: number }) {
   const t = useTranslations('admin.agencyConfig.watermarks');
   const tCommon = useTranslations('common.actions');
+  // `errors` est dans le PLANCHER de `src/i18n/namespaces.json` : toujours servi, aucune
+  // frontière à redéclarer.
+  const tErreurs = useTranslations('errors');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [enCours, startTransition] = useTransition();
 
+  /**
+   * ⚠️ **Le `try/catch` n'est pas une précaution de style : sans lui, l'écran est MUET.**
+   *
+   * `regenerateAgencyWatermarksAction` attrape les erreurs de l'API et rend `{ ok: false }` — mais
+   * elle ne peut rien contre les pannes du TRANSPORT qui la porte : réseau coupé, déploiement en
+   * cours, 500 du runtime des server actions. Dans ces cas-là l'appel *rejette*, il ne rend rien.
+   *
+   * Mesuré en montant ce composant avec une action qui rejette, avant correctif : `alert` = AUCUN,
+   * `status` = AUCUN, le dialogue se referme, et une « Unhandled Error » remonte dans vitest.
+   * L'utilisateur confirme une opération lourde et l'écran ne dit RIEN — ni succès, ni échec. Le
+   * réflexe suivant est de recliquer, sur un traitement qui retouche toutes les photos de tous les
+   * biens de l'agence.
+   *
+   * C'est le geste mort que ce ticket corrige ailleurs, reconstitué un cran plus bas : *un
+   * gestionnaire d'erreurs qui ne couvre que les erreurs prévues laisse les autres invisibles.*
+   *
+   * Le message est `errors.network` et non un libellé neuf : il existe déjà dans les trois locales
+   * (« Impossible de joindre le serveur. » / « Cannot reach the server. » / « Mënuñu jokkoo ak
+   * serwëer bi. ») et il dit exactement ce qui s'est passé — l'inverse d'un « Une erreur est
+   * survenue » qui n'oriente vers rien.
+   */
   function confirmer() {
     setErreur(null);
     setMessage(null);
     startTransition(async () => {
-      const resultat = await regenerateAgencyWatermarksAction(agencyId);
-      setConfirmOpen(false);
-      if (resultat.ok) {
-        setMessage(t('queued'));
-      } else {
-        setErreur(resultat.message);
+      try {
+        const resultat = await regenerateAgencyWatermarksAction(agencyId);
+        if (resultat.ok) {
+          setMessage(t('queued'));
+        } else {
+          setErreur(resultat.message);
+        }
+      } catch {
+        setErreur(tErreurs('network'));
+      } finally {
+        // Dans le `finally` : la confirmation se referme que l'appel ait abouti, échoué ou
+        // explosé. Le refermer avant l'`await` laisserait le dialogue ouvert sur un rejet.
+        setConfirmOpen(false);
       }
     });
   }

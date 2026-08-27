@@ -27,7 +27,7 @@ describe('agency-invitations', () => {
     mockApiRequest.mockResolvedValue({ data: [], meta: { current_page: 1, last_page: 1, per_page: 10, total: 0 } });
   });
 
-  it('lit /api/invitations avec un sparse fieldset, filter[status]=sent et un tri', async () => {
+  it('lit /api/invitations avec un sparse fieldset, filter[status]=sent,expired et un tri', async () => {
     await fetchPendingAgencyInvitations('jeton');
 
     const url = urlAppelee();
@@ -36,7 +36,14 @@ describe('agency-invitations', () => {
     expect(params.get('fields[invitations]')).toBe(
       'id,email,role,status,agency_id,expires_at,created_at',
     );
-    expect(params.get('filter[status]')).toBe('sent');
+    // TCK-368 (revue) — les DEUX états. Ne demander que `sent` faisait
+    // s'évaporer l'invitation périmée dès que le cron la marquait, puis la
+    // ré-invitation en posait une seconde.
+    expect(params.get('filter[status]')).toBe('sent,expired');
+    // La taille de page est ENVOYÉE, pas laissée au défaut du serveur : c'est
+    // ce qui rend la pagination de la section vraie.
+    expect(params.get('per_page')).toBe('10');
+    expect(params.get('page')).toBe('1');
     expect(params.get('sort')).toBe('-created_at');
     expect(mockApiRequest.mock.calls[0][1]).toMatchObject({ token: 'jeton' });
   });

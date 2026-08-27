@@ -176,3 +176,74 @@ prouverait rien.
 
 **Dix ablations ont été jouées**, chacune faisant rougir le test qu'elle vise et lui seul.
 
+
+## Reprise après revue adverse — 2026-08-27
+
+La revue a rendu **« accepté avec réserves »** : les 8 AC exécutés, les 10 ablations rejouées ou
+inventées confirmées, et le versant droits sondé sain par 9 sondes PHPUnit hors dépôt (expiration
+appliquée à la lecture, révocation immédiate, frontière d'agence tenue dans les deux sens, chaîne
+de délégations refusée). **Deux réserves ont été levées ; toutes deux portaient sur l'HORLOGE, et
+la seconde était un vrai défaut de droits.**
+
+### 1. Les fixtures pourrissaient par l'horloge — et le correctif a d'abord pourri lui aussi
+
+`statutEffectif()` compare `ends_at` à `Date.now()`, et les fixtures portaient des dates en dur
+(`'2026-12-31T23:59:59+00:00'`). Mesuré par la revue, **code de production intact** : reculer cette
+seule date d'un an rendait **5 rouges sur 12** ; les reculer toutes, **9 sur 57**. Ces tests
+seraient devenus rouges le 2027-01-01 sur un dépôt que personne n'aurait touché — et ce jour-là ils
+auraient accusé le dernier commit venu.
+
+Les deux fichiers de test n'ont plus aucune date en dur : les décalages sont exprimés par rapport à
+l'instant du test (`enJours(120)`, `dans(-30)`, `saisieDans(160)` pour les `<input type="date">`).
+
+**Et la première version du correctif ne suffisait pas.** L'ablation qui le vérifie — avancer
+l'horloge de test d'un an avec `vi.setSystemTime`, sans toucher au code de production — a rendu
+**3 rouges** : le tableau `LES_QUATRE` était construit au CHARGEMENT du module, donc calé sur
+`Date.now()` à l'import et non sur l'instant du test. *Une date relative évaluée trop tôt est une
+date en dur qui s'ignore.* C'est désormais une fonction, `lesQuatre()`.
+
+Preuve dans les deux sens, même harnais d'horloge :
+
+| Fichier de fixtures | Horloge +1 an | Horloge +10 ans |
+|---|---|---|
+| version d'origine (dates en dur) | **5 rouges / 12** | — |
+| version corrigée | **13 verts / 13** | **13 verts / 13** |
+
+### 2. L'horloge du navigateur pouvait retirer le bouton de révocation d'une délégation vivante
+
+Le défaut : le bouton « Révoquer » était offert sur le statut **effectif**, calculé en comparant
+`ends_at` à l'horloge du NAVIGATEUR. Un poste dont l'horloge avance — dérive, fuseau mal réglé,
+machine virtuelle réveillée — franchit `ends_at` avant le serveur. La ligne passait à « Expirée »
+en avance et **le bouton disparaissait**, alors que `hasActiveAgencyDelegation` évalue
+`ends_at > now()` avec l'horloge SERVEUR et que le DELETE aurait été accepté.
+
+**C'est une délégation qui accorde encore des droits et qu'on ne peut plus retirer parce qu'on
+croit qu'elle est finie** — sur l'écran prévu pour ça, et sur l'action qui y est l'action d'urgence.
+Le test livré au premier tour figeait ce comportement, bouton absent compris.
+
+Ce qui est OFFERT se décide désormais sur `delegation.status`, la valeur que rend la même machine
+que celle qui arbitre le DELETE. Ce qui est AFFICHÉ — estompage et badge « Expirée » — reste sur le
+statut effectif : annoncer « Active » sur des droits peut-être éteints serait le mensonge inverse,
+et il est pire.
+
+**Le geste de trop ne coûte rien, le geste manquant n'a aucun recours.**
+`RoleDelegationService::revoke()` sort en tête si la ligne n'est ni `Active` ni `Scheduled` : la
+révocation est idempotente. C'est ce qui rend l'asymétrie du correctif légitime — on ne symétrise
+pas deux erreurs dont les coûts diffèrent d'un ordre de grandeur.
+
+Couvert par un test dédié (« garde « Révoquer » quand le SERVEUR dit encore active, même si
+l'horloge locale a franchi ends_at », `ends_at` à −30 s, l'ordre de grandeur d'une dérive
+ordinaire). **Ablation A9** — revenir à `estDelegationRevocable(statut)` : **1 rouge, celui-là et
+lui seul**, md5 du fichier restauré à l'identique.
+
+### Ce qui reste ouvert
+
+- **[TCK-395](TCK-395-delegation-role-delegue-sans-rapport-avec-les-capacites.md)** — inchangé, et
+  c'est le point le plus lourd du lot : une délégation `agency_admin` accorde un droit de policy
+  que le modèle de capacités ne voit jamais passer, et déléguer `agent` ou `owner` n'accorde
+  **rien** nulle part. Confirmé par exécution (sonde P9), pas par lecture.
+- **Aucune vérification NAVIGATEUR** n'a été faite : le rendu réel des quatre variantes de badge en
+  thème clair et sombre, et le comportement d'`<input type="date">` hors jsdom, restent non vus.
+- La revue signale aussi une ligne `active` tombée hors de la page 1 (`per_page: 100`, sans
+  pagination) qui deviendrait invisible donc non révocable. C'est la convention en vigueur de
+  l'écran (`agency-roles.ts:72` fait pareil) et ce n'est pas ticketé.

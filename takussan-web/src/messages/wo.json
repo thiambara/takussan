@@ -3403,7 +3403,8 @@
           "email": "Ku ñu ko yónnee",
           "role": "Palaas",
           "sentAt": "Bés bi ñu ko yónnee",
-          "actions": "Jëf yi"
+          "actions": "Jëf yi",
+          "state": "Nekkin"
         },
         "roles": {
           "owner": "Boroom kër",
@@ -3412,6 +3413,10 @@
           "agent_manager": "Kilifa agent yi",
           "agency_admin": "Administrateur",
           "service_provider": "Liggéeykat"
+        },
+        "states": {
+          "pending": "Muy xaar",
+          "expired": "Jeex na"
         },
         "actions": {
           "resend": "Yónneeat",
