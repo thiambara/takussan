@@ -80,4 +80,43 @@ Sur l'ensemble de la console : 348 utilitaires de palette brute (`stone`, `amber
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Les comptes du ticket étaient périmés — TCK-357 était passé entre-temps.** Re-mesuré le
+2026-08-27 avec le grep exact de l'AC1, hors `__tests__` : 18 / 85 / 16 / 9 = **128**, contre
+11 / 218 / 12 / 1 = 242 au 2026-08-26. Les deux relevés, avec leurs dates, sont dans l'en-tête de
+la garde. `text-app-ink` valait déjà **0** (éteint par TCK-372) : la moitié `app-*` du delta était
+sans objet, et `scripts/check-app-tokens.mjs` la garde déjà sur `src` entier.
+
+**Le chrome sombre passe par la classe `dark`, pas par un jeu de jetons parallèle.** `globals.css`
+déclare déjà la rampe sombre (`--sidebar`, `--sidebar-primary`, `--background`…) ; en inventer une
+seconde (`--console-sidebar-*`) aurait rouvert le doublon de vocabulaire que `check-app-tokens`
+vient de fermer. Effet de bord bienvenu : toute primitive shadcn montée dans la barre hérite
+désormais du thème sombre au lieu de rendre en clair sur fond sombre.
+
+**Deux traductions littérales auraient introduit un défaut de contraste**, et la mesure les a
+attrapées avant la revue :
+
+| | traduction littérale | mesuré | retenu | mesuré |
+|---|---|---|---|---|
+| entrée de nav active | `bg-sidebar-primary/20` + `text-sidebar-primary` | **3,59:1** | pastille pleine | **5,31:1** |
+| bouton du bandeau d'usurpation | `bg-warning-foreground/15` | **4,32:1** | plein inversé | **5,95:1** |
+
+*Traduire une couleur par « le jeton de même rôle » ne conserve pas le contraste : le voile qui
+marchait sur `amber-500` ne marche pas sur terracotta.*
+
+**`.qr-surface` — le blanc fonctionnel.** L'AC2 exigeait zéro `bg-white` ; le 14ᵉ était le fond du
+QR code TOTP, qui doit rester blanc en thème sombre sous peine d'être illisible par le téléphone.
+`bg-card` l'aurait cassé. Une classe nommée pour ce qu'elle fait, dans `globals.css`, plutôt qu'un
+`bg-white` que rien ne distingue plus d'un blanc décoratif.
+
+**Deux docblocks issus de TCK-357 citaient les classes brutes qu'ils avaient remplacées** et
+faisaient rougir l'AC1 depuis un commentaire. Réécrits en toutes lettres (« ambre 100 », « pierre
+200 »). La garde ne retire pas les commentaires avant analyse, délibérément, pour la même raison
+que `check-app-tokens.mjs` : un docblock qui montre une classe copiable est de la documentation
+périmée qui fait repousser le motif.
+
+**Le ton `attention` de `StatusBadge` a repris `--warning`** d'une ligne, comme son propre docblock
+l'avait annoncé pour ce ticket.
+
+**Deux mentions de TCK-245 subsistent dans le code** — dans `globals.css` et `warning-banner.tsx`.
+Ce ne sont plus des commentaires d'exception mais le récit de leur disparition ; l'AC5 visait
+l'exception, pas la trace.

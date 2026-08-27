@@ -30,15 +30,14 @@ interface StatusBadgeProps {
  * console portait huit pastilles faites main en `bg-amber-100` / `bg-emerald-100` / `bg-red-100`
  * / `bg-stone-200` / `bg-green-50`, cinq familles pour quatre statuts.
  *
- * ⚠ `attention` emprunte `--primary` (terracotta) faute d'un jeton d'avertissement : le DS
- * prescrit `amber-500` mais `globals.css` ne le publie pas, et l'écrire ici rouvrirait la couleur
- * en dur que cette primitive existe pour fermer. **C'est TCK-358 qui pose le jeton**, et ce ton
- * changera d'une ligne le jour où il existe.
+ * `attention` empruntait `--primary` (terracotta) faute d'un jeton d'avertissement ; TCK-358 a
+ * posé `--warning` dans `globals.css` et le ton l'a repris, d'une ligne, comme annoncé ici. Le
+ * détour valait mieux que la couleur en dur : il s'est refermé sans rouvrir un seul écran.
  */
 const TONE_CLASSES: Record<StatusTone, string> = {
   neutral: 'bg-muted text-muted-foreground',
   success: 'bg-accent/15 text-accent',
-  attention: 'bg-primary/12 text-primary',
+  attention: 'bg-warning/12 text-warning',
   danger: 'bg-destructive/10 text-destructive',
   info: 'bg-secondary text-secondary-foreground',
 };

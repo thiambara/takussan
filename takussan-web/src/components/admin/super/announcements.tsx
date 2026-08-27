@@ -149,10 +149,10 @@ export function AnnouncementsConsole() {
         />
       </section>
 
-      <section className="rounded-xl bg-white p-4 ring-1 ring-stone-200">
+      <section className="rounded-xl bg-card p-4 ring-1 ring-border">
         <div className="flex items-center gap-2">
           <Megaphone className="size-5 text-primary" aria-hidden="true" />
-          <h2 className="font-display text-lg font-semibold text-stone-950">{t('compose')}</h2>
+          <h2 className="font-display text-lg font-semibold text-foreground">{t('compose')}</h2>
         </div>
 
         <div className="mt-4 grid gap-4">
@@ -245,8 +245,8 @@ function LocaleFields({ form, setForm }: { form: typeof EMPTY_FORM; setForm: (va
         ['en', 'EN', 'titleEn', 'bodyEn'],
         ['wo', 'WO', 'titleWo', 'bodyWo'],
       ].map(([, label, titleKey, bodyKey]) => (
-        <div key={label} className="grid gap-2 rounded-lg border border-stone-200 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-stone-500">{label}</p>
+        <div key={label} className="grid gap-2 rounded-lg border border-border p-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
           <Input value={form[titleKey as keyof typeof EMPTY_FORM] as string} onChange={(event) => setForm({ ...form, [titleKey]: event.target.value })} placeholder={t('titlePlaceholder')} />
           <Textarea value={form[bodyKey as keyof typeof EMPTY_FORM] as string} onChange={(event) => setForm({ ...form, [bodyKey]: event.target.value })} placeholder={t('bodyPlaceholder')} rows={3} />
         </div>

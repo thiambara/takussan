@@ -33,8 +33,8 @@ import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
- * Le statut du bien → le ton du DS. Les quatre familles de couleurs faites main (`bg-green-50`,
- * `bg-blue-50`, `bg-amber-50`, `bg-stone-100`) tenaient dans un ternaire à quatre branches ici ;
+ * Le statut du bien → le ton du DS. Les quatre familles de couleurs faites main (vert 50,
+ * bleu 50, ambre 50, pierre 100) tenaient dans un ternaire à quatre branches ici ;
  * elles vivent maintenant dans `StatusBadge`, et cette table ne dit plus que le SENS.
  */
 const PROPERTY_STATUS_TONES: Record<string, StatusTone> = {

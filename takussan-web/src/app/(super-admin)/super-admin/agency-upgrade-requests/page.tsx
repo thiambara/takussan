@@ -60,7 +60,7 @@ const STATUS_FILTER_OPTIONS = [
 
 /**
  * Le statut de la demande → le ton du DS. Les quatre couleurs Tailwind faites main
- * (`bg-amber-100`, `bg-emerald-100`, `bg-red-100`, `bg-stone-200`) sont devenues quatre SENS ;
+ * (ambre 100, émeraude 100, rouge 100, pierre 200) sont devenues quatre SENS ;
  * la couleur se décide une fois, dans `StatusBadge`.
  */
 const STATUS_TONES: Record<AgencyUpgradeRequestStatus, StatusTone> = {

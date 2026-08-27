@@ -5,6 +5,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -117,11 +118,7 @@ export function InviteSuperAdminModal({ open, onOpenChange, onInvited }: InviteS
             </div>
           </div>
 
-          {error ? (
-            <p role="alert" className="text-sm text-red-600">
-              {error}
-            </p>
-          ) : null}
+          {error ? <ErrorState message={error} /> : null}
 
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

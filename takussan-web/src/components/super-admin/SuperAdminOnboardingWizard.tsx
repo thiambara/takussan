@@ -7,6 +7,8 @@ import { Download, Loader2, ShieldCheck } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { WarningBanner } from '@/components/ui/warning-banner';
+import { ErrorState } from '@/components/feedback';
 import {
   superAdminTwoFactorConfirmAction,
   superAdminTwoFactorEnrollAction,
@@ -121,15 +123,11 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
         <p className="text-sm text-muted-foreground">{tWizard('subtitle')}</p>
       </header>
 
-      <section className="space-y-4 rounded-2xl border border-border bg-white p-6 shadow-sm">
+      <section className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
         {stage === 'intro' ? (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">{t('intro.description')}</p>
-            {error ? (
-              <p role="alert" className="text-sm text-red-600">
-                {error}
-              </p>
-            ) : null}
+            {error ? <ErrorState message={error} /> : null}
             <Button onClick={handleStart} disabled={pending}>
               {pending ? (
                 <>
@@ -157,7 +155,7 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
                   alt={t('scan.qrAlt')}
                   width={180}
                   height={180}
-                  className="rounded-md border border-border bg-white"
+                  className="qr-surface rounded-md border border-border"
                 />
               ) : null}
               <div className="space-y-2 text-sm">
@@ -167,10 +165,7 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
                 </code>
               </div>
             </div>
-            <div
-              role="status"
-              className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
-            >
+            <WarningBanner role="status" className="rounded-md p-4">
               <p className="font-semibold">{t('recovery.title')}</p>
               <p className="mt-1 text-xs">{t('recovery.warning')}</p>
               <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-sm">
@@ -184,7 +179,7 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
                   <span>{t('recovery.download')}</span>
                 </Button>
               </div>
-            </div>
+            </WarningBanner>
             <label className="flex items-start gap-2 text-sm text-foreground">
               <input
                 type="checkbox"
@@ -210,11 +205,7 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
                 required
               />
             </div>
-            {error ? (
-              <p role="alert" className="text-sm text-red-600">
-                {error}
-              </p>
-            ) : null}
+            {error ? <ErrorState message={error} /> : null}
             <Button type="submit" disabled={pending || code.length !== 6 || !acknowledged}>
               {pending ? t('scan.verifying') : t('scan.cta')}
             </Button>
@@ -223,7 +214,7 @@ export function SuperAdminOnboardingWizard({ firstName }: SuperAdminOnboardingWi
 
         {stage === 'success' ? (
           <div className="space-y-4 text-center">
-            <ShieldCheck className="mx-auto size-12 text-emerald-600" aria-hidden="true" />
+            <ShieldCheck className="mx-auto size-12 text-accent" aria-hidden="true" />
             <h2 className="text-base font-semibold text-foreground">{t('success.title')}</h2>
             <p className="text-sm text-muted-foreground">{tWizard('successBody')}</p>
             <Button onClick={handleFinish}>{t('success.cta')}</Button>

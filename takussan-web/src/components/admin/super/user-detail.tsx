@@ -32,6 +32,7 @@ import {
 
 import type { AdminUserDetail, AdminUserSession, AuditLogEntry } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { StatusBadge } from '@/components/console';
 
 export function UserDetailPage({ userId }: { userId: number }) {
   const t = useTranslations('superAdmin.userDetail');
@@ -98,20 +99,20 @@ export function UserDetailPage({ userId }: { userId: number }) {
 export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
   const t = useTranslations('superAdmin.userDetail');
   return (
-    <header className="rounded-xl bg-white p-5 ring-1 ring-stone-200">
+    <header className="rounded-xl bg-card p-5 ring-1 ring-border">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-start gap-4">
-          <div className="flex size-14 items-center justify-center rounded-full bg-stone-100 text-stone-700">
+          <div className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <UserRound className="size-6" aria-hidden="true" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
               {t('crossTenant')}
             </p>
-            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-stone-950">
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground">
               {user.full_name || user.email}
             </h1>
-            <p className="mt-1 text-sm text-stone-600">{user.email}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Badge variant="secondary">{user.status ?? '—'}</Badge>
               {user.roles.map((role) => (
@@ -120,10 +121,11 @@ export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
                 </Badge>
               ))}
               {user.mfa_enabled ? (
-                <Badge className="gap-1 bg-emerald-100 text-emerald-900 hover:bg-emerald-100">
-                  <ShieldCheck className="size-3" aria-hidden="true" />
-                  {t('mfaActive')}
-                </Badge>
+                <StatusBadge
+                  tone="success"
+                  icon={<ShieldCheck className="size-3" aria-hidden="true" />}
+                  label={t('mfaActive')}
+                />
               ) : null}
             </div>
           </div>
@@ -323,12 +325,12 @@ export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {profileRows.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
+        {profileRows.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {profileRows.map((profile) => (
-          <div key={`${profile.type}-${profile.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-stone-200 p-3">
+          <div key={`${profile.type}-${profile.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
             <div>
-              <p className="font-medium text-stone-950">{profile.type}</p>
-              <p className="text-sm text-stone-600">{profile.agency_name ?? t('agencyFallback', { id: profile.agency_id })}</p>
+              <p className="font-medium text-foreground">{profile.type}</p>
+              <p className="text-sm text-muted-foreground">{profile.agency_name ?? t('agencyFallback', { id: profile.agency_id })}</p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="secondary">{profile.status ?? '—'}</Badge>
@@ -367,20 +369,20 @@ export function UserSessionsTable({
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
-        {!loading && sessions.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
+        {!loading && sessions.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {sessions.map((session) => (
-          <div key={session.id} className="rounded-lg border border-stone-200 p-3">
+          <div key={session.id} className="rounded-lg border border-border p-3">
             <div className="flex items-center justify-between gap-2">
-              <p className="font-medium text-stone-950">{session.name}</p>
+              <p className="font-medium text-foreground">{session.name}</p>
               <div className="flex items-center gap-2">
-                <KeyRound className="size-4 text-amber-700" aria-hidden="true" />
+                <KeyRound className="size-4 text-primary" aria-hidden="true" />
                 <Button type="button" size="sm" variant="outline" onClick={() => setSessionToRevoke(session)}>
                   {t('revoke')}
                 </Button>
               </div>
             </div>
-            <p className="mt-1 text-sm text-stone-600">{t('lastActivity', { date: formatDate(session.last_used_at) })}</p>
-            <p className="text-xs text-stone-500">{t('expiry', { date: formatDate(session.expires_at) })}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t('lastActivity', { date: formatDate(session.last_used_at) })}</p>
+            <p className="text-xs text-muted-foreground">{t('expiry', { date: formatDate(session.expires_at) })}</p>
           </div>
         ))}
       </CardContent>
@@ -421,16 +423,16 @@ export function UserActivityTimeline({
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
-        {!loading && entries.length === 0 ? <p className="text-sm text-stone-500">{t('empty')}</p> : null}
+        {!loading && entries.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {entries.map((entry) => (
-          <div key={entry.id} className="flex gap-3 rounded-lg border border-stone-200 p-3">
-            <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-stone-100">
-              <Activity className="size-4 text-stone-700" aria-hidden="true" />
+          <div key={entry.id} className="flex gap-3 rounded-lg border border-border p-3">
+            <div className="mt-1 flex size-8 shrink-0 items-center justify-center rounded-full bg-muted">
+              <Activity className="size-4 text-muted-foreground" aria-hidden="true" />
             </div>
             <div>
-              <p className="font-medium text-stone-950">{entry.event ?? entry.description ?? t('fallbackLabel')}</p>
-              <p className="text-sm text-stone-600">{entry.description}</p>
-              <p className="mt-1 flex items-center gap-1 text-xs text-stone-500">
+              <p className="font-medium text-foreground">{entry.event ?? entry.description ?? t('fallbackLabel')}</p>
+              <p className="text-sm text-muted-foreground">{entry.description}</p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="size-3" aria-hidden="true" />
                 {formatDate(entry.created_at)}
               </p>

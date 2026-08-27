@@ -29,7 +29,7 @@ export function ImpersonationBanner() {
     <div
       role="alert"
       data-testid="impersonation-banner"
-      className="flex flex-wrap items-center justify-between gap-3 bg-amber-500 px-4 py-2 text-sm font-medium text-stone-900"
+      className="flex flex-wrap items-center justify-between gap-3 bg-warning px-4 py-2 text-sm font-medium text-warning-foreground"
     >
       <div className="flex items-center gap-2">
         <AlertTriangle className="size-4" aria-hidden="true" />
@@ -44,7 +44,11 @@ export function ImpersonationBanner() {
         type="button"
         onClick={() => stopMutation.mutate()}
         disabled={stopMutation.isPending}
-        className="inline-flex items-center rounded-md bg-stone-900 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-stone-800 disabled:opacity-60"
+        // Pastille PLEINE et inversée : l'encre du bandeau posée en fond, l'ocre en texte. Un
+        // voile `warning-foreground/15` sur l'ocre — la traduction littérale de l'ancien
+        // fond pierre 900 — mesurait 4,32:1 pour du texte de 12 px, sous le plancher AA. Le plein
+        // inversé mesure 5,95:1 (2026-08-27).
+        className="inline-flex items-center rounded-md bg-warning-foreground px-3 py-1 text-xs font-semibold text-warning transition-opacity hover:opacity-90 disabled:opacity-60"
       >
         {stopMutation.isPending ? t('stopping') : t('stop')}
       </button>

@@ -298,6 +298,24 @@ jobs:
         # de ne pas être compilée. Vérifiée par ablation (TCK-372, AC3).
         run: node scripts/check-app-tokens.mjs --report
 
+      - name: La console super-admin ne parle qu'un vocabulaire de couleur
+        # Même défaut que la garde ci-dessus, sur un autre périmètre, et découvert APRÈS elle :
+        # TCK-245 avait éteint la palette Tailwind brute de la console super-admin et était
+        # `done`. Son AC1 greppait `src/app/(super-admin)/**` — les wrappers de page. L'écran
+        # vit dans les composants qu'ils montent. Rejouée le 2026-08-26 : 11 dans le périmètre
+        # audité (l'AC exigeait 0, et elles étaient REVENUES avec deux pages créées après),
+        # 218 dans `src/components/admin/super`, 12 dans les trois `layout/SuperAdmin*`, 1 dans
+        # `src/components/super-admin`. Trois vocabulaires cohabitaient — jetons du DS, palette
+        # brute, dialecte `app-*` — et six fichiers en mélangeaient deux.
+        #
+        # D'où les QUATRE périmètres nommés dans `PERIMETRES`, et une liste de familles qui est
+        # celle de Tailwind et non celle du relevé : recopier les dix familles que la console
+        # utilisait ce jour-là laisserait passer le premier `bg-teal-100` venu.
+        #
+        # Elle PROUVE, elle ne cliquette pas : une classe Tailwind est un littéral, sous peine
+        # de ne pas être compilée. Vérifiée par ablation (TCK-358, AC3).
+        run: node scripts/check-super-admin-tokens.mjs --report
+
       - name: Les compétences des agents vivent dans un seul répertoire
         # `.agent/` (646 fichiers) et `.agents/` (602) coexistaient, et les quatre points d'entrée
         # du dépôt désignaient `.agent/`. Le 2026-05-18, la correction « `spatie/laravel-permission`

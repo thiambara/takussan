@@ -16,6 +16,7 @@ import {
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader, StatusBadge } from '@/components/console';
+import { ErrorState } from '@/components/feedback';
 
 /**
  * TCK-264 — Cooptation surface for super-admins.
@@ -59,11 +60,7 @@ export default function SuperAdminsCooptationPage() {
       ) : null}
 
       {isError ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-red-600">
-            {t('loadError')} {messageErreur(error, t('unknownError'))}
-          </CardContent>
-        </Card>
+        <ErrorState message={`${t('loadError')} ${messageErreur(error, t('unknownError'))}`} />
       ) : null}
 
       {data ? (

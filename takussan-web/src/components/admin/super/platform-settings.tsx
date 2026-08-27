@@ -72,12 +72,12 @@ export function SettingsSection({
   });
 
   return (
-    <section className="rounded-xl bg-white ring-1 ring-stone-200">
-      <div className="flex flex-col gap-3 border-b border-stone-200 p-4 md:flex-row md:items-start md:justify-between">
+    <section className="rounded-xl bg-card ring-1 ring-border">
+      <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="font-display text-xl font-semibold text-stone-950">{title}</h2>
+          <h2 className="font-display text-xl font-semibold text-foreground">{title}</h2>
           {requiresRestart ? (
-            <p className="mt-1 flex items-center gap-2 text-sm text-amber-700">
+            <p className="mt-1 flex items-center gap-2 text-sm text-primary">
               <TriangleAlert className="size-4" aria-hidden="true" />
               {t('restartWarning')}
             </p>
@@ -104,7 +104,7 @@ export function SettingsSection({
         </div>
       </div>
 
-      <div className="divide-y divide-stone-100">
+      <div className="divide-y divide-border">
         {settings.map((setting) => (
           <SettingField
             key={setting.key}
@@ -118,7 +118,7 @@ export function SettingsSection({
       {clientError || error ? (
         <ErrorState className="m-4" message={clientError ?? error ?? ''} />
       ) : mutation.isSuccess ? (
-        <div className="m-4 flex items-center gap-2 rounded-md bg-stone-50 px-3 py-2 text-sm text-stone-700 ring-1 ring-stone-200">
+        <div className="m-4 flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground ring-1 ring-border">
           <Check className="size-4 text-accent" aria-hidden="true" />
           {t('saved')}
         </div>
@@ -141,7 +141,7 @@ export function SettingField({
     <div className="grid gap-3 p-4 md:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)_minmax(180px,0.7fr)] md:items-center">
       <div>
         <Label htmlFor={setting.key}>{setting.label}</Label>
-        <p className="mt-1 text-sm text-stone-500">{setting.description}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{setting.description}</p>
       </div>
       <div>
         {setting.type === 'select' ? (
@@ -152,7 +152,7 @@ export function SettingField({
             }}
             items={(setting.options ?? []).map((option) => ({ value: option, label: option }))}
           >
-            <SelectTrigger id={setting.key} className="w-full bg-white">
+            <SelectTrigger id={setting.key} className="w-full bg-card">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -200,7 +200,7 @@ export function SettingField({
           />
         ) : null}
       </div>
-      <p className="text-sm text-stone-500">
+      <p className="text-sm text-muted-foreground">
         {setting.updated_by
           ? setting.updated_at
             ? t('updatedByOn', {
