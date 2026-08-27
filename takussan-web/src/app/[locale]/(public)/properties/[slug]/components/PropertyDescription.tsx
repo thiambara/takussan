@@ -20,7 +20,7 @@ export function PropertyDescription({ description }: { description: string | nul
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="text-sm font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900 transition-colors"
+          className="text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
         >
           {expanded ? t('collapse') : t('readMore')}
         </button>

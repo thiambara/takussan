@@ -31,7 +31,7 @@ export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <ChevronRight className="size-3.5" aria-hidden />}
           {c.href ? (
-            <LienLocalise href={c.href} className="hover:text-slate-700 transition-colors">
+            <LienLocalise href={c.href} className="hover:text-foreground transition-colors">
               {c.label}
             </LienLocalise>
           ) : (

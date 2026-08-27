@@ -1092,8 +1092,15 @@ const ESPACES = [
      *
      * ⚠ C'est le seul cas où ce nombre monte sans qu'une couleur ait été décidée à la légère,
      * et il est écrit ici pour que la prochaine hausse n'ait pas ce précédent pour excuse.
+     *
+     * ⚠ **60 → 54 le 2026-08-27 (TCK-440).** Aucun correctif ne visait ce cliquet : la conversion
+     * de la chrome PUBLIQUE (`components/{home,property,search,compare,favorites}`) a fait tomber
+     * six occurrences qui vivaient dans des fichiers partagés, hors du périmètre gardé de `/app`
+     * mais dans son reste. Le cliquet est bilatéral, il a donc rougi tout seul en réclamant son
+     * propre resserrement — *c'est exactement ce pour quoi la bilatéralité existe : un reste qui
+     * descend sans être noté redevient de la tolérance au prochain relèvement.*
      */
-    plafondReste: 60,
+    plafondReste: 54,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     reference: '1070 le 2026-08-27, avant TCK-380/381',
