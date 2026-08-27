@@ -1256,7 +1256,8 @@
       "backToList": "Back to the list",
       "title": "Request #{id}",
       "subtitle": "Intervention tracking",
-      "back": "Back"
+      "back": "Back",
+      "metaTitle": "Maintenance request"
     },
     "onboardingPending": {
       "metaTitle": "Pending onboardings",
@@ -1302,7 +1303,8 @@
       },
       "payments": {
         "title": "Payments",
-        "subtitle": "History, invoices and landlord payouts — one unified view."
+        "subtitle": "History, invoices and landlord payouts — one unified view.",
+        "metaTitle": "Payments"
       },
       "calendar": {
         "metaTitle": "Calendar",
@@ -1325,7 +1327,8 @@
       "customers": {
         "title": "Customers (CRM)",
         "subtitle": "Track your contacts, their pipeline stages and their documents.",
-        "add": "Add a customer"
+        "add": "Add a customer",
+        "metaTitle": "Customers (CRM)"
       },
       "customerNew": {
         "metaTitle": "Add a customer",
@@ -1360,7 +1363,8 @@
         "breadcrumbProfile": "Profile",
         "breadcrumbCurrent": "Reviews",
         "title": "Your reviews",
-        "subtitle": "Find the reviews you published, their statuses, and the stays or leases still eligible for a public review."
+        "subtitle": "Find the reviews you published, their statuses, and the stays or leases still eligible for a public review.",
+        "metaTitle": "Your reviews"
       },
       "bookingDetail": {
         "metaTitle": "Booking",
@@ -1369,7 +1373,8 @@
       "alerts": {
         "title": "Threshold alerts",
         "subtitle": "Configure the alerts triggered when indicators cross a threshold.",
-        "subtitleFull": "Configure the alerts triggered when KPIs cross a threshold. Evaluated hourly."
+        "subtitleFull": "Configure the alerts triggered when KPIs cross a threshold. Evaluated hourly.",
+        "metaTitle": "Threshold alerts"
       },
       "exports": {
         "metaTitle": "Exports",
@@ -1379,25 +1384,53 @@
       "kpis": {
         "title": "Custom KPIs",
         "subtitle": "Choose the indicators to highlight on your dashboard.",
-        "subtitleFull": "Choose the indicators to highlight on your agency's dashboard."
+        "subtitleFull": "Choose the indicators to highlight on your agency's dashboard.",
+        "metaTitle": "Custom KPIs"
       },
       "home": {
         "noAgency": "Dashboard",
         "greeting": "Hello {name}",
-        "subtitle": "An overview of your activity"
+        "subtitle": "An overview of your activity",
+        "metaTitle": "Dashboard"
       },
       "propertyDetail": {
         "metaTitle": "Property record",
         "eyebrow": "Property · {reference}"
       },
       "leaseDetail": {
-        "metaTitleFallback": "Lease not found"
+        "metaTitleFallback": "Lease not found",
+        "metaTitleWithId": "Lease #{id}",
+        "metaTitleWithReference": "Lease {reference}"
       },
       "providers": {
         "metaTitle": "Provider directory"
       },
       "upgrade": {
         "metaTitle": "Upgrade to Pro"
+      },
+      "crmPipeline": {
+        "metaTitle": "Prospect pipeline"
+      },
+      "documentDetail": {
+        "metaTitle": "Document file"
+      },
+      "inventoryNew": {
+        "metaTitle": "New inventory"
+      },
+      "overviewAgency": {
+        "metaTitle": "Agency overview"
+      },
+      "overviewOwner": {
+        "metaTitle": "Landlord overview"
+      },
+      "overviewTenant": {
+        "metaTitle": "My situation"
+      },
+      "paymentReturn": {
+        "metaTitle": "Payment return"
+      },
+      "visitDetail": {
+        "metaTitle": "Visit file"
       }
     },
     "empty": {
@@ -1469,6 +1502,12 @@
       "empty": "No data to display yet.",
       "total": "Total:",
       "seriesName": "Revenue"
+    },
+    "notFound": {
+      "title": "Not found",
+      "description": "This item does not exist, or it does not belong to your agency. Check the link, or go back to the list.",
+      "backToList": "Back to the list",
+      "backToDashboard": "Back to the dashboard"
     }
   },
   "errors": {

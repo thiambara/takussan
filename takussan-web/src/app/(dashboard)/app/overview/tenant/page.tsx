@@ -1,9 +1,15 @@
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { fetchTenantDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.overviewTenant');
+  return { title: t('metaTitle') };
+}
 
 // TCK-179 — les statuts de paiement bruts affichés sur le tableau de bord locataire.
 // TCK-292 : la table de libellés est passée au dictionnaire (`dashboard.paymentStatus.*`) ;

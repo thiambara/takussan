@@ -1,16 +1,17 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.leases');
-  return { title: t('metaTitle') };
-}
 import { getMeAction } from '@/app/actions/auth';
 import { isAgent, isAdmin, isOwner, isSuperAdmin } from '@/lib/roles';
 import { LeasesList } from '@/components/leases/LeasesList';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { buttonVariants } from '@/components/ui/button';
 import { getTranslations } from 'next-intl/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.leases');
+  return { title: t('metaTitle') };
+}
 
 export default async function Page() {
   const t = await getTranslations('dashboard.pages.leases');

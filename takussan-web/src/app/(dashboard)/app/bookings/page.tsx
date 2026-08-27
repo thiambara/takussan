@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.bookings');
-  return { title: t('metaTitle') };
-}
 import { isSuperAdmin } from '@/lib/roles';
 import { BookingsList } from '@/components/bookings/BookingsList';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { getTranslations } from 'next-intl/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.bookings');
+  return { title: t('metaTitle') };
+}
 
 export default async function Page() {
   const t = await getTranslations('dashboard.pages.bookings');

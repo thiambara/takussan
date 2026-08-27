@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { BrandingBanner } from '@/components/agency/BrandingBanner';
@@ -11,6 +12,11 @@ import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboa
 import { isAgencyAdmin, isCustomer, isSuperAdmin } from '@/lib/roles';
 import { fetchDashboardMe } from '@/lib/queries/dashboard-me';
 import { getTranslations } from 'next-intl/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.home');
+  return { title: t('metaTitle') };
+}
 
 export default async function DashboardPage() {
   const t = await getTranslations('dashboard.pages.home');

@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileReviewsList } from '@/components/profile/ProfileReviewsList';
 import { getTranslations } from 'next-intl/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.profileReviews');
+  return { title: t('metaTitle') };
+}
 
 export default async function ProfileReviewsPage() {
   const t = await getTranslations('dashboard.pages.profileReviews');

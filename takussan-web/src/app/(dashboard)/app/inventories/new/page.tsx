@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { FileSearch } from 'lucide-react';
@@ -6,6 +7,11 @@ import { getMeAction } from '@/app/actions/auth';
 import { EmptyState } from '@/components/feedback';
 import { InventoryForm } from '@/components/inventory';
 import { buttonVariants } from '@/components/ui/button';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.inventoryNew');
+  return { title: t('metaTitle') };
+}
 
 interface PageProps {
   readonly searchParams: Promise<{ lease?: string }>;

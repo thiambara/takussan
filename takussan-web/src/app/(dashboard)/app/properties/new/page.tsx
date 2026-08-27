@@ -2,14 +2,15 @@ import type { Metadata } from 'next';
 
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.propertyNew');
-  return { title: t('metaTitle') };
-}
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PropertyForm } from '@/components/property-form';
 import { getTranslations } from 'next-intl/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.propertyNew');
+  return { title: t('metaTitle') };
+}
 
 export const dynamic = 'force-dynamic';
 

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
@@ -11,6 +12,11 @@ import { LineChart } from '@/components/charts/LineChart';
 import { PageHeader } from '@/components/console';
 import { formatCurrency, formatNumber } from '@/lib/format';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.overviewAgency');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-032 P1 — agency dashboard.

@@ -1,14 +1,15 @@
 import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.exports');
-  return { title: t('metaTitle') };
-}
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { ExportForm } from './ExportForm';
 import { getTranslations } from 'next-intl/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.exports');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-032 P2 — download centre. Agency staff + owners see all entities; owners

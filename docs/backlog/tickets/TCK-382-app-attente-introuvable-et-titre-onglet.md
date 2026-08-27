@@ -139,4 +139,59 @@ requête de résolution de référence avec son propre `fields[leases]` — cett
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit dans ce ticket
+
+| Le ticket écrivait | Mesuré le 2026-08-27 |
+|---|---|
+| « **dix pages** de `/app` attendent une donnée côté serveur » | **43 sur 46.** Toutes appellent `getMeAction()`, qui est un vrai aller-retour vers `/api/users/me`. Même en ne comptant que les pages qui font une requête *au-delà* de l'authentification, il y en a **16**, pas 10 : le tableau du ticket oublie `customers`, `customers/[id]`, `maintenance/providers`, `overview/kpis`, `owners` et `settings/agency/upgrade`. Les trois pages qui n'attendent rien sont `account/privacy`, `crm` (redirection nue) et `payments/return` (module client). |
+| « `notFound()` n'est appelé que par `properties/[id]` » | Exact. Et `app/properties/loading.tsx` — le seul repli qui existait — se trouve **précisément au-dessus** de ce seul `notFound()` : ce 404 était donc déjà servi en 200. Personne ne l'avait mesuré (→ TCK-426). |
+| « **17 pages sur 46** n'ont pas de `generateMetadata` et héritent du titre générique » | 17 sur 46 est exact au fichier près, mais **deux d'entre elles ont bien un titre** : `customers/page.tsx` portait `export const metadata = { title: 'Clients (CRM)' }` et `visits/[id]` `{ title: 'Visite' }`. Ce ne sont pas des titres manquants, ce sont **deux libellés français de plus écrits en dur** — le défaut que le ticket n'attribuait qu'à `leases/[id]`. Les pages qui héritent réellement du titre générique sont **15**. |
+| « les trois dictionnaires sont complets à **5038 clés** chacun » | **5028** avant ce ticket (`node scripts/check-i18n.mjs`). La parité, elle, était bien de 0/0. |
+| « **14 pages** déclarent `generateMetadata` au milieu de leur bloc d'imports » | **14**, exact. |
+
+### Trois décisions, chacune prise sur une mesure et non sur une lecture
+
+**1 — Le `not-found.tsx` est sous `app/`, pas sous `(dashboard)`.** Le *Delta à produire* demandait
+`(dashboard)` ; l'AC2 exigeait la barre latérale. Les deux ne sont conciliables que sous `app/`,
+dont le `layout.tsx` monte `AppShell`. Vérifié par sonde jetable (`next dev`, Next 16.3.1) : un
+`not-found.tsx` de segment est rendu **à l'intérieur du `layout.tsx` de son segment**, et des
+layouts plus profonds le sont aussi.
+
+**2 — « Segment propre », et non « segment ou parent ».** L'AC1 écrite au ticket est
+**invérifiable** : `app/loading.tsx` étant l'ancêtre de tout `/app`, aucune page ne peut jamais
+manquer de repli une fois qu'il existe — le test qu'elle décrit serait vert quoi qu'on ajoute.
+La règle tenue est donc plus étroite (repli dans le segment de la page, ou dans un ancêtre
+**strictement sous** `app/`) et elle rougit réellement : vérifié par ablation, retirer
+`payments/loading.tsx` — pourtant enfant direct d'`app/` — fait échouer le test.
+
+**3 — Deux pages sont exemptées de titre, par une règle DÉRIVÉE.** `crm/page.tsx` et
+`overview/page.tsx` ne rendent aucun JSX : ce sont des aiguilleurs qui redirigent toujours. Un
+titre y serait du code mort, et celui d'`overview` aurait dupliqué un libellé existant. Le test
+ne porte pas une liste d'exemptions : il détecte l'absence de rendu, et **fige la taille** de
+l'ensemble ainsi obtenu à deux.
+
+### L'échange assumé sur les statuts HTTP
+
+Un `loading.tsx` fait partir la coque **et le code de réponse** avant que la page n'ait décidé.
+Mesuré par ablation : `notFound()` passe de 404 à 200, `redirect()` de 307 à 200 + coque. L'écran
+final reste juste dans les deux cas ; seul le statut change. L'échange est acceptable ici — `/app`
+est `noindex`, derrière authentification, et la redirection d'authentification vit dans le layout
+du groupe, donc **au-dessus** de toute frontière posée ici (`GET /app` non authentifié rend
+toujours 307). Il ne l'est pas ailleurs : le catalogue public est tenu par TCK-335. Le détail, et
+la question laissée ouverte, sont dans **TCK-426**.
+
+### Le retour de paiement a dû être scindé
+
+`payments/return/page.tsx` est `'use client'`, et Next interdit à un module client d'exporter
+`generateMetadata`. Un `layout.tsx` de segment aurait suffi — mais
+`scripts/check-i18n-namespaces.mjs` traite tout `layout.tsx` comme une frontière de dictionnaire :
+mesuré, elle aurait dû déclarer **38 espaces de noms**, c'est-à-dire recopier celui de son parent
+pour un provider imbriqué n'ajoutant rien. Le corps client est donc déplacé tel quel
+(`git mv`, aucune ligne du corps touchée) et `page.tsx` ne fait plus que porter le titre et le
+monter.
+
+### Un défaut trouvé par un test et corrigé
+
+`listePour('/admin/properties/9')` rendait `/app/properties` : la fonction ne vérifiait pas
+l'espace de tête. Sans effet en production — la frontière ne voit que `/app` — mais une fonction
+exportée finit ailleurs.

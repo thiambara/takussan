@@ -1,9 +1,15 @@
+import type { Metadata } from 'next';
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin } from '@/lib/roles';
 import { redirect } from 'next/navigation';
 import { fetchKpiConfigs, fetchKpiMetricsCatalog } from '@/lib/queries/kpis';
 import { KpiConfigList } from './KpiConfigList';
 import { getTranslations } from 'next-intl/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.kpis');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-032 P3 — KPI customisation per agency.

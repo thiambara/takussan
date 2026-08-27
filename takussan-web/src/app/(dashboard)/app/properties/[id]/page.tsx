@@ -3,10 +3,6 @@ import { notFound, redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.pages.propertyDetail');
-  return { title: t('metaTitle') };
-}
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
@@ -18,6 +14,11 @@ import { PropertyStatusBadge } from '@/components/property-dashboard/PropertySta
 import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
 import { PropertyModerationBanner } from '@/components/property-form/PropertyModerationBanner';
 import { getTranslations } from 'next-intl/server';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.propertyDetail');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-041 — page d'édition d'un bien existant.

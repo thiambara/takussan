@@ -1,9 +1,15 @@
+import type { Metadata } from 'next';
 import { forbidden } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
 import { isAdmin, isAgent, isOwner } from '@/lib/roles';
 import { PipelineKanban } from '@/components/pipeline/PipelineKanban';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.pages.crmPipeline');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-083 — CRM prospect pipeline kanban.

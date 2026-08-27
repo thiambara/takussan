@@ -4,11 +4,6 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Plus } from 'lucide-react';
 
-export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('dashboard.properties');
-  return { title: t('metaTitle') };
-}
-
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperties } from '@/lib/queries/properties-server';
@@ -19,6 +14,11 @@ import { PropertyPagination } from '@/components/property-dashboard/PropertyPagi
 import { PropertyKpiStrip } from '@/components/property-dashboard/PropertyKpiStrip';
 import { buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/components/console';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dashboard.properties');
+  return { title: t('metaTitle') };
+}
 
 /**
  * TCK-041 — dashboard agent, liste des biens.
