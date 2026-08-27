@@ -275,7 +275,10 @@ export const EXCEPTIONS_JUSTIFIEES = [
 
   // ── HONEYPOT ──────────────────────────────────────────────────────────────────────────────────
   {
-    fichier: 'src/app/(public)/properties/[slug]/components/PropertyContactMessageDialog.tsx',
+    // TCK-441 — le formulaire anonyme a été EXTRAIT de PropertyContactMessageDialog vers ce
+    // composant partagé avec la fiche d'agent. Le pot de miel a suivi ; l'exception le suit aussi,
+    // au lieu de rester pointée sur un site qui n'existe plus.
+    fichier: 'src/components/public/AnonymousLeadDialog.tsx',
     litteral: 'Company',
     famille: 'HONEYPOT',
     raison:

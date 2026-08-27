@@ -126,6 +126,13 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('agents/{slug}', [PublicAgentController::class, 'show'])
         ->name('agents.show');
 
+    // TCK-441 — contact ANONYME d'un agent. Meme regime que `properties/{slug}/contact-lead` :
+    // pas de `auth:sanctum`, la barriere est le throttle. Il remplace le `mailto:` que la fiche
+    // publiait a partir de l'adresse de CONNEXION de l'agent.
+    Route::post('agents/{slug}/contact-lead', [PublicAgentController::class, 'contactLead'])
+        ->middleware('throttle:public-contact-lead')
+        ->name('agents.contact-lead');
+
     Route::get('agents/{slug}/properties', [PublicAgentController::class, 'properties'])
         ->name('agents.properties');
 
