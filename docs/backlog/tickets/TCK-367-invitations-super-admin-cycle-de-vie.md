@@ -71,4 +71,43 @@ L'écran `/super-admin/super-admins` liste des actifs et des invitations en atte
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Trois affirmations du ticket ont été contredites par la mesure, toutes dans le sens qui
+sur-estime le travail restant** — le contrat de données était déjà à moitié rempli :
+
+| Le ticket dit | Mesuré sur `origin/dev` |
+|---|---|
+| « La réponse de la liste doit exposer la date d'expiration … et la dernière connexion » | Les DEUX y sont déjà : `InvitationResource` émet `expires_at`, et `SuperAdminInvitationController::index()` émet `last_login_at`. Les types TS `SuperAdminPendingInvitation` / `SuperAdminEntry` les portent aussi. **Ce qui manquait est le RENDU**, pas l'exposition. |
+| « **Manquant, à créer** : relance et annulation » | `InvitationService::resend()` et `::revoke()` existent depuis TCK-249, journalisent (`invitation_resent` / `invitation_revoked`) et sont exposés par `/api/invitations/{id}/{resend,revoke}`. Le delta réel est la surface super-admin, pas le mécanisme. |
+| AC6 : `php artisan test --filter=SuperAdminInvitation` | **Aucune classe ne portait ce préfixe** — l'historique est `SuperAdminCooptationTest`. La nouvelle classe s'appelle `SuperAdminInvitationLifecycleTest` pour que le filtre de l'AC attrape quelque chose. |
+
+**Décisions non évidentes :**
+
+- **Routes dédiées plutôt que les génériques `/api/invitations/{id}/*`.** `InvitationPolicy::revoke()`
+  autorise l'inviteur ET l'agency_admin de l'agence de l'invitation, et `view()` rend `true` sur
+  `agency_id === null` pour tout agency_admin. Passer la cooptation par cette policy aurait fait
+  dépendre une décision de plateforme de règles écrites pour l'isolation par agence. Les deux
+  nouvelles routes vivent sous `/api/admin/super-admins/invitations/*`, derrière le middleware
+  `super-admin`, et `assertIsCooptationInvitation()` rend **404** (pas 403) sur toute invitation
+  d'agence : répondre « interdit » confirmerait son existence.
+
+- **`is_expired` est calculé côté serveur, pas côté client.** Une invitation encore `status = sent`
+  dont `expires_at` est passé EST expirée ; le cron `invitations:expire` ne tourne qu'à l'heure, si
+  bien que `status` seul affiche « en attente » une invitation morte pendant jusqu'à 60 minutes. Le
+  champ est posé sur `InvitationResource` (donc réutilisable tel quel par TCK-368) et non sur la
+  seule réponse super-admin.
+
+- **La relance ressuscite une invitation `expired`.** `InvitationService::resend()` refuse tout
+  statut ≠ `sent` (422) ; le service de cooptation la ramène en `sent` avant de déléguer. Sans ça,
+  la seule façon de relancer une invitation expirée serait `invite()`, qui crée **une seconde
+  ligne** — exactement ce que la contrainte « une relance ne crée pas une seconde invitation »
+  interdit. La bascule vit dans le service de cooptation, pas dans le service générique, pour ne
+  pas décider à la place de TCK-368.
+
+- **« Aucune action ne doit laisser la plateforme sans super-admin actif » est structurellement
+  tenue, pas gardée par un compteur** : seule une invitation NON acceptée est annulable, donc
+  l'ensemble des actifs est invariant. `test_revoking_an_invitation_leaves_the_active_super_admins_untouched`
+  fige l'invariant plutôt que de le supposer.
+
+- **Défaut préexistant, hors périmètre, non corrigé** : `InvitationPolicy::view()` laisse un
+  agency_admin lire une invitation de cooptation via `GET /api/invitations/{id}` (branche
+  `agency_id === null`). Le listing générique la masque, `show` non. À traiter par un ticket dédié.

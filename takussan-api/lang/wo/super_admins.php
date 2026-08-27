@@ -8,6 +8,7 @@ return [
             'enroll_first' => 'Defal /super-admin/2fa/enroll bu jëkk ngir confirmer sa kod.',
             'invalid_code' => 'Kodu TOTP du baax.',
             'not_pending' => 'Amul benn onboarding super-admin ci sa kont.',
+            'invitation_not_found' => 'Kañu bu cooptation bii amul.',
         ],
         'notifications' => [
             'invited' => [

@@ -8,6 +8,7 @@ return [
             'enroll_first' => 'Vous devez appeler /super-admin/2fa/enroll avant de confirmer un code.',
             'invalid_code' => 'Code TOTP invalide.',
             'not_pending' => 'Aucun onboarding super-admin en attente pour ce compte.',
+            'invitation_not_found' => 'Cette invitation de cooptation est introuvable.',
         ],
         'notifications' => [
             'invited' => [

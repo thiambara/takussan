@@ -1096,6 +1096,13 @@ export interface SuperAdminPendingInvitation {
   invited_by: number | null;
   expires_at: string | null;
   created_at: string | null;
+  /**
+   * TCK-367 — calculé par le backend, jamais déduit ici : une invitation
+   * encore `sent` dont `expires_at` est passé EST expirée, et le cron qui
+   * bascule le statut ne tourne qu'à l'heure. Rejouer ce calcul côté client
+   * le ferait dépendre de l'horloge du navigateur.
+   */
+  is_expired: boolean;
   metadata: Record<string, unknown> | null;
 }
 
@@ -1120,6 +1127,36 @@ export async function inviteSuperAdmin(payload: {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+  });
+  const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
+  return json.data;
+}
+
+/**
+ * TCK-367 — relance d'une invitation de cooptation.
+ *
+ * Réémet l'invitation EXISTANTE (nouveau token, expiration repoussée) :
+ * ne jamais rappeler `inviteSuperAdmin` pour relancer, cela créerait une
+ * seconde ligne — et le backend répondrait 409.
+ */
+export async function resendSuperAdminInvitation(
+  invitationId: number,
+): Promise<SuperAdminPendingInvitation> {
+  const res = await fetch(`/api/super-admin/super-admins/invitations/${invitationId}/resend`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
+  return json.data;
+}
+
+/** TCK-367 — annulation d'une invitation de cooptation. */
+export async function revokeSuperAdminInvitation(
+  invitationId: number,
+): Promise<SuperAdminPendingInvitation> {
+  const res = await fetch(`/api/super-admin/super-admins/invitations/${invitationId}/revoke`, {
+    method: 'POST',
+    credentials: 'include',
   });
   const json = await jsonOrThrow<{ data: SuperAdminPendingInvitation }>(res);
   return json.data;

@@ -31,7 +31,7 @@ class SuperAdminInvitationController extends Controller
      *    plus their `force_2fa_at_first_login` flag (so the UI can
      *    surface "active" vs "awaiting 2FA" states).
      *  - `pending_invitations`: every invitation with role=super_admin
-     *    still in `sent` status.
+     *    still in `sent` or `expired` status (TCK-367).
      */
     public function index(Request $request): JsonResponse
     {
@@ -50,9 +50,18 @@ class SuperAdminInvitationController extends Controller
             ->values()
             ->all();
 
+        // TCK-367 — les `expired` rejoignent la liste : une invitation
+        // morte doit se VOIR (et se relancer), pas disparaître de l'écran
+        // en laissant croire qu'elle n'a jamais existé. Le champ
+        // `is_expired` de la ressource distingue les deux états, y compris
+        // pour une ligne encore `sent` que le cron horaire n'a pas encore
+        // marquée.
         $pending = Invitation::query()
             ->where('role', 'super_admin')
-            ->where('status', InvitationStatus::Sent->value)
+            ->whereIn('status', [
+                InvitationStatus::Sent->value,
+                InvitationStatus::Expired->value,
+            ])
             ->orderByDesc('created_at')
             ->get();
 
@@ -78,5 +87,35 @@ class SuperAdminInvitationController extends Controller
             ['data' => InvitationResource::make($invitation)->toArray($request)],
             201,
         );
+    }
+
+    /**
+     * POST /api/admin/super-admins/invitations/{invitation}/resend
+     *
+     * TCK-367 — relance. Réémet l'invitation EXISTANTE : nouveau token,
+     * expiration repoussée, aucune seconde ligne en base.
+     */
+    public function resend(Request $request, Invitation $invitation): JsonResponse
+    {
+        $invitation = $this->cooptation->resendInvitation($request->user(), $invitation);
+
+        return $this->json([
+            'data' => InvitationResource::make($invitation)->toArray($request),
+        ]);
+    }
+
+    /**
+     * POST /api/admin/super-admins/invitations/{invitation}/revoke
+     *
+     * TCK-367 — annulation. Idempotente (revoke d'une ligne déjà révoquée
+     * est un no-op côté service), 422 sur une invitation déjà acceptée.
+     */
+    public function revoke(Request $request, Invitation $invitation): JsonResponse
+    {
+        $invitation = $this->cooptation->revokeInvitation($request->user(), $invitation);
+
+        return $this->json([
+            'data' => InvitationResource::make($invitation)->toArray($request),
+        ]);
     }
 }
