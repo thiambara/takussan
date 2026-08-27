@@ -47,7 +47,11 @@ export function LanguageSwitcher({ className, variant = 'compact' }: LanguageSwi
         aria-label={t('label')}
         disabled={isPending}
         className={cn(
-          'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium outline-none ring-1 ring-black/5 transition-colors hover:bg-black/5 focus-visible:ring-2 focus-visible:ring-foreground disabled:opacity-60',
+          // ⚠ TCK-384 : le filet et le survol étaient des noirs LITTÉRAUX à 5 %, qui ne dessinent
+          // rien sur une surface sombre. `--border` et `--muted` sont les deux jetons que ces
+          // valeurs approchaient en clair, et ils s'inversent sous `.dark`. Les deux appelants de
+          // la barre haute passent leur propre `ring-*` / `hover:bg-*`, que `cn` fait gagner.
+          'inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium outline-none ring-1 ring-border transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-foreground disabled:opacity-60',
           className,
         )}
       >

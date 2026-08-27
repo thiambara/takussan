@@ -290,6 +290,29 @@ const PERIMETRES = [
   { type: 'dir', chemin: join(WEB_SRC, 'components', 'feedback') },
   { type: 'glob', dir: join(WEB_SRC, 'components', 'layout'), prefixe: 'SuperAdmin' },
   { type: 'file', chemin: join(WEB_SRC, 'components', 'kyc', 'kyc-components.tsx') },
+  //
+  // ⚠ QUATRE RÉPERTOIRES DE PRIMITIVES PARTAGÉES entrent avec TCK-384, et aucun n'appartient à
+  // la console — c'est le contraire de tout ce que cette liste contenait jusqu'ici. Ils entrent
+  // parce qu'ils sont DÉJÀ à zéro (mesuré le 2026-08-27, après le portage des 40 occurrences du
+  // ticket), et parce qu'ils sont montés par les trois espaces à la fois : les laisser dehors,
+  // c'est les laisser gardés par le seul cliquet, donc récidivables jusqu'au plafond suivant.
+  //
+  // Ils entrent dans l'espace SUPER-ADMIN et pas ailleurs, pour la raison écrite au docblock de
+  // `GARDE_PARTOUT` : un fichier gardé deux fois est gardé une fois de trop.
+  //
+  //   `ui`      les 90 primitives shadcn/base-nova. `toast`, `sheet`, `dialog`, `dropdown-menu`
+  //             et `warning-banner` y portaient 22 des 46 occurrences du reste.
+  //   `forms`   `FormError` / `FormSuccess`, portés sur `--destructive` / `--success`.
+  //   `files`   `PdfViewer`, à lui seul 11 occurrences — le plus gros fichier du lot.
+  //   `shared`  `LanguageSwitcher`, et ses deux noirs littéraux.
+  //
+  // *Un répertoire déjà propre est le moins cher à mettre sous cliquet, et c'est le seul moment
+  // où ça ne coûte rien* — même raison que `components/reporting` chez TCK-358, à ceci près
+  // qu'ici il a d'abord fallu le rendre propre.
+  { type: 'dir', chemin: join(WEB_SRC, 'components', 'ui') },
+  { type: 'dir', chemin: join(WEB_SRC, 'components', 'forms') },
+  { type: 'dir', chemin: join(WEB_SRC, 'components', 'files') },
+  { type: 'dir', chemin: join(WEB_SRC, 'components', 'shared') },
 ];
 
 /**
@@ -724,6 +747,34 @@ const EPREUVE = [
   // pas du texte, c'est un objet JS. Écrit ici plutôt que redécouvert.
   ['fill={couleurDuSecteur}', false], // ← MUTATION QUI PASSE (T1, déclaré)
   ["fill={'#a85332'}", false],        // ← MUTATION QUI PASSE (T1, déclaré)
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // TCK-384 / TCK-385 — les formes essayées à la main sur CETTE version. Aucune n'a passé.
+  //
+  // ⚠ Le bloc de TCK-381 ci-dessus éprouvait `FAMILLES` entrée par entrée et `PREFIXES` entrée
+  // par entrée. Il ne faisait PAS le même travail sur la troisième liste du contrôle D — les sept
+  // FONCTIONS de couleur de `D_MOTIFS`. Trois seulement étaient éprouvées (`rgb`, `oklch`, `hsl`,
+  // plus `color(`) ; **`rgba`, `hsla`, `hwb`, `lab`, `lch` et `oklab` ne l'étaient pas**, alors
+  // que ce sont six branches d'une alternance qu'un `|` déplacé éteint d'un coup. C'est le même
+  // mode d'échec que le défaut D1, une liste plus loin.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+
+  // I · UNE FONCTION DE COULEUR, UNE FORME — les six branches de `D_MOTIFS` qui n'en avaient pas.
+  ['bg-[hsla(200,50%,50%,0.4)]', true], ['stroke-[hwb(90_10%_10%)]', true],
+  ['bg-[lab(50%_40_59.5)]', true], ['text-[lch(50%_60_30)]', true],
+  ['border-[oklab(0.4_0.2_-0.1)]', true], ['shadow-[0_0_0_2px_rgba(0,0,0,.2)]', true],
+
+  // J · l'hexadécimal à TROIS chiffres dans un gradient, et la couleur nommée la plus longue de
+  //     CSS noyée dans un `color-mix` — les deux formes les plus proches d'un faux négatif du
+  //     contrôle D, l'une par sa brièveté, l'autre par le conteneur qui l'enveloppe.
+  ['to-[#0f0]', true], ['bg-[color-mix(in_srgb,rebeccapurple_50%,transparent)]', true],
+
+  // K · LE JETON DE VOILE, créé par TCK-384 — il ne doit PAS rougir, sinon la substitution que la
+  //     garde exige se ferait refuser par elle. Même rôle que le bloc M4 pour TCK-381.
+  ['bg-scrim/10', false], ['bg-scrim/30', false],
+  // …et l'ombre ambiante qui LIT `--foreground` au lieu de réécrire son hexadécimal. C'est la
+  // forme d'arrivée des deux `shadow-[…rgba(…)]` que le contrôle D comptait.
+  ['shadow-[0_0_40px_0_color-mix(in_srgb,var(--foreground)_4%,transparent)]', false],
 ];
 
 function autoEpreuve() {
@@ -927,7 +978,40 @@ function fichiersDe(dir, acc = []) {
  * `ui/warning-banner` 3 · `ui/dropdown-menu` 3 · `forms/FormSuccess` 3 · `forms/FormError` 3 ·
  * `shared/LanguageSwitcher` 2 · `ui/dialog` 1.
  */
-const RESTE_PLAFOND = 46;
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * ⚠ **54 → 46 (TCK-358) → 4, LE 2026-08-27, PAR TCK-384.**
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Les 42 occurrences descendues sont dix fichiers portés sur les jetons, et les quatre
+ * répertoires qui les contiennent sont entrés dans `PERIMETRES` — un fichier porté qui n'entre
+ * dans aucun périmètre revient au premier commit venu, c'est la leçon de TCK-245.
+ *
+ * ⚠ **Ce qui RESTE tient dans un seul fichier, et il ne se corrige pas ici : `layout/UserMenu.tsx`
+ * (4).** La mesure vaut d'être écrite, parce qu'elle contredit ce qui paraissait le lot le moins
+ * cher de la liste. Sa variante `dark` sert DEUX barres hautes qui fabriquent « sombre » par des
+ * mécanismes OPPOSÉS :
+ *
+ *   `layout/AppTopbar`        `bg-foreground`, en portée CLAIRE. L'encre qui s'y lit est
+ *                             `--background`.
+ *   `layout/SuperAdminTopbar` `dark` + `bg-background`, donc en portée SOMBRE. L'encre qui s'y
+ *                             lit est `--foreground`.
+ *
+ * Les deux jetons sont exactement l'inverse l'un de l'autre : aucun ne convient aux deux barres,
+ * et le blanc littéral d'aujourd'hui ne convient qu'en thème clair (sous `.dark`, `bg-foreground`
+ * d'`AppTopbar` devient crème et le blanc disparaît dessus). Le correctif porte donc sur
+ * `AppTopbar`, qui doit adopter `dark` comme son jumeau — un fichier que le cliquet de `/app`
+ * ci-dessous met explicitement hors de portée, parce qu'y traduire `outline-white` demanderait
+ * de REMESURER un contraste que la revue adverse de TCK-371 vient d'établir.
+ *
+ * *Traduire ces quatre-là par un jeton aurait rendu le composant faux sur l'une des deux barres,
+ * et vert dans la garde.* C'est la forme de correctif que ce fichier existe pour ne pas produire.
+ *
+ * ⚠ **Ce cliquet ne peut plus tomber à 0 par le seul travail de TCK-384**, et le dire est le
+ * point du paragraphe : le point 4 du delta (« quand le reste atteint 0, supprimer le plafond »)
+ * dépend d'un ticket sur `AppTopbar` qui n'existe pas encore.
+ */
+const RESTE_PLAFOND = 4;
 
 /**
  * LE PÉRIMÈTRE GARDÉ DE `/app` (TCK-381) — vingt-huit répertoires plus les pages.
@@ -1002,6 +1086,13 @@ const TEMOINS = {
     join(WEB_SRC, 'components', 'billing', 'PayoutTable.tsx'),
     join(WEB_SRC, 'components', 'reporting', 'RevenueChart.tsx'),
     join(WEB_SRC, 'components', 'kyc', 'kyc-components.tsx'),
+    // ⚠ Un témoin par répertoire ENTRÉ avec TCK-384. Sans eux, retirer `{ type: 'dir', … 'ui' }`
+    // de `PERIMETRES` — UN geste — laissait 90 primitives partagées hors de toute exigence de
+    // zéro : seul le plancher de fichiers l'aurait vu, et un plancher se corrige d'un chiffre.
+    join(WEB_SRC, 'components', 'ui', 'toast.tsx'),
+    join(WEB_SRC, 'components', 'forms', 'FormError.tsx'),
+    join(WEB_SRC, 'components', 'files', 'PdfViewer.tsx'),
+    join(WEB_SRC, 'components', 'shared', 'LanguageSwitcher.tsx'),
   ],
   'tableau de bord /app': [
     join(WEB_SRC, 'app', '(dashboard)', 'app', 'page.tsx'),
@@ -1039,7 +1130,12 @@ const ESPACES = [
     // 93 fichiers analysés le 2026-08-27, arbre `feat/console-lot-358-382` fusionné. Le chiffre
     // valait 92 : un fichier de mou, resserré ici parce qu'un plancher qui traîne est du silence
     // acheté à crédit.
-    plancherFichiers: 93,
+    //
+    // ⚠ **93 → 130 le 2026-08-27 (TCK-384)**, et l'écart n'est pas du dépôt qui grossit : ce sont
+    // les 37 fichiers de `ui`, `forms`, `files` et `shared` qui entrent dans `PERIMETRES`. Un
+    // plancher qu'on ne resserre pas après un élargissement de périmètre est un plancher qui
+    // descend tout seul — le jeu récupéré est exactement ce dont la manœuvre du trou T6 a besoin.
+    plancherFichiers: 130,
   },
   {
     libelle: 'tableau de bord /app',
@@ -1093,7 +1189,25 @@ const ESPACES = [
      * ⚠ C'est le seul cas où ce nombre monte sans qu'une couleur ait été décidée à la légère,
      * et il est écrit ici pour que la prochaine hausse n'ait pas ce précédent pour excuse.
      */
-    plafondReste: 60,
+    /*
+     * ────────────────────────────────────────────────────────────────────────────────────────
+     * ⚠ **58 → 60 (fusion) → 32, LE 2026-08-27, PAR TCK-384.**
+     * ────────────────────────────────────────────────────────────────────────────────────────
+     *
+     * Les 28 descendues sont les mêmes primitives partagées que celles du cliquet super-admin
+     * ci-dessus — `ui/toast` (12), `ui/sheet` (4), `forms/FormError` (3), `forms/FormSuccess`
+     * (3), `ui/dropdown-menu` (3), `shared/LanguageSwitcher` (2), `ui/dialog` (1) — portées une
+     * fois et comptées dans les DEUX espaces, ce qui est précisément l'argument de TCK-384 :
+     * les porter depuis un ticket de console les aurait portées sans revoir ces écrans-ci.
+     *
+     * Les 32 qui restent tiennent dans quatre fichiers, tous hors du périmètre gardé de `/app`
+     * comme de celui de la console : `layout/AppTopbar` (9), `layout/NotificationBell` (10),
+     * `property/PropertyCard` (8), `layout/UserMenu` (4), `layout/AppSidebar` (1).
+     * `AppTopbar` reste hors de portée pour la raison écrite plus haut (un correctif MESURÉ
+     * qu'une traduction obligerait à refaire) et `UserMenu` en dépend — cf. le docblock de
+     * {@link RESTE_PLAFOND}.
+     */
+    plafondReste: 32,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     reference: '1070 le 2026-08-27, avant TCK-380/381',

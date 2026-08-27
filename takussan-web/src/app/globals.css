@@ -106,6 +106,31 @@
   --chart-4: #6e655a;
   --chart-5: #1f1812;
 
+  /*
+   * === Le VOILE (TCK-384) — le second blanc fonctionnel, en négatif ===
+   *
+   * Les deux voiles du produit — celui du dialogue et celui du panneau latéral — étaient des
+   * noirs LITTÉRAUX écrits dans le JSX, et `scripts/check-super-admin-tokens.mjs` les comptait.
+   * Aucun jeton existant ne pouvait les remplacer, et ce n'est pas un oubli de la charte : c'est
+   * une propriété du RÔLE.
+   *
+   *   `--foreground`  vaut #1f1812 en clair mais #fcf9f3 en SOMBRE. Un voile clair par-dessus une
+   *                   page sombre remonterait le fond AU-DESSUS de la surface du panneau (#2a2018)
+   *                   qu'il est censé mettre en avant : le panneau se lirait comme un trou.
+   *   `--background`  vaut #fcf9f3 en clair : un voile de cette couleur sur une page claire
+   *                   n'assombrit rien du tout.
+   *
+   * Un voile ne suit donc PAS le thème — il assombrit, dans les deux. C'est le raisonnement de
+   * `.qr-surface` (plus bas) appliqué à l'autre bout de l'échelle, et c'est pourquoi la valeur
+   * s'écrit ici, une fois, sous un nom qui dit pourquoi.
+   *
+   * Le jeton est OPAQUE : ce sont les appelants qui posent l'alpha, par le modificateur
+   * d'opacité de Tailwind (`bg-scrim/10`, `bg-scrim/30`). Une variable qui porterait déjà sa
+   * transparence rendrait ce modificateur inutilisable, et donc l'intensité du voile
+   * re-décidable nulle part.
+   */
+  --scrim: #000000;
+
   /* === Geometry === */
   --radius: 0.625rem;
 
@@ -165,6 +190,9 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+
+  /* Voile — cf. le docblock de `--scrim` dans `:root`. */
+  --color-scrim: var(--scrim);
 
   /* Charts */
   --color-chart-5: var(--chart-5);

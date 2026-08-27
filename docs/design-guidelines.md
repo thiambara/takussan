@@ -48,21 +48,43 @@ Palette officielle : **Lin** — fond clair quasi-blanc, terracotta atténué, s
 | Surface secondaire | `#f1ece0` | `--muted` | `bg-muted` |
 | Hairline / bordure | `#ebe5d5` | `--border` | `border-border` |
 | Focus ring | `#a85332` | `--ring` | `ring-ring` |
+| Voile de dialogue / panneau | `#000000` | `--scrim` | `bg-scrim/10`, `bg-scrim/30` |
 
-Couleurs sémantiques :
-- **Erreur** : `--destructive` (rouge oklch standard).
-- **Succès / location** : `var(--accent)` (sage `#5d6e4f`).
-- **Avertissement** : orange Tailwind standard (`amber-500`).
-- **Info** : déconseillé sur les surfaces publiques — préférer les eyebrows et le contenu textuel.
+### Couleurs sémantiques
 
-### Règle fondamentale — design tokens
+Elles ont chacune leur jeton depuis TCK-358 (avertissement) et TCK-381 (succès, info). **Aucune
+n'emprunte plus un accent de marque**, et le tableau ci-dessous remplace une liste qui renvoyait
+encore à l'échelle Tailwind pour l'avertissement — c'est-à-dire à la couleur que ces jetons
+existent pour ne plus employer.
 
-> **Zéro valeur hex arbitraire dans le code.** Toute couleur passe par une variable CSS définie dans `src/app/globals.css` et exposée via `@theme inline`. Changer la palette demain = modifier `globals.css`, rien d'autre.
+| Rôle | Clair | Sombre | Token CSS |
+|---|---|---|---|
+| Erreur | `oklch(0.577 0.245 27.325)` | `oklch(0.704 0.191 22.216)` | `--destructive` |
+| Avertissement (ocre profond) | `#8a5410` | `#e0a458` | `--warning` / `--warning-foreground` |
+| Succès / confirmation | `#3f6b45` | `#8fbf87` | `--success` / `--success-foreground` |
+| Information | `#3f5a6b` | `#8fb2c8` | `--info` / `--info-foreground` |
 
-Interdits :
-- `#0050cb` ou tout autre hex hardcodé pour la marque (ancien bleu Takussan retiré avec TCK-129).
-- `text-blue-*`, `bg-blue-*` pour la marque.
-- Dupliquer un hex Lin dans un composant — toujours via le token.
+- **Succès n'est pas l'accent de marque.** `--accent` (sage `#5d6e4f`) reste l'accent des badges
+  *featured* ; « ça a marché » se dit `--success`. Les confondre retire au produit le moyen de
+  distinguer les deux. ⚠ Le ton `success` de `console/StatusBadge` emprunte encore `--accent` :
+  mesuré le 2026-08-27, `text-accent` sur `bg-accent/15` rend **4,19:1 en clair et 3,71:1 en
+  sombre**, sous les 4,5:1 d'AA, quand le même aplat sur `--success` rend 4,61 / 5,73. À corriger
+  en un point, pour toutes les pastilles de la console à la fois.
+- **Info** reste déconseillée sur les surfaces publiques — préférer les eyebrows et le contenu
+  textuel.
+
+### Le VOILE — la couleur qui ne suit pas le thème (TCK-384)
+
+Un voile de dialogue ou de panneau latéral **assombrit dans les deux thèmes**. Aucun jeton de
+surface ne peut le porter : `--foreground` devient clair sous `.dark` (un voile clair remonterait
+le fond au-dessus de la surface du panneau, qui vaut `#2a2018` — le panneau se lirait comme un
+trou), et `--background` est déjà clair en thème clair.
+
+`--scrim` est donc déclaré OPAQUE dans `globals.css`, et ce sont les appelants qui posent l'alpha
+(`bg-scrim/10` pour un dialogue, `bg-scrim/30` pour un panneau). C'est le même raisonnement que
+`.qr-surface` — le blanc d'un QR code, qu'un téléphone doit lire quel que soit le thème — appliqué
+à l'autre bout de l'échelle. **Ce sont les deux seules couleurs fonctionnelles du produit ; toute
+troisième candidate doit s'écrire ici avant d'exister.**
 
 ## Espacement & Layout
 

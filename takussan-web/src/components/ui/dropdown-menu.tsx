@@ -19,6 +19,22 @@ function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
   return <MenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
 }
 
+/**
+ * ⚠ **Le popup était rempli d'un blanc LITTÉRAL, avec `text-foreground` par-dessus** — donc,
+ * sous `.dark`, de l'encre #fcf9f3 sur un fond #ffffff : 1,07:1. Le blanc ne basculait pas,
+ * l'encre si. Porté sur `--popover` / `--popover-foreground` par TCK-384, la paire que ce
+ * composant aurait dû lire depuis l'origine (17,53:1 en clair, 15,16:1 en sombre).
+ *
+ * L'anneau était un noir littéral à 5 % ; il passe à `ring-border`. `--border` EST la valeur que
+ * ce noir approchait en clair, et il devient un filet CLAIR sous `.dark` (`oklch(1 0 0 / 10%)`) —
+ * un hairline sombre sur une surface sombre ne dessine rien.
+ *
+ * ⚠ L'ombre ne pouvait pas devenir un `shadow-*` standard sans changer la géométrie (0 0 40px 0,
+ * une lueur ambiante, pas une ombre portée). Elle garde sa géométrie et lit le jeton :
+ * `color-mix` sur `var(--foreground)` à 4 % rend en clair très exactement le noir-brun à 4 %
+ * qu'elle écrivait en dur (`--foreground` vaut #1f1812), et devient sous `.dark` une lueur
+ * claire — ce qui est la forme d'élévation qui fonctionne sur une surface sombre.
+ */
 function DropdownMenuContent({
   className,
   sideOffset = 8,
@@ -45,7 +61,7 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "z-[1100] min-w-48 overflow-hidden rounded-xl bg-white p-1 text-sm text-foreground shadow-[0_0_40px_0_rgba(31,27,23,0.04)] outline-none ring-1 ring-black/5 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+            "z-[1100] min-w-48 overflow-hidden rounded-xl bg-popover p-1 text-sm text-popover-foreground shadow-[0_0_40px_0_color-mix(in_srgb,var(--foreground)_4%,transparent)] outline-none ring-1 ring-border data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
             className
           )}
           {...props}
