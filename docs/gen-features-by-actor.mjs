@@ -12,6 +12,33 @@
 //   node docs/gen-features-by-actor.mjs           # (ré)écrit docs/features-by-actor.md
 //   node docs/gen-features-by-actor.mjs --check   # n'écrit rien, sort 1 si la sortie est périmée
 //
+// Les DEUX formes sortent aussi en 1 si `features.md` marque un acteur qui n'est pas dans sa
+// légende (TCK-420) — la forme écriture régénère d'abord, puis échoue.
+//
+// OÙ CETTE GARDE S'ARRÊTE. Elle ne couvre qu'UN sens et qu'UN emplacement ; les deux angles morts
+// ci-dessous ont été mesurés (TCK-420), et sont écrits ici parce qu'*une garde dont on croit la
+// portée plus large qu'elle n'est coûte plus cher que pas de garde du tout* — on cesse de
+// chercher à la main ce qu'on la croit capable d'attraper.
+//
+//  1. **Sens unique : déclaré-mais-inemployé passe en silence.** `undeclared` (l. 165) ne calcule
+//     que « employé sans être déclaré ». La réciproque n'est calculée nulle part : un acteur ajouté
+//     à la légende et marqué sur aucune ligne sort en 0 dans les deux formes, se fait recopier
+//     dans la légende du fichier généré (l. 223, qui boucle sur `legend` sans condition) et
+//     n'obtient AUCUNE section — `groups` est filtré par `byActor.has(g.key)` (l. 187). Mesuré :
+//     un `| 🦄 | … |` ajouté à la légende seule → EXIT 0, 🦄 présent dans la légende générée,
+//     0 section sous lui.
+//  2. **Hors d'une section `### N.M`, une ligne de tableau est INVISIBLE.** `parseFeatures` fait
+//     `if (!row || !current) continue;` (l. 126) : tant qu'aucun titre `### N.M` n'a été
+//     rencontré — ou après qu'un `##` non numéroté a remis `current` à `null` —, toute ligne
+//     `| Pn | acteurs | … |` est ignorée, acteur non déclaré compris. Mesuré : une ligne
+//     `| P1 | 🦄 | … |` ajoutée sous « ## Notes de priorisation » → EXIT 0 et compte de
+//     placements INCHANGÉ (286), donc pas même lue.
+//
+// Aucun des deux n'est exigé par les AC de TCK-420 et aucun n'est corrigé ici : les nommer est ce
+// qui permettra de décider plus tard s'ils valent un ticket. Les quatre numéros ci-dessus sont
+// EXACTS à ce commit et se re-dérivent sans les croire :
+//   grep -n "if (!row || !current) continue;\|const undeclared = \|byActor.has(g.key)\|for (const a of legend)" docs/gen-features-by-actor.mjs
+//
 // La sortie est INTÉGRALEMENT dérivée : chaque ligne de fonctionnalité vient d'une ligne de
 // `features.md`, et la colonne « Domaine » renvoie à la section d'origine. Aucun contenu n'est
 // ajouté ici — si une information manque dans la vue par acteur, elle manque dans `features.md`.
@@ -267,10 +294,27 @@ const src = readFileSync(SOURCE, 'utf8');
 const { text, undeclared, total, placements } = render(src);
 const check = process.argv.includes('--check');
 
-if (undeclared.length) {
-  console.warn(
-    `⚠ ${undeclared.length} acteur(s) non déclaré(s) dans la légende de ${SOURCE_NAME} : ${undeclared.join(', ')}`,
+/**
+ * Un acteur non déclaré est un ÉCHEC, pas un avertissement (TCK-420).
+ *
+ * Ce script a émis `⚠ 1 acteur(s) non déclaré(s) … : 🔧` en sortant en **0** pendant tout le
+ * temps où 🔧 manquait à la légende. Aucune CI ne casse sur une sortie 0 : l'écart ne se lisait
+ * donc que si quelqu'un exécutait la commande ET lisait sa sortie — c'est-à-dire jamais. TCK-379
+ * a fini par trancher le menu d'un prestataire sans que `features.md` ne dise rien de lui, et la
+ * décision s'est écrite dans un commentaire de code.
+ *
+ * *Un avertissement qui sort en 0 n'est pas une garde ; c'est une trace que personne ne lit.*
+ *
+ * En mode écriture, la sortie est produite AVANT de sortir en 1 : le défaut est dans la source,
+ * pas dans la vue, et refuser de régénérer punirait le mauvais fichier.
+ */
+function failOnUndeclared() {
+  if (!undeclared.length) return;
+  console.error(
+    `✗ ${undeclared.length} acteur(s) non déclaré(s) dans la légende de ${SOURCE_NAME} : ${undeclared.join(', ')}\n` +
+      `  Chaque jeton de la colonne « Acteurs » doit figurer dans le tableau \`### Acteurs\` de ${SOURCE_NAME}.`,
   );
+  process.exit(1);
 }
 
 if (check) {
@@ -288,8 +332,10 @@ if (check) {
     );
     process.exit(1);
   }
+  failOnUndeclared();
   console.log(`✓ ${OUTPUT_NAME} est à jour de ${SOURCE_NAME} (${total} lignes, ${placements} placements).`);
 } else {
   writeFileSync(OUTPUT, text);
   console.log(`✓ ${OUTPUT_NAME} régénéré depuis ${SOURCE_NAME} (${total} lignes, ${placements} placements).`);
+  failOnUndeclared();
 }
