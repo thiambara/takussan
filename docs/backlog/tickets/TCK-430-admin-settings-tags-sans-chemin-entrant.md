@@ -1,7 +1,7 @@
 ---
 id: TCK-430
 title: "`/admin/settings/tags` n'a aucun chemin entrant — le bandeau réparé n'est vu que sur une URL tapée à la main"
-status: todo
+status: doing
 phase: P3
 family: front
 estimate: S

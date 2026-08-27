@@ -1,7 +1,7 @@
 ---
 id: TCK-426
 title: "Les replis de /app effacent 404, 307 et 308 : un refus d'autorisation rend désormais 200 et le squelette de la page interdite"
-status: todo
+status: doing
 phase: P3
 family: front
 estimate: M

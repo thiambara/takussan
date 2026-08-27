@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
@@ -111,6 +113,57 @@ describe('<TenantOnboardingChecklistWidget>', () => {
     expect(screen.getByText("Signer l'état des lieux d'entrée")).toBeInTheDocument();
     expect(screen.getByText('Effectuer votre premier paiement')).toBeInTheDocument();
     expect(screen.getByText('Accuser réception de vos documents')).toBeInTheDocument();
+  });
+
+  it("mene le locataire vers un ecran qui existe pour ses deux etapes cliquables (TCK-419)", async () => {
+    // AC2 — le lien « premier paiement » pointait vers `/app/payments/new?lease_id=…`, une route
+    // sans `page.tsx` : un 404 servi à chaque nouveau locataire. On n'asserte donc PAS une
+    // chaîne — une chaîne fausse serait tout aussi verte. On prend le `href` que le composant
+    // REND, et on le confronte à l'inventaire des `page.tsx` du dépôt.
+    mockAuth();
+    setupFetchMap({
+      '/api/leases': { body: { data: [{ id: 42, reference_number: 'LS-ABC' }] } },
+    });
+    vi.spyOn(Api, 'apiRequest').mockResolvedValue({
+      data: {
+        id: 1,
+        lease_id: 42,
+        user_id: 1,
+        welcome_seen_at: null,
+        inventory_completed_at: null,
+        first_payment_at: null,
+        documents_acknowledged_at: null,
+        completed_at: null,
+        created_at: '2026-05-01T00:00:00Z',
+        updated_at: '2026-05-01T00:00:00Z',
+      },
+    } as never);
+
+    render(withProviders(<TenantOnboardingChecklistWidget />));
+    await screen.findByText(/LS-ABC/);
+
+    const APP = path.resolve(__dirname, '../../../app/(dashboard)/app');
+    const existe = (href: string): boolean => {
+      const segments = href.split('?')[0].split('#')[0].replace(/^\/app\/?/, '').split('/').filter(Boolean);
+      let dossier = APP;
+      for (const segment of segments) {
+        const entrees = fs.readdirSync(dossier, { withFileTypes: true }).filter((e) => e.isDirectory());
+        const exact = entrees.find((e) => e.name === segment);
+        const dynamique = entrees.find((e) => /^\[.+\]$/.test(e.name));
+        const suivant = exact ?? dynamique;
+        if (!suivant) return false;
+        dossier = path.join(dossier, suivant.name);
+      }
+      return fs.existsSync(path.join(dossier, 'page.tsx'));
+    };
+
+    for (const libelle of ['Effectuer votre premier paiement', "Signer l'état des lieux d'entrée"]) {
+      const lien = screen.getByText(libelle).closest('a');
+      expect(lien, libelle).not.toBeNull();
+      const href = lien!.getAttribute('href') ?? '';
+      expect(href, libelle).toMatch(/^\/app\//);
+      expect(existe(href), `${libelle} → ${href} : aucun page.tsx sous /app`).toBe(true);
+    }
   });
 
   it('hides itself when the checklist is completed', async () => {

@@ -192,3 +192,83 @@ describe('inventaire des écrans /app', () => {
     }
   });
 });
+
+/**
+ * TCK-419 — LE SENS INVERSE : tout chemin `/app/…` écrit dans le front doit avoir une route.
+ *
+ * TCK-379 avait délibérément laissé cette garde de côté : elle serait née rouge. La re-mesure du
+ * 2026-08-27 (script jetable confrontant les littéraux de `src/` à l'inventaire des `page.tsx`,
+ * segments dynamiques appariés) en a rendu **cinq** — un de plus que les quatre du ticket :
+ *
+ *   /app/payments/new              components/tenant/TenantOnboardingChecklistWidget.tsx:140
+ *   /app/profile/customer/onboarding · /app/profile/owner/kyc · /app/profile/agent/kyc
+ *                                  lib/wizard-drafts.ts:96,102,108
+ *   /app/maintenance/requests/{id} components/onboarding/ServiceProviderOnboardingWizard.tsx:161
+ *
+ * Le cinquième est le dernier geste du parcours « un prestataire s'inscrit depuis une demande ».
+ * Il n'était dans aucun ticket : il est sorti de la mesure, pas de la lecture.
+ *
+ * ⚠ Zéro exception, et c'est la condition pour que la garde tienne : *une garde livrée avec sa
+ * liste d'exceptions ne garde plus que la liste.* Les commentaires sont blanchis par
+ * `sansCommentaires` — sans quoi le `/app/...` du docblock de `admin/finances/page.tsx` la ferait
+ * rougir sur du texte.
+ */
+
+/** Toutes les routes de `/app`, segments dynamiques compris, rendues comme motifs. */
+function motifsDeRoutes(): RegExp[] {
+  const chemins: string[] = [];
+  const parcours = (dir: string, prefixe: string) => {
+    for (const entree of fs.readdirSync(dir, { withFileTypes: true })) {
+      const complet = path.join(dir, entree.name);
+      if (entree.isDirectory()) {
+        if (entree.name === '__tests__') continue;
+        // Un groupe de routes `(nom)` ne consomme aucun segment d'URL.
+        parcours(complet, /^\(.*\)$/.test(entree.name) ? prefixe : `${prefixe}/${entree.name}`);
+      } else if (entree.name === 'page.tsx') {
+        chemins.push(prefixe);
+      }
+    }
+  };
+  parcours(APP, '/app');
+  return [...new Set(chemins)].map(
+    (route) =>
+      new RegExp(
+        '^' +
+          route
+            .split('/')
+            .map((seg) =>
+              seg.startsWith('[') ? '[^/]+' : seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+            )
+            .join('/') +
+          '$',
+      ),
+  );
+}
+
+/**
+ * Les littéraux de chemin `/app/…` d'un fichier, hors commentaires. On s'arrête aux caractères
+ * qui ne peuvent pas appartenir à un segment de route : une chaîne de requête (`?…`), une ancre
+ * (`#…`) ou une concaténation ferment le chemin.
+ */
+const LITTERAL = /['"`](\/app(?:\/[A-Za-z0-9_$\-.[\]{}]+)*)/g;
+
+describe('chemins /app écrits dans le front', () => {
+  it('ne cite aucune route inexistante', () => {
+    const motifs = motifsDeRoutes();
+    const morts: string[] = [];
+
+    for (const { chemin, lignes } of FICHIERS) {
+      lignes.forEach((ligne, index) => {
+        for (const trouve of ligne.matchAll(LITTERAL)) {
+          // `${expr}` occupe exactement un segment dynamique ; un `/` final ne compte pas.
+          const candidat = trouve[1].replace(/\$\{[^}]*\}/g, 'X').replace(/\/$/, '');
+          if (!motifs.some((motif) => motif.test(candidat))) {
+            morts.push(`${path.relative(RACINE, chemin)}:${index + 1} → ${trouve[1]}`);
+          }
+        }
+      });
+    }
+
+    expect(morts).toEqual([]);
+  });
+});
