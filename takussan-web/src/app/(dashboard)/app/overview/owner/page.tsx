@@ -40,7 +40,7 @@ export default async function OwnerDashboardPage() {
           })} />
 
       {(data.portfolio?.total ?? 0) === 0 && (
-        <section className="rounded-2xl border border-dashed border-stone-200 bg-white p-6">
+        <section className="rounded-2xl border border-dashed border-border bg-card p-6">
           <h2 className="text-base font-semibold text-foreground">{t('emptyTitle')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{t('emptyBodyFull')}</p>
           <Link
@@ -129,7 +129,7 @@ export default async function OwnerDashboardPage() {
           {pendingPayouts.length > 0 ? (
             <ul className="mt-4 space-y-2 text-sm">
               {pendingPayouts.map((payout) => (
-                <li key={payout.id} className="rounded-lg bg-white/70 p-3">
+                <li key={payout.id} className="rounded-lg bg-card/70 p-3">
                   <p className="font-medium text-foreground">
                     {formatCurrency(payout.net_amount, 'fr', { currency: payout.currency ?? 'XOF' })}
                   </p>
@@ -195,7 +195,7 @@ function DashboardLinkLine({
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-3 rounded-lg bg-white/70 p-3 hover:bg-white"
+      className="flex items-center justify-between gap-3 rounded-lg bg-card/70 p-3 hover:bg-card"
     >
       <span className="text-muted-foreground">{label}</span>
       <span className="font-semibold text-foreground">{value}</span>

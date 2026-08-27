@@ -21,11 +21,11 @@ export async function ProfileOwnerSection(_props: ProfileOwnerSectionProps) {
         <Input value="" disabled placeholder={t('comingSoon')} />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-white/60 p-4">
+        <div className="rounded-2xl bg-card/60 p-4">
           <p className="text-xs font-semibold text-muted-foreground">{t('properties')}</p>
           <p className="mt-1 text-2xl font-bold text-foreground">—</p>
         </div>
-        <div className="rounded-2xl bg-white/60 p-4">
+        <div className="rounded-2xl bg-card/60 p-4">
           <p className="text-xs font-semibold text-muted-foreground">{t('activeTenants')}</p>
           <p className="mt-1 text-2xl font-bold text-foreground">—</p>
         </div>

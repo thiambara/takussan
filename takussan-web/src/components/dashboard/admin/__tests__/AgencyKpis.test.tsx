@@ -60,7 +60,8 @@ describe('<AgencyKpis>', () => {
         })}
       />));
 
-    expect(container.querySelector('.bg-amber-50')).not.toBeNull();
+    // TCK-381 — l'accent d'avertissement passe par le JETON `--warning`, plus par l'ambre brut.
+    expect(container.querySelector('[class*="bg-warning/"]')).not.toBeNull();
   });
 
   it('hides the impayés hint and danger accent when there are no overdue payments', () => {

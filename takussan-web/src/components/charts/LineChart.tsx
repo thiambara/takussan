@@ -129,11 +129,11 @@ export function LineChart({ data, title, unit, className }: Props) {
 }
 
 function defaultColor(idx: number): string {
-  const palette = ['stroke-emerald-500', 'stroke-sky-500', 'stroke-amber-500', 'stroke-rose-500'];
+  const palette = ['stroke-chart-1', 'stroke-chart-2', 'stroke-chart-3', 'stroke-chart-4'];
   return palette[idx % palette.length];
 }
 
 function legendDot(idx: number): string {
-  const palette = ['bg-emerald-500', 'bg-sky-500', 'bg-amber-500', 'bg-rose-500'];
+  const palette = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4'];
   return palette[idx % palette.length];
 }

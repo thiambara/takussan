@@ -71,7 +71,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
         {isLoading ? (
           <div className="h-24 animate-pulse rounded-xl bg-card" />
         ) : isError ? (
-          <p className="rounded-xl bg-card p-4 text-sm text-red-600">
+          <p className="rounded-xl bg-card p-4 text-sm text-destructive">
             {messageErreur(error, t('notFound'))}
           </p>
         ) : invoice ? (

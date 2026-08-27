@@ -83,7 +83,7 @@ export function DocumentDetailClient({
           <span
             className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
               document.is_verified
-                ? 'bg-green-500/10 text-green-600'
+                ? 'bg-success/10 text-success'
                 : 'bg-border text-muted-foreground'
             }`}
           >

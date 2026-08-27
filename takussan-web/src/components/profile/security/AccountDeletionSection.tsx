@@ -68,10 +68,10 @@ export function AccountDeletionSection({ twoFactorEnabled, hasUsablePassword }: 
   }
 
   return (
-    <div className="rounded-2xl border border-red-200 bg-white p-6">
+    <div className="rounded-2xl border border-destructive/30 bg-card p-6">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-red-700">{t('title')}</h3>
+          <h3 className="text-base font-semibold text-destructive">{t('title')}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
         </div>
       </div>

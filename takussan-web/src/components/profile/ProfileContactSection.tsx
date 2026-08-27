@@ -131,13 +131,13 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         <div className="space-y-1">
           <label className="text-xs font-semibold text-muted-foreground">{t('emailLabel')}</label>
           <div className="flex items-center gap-2">
-            <Input value={user.email} disabled className="bg-white/60" />
+            <Input value={user.email} disabled className="bg-card/60" />
             <span
               className={
                 'rounded-full px-2 py-1 text-xs font-semibold ' +
                 (emailVerified
                   ? 'bg-border text-foreground'
-                  : 'bg-white text-primary')
+                  : 'bg-card text-primary')
               }
             >
               {emailVerified ? t('verified') : t('notVerified')}
@@ -166,8 +166,8 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
                 className={
                   'whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ' +
                   (phoneVerified
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-amber-100 text-amber-800')
+                    ? 'bg-success/15 text-success'
+                    : 'bg-warning/15 text-warning')
                 }
               >
                 {phoneVerified ? t('verified') : t('notVerified')}
@@ -175,7 +175,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             ) : null}
           </div>
           {!phoneFormatValid ? (
-            <p id="phone-error" role="alert" className="text-xs text-red-600">
+            <p id="phone-error" role="alert" className="text-xs text-destructive">
               {t('phoneFormatError')}
             </p>
           ) : (
@@ -188,9 +188,9 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         {showVerifyControls ? (
           <div
             data-testid="phone-verify-block"
-            className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3"
+            className="space-y-2 rounded-md border border-warning/30 bg-warning/10 p-3"
           >
-            <p className="text-xs text-amber-900">
+            <p className="text-xs text-warning">
               {t('verifyPrompt')}
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -245,7 +245,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
             {otpFeedback ? (
               <p
                 role={otpFeedback.ok ? 'status' : 'alert'}
-                className={'text-xs ' + (otpFeedback.ok ? 'text-emerald-700' : 'text-red-600')}
+                className={'text-xs ' + (otpFeedback.ok ? 'text-success' : 'text-destructive')}
               >
                 {otpFeedback.message}
               </p>
@@ -270,7 +270,7 @@ export function ProfileContactSection({ user }: ProfileContactSectionProps) {
         {feedback ? (
           <p
             role={feedback.ok ? 'status' : 'alert'}
-            className={'text-sm ' + (feedback.ok ? 'text-emerald-700' : 'text-red-600')}
+            className={'text-sm ' + (feedback.ok ? 'text-success' : 'text-destructive')}
           >
             {feedback.message}
           </p>

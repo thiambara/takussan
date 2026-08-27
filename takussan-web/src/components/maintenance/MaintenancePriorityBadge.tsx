@@ -11,19 +11,19 @@ interface MaintenancePriorityBadgeProps {
 
 const PRIORITY_CONFIG: Record<MaintenancePriority, { color: string; icon: LucideIcon }> = {
   urgent: {
-    color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-900',
+    color: 'bg-destructive/15 text-destructive border-destructive/30 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/30',
     icon: AlertTriangle,
   },
   high: {
-    color: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-900',
+    color: 'bg-warning/15 text-warning border-warning/30 dark:bg-warning/10 dark:text-warning dark:border-warning/30',
     icon: AlertCircle,
   },
   normal: {
-    color: 'bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+    color: 'bg-muted text-foreground border-border dark:bg-foreground dark:text-muted-foreground dark:border-border',
     icon: Circle,
   },
   low: {
-    color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-900',
+    color: 'bg-info/10 text-info border-info/30 dark:bg-info/10 dark:text-info dark:border-info/30',
     icon: ArrowDown,
   },
 };

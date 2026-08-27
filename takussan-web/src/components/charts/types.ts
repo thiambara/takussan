@@ -1,7 +1,7 @@
 export type ChartSeries = {
   name: string;
   values: number[];
-  color?: string; // Tailwind class, e.g. 'stroke-emerald-500'
+  color?: string; // Classe Tailwind sur jeton, p. ex. 'stroke-chart-1'
 };
 
 export type ChartData = {

@@ -298,7 +298,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       {successMessage ? (
         <p
           role="status"
-          className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
+          className="rounded-md border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success"
         >
           {successMessage}
         </p>

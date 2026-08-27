@@ -20,7 +20,7 @@ export default async function Page({
 
   if (!Number.isFinite(bookingId) || bookingId <= 0) {
     return (
-      <div className="rounded-xl bg-card p-6 text-sm text-red-600">
+      <div className="rounded-xl bg-card p-6 text-sm text-destructive">
         {t('notFound')}
       </div>
     );

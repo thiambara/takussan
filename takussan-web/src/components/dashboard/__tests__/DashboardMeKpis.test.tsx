@@ -80,6 +80,7 @@ describe('<DashboardMeKpis>', () => {
     expect(screen.getByText('Tâches ouvertes')).toBeInTheDocument();
     expect(screen.getByText('2 en retard')).toBeInTheDocument();
     // The warning accent applies the amber background class to the tile root.
-    expect(container.querySelector('.bg-amber-50')).not.toBeNull();
+    // TCK-381 — l'accent d'avertissement passe par le JETON `--warning`, plus par l'ambre brut.
+    expect(container.querySelector('[class*="bg-warning/"]')).not.toBeNull();
   });
 });

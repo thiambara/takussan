@@ -147,7 +147,7 @@ function PaymentReturnInner() {
 
 export default function PaymentReturnPage() {
   return (
-    <Suspense fallback={<main className="py-16 text-center text-sm text-stone-500">…</main>}>
+    <Suspense fallback={<main className="py-16 text-center text-sm text-muted-foreground">…</main>}>
       <PaymentReturnInner />
     </Suspense>
   );

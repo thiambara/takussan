@@ -157,9 +157,9 @@ function PipelineBadge({
       variant="outline"
       className={cn(
         'border-border bg-muted text-foreground',
-        stage === 'converted' && 'border-emerald-200 bg-emerald-50 text-emerald-700',
-        stage === 'negotiating' && 'border-amber-200 bg-amber-50 text-amber-700',
-        stage === 'lost' && 'border-red-200 bg-red-50 text-red-700',
+        stage === 'converted' && 'border-success/30 bg-success/10 text-success',
+        stage === 'negotiating' && 'border-warning/30 bg-warning/10 text-warning',
+        stage === 'lost' && 'border-destructive/30 bg-destructive/10 text-destructive',
         stage === 'qualified' && 'border-primary/30 bg-primary/5 text-primary',
       )}
     >
@@ -176,8 +176,8 @@ function StatusBadge({ status }: { status: CustomerListItem['status'] }) {
       variant="outline"
       className={cn(
         'border-border bg-muted text-foreground',
-        status === 'blocked' && 'border-red-200 bg-red-50 text-red-700',
-        status === 'inactive' && 'border-stone-200 bg-stone-50 text-stone-700',
+        status === 'blocked' && 'border-destructive/30 bg-destructive/10 text-destructive',
+        status === 'inactive' && 'border-border bg-muted/50 text-muted-foreground',
       )}
     >
       {label}

@@ -289,7 +289,7 @@ export function InviteServiceProviderSheet({
           </div>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-stone-900">
+            <legend className="text-sm font-medium text-foreground">
               {t('fields.trades')}
             </legend>
             <div className="flex flex-wrap gap-2">
@@ -302,7 +302,7 @@ export function InviteServiceProviderSheet({
                     onClick={() => toggleTrade(cat)}
                     className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                       active
-                        ? 'border-foreground bg-foreground text-white'
+                        ? 'border-foreground bg-foreground text-primary-foreground'
                         : 'border-muted bg-card text-muted-foreground hover:border-foreground/50'
                     }`}
                   >
@@ -314,7 +314,7 @@ export function InviteServiceProviderSheet({
           </fieldset>
 
           <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-stone-900">
+            <legend className="text-sm font-medium text-foreground">
               {t('fields.intervention_zones')}
             </legend>
             <div className="flex flex-wrap gap-2">
@@ -327,7 +327,7 @@ export function InviteServiceProviderSheet({
                     onClick={() => toggleZone(zone)}
                     className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                       active
-                        ? 'border-foreground bg-foreground text-white'
+                        ? 'border-foreground bg-foreground text-primary-foreground'
                         : 'border-muted bg-card text-muted-foreground hover:border-foreground/50'
                     }`}
                   >

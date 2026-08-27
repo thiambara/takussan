@@ -83,7 +83,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              className="w-full rounded-md border border-border bg-white px-3 py-2"
+              className="w-full rounded-md border border-border bg-card px-3 py-2"
               placeholder={t('labelPlaceholder')}
             />
           </label>
@@ -109,11 +109,11 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
           type="button"
           onClick={addKpi}
           disabled={isPending}
-          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
           {t('add')}
         </button>
-        {error && <p className="text-xs text-rose-600">{error}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </section>
 
       <section className="rounded-2xl bg-card p-6">
@@ -131,7 +131,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
                 <button
                   type="button"
                   onClick={() => removeKpi(c.id)}
-                  className="text-xs text-rose-600 hover:underline"
+                  className="text-xs text-destructive hover:underline"
                 >
                   {t('delete')}
                 </button>

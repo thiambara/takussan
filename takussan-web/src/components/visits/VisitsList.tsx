@@ -93,7 +93,7 @@ export function VisitsList() {
           <TabsTrigger key={t.value} value={t.value}>
             {t.label}
             {typeof t.query.data?.meta?.total === 'number' && (
-              <span className="ml-1.5 text-xs text-stone-500">({t.query.data.meta.total})</span>
+              <span className="ml-1.5 text-xs text-muted-foreground">({t.query.data.meta.total})</span>
             )}
           </TabsTrigger>
         ))}
@@ -160,18 +160,18 @@ function VisitRow({ visit, locale }: { visit: PropertyVisit; locale: Locale }) {
     <li>
       <Link
         href={`/app/visits/${visit.id}`}
-        className="block rounded-xl border border-stone-200 bg-white p-4 transition-shadow hover:shadow-sm"
+        className="block rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
       >
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-sm font-semibold text-stone-900">
+              <h3 className="truncate text-sm font-semibold text-foreground">
                 {visit.property?.title ?? t('fallbackTitle', { id: String(visit.id) })}
               </h3>
               <Badge variant={STATUS_VARIANT[status]}>{t(STATUS_LABEL_KEY[status])}</Badge>
               <Badge variant="outline">{t(TYPE_LABEL_KEY[type])}</Badge>
             </div>
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {formatDateTime(visit.scheduled_at, locale)}
               {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
                 <> · {visit.duration_minutes} {t('minutesUnit')}</>

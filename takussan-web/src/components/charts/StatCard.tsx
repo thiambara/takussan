@@ -11,9 +11,9 @@ type Props = {
 
 const accents: Record<NonNullable<Props['accent']>, string> = {
   default: 'bg-card',
-  success: 'bg-emerald-50 text-emerald-900',
-  warning: 'bg-amber-50 text-amber-900',
-  danger: 'bg-rose-50 text-rose-900',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  danger: 'bg-destructive/10 text-destructive',
 };
 
 const trendMarks: Record<NonNullable<Props['trend']>, string> = {

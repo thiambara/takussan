@@ -145,7 +145,7 @@ export function NewGroupDialog({
         {step === 1 ? (
           <div className="space-y-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-stone-700" htmlFor="participant-input">{t('participantsLabel')}</label>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground" htmlFor="participant-input">{t('participantsLabel')}</label>
               <div className="mt-1 flex gap-2">
                 <Input
                   id="participant-input"
@@ -165,7 +165,7 @@ export function NewGroupDialog({
                   {t('add')}
                 </Button>
               </div>
-              <p className="mt-1 text-xs text-stone-500">{t('participantsHint')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('participantsHint')}</p>
             </div>
 
             {participants.length > 0 && (
@@ -189,7 +189,7 @@ export function NewGroupDialog({
               </div>
             )}
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-destructive">{error}</p>}
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={handleClose}>
@@ -203,7 +203,7 @@ export function NewGroupDialog({
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="mb-1 block text-sm font-medium text-stone-700" htmlFor="group-subject">{t('subjectLabel')}</label>
+              <label className="mb-1 block text-sm font-medium text-muted-foreground" htmlFor="group-subject">{t('subjectLabel')}</label>
               <Input
                 id="group-subject"
                 value={subject}
@@ -214,7 +214,7 @@ export function NewGroupDialog({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700" htmlFor="group-property">{t('propertyLabel')}</label>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground" htmlFor="group-property">{t('propertyLabel')}</label>
                 <Input
                   id="group-property"
                   type="number"
@@ -224,7 +224,7 @@ export function NewGroupDialog({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700" htmlFor="group-lease">{t('leaseLabel')}</label>
+                <label className="mb-1 block text-sm font-medium text-muted-foreground" htmlFor="group-lease">{t('leaseLabel')}</label>
                 <Input
                   id="group-lease"
                   type="number"
@@ -235,7 +235,7 @@ export function NewGroupDialog({
               </div>
             </div>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+            {error && <p className="text-xs text-destructive">{error}</p>}
 
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setStep(1)}>

@@ -124,11 +124,11 @@ export function BarChart({ data, title, unit, className }: Props) {
 }
 
 function defaultColor(idx: number): string {
-  const palette = ['fill-emerald-500', 'fill-sky-500', 'fill-amber-500', 'fill-rose-500'];
+  const palette = ['fill-chart-1', 'fill-chart-2', 'fill-chart-3', 'fill-chart-4'];
   return palette[idx % palette.length];
 }
 
 function legendDot(idx: number): string {
-  const palette = ['bg-emerald-500', 'bg-sky-500', 'bg-amber-500', 'bg-rose-500'];
+  const palette = ['bg-chart-1', 'bg-chart-2', 'bg-chart-3', 'bg-chart-4'];
   return palette[idx % palette.length];
 }

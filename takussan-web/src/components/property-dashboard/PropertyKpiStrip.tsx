@@ -12,7 +12,7 @@ interface KpiTile {
 
 const TONE_CLASSES: Record<NonNullable<KpiTile['tone']>, string> = {
   neutral: 'bg-card hover:bg-muted/70',
-  success: 'bg-emerald-50/60 hover:bg-emerald-100/60',
+  success: 'bg-success/10 hover:bg-success/10',
   accent: 'bg-primary/5 hover:bg-primary/10',
   muted: 'bg-muted/40 hover:bg-muted/70',
 };

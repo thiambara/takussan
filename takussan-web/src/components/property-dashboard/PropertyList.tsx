@@ -231,7 +231,7 @@ export function PropertyList({
                   aria-label={t('selectOne', { title: property.title })}
                   checked={isSelected}
                   onChange={() => toggleOne(property.id)}
-                  className="absolute left-1 top-1 size-4 rounded border-white/80 bg-white/80"
+                  className="absolute left-1 top-1 size-4 rounded border-card/80 bg-card/80"
                 />
               </div>
               <div className="min-w-0 flex-1 pr-8">
@@ -541,13 +541,13 @@ function StatusBadge({ status }: { status: string | null }) {
     <Badge
       className={cn(
         'border-transparent bg-muted text-foreground',
-        status === 'available' && 'bg-emerald-50 text-emerald-700',
-        status === 'sold' && 'bg-emerald-100 text-emerald-800',
-        status === 'rented' && 'bg-blue-50 text-blue-700',
-        status === 'unavailable' && 'bg-red-50 text-red-700',
-        status === 'pending' && 'bg-amber-50 text-amber-700',
-        status === 'under_maintenance' && 'bg-orange-50 text-orange-700',
-        status === 'archived' && 'bg-stone-100 text-stone-600',
+        status === 'available' && 'bg-success/10 text-success',
+        status === 'sold' && 'bg-success/15 text-success',
+        status === 'rented' && 'bg-info/10 text-info',
+        status === 'unavailable' && 'bg-destructive/10 text-destructive',
+        status === 'pending' && 'bg-warning/10 text-warning',
+        status === 'under_maintenance' && 'bg-warning/10 text-warning',
+        status === 'archived' && 'bg-muted text-muted-foreground',
       )}
     >
       {label}
@@ -652,17 +652,17 @@ function BulkActionBar({
     <div
       role="region"
       aria-label={t('bulkAria')}
-      className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-foreground/95 px-3 py-2.5 text-sm text-white shadow-lg backdrop-blur md:inset-x-auto md:right-6"
+      className="fixed inset-x-2 bottom-3 z-40 mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-2xl bg-foreground/95 px-3 py-2.5 text-sm text-primary-foreground shadow-lg backdrop-blur md:inset-x-auto md:right-6"
     >
       <span className="font-semibold">
         {t('bulkSelected', { count: selectedCount })}
       </span>
-      <span className="hidden h-4 w-px bg-white/20 md:inline-block" aria-hidden="true" />
+      <span className="hidden h-4 w-px bg-card/20 md:inline-block" aria-hidden="true" />
       <Button
         type="button"
         size="sm"
         variant="outline"
-        className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+        className="border-card/30 bg-transparent text-primary-foreground hover:bg-card/10 hover:text-primary-foreground"
         disabled={pending}
         onClick={onArchive}
       >
@@ -677,7 +677,7 @@ function BulkActionBar({
         type="button"
         size="sm"
         variant="outline"
-        className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+        className="border-card/30 bg-transparent text-primary-foreground hover:bg-card/10 hover:text-primary-foreground"
         disabled={pending}
         onClick={onUnpublish}
       >
@@ -691,7 +691,7 @@ function BulkActionBar({
               onValueChange={(v) => setBulkAgentId((v ?? '') as string)}
               items={items}
             >
-              <SelectTrigger className="h-9 border-white/30 bg-white/10 text-white">
+              <SelectTrigger className="h-9 border-card/30 bg-card/10 text-primary-foreground">
                 <SelectValue placeholder={t('bulkReassignPlaceholder')} />
               </SelectTrigger>
               <SelectContent>
@@ -707,7 +707,7 @@ function BulkActionBar({
             type="button"
             size="sm"
             variant="outline"
-            className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            className="border-card/30 bg-transparent text-primary-foreground hover:bg-card/10 hover:text-primary-foreground"
             disabled={pending || !bulkAgentId}
             onClick={onAssign}
           >
@@ -716,12 +716,12 @@ function BulkActionBar({
         </div>
       ) : null}
       {bulkError ? (
-        <span role="alert" className="text-red-200">
+        <span role="alert" className="text-destructive">
           {bulkError}
         </span>
       ) : null}
       {bulkMessage ? (
-        <span role="status" className="text-emerald-200">
+        <span role="status" className="text-success">
           {bulkMessage}
         </span>
       ) : null}
@@ -729,7 +729,7 @@ function BulkActionBar({
         type="button"
         onClick={onClear}
         aria-label={t('bulkClear')}
-        className="ml-auto inline-flex size-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
+        className="ml-auto inline-flex size-8 items-center justify-center rounded-full text-primary-foreground/70 hover:bg-card/10 hover:text-primary-foreground"
       >
         <X aria-hidden="true" className="size-4" />
       </button>

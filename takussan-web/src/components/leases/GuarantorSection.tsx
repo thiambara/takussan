@@ -51,11 +51,11 @@ export function GuarantorSection({
   if (!canManage && !guarantor) return null;
 
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-5">
+    <section className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-stone-900">{t('title')}</h2>
-          <p className="mt-1 text-xs text-stone-500">
+          <h2 className="text-sm font-semibold text-foreground">{t('title')}</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
             {t('max', { max: String(MAX_GUARANTORS) })}
           </p>
         </div>
@@ -75,30 +75,30 @@ export function GuarantorSection({
       {guarantor ? (
         <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-xs uppercase tracking-wide text-stone-500">{t('name')}</dt>
-            <dd className="text-stone-900">{guarantor.full_name}</dd>
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('name')}</dt>
+            <dd className="text-foreground">{guarantor.full_name}</dd>
           </div>
           {guarantor.phone && (
             <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">{t('phone')}</dt>
-              <dd className="text-stone-900">{guarantor.phone}</dd>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('phone')}</dt>
+              <dd className="text-foreground">{guarantor.phone}</dd>
             </div>
           )}
           {guarantor.email && (
             <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">{t('email')}</dt>
-              <dd className="text-stone-900">{guarantor.email}</dd>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('email')}</dt>
+              <dd className="text-foreground">{guarantor.email}</dd>
             </div>
           )}
           {guarantor.relationship_to_tenant && (
             <div>
-              <dt className="text-xs uppercase tracking-wide text-stone-500">{t('relationship')}</dt>
-              <dd className="text-stone-900">{guarantor.relationship_to_tenant}</dd>
+              <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('relationship')}</dt>
+              <dd className="text-foreground">{guarantor.relationship_to_tenant}</dd>
             </div>
           )}
         </dl>
       ) : (
-        <p className="mt-4 text-sm text-stone-500">
+        <p className="mt-4 text-sm text-muted-foreground">
           {t('empty')}
         </p>
       )}

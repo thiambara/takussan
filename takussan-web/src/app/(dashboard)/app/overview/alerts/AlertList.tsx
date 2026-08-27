@@ -124,7 +124,7 @@ export function AlertList({ initialAlerts }: Props) {
               type="number"
               value={threshold}
               onChange={(e) => setThreshold(e.target.value)}
-              className="w-full rounded-md border border-border bg-white px-3 py-2"
+              className="w-full rounded-md border border-border bg-card px-3 py-2"
             />
           </label>
           <label className="text-sm">
@@ -152,7 +152,7 @@ export function AlertList({ initialAlerts }: Props) {
               max="720"
               value={cooldownHours}
               onChange={(e) => setCooldownHours(e.target.value)}
-              className="w-full rounded-md border border-border bg-white px-3 py-2"
+              className="w-full rounded-md border border-border bg-card px-3 py-2"
             />
           </label>
         </div>
@@ -160,11 +160,11 @@ export function AlertList({ initialAlerts }: Props) {
           type="button"
           onClick={addAlert}
           disabled={isPending}
-          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
         >
           {t('create')}
         </button>
-        {error && <p className="text-xs text-rose-600">{error}</p>}
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </section>
 
       <section className="rounded-2xl bg-card p-6">
@@ -187,7 +187,7 @@ export function AlertList({ initialAlerts }: Props) {
                 <button
                   type="button"
                   onClick={() => removeAlert(a.id)}
-                  className="text-xs text-rose-600 hover:underline"
+                  className="text-xs text-destructive hover:underline"
                 >
                   {t('delete')}
                 </button>

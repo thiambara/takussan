@@ -147,13 +147,13 @@ export const SignaturePad = forwardRef<SignaturePadHandle, SignaturePadProps>(fu
           <p className="mt-0.5 text-xs text-muted-foreground">{helperText}</p>
         ) : null}
       </div>
-      <div className="rounded-xl border border-dashed border-border bg-white p-1">
+      <div className="rounded-xl border border-dashed border-border bg-card p-1">
         <canvas
           ref={canvasRef}
           data-testid="signature-canvas"
           aria-label={label}
           role="img"
-          className="h-40 w-full touch-none rounded-lg bg-white"
+          className="h-40 w-full touch-none rounded-lg bg-card"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}

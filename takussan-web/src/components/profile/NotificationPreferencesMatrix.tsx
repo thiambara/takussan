@@ -168,7 +168,7 @@ export function NotificationPreferencesMatrix() {
 
   if (query.isError && !data) {
     return (
-      <p role="alert" className="text-sm text-red-600">
+      <p role="alert" className="text-sm text-destructive">
         {messageErreur(query.error)}
       </p>
     );
@@ -233,13 +233,13 @@ export function NotificationPreferencesMatrix() {
   return (
     <div className="space-y-6">
       {displayError ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-destructive">
           {displayError}
         </p>
       ) : null}
 
       {!data.phone_verified ? (
-        <p className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
           {t('smsDisabled')}{' '}
           <Link href="/app/profile" className="font-semibold underline">
             {t('verifyPhone')}
@@ -248,13 +248,13 @@ export function NotificationPreferencesMatrix() {
       ) : null}
 
       {savedAt ? (
-        <p role="status" aria-live="polite" className="text-xs text-emerald-700">
+        <p role="status" aria-live="polite" className="text-xs text-success">
           {t('saved')}
         </p>
       ) : null}
 
       {GROUPS.map((group) => (
-        <section key={group.key} className="rounded-2xl border border-border bg-white">
+        <section key={group.key} className="rounded-2xl border border-border bg-card">
           <header className="border-b border-border px-4 py-3">
             <h3 className="text-sm font-bold text-foreground">{t(`groups.${group.key}`)}</h3>
           </header>

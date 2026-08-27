@@ -147,7 +147,7 @@ export default async function AgentDashboardPage() {
                           : t('noDueDate')}
                       </p>
                     </div>
-                    <span className="rounded-full bg-white px-2 py-1 text-xs text-muted-foreground">
+                    <span className="rounded-full bg-card px-2 py-1 text-xs text-muted-foreground">
                       {tPriority(
                         PRIORITES_CONNUES.has(task.priority ?? 'normal')
                           ? (task.priority ?? 'normal')

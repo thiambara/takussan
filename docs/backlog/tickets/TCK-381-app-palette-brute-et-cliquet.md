@@ -136,4 +136,74 @@ Ticket purement frontend. Aucun changement d'API, aucun changement de comporteme
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit (2026-08-27, avant d'écrire une ligne)
+
+| Le ticket écrivait | Mesuré, même définition de clôture |
+|---|---|
+| clôture de `/app` = **259 fichiers** | **403** |
+| **45** fichiers porteurs | **119** |
+| **393** occurrences | **1070** — facteur **2,7**, dans le sens qui rassure |
+| « 3 pages de `/app` en portent 11 » | **5 pages, 13 occurrences** |
+| jeton `--warning` « s'il a été livré » | livré par TCK-358 — **repris VERBATIM**, valeur et docblock, pour que deux tickets ne créent pas deux jetons du même nom |
+| garde à créer : `scripts/check-dashboard-tokens.mjs` | **non** — c'est `check-super-admin-tokens.mjs` qui est étendu, sur consigne : plusieurs branches et une PR le désignent par son nom |
+
+### La garde : deux espaces, quatre crans, six trous déclarés
+
+`check-super-admin-tokens.mjs` porte désormais un tableau `ESPACES` — la console super-admin
+(TCK-358) et `/app` (celui-ci) — chacun avec son périmètre exigé à zéro et son cliquet propre.
+Le reste d'un espace se calcule contre **tout** ce qui est gardé, tous espaces confondus : sans
+ça le chiffre aurait dépendu de l'ordre de fusion des tickets.
+
+Un **quatrième type de périmètre** est né d'un besoin mesuré : `cloture`, l'intersection d'un
+répertoire et de ce que l'écran monte. Six répertoires (`search`, `compare`, `bookings`,
+`favorites`, `maintenance`, et `chat-widget` qui en est finalement sorti) servent `/app` **et** le
+site public ; les mettre en `dir` aurait fait rougir la garde sur 137 occurrences d'écrans que ce
+ticket met explicitement hors périmètre.
+
+### Ce que les mutations ont trouvé — et ce qui a été corrigé pour elles
+
+La garde a été mutée **quatorze fois**. Trois trous réels en sont sortis, tous corrigés :
+
+1. **Six préfixes de couleur manquaient** — `border-t|r|b|l|x|y|s|e-*`, `divide-x|y-*`,
+   `ring-offset-*`. `border-t-stone-300` sortait au vert. Même trou d'un caractère que l'AC2 de
+   TCK-244.
+2. **Retirer un répertoire du périmètre** sortait en 0 en silence → les `TEMOINS`, repris de
+   `check-locale-figee.mjs`.
+3. **Retirer le répertoire ET son témoin** sortait encore en 0 → un `plancherFichiers` par espace,
+   qui compte au lieu de nommer.
+
+Deux mutations à un geste sur la configuration (**vider `TEMOINS`**, **retirer un espace
+d'`ESPACES`**) passaient aussi : deux contrôles de forme les ferment.
+
+**Ce qui passe encore, et qui est écrit dans le fichier** : le style inline (T1), la classe
+calculée (qui ne compile pas), et la manœuvre à **trois** gestes — répertoire + témoin + plancher.
+*Un contrôle qui nomme ce qu'il surveille se désarme en retirant le nom* : les trois crans
+n'empêchent pas la manœuvre, ils l'obligent à être visible dans le diff (T6).
+
+### Là où la substitution mécanique avait tort
+
+Trois familles de fichiers ont dû être reprises à la main, et **deux d'entre elles ont été
+dénoncées par des tests existants**, pas par la relecture :
+
+- **`ProfileBadge`** — cinq types de profil renvoyés sur succès / info / danger : `agent` et
+  `broker` devenaient identiques, et un administrateur d'agence s'affichait en rouge.
+  `ProfileBadge.test.tsx` exige une couleur DISTINCTE par type et a rougi sur les cinq. Un type de
+  profil est une CATÉGORIE, pas un état : `--chart-1..5`.
+- **`charts/LineChart` et `BarChart`** — une série de graphique n'est pas un statut, même
+  correction.
+- **`calendar/event-colors`** — réservation et visite devenaient indiscernables **dans la grille du
+  mois**, là où la bulle est trop étroite pour son libellé. La couleur y est le seul canal
+  d'information : quatre jetons distincts, et le docblock dit pourquoi.
+
+À l'inverse, `maintenance/labels.ts` passe bien de **onze teintes à cinq jetons**, délibérément :
+`fuchsia`, `purple` et `violet` y voisinaient pour trois statuts consécutifs, et le libellé est
+toujours à côté de la pastille.
+
+### AC non tenus, et pourquoi
+
+- **AC2 nomme `scripts/check-dashboard-tokens.mjs`** ; la garde est
+  `scripts/check-super-admin-tokens.mjs`, sur consigne explicite. L'ablation demandée par l'AC a
+  bien été jouée sur `calendar/CalendarPage.tsx` : rouge.
+- Le cliquet du reste de `/app` vaut **58** et non 56 : mon propre relevé préalable ne jouait que
+  les contrôles A et B, la garde y ajoute le contrôle D. *Un compte pris avec un sous-ensemble des
+  contrôles n'est pas le compte de la garde.*
