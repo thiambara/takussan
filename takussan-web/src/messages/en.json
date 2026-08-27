@@ -137,7 +137,8 @@
       "backToPersonal": "Back to my workspace",
       "proLocked": "Pro accounts only",
       "pendingBadge": "{count} pending",
-      "roles": "Roles"
+      "roles": "Roles",
+      "integrations": "Integrations"
     },
     "superAdmin": {
       "eyebrow": "Takussan console",
@@ -3956,6 +3957,12 @@
     }
   },
   "admin": {
+    "notices": {
+      "tagsPlatformManaged": {
+        "title": "Tags are managed by the platform",
+        "body": "There is no agency-level “Tags” page: the tag reference list is maintained by Takussan so it stays shared across the whole catalogue. You were redirected to the dashboard."
+      }
+    },
     "moderation": {
       "reviews": {
         "empty_title": "No review to moderate",
@@ -4376,6 +4383,16 @@
       }
     },
     "agencyConfig": {
+      "watermarks": {
+        "title": "Photo watermarks",
+        "description": "Re-applies the agency watermark to the photos of every one of its properties. Useful after a logo change.",
+        "action": "Regenerate watermarks",
+        "confirmTitle": "Regenerate every watermark?",
+        "confirmBody": "Every photo of every property in the agency will be reprocessed in the background. It can take several minutes and it replaces the existing files.",
+        "confirmAction": "Start the regeneration",
+        "pending": "Sending…",
+        "queued": "Request sent: the regeneration continues in the background."
+      },
       "successSaved": "Changes saved.",
       "logoUpdated": "Logo updated.",
       "identity": {

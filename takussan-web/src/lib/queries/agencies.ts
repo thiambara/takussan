@@ -128,3 +128,38 @@ export async function uploadAgencyLogo(
   // réussi.
   return fetchAgency(token, agencyId, activeProfileId);
 }
+
+/**
+ * Réponse 202 de `POST /api/agencies/{agency}/regenerate-watermarks`
+ * (`RegenerateWatermarksController`, TCK-106).
+ */
+export interface RegenerateWatermarksResult {
+  queued: boolean;
+  agency_id: number;
+}
+
+/**
+ * Remet en file le filigranage de TOUTES les photos de biens de l'agence (TCK-106).
+ *
+ * L'endpoint existait depuis TCK-106 et **aucun code du front ne l'appelait** — mesuré le
+ * 2026-08-27 : `grep -rn "regenerate-watermarks" src/` ne rendait rien. Le contrôleur pousse un
+ * `RegenerateAgencyWatermarksJob` et rend 202 sans attendre.
+ *
+ * ⚠ La garde est SERVEUR et plus étroite que `isAdmin` : `primary_admin_id === user->id` ou
+ * super-admin. Un `agency_admin` qui n'est pas l'admin principal reçoit 403 — le bouton n'ouvre
+ * donc aucun droit, il rend seulement le geste atteignable, et l'erreur est affichée telle
+ * quelle.
+ *
+ * `activeProfileId` est transmis pour la même raison que sur `updateAgency` : sans lui, un
+ * compte multi-agences n'a pas de profil actif résolu côté serveur.
+ */
+export async function regenerateAgencyWatermarks(
+  token: string,
+  agencyId: number,
+  activeProfileId?: string,
+): Promise<RegenerateWatermarksResult> {
+  return apiRequest<RegenerateWatermarksResult>(
+    `/api/agencies/${agencyId}/regenerate-watermarks`,
+    { method: 'POST', token, activeProfileId },
+  );
+}

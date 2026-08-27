@@ -1,4 +1,5 @@
 import { getMeAction } from '@/app/actions/auth';
+import { AdminNotice, resoudreAvisAdmin } from '@/components/admin/AdminNotice';
 import { AgencyActivityFeed } from '@/components/dashboard/admin/AgencyActivityFeed';
 import { AgencyDegradedState } from '@/components/dashboard/admin/AgencyDegradedState';
 import { AgencyKpis } from '@/components/dashboard/admin/AgencyKpis';
@@ -10,8 +11,19 @@ import { fetchDashboardAgency } from '@/lib/queries/dashboard-agency';
 import { ensureStandardAgencyOrRedirect } from '@/lib/access/server-guards';
 import { getTranslations } from 'next-intl/server';
 
-export default async function Page() {
+/**
+ * `searchParams` est ici pour UNE raison : `/admin` est l'écran d'arrivée des redirections de la
+ * console, et une redirection qui a un motif doit le dire (TCK-370). Toute la lecture du
+ * paramètre vit dans `AdminNotice` — un `notice` inconnu ne rend rien.
+ */
+export default async function Page({
+  searchParams,
+}: {
+  readonly searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const t = await getTranslations('admin.pages.home');
+  const params = (await searchParams) ?? {};
+  const avis = await resoudreAvisAdmin(params.notice);
   const user = await getMeAction();
 
   // TCK-115: super_admin without an agency context cannot scope the report.
@@ -29,6 +41,8 @@ export default async function Page() {
         title={t('title')}
         description={t('subtitle')}
       />
+
+      <AdminNotice avis={avis} />
 
       {payload ? (
         <>

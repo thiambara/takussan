@@ -6,6 +6,7 @@ import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { isAdmin } from '@/lib/roles';
 import { AgencyConfigForm } from '@/components/admin-agency/AgencyConfigForm';
+import { RegenerateWatermarksCard } from '@/components/admin-agency/RegenerateWatermarksCard';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { PageHeader } from '@/components/console';
 
@@ -55,6 +56,9 @@ export default async function Page() {
     <div className="space-y-6">
       <PageHeader title={tPage('title')} description={tPage('subtitle')} />
       <AgencyConfigForm agency={result.data} />
+      {/* HORS du `<form>` d'AgencyConfigForm, délibérément : un bouton posé dedans partage sa
+          soumission, et un `<form>` imbriqué n'est pas du HTML valide. */}
+      <RegenerateWatermarksCard agencyId={result.data.id} />
     </div>
   );
 }

@@ -21,11 +21,21 @@ interface AdminFinancesClientProps {
    * Currently aligned with `canViewFinances` (any agency_admin / admin).
    */
   readonly canEmitFinances: boolean;
+  /**
+   * Taux de commission de l'AGENCE (`agencies.commission_rate`, en pourcentage), résolu en SSR
+   * et transmis tel quel à `AdminFinancesTabs` puis au dialogue de reversement.
+   *
+   * TCK-370 — `AdminFinancesTabs` acceptait déjà `defaultCommissionRate` et personne ne le lui
+   * passait : ce composant ne portait même pas la prop. Le curseur du dialogue démarrait donc
+   * toujours à `0`, jamais au taux de l'agence.
+   */
+  readonly defaultCommissionRate?: number;
 }
 
 export function AdminFinancesClient({
   canViewFinances,
   canEmitFinances,
+  defaultCommissionRate,
 }: AdminFinancesClientProps) {
   const t = useTranslations('admin.finances');
   const profilesQuery = useMyProfiles();
@@ -75,7 +85,10 @@ export function AdminFinancesClient({
   return (
     <div className="space-y-6">
       <FinanceKpis activeProfileId={activeProfileId} />
-      <AdminFinancesTabs canEmit={canEmitFinances} />
+      <AdminFinancesTabs
+        canEmit={canEmitFinances}
+        defaultCommissionRate={defaultCommissionRate}
+      />
     </div>
   );
 }

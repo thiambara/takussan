@@ -137,7 +137,8 @@
       "backToPersonal": "Retour à l'espace perso",
       "proLocked": "Réservé aux comptes pro",
       "pendingBadge": "{count} en attente",
-      "roles": "Rôles"
+      "roles": "Rôles",
+      "integrations": "Intégrations"
     },
     "superAdmin": {
       "eyebrow": "Console Takussan",
@@ -3956,6 +3957,12 @@
     }
   },
   "admin": {
+    "notices": {
+      "tagsPlatformManaged": {
+        "title": "Les tags sont gérés par la plateforme",
+        "body": "Il n'existe pas de page « Tags » au niveau d'une agence : le référentiel des tags est maintenu par Takussan pour rester commun à tout le catalogue. Vous avez été redirigé vers le tableau de bord."
+      }
+    },
     "moderation": {
       "reviews": {
         "empty_title": "Aucun avis à modérer",
@@ -4376,6 +4383,16 @@
       }
     },
     "agencyConfig": {
+      "watermarks": {
+        "title": "Filigranes des photos",
+        "description": "Réapplique le filigrane de l'agence sur les photos de tous ses biens. Utile après un changement de logo.",
+        "action": "Regénérer les filigranes",
+        "confirmTitle": "Regénérer tous les filigranes ?",
+        "confirmBody": "Toutes les photos de tous les biens de l'agence seront retraitées en arrière-plan. Le traitement peut durer plusieurs minutes et remplace les fichiers existants.",
+        "confirmAction": "Lancer la regénération",
+        "pending": "Envoi…",
+        "queued": "Demande envoyée : la regénération se poursuit en arrière-plan."
+      },
       "successSaved": "Modifications enregistrées.",
       "logoUpdated": "Logo mis à jour.",
       "identity": {
