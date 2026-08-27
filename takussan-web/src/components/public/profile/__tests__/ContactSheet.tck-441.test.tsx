@@ -14,10 +14,24 @@ function monte(ui: React.ReactElement) {
   return render(withIntl(<ToastProvider>{ui}</ToastProvider>));
 }
 
-const submitAgentContactLead = vi.fn(async () => ({ ok: true as const }));
+/**
+ * ⚠️ Le double est typé sur la VRAIE signature, et non par un `...args: unknown[]` recasté.
+ * Le cast `as []` réduisait les arguments à un tuple VIDE : `mock.calls[0][0]` devenait alors une
+ * erreur `tsc` — que `vitest run` ne voit pas, puisqu'il ne typecheck rien. Un double mal typé ne
+ * rend pas le test faux, il le rend aveugle à la signature qu'il prétend éprouver.
+ */
+type SoumissionAgent = (
+  slug: string,
+  payload: { name: string; email: string; message: string },
+) => Promise<{ ok: true }>;
+
+const submitAgentContactLead = vi.fn<SoumissionAgent>(async () => ({ ok: true }));
 
 vi.mock('@/app/actions/property', () => ({
-  submitAgentContactLead: (...args: unknown[]) => submitAgentContactLead(...(args as [])),
+  submitAgentContactLead: (
+    slug: string,
+    payload: { name: string; email: string; message: string },
+  ) => submitAgentContactLead(slug, payload),
 }));
 
 /**
