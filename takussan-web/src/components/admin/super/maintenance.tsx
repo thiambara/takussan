@@ -13,6 +13,7 @@ import type { MaintenanceMode, MaintenanceSeverity, MaintenanceStatus } from '@/
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.maintenance.modes.*`). */
 const MODES: MaintenanceMode[] = ['banner', 'read_only', 'down'];
@@ -22,6 +23,7 @@ const SEVERITIES: MaintenanceSeverity[] = ['info', 'scheduled', 'interruption'];
 
 export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) {
   const t = useTranslations('superAdmin.maintenance');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [startsAt, setStartsAt] = useState('');
@@ -72,8 +74,8 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
               <p className="font-semibold">{status.active ? t('active') : t('scheduled')}</p>
               <p>{status.window.messages.fr}</p>
               <p>{t('windowRange', {
-                start: new Date(status.window.starts_at).toLocaleString('fr-SN'),
-                end: new Date(status.window.ends_at).toLocaleString('fr-SN'),
+                start: fmt.dateTime(status.window.starts_at),
+                end: fmt.dateTime(status.window.ends_at),
               })}</p>
               <p>{t('modeValue', { mode: status.window.mode })}</p>
             </div>

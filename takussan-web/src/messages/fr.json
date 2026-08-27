@@ -5191,7 +5191,19 @@
       },
       "queuePending": "En attente",
       "queueProcessing": "En cours",
-      "queueFailed24h": "Échecs 24h"
+      "queueFailed24h": "Échecs 24h",
+      "checks": {
+        "db": "Base de données",
+        "cache": "Cache",
+        "storage": "Stockage",
+        "mail": "E-mail",
+        "sms": "SMS"
+      },
+      "status": {
+        "ok": "OK",
+        "failed": "En panne",
+        "loading": "…"
+      }
     },
     "integrations": {
       "webhooks": {

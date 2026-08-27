@@ -32,6 +32,7 @@ import { ApiError } from '@/lib/api';
 import type { User, UserRole } from '@/types/user';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 
 type SuperAdminUser = Pick<User, 'id' | 'first_name' | 'last_name' | 'email' | 'status'> & {
   full_name?: string | null;
@@ -159,6 +160,7 @@ function getInitials(name: string): string {
 export default function SuperAdminUsersPage() {
   const t = useTranslations('superAdmin.users');
   const tPage = useTranslations('superAdmin.pages.users');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -291,7 +293,7 @@ export default function SuperAdminUsersPage() {
       id: 'lastLogin',
       header: tPage('columns.lastLogin'),
       className: 'text-muted-foreground',
-      cell: (u) => formatDateTime(u.last_login_at),
+      cell: (u) => fmt.date(u.last_login_at, DATE_COURTE),
     },
     {
       id: 'actions',
@@ -477,14 +479,4 @@ export default function SuperAdminUsersPage() {
       ) : null}
     </div>
   );
-}
-
-function formatDateTime(value: string | null | undefined): string {
-  if (!value) return '—';
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(value));
 }

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { DateTimePicker } from '@/components/ui/date-time-picker';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   createAdminAnnouncement,
   deactivateAdminAnnouncement,
@@ -56,6 +57,7 @@ const EMPTY_FORM = {
 
 export function AnnouncementsConsole() {
   const t = useTranslations('superAdmin.announcements');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
@@ -108,7 +110,7 @@ export function AnnouncementsConsole() {
       id: 'window',
       header: t('colWindow'),
       className: 'text-muted-foreground',
-      cell: (announcement) => new Date(announcement.starts_at).toLocaleString('fr-FR'),
+      cell: (announcement) => fmt.dateTime(announcement.starts_at),
     },
     {
       id: 'actions',

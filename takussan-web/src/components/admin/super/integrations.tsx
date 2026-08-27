@@ -27,6 +27,7 @@ import type {
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 export const categoryLabels: Record<string, string> = {
   payments: 'Paiements',
@@ -210,6 +211,7 @@ export function WebhookTrailTable({
   onClose: () => void;
 }) {
   const t = useTranslations('superAdmin.integrations.webhooks');
+  const fmt = useFormatteurs();
 
   const columns: DataTableColumn<IntegrationWebhookLog>[] = [
     { id: 'event', header: t('colEvent'), cell: (log) => log.event_type ?? WEBHOOK_EVENT_FALLBACK },
@@ -228,7 +230,7 @@ export function WebhookTrailTable({
       id: 'received',
       header: t('colReceived'),
       className: 'text-muted-foreground',
-      cell: (log) => (log.created_at ? new Date(log.created_at).toLocaleString('fr-SN') : ''),
+      cell: (log) => (log.created_at ? fmt.dateTime(log.created_at) : ''),
     },
   ];
 

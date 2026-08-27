@@ -30,6 +30,7 @@ import {
 import type { AdminPropertyRow } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
+import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 /**
@@ -56,29 +57,10 @@ interface SuperAdminPropertiesTableProps {
   onChange: () => void;
 }
 
-function formatPrice(price: number, currency: string | null): string {
-  const code = currency ?? 'XOF';
-  try {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: code,
-      maximumFractionDigits: 0,
-    }).format(price);
-  } catch {
-    return `${price.toLocaleString('fr-FR')} ${code}`;
-  }
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
 export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminPropertiesTableProps) {
   const t = useTranslations('superAdmin.properties.table');
   const tCommon = useTranslations('common');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -224,7 +206,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       className: 'tabular-nums',
       cell: (row) => (
         <>
-          {formatPrice(row.price, row.currency)}
+          {fmt.montant(row.price, row.currency)}
           {row.contract_type === 'rent' && row.rent_period ? (
             <span className="ml-0.5 text-xs font-medium text-muted-foreground">
               /{RENT_PERIOD_SHORT[row.rent_period]}
@@ -249,7 +231,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       sortKey: 'published_at',
       sortLabel: t('sortByAria', { label: t('colPublication') }),
       className: 'text-muted-foreground',
-      cell: (row) => formatDate(row.published_at),
+      cell: (row) => fmt.date(row.published_at, DATE_COURTE),
     },
     {
       id: 'created_at',
@@ -257,7 +239,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       sortKey: 'created_at',
       sortLabel: t('sortByAria', { label: t('colUpdated') }),
       className: 'text-muted-foreground',
-      cell: (row) => formatDate(row.created_at),
+      cell: (row) => fmt.date(row.created_at, DATE_COURTE),
     },
     {
       id: 'actions',

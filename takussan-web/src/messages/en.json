@@ -5191,7 +5191,19 @@
       },
       "queuePending": "Pending",
       "queueProcessing": "Processing",
-      "queueFailed24h": "Failures 24h"
+      "queueFailed24h": "Failures 24h",
+      "checks": {
+        "db": "Database",
+        "cache": "Cache",
+        "storage": "Storage",
+        "mail": "Email",
+        "sms": "SMS"
+      },
+      "status": {
+        "ok": "OK",
+        "failed": "Down",
+        "loading": "…"
+      }
     },
     "integrations": {
       "webhooks": {

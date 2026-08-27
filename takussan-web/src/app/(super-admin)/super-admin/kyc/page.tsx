@@ -11,10 +11,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/kyc/kyc-components';
 import { PageHeader } from '@/components/console';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 export default function Page() {
   const t = useTranslations('superAdmin.pages.kyc');
   const tPagination = useTranslations('console.pagination');
+  const fmt = useFormatteurs();
   const [page, setPage] = useState(1);
   const query = useQuery({
     queryKey: ['super-admin', 'kyc', page],
@@ -48,7 +50,7 @@ export default function Page() {
                   <p className="font-medium text-foreground">{t('agency', { id: String(dossier.subject_id) })}</p>
                   <StatusBadge status={dossier.status} />
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">{t('submittedOn', { date: formatDate(dossier.submitted_at) })}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t('submittedOn', { date: fmt.dateTime(dossier.submitted_at) })}</p>
               </div>
               <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/agencies/${dossier.subject_id}`}>
                 {t('open')}
@@ -75,9 +77,4 @@ export default function Page() {
       </Card>
     </div>
   );
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }

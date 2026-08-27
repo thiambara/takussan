@@ -10,6 +10,7 @@ import type { AdminAgency } from '@/types/super-admin';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { StatusBadge, type StatusTone } from '@/components/console';
+import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 
 /** TCK-292 — la donnée porte la CLÉ, le rendu la résout (`superAdmin.agencyStatus.*`). */
 const STATUS_KEY: Record<string, string> = {
@@ -65,6 +66,7 @@ function actionMeta(t: (key: string) => string): Record<Action, ActionMeta> {
 export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
   const t = useTranslations('superAdmin.agencyCard');
   const tStatus = useTranslations('superAdmin.agencyStatus');
+  const fmt = useFormatteurs();
   const [pending, setPending] = useState<Action | null>(null);
   const queryClient = useQueryClient();
 
@@ -140,11 +142,11 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
         </div>
         <div>
           <dt className="font-semibold text-stone-700">{t('createdAt')}</dt>
-          <dd>{formatDate(agency.created_at)}</dd>
+          <dd>{fmt.date(agency.created_at, DATE_COURTE)}</dd>
         </div>
         <div>
           <dt className="font-semibold text-stone-700">{t('lastActivity')}</dt>
-          <dd>{formatDate(agency.last_activity_at)}</dd>
+          <dd>{fmt.date(agency.last_activity_at, DATE_COURTE)}</dd>
         </div>
       </dl>
 
@@ -178,14 +180,4 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
       ) : null}
     </article>
   );
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return '—';
-
-  return new Intl.DateTimeFormat('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(value));
 }

@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import {
   fetchAdminAgencyUpgradeRequests,
   type AdminAgencyUpgradeRequestRow,
@@ -72,6 +73,7 @@ const STATUS_TONES: Record<AgencyUpgradeRequestStatus, StatusTone> = {
 
 export default function AgencyUpgradeRequestsListPage() {
   const t = useTranslations('superAdmin.pages.upgradeRequests');
+  const fmt = useFormatteurs();
   const [statusFilter, setStatusFilter] = useState<AgencyUpgradeRequestStatus | 'all'>('all');
   const [submittedFrom, setSubmittedFrom] = useState('');
   const [submittedTo, setSubmittedTo] = useState('');
@@ -154,7 +156,7 @@ export default function AgencyUpgradeRequestsListPage() {
       id: 'date',
       header: t('columns.date'),
       className: 'text-muted-foreground',
-      cell: (row) => formatDateTime(row.submitted_at),
+      cell: (row) => fmt.dateTime(row.submitted_at),
     },
     {
       id: 'status',
@@ -333,11 +335,4 @@ function elapsedDaysSince(submittedAt: string | null, now: number): number | nul
   const ms = now - new Date(submittedAt).getTime();
   if (ms < 0) return 0;
   return Math.floor(ms / (1000 * 60 * 60 * 24));
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return '—';
-  return new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(
-    new Date(value),
-  );
 }

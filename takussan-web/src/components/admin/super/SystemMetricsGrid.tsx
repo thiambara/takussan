@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { ErrorState } from '@/components/feedback';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { fetchSystemMetrics } from '@/lib/queries/super-admin';
 import type { SystemMetricsResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
@@ -14,16 +15,9 @@ interface Tile {
   hint?: string;
 }
 
-function formatNumber(n: number): string {
-  return new Intl.NumberFormat('fr-FR').format(n);
-}
-
-function formatCurrency(n: number, currency: string): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency, maximumFractionDigits: 0 }).format(n);
-}
-
 export function SystemMetricsGrid() {
   const t = useTranslations('superAdmin.metrics');
+  const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const { data, isLoading, isError, error } = useQuery<SystemMetricsResponse, ApiError>({
     queryKey: ['super-admin', 'system-metrics'],
@@ -49,24 +43,24 @@ export function SystemMetricsGrid() {
   const m = data.data;
 
   const tiles: Tile[] = [
-    { label: t('agenciesTotal'), value: formatNumber(m.agencies.total) },
+    { label: t('agenciesTotal'), value: fmt.nombre(m.agencies.total) },
     {
       label: t('verified'),
-      value: formatNumber(m.agencies.verified),
+      value: fmt.nombre(m.agencies.verified),
       hint: t('verificationRate', { rate: (m.agencies.verification_rate * 100).toFixed(1) }),
     },
-    { label: t('agenciesActive'), value: formatNumber(m.agencies.active) },
-    { label: t('agenciesSuspended'), value: formatNumber(m.agencies.suspended) },
+    { label: t('agenciesActive'), value: fmt.nombre(m.agencies.active) },
+    { label: t('agenciesSuspended'), value: fmt.nombre(m.agencies.suspended) },
     {
       label: t('activeUsers'),
-      value: formatNumber(m.users.active),
-      hint: t('outOfTotal', { total: formatNumber(m.users.total) }),
+      value: fmt.nombre(m.users.active),
+      hint: t('outOfTotal', { total: fmt.nombre(m.users.total) }),
     },
-    { label: t('publishedProperties'), value: formatNumber(m.properties.published) },
-    { label: t('pendingReview'), value: formatNumber(m.properties.pending_review) },
+    { label: t('publishedProperties'), value: fmt.nombre(m.properties.published) },
+    { label: t('pendingReview'), value: fmt.nombre(m.properties.pending_review) },
     {
       label: t('platformRevenue'),
-      value: formatCurrency(m.revenue.platform_total_paid, m.revenue.currency),
+      value: fmt.montant(m.revenue.platform_total_paid, m.revenue.currency),
       hint: t('cumulativeRents'),
     },
   ];

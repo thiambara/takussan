@@ -20,6 +20,7 @@ import type { PlatformSetting, PlatformSettingCategory } from '@/types/super-adm
 import type { ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 type SettingValue = string | number | string[];
 type Draft = Record<string, SettingValue>;
@@ -137,6 +138,7 @@ export function SettingField({
   onChange: (value: SettingValue) => void;
 }) {
   const t = useTranslations('superAdmin.platformSettings');
+  const fmt = useFormatteurs();
   return (
     <div className="grid gap-3 p-4 md:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)_minmax(180px,0.7fr)] md:items-center">
       <div>
@@ -205,7 +207,7 @@ export function SettingField({
           ? setting.updated_at
             ? t('updatedByOn', {
               name: setting.updated_by.name,
-              date: new Date(setting.updated_at).toLocaleDateString('fr-SN'),
+              date: fmt.date(setting.updated_at),
             })
             : t('updatedBy', { name: setting.updated_by.name })
           : t('defaultValue')}
