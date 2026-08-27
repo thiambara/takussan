@@ -1092,8 +1092,22 @@ const ESPACES = [
      *
      * ⚠ C'est le seul cas où ce nombre monte sans qu'une couleur ait été décidée à la légère,
      * et il est écrit ici pour que la prochaine hausse n'ait pas ce précédent pour excuse.
+     *
+     * ⚠ **60 → 54 le 2026-08-27 (TCK-440).** Aucun correctif ne visait ce cliquet : la conversion
+     * de la chrome PUBLIQUE (`components/{home,property,search,compare,favorites}`) a fait tomber
+     * six occurrences qui vivaient dans des fichiers partagés, hors du périmètre gardé de `/app`
+     * mais dans son reste. Le cliquet est bilatéral, il a donc rougi TOUT SEUL en réclamant son
+     * propre resserrement — *c'est exactement ce pour quoi la bilatéralité existe : un reste qui
+     * descend sans être noté redevient de la tolérance au prochain relèvement.*
+     *
+     * ⚠ Il est descendu à 53 un moment, puis remonté à 54, et ce n'est pas du bruit : la
+     * conversion des quatre VOILES vers le jeton `--scrim` retirait une septième occurrence
+     * (la pastille d'horodatage de `PropertyCard`, que `/app` monte) — puis a été ANNULÉE, le
+     * jeton vivant sur une autre branche. **À l'intégration, ce cliquet redescendra donc à 53 en
+     * même temps que les voiles seront convertis.** Écrit ici pour que le chiffre attendu soit
+     * connu d'avance plutôt que découvert par un rouge.
      */
-    plafondReste: 60,
+    plafondReste: 54,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     reference: '1070 le 2026-08-27, avant TCK-380/381',

@@ -2,32 +2,44 @@
 
 import React, { useState, useRef, useId, useCallback, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Search } from 'lucide-react';
 import { useSuggest } from '@/hooks/useSuggest';
 import { highlightMatch } from '@/lib/highlightMatch';
 import type { SuggestCity, SuggestNeighborhood, SuggestPropertyType } from '@/types/search';
 import { cn } from '@/lib/utils';
+import { parametreDe } from '@/types/search';
+import { hrefLocalise } from '@/i18n/navigation';
+import type { Locale } from '@/i18n/config';
 
 type SuggestItem =
   | { kind: 'city'; data: SuggestCity }
   | { kind: 'neighborhood'; data: SuggestNeighborhood }
   | { kind: 'property_type'; data: SuggestPropertyType };
 
-function buildUrl(item: SuggestItem, base: URLSearchParams): string {
+/**
+ * L'URL d'une SUGGESTION CHOISIE — le seul endroit du front qui ait le droit d'écrire `city`
+ * depuis la barre de recherche (TCK-439).
+ *
+ * C'est la distinction qui fait tenir le champ : ce qui sort d'ici vient d'une liste que le
+ * serveur a proposée, donc `city` / `location` / `type` sont des identités connues. Ce que
+ * l'utilisateur tape et n'a choisi nulle part reste du texte, et part en `q` — dans la navbar
+ * (`buildSearchUrl`) comme sur la touche Entrée ci-dessous.
+ */
+function buildUrl(item: SuggestItem, base: URLSearchParams, locale: Locale): string {
   const params = new URLSearchParams(base.toString());
   if (item.kind === 'city') {
-    params.set('city', item.data.label);
+    params.set(parametreDe('city'), item.data.label);
     // switching city invalidates any previous neighborhood
-    params.delete('location');
+    params.delete(parametreDe('location'));
   } else if (item.kind === 'neighborhood') {
-    params.set('city', item.data.city);
-    params.set('location', item.data.label);
+    params.set(parametreDe('city'), item.data.city);
+    params.set(parametreDe('location'), item.data.label);
   } else {
-    params.set('type', item.data.value);
+    params.set(parametreDe('type'), item.data.value);
   }
-  params.delete('page');
-  return `/properties?${params.toString()}`;
+  params.delete(parametreDe('page'));
+  return hrefLocalise(`/properties?${params.toString()}`, locale);
 }
 
 function HighlightedText({ label, query }: { label: string; query: string }) {
@@ -57,6 +69,7 @@ export function SearchAutocomplete({
 }: SearchAutocompleteProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const locale = useLocale() as Locale;
   const t = useTranslations('search.suggest');
   const inputId = useId();
   const listboxId = useId();
@@ -91,9 +104,9 @@ export function SearchAutocomplete({
     (item: SuggestItem) => {
       setOpen(false);
       setQuery('');
-      router.push(buildUrl(item, searchParams));
+      router.push(buildUrl(item, searchParams, locale));
     },
-    [router, searchParams],
+    [router, searchParams, locale],
   );
 
   const handleKeyDown = useCallback(
@@ -113,18 +126,20 @@ export function SearchAutocomplete({
         if (activeIndex >= 0 && flatItems[activeIndex]) {
           selectItem(flatItems[activeIndex]);
         } else {
+          // Entrée SANS suggestion active = texte libre, donc `q` — la même clé que le bouton
+          // loupe et que la puce de catégorie. Les trois gestes construisent la même URL.
           setOpen(false);
           const params = new URLSearchParams(searchParams.toString());
-          params.set('q', query);
-          params.delete('page');
-          router.push(`/properties?${params.toString()}`);
+          params.set(parametreDe('q'), query);
+          params.delete(parametreDe('page'));
+          router.push(hrefLocalise(`/properties?${params.toString()}`, locale));
         }
       } else if (e.key === 'Escape') {
         setOpen(false);
         setActiveIndex(-1);
       }
     },
-    [open, query, flatItems, activeIndex, selectItem, router, searchParams],
+    [open, query, flatItems, activeIndex, selectItem, router, searchParams, locale],
   );
 
   useEffect(() => {
@@ -206,14 +221,14 @@ export function SearchAutocomplete({
               <div className="mt-3 flex justify-center gap-3">
                 <button
                   type="button"
-                  onClick={() => router.push('/properties')}
+                  onClick={() => router.push(hrefLocalise('/properties', locale))}
                   className="text-xs text-primary font-semibold hover:underline underline-offset-2"
                 >
                   {t('fallback.all_cities')}
                 </button>
                 <button
                   type="button"
-                  onClick={() => router.push('/properties?type=apartment')}
+                  onClick={() => router.push(hrefLocalise('/properties?type=apartment', locale))}
                   className="text-xs text-primary font-semibold hover:underline underline-offset-2"
                 >
                   {t('fallback.all_types')}

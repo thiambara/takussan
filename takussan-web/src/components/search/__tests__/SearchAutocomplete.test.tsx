@@ -86,7 +86,8 @@ describe('SearchAutocomplete', () => {
     fireEvent.keyDown(input, { key: 'ArrowDown' });
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/properties?city=Dakar'));
+    // TCK-439 — la langue est posée par le composant, plus laissée au 307 du proxy (ADR-0026).
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/fr/properties?city=Dakar'));
   });
 
   it('submits free text as full-text query when no suggestion is selected', async () => {
@@ -100,7 +101,7 @@ describe('SearchAutocomplete', () => {
 
     fireEvent.keyDown(input, { key: 'Enter' });
 
-    expect(mockPush).toHaveBeenCalledWith('/properties?q=appartement');
+    expect(mockPush).toHaveBeenCalledWith('/fr/properties?q=appartement');
   });
 
   it('Escape closes dropdown', async () => {

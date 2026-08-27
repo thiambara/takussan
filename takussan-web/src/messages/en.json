@@ -86,8 +86,7 @@
     "links": {
       "buy": "Buy",
       "rent": "Rent",
-      "sell": "Sell",
-      "services": "Our services"
+      "sell": "Sell"
     },
     "categories": {
       "apartment": "Apartment",
@@ -236,13 +235,18 @@
   },
   "footer": {
     "tagline": "Your trusted partner to find the perfect property in Senegal.",
-    "newsletterPlaceholder": "Your email",
-    "newsletterSubmit": "Subscribe",
     "discoverHeading": "Discover",
     "copyright": "© {year} Takussan. All rights reserved.",
     "discover": {
+      "all": "All properties",
       "featured": "Featured properties",
       "latest": "New listings"
+    },
+    "professionalsHeading": "Professionals",
+    "toolsHeading": "Your tools",
+    "tools": {
+      "favorites": "My favourites",
+      "compare": "Compare"
     }
   },
   "map": {

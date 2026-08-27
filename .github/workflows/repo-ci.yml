@@ -371,6 +371,28 @@ jobs:
         # est le vert qui a rendu TCK-245 `done` pendant quatre mois.
         run: node scripts/check-super-admin-tokens.mjs --report
 
+      - name: La chrome publique ne parle qu'en jetons
+        # TCK-440. Même motif que la garde ci-dessus, sur l'autre moitié du produit : la surface
+        # que voient les INCONNUS. Relevé du 2026-08-27 avant conversion, avec la commande du
+        # ticket : 121 classes de palette neutre brute, dont 54 dans la seule navbar et 8 dans le
+        # pied de page — les deux composants rendus sur TOUTES les pages publiques, et les deux
+        # plus éloignés du design system. La page d'accueil qui les contient tous les deux était,
+        # elle, à zéro.
+        #
+        # Trois choses qu'aucune autre entrée de ce fichier ne couvre :
+        #   · `check-super-admin-tokens` garde la console et `/app` ; ses trois périmètres publics
+        #     (`compare`, `favorites`, `search`) n'y entrent que par CLÔTURE — seuls les fichiers
+        #     que `/app` monte réellement. `FilterSidebar`, qui portait 27 occurrences, n'y était
+        #     pas ;
+        #   · `check-app-tokens` ne cherche que le dialecte `app-*`, pas la palette Tailwind ;
+        #   · `check-chart-contrast` mesure les couleurs de graphiques, pas la chrome.
+        #
+        # ⚠ Cette garde DÉCLARE deux trous, mesurés, plutôt que de laisser croire qu'elle voit
+        # tout : les familles chaudes et sémantiques (260 occurrences, pierre en tête) et les
+        # couleurs nommées (54, dont deux voiles qui attendent une classe dédiée). Les fermer est
+        # le travail d'un ticket, pas d'une régression d'expression régulière.
+        run: node scripts/check-public-chrome-tokens.mjs --report
+
       - name: Les consoles ne figent aucune locale
         # TCK-364 a supprimé 18 formatages `'fr-FR'` écrits en dur dans 13 fichiers. Son AC1 était
         # un grep, il était vert, et il l'est resté exactement le temps de la fusion : trois
