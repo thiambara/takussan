@@ -200,6 +200,31 @@ plutôt que dix entrées `file`. Un fichier neuf déposé dedans est couvert d'o
 `file` ne fait pas. Quatre témoins ont été ajoutés avec eux : sans témoin, retirer
 `{ type: 'dir', … 'ui' }` — un geste — laissait 90 primitives hors de toute exigence de zéro.
 
+**Suite de la revue du lead (2026-08-27) — la dérogation du voile, éprouvée.**
+
+`.qr-surface` et `--scrim` se lisent désormais ENSEMBLE : un renvoi croisé les relie dans
+`globals.css`, et `docs/design-guidelines.md` porte la ligne qui dit *pourquoi* ce rôle ne
+s'inverse pas — sans quoi quelqu'un « corrigera » l'anomalie apparente dans six mois.
+
+**La dérogation porte sur le JETON, pas sur la couleur — vérifié par mutation, dans les deux
+sens**, sur un fichier du périmètre gardé :
+
+| forme | verdict |
+|---|---|
+| fond noir littéral, à 5 / 10 / 30 / 40 % et sans opacité, sous `hover:` et `dark:` | **refusé** (6 formes) |
+| encre noire littérale, anneau noir littéral, fond blanc à 20 % | **refusé** (3 formes) |
+| `bg-scrim/10`, `bg-scrim/30`, `bg-scrim/55` | accepté |
+
+⚠ **Trou résiduel, mesuré et NON fermé** : `text-scrim` et `ring-scrim/20` sont acceptés eux
+aussi. La garde ne connaît pas la sémantique d'un jeton — elle sait qu'il est déclaré dans
+`globals.css`, pas quels utilitaires il a le droit de prendre (même limite que `text-card` ou
+`bg-muted-foreground`). Fermer ça demanderait à la garde de porter une table jeton → utilitaires
+admis, ce qui est un mécanisme neuf, pas un réglage.
+
+⚠ **La garde a fait rougir le docblock que j'écrivais pour la documenter**, parce qu'il citait la
+classe noire en toutes lettres — le contrôle B lit `globals.css`, commentaires compris. C'est la
+meilleure preuve que la dérogation est étroite, et la classe y est décrite plutôt que citée.
+
 L'en-tête de `scripts/check-super-admin-tokens.mjs` porte le raisonnement complet : pourquoi le
 périmètre n'est pas l'écran, pourquoi la clôture d'import se trompe toujours du côté prudent, et
 pourquoi le compte du reste est imprimé même quand la garde est verte. Le lire avant de toucher à

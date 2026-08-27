@@ -273,6 +273,31 @@
   background-color: #ffffff;
 }
 
+/*
+ * ⚠ LA SECONDE COULEUR FONCTIONNELLE EST `--scrim`, déclarée plus haut dans `:root` (TCK-384).
+ *
+ * Les deux sont le même raisonnement aux deux bouts de l'échelle, et elles se lisent ensemble :
+ * le blanc d'un QR code ne s'inverse pas parce qu'un TÉLÉPHONE doit le lire ; le noir d'un voile
+ * ne s'inverse pas parce qu'un voile ASSOMBRIT, dans les deux thèmes. Aucune des deux n'est une
+ * surface au sens du design system.
+ *
+ * `--scrim` n'est pas ici, sous forme de classe, pour une raison mécanique : c'est un JETON de
+ * couleur, dont les appelants posent l'alpha (`bg-scrim/10`, `bg-scrim/30`). Une classe figerait
+ * l'intensité du voile et il faudrait en écrire une par usage.
+ *
+ * ⚠ La dérogation porte sur le JETON, pas sur la couleur : un utilitaire de fond noir littéral
+ * reste refusé par `scripts/check-super-admin-tokens.mjs` (contrôle B) partout dans les
+ * périmètres gardés, à toutes les opacités — seul `bg-scrim/*` passe, parce qu'il LIT une valeur
+ * décidée ici. Vérifié par mutation le 2026-08-27, dans les deux sens.
+ *
+ * ⚠⚠ Ce paragraphe a fait ROUGIR la garde en écrivant la classe noire en toutes lettres, et
+ * c'est la meilleure preuve qu'il pouvait donner : le contrôle B lit `globals.css` comme le
+ * reste, commentaires compris. La classe est donc décrite, pas citée.
+ *
+ * **Ces deux-là sont les SEULES couleurs fonctionnelles du produit ; une troisième candidate
+ * s'écrit ici, avec son motif, avant d'exister.**
+ */
+
 /* ─── Animations utilitaires ────────────────────────────────────────── */
 
 @keyframes fadeInUp {
