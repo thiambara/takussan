@@ -174,6 +174,12 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
       >
         {NAV_GROUPS.map((group) => (
           <div key={group.labelKey} className="space-y-1">
+            {/*
+              TCK-359 — le libellé de groupe doit tenir 4,5:1 sur le fond de la barre. `stone-500`
+              (3,64:1) échouait ; le jeton `--sidebar-foreground` à 70 % mesure 7,91:1 sur
+              `--sidebar` en contexte sombre (#fcf9f3 @70% sur #2a2018). Ne pas redescendre
+              l'opacité sous 70 % sans recalculer.
+            */}
             <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-sidebar-foreground/70">
               {tGroups(group.labelKey)}
             </p>
@@ -192,7 +198,7 @@ export function SuperAdminSidebar({ className, onNavigate }: SuperAdminSidebarPr
         <Link
           href="/app"
           onClick={onNavigate}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
           <span className="truncate">{t('backToPersonal')}</span>
@@ -226,6 +232,9 @@ function SuperAdminNavItem({
         aria-current={current ? 'page' : undefined}
         className={cn(
           'flex items-center gap-3 rounded-md px-3 py-2 transition-colors',
+          // TCK-359 — anneau de focus explicite : sur `stone-900` le contour par défaut du
+          // navigateur est quasi invisible. `ring-ring` = jeton `--ring`, jamais un hex.
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           active
             ? 'bg-sidebar-primary font-semibold text-sidebar-primary-foreground'
             : 'text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
@@ -256,6 +265,7 @@ function SuperAdminNavItem({
                 aria-current={childActive ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   childActive
                     ? 'bg-sidebar-primary/90 font-semibold text-sidebar-primary-foreground'
                     : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',

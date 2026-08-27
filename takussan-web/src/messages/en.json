@@ -146,6 +146,7 @@
       "backToPersonal": "Back to my workspace",
       "pendingBadge": "{count} pending",
       "topbarBrand": "Takussan · Console",
+      "skipToContent": "Skip to main content",
       "groups": {
         "overview": "Overview",
         "operations": "Operations",
