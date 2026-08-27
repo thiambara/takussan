@@ -4140,7 +4140,8 @@
         "subject": "Type d'objet",
         "subjectAria": "Filtrer par type d'objet",
         "search": "Recherche",
-        "searchPlaceholder": "Description…"
+        "searchPlaceholder": "Description…",
+        "searchAria": "Rechercher dans le journal"
       },
       "export": {
         "label": "Exporter",
@@ -4534,7 +4535,8 @@
         "confirmReject": "Confirmer le rejet",
         "approve": "Approuver",
         "reject": "Rejeter"
-      }
+      },
+      "searchAria": "Rechercher un bien à modérer"
     },
     "agencyConfig": {
       "watermarks": {

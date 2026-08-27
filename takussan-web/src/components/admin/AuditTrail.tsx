@@ -1,26 +1,34 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import { Download, FileSpreadsheet, FileText, Loader2, ScrollText, Search } from 'lucide-react';
+import { Download, FileSpreadsheet, FileText, Loader2, ScrollText } from 'lucide-react';
 import { EmptyState } from '@/components/feedback';
 import {
   DataState,
   DataTable,
+  DebouncedSearchInput,
   Pagination,
   StatusBadge,
   type DataTableColumn,
   type StatusTone,
 } from '@/components/console';
+import { auditSubjectHref, shortSubjectType } from '@/lib/audit-subject-links';
 import { formatDate as formatDateIntl } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
 
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
@@ -86,11 +94,6 @@ function eventTone(event: string | null): StatusTone {
   }
 }
 
-function shortSubjectType(fqcn: string | null): string {
-  if (!fqcn) return '—';
-  return fqcn.split('\\').pop() ?? fqcn;
-}
-
 /**
  * TCK-292 — la locale ACTIVE, plus `fr-FR` en dur. Les options sont celles de
  * l'ancienne version, à l'identique : le rendu français ne bouge pas.
@@ -126,7 +129,6 @@ export function AuditTrail() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [exportLoading, setExportLoading] = useState(false);
-  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const filters: AuditLogFilters = useMemo(() => ({
     date_from: dateFrom || undefined,
@@ -138,7 +140,7 @@ export function AuditTrail() {
     per_page: 50,
   }), [dateFrom, dateTo, event, subjectType, search, page]);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ['audit-logs', filters],
     queryFn: () => fetchAuditLogs(token ?? '', filters),
     enabled: Boolean(token),
@@ -149,7 +151,6 @@ export function AuditTrail() {
 
   const handleExport = useCallback(async (format: 'csv' | 'xlsx') => {
     if (!token) return;
-    setShowExportMenu(false);
     setExportLoading(true);
 
     toast.add({
@@ -268,52 +269,69 @@ export function AuditTrail() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-muted-foreground">{t('filters.search')}</label>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder={t('filters.searchPlaceholder')}
-              className="h-9 pl-8"
-            />
-          </div>
+          <label className="text-xs font-medium text-muted-foreground" htmlFor="audit-search">
+            {t('filters.search')}
+          </label>
+          {/*
+            TCK-376 — chaque frappe changeait la clé de requête, sur des pages de 50 lignes :
+            dix caractères tapés valaient dix requêtes. Le `setPage(1)` reste, et il reste sur
+            les CINQ filtres — poser un filtre depuis la page 7 rend une file vide qui dit
+            « aucun résultat » alors que la réponse est page 1.
+          */}
+          <DebouncedSearchInput
+            id="audit-search"
+            className="w-56"
+            value={search}
+            onCommit={(next) => { setSearch(next); setPage(1); }}
+            placeholder={t('filters.searchPlaceholder')}
+            aria-label={t('filters.searchAria')}
+            busy={isFetching}
+          />
         </div>
 
+        {/*
+          TCK-376 — ce menu était un `<div>` piloté par un `useState` d'ouverture. Ni `Escape`,
+          ni fermeture au clic extérieur, ni `aria-expanded`, ni navigation au clavier : ouvert,
+          il restait ouvert. `ui/dropdown-menu` (base-ui) était déjà employé deux fichiers plus
+          loin et apporte les quatre — ils ne se réimplémentent pas à la main.
+        */}
         <div className="ml-auto flex items-end">
-          <div className="relative">
-            <Button
-              variant="default"
-              size="sm"
-              disabled={exportLoading}
-              onClick={() => setShowExportMenu((v) => !v)}
-              className="gap-1.5"
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={<Button variant="default" size="sm" disabled={exportLoading} className="gap-1.5" />}
             >
               {exportLoading
                 ? <Loader2 className="h-4 w-4 animate-spin" />
                 : <Download className="h-4 w-4" />}
               {t('export.label')}
-            </Button>
-
-            {showExportMenu && (
-              <div className="absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-lg border border-border bg-background shadow-md">
-                <button
-                  onClick={() => handleExport('csv')}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  CSV
-                </button>
-                <button
-                  onClick={() => handleExport('xlsx')}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-                >
-                  <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-                  Excel (XLSX)
-                </button>
-              </div>
-            )}
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              {/*
+                TCK-371 — l'anneau explicite est REPRIS des deux `<button>` que ce menu remplace.
+                Sa règle exempte les primitives `ui/` (elles portent un `data-slot`), mais ici
+                l'exemption ferait PERDRE une mesure : `DropdownMenuItem` pose `outline-none` et
+                ne signale le focus que par `data-highlighted:bg-card` — un changement de FOND,
+                pas un anneau. Sans ces classes, l'indication retombe sur la règle globale
+                `* { outline-ring/50 }` de globals.css, mesurée à 2,12:1 sur `--card` : sous les
+                3:1 qu'exige WCAG 1.4.11. Le jeton est donc PLEIN, jamais `/50` — c'est la
+                conclusion que la re-mesure de TCK-371 a produite, et elle vaut pour le code neuf.
+              */}
+              <DropdownMenuItem
+                onClick={() => handleExport('csv')}
+                className="focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+              >
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => handleExport('xlsx')}
+                className="focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+              >
+                <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                Excel (XLSX)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -390,12 +408,7 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
     {
       id: 'subject',
       header: t('columns.subject'),
-      cell: (log) => (log.subject_type ? (
-        <span className="text-foreground">
-          {shortSubjectType(log.subject_type)}{' '}
-          {log.subject_id ? <span className="text-muted-foreground">#{log.subject_id}</span> : null}
-        </span>
-      ) : '—'),
+      cell: (log) => <AuditSubjectCell log={log} />,
     },
     {
       id: 'description',
@@ -412,4 +425,44 @@ function useAuditColumns(): readonly DataTableColumn<ActivityLogEntry>[] {
       ),
     },
   ];
+}
+
+/**
+ * La cellule « Objet » — un lien quand le dépôt a un écran pour cet objet, du texte sinon.
+ *
+ * ## Pourquoi ce n'est pas un ternaire dans la table de colonnes
+ *
+ * Parce qu'il y a **trois** cas et non deux, et qu'un ternaire les aurait aplatis :
+ *
+ * 1. pas de `subject_type` du tout → `—` ;
+ * 2. un objet dont le type a un écran → un lien vers cet écran ;
+ * 3. un objet dont le type n'en a pas (`Invoice`, `User`, et quatorze autres types audités) →
+ *    **le même texte qu'avant**, jamais un lien mort.
+ *
+ * Le cas 3 est celui que la direction UX du ticket nomme : *le lien ne promet que ce qu'il peut
+ * tenir*. C'est aussi le seul que la résolution par convention (`Property` → `/properties`)
+ * aurait cassé, en envoyant sur un 404.
+ */
+function AuditSubjectCell({ log }: { readonly log: ActivityLogEntry }) {
+  const court = shortSubjectType(log.subject_type);
+  if (!court) return <>—</>;
+
+  const href = auditSubjectHref(log.subject_type, log.subject_id);
+  const contenu = (
+    <>
+      {court}{' '}
+      {log.subject_id ? <span className="text-muted-foreground">#{log.subject_id}</span> : null}
+    </>
+  );
+
+  if (!href) return <span className="text-foreground">{contenu}</span>;
+
+  return (
+    <Link
+      href={href}
+      className="text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+    >
+      {contenu}
+    </Link>
+  );
 }

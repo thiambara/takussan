@@ -46,7 +46,14 @@ vi.mock('@/app/actions/auth', () => ({
 
 vi.mock('@/lib/access/server-guards', () => ({
   ensureStandardAgencyOrRedirect: async () => undefined,
+  resolveAgencyOrNull: async () => null,
 }));
+
+// TCK-375 a fait lire la session par cette page (bloc des files d'attente) : sans ce simulacre,
+// `cookies()` est appelé hors d'un contexte de requête Next et lève avant que le bandeau soit
+// rendu. Le sujet de ce fichier reste le FIL de la redirection, pas la session — d'où un jeton
+// constant et une agence résolue à `null`, qui ne changent rien à ce qui est asserté ici.
+vi.mock('@/lib/session', () => ({ getToken: async () => 'jeton' }));
 
 // Le tableau de bord lui-même n'est pas le sujet : `null` fait rendre l'état dégradé, qui ne
 // dépend d'aucune donnée.

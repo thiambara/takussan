@@ -29,12 +29,16 @@ interface DebouncedSearchInputProps {
  *
  * ## Pourquoi un composant et pas trois `useDebouncedValue`
  *
- * Les trois écrans filtrés qui portent une recherche (`/users`, `/agencies`, `/properties`) ne
- * rangent pas leur état au même endroit : deux en état de page, un dans l'URL. Ce qu'ils
- * partagent n'est pas l'état, c'est la RÈGLE — la valeur affichée est immédiate, le commit est
- * différé, et l'attente se voit. Recopier la règle trois fois, c'est accepter qu'elle diverge :
- * `/properties` avait déjà, seul des trois, une soumission par `<form>` qui n'envoyait rien
- * avant la touche Entrée — donc un troisième comportement pour la même barre.
+ * Les écrans filtrés qui portent une recherche ne rangent pas leur état au même endroit : les uns
+ * en état de page, les autres dans l'URL. Ce qu'ils partagent n'est pas l'état, c'est la RÈGLE —
+ * la valeur affichée est immédiate, le commit est différé, et l'attente se voit. Recopier la
+ * règle, c'est accepter qu'elle diverge : `/properties` avait déjà, seul, une soumission par
+ * `<form>` qui n'envoyait rien avant la touche Entrée — donc un comportement de plus pour la
+ * même barre.
+ *
+ * ⚠ Ils étaient trois quand TCK-363 a écrit ce fichier (`/users`, `/agencies`, `/properties`) ;
+ * TCK-376 en a ajouté deux (`AuditTrail`, `PropertyModerationWorkspace`). Le compte se prend à la
+ * source — `grep -rl DebouncedSearchInput src` — jamais dans cette phrase.
  *
  * ## L'indicateur n'est pas une décoration (AC4)
  *

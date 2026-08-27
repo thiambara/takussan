@@ -3058,7 +3058,8 @@
         "subject": "Type objet bi",
         "subjectAria": "Filtrer ci type objet bi",
         "search": "Seet",
-        "searchPlaceholder": "Description…"
+        "searchPlaceholder": "Description…",
+        "searchAria": "Wut ci téere bi"
       },
       "export": {
         "label": "Génne",
@@ -3452,7 +3453,8 @@
         "confirmReject": "Dëgglu bañ bi",
         "approve": "Nangu",
         "reject": "Bañ"
-      }
+      },
+      "searchAria": "Wut ab kër bu ñuy seetlu"
     },
     "agencyConfig": {
       "watermarks": {

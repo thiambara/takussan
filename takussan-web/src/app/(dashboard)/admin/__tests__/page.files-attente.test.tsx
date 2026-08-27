@@ -101,7 +101,7 @@ describe('/admin — les files d’attente d’abord (TCK-375)', () => {
   });
 
   it('monte le bloc de files AVANT les KPI', async () => {
-    render(withIntl(await Page()));
+    render(withIntl(await Page({})));
 
     const files = screen.getByTestId('bloc-files');
     const kpis = screen.getByTestId('bloc-kpis');
@@ -118,7 +118,7 @@ describe('/admin — les files d’attente d’abord (TCK-375)', () => {
 
   it('passe le compte d’impayés CALCULÉ PAR LE SERVEUR, sans requête de plus', async () => {
     mockFetchDashboard.mockResolvedValue(charge(12));
-    render(withIntl(await Page()));
+    render(withIntl(await Page({})));
 
     expect(screen.getByTestId('bloc-files')).toHaveAttribute('data-overdue', '12');
     // Une seule lecture du tableau de bord, et rien d'autre pour ce compteur.
@@ -127,7 +127,7 @@ describe('/admin — les files d’attente d’abord (TCK-375)', () => {
 
   it('transmet le `kind` de l’agence, lu et non supposé', async () => {
     mockResolveAgency.mockResolvedValue({ id: 7, kind: 'individual' });
-    render(withIntl(await Page()));
+    render(withIntl(await Page({})));
 
     expect(screen.getByTestId('bloc-files')).toHaveAttribute('data-standard', 'false');
     expect(screen.getByTestId('bloc-files')).toHaveAttribute('data-agency', '7');
@@ -135,7 +135,7 @@ describe('/admin — les files d’attente d’abord (TCK-375)', () => {
 
   it('sur un `kind` illisible, transmet « inconnu » et non « individual »', async () => {
     mockResolveAgency.mockResolvedValue(null);
-    render(withIntl(await Page()));
+    render(withIntl(await Page({})));
 
     expect(screen.getByTestId('bloc-files')).toHaveAttribute('data-standard', 'undefined');
   });
@@ -145,14 +145,14 @@ describe('/admin — les files d’attente d’abord (TCK-375)', () => {
     // simule en levant, comme le fait `redirect()` de Next.
     mockEnsureStandard.mockRejectedValue(new Error('NEXT_REDIRECT'));
 
-    await expect(Page()).rejects.toThrow('NEXT_REDIRECT');
+    await expect(Page({})).rejects.toThrow('NEXT_REDIRECT');
     // Rien n'a été demandé : la page ne charge même pas le tableau de bord.
     expect(mockFetchDashboard).not.toHaveBeenCalled();
   });
 
   it('rend l’état dégradé quand la charge est absente, sans bloc de files', async () => {
     mockFetchDashboard.mockResolvedValue(null);
-    render(withIntl(await Page()));
+    render(withIntl(await Page({})));
 
     expect(screen.queryByTestId('bloc-files')).not.toBeInTheDocument();
     expect(screen.queryByTestId('bloc-kpis')).not.toBeInTheDocument();

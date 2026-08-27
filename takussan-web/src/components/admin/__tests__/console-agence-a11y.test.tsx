@@ -42,6 +42,7 @@
  * et se corrige une fois, ailleurs.
  */
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -298,6 +299,32 @@ function interactifsEcritsALaMain(racine: HTMLElement): HTMLElement[] {
  * `attendus` est un plancher de COMPTE : sans lui, un composant qui cesserait de rendre ses
  * boutons rendrait ce test vert par vacuité — le défaut classique d'une boucle sans témoin.
  */
+function mesureUnAnneau(element: HTMLElement) {
+  const nom = element.getAttribute('aria-label')
+    ?? element.textContent?.trim().slice(0, 40)
+    ?? element.outerHTML.slice(0, 60);
+
+  const anneau = anneauDeFocus(element);
+  expect(anneau, `« ${nom} » ne déclare aucun \`focus-visible:outline-<couleur>\``).not.toBeNull();
+  // `outline-2` rend `outline-style: solid` : sans lui, `outline: auto` du navigateur garde la
+  // main et `outline-color` n'est jamais appliqué — la couleur mesurée ne servirait à rien.
+  expect(element.className, `« ${nom} » : anneau sans largeur`).toMatch(/focus-visible:outline-2\b/);
+  // La règle globale `* { outline-ring/50 }` mesure 2,12:1 sur `--card`. Le jeton doit être PLEIN.
+  expect(anneau!.alpha, `« ${nom} » : anneau à ${anneau!.alpha * 100} %`).toBe(1);
+
+  for (const fond of fondsPossibles(element)) {
+    const ratio = contraste(
+      composer(versRvb(anneau!.hex), versRvb(fond.hex), anneau!.alpha),
+      fond.hex,
+    );
+    expect(
+      ratio,
+      `« ${nom} » — ${anneau!.classe} sur ${fond.hex} (${fond.etat}, ${fond.provenance}) `
+      + `= ${fmt(ratio)}`,
+    ).toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
+  }
+}
+
 function mesureLesAnneaux(racine: HTMLElement, attendus: number) {
   const elements = interactifsEcritsALaMain(racine);
   expect(
@@ -306,31 +333,7 @@ function mesureLesAnneaux(racine: HTMLElement, attendus: number) {
     + 'minimum — le composant a-t-il cessé de les rendre ?',
   ).toBeGreaterThanOrEqual(attendus);
 
-  for (const element of elements) {
-    const nom = element.getAttribute('aria-label')
-      ?? element.textContent?.trim().slice(0, 40)
-      ?? element.outerHTML.slice(0, 60);
-
-    const anneau = anneauDeFocus(element);
-    expect(anneau, `« ${nom} » ne déclare aucun \`focus-visible:outline-<couleur>\``).not.toBeNull();
-    // `outline-2` rend `outline-style: solid` : sans lui, `outline: auto` du navigateur garde la
-    // main et `outline-color` n'est jamais appliqué — la couleur mesurée ne servirait à rien.
-    expect(element.className, `« ${nom} » : anneau sans largeur`).toMatch(/focus-visible:outline-2\b/);
-    // La règle globale `* { outline-ring/50 }` mesure 2,12:1 sur `--card`. Le jeton doit être PLEIN.
-    expect(anneau!.alpha, `« ${nom} » : anneau à ${anneau!.alpha * 100} %`).toBe(1);
-
-    for (const fond of fondsPossibles(element)) {
-      const ratio = contraste(
-        composer(versRvb(anneau!.hex), versRvb(fond.hex), anneau!.alpha),
-        fond.hex,
-      );
-      expect(
-        ratio,
-        `« ${nom} » — ${anneau!.classe} sur ${fond.hex} (${fond.etat}, ${fond.provenance}) `
-        + `= ${fmt(ratio)}`,
-      ).toBeGreaterThanOrEqual(SEUIL_NON_TEXTUEL);
-    }
-  }
+  for (const element of elements) mesureUnAnneau(element);
 }
 
 const CATALOGUE: CapabilityCatalogue = {
@@ -509,21 +512,43 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
     mesureLesAnneaux(container, 1);
   });
 
+  /**
+   * ⚠ **Ce test mesure des éléments que `interactifsEcritsALaMain` EXCLUT, et c'est délibéré.**
+   *
+   * TCK-376 a remplacé les deux `<button>` écrits à la main de ce menu par des
+   * `DropdownMenuItem` — la primitive apporte `Escape`, le clic extérieur, `aria-expanded` et la
+   * navigation au clavier, qui ne se réimplémentent pas. Elle porte donc un `data-slot`, et la
+   * règle générale de ce fichier (« les primitives `ui/` sont hors périmètre ») les sortirait du
+   * compte : le test serait vert par vacuité, l'anneau perdu sans un seul rouge.
+   *
+   * Or l'exemption ne s'applique pas ici, parce que la primitive ne fournit PAS ce qu'elle
+   * exempte : `ui/dropdown-menu.tsx` pose `outline-none` sur l'item et ne signale le focus que
+   * par `data-highlighted:bg-card` — un changement de FOND, pas un anneau. Sans classe explicite,
+   * l'indication retombe sur `* { outline-ring/50 }` de globals.css, mesurée à 2,12:1 sur
+   * `--card` : sous les 3:1 de WCAG 1.4.11. `AuditTrail` déclare donc son anneau sur les items,
+   * et c'est celui-là qu'on mesure.
+   *
+   * Deux conséquences de forme, toutes deux dues à Base UI : le menu est **portalé sous
+   * `<body>`** (donc `container` ne le voit plus — on cherche dans `document.body`), et le
+   * déclencheur veut de VRAIS événements de pointeur (`userEvent`, pas `.click()`).
+   */
   it('/admin/audit — les deux entrées du menu d’export, une fois le menu ouvert', async () => {
-    const { container } = avecQuery(<AuditTrail />);
+    const user = userEvent.setup();
+    avecQuery(<AuditTrail />);
 
-    // Le menu est conditionnel : sans ce clic, ses deux boutons ne sont pas dans le DOM et la
-    // boucle serait verte par vacuité. C'est exactement ce que le plancher de compte refuse.
+    // Le menu est conditionnel : sans cette ouverture, ses deux entrées ne sont pas dans le DOM
+    // et la boucle serait verte par vacuité. C'est ce que le plancher de compte refuse.
     const declencheur = await waitFor(() => screen.getByRole('button', { name: /Exporter/i }));
-    declencheur.click();
+    await user.click(declencheur);
 
-    const menu = await waitFor(() => {
-      const boutons = Array.from(container.querySelectorAll<HTMLElement>('button'))
-        .filter((b) => b.textContent === 'CSV' || b.textContent?.startsWith('Excel'));
-      expect(boutons).toHaveLength(2);
-      return boutons[0].parentElement as HTMLElement;
+    const entrees = await waitFor(() => {
+      const trouvees = Array.from(
+        document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+      ).filter((e) => e.textContent === 'CSV' || e.textContent?.startsWith('Excel'));
+      expect(trouvees).toHaveLength(2);
+      return trouvees;
     });
 
-    mesureLesAnneaux(menu, 2);
+    for (const entree of entrees) mesureUnAnneau(entree);
   });
 });
