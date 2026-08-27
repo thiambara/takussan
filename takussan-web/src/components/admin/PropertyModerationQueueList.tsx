@@ -27,7 +27,7 @@ export function PropertyModerationQueueList({
       {properties.map((property) => {
         const isSelected = property.id === selectedId;
         return (
-          <li key={property.id}>
+          <li key={property.id} data-testid={`property-queue-item-${property.id}`}>
             <button
               type="button"
               onClick={() => onSelect(property)}

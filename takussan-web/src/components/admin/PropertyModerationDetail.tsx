@@ -72,7 +72,7 @@ export function PropertyModerationDetail({
   return (
     <section className="rounded-xl bg-card p-6">
       <div className="mb-6 flex flex-col gap-1">
-        <h2 className="text-lg font-semibold text-foreground">{property.title}</h2>
+        <h2 data-testid="property-moderation-detail" className="text-lg font-semibold text-foreground">{property.title}</h2>
         <p className="text-sm text-muted-foreground">
           {property.reference_number}
           {property.agency ? ` · ${property.agency.name}` : ''}

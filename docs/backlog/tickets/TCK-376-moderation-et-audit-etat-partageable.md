@@ -105,4 +105,56 @@ d'écran, la cellule reste du texte plutôt qu'un lien mort.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+_(TCK-376, 2026-08-27 — frontmatter délibérément intouché : la vague le fait à la fusion.)_
+
+### Ce que la re-mesure a contredit dans le ticket
+
+- **« `AuditTrail.tsx:280` »** — le menu était aux lignes **298-315** sur `origin/dev`. Le
+  reste du constat tenait mot pour mot : `<div>` + `useState`, ni `Escape`, ni clic extérieur,
+  ni `aria-expanded`.
+- **Le contrat de données était déjà tenu côté queries, pas côté écrans.**
+  `fetchModerationQueue` et `fetchPropertyModerationQueue` acceptaient DÉJÀ `page` / `perPage`
+  et les sérialisaient correctement — seuls les deux workspaces ne les passaient jamais. La
+  pagination n'était donc pas à écrire, elle était à **brancher**.
+- **La recherche de `/admin/moderation/properties` a le même défaut que celle du journal**, et
+  le ticket ne la nomme pas. Elle est traitée : la porter dans l'URL SANS temporisation aurait
+  ajouté une entrée d'historique par frappe aux dix requêtes existantes.
+- **`Invoice` et `User` sont dans le sélecteur de filtre du journal et n'ont aucun écran
+  `[id]`.** Vingt modèles portent `use Auditable` côté API ; le front n'expose une page par
+  identifiant que pour quatre d'entre eux. C'est ce qui condamne la résolution par convention
+  (`Property` → `/properties`) : elle aurait produit des liens morts pour la moitié des types.
+
+### Les trois décisions
+
+1. **`useEtatUrl` (`src/hooks/useEtatUrl.ts`) rend le retour à la page 1 STRUCTUREL.** Il
+   n'expose aucun chemin qui pose un filtre sans retirer `page` et `selected`. C'est la réponse
+   directe à ce que la revue adverse de TCK-363 a relevé : le `params.delete('page')` était
+   écrit à la main sur un écran sur trois, parce que rien ne l'imposait.
+2. **Les clés d'URL portent le nom du filtre d'API** (`filter[moderation_status]`,
+   `filter[subject_type]`, `filter[search]`), comme `/admin/team` et `/admin/users` l'avaient
+   déjà tranché. Aucune table de correspondance entre deux vocabulaires à tenir.
+3. **`DebouncedSearchInput` est repris de TCK-363 avec deux correctifs**, décrits dans son
+   propre docblock : le brouillon n'est plus resynchronisé sur NOTRE commit (le champ avalait
+   les espaces — « Dakar Immo » devenait « DakarImmo »), et l'indicateur d'attente compare des
+   valeurs REPLIÉES (il ne s'éteignait jamais sur une saisie d'espaces seuls). ⚠ **Collision de
+   fusion attendue** avec la branche de TCK-363 sur ce fichier et sur `console.search.pending`.
+
+### Vérifié par ablation (chaque test rougit sans son correctif)
+
+| Ce qu'on retire | Ce qui rougit |
+|---|---|
+| `params.delete('page' \| 'selected')` de `poserFiltres` | 4 tests de `useEtatUrl` |
+| le brouillon resynchronisé comme dans TCK-363 | 3 tests de `DebouncedSearchInput` (a et b) |
+| `CONSOLE_SEARCH_DEBOUNCE_MS` à 0 | 2 tests AC3 (journal + file de biens) |
+| la cellule « Objet » redevenue du texte | 4 tests AC4 |
+| le menu d'export redevenu `<div>` + `useState` | 6 tests AC5 |
+| `page` / `perPage` et `<Pagination>` des deux files | 8 tests AC1/AC2 |
+| une destination pointant sur une route absente | 3 tests de `audit-subject-links` |
+
+### Reste
+
+- La cellule « Objet » n'ouvre pas les seize autres types audités (`Payout`, `KycDossier`,
+  `Announcement`, …) : ils n'ont pas d'écran par identifiant. L'ajout se fait en une ligne dans
+  `DESTINATIONS`, et la garde vérifie sur le disque que la route existe.
+- Le sélecteur « Type d'objet » du journal ne propose que six types sur vingt audités —
+  hors périmètre, c'est un choix produit.

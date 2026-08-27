@@ -42,6 +42,9 @@
       "next": "Next",
       "position": "Page {page} of {lastPage}",
       "positionSlash": "Page {page} / {lastPage}"
+    },
+    "search": {
+      "pending": "Searching…"
     }
   },
   "nav": {
@@ -4079,7 +4082,8 @@
         "subject": "Object type",
         "subjectAria": "Filter by object type",
         "search": "Search",
-        "searchPlaceholder": "Description…"
+        "searchPlaceholder": "Description…",
+        "searchAria": "Search the audit trail"
       },
       "export": {
         "label": "Export",
@@ -4373,7 +4377,8 @@
         "confirmReject": "Confirm the rejection",
         "approve": "Approve",
         "reject": "Reject"
-      }
+      },
+      "searchAria": "Search a property to review"
     },
     "agencyConfig": {
       "successSaved": "Changes saved.",
