@@ -4354,6 +4354,40 @@
           "owners": "Propriétaires"
         },
         "invite": "Inviter"
+      },
+      "invitations": {
+        "title": "Invitations en attente",
+        "subtitle": "Sans réponse pour l'instant.",
+        "error": "Impossible de charger les invitations en attente.",
+        "columns": {
+          "email": "Destinataire",
+          "role": "Rôle",
+          "sentAt": "Envoyée le",
+          "actions": "Actions"
+        },
+        "roles": {
+          "owner": "Propriétaire",
+          "agent": "Agent",
+          "agent_senior": "Agent senior",
+          "agent_manager": "Responsable d'agents",
+          "agency_admin": "Administrateur",
+          "service_provider": "Prestataire"
+        },
+        "actions": {
+          "resend": "Relancer",
+          "revoke": "Annuler"
+        },
+        "toasts": {
+          "resendSuccess": "Invitation renvoyée à {email}.",
+          "revokeSuccess": "Invitation de {email} annulée.",
+          "errorTitle": "L'action n'a pas abouti."
+        },
+        "revokeDialog": {
+          "title": "Annuler cette invitation ?",
+          "description": "Le lien déjà envoyé à {email} cessera de fonctionner. Vous pourrez l'inviter à nouveau.",
+          "cancel": "Conserver",
+          "confirm": "Annuler l'invitation"
+        }
       }
     },
     "propertyModeration": {
