@@ -35,6 +35,28 @@ export default async function ProfilePage() {
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
       <ProfileSecuritySection />
 
+      {/*
+        TCK-379 — `/app/account/privacy` (portabilité RGPD) n'avait AUCUN lien entrant dans tout
+        le front : ni la barre latérale, ni le menu utilisateur, ni cette page. L'écran existait,
+        il était injoignable. Il est posé ici et pas ailleurs parce que l'export de ses données
+        est le PENDANT de la suppression de compte, qui vit dans `ProfileSecuritySection`
+        juste au-dessus : les deux droits RGPD se lisent au même endroit.
+      */}
+      <section className="rounded-2xl bg-card p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">{t('privacy')}</h2>
+            <p className="text-sm text-muted-foreground">{t('privacyBody')}</p>
+          </div>
+          <Link
+            href="/app/account/privacy"
+            className={buttonVariants({ variant: 'outline' })}
+          >
+            {t('managePrivacy')}
+          </Link>
+        </div>
+      </section>
+
       <section className="rounded-2xl bg-card p-6">
         <div className="flex items-center justify-between gap-3">
           <div>

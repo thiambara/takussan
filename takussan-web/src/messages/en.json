@@ -1267,7 +1267,10 @@
       "managePrefs": "Manage preferences",
       "reviews": "Reviews",
       "reviewsBody": "Stays and leases you can publicly review.",
-      "seeReviews": "View my reviews"
+      "seeReviews": "View my reviews",
+      "privacy": "My personal data",
+      "privacyBody": "Request an archive of your data and follow your exports.",
+      "managePrivacy": "Manage my data"
     },
     "notificationPrefs": {
       "metaTitle": "Notification preferences",
@@ -1360,7 +1363,8 @@
       "customers": {
         "title": "Customers (CRM)",
         "subtitle": "Track your contacts, their pipeline stages and their documents.",
-        "add": "Add a customer"
+        "add": "Add a customer",
+        "pipelineView": "Pipeline view"
       },
       "customerNew": {
         "metaTitle": "Add a customer",
@@ -3901,7 +3905,8 @@
       "next": "Next",
       "pagination": "Page {current} / {last} — {total} entries",
       "conductedOn": "Carried out on {date}",
-      "createdOn": "Created on {date}"
+      "createdOn": "Created on {date}",
+      "create": "New inventory"
     },
     "new": {
       "no_lease_title": "No lease selected",
@@ -4021,6 +4026,15 @@
       "downloading": "Downloading…",
       "failed": "Download failed.",
       "unavailable": "PDF unavailable ({status})."
+    },
+    "pickLease": {
+      "title": "Pick a lease",
+      "description": "The lease determines the property and the tenant of the inventory.",
+      "empty": "No lease to inventory yet.",
+      "emptyCta": "See leases",
+      "error": "Could not load leases.",
+      "loading": "Loading leases…",
+      "select": "Start"
     }
   },
   "admin": {

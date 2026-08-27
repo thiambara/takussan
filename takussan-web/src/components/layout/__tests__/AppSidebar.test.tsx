@@ -135,10 +135,11 @@ const HREFS_AVANT_TICKET: Record<UserRole, string[]> = {
     '/app/overview', '/app/overview/exports', '/app/customers', '/app/inventories',
     '/app/visits', '/app/calendar',
   ],
-  service_provider: [
-    '/app', '/app/favorites', '/app/saved-searches', '/app/maintenance', '/app/messages',
-    '/app/documents', '/app/overview', '/app/bookings', '/app/visits', '/app/leases',
-  ],
+  // TCK-379 — ce relevé figeait le comportement d'AVANT : le prestataire recevait
+  // favoris, recherches sauvegardées, statistiques, réservations, visites et baux, dont
+  // `docs/features.md` §2.5 ne lui accorde rien. La liste suit le correctif, elle ne le
+  // précède pas — et `AppSidebar.audience.test.tsx` mesure la même chose autrement.
+  service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
   super_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
     '/app/bookings', '/app/leases', '/app/maintenance', '/app/maintenance/providers',
@@ -342,12 +343,25 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
     expect(countersToPoll(cadenasse).size).toBe(0);
   });
 
-  it('⚠ mesuré : aucun des sept rôles ne perd aujourd’hui une entrée comptée', () => {
-    // Le constat est épinglé pour que sa disparition se voie : `/app/messages` et `/app/visits`
-    // sont poussées sans garde de rôle. Si TCK-379 en gardait une, ce test rougirait — et c'est
-    // à ce moment-là que la branche `enabled: false` deviendrait observable à l'écran.
+  it('un rôle ne sonde QUE les compteurs des entrées qu’il reçoit', () => {
+    // ⚠ Ce test disait autre chose il y a une heure. Son auteur (TCK-377) avait épinglé le
+    // constat « aucun des sept rôles ne perd une entrée comptée » et écrit, à la ligne
+    // suivante : « si TCK-379 en gardait une, ce test rougirait — et c'est à ce moment-là que
+    // la branche `enabled: false` deviendrait observable à l'écran. »
+    //
+    // C'est exactement ce qui est arrivé à la fusion : TCK-379 a retiré `/app/visits` au
+    // prestataire, et le constat est passé au rouge. Le remettre à `2` aurait été effacer la
+    // mesure ; le figer à `1` pour ce rôle aurait été recopier le résultat. Il devient donc
+    // l'assertion qu'il annonçait : le jeu sondé est EXACTEMENT celui des entrées comptées
+    // que le rôle reçoit — ce qui rougit aussi bien si un compteur s'arme sans son entrée que
+    // si une entrée comptée cesse d'être sondée.
     for (const role of Object.keys(HREFS_AVANT_TICKET) as UserRole[]) {
-      expect(countersToPoll(buildNavItems(userWith([role]))).size).toBe(2);
+      const items = buildNavItems(userWith([role]));
+      const attendus = new Set(
+        items.filter((item) => item.counterKey && !item.locked).map((item) => item.counterKey),
+      );
+      expect(countersToPoll(items)).toEqual(attendus);
+      expect(attendus.size).toBeGreaterThan(0);
     }
   });
 });

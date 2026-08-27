@@ -1243,7 +1243,10 @@
       "managePrefs": "Gérer les préférences",
       "reviews": "Avis",
       "reviewsBody": "Séjours et baux sur lesquels vous pouvez laisser un avis public.",
-      "seeReviews": "Voir mes avis"
+      "seeReviews": "Voir mes avis",
+      "privacy": "Mes données personnelles",
+      "privacyBody": "Demandez une archive de vos données et suivez vos exports.",
+      "managePrivacy": "Gérer mes données"
     },
     "notificationPrefs": {
       "metaTitle": "Préférences de notifications",
@@ -1336,7 +1339,8 @@
       "customers": {
         "title": "Clients (CRM)",
         "subtitle": "Suivez vos contacts, leurs étapes de pipeline et leurs documents.",
-        "add": "Ajouter un client"
+        "add": "Ajouter un client",
+        "pipelineView": "Vue pipeline"
       },
       "customerNew": {
         "metaTitle": "Ajouter un client",
@@ -3901,7 +3905,8 @@
       "next": "Suivant",
       "pagination": "Page {current} / {last} — {total} entrées",
       "conductedOn": "Réalisé le {date}",
-      "createdOn": "Créé le {date}"
+      "createdOn": "Créé le {date}",
+      "create": "Nouvel état des lieux"
     },
     "new": {
       "no_lease_title": "Aucun bail sélectionné",
@@ -4021,6 +4026,15 @@
       "downloading": "Téléchargement…",
       "failed": "Téléchargement impossible.",
       "unavailable": "PDF indisponible ({status})."
+    },
+    "pickLease": {
+      "title": "Choisir un bail",
+      "description": "Le bail détermine le bien et le locataire de l'état des lieux.",
+      "empty": "Aucun bail à inventorier pour le moment.",
+      "emptyCta": "Voir les baux",
+      "error": "Impossible de charger les baux.",
+      "loading": "Chargement des baux…",
+      "select": "Démarrer"
     }
   },
   "admin": {
