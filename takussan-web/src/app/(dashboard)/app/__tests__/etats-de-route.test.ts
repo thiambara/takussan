@@ -23,11 +23,22 @@ import { fileURLToPath } from 'node:url';
  *   Toute page qui `await` une donnée serveur a un `loading.tsx` dans SON segment,
  *   ou dans un segment ancêtre STRICTEMENT SOUS `app/`.
  *
- * `app/loading.tsx` couvre donc `app/page.tsx` — sa propre page — et rien d'autre. Une page
- * ajoutée demain sous `app/<neuf>/` sans repli rougit ici.
+ * ⚠ **Cette phrase décrit la RÈGLE DE CE TEST, pas Next.** Une première rédaction disait
+ * « `app/loading.tsx` couvre `app/page.tsx` et rien d'autre », ce qui est faux du framework :
+ * mesuré le 2026-08-27 sur Next 16.3.1, un repli ANCÊTRE efface le statut d'une page profonde
+ * exactement comme un repli de segment (sonde `ancetre/enfant` → 200 au lieu de 404). C'est le
+ * test qui refuse de compter un repli racine, parce qu'un squelette posé trois niveaux plus haut
+ * n'a pas la forme de la page — pas Next qui l'ignorerait.
+ *
+ * TCK-426 a supprimé la question : `app/loading.tsx` a été DÉPLACÉ dans le groupe
+ * `app/(accueil)/`. Il n'existe plus de repli à la racine de `/app`, donc plus d'ancêtre
+ * universel. Une page ajoutée demain sous `app/<neuf>/` sans repli rougit ici.
  *
  * Vérifié par ablation le 2026-08-27 : `mv app/bookings/loading.tsx` → 1 page en échec ;
- * `mv app/overview/loading.tsx` → 7 pages en échec.
+ * `mv app/overview/loading.tsx` → 7 pages en échec. ⚠ La seconde n'est plus reproductible telle
+ * quelle : TCK-426 a supprimé `overview/loading.tsx` et l'a descendu dans les SEPT vues, pour
+ * sortir l'aiguilleur `overview/page.tsx` de sa portée. Retirer l'un des sept replis rend
+ * aujourd'hui 1 page en échec, pas 7.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * CE QUE CES REPLIS COÛTENT — mesuré, assumé, et écrit ici pour ne pas être redécouvert
@@ -207,11 +218,79 @@ describe('TCK-382 — inventaire', () => {
   });
 });
 
+/**
+ * TCK-426 — LE STATUT HTTP, et la seule règle du sujet qui n'admette AUCUNE exception.
+ *
+ * Le mécanisme, mesuré le 2026-08-27 sur Next 16.3.1 par sondes jetables sous `next dev`
+ * (port 3999, huit formes, `curl -w '%{http_code}'`) :
+ *
+ *   | ce qui décide          | repli en scope        | statut |
+ *   |------------------------|-----------------------|--------|
+ *   | page `notFound()`      | aucun                 | 404    |
+ *   | page `notFound()`      | même segment          | 200    |
+ *   | page `notFound()`      | segment ANCÊTRE       | 200    |
+ *   | page `redirect()`      | aucun                 | 307    |
+ *   | page `redirect()`      | même segment          | 200    |
+ *   | page `redirect()` SYNCHRONE (non `async`) | même segment | 200 |
+ *   | page `permanentRedirect()` | aucun / avec repli | 308 / 200 |
+ *   | **layout** `redirect()` | repli DU MÊME SEGMENT | **307**, et le repli couvre la page |
+ *   | **layout** `redirect()` | repli ANCÊTRE         | 200    |
+ *
+ * D'où la règle : *un statut survit si et seulement si il est décidé STRICTEMENT AU-DESSUS de
+ * toute frontière de suspension de son chemin.* Un `layout.tsx` est au-dessus du `loading.tsx`
+ * de SON segment, et en dessous de celui de tous ses ancêtres.
+ *
+ * Ce test ne garde qu'un cas, mais il le garde sans exception : **une page qui ne rend aucun
+ * document ne doit vivre sous aucune frontière.** L'échange « statut contre squelette » est
+ * défendable quand il y a un squelette à montrer ; ici il n'y en a pas — la page ne rend rien,
+ * jamais. Elle payait son statut pour rien.
+ *
+ * Ce que ce test NE garde PAS, et qui reste dû : les 24 `redirect()` et 9 `notFound()` des pages
+ * qui, elles, rendent un document. Le remède est mesuré (ligne « layout » du tableau) mais il
+ * demande de remonter la décision dans un `layout.tsx` par segment. Chiffré et priorisé dans
+ * TCK-426 — *ce fichier dit ce qu'il garde, pas ce qu'on aimerait qu'il garde.*
+ */
+describe('TCK-426 — aucune page muette sous une frontière de suspension', () => {
+  it('aucune redirection nue de /app ne vit sous un loading.tsx', () => {
+    const sous: string[] = [];
+    for (const page of PAGES.filter(estUneRedirectionSeule)) {
+      let dossier = page.segment;
+      for (;;) {
+        if (existsSync(join(dossier, 'loading.tsx'))) {
+          const ou = relative(APP, dossier);
+          sous.push(`${page.rel} ← ${ou ? `${ou}/loading.tsx` : 'app/loading.tsx (RACINE)'}`);
+          break;
+        }
+        if (dossier === APP) break;
+        dossier = dirname(dossier);
+      }
+    }
+    expect(
+      sous,
+      'ces pages ne rendent rien et perdent pourtant leur statut HTTP : ' + sous.join(', '),
+    ).toEqual([]);
+  });
+
+  it("il n'existe plus de repli à la RACINE de /app", () => {
+    // Le cas le plus coûteux et le plus invisible : posé là, un repli est l'ancêtre de TOUT
+    // `/app` et efface le statut de chaque page du sous-arbre qui n'en a pas de plus proche.
+    // Il vit désormais dans le groupe `(accueil)`, qui ne consomme aucun segment d'URL.
+    expect(existsSync(join(APP, 'loading.tsx'))).toBe(false);
+    expect(existsSync(join(APP, '(accueil)', 'loading.tsx'))).toBe(true);
+    expect(existsSync(join(APP, '(accueil)', 'page.tsx'))).toBe(true);
+  });
+});
+
 describe('TCK-382 / AC1 — l’attente', () => {
   it('chaque page qui attend une donnée serveur a son propre repli', () => {
     const manquantes: string[] = [];
     for (const page of PAGES) {
       if (!attendUneDonneeServeur(page)) continue;
+      // TCK-426 — une page qui ne rend AUCUN document n'a rien à montrer pendant qu'elle
+      // attend : un repli au-dessus d'elle ne lui apporte rien et lui coûte son statut HTTP.
+      // L'exemption est DÉRIVÉE (`estUneRedirectionSeule`), pas listée, et la règle qui suit
+      // ce bloc l'oblige dans l'autre sens : ces pages ne doivent PAS être couvertes.
+      if (estUneRedirectionSeule(page)) continue;
       let dossier = page.segment;
       let couverte = false;
       // `app/loading.tsx` ne couvre que `app/page.tsx` : la boucle s'arrête AVANT de remonter

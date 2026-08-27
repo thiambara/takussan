@@ -74,6 +74,102 @@ jetables.
    `properties/[slug]/loading.tsx` pour rendre un vrai 404 à l'indexation ;
    `(public)/properties/[slug]/__tests__/pas-de-frontiere-de-suspension.test.ts` le garde.
 
+## Re-mesure et décision (2026-08-27)
+
+### 1. Les chiffres du corps tiennent tous
+
+Recomptés avant d'écrire une ligne, script confrontant l'arbre à lui-même, source débarrassée de
+ses commentaires : **37 `loading.tsx`** sous `/app` (dont `app/loading.tsx` à la racine),
+**32 `redirect()`/`permanentRedirect()` sur 15 pages**, répartition identique à la ligne près.
+Rien à corriger. Le relevé ajoute ce que le corps ne donnait pas : **9 `notFound()` sur 8 pages de
+détail**, toutes couvertes par leur propre repli — et non le seul `properties/[id]` de la note.
+
+**21 pages de `/app` décident d'un statut. Les 21 sont couvertes par un repli.** Une seule
+(`/app/crm`) l'est par le repli RACINE seul — c'est-à-dire que le geste « `app/(accueil)` », que
+ce ticket présentait comme rendant leur statut « à `crm` et à toute page sans repli propre »,
+n'en libère **qu'une**. La seconde moitié de la phrase désigne l'ensemble vide.
+
+### 2. Le mécanisme, mesuré — huit formes, pas deux
+
+Sondes jetables sous `next dev` (Next 16.3.1, port 3999, `curl -w '%{http_code}'`), pages nues
+hors `(dashboard)`, supprimées après mesure :
+
+| ce qui décide | repli en portée | statut |
+|---|---|---|
+| page `notFound()` | aucun | **404** |
+| page `notFound()` | même segment | **200** |
+| page `notFound()` | segment **ancêtre** | **200** |
+| page `redirect()` | aucun | **307** + `Location` |
+| page `redirect()` | même segment | **200** |
+| page `redirect()` **synchrone** (non `async`) | même segment | **200** |
+| page `permanentRedirect()` | aucun / avec repli | **308** / **200** |
+| **`layout.tsx`** `redirect()` | repli **du même segment** | **307**, *et le repli couvre toujours la page* |
+| **`layout.tsx`** `redirect()` | repli **ancêtre** | **200** |
+
+D'où la règle, qui n'était écrite nulle part :
+
+> **Un statut survit si et seulement s'il est décidé STRICTEMENT AU-DESSUS de toute frontière de
+> suspension de son chemin.** Un `layout.tsx` est au-dessus du `loading.tsx` de SON segment, et
+> en dessous de celui de tous ses ancêtres.
+
+Deux conséquences que le ticket ne pouvait pas avoir :
+
+- **Le remède qu'il proposait — le groupe de routes — n'est pas le bon.** Il coûte un remaniement
+  de répertoires et, ici, ne libère qu'une page.
+- **Le remède qu'il n'esquissait qu'en passant — remonter la décision dans le `layout.tsx` du
+  segment — est mesuré, et il ne coûte AUCUN squelette** : ligne 8 du tableau, le repli continue
+  de couvrir la page (TTFB 0,063 s sur une page qui dort 2 s) pendant que le `redirect()` du
+  layout rend un vrai 307. C'est le remède à retenir. Il ne s'applique **pas** aux six vues de
+  `overview/*` tant que le repli est chez leur parent (ligne 9).
+- Et il n'existe **aucune** échappatoire par la synchronicité : une page non-`async` perd son
+  statut exactement comme une page `async`.
+
+### 3. Ce qui est FAIT dans ce ticket
+
+Deux gestes, choisis parce qu'ils sont **dérivables d'une règle sans exception** :
+
+1. **`app/page.tsx` et `app/loading.tsx` passent dans le groupe `app/(accueil)/`.** Il n'existe
+   plus de frontière à la racine de `/app` — donc plus d'ancêtre universel. `/app` est servie à
+   l'identique (un groupe ne consomme aucun segment) et garde son squelette. **Coût mesuré : une
+   seule page perdait ce repli, `/app/crm`**, qui ne rend aucun document. Elle retrouve son 308,
+   celui que son commentaire dit exister pour les liens en favori.
+2. **`overview/loading.tsx` descend dans les SEPT vues** (`agency`, `agent`, `alerts`, `exports`,
+   `kpis`, `owner`, `tenant`). Chaque vue garde son squelette ; l'aiguilleur par rôle
+   `overview/page.tsx` — **7 des 32 `redirect()`, la plus grosse concentration du dépôt, et la
+   page que tout utilisateur traverse** — sort de la portée du repli et retrouve son 307.
+
+La règle qui les dérive, et qui est désormais gardée **sans aucune exception** dans
+`app/__tests__/etats-de-route.test.ts` :
+
+> **Une page qui ne rend AUCUN document ne vit sous aucune frontière de suspension.**
+
+L'échange « statut contre squelette » se défend quand il y a un squelette à montrer. Sur une
+redirection nue il n'y en a pas : la page ne rend jamais rien, et payait son statut pour un
+squelette que personne ne voit. Les deux seules pages muettes de `/app` sont exactement `crm` et
+`overview` (le test le dérive, il ne le liste pas). Ablation jouée dans les deux sens : remettre
+`app/loading.tsx` → rouge sur les deux ; remettre `overview/loading.tsx` → rouge sur `overview`.
+
+### 4. Ce qui n'est PAS fait, et ce que ça coûterait
+
+**24 `redirect()` et 9 `notFound()` restent sous une frontière**, sur des pages qui, elles,
+rendent un document. Le remède est connu et mesuré (ligne 8 du tableau) mais il n'est pas gratuit :
+
+| famille | pages | appels | ce que ça demande |
+|---|---|---|---|
+| refus d'autorisation / d'authentification, repli du **même** segment | `owners`, `maintenance/providers`, `settings/agency/upgrade`, `customers`, `properties`, `customers/[id]`, `properties/[id]` | 17 | un `layout.tsx` par segment + sortir la garde de la page ; la garde y interroge déjà `getMeAction()` et `resolveAgencyOrNull`, tous deux mémoïsés par requête — donc aucun appel d'API de plus |
+| refus d'autorisation, repli **ancêtre** (`overview/`) | `overview/{agency,agent,alerts,exports,kpis,owner}` | 6 | désormais possible : leur repli est chez elles depuis le geste 2, un `layout.tsx` par vue suffit |
+| `notFound()` sur ressource absente | 8 pages de détail | 9 | remonter la REQUÊTE dans le layout, pas seulement la décision — le seul cas qui change la forme des pages |
+
+Les trois pages qui font une redirection d'**authentification en page** (`owners`,
+`maintenance/providers`, `settings/agency/upgrade`) sont dans la première ligne : elles restent le
+premier lot à traiter.
+
+⚠ **Ce qui n'a pas pu être vérifié ici** : aucune de ces mesures n'a été prise sur une page réelle
+de `/app`. Elles exigent une session authentifiée et une API servie, et ce worktree n'en a pas
+(`takussan-api/vendor` n'y est pas installé). Le mécanisme est établi sur des sondes exécutées par
+le VRAI Next 16.3.1 du dépôt ; son application aux pages réelles est déduite de l'arbre, pas
+observée. *Le dire est moins coûteux que de le laisser croire.*
+
 ## Ce qu'il resterait à décider
 
 - Un statut juste et un repli visible sont-ils conciliables ? La piste connue est le **groupe de
@@ -94,3 +190,4 @@ jetables.
 ## Hors périmètre
 
 - Le catalogue public, déjà tenu par TCK-335.
+- Les 24 `redirect()` et 9 `notFound()` du § 4 : mesurés, chiffrés, non traités ici.

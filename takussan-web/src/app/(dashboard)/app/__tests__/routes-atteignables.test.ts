@@ -61,7 +61,11 @@ function routesStatiques(): { route: string; dossier: string }[] {
       } else if (entree.name === 'page.tsx') {
         const relatif = path.relative(APP, dir).split(path.sep).filter(Boolean);
         if (relatif.some((s) => s.startsWith('['))) continue; // routes dynamiques
-        sortie.push({ route: ['/app', ...relatif].join('/'), dossier: dir });
+        // TCK-426 — un GROUPE de routes `(nom)` ne consomme aucun segment d'URL. Sans cette
+        // ligne, `app/(accueil)/page.tsx` était relevée comme la route `/app/(accueil)`, que
+        // rien ne peut citer : le test rougissait sur une route qui n'existe pas.
+        const segments = relatif.filter((s) => !/^\(.*\)$/.test(s));
+        sortie.push({ route: ['/app', ...segments].join('/'), dossier: dir });
       }
     }
   };
