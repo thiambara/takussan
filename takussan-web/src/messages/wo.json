@@ -3326,6 +3326,40 @@
           "owners": "Boroom kër yi"
         },
         "invite": "Woo"
+      },
+      "invitations": {
+        "title": "Woote yiy xaar",
+        "subtitle": "Amaguñu tontu.",
+        "error": "Mënunu yeb woote yiy xaar.",
+        "columns": {
+          "email": "Ku ñu ko yónnee",
+          "role": "Palaas",
+          "sentAt": "Bés bi ñu ko yónnee",
+          "actions": "Jëf yi"
+        },
+        "roles": {
+          "owner": "Boroom kër",
+          "agent": "Agent",
+          "agent_senior": "Agent bu mag",
+          "agent_manager": "Kilifa agent yi",
+          "agency_admin": "Administrateur",
+          "service_provider": "Liggéeykat"
+        },
+        "actions": {
+          "resend": "Yónneeat",
+          "revoke": "Neenal"
+        },
+        "toasts": {
+          "resendSuccess": "Woote bi yónneewaat nañu ko {email}.",
+          "revokeSuccess": "Woote bu {email} neenal nañu ko.",
+          "errorTitle": "Jëf bi jotewul."
+        },
+        "revokeDialog": {
+          "title": "Neenal woote bii ?",
+          "description": "Lëkkalekaay bi ñu yónnee {email} du dox ba tey. Mën ngeen koo woowaat.",
+          "cancel": "Bàyyi ko",
+          "confirm": "Neenal woote bi"
+        }
       }
     },
     "propertyModeration": {

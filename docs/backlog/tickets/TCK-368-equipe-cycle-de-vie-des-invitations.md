@@ -86,4 +86,38 @@ L'écran `/app/owners` a déjà tranché ces questions : s'en inspirer plutôt q
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**AC1 n'est pas atteignable, et ce n'est pas un manque de câblage.** Mesuré le 2026-08-27 : le
+bouton « Inviter » de `/admin/team` appelle `POST /api/agencies/{id}/members`
+(`AgencyController::addAgent`), qui **exige un `User` déjà inscrit** et attache les profils
+directement — **aucune ligne `invitations` n'est créée**. L'endpoint qui en crée une,
+`POST /api/agencies/{agency}/agents/invite` (TCK-258, complet jusqu'au mail et au garde
+`kind=individual`), **n'a aucun appelant dans le front**. Le raccorder change la sémantique de
+l'écran (rôles offerts, champs du formulaire, sort du cas `agency_admin` qu'aucun chemin
+d'invitation ne couvre) — c'est une décision de parcours, pas le « câblage » que ce ticket
+annonce. → **[TCK-392](TCK-392-inviter-depuis-admin-team-nenvoie-aucune-invitation.md)**.
+
+Ce qui est livré ici tient sans lui : la zone liste **toutes** les invitations en attente de
+l'agence, y compris celles que les assistants Propriétaire et Prestataire créent déjà. Et
+l'invalidation croisée est en place des deux côtés, si bien que le jour où TCK-392 passe, AC1
+est vrai sans toucher à ce code.
+
+**Le rôle est affiché, donc la zone n'est pas bornée aux rôles internes.** « Chaque ligne dit à
+qui, **quel rôle**, depuis quand » suppose plusieurs rôles. Filtrer sur `agent|agency_admin`
+aurait rendu la zone vide en pratique (cf. ci-dessus) tout en cachant les seules invitations qui
+existent réellement.
+
+**Pas d'`include=`, délibérément.** `InvitationResource::toArray()` n'émet aucune relation :
+un `include=inviter` serait chargé côté serveur puis jeté à la sérialisation.
+
+**Les deux mutations sont ré-exportées depuis `owners.ts`, pas réécrites** — `service-providers.ts`
+en porte déjà une seconde copie mot pour mot (lignes 144 et 154). Un test compare les identités de
+fonction (`expect(resendInvitation).toBe(owners.resendInvitation)`) : une troisième déclaration,
+même à corps identique, le ferait rougir.
+
+**`is_expired` (TCK-367) n'est pas consommé ici** : l'expiration n'est ni dans le delta ni dans
+les AC, et la zone ne montre que les `sent`. Le champ reste disponible le jour où on l'ajoute.
+
+Ablations vérifiées (8, toutes rouges puis vert restauré) : garde `individual` retirée · révocation
+câblée sans confirmation · zone qui ne se replie plus · `filter[agency_id]` renvoyé par le front ·
+relance muette · `visibleScope` sans borne d'agence · relance qui duplique la ligne · `revoke()` qui
+ne change pas le statut.

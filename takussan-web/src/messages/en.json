@@ -4375,6 +4375,40 @@
           "owners": "Owners"
         },
         "invite": "Invite"
+      },
+      "invitations": {
+        "title": "Pending invitations",
+        "subtitle": "No answer yet.",
+        "error": "Pending invitations could not be loaded.",
+        "columns": {
+          "email": "Recipient",
+          "role": "Role",
+          "sentAt": "Sent on",
+          "actions": "Actions"
+        },
+        "roles": {
+          "owner": "Owner",
+          "agent": "Agent",
+          "agent_senior": "Senior agent",
+          "agent_manager": "Agent manager",
+          "agency_admin": "Administrator",
+          "service_provider": "Service provider"
+        },
+        "actions": {
+          "resend": "Resend",
+          "revoke": "Cancel"
+        },
+        "toasts": {
+          "resendSuccess": "Invitation resent to {email}.",
+          "revokeSuccess": "Invitation for {email} cancelled.",
+          "errorTitle": "The action did not go through."
+        },
+        "revokeDialog": {
+          "title": "Cancel this invitation?",
+          "description": "The link already sent to {email} will stop working. You can invite them again.",
+          "cancel": "Keep",
+          "confirm": "Cancel invitation"
+        }
       }
     },
     "propertyModeration": {

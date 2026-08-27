@@ -7,6 +7,7 @@ import { UserPlus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
+import { agencyInvitationKeys } from '@/lib/queries/agency-invitations';
 
 /**
  * Le déclencheur « Inviter » de `/admin/team`, autoportant.
@@ -19,6 +20,10 @@ import { InviteMemberDialog } from '@/components/admin/InviteMemberDialog';
  *
  * L'invalidation passe par la clé `['admin-users']`, la même que celle du console : c'est ce qui
  * fait que la liste se rafraîchit alors que les deux composants ne se connaissent pas.
+ *
+ * TCK-368 — elle porte aussi `['agency-invitations']`, pour la même raison et par le
+ * même chemin : la zone des invitations en attente vit sous ce bouton sans le
+ * connaître, et doit se remettre à jour sans rechargement de page.
  */
 export function InviteMemberButton({ agencyId }: { readonly agencyId: number }) {
   const t = useTranslations('admin.team.console');
@@ -35,7 +40,10 @@ export function InviteMemberButton({ agencyId }: { readonly agencyId: number }) 
         agencyId={agencyId}
         open={open}
         onOpenChange={setOpen}
-        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['admin-users'] })}
+        onSuccess={() => {
+          void queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+          void queryClient.invalidateQueries({ queryKey: agencyInvitationKeys.all });
+        }}
       />
     </>
   );
