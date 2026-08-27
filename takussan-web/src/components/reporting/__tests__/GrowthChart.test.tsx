@@ -40,13 +40,17 @@ vi.mock('@/components/ui/date-picker', () => ({
 
 const { GrowthChart } = await import('../GrowthChart');
 
-function enveloppe(rows: Array<{ bucket: string; count: number }>) {
+function enveloppe(rows: Array<{ bucket: string; count: number; days?: number; partial?: boolean }>) {
   return {
     data: {
       rows: rows.map((r) => ({
-        ...r,
         starts_at: `${r.bucket}-01T00:00:00+00:00`,
         ends_at: `${r.bucket}-28T23:59:59+00:00`,
+        // TCK-388 — l'API porte désormais la DURÉE de chaque intervalle. Un mois plein par défaut :
+        // les tests qui ne s'y intéressent pas ne doivent pas déclencher la mention d'inégalité.
+        days: 31,
+        partial: false,
+        ...r,
       })),
       totals: { total: rows.reduce((a, r) => a + r.count, 0) },
       period: { range: '12m', granularity: 'month' },
@@ -205,6 +209,31 @@ describe('<GrowthChart> (TCK-361)', () => {
     expect(await screen.findByText(/dépasse le plafond de 60 intervalles/)).toBeInTheDocument();
     expect(screen.queryByTestId('timeseries-empty')).not.toBeInTheDocument();
     expect(screen.queryByTestId('timeseries-chart')).not.toBeInTheDocument();
+  });
+
+  /**
+   * TCK-388 — le CHEMIN complet : ce que l'API mesure arrive jusqu'à ce que l'utilisateur lit.
+   *
+   * La fenêtre principale est un bucket PARTIEL de 17 jours ; sa fenêtre décalée est un mois plein
+   * de 28. L'alignement des deux séries étant positionnel, l'écart affiché contient une part de
+   * durée — et l'écran doit le dire.
+   */
+  it('dit à l’écran que la comparaison oppose des durées inégales', async () => {
+    const user = userEvent.setup();
+    fetchAdminReportGrowth.mockImplementation((params: { starts_at?: string }) =>
+      Promise.resolve(
+        params?.starts_at === '2026-02-01'
+          ? enveloppe([{ bucket: '2026-02', count: 3, days: 28, partial: false }])
+          : enveloppe([{ bucket: '2026-03', count: 5, days: 17, partial: true }]),
+      ),
+    );
+
+    rendre();
+    await screen.findByTestId('timeseries-chart');
+
+    await user.click(screen.getByRole('button', { name: /comparer à la période précédente/i }));
+
+    expect(await screen.findByText(/Durées inégales/)).toBeInTheDocument();
   });
 
   /** La bascule est un vrai contrôle à deux états, pas un bouton muet. */

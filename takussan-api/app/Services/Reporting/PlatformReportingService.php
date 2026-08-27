@@ -104,6 +104,8 @@ class PlatformReportingService
                     'bucket' => $bucket['label'],
                     'starts_at' => $bucket['start']->toIso8601String(),
                     'ends_at' => $bucket['end']->toIso8601String(),
+                    'days' => $bucket['days'],
+                    'partial' => $bucket['partial'],
                     'count' => $count,
                 ];
             }
@@ -140,6 +142,8 @@ class PlatformReportingService
                     'bucket' => $bucket['label'],
                     'starts_at' => $bucket['start']->toIso8601String(),
                     'ends_at' => $atMoment->toIso8601String(),
+                    'days' => $bucket['days'],
+                    'partial' => $bucket['partial'],
                 ], $row);
             }
 
@@ -262,7 +266,7 @@ class PlatformReportingService
     }
 
     /**
-     * @return list<array{label:string, start: Carbon, end: Carbon}>
+     * @return list<array{label:string, start: Carbon, end: Carbon, days:int, partial:bool}>
      */
     /**
      * Résout la FENÊTRE d'un rapport — soit le raccourci `period`, soit une plage libre.
@@ -320,12 +324,14 @@ class PlatformReportingService
         $cursor = $start->copy();
 
         while ($cursor->lessThanOrEqualTo($end)) {
-            [$bucketStart, $bucketEnd, $label] = match ($granularity) {
+            [$naturalStart, $naturalEnd, $label] = match ($granularity) {
                 'day' => [$cursor->copy()->startOfDay(), $cursor->copy()->endOfDay(), $cursor->toDateString()],
                 'week' => [$cursor->copy()->startOfWeek(), $cursor->copy()->endOfWeek(), $cursor->copy()->startOfWeek()->format('Y-\WW')],
                 'month' => [$cursor->copy()->startOfMonth(), $cursor->copy()->endOfMonth(), $cursor->format('Y-m')],
                 default => [$cursor->copy()->startOfMonth(), $cursor->copy()->endOfMonth(), $cursor->format('Y-m')],
             };
+
+            [$bucketStart, $bucketEnd] = [$naturalStart->copy(), $naturalEnd->copy()];
 
             // Les DEUX bornes du bucket sont ramenées dans la fenêtre, et c'est une symétrie, pas
             // une précaution : `startOfMonth()` / `startOfWeek()` reculent AVANT `$start` dès que
@@ -340,7 +346,21 @@ class PlatformReportingService
                 $bucketEnd = $end->copy();
             }
 
-            $buckets[] = ['label' => $label, 'start' => $bucketStart, 'end' => $bucketEnd];
+            // TCK-388 — un bucket RAMENÉ dans la fenêtre ne couvre plus la durée que son étiquette
+            // annonce. `2026-03` peut valoir dix-sept jours, et l'étiquette ne peut pas le dire :
+            // elle nomme un mois. La partialité est donc MESURÉE ici — au seul endroit qui connaisse
+            // encore les bornes NATURELLES du bucket — plutôt que redéduite en aval des deux bornes,
+            // ce qui aurait demandé au front de reconstruire un calendrier.
+            $partial = $bucketStart->notEqualTo($naturalStart) || $bucketEnd->notEqualTo($naturalEnd);
+
+            $buckets[] = [
+                'label' => $label,
+                'start' => $bucketStart,
+                'end' => $bucketEnd,
+                // `diffInDays` rend un FLOTTANT en Carbon 3 : sans le cast, la clé JSON sortirait \`18.0\`.
+                'days' => (int) $bucketStart->copy()->startOfDay()->diffInDays($bucketEnd->copy()->startOfDay()) + 1,
+                'partial' => $partial,
+            ];
 
             $cursor = match ($granularity) {
                 'day' => $cursor->copy()->addDay(),

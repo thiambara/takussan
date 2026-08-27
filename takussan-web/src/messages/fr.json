@@ -7284,7 +7284,9 @@
       "emptyHint": "Élargissez la plage ou changez de métrique.",
       "compare": "Comparer à la période précédente",
       "previous": "Période précédente",
-      "pointAria": "{bucket} : {value}"
+      "pointAria": "{bucket} : {value}",
+      "bucketPartial": "{bucket} · {days} j",
+      "unequalDurations": "Durées inégales : {count, plural, one {# intervalle ne couvre} other {# intervalles ne couvrent}} pas la même durée que son équivalent de la période comparée. L’écart lu contient donc une part de durée, et pas seulement une part d’activité."
     },
     "error": {
       "title": "Le rapport n'a pas pu être calculé",

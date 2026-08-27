@@ -307,6 +307,85 @@ class PlatformReportingTest extends TestCase
         $this->assertFalse(Activity::query()->where('event', 'super_admin_report_exported')->exists());
     }
 
+    /**
+     * TCK-388 — AC1 : la plage demandée et sa fenêtre décalée n'opposent pas des durées égales, et
+     * l'API le DIT au lieu de le laisser deviner.
+     *
+     * Les deux appels sont ceux que l'écran émet réellement : la série principale, puis la fenêtre
+     * précédente que `fenetrePrecedente()` déduit de ses bornes. Le décalage est d'un nombre entier
+     * de buckets MENSUELS — c'est un invariant, l'alignement des deux séries étant positionnel —,
+     * d'où 17 jours en face de 28.
+     */
+    public function test_a_partial_bucket_says_how_many_days_it_covers(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $principale = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-03-15&ends_at=2026-03-31')
+            ->assertOk();
+        $principale->assertJsonPath('data.rows.0.bucket', '2026-03');
+        $principale->assertJsonPath('data.rows.0.days', 17);
+        $principale->assertJsonPath('data.rows.0.partial', true);
+
+        // La fenêtre décalée d'un bucket mensuel : un mois PLEIN, en face du bucket partiel.
+        $comparee = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-02-01&ends_at=2026-02-28')
+            ->assertOk();
+        $comparee->assertJsonPath('data.rows.0.bucket', '2026-02');
+        $comparee->assertJsonPath('data.rows.0.days', 28);
+        $comparee->assertJsonPath('data.rows.0.partial', false);
+
+        $this->assertNotSame(
+            $principale->json('data.rows.0.days'),
+            $comparee->json('data.rows.0.days'),
+            'Les deux fenêtres comparées ne couvrent pas la même durée — c\'est précisément ce que le ticket demande de rendre visible.',
+        );
+    }
+
+    /**
+     * TCK-388 — AC3 : le raccourci `period` est couvert par le MÊME choix que la plage libre.
+     *
+     * `periodStart('3m')` tombe en milieu de mois. Mesuré le 2026-08-27, horloge figée au 15 mai :
+     * le premier bucket vaut 14 jours ET le dernier 15 — le ticket ne nommait que le premier.
+     */
+    public function test_the_period_shortcut_marks_its_partial_buckets_too(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $rows = $this->getJson('/api/admin/reports/growth?metric=agencies&period=3m&granularity=month')
+            ->assertOk()
+            ->json('data.rows');
+
+        $this->assertSame(['2026-02', '2026-03', '2026-04', '2026-05'], array_column($rows, 'bucket'));
+        $this->assertSame([14, 31, 30, 15], array_column($rows, 'days'));
+        $this->assertSame([true, false, false, true], array_column($rows, 'partial'));
+
+        Carbon::setTestNow();
+    }
+
+    /** Revenu porte la même mesure — les deux écrans partagent le graphique et son alignement. */
+    public function test_revenue_rows_also_carry_their_bucket_duration(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/revenue?granularity=month&starts_at=2026-03-15&ends_at=2026-03-31')
+            ->assertOk()
+            ->assertJsonPath('data.rows.0.days', 17)
+            ->assertJsonPath('data.rows.0.partial', true);
+    }
+
+    /** Une plage alignée sur les frontières de mois ne signale aucune partialité. */
+    public function test_whole_month_buckets_are_not_marked_partial(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $rows = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-01-01&ends_at=2026-03-31')
+            ->assertOk()
+            ->json('data.rows');
+
+        $this->assertSame([31, 28, 31], array_column($rows, 'days'));
+        $this->assertSame([false, false, false], array_column($rows, 'partial'));
+    }
+
     public function test_revenue_mrr_matches_active_subscription_sum(): void
     {
         $this->actingAsRole('super_admin');
@@ -427,8 +506,13 @@ class PlatformReportingTest extends TestCase
         $this->assertStringContainsString('takussan-growth-', (string) $response->headers->get('Content-Disposition'));
 
         $csv = $response->streamedContent();
-        $this->assertStringContainsString('bucket,starts_at,ends_at,count', str_replace('"', '', $csv));
+        // TCK-388 — `days` / `partial` accompagnent chaque ligne jusque dans le fichier : c'est là
+        // qu'on relit un rapport hors contexte, et une étiquette `2026-04` n'y dit pas si elle
+        // couvre le mois entier.
+        $this->assertStringContainsString('bucket,starts_at,ends_at,days,partial,count', str_replace('"', '', $csv));
         $this->assertStringContainsString('2026-04', $csv);
+        // Un `false` ne s'écrit pas par une case vide, qui se relirait comme une donnée manquante.
+        $this->assertStringContainsString('false', str_replace('"', '', $csv));
 
         $this->assertTrue(Activity::query()
             ->where('event', 'super_admin_report_exported')

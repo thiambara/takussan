@@ -7284,7 +7284,9 @@
       "emptyHint": "Widen the range or pick another metric.",
       "compare": "Compare to previous period",
       "previous": "Previous period",
-      "pointAria": "{bucket}: {value}"
+      "pointAria": "{bucket}: {value}",
+      "bucketPartial": "{bucket} · {days}d",
+      "unequalDurations": "Unequal durations: {count, plural, one {# interval does} other {# intervals do}} not span the same number of days as their counterpart in the compared period. The gap you read therefore includes a share of duration, not only of activity."
     },
     "error": {
       "title": "The report could not be computed",

@@ -7284,7 +7284,9 @@
       "emptyHint": "Yaatal plaas bi walla soppi natt bi.",
       "compare": "Mengale ak jamono ji jiitu",
       "previous": "Jamono ji jiitu",
-      "pointAria": "{bucket} : {value}"
+      "pointAria": "{bucket} : {value}",
+      "bucketPartial": "{bucket} · {days} bés",
+      "unequalDurations": "Diir yu tolloowul: {count, plural, one {# diggante} other {# diggante}} yemul ak bu ko toll ci jamono ji ñu ko méngale. Wute gi nga gis am na ci lu jëm ci diir bi, du activité bi rekk."
     },
     "error": {
       "title": "Rapport bi mënuñu koo jël",

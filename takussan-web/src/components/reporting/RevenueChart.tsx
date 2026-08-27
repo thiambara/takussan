@@ -53,10 +53,18 @@ export function RevenueChart() {
     enabled: comparaison && fenetreDecalee !== null,
   });
 
-  const points = rows.map((row) => ({ bucket: row.bucket, value: Number(row.mrr ?? 0) }));
+  // TCK-388 — cf. `GrowthChart` : la durée de l'intervalle accompagne le point.
+  const points = rows.map((row) => ({
+    bucket: row.bucket,
+    value: Number(row.mrr ?? 0),
+    jours: row.days,
+    partiel: row.partial,
+  }));
   const pointsComparaison = (queryComparaison.data?.data.rows ?? []).map((row) => ({
     bucket: row.bucket,
     value: Number(row.mrr ?? 0),
+    jours: row.days,
+    partiel: row.partial,
   }));
 
   return (
