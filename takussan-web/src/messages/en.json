@@ -4544,7 +4544,9 @@
           "admins": "Administrators",
           "owners": "Owners"
         },
-        "invite": "Invite"
+        "invite": "Invite",
+        "inviteAgent": "Invite",
+        "addExisting": "Add an existing account"
       },
       "invitations": {
         "title": "Pending invitations",
@@ -4664,7 +4666,7 @@
       }
     },
     "inviteMember": {
-      "title": "Invite a member",
+      "title": "Add an existing account",
       "description": "Enter the email of a user who already has an account. They will be added to your agency with the role you choose.",
       "email": "Email",
       "emailPlaceholder": "jane@example.sn",
@@ -4674,7 +4676,7 @@
         "agent": "Agent",
         "agency_admin": "Administrator"
       },
-      "submit": "Invite"
+      "submit": "Add"
     },
     "users": {
       "status": {
@@ -4732,6 +4734,25 @@
         "placeholder": "Choose a role",
         "update": "Update"
       }
+    },
+    "inviteAgent": {
+      "title": "Invite an agent",
+      "description": "The person does not need a Takussan account: they will receive an invitation email and create theirs when accepting it.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "emailPlaceholder": "jane@example.sn",
+      "emailInvalid": "Invalid email.",
+      "phone": "Phone (optional)",
+      "required": "This field is required.",
+      "role": "Role",
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Senior agent",
+        "agent_manager": "Team manager"
+      },
+      "adminNote": "An agency administrator cannot be invited by email: add them from “Add an existing account”, which requires an existing Takussan account.",
+      "submit": "Send the invitation"
     }
   },
   "documents": {

@@ -3418,7 +3418,9 @@
           "admins": "Administrateur yi",
           "owners": "Boroom kër yi"
         },
-        "invite": "Woo"
+        "invite": "Woo",
+        "inviteAgent": "Woo",
+        "addExisting": "Yokk kont bu am"
       },
       "invitations": {
         "title": "Woote yiy xaar",
@@ -3538,7 +3540,7 @@
       }
     },
     "inviteMember": {
-      "title": "Woo benn ndaw",
+      "title": "Yokk kont bu am",
       "description": "Bindal email bu benn jëfandikukat bu am kont. Dañu koy yokk ci sa ajance ak rol bi nga tànn.",
       "email": "Email",
       "emailPlaceholder": "jane@exemple.sn",
@@ -3548,7 +3550,7 @@
         "agent": "Ajaŋ",
         "agency_admin": "Njiit"
       },
-      "submit": "Woo"
+      "submit": "Yokk"
     },
     "users": {
       "status": {
@@ -3606,6 +3608,25 @@
         "placeholder": "Tànnal benn rol",
         "update": "Yeesal"
       }
+    },
+    "inviteAgent": {
+      "title": "Woo benn ajaŋ",
+      "description": "Nit ki soxlawul kont Takussan: dina jot benn email woote te dina sos bos bi ci nangu ko.",
+      "firstName": "Tur",
+      "lastName": "Sant",
+      "email": "Email",
+      "emailPlaceholder": "jane@exemple.sn",
+      "emailInvalid": "Email bi baaxul.",
+      "phone": "Telefon (du wareef)",
+      "required": "Barab bii war na am.",
+      "role": "Rol",
+      "roles": {
+        "agent": "Ajaŋ",
+        "agent_senior": "Ajaŋ bu mag",
+        "agent_manager": "Kilifa ekip"
+      },
+      "adminNote": "Njiitu ajance du ñu ko woo ci email: dañu koy yokk ci « Yokk kont bu am », bu laaj kont Takussan bu am ba tey.",
+      "submit": "Yónnee woote bi"
     }
   },
   "property": {

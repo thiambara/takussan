@@ -4544,7 +4544,9 @@
           "admins": "Administrateurs",
           "owners": "Propriétaires"
         },
-        "invite": "Inviter"
+        "invite": "Inviter",
+        "inviteAgent": "Inviter",
+        "addExisting": "Ajouter un compte existant"
       },
       "invitations": {
         "title": "Invitations en attente",
@@ -4664,7 +4666,7 @@
       }
     },
     "inviteMember": {
-      "title": "Inviter un membre",
+      "title": "Ajouter un compte existant",
       "description": "Saisissez l'email d'un utilisateur déjà inscrit. Il sera ajouté à votre agence avec le rôle choisi.",
       "email": "Email",
       "emailPlaceholder": "jane@exemple.sn",
@@ -4674,7 +4676,7 @@
         "agent": "Agent",
         "agency_admin": "Administrateur"
       },
-      "submit": "Inviter"
+      "submit": "Ajouter"
     },
     "users": {
       "status": {
@@ -4732,6 +4734,25 @@
         "placeholder": "Choisir un rôle",
         "update": "Mettre à jour"
       }
+    },
+    "inviteAgent": {
+      "title": "Inviter un agent",
+      "description": "La personne n'a pas besoin d'un compte Takussan : elle recevra un e-mail d'invitation et créera le sien en l'acceptant.",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Email",
+      "emailPlaceholder": "jane@exemple.sn",
+      "emailInvalid": "Email invalide.",
+      "phone": "Téléphone (facultatif)",
+      "required": "Ce champ est requis.",
+      "role": "Rôle",
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Responsable d'équipe"
+      },
+      "adminNote": "Un administrateur d'agence ne s'invite pas par e-mail : il s'ajoute depuis « Ajouter un compte existant », qui exige un compte Takussan déjà créé.",
+      "submit": "Envoyer l'invitation"
     }
   },
   "documents": {
