@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**358 tickets** — 31 ouverts, 326 livrés.
+**364 tickets** — 37 ouverts, 326 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 30 |
+| 📋 Todo | 36 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -63,6 +63,12 @@
 - [TCK-374](tickets/TCK-374-graphique-agence-tokens-chart-et-locale.md) — Graphique agence — palette `--chart-*` et locale active au lieu de `'fr'` `S · P2 · front`
 - [TCK-375](tickets/TCK-375-tableau-de-bord-agence-files-attente.md) — Tableau de bord agence — les files d'attente d'abord `M · P2 · front`
 - [TCK-376](tickets/TCK-376-moderation-et-audit-etat-partageable.md) — Modération et journal d'audit — état partageable, pagination, recherche temporisée `M · P2 · front`
+- [TCK-377](tickets/TCK-377-app-barre-laterale-la-moins-mure.md) — Tableau de bord /app — la barre latérale est la moins mûre des trois, et c'est celle que tout le monde utilise `M · P1 · bug`
+- [TCK-378](tickets/TCK-378-forbidden-trois-pages-et-la-garde-manquante.md) — `forbidden()` — trois pages que TCK-167 n'a pas pu voir, et le cliquet qui manquait pour qu'il le voie `S · P1 · bug`
+- [TCK-379](tickets/TCK-379-app-menu-et-inventaire-des-ecrans-ont-diverge.md) — Tableau de bord /app — le menu et l'inventaire des écrans ont divergé : deux écrans sans chemin, un geste mort, un menu qui n'est pas le sien `S · P2 · bug`
+- [TCK-380](tickets/TCK-380-app-adopter-les-primitives-partagees.md) — Tableau de bord /app — adopter les primitives partagées que les deux consoles ont déjà `M · P2 · front`
+- [TCK-381](tickets/TCK-381-app-palette-brute-et-cliquet.md) — Tableau de bord /app — éteindre la palette Tailwind brute, et étendre le cliquet à ce qu'il ne couvre pas `M · P2 · front`
+- [TCK-382](tickets/TCK-382-app-attente-introuvable-et-titre-onglet.md) — Tableau de bord /app — l'attente, l'introuvable et le titre d'onglet : trois états que quarante écrans ne rendent pas `S · P2 · front`
 
 ## 🚧 Doing
 
