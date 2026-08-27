@@ -6804,14 +6804,19 @@
     },
     "filters": {
       "periodAria": "Jamono",
-      "metricAria": "Natt"
+      "metricAria": "Natt",
+      "rangeStart": "Tambali plaas bi",
+      "rangeEnd": "Jeexital plaas bi",
+      "rangeApply": "Jëfandikoo",
+      "rangeClear": "Far plaas bi"
     },
     "periods": {
       "30d": "30 fan",
       "90d": "90 fan",
       "3m": "3 weer",
       "6m": "6 weer",
-      "12m": "12 weer"
+      "12m": "12 weer",
+      "custom": "Plaas bu yaatu"
     },
     "metrics": {
       "agencies": "Ajaans yi",
@@ -6819,7 +6824,8 @@
       "listings": "Yégle yi"
     },
     "growth": {
-      "total": "Lëmboo lépp:"
+      "total": "Lëmboo lépp:",
+      "chartAria": "Yokkute weer ci weer — {metric}, {count} tomb."
     },
     "funnel": {
       "conversion": "Konwersioŋ bu mag:",
@@ -6828,7 +6834,9 @@
         "bookings_requested": "Réservasioŋ yu ñu ñaan",
         "bookings_confirmed": "Réservasioŋ yu ñu dëggal",
         "leases_signed": "Kontaraa yu ñu xaatim"
-      }
+      },
+      "empty": "Amul benn konwersioŋ ci jamono jii",
+      "emptyHint": "Tannal jamono ju yaatu."
     },
     "revenue": {
       "mrrCurrent": "MRR bu léegi",
@@ -6838,12 +6846,18 @@
         "period": "Jamono",
         "mrr": "MRR",
         "arr": "ARR"
-      }
+      },
+      "chartAria": "Yokkute MRR weer ci weer, {count} tomb.",
+      "chartCaption": "MRR ci weer wu nekk, ci XOF."
     },
     "cohorts": {
       "caption": "Kohortu ajaans yi ci weeru bind · xóot 12 weer.",
       "cohort": "Kohort",
-      "size": "Tolluwaay"
+      "size": "Tolluwaay",
+      "empty": "Amul benn kohort ci xóot bii",
+      "emptyHint": "Amul benn ajaans bu bind boppam ci weer yi ñu tegtal.",
+      "cellAria": "M{month} : {rate} % ñu ngi dox ba tey",
+      "cellEmpty": "M{month} : natt-ees ko ba tey"
     },
     "export": {
       "csv": "Génne CSV",
@@ -6853,6 +6867,13 @@
       "requestedBody": "Génne yu réy, ci email lañu leen di yégle.",
       "errorTitle": "Mënunu génne",
       "errorBody": "Jéematal ci ab saa."
+    },
+    "chart": {
+      "empty": "Amul benn xibaar ci jamono jii",
+      "emptyHint": "Yaatal plaas bi walla soppi natt bi.",
+      "compare": "Mengale ak jamono ji jiitu",
+      "previous": "Jamono ji jiitu",
+      "pointAria": "{bucket} : {value}"
     }
   },
   "kyc": {

@@ -984,11 +984,18 @@ export async function fetchAdminReportGrowth(params: {
   metric: GrowthMetric;
   period?: ReportPeriod;
   granularity?: ReportGranularity;
+  /** TCK-361 — plage libre. Les deux bornes voyagent ensemble ; l'API refuse une borne seule. */
+  starts_at?: string;
+  ends_at?: string;
 }): Promise<GrowthResponse> {
   const qs = new URLSearchParams();
   qs.set('metric', params.metric);
   if (params.period) qs.set('period', params.period);
   if (params.granularity) qs.set('granularity', params.granularity);
+  if (params.starts_at && params.ends_at) {
+    qs.set('starts_at', params.starts_at);
+    qs.set('ends_at', params.ends_at);
+  }
   const res = await fetch(`/api/super-admin/reports/growth?${qs.toString()}`, { credentials: 'include' });
   return jsonOrThrow<GrowthResponse>(res);
 }
@@ -996,10 +1003,17 @@ export async function fetchAdminReportGrowth(params: {
 export async function fetchAdminReportRevenue(params: {
   period?: ReportPeriod;
   granularity?: ReportGranularity;
+  /** TCK-361 — plage libre. Les deux bornes voyagent ensemble ; l'API refuse une borne seule. */
+  starts_at?: string;
+  ends_at?: string;
 } = {}): Promise<RevenueResponse> {
   const qs = new URLSearchParams();
   if (params.period) qs.set('period', params.period);
   if (params.granularity) qs.set('granularity', params.granularity);
+  if (params.starts_at && params.ends_at) {
+    qs.set('starts_at', params.starts_at);
+    qs.set('ends_at', params.ends_at);
+  }
   const res = await fetch(`/api/super-admin/reports/revenue?${qs.toString()}`, { credentials: 'include' });
   return jsonOrThrow<RevenueResponse>(res);
 }

@@ -25,6 +25,13 @@ class GrowthReportingRequest extends BaseFormRequest
         return true;
     }
 
+    /**
+     * TCK-361 — `starts_at` / `ends_at` : la PLAGE LIBRE, additive au raccourci `period`.
+     *
+     * Les deux vont ensemble ou pas du tout (`required_with` croisé) : une borne seule ne décrit
+     * aucune fenêtre, et le service retomberait silencieusement sur `period`, servant une série
+     * qui n'est pas celle qu'on a demandée.
+     */
     /** @return array<string, mixed> */
     public function rules(): array
     {
@@ -32,6 +39,8 @@ class GrowthReportingRequest extends BaseFormRequest
             'metric' => ['required', Rule::in(['agencies', 'users', 'listings'])],
             'period' => ['nullable', Rule::in(['3m', '6m', '12m'])],
             'granularity' => ['nullable', Rule::in(['day', 'week', 'month'])],
+            'starts_at' => ['nullable', 'date', 'required_with:ends_at'],
+            'ends_at' => ['nullable', 'date', 'required_with:starts_at'],
         ];
     }
 }

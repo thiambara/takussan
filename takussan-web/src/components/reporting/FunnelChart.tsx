@@ -73,6 +73,16 @@ export function FunnelChart() {
           </div>
         </CardContent>
       </Card>
+      {rows.length === 0 ? (
+        <div
+          data-testid="funnel-empty"
+          role="status"
+          className="flex h-64 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/70 bg-muted/20 p-6 text-center"
+        >
+          <p className="text-sm font-medium text-foreground">{t('funnel.empty')}</p>
+          <p className="text-xs text-muted-foreground">{t('funnel.emptyHint')}</p>
+        </div>
+      ) : (
       <Card>
         <CardContent className="space-y-3 p-4">
           {rows.map((row) => {
@@ -84,13 +94,14 @@ export function FunnelChart() {
                   <span className="tabular-nums text-muted-foreground">{row.count}</span>
                 </div>
                 <div className="h-3 overflow-hidden rounded bg-muted/40">
-                  <div className="h-full rounded bg-amber-500/70" style={{ width: `${ratio}%` }} />
+                  <div className="h-full rounded bg-chart-1/80" style={{ width: `${ratio}%` }} />
                 </div>
               </div>
             );
           })}
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

@@ -19,18 +19,18 @@ export function CohortHeatmap() {
   const rows = query.data?.data.rows ?? [];
   const maxMonths = rows.reduce((acc, row) => Math.max(acc, row.cells.length), 0);
 
+  if (rows.length === 0) {
+    return (
+      <div className="space-y-4">
+        <EnteteCohortes caption={t('caption')} />
+        <EtatVide titre={t('empty')} indice={t('emptyHint')} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="flex items-center gap-3 p-4">
-          <p className="text-sm text-muted-foreground">
-            {t('caption')}
-          </p>
-          <div className="ml-auto">
-            <ReportExportButton report="cohorts" params={{ depth: 12 }} />
-          </div>
-        </CardContent>
-      </Card>
+      <EnteteCohortes caption={t('caption')} />
       <Card>
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full text-xs">
@@ -50,7 +50,7 @@ export function CohortHeatmap() {
                   <td className="px-3 py-1.5 text-right tabular-nums">{row.cohort_size}</td>
                   {row.cells.map((cell) => (
                     <td key={cell.month} className="px-1 py-1">
-                      <Cell rate={cell.rate} />
+                      <Cell rate={cell.rate} mois={cell.month} />
                     </td>
                   ))}
                   {Array.from({ length: Math.max(0, maxMonths - row.cells.length) }, (_, i) => (
@@ -66,18 +66,58 @@ export function CohortHeatmap() {
   );
 }
 
-function Cell({ rate }: { rate: number | null }) {
+function EnteteCohortes({ caption }: { caption: string }) {
+  return (
+    <Card>
+      <CardContent className="flex items-center gap-3 p-4">
+        <p className="text-sm text-muted-foreground">{caption}</p>
+        <div className="ml-auto">
+          <ReportExportButton report="cohorts" params={{ depth: 12 }} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * L'intensité sort du jeton `--chart-1`, pas d'un `rgba()` écrit à la main (TCK-361) : la valeur
+ * en dur `rgba(217, 119, 6, …)` était un ambre étranger à la charte, et surtout FIGÉ — le bloc
+ * sombre de `globals.css` ne pouvait pas l'atteindre, donc la carte de chaleur restait claire en
+ * thème sombre. `color-mix` garde la teinte du jeton et n'en fait varier que l'opacité.
+ *
+ * L'attribut `title` a disparu : il n'était ni atteignable au clavier ni lisible sur mobile, et le
+ * taux exact qu'il portait n'existait donc pour presque personne. Il est désormais dans le
+ * `aria-label` de la cellule — que la valeur arrondie affichée ne redit pas au dixième près.
+ */
+function Cell({ rate, mois }: { rate: number | null; mois: number }) {
+  const t = useTranslations('reporting.cohorts');
+
   if (rate === null || rate === undefined) {
-    return <div className="h-7 rounded bg-muted/40" />;
+    return <div className="h-7 rounded bg-muted/40" aria-label={t('cellEmpty', { month: mois })} />;
   }
-  const intensity = Math.max(0.1, rate);
+
+  const intensite = Math.max(0.12, rate);
+
   return (
     <div
-      className="flex h-7 items-center justify-center rounded text-[11px] font-medium tabular-nums text-stone-900"
-      style={{ backgroundColor: `rgba(217, 119, 6, ${intensity})` }}
-      title={`${(rate * 100).toFixed(1)} %`}
+      className="flex h-7 items-center justify-center rounded text-[11px] font-medium tabular-nums text-foreground"
+      style={{ backgroundColor: `color-mix(in srgb, var(--chart-1) ${(intensite * 100).toFixed(0)}%, transparent)` }}
+      aria-label={t('cellAria', { month: mois, rate: (rate * 100).toFixed(1) })}
     >
       {Math.round(rate * 100)}%
+    </div>
+  );
+}
+
+function EtatVide({ titre, indice }: { titre: string; indice: string }) {
+  return (
+    <div
+      data-testid="cohorts-empty"
+      role="status"
+      className="flex h-64 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/70 bg-muted/20 p-6 text-center"
+    >
+      <p className="text-sm font-medium text-foreground">{titre}</p>
+      <p className="text-xs text-muted-foreground">{indice}</p>
     </div>
   );
 }

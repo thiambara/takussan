@@ -6804,14 +6804,19 @@
     },
     "filters": {
       "periodAria": "Période",
-      "metricAria": "Métrique"
+      "metricAria": "Métrique",
+      "rangeStart": "Début de la plage",
+      "rangeEnd": "Fin de la plage",
+      "rangeApply": "Appliquer",
+      "rangeClear": "Effacer la plage"
     },
     "periods": {
       "30d": "30 jours",
       "90d": "90 jours",
       "3m": "3 mois",
       "6m": "6 mois",
-      "12m": "12 mois"
+      "12m": "12 mois",
+      "custom": "Plage libre"
     },
     "metrics": {
       "agencies": "Agences",
@@ -6819,7 +6824,8 @@
       "listings": "Annonces"
     },
     "growth": {
-      "total": "Total:"
+      "total": "Total:",
+      "chartAria": "Évolution mensuelle — {metric}, {count} points."
     },
     "funnel": {
       "conversion": "Conversion globale:",
@@ -6828,7 +6834,9 @@
         "bookings_requested": "Réservations demandées",
         "bookings_confirmed": "Réservations confirmées",
         "leases_signed": "Baux signés"
-      }
+      },
+      "empty": "Aucune conversion sur cette période",
+      "emptyHint": "Choisissez une période plus large."
     },
     "revenue": {
       "mrrCurrent": "MRR courant",
@@ -6838,12 +6846,18 @@
         "period": "Période",
         "mrr": "MRR",
         "arr": "ARR"
-      }
+      },
+      "chartAria": "Évolution mensuelle du MRR, {count} points.",
+      "chartCaption": "MRR par mois, en XOF."
     },
     "cohorts": {
       "caption": "Cohortes d'agences par mois d'inscription · profondeur 12 mois.",
       "cohort": "Cohorte",
-      "size": "Taille"
+      "size": "Taille",
+      "empty": "Aucune cohorte sur cette profondeur",
+      "emptyHint": "Aucune agence ne s'est inscrite sur les mois couverts.",
+      "cellAria": "M{month} : {rate} % encore actives",
+      "cellEmpty": "M{month} : pas encore mesuré"
     },
     "export": {
       "csv": "Exporter CSV",
@@ -6853,6 +6867,13 @@
       "requestedBody": "Les exports volumineux sont notifiés par email.",
       "errorTitle": "Export impossible",
       "errorBody": "Réessayez dans quelques instants."
+    },
+    "chart": {
+      "empty": "Aucune donnée sur cette période",
+      "emptyHint": "Élargissez la plage ou changez de métrique.",
+      "compare": "Comparer à la période précédente",
+      "previous": "Période précédente",
+      "pointAria": "{bucket} : {value}"
     }
   },
   "kyc": {
