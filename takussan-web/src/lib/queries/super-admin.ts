@@ -72,6 +72,11 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
 
 export async function fetchAdminAgencies(params: {
   status?: string;
+  /**
+   * TCK-390 — état de vérification. `undefined` = pas de filtre : c'est ce qui distingue
+   * « toutes les agences » de « les non vérifiées », que `false` seul ne saurait dire.
+   */
+  isVerified?: boolean;
   search?: string;
   createdFrom?: string;
   createdTo?: string;
@@ -82,6 +87,7 @@ export async function fetchAdminAgencies(params: {
   const qs = new URLSearchParams();
   qs.set('fields[agencies]', 'id,name,slug,status,is_verified,verified_at,primary_admin_id,license_number,email,phone,logo_url,properties_count,members_count,last_activity_at,created_at');
   if (params.status) qs.set('filter[status]', params.status);
+  if (params.isVerified !== undefined) qs.set('filter[is_verified]', params.isVerified ? '1' : '0');
   if (params.search) qs.set('filter[search]', params.search);
   if (params.createdFrom) qs.set('filter[created_from]', params.createdFrom);
   if (params.createdTo) qs.set('filter[created_to]', params.createdTo);

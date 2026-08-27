@@ -5866,6 +5866,12 @@
           "nameDesc": "Name Z-A",
           "membersDesc": "Largest team",
           "propertiesDesc": "Largest portfolio"
+        },
+        "verificationAria": "Verification",
+        "verifications": {
+          "all": "Verified or not",
+          "yes": "Verified",
+          "no": "Not verified"
         }
       },
       "superAdmins": {

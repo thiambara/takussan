@@ -5866,6 +5866,12 @@
           "nameDesc": "Nom Z-A",
           "membersDesc": "Équipe élevée",
           "propertiesDesc": "Portefeuille élevé"
+        },
+        "verificationAria": "Vérification",
+        "verifications": {
+          "all": "Vérifiées ou non",
+          "yes": "Vérifiées",
+          "no": "Non vérifiées"
         }
       },
       "superAdmins": {

@@ -5334,6 +5334,12 @@
           "nameDesc": "Tur Z-A",
           "membersDesc": "Ekip bu réy",
           "propertiesDesc": "Portfëy bu réy"
+        },
+        "verificationAria": "Seetlu",
+        "verifications": {
+          "all": "Yu ñu seetlu walla déet",
+          "yes": "Yu ñu seetlu",
+          "no": "Yu ñu seetlul"
         }
       },
       "superAdmins": {
