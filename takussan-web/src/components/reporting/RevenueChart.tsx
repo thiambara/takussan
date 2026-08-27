@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchAdminReportRevenue } from '@/lib/queries/super-admin';
 import type { ReportPeriod } from '@/types/super-admin';
+import { ReportError } from './ReportError';
 import { ReportExportButton } from './ReportExportButton';
 import { ReportWindowControls } from './ReportWindowControls';
 import { TimeSeriesChart } from './TimeSeriesChart';
@@ -52,10 +53,18 @@ export function RevenueChart() {
     enabled: comparaison && fenetreDecalee !== null,
   });
 
-  const points = rows.map((row) => ({ bucket: row.bucket, value: Number(row.mrr ?? 0) }));
+  // TCK-388 — cf. `GrowthChart` : la durée de l'intervalle accompagne le point.
+  const points = rows.map((row) => ({
+    bucket: row.bucket,
+    value: Number(row.mrr ?? 0),
+    jours: row.days,
+    partiel: row.partial,
+  }));
   const pointsComparaison = (queryComparaison.data?.data.rows ?? []).map((row) => ({
     bucket: row.bucket,
     value: Number(row.mrr ?? 0),
+    jours: row.days,
+    partiel: row.partial,
   }));
 
   return (
@@ -79,6 +88,8 @@ export function RevenueChart() {
 
       {query.isLoading ? (
         <Skeleton className="h-72 rounded-xl" />
+      ) : query.error ? (
+        <ReportError erreur={query.error} />
       ) : (
         <>
           <Card>

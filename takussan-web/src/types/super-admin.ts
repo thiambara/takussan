@@ -695,9 +695,19 @@ export type FailedJobDetailResponse = {
   warning?: string;
 };
 
+/**
+ * TCK-383 — `last_status` est l'issue de la DERNIÈRE exécution, pas un agrégat.
+ *
+ * Il reste `string | null` plutôt qu'une union fermée : la colonne est alimentée depuis 2026-05 et
+ * porte des lignes écrites avant que le vocabulaire existe. Une union fermée ferait mentir le
+ * typage sur des lignes réelles.
+ */
+export type ScheduledTaskStatus = 'finished' | 'failed' | 'skipped' | 'running';
+
 export type ScheduledTask = {
   task: string;
   last_run_at: string | null;
+  last_status: ScheduledTaskStatus | string | null;
   next_due_at: string | null;
   average_duration_ms: number | null;
 };
@@ -716,10 +726,21 @@ export type ReportEnvelope<TRow> = {
   generated_at: string;
 };
 
+/**
+ * TCK-388 — `days` / `partial` disent ce que `bucket` ne peut pas dire.
+ *
+ * `bucket` est une étiquette de calendrier : `2026-03` vaut dix-sept jours sur une plage qui
+ * commence un 15, et trente-et-un sur un mois entier. La comparaison alignant les deux séries par
+ * INDEX, c'est cette durée-là — et non l'étiquette — qui dit si deux points sont comparables.
+ */
 export type GrowthRow = {
   bucket: string;
   starts_at: string;
   ends_at: string;
+  /** Jours calendaires couverts, bornes comprises. */
+  days: number;
+  /** Vrai quand la fenêtre a rogné l'intervalle : son étiquette annonce alors plus que lui. */
+  partial: boolean;
   count: number;
 };
 

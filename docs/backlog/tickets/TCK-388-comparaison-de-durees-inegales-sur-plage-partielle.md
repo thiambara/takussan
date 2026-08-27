@@ -1,7 +1,7 @@
 ---
 id: TCK-388
 title: "Rapports — la comparaison oppose des durées inégales dès que la plage ne couvre pas des mois entiers"
-status: todo
+status: doing
 phase: P2
 family: back
 estimate: M
@@ -106,3 +106,94 @@ Quelle que soit la voie : l'étiquette d'un bucket partiel doit cesser de dire u
 `window.ts` porte le raisonnement complet sur le décalage en buckets et sur la lecture textuelle
 des bornes (fuseau `Africa/Dakar`). Le lire avant d'y toucher : deux des pièges qu'il décrit ont
 déjà été payés.
+
+## Voie retenue — 3, NOMMER L'INÉGALITÉ
+
+Tranchée avant de coder, comme le demande le Delta.
+
+**Pourquoi pas la voie 1 (« comparer à durée égale »).** Elle exige d'abandonner l'alignement par
+index, que les contraintes strictes posent comme un INVARIANT : `TimeSeriesChart` lit
+`comparaison.points[i]` en face de `points[i]`, et une fenêtre « de même durée » traverse les
+frontières de mois — sur 61 jours elle rend trois buckets mensuels là où la principale en a deux.
+Le ticket demande que toute solution rendant deux longueurs différentes dise d'abord ce que le
+graphique en fait ; c'est une refonte du graphique, pas un correctif de fenêtre.
+
+**Pourquoi pas la voie 2 (« normaliser »).** Elle change ce que l'axe des ordonnées signifie — des
+moyennes journalières là où l'utilisateur a demandé des totaux — et ne peut pas rester implicite.
+Elle échange un chiffre trompeur contre un chiffre juste dont personne n'a demandé l'unité.
+
+**Ce que fait la voie 3.** L'API mesure la partialité au seul endroit qui connaisse encore les
+bornes NATURELLES du bucket au moment où il les ramène dans la fenêtre, et l'expose : `days`
+(jours calendaires couverts) et `partial` sur chaque ligne de `growth` et de `revenue`. L'écran
+en tire deux choses :
+
+1. l'étiquette d'un intervalle partiel cesse de dire un mois entier — `2026-03 · 17 j` ;
+2. dès qu'un intervalle n'a pas la même durée que son vis-à-vis dans la comparaison, le graphique
+   le DIT, en toutes lettres, sous la légende.
+
+Elle ne rend pas la comparaison juste. Elle empêche de la mal lire — ce que le ticket dit
+explicitement de cette voie.
+
+## Notes d'implémentation
+
+**Ce que la re-mesure a confirmé**, avant correctif :
+
+```
+plage 2026-03-15 → 2026-03-31 (month) → 1 bucket « 2026-03 », 17 jours
+plage 2026-02-01 → 2026-02-28 (month) → 1 bucket « 2026-02 », 28 jours
+```
+
+**Ce qu'elle a contredit — le raccourci `period` a DEUX buckets partiels, pas un.** Le ticket ne
+nomme que le premier (« `periodStart('3m')` tombe en milieu de mois »). Mesuré horloge figée au
+2026-05-15 :
+
+```
+2026-02 days=14 partial=true      ← celui que le ticket nomme
+2026-03 days=31 partial=false
+2026-04 days=30 partial=false
+2026-05 days=15 partial=true      ← le DERNIER l'est aussi, et l'était déjà avant TCK-361
+```
+
+Le dernier bucket est rogné par la borne haute depuis toujours — seule la borne basse était neuve.
+Une comparaison sur `period` porte donc l'inégalité aux DEUX extrémités.
+
+**Le CSV.** `days` et `partial` accompagnent chaque ligne jusque dans le fichier — c'est là qu'on
+relit un rapport hors contexte. Et `downloadPayload()` écrit désormais `true`/`false` au lieu de
+`1`/`` : la case VIDE d'un booléen faux se relit comme une donnée manquante, ce qui aurait perdu
+exactement l'information que ce ticket ajoute.
+
+**Hors AC, dans la même passe** : `enveloppe()` du test de `GrowthChart` porte un mois plein par
+défaut, sinon toute série de test aurait déclenché la mention d'inégalité.
+
+### Amendement après passe adverse (2026-08-27)
+
+**Le cache servait l'ancienne forme pendant dix minutes après déploiement.** Le changement de forme
+des lignes est invisible d'une clé de cache : `growth`/`revenue` auraient rendu des enveloppes sans
+`days` ni `partial` pendant tout le TTL (600 s, redis en production), alors que `GrowthRow` les
+déclare obligatoires. Rien ne plante — l'écran rend simplement, pendant dix minutes, le comportement
+exact que ce ticket corrige.
+
+Corrigé par une `ROW_SCHEMA_VERSION` dans la clé, **et non par un appel à `bumpCacheVersion()` au
+déploiement** : *une invalidation qui dépend d'un geste humain au bon moment n'est pas une
+invalidation.* La prochaine forme de ligne incrémente la constante ; il n'y a plus d'action de
+déploiement à retenir. `bumpCacheVersion()` garde son rôle : l'invalidation événementielle.
+
+Gardé par `test_an_envelope_cached_by_the_previous_row_shape_is_not_served`, qui empoisonne la clé
+d'avant et vérifie qu'elle n'est pas servie. Le test reproduit cette clé à la main, ce qui est
+fragile et assumé : il ne peut pas la demander au service, dont c'est le secret.
+
+**`GenerateReportExport::toCsv()` a désormais un test**
+(`test_the_async_export_writes_the_same_csv_as_the_synchronous_one`). Le chemin asynchrone n'est
+atteint qu'au-delà de 10 000 lignes, donc jamais sous le plafond de 60 buckets — c'est précisément
+pourquoi il en avait besoin : *un chemin qu'aucun appel ne prend est un chemin dont personne ne
+verra la dérive.*
+
+### Second amendement (2026-08-27)
+
+`ROW_SCHEMA_VERSION` est posée sur DEUX clés, construites par deux `sprintf` distincts, et une seule
+était gardée. Mesuré : retirer le jeton de la seule clé `revenue` laissait 29 tests verts. *Une
+garde qui ne couvre qu'une moitié d'un correctif en deux endroits ne garde pas le correctif : elle
+garde la moitié qu'on avait sous les yeux en l'écrivant.* D'où
+`test_a_revenue_envelope_cached_by_the_previous_row_shape_is_not_served`, jumeau du précédent ;
+l'ablation rend désormais 1 rouge.
+

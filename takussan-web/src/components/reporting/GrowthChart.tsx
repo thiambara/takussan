@@ -14,6 +14,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchAdminReportGrowth } from '@/lib/queries/super-admin';
 import type { GrowthMetric, ReportPeriod } from '@/types/super-admin';
+import { ReportError } from './ReportError';
 import { ReportExportButton } from './ReportExportButton';
 import { ReportWindowControls } from './ReportWindowControls';
 import { TimeSeriesChart } from './TimeSeriesChart';
@@ -64,10 +65,19 @@ export function GrowthChart() {
     enabled: comparaison && fenetreDecalee !== null,
   });
 
-  const points = rows.map((row) => ({ bucket: row.bucket, value: row.count }));
+  // TCK-388 — la DURÉE voyage avec le point : c'est elle, et non l'étiquette, qui dit si deux
+  // points alignés par index sont comparables.
+  const points = rows.map((row) => ({
+    bucket: row.bucket,
+    value: row.count,
+    jours: row.days,
+    partiel: row.partial,
+  }));
   const pointsComparaison = (queryComparaison.data?.data.rows ?? []).map((row) => ({
     bucket: row.bucket,
     value: row.count,
+    jours: row.days,
+    partiel: row.partial,
   }));
 
   return (
@@ -111,6 +121,8 @@ export function GrowthChart() {
 
       {query.isLoading ? (
         <Skeleton className="h-72 rounded-xl" />
+      ) : query.error ? (
+        <ReportError erreur={query.error} />
       ) : (
         <Card>
           <CardContent className="p-4">

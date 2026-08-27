@@ -2,14 +2,17 @@
 
 namespace Tests\Feature\Api\Admin;
 
+use App\Jobs\Reporting\GenerateReportExport;
 use App\Models\Agency;
 use App\Models\AgencySubscription;
 use App\Models\Enums\AgencySubscriptionStatus;
 use App\Models\Plan;
 use App\Models\ReportExport;
+use App\Services\Reporting\PlatformReportingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
@@ -228,6 +231,288 @@ class PlatformReportingTest extends TestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * TCK-389 — AC1 / AC2 : une plage plus large que le plafond est REFUSÉE, et ne rend plus une
+     * série de deux mois sous une enveloppe qui annonce six ans.
+     *
+     * La sonde du ticket, mesurée le 2026-08-27 avant correctif :
+     *     buckets=60  premier=2020-01-01  dernier=2020-02-29  range=2020-01-01..2026-01-01
+     */
+    public function test_a_range_wider_than_the_bucket_cap_is_refused(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $reponse = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=day&starts_at=2020-01-01&ends_at=2026-01-01')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+
+        // Ce que le défaut rendait : une enveloppe. Il ne doit plus rien rendre du tout.
+        $this->assertNull($reponse->json('data'));
+        $this->assertStringContainsString('60', (string) $reponse->json('errors.ends_at.0'));
+    }
+
+    /** La borne est le plafond LUI-MÊME : 60 intervalles passent, 61 ne passent pas. */
+    public function test_the_cap_is_exactly_sixty_buckets(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        // 2021-01 → 2025-12 : soixante mois pile.
+        $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2021-01-01&ends_at=2025-12-31')
+            ->assertOk()
+            ->assertJsonCount(60, 'data.rows');
+
+        // Un jour de plus fait basculer dans un soixante-et-unième bucket.
+        $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2021-01-01&ends_at=2026-01-01')
+            ->assertStatus(422);
+    }
+
+    /** Le raccourci `period` emprunte le même découpage : `12m` en granularité `day` le dépasse. */
+    public function test_the_period_shortcut_is_bound_by_the_same_cap(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/growth?metric=agencies&period=12m&granularity=day')
+            ->assertStatus(422)
+            // Sur un raccourci, l'appelant n'a de prise que sur la granularité.
+            ->assertJsonValidationErrors(['granularity']);
+
+        $this->getJson('/api/admin/reports/growth?metric=agencies&period=12m&granularity=month')
+            ->assertOk();
+    }
+
+    /** Revenu emprunte le même découpage que Croissance. */
+    public function test_revenue_is_bound_by_the_same_cap(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/revenue?granularity=day&starts_at=2020-01-01&ends_at=2026-01-01')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+    }
+
+    /**
+     * TCK-389 — AC3 : l'export emprunte le même service, donc le même refus.
+     *
+     * Un fichier est précisément ce qu'on relit hors contexte : un CSV tronqué au soixantième
+     * intervalle n'a rien qui dise, à la relecture, qu'il ne couvre pas la plage de son nom.
+     */
+    public function test_an_export_wider_than_the_cap_is_refused_and_writes_nothing(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/growth/export?format=csv&metric=agencies&granularity=day&starts_at=2020-01-01&ends_at=2026-01-01')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['ends_at']);
+
+        // Le refus arrive AVANT la ligne d'export et avant la trace d'audit : ni l'une ni l'autre
+        // ne doit rester derrière une demande qui n'a rien produit.
+        $this->assertSame(0, ReportExport::query()->count());
+        $this->assertFalse(Activity::query()->where('event', 'super_admin_report_exported')->exists());
+    }
+
+    /**
+     * TCK-388 — AC1 : la plage demandée et sa fenêtre décalée n'opposent pas des durées égales, et
+     * l'API le DIT au lieu de le laisser deviner.
+     *
+     * Les deux appels sont ceux que l'écran émet réellement : la série principale, puis la fenêtre
+     * précédente que `fenetrePrecedente()` déduit de ses bornes. Le décalage est d'un nombre entier
+     * de buckets MENSUELS — c'est un invariant, l'alignement des deux séries étant positionnel —,
+     * d'où 17 jours en face de 28.
+     */
+    public function test_a_partial_bucket_says_how_many_days_it_covers(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $principale = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-03-15&ends_at=2026-03-31')
+            ->assertOk();
+        $principale->assertJsonPath('data.rows.0.bucket', '2026-03');
+        $principale->assertJsonPath('data.rows.0.days', 17);
+        $principale->assertJsonPath('data.rows.0.partial', true);
+
+        // La fenêtre décalée d'un bucket mensuel : un mois PLEIN, en face du bucket partiel.
+        $comparee = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-02-01&ends_at=2026-02-28')
+            ->assertOk();
+        $comparee->assertJsonPath('data.rows.0.bucket', '2026-02');
+        $comparee->assertJsonPath('data.rows.0.days', 28);
+        $comparee->assertJsonPath('data.rows.0.partial', false);
+
+        $this->assertNotSame(
+            $principale->json('data.rows.0.days'),
+            $comparee->json('data.rows.0.days'),
+            'Les deux fenêtres comparées ne couvrent pas la même durée — c\'est précisément ce que le ticket demande de rendre visible.',
+        );
+    }
+
+    /**
+     * TCK-388 — AC3 : le raccourci `period` est couvert par le MÊME choix que la plage libre.
+     *
+     * `periodStart('3m')` tombe en milieu de mois. Mesuré le 2026-08-27, horloge figée au 15 mai :
+     * le premier bucket vaut 14 jours ET le dernier 15 — le ticket ne nommait que le premier.
+     */
+    public function test_the_period_shortcut_marks_its_partial_buckets_too(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $rows = $this->getJson('/api/admin/reports/growth?metric=agencies&period=3m&granularity=month')
+            ->assertOk()
+            ->json('data.rows');
+
+        $this->assertSame(['2026-02', '2026-03', '2026-04', '2026-05'], array_column($rows, 'bucket'));
+        $this->assertSame([14, 31, 30, 15], array_column($rows, 'days'));
+        $this->assertSame([true, false, false, true], array_column($rows, 'partial'));
+
+        Carbon::setTestNow();
+    }
+
+    /** Revenu porte la même mesure — les deux écrans partagent le graphique et son alignement. */
+    public function test_revenue_rows_also_carry_their_bucket_duration(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $this->getJson('/api/admin/reports/revenue?granularity=month&starts_at=2026-03-15&ends_at=2026-03-31')
+            ->assertOk()
+            ->assertJsonPath('data.rows.0.days', 17)
+            ->assertJsonPath('data.rows.0.partial', true);
+    }
+
+    /** Une plage alignée sur les frontières de mois ne signale aucune partialité. */
+    public function test_whole_month_buckets_are_not_marked_partial(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        $rows = $this->getJson('/api/admin/reports/growth?metric=agencies&granularity=month&starts_at=2026-01-01&ends_at=2026-03-31')
+            ->assertOk()
+            ->json('data.rows');
+
+        $this->assertSame([31, 28, 31], array_column($rows, 'days'));
+        $this->assertSame([false, false, false], array_column($rows, 'partial'));
+    }
+
+    /**
+     * TCK-388 — l'export ASYNCHRONE écrit le même CSV que le synchrone, booléens compris.
+     *
+     * Les deux chemins ont deux écrivains distincts : `ReportingController::downloadPayload()` et
+     * `GenerateReportExport::toCsv()`. Le second n'est atteint qu'au-delà de 10 000 lignes, donc
+     * jamais sur growth/revenue tant que le découpage est plafonné à 60 buckets — c'est
+     * précisément pourquoi il a besoin d'un test : *un chemin qu'aucun appel ne prend est un
+     * chemin dont personne ne verra la dérive.* Le jour où le seuil bouge, c'est ici que ça
+     * rougira, et pas en production.
+     */
+    public function test_the_async_export_writes_the_same_csv_as_the_synchronous_one(): void
+    {
+        Storage::fake('local');
+        Carbon::setTestNow('2026-05-15');
+        $acteur = $this->actingAsRole('super_admin');
+
+        $export = ReportExport::query()->create([
+            'requested_by' => $acteur->id,
+            'report' => 'growth',
+            'format' => 'csv',
+            'parameters' => ['metric' => 'agencies', 'period' => '3m', 'granularity' => 'month'],
+            'status' => 'queued',
+            'row_count' => 0,
+        ]);
+
+        (new GenerateReportExport($export->id))->handle(app(PlatformReportingService::class));
+
+        $csv = Storage::disk('local')->get($export->fresh()->archive_path);
+        $entete = str_replace('"', '', strtok($csv, "\n"));
+
+        $this->assertSame('bucket,starts_at,ends_at,days,partial,count', $entete);
+        // Les DEUX valeurs en toutes lettres : `period=3m` rend un premier bucket partiel (14 j)
+        // et des mois pleins ensuite, donc le fichier porte `true` ET `false`.
+        $this->assertStringContainsString('true', str_replace('"', '', $csv));
+        $this->assertStringContainsString('false', str_replace('"', '', $csv));
+
+        Carbon::setTestNow();
+    }
+
+    /**
+     * TCK-388 — une enveloppe mise en cache par le code PRÉCÉDENT ne doit pas être servie.
+     *
+     * Le changement de forme des lignes (`days` / `partial`) est invisible du cache : la clé
+     * d'avant reste valide, et pendant tout le TTL (600 s, redis en production) l'écran rendrait
+     * EXACTEMENT le comportement que ce ticket corrige, sans qu'aucune trace ne le dise. Le défaut
+     * se répare tout seul au bout de dix minutes — la meilleure façon de ne jamais le comprendre
+     * s'il se reproduit ailleurs.
+     *
+     * ⚠ Ce test REPRODUIT À LA MAIN la clé d'avant TCK-388, et c'est délibérément fragile : il ne
+     * peut pas la demander au service, dont c'est justement le secret. Il rougira si le format de
+     * clé change pour une autre raison — c'est le prix d'une garde sur un cache, et il est plus bas
+     * que celui d'une invalidation qui dépend d'un geste humain au moment du déploiement.
+     */
+    public function test_an_envelope_cached_by_the_previous_row_shape_is_not_served(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        // La version ÉVÉNEMENTIELLE se lit après `actingAsRole`, qui crée une agence et l'incrémente.
+        $version = (int) Cache::get('reporting:cache_version', 0);
+
+        Cache::put("reporting:growth:agencies:3m:month:3m:v{$version}", [
+            'rows' => [[
+                'bucket' => '1999-01',
+                'starts_at' => '1999-01-01T00:00:00+00:00',
+                'ends_at' => '1999-01-31T23:59:59+00:00',
+                'count' => 999,
+            ]],
+            'totals' => ['total' => 999],
+            'period' => ['range' => '3m', 'granularity' => 'month'],
+            'generated_at' => '1999-01-01T00:00:00+00:00',
+        ], 600);
+
+        $rows = $this->getJson('/api/admin/reports/growth?metric=agencies&period=3m&granularity=month')
+            ->assertOk()
+            ->json('data.rows');
+
+        $this->assertNotSame('1999-01', $rows[0]['bucket'], "L'enveloppe de l'ancienne forme a été servie.");
+        $this->assertArrayHasKey('days', $rows[0]);
+        $this->assertArrayHasKey('partial', $rows[0]);
+
+        Carbon::setTestNow();
+    }
+
+    /**
+     * Le JUMEAU du test précédent, pour `revenue` — et il n'est pas décoratif.
+     *
+     * `ROW_SCHEMA_VERSION` est posée sur DEUX clés, construites par deux `sprintf` distincts. Mesuré :
+     * retirer le jeton de la seule clé `revenue` laissait la suite entièrement verte. *Une garde qui
+     * ne couvre qu'une moitié d'un correctif en deux endroits ne garde pas le correctif : elle garde
+     * la moitié qu'on avait sous les yeux en l'écrivant.*
+     */
+    public function test_a_revenue_envelope_cached_by_the_previous_row_shape_is_not_served(): void
+    {
+        Carbon::setTestNow('2026-05-15');
+        $this->actingAsRole('super_admin');
+
+        $version = (int) Cache::get('reporting:cache_version', 0);
+
+        Cache::put("reporting:revenue:3m:month:3m:v{$version}", [
+            'rows' => [[
+                'bucket' => '1999-01',
+                'starts_at' => '1999-01-01T00:00:00+00:00',
+                'ends_at' => '1999-01-31T23:59:59+00:00',
+                'mrr' => 999.0,
+                'arr' => 11988.0,
+                'active_subscriptions' => 9,
+            ]],
+            'totals' => ['latest_mrr' => 999.0, 'latest_arr' => 11988.0, 'latest_active_subscriptions' => 9],
+            'period' => ['range' => '3m', 'granularity' => 'month'],
+            'generated_at' => '1999-01-01T00:00:00+00:00',
+        ], 600);
+
+        $rows = $this->getJson('/api/admin/reports/revenue?period=3m&granularity=month')
+            ->assertOk()
+            ->json('data.rows');
+
+        $this->assertNotSame('1999-01', $rows[0]['bucket'], "L'enveloppe de l'ancienne forme a été servie.");
+        $this->assertArrayHasKey('days', $rows[0]);
+        $this->assertArrayHasKey('partial', $rows[0]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_revenue_mrr_matches_active_subscription_sum(): void
     {
         $this->actingAsRole('super_admin');
@@ -348,8 +633,13 @@ class PlatformReportingTest extends TestCase
         $this->assertStringContainsString('takussan-growth-', (string) $response->headers->get('Content-Disposition'));
 
         $csv = $response->streamedContent();
-        $this->assertStringContainsString('bucket,starts_at,ends_at,count', str_replace('"', '', $csv));
+        // TCK-388 — `days` / `partial` accompagnent chaque ligne jusque dans le fichier : c'est là
+        // qu'on relit un rapport hors contexte, et une étiquette `2026-04` n'y dit pas si elle
+        // couvre le mois entier.
+        $this->assertStringContainsString('bucket,starts_at,ends_at,days,partial,count', str_replace('"', '', $csv));
         $this->assertStringContainsString('2026-04', $csv);
+        // Un `false` ne s'écrit pas par une case vide, qui se relirait comme une donnée manquante.
+        $this->assertStringContainsString('false', str_replace('"', '', $csv));
 
         $this->assertTrue(Activity::query()
             ->where('event', 'super_admin_report_exported')

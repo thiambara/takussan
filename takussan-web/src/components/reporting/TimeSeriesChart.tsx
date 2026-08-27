@@ -45,7 +45,22 @@ const INNER_H = VIEW_H - PADDING.top - PADDING.bottom;
 const MAX_X_LABELS = 6;
 const Y_TICKS = 4;
 
-export type SeriePoint = { bucket: string; value: number };
+/**
+ * Un point de série — et, depuis TCK-388, la DURÉE que son intervalle couvre réellement.
+ *
+ * `bucket` est une étiquette de calendrier (`2026-03`), pas une durée : le même libellé vaut
+ * dix-sept jours sur une plage qui commence un 15, et trente-et-un sur un mois entier. Les deux
+ * champs viennent de l'API (`days` / `partial`), qui est le seul endroit à connaître encore les
+ * bornes NATURELLES du bucket au moment où il les ramène dans la fenêtre.
+ */
+export type SeriePoint = {
+  bucket: string;
+  value: number;
+  /** Nombre de jours calendaires couverts, bornes comprises. */
+  jours?: number;
+  /** Vrai quand l'intervalle a été rogné par la fenêtre — son étiquette annonce alors plus que lui. */
+  partiel?: boolean;
+};
 
 type Props = {
   points: SeriePoint[];
@@ -144,6 +159,32 @@ export function TimeSeriesChart({
   const pointActif = actif === null ? null : points[actif];
   const comparaisonActive = actif === null ? null : comparaison?.points[actif] ?? null;
 
+  /**
+   * TCK-388 — l'étiquette d'un intervalle PARTIEL cesse de dire un mois entier.
+   *
+   * `2026-03` sur une plage qui commence un 15 vaut dix-sept jours. Le nombre de jours est la seule
+   * chose que l'axe puisse porter sans devenir illisible ; les dates exactes restent dans les
+   * lignes (`starts_at` / `ends_at`), que l'export CSV emporte.
+   */
+  const etiquette = (p: SeriePoint) =>
+    p.partiel && p.jours !== undefined ? t('bucketPartial', { bucket: p.bucket, days: p.jours }) : p.bucket;
+
+  /**
+   * Le nombre d'intervalles dont la durée diffère de celle de leur vis-à-vis dans la comparaison.
+   *
+   * ⚠ C'est la conséquence directe de l'alignement par INDEX, qui est un invariant : la fenêtre
+   * précédente se décale d'un nombre entier de buckets, jamais d'un nombre de jours. Une plage
+   * `2026-03-15 → 2026-03-31` (17 j) se compare donc à `2026-02` (28 j), et l'écart affiché
+   * contient une part de DURÉE que rien ne nommait à l'écran. La voie retenue est de la nommer —
+   * elle ne rend pas la comparaison juste, elle empêche de la mal lire.
+   */
+  const dureesInegales = comparaison
+    ? points.reduce((n, p, i) => {
+        const vis = comparaison.points[i];
+        return p.jours !== undefined && vis?.jours !== undefined && p.jours !== vis.jours ? n + 1 : n;
+      }, 0)
+    : 0;
+
   return (
     <figure className={cn('space-y-2', className)} data-testid="timeseries-chart">
       <div className="relative">
@@ -199,7 +240,7 @@ export function TimeSeriesChart({
                 textAnchor="middle"
                 className="fill-muted-foreground text-[10px] tabular-nums"
               >
-                {p.bucket}
+                {etiquette(p)}
               </text>
             );
           })}
@@ -264,7 +305,7 @@ export function TimeSeriesChart({
                 fill="transparent"
                 tabIndex={0}
                 role="button"
-                aria-label={t('pointAria', { bucket: p.bucket, value: format(p.value) })}
+                aria-label={t('pointAria', { bucket: etiquette(p), value: format(p.value) })}
                 onMouseEnter={() => setActif(i)}
                 onMouseLeave={() => setActif((courant) => (courant === i ? null : courant))}
                 onFocus={() => setActif(i)}
@@ -281,7 +322,7 @@ export function TimeSeriesChart({
             data-testid="timeseries-tooltip"
             className="pointer-events-none absolute left-1/2 top-2 z-10 -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-2 text-xs shadow-md"
           >
-            <p className="font-medium text-foreground tabular-nums">{pointActif.bucket}</p>
+            <p className="font-medium text-foreground tabular-nums">{etiquette(pointActif)}</p>
             <p className="mt-1 flex items-center gap-1.5 text-muted-foreground">
               <span className="inline-block size-2 rounded-full bg-chart-1" aria-hidden="true" />
               {seriesLabel}
@@ -292,7 +333,7 @@ export function TimeSeriesChart({
                 <span className="inline-block size-2 rounded-full bg-chart-4" aria-hidden="true" />
                 {comparaison.label}
                 <span className="font-medium text-foreground tabular-nums">{format(comparaisonActive.value)}</span>
-                <span className="tabular-nums">({comparaisonActive.bucket})</span>
+                <span className="tabular-nums">({etiquette(comparaisonActive)})</span>
               </p>
             )}
           </div>
@@ -315,6 +356,16 @@ export function TimeSeriesChart({
         )}
         {caption && <span className="ml-auto">{caption}</span>}
       </figcaption>
+
+      {dureesInegales > 0 && (
+        <p
+          role="note"
+          data-testid="durees-inegales"
+          className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-foreground"
+        >
+          {t('unequalDurations', { count: dureesInegales })}
+        </p>
+      )}
     </figure>
   );
 }
