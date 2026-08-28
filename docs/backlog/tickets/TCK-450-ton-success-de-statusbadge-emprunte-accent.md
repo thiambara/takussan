@@ -96,12 +96,27 @@ unions qui partagent un nom de membre se ressemblent dans un `grep` et n'ont rie
 Le relevé se reprend, il ne se recopie pas :
 
 ```bash
-# ⚠ filtrer sur le TYPE, pas sur la chaîne : `'success'` est aussi un membre de l'union de
-# `PropertyKpiStrip`, un ton de toast, et un état de `useCompare`. Seuls comptent les sites
-# typés `StatusTone`.
-grep -rln "StatusTone\|StatusBadge" takussan-web/src --include="*.tsx" --include="*.ts" \
-  | grep -v __tests__ | xargs grep -n "'success'\|tone=\"success\""
+# ⚠ Deux filtres, et il en faut DEUX. Le premier restreint aux fichiers qui connaissent le type ;
+# le second ne retient que les FORMES qui résolvent un ton — pas la chaîne `'success'`, qui est
+# aussi un ton de toast (`type: 'success'`), un membre de l'union homonyme de `PropertyKpiStrip`,
+# un état de `useCompare` et une entrée du tableau `SEVERITIES`.
+cd takussan-web
+grep -rln "StatusTone\|StatusBadge" src --include="*.tsx" --include="*.ts" \
+  | grep -v __tests__ \
+  | xargs grep -nE "tone=\"success\"|tone[:=]\{[^}]*'success'|tone: 'success'|^[[:space:]]*[a-zA-Z_]+: 'success',|return 'success';" \
+  | grep -vE "^[^:]+:[0-9]+: *\*" \
+  | grep -vE "type: 'success'"
+# → 20 lignes, 19 fichiers (mesuré le 2026-08-28). Les deux `grep -v` finaux ne sont pas du
+# confort : sans le premier, le DOCBLOCK de `KycUploader` (qui cite `<StatusBadge tone="success">`
+# pour l'expliquer) compte pour un site ; sans le second, huit toasts entrent.
 ```
+
+⚠ **La version précédente de cette commande filtrait sur le FICHIER puis grepait la chaîne**, et
+son commentaire promettait pourtant de filtrer sur le type. Rejouée, elle rendait **31 lignes dont
+11 de bruit** — le bruit qu'elle nommait comme motif de sa propre correction était toujours là,
+seulement confiné aux fichiers qui importent `StatusBadge`. *Un ticket dont la commande de relevé
+est fausse produit un compte faux à chaque re-mesure* : c'est la commande qu'il fallait corriger,
+pas le nombre.
 
 ## Contrat de données
 
