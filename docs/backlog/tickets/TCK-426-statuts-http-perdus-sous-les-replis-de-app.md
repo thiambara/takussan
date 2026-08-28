@@ -118,9 +118,22 @@ Deux conséquences que le ticket ne pouvait pas avoir :
   de répertoires et, ici, ne libère qu'une page.
 - **Le remède qu'il n'esquissait qu'en passant — remonter la décision dans le `layout.tsx` du
   segment — est mesuré, et il ne coûte AUCUN squelette** : ligne 8 du tableau, le repli continue
-  de couvrir la page (TTFB 0,063 s sur une page qui dort 2 s) pendant que le `redirect()` du
-  layout rend un vrai 307. C'est le remède à retenir. Il ne s'applique **pas** aux six vues de
-  `overview/*` tant que le repli est chez leur parent (ligne 9).
+  de couvrir la page — le squelette part avant que la page n'ait fini — pendant que le
+  `redirect()` du layout rend un vrai 307. C'est le remède à retenir. Il ne s'applique **pas** aux
+  six vues de `overview/*` tant que le repli est chez leur parent (ligne 9).
+
+  > ⚠ **Ce qui est mesuré ici est une PROPRIÉTÉ, pas une durée.** Les premières rédactions de ce
+  > ticket et des quatorze layouts qu'il a produits chiffraient l'avance du repli (« TTFB 0,063 s
+  > sur une page qui dort 2 s »). Ce chiffre vient d'une sonde **nue** — pas d'`AppShell`, pas de
+  > dictionnaire i18n, pas de lecture de cookie. Sur une vraie route de `/app` on relève plutôt
+  > 0,5-0,7 s. La propriété tient dans les deux cas ; la constante, non. Elle a été retirée des
+  > quatorze fichiers du produit, où elle se serait lue comme une caractéristique.
+  >
+  > ⚠ **Et la mesure elle-même a un piège d'outil**, trouvé par la revue : `curl` envoie
+  > `Accept-Encoding`, et **la compression tamponne le flux**. Mesuré à travers elle, le repli et
+  > la page arrivent ensemble, ce qui donne à croire que le repli n'est pas servi d'avance. Il
+  > faut un client sans compression pour voir les deux temps. *Une mesure de streaming prise à
+  > travers un compresseur ne mesure pas le streaming.*
 - Et il n'existe **aucune** échappatoire par la synchronicité : une page non-`async` perd son
   statut exactement comme une page `async`.
 

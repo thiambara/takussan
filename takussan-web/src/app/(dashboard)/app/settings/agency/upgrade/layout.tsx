@@ -14,8 +14,13 @@ import { getToken } from '@/lib/session';
  *
  * Mesuré sur le Next 16.3.1 du dépôt (sondes jetables, `next dev -p 3999`) : un `redirect()` de
  * LAYOUT rend **307** malgré le `loading.tsx` du même segment, et le repli continue de couvrir
- * la page (TTFB 0,053 s sur une page qui dort 1,5 s). Un `redirect()` de PAGE rend 200 dans tous
- * les cas — y compris depuis une page synchrone.
+ * la page — **le squelette part avant que la page n'ait fini**. Un `redirect()` de PAGE rend 200
+ * dans tous les cas, y compris depuis une page synchrone.
+ *
+ * ⚠ La PROPRIÉTÉ est mesurée, pas une durée. Une première rédaction écrivait « TTFB 0,053 s sur
+ * une page qui dort 1,5 s » : ce chiffre venait d'une sonde NUE. Sur une vraie route de `/app`,
+ * qui porte l'`AppShell` et son dictionnaire, on relève plutôt 0,5-0,7 s. *Une constante mesurée
+ * sur un banc d'essai ne décrit pas ce qu'elle a servi à démontrer.*
  *
  * ⚠ Un layout ne se re-rend pas à chaque navigation CLIENTE sous son propre segment. Sans effet
  * ici : ces gardes portent sur le rôle et l'agence de l'utilisateur, qui ne changent pas au sein

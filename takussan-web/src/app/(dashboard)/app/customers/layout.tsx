@@ -11,9 +11,17 @@ import { assertCanReachAgentArea } from '@/lib/auth/guards';
  *
  * Mesuré sur le Next 16.3.1 du dépôt (sondes jetables, `next dev -p 3999`, `curl -w
  * '%%{http_code}'`) : un `redirect()` de LAYOUT rend **307** malgré le `loading.tsx` du même
- * segment — et le repli continue de couvrir la page (TTFB 0,053 s sur une page qui dort 1,5 s).
- * Un layout ANCÊTRE garde aussi son statut au-dessus du repli d'un descendant. Un `redirect()`
- * de PAGE, lui, rend 200 dans tous les cas — y compris depuis une page synchrone.
+ * segment — et le repli continue de couvrir la page, c'est-à-dire que **le squelette part AVANT
+ * que la page n'ait fini**. Un layout ANCÊTRE garde aussi son statut au-dessus du repli d'un
+ * descendant. Un `redirect()` de PAGE, lui, rend 200 dans tous les cas — y compris depuis une
+ * page synchrone.
+ *
+ * ⚠ La PROPRIÉTÉ est mesurée, pas une durée. Une première rédaction écrivait ici « TTFB 0,053 s
+ * sur une page qui dort 1,5 s » : ce chiffre venait d'une sonde NUE, sans `AppShell`, sans
+ * dictionnaire i18n, sans lecture de cookie. Sur une vraie route de `/app` on relève plutôt
+ * 0,5-0,7 s, et la propriété tient toujours — mais un chiffre écrit dans quatorze fichiers du
+ * produit se lit comme une caractéristique du produit. *Une constante mesurée sur un banc d'essai
+ * ne décrit pas ce qu'elle a servi à démontrer.*
  *
  * *Un statut survit si et seulement s'il est décidé STRICTEMENT AU-DESSUS de toute frontière de
  * suspension de son chemin.*

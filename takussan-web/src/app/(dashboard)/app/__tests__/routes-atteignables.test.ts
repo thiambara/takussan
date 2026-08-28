@@ -223,18 +223,38 @@ describe('inventaire des écrans /app', () => {
  * 2026-08-27, chacune par sa propre commande :
  *
  *  1. **Les chemins CONSTRUITS.** Le motif ne reconnaît qu'un littéral commençant par `/app` ;
- *     `` `${BASE}/leases` `` lui est invisible. Mesuré — `grep -rn "const.*= '/app'" src/` : le
- *     dépôt n'a aucune constante de base de ce genre, tous les chemins sont écrits en entier.
- *     C'est vrai jusqu'à la première qu'on écrira.
- *  2. **Les fichiers de TEST**, écartés par `listeFichiers` avec les `__tests__`. 27 fichiers de
- *     test citent un `/app/…`. Délibéré : un test qui nomme une route morte pour en éprouver le
- *     traitement est légitime, et le compter ferait rougir la garde sur des cas de test justes.
+ *     `` `${base}/${id}` `` lui est invisible. **Le dépôt en contient**, et une première
+ *     rédaction de ce paragraphe affirmait le contraire : `src/lib/audit-subject-links.ts` porte
+ *     quatre BASES de route dans une constante (`Property: '/app/properties'`, etc.) et bâtit
+ *     `` `${base}/${subjectId}` `` — le chemin `/app/properties/{id}` n'est donc écrit en entier
+ *     nulle part. Ce test voit les quatre bases (ce sont des littéraux `/app/…`, et les quatre
+ *     routes existent) ; il ne voit pas la concaténation.
+ *
+ *     Ce qui la garde n'est pas ce test, c'est `src/lib/__tests__/audit-subject-links.test.ts`,
+ *     qui confronte chaque destination de la table à un `src/app/(dashboard)<route>/[id]/page.tsx`
+ *     réellement présent. **La sûreté existe, elle est simplement ailleurs** — et c'est la seule
+ *     forme de sûreté possible ici : un lien construit ne peut être vérifié que là où la règle de
+ *     construction est écrite.
+ *
+ *     ⚠ La première rédaction citait `grep -rn "const.*= '/app'" src/` comme preuve. Cette
+ *     commande n'apparie qu'une affectation valant EXACTEMENT `'/app'` — elle ne pouvait pas
+ *     trouver `'/app/properties'`, et elle ne rendait qu'une seule ligne : le docblock qui la
+ *     citait. *Une commande qui ne trouve qu'elle-même n'a rien mesuré.*
+ *  2. **Les fichiers de TEST**, écartés par `listeFichiers` avec les `__tests__`. Le compte ne
+ *     s'écrit pas ici — il se prend, et il dépend de ce qu'on appelle « citer » :
+ *
+ *         grep -rlE "['\"\`]/app/" src/ | grep -E '\.test\.tsx?$|__tests__' | wc -l
+ *
+ *     Délibéré : un test qui nomme une route morte pour en éprouver le traitement est légitime,
+ *     et le compter ferait rougir la garde sur des cas de test justes.
  *  3. **Tout ce qui n'est ni `.ts` ni `.tsx`.** Mesuré —
  *     `grep -rln "/app/" --include='*.json' src/` : aucun résultat. Aucun `.json` du dépôt ne
  *     porte de route ; si l'on en ajoutait un (table de navigation sérialisée, jeu de données de
  *     démonstration), il faudrait élargir `listeFichiers`.
  *
- * *Nommer ce qu'une garde ne voit pas est ce qui empêche de croire qu'elle voit tout.*
+ * *Nommer ce qu'une garde ne voit pas est ce qui empêche de croire qu'elle voit tout* — encore
+ * faut-il que ce qu'on en dit soit mesuré. Les deux premiers points de cette liste ont été faux
+ * à leur première rédaction, dans le bloc même qui existe pour éviter ça.
  */
 
 /** Toutes les routes de `/app`, segments dynamiques compris, rendues comme motifs. */

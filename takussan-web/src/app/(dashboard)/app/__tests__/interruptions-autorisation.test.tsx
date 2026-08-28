@@ -27,7 +27,8 @@ import type { UserRole } from '@/types/user';
  *     `redirect()` dans la PAGE, sous un `loading.tsx`  → **200** + le squelette de la route
  *                                                          interdite, rebond côté client
  *     `redirect()` dans le LAYOUT du même segment       → **307**, et le repli couvre toujours
- *                                                          la page (TTFB 0,053 s sur 1,5 s)
+ *                                                          la page : le squelette part AVANT
+ *                                                          qu'elle n'ait fini
  *
  * Un `agency_admin` déchu recevait donc, de tout ce qui n'est pas un navigateur, une réponse
  * indiscernable d'un succès. *Un refus qui rend 200 n'est pas un refus, c'est un aperçu.*
