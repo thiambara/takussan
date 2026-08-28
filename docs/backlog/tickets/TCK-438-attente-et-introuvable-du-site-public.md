@@ -1,7 +1,7 @@
 ---
 id: TCK-438
 title: "L'attente et l'introuvable de la section publique : quatre écrans sans état de chargement, et un 404 racine qui n'existe pas"
-status: todo
+status: doing
 phase: P1
 family: front
 estimate: M
@@ -128,4 +128,147 @@ chose n'existe pas.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Trois affirmations du ticket que la re-mesure a renversées
+
+Toutes trois mesurées le 2026-08-27, `next dev` 16.3.1, **serveur redémarré entre les campagnes** —
+sans quoi Turbopack garde un état de routage périmé après création/suppression de fichiers de route,
+et rend des relevés qu'on ne peut pas reproduire (deux campagnes ont été jetées pour cette raison).
+
+1. **AC1 était DÉJÀ vert.** Le ticket annonce « la 200 d'aujourd'hui » sur un slug d'agence inconnu.
+   Mesuré : `/fr/agencies/slug-inconnu-zzz` → **404** avant tout correctif. Le `notFound()` du corps
+   de page suffisait. Le risque n'était donc pas de gagner le 404 mais de **le perdre** en ajoutant
+   les `loading.tsx` que le delta demande.
+
+2. **L'arborescence a changé.** `src/app/(public)/**` n'existe plus (TCK-434) ; tout est sous
+   `src/app/[locale]/(public)/**`, et aucune URL publique n'existe sans préfixe de langue.
+
+3. **`properties/[slug]` ne peut pas recevoir de `loading.tsx`** — TCK-335 en avait supprimé un et
+   posé une garde structurelle contre son retour. La garde a été vérifiée plutôt que crue :
+   ajouter le fichier fait bien retomber la fiche de 404 à **200**.
+
+### La décision qui gouverne le ticket : le repli et le statut s'excluent sur les fiches à slug
+
+Le remède de TCK-426 — remonter `notFound()` dans un `layout.tsx`, au-dessus du repli — a été
+rejoué et **il fonctionne** : `agencies/[slug]` avec `loading.tsx` + décision en layout rend 404.
+Mais une seconde mesure, que le remède ne couvrait pas, en annule le bénéfice ici :
+
+```
+attente artificielle de 2 s placée DANS LA PAGE (sous le repli)   TTFB 0,81 s  total 2,29 s
+la même, placée DANS LE LAYOUT (au-dessus du repli)               TTFB 2,25 s  total 2,25 s
+```
+
+Un repli couvre exactement ce qui est en dessous de lui. Or sur ces trois fiches **l'attente EST la
+décision** : le seul aller-retour de la page est celui qui dit si le slug existe. Le remonter pour
+sauver le statut le met hors de portée du repli — qui ne montrerait plus qu'un éclair de squelette
+juste avant le contenu, au prix d'un `layout.tsx`, d'une frontière de dictionnaire (ADR-0022) et du
+déplacement de la frontière `not-found` vers le segment parent (mesuré : un `notFound()` levé dans
+`agencies/[slug]/layout.tsx` est attrapé par `agencies/not-found.tsx`, jamais par
+`agencies/[slug]/not-found.tsx` — le `not-found.tsx` local deviendrait du code mort).
+
+**Les trois `loading.tsx` de fiches n'ont donc pas été livrés, délibérément.** `/bookings` a le sien :
+cette page n'appelle jamais `notFound()`, n'a aucun statut à défendre, et son repli enveloppe
+l'aller-retour lui-même. Le raisonnement et ses relevés vivent dans
+`[locale]/(public)/__tests__/pas-de-frontiere-de-suspension.test.ts`, qui remplace et **élargit** la
+garde de TCK-335 : elle couvre désormais les trois fiches, leurs parents et leurs ancêtres communs,
+et refuse aussi le `layout.tsx` qui tuerait un `not-found.tsx` voisin.
+
+> Le vrai remède, si ces fiches doivent un jour montrer une attente, est de séparer l'appel qui
+> décide de l'existence de celui qui porte le portefeuille, et de suspendre le second dans la page.
+> Cela change un contrat d'API : **son propre ticket**, pas celui-ci.
+
+### Le 404 du site : emplacement mesuré, chrome arbitrée
+
+Trois emplacements testés avec un marqueur distinct chacun. **Une URL qui ne correspond à aucune
+route ne descend dans aucun segment** — ni `(public)`, ni `[locale]` : seule `src/app/not-found.tsx`
+est atteinte. Les deux autres candidats rendaient un écran que personne n'aurait vu.
+
+Sa chrome n'importe **pas** `Navbar`/`Footer`, et c'est un arbitrage chiffré, pas une facilité : un
+fichier de routeur à la racine fait entrer ses espaces de noms dans le socle servi à *toutes* les
+pages. Mesuré par `check-i18n-namespaces --update` — le socle **double** (13 → 26 points du
+dictionnaire gzippé), `(auth)` 18 → 30, `publish` 18 → 31, `onboarding` 42 → 54. C'est le défaut que
+TCK-337 a corrigé, réintroduit par une page d'erreur. La chrome est donc écrite sur place à partir
+d'`errors` (déjà au socle) plus `common.appName` pour la marque — **+1 point**, et une seule source
+pour le nom du produit. Les `not-found.tsx` d'agence et d'agent, eux, gardent la vraie chrome : ils
+vivent sous `[locale]/(public)`, qui l'a déjà payée.
+
+### AC2 : le défaut s'est produit tout seul pendant la campagne
+
+Le serveur d'API local s'est arrêté en cours de mesure. `/fr/agencies/dakar-immo` — une agence qui
+existe — a rendu **404 « cette agence n'existe pas »**, pendant que la fiche de bien voisine rendait
+200 « momentanément indisponible ». Une sonde jetable dans le `catch` a nommé le coupable
+(`ECONNREFUSED`). Après correctif, API réellement arrêtée : **200**, écran d'indisponibilité,
+`<meta name="robots" content="noindex">`.
+
+### Une ablation restée verte, et le test qu'elle a fait naître
+
+`getAgency` remis au défaut d'origine (`return { etat: 'introuvable' }` pour toute panne) laissait
+la suite de la fiche **verte, 5/5** : les tests de page remplacent le module de requête par un
+`vi.mock` et ne regardent donc jamais la classification. D'où
+`src/lib/queries/__tests__/fiches-publiques.test.ts`, qui éprouve `getAgency`/`getAgent` sur 404,
+5xx, 4xx, `ECONNREFUSED` et corps illisible. Les 10 ablations finales sont rouges, chacune vérifiée
+par `md5` avant/après — un premier essai `perl` dont le motif ne correspondait à rien avait rendu
+« ablation non appliquée » plutôt qu'un faux vert.
+
+### Passe 2 — deux corrections de fond apportées par la revue
+
+**La garde ne connaissait que des noms de fichiers.** `loading.tsx` n'est qu'une des deux façons
+d'ouvrir une frontière de suspension ; l'autre s'écrit à la main. Reproduit le 2026-08-28 : un
+`<Suspense>{children}</Suspense>` posé dans `(public)/layout.tsx` fait passer **les trois fiches de
+404 à 200**, et la garde restait **verte 10/10**. Elle lit désormais le *source* des dispositions
+ancêtres — liste **dérivée** de l'arborescence, jamais énumérée — et refuse `{children}` placé sous
+un `<Suspense>`. Ablation : reposer exactement ce `<Suspense>` la fait rougir (3 échecs / 16), et la
+perturbation ablatée a le **même md5** que celle dont le 404 → 200 a été mesuré.
+
+> *Une garde qui ne connaît que la liste des formes valides et écarte le reste ne garde rien — « le
+> reste » EST le défaut.*
+
+**`generateMetadata` ne porte aucun statut.** Trois commentaires de ce dépôt l'affirmaient, dont deux
+écrits ici. La mesure d'origine (TCK-335) portait sur une sonde appelant `notFound()` **aux deux
+endroits** et n'avait jamais séparé leurs effets. Désagrégé :
+
+```
+notFound() dans le SEUL generateMetadata  →  200   ← le bon écran, en 200 : un soft-404
+notFound() dans le SEUL corps de page     →  404
+les deux                                  →  404
+```
+
+L'appel reste dans les deux fiches, mais pour la raison vraie : il retire `introuvable` de l'union
+de types (`never`), sans quoi `tsc` casse sur `resultat.agence`. Il ne protège aucun statut.
+
+⚠ **Piège de méthode payé deux fois** : une première campagne de désagrégation a rendu 200 partout
+et ne mesurait rien — l'API locale s'était arrêtée, et les deux cas tombaient sur la branche
+`indisponible`, qui rend 200 elle aussi. Le harnais vérifie désormais que l'API répond 200 sur un
+slug connu **et** 404 sur un slug inconnu avant chaque relevé, et refuse de mesurer sinon.
+
+### Passe 3 — l'horizon de la garde, borné et épinglé
+
+La passe 2 avait écrit que la garde « EST le mécanisme ». **Elle affirmait plus large que ce qu'elle
+vérifie** — le défaut même qu'elle venait de corriger, un cran plus loin. Reproduit ici : un
+`<Suspense>` posé dans `src/i18n/IntlProvider.tsx`, que `(public)/layout.tsx` monte déjà autour de
+`{children}`, fait passer **les trois fiches de 404 à 200** avec la garde **verte 16/16**. Elle ne
+lit que des `layout.tsx` ; ce fichier n'en est pas un.
+
+Le docblock gagne un §4 « son horizon, mesuré et non supposé », et la phrase devient « la seule
+garde **automatique** de ce mécanisme, dans les limites énoncées au §4 ».
+
+**Les quatre formes aveugles sont ÉPINGLÉES par des cas de test, pas seulement listées en prose** —
+trois assertions qui attendent `false` à dessein, plus un cas qui constate que la liste inspectée ne
+contient que des dispositions. Une énumération en prose se périme en silence le jour où quelqu'un
+élargit le motif ; ces cas rougissent alors et l'obligent à corriger le §4 dans le même commit.
+Vérifié : élargir le détecteur à `{props.children}` fait rougir l'épingle (1 échec / 18).
+
+> D1 est **rétréci, pas clos**, et c'est écrit tel quel. Fermer complètement demanderait un harnais
+> e2e que ce dépôt n'a pas — la même limite qui empêche déjà de tester le code HTTP lui-même.
+
+⚠ Une phrase de la passe 2 a aussi été corrigée pour cesser de mentir par le temps verbal : elle
+disait que « trois fichiers l'affirmaient », à l'imparfait, alors que deux seulement ont été
+corrigés ici. Le troisième — `properties/[slug]/page.tsx`, celui d'où vient la croyance — le dit
+encore, plus fort, et sort du périmètre de ce ticket.
+
+### Reste ouvert
+
+- AC3 n'est tenu que sur `/bookings` (1 route serveur sur 4), pour la raison mesurée ci-dessus.
+- `agencies/[slug]/page.tsx` et `agents/[slug]/page.tsx` : seules les branches `notFound()` et
+  `robots: { index: false }` de `generateMetadata` ont été touchées — le reste des métadonnées
+  appartient au ticket SEO mené en parallèle.
+

@@ -134,7 +134,7 @@ import { fileURLToPath } from 'node:url';
  *
  * ⚠ Sur le catalogue PUBLIC, le même échange est inacceptable et le dépôt l'a déjà payé :
  * TCK-335 a SUPPRIMÉ `properties/[slug]/loading.tsx` pour rendre un vrai 404 à l'indexation, et
- * `(public)/properties/[slug]/__tests__/pas-de-frontiere-de-suspension.test.ts` le garde. Ne pas
+ * `[locale]/(public)/__tests__/pas-de-frontiere-de-suspension.test.ts` le garde. Ne pas
  * recopier le patron de ce fichier-ci vers `(public)`.
  *
  * ⚠ Et c'est cette SUPPRESSION qui le tient, plus le `notFound()` du CORPS de la page — pas celui

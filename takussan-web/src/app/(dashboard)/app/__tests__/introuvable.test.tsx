@@ -92,7 +92,7 @@ describe('TCK-382 — l’écran introuvable est rendu par le SERVEUR', () => {
     //
     // Ce test lit une directive, pas un rendu : jsdom ne peut pas observer le HTML que Next
     // produit. C'est un cliquet sur la CAUSE, comme
-    // `(public)/properties/[slug]/__tests__/pas-de-frontiere-de-suspension.test.ts`.
+    // `[locale]/(public)/__tests__/pas-de-frontiere-de-suspension.test.ts`.
     const source = readFileSync(join(APP, 'not-found.tsx'), 'utf8');
     expect(source.split('\n').slice(0, 3).join('\n')).not.toMatch(/['"]use client['"]/);
   });

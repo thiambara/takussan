@@ -72,7 +72,10 @@ jetables.
    (`properties/[id]`, l. 43). Le 404 de cette page était déjà un 200 et personne ne l'avait vu.
 2. **Le patron ne doit pas franchir la frontière du public.** TCK-335 a supprimé
    `properties/[slug]/loading.tsx` pour rendre un vrai 404 à l'indexation ;
-   `(public)/properties/[slug]/__tests__/pas-de-frontiere-de-suspension.test.ts` le garde.
+   `[locale]/(public)/__tests__/pas-de-frontiere-de-suspension.test.ts` le garde — chemin
+   corrigé par TCK-438 : le fichier a suivi le passage sous `[locale]` (TCK-434) et couvre
+   désormais les trois fiches, leurs ancêtres, et la frontière `<Suspense>` écrite à la main
+   qu'un nom de fichier ne montre pas.
 
 ## Re-mesure et décision (2026-08-27)
 

@@ -7,6 +7,7 @@
   "frontieres": {
     ".": [
       "announcements",
+      "common",
       "errors",
       "messaging",
       "meta",
@@ -25,6 +26,7 @@
     ],
     "publish": [
       "announcements",
+      "common",
       "errors",
       "messaging",
       "meta",
@@ -38,6 +40,7 @@
       "agents",
       "announcements",
       "auth",
+      "common",
       "errors",
       "messaging",
       "meta",
@@ -53,6 +56,7 @@
     "(dashboard)": [
       "account",
       "announcements",
+      "common",
       "errors",
       "messaging",
       "meta",
@@ -172,14 +176,14 @@
     ]
   },
   "plafondsPourcent": {
-    ".": 13,
+    ".": 14,
     "(auth)": 18,
-    "publish": 18,
+    "publish": 19,
     "onboarding": 42,
     "(dashboard)": 16,
     "(dashboard)/app": 69,
     "(dashboard)/admin": 56,
-    "[locale]/(public)": 36,
+    "[locale]/(public)": 37,
     "(super-admin)/super-admin": 43
   }
 }

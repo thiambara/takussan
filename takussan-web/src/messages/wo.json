@@ -509,6 +509,14 @@
       "network": "Jokkoo bi ak serwëer bi antuwul. Seetal sa jokkoo internet te jéemaat.",
       "submitFailed": "Yónnee bi antuwul. Jéemaatal.",
       "unknown": "Am na jafe-jafe. Jéemat."
+    },
+    "siteNotFound": {
+      "eyebrow": "Njuumte 404",
+      "title": "Xët wii amul",
+      "body": "Lëkkalekaay bi nga topp mën na am ba mu jeex, mbaa adrees bi am na njuumte. Waaye katalog bi mu ngi fi ba tey.",
+      "browseListings": "Gis yégle yi",
+      "backHome": "Dellu ci tàggat bi",
+      "footer": "© Takussan — Kër ak suuf ci Senegaal."
     }
   },
   "agency": {
@@ -672,7 +680,14 @@
       "metaTitle": "{name} — Ajaasu kër",
       "metaSummary": "{count, plural, other {# kër}}",
       "metaSummaryInCity": "{count, plural, other {# kër}} ci {city}",
-      "contactSubject": "Kontak ci Takussan — {name}"
+      "contactSubject": "Kontak ci Takussan — {name}",
+      "notFoundTitle": "Gisuñu ajaas bi",
+      "notFoundBody": "Ajaas bii nekkatul ci lim bi mbaa ñu jële na ko. Xoolal katalog bi ngir gis beneen jëfandikukat.",
+      "notFoundBrowse": "Gis yégle yi",
+      "notFoundHome": "Dellu ci tàggat bi",
+      "unavailableTitle": "Ajaas bi amul ba tey",
+      "unavailableBody": "Mënunu jot katalog bi ci saa si. Ajaas bii mën na am ba tey — jéemaatal ci ay saa.",
+      "unavailableMetaDescription": "Ajaas bi mënul a wone ci saa si. Jéemaatal ci ay saa."
     }
   },
   "compare": {
@@ -2329,7 +2344,14 @@
       "metaSummary": "{count, plural, other {# kër}}",
       "metaSummaryInCity": "{count, plural, other {# kër}} ci {city}",
       "experience": "{count, plural, other {# at}} ci liggéey bi",
-      "contactSubject": "Kontak ci Takussan — {name}"
+      "contactSubject": "Kontak ci Takussan — {name}",
+      "notFoundTitle": "Gisuñu ajaŋ bi",
+      "notFoundBody": "Ajaŋ bii nekkatul ci lim bi mbaa ñu jële na ko. Xoolal katalog bi ngir gis beneen jëfandikukat.",
+      "notFoundBrowse": "Gis yégle yi",
+      "notFoundHome": "Dellu ci tàggat bi",
+      "unavailableTitle": "Ajaŋ bi amul ba tey",
+      "unavailableBody": "Mënunu jot katalog bi ci saa si. Ajaŋ bii mën na am ba tey — jéemaatal ci ay saa.",
+      "unavailableMetaDescription": "Ajaŋ bi mënul a wone ci saa si. Jéemaatal ci ay saa."
     }
   },
   "agentWelcome": {

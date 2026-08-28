@@ -3,76 +3,38 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Building2 } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { ErrorState } from '@/components/feedback';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { ContactSheet } from '@/components/public/profile/ContactSheet';
 import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
-import {
-  ReviewsSection,
-  type PublicReview,
-} from '@/components/public/profile/ReviewsSection';
-import type { PropertyListItem } from '@/types/property';
+import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
 import { alternatesLangues } from '@/lib/alternates';
-
-interface AgentStats {
-  rent_count: number;
-  sale_count: number;
-  cities: number;
-  years: number | null;
-}
-
-interface AgentDto {
-  id: number;
-  slug: string;
-  full_name: string;
-  bio?: string | null;
-  // TCK-441 — `email` N'EST PLUS servi par l'API : c'est l'adresse de CONNEXION de l'agent, et
-  // elle a quitté la charge publique. Le contact passe par le formulaire anonyme de
-  // `ContactSheet`, sans compte à créer.
-  phone: string | null;
-  city?: string | null;
-  preferred_language?: string | null;
-  specialty?: string | null;
-  years_of_experience?: number | null;
-  avatar_url: string | null;
-  agency: { id: number; name: string; slug: string } | null;
-  portfolio_count: number;
-  portfolio_total: number;
-  portfolio: PropertyListItem[];
-  stats?: AgentStats;
-  reviews?: {
-    average: number | null;
-    count: number;
-    recent: PublicReview[];
-  };
-}
-
-interface ApiEnvelope<T> {
-  data: T;
-}
-
-async function loadAgent(slug: string): Promise<AgentDto | null> {
-  try {
-    const res = await apiFetch<ApiEnvelope<AgentDto>>(
-      `/public/agents/${encodeURIComponent(slug)}`,
-      undefined,
-      { locale: await getLocale() },
-    );
-    return res.data;
-  } catch {
-    return null;
-  }
-}
+import { getAgent } from '@/lib/queries/public-agent';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const t = await getTranslations('agents.publicPage');
-  const agent = await loadAgent(slug);
-  if (!agent) {
-    return { title: t('notFound') };
+  const resultat = await getAgent(slug, await getLocale());
+
+  // ⚠️ **Cet appel ne porte AUCUN code HTTP** — le 404 vient du `notFound()` du corps de page.
+  // Désagrégé le 2026-08-28 : `notFound()` dans le seul `generateMetadata` rend **200**, dans le
+  // seul corps de page **404**. La mesure complète, et la raison pour laquelle cette ligne reste
+  // malgré tout — elle est load-bearing pour les TYPES, `never` retirant `introuvable` de l'union
+  // avant la lecture de `resultat.agent` —, sont écrites une seule fois, dans le commentaire
+  // jumeau de `agencies/[slug]/page.tsx`.
+  if (resultat.etat === 'introuvable') notFound();
+
+  if (resultat.etat === 'indisponible') {
+    return {
+      title: t('unavailableTitle'),
+      description: t('unavailableMetaDescription'),
+      robots: { index: false },
+    };
   }
+
+  const agent = resultat.agent;
   const summary = agent.city
     ? t('metaSummaryInCity', { count: agent.portfolio_count, city: agent.city })
     : t('metaSummary', { count: agent.portfolio_count });
@@ -98,12 +60,41 @@ function getInitials(name: string): string {
     .join('');
 }
 
+/**
+ * L'API n'a pas répondu — **et on ne dit surtout pas que l'agent n'existe pas.**
+ *
+ * ⚠️ Une FONCTION qui rend du JSX, non un composant asynchrone : sous jsdom, un composant `async`
+ * imbriqué ne serait pas rendu, et le test d'AC2 ne verrait jamais cette branche.
+ */
+async function agentIndisponible() {
+  const t = await getTranslations('agents.publicPage');
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      {/* Spacer : navbar fixed (~65px) + ligne catégories (~68px) */}
+      <div className="h-[133px]" />
+      <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
+        <h1 className="mb-6 font-display text-2xl font-semibold text-foreground sm:text-3xl">
+          {t('unavailableTitle')}
+        </h1>
+        <ErrorState message={t('unavailableBody')} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const t = await getTranslations('agents.publicPage');
   const { slug } = await params;
-  const agent = await loadAgent(slug);
-  if (!agent) notFound();
+  const resultat = await getAgent(slug, await getLocale());
 
+  // Un 404 amont produit un VRAI 404 — statut compris.
+  if (resultat.etat === 'introuvable') notFound();
+  if (resultat.etat === 'indisponible') return agentIndisponible();
+
+  const agent = resultat.agent;
   const stats = agent.stats;
   const reviews = agent.reviews;
 
