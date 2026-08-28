@@ -1,13 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 
-import { getMeAction } from '@/app/actions/auth';
 
 import { fetchTagsAction } from '@/app/actions/admin-tags';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 import { ApiError } from '@/lib/api';
-import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PropertyDetailTabs } from '@/components/property-dashboard/PropertyDetailTabs';
 import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyHeaderActions';
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
@@ -31,12 +29,18 @@ type Params = Promise<{ id: string }>;
 
 export default async function Page({ params }: { params: Params }) {
   const t = await getTranslations('dashboard.pages.propertyDetail');
-  const user = await getMeAction();
-  assertCanReachAgentArea(user.roles);
+  // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
 
   const { id } = await params;
   const token = await getToken();
-  if (!token) redirect('/app');
+  // TCK-426 — NARROWING DE TYPE, PAS UNE DÉCISION. Le `layout.tsx` de ce segment a déjà refusé
+  // l'absence de jeton, au-dessus de la frontière de suspension ; et `getMeAction()` redirige
+  // vers `/auth/login` bien avant, depuis `(dashboard)/layout.tsx`. Cette branche est donc
+  // inatteignable — mais `getToken()` rend `string | null` et le typage exige qu'on le dise.
+  // *Ce qu'elle ne fait SURTOUT pas, c'est rediriger : sous un `loading.tsx`, un `redirect()` de
+  // page rend 200 + le squelette au lieu du 307.*
+  if (!token) return null;
 
   let property;
   try {

@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { getMeAction } from '@/app/actions/auth';
-import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { PipelineKanban } from '@/components/pipeline/PipelineKanban';
 import { PageHeader } from '@/components/console';
 
@@ -21,8 +19,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export const dynamic = 'force-dynamic';
 
 export default async function Page() {
-  const me = await getMeAction();
-  assertCanReachAgentArea(me.roles);
+  // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
   const t = await getTranslations('crm.pipeline');
 
   return (

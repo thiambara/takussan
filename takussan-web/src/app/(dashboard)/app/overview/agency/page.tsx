@@ -2,11 +2,8 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
-import { isAdmin, isAgent, isSuperAdmin } from '@/lib/roles';
-import { redirect } from 'next/navigation';
+import { isSuperAdmin } from '@/lib/roles';
 import { fetchAgencyDashboard } from '@/lib/queries/dashboard';
-import { resolveAgencyOrNull } from '@/lib/access/server-guards';
-import { getToken } from '@/lib/session';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
 import { PageHeader } from '@/components/console';
@@ -27,29 +24,13 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AgencyDashboardPage() {
   const t = await getTranslations('dashboard.agency');
   const user = await getMeAction();
-  if (!isAdmin(user.roles) && !isAgent(user.roles)) {
-    redirect('/app/overview');
-  }
+  // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
 
   // TCK-115: super_admin without agency_id gets 403 from /api/dashboard/agency
   // (Spatie team scope). Guard before the API call to avoid the unhandled exception.
   if (isSuperAdmin(user.roles) && !user.agency_id) {
     return <NoAgencyState title={t('title')} />;
-  }
-
-  if (user.agency_id) {
-    // FAIL-CLOSED de bout en bout, et la forme compte autant que le test.
-    //
-    // `fetchAgency` avale son erreur en `null` : un `if (agency && …)` laissait s'afficher
-    // l'écran réservé dès que l'API toussait. Mais imbriquer le tout sous `if (token)` rouvre
-    // exactement la même porte un cran plus haut — sans jeton, la garde est simplement sautée.
-    // Le jeton descend donc DANS l'expression, comme dans les deux pages sœurs
-    // (`overview/kpis`, `overview/alerts`) : une seule condition, un seul refus.
-    //
-    // Un écran réservé se refuse quand on ne SAIT PAS, pas seulement quand on sait que non.
-    const token = await getToken();
-    const agency = token ? await resolveAgencyOrNull(token, user.agency_id, 'overview/agency', 'decision') : null;
-    if (!agency || agency.kind !== 'standard') redirect('/app');
   }
 
   const payload = await fetchAgencyDashboard();

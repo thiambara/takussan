@@ -1596,7 +1596,12 @@ const TEMOINS = {
     join(WEB_SRC, 'components', 'kyc', 'KycUploader.tsx'),
   ],
   'tableau de bord /app': [
-    join(WEB_SRC, 'app', '(dashboard)', 'app', 'page.tsx'),
+    // TCK-426 — le fichier a été DÉPLACÉ, pas supprimé : `app/page.tsx` vit désormais sous le
+    // groupe de routes `(accueil)`, qui ne consomme aucun segment d'URL (`/app` est inchangée).
+    // Le déplacement retire le `loading.tsx` de la racine, dont la frontière de suspension
+    // effaçait le statut HTTP de tout `/app`. C'est exactement le cas que le message
+    // d'AUTO-ÉPREUVE décrit : renommé pour de bon, donc on corrige le témoin.
+    join(WEB_SRC, 'app', '(dashboard)', 'app', '(accueil)', 'page.tsx'),
     join(WEB_SRC, 'components', 'calendar', 'CalendarPage.tsx'),
     join(WEB_SRC, 'components', 'leases', 'LeaseDetail.tsx'),
     join(WEB_SRC, 'components', 'maintenance', 'labels.ts'),

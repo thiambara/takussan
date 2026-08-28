@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
@@ -30,20 +29,13 @@ export const dynamic = 'force-dynamic';
  */
 export default async function Page() {
   const user = await getMeAction();
+
+  // TCK-426 — les TROIS refus de cette page (jeton absent, rôle hors agence, absence de contexte
+  // d'agence) ont remonté dans `maintenance/providers/layout.tsx`. Sous le `loading.tsx` de ce
+  // segment, aucun ne rendait son statut. Ne reste ici que du narrowing de type.
   const token = await getToken();
-  if (!token) redirect('/auth/login?redirect=/app/maintenance/providers');
-
-  const isAgencySide =
-    user.roles.includes('agency_admin') ||
-    user.roles.includes('agent') ||
-    isAdmin(user.roles) ||
-    user.roles.includes('super_admin');
-  if (!isAgencySide) redirect('/app');
-
   const agencyId = user.agency_id;
-  if (!agencyId) {
-    redirect('/app');
-  }
+  if (!token || !agencyId) return null;
 
   const [agency, providers] = await Promise.all([
     resolveAgencyOrNull(token, agencyId, 'maintenance/providers'),

@@ -61,7 +61,11 @@ function routesStatiques(): { route: string; dossier: string }[] {
       } else if (entree.name === 'page.tsx') {
         const relatif = path.relative(APP, dir).split(path.sep).filter(Boolean);
         if (relatif.some((s) => s.startsWith('['))) continue; // routes dynamiques
-        sortie.push({ route: ['/app', ...relatif].join('/'), dossier: dir });
+        // TCK-426 — un GROUPE de routes `(nom)` ne consomme aucun segment d'URL. Sans cette
+        // ligne, `app/(accueil)/page.tsx` était relevée comme la route `/app/(accueil)`, que
+        // rien ne peut citer : le test rougissait sur une route qui n'existe pas.
+        const segments = relatif.filter((s) => !/^\(.*\)$/.test(s));
+        sortie.push({ route: ['/app', ...segments].join('/'), dossier: dir });
       }
     }
   };
@@ -190,5 +194,124 @@ describe('inventaire des écrans /app', () => {
       expect(dossier, `${route} a disparu`).toBeDefined();
       expect(citations(route, dossier as string).length).toBeGreaterThan(0);
     }
+  });
+});
+
+/**
+ * TCK-419 — LE SENS INVERSE : tout chemin `/app/…` écrit dans le front doit avoir une route.
+ *
+ * TCK-379 avait délibérément laissé cette garde de côté : elle serait née rouge. La re-mesure du
+ * 2026-08-27 (script jetable confrontant les littéraux de `src/` à l'inventaire des `page.tsx`,
+ * segments dynamiques appariés) en a rendu **cinq** — un de plus que les quatre du ticket :
+ *
+ *   /app/payments/new              components/tenant/TenantOnboardingChecklistWidget.tsx:140
+ *   /app/profile/customer/onboarding · /app/profile/owner/kyc · /app/profile/agent/kyc
+ *                                  lib/wizard-drafts.ts:96,102,108
+ *   /app/maintenance/requests/{id} components/onboarding/ServiceProviderOnboardingWizard.tsx:161
+ *
+ * Le cinquième est le dernier geste du parcours « un prestataire s'inscrit depuis une demande ».
+ * Il n'était dans aucun ticket : il est sorti de la mesure, pas de la lecture.
+ *
+ * ⚠ Zéro exception, et c'est la condition pour que la garde tienne : *une garde livrée avec sa
+ * liste d'exceptions ne garde plus que la liste.* Les commentaires sont blanchis par
+ * `sansCommentaires` — sans quoi le `/app/...` du docblock de `admin/finances/page.tsx` la ferait
+ * rougir sur du texte.
+ *
+ * ⚠⚠ **« ZÉRO EXCEPTION » EST VRAI DE LA LISTE, PAS DE LA PORTÉE.** La distinction a été relevée
+ * en revue, et elle compte : une garde qu'on croit exhaustive n'est plus relue. Trois choses
+ * échappent à ce test, par construction, et aucune ne cache de lien mort AUJOURD'HUI — vérifié le
+ * 2026-08-27, chacune par sa propre commande :
+ *
+ *  1. **Les chemins CONSTRUITS.** Le motif ne reconnaît qu'un littéral commençant par `/app` ;
+ *     `` `${base}/${id}` `` lui est invisible. **Le dépôt en contient**, et une première
+ *     rédaction de ce paragraphe affirmait le contraire : `src/lib/audit-subject-links.ts` porte
+ *     quatre BASES de route dans une constante (`Property: '/app/properties'`, etc.) et bâtit
+ *     `` `${base}/${subjectId}` `` — le chemin `/app/properties/{id}` n'est donc écrit en entier
+ *     nulle part. Ce test voit les quatre bases (ce sont des littéraux `/app/…`, et les quatre
+ *     routes existent) ; il ne voit pas la concaténation.
+ *
+ *     Ce qui la garde n'est pas ce test, c'est `src/lib/__tests__/audit-subject-links.test.ts`,
+ *     qui confronte chaque destination de la table à un `src/app/(dashboard)<route>/[id]/page.tsx`
+ *     réellement présent. **La sûreté existe, elle est simplement ailleurs** — et c'est la seule
+ *     forme de sûreté possible ici : un lien construit ne peut être vérifié que là où la règle de
+ *     construction est écrite.
+ *
+ *     ⚠ La première rédaction citait `grep -rn "const.*= '/app'" src/` comme preuve. Cette
+ *     commande n'apparie qu'une affectation valant EXACTEMENT `'/app'` — elle ne pouvait pas
+ *     trouver `'/app/properties'`, et elle ne rendait qu'une seule ligne : le docblock qui la
+ *     citait. *Une commande qui ne trouve qu'elle-même n'a rien mesuré.*
+ *  2. **Les fichiers de TEST**, écartés par `listeFichiers` avec les `__tests__`. Le compte ne
+ *     s'écrit pas ici — il se prend, et il dépend de ce qu'on appelle « citer » :
+ *
+ *         grep -rlE "['\"\`]/app/" src/ | grep -E '\.test\.tsx?$|__tests__' | wc -l
+ *
+ *     Délibéré : un test qui nomme une route morte pour en éprouver le traitement est légitime,
+ *     et le compter ferait rougir la garde sur des cas de test justes.
+ *  3. **Tout ce qui n'est ni `.ts` ni `.tsx`.** Mesuré —
+ *     `grep -rln "/app/" --include='*.json' src/` : aucun résultat. Aucun `.json` du dépôt ne
+ *     porte de route ; si l'on en ajoutait un (table de navigation sérialisée, jeu de données de
+ *     démonstration), il faudrait élargir `listeFichiers`.
+ *
+ * *Nommer ce qu'une garde ne voit pas est ce qui empêche de croire qu'elle voit tout* — encore
+ * faut-il que ce qu'on en dit soit mesuré. Les deux premiers points de cette liste ont été faux
+ * à leur première rédaction, dans le bloc même qui existe pour éviter ça.
+ */
+
+/** Toutes les routes de `/app`, segments dynamiques compris, rendues comme motifs. */
+function motifsDeRoutes(): RegExp[] {
+  const chemins: string[] = [];
+  const parcours = (dir: string, prefixe: string) => {
+    for (const entree of fs.readdirSync(dir, { withFileTypes: true })) {
+      const complet = path.join(dir, entree.name);
+      if (entree.isDirectory()) {
+        if (entree.name === '__tests__') continue;
+        // Un groupe de routes `(nom)` ne consomme aucun segment d'URL.
+        parcours(complet, /^\(.*\)$/.test(entree.name) ? prefixe : `${prefixe}/${entree.name}`);
+      } else if (entree.name === 'page.tsx') {
+        chemins.push(prefixe);
+      }
+    }
+  };
+  parcours(APP, '/app');
+  return [...new Set(chemins)].map(
+    (route) =>
+      new RegExp(
+        '^' +
+          route
+            .split('/')
+            .map((seg) =>
+              seg.startsWith('[') ? '[^/]+' : seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+            )
+            .join('/') +
+          '$',
+      ),
+  );
+}
+
+/**
+ * Les littéraux de chemin `/app/…` d'un fichier, hors commentaires. On s'arrête aux caractères
+ * qui ne peuvent pas appartenir à un segment de route : une chaîne de requête (`?…`), une ancre
+ * (`#…`) ou une concaténation ferment le chemin.
+ */
+const LITTERAL = /['"`](\/app(?:\/[A-Za-z0-9_$\-.[\]{}]+)*)/g;
+
+describe('chemins /app écrits dans le front', () => {
+  it('ne cite aucune route inexistante', () => {
+    const motifs = motifsDeRoutes();
+    const morts: string[] = [];
+
+    for (const { chemin, lignes } of FICHIERS) {
+      lignes.forEach((ligne, index) => {
+        for (const trouve of ligne.matchAll(LITTERAL)) {
+          // `${expr}` occupe exactement un segment dynamique ; un `/` final ne compte pas.
+          const candidat = trouve[1].replace(/\$\{[^}]*\}/g, 'X').replace(/\/$/, '');
+          if (!motifs.some((motif) => motif.test(candidat))) {
+            morts.push(`${path.relative(RACINE, chemin)}:${index + 1} → ${trouve[1]}`);
+          }
+        }
+      });
+    }
+
+    expect(morts).toEqual([]);
   });
 });

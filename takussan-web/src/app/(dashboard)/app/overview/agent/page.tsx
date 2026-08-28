@@ -1,12 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
 import { getTranslations } from 'next-intl/server';
 
-import { getMeAction } from '@/app/actions/auth';
-import { isAdmin, isAgent } from '@/lib/roles';
 import { fetchAgentDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { BarChart } from '@/components/charts/BarChart';
@@ -33,10 +30,8 @@ export default async function AgentDashboardPage() {
   const t = await getTranslations('dashboard.agent');
   const tStages = await getTranslations('dashboard.pipelineStages');
   const tPriority = await getTranslations('dashboard.taskPriority');
-  const user = await getMeAction();
-  if (!isAgent(user.roles) && !isAdmin(user.roles)) {
-    redirect('/app/overview');
-  }
+  // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
 
   const payload = await fetchAgentDashboard();
   if (!payload) {

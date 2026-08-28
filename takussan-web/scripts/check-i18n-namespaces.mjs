@@ -118,8 +118,39 @@ const totalGzip = partGzip(Object.keys(dico).sort());
 const fichiersRouteur = fichiersDe(APP).filter(
   (f) => FICHIERS_ROUTEUR.has(basename(f)) && !relative(APP, f).startsWith('api/'),
 );
+/**
+ * TCK-426 — UN LAYOUT QUI NE REND RIEN DE LUI-MÊME N'EST PAS UNE FRONTIÈRE DE DICTIONNAIRE.
+ *
+ * Ce ticket a posé 14 `layout.tsx` sous `/app` dont le seul travail est de REFUSER : ils
+ * appellent une garde, puis rendent `<>{children}</>` et rien d'autre. Ils existent parce qu'un
+ * `loading.tsx` ouvre une frontière de suspension sous laquelle un `redirect()` de page rend 200
+ * au lieu de 307 — un refus d'autorisation indiscernable d'un succès pour tout ce qui n'est pas
+ * un navigateur (mesuré sur Next 16.3.1).
+ *
+ * Pour next-intl, ces layouts sont TRANSPARENTS : un provider imbriqué remplace le dictionnaire
+ * du parent, mais eux n'en montent aucun, donc le provider effectif reste celui du parent, et
+ * leur sous-arbre reçoit exactement ce qu'il recevait avant. Les déclarer frontières exigerait
+ * 14 `messagesPour` — c'est-à-dire 14 fois les 38 espaces de noms du tableau de bord, sérialisés
+ * pour des composants qui n'affichent pas un seul mot. *Le coût que ce fichier existe pour
+ * mesurer, payé par la garde elle-même.*
+ *
+ * ⚠ L'exemption est DÉRIVÉE et étroite, pas déclarée : il faut À LA FOIS qu'aucune API de
+ * traduction n'apparaisse dans le fichier ET que le rendu soit exactement `<>{children}</>`. Un
+ * layout qui rendrait la moindre chrome traduite retombe dans le contrôle. C'est ce qui empêche
+ * l'exemption de couvrir le défaut que ce fichier attrape — « hérite EN SILENCE d'un
+ * dictionnaire plus pauvre que ce que son sous-arbre adresse ».
+ */
+const RENDU_TRANSPARENT = /return\s*<>\s*\{\s*children\s*\}\s*<\/>\s*;/;
+const API_DE_TRADUCTION = /getTranslations|useTranslations|messagesPour|IntlProvider|getMessages/;
+
+function estTransparentPourI18n(layout) {
+  const source = retireCommentairesPleineLigne(readFileSync(layout, 'utf8'));
+  return RENDU_TRANSPARENT.test(source) && !API_DE_TRADUCTION.test(source);
+}
+
 const frontieres = fichiersRouteur
   .filter((f) => basename(f) === 'layout.tsx')
+  .filter((f) => !estTransparentPourI18n(f))
   .map((f) => dirname(f))
   .sort((a, b) => a.length - b.length);
 

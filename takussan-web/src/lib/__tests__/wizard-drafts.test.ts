@@ -12,10 +12,15 @@ describe('resolveWizardResume', () => {
       href: '/onboarding/host',
       i18nKey: 'host-individual-wizard',
     });
-    expect(resolveWizardResume('customer-onboarding')).toEqual({
-      href: '/app/profile/customer/onboarding',
-      i18nKey: 'customer-onboarding',
-    });
+  });
+
+  it("ne rend plus de lien pour les trois clés dont la route n'existe pas (TCK-419)", () => {
+    // Ces trois règles pointaient vers des routes absentes de `app/(dashboard)/app`, pour des
+    // clés qu'aucun `storageKey` du dépôt n'écrit. Elles ont été retirées : `resolveWizardResume`
+    // doit désormais les traiter comme inconnues, et la bannière les filtre (`resumeHref !== null`).
+    for (const cle of ['customer-onboarding', 'owner-kyc', 'agent-kyc']) {
+      expect(resolveWizardResume(cle), cle).toEqual({ href: null, i18nKey: null });
+    }
   });
 
   it('matches prefix rules and forwards the suffix', () => {
