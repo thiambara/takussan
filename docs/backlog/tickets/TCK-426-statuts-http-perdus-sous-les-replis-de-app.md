@@ -105,12 +105,60 @@ hors `(dashboard)`, supprimées après mesure :
 | page `permanentRedirect()` | aucun / avec repli | **308** / **200** |
 | **`layout.tsx`** `redirect()` | repli **du même segment** | **307**, *et le repli couvre toujours la page* |
 | **`layout.tsx`** `redirect()` | repli **ancêtre** | **200** |
+| **`generateMetadata()`** `notFound()` | aucun | **404** |
+| **`generateMetadata()`** `notFound()` | même segment | **200** |
 
 D'où la règle, qui n'était écrite nulle part :
 
 > **Un statut survit si et seulement s'il est décidé STRICTEMENT AU-DESSUS de toute frontière de
 > suspension de son chemin.** Un `layout.tsx` est au-dessus du `loading.tsx` de SON segment, et
 > en dessous de celui de tous ses ancêtres.
+
+### Les deux dernières lignes sont arrivées après coup, et elles corrigent une croyance
+
+**Mesure de `g9-etats`, rejouée ici.** `generateMetadata` **ne protège PAS le statut.** C'est
+important parce que c'était le remède de [TCK-335](TCK-335-recherche-navigation-defauts-mesures.md) :
+`(public)/properties/[slug]/page.tsx` appelle `notFound()` dans son `generateMetadata`
+**précisément pour tenir le code HTTP**, et son propre docblock explique que « `generateMetadata`
+est attendu AVANT que la coque ne parte ». Il passe pourtant à 200 dès qu'un `loading.tsx` existe
+dans son segment.
+
+Rejoué le 2026-08-28 sur le Next 16.3.1 du dépôt, sondes jetables hors `(public)`, **méthode
+stricte** (fichiers de route créés AVANT le démarrage, `.next` supprimé, serveur redémarré),
+même page des deux côtés, contrôle positif inclus :
+
+```
+sonde426e/nu/[slug]     — notFound() dans generateMetadata ET dans le corps, PAS de loading.tsx
+sonde426e/repli/[slug]  — la MÊME page, plus un loading.tsx dans son segment
+
+  /present  → 200 · 200     (contrôle positif : les deux rendent la fiche)
+  /absent   → 404 · 200     (le repli seul fait la différence)          stable sur deux passages
+```
+
+⚠ **Piège de forme, payé pendant ce rejeu et qui vaut d'être écrit** : une première sonde, en
+segment STATIQUE et dont la `generateMetadata` ne prenait pas de `params`, rendait **200 des deux
+côtés** — y compris sans repli, là où 404 était attendu. Le `notFound()` n'y était tout simplement
+jamais évalué de façon bloquante. *Une sonde qui ne reproduit pas la forme réelle ne mesure pas
+un mécanisme, elle mesure sa propre forme* — et sans le contrôle positif « présent → 200 », elle
+aurait pu passer pour une mesure.
+
+**Conséquence.** Le seul remède est STRUCTUREL : aucune frontière de suspension au-dessus de la
+décision. Le `notFound()` de `generateMetadata` n'est pas un substitut, il est un second appel
+qui tombe au même endroit. Le catalogue public tient donc par l'**absence** de
+`properties/[slug]/loading.tsx` et par le test qui l'interdit
+(`pas-de-frontiere-de-suspension.test.ts`) — **pas** par `generateMetadata`.
+
+⚠ **Le docblock de `(public)/properties/[slug]/page.tsx` (l. 31-39) affirme encore le contraire.**
+Ce fichier n'est pas dans le périmètre de ce ticket ; le signaler ici est tout ce que TCK-426 peut
+en faire.
+
+**Seconde mesure de `g9-etats`, NON rejouée ici** et rapportée comme sienne : *un repli couvre
+exactement ce qui est en dessous de lui.* Même page, même serveur, une attente artificielle de 2 s
+déplacée d'un côté puis de l'autre de la frontière — sous le repli, le repli part tôt ; au-dessus,
+dans le layout, rien ne part avant. Elle rejoint par un autre chemin la ligne 8 de ce tableau. g9
+ne rapporte que le RAPPORT entre TTFB et total, pas les secondes, la machine portant d'autres
+agents — c'est la bonne précaution, et la même que celle qui a fait retirer la constante des
+quatorze layouts.
 
 Deux conséquences que le ticket ne pouvait pas avoir :
 
@@ -290,5 +338,7 @@ observée. *Le dire est moins coûteux que de le laisser croire.*
 
 ## Hors périmètre
 
-- Le catalogue public, déjà tenu par TCK-335.
+- Le catalogue public, tenu par TCK-335 — mais par l'ABSENCE d'un `loading.tsx` et par la garde
+  qui l'interdit, pas par le `notFound()` de sa `generateMetadata` : cf. § 2, la mesure de
+  `g9-etats` rejouée ici.
 - Les 24 `redirect()` et 9 `notFound()` du § 4 : mesurés, chiffrés, non traités ici.
