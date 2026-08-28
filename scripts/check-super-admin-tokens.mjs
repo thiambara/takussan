@@ -213,23 +213,37 @@
  *            ⚠ À cette profondeur, les formes qui GARDENT le jeton sont épargnées PAR ACCIDENT —
  *            non parce qu'un nom a été vu, mais parce que la branche ne tire plus du tout.
  *            `oklch(from var(--x) clamp(0, calc(l), 1) c h)` est vert pour la mauvaise raison.
+ *            ⚠⚠ Mais celle-là garde un canal NU (`c h`) : une fermeture l'épargnerait encore, et
+ *            elle ne garde donc RIEN. La forme qui garde la fermeture est au CROISEMENT des deux
+ *            mécanismes — `oklch(from var(--x) clamp(0, calc(l), 1) clamp(0, calc(c), 1)
+ *            clamp(0, calc(h), 1))` : elle garde le jeton, elle est à profondeur 2, et tous ses
+ *            canaux sont enveloppés. *La distinction n'est apparue qu'en JOUANT la fermeture sur
+ *            chaque forme ; la lire ne l'aurait pas donnée.*
  *
  *        **Non fermé, et le motif est la NATURE de la frontière, pas son coût.** Cette branche
  *        est passée de la profondeur 0 (le partage « une lettre », faux) à la profondeur 1 (le
  *        balayage à un niveau). Une troisième itération la porterait à la profondeur 2 **sans
  *        changer sa nature** : elle resterait syntaxique là où la question est sémantique.
  *
- *        ⚠ **Et ce n'est pas une conjecture : la profondeur 2 a été JOUÉE.** En remplaçant le
- *        balayage par sa version à deux niveaux, les QUATRE faux négatifs basculent — et **les
- *        DEUX faux positifs survivent**. Augmenter la profondeur apprend au balayage à ENJAMBER
- *        des groupes plus profonds ; ça ne lui apprend pas à ENTRER dans un groupe, qui est ce
- *        que le faux positif demande. *Une itération de plus corrige la moitié du défaut et laisse
- *        l'autre moitié intacte* — c'est la mesure qui dit qu'il faut s'arrêter, pas le budget.
+ *        ⚠ **Et ce n'est pas une conjecture : la profondeur 2 a été JOUÉE**, sur chacune des dix
+ *        formes figées. Trois résultats, et le troisième est le plus dur :
+ *
+ *          · les QUATRE faux négatifs basculent — la fermeture marcherait, de ce côté ;
+ *          · les DEUX faux positifs SURVIVENT. Augmenter la profondeur apprend au balayage à
+ *            ENJAMBER des groupes plus profonds ; ça ne lui apprend pas à ENTRER dans un groupe,
+ *            qui est ce que le faux positif demande ;
+ *          · et une forme qui passe aujourd'hui **deviendrait un faux positif NEUF** : celle du
+ *            croisement, qui GARDE le jeton, est à profondeur 2, et dont TOUS les canaux sont
+ *            enveloppés. Elle est verte aujourd'hui parce que la branche est inerte.
+ *
+ *        *Une itération de plus corrigerait la moitié du défaut, laisserait l'autre moitié
+ *        intacte, et en créerait une troisième.* **La fermeture ne laisserait pas un faux
+ *        positif : elle en CRÉERAIT un.** C'est la mesure qui dit de s'arrêter, pas le budget.
  *        Trancher pour de bon demanderait un analyseur d'expressions CSS — hors de proportion
  *        pour une garde de VOCABULAIRE, dont l'objet est qu'aucune couleur ne se décide hors de
  *        `globals.css`, pas de comprendre le calcul qui la produit.
  *
- *        Les huit formes sont figées dans {@link EPREUVE} **avec leur verdict RÉEL**, marquées
+ *        Les dix formes sont figées dans {@link EPREUVE} **avec leur verdict RÉEL**, marquées
  *        `T11 déclaré` — comme le style inline l'est pour T1. Elles ne sont donc pas
  *        redécouvrables, et le jour où quelqu'un ferme ce trou, leur verdict bascule : la
  *        fermeture se voit en diff au lieu d'être à croire sur parole.
@@ -1166,12 +1180,25 @@ const EPREUVE = [
   ['bg-[rgb(from_var(--x)_min(255,_max(0,_255))_0_0)]', false],             // ← PASSE (T11, déclaré)
   ['bg-[rgb(from_var(--x)_calc(calc(1))_calc(calc(2))_calc(calc(3)))]', false], // ← PASSE (T11)
   //
-  // ⚠ ET LES DEUX QUI SONT VERTES POUR LA MAUVAISE RAISON. À profondeur 2, une forme qui GARDE
-  // le jeton est épargnée non parce qu'un nom a été vu, mais parce que la branche ne tire plus
-  // du tout. Elles sont ici pour qu'une future fermeture de T11 les garde vertes pour la BONNE
-  // raison — sans elles, on refermerait le trou en cassant ces deux formes sans le savoir.
+  // ⚠ DEUX FORMES VERTES POUR LA MAUVAISE RAISON. À profondeur 2, une forme qui GARDE le jeton
+  // est épargnée non parce qu'un nom a été vu, mais parce que la branche ne tire plus du tout.
+  //
+  // ⚠⚠ **Elles DOCUMENTENT le mécanisme ; elles ne GARDENT rien, et ce fichier a prétendu le
+  // contraire pendant une passe.** J'avais écrit « sans elles, on refermerait le trou en les
+  // cassant sans le savoir ». Faux, et la revue adverse l'a montré en JOUANT la fermeture sur
+  // chacune des neuf formes plutôt qu'en lisant leur justification : leurs canaux `c h` et `g b`
+  // sont NUS, donc un balayage à deux niveaux les épargne toujours. Elles ne basculent pas.
   ['bg-[oklch(from_var(--x)_clamp(0,_calc(l),_1)_c_h)]', false],
   ['bg-[rgb(from_var(--x)_min(255,_max(0,_r))_g_b)]', false],
+  //
+  // ⚠ LA FORME QUI, ELLE, GARDE VRAIMENT LA FERMETURE — au CROISEMENT des deux mécanismes :
+  // elle GARDE le jeton, elle est à profondeur 2, et TOUS ses canaux sont enveloppés. Aujourd'hui
+  // elle passe parce que la branche est inerte ; sous un balayage à deux niveaux elle devient un
+  // **NOUVEAU faux positif**, que rien d'autre ici ne signalerait.
+  //
+  // *La fermeture ne laisserait donc pas un faux positif : elle en CRÉERAIT un.* C'est la
+  // troisième mesure qui dit de ne pas itérer, et la plus dure des trois.
+  ['bg-[oklch(from_var(--x)_clamp(0,_calc(l),_1)_clamp(0,_calc(c),_1)_clamp(0,_calc(h),_1))]', false],
 
   // ⚠ LES RELATIVES MIXTES — la frontière exacte, trouvée en écrivant le risque résiduel plutôt
   //   qu'en le supposant. Une relative dont UN SEUL canal réfère au jeton le garde, et doit
@@ -2125,6 +2152,17 @@ if (echec) {
   console.error('  Blanc FONCTIONNEL (fond de QR code) : la classe `.qr-surface` de `globals.css`.');
   console.error('  Valeur arbitraire (contrôle D) : une couleur ne s\'écrit pas entre crochets.');
   console.error('  `bg-[var(--jeton)]` est accepté — c\'est une LECTURE de jeton, pas une décision.');
+  console.error('');
+  console.error('  ⚠ FAUX POSITIF CONNU (T11) — si la forme refusée est une COULEUR RELATIVE dont');
+  console.error('  TOUS les canaux sont enveloppés dans une fonction, votre code est JUSTE et la');
+  console.error('  garde a tort :');
+  console.error('      oklch(from var(--x) calc(l * 0.8) calc(c * 1.1) calc(h))   ← refusé à tort');
+  console.error('      oklch(from var(--x) calc(l * 0.8) c h)                     ← accepté');
+  console.error('  Le contournement est de laisser UN canal nu. La raison, le mécanisme et la');
+  console.error('  mesure sont en tête de ce fichier, sous T11.');
+  console.error('  N\'écrivez PAS un hexadécimal pour contourner ce refus : c\'est précisément ce');
+  console.error('  que le contrôle D existe pour empêcher, et ce message serait alors la cause du');
+  console.error('  défaut qu\'il annonce.');
   console.error('');
 }
 
