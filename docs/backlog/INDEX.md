@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**409 tickets** — 34 ouverts, 374 livrés.
+**410 tickets** — 35 ouverts, 374 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 33 |
+| 📋 Todo | 34 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -66,6 +66,7 @@
 - [TCK-459](tickets/TCK-459-un-raisonnement-faux-dans-un-ticket-clos.md) — Un raisonnement faux vit dans un ticket `done`, et il y sert à justifier de laisser un contraste à 1,05:1 `S · P2 · technique`
 - [TCK-460](tickets/TCK-460-une-ombre-a-besoin-d-un-jeton-qui-ne-s-inverse-pas.md) — Deux ombres recopient `--foreground` en décimal, et le remède évident les casserait sous `.dark` `S · P2 · front`
 - [TCK-461](tickets/TCK-461-trois-proprietes-prouvees-par-lecture-gardees-par-rien.md) — Trois propriétés livrées sont prouvées par LECTURE et gardées par rien — leur régression resterait verte `S · P2 · front`
+- [TCK-462](tickets/TCK-462-des-totaux-comptes-sur-un-nom-tire-au-hasard.md) — Des totaux de recherche comptés sur un nom TIRÉ AU HASARD — un a rougi en CI, deux autres l'attendent `S · P2 · technique`
 
 ## 🚧 Doing
 
