@@ -1,13 +1,13 @@
 ---
 id: TCK-436
 title: "`/agencies` et `/agents` n'existent pas : deux surfaces publiques soignées n'ont qu'un seul chemin entrant"
-status: todo
+status: doing
 phase: P2
 family: full
 estimate: M
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -141,4 +141,76 @@ ville suffisent — pas de rail de filtres à la `/properties`.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### La règle d'éligibilité, et pourquoi la définition métier a été écartée
+
+Le ticket demandait de trancher « présence publique ». La règle retenue, écrite dans le code qui
+l'applique (`PublicAgencyController::index()`, `PublicAgentController::index()`,
+`Property::scopePublicPortfolio()`) :
+
+| | condition |
+|---|---|
+| Agence | `status = active` **et** ≥ 1 bien `publicPortfolio()` sous `agency_id` |
+| Agent | `status = active`, `username` non nul, **et** ≥ 1 bien `publicPortfolio()` sous `user_id` |
+
+`scopePublicPortfolio()` est l'**intersection** de `scopePublic()` (le prédicat du sitemap et de
+`/public/properties`) et de `available()` (ce que les fiches `/agencies/{slug}` et
+`/agents/{slug}` affichent réellement). Plus étroit que le premier ⇒ tout profil listé a sa place
+au sitemap ; plus étroit que le second ⇒ **un profil listé a un portefeuille non vide sur sa
+fiche**.
+
+**La définition métier de l'agent — « porteur d'un `AgentProfile` » — a été mesurée et écartée.**
+Relevé du 2026-08-28 sur la base de développement (SQL, lecture seule) :
+
+```
+utilisateurs actifs porteurs d'un AgentProfile ET publiant un bien public ....  0
+idem pour AgencyAdminProfile .................................................  0
+publieurs publics porteurs d'un OwnerProfile ................................. 44 / 44
+publieurs publics dont au moins un bien porte un `agency_id` ................. 44 / 44
+```
+
+`properties.user_id` est le **bailleur** depuis TCK-142. La retenir aurait livré une page
+`/agents` vide et un sitemap sans une seule URL d'agent — un endpoint vert qui ne montre rien.
+L'index retient donc la définition que le produit APPLIQUE déjà : *la personne publiquement
+présentée comme contact d'au moins un bien publié* — celle que `PublicAgentController::show()`
+sert, et que `PropertyResource::buildOwner()` lie déjà à `/agents/{slug}`. **L'index n'expose
+donc aucun nom que `/public/properties` ne rende déjà énumérable**, un bien à la fois.
+
+### La redaction, et ce qui la borne
+
+Les deux index ne servent **ni e-mail, ni téléphone, ni adresse** — ni ceux du profil, ni ceux
+d'un membre d'équipe. C'est plus strict que les fiches, qui publient le `phone` d'un agent
+(TCK-441) et l'`email` d'une agence : *une donnée consultable fiche par fiche et la même servie
+par paquets de 48, filtrables et paginés, ne sont pas la même donnée.*
+
+`description` a été retiré de la sortie **après** que le test d'AC3 l'a attrapé sur une
+description portant « Nous écrire : contact@… » : un champ de texte libre est un champ de contact
+que personne n'a déclaré. Le second demi-verrou est le plafond `per_page = 48`, que
+`PublicPropertyController::index()` n'a pas.
+
+La **ville** rendue vient du PORTEFEUILLE (villes des annonces publiées) et non de l'adresse
+postale du profil, contrairement aux fiches. C'est à la fois la réponse à « qui opère dans ma
+ville » et l'assurance qu'aucune commune de résidence n'entre dans l'index.
+
+### Ce qui a été branché ailleurs
+
+- **Pied de page** — la colonne « Professionnels » de TCK-437, qui existait vide en attendant ce
+  ticket, porte ses deux liens. `src/data/__tests__/navigation.test.ts` les confronte à
+  l'arborescence réelle : supprimer une des deux pages fait rougir six tests dans trois fichiers
+  (mesuré par ablation).
+- **Sitemap** — les deux index entrent dans `PAGES_STATIQUES_INDEXABLES`, et les deux sources
+  `agences` / `agents` remplacent les `source: null` de `ROUTES_DYNAMIQUES_PUBLIQUES`. Le sitemap
+  **ne rejuge pas l'éligibilité** : il pagine l'endpoint d'index, qui l'applique déjà.
+- **Canonique** — `src/lib/canonique-profils.ts` applique le critère de TCK-433 : `city` garde son
+  URL indexable (ensemble fini, servi par l'API en `meta.cities`), `q` et `page` se replient.
+
+### Ce que ce lot laisse ouvert
+
+- Les deux pages sont rendues **côté serveur**, contrairement à `/properties` (TCK-432) : c'est
+  une divergence assumée, dans le sens de ce que TCK-432 veut obtenir.
+- Le sitemap pagine l'index par lots de 48. À l'échelle actuelle c'est 1 à 2 requêtes par
+  ressource ; à 10 000 profils ce serait 209. Un endpoint `sitemap` dédié, comme celui des biens,
+  serait alors la suite — pas avant.
+- L'`avatar_url` d'un agent et le `logo_url` d'une agence n'existent **pas** comme attributs sur
+  `User` / `Agency` (ni colonne, ni accesseur) : les fiches livrées par TCK-242/276 émettent donc
+  toujours `null`. Les index emploient `getFirstMediaUrl()`, la forme qui fonctionne ; corriger
+  les fiches est hors périmètre.

@@ -21,6 +21,22 @@ vi.mock('@/lib/queries/sitemap-catalogue', async (importOriginal) => ({
   listerBiensDuSitemap: catalogue.listerBiensDuSitemap,
 }));
 
+/**
+ * TCK-436 — les deux annuaires de profils sont devenus des sources du sitemap.
+ *
+ * ⚠ Les doubler n'est PAS optionnel : sans double, la vraie fonction part chercher l'API, échoue
+ * sous jsdom, et chaque cas de ce fichier voit alors DEUX pannes de plus. C'est exactement ce qui
+ * est arrivé — le cas « l'échec est ÉCRIT et nomme la source » a compté 3 appels au lieu de 1 —
+ * et c'est la démonstration, gratuite, que le `try` par source de `src/app/sitemap.ts` isole bien
+ * les défaillances : les sept autres cas sont restés verts avec les deux sources en panne.
+ */
+const profils = vi.hoisted(() => ({ listerSlugsDeProfils: vi.fn() }));
+
+vi.mock('@/lib/queries/public-profiles', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/queries/public-profiles')>()),
+  listerSlugsDeProfils: profils.listerSlugsDeProfils,
+}));
+
 async function jouerSitemap() {
   const route = await import('../sitemap');
   return route.default();
@@ -35,6 +51,8 @@ describe('/sitemap.xml', () => {
   beforeEach(() => {
     vi.resetModules();
     catalogue.listerBiensDuSitemap.mockReset();
+    profils.listerSlugsDeProfils.mockReset();
+    profils.listerSlugsDeProfils.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -120,6 +138,107 @@ describe('/sitemap.xml', () => {
       expect(journal).toHaveBeenCalledTimes(1);
       expect(String(journal.mock.calls[0]![0])).toContain('catalogue');
       journal.mockRestore();
+    });
+
+    it('une source en panne n’emporte pas les AUTRES — TCK-436', async () => {
+      // Trois sources, un `try` chacune. Le jour où quelqu'un les regrouperait dans un seul
+      // `try`, la panne de l'annuaire d'agents ferait disparaître le catalogue entier du
+      // sitemap : *trois sources dans un seul `try` n'en font qu'une.*
+      const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
+      catalogue.listerBiensDuSitemap.mockResolvedValue([BIEN]);
+      profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) => {
+        if (ressource === 'agents') throw new Error('index des agents injoignable');
+        return ['sahel-homes'];
+      });
+
+      const urls = (await jouerSitemap()).map((e) => e.url);
+
+      expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
+      expect(urls).toContain(`${ORIGINE_SITE}/fr/agencies/sahel-homes`);
+      expect(urls.some((u) => u.includes('/agents/'))).toBe(false);
+      // …et l'index `/agents` LUI-MÊME reste là : c'est une page statique, pas une fiche.
+      expect(urls).toContain(`${ORIGINE_SITE}/fr/agents`);
+
+      expect(journal).toHaveBeenCalledTimes(1);
+      expect(String(journal.mock.calls[0]![0])).toContain('agents');
+      journal.mockRestore();
+    });
+  });
+});
+
+describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    catalogue.listerBiensDuSitemap.mockReset();
+    catalogue.listerBiensDuSitemap.mockResolvedValue([]);
+    profils.listerSlugsDeProfils.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('porte les DEUX index et les fiches des profils, dans les trois langues', async () => {
+    profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
+      ressource === 'agencies' ? ['sahel-homes'] : ['awa-diop'],
+    );
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    for (const langue of ['fr', 'en', 'wo']) {
+      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/agencies`);
+      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/agents`);
+      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/agencies/sahel-homes`);
+      expect(urls).toContain(`${ORIGINE_SITE}/${langue}/agents/awa-diop`);
+    }
+  });
+
+  it('n’ajoute AUCUNE fiche que la source ne rend pas — l’éligibilité est jugée côté API', async () => {
+    // C'est la moitié « et aucune de celles qui ne le sont pas » de l'AC. Le sitemap ne juge rien :
+    // il pagine `GET /public/{ressource}`, dont l'exclusion est éprouvée par
+    // `PublicProfileIndexTest::test_ac2_*`. Réécrire la condition ici la ferait diverger.
+    profils.listerSlugsDeProfils.mockResolvedValue([]);
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    expect(urls.some((u) => /\/(agencies|agents)\/[^/]/.test(u))).toBe(false);
+    // Les deux INDEX restent, eux : ils existent indépendamment de leur contenu.
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/agencies`);
+  });
+
+  it('encode le slug — un `&` dans un `username` rendrait le XML entier invalide', async () => {
+    profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
+      ressource === 'agents' ? ['awa&diop'] : [],
+    );
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/agents/awa%26diop`);
+    expect(urls.some((u) => u.includes('/agents/awa&diop'))).toBe(false);
+  });
+
+  it('n’invente aucun `lastModified` — l’index ne sert pas `updated_at`', async () => {
+    profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
+      ressource === 'agencies' ? ['sahel-homes'] : [],
+    );
+
+    const fiche = (await jouerSitemap()).find((e) => e.url.endsWith('/fr/agencies/sahel-homes'))!;
+
+    expect(fiche).toBeDefined();
+    expect(Object.hasOwn(fiche, 'lastModified')).toBe(false);
+  });
+
+  it('chaque entrée de profil déclare les trois `hreflang`', async () => {
+    profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
+      ressource === 'agents' ? ['awa-diop'] : [],
+    );
+
+    const fiche = (await jouerSitemap()).find((e) => e.url.endsWith('/en/agents/awa-diop'))!;
+
+    expect(fiche.alternates?.languages).toMatchObject({
+      fr: `${ORIGINE_SITE}/fr/agents/awa-diop`,
+      en: `${ORIGINE_SITE}/en/agents/awa-diop`,
+      wo: `${ORIGINE_SITE}/wo/agents/awa-diop`,
     });
   });
 });

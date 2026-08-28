@@ -34,11 +34,11 @@ describe('données de navigation', () => {
     expect(MOTIFS_DE_ROUTE).toContain('/properties');
     expect(MOTIFS_DE_ROUTE).toContain('/properties/[slug]');
     expect(MOTIFS_DE_ROUTE).toContain('/publish');
-    // Les deux index que TCK-436 doit livrer n'existent pas encore : si cette assertion se met à
-    // rougir, c'est qu'ils sont arrivés — brancher alors les deux entrées de
-    // `footerLinks.professionnels` (cf. le commentaire de `src/data/navigation.ts`).
-    expect(MOTIFS_DE_ROUTE).not.toContain('/agencies');
-    expect(MOTIFS_DE_ROUTE).not.toContain('/agents');
+    // TCK-436 — les deux index sont livrés, et l'inventaire les voit SANS qu'une ligne de
+    // `src/test/routes-publiques.ts` ait bougé : c'est ce que « dérivé du système de fichiers »
+    // achète. L'assertion s'est inversée le jour exact où elle devait s'inverser.
+    expect(MOTIFS_DE_ROUTE).toContain('/agencies');
+    expect(MOTIFS_DE_ROUTE).toContain('/agents');
   });
 
   it.each(toutesLesEntrees)(
@@ -62,15 +62,25 @@ describe('données de navigation', () => {
     expect(routeExiste('#')).toBe(false);
     expect(routeExiste('#contact')).toBe(false);
     expect(routeExiste('')).toBe(false);
-    expect(routeExiste('/agencies')).toBe(false); // TCK-436, pas encore livré
     expect(routeExiste('/services')).toBe(false); // l'entrée retirée par TCK-439
     expect(routeExiste('/a-propos')).toBe(false);
+    expect(routeExiste('/agencies/trop/de/segments')).toBe(false);
     expect(routeExiste('/properties/trop/de/segments')).toBe(false);
     // …et les formes qu'elle doit accepter.
     expect(routeExiste('/properties?contract_type=sale')).toBe(true);
     expect(routeExiste('/properties/villa-dakar')).toBe(true);
     expect(routeExiste('/fr/properties')).toBe(true); // déjà localisé : le proxy sert les deux
     expect(routeExiste('/publish')).toBe(true);
+    // TCK-436 · AC5 — les deux chemins que le pied de page pointe désormais, et la fiche
+    // qu'un clic sur une carte d'index atteint. Le test `$source/$labelKey mène à une route qui
+    // existe` ci-dessus les couvre déjà par les données ; les nommer ici fait rougir la
+    // SUPPRESSION d'une des deux pages même si quelqu'un retirait le lien du pied de page en
+    // même temps — c'est-à-dire le cas où les deux moitiés bougent ensemble et où l'équivalence
+    // reste satisfaite en ne mesurant plus rien.
+    expect(routeExiste('/agencies')).toBe(true);
+    expect(routeExiste('/agents')).toBe(true);
+    expect(routeExiste('/agencies/sahel-homes')).toBe(true);
+    expect(routeExiste('/agents/awa-diop')).toBe(true);
     expect(routeExiste('https://takussan.com')).toBe(true); // hors inventaire
     expect(routeExiste('mailto:contact@takussan.com')).toBe(true);
   });

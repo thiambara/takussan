@@ -54,6 +54,11 @@ export type PageIndexable = {
 export const PAGES_STATIQUES_INDEXABLES: readonly PageIndexable[] = [
   { chemin: '/', changeFrequency: 'daily', priority: 1 },
   { chemin: '/properties', changeFrequency: 'hourly', priority: 0.9 },
+  // TCK-436 — les deux index de profils. Ils n'ont pas été AJOUTÉS à cette liste par choix : le
+  // test de couverture ci-dessous marche l'arborescence et exige que toute page statique publique
+  // sans `robots: { index: false }` y figure. Les livrer sans les déclarer faisait rougir.
+  { chemin: '/agencies', changeFrequency: 'daily', priority: 0.7 },
+  { chemin: '/agents', changeFrequency: 'daily', priority: 0.7 },
 ];
 
 /**
@@ -70,12 +75,13 @@ export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
   Record<string, { readonly source: string | null; readonly ticket?: string }>
 > = {
   '/properties/[slug]': { source: 'catalogue' },
-  // TCK-436 livrera les index `/agencies` et `/agents` ET les endpoints qui les énumèrent : il
-  // n'existe à ce jour AUCUNE route d'API qui liste les agences ou les agents (mesuré le
-  // 2026-08-27 sur `takussan-api/routes/api/public.php` : seules `agencies/{slug}` et
-  // `agents/{slug}` existent). Sans énumération, pas de sitemap — ce n'est pas un oubli.
-  '/agencies/[slug]': { source: null, ticket: 'TCK-436' },
-  '/agents/[slug]': { source: null, ticket: 'TCK-436' },
+  // TCK-436 a livré `GET /api/public/agencies` et `GET /api/public/agents` — les deux
+  // énumérations qui manquaient. Elles ne servent pas seulement les pages d'index : elles SONT la
+  // définition de « profil éligible à la présence publique », appliquée une seule fois côté
+  // serveur. Le sitemap les pagine, il ne rejuge rien — un sitemap qui réécrirait la condition
+  // divergerait de l'index le jour où l'une des deux bouge, et annoncerait des URL rendant 404.
+  '/agencies/[slug]': { source: 'agences' },
+  '/agents/[slug]': { source: 'agents' },
 };
 
 /**
@@ -99,6 +105,20 @@ export type SourceDeSitemap = {
  */
 export function cheminDeFiche(slug: string): string {
   return `/properties/${encodeURIComponent(slug)}`;
+}
+
+/**
+ * Le chemin d'une fiche de PROFIL, slug ENCODÉ — TCK-436.
+ *
+ * Même encodage et même raison que {@link cheminDeFiche} : Next interpole le `<loc>` sans rien
+ * échapper, et un `&` dans un slug rendrait le sitemap ENTIER invalide. Le risque est réel ici :
+ * le slug d'un agent est son `username`, une chaîne saisie par l'utilisateur.
+ *
+ * `base` est `/agencies` ou `/agents` — écrit une seule fois, dans
+ * `src/lib/queries/public-profiles.ts`.
+ */
+export function cheminDeProfil(base: string, slug: string): string {
+  return `${base}/${encodeURIComponent(slug)}`;
 }
 
 /**

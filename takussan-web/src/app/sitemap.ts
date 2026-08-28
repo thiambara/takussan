@@ -2,10 +2,15 @@ import type { MetadataRoute } from 'next';
 
 import { listerBiensDuSitemap } from '@/lib/queries/sitemap-catalogue';
 import {
+  RESSOURCES_DE_PROFIL,
+  listerSlugsDeProfils,
+} from '@/lib/queries/public-profiles';
+import {
   PAGES_STATIQUES_INDEXABLES,
   type PageIndexable,
   type SourceDeSitemap,
   cheminDeFiche,
+  cheminDeProfil,
   construireSitemap,
 } from '@/lib/sitemap';
 
@@ -42,12 +47,16 @@ import {
 export const revalidate = 3600;
 
 /**
- * Les sources d'URL, dans l'ordre du fichier produit — **le point d'extension de TCK-436**.
+ * Les sources d'URL, dans l'ordre du fichier produit — le point d'extension nommé par TCK-431.
  *
- * L'agent de TCK-436 ajoute ici une entrée par ressource qu'il rend énumérable (index `/agencies`
- * et `/agents`, puis leurs fiches), et remplace le `source: null` correspondant dans
- * `ROUTES_DYNAMIQUES_PUBLIQUES` (`src/lib/sitemap.ts`) par le `nom` qu'il choisit ici. Le test de
- * couverture le tient : une route dynamique publique absente de cette table fait rougir.
+ * TCK-436 y a ajouté `agences` et `agents`, et remplacé les deux `source: null` correspondants
+ * dans `ROUTES_DYNAMIQUES_PUBLIQUES` (`src/lib/sitemap.ts`) par ces noms. Le test de couverture le
+ * tient : une route dynamique publique absente de cette table fait rougir.
+ *
+ * ⚠ **Chaque source échoue SÉPARÉMENT**, et c'est ce qui rend l'ajout sûr : la boucle ci-dessous
+ * enveloppe chaque `pages()` dans son propre `try`. Une panne de l'index des agents retire ses URL
+ * et nomme la source dans le journal ; elle ne fait perdre ni le catalogue de biens, ni les pages
+ * statiques. *Trois sources dans un seul `try` n'en font qu'une.*
  */
 const SOURCES: readonly SourceDeSitemap[] = [
   {
@@ -68,6 +77,28 @@ const SOURCES: readonly SourceDeSitemap[] = [
       );
     },
   },
+  // TCK-436 — les deux annuaires de profils. Leur source est l'endpoint d'INDEX, qui applique
+  // déjà la règle d'éligibilité à la présence publique : un profil sans portefeuille publié, une
+  // agence suspendue, un agent désactivé n'y sont pas, donc ils n'entrent pas ici non plus (AC6).
+  //
+  // ⚠ Aucun `lastModified` : l'index ne sert pas `updated_at`, et une date inventée est pire
+  // qu'une date absente — un moteur la croit. `changeFrequency` est `weekly` : le portefeuille
+  // d'un profil bouge, sa fiche moins souvent que le catalogue.
+  ...(['agencies', 'agents'] as const).map(
+    (ressource): SourceDeSitemap => ({
+      nom: ressource === 'agencies' ? 'agences' : 'agents',
+      pages: async () => {
+        const slugs = await listerSlugsDeProfils(ressource);
+        return slugs.map(
+          (slug): PageIndexable => ({
+            chemin: cheminDeProfil(RESSOURCES_DE_PROFIL[ressource].chemin, slug),
+            changeFrequency: 'weekly',
+            priority: 0.6,
+          }),
+        );
+      },
+    }),
+  ),
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
