@@ -53,6 +53,33 @@
  *          TCK-440 met `/playground` explicitement hors périmètre (« il charge des palettes
  *          alternatives »), son sort appartient à TCK-431. Les refuser demanderait une exception,
  *          les taire serait un mensonge — ils sont donc déclarés.
+ *     T5 · les VALEURS ARBITRAIRES portant une FONCTION de couleur ..... **2 occurrences VIVANTES**
+ *          Le contrôle D ne refuse que l'hexadécimal. `rgb()`, `hsl()` et `oklch()` écrits à la
+ *          main dans une valeur arbitraire passent — et ce ne sont pas des indirections, ce sont
+ *          des couleurs décidées hors de `globals.css`, exactement ce que la règle interdit.
+ *
+ *          ⚠⚠ **C'est le SEUL trou vivant de ce fichier, et il ne se compare pas aux autres.**
+ *          T1 à T4 sont latents ou hors périmètre ; celui-ci laisse passer du code livré :
+ *
+ *              components/property/cards/PropertyCardListing.tsx:40
+ *                shadow-[0_8px_24px_rgba(31,24,18,0.08)]
+ *              components/property/cards/PropertyCardStandard.tsx:61
+ *                shadow-[0_1px_4px_rgba(31,24,18,0.10)]
+ *
+ *          `rgba(31,24,18)` **EST `--foreground`** (#1f1812), recopié à la main en décimal — le
+ *          cas d'école de la couleur décidée ailleurs. Antérieur au lot (`git log -S` vide).
+ *
+ *          ⚠ **Pourquoi il n'est pas fermé ici, et c'est un arbitrage, pas un oubli** : le fermer
+ *          rendrait la garde ROUGE sur ces deux lignes, et les corriger demande une décision qui
+ *          n'est pas celle de cette garde. Le remède évident — remplacer par le jeton — pose le
+ *          piège d'inversion déjà rencontré sur les voiles : `--foreground` vaut #fcf9f3 en
+ *          contexte `.dark`, donc une ombre écrite avec lui devient CLAIRE sur les surfaces qui
+ *          portent la classe. Une ombre a besoin d'un jeton qui ne s'inverse pas, comme un voile.
+ *          C'est un ticket, pas une ligne.
+ *
+ *          Forme de fermeture, le jour où le jeton existe (mesurée par la revue adverse sur 18
+ *          formes, 8 rouges / 10 vertes, 0 faux positif) — elle laisse `var()` hors de portée :
+ *              -\[[^\]]*(?:#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|oklch\()
  *     T4 · la CASSE ...................................................... 0 occurrence, et
  *          ce n'est PAS un trou : `bg-GRAY-400` n'est pas émise par Tailwind, donc la classe est
  *          déjà sans effet et la refuser n'apprendrait rien. Mesuré par compilation (revue
@@ -191,8 +218,23 @@ const FAMILLES = ['slate', 'gray', 'zinc', 'neutral'];
  * de l'intégration. La lettre B n'est pas réattribuée, pour que les deux moitiés de cette
  * histoire portent le même nom.
  */
+/**
+ * A — l'échelle neutre brute.
+ *
+ * ⚠ Le groupe `SUFFIXES` a été ajouté le 2026-08-28 : `border-t-gray-200` et `ring-offset-gray-200`
+ * étaient ACCEPTÉES, parce que le motif exigeait le nom de famille juste après le préfixe. Tailwind
+ * insère pourtant un côté (`t b l r x y s e`) ou `offset` entre les deux. *Une garde qui décrit la
+ * forme d'une classe se trompe sur la forme, pas sur le vocabulaire* — c'est le troisième bord par
+ * lequel celle-ci est passée à côté. Les huit côtés et `offset` : 0 occurrence vivante, donc
+ * fermeture gratuite.
+ */
+const SUFFIXES = ['t', 'b', 'l', 'r', 'x', 'y', 's', 'e', 'offset'];
+
 function construireMotif({ prefixes = PREFIXES, familles = FAMILLES } = {}) {
-  return new RegExp(`\\b(?:${prefixes.join('|')})-(?:${familles.join('|')})-[0-9]{2,3}\\b`, 'g');
+  return new RegExp(
+    `\\b(?:${prefixes.join('|')})(?:-(?:${SUFFIXES.join('|')}))?-(?:${familles.join('|')})-[0-9]{2,3}\\b`,
+    'g',
+  );
 }
 
 /** C — `scrim` partout SAUF derrière `bg-`. Le préfixe est capturé pour le message d'échec. */
@@ -204,11 +246,14 @@ function construireMotifScrimHorsRole({ prefixes = PREFIXES } = {}) {
 /**
  * D — une couleur ÉCRITE À LA MAIN dans une classe : `bg-[#6b7280]`, `text-[#fff]`.
  *
- * ⚠ Volontairement borné aux HEXADÉCIMAUX, et pas à toute valeur arbitraire. `bg-[var(--pg-ink)]`
- * en est une aussi, mais c'est une INDIRECTION vers une variable — et les huit qui vivent dans le
- * périmètre sont toutes dans `/playground`, que TCK-440 met explicitement hors périmètre (son sort
- * appartient à TCK-431). Les refuser demanderait une exception ; les ignorer est un trou DÉCLARÉ,
- * en tête de fichier, ce qui est le seul des deux qui reste honnête.
+ * ⚠ **La borne réelle est « hexadécimal », et rien de plus — ce docblock a prétendu autre chose.**
+ * Il justifiait la borne par l'indirection (`bg-[var(--pg-ink)]` est une variable, pas une couleur
+ * décidée). C'est vrai de `var()`, et FAUX de `rgb()`, `hsl()` et `oklch()`, qui sont des couleurs
+ * écrites à la main tout autant qu'un hexadécimal et que ce contrôle laisse passer. *Une borne
+ * déclarée qui ne décrit pas la borne appliquée est une garde qui se raconte une histoire.*
+ *
+ * Ce qui passe encore, et pourquoi, est en trou T5 en tête de fichier — avec ses DEUX occurrences
+ * VIVANTES, qui font toute la différence avec les autres trous de ce fichier.
  */
 function construireMotifHexArbitraire({ prefixes = PREFIXES } = {}) {
   return new RegExp(`\\b(?:${prefixes.join('|')})-\\[#[0-9a-fA-F]{3,8}\\]`, 'g');
@@ -264,6 +309,11 @@ const EPREUVE = [
   ['accent-gray-600', true],
   ['decoration-slate-300', true],
   // ── D · VUES : une couleur écrite à la main ──────────────────────────────────────────────
+  ['border-t-gray-200', true],
+  ['border-x-slate-300', true],
+  ['border-e-neutral-200', true],
+  ['ring-offset-gray-200', true],
+  ['hover:border-b-zinc-400', true],
   ['bg-[#6b7280]', true],
   ['text-[#fff]', true],
   ['border-[#A1B2C3]', true],
@@ -331,6 +381,15 @@ const EPREUVE = [
   // garde jumelle ne se transporte pas — vérifié par compilation, revue adverse du 2026-08-28.
   ['bg-GRAY-400', false],
   ['TEXT-gray-400', false],
+  // ── T5 · NON VUES, et c'est le trou VIVANT de ce fichier ─────────────────────────────────
+  //
+  // Ces formes DOIVENT rester ici du côté « non vues » tant que T5 est ouvert : elles rendent
+  // le trou exécutable plutôt que seulement raconté, et les basculer à `true` sera le diff qui
+  // rend sa fermeture visible.
+  ['shadow-[0_1px_0_#6b7280]', false],
+  ['bg-[rgb(107,114,128)]', false],
+  ['bg-[oklch(0.7_0.02_260)]', false],
+  ['shadow-[0_8px_24px_rgba(31,24,18,0.08)]', false],
 ];
 
 function autoEpreuve() {

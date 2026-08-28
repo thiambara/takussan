@@ -43,12 +43,32 @@ L'autre variante de la même pastille — *vente*, `bg-foreground/85 text-backgr
 10,5 et 12,4:1 et va très bien. **Le défaut n'est donc pas dans la forme de la pastille, il est
 dans un seul couple de jetons.**
 
-> ⚠ **Le fond réel est PIRE que ce tableau, et c'est le point le plus important.** La pastille est
-> posée SUR LA PHOTO du bien (`backdrop-blur-md`, en surimpression). Les quatre ratios ci-dessus
-> supposent qu'elle repose sur `--card` ou `--background` ; en vrai, les 10 % restants laissent
-> passer **des pixels d'image quelconques**. Le contraste réel n'est donc pas 4,2 — il est
-> *variable et non borné vers le bas*, selon la photo. Une pastille sur média demande soit un fond
-> opaque, soit un voile sous elle, pas un alpha sur une couleur de surface.
+> ⚠ **La pastille est posée SUR LA PHOTO du bien** (`backdrop-blur-md`, en surimpression) : les
+> 10 % restants laissent passer des pixels d'image quelconques, donc le ratio réel VARIE avec la
+> photo.
+>
+> ⚠⚠ **Correction du 2026-08-28 — une première rédaction de ce ticket ajoutait « et non borné vers
+> le bas ». C'ÉTAIT FAUX, et l'erreur allait dans le sens alarmiste.** La plaque vaut
+> `0,9·accent + 0,1·pixel` composante par composante ; sa luminance est donc monotone croissante
+> en chaque canal du pixel, et l'encre étant quasi blanche, le contraste est *minimal* quand la
+> plaque est la plus claire — c'est-à-dire **sur un pixel blanc**. Le plancher est nommable :
+>
+>     pixel noir ......... 6,15:1        jaune vif .......... 4,30:1
+>     gris moyen ......... 5,07:1        pixel BLANC ........ 4,22:1   ← le plancher
+>
+> Vérifié par balayage exhaustif de 18³ pixels : le minimum tombe exactement sur (255,255,255).
+> **Et 4,22:1 est le chiffre déjà mesuré sur `--card`, parce que `--card` EST #ffffff.** Le
+> tableau ci-dessus n'était donc pas une hypothèse optimiste à dépasser : il contenait déjà le
+> pire cas.
+>
+> Ce que ça change, et c'est en faveur du correctif : **le pire fond est nommable, donc l'AC est
+> exécutable** — on mesure sur un pixel blanc, pas sur « une photo quelconque ». Et le correctif
+> reste petit : remonter l'alpha, ou assombrir le couple.
+>
+> ⚠ Reste vrai, indépendamment du ratio : un texte posé sur un média par un fond semi-transparent
+> n'a pas de contraste garanti *par construction*. Ici on a de la chance — l'encre est claire et
+> la plaque sombre, donc le pire cas est atteint sur du blanc. Avec une encre sombre, le pire cas
+> serait sur du noir, et le raisonnement serait à refaire.
 
 **Antérieur à la vague 49** : dernier commit sur le fichier, `d652222f` (TCK-292, i18n). Ce n'est
 donc pas une régression de TCK-440 — c'est un défaut que TCK-440 aurait dû voir et n'a pas vu.
@@ -85,8 +105,15 @@ Deux choses à trancher, et elles sont indépendantes :
    simple, et le plus proche du rendu actuel), assombrir `--accent` (touche tout le produit,
    demande sa propre mesure), ou donner à la pastille le traitement de la variante *vente*, qui
    est déjà conforme. **Aucune ne doit être choisie sans re-mesurer les autres emplois d'`--accent`.**
-2. **La pastille sur média.** Indépendamment du ratio, un texte posé sur une photo par un fond
-   semi-transparent n'a pas de contraste garanti. C'est là que le jeton de voile a du sens.
+2. **La pastille sur média.** Un fond semi-transparent sur photo ne garantit rien par
+   construction ; ici le pire cas est heureusement borné (cf. § Contexte). Un fond opaque ou un
+   voile sous la pastille ferme la question au lieu de la calculer.
+
+   ⚠ **Le dégradé de `PropertyCardCover.tsx:45` ne sauve PAS la pastille**, et il ne faut pas
+   compter dessus : il est `from-transparent via-transparent via-45% to-foreground/80`, donc il
+   assombrit le BAS de l'image, alors que la pastille est en `top-3 left-3`. Rien ne passe sous
+   elle. C'est en outre le **seul** des cinq points d'appel de la pastille à porter un dégradé —
+   les quatre autres (`top-4 left-4`, `top-2 left-2` ×2, `top-3 left-3`) n'en ont aucun.
 
 ## Contraintes strictes (métier)
 
@@ -115,8 +142,10 @@ Deux choses à trancher, et elles sont indépendantes :
       Un composant neuf y entre sans que personne l'y déclare — c'est l'AC central du ticket.
 - [ ] AC3 — l'ablation se fait sur un couple **inventé pour l'occasion** et non sur celui-ci : un
       test qui n'attraperait que le défaut connu passerait déjà, et c'est ce qui s'est produit.
-- [ ] AC4 — un texte posé sur un média a un contraste GARANTI, pas dépendant de l'image : le test
-      le vérifie sur le pire fond possible, ou le composant pose un fond opaque.
+- [ ] AC4 — un texte posé sur un média est mesuré **sur son pire fond, qui est nommable** : pour
+      cette pastille, le pixel blanc (démonstration en § Contexte). Le test le vérifie là, pas sur
+      la surface qui l'arrange. ⚠ Le pire fond dépend du SENS du couple — encre claire sur plaque
+      sombre ⇒ pixel blanc ; l'inverse ⇒ pixel noir. Le test doit le dériver, pas le supposer.
 - [ ] AC5 — le seuil appliqué distingue le texte (4,5:1) du non textuel (3:1), et le test dit
       lequel il applique à chaque couple. `--accent` sur `--card` à 4,48:1 sur une icône
       `aria-hidden` reste conforme et doit rester vert : un test qui le ferait rougir serait faux

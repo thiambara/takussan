@@ -85,10 +85,19 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
  *       aucune classe .dark posée, il n'y a AUCUN MÉCANISME pour en poser une […] La bascule
  *       sombre est un jeu de valeurs déclarées que rien n'active. »
  *
- * **La classe est posée, en toutes lettres et en première position, sur deux composants livrés :**
+ * **La classe est posée, en toutes lettres, sur des composants livrés. Ne pas recopier la liste
+ * ci-dessous : la DÉRIVER**, parce que la première correction de cette erreur en avait énuméré
+ * DEUX et qu'il y en a TROIS —
  *
- *     src/components/layout/SuperAdminSidebar.tsx:224   'dark flex h-full w-64 …'
- *     src/components/layout/SuperAdminTopbar.tsx:49     'dark flex h-14 shrink-0 …'
+ *     grep -rnE "['\"`]dark[ \"'`]" takussan-web/src --include='*.tsx'
+ *
+ * Au 2026-08-28 elle rend `SuperAdminSidebar.tsx:224`, `SuperAdminTopbar.tsx:49` et
+ * `SuperAdminShell.tsx:80`. ⚠ La troisième est la plus instructive : c'est un `<SheetContent
+ * className="dark …">`, donc une portée qui traverse un **portail** et atterrit au niveau du
+ * `body`, hors position d'arbre. Un raisonnement sur l'arbre JSX ne l'aurait pas trouvée.
+ *
+ * ⚠ Et le piège du relevé lui-même : `variant="dark"` (`AppTopbar.tsx:80`, `UserMenu.tsx`) n'est
+ * PAS la classe — c'est une prop de composant. Le motif de recherche ci-dessus les écarte.
  *
  * Leurs docblocks le disent depuis TCK-358, et l'un précise même : *« La classe `dark` n'est PAS
  * le mode sombre de l'utilisateur : c'est une surface. »*

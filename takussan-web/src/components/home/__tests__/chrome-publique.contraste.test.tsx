@@ -25,12 +25,21 @@
  *     `package.json`, ni un seul `documentElement.classList` sous `src/`. Aucun utilisateur ne
  *     peut demander le thème sombre.
  *
- * ⚠⚠ **CORRECTION DU 2026-08-28.** Ce paragraphe disait « rien n'active `.dark` dans ce produit ».
- * **C'était faux** : `layout/SuperAdminSidebar.tsx:224` et `layout/SuperAdminTopbar.tsx:49` posent
- * la classe en toutes lettres, comme SURFACE locale (TCK-358). L'erreur venait d'un angle mort —
- * on avait cherché un MÉCANISME (`ThemeProvider`, `next-themes`, `documentElement`), pas **une
- * classe littérale dans un `className`**. Le détail est dans `src/test/contraste-wcag.ts`, avec la
- * leçon de forme : une re-vérification qui conclut à faux résiste mieux que l'erreur d'origine.
+ * ⚠⚠ **CORRECTION DU 2026-08-28, en DEUX temps — et le second temps est le plus instructif.**
+ *
+ * Ce paragraphe disait « rien n'active `.dark` dans ce produit ». **C'était faux** : la classe est
+ * posée en toutes lettres comme SURFACE locale (TCK-358). L'erreur venait d'un angle mort — on
+ * avait cherché un MÉCANISME (`ThemeProvider`, `next-themes`, `documentElement`), pas une classe
+ * littérale dans un `className`.
+ *
+ * **Puis la correction elle-même a énuméré DEUX composants, et il y en a TROIS.** La troisième
+ * passe par un portail (`SuperAdminShell.tsx:80`, un `<SheetContent className="dark …">` rendu au
+ * niveau du `body`), donc hors position d'arbre. *Le texte écrit pour fermer une énumération
+ * incomplète en était une.* Ne pas recopier la liste : la dériver —
+ *
+ *     grep -rnE "['\"`]dark[ \"'`]" takussan-web/src --include='*.tsx'
+ *
+ * Le détail et la leçon de forme sont dans `src/test/contraste-wcag.ts`.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  * L'AC4 RE-JUGÉE UNE FOIS LA PRÉMISSE REDRESSÉE — conclusion tenue, justification changée
@@ -217,7 +226,7 @@ describe('chrome publique — contraste et bascule de thème (TCK-440)', () => {
     expect(() => couplesDe(screen.getByRole('navigation'), JETONS_SOMBRE)).not.toThrow();
   });
 
-  it('AC4 — la bascule de thème change le fond ET le texte de la navbar, en VALEURS', () => {
+  it('AC4 — thème clair et sombre résolvent des VALEURS différentes pour la navbar', () => {
     monter(<Navbar />);
     const nav = screen.getByRole('navigation');
 
@@ -233,7 +242,7 @@ describe('chrome publique — contraste et bascule de thème (TCK-440)', () => {
       .not.toBe(resoudreCouleur(premiereEncreSombre!.jetonEncre, JETONS_SOMBRE));
   });
 
-  it('AC4 — le pied de page bascule lui aussi, ce que son fond ardoise figé lui interdisait', () => {
+  it("AC4 — le pied de page suit lui aussi les jetons, ce que son fond ardoise figé lui interdisait", () => {
     monter(<Footer />);
     const pied = screen.getByRole('contentinfo');
     const clair = fondsPossibles(pied, JETONS_CLAIR).find((f) => f.etat === REPOS)!;
