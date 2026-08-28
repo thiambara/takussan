@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**410 tickets** — 35 ouverts, 374 livrés.
+**411 tickets** — 36 ouverts, 374 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 34 |
+| 📋 Todo | 35 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -67,6 +67,7 @@
 - [TCK-460](tickets/TCK-460-une-ombre-a-besoin-d-un-jeton-qui-ne-s-inverse-pas.md) — Deux ombres recopient `--foreground` en décimal, et le remède évident les casserait sous `.dark` `S · P2 · front`
 - [TCK-461](tickets/TCK-461-trois-proprietes-prouvees-par-lecture-gardees-par-rien.md) — Trois propriétés livrées sont prouvées par LECTURE et gardées par rien — leur régression resterait verte `S · P2 · front`
 - [TCK-462](tickets/TCK-462-des-totaux-comptes-sur-un-nom-tire-au-hasard.md) — Des totaux de recherche comptés sur un nom TIRÉ AU HASARD — un a rougi en CI, deux autres l'attendent `S · P2 · technique`
+- [TCK-463](tickets/TCK-463-typescript-7-bloque-par-typescript-eslint.md) — TypeScript 7 est bloqué par `typescript-eslint`, pas par notre code — mesuré, et la branche qui le portait est supprimée `S · P3 · technique`
 
 ## 🚧 Doing
 
