@@ -188,6 +188,58 @@
  *        `gold` réécrit en `zzgold` laisse 148 noms, éteint `text-[gold]`, et la garde sort en 0.
  *        La fermer demanderait 148 formes d'épreuve pour une liste qui ne bouge que si la
  *        spécification CSS bouge — disproportion assumée, écrite ici plutôt que découverte.
+ *  T11 · **LA PROFONDEUR DE PARENTHÈSES de la branche « couleur relative à canaux absolus ».**
+ *        Cette branche décide si une relative GARDE son jeton ou le JETTE en cherchant, dans les
+ *        canaux, un nom de composante (`r`, `g`, `b`, `l`, `c`, `h`, `alpha`…). Son balayage
+ *        traite un groupe de parenthèses comme ATOMIQUE : il l'enjambe et n'y entre jamais
+ *        (`[^()]` exclut la parenthèse ouvrante). **Un seul mécanisme, deux symptômes opposés, à
+ *        deux profondeurs différentes** — mesuré le 2026-08-28 :
+ *
+ *          profondeur 1, TOUS les canaux enveloppés  →  aucun nom visible hors parenthèses, la
+ *            branche tire, et une relative LÉGITIME est refusée. **FAUX POSITIF**, donc plus
+ *            gênant qu'un trou :
+ *              `oklch(from var(--x) calc(l * 0.8) calc(c * 1.1) calc(h))`
+ *              `rgb(from var(--x) calc(r * 2) calc(g * 2) calc(b * 2))`
+ *            ⚠ UN SEUL canal nu suffit à revenir dans le vrai :
+ *            `oklch(from var(--x) calc(l + 0.1) c h)` passe correctement.
+ *
+ *          profondeur 2, un groupe dans un groupe    →  le balayage ne peut plus atteindre la
+ *            parenthèse finale, le motif entier échoue, la branche est INERTE, et une jetante
+ *            passe. **FAUX NÉGATIF** :
+ *              `rgb(from var(--x) calc(calc(255)) 0 0)`
+ *              `oklch(from var(--x) clamp(0, calc(0.5), 1) 0.2 30)`
+ *              `rgb(from var(--x) min(255, max(0, 255)) 0 0)`
+ *              `rgb(from var(--x) calc(calc(1)) calc(calc(2)) calc(calc(3)))`
+ *            ⚠ À cette profondeur, les formes qui GARDENT le jeton sont épargnées PAR ACCIDENT —
+ *            non parce qu'un nom a été vu, mais parce que la branche ne tire plus du tout.
+ *            `oklch(from var(--x) clamp(0, calc(l), 1) c h)` est vert pour la mauvaise raison.
+ *
+ *        **Non fermé, et le motif est la NATURE de la frontière, pas son coût.** Cette branche
+ *        est passée de la profondeur 0 (le partage « une lettre », faux) à la profondeur 1 (le
+ *        balayage à un niveau). Une troisième itération la porterait à la profondeur 2 **sans
+ *        changer sa nature** : elle resterait syntaxique là où la question est sémantique.
+ *
+ *        ⚠ **Et ce n'est pas une conjecture : la profondeur 2 a été JOUÉE.** En remplaçant le
+ *        balayage par sa version à deux niveaux, les QUATRE faux négatifs basculent — et **les
+ *        DEUX faux positifs survivent**. Augmenter la profondeur apprend au balayage à ENJAMBER
+ *        des groupes plus profonds ; ça ne lui apprend pas à ENTRER dans un groupe, qui est ce
+ *        que le faux positif demande. *Une itération de plus corrige la moitié du défaut et laisse
+ *        l'autre moitié intacte* — c'est la mesure qui dit qu'il faut s'arrêter, pas le budget.
+ *        Trancher pour de bon demanderait un analyseur d'expressions CSS — hors de proportion
+ *        pour une garde de VOCABULAIRE, dont l'objet est qu'aucune couleur ne se décide hors de
+ *        `globals.css`, pas de comprendre le calcul qui la produit.
+ *
+ *        Les huit formes sont figées dans {@link EPREUVE} **avec leur verdict RÉEL**, marquées
+ *        `T11 déclaré` — comme le style inline l'est pour T1. Elles ne sont donc pas
+ *        redécouvrables, et le jour où quelqu'un ferme ce trou, leur verdict bascule : la
+ *        fermeture se voit en diff au lieu d'être à croire sur parole.
+ *
+ *        ⚠ **La leçon de méthode, qui vaut au-delà de cette branche.** Quatre attaques par
+ *        RETOUR ARRIÈRE contre ce regard avant ont échoué, ce qui donnait l'impression d'un
+ *        mécanisme imperméable de ce côté. La bonne lecture était l'inverse : *la propriété qui
+ *        les fait échouer — un groupe de parenthèses est atomique pour le regard avant — est
+ *        EXACTEMENT celle qui produit les deux résiduels.* **Un mécanisme qui résiste à une
+ *        attaque par un côté la subit par l'autre.**
  *   T8 · Les fichiers `.svg` ne sont pas lus, et ce n'est pas un oubli : `EXTENSIONS` s'arrête au
  *        code et au CSS. Un SVG est un ACTIF, pas une feuille de style — un logo de marque y
  *        porte légitimement ses hexadécimaux, et les refuser ferait de cette garde une garde
@@ -1087,6 +1139,39 @@ const EPREUVE = [
   ['bg-[rgb(from_var(--x)_calc(255)_g_b)]', false],
   ['bg-[oklch(from_var(--x)_calc(0.5)_c_h)]', false],
   ['bg-[rgb(from_var(--x)_calc(2_*_100)_g_b)]', false],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // S · T11, DÉCLARÉ — les huit formes figées AVEC LEUR VERDICT RÉEL, pas avec le juste.
+  //
+  // ⚠ Le verdict écrit ici est CELUI QUE LA GARDE REND, et il est FAUX pour six d'entre elles.
+  // C'est la forme que ce fichier emploie déjà pour T1 (le style inline) : un trou déclaré se
+  // fige avec ce qu'il produit, pas avec ce qu'on voudrait. Deux effets, et les deux comptent —
+  // ces formes ne peuvent plus être « redécouvertes » comme un défaut neuf, et le jour où
+  // quelqu'un ferme T11, leur verdict bascule : **la fermeture se voit en diff.**
+  //
+  // Le mécanisme unique est en tête de fichier (T11) : un groupe de parenthèses est ATOMIQUE
+  // pour le balayage. Profondeur 1 tout enveloppé → faux positif ; profondeur 2 → branche inerte
+  // → faux négatif.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  //
+  // FAUX POSITIFS — elles GARDENT le jeton et sont pourtant refusées (profondeur 1, tout enveloppé).
+  ['bg-[oklch(from_var(--x)_calc(l_*_0.8)_calc(c_*_1.1)_calc(h))]', true],  // ← FAUX POSITIF (T11)
+  ['bg-[rgb(from_var(--x)_calc(r_*_2)_calc(g_*_2)_calc(b_*_2))]', true],    // ← FAUX POSITIF (T11)
+  // …et le témoin qui borne le faux positif : UN SEUL canal nu suffit à revenir dans le vrai.
+  ['bg-[oklch(from_var(--x)_calc(l_+_0.1)_c_h)]', false],
+  //
+  // FAUX NÉGATIFS — elles JETTENT le jeton et passent (profondeur 2, la branche est inerte).
+  ['bg-[rgb(from_var(--x)_calc(calc(255))_0_0)]', false],                   // ← PASSE (T11, déclaré)
+  ['bg-[oklch(from_var(--x)_clamp(0,_calc(0.5),_1)_0.2_30)]', false],       // ← PASSE (T11, déclaré)
+  ['bg-[rgb(from_var(--x)_min(255,_max(0,_255))_0_0)]', false],             // ← PASSE (T11, déclaré)
+  ['bg-[rgb(from_var(--x)_calc(calc(1))_calc(calc(2))_calc(calc(3)))]', false], // ← PASSE (T11)
+  //
+  // ⚠ ET LES DEUX QUI SONT VERTES POUR LA MAUVAISE RAISON. À profondeur 2, une forme qui GARDE
+  // le jeton est épargnée non parce qu'un nom a été vu, mais parce que la branche ne tire plus
+  // du tout. Elles sont ici pour qu'une future fermeture de T11 les garde vertes pour la BONNE
+  // raison — sans elles, on refermerait le trou en cassant ces deux formes sans le savoir.
+  ['bg-[oklch(from_var(--x)_clamp(0,_calc(l),_1)_c_h)]', false],
+  ['bg-[rgb(from_var(--x)_min(255,_max(0,_r))_g_b)]', false],
 
   // ⚠ LES RELATIVES MIXTES — la frontière exacte, trouvée en écrivant le risque résiduel plutôt
   //   qu'en le supposant. Une relative dont UN SEUL canal réfère au jeton le garde, et doit
@@ -2099,5 +2184,6 @@ console.log('  T1 style inline et expression JSX, T2 périmètre (ci-dessus, sou
 console.log('  T3 justesse du rendu, T4 listes énumérées, T5 racine de clôture, T6 réécriture');
 console.log('  de la garde, T7 noms CSS non ablatés un à un, T8 fichiers .svg,');
 console.log('  T9 déclaration CSS ordinaire dans un .css gardé, T10 valeur séparée de');
-console.log('  son attribut par une fin de ligne. Détail : --report.');
+console.log('  son attribut par une fin de ligne, T11 profondeur de parenthèses de la');
+console.log('  branche « canaux absolus ». Détail : --report.');
 process.exit(0);
