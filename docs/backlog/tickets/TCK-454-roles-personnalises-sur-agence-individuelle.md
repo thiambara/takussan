@@ -30,7 +30,7 @@ partout ailleurs.
 personnalisés »** en fait partie, au même titre que « pas d'invitation de collaborateurs
 internes » et « un seul `agency_admin` ».
 
-[TCK-395](TCK-395-agence-individuelle-et-invitations.md) a fermé la famille *invitation* en
+[TCK-392](TCK-392-inviter-depuis-admin-team-nenvoie-aucune-invitation.md) a fermé la famille *invitation* en
 dérivant l'inventaire des gestes **des routes réelles** plutôt que d'une liste écrite à la
 main. Cet inventaire a mis au jour deux endpoints qui relèvent d'une **autre** restriction —
 celle des rôles personnalisés — et que ce ticket-là ne pouvait donc pas fermer.
@@ -44,10 +44,10 @@ PATCH /api/profiles/{p}/agency-role    (Profile\AgencyRoleController@update) →
 
 Les deux réussissent là où la spec les refuse.
 
-⚠️ **Ce ticket a été délibérément séparé de TCK-395, et la raison vaut d'être conservée.**
+⚠️ **Ce ticket a été délibérément séparé de TCK-392, et la raison vaut d'être conservée.**
 Ni l'un ni l'autre de ces deux gestes ne rattache ni ne promeut un membre :
 `AgencyRoleController@update` **ne peut pas franchir les types de profil**, il assigne un
-`AgencyRole` à un profil qui existe déjà. Les corriger sous TCK-395 aurait étendu ce lot **en
+`AgencyRole` à un profil qui existe déjà. Les corriger sous TCK-392 aurait étendu ce lot **en
 silence** à une surface que ses trois tickets ne visaient pas. *Une correction juste, posée
 sous le mauvais ticket, est une décision qui n'a pas été prise.*
 
@@ -55,7 +55,7 @@ sous le mauvais ticket, est une décision qui n'a pas été prise.*
 
 La garde d'`AgencyKind` est le geste facile ; il existe déjà, sur le patron de
 `AgentInvitationService::assertAgencyCanInvite()` et de la garde posée en tête de
-`AgencyController::addAgent()` (TCK-395). Trois questions n'ont **pas** de réponse évidente :
+`AgencyController::addAgent()` (TCK-392). Trois questions n'ont **pas** de réponse évidente :
 
 1. **Le sort de `AgencyRoleService::assign()`** — la garde va-t-elle dans le service (donc sur
    tous les appelants, y compris internes et seeders) ou sur les deux contrôleurs ? ⚠ TCK-305 a
@@ -72,7 +72,7 @@ La garde d'`AgencyKind` est le geste facile ; il existe déjà, sur le patron de
    sur une agence `standard` aussi** — un témoin qui reste vert, sinon la garde peut refuser
    tout le monde sans que rien ne bronche.
 2. `PATCH /api/profiles/{p}/agency-role` idem. ⚠ **Si une seconde route atteint la même méthode
-   de contrôleur, le test doit éprouver les DEUX** — c'est ce que TCK-395 a fait pour
+   de contrôleur, le test doit éprouver les DEUX** — c'est ce que TCK-392 a fait pour
    `AgencyMemberRoleController@update` (`PUT /members/{u}/role` et `PATCH /members/{u}`, même
    méthode), *parce qu'un futur découplage des routes en rouvrirait une sans que rien ne bronche*.
    Dériver la liste des routes de `php artisan route:list`, ne pas l'écrire à la main.
