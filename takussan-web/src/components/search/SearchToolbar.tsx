@@ -97,7 +97,7 @@ export function SearchToolbar({
     <div className="mb-6 space-y-3">
       {/* Top row : count + sort + mobile filter button */}
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm font-semibold text-gray-700">
+        <p className="text-sm font-semibold text-foreground">
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -116,7 +116,7 @@ export function SearchToolbar({
             items={perPageOptions}
           >
             <SelectTrigger
-              className="h-auto rounded-full py-1.5 px-3 border-gray-200 bg-white text-gray-700 cursor-pointer"
+              className="h-auto rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer"
               aria-label={t('perPageAria')}
             >
               <SelectValue />
@@ -134,7 +134,7 @@ export function SearchToolbar({
             onValueChange={(v) => onSortChange(v as SearchFilters['sort'])}
             items={sortOptions}
           >
-            <SelectTrigger className="h-auto rounded-full py-1.5 px-3 border-gray-200 bg-white text-gray-700 cursor-pointer">
+            <SelectTrigger className="h-auto rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -147,7 +147,7 @@ export function SearchToolbar({
           {/* Filters button (mobile) */}
           <button
             onClick={onOpenSidebar}
-            className="md:hidden relative flex items-center gap-2 text-sm font-semibold border border-gray-300 rounded-full px-4 py-1.5 hover:border-primary hover:text-primary transition-colors"
+            className="md:hidden relative flex items-center gap-2 text-sm font-semibold border border-border rounded-full px-4 py-1.5 hover:border-primary hover:text-primary transition-colors"
           >
             <SlidersHorizontal className="w-4 h-4" />
             {t('filters')}

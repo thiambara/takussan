@@ -81,15 +81,15 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
         className={cn(
           'relative inline-flex items-center justify-center rounded-full transition-colors',
           isCompact
-            ? 'p-2 text-slate-600 hover:text-primary hover:bg-gray-100'
-            : 'size-9 text-slate-700 hover:text-primary hover:bg-gray-100',
+            ? 'p-2 text-muted-foreground hover:text-primary hover:bg-muted'
+            : 'size-9 text-foreground hover:text-primary hover:bg-muted',
         )}
       >
         <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-red-500 text-red-500')} />
         {showBadge && (
           <span
             aria-hidden="true"
-            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center"
+            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center"
           >
             {count > 99 ? '99+' : count}
           </span>
@@ -100,7 +100,7 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
         <div
           role="dialog"
           aria-label={t('popover.title')}
-          className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-stone-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+          className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-popover rounded-2xl shadow-xl border border-stone-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
         >
           <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
             <p className="text-sm font-semibold text-stone-900">{t('popover.title')}</p>

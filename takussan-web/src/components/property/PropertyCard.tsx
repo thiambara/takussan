@@ -153,35 +153,35 @@ export function PropertyCard({
           >
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
-              <span className="text-sm font-semibold text-gray-400 ml-0.5">
+              <span className="text-sm font-semibold text-muted-foreground ml-0.5">
                 /{t(`rentPeriodsShort.${property.rent_period}`)}
               </span>
             )}
           </p>
           <h3
-            className="font-semibold text-[14px] leading-snug text-gray-900 line-clamp-2 h-10"
+            className="font-semibold text-[14px] leading-snug text-foreground line-clamp-2 h-10"
             title={property.title}
           >
             {property.title}
           </h3>
           <p
-            className="text-gray-500 text-sm flex items-center gap-1.5 truncate"
+            className="text-muted-foreground text-sm flex items-center gap-1.5 truncate"
             title={location}
           >
             <MapPin className="w-4 h-4 shrink-0" />
             <span className="truncate">{location}</span>
           </p>
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-semibold text-gray-400">
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-semibold text-muted-foreground">
             {property.bedrooms != null && property.bedrooms > 0 && (
               <>
                 <span>{tCards('bedroomsAbbrev', { count: property.bedrooms })}</span>
-                <span className="text-gray-300">•</span>
+                <span className="text-muted-foreground/60">•</span>
               </>
             )}
             <span className="truncate">{surface}</span>
             {property.type && (
               <>
-                <span className="text-gray-300">•</span>
+                <span className="text-muted-foreground/60">•</span>
                 <span className="truncate capitalize">
                   {t.has(`types.${property.type}`)
                     ? t(`types.${property.type}`)

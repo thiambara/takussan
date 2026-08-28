@@ -1713,8 +1713,17 @@ const ESPACES = [
      * `AppTopbar` reste hors de portée pour la raison écrite plus haut (un correctif MESURÉ
      * qu'une traduction obligerait à refaire) et `UserMenu` en dépend — cf. le docblock de
      * {@link RESTE_PLAFOND}.
+     *
+     * ⚠ **32 → 26 À LA FUSION DU LOT, le 2026-08-28, et le chiffre est MESURÉ.** TCK-384 (g3) et
+     * TCK-440 (g6) ont chacun descendu ce reste sur leur branche — 32 et 54 — sans voir les
+     * descentes de l'autre. Sur l'arbre fusionné il en reste **26**, et c'est la garde elle-même
+     * qui l'a dit : posée à 32, elle est sortie ROUGE en nommant l'écart.
+     *
+     * *Un cliquet ne s'arbitre pas entre deux branches, il se re-mesure sur leur fusion.* Choisir
+     * le plus bas des deux (32) aurait laissé six unités de mou ; choisir le plus haut (54) en
+     * aurait laissé vingt-huit — et aucun des deux ne l'aurait dit.
      */
-    plafondReste: 32,
+    plafondReste: 26,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     natureDuReste: 'primitives partagées avec le site public',
