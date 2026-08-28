@@ -46,6 +46,20 @@ function fusionne(base: Record<string, unknown>, surcharge: Record<string, unkno
 
 let localeCourante: Locale = 'fr';
 
+/**
+ * Le domaine des villes vient de l'API ; il est doublé ici pour que le test porte sur la RÈGLE et
+ * non sur l'état du catalogue de développement. Deux villes, casse canonique du catalogue.
+ */
+vi.mock('@/lib/queries/facettes', () => ({
+  villesDuCatalogue: async () =>
+    new Map([
+      ['dakar', 'Dakar'],
+      ['thiès', 'Thiès'],
+      ['ziguinchor', 'Ziguinchor'],
+    ]),
+  FRAICHEUR_DOMAINE_VILLES: 3600,
+}));
+
 vi.mock('next-intl/server', () => ({
   getLocale: async () => localeCourante,
   getTranslations: async (namespace?: string) => {
@@ -173,7 +187,66 @@ describe('TCK-433 · AC3 — le titre nomme le filtre, dans les trois langues', 
     expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties`);
   });
 
-  it('une ville non traduite passe telle quelle, sans « null » ni clé brute', async () => {
+  describe('une valeur HORS DOMAINE ne fuit pas dans ce qui est servi — passe 2', () => {
+    /*
+     * Mesuré sur un build de production le 2026-08-27 :
+     *
+     *   curl '…/fr/properties?type=zzznexistepas'
+     *     <title>property.types.zzznexistepas — Takussan</title>
+     *     <link rel="canonical" href="…/fr/properties?type=zzznexistepas">
+     *     <meta name="robots" content="index, follow">
+     *
+     * Une clé d'i18n brute servie à un moteur, sur une page canonique d'elle-même. Les 24
+     * combinaisons du test voisin ne pouvaient pas le voir : **elles étaient toutes construites
+     * avec des valeurs valides.** C'est le trou que ce bloc ferme.
+     */
+    it.each<[Locale, Record<string, string>]>([
+      ['fr', { type: 'zzznexistepas' }],
+      ['en', { type: 'zzznexistepas' }],
+      ['wo', { type: 'zzznexistepas' }],
+      ['fr', { contract_type: 'zzznexistepas' }],
+      ['fr', { city: 'Zzzinventee' }],
+      ['fr', { city: '' }],
+      ['fr', { type: 'zzz', contract_type: 'zzz', city: 'Zzz' }],
+    ])('%s %o : aucun préfixe de clé dans le titre ni la description', async (locale, requete) => {
+      const meta = await metadonnee(requete, locale);
+      const rendu = `${meta.title} | ${meta.description}`;
+
+      expect(rendu, rendu).not.toContain('property.');
+      expect(rendu, rendu).not.toContain('meta.');
+      expect(rendu, rendu).not.toContain('zzz');
+      expect(rendu, rendu).not.toContain('Zzz');
+    });
+
+    it.each<Record<string, string>>([
+      { type: 'zzznexistepas' },
+      { contract_type: 'zzznexistepas' },
+      { city: 'Zzzinventee' },
+    ])('%o : la canonique se replie sur la page nue', async (requete) => {
+      const meta = await metadonnee(requete);
+      expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties`);
+    });
+
+    it('le titre redevient le générique, pas un titre à moitié dérivé', async () => {
+      expect((await metadonnee({ type: 'zzz', city: 'Zzz' })).title).toBe(fr.meta.properties.title);
+    });
+
+    it('une facette VALIDE reste intacte à côté d’une invalide', async () => {
+      // Le contrôle d'ablation : sans lui, une règle qui replierait TOUT passerait le bloc entier.
+      const meta = await metadonnee({ type: 'villa', city: 'Zzzinventee' });
+      expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?type=villa`);
+      expect(meta.title).toContain('Villa');
+    });
+
+    it('la casse d’une ville valide se replie sur celle du catalogue', async () => {
+      const meta = await metadonnee({ city: 'DAKAR' });
+      expect(meta.alternates!.canonical).toBe(`${ORIGINE_SITE}/fr/properties?city=Dakar`);
+      expect(meta.title).toContain('Dakar');
+      expect(meta.title).not.toContain('DAKAR');
+    });
+  });
+
+  it('une ville du domaine, non traduite, passe telle quelle sans « null » ni clé brute', async () => {
     const titre = (await metadonnee({ city: 'Ziguinchor' })).title as string;
     expect(titre).toContain('Ziguinchor');
     expect(titre).not.toContain('null');

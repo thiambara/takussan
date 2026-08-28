@@ -37,6 +37,31 @@ export type TraducteurDeFil = (cle: string) => string;
  * n'en porte pas. En ajouter un au seul balisage romprait l'égalité que l'AC1 exige — le moteur
  * verrait un fil que la page ne montre pas. Si l'écran en gagne un un jour, il apparaîtra ici et
  * dans les deux consommateurs à la fois.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * ⚠️ LE QUARTIER N'EST PAS CLIQUABLE, ET C'EST UNE DÉCISION DU 2026-08-28
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Il l'était, vers `/properties?location=<quartier>`. Or `location` est l'une des **dix-sept clés
+ * ÉCARTÉES** par la règle de canonicité de TCK-433 : cette URL rend
+ * `<link rel="canonical" href="…/properties">`. Le fil d'Ariane affirmait donc au moteur, en
+ * `BreadcrumbList`, un `item` que la page pointée désavoue aussitôt — deux tickets du même lot qui
+ * se contredisaient.
+ *
+ * Les trois issues étaient : faire entrer `location` dans les clés canoniques (impossible sans
+ * rouvrir un espace non borné — les quartiers ne s'énumèrent pas), faire pointer le seul balisage
+ * vers la canonique du palier au-dessus (cela romprait l'égalité DOM ⇔ JSON-LD de l'AC1), ou
+ * retirer le lien.
+ *
+ * **Le lien est retiré des DEUX côtés à la fois**, ce qui garde l'égalité intacte : le quartier
+ * reste affiché comme dernier maillon, en simple libellé — la forme idiomatique d'un fil d'Ariane,
+ * dont le dernier niveau désigne l'endroit où l'on est. `PropertyBreadcrumb` sait déjà rendre un
+ * maillon sans `href`, et `jsonLdFilDAriane` sait déjà omettre son `item`.
+ *
+ * **Invariant qui en découle, et qu'un test vérifie** : tout `item` du fil est une URL CANONIQUE
+ * d'elle-même. `/` l'est ; `contract_type` vaut `rent` ou `sale`, tous deux dans le domaine ; la
+ * ville vient du bien lui-même, qui est public, donc elle appartient au domaine du catalogue par
+ * construction.
  */
 export function maillonsDeFiche(
   property: PropertyDetail,
@@ -60,10 +85,8 @@ export function maillonsDeFiche(
   }
 
   if (property.location.quarter) {
-    maillons.push({
-      libelle: property.location.quarter,
-      href: `/properties?location=${encodeURIComponent(property.location.quarter)}`,
-    });
+    // Sans `href` — cf. l'en-tête. `/properties?location=…` n'est pas canonique d'elle-même.
+    maillons.push({ libelle: property.location.quarter });
   }
 
   return maillons;

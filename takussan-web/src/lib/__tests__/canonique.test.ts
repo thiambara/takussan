@@ -4,14 +4,26 @@ import {
   CHEMIN_LISTE,
   CLES_CANONIQUES,
   CLES_ECARTEES,
+  type DomainesDeFacette,
   cheminCanoniqueDeLaListe,
+  domainesStatiques,
   versParametres,
 } from '../canonique';
+import { propertyTypeValues } from '@/lib/schemas/property';
 import { PAGES_STATIQUES_INDEXABLES } from '../sitemap';
 import { CLES_DE_RECHERCHE } from '@/types/search';
 
-const canonique = (requete: string) =>
-  cheminCanoniqueDeLaListe(new URLSearchParams(requete));
+/** Le domaine du catalogue de test : deux villes, et la casse canonique est celle du catalogue. */
+const DOMAINES: DomainesDeFacette = {
+  ...domainesStatiques(),
+  villes: new Map([
+    ['dakar', 'Dakar'],
+    ['thiès', 'Thiès'],
+  ]),
+};
+
+const canonique = (requete: string, domaines: DomainesDeFacette = DOMAINES) =>
+  cheminCanoniqueDeLaListe(new URLSearchParams(requete), domaines);
 
 /**
  * TCK-433 · AC1 — **le test NOMME la règle**, comme l'AC l'exige : *« il échouerait aussi bien si
@@ -110,19 +122,94 @@ describe('cheminCanoniqueDeLaListe — ce qui est ÉCARTÉ', () => {
 
 describe('versParametres — la forme que Next donne à `searchParams`', () => {
   it('accepte une valeur simple', () => {
-    expect(cheminCanoniqueDeLaListe(versParametres({ type: 'villa' }))).toBe(
+    expect(cheminCanoniqueDeLaListe(versParametres({ type: 'villa' }), DOMAINES)).toBe(
       '/properties?type=villa',
     );
   });
 
   it('garde la PREMIÈRE valeur d’un paramètre répété, comme `URLSearchParams.get`', () => {
-    expect(cheminCanoniqueDeLaListe(versParametres({ city: ['Dakar', 'Thiès'] }))).toBe(
+    expect(cheminCanoniqueDeLaListe(versParametres({ city: ['Dakar', 'Thiès'] }), DOMAINES)).toBe(
       '/properties?city=Dakar',
     );
   });
 
   it('ignore une clé absente', () => {
-    expect(cheminCanoniqueDeLaListe(versParametres({ type: undefined }))).toBe(CHEMIN_LISTE);
+    expect(cheminCanoniqueDeLaListe(versParametres({ type: undefined }), DOMAINES)).toBe(
+      CHEMIN_LISTE,
+    );
+  });
+});
+
+describe('le DOMAINE borne l’espace des URL indexables — passe 2', () => {
+  /*
+   * Le critère qui porte toute la règle — « leur ensemble de valeurs est FINI et énumérable » —
+   * n'était appliqué NULLE PART. Mesuré sur un build de production le 2026-08-27 :
+   * `?city=Zzzinventee` rendait `index, follow` + une canonique vers elle-même, et `?type=zzz`
+   * ajoutait `<title>property.types.zzz — Takussan</title>`, une clé d'i18n servie à un moteur.
+   *
+   * Ces cas-là sont exactement ceux que les 24 combinaisons du test de titre ne pouvaient pas
+   * voir : elles étaient toutes construites avec des valeurs VALIDES.
+   */
+  it.each([
+    ['type', 'type=zzznexistepas'],
+    ['contract_type', 'contract_type=zzznexistepas'],
+    ['city', 'city=Zzzinventee'],
+  ])('une valeur inconnue de « %s » se replie sur la page nue', (_cle, requete) => {
+    expect(canonique(requete)).toBe(CHEMIN_LISTE);
+  });
+
+  it('une valeur inconnue n’efface pas une facette valide qui l’accompagne', () => {
+    expect(canonique('type=villa&city=Zzzinventee')).toBe('/properties?type=villa');
+  });
+
+  it('le domaine des TYPES est celui du dépôt, et il est complet', () => {
+    // Dérivé : chaque valeur de `propertyTypeValues` doit être acceptée. Une liste amputée
+    // ferait cesser la facette correspondante d'être indexable, en silence.
+    for (const type of propertyTypeValues) {
+      expect(canonique(`type=${type}`), type).toBe(`/properties?type=${type}`);
+    }
+  });
+
+  it('les deux contrats sont acceptés, et rien d’autre', () => {
+    expect(canonique('contract_type=rent')).toBe('/properties?contract_type=rent');
+    expect(canonique('contract_type=sale')).toBe('/properties?contract_type=sale');
+    expect(canonique('contract_type=lease')).toBe(CHEMIN_LISTE);
+  });
+
+  describe('la casse ne crée pas une seconde URL indexable', () => {
+    it('replie la ville sur la casse du CATALOGUE', () => {
+      // Sans ce repli, la validation aurait fermé un espace non borné pour en rouvrir un plus
+      // petit : une URL indexable par variante de casse.
+      expect(canonique('city=dakar')).toBe('/properties?city=Dakar');
+      expect(canonique('city=DAKAR')).toBe('/properties?city=Dakar');
+      expect(canonique('city=Dakar')).toBe('/properties?city=Dakar');
+    });
+
+    it('replie le type et le contrat en minuscules', () => {
+      expect(canonique('type=VILLA')).toBe('/properties?type=villa');
+      expect(canonique('contract_type=Rent')).toBe('/properties?contract_type=rent');
+    });
+
+    it('tolère les espaces autour de la valeur', () => {
+      expect(canonique('city=%20Dakar%20')).toBe('/properties?city=Dakar');
+    });
+  });
+
+  describe('domaine des villes INCONNAISSABLE', () => {
+    const sansDomaine: DomainesDeFacette = { ...domainesStatiques(), villes: null };
+
+    it('replie TOUTE facette de ville — on n’affirme pas sur un domaine qu’on ignore', () => {
+      expect(canonique('city=Dakar', sansDomaine)).toBe(CHEMIN_LISTE);
+    });
+
+    it('ne touche PAS aux deux autres facettes, que le dépôt connaît seul', () => {
+      expect(canonique('type=villa&city=Dakar', sansDomaine)).toBe('/properties?type=villa');
+    });
+
+    it('un domaine VIDE n’est pas la même chose qu’un domaine inconnu, mais replie aussi', () => {
+      const vide: DomainesDeFacette = { ...domainesStatiques(), villes: new Map() };
+      expect(canonique('city=Dakar', vide)).toBe(CHEMIN_LISTE);
+    });
   });
 });
 

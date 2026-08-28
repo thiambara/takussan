@@ -5,7 +5,14 @@ import { PropertiesDiscoveryPage } from '@/components/property/PropertiesDiscove
 
 import { PropertiesSkeleton } from './loading';
 import { alternatesPubliques } from '@/lib/alternates';
-import { cheminCanoniqueDeLaListe, filtresCanoniques, versParametres } from '@/lib/canonique';
+import {
+  type DomainesDeFacette,
+  cheminCanoniqueDeLaListe,
+  domainesStatiques,
+  filtresCanoniques,
+  versParametres,
+} from '@/lib/canonique';
+import { villesDuCatalogue } from '@/lib/queries/facettes';
 import { isLocale } from '@/i18n/config';
 
 type Props = {
@@ -23,10 +30,17 @@ type Props = {
  * Le sujet est le TYPE quand il est seul retenu (« Villa »), sinon un générique (« Biens
  * immobiliers »). Le type multiple ne passe pas le filtre de canonicité, il n'arrive donc jamais
  * ici — cf. `filtresCanoniques`.
+ *
+ * ⚠️ **`tTypes(type)` ne peut plus manquer, et c'est ce qui a été corrigé le 2026-08-28.** Le
+ * `type` reçu ici a traversé le contrôle de domaine : c'est une valeur de `propertyTypeValues`,
+ * dont le dictionnaire porte les 16 clés. Auparavant, `?type=zzznexistepas` faisait rendre
+ * `<title>property.types.zzznexistepas — Takussan</title>` sur une page `index, follow`
+ * canonique d'elle-même — une clé d'i18n brute servie à un moteur. `next-intl` journalisait bien
+ * `MISSING_MESSAGE`, ce qui ne changeait rien à ce qui était servi.
  */
-async function titreEtDescription(params: URLSearchParams) {
+async function titreEtDescription(params: URLSearchParams, domaines: DomainesDeFacette) {
   const tBase = await getTranslations('meta.properties');
-  const retenus = filtresCanoniques(params);
+  const retenus = filtresCanoniques(params, domaines);
 
   if (retenus.size === 0) {
     return { title: tBase('title'), description: tBase('description') };
@@ -48,10 +62,19 @@ async function titreEtDescription(params: URLSearchParams) {
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = versParametres(await searchParams);
-  const { title, description } = await titreEtDescription(params);
+
+  // Les DOMAINES des trois facettes. Les deux premiers sont connus du dépôt ; le troisième vient
+  // du catalogue, en une réponse partagée par heure — et vaut `null` s'il est inconnaissable,
+  // auquel cas toute facette de ville se replie sur la page nue.
+  const domaines: DomainesDeFacette = {
+    ...domainesStatiques(),
+    villes: await villesDuCatalogue(),
+  };
+
+  const { title, description } = await titreEtDescription(params, domaines);
 
   const locale = await getLocale();
-  const chemin = cheminCanoniqueDeLaListe(params);
+  const chemin = cheminCanoniqueDeLaListe(params, domaines);
 
   return {
     title,

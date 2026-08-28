@@ -31,6 +31,86 @@ const AGENT: AgentPublie = {
   reviews: { average: 4.8, count: 7 },
 };
 
+/**
+ * Les types que schema.org autorise à porter `aggregateRating`.
+ *
+ * Relevé sur https://schema.org/aggregateRating (« Instances of ... may appear as a value of these
+ * properties »), et re-vérifié le 2026-08-28. **`Person` n'y est pas** — c'est le fait qui décide
+ * du `@type` des deux profils, et il vivait jusqu'ici dans un docblock que rien ne gardait.
+ */
+const DOMAINE_AGGREGATE_RATING = [
+  'Brand',
+  'CreativeWork',
+  'Event',
+  'Offer',
+  'Organization',
+  'Place',
+  'Product',
+  'Service',
+] as const;
+
+/**
+ * L'ascendance schema.org des types que ce dépôt émet ou pourrait émettre.
+ *
+ * Un `@type` absent de cette table fait ROUGIR plutôt que de passer : c'est la même règle que
+ * pour les formes de `robots` du sitemap — *une valeur qu'on ne sait pas classer ne se range pas
+ * du côté qui arrange.*
+ */
+const ANCETRES: Readonly<Record<string, readonly string[]>> = {
+  RealEstateAgent: ['LocalBusiness', 'Organization', 'Place', 'Thing'],
+  LocalBusiness: ['Organization', 'Place', 'Thing'],
+  Organization: ['Thing'],
+  Person: ['Thing'],
+};
+
+function porteLaNote(type: string): boolean {
+  const ancetres = ANCETRES[type];
+  if (!ancetres) {
+    throw new Error(
+      `@type « ${type} » absent de la table d'ascendance : ajoute-le avec ses ancêtres schema.org ` +
+        `plutôt que de le laisser passer.`,
+    );
+  }
+  return [type, ...ancetres].some((t) => (DOMAINE_AGGREGATE_RATING as readonly string[]).includes(t));
+}
+
+describe('TCK-435 — le `@type` des profils ADMET `aggregateRating`', () => {
+  /*
+   * ⚠️ **Cette décision n'était gardée par AUCUN test.** Remplacer `'RealEstateAgent'` par
+   * `'Person'` dans `jsonLdAgent()` laissait 35 tests verts et `tsc` à 0 — mesuré. Or c'est
+   * exactement la régression que le raisonnement schema.org existe pour interdire : un nœud
+   * `Person` ne peut pas porter `aggregateRating`, donc la note que la page AFFICHE
+   * disparaîtrait du balisage sans qu'un seul test bouge.
+   *
+   * Le test n'assère pas la CHAÎNE `RealEstateAgent` mais la PROPRIÉTÉ qui l'a fait choisir :
+   * un futur `@type` mieux adapté (`RealEstateListing`, `ProfessionalService`…) passera s'il
+   * admet la note, et `Person` échouera.
+   */
+  it.each([
+    ['agence', () => jsonLdAgence(AGENCE, 'fr')],
+    ['agent', () => jsonLdAgent(AGENT, 'fr')],
+  ])('%s : son `@type` est dans le domaine d’`aggregateRating`', (_nom, fabrique) => {
+    const type = fabrique()['@type'] as string;
+    expect(porteLaNote(type), `« ${type} » ne peut pas porter aggregateRating`).toBe(true);
+  });
+
+  it('`Person` ne le pourrait PAS — c’est ce qui l’écarte', () => {
+    // Le contrôle qui prouve que l'assertion ci-dessus discrimine : sans lui, une fonction
+    // `porteLaNote` qui rendrait toujours `true` passerait les deux cas.
+    expect(porteLaNote('Person')).toBe(false);
+    expect(porteLaNote('RealEstateAgent')).toBe(true);
+  });
+
+  it('un `@type` inconnu de la table fait rougir plutôt que de passer', () => {
+    expect(() => porteLaNote('ZzzTypeInvente')).toThrow(/ascendance/);
+  });
+
+  it('l’agence parente d’un agent porte aussi un type qui admet la note', () => {
+    const parent = jsonLdAgent(AGENT, 'fr').parentOrganization as Record<string, unknown>;
+    expect(porteLaNote(parent['@type'] as string)).toBe(true);
+  });
+});
+
 describe('TCK-435 · AC2 — jamais de note sur zéro avis', () => {
   it('une agence à `count: 0` ne produit AUCUNE clé `aggregateRating`', () => {
     const noeud = jsonLdAgence({ ...AGENCE, reviews: { average: 0, count: 0 } }, 'fr');

@@ -145,11 +145,25 @@ export const ORIGINE_SITE = resoudreOrigineSite({
  * courante.
  *
  * ⚠️ **Les URL restent ABSOLUES, MÊME depuis que `metadataBase` est posé** (TCK-433, dans
- * `src/app/layout.tsx`). `alternates.languages` accepte des chemins relatifs, que Next résout
- * contre `metadataBase` ; les repasser en relatif ferait dépendre chaque `hreflang` d'un réglage
- * qui vit ailleurs, et dont le repli est SILENCIEUX — sans `metadataBase`, Next retombe sur
- * `http://localhost:3000` et le `hreflang` sort en production en pointant la machine du
- * développeur. Une URL absolue ne dépend de rien qu'on puisse retirer sans s'en apercevoir.
+ * `src/app/layout.tsx`) — mais **le motif écrit ici était faux, et il a été re-mesuré le
+ * 2026-08-28.**
+ *
+ * Ce qu'il affirmait : « sans `metadataBase`, Next retombe sur `http://localhost:3000` et le
+ * `hreflang` sort en pointant la machine du développeur ». **Faux pour les alternates.** Mesuré
+ * avec le résolveur de Next (`next/dist/lib/metadata/resolvers/resolve-url.js`), dont la ligne
+ * responsable est `const result = metadataBase ? resolveUrl(url, metadataBase) : url;` : **sans
+ * `metadataBase`, un alternate relatif reste RELATIF.** Le repli `localhost` existe bien, mais il
+ * n'est atteint que par `resolveUrl` — donc par les **images** `openGraph` / `twitter`, où
+ * `src/app/layout.tsx` l'énonce d'ailleurs correctement.
+ *
+ * La règle ne change pas, sa justification si : un `hreflang` **relatif** dans un `<head>` est
+ * résolu par le CLIENT contre l'URL du document. Il serait donc juste tant que le document est
+ * servi sur la bonne origine, et faux partout ailleurs (une prévisualisation, un miroir, un cache
+ * réécrit) — sans jamais rougir. Une URL absolue ne dépend d'aucun réglage qu'on puisse retirer
+ * sans s'en apercevoir, et c'est ce qu'on veut ici.
+ *
+ * *Un motif faux dans un docblock qui porte une décision est pire qu'un docblock absent : c'est
+ * lui qu'un futur lecteur croira.*
  *
  * `x-default` pointe vers le français. Il a une cible RÉELLE et distincte — c'est l'argument
  * principal du préfixe systématique d'ADR-0026 §1 : en `as-needed`, `x-default` et `hreflang="fr"`

@@ -165,6 +165,27 @@ il n'introduit ni ne cache aucune information.
   reconnaît un motif précis est un échappement qu'on contourne : `</SCRIPT >` et `<!--` sont
   traités par l'analyseur HTML et ratés par un littéral.
 
+### Passe 2 — deux trous fermés
+
+1. **La décision centrale n'était gardée par AUCUN test.** Remplacer `'RealEstateAgent'` par
+   `'Person'` dans `jsonLdAgent()` laissait **35 tests verts** et `tsc` à 0 — mesuré. C'est
+   pourtant la régression exacte que le raisonnement schema.org existe pour interdire : `Person`
+   n'admet pas `aggregateRating`, donc la note que la page AFFICHE disparaîtrait du balisage sans
+   qu'un seul test bouge.
+
+   Le test neuf n'assère pas la CHAÎNE mais la PROPRIÉTÉ qui l'a fait choisir : le `@type` émis
+   doit appartenir au domaine d'`aggregateRating` (relevé sur schema.org), ascendance comprise. Un
+   futur type mieux adapté passera ; `Person` échoue. Et un `@type` absent de la table
+   d'ascendance fait rougir plutôt que de passer — *une valeur qu'on ne sait pas classer ne se
+   range pas du côté qui arrange.*
+
+2. **Le fil d'Ariane affirmait un `item` non canonique.** Position 4 pointait
+   `/properties?location=<quartier>`, que TCK-433 déclare non canonique. Le quartier est désormais
+   un **libellé non cliquable des deux côtés** — la forme idiomatique d'un dernier maillon —, ce
+   qui garde l'égalité DOM ⇔ JSON-LD de l'AC1 intacte et rend vrai un invariant neuf : *tout `item`
+   du fil est une URL canonique d'elle-même*, éprouvé en confrontant chaque `item` à
+   `cheminCanoniqueDeLaListe`.
+
 ### Vérification de bout en bout
 
 `next start`, HTML servi, blocs `ld+json` comptés et analysés :

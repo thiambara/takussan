@@ -107,6 +107,14 @@ const R_JETON_SCHEMA_ORG =
   + "`required name=search_term_string` rendrait la déclaration invalide, donc ignorée. Suivi "
   + "jusqu'à sa sortie : `jsonLdSiteWeb` n'a aucun autre consommateur que `DonneesStructurees`.";
 
+const R_JOURNAL_DOMAINE =
+  "Argument de `console.error`, jamais rendu : il s'écrit dans le journal du serveur quand le "
+  + "DOMAINE des villes est inconnaissable, et son lecteur est l'exploitant. Le message est la "
+  + "seule trace d'une dégradation volontaire — toute facette de ville se replie alors sur la page "
+  + "nue —, et c'est justement ce qui interdit de le traduire : rendu dans la langue du visiteur, "
+  + "il ne serait plus lisible par celui qui doit agir. Suivi jusqu'à sa sortie : `villesDuCatalogue` "
+  + "n'a qu'un appelant, la `generateMetadata` de la liste, qui n'en affiche rien.";
+
 const R_ERREUR_SITEMAP =
   "Fragment d'un message d'`Error` levée pendant la GÉNÉRATION de `/sitemap.xml`, `/robots.txt` ou "
   + "des `hreflang` (TCK-431). Il s'écrit dans le journal de build et son lecteur est le "
@@ -332,6 +340,8 @@ export const EXCEPTIONS_JUSTIFIEES = [
   { fichier: 'src/lib/sitemap.ts', motif: /^generateSitemaps\(\) plutôt que tronquer/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/sitemap.ts', motif: /^muet sur ce qu'il laisse dehors\.$/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/queries/sitemap-catalogue.ts', motif: /^sitemap peut porter/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
+  { fichier: 'src/lib/queries/facettes.ts', motif: /^\[canonique\] /, famille: 'TECHNIQUE', raison: R_JOURNAL_DOMAINE },
+  { fichier: 'src/lib/queries/facettes.ts', motif: /^sur la page nue plut\u00f4t que de rejeter/, famille: 'TECHNIQUE', raison: R_JOURNAL_DOMAINE },
 
   // ── TECHNIQUE — un JETON du vocabulaire schema.org (TCK-435) ───────────────────────────────────
   { fichier: 'src/lib/jsonld-site.ts', litteral: 'required name=search_term_string', famille: 'TECHNIQUE', raison: R_JETON_SCHEMA_ORG },

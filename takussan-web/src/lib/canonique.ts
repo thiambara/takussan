@@ -3,6 +3,8 @@ import {
   CLES_DE_RECHERCHE,
   definitionDe,
 } from '@/types/search';
+import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
+import type { ContractType, PropertyType } from '@/types/property';
 
 /**
  * La règle de CANONICITÉ de `/properties` — TCK-433.
@@ -23,10 +25,21 @@ import {
  *
  * `contract_type`, `type`, `city` — et le critère est le même pour les trois :
  *
- * · **leur ensemble de valeurs est FINI et énumérable** — 2 pour le contrat, 16 pour le type
- *   (`Record<PropertyType, …>` de `jsonld-property.ts`), les villes du catalogue pour la
- *   troisième. Le nombre de pages indexables reste donc borné, ce qui est la seule propriété qui
- *   compte ici : une clé à valeurs libres produit une page par valeur saisie ;
+ * · **leur ensemble de valeurs est FINI et énumérable** — 2 pour le contrat, 16 pour le type, les
+ *   villes du catalogue pour la troisième. Le nombre de pages indexables reste donc borné, ce qui
+ *   est la seule propriété qui compte ici : une clé à valeurs libres produit une page par valeur
+ *   saisie ;
+ *
+ *   ⚠️ **Ce critère était ÉCRIT et appliqué NULLE PART jusqu'au 2026-08-28.** Mesuré sur un build
+ *   de production : `?city=Zzzinventee` rendait une URL `index, follow`, canonique d'elle-même,
+ *   avec un `<title>` dérivé de la valeur fournie ; `?type=zzz` y ajoutait une **clé d'i18n brute
+ *   dans le `<title>`** (`property.types.zzz`). L'espace d'URL indexables n'était donc borné par
+ *   rien — le défaut que ce module existe pour fermer, ramené d'un cran.
+ *
+ *   *Un ensemble énumérable dont personne ne vérifie l'appartenance n'est pas un ensemble fini,
+ *   c'est une intention.* {@link filtresCanoniques} vérifie désormais l'appartenance, et une
+ *   valeur hors domaine se replie sur la page nue — le même geste que le `other {}` du gabarit
+ *   ICU du titre ;
  * · **elles nomment une INTENTION de recherche** — « villas à louer à Dakar » est une requête
  *   qu'un visiteur formule ; « biens entre 45 000 et 47 500 F, triés par surface » ne l'est pas ;
  * · **elles ont déjà un libellé traduit** (`property.types`, `property.contractTypes`), donc le
@@ -65,6 +78,48 @@ import {
  */
 
 /**
+ * Les DOMAINES des trois facettes, injectés plutôt que lus — c'est ce qui garde
+ * {@link filtresCanoniques} PURE et éprouvable.
+ *
+ * `villes` vaut `null` quand le domaine est inconnaissable (API injoignable, domaine tronqué).
+ * `null` et « ensemble vide » ne sont pas la même chose et ne doivent pas se ressembler : le
+ * premier veut dire « on ne sait pas », le second « le catalogue n'a aucune ville ». Les deux
+ * font replier, mais seul le premier se journalise.
+ */
+export type DomainesDeFacette = {
+  readonly types: ReadonlySet<string>;
+  readonly contrats: ReadonlySet<string>;
+  readonly villes: ReadonlyMap<string, string> | null;
+};
+
+/**
+ * ⚠️ **Preuve de type que `propertyTypeValues` ÉNUMÈRE exactement `PropertyType`.**
+ *
+ * Sans elle, la liste runtime pourrait diverger du type sans qu'aucun test ne bouge : un type de
+ * bien ajouté à l'union et oublié dans la liste cesserait silencieusement d'être une facette
+ * indexable. `tsc` casse désormais dans les DEUX sens — liste incomplète, ou liste inventant une
+ * valeur que le type ne connaît pas.
+ */
+type _ListeCouvreLeType = Exclude<PropertyType, (typeof propertyTypeValues)[number]>;
+type _TypeCouvreLaListe = Exclude<(typeof propertyTypeValues)[number], PropertyType>;
+type _ContratsCouvrent = Exclude<ContractType, (typeof contractTypeValues)[number]>;
+const _preuveDExhaustivite: [_ListeCouvreLeType, _TypeCouvreLaListe, _ContratsCouvrent][] = [];
+void _preuveDExhaustivite;
+
+/**
+ * Les deux domaines que le dépôt connaît sans rien demander à personne.
+ *
+ * Ils viennent de `src/lib/schemas/property.ts`, où ils servent déjà aux formulaires — pas d'une
+ * seconde énumération écrite ici, qui divergerait.
+ */
+export function domainesStatiques(): Pick<DomainesDeFacette, 'types' | 'contrats'> {
+  return {
+    types: new Set<string>(propertyTypeValues),
+    contrats: new Set<string>(contractTypeValues),
+  };
+}
+
+/**
  * Les clés qui MÉRITENT leur propre URL canonique, dans l'ordre où elles sont écrites.
  *
  * L'ordre est fixe et fait partie de la règle : sans lui, `?type=villa&city=Dakar` et
@@ -85,7 +140,10 @@ export const CHEMIN_LISTE = '/properties';
  * Une seconde lecture écrite à la main divergerait, et la divergence produirait deux canoniques
  * pour une même page.
  */
-export function filtresCanoniques(params: URLSearchParams): Map<CleDeRechercheNom, string> {
+export function filtresCanoniques(
+  params: URLSearchParams,
+  domaines: DomainesDeFacette,
+): Map<CleDeRechercheNom, string> {
   const retenus = new Map<CleDeRechercheNom, string>();
 
   for (const cle of CLES_CANONIQUES) {
@@ -102,10 +160,47 @@ export function filtresCanoniques(params: URLSearchParams): Map<CleDeRechercheNo
 
     const ecrit = definition.ecrire(valeur);
     if (ecrit === undefined || ecrit === '') continue;
-    retenus.set(cle, ecrit);
+
+    // ⚠️ **L'APPARTENANCE AU DOMAINE, et c'est le contrôle qui manquait.** Une valeur hors domaine
+    // ne fait pas échouer : elle se replie, exactement comme le `other {}` du gabarit ICU du
+    // titre. Un 404 ou une erreur seraient faux — l'URL reste servie, elle cesse seulement d'être
+    // une facette indexable.
+    const canonique = valeurCanoniqueDe(cle, ecrit, domaines);
+    if (canonique === null) continue;
+
+    retenus.set(cle, canonique);
   }
 
   return retenus;
+}
+
+/**
+ * La valeur canonique d'une facette, ou `null` si elle n'appartient pas au domaine.
+ *
+ * ⚠ Elle NORMALISE en plus de vérifier : `?city=dakar` et `?city=Dakar` désignent la même page et
+ * doivent produire la MÊME canonique. Sans ce repli, la validation aurait fermé un espace non
+ * borné pour en rouvrir un plus petit — une URL indexable par variante de casse.
+ */
+function valeurCanoniqueDe(
+  cle: CleDeRechercheNom,
+  valeur: string,
+  domaines: DomainesDeFacette,
+): string | null {
+  if (cle === 'city') {
+    // `null` = domaine inconnaissable. On replie, parce qu'affirmer une canonique sur un domaine
+    // qu'on ne connaît pas serait exactement la faute qu'on corrige.
+    if (domaines.villes === null) return null;
+    return domaines.villes.get(valeur.trim().toLocaleLowerCase('fr')) ?? null;
+  }
+
+  const replie = valeur.trim().toLowerCase();
+  if (cle === 'type') return domaines.types.has(replie) ? replie : null;
+  if (cle === 'contract_type') return domaines.contrats.has(replie) ? replie : null;
+
+  // Inatteignable tant que `CLES_CANONIQUES` porte ces trois clés — et le test de partition le
+  // vérifie. Refuser plutôt que laisser passer : une quatrième clé retenue sans domaine écrit
+  // rouvrirait l'espace non borné en silence.
+  return null;
 }
 
 /**
@@ -113,8 +208,11 @@ export function filtresCanoniques(params: URLSearchParams): Map<CleDeRechercheNo
  *
  * `/properties?type=villa&page=3&sort=-created_at&per_page=48` → `/properties?type=villa`.
  */
-export function cheminCanoniqueDeLaListe(params: URLSearchParams): string {
-  const retenus = filtresCanoniques(params);
+export function cheminCanoniqueDeLaListe(
+  params: URLSearchParams,
+  domaines: DomainesDeFacette,
+): string {
+  const retenus = filtresCanoniques(params, domaines);
   if (retenus.size === 0) return CHEMIN_LISTE;
 
   const query = new URLSearchParams();

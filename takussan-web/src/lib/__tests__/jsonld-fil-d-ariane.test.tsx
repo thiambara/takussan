@@ -5,6 +5,11 @@ import { PropertyBreadcrumb } from '@/app/[locale]/(public)/properties/[slug]/co
 import { ORIGINE_SITE } from '@/lib/alternates';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
 import { scriptJsonLd } from '@/lib/jsonld';
+import {
+  type DomainesDeFacette,
+  cheminCanoniqueDeLaListe,
+  domainesStatiques,
+} from '@/lib/canonique';
 import { withIntl } from '@/test/intl';
 import fr from '@/messages/fr.json';
 import type { PropertyDetail } from '@/types/property';
@@ -109,11 +114,58 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
     const hrefs = [...screen.getByRole('navigation').querySelectorAll('a')].map((a) =>
       a.getAttribute('href'),
     );
-    const items = balise(p).map((i) => i.item);
+    // Les maillons CLIQUABLES seulement : depuis le 2026-08-28, le quartier est un simple
+    // libellé des deux côtés — il n'a ni `<a>` ni `item`. L'égalité porte donc sur la même
+    // sous-liste de part et d'autre, ce qui est exactement ce que l'AC1 demande.
+    const items = balise(p)
+      .map((i) => i.item)
+      .filter((i): i is string => i !== undefined);
 
     expect(items).toEqual(hrefs.map((h) => `${ORIGINE_SITE}${h}`));
     // Et ces href-là portent bien la langue : `LienLocalise` la pose au rendu.
     for (const href of hrefs) expect(href, href!).toMatch(/^\/fr(\/|\?|$)/);
+  });
+
+  it('le QUARTIER est un libellé des deux côtés — ni `<a>`, ni `item`', () => {
+    /*
+     * ⚠ Il pointait `/properties?location=<quartier>`, or `location` est l'une des dix-sept clés
+     * ÉCARTÉES par TCK-433 : cette URL rend `<link rel="canonical" href="…/properties">`. Le
+     * balisage affirmait donc un `item` que la page pointée désavoue aussitôt — deux tickets du
+     * même lot qui se contredisaient.
+     */
+    const p = bien();
+    render(withIntl(<PropertyBreadcrumb property={p} />));
+
+    const nav = screen.getByRole('navigation');
+    expect([...nav.querySelectorAll('a')].map((a) => a.textContent?.trim())).not.toContain('Ngor');
+    expect(nav.textContent).toContain('Ngor');
+    expect(nav.innerHTML).not.toContain('location=');
+
+    const dernier = balise(p).at(-1)!;
+    expect(dernier.name).toBe('Ngor');
+    expect(dernier).not.toHaveProperty('item');
+    expect(JSON.stringify(balise(p))).not.toContain('location=');
+  });
+
+  it('TOUT `item` du fil est une URL CANONIQUE d’elle-même', () => {
+    // L'invariant que le retrait du lien de quartier rend vrai — et le seul qui interdise
+    // qu'un maillon futur pointe de nouveau une URL non canonique.
+    const p = bien();
+    const domaines: DomainesDeFacette = {
+      ...domainesStatiques(),
+      // La ville vient du bien, qui est public : elle appartient au domaine par construction.
+      villes: new Map([[p.location.city!.toLocaleLowerCase('fr'), p.location.city!]]),
+    };
+
+    for (const item of balise(p).map((i) => i.item).filter(Boolean) as string[]) {
+      const chemin = item.slice(ORIGINE_SITE.length).replace(/^\/(fr|en|wo)/, '');
+      if (chemin === '' || chemin === '/') continue; // l'accueil n'est pas une page de liste
+      const [, requete = ''] = chemin.split('?');
+      expect(
+        `/properties?${requete}`.replace(/\?$/, ''),
+        `le maillon « ${item} » n'est pas canonique de lui-même`,
+      ).toBe(cheminCanoniqueDeLaListe(new URLSearchParams(requete), domaines));
+    }
   });
 
   it('le fil suit la ville et le quartier réellement rendus', () => {
@@ -141,8 +193,9 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
     expect(balise(p)[1]!.item).toBe(`${ORIGINE_SITE}/fr/properties?contract_type=sale`);
   });
 
-  it('les `position` commencent à 1 et se suivent', () => {
+  it('les `position` commencent à 1 et se suivent, maillon non cliquable compris', () => {
     expect(balise(bien()).map((i) => i.position)).toEqual([1, 2, 3, 4]);
+    expect(balise(bien()).map((i) => i.name)).toEqual(['Accueil', 'Louer', 'Dakar', 'Ngor']);
   });
 
   it('la langue de l’URL suit celle de la page', () => {
@@ -151,7 +204,9 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
   });
 
   it('aucune URL relative — un `item` relatif serait résolu contre le document', () => {
-    for (const item of balise(bien()).map((i) => i.item)) {
+    const items = balise(bien()).map((i) => i.item).filter((i) => i !== undefined);
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
       expect(item, item).toMatch(/^https:\/\//);
     }
   });

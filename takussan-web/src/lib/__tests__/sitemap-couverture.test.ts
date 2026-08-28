@@ -35,13 +35,67 @@ import {
 
 const RACINE_PUBLIQUE = join(process.cwd(), 'src/app/[locale]/(public)');
 
+type Indexabilite = 'indexable' | 'noindex' | 'inconnu';
+
 type RoutePublique = {
   /** Chemin SANS langue, tel que le sitemap le manipule : `/`, `/properties/[slug]`. */
   readonly chemin: string;
   readonly fichier: string;
   readonly dynamique: boolean;
+  readonly indexabilite: Indexabilite;
   readonly indexable: boolean;
 };
+
+/**
+ * Retire commentaires de bloc et de ligne.
+ *
+ * ⚠️ **Sans cela, le classement lit la PROSE.** `playground/page.tsx` cite
+ * `robots: { index: true, follow: true }` dans son docblock — pour expliquer ce que la métadonnée
+ * du layout déclare — **avant** son propre `robots: { index: false }`. Un classement naïf le
+ * lirait indexable, c'est-à-dire l'inverse de ce que la page fait.
+ */
+function sansCommentaires(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+}
+
+/**
+ * L'indexabilité déclarée par un fichier de route — **et `'inconnu'` est une VALEUR, pas un repli.**
+ *
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * LE DÉFAUT QUE CETTE FONCTION CORRIGE
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Ce test décidait par la seule expression `/index\s*:\s*false/`. Next accepte **deux** formes,
+ * toutes deux documentées dans son typage (`metadata-interface.d.ts`, `robots?: null | string |
+ * Robots`) et résolues par `resolve-basics.js` :
+ *
+ *     robots: { index: false, follow: false }     ← objet
+ *     robots: 'noindex, nofollow'                 ← chaîne
+ *
+ * Une page écrite sous la seconde était classée **indexable**, donc RÉCLAMÉE dans
+ * `PAGES_STATIQUES_INDEXABLES` — et une fois ajoutée, les 57 tests passaient avec trois `<loc>`
+ * `noindex` dans le sitemap. La garde de l'AC3 ne connaissait qu'une des deux formes valides.
+ *
+ * ⚠️ **Le défaut n'était pas la forme manquante, c'était le REPLI SUR « indexable ».** Une
+ * troisième forme apparaîtra (`robots: FONCTION()`, un objet importé, une variable). Elle rend
+ * désormais `'inconnu'`, et `'inconnu'` fait ROUGIR en nommant le fichier — au lieu d'être
+ * silencieusement rangée du côté qui ouvre l'indexation.
+ */
+function indexabiliteDe(source: string): Indexabilite {
+  const propre = sansCommentaires(source);
+  if (!/\brobots\s*:/.test(propre)) return 'indexable';
+
+  const chaine = propre.match(/\brobots\s*:\s*(['"`])([^'"`]*)\1/);
+  if (chaine) return /\bnoindex\b/i.test(chaine[2]!) ? 'noindex' : 'indexable';
+
+  const objet = propre.match(/\brobots\s*:\s*\{([^}]*)\}/);
+  if (objet) {
+    if (/\bindex\s*:\s*false\b/.test(objet[1]!)) return 'noindex';
+    if (/\bindex\s*:\s*true\b/.test(objet[1]!)) return 'indexable';
+  }
+
+  return 'inconnu';
+}
 
 /** Les segments entre parenthèses sont des GROUPES : ils ne paraissent pas dans l'URL. */
 function cheminDeRoute(dossier: string): string {
@@ -60,13 +114,15 @@ function collecter(dossier: string, acc: RoutePublique[] = []): RoutePublique[] 
     } else if (entree.name === 'page.tsx') {
       const source = readFileSync(chemin, 'utf8');
       const route = cheminDeRoute(dossier);
+      const indexabilite = indexabiliteDe(source);
       acc.push({
         chemin: route,
         fichier: relative(process.cwd(), chemin),
         dynamique: route.includes('['),
-        // La forme exacte employée par les quatre pages qui la portent aujourd'hui
-        // (`favorites`, `compare`, `bookings`, `playground`), tolérante aux espaces.
-        indexable: !/index\s*:\s*false/.test(source),
+        indexabilite,
+        // ⚠ `'inconnu'` n'est PAS traité comme indexable : il fait rougir un test dédié. Le
+        // compter ici d'un côté ou de l'autre reproduirait le repli qu'on vient de retirer.
+        indexable: indexabilite === 'indexable',
       });
     }
   }
@@ -80,6 +136,41 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // Le contrôle qui garde le test : un `(public)` déplacé, un glob cassé, et l'équivalence
     // ci-dessous deviendrait « ∅ = ∅ », c'est-à-dire verte en ne mesurant rien.
     expect(ROUTES.length).toBeGreaterThanOrEqual(7);
+  });
+
+  it('classe CHAQUE route, sans laisser une seule forme non reconnue', () => {
+    // Le cœur du correctif : une forme de `robots` que la fonction ne sait pas lire ne se range
+    // plus du côté « indexable ». Elle nomme le fichier et fait rougir.
+    const opaques = ROUTES.filter((r) => r.indexabilite === 'inconnu');
+    expect(
+      opaques.map((r) => `${r.chemin} (${r.fichier})`),
+      'forme de `robots` non reconnue — la classer par défaut ouvrirait l’indexation',
+    ).toEqual([]);
+  });
+
+  it('reconnaît les DEUX formes valides de `robots`, et le déclare sur des sources écrites ici', () => {
+    // Éprouvé sur des sources littérales plutôt que sur les fichiers du dépôt : aucune page ne
+    // porte aujourd'hui la forme chaîne, donc l'arborescence seule ne pourrait pas le montrer.
+    expect(indexabiliteDe("export const metadata = { robots: { index: false, follow: false } };"))
+      .toBe('noindex');
+    expect(indexabiliteDe("export const metadata = { robots: 'noindex, nofollow' };")).toBe(
+      'noindex',
+    );
+    expect(indexabiliteDe('export const metadata = { robots: "noindex" };')).toBe('noindex');
+    expect(indexabiliteDe("export const metadata = { robots: { index: true } };")).toBe('indexable');
+    expect(indexabiliteDe("export const metadata = { robots: 'index, follow' };")).toBe('indexable');
+    expect(indexabiliteDe('export const metadata = { title: "x" };')).toBe('indexable');
+    // La troisième forme, celle qui n'existe pas encore.
+    expect(indexabiliteDe('export const metadata = { robots: robotsDeLaPage() };')).toBe('inconnu');
+    expect(indexabiliteDe('export const metadata = { robots: REGLES };')).toBe('inconnu');
+  });
+
+  it('ne se laisse pas tromper par un `robots:` cité dans un COMMENTAIRE', () => {
+    // Cas réel : `playground/page.tsx` cite `robots: { index: true, follow: true }` dans son
+    // docblock, AVANT son propre `robots: { index: false }`.
+    const source = readFileSync(join(RACINE_PUBLIQUE, 'playground/page.tsx'), 'utf8');
+    expect(source).toContain('index: true');
+    expect(indexabiliteDe(source)).toBe('noindex');
   });
 
   it('voit les deux natures de page — sinon la détection d’`index: false` est cassée', () => {

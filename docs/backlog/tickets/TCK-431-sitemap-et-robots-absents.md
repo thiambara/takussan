@@ -196,6 +196,37 @@ hebdomadaire : **personne ne pouvait la JOUER avant de pousser.** C'est la raiso
 vers `scripts/`, où la commande d'inventaire du `CLAUDE.md` racine
 (`for g in scripts/check-*.mjs`) la trouve.
 
+### Passe 2 — la garde de l'AC3 ne connaissait qu'UNE des deux formes de `robots`
+
+`sitemap-couverture.test.ts` décidait de l'indexabilité par `/index\s*:\s*false/` sur le texte du
+fichier de route. Next accepte **deux** formes, toutes deux dans son typage
+(`robots?: null | string | Robots`) et résolues par `resolve-basics.js` :
+
+```ts
+robots: { index: false, follow: false }     // objet
+robots: 'noindex, nofollow'                 // chaîne
+```
+
+Une page écrite sous la seconde était classée **indexable**, donc RÉCLAMÉE dans
+`PAGES_STATIQUES_INDEXABLES` — et une fois ajoutée, les 57 tests passaient avec trois `<loc>`
+`noindex` dans le sitemap.
+
+⚠️ **Le défaut n'était pas la forme manquante, c'était le REPLI SUR « indexable ».** Le classement
+rend désormais trois états, et `'inconnu'` **fait rougir en nommant le fichier**. Une troisième
+forme (`robots: FONCTION()`, un objet importé) ne se rangera pas du côté qui ouvre l'indexation.
+
+Deux effets de bord traités au passage : le classement **retire les commentaires** avant de lire
+(`playground/page.tsx` cite `robots: { index: true }` dans sa prose, AVANT sa propre déclaration),
+et un test éprouve les deux formes sur des sources littérales — aucune page du dépôt ne porte
+aujourd'hui la forme chaîne, donc l'arborescence seule ne pourrait pas le montrer.
+
+**Et le lien qui manquait entre les deux tickets** : rien n'obligeait une page entrée dans
+`PAGES_STATIQUES_INDEXABLES` à déclarer des `alternates`. Elle serait entrée au sitemap avec ses
+trois `<loc>` et ses quatre `xhtml:link` sans émettre ni canonique ni `hreflang`. La liste de
+pages d'`alternates.test.ts`, écrite à la main sur cinq chemins, ne pouvait pas voir la sixième :
+elle est désormais **dérivée** des deux tables que `sitemap-couverture.test.ts` confronte déjà à
+l'arborescence.
+
 ### `/sitemap.xml` et `/robots.txt` face au proxy
 
 Les deux vivent à la RACINE et non sous `[locale]`. Ce n'est pas une préférence : ils portent une
@@ -251,4 +282,4 @@ Mesuré par HTTP en plus, sur `next start` le 2026-08-27 :
 
 API servie sur 8002 (251 biens publics), `npm run build` : **759 `<loc>`** = (251 + 2) × 3 langues,
 XML bien formé (`xml.dom.minidom`), une fiche présente dans les trois langues avec ses quatre
-`xhtml:link`. `robots.txt` porte les sept interdictions et la directive `Sitemap:` absolue.
+`xhtml:link`. `robots.txt` porte **huit** interdictions (`/api /app /admin /super-admin /auth /onboarding /publish /maintenance` — le rapport de la passe 1 en annonçait sept, comptées à la main) et la directive `Sitemap:` absolue.

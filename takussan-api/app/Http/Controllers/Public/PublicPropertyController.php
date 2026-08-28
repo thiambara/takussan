@@ -80,6 +80,16 @@ class PublicPropertyController extends Controller
      */
     public const SITEMAP_MAX_PER_PAGE = 1000;
 
+    /**
+     * Plafond du nombre de villes rendues par `GET /public/properties/cities`.
+     *
+     * Ce n'est pas une pagination : la liste est un DOMAINE, et un domaine se rend entier ou pas
+     * du tout. Le plafond est une garde contre une base polluée (une ville par annonce), pas une
+     * fenêtre — au-delà, la réponse le DIT (`truncated: true`) pour que l'appelant sache qu'il ne
+     * peut plus s'en servir comme domaine.
+     */
+    public const CITIES_MAX = 500;
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = Property::query()
@@ -138,6 +148,61 @@ class PublicPropertyController extends Controller
             ->paginate($perPage);
 
         return $this->paginated($properties, PropertySitemapResource::collection($properties->getCollection()));
+    }
+
+    /**
+     * Les VILLES du catalogue public — le domaine de la facette `city` (TCK-433, passe 2).
+     *
+     * GET /api/public/properties/cities
+     *
+     * ────────────────────────────────────────────────────────────────────────────────────────
+     * POURQUOI CET ENDPOINT EXISTE
+     * ────────────────────────────────────────────────────────────────────────────────────────
+     *
+     * `src/lib/canonique.ts` retient `contract_type`, `type` et `city` comme facettes
+     * indexables **parce que leur ensemble de valeurs est fini et énumérable**. Les deux
+     * premiers le sont côté front (`propertyTypeValues`, `contractTypeValues`). La troisième ne
+     * l'était nulle part : `?city=Zzzinventee` produisait une URL indexable, canonique
+     * d'elle-même, avec un titre dérivé de la valeur fournie. *Un ensemble énumérable dont
+     * personne ne vérifie l'appartenance n'est pas un ensemble fini, c'est une intention.*
+     *
+     * Il rend donc l'ÉNUMÉRATION, sur le même patron que `PublicPropertyTypeController::index()`
+     * dont il est le jumeau : `->public()` décide, un compte accompagne chaque valeur.
+     *
+     * ⚠ La ville vit sur `addresses`, pas sur `properties` : d'où la jointure. `->public()`
+     * s'applique bien à la requête de `properties`, donc le domaine ne contient que des villes
+     * réellement atteignables par une fiche publique — une ville dont toutes les annonces sont
+     * retirées quitte le domaine, et sa page de facette cesse d'être canonique d'elle-même.
+     * C'est le comportement voulu.
+     */
+    public function cities(): JsonResponse
+    {
+        $lignes = Property::query()
+            ->public()
+            ->join('addresses', function ($jointure) {
+                $jointure->on('addresses.addressable_id', '=', 'properties.id')
+                    ->where('addresses.addressable_type', '=', Property::class);
+            })
+            ->whereNotNull('addresses.city')
+            ->where('addresses.city', '!=', '')
+            ->groupBy('addresses.city')
+            ->orderByDesc(DB::raw('count(*)'))
+            ->limit(self::CITIES_MAX + 1)
+            ->pluck(DB::raw('count(*) as cnt'), 'addresses.city');
+
+        $tronque = $lignes->count() > self::CITIES_MAX;
+
+        $data = $lignes->take(self::CITIES_MAX)
+            ->map(fn ($compte, $ville) => ['value' => (string) $ville, 'count' => (int) $compte])
+            ->values()
+            ->all();
+
+        return $this->json([
+            'data' => $data,
+            // ⚠ Un domaine tronqué n'est PAS un domaine. L'appelant doit pouvoir refuser de s'en
+            // servir plutôt que de rejeter en silence les villes qui n'ont pas tenu.
+            'meta' => ['truncated' => $tronque],
+        ]);
     }
 
     /**

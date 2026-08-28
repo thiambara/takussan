@@ -160,6 +160,66 @@ fait rougir.
   écrite dans le test : la même image sans `metadataBase` ne devient pas absolue. Réimplémenter
   `new URL(a, b)` aurait donné un test vert quel que soit le comportement réel du framework.
 
+### Passe 2 — le critère de la règle est désormais APPLIQUÉ, pas seulement écrit
+
+**La revue adverse a trouvé le défaut central : la propriété qui porte toute la règle n'était
+vérifiée nulle part.** Ce document affirmait que `contract_type`, `type` et `city` méritent leur
+URL indexable *parce que leur ensemble de valeurs est fini et énumérable*. Aucun contrôle
+d'appartenance n'existait. Mesuré sur un build de production le 2026-08-27 :
+
+```
+curl '…/fr/properties?type=zzznexistepas'
+  <title>property.types.zzznexistepas — Takussan</title>     ← une clé d'i18n servie au moteur
+  <link rel="canonical" href="…?type=zzznexistepas">
+  <meta name="robots" content="index, follow">
+
+curl '…/fr/properties?city=Zzzinventee'
+  <title>Biens immobiliers à Zzzinventee — Takussan</title>  ← canonique d'elle-même, indexable
+```
+
+L'espace d'URL indexables n'était donc borné par rien — le défaut que ce ticket existe pour
+fermer, ramené d'un cran. *Un ensemble énumérable dont personne ne vérifie l'appartenance n'est pas
+un ensemble fini, c'est une intention.*
+
+**Les trois domaines, et d'où ils viennent :**
+
+| Facette | Domaine | Source |
+|---|---|---|
+| `type` | 16 valeurs | `propertyTypeValues` (`src/lib/schemas/property.ts`), déjà employé par les formulaires |
+| `contract_type` | 2 valeurs | `contractTypeValues`, même fichier |
+| `city` | les villes du catalogue | `GET /api/public/properties/cities`, **endpoint neuf**, jumeau de `property-types` |
+
+Une valeur hors domaine **se replie sur la page nue** — le même geste que le `other {}` du gabarit
+ICU du titre. Elle ne fait pas échouer : l'URL reste servie, elle cesse seulement d'être une
+facette indexable.
+
+⚠ **`tsc` garde l'exhaustivité des deux domaines statiques** : `canonique.ts` porte une preuve de
+type qui casse dans les deux sens si `propertyTypeValues` et `PropertyType` divergent. Sans elle,
+un type de bien ajouté à l'union et oublié dans la liste cesserait silencieusement d'être une
+facette.
+
+⚠ **La validation NORMALISE en plus de vérifier.** `?city=dakar` et `?city=Dakar` se replient tous
+deux sur `?city=Dakar`. Sans ce repli, on aurait fermé un espace non borné pour en rouvrir un plus
+petit : une URL indexable par variante de casse.
+
+⚠ **Domaine des villes inconnaissable → on replie.** API injoignable, ou domaine tronqué côté
+serveur (`meta.truncated`) : `villesDuCatalogue()` rend `null`, toute facette de ville se replie, et
+l'échec est journalisé. *Un domaine tronqué n'est pas un domaine* — s'en servir reviendrait à
+déclarer non canoniques les villes qui n'ont pas tenu dans le plafond, c'est-à-dire à décider par
+un effet de bord.
+
+Un autre défaut de la même passe, qui touchait ce ticket et TCK-435 à la fois : le fil d'Ariane
+émettait un `item` vers `/properties?location=<quartier>`, or `location` est l'une des dix-sept
+clés ÉCARTÉES — cette URL rend `canonical=…/properties`. Le quartier est devenu un **libellé non
+cliquable des deux côtés** ; l'invariant « tout `item` du fil est canonique de lui-même » est
+désormais éprouvé.
+
+**Motif faux corrigé.** Le docblock d'`alternatesLangues` affirmait que, sans `metadataBase`, les
+`hreflang` sortent en `http://localhost:3000`. Re-mesuré avec le résolveur de Next : **un alternate
+relatif reste RELATIF** (`const result = metadataBase ? resolveUrl(url, metadataBase) : url;`). Le
+repli localhost n'est atteint que par `resolveUrl`, donc par les **images** `openGraph`/`twitter`.
+La règle ne change pas, sa justification si.
+
 ### Vérification de bout en bout
 
 `next start`, HTML servi :
