@@ -1,7 +1,4 @@
 import type { Metadata } from 'next';
-import { getMeAction } from '@/app/actions/auth';
-import { isAdmin } from '@/lib/roles';
-import { redirect } from 'next/navigation';
 import { fetchThresholdAlerts } from '@/lib/queries/alerts';
 import { AlertList } from './AlertList';
 import { getTranslations } from 'next-intl/server';
@@ -23,8 +20,8 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function AlertsPage() {
   const t = await getTranslations('dashboard.pages.alerts');
-  const user = await getMeAction();
-  if (!isAdmin(user.roles)) redirect('/app/overview');
+  // TCK-426 — le refus de rôle est REMONTÉ dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la vue interdite.
 
   const alerts = await fetchThresholdAlerts();
 

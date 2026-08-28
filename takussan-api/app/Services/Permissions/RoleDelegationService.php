@@ -10,6 +10,7 @@ use App\Models\Agency;
 use App\Models\Enums\RoleDelegationStatus;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,9 +21,26 @@ use Illuminate\Validation\ValidationException;
  * (cf. Règle 5 du models-spec). Une `RoleDelegation` active accorde
  * temporairement les capacités d'un rôle additionnel à un user.
  *
- * La résolution d'autorisation se fait via :
- *   - `$user->isXxxAt($agencyId)` → présence de profil canonique
- *   - `$user->hasActiveAgencyDelegation($agencyId, $role)` → délégation active
+ * La résolution d'autorisation se fait via `$user->canActAt($capability,
+ * $agency)` → {@see MembershipCapabilityResolver}.
+ *
+ * ⚠ **Ce bloc désignait `hasActiveAgencyDelegation()` comme LE chemin de
+ * résolution, et c'était devenu faux** (relevé par la passe adverse de
+ * TCK-395 — le fichier le plus probable pour qui vient lire comment la
+ * délégation autorise était aussi celui qui en donnait la version périmée).
+ * Cette méthode n'a plus aucun appelant de production ; elle est un prédicat
+ * d'état sur la table, pas un contrôle d'autorisation, et son docblock le dit.
+ *
+ * Depuis TCK-395, une délégation active accorde une capacité si le **rôle
+ * système** du type délégué la porte dans cette agence, ET si le **délégant la
+ * détient en propre**. Une délégation n'accorde donc jamais plus que son
+ * auteur, et n'est pas transitive.
+ *
+ * ⚠ Ce service ne vérifie toujours PAS, à la création, que le rôle délégué
+ * tient dans les capacités du délégant : la borne est appliquée à la LECTURE,
+ * délibérément (elle suit le délégant s'il est dépouillé après coup). Une
+ * délégation peut donc être écrite et n'accorder qu'une partie de ce que son
+ * `role` nomme.
  *
  * Ce service ne touche plus aux tables `model_has_roles` / `roles` :
  * la délégation est intégralement portée par la table `role_delegations`.

@@ -4,6 +4,7 @@ namespace App\Services\Invitation;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\Capability;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
@@ -154,8 +155,12 @@ class OwnerInvitationService
         }
 
         // TCK-278 — Profile-based check (cf. policy).
+        // TCK-395 — voir `MembershipCapabilityResolver::delegationAllows()` : la
+        // délégation passe désormais par le pivot et est bornée par les
+        // capacités propres du délégant, au lieu d'accorder l'agency_admin
+        // plein sur un simple test de chaîne.
         $allowed = $inviter->isAgencyAdminAt((int) $agency->id)
-            || $inviter->hasActiveAgencyDelegation((int) $agency->id, 'agency_admin');
+            || $inviter->canActAt(Capability::TeamInvite, $agency);
 
         if (! $allowed) {
             throw new HttpException(403, __('owners.invite.errors.permission_denied'));

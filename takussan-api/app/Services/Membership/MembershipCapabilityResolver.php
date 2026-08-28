@@ -3,10 +3,13 @@
 namespace App\Services\Membership;
 
 use App\Models\Agency;
+use App\Models\AgencyRole;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PlatformProfileLevel;
+use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
+use App\Models\RoleDelegation;
 use App\Models\User;
 
 /**
@@ -29,6 +32,22 @@ use App\Models\User;
  * {@see SystemRoleCapabilities} et sert désormais de **seed** aux rôles
  * système de chaque agence. Un rôle personnalisé s'en écarte librement.
  *
+ * Phase 4 (TCK-395) : les `RoleDelegation` actives sont consultées ICI, et
+ * plus seulement par `hasActiveAgencyDelegation()`. Deux défauts mesurés le
+ * 2026-08-27 en sont la cause :
+ *
+ *  1. `config('role_delegations.delegable_roles')` offrait `agency_admin`,
+ *     `agent` et `owner`, mais les six sites d'appel du dépôt n'interrogeaient
+ *     QUE `'agency_admin'`. Déléguer `agent` ou `owner` écrivait une ligne,
+ *     émettait trois événements, envoyait deux notifications, s'affichait
+ *     « Active » — et n'accordait **rien, nulle part**.
+ *  2. La délégation était **le seul chemin du dépôt où une capacité
+ *     s'obtenait sans passer par le pivot `agency_role_capabilities`** : le
+ *     délégant pouvait accorder la chaîne `'agency_admin'` en entier, donc
+ *     PLUS que ce que son propre `AgencyRole` porte depuis TCK-279. C'est
+ *     exactement ce que TCK-315 avait fermé pour la branche prestataire ;
+ *     celui-ci était resté ouvert.
+ *
  * Modèle additif : si plusieurs profils dans la même agence accordent la
  * capacité, l'autorisation est OR (au moins un profil suffit).
  */
@@ -44,8 +63,44 @@ class MembershipCapabilityResolver
      */
     public function allows(User $user, Capability $capability, ?Agency $agency = null): bool
     {
-        $platform = $this->resolvePlatform($user, $capability);
-        if ($platform === true) {
+        if ($this->resolveDirect($user, $capability, $agency)) {
+            return true;
+        }
+
+        if ($agency === null) {
+            return false;
+        }
+
+        return $this->delegationAllows($user, $capability, $agency);
+    }
+
+    /**
+     * Les capacités que le user tient EN PROPRE, délégations exclues.
+     *
+     * TCK-395 (revue) — exposée parce qu'un geste au moins doit pouvoir exiger
+     * la détention propre : **déléguer**. `RoleDelegationPolicy` l'emprunte.
+     * Laisser ce geste passer par `allows()` rendait le droit de déléguer
+     * lui-même délégable, et fabriquait exactement le défaut que TCK-395
+     * ferme — cf. le docblock de la policy.
+     */
+    public function allowsDirectly(User $user, Capability $capability, ?Agency $agency = null): bool
+    {
+        return $this->resolveDirect($user, $capability, $agency);
+    }
+
+    /**
+     * Les capacités que le user tient de LUI-MÊME — profil plateforme ou
+     * `AgencyRole` porté par un de ses profils dans l'agence. **Aucune
+     * délégation n'est consultée ici, et c'est structurel** : c'est cette
+     * méthode que {@see self::delegationAllows()} appelle sur le DÉLÉGANT,
+     * ce qui rend la délégation non transitive par construction. Un délégué
+     * ne peut donc pas re-déléguer ce qu'il n'a lui-même que par délégation,
+     * et deux délégations croisées ne peuvent pas s'entre-accorder un droit
+     * que personne ne détient.
+     */
+    private function resolveDirect(User $user, Capability $capability, ?Agency $agency): bool
+    {
+        if ($this->resolvePlatform($user, $capability)) {
             return true;
         }
 
@@ -54,6 +109,91 @@ class MembershipCapabilityResolver
         }
 
         return $this->resolveAgencyScoped($user, $capability, $agency);
+    }
+
+    /**
+     * Branche délégation — TCK-395.
+     *
+     * Une délégation active accorde la capacité `$capability` si, et seulement
+     * si, les DEUX conditions tiennent :
+     *
+     *  1. le **rôle système** du type délégué, dans cette agence, la porte —
+     *     c'est ce qui donne enfin un sens à `agent` et `owner`, et ce qui fait
+     *     passer la délégation par le pivot `agency_role_capabilities` comme
+     *     tout le reste depuis TCK-315 ;
+     *  2. le **délégant la détient encore lui-même**, en propre. C'est la
+     *     borne qui manquait : `RoleDelegationService::create()` vérifie
+     *     l'auto-délégation, l'appartenance à l'agence et le statut
+     *     d'administrateur principal — il ne compare **jamais** le rôle
+     *     délégué aux capacités du délégant.
+     *
+     * ⚠ La borne est évaluée **à la lecture**, pas figée à la création. Un
+     * délégant dépouillé de X après coup cesse de conférer X, ce qu'un
+     * instantané pris à l'écriture ne saurait pas faire. C'est aussi ce qui
+     * permet au test d'AC1 de prouver la borne *par exécution d'un geste*
+     * derrière la délégation plutôt que par un assert sur un champ.
+     *
+     * ⚠ La fenêtre d'activité reprend celle de
+     * `HasProfiles::hasActiveAgencyDelegation()` — statut `Active` ET
+     * (`ends_at` nul OU futur) — et **non** `RoleDelegation::scopeActive()`,
+     * qui exige en plus `ends_at >= now()` et rejette donc une délégation sans
+     * fin. Les deux définitions cohabitent dans le dépôt ; adopter la seconde
+     * ici aurait fait diverger cette branche des six sites d'appel qu'elle
+     * doit précisément rejoindre.
+     */
+    private function delegationAllows(User $user, Capability $capability, Agency $agency): bool
+    {
+        $agencyId = (int) $agency->id;
+
+        $delegations = RoleDelegation::query()
+            ->where('user_id', $user->id)
+            ->where('agency_id', $agencyId)
+            ->where('status', RoleDelegationStatus::Active)
+            ->where(function ($query): void {
+                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
+            })
+            ->get();
+
+        foreach ($delegations as $delegation) {
+            $type = AgencyRoleBaseType::tryFrom((string) $delegation->role);
+            if ($type === null) {
+                continue;
+            }
+
+            if (! $this->systemRoleAllows($agencyId, $type, $capability)) {
+                continue;
+            }
+
+            $delegator = $delegation->delegator;
+            if ($delegator === null) {
+                continue;
+            }
+
+            if ($this->resolveDirect($delegator, $capability, $agency)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Le rôle SYSTÈME de ce type, dans cette agence, porte-t-il la capacité ?
+     *
+     * On vise `is_system` et non un rôle personnalisé : une délégation nomme un
+     * TYPE (`agent`, `owner`, `agency_admin`), pas un rôle précis — et une
+     * agence peut porter plusieurs rôles personnalisés du même type. Le rôle
+     * système est le seul qu'il y ait exactement un par type et par agence.
+     */
+    private function systemRoleAllows(int $agencyId, AgencyRoleBaseType $type, Capability $capability): bool
+    {
+        $roleId = AgencyRole::query()
+            ->where('agency_id', $agencyId)
+            ->where('base_profile_type', $type)
+            ->where('is_system', true)
+            ->value('id');
+
+        return $roleId !== null && $this->cache->allows((int) $roleId, $capability);
     }
 
     /**

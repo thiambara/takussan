@@ -19,7 +19,6 @@ use App\Events\Permissions\RoleDelegationRevoked;
 use App\Listeners\Accounting\NotifyStatementFinalized;
 use App\Listeners\Accounting\NotifyStatementImported;
 use App\Listeners\Admin\DispatchAlerts;
-use App\Listeners\Admin\RecordScheduledTaskRun;
 use App\Listeners\Agency\FlipAgencyKindOnUpgradeApproved;
 use App\Listeners\Lease\CreateTenantOnboardingChecklist;
 use App\Listeners\Lease\NotifyOnEarlyTermination;
@@ -104,6 +103,7 @@ use App\Policies\PropertyPolicy;
 use App\Policies\PropertyVisitPolicy;
 use App\Policies\RoleDelegationPolicy;
 use App\Policies\TaskPolicy;
+use App\Services\Admin\ScheduledRunRecorder;
 use App\Services\Formatting\CurrencyFormatter;
 use App\Services\Media\Cdn\BunnyCdnDriver;
 use App\Services\Media\Cdn\CdnHealthGuard;
@@ -135,7 +135,6 @@ use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
@@ -162,6 +161,10 @@ class AppServiceProvider extends ServiceProvider
         $this->registerCdnServices();
         $this->registerSmsServices();
         $this->registerWhatsappServices();
+
+        // TCK-383 — SINGLETON, et c'est la condition de la déduplication : le conteneur résout un
+        // écouteur à chaque dispatch, et une même exécution en échec en déclenche deux.
+        $this->app->singleton(ScheduledRunRecorder::class);
     }
 
     public function boot(Dispatcher $events): void
@@ -410,7 +413,24 @@ class AppServiceProvider extends ServiceProvider
         // every cached growth/revenue/cohort key cold-misses next call.
         Agency::created(fn () => PlatformReportingService::bumpCacheVersion());
         Activity::created(fn (Activity $activity) => app(DispatchAlerts::class)->handle($activity));
-        Event::listen(ScheduledTaskFinished::class, RecordScheduledTaskRun::class);
+        // TCK-383 — les écouteurs du scheduler (`RecordScheduledTaskRun`, `RecordScheduledTaskFailure`,
+        // `RecordScheduledTaskSkip`) ne sont PAS enregistrés ici, et c'est une correction, pas un oubli.
+        //
+        // `Application::configure()` appelle `withEvents()` par défaut (Laravel 13) : tout `app/Listeners`
+        // est DÉJÀ découvert. La règle exacte est `DiscoverEvents:87` — TOUTE méthode publique que
+        // `Str::is('handle*', …)` accepte, plus `__invoke`, dont le premier paramètre est typé. Donc
+        // `handle()`, mais aussi `handleRequested()`, `handleOrderCreated()`… et l'écouteur est inscrit
+        // sous la forme `Classe@methode`.
+        //
+        // Le `Event::listen(ScheduledTaskFinished::class, RecordScheduledTaskRun::class)` qui vivait ici
+        // en posait donc un SECOND — la forme nue `Classe` se résolvant vers ce même `Classe@handle` —,
+        // et l'écouteur tournait deux fois par exécution.
+        //
+        // Mesuré le 2026-08-27 sur le code de `dev` : une sonde `schedule:run` sur UNE tâche écrivait
+        // deux lignes de `scheduled_task_runs`, et `count(Event::getRawListeners()[…])` rendait
+        // **2 / 0 / 0** pour `ScheduledTaskFinished` / `Failed` / `Skipped` — seul le premier était
+        // écouté, et il l'était deux fois. *Un enregistrement explicite par-dessus une découverte
+        // automatique n'est pas une redondance inoffensive : c'est un doublon silencieux.*
     }
 
     private function bootGatesAndPolicies(): void

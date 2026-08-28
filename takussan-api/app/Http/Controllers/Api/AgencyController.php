@@ -10,6 +10,7 @@ use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Currency;
@@ -150,6 +151,27 @@ class AgencyController extends Controller
 
     public function addAgent(AddAgentAgencyRequest $request, Agency $agency): JsonResponse
     {
+        // TCK-392 (revue) — une agence `individual` n'a PAS d'équipe : c'est un
+        // host solo, et « pas d'invitation de collaborateurs internes » est la
+        // première restriction que `features.md` lui attache.
+        //
+        // Ce garde manquait, et la mesure l'a montré là où l'écran le cachait :
+        // `POST /agencies/{id}/members` rendait **200** sur une agence
+        // `individual`, quand le geste jumeau `POST /agencies/{id}/agents/invite`
+        // rendait 403. Un administrateur d'agence individuelle pouvait donc s'y
+        // rattacher un agent en contournant simplement l'écran.
+        //
+        // Le garde vit ICI et non dans `AddAgentAgencyRequest::authorize()` :
+        // TCK-305 a posé que cette méthode est une SIMPLE DÉLÉGATION à la policy
+        // (« aucune règle d'autorisation n'a migré ici »), et `AgencyPolicy@update`
+        // ne juge pas le `kind`. Le chemin d'invitation place la même règle dans
+        // son service (`AgentInvitationService::assertAgencyCanInvite()`) ; les
+        // deux gestes la portent désormais, chacun chez lui.
+        $kind = $agency->kind instanceof AgencyKind
+            ? $agency->kind
+            : AgencyKind::tryFrom((string) $agency->kind);
+        abort_if($kind !== AgencyKind::Standard, 403, __('team.invite.errors.individual_agency'));
+
         app(QuotaResolver::class)->assertCanAddAgent($agency);
 
         $data = $request->validated();

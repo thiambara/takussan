@@ -57,9 +57,31 @@ périmètre de TCK-299.
 | Clé | Obligatoire | Déclarée dans | Valeur dev | Valeur **mesurée** en Production |
 |---|---|---|---|---|
 | `NEXT_PUBLIC_API_URL` | oui | `takussan-web/.env.example` | `http://127.0.0.1:8002` | `https://api.takussan.com` |
+| `NEXT_PUBLIC_SITE_URL` | non | `takussan-web/.env.example` | *(vide)* | **non mesurée** — introduite le 2026-08-27 |
 
-C'est **la seule** que le code front lise, hors `NODE_ENV` que Next pose lui-même : 39 occurrences
-contre 9, mesurées sur `takussan-web/src` et `next.config.ts`.
+⚠️ **Ce paragraphe disait « c'est la SEULE que le code front lise ». C'était vrai le 2026-08-20 et
+faux depuis.** TCK-434 a introduit `NEXT_PUBLIC_SITE_URL` (l'origine des `hreflang`) sans la
+déclarer nulle part, ce qui laissait le job `variables` de `front-deploy-map.yml` rouge : la clé
+était lue par le build et absente à la fois de `.env.example` et de ce relevé. TCK-431 la déclare
+dans les deux. Re-mesuré le 2026-08-27 :
+
+```
+$ grep -rhoE 'process\.env\.NEXT_PUBLIC_[A-Za-z0-9_]+' takussan-web/src takussan-web/next.config.ts \
+    | sed 's/^process\.env\.//' | sort | uniq -c
+  39 NEXT_PUBLIC_API_URL
+   1 NEXT_PUBLIC_SITE_URL
+```
+
+`NEXT_PUBLIC_SITE_URL` est **facultative des deux côtés, pour des raisons opposées** : en
+Production le défaut du code *est* l'origine mesurée (`https://www.takussan.com`) ; en Preview,
+`src/lib/alternates.ts` déduit l'hôte de `VERCEL_URL`, faute de quoi il **échoue bruyamment**
+plutôt que de laisser une prévisualisation déclarer que ses pages canoniques sont celles de la
+production.
+
+> La garde de ce paragraphe est désormais un script, `scripts/check-front-env-keys.mjs`, que le
+> job `variables` appelle au lieu de porter la logique en ligne. *Une garde qui ne vit que dans un
+> workflow ne se joue pas avant de pousser* — et celle-ci a laissé passer une clé pendant tout
+> l'intervalle entre TCK-434 et TCK-431.
 
 > **Pourquoi la valeur de production est lisible sans compte Vercel.** `NEXT_PUBLIC_*` est
 > substituée **à la compilation** : elle finit en clair dans le JavaScript livré. C'est aussi

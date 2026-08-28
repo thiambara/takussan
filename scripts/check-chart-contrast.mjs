@@ -97,6 +97,25 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/*
+ * ⚠⚠ **CETTE GARDE DÉPOUILLE LES COMMENTAIRES ({@link sansCommentaires}), et
+ * `scripts/check-super-admin-tokens.mjs` FAIT L'INVERSE, exprès.** Deux gardes du même dépôt,
+ * politique opposée sur le même point, chacune pour une bonne raison :
+ *
+ *     ici (contraste)     un commentaire qui CITE le jeton qu'il interdit est de la pédagogie —
+ *                         l'en-tête de `charts/palette.ts` écrit `fill-chart-${n}` pour dire
+ *                         pourquoi c'est interdit. Une garde qui rougit sur la documentation de
+ *                         sa propre règle se fait désarmer avant d'avoir servi. → DÉPOUILLÉ.
+ *     là (vocabulaire)    un commentaire qui MONTRE une classe de palette brute est un
+ *                         presse-papier : c'est la documentation périmée d'où le motif repousse.
+ *                         → LU.
+ *
+ * *Un relecteur qui sonde l'une avec le réflexe de l'autre rapportera un trou qui n'existe pas.*
+ * C'est arrivé le 2026-08-27, à la revue adverse de TCK-404 : une classe déposée dans un
+ * COMMENTAIRE n'a pas fait bouger le compte de cette garde, et il s'en est fallu de peu que le
+ * fait soit rapporté comme un défaut. Il est écrit ici, et dans l'autre en-tête, pour la
+ * prochaine fois.
+ */
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
 const SRC = join(ROOT, 'takussan-web', 'src');
@@ -123,6 +142,30 @@ const PERIMETRE = [
 const THEMES = [
   { nom: 'clair', selecteur: ':root' },
   { nom: 'sombre', selecteur: '.dark' },
+];
+
+/**
+ * Les DEUX surfaces sur lesquelles un graphique se pose — et pourquoi il en fallait deux.
+ *
+ * ⚠ Cette garde ne mesurait que `--card` jusqu'au 2026-08-27, et son titre le disait
+ * (« Contraste des couleurs de série sur --card »). C'était un TROU, pas un cadrage : un
+ * graphique posé dans une section de page sans carte rend sur `--background`, qui vaut `#fcf9f3`
+ * en clair — plus clair que `--card` ? non, plus SOMBRE, donc plus favorable — mais `#1f1812` en
+ * sombre, où il est plus SOMBRE que `--card` (`#2a2018`), donc défavorable dans l'autre sens.
+ * Les deux surfaces se trompent en sens opposés selon le thème : n'en mesurer qu'une laisse
+ * toujours une moitié dehors.
+ *
+ * Ajoutées par TCK-404, après sa revue : la valeur corrigée de `--chart-3` rend **3,55:1 sur
+ * `--card`** et **3,38:1 sur `--background`**, et le second chiffre ne vivait que dans un
+ * commentaire. *Un ratio consigné dans une prose que rien ne rejoue est une croyance datée.*
+ *
+ * Relevé à l'ajout, sur les 34 formes : minimum 3,38:1 en clair (`--chart-3` sur `--background`)
+ * et 3,85:1 en sombre (`bg-chart-1/80`). Aucune n'a eu besoin d'être corrigée pour que la
+ * surface entre — c'est le seul moment où élargir une garde ne coûte rien.
+ */
+const SURFACES_DE_FOND = [
+  { jeton: 'card', libelle: '--card' },
+  { jeton: 'background', libelle: '--background' },
 ];
 
 /**
@@ -165,9 +208,13 @@ const SURFACES = [
    * cessent d'emprunter — `StatCard` porte désormais `bg-warning/10`, hors de la portée de
    * cette garde, qui ne lit que les `--chart-*`.
    *
-   * `--chart-3` n'a donc PLUS AUCUNE occurrence dans le périmètre. Il reste écarté des séries
-   * pour son 2,57:1 en clair, et l'auto-épreuve continue d'ancrer cette valeur : c'est ce qui
-   * empêche TCK-404 d'être oublié maintenant que plus rien ne l'emploie.
+   * `--chart-3` n'avait donc PLUS AUCUNE occurrence dans le périmètre, et restait écarté des
+   * séries pour son 2,57:1 en clair.
+   *
+   * ⚠ **TCK-404 l'a corrigé le 2026-08-27** — `#c89a4a` → `#ad8034`, 3,55:1 sur `--card` clair —
+   * et il est rentré dans les trois tables de `charts/palette.ts`. Il n'a plus d'entrée ici parce
+   * qu'il n'est plus une exception : il est une SÉRIE, mesurée avec les quatre autres. C'est
+   * l'inverse exact du geste de TCK-374, qui l'avait sorti de la table sans le corriger.
    */
 ];
 
@@ -199,12 +246,24 @@ const SURFACES_INLINE = [
  *
  *     fill-chart-{1,2,4,5}  stroke-chart-{1,2,4,5}  bg-chart-{1,2,4,5}  bg-chart-1/80  border-chart-4
  *
+ * ⚠ **34 → 68 le 2026-08-27, à la revue de TCK-404** : la garde mesure désormais SUR DEUX
+ * SURFACES — `--card` et `--background` — et non plus sur la seule carte. Le compte double sans
+ * qu'une forme ait bougé. Le motif est dans le docblock de {@link SURFACES_DE_FOND} : le second
+ * chiffre de `--chart-3` (3,38:1 sur `--background`) ne vivait que dans un commentaire, et *un
+ * ratio consigné dans une prose que rien ne rejoue est une croyance datée*.
+ *
+ * ⚠ **28 → 34 le 2026-08-27, par TCK-404** : `--chart-3` est rentré dans les trois tables de
+ * `charts/palette.ts` après correction de sa valeur claire (2,57:1 → 3,55:1). Trois formes de
+ * plus — `fill-chart-3`, `stroke-chart-3`, `bg-chart-3` — donc six mesures de plus. Le compte
+ * monte ici parce que la charte est REDEVENUE complète, pas parce qu'on a ajouté une série :
+ * c'est le premier mouvement de ce cliquet, et il fallait qu'il soit expliqué plutôt que subi.
+ *
  * ⚠ **C'est un CLIQUET : la garde échoue s'il monte ET s'il descend.** Une garde à lecture de
  * texte ne meurt pas en rougissant, elle meurt en ne trouvant plus rien — et un compte qui baisse
  * tout seul est le seul signal que ça vient d'arriver. Ajouter ou retirer une série est légitime :
  * corriger ce chiffre ici, AVEC SA DATE, fait partie du geste.
  */
-const MESURES_ATTENDUES = 28;
+const MESURES_ATTENDUES = 68;
 
 function lire(chemin) {
   try {
@@ -613,29 +672,32 @@ const lignes = [];
 
 for (const { nom: theme, selecteur } of THEMES) {
   const source = bloc(css, selecteur);
-  const card = jeton(source, 'card');
-  if (!card) {
-    console.error(`✗ \`--card\` introuvable dans \`${selecteur}\` de globals.css.`);
-    process.exit(1);
-  }
-  for (const [classe, { numero, alpha }] of [...formes].sort()) {
-    const brut = jeton(source, `chart-${numero}`);
-    if (!brut) {
-      echecs.push(
-        `--chart-${numero} n’est pas déclaré dans \`${selecteur}\` (thème ${theme}), alors que `
-        + `« ${classe} » l’emploie.`,
-      );
-      continue;
+  for (const { jeton: nomFond, libelle } of SURFACES_DE_FOND) {
+    const fond = jeton(source, nomFond);
+    if (!fond) {
+      console.error(`✗ \`--${nomFond}\` introuvable dans \`${selecteur}\` de globals.css.`);
+      process.exit(1);
     }
-    const surface = SURFACES.find((s) => s.classe === classe);
-    if (surface) surfacesVues.add(classe);
-    const couleur = alpha === 1 ? brut : composer(brut, card, alpha);
-    const ratio = contraste(couleur, card);
-    lignes.push({ theme, classe, couleur, card, ratio, surface: Boolean(surface) });
-    if (!surface && ratio < SEUIL) {
-      echecs.push(
-        `« ${classe} » (${couleur}) rend ${ratio.toFixed(2)}:1 sur --card (${card}) en thème ${theme}`,
-      );
+    for (const [classe, { numero, alpha }] of [...formes].sort()) {
+      const brut = jeton(source, `chart-${numero}`);
+      if (!brut) {
+        echecs.push(
+          `--chart-${numero} n’est pas déclaré dans \`${selecteur}\` (thème ${theme}), alors que `
+          + `« ${classe} » l’emploie.`,
+        );
+        continue;
+      }
+      const surface = SURFACES.find((s) => s.classe === classe);
+      if (surface) surfacesVues.add(classe);
+      const couleur = alpha === 1 ? brut : composer(brut, fond, alpha);
+      const ratio = contraste(couleur, fond);
+      lignes.push({ theme, fond: libelle, classe, couleur, valeurFond: fond, ratio, surface: Boolean(surface) });
+      if (!surface && ratio < SEUIL) {
+        echecs.push(
+          `« ${classe} » (${couleur}) rend ${ratio.toFixed(2)}:1 sur ${libelle} (${fond}) `
+          + `en thème ${theme}`,
+        );
+      }
     }
   }
 }
@@ -653,15 +715,19 @@ for (const s of SURFACES) {
 const mesurees = lignes.filter((l) => !l.surface);
 
 if (REPORT) {
-  console.log(`Contraste des couleurs de série sur --card — seuil ${SEUIL}:1 (WCAG 1.4.11)\n`);
+  console.log(
+    `Contraste des couleurs de série sur --card ET --background — seuil ${SEUIL}:1 (WCAG 1.4.11)\n`,
+  );
   for (const { nom: theme, selecteur } of THEMES) {
-    const duTheme = lignes.filter((l) => l.theme === theme);
+    for (const { libelle } of SURFACES_DE_FOND) {
+    const duTheme = lignes.filter((l) => l.theme === theme && l.fond === libelle);
     if (duTheme.length === 0) continue;
-    console.log(`  ${theme} (${selecteur}, --card ${duTheme[0].card})`);
+    console.log(`  ${theme} (${selecteur}, ${libelle} ${duTheme[0].valeurFond})`);
     for (const l of duTheme) {
       const verdict = l.surface ? '·' : (l.ratio >= SEUIL ? '✓' : '✗');
       const suffixe = l.surface ? '   (SURFACE — hors seuil, cf. SURFACES)' : '';
       console.log(`      ${verdict} ${l.classe.padEnd(18)} ${l.couleur}  ${l.ratio.toFixed(2)}:1${suffixe}`);
+    }
     }
   }
   if (mesurees.length > 0) {
@@ -703,7 +769,8 @@ if (mesurees.length !== MESURES_ATTENDUES) {
 const formesSeries = [...formes.keys()].filter((c) => !SURFACES.some((s) => s.classe === c));
 console.log(
   `✓ Contraste des séries : ${mesurees.length} mesures ≥ ${SEUIL}:1 `
-  + `(${formesSeries.length} formes × ${THEMES.length} thèmes), sur ${fichiers.length} fichiers de `
+  + `(${formesSeries.length} formes × ${THEMES.length} thèmes × ${SURFACES_DE_FOND.length} surfaces), `
+  + `sur ${fichiers.length} fichiers de `
   + `${PERIMETRE.length} répertoires.`,
 );
 console.log(

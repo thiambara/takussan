@@ -342,8 +342,24 @@ class MembershipCapabilityResolverTest extends TestCase
      * NOIRE de 2 capacités, là où le rôle spatie fonctionnait par liste
      * blanche. Ce test grave le compte pour que l'ajout d'un cas à l'enum ne
      * puisse plus élargir l'agency_admin sans qu'une décision soit prise.
+     *
+     * **Décision du 2026-08-27 — TCK-395, 42/44 → 43/45.** Le cas ajouté est
+     * `team.delegate_role`, et il est délibérément accordé à `agency_admin` :
+     *
+     *  - déléguer temporairement un rôle est un geste d'administration
+     *    d'agence, au même titre que `team.invite` ou `team.assign_role` déjà
+     *    présents dans la même famille ;
+     *  - il n'est PAS réservé plateforme — une agence doit pouvoir couvrir
+     *    l'absence de son administrateur sans passer par le support ;
+     *  - c'est la capacité qui remplace le garde par TYPE DE PROFIL de
+     *    `RoleDelegationPolicy`. La refuser à `agency_admin` fermerait
+     *    l'écran de TCK-369 à tout le monde sauf à l'administrateur principal.
+     *
+     * L'élargissement est donc voulu, et un rôle personnalisé peut le retirer
+     * — c'est précisément ce que le cas AC3 de
+     * `RoleDelegationCapabilityTest` exerce.
      */
-    public function test_agency_admin_breadth_is_pinned_to_42_of_44(): void
+    public function test_agency_admin_breadth_is_pinned_to_43_of_45(): void
     {
         $user = User::factory()->create();
         $agency = Agency::factory()->create();
@@ -355,12 +371,12 @@ class MembershipCapabilityResolverTest extends TestCase
         ));
 
         $this->assertCount(
-            42,
+            43,
             $granted,
             'La largeur de `agency_admin` a changé. Ce n’est pas un compte à '.
             'rafraîchir : c’est une décision à prendre, puis à reporter dans le '.
             'bloc « TABLE DE VÉRITÉ PHASE 1 » du resolver.',
         );
-        $this->assertCount(44, Capability::cases());
+        $this->assertCount(45, Capability::cases());
     }
 }

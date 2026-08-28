@@ -92,7 +92,7 @@ describe('TCK-382 — l’écran introuvable est rendu par le SERVEUR', () => {
     //
     // Ce test lit une directive, pas un rendu : jsdom ne peut pas observer le HTML que Next
     // produit. C'est un cliquet sur la CAUSE, comme
-    // `(public)/properties/[slug]/__tests__/pas-de-frontiere-de-suspension.test.ts`.
+    // `[locale]/(public)/__tests__/pas-de-frontiere-de-suspension.test.ts`.
     const source = readFileSync(join(APP, 'not-found.tsx'), 'utf8');
     expect(source.split('\n').slice(0, 3).join('\n')).not.toMatch(/['"]use client['"]/);
   });
@@ -128,11 +128,49 @@ describe('TCK-382 — la table des listes ne peut pas se périmer', () => {
     expect(absentes, `sections sans chemin de retour : ${absentes.join(', ')}`).toEqual([]);
   });
 
+  /**
+   * Une URL ne se lit pas comme un chemin de disque : un GROUPE de routes `(nom)` est un
+   * répertoire réel qui ne consomme AUCUN segment d'URL.
+   *
+   * TCK-426 en a posé trois — `app/(accueil)`, `leases/(liste)`, `maintenance/(liste)` — pour
+   * sortir des pages de la portée d'un `loading.tsx` qui leur volait leur statut HTTP. La
+   * version précédente de ce test faisait `join(APP, href.replace('/app/', ''), 'page.tsx')` et
+   * déclarait donc `/app/leases` et `/app/maintenance` mortes alors qu'elles n'ont jamais cessé
+   * d'être servies. *Un test qui traduit une URL en chemin de fichier doit connaître les
+   * conventions du routeur, sinon il mesure l'arborescence et prétend mesurer le produit.*
+   */
+  function servieParUnePage(href: string): boolean {
+    const segments = href.replace('/app', '').split('/').filter(Boolean);
+    const descendre = (dossier: string, reste: string[]): boolean => {
+      if (!existsSync(dossier)) return false;
+      if (reste.length === 0 && existsSync(join(dossier, 'page.tsx'))) return true;
+      // Un groupe de routes ne consomme aucun segment : on y descend à `reste` INCHANGÉ, et à
+      // TOUS les niveaux — y compris quand il ne reste plus de segment à consommer. C'est ce
+      // dernier cas que `leases/(liste)/page.tsx` réclame, et la première version de cette
+      // fonction l'avait oublié.
+      const groupes = readdirSync(dossier, { withFileTypes: true })
+        .filter((e) => e.isDirectory() && /^\(.*\)$/.test(e.name));
+      if (groupes.some((e) => descendre(join(dossier, e.name), reste))) return true;
+      if (reste.length === 0) return false;
+      const [tete, ...queue] = reste;
+      return descendre(join(dossier, tete), queue);
+    };
+    return descendre(APP, segments);
+  }
+
   it('toute destination de la table existe sur le disque', () => {
     const mortes = Object.entries(LISTES_PAR_SECTION)
-      .filter(([, href]) => !existsSync(join(APP, href.replace('/app/', ''), 'page.tsx')))
+      .filter(([, href]) => !servieParUnePage(href))
       .map(([section, href]) => `${section} -> ${href}`);
     expect(mortes, `destinations inexistantes : ${mortes.join(', ')}`).toEqual([]);
+  });
+
+  it('la résolution par groupe de routes ne rend pas le test complaisant', () => {
+    // Le pendant : si `servieParUnePage` rendait `true` trop facilement, le test ci-dessus
+    // passerait au vert sur une table périmée — exactement ce qu'il existe pour empêcher.
+    expect(servieParUnePage('/app/leases')).toBe(true);
+    expect(servieParUnePage('/app/nimporte-quoi')).toBe(false);
+    expect(servieParUnePage('/app/leases/nimporte-quoi')).toBe(false);
   });
 
   it('listePour ignore ce qui n’est pas sous /app', () => {

@@ -1,11 +1,11 @@
 import { apiRequest, buildQueryString } from '@/lib/api';
-import type { PaginatedResponse, SpatieQueryParams } from '@/types/api';
+import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
 import type { InvitationSummary } from '@/lib/queries/owners';
 
 /**
  * TCK-368 — les invitations EN ATTENTE de l'agence active, pour la console Équipe.
  *
- * ## Ce module n'apporte QU'UNE lecture
+ * ## Ce module apporte une lecture, et depuis TCK-392 un envoi
  *
  * La relance et la révocation existent depuis TCK-249 et sont déjà écrites dans
  * `owners.ts` : elles sont **ré-exportées**, pas réécrites. `service-providers.ts`
@@ -129,5 +129,41 @@ export async function fetchPendingAgencyInvitations(
   return apiRequest<PaginatedResponse<PendingAgencyInvitation>>(
     `/api/invitations${qs ? `?${qs}` : ''}`,
     { token },
+  );
+}
+
+/**
+ * TCK-392 — l'invitation d'un agent PAR E-MAIL, câblée sur
+ * `POST /api/agencies/{agency}/agents/invite`.
+ *
+ * Cet endpoint existait depuis TCK-258 — avec son service, sa policy, son garde
+ * `kind=individual`, son profil `draft`, son mail et ses tests — et
+ * `grep -rn "agents/invite" src` ne rendait **aucun résultat** : il n'avait pas
+ * un seul appelant. Le bouton « Inviter » de `/admin/team` appelait
+ * `POST /api/agencies/{id}/members`, qui exige un `User` DÉJÀ INSCRIT et n'écrit
+ * aucune ligne `invitations`. *Un endpoint sans appelant et un bouton qui ment
+ * sur ce qu'il fait sont le même défaut vu des deux bouts.*
+ *
+ * ⚠ `role` n'accepte que `AgentInvitationService::ALLOWED_ROLES` — `agency_admin`
+ * en est délibérément absent (TCK-209). Le second administrateur d'agence passe
+ * par {@link addAgencyMember}, qui exige un compte existant : c'est aujourd'hui
+ * le seul chemin, et l'écran le dit (`admin.inviteAgent.adminNote`).
+ */
+export interface InviteAgencyAgentPayload {
+  readonly email: string;
+  readonly role: 'agent' | 'agent_senior' | 'agent_manager';
+  readonly first_name: string;
+  readonly last_name: string;
+  readonly phone?: string | null;
+}
+
+export async function inviteAgencyAgent(
+  agencyId: number,
+  payload: InviteAgencyAgentPayload,
+  token: string,
+): Promise<ApiResponse<InvitationSummary>> {
+  return apiRequest<ApiResponse<InvitationSummary>>(
+    `/api/agencies/${agencyId}/agents/invite`,
+    { method: 'POST', body: payload, token },
   );
 }

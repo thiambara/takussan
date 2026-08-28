@@ -1,15 +1,15 @@
 ---
 id: TCK-385
 title: "Assistants d'onboarding — la pastille KYC en palette brute, dans le seul répertoire que deux gardes se renvoient"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
-blocks: []
+blocks: [TCK-450]
 spec_refs:
   features:
     - docs/features.md#29-administration--configuration
@@ -104,6 +104,91 @@ cran plus loin.
   ticket qui les aura comptées, pas dans celui-ci.
 
 ## Notes d'implémentation
+
+**Ce que la re-mesure du 2026-08-27 a confirmé, et ce qu'elle a contredit.**
+
+Confirmé au chiffre près : la ligne 161, les deux familles (`bg-emerald-100`, `text-emerald-800`),
+et le tableau des monteurs (Agent 3, Owner 3, Prestataire 2, console 0). Le ticket disait vrai.
+
+Contredit : **`--accent` n'est plus le bon jeton pour dire « fourni / validé »**, et la contrainte
+stricte du ticket a quand même été suivie. TCK-381 a créé `--success` le même jour, avec dans
+`globals.css` un docblock qui nomme exactement ce cas — « un accent de marque et une confirmation
+ne sont pas la même chose ». Mesuré sur la surface RÉELLE (aplat à 15 % sur le conteneur
+`bg-muted/30` de ce composant) :
+
+| | clair | sombre |
+|---|---|---|
+| avant — émeraude 800 sur émeraude 100 | 6,70:1 ✓ | ne basculait pas |
+| après — `--accent` sur `accent/15` (ton `success` de `StatusBadge`) | **4,19:1 ✗** | **3,71:1 ✗** |
+| le même aplat sur `--success` | 4,61:1 ✓ | 5,73:1 ✓ |
+
+**Le contraste BAISSE sous AA (4,5:1), et c'est écrit plutôt que tu.** Le défaut n'est pas celui
+du portage : c'est celui du ton `success` de `console/StatusBadge`, qui emprunte l'accent de
+marque. Le corriger touche toutes les pastilles de la console d'un coup — décision de charte, hors
+du delta d'un ticket `S`, et **à ouvrir**. Réemployer `StatusBadge` plutôt que recomposer une
+pastille est ce qui rend cette correction possible EN UN POINT, ce qui est l'argument du ticket.
+
+**La garde : un TROISIÈME ESPACE dans `check-super-admin-tokens.mjs`, et non une garde neuve.**
+Le ticket proposait deux voies (étendre `check-app-tokens.mjs`, ou copier le mécanisme). Aucune
+n'est prise : le fichier est déjà un moteur à espaces (`ESPACES`, `PERIMETRES`, `resteNonGarde`,
+cliquet bilatéral, témoins), et une COPIE aurait divergé le jour même — c'est le défaut que la
+moitié des gardes de ce dépôt existent pour attraper ailleurs. Coût : ~40 lignes de configuration,
+zéro ligne de mécanisme.
+
+Relevé à la naissance de l'espace : **8 fichiers gardés à zéro** (les sept de `src/app/onboarding`
+plus `KycUploader.tsx`), **24 occurrences dans le reste** — 18 dans `src/components/onboarding`
+(six assistants) et 6 dans `components/auth/TotpEnrollment.tsx`, que la clôture d'onboarding
+atteint. `src/components/onboarding` n'entre PAS dans le périmètre : l'y mettre aurait fait rougir
+la garde le jour de sa naissance. C'est exactement ce que le hors périmètre de ce ticket demande —
+elles sont désormais comptées, nommées et sous cliquet.
+
+⚠ Le test de l'AC3 ne monte PAS les trois assistants : il EXTRAIT leurs huit points de montage de
+leur source et rend le composant avec chaque jeu de props réel. Monter un assistant aurait prouvé
+UN montage — celui de l'étape atteinte — pour dix fois le coût.
+
+**LE TON `success` DE `StatusBadge` — décision de la revue : TICKET SÉPARÉ, et voici la mesure
+qui tranche.**
+
+Le lead demandait de mesurer le rayon d'action puis de choisir entre corriger dans ce lot et
+ouvrir un ticket. **Le rayon n'est pas modeste : 21 sites de résolution dans 20 fichiers**, et il
+couvre le vocabulaire POSITIF entier de trois consoles. Ce ne sont pas 9 appels comme un premier
+`grep` le suggère — la moitié passe par des tables `Record<…, StatusTone>` :
+
+| Où | Ce qui devient vert |
+|---|---|
+| `(super-admin)/agency-upgrade-requests/{page,[id]/page}.tsx` | `approved` (×2) |
+| `(super-admin)/users/page.tsx`, `admin/users/AdminUsersTable.tsx`, `admin/super/AgencyModerationCard.tsx` | `active` (×3) |
+| `admin/super/kyc-queue.tsx`, `dashboard/admin/AgencyQueues.tsx`, `kyc/kyc-components.tsx` | `verified` (×3) |
+| `billing/PayoutTable.tsx` | `paid` |
+| `admin/super/SuperAdminPropertiesTable.tsx` | `available` |
+| `admin/ModerationQueueList.tsx` | `approved` |
+| `admin/AuditTrail.tsx` | `created` |
+| `admin/super/announcements.tsx` | `success` (sévérité) et `live` |
+| `admin/super/{system-health,feature-flags,user-detail,agency-detail}.tsx` | `ok`, `enabled`, ×2 littéraux |
+| `(super-admin)/super-admins/page.tsx`, `(dashboard)/app/properties/page.tsx` | ×2 littéraux |
+| `kyc/KycUploader.tsx` | la pastille de ce ticket |
+
+**Trois raisons de ne pas le faire ici, dans l'ordre de poids :**
+
+1. **C'est un changement VISIBLE par l'utilisateur sur 21 significations de statut**, pas un
+   correctif interne. Le sage `--accent` (#5d6e4f) devient le vert `--success` (#3f6b45).
+2. **Il révoque un partage délibéré.** `--accent` est documenté comme « sage discret pour badges
+   *featured* » : aujourd'hui « mis en avant » (public) et « approuvé » (console) portent la même
+   teinte. Les séparer est probablement JUSTE — ce sont deux sens différents — mais c'est une
+   décision de charte, pas un effet de bord d'un ticket `S` sur une pastille KYC.
+3. **Je ne peux pas le vérifier à l'écran** (aucun serveur de développement dans ce lot). Un
+   changement de couleur sur 21 badges sans une seule capture n'est pas une livraison.
+
+**Le ticket est prêt à 10 minutes près** — le diff tient en une ligne de
+`console/StatusBadge.tsx` :
+
+```
+- success: 'bg-accent/15 text-accent',
++ success: 'bg-success/15 text-success',
+```
+
+et la mesure est faite : **4,19:1 clair / 3,71:1 sombre → 4,61:1 / 5,73:1**, donc au-dessus des
+4,5:1 d'AA dans les deux thèmes, sur la surface réelle (aplat à 15 % sur `bg-muted/30`).
 
 Le mécanisme de clôture d'import de `scripts/check-super-admin-tokens.mjs` (fonction
 `clotureDeRendu`, plus `resteNonGarde`) est directement réemployable : il part d'un répertoire de

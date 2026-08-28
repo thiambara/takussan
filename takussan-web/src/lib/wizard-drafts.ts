@@ -90,24 +90,17 @@ const WIZARD_RESUME_RULES: WizardResumeRule[] = [
     href: '/onboarding/host',
     i18nKey: 'host-individual-wizard',
   },
-  {
-    kind: 'exact',
-    key: 'customer-onboarding',
-    href: '/app/profile/customer/onboarding',
-    i18nKey: 'customer-onboarding',
-  },
-  {
-    kind: 'exact',
-    key: 'owner-kyc',
-    href: '/app/profile/owner/kyc',
-    i18nKey: 'owner-kyc',
-  },
-  {
-    kind: 'exact',
-    key: 'agent-kyc',
-    href: '/app/profile/agent/kyc',
-    i18nKey: 'agent-kyc',
-  },
+  // TCK-419 — trois règles ont été RETIRÉES ici : `customer-onboarding`
+  // (`/app/profile/customer/onboarding`), `owner-kyc` (`/app/profile/owner/kyc`) et `agent-kyc`
+  // (`/app/profile/agent/kyc`). Aucune des trois routes n'existe sous `app/(dashboard)/app`, et
+  // aucun code du dépôt n'écrit ces trois clés : les seuls `storageKey` réellement persistés sont
+  // `host-individual-wizard`, `owner-onboarding-{id}`, `agent-onboarding-{id}`,
+  // `sp-onboarding-{id}` et `agency-upgrade-{id}` — tous couverts par les règles ci-dessous. Ces
+  // trois entrées enregistraient donc un lien de reprise vers un 404, pour un brouillon que rien
+  // ne peut créer. *Une table de correspondance dont on n'exerce jamais une branche ne signale
+  // pas son erreur : elle l'attend.* Les libellés `wizardDrafts.bannerTitles.{customer-onboarding,
+  // owner-kyc,agent-kyc}` des trois dictionnaires sont laissés en place — ils ne coûtent rien et
+  // `src/messages/` est tenu par un autre lot.
   {
     // TCK-257 — `owner-onboarding-{owner_profile_id}`. Resuming brings
     // the owner back to the dedicated wizard page mounted at

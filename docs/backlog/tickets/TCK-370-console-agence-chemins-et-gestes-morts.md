@@ -193,6 +193,14 @@ destination redirige aussitôt fabriquerait un DEUXIÈME geste mort en réparant
 exactement la famille de défauts que ce ticket existe pour corriger. →
 **[TCK-430](TCK-430-admin-settings-tags-sans-chemin-entrant.md)**.
 
+> **Tranché par TCK-430 : la souche est ASSUMÉE, aucun chemin entrant ne sera ouvert.** L'AC2
+> ci-dessus reste juste et son test tient, mais **le bandeau qu'il répare ne s'atteint pas par la
+> navigation, et c'est délibéré** : entre TCK-066 et TCK-213, `/admin/settings/tags` a été un vrai
+> écran lié depuis deux bandeaux d'onglets, donc des marque-pages existent et la souche leur
+> répond. Deux limites nommées là-bas : pour une agence `individual` le bandeau ne se rend jamais
+> (`/admin` est dans `PRO_ROUTES`), et un tripwire refuse désormais tout nouveau lien vers la
+> souche.
+
 ### Ce qui reste ouvert
 
 - **TCK-430** ci-dessus.

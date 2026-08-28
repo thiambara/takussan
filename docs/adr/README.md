@@ -51,6 +51,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0023](0023-recherche-geographique-par-distances-sans-postgis.md) | La recherche géographique traite des distances et des rectangles, jamais des géométries — pas de PostGIS | Accepté |
 | [0024](0024-recherche-publique-conjonctive-avec-repli-nomme.md) | La recherche publique exige tous les termes, et nomme ce qu'elle a dû relâcher | Accepté |
 | [0025](0025-repli-de-casse-par-collation-icu.md) | Le repli de casse passe par `COLLATE "und-x-icu"`, jamais par `lower()` nu | Accepté |
+| [0026](0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md) | La langue est un segment d'URL, toujours présent, et seulement sur la surface publique | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 

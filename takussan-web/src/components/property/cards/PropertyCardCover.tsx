@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { formatPrice } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
@@ -30,7 +30,7 @@ export function PropertyCardCover({
       className="group w-[260px] shrink-0 animate-card-enter"
       style={{ animationDelay: staggerDelay(index) }}
     >
-      <Link href={`/properties/${property.slug}`} className="block">
+      <LienLocalise href={`/properties/${property.slug}`} className="block">
         <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted">
           <Image
             src={photo}
@@ -42,7 +42,7 @@ export function PropertyCardCover({
           />
 
           {/* Gradient bas pour lisibilité du texte. */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-45% to-foreground/80" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-45% to-scrim/80" />
 
           {property.contract_type && (
             <ContractTypeChip
@@ -76,7 +76,7 @@ export function PropertyCardCover({
             </p>
           </div>
         </div>
-      </Link>
+      </LienLocalise>
     </article>
   );
 }

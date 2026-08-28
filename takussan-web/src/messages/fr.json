@@ -86,8 +86,7 @@
     "links": {
       "buy": "Acheter",
       "rent": "Louer",
-      "sell": "Vendre",
-      "services": "Nos Services"
+      "sell": "Vendre"
     },
     "categories": {
       "apartment": "Appartement",
@@ -236,13 +235,22 @@
   },
   "footer": {
     "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
-    "newsletterPlaceholder": "Votre email",
-    "newsletterSubmit": "S'inscrire",
     "discoverHeading": "Découvrir",
     "copyright": "© {year} Takussan. Tous droits réservés.",
     "discover": {
+      "all": "Tous les biens",
       "featured": "Biens en vedette",
       "latest": "Nouveautés"
+    },
+    "professionalsHeading": "Professionnels",
+    "toolsHeading": "Vos outils",
+    "tools": {
+      "favorites": "Mes favoris",
+      "compare": "Comparateur"
+    },
+    "professionals": {
+      "agencies": "Les agences",
+      "agents": "Les agents"
     }
   },
   "map": {
@@ -283,6 +291,12 @@
       "title": "Rechercher des biens",
       "description": "Trouvez des appartements, villas, terrains, bureaux et bien plus au Sénégal. Filtrez par prix, type, localisation et surface, visualisez les biens sur une carte interactive."
     },
+    "propertiesFiltered": {
+      "titleContract": "{contract, select, rent {{subject} à louer} sale {{subject} à vendre} other {{subject}}}",
+      "titleCity": "{subject} à {city}",
+      "subjectAny": "Biens immobiliers",
+      "description": "{title} sur Takussan : photos, prix et localisation de chaque annonce. Affinez par budget, surface, nombre de chambres et quartier."
+    },
     "compare": {
       "title": "Comparer des biens",
       "description": "Comparez jusqu'à 4 biens côte à côte : prix, surface, pièces, amenités et localisation."
@@ -304,6 +318,18 @@
     "propertyUnavailable": {
       "title": "Bien momentanément indisponible",
       "description": "Ce bien ne peut pas être affiché pour le moment. Réessayez dans quelques instants."
+    },
+    "agencies": {
+      "title": "Agences immobilières au Sénégal",
+      "description": "Parcourez les agences immobilières actives sur Takussan : portefeuille, villes couvertes et avis des clients.",
+      "titleCity": "Agences immobilières à {city}",
+      "descriptionCity": "Les agences immobilières qui publient des annonces à {city} sur Takussan : portefeuille, avis et coordonnées."
+    },
+    "agents": {
+      "title": "Agents immobiliers au Sénégal",
+      "description": "Parcourez les agents et conseillers immobiliers actifs sur Takussan : portefeuille, villes couvertes et avis des clients.",
+      "titleCity": "Agents immobiliers à {city}",
+      "descriptionCity": "Les agents et conseillers immobiliers qui publient des annonces à {city} sur Takussan."
     }
   },
   "auth": {
@@ -1607,6 +1633,14 @@
       "network": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
       "submitFailed": "La soumission a échoué. Réessayez.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
+    },
+    "siteNotFound": {
+      "eyebrow": "Erreur 404",
+      "title": "Cette page n'existe pas",
+      "body": "Le lien que vous avez suivi est peut-être périmé, ou l'adresse comporte une faute de frappe. Le catalogue, lui, est toujours là.",
+      "browseListings": "Voir les annonces",
+      "backHome": "Retour à l'accueil",
+      "footer": "© Takussan — Immobilier au Sénégal."
     }
   },
   "agency": {
@@ -1770,7 +1804,14 @@
       "metaTitle": "{name} — Agence immobilière",
       "metaSummary": "{count, plural, one {# bien} other {# biens}}",
       "metaSummaryInCity": "{count, plural, one {# bien} other {# biens}} à {city}",
-      "contactSubject": "Contact via Takussan — {name}"
+      "contactSubject": "Contact via Takussan — {name}",
+      "notFoundTitle": "Agence introuvable",
+      "notFoundBody": "Cette agence n'est plus référencée ou a été retirée. Parcourez le catalogue pour trouver un autre interlocuteur.",
+      "notFoundBrowse": "Voir les annonces",
+      "notFoundHome": "Retour à l'accueil",
+      "unavailableTitle": "Agence momentanément indisponible",
+      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Cette agence existe peut-être toujours — réessayez dans quelques instants.",
+      "unavailableMetaDescription": "Cette agence ne peut pas être affichée pour le moment. Réessayez dans quelques instants."
     }
   },
   "compare": {
@@ -2809,6 +2850,7 @@
     }
   },
   "homepage": {
+    "h1": "Annonces immobilières au Sénégal",
     "row": {
       "viewAll": "Tout voir",
       "error": "Impossible de charger les annonces pour le moment.",
@@ -3451,7 +3493,14 @@
       "metaSummary": "{count, plural, one {# bien} other {# biens}}",
       "metaSummaryInCity": "{count, plural, one {# bien} other {# biens}} à {city}",
       "experience": "{count, plural, one {# an} other {# ans}} d'expérience",
-      "contactSubject": "Contact via Takussan — {name}"
+      "contactSubject": "Contact via Takussan — {name}",
+      "notFoundTitle": "Agent introuvable",
+      "notFoundBody": "Cet agent n'est plus référencé ou a été retiré. Parcourez le catalogue pour trouver un autre interlocuteur.",
+      "notFoundBrowse": "Voir les annonces",
+      "notFoundHome": "Retour à l'accueil",
+      "unavailableTitle": "Agent momentanément indisponible",
+      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Cet agent existe peut-être toujours — réessayez dans quelques instants.",
+      "unavailableMetaDescription": "Cet agent ne peut pas être affiché pour le moment. Réessayez dans quelques instants."
     }
   },
   "agentWelcome": {
@@ -4544,7 +4593,9 @@
           "admins": "Administrateurs",
           "owners": "Propriétaires"
         },
-        "invite": "Inviter"
+        "invite": "Inviter",
+        "inviteAgent": "Inviter",
+        "addExisting": "Ajouter un compte existant"
       },
       "invitations": {
         "title": "Invitations en attente",
@@ -4664,7 +4715,7 @@
       }
     },
     "inviteMember": {
-      "title": "Inviter un membre",
+      "title": "Ajouter un compte existant",
       "description": "Saisissez l'email d'un utilisateur déjà inscrit. Il sera ajouté à votre agence avec le rôle choisi.",
       "email": "Email",
       "emailPlaceholder": "jane@exemple.sn",
@@ -4674,7 +4725,7 @@
         "agent": "Agent",
         "agency_admin": "Administrateur"
       },
-      "submit": "Inviter"
+      "submit": "Ajouter"
     },
     "users": {
       "status": {
@@ -4732,6 +4783,25 @@
         "placeholder": "Choisir un rôle",
         "update": "Mettre à jour"
       }
+    },
+    "inviteAgent": {
+      "title": "Inviter un agent",
+      "description": "La personne n'a pas besoin d'un compte Takussan : elle recevra un e-mail d'invitation et créera le sien en l'acceptant.",
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "email": "Email",
+      "emailPlaceholder": "jane@exemple.sn",
+      "emailInvalid": "Email invalide.",
+      "phone": "Téléphone (facultatif)",
+      "required": "Ce champ est requis.",
+      "role": "Rôle",
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Agent senior",
+        "agent_manager": "Responsable d'équipe"
+      },
+      "adminNote": "Un administrateur d'agence ne s'invite pas par e-mail : il s'ajoute depuis « Ajouter un compte existant », qui exige un compte Takussan déjà créé.",
+      "submit": "Envoyer l'invitation"
     }
   },
   "documents": {
@@ -5447,7 +5517,15 @@
       "colTask": "Tâche",
       "colLastRun": "Dernier run",
       "colAvgDuration": "Durée moyenne",
-      "tableCaption": "Tâches planifiées et dernière exécution"
+      "tableCaption": "Tâches planifiées et dernière exécution",
+      "colStatus": "Statut",
+      "statusUnknown": "Inconnu",
+      "status": {
+        "finished": "Terminée",
+        "failed": "En échec",
+        "skipped": "Écartée",
+        "running": "En cours"
+      }
     },
     "failedJobs": {
       "empty_title": "Aucun job échoué",
@@ -5866,6 +5944,12 @@
           "nameDesc": "Nom Z-A",
           "membersDesc": "Équipe élevée",
           "propertiesDesc": "Portefeuille élevé"
+        },
+        "verificationAria": "Vérification",
+        "verifications": {
+          "all": "Vérifiées ou non",
+          "yes": "Vérifiées",
+          "no": "Non vérifiées"
         }
       },
       "superAdmins": {
@@ -7276,7 +7360,13 @@
       "emptyHint": "Élargissez la plage ou changez de métrique.",
       "compare": "Comparer à la période précédente",
       "previous": "Période précédente",
-      "pointAria": "{bucket} : {value}"
+      "pointAria": "{bucket} : {value}",
+      "bucketPartial": "{bucket} · {days} j",
+      "unequalDurations": "Durées inégales : {count, plural, one {# intervalle ne couvre} other {# intervalles ne couvrent}} pas la même durée que son équivalent de la période comparée. L’écart lu contient donc une part de durée, et pas seulement une part d’activité."
+    },
+    "error": {
+      "title": "Le rapport n'a pas pu être calculé",
+      "fallback": "Réessayez, ou réduisez la plage demandée."
     }
   },
   "kyc": {
@@ -7411,6 +7501,51 @@
     },
     "footer": {
       "brandLine": "Takussan — Immobilier au Sénégal"
+    }
+  },
+  "publicProfileIndex": {
+    "card": {
+      "portfolio": "{count, plural, one {bien} other {biens}}",
+      "rent": "{count, plural, one {# à louer} other {# à louer}}",
+      "sale": "{count, plural, one {# à vendre} other {# à vendre}}",
+      "reviews": "· {count, plural, one {# avis} other {# avis}}",
+      "verified": "Profil vérifié",
+      "ratingAria": "Note moyenne de {rating} sur 5"
+    },
+    "filters": {
+      "submit": "Rechercher",
+      "allCities": "Toutes les villes",
+      "cityGroupAria": "Filtrer par ville",
+      "clear": "Effacer les filtres"
+    },
+    "pagination": {
+      "navAria": "Pagination",
+      "previous": "Précédents",
+      "next": "Suivants",
+      "position": "Page {page} sur {total}"
+    },
+    "empty": {
+      "body": "Essaie une autre ville ou élargis ta recherche."
+    },
+    "error": {
+      "title": "Annuaire momentanément indisponible",
+      "body": "Nous n’avons pas pu charger la liste. Réessaie dans quelques instants."
+    },
+    "agencies": {
+      "eyebrow": "Agences immobilières",
+      "heading": "Les agences qui opèrent près de chez toi",
+      "intro": "Chaque agence présentée ici publie au moins une annonce disponible. Parcours leur portefeuille, leurs villes et les avis de leurs clients.",
+      "searchPlaceholder": "Nom d’une agence",
+      "count": "{count, plural, one {# agence} other {# agences}}",
+      "emptyTitle": "Aucune agence ne correspond"
+    },
+    "agents": {
+      "eyebrow": "Agents & conseillers",
+      "heading": "Les professionnels derrière les annonces",
+      "intro": "Chaque profil présenté ici publie au moins une annonce disponible. Découvre leur portefeuille, leurs villes et leur enseigne.",
+      "searchPlaceholder": "Nom d’un agent",
+      "count": "{count, plural, one {# profil} other {# profils}}",
+      "emptyTitle": "Aucun profil ne correspond"
     }
   }
 }

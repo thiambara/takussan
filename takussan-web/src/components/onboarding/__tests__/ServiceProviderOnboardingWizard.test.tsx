@@ -131,7 +131,9 @@ describe('<ServiceProviderOnboardingWizard>', () => {
 
     expect(spOnboardCompleteAction).toHaveBeenCalledWith(42, undefined);
     await waitFor(() => {
-      expect(routerPush).toHaveBeenCalledWith('/app/maintenance/requests/99');
+      // TCK-419 — cette assertion figeait un 404 : `/app/maintenance/requests/{id}` n'a jamais
+      // eu de `page.tsx`. Le détail d'une demande vit sous `app/maintenance/[id]`.
+      expect(routerPush).toHaveBeenCalledWith('/app/maintenance/99');
     });
   });
 });

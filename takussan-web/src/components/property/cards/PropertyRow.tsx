@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PropertyListItem } from '@/types/property';
 import { PropertyCardStandard } from './PropertyCardStandard';
@@ -169,13 +169,13 @@ export function PropertyRow({
             </button>
           ) : (
             viewAllHref && (
-              <Link
+              <LienLocalise
                 href={viewAllHref}
                 className="hidden md:inline-flex items-center gap-1 text-[14px] font-semibold text-foreground hover:text-primary transition-colors"
               >
                 {viewAllLabel ?? t('viewAll')}
                 <span aria-hidden="true" className="text-primary">▸</span>
-              </Link>
+              </LienLocalise>
             )
           )}
 

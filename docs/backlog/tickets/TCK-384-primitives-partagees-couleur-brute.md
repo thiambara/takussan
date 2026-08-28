@@ -1,13 +1,13 @@
 ---
 id: TCK-384
 title: "Primitives partagées — la couleur brute que la console rend sans pouvoir la garder"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: [TCK-358]
 blocks: []
 spec_refs:
@@ -146,6 +146,124 @@ Trois points valent d'être notés avant de commencer :
   fichier, et le porter deux fois différemment coûte plus que de le porter une fois.**
 
 ## Notes d'implémentation
+
+**Trois affirmations du ticket ont été contredites par la re-mesure du 2026-08-27, avant tout
+correctif :**
+
+1. **`ui/warning-banner.tsx` ne « rendait » PAS l'ambre de palette.** Son RENDU (l. 28) était déjà
+   sur `bg-warning/10 text-warning ring-warning/20` depuis TCK-358 ; les 3 occurrences comptées
+   étaient dans son DOCBLOCK, qui citait encore les classes qu'il racontait avoir éteintes. Le
+   point 1 des « notes » de ce ticket — « le plus facile et le plus significatif » — portait donc
+   sur zéro ligne de rendu. Corrigé en réécrivant le récit en toutes lettres, comme les trois
+   docblocks du point 2.
+2. **Le tableau comptait 78 fichiers ; la garde en compte 80.** Et `ui/sheet.tsx` y valait 3
+   occurrences pour **4** réellement mesurées (2 textes + 1 voile + 1 ombre). Le total de 46 était
+   juste ; sa répartition ne l'était pas.
+3. **`layout/UserMenu.tsx` n'est pas portable en l'état**, et c'est le seul fichier du tableau qui
+   ne l'est pas. Sa variante `dark` sert deux barres hautes qui fabriquent « sombre » par des
+   mécanismes OPPOSÉS — `AppTopbar` pose `bg-foreground` en portée claire, `SuperAdminTopbar` pose
+   `dark` + `bg-background`. L'encre lisible est `--background` sur l'une et `--foreground` sur
+   l'autre : aucun jeton ne convient aux deux. Le correctif porte sur `AppTopbar`, que le cliquet
+   de `/app` met explicitement hors de portée. **Le point 4 du delta (« quand le reste atteint 0 »)
+   ne peut donc pas être atteint par ce ticket.**
+
+**Deux défauts de CONTRASTE trouvés en portant, invisibles en thème clair** — le gain réel du lot,
+qu'aucun critère ne demandait :
+
+- `ui/sheet.tsx` : titre en pierre 900 sur `bg-card`, soit **1,10:1 en thème sombre**. Un titre à
+  1,10:1 n'est pas peu contrasté, il est absent. Devenu 15,16:1.
+- `ui/dropdown-menu.tsx` : popup en blanc littéral avec `text-foreground` par-dessus, soit
+  **1,07:1 en sombre**. Devenu 15,16:1.
+
+**Décisions tranchées** (les trois que les contraintes strictes demandaient d'expliciter) :
+
+- **Le VOILE** (`dialog` 10 %, `sheet` 30 %) n'est pas une surface et ne suit pas le thème : aucun
+  jeton ne pouvait le porter (`--foreground` devient clair sous `.dark`, `--background` est clair
+  en clair). Nouveau jeton **`--scrim`**, opaque, dans `globals.css` — l'alpha reste chez
+  l'appelant. C'est le raisonnement de `.qr-surface` à l'autre bout de l'échelle ; les deux sont
+  désormais documentées ensemble dans `docs/design-guidelines.md`.
+- **Le blanc du cadre de `PdfViewer`** relève de `bg-card`, PAS de `.qr-surface` : le blanc
+  fonctionnel existe pour ce qu'une MACHINE doit lire (un QR code), et rien ne lit à la machine le
+  cadre d'un `<object>` que le greffon du navigateur repeint entièrement. ⚠ Non vérifié dans un
+  navigateur.
+- **Les deux ombres ambiantes** gardent leur géométrie et lisent le jeton :
+  `color-mix(in srgb, var(--foreground) 4%, transparent)` rend en clair exactement le noir-brun à
+  4 % qu'elles écrivaient en dur, et devient une lueur claire sous `.dark`. Vérifié compilable par
+  Tailwind v4 avant emploi.
+
+**Le ton `error` de `ui/toast.tsx` n'a PAS été aligné sur `/10` par symétrie** : mesuré, cela
+ferait passer `--destructive` de 4,36:1 à 4,01:1, sous AA. Une régression mesurée n'est pas un prix
+acceptable pour de la symétrie.
+
+**Quatre répertoires entiers sont entrés dans `PERIMETRES`** — `ui`, `forms`, `files`, `shared` —
+plutôt que dix entrées `file`. Un fichier neuf déposé dedans est couvert d'office, ce que la forme
+`file` ne fait pas. Quatre témoins ont été ajoutés avec eux : sans témoin, retirer
+`{ type: 'dir', … 'ui' }` — un geste — laissait 90 primitives hors de toute exigence de zéro.
+
+**Suite de la revue du lead (2026-08-27) — la dérogation du voile, éprouvée.**
+
+`.qr-surface` et `--scrim` se lisent désormais ENSEMBLE : un renvoi croisé les relie dans
+`globals.css`, et `docs/design-guidelines.md` porte la ligne qui dit *pourquoi* ce rôle ne
+s'inverse pas — sans quoi quelqu'un « corrigera » l'anomalie apparente dans six mois.
+
+**La dérogation porte sur le JETON, pas sur la couleur — vérifié par mutation, dans les deux
+sens**, sur un fichier du périmètre gardé :
+
+| forme | verdict |
+|---|---|
+| fond noir littéral, à 5 / 10 / 30 / 40 % et sans opacité, sous `hover:` et `dark:` | **refusé** (6 formes) |
+| encre noire littérale, anneau noir littéral, fond blanc à 20 % | **refusé** (3 formes) |
+| `bg-scrim/10`, `bg-scrim/30`, `bg-scrim/55` | accepté |
+
+⚠ **Trou résiduel, mesuré et NON fermé — et ma première description en était trop flatteuse.**
+`text-scrim` et `ring-scrim/20` passent eux aussi. J'avais écrit « la garde sait qu'un jeton est
+déclaré dans `globals.css`, pas quels utilitaires il a le droit de prendre » : **elle ne sait
+RIEN des jetons.** Mesuré à la revue adverse — `bg-jeton-qui-nexiste-pas`, `border-zzz` et
+`text-inventé` passent les six contrôles et rendent transparent à l'exécution. La garde refuse une
+liste FERMÉE de formes et laisse passer tout le reste ; `bg-scrim/30` entre par la même porte que
+`border-zzz`. Le trou est donc bien plus large que « quels utilitaires un jeton peut prendre » :
+c'est « aucune vérification qu'un utilitaire de couleur désigne quelque chose ». *Décrire une
+garde comme plus savante qu'elle n'est, c'est fabriquer la confiance qu'elle ne mérite pas.*
+
+⚠ **La garde a fait rougir le docblock que j'écrivais pour la documenter**, parce qu'il citait la
+classe noire en toutes lettres — le contrôle B lit `globals.css`, commentaires compris. C'est la
+meilleure preuve que la dérogation est étroite, et la classe y est décrite plutôt que citée.
+
+**REFUS DE LA REVUE ADVERSE, ET LE TROU QU'IL A OUVERT (2026-08-27).**
+
+Le lot a été REFUSÉ sur un trou de garde, reproduit puis fermé. **Toute PROPRIÉTÉ ARBITRAIRE
+Tailwind v4 portant une couleur littérale traversait la garde** dans un fichier du périmètre
+gardé — `[background-color:#f5f5f4]`, `[color:red]`, `[fill:#a85332]`, `[--pastille:#a85332]`,
+sous `hover:` et `dark:` compris. Le contrôle D exige un PRÉFIXE (`bg-[`, `text-[`) ; cette
+seconde syntaxe de Tailwind n'en a aucun.
+
+Reproduit avant de corriger : **12 formes déposées une à une, 12 fois exit 0**, dont deux de mon
+invention que la revue n'avait pas listées (`[outline-color:#fff]`, `[caret-color:hsl(…)]`). Et
+elles compilent — vérifié avec le Tailwind 4.2.2 du projet.
+
+**`[fill:#a85332]` est le cas qui fait le plus mal** : c'est exactement ce que le contrôle E
+venait d'être ajouté pour attraper, écrit en classe plutôt qu'en attribut. Deux syntaxes frères,
+une seule gardée — et mon lot ÉTENDAIT cette garde à quatre répertoires en annonçant « 0 classe
+de couleur hors jetons sur 130 fichiers gardés ».
+
+Fermé par un **contrôle F**, plus un regard arrière `(?<!url\()` sur le motif hexadécimal qui
+sert D, E et F d'un coup (`url(#degrade-lin)` est une référence, pas une couleur). Éprouvé dans
+les deux sens : **14 formes attrapées, 13 ignorées** — dont `supports-[display:grid]`,
+`[&>svg]:size-3`, `[--pastille:var(--chart-1)]`, `[transition:color_120ms_ease]` et
+`[background:url(#degrade-lin)]`. Les 27 sont dans `EPREUVE`. Zéro faux positif sur les 404
+fichiers gardés.
+
+**Un trou de plus est DÉCLARÉ plutôt que fermé, T9** : une déclaration CSS ordinaire
+(`background-color: #f5f5f4;`) dans un fichier `.css` d'un répertoire gardé n'est vue par aucun
+contrôle. Réel et VIDE — mesuré : zéro `.css` sous un périmètre gardé, les deux du dépôt étant
+`globals.css` (contrôlé à part) et `playground.css` (hors périmètre). Le fermer demanderait à
+`analyser()` de connaître le type des fichiers, un mécanisme neuf pour un ensemble vide.
+
+**Et deux chiffres de docblock étaient FAUX**, tous deux annoncés plus bas que la réalité :
+`FormError` sur `--card` sombre valait **5,16:1** et non 4,78, `FormSuccess` **6,91:1** et non
+6,26 — dans les deux cas j'avais mesuré la bonne couleur sur la MAUVAISE OPACITÉ (`/10` pour une
+classe en `/5`), et le second docblock nommait même « success/10 ». *Se tromper dans le sens
+prudent reste se tromper : c'est sur ces nombres-là qu'on resserre un seuil.*
 
 L'en-tête de `scripts/check-super-admin-tokens.mjs` porte le raisonnement complet : pourquoi le
 périmètre n'est pas l'écran, pourquoi la clôture d'import se trompe toujours du côté prudent, et

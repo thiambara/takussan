@@ -2,18 +2,37 @@
 
 namespace App\Listeners\Admin;
 
-use App\Models\ScheduledTaskRun;
+use App\Models\Enums\ScheduledTaskRunStatus;
+use App\Services\Admin\ScheduledRunRecorder;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 
+/**
+ * TCK-383 — enregistre l'issue RÉELLE d'une exécution, au lieu du littéral `'finished'`.
+ *
+ * `ScheduledTaskFinished` veut dire « a fini de tourner », pas « a réussi » : le framework le
+ * dispatche AVANT de contrôler le code de sortie. C'est donc `$event->task->exitCode` qui tranche,
+ * et non le nom de l'événement.
+ */
 class RecordScheduledTaskRun
 {
+    public function __construct(private readonly ScheduledRunRecorder $recorder) {}
+
     public function handle(ScheduledTaskFinished $event): void
     {
-        ScheduledTaskRun::query()->create([
-            'task' => $event->task->description ?: $event->task->command ?? 'scheduled-task',
-            'last_run_at' => now(),
-            'duration_ms' => null,
-            'status' => 'finished',
-        ]);
+        $exitCode = $event->task->exitCode;
+
+        $status = match (true) {
+            // Tâche détachée : `finish()` n'a pas été appelé, l'issue n'existe pas encore — et
+            // ⚠ RIEN ne la résoudra : ce dépôt n'a aucun écouteur de `ScheduledBackgroundTaskFinished`,
+            // qui est l'événement (différent) dispatché par `schedule:finish`. Voir le docblock de
+            // `ScheduledTaskRunStatus::Running`, qui porte la mesure et ce qu'il faudra faire.
+            $exitCode === null => ScheduledTaskRunStatus::Running,
+            $exitCode === 0 => ScheduledTaskRunStatus::Finished,
+            default => ScheduledTaskRunStatus::Failed,
+        };
+
+        // `$event->runtime` est en SECONDES. Le jeter, c'est ce qui rendait `avg(duration_ms)` nul
+        // pour chaque tâche depuis toujours — un « — » à l'écran qui se lisait « jamais exécutée ».
+        $this->recorder->record($event->task, $status, $event->runtime);
     }
 }

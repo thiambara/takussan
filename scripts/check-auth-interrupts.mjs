@@ -212,6 +212,22 @@ const SENTINELLES = [
  * commit. Si la garde vous dit qu'une ligne est PÉRIMÉE, ce n'est pas une régression — c'est un
  * progrès que l'inventaire doit enregistrer : retirez la ligne, le cliquet descend.
  */
+/**
+ * TCK-426 — NEUF ENTRÉES ONT CHANGÉ DE FICHIER, AUCUNE N'A CHANGÉ DE NATURE.
+ *
+ * Les refus de rôle de `owners`, `maintenance/providers`, `settings/agency/upgrade` et des six
+ * vues d'`overview` ont quitté leur `page.tsx` pour le `layout.tsx` de leur segment. Ce n'est
+ * pas un rangement : chacune de ces routes porte un `loading.tsx`, donc une frontière de
+ * suspension, et Next envoie la coque ET le code de réponse avant que la page n'ait rien décidé.
+ * Un `redirect()` de page y rendait **200** + le squelette de la route interdite ; le même dans
+ * le layout rend **307** — mesuré par sonde, puis CONFIRMÉ sur l'application réelle (un
+ * prestataire authentifié : 307 sur les 18 surfaces agence, contre 200 avant).
+ *
+ * `PLAFOND_MESURE` ne bouge donc PAS : la population est la même, à la même taille, au même
+ * degré d'artisanat. Seul son étage a changé. *Un inventaire indexé sur des chemins doit suivre
+ * un déménagement, sans quoi il compte deux fois — une population périmée et une population
+ * neuve — et ni l'une ni l'autre n'existe.*
+ */
 const REFUS_ARTISANAL = [
   'src/app/(dashboard)/admin/agency/billing/page.tsx',
   'src/app/(dashboard)/admin/agency/kyc/page.tsx',
@@ -225,15 +241,15 @@ const REFUS_ARTISANAL = [
   'src/app/(dashboard)/admin/settings/integrations/page.tsx',
   'src/app/(dashboard)/admin/settings/page.tsx',
   'src/app/(dashboard)/admin/team/page.tsx',
-  'src/app/(dashboard)/app/maintenance/providers/page.tsx',
-  'src/app/(dashboard)/app/overview/agency/page.tsx',
-  'src/app/(dashboard)/app/overview/agent/page.tsx',
-  'src/app/(dashboard)/app/overview/alerts/page.tsx',
-  'src/app/(dashboard)/app/overview/exports/page.tsx',
-  'src/app/(dashboard)/app/overview/kpis/page.tsx',
-  'src/app/(dashboard)/app/overview/owner/page.tsx',
+  'src/app/(dashboard)/app/maintenance/providers/layout.tsx',
+  'src/app/(dashboard)/app/overview/agency/layout.tsx',
+  'src/app/(dashboard)/app/overview/agent/layout.tsx',
+  'src/app/(dashboard)/app/overview/alerts/layout.tsx',
+  'src/app/(dashboard)/app/overview/exports/layout.tsx',
+  'src/app/(dashboard)/app/overview/kpis/layout.tsx',
+  'src/app/(dashboard)/app/overview/owner/layout.tsx',
   'src/app/(dashboard)/app/overview/page.tsx',
-  'src/app/(dashboard)/app/owners/page.tsx',
+  'src/app/(dashboard)/app/owners/layout.tsx',
   // Le VINGT-DEUXIÈME, trouvé par la revue de TCK-378 en mutant cette garde : il décide du rôle
   // EN LIGNE (`user.roles.includes('agency_admin') || user.roles.includes('super_admin')`, l. 35)
   // sans importer `@/lib/roles`, et l'ancien détecteur ne comptait que les IMPORTS. Il n'est pas
@@ -241,7 +257,7 @@ const REFUS_ARTISANAL = [
   // donc d'un cran — non pas parce qu'un écart a été ACCEPTÉ, mais parce qu'un écart qui existait
   // devient enfin VISIBLE. *Un inventaire qui ne voit qu'une écriture ne compte pas une
   // population, il compte ses propres regex.*
-  'src/app/(dashboard)/app/settings/agency/upgrade/page.tsx',
+  'src/app/(dashboard)/app/settings/agency/upgrade/layout.tsx',
 ];
 
 /**

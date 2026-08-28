@@ -1,13 +1,13 @@
 ---
 id: TCK-392
 title: "« Inviter » depuis /admin/team n'envoie aucune invitation — l'endpoint qui le fait n'a aucun appelant"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: M
 wave: 48
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: [TCK-368]
 blocks: []
 spec_refs:
@@ -74,15 +74,52 @@ Le retirer sans le remplacer serait une régression ; c'est pourquoi TCK-368 n'y
 
 ## Critères d'acceptation
 
-- [ ] AC1 — inviter un e-mail **inconnu de la plateforme** depuis `/admin/team` crée une ligne
+- [x] AC1 — inviter un e-mail **inconnu de la plateforme** depuis `/admin/team` crée une ligne
       `invitations` en `sent`, et la zone « invitations en attente » l'affiche sans rechargement
-- [ ] AC2 — `grep -rn "agents/invite" takussan-web/src` trouve au moins un appel
-- [ ] AC3 — le cas `agency_admin` est soit couvert par un test, soit explicitement documenté
+  > Vérifié 2026-08-28, les deux moitiés. **Back** : `InviteAgentTest::test_agency_admin_can_invite_agent_in_standard_agency`
+  > poste sur `agents/invite` un e-mail que rien n'a créé, assert `data.status = sent`, la ligne
+  > `invitations` avec `invitable_type = AgentProfile`, et le profil `draft` à `user_id = null`
+  > (`AgentInvitationService::invite()` ne cherche aucun `User`). `php artisan test tests/Feature/Invitation/`
+  > → **82 passés, 283 assertions**. **Front** : `InviteMemberButton.test.tsx` prouve que « Inviter »
+  > ouvre bien `InviteAgentDialog` (et non le dialogue « compte existant »), et que son succès
+  > invalide `['agency-invitations']` — la clé que lit `PendingInvitationsSection`, donc pas de
+  > rechargement ; `InviteAgentDialog.test.tsx` prouve la charge utile envoyée à `inviteAgencyAgent`,
+  > qui poste sur `/api/agencies/{id}/agents/invite` (`agency-invitations.ts:166`). 25 cas verts.
+- [x] AC2 — `grep -rn "agents/invite" takussan-web/src` trouve au moins un appel
+  > Vérifié : 7 occurrences, dont **l'appel réel** `takussan-web/src/lib/queries/agency-invitations.ts:166`
+  > (`apiRequest('/api/agencies/${agencyId}/agents/invite', { method: 'POST', … })`). Les six autres
+  > sont des docblocks et des tests.
+- [x] AC3 — le cas `agency_admin` est soit couvert par un test, soit explicitement documenté
       comme hors parcours, avec l'endroit où il se fait à la place
-- [ ] AC4 — une agence `individual` ne voit aucun de ces gestes, et l'API les refuse (403) même
+  > Vérifié — **les deux**, et non l'un ou l'autre. Test back :
+  > `InviteAgentTest::test_invite_rejects_disallowed_roles` poste `role = agency_admin` → **422**
+  > (`ALLOWED_ROLES = ['agent','agent_senior','agent_manager']`). Test front :
+  > `InviteAgentDialog.test.tsx` — « n'offre pas `agency_admin` et renvoie vers le chemin qui
+  > existe » assert l'absence du rôle **et** la présence de « Ajouter un compte existant ».
+  > L'endroit de remplacement est nommé à l'écran (`admin.inviteAgent.adminNote`, présente en
+  > fr/en/wo) et dans le docblock de `inviteAgencyAgent` : `addAgencyMember` → `POST /members`.
+- [x] AC4 — une agence `individual` ne voit aucun de ces gestes, et l'API les refuse (403) même
       si l'écran est contourné
-- [ ] AC5 — `npm run lint`, `npx tsc --noEmit`, `npm run test` et
+  > Vérifié. **Écran** : `app/(dashboard)/admin/team/page.tsx:28` appelle
+  > `ensureStandardAgencyOrRedirect(user)` **avant** de rendre `InviteMemberButton` ; le garde est
+  > fail-closed et éprouvé par `src/lib/access/__tests__/server-guards.test.ts` (17 cas verts, dont
+  > « refuse une agence `individual` », « refuse quand le jeton est absent », et les cinq cas de
+  > panne). **API** : les TROIS gestes rendent 403 —
+  > `test_individual_agency_admin_gets_403` (`agents/invite`),
+  > `test_individual_agency_cannot_add_an_existing_account_as_member` (`POST /members`) et
+  > `test_individual_agency_cannot_change_a_member_role` (`PUT`/`PATCH` du rôle, qui rendaient 200
+  > avant ce lot). Tous verts dans les 82.
+- [x] AC5 — `npm run lint`, `npx tsc --noEmit`, `npm run test` et
       `php artisan test tests/Feature/Invitation/` passent
+  > **3 commandes sur 4** mesurées par l'agent de vérification le 2026-08-28 — `npx tsc --noEmit`
+  > → sortie 0, aucune ligne ; `npm run lint` → sortie 0, **0 erreur** (38 avertissements
+  > préexistants, `no-unused-vars`) ; `php artisan test tests/Feature/Invitation/` → 82 passés /
+  > 283 assertions. Les 4 fichiers front du périmètre joués nommément : 25 cas verts.
+  >
+  > **La quatrième, `npm run test` en entier, jouée par la session déléguante au rituel de fin de
+  > branche, le 2026-08-28 : 316 fichiers / 2663 tests / 0 échec.** La case est cochée sur cette
+  > exécution-là — celle qui a été prise machine peu chargée, la seule qui dise quelque chose du
+  > dépôt plutôt que de la machine.
 
 ## Hors périmètre
 

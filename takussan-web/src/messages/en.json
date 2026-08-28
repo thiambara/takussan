@@ -86,8 +86,7 @@
     "links": {
       "buy": "Buy",
       "rent": "Rent",
-      "sell": "Sell",
-      "services": "Our services"
+      "sell": "Sell"
     },
     "categories": {
       "apartment": "Apartment",
@@ -236,13 +235,22 @@
   },
   "footer": {
     "tagline": "Your trusted partner to find the perfect property in Senegal.",
-    "newsletterPlaceholder": "Your email",
-    "newsletterSubmit": "Subscribe",
     "discoverHeading": "Discover",
     "copyright": "© {year} Takussan. All rights reserved.",
     "discover": {
+      "all": "All properties",
       "featured": "Featured properties",
       "latest": "New listings"
+    },
+    "professionalsHeading": "Professionals",
+    "toolsHeading": "Your tools",
+    "tools": {
+      "favorites": "My favourites",
+      "compare": "Compare"
+    },
+    "professionals": {
+      "agencies": "Agencies",
+      "agents": "Agents"
     }
   },
   "map": {
@@ -283,6 +291,12 @@
       "title": "Search properties",
       "description": "Find apartments, villas, land, offices and more in Senegal. Filter by price, type, location and surface, visualize listings on an interactive map."
     },
+    "propertiesFiltered": {
+      "titleContract": "{contract, select, rent {{subject} for rent} sale {{subject} for sale} other {{subject}}}",
+      "titleCity": "{subject} in {city}",
+      "subjectAny": "Properties",
+      "description": "{title} on Takussan: photos, price and location for every listing. Narrow down by budget, surface, bedrooms and neighbourhood."
+    },
     "compare": {
       "title": "Compare properties",
       "description": "Compare up to 4 properties side by side: price, surface, rooms, amenities and location."
@@ -304,9 +318,22 @@
     "propertyUnavailable": {
       "title": "Listing temporarily unavailable",
       "description": "This listing cannot be displayed right now. Please try again in a moment."
+    },
+    "agencies": {
+      "title": "Real estate agencies in Senegal",
+      "description": "Browse the real estate agencies active on Takussan: portfolio, cities covered and client reviews.",
+      "titleCity": "Real estate agencies in {city}",
+      "descriptionCity": "Real estate agencies publishing listings in {city} on Takussan: portfolio, reviews and details."
+    },
+    "agents": {
+      "title": "Real estate agents in Senegal",
+      "description": "Browse the real estate agents and advisers active on Takussan: portfolio, cities covered and client reviews.",
+      "titleCity": "Real estate agents in {city}",
+      "descriptionCity": "Real estate agents and advisers publishing listings in {city} on Takussan."
     }
   },
   "homepage": {
+    "h1": "Property listings in Senegal",
     "row": {
       "viewAll": "View all",
       "error": "Listings could not be loaded right now.",
@@ -1631,6 +1658,14 @@
       "network": "The connection to the server failed. Check your internet connection and try again.",
       "submitFailed": "Submission failed. Please try again.",
       "unknown": "Something went wrong. Please try again."
+    },
+    "siteNotFound": {
+      "eyebrow": "Error 404",
+      "title": "This page does not exist",
+      "body": "The link you followed may be out of date, or the address has a typo. The catalogue, however, is still here.",
+      "browseListings": "Browse listings",
+      "backHome": "Back to home",
+      "footer": "© Takussan — Real estate in Senegal."
     }
   },
   "agency": {
@@ -1794,7 +1829,14 @@
       "metaTitle": "{name} — Real estate agency",
       "metaSummary": "{count, plural, one {# property} other {# properties}}",
       "metaSummaryInCity": "{count, plural, one {# property} other {# properties}} in {city}",
-      "contactSubject": "Contact via Takussan — {name}"
+      "contactSubject": "Contact via Takussan — {name}",
+      "notFoundTitle": "Agency not found",
+      "notFoundBody": "This agency is no longer listed or has been withdrawn. Browse the catalogue to find another contact.",
+      "notFoundBrowse": "Browse listings",
+      "notFoundHome": "Back to home",
+      "unavailableTitle": "Agency temporarily unavailable",
+      "unavailableBody": "We can't reach the catalogue right now. This agency may still exist — please try again in a moment.",
+      "unavailableMetaDescription": "This agency cannot be displayed right now. Please try again in a moment."
     }
   },
   "compare": {
@@ -3451,7 +3493,14 @@
       "metaSummary": "{count, plural, one {# property} other {# properties}}",
       "metaSummaryInCity": "{count, plural, one {# property} other {# properties}} in {city}",
       "experience": "{count, plural, one {# year} other {# years}} of experience",
-      "contactSubject": "Contact via Takussan — {name}"
+      "contactSubject": "Contact via Takussan — {name}",
+      "notFoundTitle": "Agent not found",
+      "notFoundBody": "This agent is no longer listed or has been withdrawn. Browse the catalogue to find another contact.",
+      "notFoundBrowse": "Browse listings",
+      "notFoundHome": "Back to home",
+      "unavailableTitle": "Agent temporarily unavailable",
+      "unavailableBody": "We can't reach the catalogue right now. This agent may still exist — please try again in a moment.",
+      "unavailableMetaDescription": "This agent cannot be displayed right now. Please try again in a moment."
     }
   },
   "agentWelcome": {
@@ -4544,7 +4593,9 @@
           "admins": "Administrators",
           "owners": "Owners"
         },
-        "invite": "Invite"
+        "invite": "Invite",
+        "inviteAgent": "Invite",
+        "addExisting": "Add an existing account"
       },
       "invitations": {
         "title": "Pending invitations",
@@ -4664,7 +4715,7 @@
       }
     },
     "inviteMember": {
-      "title": "Invite a member",
+      "title": "Add an existing account",
       "description": "Enter the email of a user who already has an account. They will be added to your agency with the role you choose.",
       "email": "Email",
       "emailPlaceholder": "jane@example.sn",
@@ -4674,7 +4725,7 @@
         "agent": "Agent",
         "agency_admin": "Administrator"
       },
-      "submit": "Invite"
+      "submit": "Add"
     },
     "users": {
       "status": {
@@ -4732,6 +4783,25 @@
         "placeholder": "Choose a role",
         "update": "Update"
       }
+    },
+    "inviteAgent": {
+      "title": "Invite an agent",
+      "description": "The person does not need a Takussan account: they will receive an invitation email and create theirs when accepting it.",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "emailPlaceholder": "jane@example.sn",
+      "emailInvalid": "Invalid email.",
+      "phone": "Phone (optional)",
+      "required": "This field is required.",
+      "role": "Role",
+      "roles": {
+        "agent": "Agent",
+        "agent_senior": "Senior agent",
+        "agent_manager": "Team manager"
+      },
+      "adminNote": "An agency administrator cannot be invited by email: add them from “Add an existing account”, which requires an existing Takussan account.",
+      "submit": "Send the invitation"
     }
   },
   "documents": {
@@ -5447,7 +5517,15 @@
       "colTask": "Task",
       "colLastRun": "Last run",
       "colAvgDuration": "Average duration",
-      "tableCaption": "Scheduled tasks and last run"
+      "tableCaption": "Scheduled tasks and last run",
+      "colStatus": "Status",
+      "statusUnknown": "Unknown",
+      "status": {
+        "finished": "Finished",
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "running": "Running"
+      }
     },
     "failedJobs": {
       "empty_title": "No failed job",
@@ -5866,6 +5944,12 @@
           "nameDesc": "Name Z-A",
           "membersDesc": "Largest team",
           "propertiesDesc": "Largest portfolio"
+        },
+        "verificationAria": "Verification",
+        "verifications": {
+          "all": "Verified or not",
+          "yes": "Verified",
+          "no": "Not verified"
         }
       },
       "superAdmins": {
@@ -7276,7 +7360,13 @@
       "emptyHint": "Widen the range or pick another metric.",
       "compare": "Compare to previous period",
       "previous": "Previous period",
-      "pointAria": "{bucket}: {value}"
+      "pointAria": "{bucket}: {value}",
+      "bucketPartial": "{bucket} · {days}d",
+      "unequalDurations": "Unequal durations: {count, plural, one {# interval does} other {# intervals do}} not span the same number of days as their counterpart in the compared period. The gap you read therefore includes a share of duration, not only of activity."
+    },
+    "error": {
+      "title": "The report could not be computed",
+      "fallback": "Try again, or narrow the requested range."
     }
   },
   "kyc": {
@@ -7411,6 +7501,51 @@
     },
     "footer": {
       "brandLine": "Takussan — Real estate in Senegal"
+    }
+  },
+  "publicProfileIndex": {
+    "card": {
+      "portfolio": "{count, plural, one {listing} other {listings}}",
+      "rent": "{count, plural, one {# to rent} other {# to rent}}",
+      "sale": "{count, plural, one {# for sale} other {# for sale}}",
+      "reviews": "· {count, plural, one {# review} other {# reviews}}",
+      "verified": "Verified profile",
+      "ratingAria": "Average rating {rating} out of 5"
+    },
+    "filters": {
+      "submit": "Search",
+      "allCities": "All cities",
+      "cityGroupAria": "Filter by city",
+      "clear": "Clear filters"
+    },
+    "pagination": {
+      "navAria": "Pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "position": "Page {page} of {total}"
+    },
+    "empty": {
+      "body": "Try another city or widen your search."
+    },
+    "error": {
+      "title": "Directory temporarily unavailable",
+      "body": "We could not load the list. Please try again in a moment."
+    },
+    "agencies": {
+      "eyebrow": "Real estate agencies",
+      "heading": "The agencies working near you",
+      "intro": "Every agency listed here has at least one available listing. Browse their portfolio, the cities they cover and what their clients say.",
+      "searchPlaceholder": "Agency name",
+      "count": "{count, plural, one {# agency} other {# agencies}}",
+      "emptyTitle": "No agency matches"
+    },
+    "agents": {
+      "eyebrow": "Agents & advisers",
+      "heading": "The professionals behind the listings",
+      "intro": "Every profile listed here has at least one available listing. Discover their portfolio, the cities they cover and their agency.",
+      "searchPlaceholder": "Agent name",
+      "count": "{count, plural, one {# profile} other {# profiles}}",
+      "emptyTitle": "No profile matches"
     }
   }
 }

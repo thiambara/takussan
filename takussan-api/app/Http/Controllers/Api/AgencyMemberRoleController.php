@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\UpdateAgencyMemberRoleRequest;
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
+use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -30,6 +31,25 @@ class AgencyMemberRoleController extends Controller
         // TCK-305 — l'autorisation court dans UpdateAgencyMemberRoleRequest::authorize(), donc AVANT la
         // validation : un appel non autorisé ET mal formé doit rendre 403, pas 422.
         $actor = $request->user();
+
+        // TCK-392 (revue, passe 2) — TROISIÈME geste de la même famille, trouvé
+        // en cherchant celui que la passe 1 avait manqué. Mesuré : `PUT
+        // /members/{user}/role` ET `PATCH /members/{user}` — la même méthode,
+        // deux routes — rendaient **200** sur une agence `individual`, quand
+        // `agents/invite` et `POST /members` rendaient 403.
+        //
+        // Cet endpoint promeut jusqu'à `agency_admin` (il matérialise un
+        // `AgencyAdminProfile`), or une agence `individual` n'a **qu'un seul**
+        // administrateur et pas d'équipe. C'était donc un chemin de promotion
+        // ouvert là où les deux autres étaient fermés.
+        //
+        // *Deux passes successives ont chacune trouvé un geste de plus que la
+        // précédente croyait exhaustive* — d'où l'inventaire dérivé des routes
+        // réelles, et non de la mémoire, reporté dans le rapport du lot.
+        $kind = $agency->kind instanceof AgencyKind
+            ? $agency->kind
+            : AgencyKind::tryFrom((string) $agency->kind);
+        abort_if($kind !== AgencyKind::Standard, 403, __('team.invite.errors.individual_agency'));
 
         abort_unless(
             $user->isAgentAt($agency->id)

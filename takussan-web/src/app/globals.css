@@ -100,11 +100,62 @@
   --ring: #a85332;
 
   /* === Charts — variations tonales sur Lin === */
+  /*
+   * ⚠ `--chart-3` VALAIT `#c89a4a` jusqu'au 2026-08-27 et rendait **2,57:1** sur `--card`
+   * (#ffffff) — sous les 3:1 qu'exige WCAG 2.2 §1.4.11 pour un objet graphique porteur de sens.
+   * TCK-374 l'avait ÉCARTÉ de l'ordre des séries plutôt que corrigé ; TCK-404 porte la décision.
+   *
+   * La valeur retenue ne fait descendre que la CLARTÉ ; teinte et saturation bougent de moins
+   * d'un demi-point. Mesuré en HSL, et non arrondi — teinte 38,10° → 37,69°, saturation
+   * 53,39 % → 53,78 %, clarté 53,73 % → 44,12 %. Ce n'est donc pas une couleur nouvelle, c'est
+   * la même couleur assez foncée pour se voir sur du blanc.
+   *
+   *   #ad8034 sur --card #ffffff .......... 3,55:1   (seuil 1.4.11 : 3:1)
+   *   #ad8034 sur --background #fcf9f3 .... 3,38:1
+   *   #d6b66c sur --card sombre #2a2018 ... 8,17:1   ← INCHANGÉ, il n'a jamais été en défaut
+   *
+   * Le défaut n'existait qu'en thème CLAIR : en sombre, `--chart-3` était le deuxième meilleur
+   * jeton de la charte. *Une vérification faite dans un seul thème conclut l'inverse de la
+   * vérité.*
+   *
+   * ⚠ Ce que la décision N'A PAS eu à arbitrer, contrairement à ce que TCK-404 annonçait : le
+   * second rôle du jeton. Le ticket bloquait la correction sur « l'ambre sert aussi de fond, le
+   * ton `warning` de `StatCard` le porte à 15 % ». Mesuré le 2026-08-27, c'est PÉRIMÉ — TCK-381
+   * a fait passer ce ton sur `--warning`, et `--chart-3` n'a plus AUCUN usage de fond. Le seul
+   * consommateur restant est `components/profile/ProfileBadge.tsx`, qui en fait de l'ENCRE sur
+   * un aplat de lui-même : 2,17:1 avant, 2,90:1 après — amélioré, toujours insuffisant pour du
+   * texte, et signalé plutôt que corrigé ici.
+   */
   --chart-1: #a85332;
   --chart-2: #5d6e4f;
-  --chart-3: #c89a4a;
+  --chart-3: #ad8034;
   --chart-4: #6e655a;
   --chart-5: #1f1812;
+
+  /*
+   * === Le VOILE (TCK-384) — le second blanc fonctionnel, en négatif ===
+   *
+   * Les deux voiles du produit — celui du dialogue et celui du panneau latéral — étaient des
+   * noirs LITTÉRAUX écrits dans le JSX, et `scripts/check-super-admin-tokens.mjs` les comptait.
+   * Aucun jeton existant ne pouvait les remplacer, et ce n'est pas un oubli de la charte : c'est
+   * une propriété du RÔLE.
+   *
+   *   `--foreground`  vaut #1f1812 en clair mais #fcf9f3 en SOMBRE. Un voile clair par-dessus une
+   *                   page sombre remonterait le fond AU-DESSUS de la surface du panneau (#2a2018)
+   *                   qu'il est censé mettre en avant : le panneau se lirait comme un trou.
+   *   `--background`  vaut #fcf9f3 en clair : un voile de cette couleur sur une page claire
+   *                   n'assombrit rien du tout.
+   *
+   * Un voile ne suit donc PAS le thème — il assombrit, dans les deux. C'est le raisonnement de
+   * `.qr-surface` (plus bas) appliqué à l'autre bout de l'échelle, et c'est pourquoi la valeur
+   * s'écrit ici, une fois, sous un nom qui dit pourquoi.
+   *
+   * Le jeton est OPAQUE : ce sont les appelants qui posent l'alpha, par le modificateur
+   * d'opacité de Tailwind (`bg-scrim/10`, `bg-scrim/30`). Une variable qui porterait déjà sa
+   * transparence rendrait ce modificateur inutilisable, et donc l'intensité du voile
+   * re-décidable nulle part.
+   */
+  --scrim: #000000;
 
   /* === Geometry === */
   --radius: 0.625rem;
@@ -166,6 +217,9 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
 
+  /* Voile — cf. le docblock de `--scrim` dans `:root`. */
+  --color-scrim: var(--scrim);
+
   /* Charts */
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
@@ -219,6 +273,42 @@
 .qr-surface {
   background-color: #ffffff;
 }
+
+/*
+ * ⚠ LA SECONDE COULEUR FONCTIONNELLE EST `--scrim`, déclarée plus haut dans `:root` (TCK-384).
+ *
+ * Les deux sont le même raisonnement aux deux bouts de l'échelle, et elles se lisent ensemble :
+ * le blanc d'un QR code ne s'inverse pas parce qu'un TÉLÉPHONE doit le lire ; le noir d'un voile
+ * ne s'inverse pas parce qu'un voile ASSOMBRIT, dans les deux thèmes. Aucune des deux n'est une
+ * surface au sens du design system.
+ *
+ * `--scrim` n'est pas ici, sous forme de classe, pour une raison mécanique : c'est un JETON de
+ * couleur, dont les appelants posent l'alpha (`bg-scrim/10`, `bg-scrim/30`). Une classe figerait
+ * l'intensité du voile et il faudrait en écrire une par usage.
+ *
+ * ⚠ La dérogation porte sur le JETON, pas sur la couleur : un utilitaire de fond noir littéral
+ * reste refusé par `scripts/check-super-admin-tokens.mjs` (contrôle B) partout dans les
+ * périmètres gardés, à toutes les opacités — seul `bg-scrim/*` passe. Vérifié par mutation le
+ * 2026-08-27, dans les deux sens.
+ *
+ * ⚠⚠ **Mais il ne passe PAS parce que la garde reconnaîtrait le jeton — elle ne connaît aucun
+ * jeton.** Elle refuse une liste FERMÉE de formes (les 22 familles Tailwind, `white`, `black`,
+ * les couleurs littérales) et laisse passer tout le reste : mesuré le 2026-08-27,
+ * `bg-jeton-qui-nexiste-pas`, `border-zzz` et `text-inventé` passent tous les six contrôles, et
+ * rendent transparent à l'exécution. `bg-scrim/30` est admis par la même porte qu'eux.
+ *
+ * La formulation « la garde sait qu'un jeton est déclaré, pas quels utilitaires il a le droit de
+ * prendre » a vécu une journée ici et elle était FAUSSE dans le sens flatteur — corrigée à la
+ * revue adverse de TCK-384. *Décrire une garde comme plus savante qu'elle n'est, c'est fabriquer
+ * la confiance qu'elle ne mérite pas.*
+ *
+ * ⚠⚠ Ce paragraphe a fait ROUGIR la garde en écrivant la classe noire en toutes lettres, et
+ * c'est la meilleure preuve qu'il pouvait donner : le contrôle B lit `globals.css` comme le
+ * reste, commentaires compris. La classe est donc décrite, pas citée.
+ *
+ * **Ces deux-là sont les SEULES couleurs fonctionnelles du produit ; une troisième candidate
+ * s'écrit ici, avec son motif, avant d'exister.**
+ */
 
 /* ─── Animations utilitaires ────────────────────────────────────────── */
 

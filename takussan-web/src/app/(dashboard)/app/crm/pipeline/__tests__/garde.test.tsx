@@ -59,9 +59,19 @@ vi.mock('next-intl/server', () => ({
  */
 async function ouvrePipeline(roles: UserRole[]): Promise<'rendu' | 'refuse'> {
   me.user = { id: 1, roles } as unknown as User;
+  // TCK-426 — ON MONTE LE LAYOUT, PAS SEULEMENT LA PAGE, et c'est le fond du changement.
+  //
+  // La garde a quitté `page.tsx` pour `layout.tsx`, parce que `crm/pipeline/loading.tsx` ouvre
+  // une frontière de suspension entre les deux : un `redirect()` écrit dans la page rendait 200
+  // + le squelette du kanban au lieu du 307, alors qu'un `redirect()` de layout rend bien 307
+  // (mesuré sur le Next 16.3.1 du dépôt). Ce helper monte donc le layout D'ABORD — c'est lui qui
+  // décide — puis la page, pour vérifier qu'un rôle admis obtient réellement l'écran.
+  //
+  // *Un test qui ne monte que la page ne peut plus voir le refus : il n'y est plus.*
+  const { default: Layout } = await import('../layout');
   const { default: Page } = await import('../page');
   try {
-    await Page();
+    await Layout({ children: await Page() });
     return 'rendu';
   } catch (e) {
     if (e instanceof InterruptionSimulee && e.genre === 'forbidden') return 'refuse';
@@ -96,7 +106,7 @@ describe('/app/crm/pipeline — le lien n’élargit aucun accès (TCK-379)', ()
     // exactement l'allowlist ci-dessus. Si l'un des deux bougeait sans l'autre, le lien
     // deviendrait une invitation vers un 403 — la forme de défaut que ce lot corrige ailleurs.
     const src = (p: string) => fs.readFileSync(path.resolve(__dirname, p), 'utf8');
-    expect(src('../../../customers/page.tsx')).toContain('assertCanReachAgentArea');
+    expect(src('../../../customers/layout.tsx')).toContain('assertCanReachAgentArea');
     expect(src('../../../customers/page.tsx')).toContain('/app/crm/pipeline');
     const guards = src('../../../../../../lib/auth/guards.ts');
     expect(guards).toContain('isAgent(roles) || isOwner(roles) || isAdmin(roles)');
@@ -105,7 +115,12 @@ describe('/app/crm/pipeline — le lien n’élargit aucun accès (TCK-379)', ()
     // à `assertCanReachAgentArea` — la MÊME fonction que `customers/page.tsx`. C'est
     // strictement plus fort que ce que le test demandait : deux expressions identiques
     // peuvent diverger, un appel partagé ne le peut pas. L'assertion suit le correctif.
-    expect(src('../page.tsx')).toContain('assertCanReachAgentArea');
+    //
+    // ⚠⚠ TCK-426 : les DEUX gardes ont remonté d'un cran ensemble, dans le `layout.tsx` de leur
+    // segment. C'est là qu'il faut les chercher — sous le `loading.tsx`, elles rendaient 200 au
+    // lieu du 307. La ligne qui les cherchait dans les pages était donc devenue fausse ; elle
+    // suit à nouveau le correctif.
+    expect(src('../layout.tsx')).toContain('assertCanReachAgentArea');
   });
 
   it('les trois écrans nouvellement desservis restent sous le layout authentifié', () => {

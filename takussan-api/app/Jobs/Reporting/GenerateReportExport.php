@@ -84,6 +84,14 @@ class GenerateReportExport implements ShouldQueue
                 if (is_array($value)) {
                     $value = json_encode($value, JSON_UNESCAPED_UNICODE);
                 }
+                // TCK-388 — même règle que le chemin synchrone (`ReportingController::downloadPayload`) :
+                // un booléen brut s'écrit `1` et ``, et la case vide d'un `false` se relit comme une
+                // donnée manquante. Ce chemin-ci n'est atteint qu'au-delà de 10 000 lignes, donc
+                // jamais sur growth/revenue tant que le découpage est plafonné à 60 buckets — mais
+                // deux écritures du même CSV qui divergent finissent toujours par se rencontrer.
+                if (is_bool($value)) {
+                    $value = $value ? 'true' : 'false';
+                }
                 $values[] = '"'.str_replace('"', '""', (string) $value).'"';
             }
             $out .= implode(',', $values)."\n";

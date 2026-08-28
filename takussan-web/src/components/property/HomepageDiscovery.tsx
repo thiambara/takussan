@@ -8,6 +8,7 @@ import { PropertyRow } from '@/components/property/cards/PropertyRow';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { RecentlyViewedCarousel } from '@/components/property/RecentlyViewedCarousel';
 import { useHomepageDiscovery } from '@/hooks/useHomepageDiscovery';
+import type { HomepageDiscoveryData } from '@/types/property';
 import { useUserLocation } from '@/components/providers/UserLocationProvider';
 
 const NO_ITEMS = [] as const;
@@ -53,8 +54,19 @@ function useGeoSettled(geoLoading: boolean): boolean {
  * maigrir. « Coup de cœur » reste exempte : une rangée curée a le droit de
  * chevaucher les autres.
  */
-export function HomepageDiscovery() {
+export function HomepageDiscovery({
+  donneesInitiales = null,
+}: {
+  /**
+   * Les quatre rangées déjà rendues par le serveur — TCK-432.
+   *
+   * `null` signifie « le serveur n'a rien à semer » (API en panne, ou appelant qui n'en fournit
+   * pas) : le composant reprend alors, sans une ligne de moins, le comportement d'avant TCK-432.
+   */
+  readonly donneesInitiales?: HomepageDiscoveryData | null;
+} = {}) {
   const t = useTranslations('homepage.row');
+  const tPage = useTranslations('homepage');
   const { location, loading: geoLoading, city: guessedCity } = useUserLocation();
   const geoSettled = useGeoSettled(geoLoading);
 
@@ -67,6 +79,7 @@ export function HomepageDiscovery() {
   const { rows, loading, failed } = useHomepageDiscovery({
     nearCity: guessed || undefined,
     enabled: geoSettled,
+    donneesInitiales,
   });
 
   const viewAll = t('viewAll');
@@ -92,6 +105,41 @@ export function HomepageDiscovery() {
       <div className="h-[133px]" />
 
       <main className="max-w-[1440px] mx-auto px-6 md:px-12 pt-12 pb-24 space-y-20">
+        {/*
+          TCK-432 — le `<h1>` de l'accueil, et il n'y en avait AUCUN (mesuré : `grep -o '<h1'`
+          sur le HTML servi rendait 0). `docs/design-guidelines.md` § Typographie pose pourtant
+          « Hiérarchie stricte : `h1` → titre de page », et c'est de l'accessibilité avant d'être
+          du référencement : un lecteur d'écran qui cherche le titre de la page ne le trouvait pas,
+          les quatre `<h2>` des rangées commençant la hiérarchie au deuxième niveau.
+
+          Il dit ce que la page MONTRE — des annonces au Sénégal — et non le nom de la marque, qui
+          vit dans le `<title>` du layout. `font-display` (Bricolage Grotesque) comme le veulent
+          les directives pour `h1`-`h3` ; la taille reste au-dessus des `h2` des rangées
+          (26/30 px) sans rien déplacer d'autre : ce ticket n'ouvre aucune refonte visuelle, et
+          il n'introduit pas le hero marketing que la home refuse depuis TCK-129.
+
+          ⚠⚠ **`-mb-8` ICI CHEVAUCHAIT LA PREMIÈRE RANGÉE, et le motif se reproduira ailleurs.**
+          Écrit pour ramener l'écart de `space-y-20` (80 px) à 48 px, il l'a mis à **−32 px** :
+          en Tailwind v4, `space-y-*` est défini dans un `:where()`, donc à spécificité NULLE.
+          Un utilitaire de marge explicite ne s'y AJOUTE pas, il le REMPLACE. Mesuré dans le
+          navigateur le 2026-08-28 :
+
+              h1        top 181 · bottom 223
+              1re rangée top 191                    ← 32 px de recouvrement
+              margin-top du frère suivant : 0px     ← et non 80px
+
+          Le sur-titre « Près de toi » passait donc SOUS le titre de la page. Corrigé en écrivant
+          l'écart voulu en clair (`mb-12`, 48 px) au lieu de le calculer contre une valeur que la
+          cascade n'applique jamais.
+
+          *Une marge négative écrite pour corriger une autre marge suppose que les deux
+          s'additionnent — et dans une v4 qui pose ses écarts en `:where()`, elles ne
+          s'additionnent pas.* Aucun test ne pouvait le voir : jsdom ne fait pas de mise en page.
+        */}
+        <h1 className="font-display text-[32px] md:text-[40px] leading-[1.05] font-semibold text-foreground mb-12">
+          {tPage('h1')}
+        </h1>
+
         <div
           className="animate-section-enter"
           style={{ animationDelay: '40ms' }}

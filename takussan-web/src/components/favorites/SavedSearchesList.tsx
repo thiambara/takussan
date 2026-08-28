@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { BookmarkCheck, Trash2, Loader2, Search as SearchIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import {
@@ -101,13 +101,13 @@ function SavedSearchRow({
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <Link
+        <LienLocalise
           href={href}
           className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition"
         >
           <SearchIcon className="w-3.5 h-3.5" />
           {t('relaunch')}
-        </Link>
+        </LienLocalise>
         <Button
           variant="ghost"
           size="sm"
@@ -162,9 +162,9 @@ export function SavedSearchesList() {
         title={t('empty_title')}
         description={t('empty_description')}
         action={
-          <Link href="/properties" className={buttonVariants()}>
+          <LienLocalise href="/properties" className={buttonVariants()}>
             {t('empty_cta')}
-          </Link>
+          </LienLocalise>
         }
       />
     );

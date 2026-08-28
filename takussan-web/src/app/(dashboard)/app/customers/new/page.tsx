@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 
-import { getMeAction } from '@/app/actions/auth';
 
-import { assertCanReachAgentArea } from '@/lib/auth/guards';
 import { CustomerForm } from '@/components/customer-form';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
@@ -20,8 +18,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function Page() {
   const t = await getTranslations('dashboard.pages.customerNew');
-  const user = await getMeAction();
-  assertCanReachAgentArea(user.roles);
+  // TCK-426 — la garde de rôle est REMONTÉE dans le `layout.tsx` de ce segment : ici, sous le
+  // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
 
   return (
     <div className="space-y-6">

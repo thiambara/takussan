@@ -38,9 +38,19 @@ export default async function OverviewPage() {
   if (isOwner(roles)) redirect('/app/overview/owner');
   // TCK-379 — un `service_provider` était aiguillé ici vers `/app/overview/tenant`, c'est-à-dire
   // vers le tableau de bord LOCATAIRE, qui lui répond `has_customer_profile: false`. Aucun
-  // tableau de bord prestataire n'est spécifié (`docs/features.md` §2.5 — l'acteur 🔧 n'est même
-  // pas dans la légende), et en inventer un serait hors spec. Un prestataire qui atteint cette
-  // route par un signet est donc ramené à son propre point d'entrée.
+  // tableau de bord prestataire n'est spécifié : `docs/features.md` §2.5 en énumère quatre —
+  // agence 🛡️, bailleur 🏢, agent 🧑‍💼, locataire 🏠 — et aucun pour 🔧. En inventer un serait
+  // hors spec ; un prestataire qui atteint cette route par un signet est donc ramené à son
+  // propre point d'entrée.
+  //
+  // ⚠ La justification a CHANGÉ DE SOURCE, et l'ancienne était en train de devenir fausse. Elle
+  // disait « l'acteur 🔧 n'est même pas dans la légende » — c'est-à-dire qu'elle adossait un
+  // comportement à une LACUNE de la spec. TCK-420 a comblé cette lacune : 🔧 entre dans la
+  // légende, et §2.5 porte désormais la note qui TRANCHE l'absence de tableau de bord
+  // prestataire. C'est cette note qu'il faut lire, et c'est une référence stable — là où
+  // « l'acteur n'est pas dans la légende » se périmait au premier ticket qui l'y mettait.
+  // *Une règle justifiée par un trou dans sa spec meurt le jour où le trou est bouché, même
+  // quand la règle, elle, reste juste.*
   //
   // ⚠ Le test porte sur un prestataire PUR : les branches admin / agent / bailleur ci-dessus
   // s'appliquent d'abord, et un prestataire qui est AUSSI locataire garde sa vue locataire —

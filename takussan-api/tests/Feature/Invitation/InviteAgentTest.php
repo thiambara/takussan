@@ -122,6 +122,116 @@ class InviteAgentTest extends TestCase
         ])->assertStatus(403);
     }
 
+    /**
+     * TCK-392, AC4 — **la moitié qui n'avait pas été mesurée.**
+     *
+     * AC4 dit « une agence `individual` ne voit aucun de CES GESTES, et l'API
+     * LES refuse (403) même si l'écran est contourné » : au pluriel. TCK-392
+     * fait précisément de « Ajouter un compte existant » un second bouton,
+     * nommé et distinct — le geste entre donc dans le champ d'AC4.
+     *
+     * Mesuré par la passe adverse, et reproduit ici avant correction :
+     * `POST /agencies/{id}/members` rendait **200** sur une agence
+     * `individual`, quand son jumeau `agents/invite` (le cas juste au-dessus)
+     * rendait 403. L'administrateur d'une agence individuelle pouvait s'y
+     * rattacher un agent en contournant simplement l'écran — ce que le modèle
+     * `individual` (host solo, « pas d'invitation de collaborateurs internes »)
+     * existe pour interdire.
+     *
+     * `AddAgentAgencyRequest::authorize()` délègue à `AgencyPolicy@update`, qui
+     * ne juge pas le `kind` ; le garde vit donc dans `addAgent()`.
+     */
+    public function test_individual_agency_cannot_add_an_existing_account_as_member(): void
+    {
+        Mail::fake();
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+
+        $existant = User::factory()->create();
+
+        $this->postJson("/api/agencies/{$agency->id}/members", [
+            'email' => $existant->email,
+            'role' => 'agent',
+        ])->assertStatus(403);
+
+        $this->assertDatabaseMissing('agent_profiles', [
+            'user_id' => $existant->id,
+            'agency_id' => $agency->id,
+        ]);
+    }
+
+    /**
+     * TCK-392 (revue, passe 2) — le TROISIÈME geste de la famille, et les deux
+     * routes qui y mènent.
+     *
+     * `PUT /members/{user}/role` et `PATCH /members/{user}` sont la même
+     * méthode (`AgencyMemberRoleController@update`) : un seul garde les ferme,
+     * mais il faut éprouver les deux, sinon un futur découplage des routes
+     * rouvrirait l'une sans que rien ne bronche.
+     *
+     * Mesuré avant correction : 200 et 200 sur une agence `individual`, quand
+     * `agents/invite` et `POST /members` rendaient déjà 403. L'endpoint promeut
+     * jusqu'à `agency_admin`, or une agence individuelle n'a qu'un seul
+     * administrateur et pas d'équipe.
+     */
+    public function test_individual_agency_cannot_change_a_member_role(): void
+    {
+        Mail::fake();
+        $agency = Agency::factory()->create(['kind' => AgencyKind::Individual]);
+        $this->actingAsRole('agency_admin', ['agency_id' => $agency->id]);
+
+        $membre = User::factory()->create(['agency_id' => $agency->id]);
+        AgentProfile::query()->create(['user_id' => $membre->id, 'agency_id' => $agency->id]);
+
+        $this->putJson("/api/agencies/{$agency->id}/members/{$membre->id}/role", ['role' => 'agency_admin'])
+            ->assertStatus(403);
+
+        $this->patchJson("/api/agencies/{$agency->id}/members/{$membre->id}", ['role' => 'agency_admin'])
+            ->assertStatus(403);
+
+        $this->assertDatabaseMissing('agency_admin_profiles', [
+            'user_id' => $membre->id,
+            'agency_id' => $agency->id,
+        ]);
+    }
+
+    /** Témoin : promouvoir reste ouvert sur une agence `standard`. */
+    public function test_standard_agency_can_still_change_a_member_role(): void
+    {
+        Mail::fake();
+        [$agency] = $this->standardAgencyWithAdmin();
+
+        $membre = User::factory()->create(['agency_id' => $agency->id]);
+        AgentProfile::query()->create(['user_id' => $membre->id, 'agency_id' => $agency->id]);
+
+        $this->putJson("/api/agencies/{$agency->id}/members/{$membre->id}/role", ['role' => 'agency_admin'])
+            ->assertOk();
+
+        $this->assertDatabaseHas('agency_admin_profiles', [
+            'user_id' => $membre->id,
+            'agency_id' => $agency->id,
+        ]);
+    }
+
+    /** Témoin : le même geste reste ouvert sur une agence `standard`. */
+    public function test_standard_agency_can_still_add_an_existing_account_as_member(): void
+    {
+        Mail::fake();
+        [$agency] = $this->standardAgencyWithAdmin();
+
+        $existant = User::factory()->create();
+
+        $this->postJson("/api/agencies/{$agency->id}/members", [
+            'email' => $existant->email,
+            'role' => 'agent',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('agent_profiles', [
+            'user_id' => $existant->id,
+            'agency_id' => $agency->id,
+        ]);
+    }
+
     public function test_agent_without_manage_team_permission_gets_403(): void
     {
         Mail::fake();
@@ -146,9 +256,21 @@ class InviteAgentTest extends TestCase
         // `RoleDelegation` (TCK-108) et non plus par `givePermissionTo`
         // sur spatie. Une délégation active de `agency_admin` autorise
         // les actions team.*.
+        // TCK-395 — le délégant est un VRAI `agency_admin`, et non plus l'agent
+        // lui-même. La ligne écrite ici portait `delegator_id => $agent->id` :
+        // une AUTO-délégation, que `RoleDelegationService::create()` refuse
+        // explicitement (`self_delegation`) et que l'API ne peut donc pas
+        // produire. Elle passait parce que la délégation était honorée sur un
+        // simple test de CHAÎNE — un agent sans aucune capacité s'accordait
+        // à lui-même l'agency_admin plein. Depuis TCK-395, une délégation ne
+        // confère que ce que son délégant détient : ce cas mesure désormais
+        // une délégation que l'API sait émettre.
+        $delegant = User::factory()->create(['agency_id' => $agency->id]);
+        $this->materializeRoleProfile($delegant, 'agency_admin', $agency);
+
         RoleDelegation::create([
             'user_id' => $agent->id,
-            'delegator_id' => $agent->id,
+            'delegator_id' => $delegant->id,
             'agency_id' => $agency->id,
             'role' => 'agency_admin',
             'starts_at' => now(),

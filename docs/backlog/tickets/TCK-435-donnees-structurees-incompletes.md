@@ -1,13 +1,13 @@
 ---
 id: TCK-435
 title: "Une seule page du site public porte des données structurées — le fil d'Ariane, l'organisation et les profils n'en ont aucune"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -90,17 +90,38 @@ il n'introduit ni ne cache aucune information.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — le JSON-LD du fil d'Ariane d'une fiche liste **les mêmes maillons, dans le même
+- [x] AC1 — le JSON-LD du fil d'Ariane d'une fiche liste **les mêmes maillons, dans le même
       ordre**, que le fil rendu à l'écran. Un test qui vérifie seulement la présence d'un
       `BreadcrumbList` cocherait la case avec un fil faux : il doit comparer les deux.
-- [ ] AC2 — une agence à `reviews.count = 0` ne produit **aucune** clé `aggregateRating`. Un
+  > vérifié : `src/lib/__tests__/jsonld-fil-d-ariane.test.tsx` **rend** `PropertyBreadcrumb` et
+  > confronte le DOM au JSON — libellés dans l'ordre (`['Accueil','Louer','Dakar','Ngor']`), puis
+  > `item` ⇔ `href` (`items === hrefs.map(h => ORIGINE_SITE + h)`), le quartier non cliquable des
+  > deux côtés, les `position` qui se suivent, la langue du préfixe, et l'absence d'URL relative.
+  > Émis depuis `…/properties/[slug]/page.tsx:159`. 49 tests verts sur les 3 fichiers JSON-LD.
+- [x] AC2 — une agence à `reviews.count = 0` ne produit **aucune** clé `aggregateRating`. Un
       `ratingValue: 0` fait échouer le test.
-- [ ] AC3 — un profil dont la ville ou la note est nulle ne produit ni `"null"`, ni `undefined`,
+  > vérifié : `src/lib/__tests__/jsonld-profil.test.ts`, bloc « AC2 » — agence à `count: 0`, agent à
+  > `count: 0`, moyenne nulle sur compte positif, bloc `reviews` totalement absent : quatre
+  > `not.toHaveProperty('aggregateRating')`. Et le cas positif (« une note RÉELLE est bien émise,
+  > avec ses bornes ») empêche la case d'être cochée par une fabrique qui n'émettrait jamais rien.
+- [x] AC3 — un profil dont la ville ou la note est nulle ne produit ni `"null"`, ni `undefined`,
       ni clé vide dans le JSON émis.
-- [ ] AC4 — chaque bloc émis est du JSON valide après échappement, y compris pour une description
+  > vérifié : `src/lib/jsonld.tsx::sansVides` filtre `undefined`, `null` **et** `''` (et conserve
+  > `0`/`false`). Bloc « AC3 » du test : agence puis agent « dont tout est nul », ville nulle ⇒
+  > **aucun** `PostalAddress` plutôt qu'un objet vide, chaîne vide traitée comme une absence.
+- [x] AC4 — chaque bloc émis est du JSON valide après échappement, y compris pour une description
       contenant `</script>` ; un test l'éprouve sur cette chaîne exacte.
-- [ ] AC5 — `Organization` et `WebSite` sont émis une seule fois par page, jamais dupliqués par
+  > vérifié : bloc « AC4 » du test, sur la **chaîne exacte** `</script>` (description d'agence et
+  > bio d'agent), plus `</SCRIPT >`, `<!--`, `<script>`. Il exige les trois choses ensemble :
+  > aucun `<` résiduel, `JSON.parse` ne lève pas, et la donnée **survit** à l'échappement (un
+  > effacement passerait sinon). `scriptJsonLd` échappe **tous** les `<`, pas le motif `</script`.
+- [x] AC5 — `Organization` et `WebSite` sont émis une seule fois par page, jamais dupliqués par
       un composant imbriqué.
+  > vérifié par balayage **dérivé** de `src/` (bloc « AC5 ») : `jsonLdOrganisation` et
+  > `jsonLdSiteWeb` n'ont qu'un seul appelant, `app/[locale]/(public)/layout.tsx` — un layout est
+  > rendu une fois par page ; et `ld+json` n'apparaît que dans `lib/jsonld.tsx`, donc aucun
+  > composant partagé ne peut le dupliquer. Le balayage porte son plancher (`> 500` fichiers vus),
+  > sans quoi un glob cassé le rendrait vert sur rien.
 
 ## Hors périmètre
 
@@ -111,4 +132,90 @@ il n'introduit ni ne cache aucune information.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce que la re-mesure a contredit dans ce ticket
+
+1. **Le chemin cité n'existe plus.** `grep -rln "ld+json" src/` rend
+   `src/app/[locale]/(public)/properties/[slug]/page.tsx` — TCK-434 a déplacé toute la surface
+   publique sous `[locale]`. Le constat du ticket (« un seul emplacement ») reste vrai.
+
+2. **Le balisage existant portait un défaut que le ticket rangeait hors périmètre.**
+   `jsonLdRealEstateListing` émettait `url: '/properties/<slug>'` — **relative**. Une URL relative
+   dans un JSON-LD est résolue contre l'URL du DOCUMENT : sur `/fr/properties/x`, elle désignait
+   `https://hôte/properties/x`, qui rend **307** depuis TCK-434. Le balisage annonçait donc une
+   redirection comme identité du bien. Corrigé — `jsonLdRealEstateListing(property, locale)` — et
+   listé en hors périmètre : y ajouter un `BreadcrumbList` aux URL justes en laissant celle-là
+   fausse aurait été incohérent.
+
+### Décisions non évidentes
+
+- **`RealEstateAgent` des deux côtés, `Person` écarté sur une raison précise.** Le réflexe pour la
+  fiche d'un agent serait `Person`. Il est écarté parce que **`aggregateRating` n'est pas dans le
+  domaine de `Person`** : schema.org l'attache à `Organization`, `Place`, `Service`, `Brand`,
+  `CreativeWork`, `Event`, `Offer`, `Product`. Un nœud `Person` ne pourrait donc pas porter la note
+  que la page AFFICHE, et le balisage cesserait de dire ce que la page dit — la contrainte centrale
+  du ticket. L'agent est relié à son agence par `parentOrganization` (et non `worksFor`, qui est une
+  propriété de `Person`).
+
+- **Le fil d'Ariane n'a PAS de maillon final pour le bien.** Le fil affiché n'en porte pas ; en
+  ajouter un au seul balisage romprait l'égalité que l'AC1 exige.
+
+- **La dérivation des maillons quitte le composant** (`src/lib/fil-d-ariane.ts`, fonction pure, le
+  traducteur en argument) : c'est la seule façon d'être appelable du composant client
+  (`useTranslations`) et de la page serveur (`getTranslations`). Écrire un second calcul aurait
+  produit deux fils qui se ressemblent, et qui divergeraient au premier changement.
+
+- **`Organization` et `WebSite` sont émis depuis `[locale]/(public)/layout.tsx`.** Un layout est
+  rendu exactement une fois par page : c'est la seule structure qui garantisse l'AC5 sans
+  convention. Un test **dérivé** balaie `src/` et exige que `jsonLdOrganisation` / `jsonLdSiteWeb`
+  n'aient qu'un seul appelant, et que `ld+json` n'apparaisse que dans le point d'émission unique.
+  Muté dans les deux sens : un second appelant fait rougir.
+
+- **L'`@id` de l'organisation est le MÊME dans les trois langues** (c'est la même organisation),
+  celui du `WebSite` est **distinct par langue** (trois sites de langue, que les `hreflang` relient).
+
+- **Rien n'est inventé.** Pas de `logo` — `takussan-web/public/` ne porte aucun logo au 2026-08-27,
+  seulement cinq SVG hérités de `create-next-app`. Pas de `sameAs` — aucun compte social vérifié.
+  Pas de `PostalAddress` quand la ville est nulle : un objet vide, ou une rue inventée, seraient
+  pires que l'absence.
+
+- **`sansVides` filtre `undefined`, `null` ET `''`** (elle ne filtrait qu'`undefined`). `0` et
+  `false` sont conservés : ce sont des valeurs. La note à zéro sur zéro avis est refusée là où elle
+  se décide, pas ici.
+
+- **L'échappement porte sur TOUS les `<`**, pas sur le motif `</script`. Un échappement qui
+  reconnaît un motif précis est un échappement qu'on contourne : `</SCRIPT >` et `<!--` sont
+  traités par l'analyseur HTML et ratés par un littéral.
+
+### Passe 2 — deux trous fermés
+
+1. **La décision centrale n'était gardée par AUCUN test.** Remplacer `'RealEstateAgent'` par
+   `'Person'` dans `jsonLdAgent()` laissait **35 tests verts** et `tsc` à 0 — mesuré. C'est
+   pourtant la régression exacte que le raisonnement schema.org existe pour interdire : `Person`
+   n'admet pas `aggregateRating`, donc la note que la page AFFICHE disparaîtrait du balisage sans
+   qu'un seul test bouge.
+
+   Le test neuf n'assère pas la CHAÎNE mais la PROPRIÉTÉ qui l'a fait choisir : le `@type` émis
+   doit appartenir au domaine d'`aggregateRating` (relevé sur schema.org), ascendance comprise. Un
+   futur type mieux adapté passera ; `Person` échoue. Et un `@type` absent de la table
+   d'ascendance fait rougir plutôt que de passer — *une valeur qu'on ne sait pas classer ne se
+   range pas du côté qui arrange.*
+
+2. **Le fil d'Ariane affirmait un `item` non canonique.** Position 4 pointait
+   `/properties?location=<quartier>`, que TCK-433 déclare non canonique. Le quartier est désormais
+   un **libellé non cliquable des deux côtés** — la forme idiomatique d'un dernier maillon —, ce
+   qui garde l'égalité DOM ⇔ JSON-LD de l'AC1 intacte et rend vrai un invariant neuf : *tout `item`
+   du fil est une URL canonique d'elle-même*, éprouvé en confrontant chaque `item` à
+   `cheminCanoniqueDeLaListe`.
+
+### Vérification de bout en bout
+
+`next start`, HTML servi, blocs `ld+json` comptés et analysés :
+
+```
+/fr/properties/<slug>  → 4 blocs : Organization, WebSite, RealEstateListing (url absolue et
+                          préfixée), BreadcrumbList [Accueil, Louer, Dakar, Guédiawaye] avec les
+                          quatre `item` absolus et préfixés
+/fr/agencies/dakar-immo → 3 blocs ; RealEstateAgent SANS `aggregateRating` (0 avis) et SANS
+                          `address` (ville nulle) — AC2 et AC3 constatés en production locale
+/en/agents/<slug>       → 3 blocs ; RealEstateAgent sans aucun `email` (TCK-441), `telephone` seul
+```
