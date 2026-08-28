@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Flag } from 'lucide-react';
 import {
   Dialog,
@@ -92,12 +92,12 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
             <Button type="button" variant="ghost" onClick={() => setShowAuthGate(false)}>
               {t('cancel')}
             </Button>
-            <Link
+            <LienLocalise
               href={`/auth/login?redirect=/properties/${slug}`}
               className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
             >
               {t('signIn')}
-            </Link>
+            </LienLocalise>
           </div>
         </DialogContent>
       </Dialog>

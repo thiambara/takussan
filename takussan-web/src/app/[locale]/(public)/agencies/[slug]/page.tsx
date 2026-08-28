@@ -15,6 +15,7 @@ import {
 } from '@/components/public/profile/ReviewsSection';
 import { TeamStrip } from '@/components/public/profile/TeamStrip';
 import type { PropertyListItem } from '@/types/property';
+import { alternatesLangues } from '@/lib/alternates';
 
 interface AgencyAgentDto {
   id: number;
@@ -88,6 +89,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description: agency.description ?? summary ?? undefined,
+    alternates: alternatesLangues(`/agencies/${slug}`),
     openGraph: {
       title,
       description: agency.description ?? summary ?? undefined,

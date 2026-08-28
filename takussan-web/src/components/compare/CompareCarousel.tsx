@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import Image from 'next/image';
 import { ExternalLink, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -98,7 +98,7 @@ export function CompareCarousel({ columns, onRemove, className }: CompareCarouse
           >
             {col.property ? (
               <>
-                <Link
+                <LienLocalise
                   href={`/properties/${col.property.slug}`}
                   className="relative block aspect-4/3 overflow-hidden rounded-lg"
                 >
@@ -112,18 +112,18 @@ export function CompareCarousel({ columns, onRemove, className }: CompareCarouse
                       'https://placehold.co',
                     )}
                   />
-                </Link>
+                </LienLocalise>
                 <h3 className="line-clamp-2 text-sm font-semibold text-stone-900">
                   {col.property.title}
                 </h3>
                 <div className="flex items-center justify-between">
-                  <Link
+                  <LienLocalise
                     href={`/properties/${col.property.slug}`}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-primary"
                   >
                     <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                     {t('actions.view')}
-                  </Link>
+                  </LienLocalise>
                   <button
                     type="button"
                     onClick={() => onRemove(col.id)}

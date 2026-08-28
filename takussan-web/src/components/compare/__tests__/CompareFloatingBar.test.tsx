@@ -74,7 +74,9 @@ describe('<CompareFloatingBar>', () => {
   it('links to /compare?ids=... when 2+ ids are selected', async () => {
     render(wrap([3, 4]));
     const link = (await screen.findByText(/Comparer \(2\)/)).closest('a');
-    expect(link).toHaveAttribute('href', '/compare?ids=3,4');
+    // TCK-434 : le lien porte la langue. `LienLocalise` la pose depuis le contexte next-intl —
+    // la chaîne de requête traverse intacte, ce qui est le point que ce test garde vraiment.
+    expect(link).toHaveAttribute('href', '/fr/compare?ids=3,4');
   });
 
   it('removes a bien when clicking its avatar pill', async () => {

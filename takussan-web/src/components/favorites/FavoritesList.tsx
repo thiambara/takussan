@@ -1,7 +1,7 @@
 'use client';
 
 import { Heart } from 'lucide-react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useTranslations } from 'next-intl';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { useFavoritesQuery, type FavoriteItem } from '@/lib/queries/favorites';
@@ -85,9 +85,9 @@ export function FavoritesList() {
         title={t('empty')}
         description={t('emptyHint')}
         action={
-          <Link href="/properties" className={buttonVariants()}>
+          <LienLocalise href="/properties" className={buttonVariants()}>
             {t('discoverCta')}
-          </Link>
+          </LienLocalise>
         }
       />
     );

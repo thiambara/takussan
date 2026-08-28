@@ -1,11 +1,15 @@
 import type { Metadata } from 'next';
-import { getTranslations } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
 import { CompareProvider } from '@/context/CompareContext';
 import { CompareFloatingBar } from '@/components/compare/CompareFloatingBar';
 import { ToastProvider, Toaster } from '@/components/ui/toast';
+import { isLocale } from '@/i18n/config';
+
+type LocaleParams = { readonly params: Promise<{ locale: string }> };
 
 /**
  * Public route group layout.
@@ -28,8 +32,16 @@ import { ToastProvider, Toaster } from '@/components/ui/toast';
  * ⚠ le provider imbriqué REMPLACE celui du parent, d'où l'ensemble cumulé (cf. `IntlProvider`).
  *
  * SEO: indexable by default; individual pages override `metadata` as needed.
+ *
+ * i18n d'URL (TCK-434, ADR-0026) : ce groupe vit sous `src/app/[locale]/`. La langue est le premier
+ * segment du chemin, TOUJOURS présent — `/fr/properties/<slug>`, `/en/…`, `/wo/…` — et elle ne
+ * l'est QUE sur cette surface : la console (`/app`, `/admin`, `/super-admin`), `/auth`,
+ * `/onboarding`, `/publish` et le BFF `/api/**` gardent leurs URL et lisent le cookie.
  */
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: LocaleParams): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) notFound();
+  setRequestLocale(locale);
   const t = await getTranslations('meta.home');
   return {
     title: {
@@ -41,9 +53,23 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+export default async function PublicLayout({
+  children,
+  params,
+}: LocaleParams & { children: React.ReactNode }) {
+  // ⚠️ **`[locale]` est un segment DYNAMIQUE : il accepte n'importe quoi.** Sans cette garde,
+  // `/zz/properties` rendrait la page publique entière en français sous une URL qui annonce une
+  // langue inexistante — une page indexable de plus par valeur inventée. `notFound()` est le
+  // comportement juste : cette URL n'existe pas.
+  //
+  // `setRequestLocale` double l'en-tête posé par `src/proxy.ts` : si le proxy ne tourne pas (son
+  // `matcher` évolue, un rendu statique le contourne), la langue reste celle de l'URL.
+  const { locale } = await params;
+  if (!isLocale(locale)) notFound();
+  setRequestLocale(locale);
+
   return (
-    <IntlProvider messages={await messagesPour('(public)')}>
+    <IntlProvider messages={await messagesPour('[locale]/(public)')}>
       <ToastProvider>
         <CompareProvider>
           {children}

@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import {
   Dialog,
   DialogContent,
@@ -56,12 +56,12 @@ export function PropertyReservationDialog({
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               {t('cancel')}
             </Button>
-            <Link
+            <LienLocalise
               href={`/auth/login?redirect=/properties/${property.slug}`}
               className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-3 h-8 text-sm font-medium hover:bg-primary/80 transition-colors"
             >
               {t('signIn')}
-            </Link>
+            </LienLocalise>
           </div>
         </DialogContent>
       </Dialog>
@@ -314,9 +314,9 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
           />
           <span>
             {t('offerForm.termsBefore')}{' '}
-            <Link href="/legal/cgu" className="text-primary underline">
+            <LienLocalise href="/legal/cgu" className="text-primary underline">
               {t('offerForm.termsLink')}
-            </Link>
+            </LienLocalise>
             {' '}{t('offerForm.termsAfter')}
           </span>
         </label>

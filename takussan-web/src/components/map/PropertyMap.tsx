@@ -12,7 +12,7 @@ import {
   useMapEvents,
 } from 'react-leaflet';
 import Image from 'next/image';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
@@ -221,7 +221,7 @@ function MapPopupCard({ feature }: { feature: PropertyMapFeature }) {
   const p = feature.properties;
   const isSale = p.contract_type === 'sale';
   return (
-    <Link
+    <LienLocalise
       href={`/properties/${p.slug}`}
       className="block w-[220px] no-underline text-stone-900"
     >
@@ -247,6 +247,6 @@ function MapPopupCard({ feature }: { feature: PropertyMapFeature }) {
           {formatPrice(p.price, p.currency ?? 'XOF')}
         </p>
       </div>
-    </Link>
+    </LienLocalise>
   );
 }

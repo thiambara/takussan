@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
@@ -38,7 +38,7 @@ export function PropertyCardListing({
       style={{ animationDelay: staggerDelay(index) }}
     >
       <div className="flex gap-4 items-stretch p-3 rounded-2xl bg-card border border-border hover:shadow-[0_8px_24px_rgba(31,24,18,0.08)] transition-shadow">
-        <Link href={`/properties/${property.slug}`} className="block shrink-0">
+        <LienLocalise href={`/properties/${property.slug}`} className="block shrink-0">
           <div className="relative aspect-square w-[170px] rounded-xl overflow-hidden bg-muted">
             <Image
               src={photo}
@@ -63,15 +63,15 @@ export function PropertyCardListing({
               className="absolute top-2 right-2"
             />
           </div>
-        </Link>
+        </LienLocalise>
 
         <div className="flex-1 min-w-0 flex flex-col justify-between py-1 pr-1">
           <div className="space-y-1">
-            <Link href={`/properties/${property.slug}`}>
+            <LienLocalise href={`/properties/${property.slug}`}>
               <h3 className="font-display text-[16px] leading-[20px] font-semibold text-foreground line-clamp-2">
                 {property.title}
               </h3>
-            </Link>
+            </LienLocalise>
 
             {location && (
               <p className="text-[12px] text-muted-foreground flex items-center gap-1 truncate">

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Scale, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -88,7 +88,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
         ))}
       </ul>
 
-      <Link
+      <LienLocalise
         href={canCompare ? `/compare?ids=${idsToCsv(ids)}` : '/compare'}
         aria-disabled={!canCompare}
         tabIndex={canCompare ? 0 : -1}
@@ -100,7 +100,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
         )}
       >
         {cta}
-      </Link>
+      </LienLocalise>
 
       <button
         type="button"

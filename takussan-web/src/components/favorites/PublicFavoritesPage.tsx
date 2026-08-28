@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Heart } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -110,9 +110,9 @@ function PublicFavoritesEmpty() {
       title={t('empty')}
       description={t('emptyHint')}
       action={
-        <Link href="/properties" className={buttonVariants()}>
+        <LienLocalise href="/properties" className={buttonVariants()}>
           {t('discoverCta')}
-        </Link>
+        </LienLocalise>
       }
     />
   );
