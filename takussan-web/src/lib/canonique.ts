@@ -62,14 +62,33 @@ import {
  *   chaque fiche publiée, dans les trois langues. L'argument habituel contre le repli — « les
  *   biens des pages profondes deviennent introuvables » — ne tient pas ici. C'est la seule des
  *   deux raisons d'origine qui survive, et elle était déjà la plus forte ;
- * · **la découpe est VOLATILE, et c'est ce que le rendu serveur rend visible plutôt qu'il ne
- *   l'introduit** : une publication décale toutes les bornes. Une URL `?page=3` indexée ne
- *   désigne donc pas un contenu, elle désigne un rang — le troisième wagon d'un train dont les
- *   wagons changent. Déclarer canonique une page dont le contenu se renouvelle sans que l'URL
- *   bouge, c'est indexer une adresse et servir autre chose. `sort` et `per_page` sont plus
- *   simples encore : à filtres égaux ils rendent le MÊME ensemble de biens, réordonné ou
- *   redécoupé. C'est la définition du contenu dupliqué, et elle n'a jamais rien eu à voir avec
- *   l'endroit où le HTML est fabriqué.
+ * · **ces trois clés désignent un RANG, pas un contenu** — et une publication décale toutes les
+ *   bornes. Une URL `?page=3` indexée ne nomme donc pas un jeu de biens, elle nomme le troisième
+ *   wagon d'un train dont les wagons changent. Déclarer canonique une adresse dont le contenu se
+ *   renouvelle sans qu'elle bouge, c'est indexer une adresse et servir autre chose.
+ *
+ *   ⚠️ **`sort` relève du même argument, et NON de l'argument plus simple qu'on serait tenté de
+ *   lui appliquer.** Ce paragraphe a d'abord écrit qu'« à filtres égaux, `sort` et `per_page`
+ *   rendent le MÊME ensemble de biens, réordonné ou redécoupé ». *C'était faux pour `sort`, et
+ *   écrit dans le geste même qui remplaçait une autre affirmation non mesurée.* Mesuré le
+ *   2026-08-28 sur 251 biens publiés, `per_page` à 30, en comparant les slugs servis :
+ *
+ *   | URL | slugs rendus | absents de la page nue |
+ *   |---|---|---|
+ *   | `?sort=relevance` | 30 | **0** — c'est l'ordre par défaut |
+ *   | `?sort=price_asc` | 30 | **26** |
+ *   | `?sort=price_desc` | 30 | **27** |
+ *   | `?sort=created_desc` | 30 | **25** |
+ *   | `?per_page=12` | 12 | **0** — préfixe exact de `?per_page=48` |
+ *
+ *   `per_page` REDÉCOUPE bien le même ordre (12 ⊂ 30 ⊂ 48, préfixes exacts vérifiés). `sort`,
+ *   lui, **ne réordonne pas un ensemble** : la page 1 d'un tri est un AUTRE sous-ensemble du
+ *   catalogue. Ce qui fonde son repli n'est donc pas « le même contenu sous un autre ordre »,
+ *   c'est la volatilité du rang — exactement comme `?page=3`.
+ *
+ *   ⚠️ Les valeurs de tri sont `relevance|price_asc|price_desc|created_desc|distance` : `sort=-created_at`
+ *   et consorts rendent **422**, et une campagne qui les interroge lit « 0 bien » puis conclut de
+ *   travers. *Vérifier le code HTTP de l'API avant de lire le HTML.*
  *
  * ⚠ Ce qui rouvrirait la question : des **pages de facettes paginées** délibérément indexables
  * (« villas à Dakar, page 2 »), c'est-à-dire une surface produit qui n'existe pas — elle est

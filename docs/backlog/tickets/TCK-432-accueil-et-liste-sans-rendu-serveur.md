@@ -187,6 +187,48 @@ l'onglet). Le `<h1>` l'aurait affiché en grand : garde-fou `t.has()`, éprouvé
 ⚠️ **Reste ouvert, hors périmètre** : `types/search.ts` traduit la même valeur non validée pour la
 puce de filtre (`libelle` de `type` et de `rent_period`). Le `MISSING_MESSAGE` y **lève**, et fait
 échouer le rendu serveur entier de `/properties?type=<inconnu>` — 0 bien, 0 `<h1>`, squelette seul.
-Ni `types/search.ts` ni `SearchToolbar.tsx` ne sont touchés par ce ticket. À router vers un ticket
-propre : la bonne réponse (déposer le filtre ? afficher l'erreur ? libeller la valeur brute ?) est
-une décision de la surface des puces.
+Ni `types/search.ts` ni `SearchToolbar.tsx` ne sont touchés par ce ticket. La revue adverse a
+mesuré la BASE sur cette URL précise : **h1=0, 0 bien, HTTP 200 — identique**. Ce n'est donc pas une
+régression. À router vers un ticket propre : la bonne réponse (déposer le filtre ? afficher
+l'erreur ? libeller la valeur brute ?) est une décision de la surface des puces.
+
+⚠️ **Second point ouvert, découvert par la revue** : `city` traverse la MÊME dérivation que `type`
+**sans garde-fou possible** — la liste des villes n'est pas dans le dictionnaire. Mesuré :
+`?city=<b>PIRATE</b> Dakar` rend `<h1>Biens immobiliers à &lt;b&gt;PIRATE&lt;/b&gt; Dakar</h1>`.
+Échappé par React (aucune injection), mais texte choisi par l'appelant du lien, en `<h1>` et en
+`<title>`, sur une URL que `filtresCanoniques` déclare **canonique donc indexable**. La réponse
+n'est pas un garde-fou de libellé mais une décision de canonicité — surface de TCK-433. Nommé dans
+le docblock de `titreEtDescription` ; à router vers un ticket.
+
+### Passe 2 — ce que la revue adverse a refusé, et ce qui a changé
+
+Trois refus, aucun sur du code faux ; tous sur des affirmations et des gardes.
+
+1. **`canonique.ts` livrait une prémisse fausse DANS le geste où il en remplaçait une.**
+   « À filtres égaux, `sort` et `per_page` rendent le MÊME ensemble de biens, réordonné ou
+   redécoupé. » Re-mesuré indépendamment le 2026-08-28 sur 251 biens publiés, `per_page` à 30, en
+   vérifiant le code HTTP de l'API **avant** de lire le HTML : `?sort=price_asc` rend 30 slugs dont
+   **26 absents** des 30 de la page nue, `?sort=price_desc` **27**, `?sort=created_desc` **25**.
+   `per_page`, lui, redécoupe bien (12 ⊂ 30 ⊂ 48, préfixes exacts). **`sort` ne réordonne pas un
+   ensemble : la page 1 d'un tri est un autre sous-ensemble.** La décision est maintenue, mais sur
+   l'argument du RANG — le même que `?page=3` — et le paragraphe porte désormais le relevé qui
+   contredit sa propre version antérieure.
+
+2. **La garde des trois langues du `<h1>` ne gardait qu'elle-même.** Un repli sur `''` dégradait
+   l'assertion en `toContain('><')`, vrai de tout HTML. Et comme `src/i18n/request.ts` met `fr` en
+   repli sous les autres langues, une clé absente du wolof fait rendre le `<h1>` **français** : le
+   test **certifiait une page wolof en français**. Deux bornes non recouvrantes le remplacent — la
+   clé existe (message nommant le fichier), et la page non française ne sert pas le libellé
+   français. ⚠ La borne du ternaire n'était pas `homepage.h1` mais `homepage` : retirer la seule
+   clé faisait déjà rougir. *Une ablation arrêtée un cran trop tôt conclut à une garde saine.*
+
+3. **Le câblage de la page n'était gardé par rien** — 45 tests verts avec une clef semée produite
+   par la mauvaise fonction, 25 avec `versParametres` à la place de `parametresDepuisNext`. Les
+   deux propriétés étaient éprouvées au niveau de la BIBLIOTHÈQUE, pas là où l'appelant choisit.
+   `(liste)/__tests__/cablage-de-la-page.test.tsx` les prend au point de choix, par un capteur
+   posé sur la prop.
+
+Et la page fabriquait **deux chaînes pour une requête** (`requete.toString()` pour l'appel,
+`clefDeRecherche(requete)` pour la graine) alors que le docblock de `rechercherBiensPublics`
+affirmait le contraire — c'est ce qui rendait l'écart invisible à la relecture. Une seule chaîne
+désormais, et un test l'exige.

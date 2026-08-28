@@ -16,7 +16,7 @@ import type { PropertyListItem } from '@/types/property';
  * d'entrée du site.
  *
  * ════════════════════════════════════════════════════════════════════════════════════════════════
- * POURQUOI `renderToStaticMarkup` ET NON `render` DE TESTING-LIBRARY
+ * POURQUOI `renderToReadableStream` ET NON `render` DE TESTING-LIBRARY
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  *
  * L'AC1 le demande en toutes lettres : *« le test s'exécute sans hydratation ; un test qui monte le
@@ -396,13 +396,39 @@ describe('TCK-432 · AC3 — exactement un `<h1>` par page, issu du dictionnaire
       reponsePour = () => RANGEES;
       const accueil = await html(PageDAccueil());
       expect(compteDeH1(accueil)).toBe(1);
-      expect(accueil).toContain(`>${DICTIONNAIRES[locale].homepage ? (DICTIONNAIRES[locale] as typeof fr).homepage.h1 : ''}<`);
+
+      // ⚠⚠ **Ce cas a d'abord été écrit avec un repli sur `''`, et il ne gardait alors que
+      // lui-même.** `expect(markup).toContain('><')` est vrai de TOUT HTML : la garde se
+      // désarmait sur exactement la panne qu'elle existe pour attraper. Et la panne est réelle —
+      // `src/i18n/request.ts` met `fr` en repli sous les autres langues, si bien qu'une clé
+      // absente du wolof ne rend pas une clé brute mais **le libellé FRANÇAIS**. Un test qui
+      // l'accepte ne rate pas un défaut : *il certifie une page wolof en français.*
+      //
+      // Mesuré (ablation v10 « MY-A2 », rejouée ici) : en retirant l'espace `homepage` ENTIER de
+      // `wo.json`, la version à repli laissait les 11 tests du fichier au VERT.
+      //
+      // ⚠ La borne de l'ancien ternaire n'était pas `h1`, c'était `homepage` : retirer la seule
+      // clé `homepage.h1` faisait bien rougir. *Une ablation arrêtée un cran trop tôt conclut à
+      // une garde saine.*
+      const attendu = (DICTIONNAIRES[locale] as typeof fr).homepage?.h1;
+      expect(attendu, `homepage.h1 manque dans ${locale}.json`).toBeTruthy();
+      expect(accueil).toContain(`>${attendu}<`);
+      // La borne qui attrape le repli : la page non française ne doit PAS servir le libellé
+      // français. C'est elle, et non l'égalité ci-dessus, qui distingue « traduit » de
+      // « retombé sur le français ».
+      if (locale !== 'fr') expect(accueil).not.toContain(`>${fr.homepage.h1}<`);
 
       reponsePour = () => RESULTAT_VILLA;
       parametresCourants = new URLSearchParams();
       const liste = await html(PageDeLaListe({ searchParams: Promise.resolve({}) }));
       expect(compteDeH1(liste)).toBe(1);
-      expect(liste).toContain(`>${(DICTIONNAIRES[locale] as typeof fr).meta.properties.title}<`);
+
+      // Même exigence, même paire de bornes : le libellé attendu existe, il est rendu, et la
+      // page non française ne sert pas celui du français.
+      const attenduListe = (DICTIONNAIRES[locale] as typeof fr).meta?.properties?.title;
+      expect(attenduListe, `meta.properties.title manque dans ${locale}.json`).toBeTruthy();
+      expect(liste).toContain(`>${attenduListe}<`);
+      if (locale !== 'fr') expect(liste).not.toContain(`>${fr.meta.properties.title}<`);
     }
   });
 

@@ -69,6 +69,32 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
  *   la même requête. Sans elle, un clic sur « Appartement » réafficherait les villas du serveur
  *   sous une puce « Appartement ».
  *
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * OÙ LES BIENS SE TROUVENT DANS LA RÉPONSE — ET POURQUOI CE N'EST PAS AU MÊME ENDROIT QUE L'ACCUEIL
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Cette page passe par une frontière de suspension, l'accueil non. La conséquence est **structurelle
+ * et se mesure en offsets d'octets** — jamais en durées, qui ne diraient que l'état de la machine.
+ * Relevé le 2026-08-28 sur `?type=villa` (426 827 octets pour l'accueil, 432 201 ici) :
+ *
+ * | | accueil | cette page |
+ * |---|---|---|
+ * | frontières repliées (`<template id="B:n">`) | **0** | **2** |
+ * | scripts de révélation (`$RC(`) | **0** | **2** |
+ * | où sont les biens | émis EN PLACE | dans `<div hidden id="S:n">`, ouvert à l'offset 25 873 |
+ * | où est le `<h1>` | offset 22 442 | offset 261 635 |
+ * | où est le repli (`animate-pulse`) | absent | offset 19 255 |
+ *
+ * Autrement dit : sur cette page, le squelette part **en premier**, et les 27 biens plus le `<h1>`
+ * arrivent plus loin **dans la même réponse**, révélés par un `$RC(…)` inline (dernier à l'offset
+ * 432 162). Aucun aller-retour réseau, aucune hydratation, aucun JavaScript de l'application : un
+ * explorateur qui lit le corps entier les voit, et c'est ce que la mesure de 27 slugs rapporte.
+ *
+ * ⚠ Ce que cela implique et qu'il ne faut pas confondre : le fragment est servi `hidden`, donc il
+ * n'est pas **visible** tant que le script inline n'a pas tourné — contrairement à l'accueil. C'est
+ * une différence réelle entre les deux surfaces, elle est le prix de la frontière, et elle ne se
+ * supprime pas sans la supprimer (voir juste en dessous pourquoi c'est exclu).
+ *
  * ⚠️ **`<Suspense>` reste, et le `loading.tsx` du groupe `(liste)` aussi.** `PropertiesDiscoveryPage`
  * lit `useSearchParams` : son rendu peut suspendre, et un `<Suspense>` sans repli ne montrerait
  * rien (TCK-335, étape 6). Surtout, **ne pas les déplacer** : en Next, une frontière de suspension
@@ -80,13 +106,24 @@ export default async function Page({ searchParams }: Props) {
   const brut = await getLocale();
   const locale = isLocale(brut) ? brut : 'fr';
 
+  const params = await searchParams;
+
   // ⚠ `parametresDepuisNext`, pas `versParametres` : celle de la canonique garde la PREMIÈRE valeur
   // d'un paramètre répété. Ici tout doit passer, sans quoi `?tags=a&tags=b` partirait amputé au
   // serveur et complet au client — deux listes pour un seul écran.
-  const requete = parametresDeRecherche(parametresDepuisNext(await searchParams));
-  const resultat = await rechercherBiensPublics(requete.toString(), locale);
+  const requete = parametresDeRecherche(parametresDepuisNext(params));
 
-  const { title } = await titreEtDescription(versParametres(await searchParams));
+  // ⚠ **UNE chaîne pour UNE requête**, et c'est le docblock de `rechercherBiensPublics` qui
+  // l'exige : la clef de mémoïsation et la clef semée sont le MÊME objet. Une version antérieure
+  // en fabriquait deux — `requete.toString()` pour l'appel, `clefDeRecherche(requete)` pour la
+  // graine — ce qui est exactement le doublon que `lib/recherche-publique.ts` existe pour
+  // interdire, et ce qui rendait invisible à la relecture le fait qu'une seule des deux soit
+  // TRIÉE. La chaîne triée est une requête parfaitement valide ; il n'y a aucune raison d'en
+  // garder une seconde.
+  const clef = clefDeRecherche(requete);
+  const resultat = await rechercherBiensPublics(clef, locale);
+
+  const { title } = await titreEtDescription(versParametres(params));
 
   return (
     // `fallback` n'était PAS passé (TCK-335, étape 6) : un `<Suspense>` sans repli ne montre
@@ -99,7 +136,7 @@ export default async function Page({ searchParams }: Props) {
         graine={
           // `null` sur panne — y compris un 422. L'arbitrage d'erreur est déjà pris, et mieux,
           // par `PropertiesDiscoveryPage` : cf. `rechercherBiensPublics`.
-          resultat ? { resultat, clef: clefDeRecherche(requete) } : null
+          resultat ? { resultat, clef } : null
         }
       />
     </Suspense>
