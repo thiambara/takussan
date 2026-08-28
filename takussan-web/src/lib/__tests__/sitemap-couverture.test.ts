@@ -35,7 +35,32 @@ import {
 
 const RACINE_PUBLIQUE = join(process.cwd(), 'src/app/[locale]/(public)');
 
-type Indexabilite = 'indexable' | 'noindex' | 'inconnu';
+/**
+ * Comment une page se déclare vis-à-vis des moteurs — QUATRE états, sur DEUX axes orthogonaux.
+ *
+ * ⚠️ **Ce type est né de la fusion de deux modèles à trois états qui ne mesuraient pas la même
+ * chose.** Les garder séparés aurait laissé chacun aveugle à l'axe de l'autre :
+ *
+ *   axe 1 — la déclaration est-elle LISIBLE SUR PLACE ?   (TCK-431)
+ *   axe 2 — est-elle INCONDITIONNELLE ?                    (TCK-436)
+ *
+ *   `indexable`    → lisible, indexable            ⇒ DOIT être au sitemap
+ *   `conditionnel` → lisible, `noindex` seulement sous condition (spread conditionnel dans
+ *                    `generateMetadata`) ⇒ DOIT y être : c'est sa forme NUE que le sitemap déclare
+ *   `jamais`       → lisible, `noindex` inconditionnel ⇒ ne peut PAS y être
+ *   `inconnu`      → NON lisible sur place ⇒ FAIT ROUGIR, et n'est compté d'aucun côté
+ *
+ * ⚠️ **`inconnu` ne compte pas comme indexable, et c'est tout l'objet du premier axe.** Le ranger
+ * du côté indexable reproduirait le repli qu'on a retiré : une page dont la métadonnée est
+ * IMPORTÉE n'porte aucun jeton `robots:`, passait donc pour indexable, était réclamée au sitemap,
+ * et 60 tests passaient avec elle dedans alors qu'elle sert `noindex`.
+ *
+ * ⚠️ **Ce que ce classement NE voit toujours pas**, dit plutôt que laissé à croire : une page qui
+ * rendrait `index: false` INCONDITIONNELLEMENT depuis une expression que le scan ne sait pas lire
+ * tombe en `inconnu` et fait rougir — c'est le comportement voulu — mais le scan lit du TEXTE, il
+ * n'évalue rien. C'est le plancher assumé de ce fichier.
+ */
+type Indexabilite = 'indexable' | 'conditionnel' | 'jamais' | 'inconnu';
 
 type RoutePublique = {
   /** Chemin SANS langue, tel que le sitemap le manipule : `/`, `/properties/[slug]`. */
@@ -124,9 +149,37 @@ function premierNiveau(corps: string): string {
  * · une déclaration lisible AVEC `robots` sous une forme reconnue → cette forme ;
  * · toute autre forme de `robots` → `'inconnu'`.
  *
- * Mesuré le 2026-08-28 : les NEUF pages publiques déclarent leur métadonnée sur place, donc
+ * Mesuré le 2026-08-28 : les ONZE pages publiques déclarent leur métadonnée sur place, donc
  * exiger la déclaration ne coûte aucun faux positif aujourd'hui.
  */
+/**
+ * Les intervalles couverts par un spread conditionnel `...(cond ? { … } : {})` — repris de
+ * TCK-436. Une déclaration `noindex` qui vit ENTIÈREMENT dans l'un d'eux est conditionnelle.
+ */
+function spansDeSpreadConditionnel(source: string): readonly [number, number][] {
+  const spans: [number, number][] = [];
+  let depart = source.indexOf('...(');
+  while (depart !== -1) {
+    let profondeur = 0;
+    let i = depart + 3;
+    for (; i < source.length; i += 1) {
+      if (source[i] === '(') profondeur += 1;
+      else if (source[i] === ')') {
+        profondeur -= 1;
+        if (profondeur === 0) break;
+      }
+    }
+    spans.push([depart, i]);
+    depart = source.indexOf('...(', i === source.length ? source.length : i + 1);
+  }
+  return spans;
+}
+
+/** Un `noindex` trouvé à `position` est-il enfermé dans un spread conditionnel ? */
+function sousCondition(source: string, position: number): boolean {
+  return spansDeSpreadConditionnel(source).some(([d, f]) => position > d && position < f);
+}
+
 function indexabiliteDe(source: string): Indexabilite {
   const propre = sansCommentaires(source);
 
@@ -140,7 +193,10 @@ function indexabiliteDe(source: string): Indexabilite {
   if (!/\brobots\s*:/.test(propre)) return 'indexable';
 
   const chaine = propre.match(/\brobots\s*:\s*(['"`])([^'"`]*)\1/);
-  if (chaine) return /\bnoindex\b/i.test(chaine[2]!) ? 'noindex' : 'indexable';
+  if (chaine) {
+    if (!/\bnoindex\b/i.test(chaine[2]!)) return 'indexable';
+    return sousCondition(propre, chaine.index!) ? 'conditionnel' : 'jamais';
+  }
 
   const ouverture = propre.search(/\brobots\s*:\s*\{/);
   if (ouverture !== -1) {
@@ -149,7 +205,14 @@ function indexabiliteDe(source: string): Indexabilite {
       // ⚠ PREMIER NIVEAU seulement : un `googleBot: { index: false }` imbriqué ne décide pas de
       // l'indexabilité générale de la page.
       const plat = premierNiveau(corps);
-      if (/\bindex\s*:\s*false\b/.test(plat)) return 'noindex';
+      if (/\bindex\s*:\s*false\b/.test(plat)) {
+        // ⚠ TOUTES les occurrences doivent être conditionnelles : une seule inconditionnelle
+        // suffit à dire que la page ne veut JAMAIS être indexée.
+        const positions: number[] = [];
+        const motif = /\bindex\s*:\s*false\b/g;
+        for (let m = motif.exec(propre); m !== null; m = motif.exec(propre)) positions.push(m.index);
+        return positions.every((i) => sousCondition(propre, i)) ? 'conditionnel' : 'jamais';
+      }
       if (/\bindex\s*:\s*true\b/.test(plat)) return 'indexable';
     }
   }
@@ -182,7 +245,27 @@ function collecter(dossier: string, acc: RoutePublique[] = []): RoutePublique[] 
         indexabilite,
         // ⚠ `'inconnu'` n'est PAS traité comme indexable : il fait rougir un test dédié. Le
         // compter ici d'un côté ou de l'autre reproduirait le repli qu'on vient de retirer.
-        indexable: indexabilite === 'indexable',
+        // ⚠ `'conditionnel'` l'EST : sa forme nue est indexable, et c'est cette forme-là que le
+        // sitemap déclare (TCK-436, mesuré — `/agencies` nue rend `index, follow`,
+        // `/agencies?city=Zzzinventee` rend `noindex, follow`).
+        //
+        // ⚠⚠ **CE PRÉDICAT N'EST EXERCÉ QUE SUR UN DE SES DEUX AXES, et c'est déclaré plutôt que
+        // supposé.** Mesuré par ablation à la fusion du lot (md5 relevé avant/après) :
+        //
+        //   · l'axe CONDITIONNEL débranché  → 2 tests ROUGES  ✔ exercé
+        //   · l'axe LISIBILITÉ débranché
+        //     (`indexable: indexabilite !== 'jamais'`) → 20/20 VERTS  ✘ NON exercé
+        //
+        // La raison est que l'arborescence ne contient aujourd'hui AUCUNE page `'inconnu'` : les
+        // onze déclarent leur métadonnée sur place. La distinction ne mord donc que le jour où une
+        // page devient illisible — c'est exactement ce contre quoi elle existe, et c'est aussi
+        // pourquoi aucun test ne peut l'exercer sans fabriquer une telle page.
+        //
+        // Le test « classe CHAQUE route » garde l'invariant en amont (aucune route `'inconnu'`) ;
+        // ce prédicat-ci est la SECONDE ligne, celle qui décide si une telle page entrerait au
+        // sitemap. La retirer ne casserait aucun test aujourd'hui. Il faut le savoir avant de la
+        // retirer.
+        indexable: indexabilite === 'indexable' || indexabilite === 'conditionnel',
       });
     }
   }
@@ -212,14 +295,28 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // Éprouvé sur des sources littérales plutôt que sur les fichiers du dépôt : aucune page ne
     // porte aujourd'hui la forme chaîne, donc l'arborescence seule ne pourrait pas le montrer.
     expect(indexabiliteDe("export const metadata = { robots: { index: false, follow: false } };"))
-      .toBe('noindex');
+      .toBe('jamais');
     expect(indexabiliteDe("export const metadata = { robots: 'noindex, nofollow' };")).toBe(
-      'noindex',
+      'jamais',
     );
-    expect(indexabiliteDe('export const metadata = { robots: "noindex" };')).toBe('noindex');
+    expect(indexabiliteDe('export const metadata = { robots: "noindex" };')).toBe('jamais');
     expect(indexabiliteDe("export const metadata = { robots: { index: true } };")).toBe('indexable');
     expect(indexabiliteDe("export const metadata = { robots: 'index, follow' };")).toBe('indexable');
     expect(indexabiliteDe('export const metadata = { title: "x" };')).toBe('indexable');
+    // ⚠ Le SECOND AXE — un `noindex` enfermé dans un spread conditionnel n'est pas un refus
+    // d'indexation : c'est la forme NUE de la page qui décide, et elle est indexable. Les deux
+    // cas ci-dessous se distinguent par la SEULE présence du spread, à `index: false` identique.
+    expect(
+      indexabiliteDe(
+        'export async function generateMetadata() { return { robots: { index: false } }; }',
+      ),
+    ).toBe('jamais');
+    expect(
+      indexabiliteDe(
+        'export async function generateMetadata() { return { ...(estFacette ? { robots: { index: false } } : {}) }; }',
+      ),
+    ).toBe('conditionnel');
+
     // La troisième forme, celle qui n'existe pas encore.
     expect(indexabiliteDe('export const metadata = { robots: robotsDeLaPage() };')).toBe('inconnu');
     expect(indexabiliteDe('export const metadata = { robots: REGLES };')).toBe('inconnu');
@@ -254,14 +351,16 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
       indexabiliteDe(
         'export const metadata = { robots: { googleBot: { index: true }, index: false } };',
       ),
-    ).toBe('noindex');
+    ).toBe('jamais');
   });
 
-  it('les NEUF pages publiques déclarent leur métadonnée sur place', () => {
+  it('les ONZE pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
-    expect(ROUTES.length).toBe(9);
+    // 9 → 11 à la fusion du lot : TCK-436 ajoute `/agencies` et `/agents`, toutes deux
+    // `conditionnel` (indexables nues, `noindex` sous une facette inventée).
+    expect(ROUTES.length).toBe(11);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }
@@ -272,7 +371,7 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // docblock, AVANT son propre `robots: { index: false }`.
     const source = readFileSync(join(RACINE_PUBLIQUE, 'playground/page.tsx'), 'utf8');
     expect(source).toContain('index: true');
-    expect(indexabiliteDe(source)).toBe('noindex');
+    expect(indexabiliteDe(source)).toBe('jamais');
   });
 
   it('voit les deux natures de page — sinon la détection d’`index: false` est cassée', () => {

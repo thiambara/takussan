@@ -145,10 +145,31 @@ describe('AC3 (seconde moitié) — les URL pointées sont servies', () => {
 
     const appels = sources.flatMap(([, source]) => [...source.matchAll(FABRIQUE)]);
 
-    // Un littéral de MOINS que de pages : `/properties` passe un chemin CALCULÉ
-    // (`cheminCanoniqueDeLaListe`), que ce scan ne peut pas lire. Il est éprouvé pour ce qu'il
-    // rend, dans `src/app/[locale]/(public)/properties/(liste)/__tests__/metadata.test.ts`.
-    expect(appels.length).toBe(PAGES_PUBLIQUES.length - 1);
+    // ⚠️ **CE COMPTE ÉTAIT UN LITTÉRAL, ET IL A ROUGI À LA FUSION DU LOT.** Il disait « un de
+    // moins que de pages », vrai tant que `/properties` était la SEULE à passer un chemin calculé.
+    // TCK-436 en a ajouté deux — `/agencies` et `/agents` dérivent aussi leur chemin — et
+    // `PAGES_PUBLIQUES.length - 1` est devenu faux sans que rien ne dise pourquoi.
+    //
+    // La forme ci-dessous DÉRIVE les deux ensembles au lieu de compter : chaque page tombe d'un
+    // côté ou de l'autre, et leur union DOIT être toutes les pages. Une page qui perdrait son
+    // appel ne se cacherait donc dans ni l'un ni l'autre.
+    const aLitteral = new Set(
+      sources.filter(([, source]) => [...source.matchAll(FABRIQUE)].length > 0).map(([f]) => f),
+    );
+    const cheminCalcule = sources.filter(([f]) => !aLitteral.has(f)).map(([f]) => f);
+
+    expect(
+      [...aLitteral].length + cheminCalcule.length,
+      'toute page publique tombe dans exactement un des deux ensembles',
+    ).toBe(PAGES_PUBLIQUES.length);
+
+    // Les pages à chemin calculé sont éprouvées pour ce qu'elles RENDENT, ailleurs — ce scan ne
+    // sait lire qu'un littéral. Les nommer ici les empêche de grossir en silence.
+    expect(cheminCalcule.map((f) => f.replace(/^.*\(public\)/, '')).sort()).toEqual([
+      '/agencies/page.tsx',
+      '/agents/page.tsx',
+      '/properties/(liste)/page.tsx',
+    ]);
     for (const [, , chemin] of appels) {
       expect(chemin!.startsWith('/'), chemin).toBe(true);
       expect(estCheminLocalisable(chemin!.replace(/\$\{[^}]*\}/g, 'x')), chemin).toBe(true);

@@ -132,12 +132,49 @@ describe('Footer (TCK-437)', () => {
     expect(push).toHaveBeenCalledWith('/fr/compare');
   });
 
-  it("la colonne « Professionnels » n'est PAS rendue tant que TCK-436 n'a rien à y mettre", () => {
+  it('la colonne « Professionnels » est rendue depuis TCK-436, et ses deux liens mènent quelque part', () => {
+    // ⚠ Cette assertion était l'INVERSE jusqu'à TCK-436 : la colonne existait, vide, parce que
+    // `/agencies` et `/agents` répondaient 404 et que TCK-437 refusait de poser un lien mort. Le
+    // ticket a livré les deux index ; la colonne les porte. Ce qui n'a pas changé, c'est la
+    // MÉCANIQUE — une colonne sans entrée n'est toujours pas rendue, et c'est le test suivant qui
+    // le tient, en la vidant plutôt qu'en attendant qu'elle le soit.
     monter();
-    // Le titre existe dans les trois dictionnaires, la colonne est déclarée — mais un en-tête
-    // sans lien serait exactement la promesse vide que ce ticket corrige.
-    expect(within(pied()).queryByText('Professionnels')).toBeNull();
-    expect(within(pied()).getByText('Découvrir')).toBeInTheDocument();
-    expect(within(pied()).getByText('Vos outils')).toBeInTheDocument();
+    const zone = pied();
+
+    expect(within(zone).getByText('Professionnels')).toBeInTheDocument();
+    expect(within(zone).getByText('Découvrir')).toBeInTheDocument();
+    expect(within(zone).getByText('Vos outils')).toBeInTheDocument();
+
+    for (const [nom, chemin] of [
+      ['Les agences', '/agencies'],
+      ['Les agents', '/agents'],
+    ] as const) {
+      const lien = within(zone).getByRole('link', { name: nom });
+      expect(lien).toHaveAttribute('href', `/fr${chemin}`);
+      // La destination existe RÉELLEMENT sous `src/app` — inventaire dérivé, jamais recopié.
+      expect(routeExiste(chemin), `« ${chemin} » ne mène à aucune page`).toBe(true);
+    }
+  });
+
+  it("une colonne SANS entrée n'est toujours pas rendue — la mécanique de TCK-437 tient", async () => {
+    // Le seul moyen honnête d'éprouver « une colonne vide n'est pas rendue » maintenant qu'aucune
+    // ne l'est : en vider une. Attendre qu'une colonne se trouve vide, c'est éprouver l'état du
+    // dépôt, pas le composant — et cette garde-là s'est éteinte le jour où TCK-436 a livré.
+    vi.resetModules();
+    vi.doMock('@/data/navigation', async (importOriginal) => {
+      const vrai = await importOriginal<typeof import('@/data/navigation')>();
+      return { ...vrai, footerLinks: { ...vrai.footerLinks, professionnels: [] } };
+    });
+
+    const { Footer: FooterSansColonne } = await import('@/components/home/Footer');
+    render(withIntl(<FooterSansColonne />));
+    const zones = screen.getAllByRole('contentinfo');
+    const zone = zones[zones.length - 1]!;
+
+    expect(within(zone).queryByText('Professionnels')).toBeNull();
+    expect(within(zone).getByText('Découvrir')).toBeInTheDocument();
+
+    vi.doUnmock('@/data/navigation');
+    vi.resetModules();
   });
 });

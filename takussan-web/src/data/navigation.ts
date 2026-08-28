@@ -112,25 +112,16 @@ export interface LienDePiedDePage {
  * · Réseaux sociaux : aucun compte n'est connu de ce dépôt. Une icône vers un profil inventé est
  *   le défaut même que ce ticket corrige.
  *
- * ⚠ **`professionnels` est VIDE, et c'est délibéré.** `/agencies` et `/agents` n'existent pas
- * encore — seules les pages de DÉTAIL `/agencies/[slug]` et `/agents/[slug]` sont livrées.
- * TCK-436 crée les deux index. Le pied de page ne rend aucune colonne vide, et
- * `src/data/__tests__/navigation.test.ts` refuse tout `href` qui ne résout pas : un lien posé en
- * avance rougirait immédiatement.
+ * ✅ **`professionnels` est BRANCHÉE depuis TCK-436**, qui a livré les deux index. La colonne
+ * était vide parce que `/agencies` et `/agents` répondaient 404 — seules les pages de DÉTAIL
+ * `/agencies/[slug]` et `/agents/[slug]` existaient — et TCK-437 refusait de poser un lien mort
+ * en avance. Elle porte désormais deux liens qui mènent quelque part, et
+ * `src/data/__tests__/navigation.test.ts` le VÉRIFIE contre l'arborescence réelle : le jour où
+ * l'une des deux pages serait supprimée, le lien rougirait au lieu de rester à l'écran.
  *
- * **POINT DE BRANCHEMENT POUR TCK-436** — deux endroits, et rien d'autre à toucher :
- *
- * ```ts
- * professionnels: [
- *   { labelKey: 'agencies', href: '/agencies' },
- *   { labelKey: 'agents',   href: '/agents' },
- * ],
- * ```
- *
- * plus les libellés `footer.professionals.agencies` et `footer.professionals.agents` dans
- * `src/messages/{fr,en,wo}.json`. Le TITRE de la colonne (`footer.professionalsHeading`) y est
- * déjà, dans les trois langues : `Footer.tsx` le résout avant de filtrer les colonnes vides, et
- * une colonne dont le titre n'existerait pas rendrait sa clé à l'écran.
+ * *Une colonne vide était le bon état tant que la destination n'existait pas ; c'est le mauvais
+ * état une fois qu'elle existe.* Les libellés vivent dans `footer.professionals.*`, le titre dans
+ * `footer.professionalsHeading` — les trois langues, comme le reste du pied de page.
  */
 export const footerLinks = {
   discover: [
@@ -138,7 +129,10 @@ export const footerLinks = {
     { labelKey: 'featured', href: '/properties?featured=true' },
     { labelKey: 'latest',   href: '/properties?sort=created_desc' },
   ],
-  professionnels: [] as readonly LienDePiedDePage[],
+  professionnels: [
+    { labelKey: 'agencies', href: '/agencies' },
+    { labelKey: 'agents', href: '/agents' },
+  ] as readonly LienDePiedDePage[],
   tools: [
     { labelKey: 'favorites', href: '/favorites' },
     { labelKey: 'compare',   href: '/compare' },

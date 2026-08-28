@@ -149,6 +149,7 @@
       "property",
       "publicContact",
       "publicProfile",
+      "publicProfileIndex",
       "recentlyViewed",
       "search",
       "serverActions",
@@ -181,7 +182,7 @@
     "publish": 19,
     "onboarding": 42,
     "(dashboard)": 16,
-    "(dashboard)/app": 69,
+    "(dashboard)/app": 68,
     "(dashboard)/admin": 56,
     "[locale]/(public)": 37,
     "(super-admin)/super-admin": 43

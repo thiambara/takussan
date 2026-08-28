@@ -247,6 +247,10 @@
     "tools": {
       "favorites": "My favourites",
       "compare": "Compare"
+    },
+    "professionals": {
+      "agencies": "Agencies",
+      "agents": "Agents"
     }
   },
   "map": {
@@ -314,6 +318,18 @@
     "propertyUnavailable": {
       "title": "Listing temporarily unavailable",
       "description": "This listing cannot be displayed right now. Please try again in a moment."
+    },
+    "agencies": {
+      "title": "Real estate agencies in Senegal",
+      "description": "Browse the real estate agencies active on Takussan: portfolio, cities covered and client reviews.",
+      "titleCity": "Real estate agencies in {city}",
+      "descriptionCity": "Real estate agencies publishing listings in {city} on Takussan: portfolio, reviews and details."
+    },
+    "agents": {
+      "title": "Real estate agents in Senegal",
+      "description": "Browse the real estate agents and advisers active on Takussan: portfolio, cities covered and client reviews.",
+      "titleCity": "Real estate agents in {city}",
+      "descriptionCity": "Real estate agents and advisers publishing listings in {city} on Takussan."
     }
   },
   "homepage": {
@@ -7485,6 +7501,51 @@
     },
     "footer": {
       "brandLine": "Takussan — Real estate in Senegal"
+    }
+  },
+  "publicProfileIndex": {
+    "card": {
+      "portfolio": "{count, plural, one {listing} other {listings}}",
+      "rent": "{count, plural, one {# to rent} other {# to rent}}",
+      "sale": "{count, plural, one {# for sale} other {# for sale}}",
+      "reviews": "· {count, plural, one {# review} other {# reviews}}",
+      "verified": "Verified profile",
+      "ratingAria": "Average rating {rating} out of 5"
+    },
+    "filters": {
+      "submit": "Search",
+      "allCities": "All cities",
+      "cityGroupAria": "Filter by city",
+      "clear": "Clear filters"
+    },
+    "pagination": {
+      "navAria": "Pagination",
+      "previous": "Previous",
+      "next": "Next",
+      "position": "Page {page} of {total}"
+    },
+    "empty": {
+      "body": "Try another city or widen your search."
+    },
+    "error": {
+      "title": "Directory temporarily unavailable",
+      "body": "We could not load the list. Please try again in a moment."
+    },
+    "agencies": {
+      "eyebrow": "Real estate agencies",
+      "heading": "The agencies working near you",
+      "intro": "Every agency listed here has at least one available listing. Browse their portfolio, the cities they cover and what their clients say.",
+      "searchPlaceholder": "Agency name",
+      "count": "{count, plural, one {# agency} other {# agencies}}",
+      "emptyTitle": "No agency matches"
+    },
+    "agents": {
+      "eyebrow": "Agents & advisers",
+      "heading": "The professionals behind the listings",
+      "intro": "Every profile listed here has at least one available listing. Discover their portfolio, the cities they cover and their agency.",
+      "searchPlaceholder": "Agent name",
+      "count": "{count, plural, one {# profile} other {# profiles}}",
+      "emptyTitle": "No profile matches"
     }
   }
 }

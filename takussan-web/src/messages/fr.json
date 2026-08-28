@@ -247,6 +247,10 @@
     "tools": {
       "favorites": "Mes favoris",
       "compare": "Comparateur"
+    },
+    "professionals": {
+      "agencies": "Les agences",
+      "agents": "Les agents"
     }
   },
   "map": {
@@ -314,6 +318,18 @@
     "propertyUnavailable": {
       "title": "Bien momentanément indisponible",
       "description": "Ce bien ne peut pas être affiché pour le moment. Réessayez dans quelques instants."
+    },
+    "agencies": {
+      "title": "Agences immobilières au Sénégal",
+      "description": "Parcourez les agences immobilières actives sur Takussan : portefeuille, villes couvertes et avis des clients.",
+      "titleCity": "Agences immobilières à {city}",
+      "descriptionCity": "Les agences immobilières qui publient des annonces à {city} sur Takussan : portefeuille, avis et coordonnées."
+    },
+    "agents": {
+      "title": "Agents immobiliers au Sénégal",
+      "description": "Parcourez les agents et conseillers immobiliers actifs sur Takussan : portefeuille, villes couvertes et avis des clients.",
+      "titleCity": "Agents immobiliers à {city}",
+      "descriptionCity": "Les agents et conseillers immobiliers qui publient des annonces à {city} sur Takussan."
     }
   },
   "auth": {
@@ -7485,6 +7501,51 @@
     },
     "footer": {
       "brandLine": "Takussan — Immobilier au Sénégal"
+    }
+  },
+  "publicProfileIndex": {
+    "card": {
+      "portfolio": "{count, plural, one {bien} other {biens}}",
+      "rent": "{count, plural, one {# à louer} other {# à louer}}",
+      "sale": "{count, plural, one {# à vendre} other {# à vendre}}",
+      "reviews": "· {count, plural, one {# avis} other {# avis}}",
+      "verified": "Profil vérifié",
+      "ratingAria": "Note moyenne de {rating} sur 5"
+    },
+    "filters": {
+      "submit": "Rechercher",
+      "allCities": "Toutes les villes",
+      "cityGroupAria": "Filtrer par ville",
+      "clear": "Effacer les filtres"
+    },
+    "pagination": {
+      "navAria": "Pagination",
+      "previous": "Précédents",
+      "next": "Suivants",
+      "position": "Page {page} sur {total}"
+    },
+    "empty": {
+      "body": "Essaie une autre ville ou élargis ta recherche."
+    },
+    "error": {
+      "title": "Annuaire momentanément indisponible",
+      "body": "Nous n’avons pas pu charger la liste. Réessaie dans quelques instants."
+    },
+    "agencies": {
+      "eyebrow": "Agences immobilières",
+      "heading": "Les agences qui opèrent près de chez toi",
+      "intro": "Chaque agence présentée ici publie au moins une annonce disponible. Parcours leur portefeuille, leurs villes et les avis de leurs clients.",
+      "searchPlaceholder": "Nom d’une agence",
+      "count": "{count, plural, one {# agence} other {# agences}}",
+      "emptyTitle": "Aucune agence ne correspond"
+    },
+    "agents": {
+      "eyebrow": "Agents & conseillers",
+      "heading": "Les professionnels derrière les annonces",
+      "intro": "Chaque profil présenté ici publie au moins une annonce disponible. Découvre leur portefeuille, leurs villes et leur enseigne.",
+      "searchPlaceholder": "Nom d’un agent",
+      "count": "{count, plural, one {# profil} other {# profils}}",
+      "emptyTitle": "Aucun profil ne correspond"
     }
   }
 }

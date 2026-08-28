@@ -2,11 +2,17 @@ import type { MetadataRoute } from 'next';
 
 import { listerBiensDuSitemap } from '@/lib/queries/sitemap-catalogue';
 import {
+  RESSOURCES_DE_PROFIL,
+  listerSlugsDeProfils,
+} from '@/lib/queries/public-profiles';
+import {
   PAGES_STATIQUES_INDEXABLES,
   type PageIndexable,
   type SourceDeSitemap,
   cheminDeFiche,
+  cheminDeProfil,
   construireSitemap,
+  partitionnerPagesLocalisables,
 } from '@/lib/sitemap';
 
 /**
@@ -42,12 +48,23 @@ import {
 export const revalidate = 3600;
 
 /**
- * Les sources d'URL, dans l'ordre du fichier produit — **le point d'extension de TCK-436**.
+ * Les sources d'URL, dans l'ordre du fichier produit — le point d'extension nommé par TCK-431.
  *
- * L'agent de TCK-436 ajoute ici une entrée par ressource qu'il rend énumérable (index `/agencies`
- * et `/agents`, puis leurs fiches), et remplace le `source: null` correspondant dans
- * `ROUTES_DYNAMIQUES_PUBLIQUES` (`src/lib/sitemap.ts`) par le `nom` qu'il choisit ici. Le test de
- * couverture le tient : une route dynamique publique absente de cette table fait rougir.
+ * TCK-436 y a ajouté `agences` et `agents`, et remplacé les deux `source: null` correspondants
+ * dans `ROUTES_DYNAMIQUES_PUBLIQUES` (`src/lib/sitemap.ts`) par ces noms. Le test de couverture le
+ * tient : une route dynamique publique absente de cette table fait rougir.
+ *
+ * ⚠ **Chaque source échoue séparément — et ce n'était PAS vrai jusqu'à la passe 2 de TCK-436.**
+ * Ce docblock l'affirmait déjà, et il se trompait : le `try` par source ne couvrait que
+ * l'OBTENTION des pages. La mise en forme, elle, se faisait sur la liste entière, après la
+ * boucle — donc une seule page qu'`entreesLocalisees` refuse tuait le fichier COMPLET. Mesuré :
+ * `/sitemap.xml` rendait 500 et zéro octet à cause de quatre `username` contenant un point.
+ * *Une isolation qui s'arrête avant l'étape qui lève n'isole rien.*
+ *
+ * Les deux moitiés sont donc dans la boucle depuis : le `try` **et** le tri des pages
+ * localisables ({@link partitionnerPagesLocalisables}). Ce qui reste hors de la boucle est le
+ * plafond de 50 000 URL, et il DOIT y rester : c'est une propriété du fichier entier, pas d'une
+ * source, et TCK-431 a décidé qu'il échoue plutôt qu'il ne tronque.
  */
 const SOURCES: readonly SourceDeSitemap[] = [
   {
@@ -68,14 +85,61 @@ const SOURCES: readonly SourceDeSitemap[] = [
       );
     },
   },
+  // TCK-436 — les deux annuaires de profils. Leur source est l'endpoint d'INDEX, qui applique
+  // déjà la règle d'éligibilité à la présence publique : un profil sans portefeuille publié, une
+  // agence suspendue, un agent désactivé n'y sont pas, donc ils n'entrent pas ici non plus (AC6).
+  //
+  // ⚠ Aucun `lastModified` : l'index ne sert pas `updated_at`, et une date inventée est pire
+  // qu'une date absente — un moteur la croit. `changeFrequency` est `weekly` : le portefeuille
+  // d'un profil bouge, sa fiche moins souvent que le catalogue.
+  ...(['agencies', 'agents'] as const).map(
+    (ressource): SourceDeSitemap => ({
+      nom: ressource === 'agencies' ? 'agences' : 'agents',
+      pages: async () => {
+        const slugs = await listerSlugsDeProfils(ressource);
+        return slugs.map(
+          (slug): PageIndexable => ({
+            chemin: cheminDeProfil(RESSOURCES_DE_PROFIL[ressource].chemin, slug),
+            changeFrequency: 'weekly',
+            priority: 0.6,
+          }),
+        );
+      },
+    }),
+  ),
 ];
+
+/** Combien de chemins écartés sont NOMMÉS dans le journal avant de basculer sur un compte. */
+const ECARTS_NOMMES_MAX = 20;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages: PageIndexable[] = [];
 
   for (const source of SOURCES) {
     try {
-      pages.push(...(await source.pages()));
+      const { retenues, ecartees } = partitionnerPagesLocalisables(await source.pages());
+
+      if (ecartees.length > 0) {
+        // ⚠ Écarter en silence rendrait un sitemap valide, plus court, et muet sur ce qu'il
+        // laisse dehors — le mode de défaillance que ce dépôt paie le plus cher. Les chemins
+        // sont donc NOMMÉS, jusqu'à un plafond au-delà duquel le compte suffit à alerter.
+        //
+        // Le POURQUOI vit dans le docblock de `partitionnerPagesLocalisables` et non dans cette
+        // chaîne : un `<dernier segment>.<extension>` sort de la surface publique localisée.
+        // Mesuré le 2026-08-28 sur un serveur réel, la fiche correspondante ne rend PAS 500 —
+        // elle rend 200 en perdant son `<title>` et sa canonique, ce qui est plus discret et
+        // donc pire. Ce détail est hors du message d'exécution, où il n'apprendrait rien de
+        // plus qu'un chemin nommé.
+        const nommes = ecartees.slice(0, ECARTS_NOMMES_MAX).map((p) => p.chemin);
+        const reste = ecartees.length - nommes.length;
+        console.error(
+          `[sitemap] source « ${source.nom} » — ${ecartees.length} page(s) écartée(s), `
+            + `non localisables : ${nommes.join(', ')}`
+            + `${reste > 0 ? ` … et ${reste} de plus` : ''}`,
+        );
+      }
+
+      pages.push(...retenues);
     } catch (err) {
       // Nommer la source : « le sitemap est court » n'apprend rien, « la source `catalogue` a
       // échoué » dit où chercher.

@@ -247,6 +247,10 @@
     "tools": {
       "favorites": "Sama yu neex",
       "compare": "Mengale"
+    },
+    "professionals": {
+      "agencies": "Ajaas yi",
+      "agents": "Jaayekat yi"
     }
   },
   "map": {
@@ -6869,6 +6873,18 @@
     "propertyUnavailable": {
       "title": "Këru bi amul ba tey",
       "description": "Këru bi mënul a wone ci saa si. Jéemaatal ci ay saa."
+    },
+    "agencies": {
+      "title": "Ajaas yu kër ci Senegaal",
+      "description": "Xoolal ajaas yu kër yi ngi liggéey ci Takussan : seen kër yi, dëkk yi ak xalaat yu kiliyaan yi.",
+      "titleCity": "Ajaas yu kër ci {city}",
+      "descriptionCity": "Ajaas yu kër yi di génne kër ci {city} ci Takussan."
+    },
+    "agents": {
+      "title": "Ajaas yu kër ci Senegaal",
+      "description": "Xoolal ajaas ak jaayekat yu kër yi ngi liggéey ci Takussan : seen kër yi, dëkk yi ak xalaat yi.",
+      "titleCity": "Ajaas yu kër ci {city}",
+      "descriptionCity": "Ajaas ak jaayekat yu kër yi di génne kër ci {city} ci Takussan."
     }
   },
   "billing": {
@@ -7485,6 +7501,51 @@
     },
     "footer": {
       "brandLine": "Takussan — Kër yu Senegaal"
+    }
+  },
+  "publicProfileIndex": {
+    "card": {
+      "portfolio": "{count, plural, one {kër} other {kër}}",
+      "rent": "{count, plural, one {# ci luwaas} other {# ci luwaas}}",
+      "sale": "{count, plural, one {# ci njaay} other {# ci njaay}}",
+      "reviews": "· {count, plural, one {# xalaat} other {# xalaat}}",
+      "verified": "Profil bu wóor",
+      "ratingAria": "Nota {rating} ci 5"
+    },
+    "filters": {
+      "submit": "Seet",
+      "allCities": "Dëkk yépp",
+      "cityGroupAria": "Tànn dëkk",
+      "clear": "Far tànneef yi"
+    },
+    "pagination": {
+      "navAria": "Xët yi",
+      "previous": "Bi jiitu",
+      "next": "Bi ci topp",
+      "position": "Xët {page} ci {total}"
+    },
+    "empty": {
+      "body": "Jéemal beneen dëkk walla yaatal sa gëstu."
+    },
+    "error": {
+      "title": "Limu yi mënuñu am léegi",
+      "body": "Mënunu woon a yeb limu bi. Jéemaatal ci ay simili."
+    },
+    "agencies": {
+      "eyebrow": "Ajaas yu kër",
+      "heading": "Ajaas yi liggéey ci sa wet",
+      "intro": "Bépp ajaas bu nekk fii am na lu néew benn kër bu jot. Xoolal seen kër yi, seen dëkk yi ak xalaat yu seeni kiliyaan.",
+      "searchPlaceholder": "Turu ajaas",
+      "count": "{count, plural, one {# ajaas} other {# ajaas}}",
+      "emptyTitle": "Amul benn ajaas bu ànd"
+    },
+    "agents": {
+      "eyebrow": "Ajaas ak jaayekat",
+      "heading": "Ñi nekk ci ginnaaw kër yi",
+      "intro": "Bépp profil bu nekk fii am na lu néew benn kër bu jot. Xamal seen kër yi, seen dëkk yi ak seen ajaas.",
+      "searchPlaceholder": "Turu jaayekat",
+      "count": "{count, plural, one {# profil} other {# profil}}",
+      "emptyTitle": "Amul benn profil bu ànd"
     }
   }
 }

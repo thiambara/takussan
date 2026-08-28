@@ -141,6 +141,21 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
             ->name('properties.contact-message');
     });
 
+    // TCK-436 — les deux INDEX de profils. Segments littéraux : ils DOIVENT rester au-dessus de
+    // `agents/{slug}` et `agencies/{slug}`… ce qui est automatique ici, puisqu'ils n'ont AUCUN
+    // segment après le nom de ressource. Le piège qui menace `properties/sitemap` et
+    // `properties/discovery` — être avalé comme un slug — ne s'applique donc pas.
+    //
+    // Aucun `cache.headers`, pour la raison exacte de `properties/sitemap` : le corps ne varie pas
+    // avec l'appelant (aucun champ de contact, aucune ressource sensible à `$request->user()`),
+    // mais l'appelant est le SERVEUR Next, dont le `fetch` est `no-store` par défaut sous Next 16
+    // — il n'émettra jamais d'`If-None-Match`. Un ETag ici ne servirait personne.
+    Route::get('agencies', [PublicAgencyController::class, 'index'])
+        ->name('agencies.index');
+
+    Route::get('agents', [PublicAgentController::class, 'index'])
+        ->name('agents.index');
+
     // TCK-177 — public agent / agency profile pages.
     Route::get('agents/{slug}', [PublicAgentController::class, 'show'])
         ->name('agents.show');

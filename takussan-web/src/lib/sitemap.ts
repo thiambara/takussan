@@ -54,6 +54,11 @@ export type PageIndexable = {
 export const PAGES_STATIQUES_INDEXABLES: readonly PageIndexable[] = [
   { chemin: '/', changeFrequency: 'daily', priority: 1 },
   { chemin: '/properties', changeFrequency: 'hourly', priority: 0.9 },
+  // TCK-436 — les deux index de profils. Ils n'ont pas été AJOUTÉS à cette liste par choix : le
+  // test de couverture ci-dessous marche l'arborescence et exige que toute page statique publique
+  // sans `robots: { index: false }` y figure. Les livrer sans les déclarer faisait rougir.
+  { chemin: '/agencies', changeFrequency: 'daily', priority: 0.7 },
+  { chemin: '/agents', changeFrequency: 'daily', priority: 0.7 },
 ];
 
 /**
@@ -70,12 +75,13 @@ export const ROUTES_DYNAMIQUES_PUBLIQUES: Readonly<
   Record<string, { readonly source: string | null; readonly ticket?: string }>
 > = {
   '/properties/[slug]': { source: 'catalogue' },
-  // TCK-436 livrera les index `/agencies` et `/agents` ET les endpoints qui les énumèrent : il
-  // n'existe à ce jour AUCUNE route d'API qui liste les agences ou les agents (mesuré le
-  // 2026-08-27 sur `takussan-api/routes/api/public.php` : seules `agencies/{slug}` et
-  // `agents/{slug}` existent). Sans énumération, pas de sitemap — ce n'est pas un oubli.
-  '/agencies/[slug]': { source: null, ticket: 'TCK-436' },
-  '/agents/[slug]': { source: null, ticket: 'TCK-436' },
+  // TCK-436 a livré `GET /api/public/agencies` et `GET /api/public/agents` — les deux
+  // énumérations qui manquaient. Elles ne servent pas seulement les pages d'index : elles SONT la
+  // définition de « profil éligible à la présence publique », appliquée une seule fois côté
+  // serveur. Le sitemap les pagine, il ne rejuge rien — un sitemap qui réécrirait la condition
+  // divergerait de l'index le jour où l'une des deux bouge, et annoncerait des URL rendant 404.
+  '/agencies/[slug]': { source: 'agences' },
+  '/agents/[slug]': { source: 'agents' },
 };
 
 /**
@@ -99,6 +105,20 @@ export type SourceDeSitemap = {
  */
 export function cheminDeFiche(slug: string): string {
   return `/properties/${encodeURIComponent(slug)}`;
+}
+
+/**
+ * Le chemin d'une fiche de PROFIL, slug ENCODÉ — TCK-436.
+ *
+ * Même encodage et même raison que {@link cheminDeFiche} : Next interpole le `<loc>` sans rien
+ * échapper, et un `&` dans un slug rendrait le sitemap ENTIER invalide. Le risque est réel ici :
+ * le slug d'un agent est son `username`, une chaîne saisie par l'utilisateur.
+ *
+ * `base` est `/agencies` ou `/agents` — écrit une seule fois, dans
+ * `src/lib/queries/public-profiles.ts`.
+ */
+export function cheminDeProfil(base: string, slug: string): string {
+  return `${base}/${encodeURIComponent(slug)}`;
 }
 
 /**
@@ -155,6 +175,77 @@ export function entreesLocalisees(page: PageIndexable): MetadataRoute.Sitemap {
     ...(page.changeFrequency !== undefined ? { changeFrequency: page.changeFrequency } : {}),
     ...(page.priority !== undefined ? { priority: page.priority } : {}),
   }));
+}
+
+/**
+ * Sépare les pages que le sitemap peut LOCALISER de celles qu'il ne peut pas — TCK-436, passe 2.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * CE QUE CETTE FONCTION EXISTE POUR EMPÊCHER, ET QUI EST ARRIVÉ
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `/sitemap.xml` est passé de 200 à **500, zéro octet** dès que les profils y sont entrés. La
+ * cause : quatre agents éligibles RÉELS portent un `username` contenant un point
+ * (`owner.agency1` à `owner.agency4`), et {@link estCheminLocalisable} refuse tout chemin dont le
+ * dernier segment ressemble à une extension de fichier. {@link entreesLocalisees} lève alors, et
+ * comme {@link construireSitemap} traite la liste ENTIÈRE, **une seule URL de profil emportait le
+ * catalogue de biens et les pages statiques avec elle**.
+ *
+ * ⚠ Le docblock de `src/app/sitemap.ts` affirmait « chaque source échoue SÉPARÉMENT ». **C'était
+ * faux**, et précisément pour ce cas : le `try` par source couvre l'obtention des pages, pas leur
+ * mise en forme. *Une isolation qui s'arrête avant l'étape qui lève n'isole rien.*
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * POURQUOI ÉCARTER PLUTÔT QUE CORRIGER LE PRÉDICAT
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `estCheminLocalisable` refuse une extension finale pour une raison qui tient : c'est ce qui
+ * empêche `/robots.txt`, `/sitemap.xml`, `/favicon.ico` d'être préfixés d'une langue par
+ * `src/proxy.ts`. Mesuré : les quatre rendent `false`, comme les slugs pointés. Le prédicat ne
+ * sait pas distinguer les deux familles, et le relâcher depuis ici toucherait le proxy, les
+ * `hreflang` et le routage — bien au-delà de ce ticket.
+ *
+ * ⚠ **Le vrai défaut est en amont et il n'est pas de ce commit.** La FICHE `/agents/<slug>`
+ * appelle `alternatesPubliques` dans son `generateMetadata`, qui lève sur ces mêmes chemins.
+ * Mesuré le 2026-08-28 sur un serveur réel — et le résultat n'est pas celui qu'on déduit du
+ * code :
+ *
+ *     /fr/agents/owner.agency1        → 200,  <title> absent,  canonical absente
+ *     /fr/agents/thies-properties-owner-1 → 200,  <title> présent, canonical présente
+ *
+ * Next n'échoue donc PAS sur une exception de `generateMetadata` : il sert la page et **jette
+ * ses métadonnées en silence**. La trace ne vit que dans le journal du serveur. *Un défaut qui
+ * rend 200 et perd son titre est plus cher qu'un 500 : rien ne le signale.* Écarter ces pages du
+ * sitemap reste juste — on n'annonce pas une URL sans titre ni canonique — mais c'est un
+ * pansement sur un défaut qui vit ailleurs (TCK-434 / TCK-433), et le journal le nomme.
+ *
+ * ⚠ J'avais d'abord écrit « la fiche rend 500 », déduit du fait qu'`alternatesLangues` lève.
+ * C'était une déduction, pas une mesure, et elle était fausse.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * L'EXCLUSION EST NOMMÉE, JAMAIS SILENCIEUSE
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * L'appelant journalise ce qui sort. C'est la même règle que {@link LIMITE_URL_PAR_SITEMAP} :
+ * *un sitemap raccourci en silence est valide, plus court, et parfaitement muet sur ce qu'il
+ * laisse dehors.*
+ *
+ * ⚠ Le prédicat employé ici est **le même appel** que celui d'`entreesLocalisees`, pas une copie :
+ * une seconde condition écrite à la main divergerait, et la divergence rendrait soit un 500 (une
+ * page passe le filtre et fait lever la mise en forme), soit une exclusion muette.
+ */
+export function partitionnerPagesLocalisables(pages: readonly PageIndexable[]): {
+  readonly retenues: readonly PageIndexable[];
+  readonly ecartees: readonly PageIndexable[];
+} {
+  const retenues: PageIndexable[] = [];
+  const ecartees: PageIndexable[] = [];
+
+  for (const page of pages) {
+    (estCheminLocalisable(page.chemin) ? retenues : ecartees).push(page);
+  }
+
+  return { retenues, ecartees };
 }
 
 /** Le sitemap complet, une page devenant {@link LOCALES_INDEXABLES}`.length` entrées. */
