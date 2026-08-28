@@ -42,7 +42,10 @@
  * de classes est une ESPACE ; elle donnait trois parce que les trois posages réels écrivent `dark`
  * en premier. *Une commande qui rend le bon nombre sur les cas existants n'est pas une dérivation,
  * c'est une énumération déguisée.* Corrigée ci-dessous (7 sur 7 après ancrage : `grep` est orienté ligne, et un
- * gabarit multiligne peut mettre `dark` seule sur la sienne). `clsx({ dark: x })` reste hors de
+ * gabarit multiligne peut mettre `dark` seule sur la sienne). ⚠ Le coût en bruit vaut **+0 ligne**
+ * pour la commande telle qu'écrite, depuis la racine, à 82d83706 le 2026-08-28 — 23 dans les deux
+ * cas ; d'autres périmètres donnent d'autres nombres, et le détail est dans `contraste-wcag.ts`.
+ * *Un chiffre de bruit sans son périmètre et son commit n'est pas une mesure.* `clsx({ dark: x })` reste hors de
  * portée de tout grep, `dark:` étant aussi le préfixe de la variante.
  *
  * Ne pas recopier la liste : la dériver —

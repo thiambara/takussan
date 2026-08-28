@@ -549,6 +549,27 @@ function ablationDeConfiguration() {
   return false;
 }
 
+/**
+ * Les extensions LUES. ⚠ **Cette liste n'a délibérément AUCUNE boucle d'ablation**, contrairement
+ * à `FAMILLES`, `PREFIXES`, `SUFFIXES` et `CONTROLES` — et c'est un arbitrage, pas l'oubli d'une
+ * cinquième liste.
+ *
+ * La conséquence d'une entrée décorative n'est pas symétrique. Une famille ou un suffixe que rien
+ * n'exerce fait croire à une couverture jamais démontrée : le défaut est une DÉTECTION absente.
+ * Une extension que rien ne rencontre ne promet aucune détection — elle élargit ce qui SERAIT lu,
+ * donc son coût est à l'opposé : elle agrandit la surface de faux positifs du trou T6. Une boucle
+ * rougirait sur six entrées légitimement prospectives, et exigerait de les retirer pour redevenir
+ * verte — c'est-à-dire de rétrécir la garde pour satisfaire son auto-contrôle.
+ *
+ * Relevé du 2026-08-28 sur `takussan-web/src` : `tsx` 774 · `ts` 355 · `css` 2 · `md` 1 ·
+ * `jsx`/`js`/`mjs`/`cjs`/`mdx` 0.
+ *
+ * ⚠ **Le seul `.md` du dépôt est `src/components/charts/README.md`, et il n'est PAS dans le
+ * périmètre** — `components/charts` ne fait pas partie des six répertoires de {@link PERIMETRES}.
+ * Vérifié le 2026-08-28, et écrit ici pour que personne ne refasse la vérification : l'
+ * avertissement du trou T6 sur `md|mdx` reste PROSPECTIF pour cette garde, il ne décrit pas un
+ * faux positif vivant.
+ */
 const EXTENSIONS = /\.(tsx?|jsx?|mjs|cjs|css|mdx?)$/;
 
 function fichiersDe(dir, acc = []) {

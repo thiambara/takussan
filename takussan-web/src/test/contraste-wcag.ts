@@ -97,8 +97,23 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
  * gabarit au milieu. Elle donnait trois parce que les trois posages réels écrivent `dark` en
  * premier — *coïncidence, pas propriété.* **Une commande qui rend le bon nombre sur les cas
  * existants n'est pas une dérivation, c'est une énumération déguisée** : exactement ce qu'elle
- * était censée remplacer. La forme ci-dessus fait **7 sur 7**, pour **zéro ligne de bruit en plus**
- * (22 dans les deux cas sur ce dépôt).
+ * était censée remplacer. La forme ci-dessus fait **7 sur 7** sur ce banc.
+ *
+ * ⚠⚠ **LE BRUIT NE SE CHIFFRE PAS SANS SON PÉRIMÈTRE, et cette phrase l'a fait.** Elle a annoncé
+ * « zéro ligne de bruit en plus (22 dans les deux cas) » — un chiffre exact, mesuré ailleurs, et
+ * donc invérifiable par qui le relit. Trois relevés du même écart ont donné trois nombres, tous
+ * justes sous leur propre périmètre :
+ *
+ *     commande TELLE QU'ÉCRITE ci-dessous, depuis la racine, à 82d83706, le 2026-08-28
+ *         → 23 lignes sans ancre, 23 avec .................................... +0
+ *     `takussan-web/src` en `.tsx` ET `.ts` (1129 fichiers) ................... +0  (30 / 30)
+ *     le seul périmètre gardé par `check-public-chrome-tokens.mjs` ........... +0  (4 / 4)
+ *     un relevé sur un AUTRE commit ........................................ +1  (22 / 23)
+ *
+ * L'ancre ne change ici que l'ORDRE de parcours de `grep`, pas l'ensemble rendu — vérifié par
+ * `diff`. *Une mesure juste ne le reste pas quand on la transporte sur un autre commit, ni sur un
+ * autre périmètre.* Le choix reste évidemment le bon : un cas réel gagné contre, au pire, une
+ * ligne de commentaire.
  *
  * ⚠ Les ancres `^` et `$` ne sont pas décoratives : `grep` est orienté LIGNE, et un gabarit
  * multiligne peut mettre `dark` seule sur sa ligne. Sans elles, la version « 6 sur 7 » exigeait
