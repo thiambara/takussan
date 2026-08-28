@@ -1021,6 +1021,17 @@ const EPREUVE = [
   ['bg-[rgb(from_#a85332_r_g_b)]', true], ['bg-[rgb(from_rebeccapurple_r_g_b)]', true],
   ['bg-[rgb(fromage_1_2_3)]', true],
 
+  // ⚠ LES RELATIVES MIXTES — la frontière exacte, trouvée en écrivant le risque résiduel plutôt
+  //   qu'en le supposant. Une relative dont UN SEUL canal réfère au jeton le garde, et doit
+  //   passer : le partage est « une lettre quelque part », pas « aucun littéral nulle part ».
+  //   Sans ces quatre-là, resserrer la branche en « contient un chiffre » casserait des formes
+  //   correctes sans qu'`EPREUVE` bronche — et c'est exactement le mouvement qu'on fait quand on
+  //   veut « durcir » une garde.
+  ['bg-[rgb(from_var(--x)_255_0_0_/_alpha)]', false],
+  ['bg-[oklch(from_var(--x)_0.5_0.2_h)]', false],
+  ['bg-[rgb(from_var(--x)_r_0_0)]', false],
+  ['bg-[oklch(from_var(--x)_l_0.2_30)]', false],
+
   // Q · L'INDICE DE TYPE de Tailwind — forme de la revue adverse, que personne n'avait essayée.
   //     `text-[color:…]` désambiguë une couleur d'une taille de police : elle mêle la syntaxe
   //     PRÉFIXÉE et le `propriété:valeur`, donc D et F la voient tous les deux.
