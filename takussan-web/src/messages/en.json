@@ -1635,6 +1635,14 @@
       "network": "The connection to the server failed. Check your internet connection and try again.",
       "submitFailed": "Submission failed. Please try again.",
       "unknown": "Something went wrong. Please try again."
+    },
+    "siteNotFound": {
+      "eyebrow": "Error 404",
+      "title": "This page does not exist",
+      "body": "The link you followed may be out of date, or the address has a typo. The catalogue, however, is still here.",
+      "browseListings": "Browse listings",
+      "backHome": "Back to home",
+      "footer": "© Takussan — Real estate in Senegal."
     }
   },
   "agency": {
@@ -1798,7 +1806,14 @@
       "metaTitle": "{name} — Real estate agency",
       "metaSummary": "{count, plural, one {# property} other {# properties}}",
       "metaSummaryInCity": "{count, plural, one {# property} other {# properties}} in {city}",
-      "contactSubject": "Contact via Takussan — {name}"
+      "contactSubject": "Contact via Takussan — {name}",
+      "notFoundTitle": "Agency not found",
+      "notFoundBody": "This agency is no longer listed or has been withdrawn. Browse the catalogue to find another contact.",
+      "notFoundBrowse": "Browse listings",
+      "notFoundHome": "Back to home",
+      "unavailableTitle": "Agency temporarily unavailable",
+      "unavailableBody": "We can't reach the catalogue right now. This agency may still exist — please try again in a moment.",
+      "unavailableMetaDescription": "This agency cannot be displayed right now. Please try again in a moment."
     }
   },
   "compare": {
@@ -3455,7 +3470,14 @@
       "metaSummary": "{count, plural, one {# property} other {# properties}}",
       "metaSummaryInCity": "{count, plural, one {# property} other {# properties}} in {city}",
       "experience": "{count, plural, one {# year} other {# years}} of experience",
-      "contactSubject": "Contact via Takussan — {name}"
+      "contactSubject": "Contact via Takussan — {name}",
+      "notFoundTitle": "Agent not found",
+      "notFoundBody": "This agent is no longer listed or has been withdrawn. Browse the catalogue to find another contact.",
+      "notFoundBrowse": "Browse listings",
+      "notFoundHome": "Back to home",
+      "unavailableTitle": "Agent temporarily unavailable",
+      "unavailableBody": "We can't reach the catalogue right now. This agent may still exist — please try again in a moment.",
+      "unavailableMetaDescription": "This agent cannot be displayed right now. Please try again in a moment."
     }
   },
   "agentWelcome": {

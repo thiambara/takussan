@@ -2,84 +2,44 @@ import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import { Building2, ShieldCheck } from 'lucide-react';
-import { apiFetch } from '@/lib/api';
+import { ErrorState } from '@/components/feedback';
 import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { ContactSheet } from '@/components/public/profile/ContactSheet';
 import { StatsBar } from '@/components/public/profile/StatsBar';
 import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
-import {
-  ReviewsSection,
-  type PublicReview,
-} from '@/components/public/profile/ReviewsSection';
+import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
 import { TeamStrip } from '@/components/public/profile/TeamStrip';
-import type { PropertyListItem } from '@/types/property';
 import { alternatesLangues } from '@/lib/alternates';
-
-interface AgencyAgentDto {
-  id: number;
-  slug: string | null;
-  full_name: string;
-  email?: string | null;
-  avatar_url: string | null;
-  specialty?: string | null;
-  portfolio_count?: number;
-}
-
-interface AgencyStats {
-  rent_count: number;
-  sale_count: number;
-  cities: number;
-  agents: number;
-}
-
-interface AgencyDto {
-  id: number;
-  slug: string;
-  name: string;
-  description: string | null;
-  license_number: string | null;
-  email?: string | null;
-  phone?: string | null;
-  city?: string | null;
-  logo_url: string | null;
-  agents: AgencyAgentDto[];
-  portfolio_count: number;
-  portfolio_total: number;
-  portfolio: PropertyListItem[];
-  stats?: AgencyStats;
-  reviews?: {
-    average: number | null;
-    count: number;
-    recent: PublicReview[];
-  };
-}
-
-interface ApiEnvelope<T> {
-  data: T;
-}
-
-async function loadAgency(slug: string): Promise<AgencyDto | null> {
-  try {
-    const res = await apiFetch<ApiEnvelope<AgencyDto>>(
-      `/public/agencies/${encodeURIComponent(slug)}`,
-      undefined,
-      { locale: await getLocale() },
-    );
-    return res.data;
-  } catch {
-    return null;
-  }
-}
+import { getAgency } from '@/lib/queries/public-agency';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const t = await getTranslations('agency.publicPage');
-  const agency = await loadAgency(slug);
-  if (!agency) {
-    return { title: t('notFound') };
+  const resultat = await getAgency(slug, await getLocale());
+
+  // ⚠️ **`notFound()` est appelé ICI AUSSI, et pas seulement dans la page — c'est ce qui rend le
+  // CODE HTTP robuste.** `generateMetadata` est attendu avant que la coque ne parte ; un
+  // `notFound()` qui n'arriverait qu'au corps de page dépend, pour fixer le statut, de ce que
+  // rien n'ait encore été écrit. C'est la forme validée par TCK-335 sur la fiche de bien, dont
+  // l'ablation avait rendu **200** au lieu de 404.
+  if (resultat.etat === 'introuvable') notFound();
+
+  if (resultat.etat === 'indisponible') {
+    // ⚠️ **`robots: { index: false }` — une page qui ne sait pas ne s'offre pas à l'indexation.**
+    // Ce cas reste une 200 parce qu'on ne sait PAS que l'agence n'existe pas : l'API n'a
+    // simplement pas répondu. Servir un 404 ici graverait dans le statut une affirmation fausse
+    // (c'est ce que faisait le `catch { return null }` d'avant TCK-438), et servir une 200
+    // indexable offrirait un soft-404 aux moteurs — les deux défauts que TCK-335 a nommés.
+    return {
+      title: t('unavailableTitle'),
+      description: t('unavailableMetaDescription'),
+      robots: { index: false },
+    };
   }
+
+  const agency = resultat.agence;
   const summary = agency.stats
     ? agency.city
       ? t('metaSummaryInCity', { count: agency.portfolio_count, city: agency.city })
@@ -107,12 +67,44 @@ function getInitials(name: string): string {
     .join('');
 }
 
+/**
+ * L'API n'a pas répondu — **et on ne dit surtout pas que l'agence n'existe pas.**
+ *
+ * ⚠️ Une FONCTION qui rend du JSX, et non un composant asynchrone : un composant `async` imbriqué
+ * dans l'arbre rendu n'est rendu que par le moteur serveur, ce qui rendrait cette branche — la
+ * seule que le test d'AC2 regarde — non testable sous jsdom. Même raison, même forme que
+ * `bienIndisponible()` sur la fiche de bien.
+ */
+async function agenceIndisponible() {
+  const t = await getTranslations('agency.publicPage');
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      {/* Spacer : navbar fixed (~65px) + ligne catégories (~68px) */}
+      <div className="h-[133px]" />
+      <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
+        <h1 className="mb-6 font-display text-2xl font-semibold text-foreground sm:text-3xl">
+          {t('unavailableTitle')}
+        </h1>
+        <ErrorState message={t('unavailableBody')} />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const t = await getTranslations('agency.publicPage');
   const { slug } = await params;
-  const agency = await loadAgency(slug);
-  if (!agency) notFound();
+  const resultat = await getAgency(slug, await getLocale());
 
+  // Un 404 amont produit un VRAI 404 — statut compris. C'est la seule panne dont on sache qu'elle
+  // signifie « cette agence n'existe pas ».
+  if (resultat.etat === 'introuvable') notFound();
+  if (resultat.etat === 'indisponible') return agenceIndisponible();
+
+  const agency = resultat.agence;
   const stats = agency.stats;
   const reviews = agency.reviews;
 

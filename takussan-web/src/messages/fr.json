@@ -1611,6 +1611,14 @@
       "network": "La connexion au serveur a échoué. Vérifiez votre connexion internet et réessayez.",
       "submitFailed": "La soumission a échoué. Réessayez.",
       "unknown": "Une erreur est survenue. Veuillez réessayer."
+    },
+    "siteNotFound": {
+      "eyebrow": "Erreur 404",
+      "title": "Cette page n'existe pas",
+      "body": "Le lien que vous avez suivi est peut-être périmé, ou l'adresse comporte une faute de frappe. Le catalogue, lui, est toujours là.",
+      "browseListings": "Voir les annonces",
+      "backHome": "Retour à l'accueil",
+      "footer": "© Takussan — Immobilier au Sénégal."
     }
   },
   "agency": {
@@ -1774,7 +1782,14 @@
       "metaTitle": "{name} — Agence immobilière",
       "metaSummary": "{count, plural, one {# bien} other {# biens}}",
       "metaSummaryInCity": "{count, plural, one {# bien} other {# biens}} à {city}",
-      "contactSubject": "Contact via Takussan — {name}"
+      "contactSubject": "Contact via Takussan — {name}",
+      "notFoundTitle": "Agence introuvable",
+      "notFoundBody": "Cette agence n'est plus référencée ou a été retirée. Parcourez le catalogue pour trouver un autre interlocuteur.",
+      "notFoundBrowse": "Voir les annonces",
+      "notFoundHome": "Retour à l'accueil",
+      "unavailableTitle": "Agence momentanément indisponible",
+      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Cette agence existe peut-être toujours — réessayez dans quelques instants.",
+      "unavailableMetaDescription": "Cette agence ne peut pas être affichée pour le moment. Réessayez dans quelques instants."
     }
   },
   "compare": {
@@ -3455,7 +3470,14 @@
       "metaSummary": "{count, plural, one {# bien} other {# biens}}",
       "metaSummaryInCity": "{count, plural, one {# bien} other {# biens}} à {city}",
       "experience": "{count, plural, one {# an} other {# ans}} d'expérience",
-      "contactSubject": "Contact via Takussan — {name}"
+      "contactSubject": "Contact via Takussan — {name}",
+      "notFoundTitle": "Agent introuvable",
+      "notFoundBody": "Cet agent n'est plus référencé ou a été retiré. Parcourez le catalogue pour trouver un autre interlocuteur.",
+      "notFoundBrowse": "Voir les annonces",
+      "notFoundHome": "Retour à l'accueil",
+      "unavailableTitle": "Agent momentanément indisponible",
+      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Cet agent existe peut-être toujours — réessayez dans quelques instants.",
+      "unavailableMetaDescription": "Cet agent ne peut pas être affiché pour le moment. Réessayez dans quelques instants."
     }
   },
   "agentWelcome": {
