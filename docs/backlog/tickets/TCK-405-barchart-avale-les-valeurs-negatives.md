@@ -1,13 +1,13 @@
 ---
 id: TCK-405
 title: "`BarChart` rend une valeur négative à hauteur zéro — la barre disparaît sans bruit"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 48
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -75,12 +75,19 @@ le bas depuis cette ligne.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `values: [-500, 1000]` rend **deux** barres de hauteur > 0
-- [ ] AC2 — aucun `y` ni `y + height` hors du cadre utile (`PADDING.top` … `VIEW_H − PADDING.bottom`),
+- [x] AC1 — `values: [-500, 1000]` rend **deux** barres de hauteur > 0
+- [x] AC2 — aucun `y` ni `y + height` hors du cadre utile (`PADDING.top` … `VIEW_H − PADDING.bottom`),
       assertion portant sur les **coordonnées**, jamais sur la présence du nœud
-- [ ] AC3 — une série entièrement positive rend exactement les mêmes coordonnées qu'avant
+- [x] AC3 — une série entièrement positive rend exactement les mêmes coordonnées qu'avant
       (non-régression, vérifiée par comparaison et non par relecture)
 - [ ] AC4 — vérification par ablation : rétablir `const min = 0` fait rougir AC1 **et** AC2
+  > ⚠ non vérifié : le critère est FAUX tel qu'écrit, et la mesure le confirme. Ablation rejouée
+  > hors de l'arbre (géométrie d'origine reprise de `git show c46c32dc^:…/BarChart.tsx`, aucun
+  > fichier de code touché), sur `values: [-500, 1000]` : `min = 0` SEUL rend
+  > `[{y:232,h:108},{y:16,h:216}]` → **AC1 VERTE**, AC2 rouge. Seul le code d'origine ENTIER
+  > (`min = 0` + `Math.max(0, h)` + `y = top + innerH - h`) rend `[{y:340,h:0},…]` → AC1 **et**
+  > AC2 rouges. L'ablation retenue par l'implémentation est donc la bonne, mais ce n'est pas
+  > celle que l'AC décrit : la case ne peut pas être cochée sans réécrire le critère.
 
 ## Hors périmètre
 

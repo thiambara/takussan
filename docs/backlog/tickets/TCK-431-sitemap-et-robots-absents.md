@@ -1,13 +1,13 @@
 ---
 id: TCK-431
 title: "Le catalogue public n'est déclaré à aucun crawler : ni sitemap, ni robots, et un POC de design indexable"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -95,17 +95,27 @@ surface publique.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /sitemap.xml` rend un XML valide contenant l'URL d'un bien publié, en absolu, sur
+- [x] AC1 — `GET /sitemap.xml` rend un XML valide contenant l'URL d'un bien publié, en absolu, sur
       l'hôte configuré. Un test le vérifie **par le contenu**, pas par le code HTTP : une réponse
       200 portant un sitemap vide le cocherait aussi.
-- [ ] AC2 — `GET /robots.txt` rend une directive `Sitemap:` et interdit `/app`, `/admin`,
+- [x] AC2 — `GET /robots.txt` rend une directive `Sitemap:` et interdit `/app`, `/admin`,
       `/super-admin`, `/api`. Un test échouerait si l'une des quatre disparaissait.
-- [ ] AC3 — aucune URL déclarant `robots: { index: false }` n'apparaît dans le sitemap. Le test
+- [x] AC3 — aucune URL déclarant `robots: { index: false }` n'apparaît dans le sitemap. Le test
       est écrit de façon à rougir si `/favorites` y était ajouté.
-- [ ] AC4 — `/playground` n'est plus servi indexable sur le domaine de production, et un test le
+- [x] AC4 — `/playground` n'est plus servi indexable sur le domaine de production, et un test le
       constate depuis la métadonnée ou depuis l'absence de la route — pas depuis un commentaire.
 - [ ] AC5 — l'hôte manquant fait échouer bruyamment la génération, avec un message qui nomme la
       variable. Un sitemap contenant des URL relatives ou `undefined` fait rougir le test.
+  > ⚠ non vérifié : la MOITIÉ « URL relatives ou `undefined` » est bien gardée (`absolu()` dans
+  > `src/lib/sitemap.ts` lève, et `sitemap.route.test.ts` éprouve chaque `<loc>`), mais l'hôte
+  > manquant **ne fait PAS échouer** : `resoudreOrigineSite({})` rend `ORIGINE_PRODUCTION`
+  > (`https://www.takussan.com`) en silence, et `origine-site.test.ts` l'exige explicitement
+  > (« sans rien, rend l'origine MESURÉE de la production » ; « traite une valeur vide ou blanche
+  > comme ABSENTE » — or `takussan-web/.env.example:20` livre `NEXT_PUBLIC_SITE_URL=` vide).
+  > Seuls échouent une valeur MALFORMÉE et un environnement Vercel non-production sans hôte. La
+  > contrainte stricte du ticket (« son absence doit être bruyante, pas silencieuse ») a donc été
+  > tranchée autrement à l'implémentation, avec sa raison écrite dans `src/lib/alternates.ts` —
+  > c'est une décision à réécrire dans l'AC, pas une case à cocher.
 
 ## Hors périmètre
 

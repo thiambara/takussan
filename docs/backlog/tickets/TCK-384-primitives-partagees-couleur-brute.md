@@ -1,13 +1,13 @@
 ---
 id: TCK-384
 title: "Primitives partagées — la couleur brute que la console rend sans pouvoir la garder"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: [TCK-358]
 blocks: []
 spec_refs:

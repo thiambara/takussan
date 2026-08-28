@@ -1,13 +1,13 @@
 ---
 id: TCK-383
 title: "Scheduler — enregistrer le statut RÉEL et la durée d'une exécution, au lieu d'une constante"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: S
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -84,15 +84,15 @@ et elle n'existera pas en changeant l'API seule** :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une tâche planifiée qui sort en code non nul est enregistrée avec un statut distinct de
+- [x] AC1 — une tâche planifiée qui sort en code non nul est enregistrée avec un statut distinct de
       celui d'une tâche réussie. **Le test fait échouer une vraie tâche** : asserter sur deux lignes
       insérées à la main cocherait aussi l'implémentation actuelle.
-- [ ] AC2 — `GET /api/admin/scheduler` rend le statut de la DERNIÈRE exécution de chaque tâche. Le
+- [x] AC2 — `GET /api/admin/scheduler` rend le statut de la DERNIÈRE exécution de chaque tâche. Le
       test pose, pour une même tâche, une exécution ancienne `failed` et une récente `finished`, et
       attend `finished` — un test à une seule ligne par tâche ne distinguerait pas un agrégat d'un
       « dernier ».
-- [ ] AC3 — `average_duration_ms` rend une valeur non nulle après une exécution réelle.
-- [ ] AC4 — `./vendor/bin/pint`, les tests touchés, `npm run lint`, `npx tsc --noEmit` passent.
+- [x] AC3 — `average_duration_ms` rend une valeur non nulle après une exécution réelle.
+- [x] AC4 — `./vendor/bin/pint`, les tests touchés, `npm run lint`, `npx tsc --noEmit` passent.
 
 ## Hors périmètre
 

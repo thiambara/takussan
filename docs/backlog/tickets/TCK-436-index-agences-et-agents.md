@@ -1,7 +1,7 @@
 ---
 id: TCK-436
 title: "`/agencies` et `/agents` n'existent pas : deux surfaces publiques soignées n'ont qu'un seul chemin entrant"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: M
@@ -117,19 +117,55 @@ ville suffisent — pas de rail de filtres à la `/properties`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/public/agencies` et `GET /api/public/agents` répondent 200 sans
+- [x] AC1 — `GET /api/public/agencies` et `GET /api/public/agents` répondent 200 sans
       authentification et rendent une enveloppe paginée. Un test éprouve la **seconde page**, pas
       seulement la première : une pagination cassée rend la première page correctement.
-- [ ] AC2 — un profil non éligible à la présence publique est absent de l'index. Le test crée un
+  > vérifié : `takussan-api/tests/Feature/Public/PublicProfileIndexTest.php` (22 tests, 157
+  > assertions, verts). `test_ac1_…_repond_200_sans_authentification_avec_enveloppe_paginee` pour
+  > les deux ressources, puis `test_ac1_la_seconde_page_…_rend_des_…_differentes_de_la_premiere`
+  > **pour chacune**, `test_ac1_lordre_de_pagination_est_total_sur_les_deux_index` (aucun doublon ni
+  > oubli entre les pages) et `test_ac1_per_page_est_plafonne`. Routes déclarées en
+  > `routes/api/public.php:153-157` sous le même `throttle:public-read` que l'existant.
+- [x] AC2 — un profil non éligible à la présence publique est absent de l'index. Le test crée un
       profil de chaque sorte et vérifie **l'exclusion**, pas seulement la présence de l'éligible.
-- [ ] AC3 — aucune des deux réponses ne porte d'e-mail ni de téléphone personnel. Un test le
+  > vérifié : `test_ac2_agences_non_eligibles_absentes_de_lindex` crée **huit** cas non éligibles
+  > (sans bien, brouillon seul, agence suspendue, archivée, bien non publié, `is_test`, bien privé,
+  > bien `pending`) et assère `assertNotContains` sur chacun **plus** `meta.total === 1` — le compte
+  > ferme le cas d'un index vide qui passerait toutes les exclusions. Idem pour les agents. La règle
+  > vit dans `Property::scopePublicPortfolio()` et les deux `index()`.
+- [x] AC3 — aucune des deux réponses ne porte d'e-mail ni de téléphone personnel. Un test le
       vérifie sur la charge sérialisée entière, pas champ par champ.
-- [ ] AC4 — `/agencies` et `/agents` répondent avec du contenu et non 404, et un clic sur un
+  > vérifié : `test_ac3_lindex_des_agents_…` et `test_ac3_lindex_des_agences_ne_porte_aucune_
+  > coordonnee_personnelle` balaient la **charge sérialisée entière**. Et
+  > `test_la_garde_de_pii_voit_reellement_une_fuite` est l'ablation de la garde elle-même : sans
+  > elle, un balayage qui ne regarderait rien serait vert. `description` a été retiré de la sortie
+  > pour cette raison (texte libre = champ de contact non déclaré).
+- [x] AC4 — `/agencies` et `/agents` répondent avec du contenu et non 404, et un clic sur un
       profil mène à sa fiche existante.
-- [ ] AC5 — un test confronte les liens de la chrome publique aux routes existantes et échouerait
+  > vérifié : `src/app/[locale]/(public)/{agencies,agents}/page.tsx` existent ;
+  > `src/components/public/index/__tests__/IndexDeProfils.test.tsx` bloc « AC4 » rend un titre, un
+  > compte et une carte par profil, et chaque carte est un **lien préfixé de la langue** vers la
+  > fiche (slug encodé) ; `routeExiste('/agencies/sahel-homes')` et `('/agents/awa-diop')` sont
+  > vrais dans `src/data/__tests__/navigation.test.ts`. Les états vide et erreur sont éprouvés
+  > exclusifs. `node scripts/check-i18n-namespaces.mjs` → vert, la garde qui attrape la régression
+  > de namespace ayant causé les 500 de la passe 2. Le 200 × 6 lui-même est un relevé serveur
+  > consigné en Notes d'implémentation, non rejoué ici.
+- [x] AC5 — un test confronte les liens de la chrome publique aux routes existantes et échouerait
       si `/agencies` ou `/agents` redevenait un lien sans écran.
-- [ ] AC6 — le sitemap contient les URL des profils éligibles, et aucune de celles qui ne le sont
+  > vérifié : `src/data/__tests__/navigation.test.ts` confronte **chaque** entrée de `navLinks` et
+  > `footerLinks` à un inventaire **dérivé** de `src/app` (`src/test/routes-publiques.ts`) ; le pied
+  > de page porte bien les deux (`src/data/navigation.ts:133-134`, colonne « Professionnels »). La
+  > garde est mutée dans les deux sens (« reconnaît les formes que la garde doit refuser » :
+  > `/services`, `#`, trop de segments → `false`), et `/agencies` / `/agents` y sont nommés
+  > explicitement pour que la suppression d'une page rougisse même si le lien partait avec elle.
+- [x] AC6 — le sitemap contient les URL des profils éligibles, et aucune de celles qui ne le sont
       pas.
+  > vérifié : `src/app/__tests__/sitemap.route.test.ts` bloc « AC6 » — les deux index et les fiches
+  > de profils dans les **trois** langues ; source vide ⇒ **aucune** fiche de profil (les index
+  > restent) ; slug encodé (`awa&diop` → `awa%26diop`). L'exclusion elle-même n'est pas rejugée par
+  > le sitemap : il pagine `GET /public/{ressource}` (`listerSlugsDeProfils`), dont l'AC2 ci-dessus
+  > éprouve le prédicat — une seule décision, un seul endroit. Le cas des slugs à point (relevés
+  > réels) est couvert : la page fautive sort, la source reste, et l'écart est journalisé.
 
 ## Hors périmètre
 

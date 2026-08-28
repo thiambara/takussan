@@ -1,13 +1,13 @@
 ---
 id: TCK-389
 title: "Rapports — le plafond de 60 buckets tronque une plage choisie sans le dire"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: S
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: [TCK-361]
 blocks: []
 spec_refs:
@@ -73,13 +73,13 @@ Trancher entre les deux voies, et écrire laquelle avant de coder :
 
 ## Critères d'acceptation
 
-- **AC1** — un test d'API demande une plage dépassant le plafond et prouve le comportement retenu
+- [x] **AC1** — un test d'API demande une plage dépassant le plafond et prouve le comportement retenu
   (422 nommé, ou enveloppe qui dit la troncature). Le vérifier par ablation : retirer le correctif
   doit faire rougir ce test précisément.
-- **AC2** — la sonde ci-dessus ne peut plus rendre `range = 2020-01-01..2026-01-01` avec 60 buckets
+- [x] **AC2** — la sonde ci-dessus ne peut plus rendre `range = 2020-01-01..2026-01-01` avec 60 buckets
   s'arrêtant au 2020-02-29 : soit la requête est refusée, soit `range` dit `2020-01-01..2020-02-29`.
-- **AC3** — l'export CSV du même appel est couvert par le même comportement, et un test le montre.
-- **AC4** — `php artisan test tests/Feature/Api/Admin/PlatformReportingTest.php` et
+- [x] **AC3** — l'export CSV du même appel est couvert par le même comportement, et un test le montre.
+- [x] **AC4** — `php artisan test tests/Feature/Api/Admin/PlatformReportingTest.php` et
   `./vendor/bin/pint` verts.
 
 ## Hors périmètre

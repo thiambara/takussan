@@ -1,13 +1,13 @@
 ---
 id: TCK-388
 title: "Rapports — la comparaison oppose des durées inégales dès que la plage ne couvre pas des mois entiers"
-status: doing
+status: done
 phase: P2
 family: back
 estimate: M
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: [TCK-361]
 blocks: []
 spec_refs:
@@ -82,16 +82,16 @@ Quelle que soit la voie : l'étiquette d'un bucket partiel doit cesser de dire u
 
 ## Critères d'acceptation
 
-- **AC1** — un test d'API prouve, sur une plage `2026-03-15 → 2026-03-31` **et** sur son décalage,
+- [x] **AC1** — un test d'API prouve, sur une plage `2026-03-15 → 2026-03-31` **et** sur son décalage,
   que le comportement retenu est celui du ticket. Le vérifier par ablation : retirer le correctif
   doit faire rougir ce test, et pas un autre.
-- **AC2** — un test de rendu prouve que l'écran ne peut pas présenter deux buckets de durées
+- [x] **AC2** — un test de rendu prouve que l'écran ne peut pas présenter deux buckets de durées
   différentes comme comparables sans le dire. Formuler l'assertion sur ce que l'utilisateur LIT,
   jamais sur la présence d'un nœud (leçon de D9 : `data-testid="serie-comparaison"` était présent
   sur une comparaison qui ne traçait rien).
-- **AC3** — le raccourci `period` est couvert par le même choix que la plage libre ; si les deux
+- [x] **AC3** — le raccourci `period` est couvert par le même choix que la plage libre ; si les deux
   divergent, le ticket dit pourquoi.
-- **AC4** — `npx vitest run src/components/reporting`, `npx tsc --noEmit`,
+- [x] **AC4** — `npx vitest run src/components/reporting`, `npx tsc --noEmit`,
   `php artisan test tests/Feature/Api/Admin/PlatformReportingTest.php` et `./vendor/bin/pint` verts.
 
 ## Hors périmètre

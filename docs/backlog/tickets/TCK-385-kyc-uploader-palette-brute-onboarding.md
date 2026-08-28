@@ -1,13 +1,13 @@
 ---
 id: TCK-385
 title: "Assistants d'onboarding — la pastille KYC en palette brute, dans le seul répertoire que deux gardes se renvoient"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: [TCK-450]
 spec_refs:

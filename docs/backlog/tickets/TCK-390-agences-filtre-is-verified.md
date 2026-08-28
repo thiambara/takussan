@@ -1,13 +1,13 @@
 ---
 id: TCK-390
 title: "Agences — ouvrir le filtre `is_verified`, sans quoi la tuile « Vérifiées » de l'accueil ne mène nulle part"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: S
 wave: null
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: [TCK-360]
 blocks: []
 spec_refs:
@@ -67,13 +67,27 @@ il n'existe que pour les contrôleurs qui empruntent `HasQueryBuilder`, et celui
 
 ## Critères d'acceptation
 
-- [ ] AC1 — depuis l'accueil, la tuile « Vérifiées » ouvre une liste **dont le compte est celui de
+- [x] AC1 — depuis l'accueil, la tuile « Vérifiées » ouvre une liste **dont le compte est celui de
       la tuile** ; l'ablation du filtre côté API fait rougir un test Feature
-- [ ] AC2 — l'amorce par l'URL est couverte par un test qui rougit si l'initialiseur repasse en
+- [x] AC2 — l'amorce par l'URL est couverte par un test qui rougit si l'initialiseur repasse en
       constante (patron de `status-seed.test.tsx`)
-- [ ] AC3 — un `?is_verified=` inconnu retombe sur « toutes », comme `seedStatus` le fait déjà
-- [ ] AC4 — `npm run lint`, `npx tsc --noEmit`, `npm run test`, `./vendor/bin/pint`, et les tests
+- [x] AC3 — un `?is_verified=` inconnu retombe sur « toutes », comme `seedStatus` le fait déjà
+- [x] AC4 — `npm run lint`, `npx tsc --noEmit`, `npm run test`, `./vendor/bin/pint`, et les tests
       Feature d'`AgencyModerationController` passent
+  > Quatre des cinq commandes mesurées par l'agent de vérification (2026-08-28, branche
+  > `feat/lot-vagues-46-49`) — `npm run lint` (0 erreur, 38 warnings préexistants),
+  > `npx tsc --noEmit` (rc=0), `./vendor/bin/pint --test` (`passed`), et
+  > `php artisan test tests/Feature/Api/Admin/AgencyModerationTest.php` (8 passés, 54 assertions),
+  > auxquelles s'ajoutent `status-seed.test.tsx` + `SystemMetricsGrid.test.tsx` (15 passés).
+  >
+  > **La cinquième, `npm run test` EN ENTIER, jouée par la session déléguante au rituel de fin de
+  > branche, le 2026-08-28 : 316 fichiers / 2663 tests / 0 échec** — plus la suite backend entière,
+  > 2913 tests / 9544 assertions / 0 échec. La case est cochée sur cette exécution-là.
+  >
+  > ⚠ Un premier passage de la suite front avait rendu 2 échecs, sous une charge de 146 sur
+  > 8 cœurs, **et leurs noms n'ont pas été capturés**. Ils ne se reproduisent pas à charge basse.
+  > Ils sont donc *non reproduits*, et non *expliqués* : les ranger sous les fragilités connues du
+  > dépôt serait leur fabriquer une cause.
 
 ## Hors périmètre
 

@@ -1,13 +1,13 @@
 ---
 id: TCK-433
 title: "Aucune URL canonique nulle part : `/properties` se démultiplie en autant de doublons qu'il y a de combinaisons de filtres"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -80,15 +80,15 @@ qui doit dire ce que la page montre plutôt que rester générique.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `/properties?type=villa&page=3&sort=-created_at&per_page=48` rend une
+- [x] AC1 — `/properties?type=villa&page=3&sort=-created_at&per_page=48` rend une
       `<link rel="canonical">` conforme à la règle tranchée, et le test **nomme la règle** :
       il échouerait aussi bien si la canonique disparaissait que si elle recopiait l'URL demandée.
-- [ ] AC2 — `/properties/<slug>` rend une canonique absolue vers elle-même, sur l'hôte configuré.
-- [ ] AC3 — le `<title>` de `/properties?type=villa&city=Dakar` diffère de celui de `/properties`
+- [x] AC2 — `/properties/<slug>` rend une canonique absolue vers elle-même, sur l'hôte configuré.
+- [x] AC3 — le `<title>` de `/properties?type=villa&city=Dakar` diffère de celui de `/properties`
       nu et nomme le filtre, dans les trois langues servies.
-- [ ] AC4 — `metadataBase` est posé et une image OG relative produit une URL absolue ; un test
+- [x] AC4 — `metadataBase` est posé et une image OG relative produit une URL absolue ; un test
       l'éprouve sur une valeur relative, pas sur la valeur absolue que l'API rend aujourd'hui.
-- [ ] AC5 — aucune URL déclarée non canonique n'entre dans le sitemap de TCK-431.
+- [x] AC5 — aucune URL déclarée non canonique n'entre dans le sitemap de TCK-431.
 
 ## Hors périmètre
 
@@ -127,15 +127,25 @@ replient sur la page nue.
 **`page`, `sort` et `per_page` se replient aussi**, ce qui est le point le plus discutable et
 mérite d'être relu :
 
-- la liste est rendue **côté client** (`PropertiesDiscoveryPage` lit `useSearchParams`) : un
+- ~~la liste est rendue **côté client** (`PropertiesDiscoveryPage` lit `useSearchParams`) : un
   explorateur reçoit la même coque HTML sur `?page=1` et sur `?page=42`. Les déclarer distinctes
-  affirmerait une différence que le document servi ne porte pas ;
+  affirmerait une différence que le document servi ne porte pas~~ ;
 - **aucune fiche n'en dépend pour être découverte** depuis TCK-431 : `/sitemap.xml` liste chaque
   bien publié, dans les trois langues.
 
-⚠ **TCK-432 fera tomber la première de ces deux raisons.** La décision doit être reprise le jour où
-la liste passera en rendu serveur. C'est écrit dans `src/lib/canonique.ts`, à l'endroit qui applique
-la règle.
+⚠ **TCK-432 A FAIT TOMBER la première de ces deux raisons — barrée le 2026-08-28, à la fusion du
+lot.** La liste est en rendu serveur : `?page=1` et `?page=2` ne servent plus la même coque, le
+recouvrement mesuré entre les deux documents est **nul**. L'argument qui la soutenait est mort le
+jour même où il a été écrit, dans le même lot, par un ticket voisin.
+
+**La décision, elle, tient — mais sur d'autres pieds.** Elle a été reprise à l'implémentation et
+repose désormais sur deux raisons **indépendantes du mode de rendu**, écrites dans
+`src/lib/canonique.ts` à l'endroit qui applique la règle. La seconde puce ci-dessus en est une.
+
+> *Un ticket qui annonce sa propre péremption ne se périme pas tout seul.* Celui-ci l'avait écrite
+> noir sur blanc (« TCK-432 fera tomber… ») et elle serait restée en l'état si la vérification des
+> critères ne l'avait pas rouverte : la phrase d'avertissement rassure autant qu'une correction,
+> et coûte beaucoup moins cher à écrire.
 
 `CLES_ECARTEES` est **dérivée** de `CLES_DE_RECHERCHE` moins les retenues, et un test vérifie que la
 partition couvre les 23 clés : une clé ajoutée à `SEARCH_FILTER_KEYS` sans décision de canonicité

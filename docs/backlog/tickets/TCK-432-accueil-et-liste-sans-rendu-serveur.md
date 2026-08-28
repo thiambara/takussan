@@ -1,7 +1,7 @@
 ---
 id: TCK-432
 title: "La page d'accueil et /properties ne rendent aucun bien côté serveur, et ni l'une ni l'autre n'a de `<h1>`"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: L
@@ -113,17 +113,17 @@ règle `font-display` des directives.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — le HTML rendu par le serveur pour `/` contient le titre d'au moins un bien et un lien
+- [x] AC1 — le HTML rendu par le serveur pour `/` contient le titre d'au moins un bien et un lien
       vers sa fiche. Le test s'exécute **sans hydratation** ; un test qui monte le composant client
       et attend l'effet cocherait la case sans rien prouver.
-- [ ] AC2 — le HTML rendu par le serveur pour `/properties?type=villa` contient des biens
+- [x] AC2 — le HTML rendu par le serveur pour `/properties?type=villa` contient des biens
       correspondant au filtre. Un rendu qui ignore le filtre et sert le catalogue entier échoue.
-- [ ] AC3 — chacune des deux pages porte exactement un `<h1>`, non vide, issu du dictionnaire
+- [x] AC3 — chacune des deux pages porte exactement un `<h1>`, non vide, issu du dictionnaire
       next-intl. Un test échouerait si l'un des deux passait à zéro ou à deux.
-- [ ] AC4 — non-régression mesurée sur `/properties` : la synchronisation d'URL, la restauration
+- [x] AC4 — non-régression mesurée sur `/properties` : la synchronisation d'URL, la restauration
       de défilement et la bascule liste/carte passent toujours leurs tests existants, sans que
       ceux-ci aient été réécrits pour s'accommoder du nouveau rendu.
-- [ ] AC5 — la page ne repasse pas par un état de squelette après hydratation quand le serveur a
+- [x] AC5 — la page ne repasse pas par un état de squelette après hydratation quand le serveur a
       déjà rendu les biens ; un test l'éprouve sur le rendu puis l'hydratation.
 
 ## Hors périmètre

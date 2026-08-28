@@ -1,13 +1,13 @@
 ---
 id: TCK-419
 title: "Quatre liens de `/app` mènent à des routes qui n'existent pas — la divergence menu/écrans dans l'autre sens"
-status: doing
+status: done
 phase: P2
 family: bug
 estimate: S
 wave: 48
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:

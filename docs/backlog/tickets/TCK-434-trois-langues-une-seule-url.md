@@ -1,13 +1,13 @@
 ---
 id: TCK-434
 title: "Trois langues servies sur une seule URL : aucune indexation par langue n'est possible, et le choix n'est pas partageable"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: L
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -99,17 +99,48 @@ Aucune bannière ni fenêtre de suggestion de langue : une redirection automatiq
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un ADR est mergé et nomme le schéma retenu, le sort de `wo`, et les redirections.
+- [x] AC1 — un ADR est mergé et nomme le schéma retenu, le sort de `wo`, et les redirections.
       Aucun code de ce ticket n'est écrit avant.
-- [ ] AC2 — une requête **sans cookie et sans `Accept-Language`** sur l'URL anglaise d'une fiche
+  > vérifié : [ADR-0026](../../adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md),
+  > statut *Accepté*, ancêtre de `HEAD` (`git merge-base --is-ancestor c4f408cd HEAD`), indexé dans
+  > `docs/adr/README.md`. §1 nomme le schéma (préfixe de chemin, `always`, français compris), §4 le
+  > sort de `wo` (langue de première classe, indexable), §3 les redirections (307 et non 308,
+  > `Vary: Cookie, Accept-Language`).
+  > ⚠ **la seconde phrase n'est pas lisible dans git** : l'ADR et le code ont atterri dans le même
+  > commit écrasé (`c4f408cd`, comme déjà dans `912d654e`), donc l'antériorité de l'ADR sur le code
+  > ne se mesure pas. Seule sa première phrase est prouvée.
+- [x] AC2 — une requête **sans cookie et sans `Accept-Language`** sur l'URL anglaise d'une fiche
       rend la fiche en anglais. Le test n'envoie ni cookie ni en-tête : un test qui pose le cookie
       passerait déjà aujourd'hui et ne prouverait rien.
-- [ ] AC3 — la page rend un `hreflang` par langue déclarée indexable, plus `x-default`, et les URL
+  > vérifié : `src/i18n/__tests__/request-locale.test.ts`, bloc « AC2 » — les deux sources sont
+  > **vides** (`etat.cookie = undefined`, `etat.acceptLanguage = null` dans `beforeEach`). Il
+  > n'éprouve pas que l'étiquette : « sert bien le DICTIONNAIRE de cette langue » compare
+  > `common.tagline` entre `en`, `fr` et `wo`. `src/i18n/request.ts::resolveLocale` ne consulte
+  > cookie et en-tête que si le segment `[locale]` est absent. 70 tests verts sur les 4 fichiers
+  > i18n/proxy.
+- [x] AC3 — la page rend un `hreflang` par langue déclarée indexable, plus `x-default`, et les URL
       pointées répondent 200. Un `hreflang` vers une URL 404 fait rougir le test.
-- [ ] AC4 — une URL publique de la forme actuelle ne rend jamais 404 : elle redirige selon la
+  > vérifié : `src/lib/alternates.ts::alternatesLangues` boucle sur `LOCALES_INDEXABLES` puis ajoute
+  > `x-default`. `src/lib/__tests__/alternates.test.ts` : « déclare les trois langues, plus
+  > x-default », « donne à chaque langue SON URL, distincte des autres », et le bloc « AC3 (seconde
+  > moitié) » **joue le proxy réel** sur chaque alternative (`status` 200, `location` nul) puis
+  > vérifie l'existence du fichier de route sous `[locale]`. Les cinq pages publiques appellent
+  > `alternatesPubliques` avec un chemin **sans** langue, vérifié par balayage.
+- [x] AC4 — une URL publique de la forme actuelle ne rend jamais 404 : elle redirige selon la
       règle de l'ADR, et un test l'éprouve sur une fiche de bien.
-- [ ] AC5 — un choix explicite de langue survit à une navigation ultérieure et n'est pas écrasé
+  > vérifié : `src/__tests__/proxy.test.ts`, bloc « AC4 » — « redirige une fiche de bien vers la
+  > même fiche préfixée », plus la racine, la liste, les profils, la conservation de la chaîne de
+  > requête, l'en-tête `Vary`, et « 307 et NON 308 ». Un test dérivé balaie les chemins localisables
+  > et exige qu'ils passent tous le `matcher`.
+- [x] AC5 — un choix explicite de langue survit à une navigation ultérieure et n'est pas écrasé
       par `Accept-Language` ; un test l'éprouve avec un en-tête contradictoire.
+  > vérifié des deux côtés, avec en-tête contradictoire à chaque fois :
+  > `proxy.test.ts` « une URL déjà préfixée n'est PAS redirigée, même sous un `Accept-Language`
+  > contradictoire », et le bloc « l'URL propage son choix au cookie » (`/en/…` sans cookie pose
+  > `NEXT_LOCALE=en`, corrige un cookie contradictoire, et « une fois le cookie posé, un lien non
+  > préfixé mène à la BONNE langue » — c'est la survie à la navigation ultérieure) ;
+  > `request-locale.test.ts` bloc « AC5 » (cookie `fr`, `Accept-Language: fr-FR`, les deux à la
+  > fois : `/en` rend `en`, `/wo` rend `wo`).
 
 ## Hors périmètre
 

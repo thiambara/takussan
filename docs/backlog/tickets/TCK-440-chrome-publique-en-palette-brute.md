@@ -1,13 +1,13 @@
 ---
 id: TCK-440
 title: "La chrome publique en palette brute : 121 classes hors tokens, dont la navbar et un pied de page entièrement hors palette"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -100,17 +100,60 @@ c'est le genre de chose qu'une conversion en masse fabrique si on ne la mesure p
 
 ## Critères d'acceptation
 
-- [ ] AC1 — le compte de classes de palette brute sur la surface mesurée passe de 121 à 0. Le test
+- [x] AC1 — le compte de classes de palette brute sur la surface mesurée passe de 121 à 0. Le test
       rejoue **la commande du § Contexte**, pas une variante plus permissive.
-- [ ] AC2 — une garde de dépôt échoue si une classe de palette brute est réintroduite dans la
+  > ✔ vérifié le 2026-08-28, deux fois. (1) La commande du § Contexte rejouée telle quelle, sur le
+  > périmètre corrigé du déplacement de TCK-434 (`src/app/[locale]/(public)` au lieu de
+  > `src/app/(public)`, qui n'existe plus) → **0**. (2) `node scripts/check-public-chrome-tokens.mjs`
+  > → *« 0 classe de palette brute sur 82 fichier(s) de 6 répertoire(s) »*, sortie 0. La garde est
+  > plus STRICTE que la commande, jamais plus permissive : 16 préfixes au lieu de 4, les huit côtés
+  > et `offset`, plus le noir nu, le hex arbitraire et `scrim` hors de son rôle.
+- [x] AC2 — une garde de dépôt échoue si une classe de palette brute est réintroduite dans la
       chrome publique, et elle est livrée sans liste d'exceptions. Une garde qui naît avec des
       exceptions n'est plus une garde.
+  > ✔ `scripts/check-public-chrome-tokens.mjs`, rejouée par `.github/workflows/repo-ci.yml:394`.
+  > **Aucune liste d'exceptions n'existe dans le fichier** — c'est structurel, pas une promesse : le
+  > seul moyen de faire passer une couleur brute est de retirer un répertoire du périmètre, ce que
+  > les `TEMOINS` (un fichier nommé par répertoire) et le plancher `FICHIERS_MINIMUM` rendent rouge.
+  > Elle est éprouvée dans les deux sens (49 formes : 22 à attraper, 27 à ignorer) et ses trous
+  > sont **déclarés** en tête plutôt que tus (T1 familles chaudes, T2 couleurs nommées, T3
+  > `/playground` hors périmètre, T5 `rgb()`/`hsl()` en valeur arbitraire, T6 aucune notion de
+  > `className`).
 - [ ] AC3 — le rendu en thème clair est inchangé à l'œil sur navbar, pied de page et `/properties` :
       la conversion est une équivalence, pas une refonte.
-- [ ] AC4 — la bascule `.dark` modifie le fond et le texte de la navbar ; un test l'éprouve sur les
+  > ⚠ non vérifié — et **l'AC est faux tel qu'il est écrit, il se contredit avec le § Direction UX
+  > du même ticket**, qui exige au contraire un « arbitrage explicite » sur le pied de page parce
+  > que son ardoise 900 n'a *« pas d'équivalent »* dans la palette Lin. L'arbitrage a été rendu
+  > (retour au registre Lin, `bg-muted` + `border-t`), il est motivé et mesuré dans le docblock de
+  > `Footer.tsx` — donc le rendu du pied de page en thème clair **A changé, délibérément**, d'un
+  > fond sombre à un fond crème. La case ne peut pas être cochée sans mentir.
+  > Ce qui est réellement gardé : `chrome-publique.contraste.test.tsx` asserte
+  > `JETONS_CLAIR.card === '#ffffff'` et `JETONS_CLAIR.popover === '#ffffff'` — l'équivalence
+  > stricte des surfaces blanches de la navbar. Rien n'éprouve `/properties`, et « à l'œil » n'est
+  > de toute façon pas une grandeur qu'un test mesure.
+- [x] AC4 — la bascule `.dark` modifie le fond et le texte de la navbar ; un test l'éprouve sur les
       valeurs calculées, pas sur la présence de la classe.
-- [ ] AC5 — chaque couple texte/fond introduit atteint le seuil de contraste, mesuré et consigné ;
+  > ℹ Prouvé, avec sa portée exacte — que le fichier de test énonce lui-même plutôt que de la
+  > laisser croire plus large. `chrome-publique.contraste.test.tsx` résout les classes rendues
+  > contre les DEUX tables de jetons et exige des valeurs différentes : fond de la navbar
+  > clair ≠ sombre, première encre clair ≠ sombre, et fond du pied de page = `muted` de chaque
+  > table. Ce n'est pas `getComputedStyle` — jsdom ne charge aucune feuille de style, une lecture
+  > y mesurerait jsdom et non le design system. Une échelle brute réintroduite fait **lever**
+  > `resoudreCouleur` avec son nom, au lieu d'être mesurée contre un blanc imaginaire.
+  > ⚠ Ce vert ne prouve pas qu'un visiteur puisse voir un thème sombre : les trois composants qui
+  > posent `.dark` sont dans la console, la chrome publique n'est jamais dans leur sous-arbre.
+  > Il prouve qu'elle a cessé d'y être **insensible**, ce qui est l'objet du ticket.
+- [x] AC5 — chaque couple texte/fond introduit atteint le seuil de contraste, mesuré et consigné ;
       un couple non mesuré fait échouer la revue.
+  > ✔ `chrome-publique.contraste.test.tsx` calcule le rapport WCAG 2.1 sur le fond RÉEL de chaque
+  > élément (remonté ancêtre par ancêtre, alpha composé), pour la navbar et le pied de page, en
+  > clair **et** en sombre, au repos et en `hover:` — et sur les DEUX surfaces d'accueil (`--card`
+  > et `--background`), dont l'écart s'inverse avec le thème. Les mesures sont consignées : table
+  > des marges dans le test, contrastes du pied de page dans le docblock de `Footer.tsx`, y compris
+  > le refus motivé de `text-primary` au survol (3,99:1 en sombre). La seule dérogation est
+  > déclarée et porte sur un JETON, pas sur un fichier : `muted-foreground/60`, séparateur
+  > décoratif. `npx vitest run src/components/home/__tests__/chrome-publique.contraste.test.tsx`
+  > → 10/10.
 
 ## Hors périmètre
 

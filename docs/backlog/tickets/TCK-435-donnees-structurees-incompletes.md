@@ -1,13 +1,13 @@
 ---
 id: TCK-435
 title: "Une seule page du site public porte des données structurées — le fil d'Ariane, l'organisation et les profils n'en ont aucune"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -90,17 +90,38 @@ il n'introduit ni ne cache aucune information.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — le JSON-LD du fil d'Ariane d'une fiche liste **les mêmes maillons, dans le même
+- [x] AC1 — le JSON-LD du fil d'Ariane d'une fiche liste **les mêmes maillons, dans le même
       ordre**, que le fil rendu à l'écran. Un test qui vérifie seulement la présence d'un
       `BreadcrumbList` cocherait la case avec un fil faux : il doit comparer les deux.
-- [ ] AC2 — une agence à `reviews.count = 0` ne produit **aucune** clé `aggregateRating`. Un
+  > vérifié : `src/lib/__tests__/jsonld-fil-d-ariane.test.tsx` **rend** `PropertyBreadcrumb` et
+  > confronte le DOM au JSON — libellés dans l'ordre (`['Accueil','Louer','Dakar','Ngor']`), puis
+  > `item` ⇔ `href` (`items === hrefs.map(h => ORIGINE_SITE + h)`), le quartier non cliquable des
+  > deux côtés, les `position` qui se suivent, la langue du préfixe, et l'absence d'URL relative.
+  > Émis depuis `…/properties/[slug]/page.tsx:159`. 49 tests verts sur les 3 fichiers JSON-LD.
+- [x] AC2 — une agence à `reviews.count = 0` ne produit **aucune** clé `aggregateRating`. Un
       `ratingValue: 0` fait échouer le test.
-- [ ] AC3 — un profil dont la ville ou la note est nulle ne produit ni `"null"`, ni `undefined`,
+  > vérifié : `src/lib/__tests__/jsonld-profil.test.ts`, bloc « AC2 » — agence à `count: 0`, agent à
+  > `count: 0`, moyenne nulle sur compte positif, bloc `reviews` totalement absent : quatre
+  > `not.toHaveProperty('aggregateRating')`. Et le cas positif (« une note RÉELLE est bien émise,
+  > avec ses bornes ») empêche la case d'être cochée par une fabrique qui n'émettrait jamais rien.
+- [x] AC3 — un profil dont la ville ou la note est nulle ne produit ni `"null"`, ni `undefined`,
       ni clé vide dans le JSON émis.
-- [ ] AC4 — chaque bloc émis est du JSON valide après échappement, y compris pour une description
+  > vérifié : `src/lib/jsonld.tsx::sansVides` filtre `undefined`, `null` **et** `''` (et conserve
+  > `0`/`false`). Bloc « AC3 » du test : agence puis agent « dont tout est nul », ville nulle ⇒
+  > **aucun** `PostalAddress` plutôt qu'un objet vide, chaîne vide traitée comme une absence.
+- [x] AC4 — chaque bloc émis est du JSON valide après échappement, y compris pour une description
       contenant `</script>` ; un test l'éprouve sur cette chaîne exacte.
-- [ ] AC5 — `Organization` et `WebSite` sont émis une seule fois par page, jamais dupliqués par
+  > vérifié : bloc « AC4 » du test, sur la **chaîne exacte** `</script>` (description d'agence et
+  > bio d'agent), plus `</SCRIPT >`, `<!--`, `<script>`. Il exige les trois choses ensemble :
+  > aucun `<` résiduel, `JSON.parse` ne lève pas, et la donnée **survit** à l'échappement (un
+  > effacement passerait sinon). `scriptJsonLd` échappe **tous** les `<`, pas le motif `</script`.
+- [x] AC5 — `Organization` et `WebSite` sont émis une seule fois par page, jamais dupliqués par
       un composant imbriqué.
+  > vérifié par balayage **dérivé** de `src/` (bloc « AC5 ») : `jsonLdOrganisation` et
+  > `jsonLdSiteWeb` n'ont qu'un seul appelant, `app/[locale]/(public)/layout.tsx` — un layout est
+  > rendu une fois par page ; et `ld+json` n'apparaît que dans `lib/jsonld.tsx`, donc aucun
+  > composant partagé ne peut le dupliquer. Le balayage porte son plancher (`> 500` fichiers vus),
+  > sans quoi un glob cassé le rendrait vert sur rien.
 
 ## Hors périmètre
 

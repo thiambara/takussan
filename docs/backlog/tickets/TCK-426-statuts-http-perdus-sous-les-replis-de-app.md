@@ -1,13 +1,13 @@
 ---
 id: TCK-426
 title: "Les replis de /app effacent 404, 307 et 308 : un refus d'autorisation rend désormais 200 et le squelette de la page interdite"
-status: doing
+status: done
 phase: P3
 family: front
 estimate: M
 wave: 48
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: [TCK-382]
 blocks: []
 spec_refs:
@@ -385,3 +385,59 @@ observée. *Le dire est moins coûteux que de le laisser croire.*
   qui l'interdit, pas par le `notFound()` de sa `generateMetadata` : cf. § 2, la mesure de
   `g9-etats` rejouée ici.
 - Les 24 `redirect()` et 9 `notFound()` du § 4 : mesurés, chiffrés, non traités ici.
+
+## Vérification à l'intégration (2026-08-28)
+
+Passe de relecture au moment de fusionner le lot, sur l'arbre principal, branche
+`feat/lot-vagues-46-49`. Ce ticket ne porte aucune case à cocher : ce qui suit confronte **ce que
+son corps affirme livré** à ce que l'arbre contient, chiffre par chiffre.
+
+### Ce qui est confirmé, et par quelle commande
+
+| Affirmation du ticket | Constat |
+|---|---|
+| geste 1 — `app/page.tsx` + `app/loading.tsx` → `app/(accueil)/` | `find … -name loading.tsx` : **aucun `app/loading.tsx`** ; `(accueil)/page.tsx` et `(accueil)/loading.tsx` présents |
+| geste 2 — `overview/loading.tsx` descend dans les SEPT vues | `overview/loading.tsx` absent ; les 7 (`agency`, `agent`, `alerts`, `exports`, `kpis`, `owner`, `tenant`) ont le leur |
+| geste 3 — `leases/` et `maintenance/` en groupe `(liste)` | `leases/(liste)/{page,loading}.tsx` et `maintenance/(liste)/{page,loading}.tsx` présents ; plus aucun repli à l'étage `leases/` ni `maintenance/` |
+| geste 4 — **QUATORZE** `layout.tsx` de garde | 14 exactement, et **exactement les segments annoncés** (`owners`, `maintenance/providers`, `settings/agency/upgrade`, `customers`, `properties`, `calendar`, `crm/pipeline`, `leases/onboarding-pending`, les 6 vues d'`overview`) |
+| « **23 refus remontés** » | recompté sur la source décommentée : **23** appels `redirect()`/`permanentRedirect()`/`assertCanReach*` dans ces 14 layouts. Exact à l'unité |
+| « 9 `notFound()` sur 8 pages de détail » (§ 3 quater, non fait) | recompté : **9 sur 8**. Exact |
+| « aucun appel d'API de plus : `getMeAction` et `resolveAgencyOrNull` sont mémoïsés » | `app/actions/auth.ts:99` (`cachedGetMe = cache(…)`) et `lib/access/server-guards.ts:101` (`agenceDuRendu = cache(…)`) |
+| TCK-442 ouvert pour le reste | `TCK-442-notfound-des-pages-de-detail-sous-les-replis.md` existe |
+
+Ce qui reste dans un `page.tsx` est **exactement** ce que le § 3 quater annonce comme non traité :
+`crm` (1, le `permanentRedirect` du 308), `overview` (7, l'aiguilleur — hors portée de tout repli
+depuis le geste 2) et `properties/[id]` (1, le `redirect()` du `catch` 401/403, renvoyé à TCK-442).
+
+### Les gardes, rejouées
+
+```
+etats-de-route.test.ts                       15 tests verts   (5 règles TCK-426)
+(public)/…/pas-de-frontiere-de-suspension    18 tests verts
+scripts/check-pro-routes.mjs                 EXIT 0
+scripts/check-auth-interrupts.mjs            EXIT 0   (PLAFOND_MESURE = 22, l. 270)
+takussan-web/scripts/check-i18n-namespaces   EXIT 0
+```
+
+Deux des cinq règles de `etats-de-route.test.ts` portent leur **pendant de non-vacuité** — celui
+qui fige ce que l'exclusion `estDansUnCatch` couvre réellement (`['properties/[id]/page.tsx']`) est
+le plus utile : sans lui, une accolade mal comptée rendrait la règle verte en n'examinant rien.
+
+### Ce qui NE peut pas être rejoué ici, et il faut le dire
+
+Le § 3 « la vérification de bout en bout » rapporte **18 refus sur 18 rendant un vrai 307**, plus
+les contrôles positifs et la présence de `data-testid="route-skeleton"` dans le HTML servi. Rien de
+tout cela n'est reproduit dans cette passe : il y faut une API Laravel servie, un jeton Sanctum et
+un `next dev`, sur une machine qui portait d'autres agents au même moment (`load average` 101 à la
+minute). **Ce qui est vérifié ici est l'ARBRE ; le comportement HTTP est cru sur la mesure du
+ticket.** *Une vérification qui ne dit pas ce qu'elle n'a pas mesuré se fait passer pour plus large
+qu'elle n'est.*
+
+### Un avertissement du ticket est devenu périmé — dans le sens rassurant
+
+Le § 2 signale que le docblock de `(public)/properties/[slug]/page.tsx` (l. 31-39) « affirme encore
+le contraire » et s'attribue un 404 qu'il ne produit pas, la correction étant portée au commit de
+fusion. **Elle y est** : le fichier porte désormais, au-dessus de son `notFound()` de
+`generateMetadata`, le tableau désagrégé (`generateMetadata seul → 200 | corps seul → 404`) et la
+raison réelle de la ligne (l'affinage de type). Ce paragraphe du ticket peut se lire comme un
+historique, plus comme une dette ouverte.

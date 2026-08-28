@@ -1,13 +1,13 @@
 ---
 id: TCK-430
 title: "`/admin/settings/tags` n'a aucun chemin entrant — le bandeau réparé n'est vu que sur une URL tapée à la main"
-status: doing
+status: done
 phase: P3
 family: front
 estimate: S
 wave: 48
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -117,8 +117,11 @@ aussitôt serait le deuxième geste mort.
 - [x] Si (1) : `src/app/(dashboard)/admin/settings/tags/page.tsx` porte en en-tête la raison d'être
       de la souche, et le corps de TCK-370 ne laisse plus croire que le bandeau est atteignable par
       la navigation.
-- [x] ~~Si (2)~~ : sans objet — l'option (2) est écartée ci-dessus. le chemin ouvert mène à un écran qui **contient** ce qu'il annonce — un test le
-      vérifie en montant la destination, pas en assertant le `href`.
+- [x] **Sans objet** — l'option (2) est écartée ci-dessus, ce critère ne porte donc sur rien :
+      ~~Si (2) : le chemin ouvert mène à un écran qui **contient** ce qu'il annonce — un test le
+      vérifie en montant la destination, pas en assertant le `href`.~~
+  > ⚠ Case VACUEUSE, cochée pour « rien à faire », pas pour « fait » (relevé le 2026-08-28 : le
+  > barrage ne couvrait que « Si (2) » et la clause morte se lisait comme une exigence vivante).
 - [x] Dans les deux cas, `grep -rn "settings/tags" src/ | grep -v __tests__` rend un résultat qui
       s'explique sans lire ce ticket.
 

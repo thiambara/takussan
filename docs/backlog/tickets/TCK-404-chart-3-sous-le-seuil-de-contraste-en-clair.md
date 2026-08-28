@@ -1,13 +1,13 @@
 ---
 id: TCK-404
 title: "`--chart-3` rend 2,57:1 sur `--card` en thème clair — décider de la valeur ou du rôle"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 48
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: [TCK-374]
 blocks: []
 spec_refs:
@@ -74,11 +74,25 @@ casserait ce second usage. Les deux rôles doivent être tranchés ensemble.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `node scripts/check-chart-contrast.mjs --report` reste vert, et mesure **cinq** jetons
+- [x] AC1 — `node scripts/check-chart-contrast.mjs --report` reste vert, et mesure **cinq** jetons
       par thème si la voie « corriger » est prise
-- [ ] AC2 — la décision est écrite dans `docs/design-guidelines.md`, quelle qu'elle soit
-- [ ] AC3 — aucune régression visuelle sur le ton `warning` de `StatCard`, mesuré en clair ET en
+  > Vérifié 2026-08-28 : garde en sortie 0, `68 mesures ≥ 3:1 (17 formes × 2 thèmes × 2 surfaces)`,
+  > `--chart-1` à `--chart-5` présents dans chacun des quatre blocs thème × surface ; minimum
+  > 3,38:1. Doublé par `palette-et-locale.test.tsx` (26 cas verts), qui lit `globals.css` et
+  > compare les quatre ratios à 2 décimales (3,55 / 3,38 / 8,17 / 8,99) — donc la VALEUR et pas
+  > seulement le seuil.
+- [x] AC2 — la décision est écrite dans `docs/design-guidelines.md`, quelle qu'elle soit
+  > Vérifié : `docs/design-guidelines.md` l.111-145 — bloc « DÉCISION TCK-404 (2026-08-27) »,
+  > les deux voies, les trois mesures qui tranchent, la table HSL et la conséquence sur l'ordre
+  > des séries. La table de contraste (l.99-103) porte `--chart-3` `#ad8034` sur les deux surfaces.
+- [x] AC3 — aucune régression visuelle sur le ton `warning` de `StatCard`, mesuré en clair ET en
       sombre
+  > Coché, mais l'AC est VACUE et le ticket le dit lui-même. Preuve prise plus haut que la mesure :
+  > `git diff 8f129c9f^ c3f9d669 -- globals.css` ne change **qu'une seule ligne de jeton**
+  > (`--chart-3: #c89a4a` → `#ad8034`) ; `--warning` ne bouge dans aucun des deux blocs, et
+  > `charts/StatCard.tsx:58` rend `warning: 'bg-warning/10'` — aucune référence à `--chart-3`.
+  > Le ton ne peut donc pas avoir régressé, dans aucun thème. ⚠ Corollaire : cette case serait
+  > cochable même sans le correctif — elle ne prouve rien du travail de TCK-404.
 
 ## Hors périmètre
 

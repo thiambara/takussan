@@ -1,13 +1,13 @@
 ---
 id: TCK-438
 title: "L'attente et l'introuvable de la section publique : quatre écrans sans état de chargement, et un 404 racine qui n'existe pas"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: M
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -17,6 +17,22 @@ spec_refs:
   models: []
 tags: [front, public, ux, etats, a11y]
 ---
+
+> ## ⚠ `done` AVEC DEUX CRITÈRES NON TENUS — lire avant de s'y fier
+>
+> Passé à `done` le 2026-08-28 à la fusion du lot vagues 46-49. Le delta est livré et éprouvé,
+> mais **AC1 et AC3 ne sont pas cochés**, et ce n'est pas un oubli de transcription :
+>
+> - **AC1** — *aucun test de ce dépôt ne lit le code HTTP d'une réponse*, faute de harnais e2e.
+>   Le statut n'est attesté que par une campagne manuelle (2026-08-27). La prémisse de l'AC est
+>   en outre fausse : la route rendait **déjà 404** avant le correctif.
+> - **AC3** — tenu sur **1 route serveur sur 4**. Les trois fiches à slug n'ont délibérément pas
+>   de `loading.tsx` : le repli qui couvrirait leur attente **fait retomber leur 404 à 200**
+>   (mesuré), et une garde défend désormais cette absence. *Cocher AC3 exigerait de casser ce
+>   qu'une autre garde protège* — c'est un arbitrage, pas une dette.
+>
+> *Un ticket `done` dont on ne peut pas nommer les trous est un ticket dont personne ne saura
+> qu'il en avait.*
 
 ## Objectif utilisateur
 
@@ -110,15 +126,56 @@ chose n'existe pas.
 
 - [ ] AC1 — un slug d'agence inconnu rend le **code HTTP 404** et l'écran du site. Le test lit le
       code de la réponse : un test qui n'assertion que le texte passerait sur la 200 d'aujourd'hui.
-- [ ] AC2 — l'API injoignable sur une fiche d'agence rend un écran d'indisponibilité, **pas** un
+  > ⚠ non vérifié : **aucun test ne lit le code de la réponse**, et ce dépôt n'a pas de harnais e2e
+  > qui le puisse — la limite est déjà énoncée deux fois dans les notes ci-dessous (« la même
+  > limite qui empêche déjà de tester le code HTTP lui-même »). Ce qui existe :
+  > `agencies/[slug]/__tests__/page.server.test.tsx` asserte que le corps de page lève
+  > `NEXT_NOT_FOUND` sur un 404 amont, et `__tests__/pas-de-frontiere-de-suspension.test.ts`
+  > (18 cas, verts) refuse structurellement la frontière de repli qui ferait retomber ce 404 à 200.
+  > Le **statut** lui-même n'est attesté que par la campagne manuelle du 2026-08-27 sous `next dev`,
+  > consignée dans les notes — une mesure datée, pas une garde qui rejoue.
+  > ⚠ La prémisse de l'AC est en outre fausse et les notes le disent : il n'y avait pas de « 200
+  > d'aujourd'hui », `/fr/agencies/slug-inconnu-zzz` rendait **déjà 404** avant tout correctif.
+  > Le risque n'était pas de gagner le statut, c'était de le perdre.
+- [x] AC2 — l'API injoignable sur une fiche d'agence rend un écran d'indisponibilité, **pas** un
       404, et la page déclare `robots: { index: false }`. Un test l'éprouve en faisant échouer
       l'appel — pas en supprimant l'agence.
+  > ✔ vérifié le 2026-08-28, et sur les deux moitiés — c'est ce qui compte, l'ablation citée plus
+  > bas ayant montré qu'une seule ne garde rien. (1) La CLASSIFICATION :
+  > `src/lib/queries/__tests__/fiches-publiques.test.ts` fait échouer l'appel pour de bon —
+  > `ECONNREFUSED` (la panne exacte observée), 500/502/503/429/400/401/403, corps illisible — et
+  > exige `indisponible` ; seul un 404 amont rend `introuvable`. (2) Ce que la PAGE en fait :
+  > `page.server.test.tsx` (agence et agent) montre l'écran d'indisponibilité, jamais « introuvable »,
+  > `notFound()` non appelé, chrome et retour conservés, et `generateMetadata` → `robots: { index: false }`.
+  > 64/64 sur les six fichiers rejoués.
 - [ ] AC3 — chacune des quatre routes serveur rend un état d'attente pendant la navigation ; un
       test le constate par le rendu du repli, pas par la seule présence du fichier.
-- [ ] AC4 — une URL publique inconnue rend le 404 du site, avec navbar, pied de page et un lien
+  > ⚠ non vérifié : **tenu sur 1 route sur 4**, et c'est un arbitrage assumé, écrit au § Reste
+  > ouvert. `/bookings` a son `loading.tsx` et `__tests__/etats-publics.test.tsx` en éprouve le
+  > rendu (squelette, géométrie de la page, retrait de l'arbre d'accessibilité). Les trois fiches à
+  > slug n'en ont **délibérément pas** : sur elles l'attente EST la décision d'existence, et le
+  > repli qui la couvrirait fait retomber le 404 à 200 (mesuré). `pas-de-frontiere-de-suspension.test.ts`
+  > garde désormais cette absence — l'AC ne peut donc pas être coché sans casser ce qu'un autre
+  > défend.
+- [x] AC4 — une URL publique inconnue rend le 404 du site, avec navbar, pied de page et un lien
       vers `/properties`, dans la langue active.
-- [ ] AC5 — aucun libellé de ces écrans n'est écrit en dur : un test échouerait sur une chaîne
+  > ℹ Prouvé quant au fond, avec **une déviation à connaître sur la lettre** : la chrome n'est pas
+  > `Navbar`/`Footer` mais un en-tête de marque et un pied de page écrits sur place. Arbitrage
+  > chiffré, pas raccourci — importer la chrome marketing dans un fichier de routeur RACINE fait
+  > **doubler** le socle i18n servi à toutes les pages (13 → 26 points gzippés, `(auth)` 18 → 30,
+  > `onboarding` 42 → 54), soit le défaut que TCK-337 avait corrigé. Coût retenu : +1 point.
+  > `src/app/__tests__/not-found-du-site.test.tsx` (3/3) éprouve le `<h1>`, le lien vers
+  > `/fr/properties`, la présence d'un `banner` et d'un `contentinfo`, et la non-vacuité de « dans
+  > la langue active » (rendu `en` → « This page does not exist », `/en/properties`).
+  > ⚠ Ce que jsdom ne peut pas garder : que cet écran soit bien celui qu'une URL inconnue atteint.
+  > Mesuré à la main, trois emplacements candidats, marqueur distinct — seule `src/app/not-found.tsx`
+  > est atteinte.
+- [x] AC5 — aucun libellé de ces écrans n'est écrit en dur : un test échouerait sur une chaîne
       absente des trois dictionnaires.
+  > ✔ `__tests__/etats-publics.test.tsx` parcourt les 20 chemins de clés de ces écrans
+  > (`errors.siteNotFound.*`, `agency.publicPage.*`, `agents.publicPage.*`) dans `fr`, `en` **et**
+  > `wo`, et refuse la chaîne vide au même titre que l'absence — sans quoi le repli next-intl
+  > rendrait le français sans que personne ne voie rougir.
 
 ## Hors périmètre
 
@@ -262,8 +319,18 @@ Vérifié : élargir le détecteur à `{props.children}` fait rougir l'épingle 
 
 ⚠ Une phrase de la passe 2 a aussi été corrigée pour cesser de mentir par le temps verbal : elle
 disait que « trois fichiers l'affirmaient », à l'imparfait, alors que deux seulement ont été
-corrigés ici. Le troisième — `properties/[slug]/page.tsx`, celui d'où vient la croyance — le dit
-encore, plus fort, et sort du périmètre de ce ticket.
+corrigés ici. Le troisième — `properties/[slug]/page.tsx`, celui d'où vient la croyance — le disait
+encore, plus fort, et sortait du périmètre de ce ticket.
+
+> **Clos à l'intégration du lot, le 2026-08-28.** Le 2×2 de la revue adverse a montré que le
+> docblock n'est pas seulement trop large : son **attribution** est fausse, et son ablation ne se
+> reproduit pas (`generateMetadata` seul → 200, corps seul → **404**, les deux → 404 ; trois
+> exécutions, contrôle positif à chaque fois). Le texte est remplacé et le paragraphe d'ablation
+> retiré. La ligne, elle, **reste** : `notFound()` rend `never` et retire `introuvable` de l'union
+> avant la lecture de `resultat.bien` — elle est porteuse pour les types, pas pour le statut.
+>
+> *Le motif qu'une passe corrige, laissé en place dans le fichier d'où il vient.* C'est ce que
+> « hors périmètre » coûte quand personne ne reprend la dette au moment de fusionner.
 
 ### Reste ouvert
 

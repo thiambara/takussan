@@ -1,13 +1,13 @@
 ---
 id: TCK-439
 title: "Le même champ de recherche écrit `q` ou `city` selon le bouton cliqué — et deux entrées du menu mobile mènent à `#`"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -108,19 +108,41 @@ Un lien grisé qui ne fait rien est pire que son absence.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une saisie donnée dans le champ de recherche produit **la même clé de filtre** que le
+- [x] AC1 — une saisie donnée dans le champ de recherche produit **la même clé de filtre** que le
       visiteur clique la loupe, presse Entrée, ou clique une puce de catégorie. Le test compare
       les URL des trois gestes entre elles ; un test qui n'éprouverait qu'un seul geste passerait
       déjà aujourd'hui.
-- [ ] AC2 — cliquer une puce de catégorie après une recherche plein-texte **conserve** la
+  > ✔ vérifié le 2026-08-28. `Navbar.tsx` n'a plus qu'un constructeur d'URL (`buildSearchUrl`) et
+  > `handleCategoryClick` s'y délègue avec un seul `override` (`type`). Les noms de paramètres
+  > viennent de `parametreDe()` → `SEARCH_FILTER_KEYS[cle].params[0]`, plus aucun littéral.
+  > `Navbar.recherche.test.tsx` compare bien les **trois** URL entre elles : `urlEntree === urlLoupe`
+  > et `urlPuce === urlLoupe + '&type=villa'`, `city` nul dans les trois cas.
+  > `npx vitest run src/components/home/__tests__/Navbar.recherche.test.tsx` → 5/5.
+- [x] AC2 — cliquer une puce de catégorie après une recherche plein-texte **conserve** la
       recherche plein-texte et n'ajoute que le type. Un test l'éprouve sur une saisie qui n'est
       pas un nom de ville.
-- [ ] AC3 — le repli conjonctif de TCK-338 reste atteignable après un clic sur une puce : la
+  > ✔ La saisie du test est « villa avec piscine » — délibérément pas un nom de ville — et
+  > l'assertion est exhaustive : `[...params.keys()].sort()` vaut exactement `['q', 'type']`. Une
+  > régression qui écrirait `city` en plus, ou qui perdrait `q`, rougit.
+- [x] AC3 — le repli conjonctif de TCK-338 reste atteignable après un clic sur une puce : la
       requête part toujours avec ses termes.
-- [ ] AC4 — aucune entrée de `navLinks` ne porte `#`, et un test échouerait si une nouvelle en
+  > ✔ Après le clic sur la puce, `q` est non nul et porte **plus d'un terme** — c'est-à-dire la
+  > matière même sur laquelle TCK-338 élargit et étiquette.
+- [x] AC4 — aucune entrée de `navLinks` ne porte `#`, et un test échouerait si une nouvelle en
       portait un.
-- [ ] AC5 — les liens du menu mobile naviguent sans recharger le document ; un test l'éprouve par
+  > ✔ `src/data/__tests__/navigation.test.ts` est écrit sur la FORME et non sur les deux cas
+  > connus : un `it.each` sur **toutes** les entrées de `navLinks` + `footerLinks` refuse `#`,
+  > toute ancre nue, et tout `href` qui ne résout pas vers une route réelle. `services` est retiré,
+  > `sell` pointe `/publish` (route existante). Le test de la garde elle-même épingle
+  > `routeExiste('/services') === false`. → 21/21.
+- [x] AC5 — les liens du menu mobile naviguent sans recharger le document ; un test l'éprouve par
       la conservation d'un état client, pas par la balise rendue.
+  > ℹ Propriété prouvée, **méthode différente de celle que l'AC prescrit et plus forte** : sous
+  > jsdom aucun document ne se recharge, donc « la conservation d'un état client » y est vraie même
+  > pour un `<a href>` nu (le test du pied de page le dit noir sur blanc). L'observable retenue est
+  > celle qui sépare réellement les deux mondes : `defaultPrevented === true` sur le clic **et**
+  > `push('/fr/properties?contract_type=sale')`. Un `<a>` nu échoue aux deux. Le second cas vérifie
+  > en outre que « Vendre » pousse `/publish` non localisé et qu'aucun lien « Services » ne subsiste.
 
 ## Hors périmètre
 
