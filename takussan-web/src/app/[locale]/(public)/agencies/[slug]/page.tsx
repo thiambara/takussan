@@ -19,11 +19,32 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const t = await getTranslations('agency.publicPage');
   const resultat = await getAgency(slug, await getLocale());
 
-  // ⚠️ **`notFound()` est appelé ICI AUSSI, et pas seulement dans la page — c'est ce qui rend le
-  // CODE HTTP robuste.** `generateMetadata` est attendu avant que la coque ne parte ; un
-  // `notFound()` qui n'arriverait qu'au corps de page dépend, pour fixer le statut, de ce que
-  // rien n'ait encore été écrit. C'est la forme validée par TCK-335 sur la fiche de bien, dont
-  // l'ablation avait rendu **200** au lieu de 404.
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  // ⚠️ CET APPEL NE PORTE **AUCUN** CODE HTTP. C'est le `notFound()` du CORPS DE PAGE qui le porte.
+  // ════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // Le dépôt a cru l'inverse — ce commentaire disait « c'est ce qui rend le CODE HTTP robuste » —
+  // parce que la mesure d'origine (TCK-335) portait sur une sonde qui appelait `notFound()` AUX
+  // DEUX endroits et n'avait donc jamais séparé leurs effets. Désagrégé le 2026-08-28, slug
+  // d'agence inconnu, API vérifiée vivante à chaque relevé :
+  //
+  //     notFound() dans le SEUL generateMetadata  →  200   ← l'écran « introuvable », en 200
+  //     notFound() dans le SEUL corps de page     →  404
+  //     les deux (état de ce fichier)             →  404
+  //
+  // Le 404 vient donc du corps, et de lui seul. *Une mesure prise sur deux causes présentes à la
+  // fois ne dit rien de chacune.*
+  //
+  // ⚠️ Ce que le corps produit ne survit qu'en l'absence de TOUTE frontière de suspension au-dessus
+  // de lui — `loading.tsx` ou `<Suspense>` écrit à la main dans une disposition ancêtre. C'est ce
+  // mécanisme-là, et non cette ligne, qui tient le 404 du site public ; il est verrouillé par
+  // `[locale]/(public)/__tests__/pas-de-frontiere-de-suspension.test.ts`.
+  //
+  // **Pourquoi cet appel reste, alors :** il est load-bearing pour les TYPES, pas pour le statut.
+  // `notFound()` rend `never`, et c'est lui qui retire `{ etat: 'introuvable' }` de l'union avant
+  // la lecture de `resultat.agence`. Sans lui, `tsc` casse :
+  //     error TS2339: Property 'agence' does not exist on type '{ readonly etat: "introuvable"; }'
+  // Il évite aussi de calculer des métadonnées pour une entité dont on sait qu'elle n'existe pas.
   if (resultat.etat === 'introuvable') notFound();
 
   if (resultat.etat === 'indisponible') {

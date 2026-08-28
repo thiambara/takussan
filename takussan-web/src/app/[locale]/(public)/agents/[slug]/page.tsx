@@ -18,9 +18,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const t = await getTranslations('agents.publicPage');
   const resultat = await getAgent(slug, await getLocale());
 
-  // ⚠️ Voir le commentaire jumeau de `agencies/[slug]/page.tsx` : `generateMetadata` est attendu
-  // avant que la coque ne parte, et c'est ce qui rend le 404 robuste plutôt que dépendant de ce
-  // que rien n'ait encore été écrit.
+  // ⚠️ **Cet appel ne porte AUCUN code HTTP** — le 404 vient du `notFound()` du corps de page.
+  // Désagrégé le 2026-08-28 : `notFound()` dans le seul `generateMetadata` rend **200**, dans le
+  // seul corps de page **404**. La mesure complète, et la raison pour laquelle cette ligne reste
+  // malgré tout — elle est load-bearing pour les TYPES, `never` retirant `introuvable` de l'union
+  // avant la lecture de `resultat.agent` —, sont écrites une seule fois, dans le commentaire
+  // jumeau de `agencies/[slug]/page.tsx`.
   if (resultat.etat === 'introuvable') notFound();
 
   if (resultat.etat === 'indisponible') {

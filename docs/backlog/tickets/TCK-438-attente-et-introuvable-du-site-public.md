@@ -209,6 +209,37 @@ la suite de la fiche **verte, 5/5** : les tests de page remplacent le module de 
 par `md5` avant/après — un premier essai `perl` dont le motif ne correspondait à rien avait rendu
 « ablation non appliquée » plutôt qu'un faux vert.
 
+### Passe 2 — deux corrections de fond apportées par la revue
+
+**La garde ne connaissait que des noms de fichiers.** `loading.tsx` n'est qu'une des deux façons
+d'ouvrir une frontière de suspension ; l'autre s'écrit à la main. Reproduit le 2026-08-28 : un
+`<Suspense>{children}</Suspense>` posé dans `(public)/layout.tsx` fait passer **les trois fiches de
+404 à 200**, et la garde restait **verte 10/10**. Elle lit désormais le *source* des dispositions
+ancêtres — liste **dérivée** de l'arborescence, jamais énumérée — et refuse `{children}` placé sous
+un `<Suspense>`. Ablation : reposer exactement ce `<Suspense>` la fait rougir (3 échecs / 16), et la
+perturbation ablatée a le **même md5** que celle dont le 404 → 200 a été mesuré.
+
+> *Une garde qui ne connaît que la liste des formes valides et écarte le reste ne garde rien — « le
+> reste » EST le défaut.*
+
+**`generateMetadata` ne porte aucun statut.** Trois commentaires de ce dépôt l'affirmaient, dont deux
+écrits ici. La mesure d'origine (TCK-335) portait sur une sonde appelant `notFound()` **aux deux
+endroits** et n'avait jamais séparé leurs effets. Désagrégé :
+
+```
+notFound() dans le SEUL generateMetadata  →  200   ← le bon écran, en 200 : un soft-404
+notFound() dans le SEUL corps de page     →  404
+les deux                                  →  404
+```
+
+L'appel reste dans les deux fiches, mais pour la raison vraie : il retire `introuvable` de l'union
+de types (`never`), sans quoi `tsc` casse sur `resultat.agence`. Il ne protège aucun statut.
+
+⚠ **Piège de méthode payé deux fois** : une première campagne de désagrégation a rendu 200 partout
+et ne mesurait rien — l'API locale s'était arrêtée, et les deux cas tombaient sur la branche
+`indisponible`, qui rend 200 elle aussi. Le harnais vérifie désormais que l'API répond 200 sur un
+slug connu **et** 404 sur un slug inconnu avant chaque relevé, et refuse de mesurer sinon.
+
 ### Reste ouvert
 
 - AC3 n'est tenu que sur `/bookings` (1 route serveur sur 4), pour la raison mesurée ci-dessus.

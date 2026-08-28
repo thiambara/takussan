@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync, readdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -17,7 +17,24 @@ import { fileURLToPath } from 'node:url';
  *
  * Aucun harnais e2e n'existe dans ce dépôt (`npm run test` = vitest/jsdom) : **aucun test ne peut
  * lire un code HTTP.** Une garde qui ne peut pas observer l'effet doit au moins verrouiller ce qui
- * le produit — d'où un test qui regarde des noms de fichiers.
+ * le produit.
+ *
+ * ⚠️ **Et « ce qui le produit » n'est PAS « un fichier nommé `loading.tsx` ».** La première version
+ * de cette garde ne connaissait que des noms de fichiers, et c'est le défaut qu'elle a elle-même
+ * illustré : `loading.tsx` n'est qu'une des deux façons d'ouvrir une frontière de suspension.
+ * L'autre s'écrit à la main, et la garde ne la voyait pas. Mesuré le 2026-08-28, un
+ * `<Suspense fallback={…}>{children}</Suspense>` posé dans `(public)/layout.tsx` :
+ *
+ * ```
+ *                                          properties   agencies   agents   garde
+ * référence, aucune frontière                  404        404        404    VERTE  ✓
+ * + <Suspense> ÉCRIT À LA MAIN dans le layout  200        200        200    VERTE  ✗
+ * retour à la référence                        404        404        404    VERTE  ✓
+ * ```
+ *
+ * *Une garde qui ne connaît que la liste des formes valides et écarte le reste ne garde rien — « le
+ * reste » EST le défaut.* Les cas de la section « frontière écrite à la main » ci-dessous ferment
+ * cette moitié-là, en lisant le SOURCE des dispositions ancêtres au lieu de leurs noms.
  *
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  * 2. LES MESURES
@@ -43,10 +60,26 @@ import { fileURLToPath } from 'node:url';
  *
  * Deux enseignements, et le second est celui qui gouverne le dessin de la section publique :
  *
- * **(a) `generateMetadata` ne protège PAS le statut.** La fiche de bien appelle `notFound()` dans
- * son `generateMetadata` depuis TCK-335, précisément pour tenir le code HTTP — et elle passe tout
- * de même à 200 dès qu'un `loading.tsx` existe dans son segment. Le remède de TCK-335 et cette
- * garde ne sont pas redondants : le premier ne suffit pas sans la seconde.
+ * **(a) `generateMetadata` ne porte AUCUN statut — ni avec, ni sans frontière de suspension.**
+ * Le dépôt a longtemps cru le contraire : TCK-335 avait déplacé `notFound()` dans
+ * `generateMetadata` « pour tenir le code HTTP », et trois fichiers l'affirmaient encore. La
+ * mesure d'origine portait sur une sonde qui appelait `notFound()` AUX DEUX endroits, et n'avait
+ * donc jamais séparé leurs effets. Désagrégé le 2026-08-28, aucune frontière sur le chemin :
+ *
+ * ```
+ * notFound() dans le SEUL generateMetadata  →  200   ← le bon écran, servi en 200 : un soft-404
+ * notFound() dans le SEUL corps de page     →  404
+ * les deux                                  →  404
+ * ```
+ *
+ * **Le 404 vient du corps, et de lui seul.** *Une mesure prise sur deux causes présentes à la fois
+ * ne dit rien de chacune* — et le remède qu'on en tire protège alors ce qu'il ne touche pas. Le
+ * `notFound()` de `generateMetadata` reste dans les fiches, mais pour une autre raison, écrite
+ * là-bas : il retire `introuvable` de l'union de types, sans quoi `tsc` casse.
+ *
+ * Conséquence pour cette garde : **elle n'est pas un filet de sécurité qui doublerait un autre
+ * mécanisme, elle EST le mécanisme.** Le seul `notFound()` qui porte le statut est celui du corps
+ * de page, et il ne survit qu'en l'absence de toute frontière au-dessus de lui.
  *
  * **(b) Remonter la décision dans un `layout.tsx` rend bien le 404 — et ne rend pas le repli
  * utile pour autant.** Un repli couvre exactement ce qui est *en dessous* de lui. Mesuré en
@@ -116,6 +149,78 @@ const INTERDITS = [
   'agents',
 ];
 
+/**
+ * Le source d'un fichier, **commentaires retirés**.
+ *
+ * ⚠ Sans ce retrait, la garde se mordrait la queue : les docblocks de ce dépôt — celui-ci compris —
+ * citent `<Suspense>` pour expliquer pourquoi il est interdit. Une garde qui compte les occurrences
+ * dans le texte, commentaires compris, rougirait sur sa propre explication.
+ */
+function sourceSansCommentaires(fichier: string): string {
+  return readFileSync(fichier, 'utf8')
+    .replace(/\{\s*\/\*[\s\S]*?\*\/\s*\}/g, '') // commentaires JSX
+    .replace(/\/\*[\s\S]*?\*\//g, '') // blocs
+    .replace(/^[^\n]*?\/\/[^\n]*$/gm, ''); // lignes
+}
+
+/**
+ * Les `layout.tsx` qui GOUVERNENT un segment : le sien et ceux de tous ses ancêtres jusqu'à
+ * `src/app`.
+ *
+ * ⚠ Cette liste est DÉRIVÉE de l'arborescence, jamais écrite à la main. Une liste écrite à la main
+ * aurait été juste le jour de sa rédaction : `src/app/(public)` est devenu `src/app/[locale]/(public)`
+ * en TCK-434, et trois renvois de ce dépôt pointaient encore vers l'ancien chemin des semaines
+ * après. Une garde qui énumère ses cibles cesse de garder dès que l'arbre bouge, sans rien dire.
+ */
+function layoutsGouvernant(segment: string): string[] {
+  const trouves: string[] = [];
+  let courant = join(PUBLIC, segment);
+  for (;;) {
+    const layout = join(courant, 'layout.tsx');
+    if (existsSync(layout)) trouves.push(layout);
+    if (courant === APP) break;
+    const parent = dirname(courant);
+    if (parent === courant) break;
+    courant = parent;
+  }
+  return trouves;
+}
+
+/**
+ * `{children}` est-il rendu À L'INTÉRIEUR d'un `<Suspense>` dans ce source ?
+ *
+ * Compte les ouvertures et les fermetures qui précèdent chaque `{children}` : s'il reste une
+ * ouverture non fermée, l'enfant est sous la frontière. Cette forme distingue le cas qui déplace le
+ * statut — `<Suspense>{children}</Suspense>` — de celui qui ne le déplace pas — un `<Suspense>`
+ * posé autour d'un VOISIN de `{children}`, qui ne couvre pas la page et n'a donc rien d'interdit.
+ * *Refuser les deux aurait été plus simple à écrire et aurait appris à contourner la garde.*
+ *
+ * ⚠️ **Le détecteur ne cherche PAS la fin des balises, et c'est délibéré.** Une première version
+ * lisait `<Suspense[^>]*?(\/?)>` pour repérer l'auto-fermeture ; elle prenait `>` à l'intérieur du
+ * `fallback` — `<Suspense fallback={<i/>}>` se lisait comme auto-fermant — et rendait donc **faux
+ * sur la forme exacte du défaut**. Le cas de test qui l'a attrapée est plus bas. On ne repère donc
+ * que `<Suspense` et `</Suspense`, qui ne demandent aucune analyse de JSX.
+ *
+ * ⚠️ Conséquence assumée : un `<Suspense … />` réellement auto-fermant compte comme une ouverture
+ * et fait ROUGIR. C'est un faux positif sur un composant qui n'enveloppe rien, donc qui n'a aucune
+ * raison d'exister. *Le biais d'une garde va vers le rouge : un faux rouge se lit et se corrige en
+ * une minute, un faux vert ne se lit jamais.*
+ */
+function enfantsSousSuspense(source: string): boolean {
+  const jetons = source.matchAll(/<\/?(?:React\.)?Suspense\b|\{\s*children\s*\}/g);
+  let ouvertes = 0;
+  for (const [texte] of jetons) {
+    if (texte.includes('children')) {
+      if (ouvertes > 0) return true;
+    } else if (texte.startsWith('</')) {
+      ouvertes = Math.max(0, ouvertes - 1);
+    } else {
+      ouvertes += 1;
+    }
+  }
+  return false;
+}
+
 const fichiersDe = (repertoire: string): string[] =>
   existsSync(repertoire)
     ? readdirSync(repertoire, { withFileTypes: true })
@@ -140,6 +245,66 @@ describe('TCK-335 / TCK-438 — aucune fiche à slug ne vit sous une frontière 
     for (const ancetre of [PUBLIC, join(APP, '[locale]'), APP]) {
       expect(fichiersDe(ancetre)).not.toContain('loading.tsx');
     }
+  });
+
+  describe('la frontière ÉCRITE À LA MAIN — ce que les noms de fichiers ne montrent pas', () => {
+    const FICHES = ['properties/[slug]', 'agencies/[slug]', 'agents/[slug]'];
+
+    for (const segment of FICHES) {
+      it(`aucune disposition gouvernant ${segment} ne met {children} sous <Suspense>`, () => {
+        const layouts = layoutsGouvernant(segment);
+
+        // Non-vacuité : si la dérivation ne trouvait plus rien — arborescence déplacée, groupe
+        // renommé —, la boucle ci-dessous serait vide et le cas passerait au vert en n'ayant
+        // RIEN regardé. C'est le mode de défaillance d'une garde dérivée, et il est muet.
+        expect(layouts.length, `aucun layout trouvé au-dessus de ${segment}`).toBeGreaterThan(0);
+
+        for (const layout of layouts) {
+          expect(
+            enfantsSousSuspense(sourceSansCommentaires(layout)),
+            `${relative(APP, layout)} met {children} sous <Suspense> : les trois fiches ` +
+              `rendront 200 au lieu de 404, et aucun nom de fichier ne le montre`,
+          ).toBe(false);
+        }
+      });
+    }
+
+    it('la dérivation atteint bien la racine, et pas seulement le groupe public', () => {
+      // Seconde non-vacuité, sur la PORTÉE : une frontière posée dans `app/layout.tsx` couvrirait
+      // les trois fiches depuis un endroit que personne ne regarde en travaillant sur le site
+      // public. Le cas vérifie que ce fichier-là fait partie de ce qui est inspecté.
+      const layouts = layoutsGouvernant('agencies/[slug]');
+
+      expect(layouts).toContain(join(APP, 'layout.tsx'));
+      expect(layouts).toContain(join(PUBLIC, 'layout.tsx'));
+    });
+
+    it('le détecteur voit une frontière manuelle, et ignore un <Suspense> qui ne couvre pas la page', () => {
+      // ⚠ Une garde dont on n'éprouve pas le DÉTECTEUR est une garde dont on espère qu'elle
+      // détecte. Les quatre formes ci-dessous fixent sa frontière de compétence sans qu'il faille
+      // toucher à un vrai layout pour la connaître.
+      // ⚠ La PREMIÈRE de ces quatre lignes a fait rougir le détecteur et l'a fait réécrire : un
+      // `fallback` qui contient du JSX (`{<i/>}`) trompait la recherche de fin de balise, et la
+      // forme EXACTE du défaut passait pour autorisée. Elle reste en tête à ce titre.
+      expect(enfantsSousSuspense('<Suspense fallback={<i/>}>{children}</Suspense>')).toBe(true);
+      expect(enfantsSousSuspense('<React.Suspense>{ children }</React.Suspense>')).toBe(true);
+      // un voisin sous Suspense ne couvre pas la page : autorisé
+      expect(enfantsSousSuspense('<Suspense><Barre /></Suspense>{children}')).toBe(false);
+      // auto-fermant : compté comme ouverture, donc refusé — faux positif assumé, cf. docblock
+      expect(enfantsSousSuspense('<Suspense fallback={<i/>} />{children}')).toBe(true);
+    });
+
+    it('les commentaires ne comptent pas — la garde ne se mord pas la queue', () => {
+      // Ce dépôt explique dans ses docblocks pourquoi `<Suspense>` est interdit ici. Sans retrait
+      // des commentaires, la garde rougirait sur sa propre explication, et le remède évident —
+      // effacer l'explication — coûterait le savoir sans corriger le défaut.
+      const avecCommentaire = '/* <Suspense>{children}</Suspense> */\n<main>{children}</main>';
+
+      // Lu brut, le commentaire ouvre une frontière imaginaire…
+      expect(enfantsSousSuspense(avecCommentaire)).toBe(true);
+      // …et le retrait des commentaires la fait disparaître, sans toucher au vrai JSX.
+      expect(enfantsSousSuspense(avecCommentaire.replace(/\/\*[\s\S]*?\*\//g, ''))).toBe(false);
+    });
   });
 
   it('la liste garde le sien, confiné à son groupe de routes', () => {

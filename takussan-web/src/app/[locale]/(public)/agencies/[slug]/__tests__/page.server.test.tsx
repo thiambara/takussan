@@ -117,9 +117,11 @@ describe("fiche d'agence — l'introuvable et l'indisponible", () => {
     await expect(Page({ params: params() })).rejects.toThrow('NEXT_NOT_FOUND');
     expect(notFoundMock).toHaveBeenCalledTimes(1);
 
-    // ⚠ L'appel dans `generateMetadata` n'est pas une redondance décorative : il est attendu AVANT
-    // que la coque ne parte, là où celui du corps de page dépend de ce que rien n'ait été écrit.
-    // C'est la forme dont TCK-335 a mesuré, par ablation, qu'elle valait 404 contre 200.
+    // ⚠ **Cette seconde assertion ne garde PAS le code HTTP, et il faut le dire ici pour qu'elle ne
+    // soit pas relue comme telle.** Désagrégé le 2026-08-28 : `notFound()` dans le seul
+    // `generateMetadata` rend **200**, dans le seul corps de page **404**. Ce qui est gardé ici,
+    // c'est que `generateMetadata` ne calcule pas de métadonnées pour une entité inexistante — et
+    // que l'union reste narrow-ée, sans quoi `tsc` casse sur `resultat.agence`.
     await expect(generateMetadata({ params: params() })).rejects.toThrow('NEXT_NOT_FOUND');
     expect(notFoundMock).toHaveBeenCalledTimes(2);
   });
