@@ -232,3 +232,48 @@ Et la page fabriquait **deux chaînes pour une requête** (`requete.toString()` 
 `clefDeRecherche(requete)` pour la graine) alors que le docblock de `rechercherBiensPublics`
 affirmait le contraire — c'est ce qui rendait l'écart invisible à la relecture. Une seule chaîne
 désormais, et un test l'exige.
+
+
+### Passe 3 — la troisième affirmation fausse du même paragraphe
+
+`canonique.ts` écrivait « `?page=42` rend aujourd'hui quarante-deux biens différents dans le HTML
+servi **(mesuré, cf. le docblock de `(liste)/page.tsx`)** ». **Les deux moitiés étaient fausses**,
+et elles ne se détectent pas de la même façon :
+
+- **le chiffre** — mesuré le 2026-08-28 sur `GET /api/public/properties/search`, l'endpoint que la
+  page appelle réellement (et non `/public/properties`, qui est un autre contrôleur) : `?page=42`
+  rend **0 bien**, `current_page: 42`, `last_page: 9`, `total: 251`, **HTTP 200**. Dans le HTML
+  servi : 0 lien de fiche et l'état vide, en 200 ;
+- **le renvoi** — `grep -c 'page=42' (liste)/page.tsx` rend **0**. Il ne menait à rien. *Un renvoi
+  vide donne l'apparence de la preuve à ce qui n'en a pas, et décourage la vérification au lieu de
+  l'appeler.*
+
+**D'où venait le chiffre : d'une figure de style.** La prémisse d'origine employait `?page=42`
+comme **exemple rhétorique** d'une page profonde, sans rien affirmer de son contenu. La réécriture
+qui la corrigeait a lu l'illustration comme un compte. *Un ornement de rhétorique promu au rang de
+mesure par la réécriture qui le cite* — voie de contamination distincte de la déduction écrite au
+présent, et qui survit parce qu'on croit ne faire que citer.
+
+**Le résultat renforce la décision** : la pagination accepte un rang qui n'existe pas et le renvoie
+tel quel, en 200. Il existe donc une infinité d'URL profondes servables, indexables et vides.
+
+**L'audit du paragraphe entier a trouvé deux autres phrases qui n'étaient pas des mesures**, et le
+texte les distingue désormais explicitement :
+
+- la raison du **sitemap** — la seule qui porte encore la décision — n'était pas mesurée. Mesuré :
+  `/sitemap.xml` rend **6 `<loc>`, zéro fiche, en HTTP 200**, l'API en service pour la mesure ne
+  portant pas la route (elle rend `404 No query results for model [Property]` : « sitemap » pris
+  pour un slug). **C'est un artefact de l'API mesurée, pas un défaut de cette branche** — la route
+  y est déclarée ligne 64, au-dessus de `properties/{slug}` ligne 99. Non levé : un arbre front
+  seul ne peut pas exécuter l'API de sa propre branche. Ce qui reste vrai et qu'il fallait écrire :
+  **la raison est conditionnée au déploiement de l'endpoint, et sa panne est silencieuse** —
+  `sitemap.ts` attrape, journalise, et sert un sitemap amputé en 200 ;
+- « une publication décale toutes les bornes » est un **raisonnement**, marqué comme tel. Le fait
+  mesuré est `?page=1` / `?page=2`, recouvrement 0.
+
+⚠️ **Et une garde de CI que la passe 2 aurait fait rougir** : `npm run check:i18n` refusait
+`console.error('[accueil] découverte indisponible :')` dans `public-discovery.ts`. Déclaré en
+exception `TECHNIQUE` avec sa raison écrite — **pas contourné en réécrivant la chaîne en gabarit**,
+ce qui l'aurait soustraite au scanner sans rien justifier. Le pendant dans `public-search.ts` est
+justement en gabarit et **échappe à la garde** : c'est noté à côté de l'exception, pour qu'on n'en
+conclue pas un jour qu'il était volontairement traduisible.
