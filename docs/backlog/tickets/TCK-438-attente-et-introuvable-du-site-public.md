@@ -240,6 +240,31 @@ et ne mesurait rien — l'API locale s'était arrêtée, et les deux cas tombaie
 `indisponible`, qui rend 200 elle aussi. Le harnais vérifie désormais que l'API répond 200 sur un
 slug connu **et** 404 sur un slug inconnu avant chaque relevé, et refuse de mesurer sinon.
 
+### Passe 3 — l'horizon de la garde, borné et épinglé
+
+La passe 2 avait écrit que la garde « EST le mécanisme ». **Elle affirmait plus large que ce qu'elle
+vérifie** — le défaut même qu'elle venait de corriger, un cran plus loin. Reproduit ici : un
+`<Suspense>` posé dans `src/i18n/IntlProvider.tsx`, que `(public)/layout.tsx` monte déjà autour de
+`{children}`, fait passer **les trois fiches de 404 à 200** avec la garde **verte 16/16**. Elle ne
+lit que des `layout.tsx` ; ce fichier n'en est pas un.
+
+Le docblock gagne un §4 « son horizon, mesuré et non supposé », et la phrase devient « la seule
+garde **automatique** de ce mécanisme, dans les limites énoncées au §4 ».
+
+**Les quatre formes aveugles sont ÉPINGLÉES par des cas de test, pas seulement listées en prose** —
+trois assertions qui attendent `false` à dessein, plus un cas qui constate que la liste inspectée ne
+contient que des dispositions. Une énumération en prose se périme en silence le jour où quelqu'un
+élargit le motif ; ces cas rougissent alors et l'obligent à corriger le §4 dans le même commit.
+Vérifié : élargir le détecteur à `{props.children}` fait rougir l'épingle (1 échec / 18).
+
+> D1 est **rétréci, pas clos**, et c'est écrit tel quel. Fermer complètement demanderait un harnais
+> e2e que ce dépôt n'a pas — la même limite qui empêche déjà de tester le code HTTP lui-même.
+
+⚠ Une phrase de la passe 2 a aussi été corrigée pour cesser de mentir par le temps verbal : elle
+disait que « trois fichiers l'affirmaient », à l'imparfait, alors que deux seulement ont été
+corrigés ici. Le troisième — `properties/[slug]/page.tsx`, celui d'où vient la croyance — le dit
+encore, plus fort, et sort du périmètre de ce ticket.
+
 ### Reste ouvert
 
 - AC3 n'est tenu que sur `/bookings` (1 route serveur sur 4), pour la raison mesurée ci-dessus.

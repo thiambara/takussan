@@ -62,7 +62,12 @@ import { fileURLToPath } from 'node:url';
  *
  * **(a) `generateMetadata` ne porte AUCUN statut — ni avec, ni sans frontière de suspension.**
  * Le dépôt a longtemps cru le contraire : TCK-335 avait déplacé `notFound()` dans
- * `generateMetadata` « pour tenir le code HTTP », et trois fichiers l'affirmaient encore. La
+ * `generateMetadata` « pour tenir le code HTTP », et trois fichiers l'affirment ou l'affirmaient.
+ * ⚠ Deux ont été corrigés ici (les fiches d'agence et d'agent) ; le TROISIÈME —
+ * `properties/[slug]/page.tsx`, celui d'où vient la croyance — le dit encore, et dans les termes
+ * les plus forts du dépôt. Il sort du périmètre de TCK-438 et est corrigé séparément. *Écrire
+ * « l'affirmaient » à l'imparfait aurait fait croire le ménage terminé, ce qui est le motif même
+ * que ce paragraphe corrige.* La
  * mesure d'origine portait sur une sonde qui appelait `notFound()` AUX DEUX endroits, et n'avait
  * donc jamais séparé leurs effets. Désagrégé le 2026-08-28, aucune frontière sur le chemin :
  *
@@ -78,8 +83,9 @@ import { fileURLToPath } from 'node:url';
  * là-bas : il retire `introuvable` de l'union de types, sans quoi `tsc` casse.
  *
  * Conséquence pour cette garde : **elle n'est pas un filet de sécurité qui doublerait un autre
- * mécanisme, elle EST le mécanisme.** Le seul `notFound()` qui porte le statut est celui du corps
- * de page, et il ne survit qu'en l'absence de toute frontière au-dessus de lui.
+ * mécanisme — elle est la seule garde AUTOMATIQUE de ce mécanisme, dans les limites énoncées au
+ * §4.** Le seul `notFound()` qui porte le statut est celui du corps de page, et il ne survit qu'en
+ * l'absence de toute frontière au-dessus de lui.
  *
  * **(b) Remonter la décision dans un `layout.tsx` rend bien le 404 — et ne rend pas le repli
  * utile pour autant.** Un repli couvre exactement ce qui est *en dessous* de lui. Mesuré en
@@ -103,6 +109,44 @@ import { fileURLToPath } from 'node:url';
  * les demandait : le ticket a été écrit avant que ce mécanisme ne soit mesuré.* `/bookings` en a
  * un, lui, et c'est cohérent plutôt qu'inconsistant : cette page n'appelle jamais `notFound()`,
  * n'a donc aucun statut à défendre, et son repli peut envelopper l'aller-retour lui-même.
+ *
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ * 4. SON HORIZON — MESURÉ, ET NON SUPPOSÉ
+ * ════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * Elle lit le SOURCE des dispositions gouvernantes : elle voit donc `<Suspense>` et
+ * `<React.Suspense>` écrits **là**. Elle ne voit pas une frontière posée **un cran plus loin** —
+ * dans un composant que la disposition monte autour de `{children}`.
+ *
+ * Mesuré le 2026-08-28, un `<Suspense>` placé dans `src/i18n/IntlProvider.tsx`, que
+ * `(public)/layout.tsx` enveloppe déjà autour de `{children}` :
+ *
+ * ```
+ *                                          properties   agencies   agents   garde
+ * référence                                    404        404        404    VERTE  ✓
+ * + <Suspense> dans IntlProvider                200        200        200    VERTE  ✗
+ * retour à la référence                        404        404        404    VERTE  ✓
+ * ```
+ *
+ * Trois autres formes lui échappent, mesurées vertes elles aussi et **épinglées par des cas de
+ * test** plus bas, pour que personne n'ait à les redécouvrir :
+ *
+ * ```
+ * D  import { Suspense as Repli } ; <Repli>{children}</Repli>   (peu plausible en pratique)
+ * E  <Suspense>{props.children}</Suspense>   — le jeton `{children}` n'est plus écrit
+ * F  const contenu = children ; <Suspense>{contenu}</Suspense>
+ * G  <Suspense> dans un composant monté par la disposition      ← LE cas qui compte
+ * ```
+ *
+ * *Une garde qui lit du texte ne connaît que les formes écrites dans son motif.* La fermer
+ * complètement demande un harnais e2e que ce dépôt n'a pas — c'est la même limite qui empêche déjà
+ * de tester le code HTTP lui-même (§1). Ce qu'elle attrape est ce qu'on écrit spontanément, et
+ * c'est déjà ce qui avait cassé le statut deux fois.
+ *
+ * ⚠ **D1 est donc RÉTRÉCI, pas clos**, et ce paragraphe existe pour que la ligne du §2 — « la seule
+ * garde automatique de ce mécanisme » — ne se lise jamais comme « le mécanisme est gardé ».
+ * *Affirmer plus large que ce qu'on vérifie est exactement le défaut que cette garde a été écrite
+ * pour attraper ; il se reproduit dans sa propre documentation à chaque cran d'élargissement.*
  *
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  * 3. CE FICHIER REMPLACE `properties/[slug]/__tests__/pas-de-frontiere-de-suspension.test.ts`
@@ -292,6 +336,37 @@ describe('TCK-335 / TCK-438 — aucune fiche à slug ne vit sous une frontière 
       expect(enfantsSousSuspense('<Suspense><Barre /></Suspense>{children}')).toBe(false);
       // auto-fermant : compté comme ouverture, donc refusé — faux positif assumé, cf. docblock
       expect(enfantsSousSuspense('<Suspense fallback={<i/>} />{children}')).toBe(true);
+    });
+
+    it("ÉPINGLE SON HORIZON : les formes qu'elle ne voit PAS (§4)", () => {
+      // ⚠ **Ces trois assertions attendent `false` À DESSEIN.** Elles ne célèbrent pas un trou :
+      // elles l'immobilisent. Chacune est une forme mesurée verte le 2026-08-28, et un docblock
+      // qui les énumère en prose se périme en silence le jour où quelqu'un élargit le motif.
+      //
+      // Si vous élargissez `enfantsSousSuspense`, ces lignes rougiront. C'est le comportement
+      // voulu : elles vous obligent à corriger le §4 dans le MÊME commit, au lieu de laisser une
+      // documentation affirmer un horizon que le code a déjà dépassé. Passez-les à `true` et
+      // retirez la forme du §4 — ne les supprimez pas.
+      //
+      // D — alias d'import : le motif cherche le nom `Suspense`, pas l'identité du composant.
+      expect(enfantsSousSuspense('<Repli>{children}</Repli>')).toBe(false);
+      // E — le jeton `{children}` n'est plus écrit tel quel.
+      expect(enfantsSousSuspense('<Suspense>{props.children}</Suspense>')).toBe(false);
+      // F — l'enfant passe par une variable.
+      expect(
+        enfantsSousSuspense('const contenu = children;\n<Suspense>{contenu}</Suspense>'),
+      ).toBe(false);
+    });
+
+    it("ÉPINGLE LE CAS G : la garde ne lit QUE les dispositions, pas ce qu'elles montent", () => {
+      // Le cas qui compte, et le seul plausible des quatre. `(public)/layout.tsx` monte
+      // `IntlProvider` autour de `{children}` ; un `<Suspense>` posé DANS ce composant fait passer
+      // les trois fiches de 404 à 200 (mesuré) sans que rien ici ne bouge — la liste inspectée ne
+      // contient que des `layout.tsx`.
+      const inspectes = layoutsGouvernant('agencies/[slug]');
+
+      expect(inspectes.every((f) => f.endsWith('layout.tsx'))).toBe(true);
+      expect(inspectes.some((f) => f.includes('IntlProvider'))).toBe(false);
     });
 
     it('les commentaires ne comptent pas — la garde ne se mord pas la queue', () => {
