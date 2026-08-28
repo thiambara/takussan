@@ -1,7 +1,7 @@
 ---
 id: TCK-392
 title: "« Inviter » depuis /admin/team n'envoie aucune invitation — l'endpoint qui le fait n'a aucun appelant"
-status: todo
+status: doing
 phase: P1
 family: bug
 estimate: M

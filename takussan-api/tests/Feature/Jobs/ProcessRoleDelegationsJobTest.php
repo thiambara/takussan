@@ -26,13 +26,22 @@ use Tests\ApiTestCase;
  * sans droits pendant l'absence du patron ; un `expire` qui ne s'exécute pas
  * laisse ces droits ouverts APRÈS son retour, indéfiniment.
  *
- * ⚠ La probe est `hasActiveAgencyDelegation()`, PAS `canActAt()`.
- * `MembershipCapabilityResolver` ne consulte à aucun moment la table
- * `role_delegations` — il n'agrège que les profils polymorphes. Un test qui
- * asserterait sur `canActAt()` serait donc vert avant comme après le job, et
- * ne garderait rien. Les trois policies de profil et les trois services
- * d'invitation qui lisent réellement la délégation passent tous par
- * `hasActiveAgencyDelegation()`.
+ * ⚠ **Ce bloc affirmait le contraire jusqu'au 2026-08-27**, et il faut le lire
+ * comme périmé partout où il subsisterait : *« `MembershipCapabilityResolver`
+ * ne consulte à aucun moment la table `role_delegations` »*. **TCK-395 l'a
+ * câblé.** Le résolveur consulte désormais les délégations actives, et les
+ * borne par les capacités que le DÉLÉGANT détient en propre.
+ *
+ * Deux conséquences pour ce fichier :
+ *
+ *  1. `canActAt()` — et donc `can('invite', …)` — est devenu une probe VALIDE :
+ *     il distingue bien l'avant et l'après du job. C'est ce que la ligne 78
+ *     exerce.
+ *  2. Le délégant ne peut plus être un `User::factory()` nu. Il l'était, et le
+ *     privilège s'ouvrait quand même — c'est exactement le défaut n°2 de
+ *     TCK-395 : la délégation accordait l'`agency_admin` plein sans que
+ *     personne ne le détienne. {@see self::delegation()} en fait désormais un
+ *     administrateur réel de l'agence.
  */
 class ProcessRoleDelegationsJobTest extends ApiTestCase
 {
@@ -209,12 +218,27 @@ class ProcessRoleDelegationsJobTest extends ApiTestCase
         );
     }
 
-    /** @param array<string,mixed> $attributes */
+    /**
+     * TCK-395 — le délégant est un `agency_admin` RÉEL de l'agence, et non plus
+     * un `User::factory()` nu sans le moindre profil. Une délégation ne confère
+     * désormais que ce que son délégant détient : émise par un compte vide,
+     * elle n'accorderait rien, et le job aurait l'air de ne rien faire.
+     *
+     * Ce n'est pas un contournement du durcissement, c'est sa contrepartie
+     * fidèle — `RoleDelegationService::create()` exige déjà un délégant
+     * autorisé, si bien qu'aucune délégation émise par l'API ne ressemblait à
+     * celle que ce helper fabriquait.
+     *
+     * @param  array<string,mixed>  $attributes
+     */
     private function delegation(RoleDelegationStatus $status, array $attributes, string $role = 'agency_admin'): RoleDelegation
     {
+        $delegant = User::factory()->create();
+        $this->materializeRoleProfile($delegant, 'agency_admin', $this->agency);
+
         return RoleDelegation::create(array_merge([
             'user_id' => $this->beneficiary->id,
-            'delegator_id' => User::factory()->create()->id,
+            'delegator_id' => $delegant->id,
             'agency_id' => $this->agency->id,
             'role' => $role,
             'status' => $status,

@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
+use App\Models\Enums\Capability;
 use App\Models\Profiles\AgentProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
@@ -81,6 +82,14 @@ class AgentProfilePolicy
             return true;
         }
 
-        return $user->hasActiveAgencyDelegation((int) $agency->id, 'agency_admin');
+        // TCK-395 — la moitié « délégation » de ce test passait par
+        // `hasActiveAgencyDelegation($id, 'agency_admin')` : un simple test de
+        // CHAÎNE, qui accordait l'agency_admin PLEIN quel que soit ce que le
+        // délégant détenait lui-même. `canActAt()` consulte désormais les
+        // délégations (branche `delegationAllows`) et les BORNE par les
+        // capacités propres du délégant. Le geste reste le même ; ce qui
+        // change est qu'il passe enfin par le pivot `agency_role_capabilities`,
+        // comme tout le reste depuis TCK-315.
+        return $user->canActAt(Capability::TeamInvite, $agency);
     }
 }

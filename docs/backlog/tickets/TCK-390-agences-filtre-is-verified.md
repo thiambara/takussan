@@ -1,7 +1,7 @@
 ---
 id: TCK-390
 title: "Agences — ouvrir le filtre `is_verified`, sans quoi la tuile « Vérifiées » de l'accueil ne mène nulle part"
-status: todo
+status: doing
 phase: P2
 family: full
 estimate: S

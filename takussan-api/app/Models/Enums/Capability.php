@@ -24,6 +24,19 @@ enum Capability: string
     case TeamAssignRole = 'team.assign_role';
     case TeamRemove = 'team.remove';
     case TeamSuspend = 'team.suspend';
+    /**
+     * TCK-395 — déléguer temporairement un rôle dans l'agence.
+     *
+     * Le catalogue n'avait AUCUN cas `delegations.*` / `team.delegate_*` :
+     * `RoleDelegationPolicy` gardait par TYPE DE PROFIL
+     * (`$user->isAgencyAdminAt(...)`), ce qui contredit le principe n°1 dans
+     * son versant opérationnel — *une capacité se juge pour un couple
+     * (utilisateur, agence)*, pas sur la présence d'un profil. L'écran de
+     * TCK-369 gardait son bouton par `team.assign_role` faute de mieux :
+     * l'écran et la policy ne posaient donc pas la même question, et c'est
+     * la policy qui décidait.
+     */
+    case TeamDelegateRole = 'team.delegate_role';
 
     // properties.*
     case PropertiesCreate = 'properties.create';

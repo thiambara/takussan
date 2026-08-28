@@ -92,6 +92,34 @@ class AgencyModerationTest extends TestCase
         Carbon::setTestNow();
     }
 
+    /**
+     * TCK-390 — la tuile « Vérifiées » de l'accueil ne pouvait mener nulle part : ce
+     * contrôleur n'emprunte pas `HasQueryBuilder` et ignorait `filter[is_verified]` en
+     * silence, alors même que `Agency::$requestFilterable` le déclare. Une liste de
+     * filtrables sur le MODÈLE ne dit rien de ce qu'un contrôleur donné honore.
+     */
+    public function test_index_filters_by_verification_flag(): void
+    {
+        $this->actingAsRole('super_admin');
+
+        Agency::factory()->create(['name' => 'Verif Oui', 'is_verified' => true]);
+        Agency::factory()->create(['name' => 'Verif Non', 'is_verified' => false]);
+
+        $noms = fn (string $qs): array => collect(
+            $this->getJson("/api/admin/agencies?filter[search]=Verif&{$qs}")->assertOk()->json('data')
+        )->pluck('name')->sort()->values()->all();
+
+        $this->assertSame(['Verif Oui'], $noms('filter[is_verified]=1'));
+        $this->assertSame(['Verif Non'], $noms('filter[is_verified]=0'));
+        $this->assertSame(['Verif Oui'], $noms('filter[is_verified]=true'));
+        $this->assertSame(['Verif Non'], $noms('filter[is_verified]=false'));
+
+        // L'absence du paramètre ne filtre rien...
+        $this->assertSame(['Verif Non', 'Verif Oui'], $noms('sort=name'));
+        // ...et une valeur non booléenne non plus : le repli est celui de `filter.status`.
+        $this->assertSame(['Verif Non', 'Verif Oui'], $noms('filter[is_verified]=nawak'));
+    }
+
     public function test_index_is_forbidden_to_non_super_admin(): void
     {
         $agency = Agency::factory()->create();

@@ -36,6 +36,12 @@ const STATUS_OPTIONS = [
   { value: 'suspended', labelKey: 'statuses.suspended' },
 ];
 
+const VERIFICATION_OPTIONS = [
+  { value: ALL, labelKey: 'verifications.all' },
+  { value: '1', labelKey: 'verifications.yes' },
+  { value: '0', labelKey: 'verifications.no' },
+];
+
 const SORT_OPTIONS = [
   { value: '-created_at', labelKey: 'sorts.createdDesc' },
   { value: 'created_at', labelKey: 'sorts.createdAsc' },
@@ -52,6 +58,15 @@ function seedStatus(value: string | null | undefined): string {
   return STATUS_OPTIONS.some((option) => option.value === value) ? (value as string) : ALL;
 }
 
+/**
+ * TCK-390 — même repli que `seedStatus` pour `?is_verified=`. La tuile « Vérifiées » de
+ * l'accueil pointe ici avec `=1` ; toute autre valeur retombe sur « toutes », plutôt que de
+ * filtrer sur un booléen deviné.
+ */
+function seedVerification(value: string | null | undefined): string {
+  return VERIFICATION_OPTIONS.some((option) => option.value === value) ? (value as string) : ALL;
+}
+
 export default function SuperAdminAgenciesPage() {
   const t = useTranslations('superAdmin.agencies');
   const tPage = useTranslations('superAdmin.pages.agencies');
@@ -62,16 +77,19 @@ export default function SuperAdminAgenciesPage() {
   // sert d'état initial et le filtre reste local ensuite. Miroiter le choix dans l'URL
   // demanderait de câbler les cinq autres filtres de cet écran, ce que ce ticket ne fait pas.
   const [status, setStatus] = useState(() => seedStatus(searchParams?.get('status')));
+  const [verification, setVerification] = useState(() => seedVerification(searchParams?.get('is_verified')));
   const [search, setSearch] = useState('');
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
   const [sort, setSort] = useState<SortValue>('-created_at');
   const [page, setPage] = useState(1);
   const statusOptions = STATUS_OPTIONS.map((o) => ({ value: o.value, label: tPage(o.labelKey) }));
+  const verificationOptions = VERIFICATION_OPTIONS.map((o) => ({ value: o.value, label: tPage(o.labelKey) }));
   const sortOptions = SORT_OPTIONS.map((o) => ({ value: o.value as string, label: tPage(o.labelKey) }));
 
   const params = {
     status: status === ALL ? undefined : status,
+    isVerified: verification === ALL ? undefined : verification === '1',
     search: search || undefined,
     createdFrom: createdFrom || undefined,
     createdTo: createdTo || undefined,
@@ -89,10 +107,11 @@ export default function SuperAdminAgenciesPage() {
   // Le tri n'est pas un filtre : il ne compte pas dans « des filtres sont posés », mais la
   // remise à zéro le reprend quand même — c'est ce que « valeur par défaut » veut dire.
   const filtresPoses =
-    status !== ALL || search !== '' || createdFrom !== '' || createdTo !== '';
+    status !== ALL || verification !== ALL || search !== '' || createdFrom !== '' || createdTo !== '';
 
   const reinitialiser = useCallback(() => {
     setStatus(ALL);
+    setVerification(ALL);
     setSearch('');
     setCreatedFrom('');
     setCreatedTo('');
@@ -110,7 +129,9 @@ export default function SuperAdminAgenciesPage() {
 
       <FilterBar
         data-testid="super-admin-agencies-filters"
-        controlsClassName="md:grid-cols-2 xl:grid-cols-5"
+        // TCK-390 — six contrôles depuis l'ajout du filtre de vérification : deux rangées de
+        // trois lisent mieux qu'une rangée de six écrasée.
+        controlsClassName="md:grid-cols-2 xl:grid-cols-3"
         resultCount={data ? tFiltres('results', { count: data.meta.total }) : undefined}
         onReset={reinitialiser}
         resetLabel={tFiltres('reset')}
@@ -129,6 +150,26 @@ export default function SuperAdminAgenciesPage() {
           </SelectTrigger>
           <SelectContent>
             {statusOptions.map((o) => (
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={verification}
+          onValueChange={(next) => {
+            setVerification((next ?? ALL) as string);
+            setPage(1);
+          }}
+          items={verificationOptions}
+        >
+          <SelectTrigger aria-label={tPage('verificationAria')} className="h-10 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {verificationOptions.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>

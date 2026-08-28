@@ -61,6 +61,23 @@ class AgencyModerationController extends Controller
             });
         }
 
+        // TCK-390 — `is_verified` figure bien dans `Agency::$requestFilterable`, mais cette
+        // liste n'ouvre un filtre que pour les contrôleurs qui empruntent `HasQueryBuilder`.
+        // Celui-ci lit ses filtres À LA MAIN : le paramètre partait donc à la poubelle en
+        // silence, et la tuile « Vérifiées » de l'accueil ne pouvait pas mener à une vue
+        // filtrée — elle pointait sur le même href que « Agences (total) ».
+        //
+        // Une valeur non booléenne ne filtre PAS (même repli que `filter.status`, dont un
+        // `AgencyStatus::tryFrom()` raté laisse la requête intacte) : filtrer sur du vide
+        // rendrait une liste que rien dans l'écran n'expliquerait.
+        $rawVerified = $request->string('filter.is_verified')->trim()->value();
+        if ($rawVerified !== '') {
+            $isVerified = filter_var($rawVerified, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+            if ($isVerified !== null) {
+                $query->where('agencies.is_verified', $isVerified);
+            }
+        }
+
         if ($createdFrom = $request->string('filter.created_from')->trim()->value()) {
             $query->whereDate('agencies.created_at', '>=', $createdFrom);
         }

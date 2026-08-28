@@ -45,6 +45,10 @@ function renderPage() {
 describe('/super-admin/agencies — amorce du filtre par l’URL', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // `params` est PARTAGÉ entre les cas : sans purge, un `?status=` posé par un test fuit
+    // dans le suivant et l'assertion porterait sur une URL que ce test n'a pas écrite.
+    params.delete('status');
+    params.delete('is_verified');
     vi.mocked(fetchAdminAgencies).mockResolvedValue({
       data: [],
       meta: { total: 0, current_page: 1, last_page: 1, per_page: 15 },
@@ -75,6 +79,38 @@ describe('/super-admin/agencies — amorce du filtre par l’URL', () => {
 
     await waitFor(() => expect(fetchAdminAgencies).toHaveBeenCalledWith(
       expect.objectContaining({ status: undefined }),
+    ));
+  });
+
+  /**
+   * TCK-390 — la tuile « Vérifiées » de l'accueil portait le MÊME href que « Agences (total) »,
+   * faute d'un filtre côté API. Elle mène désormais à `?is_verified=1`, et cette amorce-ci
+   * rougit si l'initialiseur repasse en constante — comme celle de `status`.
+   */
+  it('ouvre sur les agences vérifiées quand l’URL le demande', async () => {
+    params.set('is_verified', '1');
+    renderPage();
+
+    await waitFor(() => expect(fetchAdminAgencies).toHaveBeenCalledWith(
+      expect.objectContaining({ isVerified: true }),
+    ));
+  });
+
+  it('ouvre sur les agences NON vérifiées quand l’URL le demande', async () => {
+    params.set('is_verified', '0');
+    renderPage();
+
+    await waitFor(() => expect(fetchAdminAgencies).toHaveBeenCalledWith(
+      expect.objectContaining({ isVerified: false }),
+    ));
+  });
+
+  it('retombe sur « toutes » pour un `is_verified` inconnu', async () => {
+    params.set('is_verified', 'peut-etre');
+    renderPage();
+
+    await waitFor(() => expect(fetchAdminAgencies).toHaveBeenCalledWith(
+      expect.objectContaining({ isVerified: undefined }),
     ));
   });
 });
