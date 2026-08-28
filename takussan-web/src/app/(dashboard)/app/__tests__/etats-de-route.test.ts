@@ -62,21 +62,36 @@ import { fileURLToPath } from 'node:url';
  *     permanentRedirect() sans repli → 308                      | avec repli    → 200
  *     LAYOUT redirect() + repli DU MÊME SEGMENT ou plus bas     → **307**, repli conservé
  *     LAYOUT redirect() + repli d'un ANCÊTRE                    → 200
- *     generateMetadata() notFound() sans repli → 404            | repli même segment → 200
+ *     generateMetadata() notFound() SEUL, sans repli → 200      | avec repli → 200
+ *     corps notFound() SEUL, sans repli → 404                   | avec repli → 200
  *
- * D'où la règle : *un statut survit si et seulement s'il est décidé STRICTEMENT AU-DESSUS de
- * toute frontière de suspension de son chemin.*
+ * D'où la règle — **nécessaire, PAS suffisante**, et la première rédaction écrivait « si et
+ * seulement si », ce que la ligne `generateMetadata` casse à elle seule (dans cette sonde-là il
+ * n'existe AUCUNE frontière sur le chemin : la condition est trivialement remplie, et le statut
+ * ne survit pas) :
  *
- * ⚠ **La dernière ligne corrige une croyance, et elle vient d'ailleurs.** Mesurée par `g9-etats`,
- * rejouée ici le 2026-08-28 : `generateMetadata` **ne tient pas le statut**. C'est pourtant le
- * remède qu'avait retenu TCK-335 pour la fiche de bien publique, dont le docblock explique encore
- * que « `generateMetadata` est attendu AVANT que la coque ne parte ». Sonde de forme réelle
- * (segment `[slug]`, `params` attendus), même page des deux côtés, contrôle positif inclus :
- * `/present` → 200 · 200, `/absent` → **404 · 200**, le repli seul faisant la différence.
+ *   *Un statut ne survit QUE SI il est décidé strictement au-dessus de toute frontière de
+ *   suspension de son chemin — et QUE SI il est décidé dans le rendu de la PAGE ou d'un LAYOUT.*
+ *
+ * ⚠ **Les deux dernières lignes corrigent une croyance, et elles viennent d'ailleurs.** Mesurées
+ * par `g9-etats` puis par `v4`, rejouées ici le 2026-08-28 : `generateMetadata` **ne tient pas le
+ * statut, ni avec repli ni sans**. C'est pourtant le remède qu'avait retenu TCK-335 pour la fiche
+ * de bien publique, dont le docblock explique encore que « `generateMetadata` est attendu AVANT
+ * que la coque ne parte ».
+ *
+ * ⚠⚠ Le premier rejeu portait une sonde avec les DEUX appels — `generateMetadata` ET corps. Elle
+ * prouvait l'effet du repli, et RIEN sur qui produit le 404 en son absence : elle a fait écrire
+ * ici une ligne créditant `generateMetadata` d'un 404 qui vient du corps, c'est-à-dire la croyance
+ * même que ce paragraphe existe pour tuer. Désagrégé depuis, quatre sondes d'UN SEUL appel chacune,
+ * forme contrôlée par `md5` avant mesure, contrôle positif sur les quatre : seul le `notFound()`
+ * du CORPS, et seulement sans frontière au-dessus, produit un 404. Celui de `generateMetadata`
+ * rend un **soft-404** — l'écran introuvable est rendu, le titre retombe sur celui de la racine,
+ * et la réponse reste 200.
  *
  * Conséquence pour ce fichier : le seul remède reste STRUCTUREL, et c'est bien ce que gardent les
- * trois règles du bloc « TCK-426 » ci-dessous. *Aucun second appel à `notFound()`, si haut
- * soit-il dans le rendu, ne rattrape une frontière posée au-dessus de lui.*
+ * trois règles du bloc « TCK-426 » ci-dessous. *Aucun second appel à `notFound()`, si haut soit-il
+ * dans le rendu, ne rattrape une frontière posée au-dessus de lui — et celui des métadonnées n'en
+ * rattrape aucune, même sans frontière.*
  *
  * CE QUE ÇA COÛTAIT, JUSQU'À TCK-426. `app/loading.tsx` était posé à la racine, donc ancêtre de
  * tout `/app` : l'échange était TOTAL, jamais segmentaire. Il couvrait 32 `redirect()` littéraux
@@ -122,10 +137,10 @@ import { fileURLToPath } from 'node:url';
  * `(public)/properties/[slug]/__tests__/pas-de-frontiere-de-suspension.test.ts` le garde. Ne pas
  * recopier le patron de ce fichier-ci vers `(public)`.
  *
- * ⚠ Et c'est cette SUPPRESSION qui le tient, pas le `notFound()` de sa `generateMetadata` — voir
- * la dernière ligne du tableau ci-dessus. La distinction n'est pas académique : elle dit que le
- * test qui interdit la frontière est la garde RÉELLE de ce 404, et qu'aucun appel supplémentaire
- * ne le sauverait si on la levait.
+ * ⚠ Et c'est cette SUPPRESSION qui le tient, plus le `notFound()` du CORPS de la page — pas celui
+ * de sa `generateMetadata`, qui ne produit aucun statut. La distinction n'est pas académique :
+ * elle dit que le test qui interdit la frontière est la garde RÉELLE de ce 404, et qu'aucun appel
+ * supplémentaire ne le sauverait si on la levait.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * CE QUE CE FICHIER NE PROUVE PAS

@@ -105,14 +105,21 @@ hors `(dashboard)`, supprimées après mesure :
 | page `permanentRedirect()` | aucun / avec repli | **308** / **200** |
 | **`layout.tsx`** `redirect()` | repli **du même segment** | **307**, *et le repli couvre toujours la page* |
 | **`layout.tsx`** `redirect()` | repli **ancêtre** | **200** |
-| **`generateMetadata()`** `notFound()` | aucun | **404** |
-| **`generateMetadata()`** `notFound()` | même segment | **200** |
+| **`generateMetadata()`** `notFound()`, **seul** | aucun | **200** — soft-404 |
+| **`generateMetadata()`** `notFound()`, **seul** | même segment | **200** |
 
 D'où la règle, qui n'était écrite nulle part :
 
-> **Un statut survit si et seulement s'il est décidé STRICTEMENT AU-DESSUS de toute frontière de
-> suspension de son chemin.** Un `layout.tsx` est au-dessus du `loading.tsx` de SON segment, et
-> en dessous de celui de tous ses ancêtres.
+> **Un statut ne survit QUE SI il est décidé strictement au-dessus de toute frontière de
+> suspension de son chemin — condition NÉCESSAIRE, non suffisante.** Il faut en outre que la
+> décision soit prise dans le rendu de la **PAGE** ou d'un **LAYOUT**. Un `layout.tsx` est
+> au-dessus du `loading.tsx` de SON segment, et en dessous de celui de tous ses ancêtres.
+
+⚠ **Le « si et seulement si » de la première rédaction était faux, et c'est la ligne ajoutée juste
+au-dessus qui le casse** : dans une sonde `generateMetadata` seule il n'existe AUCUNE frontière sur
+le chemin — la condition est donc trivialement remplie — et le statut ne survit pas quand même.
+*Un « si et seulement si » dérivé d'un tableau se casse sur la ligne qu'on vient d'ajouter au
+tableau.*
 
 ### Les deux dernières lignes sont arrivées après coup, et elles corrigent une croyance
 
@@ -135,6 +142,33 @@ sonde426e/repli/[slug]  — la MÊME page, plus un loading.tsx dans son segment
   /absent   → 404 · 200     (le repli seul fait la différence)          stable sur deux passages
 ```
 
+#### DÉSAGRÉGATION — et une première rédaction attribuait à `generateMetadata` un 404 qui vient du CORPS
+
+La sonde ci-dessus porte les **deux** appels, comme le vrai fichier. Elle prouve donc l'effet du
+repli, et **rien du tout sur qui produit le 404 quand il n'y a pas de repli**. La ligne de tableau
+qu'elle avait fait écrire — *`generateMetadata()` `notFound()` | aucun repli | 404* — créditait
+`generateMetadata` d'un statut qu'il ne produit pas. **C'est exactement la croyance que cette
+section existe pour tuer**, réintroduite par la section elle-même. Défaut relevé par `v4`, qui a
+mesuré un 2×2 complet sur le vrai fichier.
+
+Désagrégé ici le 2026-08-28, quatre sondes, chacune portant **un seul** `notFound()`, forme
+contrôlée et imprimée AVANT la mesure (`md5` de chaque page ; les deux états d'une même ligne
+partagent le même `md5`, seul le `loading.tsx` diffère) :
+
+| état | `/present` | `/absent` |
+|---|---|---|
+| `notFound()` dans **`generateMetadata` seul**, pas de repli | 200 | **200** |
+| `notFound()` dans **le corps seul**, pas de repli | 200 | **404** |
+| `generateMetadata` seul, **avec** repli | 200 | **200** |
+| corps seul, **avec** repli | 200 | **200** |
+
+Stable sur deux passages. Sur `meta-seul/absent`, l'écran introuvable **est** rendu et le titre
+retombe sur celui de la racine : le `notFound()` de `generateMetadata` perd les métadonnées de la
+page, pas la réponse. **C'est un soft-404** — l'écran est juste, le code ment.
+
+> `generateMetadata` ne décide donc de rien au niveau HTTP, **ni avec repli ni sans**. Le
+> `notFound()` du corps décide, et seulement quand aucune frontière ne le précède.
+
 ⚠ **Piège de forme, payé pendant ce rejeu et qui vaut d'être écrit** : une première sonde, en
 segment STATIQUE et dont la `generateMetadata` ne prenait pas de `params`, rendait **200 des deux
 côtés** — y compris sans repli, là où 404 était attendu. Le `notFound()` n'y était tout simplement
@@ -143,14 +177,20 @@ un mécanisme, elle mesure sa propre forme* — et sans le contrôle positif « 
 aurait pu passer pour une mesure.
 
 **Conséquence.** Le seul remède est STRUCTUREL : aucune frontière de suspension au-dessus de la
-décision. Le `notFound()` de `generateMetadata` n'est pas un substitut, il est un second appel
-qui tombe au même endroit. Le catalogue public tient donc par l'**absence** de
+décision, et la décision dans le rendu de la page ou d'un layout. Le `notFound()` de
+`generateMetadata` n'est pas un substitut — il ne produit aucun statut, jamais. Le catalogue public tient donc par l'**absence** de
 `properties/[slug]/loading.tsx` et par le test qui l'interdit
 (`pas-de-frontiere-de-suspension.test.ts`) — **pas** par `generateMetadata`.
 
-⚠ **Le docblock de `(public)/properties/[slug]/page.tsx` (l. 31-39) affirme encore le contraire.**
-Ce fichier n'est pas dans le périmètre de ce ticket ; le signaler ici est tout ce que TCK-426 peut
-en faire.
+⚠ **Le docblock de `(public)/properties/[slug]/page.tsx` (l. 31-39) affirme encore le contraire**,
+et `v4` a mesuré que son défaut est plus grave que la portée : c'est l'**ATTRIBUTION**. Il crédite
+le 404 de la fiche à une ligne qui ne le produit pas. Son ablation d'origine ne se reproduit pas —
+il prédit « sans cette ligne, `curl` rend 200 », et sans elle la fiche rend toujours **404**. Ce
+qui rouvrirait le soft-404 n'est pas de retirer la ligne mais d'**ajouter un `loading.tsx`**, ce
+que `pas-de-frontiere-de-suspension.test.ts` interdit déjà. La ligne garde deux raisons d'être,
+dont l'affinage de type (`TS2339` sans elle) — ce n'est simplement pas celle qu'elle s'attribue.
+Ce fichier n'est pas dans le périmètre de ce ticket ; le signaler est tout ce que TCK-426 peut en
+faire, et la correction est portée au commit de fusion.
 
 **Seconde mesure de `g9-etats`, NON rejouée ici** et rapportée comme sienne : *un repli couvre
 exactement ce qui est en dessous de lui.* Même page, même serveur, une attente artificielle de 2 s
