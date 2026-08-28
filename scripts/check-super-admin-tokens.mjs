@@ -199,12 +199,24 @@
  *        garde ; `<rect fill="#a85332" />` est attrapé. Vérifié dans les deux sens le
  *        2026-08-27, signalé par la revue adverse de la passe 2. La même borne vaut pour une
  *        valeur arbitraire coupée par un retour à la ligne dans un gabarit.
- *        **Non fermé, et le motif du refus est un arbitrage, pas une paresse** : analyser le
- *        fichier entier d'un bloc ferait perdre le numéro de ligne, qui est ce qui rend un rouge
- *        de cette garde ACTIONNABLE. Le garder tout en cousant les lignes demanderait de tenir
- *        une table de correspondance décalage → ligne, un mécanisme neuf. *Le trou est réel ;
- *        aucune occurrence n'existe dans le dépôt (mesuré), et un attribut JSX coupé après son
- *        `=` est une forme que Prettier défait.*
+ *        **Non fermé, et le motif tient en deux mesures — pas en un coût.** ⚠ Ce paragraphe a
+ *        d'abord justifié le renoncement par le prix : « analyser le fichier d'un bloc ferait
+ *        perdre le numéro de ligne », « il faudrait une table décalage → ligne, un mécanisme
+ *        neuf ». **C'est surestimé, et la revue adverse de la passe 3 l'a montré** : ce trou-ci
+ *        se ferme par une fenêtre glissante de DEUX lignes sur le SEUL contrôle E, en ne
+ *        retenant que les correspondances qui enjambent la frontière et en rapportant la
+ *        première ligne. Le numéro de ligne survit, et ça fait environ six lignes de code, pas
+ *        un mécanisme. *Un coût annoncé plus haut qu'il n'est rend un renoncement plus
+ *        confortable qu'il ne devrait l'être.*
+ *
+ *        Les deux vraies raisons, mesurées le 2026-08-27 :
+ *          · **l'ensemble est VIDE** — `grep -rnE '(fill|stroke|color|bgcolor|stopColor|
+ *            floodColor|lightingColor)\s*=\s*$' takussan-web/src` ne rend rien ;
+ *          · **Prettier défait la forme** : un attribut JSX coupé après son `=` est reformaté au
+ *            prochain passage, donc le trou ne se remplit pas tout seul.
+ *        Un trou vide que l'outillage referme n'achète pas six lignes de complexité dans le
+ *        seul contrôle qui lit deux lignes à la fois. La décision reste la même ; c'est sa
+ *        justification qui était trop chère.
  *   T9 · **Une DÉCLARATION CSS ordinaire, dans un fichier `.css` d'un répertoire gardé.** Les
  *        contrôles A/B/C cherchent une classe, D et F un crochet, E un `=` : aucun ne voit
  *        `background-color: #f5f5f4;` écrit dans une feuille. Signalé par la revue adverse de
@@ -577,6 +589,27 @@ function construireControles({
     // `\b`, parce que dans une valeur arbitraire `from` est suivi d'un `_`, qui est un caractère
     // de mot : `\bfrom\b` n'y coupe pas.
     '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\((?![\\s_]*from[\\s_])',
+    // ⚠ LA BRANCHE DE RATTRAPAGE — la couleur relative à CANAUX ABSOLUS, et c'est la porte que
+    // l'exemption ci-dessus ouvrait. `rgb(from var(--x) 255 0 0)` LIT le jeton puis le JETTE
+    // entièrement : elle rend du rouge pur quelle que soit la valeur de `--x`. Le docblock
+    // justifiait l'exemption par « une lecture de jeton » — *une forme qui lit puis jette n'en
+    // est pas une*, c'est une couleur décidée hors de `globals.css`, déguisée en lecture.
+    //
+    // Le partage est la présence d'une LETTRE dans les canaux : une relative qui garde le jeton
+    // nomme ses composantes (`r g b`, `l c h`, `alpha`), éventuellement dans un `calc()` ; une
+    // qui le jette n'écrit que des nombres. La classe `[-0-9.%/\s_]` ne contient aucune lettre,
+    // et c'est tout le contrôle.
+    //
+    // Signalé par la revue adverse de la passe 3 sur deux formes ; six mesurées ici — les quatre
+    // familles de fonction, plus les syntaxes de propriété arbitraire et d'attribut, qui partagent
+    // ces motifs. Vérifié compilable avec le Tailwind 4.2.2 du projet.
+    //
+    // ⚠ Les formes à source NON-jeton (`rgb(from #a85332 r g b)`, `rgb(from rebeccapurple r g b)`)
+    // étaient DÉJÀ refusées, par les branches 1 et 3 : l'exemption ne portait que sur le nom de
+    // fonction. C'est de la défense en profondeur réelle, et elle explique pourquoi la porte était
+    // étroite — il fallait un `var()` en source ET des canaux littéraux.
+    '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\([\\s_]*from[\\s_]+'
+      + '(?:var\\([^)]*\\)|[^\\s_)]+)[\\s_]+[-0-9.%/\\s_]+\\)',
     `(?<![a-zA-Z0-9-])(?:${couleurs.join('|')})(?![a-zA-Z0-9-])`,
   ];
   /*
@@ -961,6 +994,37 @@ const EPREUVE = [
   ['bg-[RGB(FROM_var(--x)_r_g_b)]', false],    // …et sous le drapeau `i`, sans quoi N défait M
   // ⚠ Ce qui doit RESTER refusé : un `from` qui n'ouvre pas une couleur relative.
   ['bg-[rgb(1,2,3)]', true], ['bg-[color(display-p3_1_0_0)]', true],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // P · LES CANAUX ABSOLUS — la porte que l'exemption N ouvrait, et LES DEUX CÔTÉS.
+  //
+  // ⚠ Les positives seules ne suffiraient PAS ici, et c'est le point. La branche de rattrapage se
+  // referme sur l'exemption qu'elle corrige : une expression un peu trop large refuserait AUSSI
+  // les relatives légitimes, et le bloc N ci-dessus cesserait de tenir sans que rien ne bronche —
+  // la garde sortirait en 1 sur du code correct, ce qui est la façon dont une garde se fait
+  // désarmer. Les négatives sont donc rappelées ICI, à côté des positives qu'elles bornent, et
+  // pas seulement vingt lignes plus haut.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['bg-[rgb(from_var(--x)_255_0_0)]', true],
+  ['bg-[oklch(from_var(--x)_0.5_0.2_30)]', true],
+  ['bg-[hsl(from_var(--x)_120_50%_50%)]', true],
+  ['bg-[lab(from_var(--x)_50_40_59)]', true],
+  ['[color:rgb(from_var(--x)_255_0_0)]', true],
+  ['fill="rgb(from var(--x) 255 0 0)"', true],
+  ['bg-[RGB(FROM_var(--X)_255_0_0)]', true],      // …et sous le drapeau `i`
+  ['bg-[rgb(from_var(--x)_255_0_0_/_0.5)]', true],
+  // L'AUTRE CÔTÉ — les relatives qui GARDENT le jeton doivent rester acceptées, `calc()` compris.
+  ['bg-[oklch(from_var(--x)_calc(l_*_0.8)_c_h)]', false],
+  ['bg-[rgb(from_var(--x)_r_g_b_/_calc(alpha_*_0.5))]', false],
+  // …et celles dont la SOURCE n'est pas un jeton étaient déjà refusées, par les branches 1 et 3 :
+  // l'exemption n'a jamais porté que sur le nom de fonction. Défense en profondeur, figée ici.
+  ['bg-[rgb(from_#a85332_r_g_b)]', true], ['bg-[rgb(from_rebeccapurple_r_g_b)]', true],
+  ['bg-[rgb(fromage_1_2_3)]', true],
+
+  // Q · L'INDICE DE TYPE de Tailwind — forme de la revue adverse, que personne n'avait essayée.
+  //     `text-[color:…]` désambiguë une couleur d'une taille de police : elle mêle la syntaxe
+  //     PRÉFIXÉE et le `propriété:valeur`, donc D et F la voient tous les deux.
+  ['text-[color:RED]', true], ['text-[color:#fff]', true], ['text-[length:14px]', false],
 
   // O · L'URL GUILLEMETÉE — le regard arrière élargi (mineur de la passe 2).
   ['bg-[url("#f00ba7")]', false], ["bg-[url('#f00ba7')]", false], ['bg-[url(_#f00ba7)]', false],
