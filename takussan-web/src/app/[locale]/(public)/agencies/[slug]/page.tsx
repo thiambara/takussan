@@ -11,13 +11,18 @@ import { StatsBar } from '@/components/public/profile/StatsBar';
 import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
 import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
 import { TeamStrip } from '@/components/public/profile/TeamStrip';
-import { alternatesLangues } from '@/lib/alternates';
+import { alternatesPubliques } from '@/lib/alternates';
+import { isLocale } from '@/i18n/config';
+import { DonneesStructurees } from '@/lib/jsonld';
+import { jsonLdAgence } from '@/lib/jsonld-profil';
 import { getAgency } from '@/lib/queries/public-agency';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const t = await getTranslations('agency.publicPage');
-  const resultat = await getAgency(slug, await getLocale());
+  const brut = await getLocale();
+  const locale = isLocale(brut) ? brut : 'fr';
+  const resultat = await getAgency(slug, brut);
 
   // ════════════════════════════════════════════════════════════════════════════════════════════
   // ⚠️ CET APPEL NE PORTE **AUCUN** CODE HTTP. C'est le `notFound()` du CORPS DE PAGE qui le porte.
@@ -70,7 +75,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description: agency.description ?? summary ?? undefined,
-    alternates: alternatesLangues(`/agencies/${slug}`),
+    // Canonique + hreflang, dérivés du même chemin (TCK-433). Un profil public n'a pas de
+    // variante d'URL à replier ; sans canonique explicite, Next n'en émet simplement aucune.
+    alternates: alternatesPubliques(`/agencies/${slug}`, locale),
     openGraph: {
       title,
       description: agency.description ?? summary ?? undefined,
@@ -118,7 +125,9 @@ async function agenceIndisponible() {
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const t = await getTranslations('agency.publicPage');
   const { slug } = await params;
-  const resultat = await getAgency(slug, await getLocale());
+  const brutLocale = await getLocale();
+  const locale = isLocale(brutLocale) ? brutLocale : 'fr';
+  const resultat = await getAgency(slug, brutLocale);
 
   // Un 404 amont produit un VRAI 404 — statut compris. C'est la seule panne dont on sache qu'elle
   // signifie « cette agence n'existe pas ».
@@ -142,6 +151,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
   return (
     <div className="min-h-screen bg-background">
+      {/*
+        TCK-435 — le balisage n'affirme QUE ce que la page rend : la note agrégée n'est émise
+        qu'au-dessus de zéro avis, la ville nulle ne devient pas la chaîne « null », et le
+        contact ne dépasse pas ce que `ContactSheet` publie déjà.
+      */}
+      <DonneesStructurees donnees={jsonLdAgence(agency, locale)} />
       <Navbar />
       <div className="h-[133px]" />
 

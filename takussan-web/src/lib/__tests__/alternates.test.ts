@@ -1,8 +1,11 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { ORIGINE_SITE, alternatesLangues } from '../alternates';
 import { LOCALES } from '@/i18n/config';
 import { estCheminLocalisable } from '@/i18n/routing';
+import { PAGES_STATIQUES_INDEXABLES, ROUTES_DYNAMIQUES_PUBLIQUES } from '../sitemap';
 
 /**
  * AC3 — la page rend un `hreflang` par langue déclarée indexable, plus `x-default`, et **les URL
@@ -12,6 +15,44 @@ import { estCheminLocalisable } from '@/i18n/routing';
  * fonction : le dernier test descend jusqu'au proxy et au routeur de fichiers. Un `hreflang` vers
  * une URL que le proxy redirigerait, ou vers un chemin qu'aucune route ne sert, fait rougir.
  */
+/**
+ * Les pages publiques INDEXABLES — **dérivées, plus écrites à la main.**
+ *
+ * ⚠️ La liste était figée à cinq chemins. Une SIXIÈME page publique indexable n'aurait donc
+ * jamais été vue par ce fichier : elle pouvait entrer dans `PAGES_STATIQUES_INDEXABLES` — donc au
+ * sitemap, avec ses trois `<loc>` et ses quatre `xhtml:link` — **sans émettre ni canonique ni
+ * `hreflang`**. Le sitemap aurait alors déclaré trois versions linguistiques que la page ne
+ * reconnaît pas.
+ *
+ * La dérivation vient des DEUX tables que `sitemap-couverture.test.ts` confronte déjà à
+ * l'arborescence, dans les deux sens :
+ *
+ * · `PAGES_STATIQUES_INDEXABLES` — les pages statiques du sitemap ;
+ * · `ROUTES_DYNAMIQUES_PUBLIQUES` — les fiches, tranchées une par une.
+ *
+ * ⚠ Elle NE se dérive PAS d'un balayage de `robots:` sur les sources : `properties/[slug]`
+ * déclare `robots: { index: false }` dans sa seule branche « bien indisponible », et un balayage
+ * textuel la classerait `noindex` alors qu'elle est la page indexable la plus importante du site.
+ * *Une indexabilité CONDITIONNELLE ne se lit pas dans le texte d'un fichier.*
+ */
+function fichierDeRoute(chemin: string): string {
+  const racine = 'src/app/[locale]/(public)';
+  const dossier = chemin === '/' ? '' : chemin;
+  const candidats = [
+    join(racine, dossier, 'page.tsx'),
+    // `/properties` est servie sous un groupe de route `(liste)`, invisible dans l'URL.
+    join(racine, dossier, '(liste)', 'page.tsx'),
+  ];
+  const trouve = candidats.find((c) => existsSync(c));
+  if (!trouve) throw new Error(`aucune page.tsx pour « ${chemin} » (essayé : ${candidats.join(', ')})`);
+  return trouve;
+}
+
+const PAGES_PUBLIQUES = [
+  ...PAGES_STATIQUES_INDEXABLES.map((p) => fichierDeRoute(p.chemin)),
+  ...Object.keys(ROUTES_DYNAMIQUES_PUBLIQUES).map(fichierDeRoute),
+].sort();
+
 describe('alternatesLangues', () => {
   it('déclare les trois langues, plus x-default', () => {
     const { languages } = alternatesLangues('/properties/mon-slug');
@@ -78,35 +119,62 @@ describe('AC3 (seconde moitié) — les URL pointées sont servies', () => {
     // La forme des trois URL est `/<langue>/properties/<slug>` : la route qui les sert est
     // `src/app/[locale]/(public)/properties/[slug]/page.tsx`. Si le groupe public remontait d'un
     // cran, ce test rougirait — et c'est exactement la régression qui rendrait le hreflang menteur.
-    for (const route of [
-      'src/app/[locale]/(public)/page.tsx',
-      'src/app/[locale]/(public)/properties/(liste)/page.tsx',
-      'src/app/[locale]/(public)/properties/[slug]/page.tsx',
-      'src/app/[locale]/(public)/agencies/[slug]/page.tsx',
-      'src/app/[locale]/(public)/agents/[slug]/page.tsx',
-    ]) {
+    for (const route of PAGES_PUBLIQUES) {
       expect(existsSync(route), route).toBe(true);
     }
   });
 
   it('chaque page publique qui déclare des alternatives passe un chemin SANS langue', async () => {
-    // Le piège que `alternatesLangues` ne peut pas voir seule : `alternatesLangues('/fr/properties')`
-    // rendrait trois URL correctes… et ferait dire à `hreflang="en"` une URL qui n'est pas celle de
-    // la page. On garde donc la forme de l'argument au point d'appel.
+    // Le piège que la fabrique ne peut pas voir seule : lui passer `'/fr/properties'` rendrait
+    // trois URL correctes… et ferait dire à `hreflang="en"` une URL qui n'est pas celle de la
+    // page. On garde donc la forme de l'argument au POINT D'APPEL.
+    //
+    // ⚠ Le point d'appel a changé avec TCK-433 : les cinq pages appellent désormais
+    // `alternatesPubliques(chemin, locale)` — la canonique et les `hreflang` se dérivent du même
+    // chemin, sans quoi ils se contrediraient. Le scan suit les deux noms : `alternatesLangues`
+    // reste la fabrique des seuls `hreflang`, et rien n'interdit qu'une page la reprenne.
     const { readFileSync } = await import('node:fs');
-    const appels = [
-      'src/app/[locale]/(public)/page.tsx',
-      'src/app/[locale]/(public)/properties/(liste)/page.tsx',
-      'src/app/[locale]/(public)/properties/[slug]/page.tsx',
-      'src/app/[locale]/(public)/agencies/[slug]/page.tsx',
-      'src/app/[locale]/(public)/agents/[slug]/page.tsx',
-    ].flatMap((f) => [...readFileSync(f, 'utf8').matchAll(/alternatesLangues\(([`'"])([^`'"]*)\1\)/g)]);
+    const FABRIQUE = /alternates(?:Langues|Publiques)\(\s*([`'"])([^`'"]*)\1/g;
+    const sources = PAGES_PUBLIQUES.map((f) => [f, readFileSync(f, 'utf8')] as const);
 
-    expect(appels.length).toBe(5);
+    // Toutes déclarent des alternatives — sans ce compte, une page qui perdrait son appel
+    // laisserait la boucle ci-dessous verte sur zéro occurrence.
+    for (const [fichier, source] of sources) {
+      expect(source.includes('alternatesPubliques('), fichier).toBe(true);
+    }
+
+    const appels = sources.flatMap(([, source]) => [...source.matchAll(FABRIQUE)]);
+
+    // Un littéral de MOINS que de pages : `/properties` passe un chemin CALCULÉ
+    // (`cheminCanoniqueDeLaListe`), que ce scan ne peut pas lire. Il est éprouvé pour ce qu'il
+    // rend, dans `src/app/[locale]/(public)/properties/(liste)/__tests__/metadata.test.ts`.
+    expect(appels.length).toBe(PAGES_PUBLIQUES.length - 1);
     for (const [, , chemin] of appels) {
       expect(chemin!.startsWith('/'), chemin).toBe(true);
       expect(estCheminLocalisable(chemin!.replace(/\$\{[^}]*\}/g, 'x')), chemin).toBe(true);
       expect(/^\/(fr|en|wo)(\/|$)/.test(chemin!), chemin).toBe(false);
+    }
+  });
+});
+
+describe('« entre au sitemap » implique « déclare des alternatives »', () => {
+  it('le balayage voit un nombre plausible de pages indexables', () => {
+    // Sans ce plancher, un glob cassé rendrait l'assertion suivante verte sur zéro page.
+    expect(PAGES_PUBLIQUES.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('chaque page STATIQUE du sitemap appelle `alternatesPubliques`', () => {
+    /*
+     * Le lien qui manquait entre les deux tickets : rien n'obligeait une page entrée dans
+     * `PAGES_STATIQUES_INDEXABLES` à émettre canonique et `hreflang`. Le sitemap aurait déclaré
+     * pour elle trois `<loc>` et quatre `xhtml:link` que la page elle-même ne reconnaît pas.
+     */
+    for (const page of PAGES_STATIQUES_INDEXABLES) {
+      const fichier = fichierDeRoute(page.chemin);
+      expect(
+        readFileSync(fichier, 'utf8').includes('alternatesPubliques('),
+        `« ${page.chemin} » entre au sitemap sans déclarer d'alternatives (${fichier})`,
+      ).toBe(true);
     }
   });
 });

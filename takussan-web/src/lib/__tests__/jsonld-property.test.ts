@@ -69,15 +69,20 @@ function bien(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
 
 type Noeud = Record<string, unknown>;
 
+/**
+ * ⚠️ La fabrique prend désormais la LANGUE (TCK-435) : l'`url` du nœud était relative
+ * (`/properties/<slug>`), donc résolue par un moteur contre l'URL du document — c'est-à-dire vers
+ * `https://hôte/properties/<slug>`, qui rend **307** depuis TCK-434. Elle est absolue et préfixée.
+ */
 function mainEntity(p: PropertyDetail): Noeud {
-  return jsonLdRealEstateListing(p).mainEntity as Noeud;
+  return jsonLdRealEstateListing(p, 'fr').mainEntity as Noeud;
 }
 
 describe('jsonLdRealEstateListing', () => {
   it("ne balise JAMAIS l'annonce en Product/Offer", () => {
-    const brut = JSON.stringify(jsonLdRealEstateListing(bien()));
+    const brut = JSON.stringify(jsonLdRealEstateListing(bien(), 'fr'));
 
-    expect(jsonLdRealEstateListing(bien())['@type']).toBe('RealEstateListing');
+    expect(jsonLdRealEstateListing(bien(), 'fr')['@type']).toBe('RealEstateListing');
     // Les règles Google réservent le balisage produit aux produits vendus ; l'employer sur une
     // annonce immobilière expose à une action manuelle « balisage trompeur ».
     expect(brut).not.toContain('"Product"');

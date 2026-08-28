@@ -10,13 +10,18 @@ import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { ContactSheet } from '@/components/public/profile/ContactSheet';
 import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
 import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
-import { alternatesLangues } from '@/lib/alternates';
+import { alternatesPubliques } from '@/lib/alternates';
+import { isLocale } from '@/i18n/config';
+import { DonneesStructurees } from '@/lib/jsonld';
+import { jsonLdAgent } from '@/lib/jsonld-profil';
 import { getAgent } from '@/lib/queries/public-agent';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const t = await getTranslations('agents.publicPage');
-  const resultat = await getAgent(slug, await getLocale());
+  const brut = await getLocale();
+  const locale = isLocale(brut) ? brut : 'fr';
+  const resultat = await getAgent(slug, brut);
 
   // ⚠️ **Cet appel ne porte AUCUN code HTTP** — le 404 vient du `notFound()` du corps de page.
   // Désagrégé le 2026-08-28 : `notFound()` dans le seul `generateMetadata` rend **200**, dans le
@@ -42,7 +47,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title,
     description: agent.bio ?? summary,
-    alternates: alternatesLangues(`/agents/${slug}`),
+    // Canonique + hreflang, dérivés du même chemin (TCK-433). Un profil public n'a pas de
+    // variante d'URL à replier ; sans canonique explicite, Next n'en émet simplement aucune.
+    alternates: alternatesPubliques(`/agents/${slug}`, locale),
     openGraph: {
       title,
       description: agent.bio ?? summary,
@@ -88,7 +95,9 @@ async function agentIndisponible() {
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const t = await getTranslations('agents.publicPage');
   const { slug } = await params;
-  const resultat = await getAgent(slug, await getLocale());
+  const brutLocale = await getLocale();
+  const locale = isLocale(brutLocale) ? brutLocale : 'fr';
+  const resultat = await getAgent(slug, brutLocale);
 
   // Un 404 amont produit un VRAI 404 — statut compris.
   if (resultat.etat === 'introuvable') notFound();
@@ -107,6 +116,12 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
   return (
     <div className="min-h-screen bg-background">
+      {/*
+        TCK-435 — le balisage n'affirme QUE ce que la page rend : la note agrégée n'est émise
+        qu'au-dessus de zéro avis, la ville nulle ne devient pas la chaîne « null », et le
+        contact ne dépasse pas ce que `ContactSheet` publie déjà.
+      */}
+      <DonneesStructurees donnees={jsonLdAgent(agent, locale)} />
       <Navbar />
       <div className="h-[133px]" />
 

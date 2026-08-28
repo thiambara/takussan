@@ -6844,6 +6844,12 @@
       "title": "Seet kër yi",
       "description": "Gis appartement, villa, suuf, biro ak yeneen ci Senegaal. Tànnal ci njëg, xeet, bérébu ak yaatuwaay, te xool kër yi ci benn kart."
     },
+    "propertiesFiltered": {
+      "titleContract": "{contract, select, rent {{subject} yu ñuy luwaa} sale {{subject} yu ñuy jaay} other {{subject}}}",
+      "titleCity": "{subject} ci {city}",
+      "subjectAny": "Kër yi",
+      "description": "{title} ci Takussan : nataal, njëg ak bérébu benn bu nekk. Tànnal ci njëg, yaatuwaay, néeg yi ak gox bi."
+    },
     "compare": {
       "title": "Méengal kër yi",
       "description": "Méengaleel ba 4 kër ci wetu benn : njëg, yaatuwaay, néeg yi, jumtukaay yi ak bérébu."

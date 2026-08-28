@@ -17,6 +17,7 @@ use App\Http\Requests\Public\VisitRequestPublicPropertyRequest;
 use App\Http\Resources\BookingResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
 use App\Http\Resources\PropertyResource;
+use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Booking;
@@ -73,6 +74,28 @@ class PublicPropertyController extends Controller
      */
     public const BY_IDS_MAX_IDS = 20;
 
+    /**
+     * Plafond dur de `GET /public/properties/sitemap` (TCK-431). Le front pagine dessus
+     * (`takussan-web/src/lib/queries/sitemap-catalogue.ts` : `TAILLE_DE_PAGE_SITEMAP`).
+     */
+    public const SITEMAP_MAX_PER_PAGE = 1000;
+
+    /**
+     * Repli du plafond de `GET /public/properties/cities`, si la configuration disparaissait.
+     *
+     * La valeur qui fait foi vit dans `config/catalogue.php` — pas ici — pour que son BORD soit
+     * éprouvable : un test l'abaisse à 2 et mesure la troncature avec trois biens, là où
+     * l'éprouver à 500 coûterait 501 insertions. *Un seuil qu'on ne peut pas atteindre en test
+     * est un seuil qu'on ne teste pas.*
+     */
+    public const CITIES_MAX_DEFAUT = 500;
+
+    /** Le plafond effectif. */
+    public static function citiesMax(): int
+    {
+        return (int) config('catalogue.cities_max', self::CITIES_MAX_DEFAUT);
+    }
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $query = Property::query()
@@ -93,6 +116,99 @@ class PublicPropertyController extends Controller
         $properties = $query->paginate((int) $request->input('per_page', 20));
 
         return PropertyResource::collection($properties);
+    }
+
+    /**
+     * L'énumération du catalogue indexable, pour `/sitemap.xml` du site public (TCK-431).
+     *
+     * GET /api/public/properties/sitemap?page=…&per_page=…
+     *
+     * **Trois décisions, chacune contre un mode de défaillance mesuré.**
+     *
+     * 1. **`scopePublic()` SEUL décide de ce qui entre.** C'est déjà le prédicat qui décide de ce
+     *    qu'une fiche publique sert : réécrire ici la condition « publié » ferait diverger le
+     *    sitemap de la fiche, et un sitemap qui annonce des URL rendant 404 est pire que pas de
+     *    sitemap. `index()` ci-dessus y ajoute `whereNot(status, Draft)` — redondant, `public()`
+     *    exclut déjà `Draft` avec sept autres statuts.
+     *
+     * 2. **`per_page` est PLAFONNÉ, ici et pas ailleurs.** `index()` accepte n'importe quelle
+     *    valeur (`paginate((int) $request->input('per_page', 20))`) ; sur une route anonyme qui
+     *    énumère tout le catalogue, ce serait une invitation à demander le catalogue entier d'un
+     *    coup. Le plafond est aussi un contrat avec le front, qui pagine dessus
+     *    (`takussan-web/src/lib/queries/sitemap-catalogue.ts`).
+     *
+     * 3. **`orderBy('id')` — un ordre TOTAL et STABLE.** `index()` trie par `featured` puis
+     *    `published_at`, deux colonnes non uniques : sous PostgreSQL, deux pages successives d'un
+     *    tel tri peuvent rendre deux fois la même ligne et jamais une autre, sans que rien ne
+     *    rougisse. Pour une énumération complète, l'ordre doit départager toutes les lignes.
+     */
+    public function sitemap(Request $request): JsonResponse
+    {
+        $perPage = (int) $request->input('per_page', self::SITEMAP_MAX_PER_PAGE);
+        $perPage = max(1, min($perPage, self::SITEMAP_MAX_PER_PAGE));
+
+        $properties = Property::query()
+            ->public()
+            ->select(['id', 'slug', 'updated_at'])
+            ->orderBy('id')
+            ->paginate($perPage);
+
+        return $this->paginated($properties, PropertySitemapResource::collection($properties->getCollection()));
+    }
+
+    /**
+     * Les VILLES du catalogue public — le domaine de la facette `city` (TCK-433, passe 2).
+     *
+     * GET /api/public/properties/cities
+     *
+     * ────────────────────────────────────────────────────────────────────────────────────────
+     * POURQUOI CET ENDPOINT EXISTE
+     * ────────────────────────────────────────────────────────────────────────────────────────
+     *
+     * `src/lib/canonique.ts` retient `contract_type`, `type` et `city` comme facettes
+     * indexables **parce que leur ensemble de valeurs est fini et énumérable**. Les deux
+     * premiers le sont côté front (`propertyTypeValues`, `contractTypeValues`). La troisième ne
+     * l'était nulle part : `?city=Zzzinventee` produisait une URL indexable, canonique
+     * d'elle-même, avec un titre dérivé de la valeur fournie. *Un ensemble énumérable dont
+     * personne ne vérifie l'appartenance n'est pas un ensemble fini, c'est une intention.*
+     *
+     * Il rend donc l'ÉNUMÉRATION, sur le même patron que `PublicPropertyTypeController::index()`
+     * dont il est le jumeau : `->public()` décide, un compte accompagne chaque valeur.
+     *
+     * ⚠ La ville vit sur `addresses`, pas sur `properties` : d'où la jointure. `->public()`
+     * s'applique bien à la requête de `properties`, donc le domaine ne contient que des villes
+     * réellement atteignables par une fiche publique — une ville dont toutes les annonces sont
+     * retirées quitte le domaine, et sa page de facette cesse d'être canonique d'elle-même.
+     * C'est le comportement voulu.
+     */
+    public function cities(): JsonResponse
+    {
+        $lignes = Property::query()
+            ->public()
+            ->join('addresses', function ($jointure) {
+                $jointure->on('addresses.addressable_id', '=', 'properties.id')
+                    ->where('addresses.addressable_type', '=', Property::class);
+            })
+            ->whereNotNull('addresses.city')
+            ->where('addresses.city', '!=', '')
+            ->groupBy('addresses.city')
+            ->orderByDesc(DB::raw('count(*)'))
+            ->limit(self::citiesMax() + 1)
+            ->pluck(DB::raw('count(*) as cnt'), 'addresses.city');
+
+        $tronque = $lignes->count() > self::citiesMax();
+
+        $data = $lignes->take(self::citiesMax())
+            ->map(fn ($compte, $ville) => ['value' => (string) $ville, 'count' => (int) $compte])
+            ->values()
+            ->all();
+
+        return $this->json([
+            'data' => $data,
+            // ⚠ Un domaine tronqué n'est PAS un domaine. L'appelant doit pouvoir refuser de s'en
+            // servir plutôt que de rejeter en silence les villes qui n'ont pas tenu.
+            'meta' => ['truncated' => $tronque],
+        ]);
     }
 
     /**
