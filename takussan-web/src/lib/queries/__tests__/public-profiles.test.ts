@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  FACETTE_NUE,
   PAGES_MAX_SITEMAP_PROFILS,
   RESSOURCES_DE_PROFIL,
   TAILLE_DE_PAGE,
@@ -8,6 +9,7 @@ import {
   listerProfilsPublics,
   listerSlugsDeProfils,
   requeteDIndex,
+  verdictDeFacette,
 } from '../public-profiles';
 
 /**
@@ -188,6 +190,77 @@ describe('listerSlugsDeProfils — la source de sitemap', () => {
     // Deux plafonds qui se déclenchent dans le même ordre de grandeur, c'est un seul plafond et un
     // message trompeur (cf. `sitemap-catalogue.ts`). 200 × 48 × 3 langues = 28 800 < 50 000.
     expect(PAGES_MAX_SITEMAP_PROFILS * TAILLE_DE_PAGE_MAX * 3).toBeLessThan(50_000);
+  });
+});
+
+describe('verdictDeFacette — l’espace d’URL indexables est BORNÉ par le contenu réel', () => {
+  it('sans `city`, la page nue est indexable et n’interroge personne', async () => {
+    const spy = feindreFetch(page([]));
+    expect(await verdictDeFacette('agencies', undefined, 'fr')).toEqual(FACETTE_NUE);
+    expect(await verdictDeFacette('agencies', '   ', 'fr')).toEqual(FACETTE_NUE);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('une ville INVENTÉE ne devient pas une page indexable', async () => {
+    // Le défaut mesuré par la revue adverse : ?city=Zzzinventee-vente-de-liens rendait 200,
+    // index/follow, canonique d'elle-même, titre choisi par l'appelant.
+    feindreFetch(page([], { total: 0, cities: ['Dakar', 'Thiès'] }));
+
+    expect(await verdictDeFacette('agencies', 'Zzzinventee-vente-de-liens', 'fr')).toEqual({
+      indexable: false,
+      ville: null,
+    });
+  });
+
+  it('une ville RÉELLE reste indexable et garde sa place dans la canonique', async () => {
+    feindreFetch(page([AGENCE], { total: 12, cities: ['Dakar', 'Thiès'] }));
+
+    expect(await verdictDeFacette('agencies', 'Dakar', 'fr')).toEqual({
+      indexable: true,
+      ville: 'Dakar',
+    });
+  });
+
+  it('rend la graphie de l’API, pas celle demandée — une seule canonique par facette', async () => {
+    feindreFetch(page([AGENCE], { total: 12, cities: ['Dakar', 'Thiès'] }));
+
+    expect(await verdictDeFacette('agents', 'THIÈS', 'fr')).toEqual({
+      indexable: true,
+      ville: 'Thiès',
+    });
+  });
+
+  it('une ville réelle HORS de la facette plafonnée reste indexable, avec la graphie demandée', async () => {
+    // `villesDuCatalogue` est plafonnée à 30 côté serveur. Décider sur l'appartenance à
+    // `meta.cities` ferait passer une 31ᵉ ville réelle en `noindex` : le critère est le CONTENU.
+    feindreFetch(page([AGENCE], { total: 3, cities: ['Dakar', 'Thiès'] }));
+
+    expect(await verdictDeFacette('agents', 'Ziguinchor', 'fr')).toEqual({
+      indexable: true,
+      ville: 'Ziguinchor',
+    });
+  });
+
+  it('une PANNE rend `indexable: false` — on ne certifie pas ce qu’on n’a pas vérifié', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}), text: async () => '' })),
+    );
+
+    expect(await verdictDeFacette('agencies', 'Dakar', 'fr')).toEqual({
+      indexable: false,
+      ville: null,
+    });
+  });
+
+  it('ne demande qu’UNE ligne — le verdict porte sur `total`, pas sur la page', async () => {
+    const spy = feindreFetch(page([AGENCE], { total: 12 }));
+    await verdictDeFacette('agencies', 'Dakar', 'fr');
+
+    const url = String(spy.mock.calls[0]![0]);
+    expect(url).toContain('per_page=1');
+    // URLSearchParams encode les crochets : la garde doit chercher la forme RÉELLEMENT émise.
+    expect(url).toContain('filter%5Bcity%5D=Dakar');
   });
 });
 

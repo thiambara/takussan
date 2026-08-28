@@ -735,6 +735,40 @@ class PublicProfileIndexTest extends TestCase
         $this->assertNull($lignes['independant']['agency']);
     }
 
+    public function test_lagence_dun_agent_nest_rendue_que_si_lindex_des_agences_laccepte(): void
+    {
+        // Incohérence relevée par la revue adverse : `/agents` liait une enseigne que
+        // `/agencies` refuse de lister. Le test éprouve les DEUX bouts — l'agence suspendue est
+        // absente de son propre index ET absente du champ `agency` de l'agent — sans quoi il
+        // resterait vert sur la moitié de la correction.
+        $suspendue = Agency::factory()->create([
+            'name' => 'Enseigne Suspendue',
+            'slug' => 'suspendue',
+            'status' => AgencyStatus::Suspended,
+        ]);
+        $active = Agency::factory()->create([
+            'name' => 'Enseigne Active',
+            'slug' => 'active',
+            'status' => AgencyStatus::Active,
+        ]);
+
+        $this->agentEligible(['username' => 'sous-suspendue'], 1, 'Dakar', $suspendue);
+        $this->agentEligible(['username' => 'sous-active'], 1, 'Dakar', $active);
+
+        $lignes = collect($this->getJson('/api/public/agents')->assertOk()->json('data'))
+            ->keyBy('slug');
+
+        $this->assertNull($lignes['sous-suspendue']['agency']);
+        $this->assertSame('active', $lignes['sous-active']['agency']['slug']);
+
+        // …et l'agence suspendue reste absente de son propre index, faute de quoi les deux
+        // surfaces se contrediraient dans l'autre sens.
+        $this->assertSame(
+            ['active'],
+            $this->slugs($this->getJson('/api/public/agencies')->assertOk()),
+        );
+    }
+
     public function test_la_facette_de_villes_est_derivee_du_catalogue_eligible(): void
     {
         $this->agenceEligible(['slug' => 'a'], 2, 'Dakar');

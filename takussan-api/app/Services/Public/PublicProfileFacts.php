@@ -2,6 +2,7 @@
 
 namespace App\Services\Public;
 
+use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\ContractType;
 use App\Models\Property;
 use App\Models\Review;
@@ -225,6 +226,13 @@ final class PublicProfileFacts
             ->whereNotNull('properties.agency_id')
             ->join('agencies', 'agencies.id', '=', 'properties.agency_id')
             ->whereNull('agencies.deleted_at')
+            // ⚠ Le MÊME statut que celui qu'exige `PublicAgencyController::index()`. Sans lui,
+            // `/agents` affichait — et LIAIT — une enseigne suspendue que `/agencies` refuse de
+            // lister : deux surfaces publiques qui se contredisent sur la même agence. Ce n'était
+            // pas une fuite (nom et slug d'agence sont déjà publics via `PropertyResource`),
+            // c'était une incohérence, et elle envoyait le visiteur vers une fiche que l'annuaire
+            // ne recommande pas.
+            ->where('agencies.status', AgencyStatus::Active)
             ->selectRaw('properties.user_id as profil_id, agencies.id as agence_id, agencies.slug as agence_slug, agencies.name as agence_nom, COUNT(*) as total')
             ->groupBy('properties.user_id', 'agencies.id', 'agencies.slug', 'agencies.name')
             // Ordre TOTAL : à volume égal, `agencies.id` départage — sans quoi l'agence affichée

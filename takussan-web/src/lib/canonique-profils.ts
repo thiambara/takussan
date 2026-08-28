@@ -53,11 +53,43 @@ export const CLES_ECARTEES_PROFILS: readonly CleDIndexDeProfils[] = CLES_DINDEX_
  * Le CHEMIN canonique d'un index de profils — sans langue et sans origine.
  *
  * `/agents?city=Dakar&q=awa&page=3` → `/agents?city=Dakar`.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * `villeCertifiee` : POURQUOI LA VILLE NE VIENT PAS DE `params`
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * La première version lisait `city` directement dans l'URL demandée. Mesuré par la revue
+ * adverse : `?city=Zzzinventee-vente-de-liens` produisait alors une page **200, index/follow,
+ * canonique d'elle-même**, dont le `<title>` portait la chaîne choisie par l'appelant. L'espace
+ * d'URL indexables devenait **non borné** — une page par chaîne qu'on veut bien inventer, sur un
+ * domaine réel. C'est le défaut jumeau de `/properties`, et il ne se corrige pas en refusant
+ * quelques valeurs : *une garde qui ne connaît que la liste des valeurs valides et écarte le
+ * reste ne garde rien — ici « le reste » est infini.*
+ *
+ * La ville retenue est donc **certifiée par l'API** et passée ici : `null` signifie « cette
+ * facette n'existe pas, replie sur la page nue ». Le verdict se prend dans
+ * `verdictDeFacette()` (`src/lib/queries/public-profiles.ts`), sur le seul critère qui ne
+ * s'énumère pas — *la facette a-t-elle du contenu* — et il rend au passage l'ORTHOGRAPHE de
+ * l'API, de sorte que `?city=dakar` et `?city=Dakar` désignent une seule et même canonique.
+ *
+ * ⚠ Le repliement de `q` et de `page`, lui, reste porté par cette fonction : elles ne sont
+ * simplement jamais recopiées.
  */
-export function cheminCanoniqueDesProfils(base: string, params: URLSearchParams): string {
+export function cheminCanoniqueDesProfils(
+  base: string,
+  params: URLSearchParams,
+  villeCertifiee: string | null,
+): string {
   const query = new URLSearchParams();
 
   for (const cle of CLES_CANONIQUES_PROFILS) {
+    // `city` est la seule clé canonique, et sa valeur ne vient PAS de `params` : elle vient du
+    // verdict. La boucle reste écrite sur la table pour qu'une clé canonique ajoutée demain
+    // passe par une décision explicite ici plutôt que d'être recopiée en silence.
+    if (cle === 'city') {
+      if (villeCertifiee !== null && villeCertifiee !== '') query.set('city', villeCertifiee);
+      continue;
+    }
     const valeur = params.get(cle)?.trim();
     if (valeur === undefined || valeur === '') continue;
     query.set(cle, valeur);
@@ -77,6 +109,12 @@ export function versParametresDeProfils(
     params.set(cle, Array.isArray(valeur) ? (valeur[0] ?? '') : String(valeur));
   }
   return params;
+}
+
+/** La ville DEMANDÉE dans l'URL — candidate au verdict, jamais retenue telle quelle. */
+export function villeDemandee(params: URLSearchParams): string | undefined {
+  const brut = params.get('city')?.trim();
+  return brut === undefined || brut === '' ? undefined : brut;
 }
 
 /** Le numéro de page demandé, borné à 1 — une valeur illisible n'est pas une erreur, c'est la page 1. */

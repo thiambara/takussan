@@ -35,13 +35,99 @@ import {
 
 const RACINE_PUBLIQUE = join(process.cwd(), 'src/app/[locale]/(public)');
 
+/**
+ * Comment une page se déclare vis-à-vis des moteurs — TROIS états, pas deux (TCK-436, passe 2).
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * POURQUOI UN TROISIÈME ÉTAT EST APPARU
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Ce test classait une page sur la seule présence du texte `index: false`. Ça suffisait tant que
+ * les quatre pages concernées le déclaraient dans un `export const metadata` STATIQUE : elles ne
+ * veulent jamais être indexées, quelle que soit l'URL.
+ *
+ * `/agencies` et `/agents` (TCK-436) ont introduit un cas que la binarité ne sait pas dire :
+ * **elles sont indexables sous leur forme nue et ne le sont pas sous une facette inventée.**
+ * `?city=Zzzinventee` rend `noindex, follow` (mesuré sur serveur réel), `/agencies` nue rend
+ * `index, follow` (mesuré aussi) — et c'est bien la forme NUE que `PAGES_STATIQUES_INDEXABLES`
+ * déclare. La déclaration vit donc dans `generateMetadata`, derrière une condition.
+ *
+ * ⚠ **Ce n'est pas une tolérance ajoutée pour faire passer deux pages.** Une tolérance dirait
+ * « ces deux fichiers-là sont exemptés » et laisserait le suivant passer aussi. Ici on lit une
+ * PROPRIÉTÉ du fichier — l'endroit où la déclaration est écrite — et les trois états ont chacun
+ * une conséquence différente et vérifiée :
+ *
+ *   `indexable`     → DOIT être dans le sitemap
+ *   `jamais`        → ne peut PAS y être            (`export const metadata` statique)
+ *   `conditionnel`  → DOIT y être, car sa forme nue l'est  (`generateMetadata`)
+ *
+ * ⚠ **Ce que ce classement NE voit pas**, et qu'il faut dire plutôt que laisser croire : une page
+ * qui rendrait `index: false` INCONDITIONNELLEMENT depuis `generateMetadata` serait rangée en
+ * `conditionnel` et exigée dans le sitemap — donc à tort. Le scan lit du texte, il n'évalue rien ;
+ * c'était déjà le plancher assumé de ce fichier, et il l'est d'un cran de plus.
+ */
+type DeclarationRobots = 'indexable' | 'jamais' | 'conditionnel';
+
 type RoutePublique = {
   /** Chemin SANS langue, tel que le sitemap le manipule : `/`, `/properties/[slug]`. */
   readonly chemin: string;
   readonly fichier: string;
   readonly dynamique: boolean;
+  readonly robots: DeclarationRobots;
+  /** Raccourci : la page peut-elle figurer au sitemap sous sa forme nue ? */
   readonly indexable: boolean;
 };
+
+/**
+ * Le `index: false` est-il atteint INCONDITIONNELLEMENT, ou seulement dans une branche ?
+ *
+ * ⚠ **Le premier discriminant essayé — « dans `export const metadata` ou dans
+ * `generateMetadata` » — était FAUX, et la mesure l'a dit tout de suite** : trois des quatre
+ * pages privées (`favorites`, `compare`, `bookings`) déclarent leur `robots` depuis
+ * `generateMetadata`, exactement comme les deux index de profils. Seul `playground` emploie la
+ * métadonnée statique. L'endroit ne discrimine rien ; ce qui discrimine, c'est la CONDITION.
+ *
+ * La forme lue est donc le **spread conditionnel** — `...(cond ? {} : { robots: … })` — qui est
+ * littéralement la manière dont une métadonnée conditionnelle s'écrit ici. Un `index: false`
+ * atteint hors d'un tel spread est inconditionnel : la page ne veut jamais être indexée.
+ *
+ * Aucun analyseur syntaxique : un compteur de parenthèses, robuste aux retours à la ligne (ce que
+ * ne serait pas un test sur l'indentation). Introduire un parseur tiers dans une garde est ce que
+ * `scripts/i18n-scan.mjs` a payé une fois (TCK-323).
+ */
+function spansDeSpreadConditionnel(source: string): readonly [number, number][] {
+  const spans: [number, number][] = [];
+  let depart = source.indexOf('...(');
+  while (depart !== -1) {
+    let profondeur = 0;
+    let i = depart + 3;
+    for (; i < source.length; i += 1) {
+      if (source[i] === '(') profondeur += 1;
+      else if (source[i] === ')') {
+        profondeur -= 1;
+        if (profondeur === 0) break;
+      }
+    }
+    spans.push([depart, i]);
+    depart = source.indexOf('...(', i === source.length ? source.length : i + 1);
+  }
+  return spans;
+}
+
+function declarationRobots(source: string): DeclarationRobots {
+  const occurrences: number[] = [];
+  const motif = /index\s*:\s*false/g;
+  for (let m = motif.exec(source); m !== null; m = motif.exec(source)) occurrences.push(m.index);
+
+  if (occurrences.length === 0) return 'indexable';
+
+  const spans = spansDeSpreadConditionnel(source);
+  const conditionnelle = (position: number) =>
+    spans.some(([debut, fin]) => position > debut && position < fin);
+
+  // Une SEULE occurrence inconditionnelle suffit : la page ne veut jamais être indexée.
+  return occurrences.every(conditionnelle) ? 'conditionnel' : 'jamais';
+}
 
 /** Les segments entre parenthèses sont des GROUPES : ils ne paraissent pas dans l'URL. */
 function cheminDeRoute(dossier: string): string {
@@ -60,13 +146,15 @@ function collecter(dossier: string, acc: RoutePublique[] = []): RoutePublique[] 
     } else if (entree.name === 'page.tsx') {
       const source = readFileSync(chemin, 'utf8');
       const route = cheminDeRoute(dossier);
+      const robots = declarationRobots(source);
       acc.push({
         chemin: route,
         fichier: relative(process.cwd(), chemin),
         dynamique: route.includes('['),
-        // La forme exacte employée par les quatre pages qui la portent aujourd'hui
-        // (`favorites`, `compare`, `bookings`, `playground`), tolérante aux espaces.
-        indexable: !/index\s*:\s*false/.test(source),
+        robots,
+        // Une page « conditionnelle » est indexable sous sa forme NUE, et c'est cette forme-là
+        // que le sitemap déclare.
+        indexable: robots !== 'jamais',
       });
     }
   }
@@ -82,9 +170,27 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     expect(ROUTES.length).toBeGreaterThanOrEqual(7);
   });
 
-  it('voit les deux natures de page — sinon la détection d’`index: false` est cassée', () => {
-    expect(ROUTES.some((r) => r.indexable)).toBe(true);
-    expect(ROUTES.some((r) => !r.indexable)).toBe(true);
+  it('voit les TROIS natures de page — sinon la détection d’`index: false` est cassée', () => {
+    // Le contrôle de la garde elle-même : si le classement s'effondrait sur une seule valeur,
+    // les équivalences ci-dessous resteraient vertes en ne mesurant plus rien.
+    for (const nature of ['indexable', 'jamais', 'conditionnel'] as const) {
+      expect(
+        ROUTES.some((r) => r.robots === nature),
+        `aucune page classée « ${nature} » : le discriminant est cassé`,
+      ).toBe(true);
+    }
+  });
+
+  it('range les deux index de profils en « conditionnel », et les quatre écrans privés en « jamais »', () => {
+    // Nommés dans les deux sens : un `index: false` qui migrerait de `generateMetadata` vers un
+    // `export const metadata` sur `/agencies` la sortirait du sitemap en silence, et l'inverse
+    // ferait entrer `/favorites`.
+    for (const chemin of ['/agencies', '/agents']) {
+      expect(ROUTES.find((r) => r.chemin === chemin)?.robots, chemin).toBe('conditionnel');
+    }
+    for (const chemin of ['/favorites', '/compare', '/bookings', '/playground']) {
+      expect(ROUTES.find((r) => r.chemin === chemin)?.robots, chemin).toBe('jamais');
+    }
   });
 });
 
@@ -111,13 +217,13 @@ describe('TCK-431 · AC3 — le sitemap ⇔ les pages indexables', () => {
     ).toEqual([]);
   });
 
-  it('les trois écrans personnels sont bien vus comme non indexables', () => {
+  it('les trois écrans personnels sont bien vus comme JAMAIS indexables', () => {
     // Nommés — si l'un d'eux perdait son `index: false`, l'équivalence ci-dessus resterait
     // satisfaite (il rejoindrait simplement le sitemap) et le défaut passerait inaperçu.
     for (const chemin of ['/favorites', '/compare', '/bookings']) {
       const route = ROUTES.find((r) => r.chemin === chemin);
       expect(route, `route ${chemin} introuvable`).toBeDefined();
-      expect(route!.indexable, `${chemin} devrait déclarer robots: { index: false }`).toBe(false);
+      expect(route!.robots, `${chemin} devrait déclarer robots: { index: false }`).toBe('jamais');
     }
   });
 
@@ -138,7 +244,7 @@ describe('TCK-431 · AC4 — /playground n’est plus servi indexable', () => {
 
   it('sa métadonnée déclare `index: false`', () => {
     const route = ROUTES.find((r) => r.chemin === '/playground')!;
-    expect(route.indexable).toBe(false);
+    expect(route.robots).toBe('jamais');
   });
 
   it('la déclaration est bien une MÉTADONNÉE, pas un commentaire', () => {

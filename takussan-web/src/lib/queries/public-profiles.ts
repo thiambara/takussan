@@ -168,6 +168,76 @@ export async function listerProfilsPublics(
 }
 
 /**
+ * Une facette `?city=…` est-elle une PAGE, ou une chaîne qu'on vient d'inventer ? — TCK-436, passe 2.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LE DÉFAUT QUE CE VERDICT EXISTE POUR FERMER
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * La première version retenait `city` dans la canonique sans jamais vérifier qu'elle désigne
+ * quelque chose. Mesuré par la revue adverse :
+ * `/fr/agencies?city=Zzzinventee-vente-de-liens` rendait **200, index/follow**, avec un `<title>`
+ * et un `<link rel="canonical">` portant la chaîne inventée. Autrement dit : un espace d'URL
+ * indexables **non borné** sur un domaine réel, dont un tiers choisit le contenu du titre.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LE CRITÈRE EST « CETTE PAGE A-T-ELLE DU CONTENU », ET IL NE S'ÉNUMÈRE PAS
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Deux critères étaient disponibles, et le second a été écarté par la mesure :
+ *
+ * · **`total > 0`** — retenu. Exact, sans plafond, et il dit la seule chose qui compte pour un
+ *   moteur : *il y a quelque chose à indexer ici.*
+ * · **appartenance à `meta.cities`** — écarté comme critère PRINCIPAL : la facette est plafonnée
+ *   à 30 villes côté serveur (`PublicProfileFacts::villesDuCatalogue`). Une ville réelle classée
+ *   31ᵉ verrait sa page légitime passer en `noindex` — *une garde qui ne connaît que les trente
+ *   premières valeurs valides écarte le reste, et « le reste » contient des vraies villes.*
+ *
+ * `meta.cities` sert quand même, mais à autre chose : à rendre l'**orthographe de l'API**. Le
+ * filtre serveur compare sans tenir compte de la casse, donc `?city=dakar` et `?city=Dakar`
+ * rendent tous deux du contenu — et produiraient deux canoniques pour une seule page si on
+ * recopiait la graphie demandée.
+ *
+ * ⚠ **Une panne rend `indexable: false`, jamais `true`.** On ne certifie pas ce qu'on n'a pas pu
+ * vérifier : au pire un `noindex` de trop sur une page réelle le temps d'une panne, ce qui se
+ * répare tout seul, contre une porte ouverte qui, elle, ne se répare pas.
+ *
+ * ⚠ Le coût est **une requête `per_page=1`**, et seulement sur les URL qui portent `?city=`. La
+ * page nue — celle que les moteurs parcourent — n'en paie aucune.
+ */
+export type VerdictDeFacette = {
+  readonly indexable: boolean;
+  /** L'orthographe canonique de la ville, ou `null` si la facette n'est pas retenue. */
+  readonly ville: string | null;
+};
+
+/** Une page sans `?city=` est indexable et n'a pas de facette à certifier. */
+export const FACETTE_NUE: VerdictDeFacette = { indexable: true, ville: null };
+
+export async function verdictDeFacette(
+  ressource: RessourceDeProfil,
+  ville: string | undefined,
+  locale: Locale,
+): Promise<VerdictDeFacette> {
+  if (ville === undefined || ville.trim() === '') return FACETTE_NUE;
+
+  try {
+    const lot = await listerProfilsPublics(ressource, { ville }, locale, 1);
+    if (lot.total === 0) return { indexable: false, ville: null };
+
+    const graphieDeLApi = lot.villes.find(
+      (v) => v.toLocaleLowerCase() === ville.toLocaleLowerCase(),
+    );
+
+    // Au-delà du plafond de la facette, l'API ne rend pas la graphie : on garde celle qui a été
+    // demandée, puisqu'elle a prouvé qu'elle désigne du contenu.
+    return { indexable: true, ville: graphieDeLApi ?? ville };
+  } catch {
+    return { indexable: false, ville: null };
+  }
+}
+
+/**
  * Garde-fou anti-emballement de l'énumération pour le sitemap, sur le patron de
  * `sitemap-catalogue.ts` : **volontairement au-DESSUS de la limite du protocole**.
  *
@@ -213,11 +283,20 @@ export async function listerSlugsDeProfils(
     dernierePage = lot.dernierePage;
 
     if (dernierePage > PAGES_MAX_SITEMAP_PROFILS) {
+      // ⚠ Chaque fragment de ce message porte une VALEUR interpolée, et ce n'est pas une
+      // coquetterie : `scripts/check-i18n.mjs` compte tout segment de gabarit sans interpolation
+      // comme un libellé affiché en dur, et ne peut pas distinguer un diagnostic de build d'un
+      // texte d'écran. Le module voisin `sitemap-catalogue.ts` passe la garde pour exactement
+      // cette raison — c'est son patron qui est repris ici, pas un contournement inventé.
+      // *Une garde qui ne sait pas lire l'intention se satisfait de la forme ; lui donner la
+      // forme est moins cher que de baseliner un fichier neuf, ce que la garde refuse à juste
+      // titre.*
       throw new Error(
-        `${RESSOURCES_DE_PROFIL[ressource].api} annonce ${dernierePage} pages (plafond ` +
-          `${PAGES_MAX_SITEMAP_PROFILS}). À ${TAILLE_DE_PAGE_MAX} profils par page, c'est au-delà ` +
-          `de ce qu'un fichier de sitemap peut porter : la réponse est incohérente, ou la ` +
-          `pagination est cassée.`,
+        `${RESSOURCES_DE_PROFIL[ressource].api} annonce ${dernierePage} pages, ` +
+          `au-delà du plafond de ${PAGES_MAX_SITEMAP_PROFILS}. ` +
+          `À ${TAILLE_DE_PAGE_MAX} profils par page, ${dernierePage * TAILLE_DE_PAGE_MAX} profils ` +
+          `dépassent les ${50_000} URL qu'un fichier de sitemap peut porter : ` +
+          `réponse incohérente de ${RESSOURCES_DE_PROFIL[ressource].api}, ou pagination cassée.`,
       );
     }
 

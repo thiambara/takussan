@@ -217,6 +217,100 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
     expect(urls.some((u) => u.includes('/agents/awa&diop'))).toBe(false);
   });
 
+  /**
+   * TCK-436 passe 2 — **le slug qui a tué le sitemap entier.**
+   *
+   * ⚠ Ces quatre valeurs ne sont pas inventées : ce sont les `username` de quatre agents
+   * ÉLIGIBLES réels de la base de développement, relevés en SQL avec le prédicat exact de
+   * l'index. La doublure de la passe 1 ne rendait que des slugs propres — c'est exactement ce
+   * qui a laissé passer un `/sitemap.xml` à 500 et zéro octet avec 14 tests verts.
+   *
+   * *Une doublure qui ne produit que des entrées bien formées éprouve la mise en forme, pas la
+   * robustesse.*
+   */
+  const SLUGS_QUI_CASSENT = ['owner.agency1', 'owner.agency2', 'owner.agency3', 'owner.agency4'];
+
+  it('un slug non localisable n’emporte PLUS le sitemap entier', async () => {
+    const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
+    catalogue.listerBiensDuSitemap.mockResolvedValue([BIEN]);
+    profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
+      ressource === 'agents' ? [...SLUGS_QUI_CASSENT, 'awa-diop'] : ['sahel-homes'],
+    );
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    // Le fichier existe encore — c'est la moitié qui manquait.
+    expect(urls.length).toBeGreaterThan(0);
+    // …et les DEUX autres sources sont intactes.
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/agencies/sahel-homes`);
+    expect(urls).toContain(`${ORIGINE_SITE}/fr`);
+    // …et l'agent au slug sain de la MÊME source est là, lui aussi : on écarte la page fautive,
+    // pas la source.
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/agents/awa-diop`);
+    // Aucune des quatre URL fautives n'entre.
+    for (const slug of SLUGS_QUI_CASSENT) {
+      expect(urls.some((u) => u.includes(slug)), slug).toBe(false);
+    }
+    journal.mockRestore();
+  });
+
+  it('les pages écartées sont NOMMÉES dans le journal, jamais tues', async () => {
+    // Un sitemap raccourci en silence est valide, plus court, et muet sur ce qu'il laisse dehors.
+    const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
+    catalogue.listerBiensDuSitemap.mockResolvedValue([]);
+    profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
+      ressource === 'agents' ? SLUGS_QUI_CASSENT : [],
+    );
+
+    await jouerSitemap();
+
+    expect(journal).toHaveBeenCalledTimes(1);
+    const message = String(journal.mock.calls[0]![0]);
+    expect(message).toContain('agents');
+    expect(message).toContain('écartée(s)');
+    expect(message).toContain('4 page(s)');
+    for (const slug of SLUGS_QUI_CASSENT) {
+      expect(message, `« ${slug} » doit être nommé`).toContain(slug);
+    }
+  });
+
+  it('au-delà du plafond de noms, le journal donne le COMPTE plutôt qu’une liste illisible', async () => {
+    const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
+    catalogue.listerBiensDuSitemap.mockResolvedValue([]);
+    profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
+      ressource === 'agents'
+        ? Array.from({ length: 25 }, (_, i) => `casse.${i}`)
+        : [],
+    );
+
+    await jouerSitemap();
+
+    const message = String(journal.mock.calls[0]![0]);
+    expect(message).toContain('25 page(s)');
+    expect(message).toContain('et 5 de plus');
+    journal.mockRestore();
+  });
+
+  it('un slug fautif dans le CATALOGUE de biens n’emporte pas non plus le reste', async () => {
+    // La correction est écrite sur la FORME (toute page non localisable, quelle que soit sa
+    // source) et non sur le cas des profils : une fiche de bien dont le slug porte un point
+    // subirait exactement le même sort, et le sitemap survit aussi.
+    const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
+    catalogue.listerBiensDuSitemap.mockResolvedValue([
+      { slug: 'villa.dakar', updated_at: null },
+      BIEN,
+    ]);
+    profils.listerSlugsDeProfils.mockResolvedValue([]);
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
+    expect(urls.some((u) => u.includes('villa.dakar'))).toBe(false);
+    expect(String(journal.mock.calls[0]![0])).toContain('catalogue');
+    journal.mockRestore();
+  });
+
   it('n’invente aucun `lastModified` — l’index ne sert pas `updated_at`', async () => {
     profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
       ressource === 'agencies' ? ['sahel-homes'] : [],

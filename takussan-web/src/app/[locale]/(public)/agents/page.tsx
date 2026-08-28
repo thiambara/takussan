@@ -8,8 +8,9 @@ import {
   cheminCanoniqueDesProfils,
   pageDemandee,
   versParametresDeProfils,
+  villeDemandee,
 } from '@/lib/canonique-profils';
-import { RESSOURCES_DE_PROFIL } from '@/lib/queries/public-profiles';
+import { RESSOURCES_DE_PROFIL, verdictDeFacette } from '@/lib/queries/public-profiles';
 
 type Props = {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -32,15 +33,24 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
   const brut = await getLocale();
   const locale = isLocale(brut) ? brut : 'fr';
 
-  const ville = params.get('city')?.trim();
+  // ⚠ La ville de l'URL ne devient une FACETTE qu'après vérification auprès de l'API : sans ce
+  // verdict, `?city=<n'importe quoi>` produisait une page 200, index/follow, canonique d'elle-même,
+  // au titre choisi par l'appelant. Cf. `verdictDeFacette()`.
+  const facette = await verdictDeFacette(RESSOURCE, villeDemandee(params), locale);
+  const ville = facette.ville;
 
   return {
     title: ville ? t('titleCity', { city: ville }) : t('title'),
     description: ville ? t('descriptionCity', { city: ville }) : t('description'),
     // ⚠️ Canonique ET `hreflang` dérivent du chemin CANONIQUE, jamais de l'URL demandée : sur
-    // `?city=Dakar&q=awa&page=3`, les quatre déclarations désignent `?city=Dakar`.
+    // `?city=Dakar&q=awa&page=3`, les quatre déclarations désignent `?city=Dakar` — et `Dakar`
+    // n'y entre que si l'API a CERTIFIÉ que cette facette porte du contenu.
     // Deux signaux qui se contredisent font ignorer le groupe entier (cf. `alternatesPubliques`).
-    alternates: alternatesPubliques(cheminCanoniqueDesProfils(BASE, params), locale),
+    alternates: alternatesPubliques(cheminCanoniqueDesProfils(BASE, params, ville), locale),
+    // Une facette qui ne désigne rien n'est pas une page à indexer. `follow` reste vrai : les
+    // liens qu'elle porte — le filtre, la pagination — mènent, eux, à des pages réelles.
+    // Omettre la clé laisse hériter du layout, qui déclare `index, follow`.
+    ...(facette.indexable ? {} : { robots: { index: false, follow: true } }),
   };
 }
 

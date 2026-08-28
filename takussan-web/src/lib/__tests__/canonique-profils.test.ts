@@ -7,6 +7,7 @@ import {
   cheminCanoniqueDesProfils,
   pageDemandee,
   versParametresDeProfils,
+  villeDemandee,
 } from '../canonique-profils';
 import { alternatesPubliques } from '../alternates';
 
@@ -31,28 +32,45 @@ describe('la partition des clés est TOTALE', () => {
 });
 
 describe('cheminCanoniqueDesProfils', () => {
-  const cas: readonly [string, string, string][] = [
-    ['/agencies', '', '/agencies'],
-    ['/agencies', 'city=Dakar', '/agencies?city=Dakar'],
-    ['/agents', 'page=3', '/agents'],
-    ['/agents', 'q=awa', '/agents'],
-    ['/agents', 'city=Thi%C3%A8s&q=awa&page=4', '/agents?city=Thi%C3%A8s'],
+  // `villeCertifiee` = ce que `verdictDeFacette()` a validé auprès de l'API. `null` = « replie ».
+  const cas: readonly [string, string, string | null, string][] = [
+    ['/agencies', '', null, '/agencies'],
+    ['/agencies', 'city=Dakar', 'Dakar', '/agencies?city=Dakar'],
+    ['/agents', 'page=3', null, '/agents'],
+    ['/agents', 'q=awa', null, '/agents'],
+    ['/agents', 'city=Thi%C3%A8s&q=awa&page=4', 'Thiès', '/agents?city=Thi%C3%A8s'],
     // Une valeur vide ou blanche ne fabrique pas une URL de facette.
-    ['/agencies', 'city=', '/agencies'],
-    ['/agencies', 'city=%20%20', '/agencies'],
+    ['/agencies', 'city=', null, '/agencies'],
+    ['/agencies', 'city=%20%20', null, '/agencies'],
     // Une clé inconnue est ignorée : sans quoi n'importe quel paramètre de campagne
     // (`?utm_source=…`) produirait sa propre canonique.
-    ['/agencies', 'utm_source=news&city=Dakar', '/agencies?city=Dakar'],
+    ['/agencies', 'utm_source=news&city=Dakar', 'Dakar', '/agencies?city=Dakar'],
   ];
 
-  it.each(cas)('%s + « %s » → %s', (base, query, attendu) => {
-    expect(cheminCanoniqueDesProfils(base, new URLSearchParams(query))).toBe(attendu);
+  it.each(cas)('%s + « %s » (certifiée: %s) → %s', (base, query, certifiee, attendu) => {
+    expect(cheminCanoniqueDesProfils(base, new URLSearchParams(query), certifiee)).toBe(attendu);
+  });
+
+  it('une ville DEMANDÉE mais NON certifiée ne survit pas — l’espace d’URL reste borné', () => {
+    // Le défaut mesuré par la revue adverse : `?city=<chaîne inventée>` produisait une canonique
+    // portant cette chaîne, sur une page index/follow. La ville ne vient plus de `params`.
+    expect(
+      cheminCanoniqueDesProfils('/agencies', new URLSearchParams('city=Zzzinventee'), null),
+    ).toBe('/agencies');
+  });
+
+  it('c’est la graphie CERTIFIÉE qui entre, pas celle demandée — une seule canonique par facette', () => {
+    // Le filtre serveur compare sans tenir compte de la casse : `?city=dakar` rend du contenu.
+    // Recopier la graphie demandée produirait deux canoniques pour une seule page.
+    expect(
+      cheminCanoniqueDesProfils('/agents', new URLSearchParams('city=dakar'), 'Dakar'),
+    ).toBe('/agents?city=Dakar');
   });
 
   it('rend un chemin que `alternatesPubliques` accepte — canonique ET hreflang du même chemin', () => {
     // Le point que TCK-433 paie cher : deux signaux contradictoires font ignorer le groupe entier.
     // On vérifie donc que le chemin canonique traverse réellement la chaîne des alternates.
-    const chemin = cheminCanoniqueDesProfils('/agents', new URLSearchParams('city=Dakar&page=9'));
+    const chemin = cheminCanoniqueDesProfils('/agents', new URLSearchParams('city=Dakar&page=9'), 'Dakar');
     const alternates = alternatesPubliques(chemin, 'fr');
 
     expect(String(alternates.canonical)).toContain('/fr/agents?city=Dakar');
@@ -62,6 +80,18 @@ describe('cheminCanoniqueDesProfils', () => {
       expect(String(langues?.[langue])).toContain('/agents?city=Dakar');
       expect(String(langues?.[langue])).not.toContain('page=');
     }
+  });
+});
+
+describe('villeDemandee', () => {
+  it.each([
+    ['city=Dakar', 'Dakar'],
+    ['city=%20Dakar%20', 'Dakar'],
+    ['city=', undefined],
+    ['city=%20%20', undefined],
+    ['', undefined],
+  ] as const)('« %s » → %s', (query, attendu) => {
+    expect(villeDemandee(new URLSearchParams(query))).toBe(attendu);
   });
 });
 

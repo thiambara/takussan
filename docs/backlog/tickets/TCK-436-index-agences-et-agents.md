@@ -203,6 +203,63 @@ ville » et l'assurance qu'aucune commune de résidence n'entre dans l'index.
 - **Canonique** — `src/lib/canonique-profils.ts` applique le critère de TCK-433 : `city` garde son
   URL indexable (ensemble fini, servi par l'API en `meta.cities`), `q` et `page` se replient.
 
+### Passe 2 — ce que la revue adverse a refusé, et ce que la mesure a rendu
+
+Trois rouges, tous côté front, tous invisibles depuis les tests :
+
+1. **`/agencies` et `/agents` rendaient 500 dans les trois langues.** `ProfileFilters` est un
+   composant client et `publicProfileIndex` n'était pas déclaré à la frontière
+   `[locale]/(public)` de `src/i18n/namespaces.json` (découpage du dictionnaire client, TCK-337).
+   ⚠ En **production** le symptôme n'est pas un 500 mais le **chemin de clé peint à l'écran** :
+   `src/i18n/erreurs.ts` ne lève que hors production. Un 500 se voit ; une clé affichée se lit
+   comme du contenu.
+
+2. **`/sitemap.xml` passait de 200 à 500, zéro octet.** Quatre agents éligibles réels portent un
+   `username` contenant un point, et `estCheminLocalisable()` refuse un dernier segment qui
+   ressemble à une extension. Le défaut de fond n'était pas le slug : **`construireSitemap()`
+   courait hors du `try` par source**, donc une seule URL emportait le catalogue entier. Le
+   docblock qui affirmait « chaque source échoue séparément » a été corrigé en même temps que le
+   code.
+
+3. **Espace d'URL indexables non borné.** `?city=<n'importe quoi>` produisait une page 200,
+   `index, follow`, canonique d'elle-même, au `<title>` choisi par l'appelant. Une valeur de
+   `city` n'entre désormais dans le titre, la canonique et les `hreflang` que si l'API certifie
+   que la facette porte du contenu (`verdictDeFacette`, `total > 0`).
+
+**La cause commune vaut plus que les trois défauts** : la vérification avait été prise sur
+`scripts/check-*.mjs` à la **racine** seulement. Les trois gardes qui attrapent tout ceci vivent
+dans `takussan-web/scripts/` et sont jouées par `web-ci.yml`, pas par `repo-ci.yml`. *Un
+inventaire de gardes qui s'arrête à un répertoire n'est pas un inventaire, c'est un répertoire.*
+
+**Mesuré sur un serveur réel** (`next dev` + `php artisan serve` sur le code de la branche), parce
+qu'un vert de vitest ne dit rien ici — les 71 tests du ticket étaient verts sur ces mêmes 500 :
+
+| | avant | après |
+|---|---|---|
+| `/{fr,en,wo}/{agencies,agents}` | 500 × 6 | **200 × 6**, `<h1>`, profils liés, wolof en wolof |
+| `/sitemap.xml` | 500, 0 octet | **200, 616 680 octets, 897 `<url>`** |
+| `?city=<inventée>` | 200, `index, follow`, titre attaquant | **`noindex, follow`**, canonique repliée |
+| `?city=dakar` | canonique `?city=dakar` | canonique **`?city=Dakar`** (graphie de l'API) |
+
+### Un défaut préexistant, mesuré au passage — hors périmètre
+
+La fiche d'un agent dont le `username` porte un point **ne rend pas 500** : elle rend **200 en
+perdant son `<title>` et sa canonique**. Next sert la page et jette silencieusement les
+métadonnées quand `generateMetadata` lève. Mesuré :
+
+```
+/fr/agents/owner.agency1             → 200,  <title> absent,  canonical absente
+/fr/agents/thies-properties-owner-1  → 200,  <title> présent, canonical présente
+```
+
+Quatre agents réels sont dans ce cas, et toute fiche de bien dont le slug porterait un point le
+serait aussi. Cela relève de TCK-434 / TCK-433, pas de ce ticket — qui se contente d'écarter ces
+pages du sitemap **en les nommant dans le journal**. *Un défaut qui rend 200 et perd son titre est
+plus cher qu'un 500 : rien ne le signale.*
+
+⚠ J'avais d'abord écrit « la fiche rend 500 », déduit du fait qu'`alternatesLangues` lève.
+C'était une déduction, pas une mesure, et elle était fausse.
+
 ### Ce que ce lot laisse ouvert
 
 - Les deux pages sont rendues **côté serveur**, contrairement à `/properties` (TCK-432) : c'est
