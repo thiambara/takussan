@@ -53,13 +53,19 @@
  *          TCK-440 met `/playground` explicitement hors périmètre (« il charge des palettes
  *          alternatives »), son sort appartient à TCK-431. Les refuser demanderait une exception,
  *          les taire serait un mensonge — ils sont donc déclarés.
+ *     T4 · la CASSE ...................................................... 0 occurrence, et
+ *          ce n'est PAS un trou : `bg-GRAY-400` n'est pas émise par Tailwind, donc la classe est
+ *          déjà sans effet et la refuser n'apprendrait rien. Mesuré par compilation (revue
+ *          adverse, 2026-08-28). Le drapeau `i` exigé de la garde jumelle ne se transporte pas
+ *          ici — écrit pour que personne ne « corrige » cette absence.
+ *
  *     T5 · les VALEURS ARBITRAIRES portant une FONCTION de couleur ..... **2 occurrences VIVANTES**
  *          Le contrôle D ne refuse que l'hexadécimal. `rgb()`, `hsl()` et `oklch()` écrits à la
  *          main dans une valeur arbitraire passent — et ce ne sont pas des indirections, ce sont
  *          des couleurs décidées hors de `globals.css`, exactement ce que la règle interdit.
  *
  *          ⚠⚠ **C'est le SEUL trou vivant de ce fichier, et il ne se compare pas aux autres.**
- *          T1 à T4 sont latents ou hors périmètre ; celui-ci laisse passer du code livré :
+ *          T1 à T4, ci-dessus, sont latents ou hors périmètre ; celui-ci laisse passer du code livré :
  *
  *              components/property/cards/PropertyCardListing.tsx:40
  *                shadow-[0_8px_24px_rgba(31,24,18,0.08)]
@@ -80,12 +86,6 @@
  *          Forme de fermeture, le jour où le jeton existe (mesurée par la revue adverse sur 18
  *          formes, 8 rouges / 10 vertes, 0 faux positif) — elle laisse `var()` hors de portée :
  *              -\[[^\]]*(?:#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|oklch\()
- *     T4 · la CASSE ...................................................... 0 occurrence, et
- *          ce n'est PAS un trou : `bg-GRAY-400` n'est pas émise par Tailwind, donc la classe est
- *          déjà sans effet et la refuser n'apprendrait rien. Mesuré par compilation (revue
- *          adverse, 2026-08-28). Le drapeau `i` exigé de la garde jumelle ne se transporte pas
- *          ici — écrit pour que personne ne « corrige » cette absence.
- *
  * **Un trou déclaré est ce qui distingue une garde d'une garde qui se croit exhaustive.** Le
  * moment de fermer T1 et T2 est le ticket qui convertira ces familles-là ; jusque-là, ce fichier
  * dit ce qu'il ne voit pas plutôt que de laisser croire qu'il voit tout.
@@ -532,10 +532,25 @@ function main() {
     un littéral, elle ne se calcule pas sous peine de ne pas être compilée. Ce
     qu'il NE regarde PAS, et qui est détaillé en tête de ce fichier : les
     familles chaudes ou sémantiques (260 occurrences, pierre en tête), les
-    couleurs nommées (54, dont les quatre voiles en attente de leur jeton) et
-    les arbitraires par indirection de /playground, hors périmètre par TCK-440.
-    Un vert ici ne veut PAS dire « la chrome publique n'a plus une seule couleur
-    brute ».
+    couleurs nommées (54, dont les quatre voiles en attente de leur jeton), les
+    arbitraires par indirection de /playground, hors périmètre par TCK-440, et
+    la casse, qui n'est pas un défaut puisque Tailwind ne l'émet pas.
+
+    ⚠ ET UN TROU VIVANT — le SEUL de cette liste, le seul qui laisse passer du
+    code LIVRÉ, et donc le seul que ce résumé n'avait pas le droit d'omettre :
+    une couleur écrite à la main dans une valeur arbitraire sous forme de
+    FONCTION (rgb, hsl, oklch) traverse le contrôle D, qui ne refuse que
+    l'hexadécimal. DEUX occurrences aujourd'hui, deux ombres qui recopient
+    --foreground en décimal :
+
+        takussan-web/src/components/property/cards/PropertyCardListing.tsx:40
+        takussan-web/src/components/property/cards/PropertyCardStandard.tsx:61
+
+    Non fermé à dessein : une ombre a besoin d'un jeton qui ne s'inverse pas,
+    comme un voile — cf. le trou T5 en tête de ce fichier pour l'arbitrage.
+
+    Un vert ici ne veut donc PAS dire « la chrome publique n'a plus une seule
+    couleur brute » : il en reste au moins ces deux-là.
     ⚠ Cette garde ne voit pas non plus si un jeton EXISTE : une classe dont le
     jeton n'est pas déclaré n'émet aucune règle et ne fait aucune erreur. Aucun
     mécanisme du dépôt ne l'attrape aujourd'hui — c'est l'objet de TCK-453.`);
