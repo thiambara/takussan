@@ -188,16 +188,133 @@
  *        `gold` réécrit en `zzgold` laisse 148 noms, éteint `text-[gold]`, et la garde sort en 0.
  *        La fermer demanderait 148 formes d'épreuve pour une liste qui ne bouge que si la
  *        spécification CSS bouge — disproportion assumée, écrite ici plutôt que découverte.
+ *  T11 · **LA PROFONDEUR DE PARENTHÈSES de la branche « couleur relative à canaux absolus ».**
+ *        Cette branche décide si une relative GARDE son jeton ou le JETTE en cherchant, dans les
+ *        canaux, un nom de composante (`r`, `g`, `b`, `l`, `c`, `h`, `alpha`…). Son balayage
+ *        traite un groupe de parenthèses comme ATOMIQUE : il l'enjambe et n'y entre jamais
+ *        (`[^()]` exclut la parenthèse ouvrante). **Un seul mécanisme, deux symptômes opposés, à
+ *        deux profondeurs différentes** — mesuré le 2026-08-28 :
+ *
+ *          profondeur 1, TOUS les canaux enveloppés  →  aucun nom visible hors parenthèses, la
+ *            branche tire, et une relative LÉGITIME est refusée. **FAUX POSITIF**, donc plus
+ *            gênant qu'un trou :
+ *              `oklch(from var(--x) calc(l * 0.8) calc(c * 1.1) calc(h))`
+ *              `rgb(from var(--x) calc(r * 2) calc(g * 2) calc(b * 2))`
+ *            ⚠ UN SEUL canal nu suffit à revenir dans le vrai :
+ *            `oklch(from var(--x) calc(l + 0.1) c h)` passe correctement.
+ *
+ *          profondeur 2, un groupe dans un groupe    →  le balayage ne peut plus atteindre la
+ *            parenthèse finale, le motif entier échoue, la branche est INERTE, et une jetante
+ *            passe. **FAUX NÉGATIF** :
+ *              `rgb(from var(--x) calc(calc(255)) 0 0)`
+ *              `oklch(from var(--x) clamp(0, calc(0.5), 1) 0.2 30)`
+ *              `rgb(from var(--x) min(255, max(0, 255)) 0 0)`
+ *              `rgb(from var(--x) calc(calc(1)) calc(calc(2)) calc(calc(3)))`
+ *            ⚠ À cette profondeur, les formes qui GARDENT le jeton sont épargnées PAR ACCIDENT —
+ *            non parce qu'un nom a été vu, mais parce que la branche ne tire plus du tout.
+ *            `oklch(from var(--x) clamp(0, calc(l), 1) c h)` est vert pour la mauvaise raison.
+ *            ⚠⚠ Mais celle-là garde un canal NU (`c h`) : une fermeture l'épargnerait encore, et
+ *            elle ne garde donc RIEN. La forme qui garde la fermeture est au CROISEMENT des deux
+ *            mécanismes — `oklch(from var(--x) clamp(0, calc(l), 1) clamp(0, calc(c), 1)
+ *            clamp(0, calc(h), 1))` : elle garde le jeton, elle est à profondeur 2, et tous ses
+ *            canaux sont enveloppés. *La distinction n'est apparue qu'en JOUANT la fermeture sur
+ *            chaque forme ; la lire ne l'aurait pas donnée.*
+ *
+ *        **Non fermé, et le motif est la NATURE de la frontière, pas son coût.** Cette branche
+ *        est passée de la profondeur 0 (le partage « une lettre », faux) à la profondeur 1 (le
+ *        balayage à un niveau). Une troisième itération la porterait à la profondeur 2 **sans
+ *        changer sa nature** : elle resterait syntaxique là où la question est sémantique.
+ *
+ *        ⚠ **Et ce n'est pas une conjecture : la profondeur 2 a été JOUÉE**, sur chacune des dix
+ *        formes figées. Trois résultats, et le troisième est le plus dur :
+ *
+ *          · les QUATRE faux négatifs basculent — la fermeture marcherait, de ce côté ;
+ *          · les DEUX faux positifs SURVIVENT. Augmenter la profondeur apprend au balayage à
+ *            ENJAMBER des groupes plus profonds ; ça ne lui apprend pas à ENTRER dans un groupe,
+ *            qui est ce que le faux positif demande ;
+ *          · et une forme qui passe aujourd'hui **deviendrait un faux positif NEUF** : celle du
+ *            croisement, qui GARDE le jeton, est à profondeur 2, et dont TOUS les canaux sont
+ *            enveloppés. Elle est verte aujourd'hui parce que la branche est inerte.
+ *
+ *        *Une itération de plus corrigerait la moitié du défaut, laisserait l'autre moitié
+ *        intacte, et en créerait une troisième.* **La fermeture ne laisserait pas un faux
+ *        positif : elle en CRÉERAIT un.** C'est la mesure qui dit de s'arrêter, pas le budget.
+ *        Trancher pour de bon demanderait un analyseur d'expressions CSS — hors de proportion
+ *        pour une garde de VOCABULAIRE, dont l'objet est qu'aucune couleur ne se décide hors de
+ *        `globals.css`, pas de comprendre le calcul qui la produit.
+ *
+ *        Les dix formes sont figées dans {@link EPREUVE} **avec leur verdict RÉEL**, marquées
+ *        `T11 déclaré` — comme le style inline l'est pour T1. Elles ne sont donc pas
+ *        redécouvrables, et le jour où quelqu'un ferme ce trou, leur verdict bascule : la
+ *        fermeture se voit en diff au lieu d'être à croire sur parole.
+ *
+ *        ⚠ **La leçon de méthode, qui vaut au-delà de cette branche.** Quatre attaques par
+ *        RETOUR ARRIÈRE contre ce regard avant ont échoué, ce qui donnait l'impression d'un
+ *        mécanisme imperméable de ce côté. La bonne lecture était l'inverse : *la propriété qui
+ *        les fait échouer — un groupe de parenthèses est atomique pour le regard avant — est
+ *        EXACTEMENT celle qui produit les deux résiduels.* **Un mécanisme qui résiste à une
+ *        attaque par un côté la subit par l'autre.**
  *   T8 · Les fichiers `.svg` ne sont pas lus, et ce n'est pas un oubli : `EXTENSIONS` s'arrête au
  *        code et au CSS. Un SVG est un ACTIF, pas une feuille de style — un logo de marque y
  *        porte légitimement ses hexadécimaux, et les refuser ferait de cette garde une garde
  *        qu'on contourne. Mesuré le 2026-08-27 : **zéro `.svg` sous `takussan-web/src`** (les
  *        cinq du dépôt sont dans `public/`, hors de tout périmètre). Le trou est réel et vide.
+ *  T10 · **Une valeur SÉPARÉE DE SON ATTRIBUT PAR UNE FIN DE LIGNE.** {@link analyser} lit le
+ *        fichier LIGNE PAR LIGNE — c'est ce qui permet de rapporter un numéro de ligne — et les
+ *        six motifs sont donc bornés à une ligne. `<rect fill=\n  "#a85332" />` traverse la
+ *        garde ; `<rect fill="#a85332" />` est attrapé. Vérifié dans les deux sens le
+ *        2026-08-27, signalé par la revue adverse de la passe 2. La même borne vaut pour une
+ *        valeur arbitraire coupée par un retour à la ligne dans un gabarit.
+ *        **Non fermé, et le motif tient en deux mesures — pas en un coût.** ⚠ Ce paragraphe a
+ *        d'abord justifié le renoncement par le prix : « analyser le fichier d'un bloc ferait
+ *        perdre le numéro de ligne », « il faudrait une table décalage → ligne, un mécanisme
+ *        neuf ». **C'est surestimé, et la revue adverse de la passe 3 l'a montré** : ce trou-ci
+ *        se ferme par une fenêtre glissante de DEUX lignes sur le SEUL contrôle E, en ne
+ *        retenant que les correspondances qui enjambent la frontière et en rapportant la
+ *        première ligne. Le numéro de ligne survit, et ça fait environ six lignes de code, pas
+ *        un mécanisme. *Un coût annoncé plus haut qu'il n'est rend un renoncement plus
+ *        confortable qu'il ne devrait l'être.*
+ *
+ *        Les deux vraies raisons, mesurées le 2026-08-27 :
+ *          · **l'ensemble est VIDE** — `grep -rnE '(fill|stroke|color|bgcolor|stopColor|
+ *            floodColor|lightingColor)\s*=\s*$' takussan-web/src` ne rend rien ;
+ *          · **Prettier défait la forme** : un attribut JSX coupé après son `=` est reformaté au
+ *            prochain passage, donc le trou ne se remplit pas tout seul.
+ *        Un trou vide que l'outillage referme n'achète pas six lignes de complexité dans le
+ *        seul contrôle qui lit deux lignes à la fois. La décision reste la même ; c'est sa
+ *        justification qui était trop chère.
+ *   T9 · **Une DÉCLARATION CSS ordinaire, dans un fichier `.css` d'un répertoire gardé.** Les
+ *        contrôles A/B/C cherchent une classe, D et F un crochet, E un `=` : aucun ne voit
+ *        `background-color: #f5f5f4;` écrit dans une feuille. Signalé par la revue adverse de
+ *        TCK-384. **Le trou est réel et VIDE, mesuré le 2026-08-27 : zéro fichier `.css` sous
+ *        un périmètre gardé** — les deux du dépôt sont `src/app/globals.css`, contrôlé à part
+ *        (cf. {@link JETONS}) et hors de tout périmètre, et `src/app/(public)/playground/
+ *        playground.css`, hors périmètre lui aussi. Non fermé : un contrôle de déclaration ne
+ *        peut pas s'appliquer aux `.tsx` sans faux positifs (une prose de docblock y écrit
+ *        légitimement `--warning: #8a5410`), et le restreindre aux `.css` demanderait à
+ *        {@link analyser} de connaître le type des fichiers — un mécanisme neuf pour un
+ *        ensemble vide. Même statut que T8, et même raison de l'écrire : il vaut mieux
+ *        déclaré que redécouvert.
  *
  * **Les commentaires ne sont pas retirés avant analyse**, délibérément et pour la même raison
  * que `check-app-tokens.mjs` : un docblock qui montre `bg-stone-100` est exactement la
  * documentation périmée qui fait repousser le motif. Le récit d'une migration s'écrit en toutes
  * lettres (« pierre 100 »), pas en classes copiables.
+ *
+ * ⚠⚠ **ET `scripts/check-chart-contrast.mjs` FAIT L'INVERSE, exprès.** Elle DÉPOUILLE les
+ * commentaires avant d'analyser (`sansCommentaires`), parce que l'en-tête de
+ * `charts/palette.ts` cite la forme qu'elle interdit et qu'une garde qui rougit sur la
+ * documentation de sa propre règle se fait désarmer avant d'avoir servi. Deux gardes du même
+ * dépôt, politique opposée sur le même point, chacune pour une bonne raison :
+ *
+ *     ici (vocabulaire)   un commentaire qui MONTRE une classe brute est un presse-papier
+ *                         → il est LU, et le récit s'écrit en toutes lettres.
+ *     là (contraste)      un commentaire qui CITE le jeton qu'il interdit est de la pédagogie
+ *                         → il est DÉPOUILLÉ, et seul le code est mesuré.
+ *
+ * *Un relecteur qui sonde l'une avec le réflexe de l'autre rapportera un trou qui n'existe
+ * pas* — c'est arrivé à la revue adverse de TCK-404, le 2026-08-27, sur le cliquet de la garde
+ * de contraste. Les deux en-têtes portent désormais ce paragraphe.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * T2 — LE PÉRIMÈTRE N'EST PAS L'ÉCRAN, et c'est le défaut de TCK-245 d'un cran plus haut
@@ -290,6 +407,29 @@ const PERIMETRES = [
   { type: 'dir', chemin: join(WEB_SRC, 'components', 'feedback') },
   { type: 'glob', dir: join(WEB_SRC, 'components', 'layout'), prefixe: 'SuperAdmin' },
   { type: 'file', chemin: join(WEB_SRC, 'components', 'kyc', 'kyc-components.tsx') },
+  //
+  // ⚠ QUATRE RÉPERTOIRES DE PRIMITIVES PARTAGÉES entrent avec TCK-384, et aucun n'appartient à
+  // la console — c'est le contraire de tout ce que cette liste contenait jusqu'ici. Ils entrent
+  // parce qu'ils sont DÉJÀ à zéro (mesuré le 2026-08-27, après le portage des 40 occurrences du
+  // ticket), et parce qu'ils sont montés par les trois espaces à la fois : les laisser dehors,
+  // c'est les laisser gardés par le seul cliquet, donc récidivables jusqu'au plafond suivant.
+  //
+  // Ils entrent dans l'espace SUPER-ADMIN et pas ailleurs, pour la raison écrite au docblock de
+  // `GARDE_PARTOUT` : un fichier gardé deux fois est gardé une fois de trop.
+  //
+  //   `ui`      les 90 primitives shadcn/base-nova. `toast`, `sheet`, `dialog`, `dropdown-menu`
+  //             et `warning-banner` y portaient 22 des 46 occurrences du reste.
+  //   `forms`   `FormError` / `FormSuccess`, portés sur `--destructive` / `--success`.
+  //   `files`   `PdfViewer`, à lui seul 11 occurrences — le plus gros fichier du lot.
+  //   `shared`  `LanguageSwitcher`, et ses deux noirs littéraux.
+  //
+  // *Un répertoire déjà propre est le moins cher à mettre sous cliquet, et c'est le seul moment
+  // où ça ne coûte rien* — même raison que `components/reporting` chez TCK-358, à ceci près
+  // qu'ici il a d'abord fallu le rendre propre.
+  { type: 'dir', chemin: join(WEB_SRC, 'components', 'ui') },
+  { type: 'dir', chemin: join(WEB_SRC, 'components', 'forms') },
+  { type: 'dir', chemin: join(WEB_SRC, 'components', 'files') },
+  { type: 'dir', chemin: join(WEB_SRC, 'components', 'shared') },
 ];
 
 /**
@@ -488,13 +628,110 @@ function construireControles({
    * précisément ce que le contrôle D existe pour empêcher.
    */
   const D_MOTIFS = [
-    '#[0-9a-fA-F]{3,8}',
-    '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\(',
+    // ⚠ `(?<!url\()` : `url(#degrade-lin)` n'est pas une couleur, c'est une RÉFÉRENCE — et un
+    // identifiant fait de caractères hexadécimaux (`#f00ba7`) lui ressemble à s'y méprendre. Le
+    // contrôle E connaissait déjà ce faux positif et le fermait par un `(?!url\()` en tête de
+    // chaîne ; les contrôles D et F, eux, lisent le MILIEU d'une valeur, où ce garde-là ne peut
+    // pas se poser. Le regard arrière le remplace, et il sert les trois d'un coup.
+    //
+    // ⚠⚠ Le SECOND regard arrière a été ajouté par la revue adverse de la passe 2 : la forme
+    // GUILLEMETÉE `url("#f00ba7")` tombait, et la forme `url(_#f00ba7)` aussi — dans une valeur
+    // arbitraire, Tailwind écrit les espaces avec des `_`. Les deux regards couvrent donc `url(`,
+    // `url("`, `url('` et `url(_`. Résiduel DÉCLARÉ : `url(__#…`, deux séparateurs, que personne
+    // n'écrit — l'empiler serait payer une lookbehind par caractère.
+    //
+    // ⚠ La leçon de méthode de cette correction vaut plus que la correction : la première sonde du
+    // regard arrière fut `<rect fill="url( #degrade-lin )" />`, ACCEPTÉE — et c'est le `(?!url\()`
+    // ancré en TÊTE du contrôle E qui la sauvait, pas le regard arrière. *Deux mécanismes qui
+    // produisent le même vert : le second est celui qu'on croit avoir vérifié.* Le vrai test du
+    // regard arrière est une valeur ARBITRAIRE, où aucun ancrage de tête n'existe.
+    '(?<!url\\()(?<!url\\([\'"_])#[0-9a-fA-F]{3,8}',
+    // ⚠ `(?![\s_]*from[\s_])` exempte la SYNTAXE DE COULEUR RELATIVE — `rgb(from var(--primary)
+    // r g b / 50%)`, `oklch(from var(--chart-1) l c h)`. Elle ne DÉCIDE aucune couleur : elle en
+    // LIT une et la transforme, exactement comme `color-mix`, et le docblock de ce contrôle
+    // promet qu'une lecture de jeton est acceptée. Elle était pourtant refusée — la garde
+    // refusait donc la meilleure façon de dériver une couleur d'un jeton, et *une garde qui
+    // refuse la bonne façon de faire pousse à contourner la garde*. Le `[\s_]` final, et non
+    // `\b`, parce que dans une valeur arbitraire `from` est suivi d'un `_`, qui est un caractère
+    // de mot : `\bfrom\b` n'y coupe pas.
+    '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\((?![\\s_]*from[\\s_])',
+    // ⚠ LA BRANCHE DE RATTRAPAGE — la couleur relative à CANAUX ABSOLUS, et c'est la porte que
+    // l'exemption ci-dessus ouvrait. `rgb(from var(--x) 255 0 0)` LIT le jeton puis le JETTE
+    // entièrement : elle rend du rouge pur quelle que soit la valeur de `--x`. Le docblock
+    // justifiait l'exemption par « une lecture de jeton » — *une forme qui lit puis jette n'en
+    // est pas une*, c'est une couleur décidée hors de `globals.css`, déguisée en lecture.
+    //
+    // ⚠⚠ LE PARTAGE N'EST PAS « il y a une lettre », ET CE FICHIER L'A ÉCRIT PENDANT UNE PASSE.
+    // C'est **« aucun canal ne NOMME une composante de l'origine »** — une NÉGATION, pas une
+    // présence. La différence n'est pas théorique : neuf formes qui JETTENT le jeton contiennent
+    // une lettre qui ne nomme rien, et passaient toutes —
+    //
+    //   un espace colorimétrique  `color(from var(--x) srgb 1 0 0)`, `display-p3`
+    //                             ⚠ toute la famille `color(from …)` était hors d'atteinte PAR
+    //                               CONSTRUCTION : elle porte toujours un espace.
+    //   une unité                 `hsl(from var(--x) 120deg 50% 50%)`
+    //   un mot-clé                `rgb(from var(--x) 255 none none)`
+    //   une notation scientifique `rgb(from var(--x) 2.55e2 0 0)`
+    //   un `calc()` de constantes `rgb(from var(--x) calc(255) 0 0)`
+    //
+    // Le dernier est le plus instructif : **la version précédente de ce commentaire citait
+    // `calc()` comme le SIGNE qu'on garde le jeton.** `calc(l * 0.8)` le garde, `calc(255)` le
+    // jette — la même fonction des deux côtés du partage. *Un critère qui porte sur la FORME de
+    // l'expression ne peut pas trancher ce qui dépend de ce qu'elle NOMME.*
+    //
+    // D'où le regard avant NÉGATIF : la branche ne tire que si, dans les canaux, aucune
+    // composante d'origine n'apparaît isolément. Les deux gardes de mot neutralisent les lettres
+    // parasites — dans `srgb` le `r` est précédé d'un `s`, dans `deg` le `g` est précédé d'un
+    // `e`, dans `calc` le `c` est suivi d'un `a`.
+    //
+    // ⚠ DEUX PIÈGES MESURÉS EN ÉPROUVANT LA FORME AVANT DE L'ADOPTER, et sans eux elle est pire
+    // que le trou qu'elle ferme :
+    //
+    //   1. **Le séparateur `[\s_]+` après la source est OBLIGATOIRE.** Sans lui, le moteur
+    //      revient en arrière sur l'alternative `[^\s_)]+`, fait finir la source à `var(--x`,
+    //      et le regard avant ne voit plus qu'un `)` — donc aucune composante, donc il tire.
+    //      Mesuré : la forme sans séparateur refuse **les douze** relatives légitimes. Une garde
+    //      qui refuse la bonne façon de faire est pire qu'une garde qui laisse passer la
+    //      mauvaise, parce qu'elle se fait désarmer.
+    //   2. **Le balayage doit tolérer UN niveau de parenthèses** (`(?:[^()]|\([^()]*\))*`) et
+    //      non s'arrêter au premier `)`. Sinon `rgb(from var(--x) calc(255) g b)` — qui GARDE
+    //      `g` et `b` — est refusée : le balayage s'arrête dans le `calc` et ne voit jamais les
+    //      composantes qui suivent. Trois formes de ce genre sont dans `EPREUVE`.
+    //
+    // Signalé par la revue adverse de la passe 3 sur deux formes ; six mesurées ici — les quatre
+    // familles de fonction, plus les syntaxes de propriété arbitraire et d'attribut, qui partagent
+    // ces motifs. Vérifié compilable avec le Tailwind 4.2.2 du projet.
+    //
+    // ⚠ Les formes à source NON-jeton (`rgb(from #a85332 r g b)`, `rgb(from rebeccapurple r g b)`)
+    // étaient DÉJÀ refusées, par les branches 1 et 3 : l'exemption ne portait que sur le nom de
+    // fonction. C'est de la défense en profondeur réelle, et elle explique pourquoi la porte était
+    // étroite — il fallait un `var()` en source ET des canaux littéraux.
+    '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\([\\s_]*from[\\s_]+'
+      + '(?:var\\([^)]*\\)|[^\\s_)]+)[\\s_]+'
+      + '(?!(?:[^()]|\\([^()]*\\))*(?<![a-zA-Z])(?:alpha|[rgbhswlcxyz])(?![a-zA-Z]))'
+      + '(?:[^()]|\\([^()]*\\))*\\)',
     `(?<![a-zA-Z0-9-])(?:${couleurs.join('|')})(?![a-zA-Z0-9-])`,
   ];
+  /*
+   * ⚠ LE DRAPEAU `i`, sur D, E et F — et sur EUX SEULS. Revue adverse de la passe 2.
+   *
+   * Mesuré : `bg-[RED]`, `bg-[RGB(1,2,3)]`, `[Color:Red]` et `FILL="#A85332"` traversaient les
+   * trois contrôles. Une majuscule suffisait. **Le motif hexadécimal, lui, n'a JAMAIS eu le
+   * défaut** — sa classe `[0-9a-fA-F]` porte déjà les deux casses, et c'est pourquoi l'exemple
+   * `[BACKGROUND-COLOR:#F5F5F4]` de la revue était en réalité DÉJÀ attrapé. Les trous étaient
+   * ailleurs, et il y en avait trois : la liste des couleurs NOMMÉES, l'alternance des FONCTIONS
+   * de couleur, et l'alternance des ATTRIBUTS de peinture.
+   *
+   * ⚠⚠ **A, B et C n'ont PAS ce drapeau, et ce n'est pas un oubli.** Une classe d'utilitaire
+   * Tailwind est sensible à la casse : `BG-STONE-100` n'existe pas, ne compile pas, et rougir
+   * dessus ferait de cette garde une garde qu'on contourne. `EPREUVE` fige les deux résultats —
+   * `['BG-STONE-100', false]` d'un côté, les cinq formes de casse du bloc M de l'autre. *Le CSS
+   * d'une valeur arbitraire est insensible à la casse ; le nom d'un utilitaire ne l'est pas.
+   * Deux règles opposées dans le même fichier, chacune pour une bonne raison.*
+   */
   const ARBITRAIRE = new RegExp(
     `\\b(?:${P})-\\[[^\\]]*(?:${D_MOTIFS.join('|')})[^\\]]*\\]`,
-    'g',
+    'gi',
   );
 
   /**
@@ -517,7 +754,39 @@ function construireControles({
     `\\b(?:${attributs.join('|')})\\s*=\\s*`
     + `(?:"(?!url\\()[^"]*(?:${D_MOTIFS.join('|')})[^"]*"`
     + `|'(?!url\\()[^']*(?:${D_MOTIFS.join('|')})[^']*')`,
-    'g',
+    'gi',
+  );
+
+  /**
+   * F · la PROPRIÉTÉ ARBITRAIRE porteuse d'une couleur littérale : `[background-color:#f5f5f4]`,
+   * `[color:red]`, `[fill:#a85332]`, `[--pastille:#a85332]`, `hover:[color:red]`.
+   *
+   * ⚠ **Ce contrôle est né d'un refus, pas d'une prévoyance** — revue adverse de TCK-384, le
+   * 2026-08-27. Le contrôle D exige un PRÉFIXE (`bg-[`, `text-[`, `shadow-[`) ; Tailwind v4
+   * accepte une seconde syntaxe qui n'en a aucun, où la propriété CSS s'écrit DANS les crochets.
+   * Douze formes ont été déposées une à une dans un fichier du périmètre gardé : **les douze
+   * sortaient en 0.** Et elles compilent — vérifié avec le Tailwind 4.2.2 du projet :
+   * `[background-color:#f5f5f4]` rend `.[background-color\:\#f5f5f4]{background-color:#f5f5f4}`.
+   *
+   * **Le cas qui fait le plus mal est `[fill:#a85332]`** : c'est très exactement ce que le
+   * contrôle E venait d'être ajouté pour attraper, écrit en CLASSE au lieu d'un attribut. Deux
+   * syntaxes frères, une seule gardée.
+   *
+   * ⚠ Ce n'est PAS le trou T1. Un style inline est un objet JS ; ceci est du TEXTE, attrapable
+   * exactement comme D. *Un en-tête qui énumère ses trous et en oublie un fait croire à
+   * l'exhaustivité — il est pire qu'un en-tête muet.*
+   *
+   * Ce qu'il ne refuse PAS, et qui est vérifié par `EPREUVE` : `supports-[display:grid]` (une
+   * propriété sans couleur), `[&>svg]:size-3` (un sélecteur, sans `:` dans les crochets),
+   * `max-w-[calc(100%-2rem)]`, `[--pastille:var(--chart-1)]` (une lecture de jeton),
+   * `[transition:color_120ms_ease]` — et la raison de ce dernier n'est PAS celle qu'on croit :
+   * `color` n'est pas dans {@link COULEURS_CSS}, parce que ce n'est pas une couleur nommée de
+   * CSS. Ce n'est donc pas une frontière de mot qui le sauve, c'est la liste. La forme est dans
+   * `EPREUVE` pour que ce résultat soit fixé plutôt que supposé.
+   */
+  const PROPRIETE = new RegExp(
+    `\\[(?:--)?[a-zA-Z][a-zA-Z0-9-]*\\s*:[^\\]]*(?:${D_MOTIFS.join('|')})[^\\]]*\\]`,
+    'gi',
   );
 
   return [
@@ -526,6 +795,7 @@ function construireControles({
     ['C', 'dialecte app-* (éteint par TCK-372)', APP_DIALECTE],
     ['D', 'couleur littérale en valeur arbitraire (bg-[#f5f5f4], bg-[rgb(…)], text-[red]…)', ARBITRAIRE],
     ['E', 'couleur littérale en attribut de présentation (fill="#a85332", stroke="red"…)', ATTRIBUT],
+    ['F', 'couleur littérale en propriété arbitraire ([background-color:#f5f5f4], [color:red]…)', PROPRIETE],
   ];
 }
 
@@ -724,6 +994,238 @@ const EPREUVE = [
   // pas du texte, c'est un objet JS. Écrit ici plutôt que redécouvert.
   ['fill={couleurDuSecteur}', false], // ← MUTATION QUI PASSE (T1, déclaré)
   ["fill={'#a85332'}", false],        // ← MUTATION QUI PASSE (T1, déclaré)
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // TCK-384 / TCK-385 — les formes essayées à la main sur CETTE version. Aucune n'a passé.
+  //
+  // ⚠ Le bloc de TCK-381 ci-dessus éprouvait `FAMILLES` entrée par entrée et `PREFIXES` entrée
+  // par entrée. Il ne faisait PAS le même travail sur la troisième liste du contrôle D — les sept
+  // FONCTIONS de couleur de `D_MOTIFS`. Trois seulement étaient éprouvées (`rgb`, `oklch`, `hsl`,
+  // plus `color(`) ; **`rgba`, `hsla`, `hwb`, `lab`, `lch` et `oklab` ne l'étaient pas**, alors
+  // que ce sont six branches d'une alternance qu'un `|` déplacé éteint d'un coup. C'est le même
+  // mode d'échec que le défaut D1, une liste plus loin.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+
+  // I · UNE FONCTION DE COULEUR, UNE FORME — les six branches de `D_MOTIFS` qui n'en avaient pas.
+  ['bg-[hsla(200,50%,50%,0.4)]', true], ['stroke-[hwb(90_10%_10%)]', true],
+  ['bg-[lab(50%_40_59.5)]', true], ['text-[lch(50%_60_30)]', true],
+  ['border-[oklab(0.4_0.2_-0.1)]', true], ['shadow-[0_0_0_2px_rgba(0,0,0,.2)]', true],
+
+  // J · l'hexadécimal à TROIS chiffres dans un gradient, et la couleur nommée la plus longue de
+  //     CSS noyée dans un `color-mix` — les deux formes les plus proches d'un faux négatif du
+  //     contrôle D, l'une par sa brièveté, l'autre par le conteneur qui l'enveloppe.
+  ['to-[#0f0]', true], ['bg-[color-mix(in_srgb,rebeccapurple_50%,transparent)]', true],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // L · LA PROPRIÉTÉ ARBITRAIRE — le contrôle F, né du REFUS de TCK-384 par la revue adverse.
+  //
+  // ⚠ Les quatorze premières SORTAIENT TOUTES EN 0 avant le 2026-08-27, dans un fichier du
+  // périmètre gardé, et elles compilent : Tailwind v4 accepte une syntaxe où la propriété CSS
+  // s'écrit DANS les crochets, sans préfixe — celui que le contrôle D exige. Vérifié avec le
+  // Tailwind 4.2.2 du projet : `[background-color:#f5f5f4]` rend une vraie règle.
+  //
+  // `[fill:#a85332]` est le cas qui fait le plus mal : c'est exactement ce que le contrôle E
+  // venait d'être ajouté pour attraper, écrit en classe plutôt qu'en attribut.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['[background-color:#f5f5f4]', true], ['[color:red]', true],
+  ['[border-color:oklch(0.7_0.2_30)]', true], ['[box-shadow:0_0_0_1px_#a85332]', true],
+  ['[background:linear-gradient(#000,#fff)]', true], ['[fill:#a85332]', true],
+  ['[--pastille:#a85332]', true], ['hover:[color:red]', true],
+  ['dark:[background-color:#000]', true], ['[stroke:rebeccapurple]', true],
+  ['[outline-color:#fff]', true], ['[caret-color:hsl(12_55%_43%)]', true],
+  ['[accent-color:rgb(1,2,3)]', true], ['md:[--voile:#0003]', true],
+
+  // …et la moitié qui décide si le contrôle F sera contourné : une propriété arbitraire SANS
+  // couleur, un sélecteur entre crochets, une lecture de jeton, une référence de dégradé.
+  ['supports-[display:grid]', false], ['[&>svg]:size-3', false], ['[&_a]:underline', false],
+  ['max-w-[calc(100%-2rem)]', false], ['grid-cols-[repeat(3,minmax(0,1fr))]', false],
+  ['[--pastille:var(--chart-1)]', false], ['[grid-template-columns:1fr_auto]', false],
+  ['data-[state=open]:bg-muted', false], ['[font-feature-settings:"tnum"]', false],
+  // ⚠ `color` n'est pas une couleur NOMMÉE de CSS — il n'est pas dans `COULEURS_CSS`. Ce n'est
+  //   donc pas une frontière de mot qui sauve cette forme, c'est la liste. Fixé ici plutôt que
+  //   supposé.
+  ['[transition:color_120ms_ease]', false],
+  // ⚠ `url(#degrade-lin)` est une RÉFÉRENCE, pas une couleur — et un identifiant hexadécimal
+  //   (`url(#f00ba7)`) lui ressemble à s'y méprendre. C'est le regard arrière `(?<!url\()` du
+  //   premier motif de `D_MOTIFS` qui les sauve, et il sert D, E et F d'un coup.
+  ['[background:url(#degrade-lin)]', false], ['[background-image:url(/fond.svg)]', false],
+  ['bg-[url(#f00ba7)]', false],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // M · LA CASSE — cinq formes, parce qu'une seule aurait menti sur l'étendue du trou.
+  //
+  // ⚠ Revue adverse de la passe 2 : `bg-[RED]`, `bg-[RGB(1,2,3)]`, `[Color:Red]` et
+  // `FILL="#A85332"` traversaient D, E et F. Une majuscule suffisait à contourner le contrôle qui
+  // venait d'être ajouté pour fermer un trou.
+  //
+  // ⚠⚠ **Le motif HEXADÉCIMAL n'a jamais eu ce défaut** — sa classe `[0-9a-fA-F]` porte déjà les
+  // deux casses. C'est pourquoi l'exemple donné par la revue, `[BACKGROUND-COLOR:#F5F5F4]`, était
+  // en réalité DÉJÀ attrapé : le refus était juste, l'illustration ne l'était pas. Les trous
+  // étaient ailleurs, et il y en avait TROIS — la liste des couleurs NOMMÉES, l'alternance des
+  // FONCTIONS de couleur, et celle des ATTRIBUTS de peinture. D'où cinq formes : une par surface,
+  // plus un mélange. *Une seule forme d'épreuve aurait prouvé le drapeau, pas la portée.*
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['bg-[RED]', true],                          // la couleur NOMMÉE
+  ['bg-[RGB(1,2,3)]', true],                   // la FONCTION de couleur
+  ['FILL="#A85332"', true],                    // l'ATTRIBUT de peinture
+  ['bg-[#F5F5F4]', true],                      // l'hexadécimal — déjà couvert, figé ici
+  ['[BoX-ShAdOw:0_0_0_1px_#A85332]', true],    // le mélange, en propriété arbitraire
+  ['STROKE="RebeccaPurple"', true], ['[--Pastille:#A85332]', true],
+  // ⚠ …et la moitié qui empêche le drapeau `i` de déborder : un NOM D'UTILITAIRE Tailwind est
+  //   sensible à la casse, `BG-STONE-100` n'existe pas et ne compile pas. A, B et C n'ont donc
+  //   PAS ce drapeau, et cette ligne est ce qui le prouve — elle vit déjà plus haut sous M2, elle
+  //   est rappelée ici parce que c'est la contrainte que le correctif de casse aurait pu casser.
+  ['BG-CARD', false], ['TEXT-MUTED-FOREGROUND', false],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // N · LA COULEUR RELATIVE — `rgb(from …)`, une LECTURE de jeton, donc acceptée.
+  //
+  // ⚠ Elle était REFUSÉE, alors que le docblock du contrôle D promet qu'une lecture de jeton est
+  // acceptée : la garde refusait la meilleure façon de dériver une couleur d'un jeton. *Une garde
+  // qui refuse la bonne façon de faire pousse à contourner la garde* — et la sortie de secours la
+  // moins chère devant ce refus-là aurait été de réinjecter un hexadécimal, précisément ce que le
+  // contrôle D existe pour empêcher. Même raisonnement, mot pour mot, que l'exemption de
+  // `color-mix` : le conteneur ne décide aucune couleur, il en lit une.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['bg-[rgb(from_var(--primary)_r_g_b_/_50%)]', false],
+  ['bg-[oklch(from_var(--chart-1)_l_c_h_/_0.5)]', false],
+  ['[background-color:rgb(from_var(--x)_r_g_b)]', false],
+  ['fill="rgb(from var(--chart-1) r g b)"', false],
+  ['bg-[RGB(FROM_var(--x)_r_g_b)]', false],    // …et sous le drapeau `i`, sans quoi N défait M
+  // ⚠ Ce qui doit RESTER refusé : un `from` qui n'ouvre pas une couleur relative.
+  ['bg-[rgb(1,2,3)]', true], ['bg-[color(display-p3_1_0_0)]', true],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // P · LES CANAUX ABSOLUS — la porte que l'exemption N ouvrait, et LES DEUX CÔTÉS.
+  //
+  // ⚠ Les positives seules ne suffiraient PAS ici, et c'est le point. La branche de rattrapage se
+  // referme sur l'exemption qu'elle corrige : une expression un peu trop large refuserait AUSSI
+  // les relatives légitimes, et le bloc N ci-dessus cesserait de tenir sans que rien ne bronche —
+  // la garde sortirait en 1 sur du code correct, ce qui est la façon dont une garde se fait
+  // désarmer. Les négatives sont donc rappelées ICI, à côté des positives qu'elles bornent, et
+  // pas seulement vingt lignes plus haut.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['bg-[rgb(from_var(--x)_255_0_0)]', true],
+  ['bg-[oklch(from_var(--x)_0.5_0.2_30)]', true],
+  ['bg-[hsl(from_var(--x)_120_50%_50%)]', true],
+  ['bg-[lab(from_var(--x)_50_40_59)]', true],
+  ['[color:rgb(from_var(--x)_255_0_0)]', true],
+  ['fill="rgb(from var(--x) 255 0 0)"', true],
+  ['bg-[RGB(FROM_var(--X)_255_0_0)]', true],      // …et sous le drapeau `i`
+  ['bg-[rgb(from_var(--x)_255_0_0_/_0.5)]', true],
+  // L'AUTRE CÔTÉ — les relatives qui GARDENT le jeton doivent rester acceptées, `calc()` compris.
+  ['bg-[oklch(from_var(--x)_calc(l_*_0.8)_c_h)]', false],
+  ['bg-[rgb(from_var(--x)_r_g_b_/_calc(alpha_*_0.5))]', false],
+  // …et celles dont la SOURCE n'est pas un jeton étaient déjà refusées, par les branches 1 et 3 :
+  // l'exemption n'a jamais porté que sur le nom de fonction. Défense en profondeur, figée ici.
+  ['bg-[rgb(from_#a85332_r_g_b)]', true], ['bg-[rgb(from_rebeccapurple_r_g_b)]', true],
+  ['bg-[rgb(fromage_1_2_3)]', true],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // R · LES LETTRES QUI NE NOMMENT RIEN — la correction du partage, passe 4.
+  //
+  // ⚠ Le bloc P ci-dessus a été posé avec un critère FAUX : « une lettre dans les canaux ». Ces
+  // neuf formes JETTENT le jeton et contiennent une lettre — elles passaient toutes. La famille
+  // `color(from …)` était hors d'atteinte PAR CONSTRUCTION : elle porte toujours un espace
+  // colorimétrique, donc toujours une lettre.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['bg-[color(from_var(--x)_srgb_1_0_0)]', true],              // un espace colorimétrique
+  ['bg-[color(from_var(--x)_display-p3_1_0_0)]', true],
+  ['[color:color(from_var(--x)_display-p3_1_0_0)]', true],
+  ['bg-[hsl(from_var(--x)_120deg_50%_50%)]', true],            // une unité
+  ['fill="hsl(from var(--x) 120deg 50% 50%)"', true],
+  ['bg-[rgb(from_var(--x)_255_none_none)]', true],             // un mot-clé
+  ['bg-[rgb(from_var(--x)_2.55e2_0_0)]', true],                // une notation scientifique
+  ['bg-[rgb(from_var(--x)_calc(255)_0_0)]', true],             // un calc() de CONSTANTES
+  ['bg-[oklch(from_var(--x)_calc(0.5)_0.2_30)]', true],
+  //
+  // …et l'AUTRE CÔTÉ, qui compte autant : `calc(l * 0.8)` GARDE le jeton et doit rester verte
+  // alors que `calc(255)` le jette. La même fonction des deux côtés du partage — c'est ce qui
+  // interdit un critère portant sur la forme de l'expression.
+  ['bg-[color(from_var(--x)_srgb_r_g_b)]', false],
+  ['bg-[hsl(from_var(--x)_h_50%_50%)]', false],
+  ['bg-[rgb(from_var(--x)_r_g_b)]', false],
+  ['bg-[RGB(FROM_var(--x)_r_g_b)]', false],
+  //
+  // ⚠ LES TROIS QUI ONT IMPOSÉ LE BALAYAGE IMBRIQUÉ. Un `calc()` de constantes SUIVI d'une
+  // composante nommée garde le jeton. Un balayage qui s'arrête au premier `)` ne voit jamais ce
+  // qui suit le `calc` et les refuse — trouvées en éprouvant la forme proposée avant de l'adopter.
+  ['bg-[rgb(from_var(--x)_calc(255)_g_b)]', false],
+  ['bg-[oklch(from_var(--x)_calc(0.5)_c_h)]', false],
+  ['bg-[rgb(from_var(--x)_calc(2_*_100)_g_b)]', false],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // S · T11, DÉCLARÉ — les huit formes figées AVEC LEUR VERDICT RÉEL, pas avec le juste.
+  //
+  // ⚠ Le verdict écrit ici est CELUI QUE LA GARDE REND, et il est FAUX pour six d'entre elles.
+  // C'est la forme que ce fichier emploie déjà pour T1 (le style inline) : un trou déclaré se
+  // fige avec ce qu'il produit, pas avec ce qu'on voudrait. Deux effets, et les deux comptent —
+  // ces formes ne peuvent plus être « redécouvertes » comme un défaut neuf, et le jour où
+  // quelqu'un ferme T11, leur verdict bascule : **la fermeture se voit en diff.**
+  //
+  // Le mécanisme unique est en tête de fichier (T11) : un groupe de parenthèses est ATOMIQUE
+  // pour le balayage. Profondeur 1 tout enveloppé → faux positif ; profondeur 2 → branche inerte
+  // → faux négatif.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  //
+  // FAUX POSITIFS — elles GARDENT le jeton et sont pourtant refusées (profondeur 1, tout enveloppé).
+  ['bg-[oklch(from_var(--x)_calc(l_*_0.8)_calc(c_*_1.1)_calc(h))]', true],  // ← FAUX POSITIF (T11)
+  ['bg-[rgb(from_var(--x)_calc(r_*_2)_calc(g_*_2)_calc(b_*_2))]', true],    // ← FAUX POSITIF (T11)
+  // …et le témoin qui borne le faux positif : UN SEUL canal nu suffit à revenir dans le vrai.
+  ['bg-[oklch(from_var(--x)_calc(l_+_0.1)_c_h)]', false],
+  //
+  // FAUX NÉGATIFS — elles JETTENT le jeton et passent (profondeur 2, la branche est inerte).
+  ['bg-[rgb(from_var(--x)_calc(calc(255))_0_0)]', false],                   // ← PASSE (T11, déclaré)
+  ['bg-[oklch(from_var(--x)_clamp(0,_calc(0.5),_1)_0.2_30)]', false],       // ← PASSE (T11, déclaré)
+  ['bg-[rgb(from_var(--x)_min(255,_max(0,_255))_0_0)]', false],             // ← PASSE (T11, déclaré)
+  ['bg-[rgb(from_var(--x)_calc(calc(1))_calc(calc(2))_calc(calc(3)))]', false], // ← PASSE (T11)
+  //
+  // ⚠ DEUX FORMES VERTES POUR LA MAUVAISE RAISON. À profondeur 2, une forme qui GARDE le jeton
+  // est épargnée non parce qu'un nom a été vu, mais parce que la branche ne tire plus du tout.
+  //
+  // ⚠⚠ **Elles DOCUMENTENT le mécanisme ; elles ne GARDENT rien, et ce fichier a prétendu le
+  // contraire pendant une passe.** J'avais écrit « sans elles, on refermerait le trou en les
+  // cassant sans le savoir ». Faux, et la revue adverse l'a montré en JOUANT la fermeture sur
+  // chacune des neuf formes plutôt qu'en lisant leur justification : leurs canaux `c h` et `g b`
+  // sont NUS, donc un balayage à deux niveaux les épargne toujours. Elles ne basculent pas.
+  ['bg-[oklch(from_var(--x)_clamp(0,_calc(l),_1)_c_h)]', false],
+  ['bg-[rgb(from_var(--x)_min(255,_max(0,_r))_g_b)]', false],
+  //
+  // ⚠ LA FORME QUI, ELLE, GARDE VRAIMENT LA FERMETURE — au CROISEMENT des deux mécanismes :
+  // elle GARDE le jeton, elle est à profondeur 2, et TOUS ses canaux sont enveloppés. Aujourd'hui
+  // elle passe parce que la branche est inerte ; sous un balayage à deux niveaux elle devient un
+  // **NOUVEAU faux positif**, que rien d'autre ici ne signalerait.
+  //
+  // *La fermeture ne laisserait donc pas un faux positif : elle en CRÉERAIT un.* C'est la
+  // troisième mesure qui dit de ne pas itérer, et la plus dure des trois.
+  ['bg-[oklch(from_var(--x)_clamp(0,_calc(l),_1)_clamp(0,_calc(c),_1)_clamp(0,_calc(h),_1))]', false],
+
+  // ⚠ LES RELATIVES MIXTES — la frontière exacte, trouvée en écrivant le risque résiduel plutôt
+  //   qu'en le supposant. Une relative dont UN SEUL canal réfère au jeton le garde, et doit
+  //   passer : le partage est « une lettre quelque part », pas « aucun littéral nulle part ».
+  //   Sans ces quatre-là, resserrer la branche en « contient un chiffre » casserait des formes
+  //   correctes sans qu'`EPREUVE` bronche — et c'est exactement le mouvement qu'on fait quand on
+  //   veut « durcir » une garde.
+  ['bg-[rgb(from_var(--x)_255_0_0_/_alpha)]', false],
+  ['bg-[oklch(from_var(--x)_0.5_0.2_h)]', false],
+  ['bg-[rgb(from_var(--x)_r_0_0)]', false],
+  ['bg-[oklch(from_var(--x)_l_0.2_30)]', false],
+
+  // Q · L'INDICE DE TYPE de Tailwind — forme de la revue adverse, que personne n'avait essayée.
+  //     `text-[color:…]` désambiguë une couleur d'une taille de police : elle mêle la syntaxe
+  //     PRÉFIXÉE et le `propriété:valeur`, donc D et F la voient tous les deux.
+  ['text-[color:RED]', true], ['text-[color:#fff]', true], ['text-[length:14px]', false],
+
+  // O · L'URL GUILLEMETÉE — le regard arrière élargi (mineur de la passe 2).
+  ['bg-[url("#f00ba7")]', false], ["bg-[url('#f00ba7')]", false], ['bg-[url(_#f00ba7)]', false],
+  ['[background:url("#f00ba7")]', false],
+
+  // K · LE JETON DE VOILE, créé par TCK-384 — il ne doit PAS rougir, sinon la substitution que la
+  //     garde exige se ferait refuser par elle. Même rôle que le bloc M4 pour TCK-381.
+  ['bg-scrim/10', false], ['bg-scrim/30', false],
+  // …et l'ombre ambiante qui LIT `--foreground` au lieu de réécrire son hexadécimal. C'est la
+  // forme d'arrivée des deux `shadow-[…rgba(…)]` que le contrôle D comptait.
+  ['shadow-[0_0_40px_0_color-mix(in_srgb,var(--foreground)_4%,transparent)]', false],
 ];
 
 function autoEpreuve() {
@@ -927,7 +1429,40 @@ function fichiersDe(dir, acc = []) {
  * `ui/warning-banner` 3 · `ui/dropdown-menu` 3 · `forms/FormSuccess` 3 · `forms/FormError` 3 ·
  * `shared/LanguageSwitcher` 2 · `ui/dialog` 1.
  */
-const RESTE_PLAFOND = 46;
+/*
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * ⚠ **54 → 46 (TCK-358) → 4, LE 2026-08-27, PAR TCK-384.**
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Les 42 occurrences descendues sont dix fichiers portés sur les jetons, et les quatre
+ * répertoires qui les contiennent sont entrés dans `PERIMETRES` — un fichier porté qui n'entre
+ * dans aucun périmètre revient au premier commit venu, c'est la leçon de TCK-245.
+ *
+ * ⚠ **Ce qui RESTE tient dans un seul fichier, et il ne se corrige pas ici : `layout/UserMenu.tsx`
+ * (4).** La mesure vaut d'être écrite, parce qu'elle contredit ce qui paraissait le lot le moins
+ * cher de la liste. Sa variante `dark` sert DEUX barres hautes qui fabriquent « sombre » par des
+ * mécanismes OPPOSÉS :
+ *
+ *   `layout/AppTopbar`        `bg-foreground`, en portée CLAIRE. L'encre qui s'y lit est
+ *                             `--background`.
+ *   `layout/SuperAdminTopbar` `dark` + `bg-background`, donc en portée SOMBRE. L'encre qui s'y
+ *                             lit est `--foreground`.
+ *
+ * Les deux jetons sont exactement l'inverse l'un de l'autre : aucun ne convient aux deux barres,
+ * et le blanc littéral d'aujourd'hui ne convient qu'en thème clair (sous `.dark`, `bg-foreground`
+ * d'`AppTopbar` devient crème et le blanc disparaît dessus). Le correctif porte donc sur
+ * `AppTopbar`, qui doit adopter `dark` comme son jumeau — un fichier que le cliquet de `/app`
+ * ci-dessous met explicitement hors de portée, parce qu'y traduire `outline-white` demanderait
+ * de REMESURER un contraste que la revue adverse de TCK-371 vient d'établir.
+ *
+ * *Traduire ces quatre-là par un jeton aurait rendu le composant faux sur l'une des deux barres,
+ * et vert dans la garde.* C'est la forme de correctif que ce fichier existe pour ne pas produire.
+ *
+ * ⚠ **Ce cliquet ne peut plus tomber à 0 par le seul travail de TCK-384**, et le dire est le
+ * point du paragraphe : le point 4 du delta (« quand le reste atteint 0, supprimer le plafond »)
+ * dépend d'un ticket sur `AppTopbar` qui n'existe pas encore.
+ */
+const RESTE_PLAFOND = 4;
 
 /**
  * LE PÉRIMÈTRE GARDÉ DE `/app` (TCK-381) — vingt-huit répertoires plus les pages.
@@ -967,6 +1502,46 @@ const PERIMETRES_APP = [
     .map((d) => ({ type: 'cloture', chemin: join(WEB_SRC, 'components', d) })),
 ];
 
+/**
+ * LE PÉRIMÈTRE GARDÉ DES ASSISTANTS D'ONBOARDING (TCK-385) — deux entrées, et c'est le sujet.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * POURQUOI UN TROISIÈME ESPACE, ET PAS UNE ENTRÉE DE PLUS DANS `PERIMETRES`
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `src/components/kyc/KycUploader.tsx` n'était gardé par RIEN, et pas par accident : il vit à
+ * côté de `kyc-components.tsx`, que la console monte et que `PERIMETRES` nomme FICHIER PAR
+ * FICHIER pour ne pas embarquer ce voisin-ci. Mesuré le 2026-08-27 : `KycUploader` n'est monté
+ * que par les trois assistants d'onboarding, JAMAIS par la console — il n'est donc pas dans la
+ * clôture de `/super-admin`, il n'apparaît même pas dans son reste. Et `check-app-tokens.mjs`
+ * ne connaît que le dialecte `app-*`.
+ *
+ * *Un fichier que deux gardes se renvoient l'une à l'autre n'est pas à moitié gardé : il ne
+ * l'est pas du tout.* La réponse n'est ni d'élargir le périmètre de la console — ce qui la
+ * ferait rougir sur un écran d'onboarding, et *la réponse humaine à ce rouge-là est une
+ * exception, pas un correctif* — ni d'écrire une garde de plus : c'est de donner à
+ * `/onboarding` l'espace qu'il n'avait pas, dans le mécanisme qui existe déjà. Une COPIE de ce
+ * fichier aurait divergé le jour même, et c'est le défaut que la moitié des gardes de ce dépôt
+ * existent pour attraper ailleurs.
+ *
+ * ⚠ **`src/components/onboarding` n'y figure PAS**, et c'est une mesure : il portait
+ * **18 occurrences** de palette brute le 2026-08-27, réparties sur six assistants
+ * (`HostIndividualWizard` 6, `ServiceProviderMultiAgencyWelcome` 4, `AgencyAdminOnboardingWizard`
+ * 2, plus une bannière verte dans chacun des trois assistants portés par ce ticket). Les mettre
+ * en `dir` aurait fait rougir la garde le jour de sa naissance. Elles tombent donc dans le RESTE,
+ * qui les compte, les nomme et refuse qu'elles se multiplient — c'est exactement ce que le hors
+ * périmètre de TCK-385 demande : « elles se traitent dans un ticket qui les aura comptées ».
+ */
+const PERIMETRES_ONBOARDING = [
+  // Les six pages de routes plus leur layout : déjà à zéro le 2026-08-27. *Un répertoire déjà
+  // propre est le moins cher à mettre sous cliquet, et c'est le seul moment où ça ne coûte rien.*
+  { type: 'dir', chemin: join(WEB_SRC, 'app', 'onboarding') },
+  // La forme `file`, pour la raison exacte qui la justifie dans `PERIMETRES` : ses voisins de
+  // `src/components/kyc/` ne sont PAS rendus par les assistants (`kyc-components.tsx` l'est par
+  // la console, `AgencyKycClient.tsx` par `/admin`).
+  { type: 'file', chemin: join(WEB_SRC, 'components', 'kyc', 'KycUploader.tsx') },
+];
+
 /*
  * ⚠ `components/chat-widget` a été RETIRÉ de la liste ci-dessus, et le contrôle « clôture vide »
  * est ce qui l'a dénoncé : le widget est monté par `src/app/layout.tsx`, la racine de TOUT le
@@ -1002,6 +1577,23 @@ const TEMOINS = {
     join(WEB_SRC, 'components', 'billing', 'PayoutTable.tsx'),
     join(WEB_SRC, 'components', 'reporting', 'RevenueChart.tsx'),
     join(WEB_SRC, 'components', 'kyc', 'kyc-components.tsx'),
+    // ⚠ Un témoin par répertoire ENTRÉ avec TCK-384. Sans eux, retirer `{ type: 'dir', … 'ui' }`
+    // de `PERIMETRES` — UN geste — laissait 90 primitives partagées hors de toute exigence de
+    // zéro : seul le plancher de fichiers l'aurait vu, et un plancher se corrige d'un chiffre.
+    join(WEB_SRC, 'components', 'ui', 'toast.tsx'),
+    join(WEB_SRC, 'components', 'forms', 'FormError.tsx'),
+    join(WEB_SRC, 'components', 'files', 'PdfViewer.tsx'),
+    join(WEB_SRC, 'components', 'shared', 'LanguageSwitcher.tsx'),
+  ],
+  "assistants d'onboarding": [
+    join(WEB_SRC, 'app', 'onboarding', 'layout.tsx'),
+    join(WEB_SRC, 'app', 'onboarding', 'agent', 'page.tsx'),
+    join(WEB_SRC, 'app', 'onboarding', 'owner', 'page.tsx'),
+    join(WEB_SRC, 'app', 'onboarding', 'service-provider', 'page.tsx'),
+    // ⚠ LE témoin de ce ticket : le fichier que deux gardes se renvoyaient. Son retrait de
+    // `PERIMETRES_ONBOARDING` sortirait la garde en 0 sans un mot, sur le seul fichier pour
+    // lequel l'espace a été créé.
+    join(WEB_SRC, 'components', 'kyc', 'KycUploader.tsx'),
   ],
   'tableau de bord /app': [
     join(WEB_SRC, 'app', '(dashboard)', 'app', 'page.tsx'),
@@ -1035,11 +1627,17 @@ const ESPACES = [
     plafondReste: RESTE_PLAFOND,
     resteBilateral: true, // ⚠ était `false` — défaut D2, cf. le docblock de RESTE_PLAFOND.
     ticketReste: 'TCK-384',
+    natureDuReste: 'primitives partagées avec le site public',
     reference: '128 le 2026-08-27, avant TCK-358',
     // 93 fichiers analysés le 2026-08-27, arbre `feat/console-lot-358-382` fusionné. Le chiffre
     // valait 92 : un fichier de mou, resserré ici parce qu'un plancher qui traîne est du silence
     // acheté à crédit.
-    plancherFichiers: 93,
+    //
+    // ⚠ **93 → 130 le 2026-08-27 (TCK-384)**, et l'écart n'est pas du dépôt qui grossit : ce sont
+    // les 37 fichiers de `ui`, `forms`, `files` et `shared` qui entrent dans `PERIMETRES`. Un
+    // plancher qu'on ne resserre pas après un élargissement de périmètre est un plancher qui
+    // descend tout seul — le jeu récupéré est exactement ce dont la manœuvre du trou T6 a besoin.
+    plancherFichiers: 130,
   },
   {
     libelle: 'tableau de bord /app',
@@ -1093,9 +1691,28 @@ const ESPACES = [
      * ⚠ C'est le seul cas où ce nombre monte sans qu'une couleur ait été décidée à la légère,
      * et il est écrit ici pour que la prochaine hausse n'ait pas ce précédent pour excuse.
      */
-    plafondReste: 60,
+    /*
+     * ────────────────────────────────────────────────────────────────────────────────────────
+     * ⚠ **58 → 60 (fusion) → 32, LE 2026-08-27, PAR TCK-384.**
+     * ────────────────────────────────────────────────────────────────────────────────────────
+     *
+     * Les 28 descendues sont les mêmes primitives partagées que celles du cliquet super-admin
+     * ci-dessus — `ui/toast` (12), `ui/sheet` (4), `forms/FormError` (3), `forms/FormSuccess`
+     * (3), `ui/dropdown-menu` (3), `shared/LanguageSwitcher` (2), `ui/dialog` (1) — portées une
+     * fois et comptées dans les DEUX espaces, ce qui est précisément l'argument de TCK-384 :
+     * les porter depuis un ticket de console les aurait portées sans revoir ces écrans-ci.
+     *
+     * Les 32 qui restent tiennent dans quatre fichiers, tous hors du périmètre gardé de `/app`
+     * comme de celui de la console : `layout/AppTopbar` (9), `layout/NotificationBell` (10),
+     * `property/PropertyCard` (8), `layout/UserMenu` (4), `layout/AppSidebar` (1).
+     * `AppTopbar` reste hors de portée pour la raison écrite plus haut (un correctif MESURÉ
+     * qu'une traduction obligerait à refaire) et `UserMenu` en dépend — cf. le docblock de
+     * {@link RESTE_PLAFOND}.
+     */
+    plafondReste: 32,
     resteBilateral: true,
     ticketReste: 'TCK-384',
+    natureDuReste: 'primitives partagées avec le site public',
     reference: '1070 le 2026-08-27, avant TCK-380/381',
     /*
      * ⚠ **225 → 266 le 2026-08-27**, et l'écart n'était pas de deux fichiers mais de QUARANTE ET
@@ -1109,6 +1726,34 @@ const ESPACES = [
      * manœuvre à trois gestes du trou T6 a besoin d'avoir sous la main.
      */
     plancherFichiers: 266,
+  },
+  {
+    libelle: "assistants d'onboarding",
+    perimetres: PERIMETRES_ONBOARDING,
+    racineCloture: join(WEB_SRC, 'app', 'onboarding'),
+    /*
+     * CLIQUET DU RESTE `/onboarding` — **24, mesuré PAR CETTE GARDE le 2026-08-27**, le jour
+     * où l'espace est né. Il n'y a donc pas de « avant » à comparer : la référence ci-dessous est
+     * le compte de l'espace ENTIER (périmètre + reste) au même instant, ce qui est le seul chiffre
+     * honnête pour un espace neuf.
+     *
+     * Le reste est ici **plus gros que le périmètre**, et c'est le contraire des deux autres
+     * espaces. Ce n'est pas un défaut de cadrage : TCK-385 met explicitement le reste des
+     * assistants hors périmètre, et il a raison de le faire — les porter demande de trancher, pour
+     * chacun, ce que sa bannière verte ou ambre VEUT DIRE. Le cliquet est là pour que ce travail
+     * reste chiffré au lieu de rester à faire.
+     *
+     * ⚠ Bilatéral, comme les deux autres : la garde échoue s'il MONTE (récidive) ET s'il descend
+     * sans que ce chiffre suive. *Un cliquet qui ne descend pas est une tolérance.*
+     */
+    plafondReste: 24,
+    resteBilateral: true,
+    ticketReste: 'TCK-385',
+    natureDuReste: "assistants d'onboarding non encore portés, plus le module TOTP",
+    reference: "24 sur la clôture entière le 2026-08-27, à la naissance de l'espace",
+    // 8 fichiers analysés le 2026-08-27, sans le moindre mou : les sept de `src/app/onboarding`
+    // (six pages plus le layout) et `KycUploader.tsx`.
+    plancherFichiers: 8,
   },
 ];
 const estTest = (chemin) => chemin.split(/[\\/]/).includes('__tests__');
@@ -1508,6 +2153,17 @@ if (echec) {
   console.error('  Valeur arbitraire (contrôle D) : une couleur ne s\'écrit pas entre crochets.');
   console.error('  `bg-[var(--jeton)]` est accepté — c\'est une LECTURE de jeton, pas une décision.');
   console.error('');
+  console.error('  ⚠ FAUX POSITIF CONNU (T11) — si la forme refusée est une COULEUR RELATIVE dont');
+  console.error('  TOUS les canaux sont enveloppés dans une fonction, votre code est JUSTE et la');
+  console.error('  garde a tort :');
+  console.error('      oklch(from var(--x) calc(l * 0.8) calc(c * 1.1) calc(h))   ← refusé à tort');
+  console.error('      oklch(from var(--x) calc(l * 0.8) c h)                     ← accepté');
+  console.error('  Le contournement est de laisser UN canal nu. La raison, le mécanisme et la');
+  console.error('  mesure sont en tête de ce fichier, sous T11.');
+  console.error('  N\'écrivez PAS un hexadécimal pour contourner ce refus : c\'est précisément ce');
+  console.error('  que le contrôle D existe pour empêcher, et ce message serait alors la cause du');
+  console.error('  défaut qu\'il annonce.');
+  console.error('');
 }
 
 for (const b of bilans) {
@@ -1547,7 +2203,7 @@ for (const b of bilans) {
     + `rend RÉELLEMENT`,
   );
   console.log(
-    `  sans qu'un périmètre les couvre — primitives partagées avec le site public (${b.espace.ticketReste}).`,
+    `  sans qu'un périmètre les couvre — ${b.espace.natureDuReste} (${b.espace.ticketReste}).`,
   );
 }
 console.log(
@@ -1564,5 +2220,8 @@ console.log('  n\'est décidée en dehors de `globals.css` — fichier qu\'elle 
 console.log('  2026-08-27 : elle l\'affirmait sans le lire. Trous déclarés, en tête de fichier :');
 console.log('  T1 style inline et expression JSX, T2 périmètre (ci-dessus, sous cliquet),');
 console.log('  T3 justesse du rendu, T4 listes énumérées, T5 racine de clôture, T6 réécriture');
-console.log('  de la garde, T7 noms CSS non ablatés un à un, T8 fichiers .svg. Détail : --report.');
+console.log('  de la garde, T7 noms CSS non ablatés un à un, T8 fichiers .svg,');
+console.log('  T9 déclaration CSS ordinaire dans un .css gardé, T10 valeur séparée de');
+console.log('  son attribut par une fin de ligne, T11 profondeur de parenthèses de la');
+console.log('  branche « canaux absolus ». Détail : --report.');
 process.exit(0);

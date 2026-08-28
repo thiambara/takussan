@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, Loader2, UploadCloud, X } from 'lucide-react';
 
+import { StatusBadge } from '@/components/console/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { messageCorpsErreurBff } from '@/lib/api';
@@ -21,6 +22,33 @@ import { cn } from '@/lib/utils';
  * The component is intentionally barebones: a drop zone, a file picker
  * fallback, an inline preview / "remove" affordance. No image cropping,
  * no on-device resizing — those are upstream of the wizard.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-385 — la pastille « document fourni », et l'endroit où ce fichier se trouvait
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Elle était composée à la main sur deux familles de l'échelle Tailwind — un fond émeraude 100,
+ * une encre émeraude 800 — pour un état qui a un TON dans le design system. Elle rend désormais
+ * `<StatusBadge tone="success">`, le composant qui décide la couleur d'un statut pour toute la
+ * console : c'est le seul moyen que « le même vert dans les trois assistants ET dans la console »
+ * soit vrai plutôt que déclaré.
+ *
+ * ⚠ **Le contraste BAISSE, et le chiffre est écrit ici plutôt que tu** (WCAG 2.1, mesuré le
+ * 2026-08-27 sur la surface RÉELLE — la pastille est un aplat à 15 % posé sur le conteneur de ce
+ * composant, lui-même `bg-muted/30` sur la page) :
+ *
+ *   avant   émeraude 800 #006045 sur émeraude 100 #d0fae5 .......... 6,70:1  ✓
+ *   après   --accent #5d6e4f sur accent/15 (clair) ................. 4,19:1  ✗ (AA : 4,5)
+ *   après   --accent #7d8d6e sur accent/15 (sombre) ................ 3,71:1  ✗
+ *
+ * Ce n'est PAS un défaut de ce portage : c'est celui du ton `success` de `StatusBadge`, qui
+ * emprunte `--accent` — l'accent de MARQUE — là où `--success` existe depuis TCK-381 pour dire
+ * « ça a marché ». Le même aplat sur `--success` rend 4,61:1 en clair et 5,73:1 en sombre, tous
+ * deux au-dessus d'AA. Le corriger touche toutes les pastilles de la console d'un coup : c'est
+ * une décision de charte, hors du delta de ce ticket-ci — reportée, avec ces mesures.
+ *
+ * L'échelle Tailwind, elle, achetait ses 6,70:1 en sortant de la famille chromatique du produit,
+ * et sans basculer sous `.dark` : `#d0fae5` y restait `#d0fae5`.
  */
 export type KycUploaderProps = {
   profileId: number;
@@ -158,9 +186,11 @@ export function KycUploader({
             </p>
           </div>
           {uploaded ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
-              <Check className="size-3" aria-hidden /> {t('uploadedBadge')}
-            </span>
+            <StatusBadge
+              tone="success"
+              icon={<Check className="size-3" aria-hidden />}
+              label={t('uploadedBadge')}
+            />
           ) : null}
         </div>
       ) : null}

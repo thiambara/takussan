@@ -48,12 +48,102 @@ Palette officielle : **Lin** — fond clair quasi-blanc, terracotta atténué, s
 | Surface secondaire | `#f1ece0` | `--muted` | `bg-muted` |
 | Hairline / bordure | `#ebe5d5` | `--border` | `border-border` |
 | Focus ring | `#a85332` | `--ring` | `ring-ring` |
+| Voile de dialogue / panneau | `#000000` | `--scrim` | `bg-scrim/10`, `bg-scrim/30` |
 
-Couleurs sémantiques :
-- **Erreur** : `--destructive` (rouge oklch standard).
-- **Succès / location** : `var(--accent)` (sage `#5d6e4f`).
-- **Avertissement** : orange Tailwind standard (`amber-500`).
-- **Info** : déconseillé sur les surfaces publiques — préférer les eyebrows et le contenu textuel.
+### Couleurs sémantiques
+
+Elles ont chacune leur jeton depuis TCK-358 (avertissement) et TCK-381 (succès, info). **Aucune
+n'emprunte plus un accent de marque**, et le tableau ci-dessous remplace une liste qui renvoyait
+encore à l'échelle Tailwind pour l'avertissement — c'est-à-dire à la couleur que ces jetons
+existent pour ne plus employer.
+
+| Rôle | Clair | Sombre | Token CSS |
+|---|---|---|---|
+| Erreur | `oklch(0.577 0.245 27.325)` | `oklch(0.704 0.191 22.216)` | `--destructive` |
+| Avertissement (ocre profond) | `#8a5410` | `#e0a458` | `--warning` / `--warning-foreground` |
+| Succès / confirmation | `#3f6b45` | `#8fbf87` | `--success` / `--success-foreground` |
+| Information | `#3f5a6b` | `#8fb2c8` | `--info` / `--info-foreground` |
+
+- **Succès n'est pas l'accent de marque.** `--accent` (sage `#5d6e4f`) reste l'accent des badges
+  *featured* ; « ça a marché » se dit `--success`. Les confondre retire au produit le moyen de
+  distinguer les deux. ⚠ Le ton `success` de `console/StatusBadge` emprunte encore `--accent` :
+  mesuré le 2026-08-27, `text-accent` sur `bg-accent/15` rend **4,19:1 en clair et 3,71:1 en
+  sombre**, sous les 4,5:1 d'AA, quand le même aplat sur `--success` rend 4,61 / 5,73. À corriger
+  en un point, pour toutes les pastilles de la console à la fois.
+- **Info** reste déconseillée sur les surfaces publiques — préférer les eyebrows et le contenu
+  textuel.
+
+### Le VOILE — la couleur qui ne suit pas le thème (TCK-384)
+
+Un voile de dialogue ou de panneau latéral **assombrit dans les deux thèmes**. Aucun jeton de
+surface ne peut le porter : `--foreground` devient clair sous `.dark` (un voile clair remonterait
+le fond au-dessus de la surface du panneau, qui vaut `#2a2018` — le panneau se lirait comme un
+trou), et `--background` est déjà clair en thème clair.
+
+`--scrim` est donc déclaré OPAQUE dans `globals.css`, et ce sont les appelants qui posent l'alpha
+(`bg-scrim/10` pour un dialogue, `bg-scrim/30` pour un panneau). C'est le même raisonnement que
+`.qr-surface` — le blanc d'un QR code, qu'un téléphone doit lire quel que soit le thème — appliqué
+à l'autre bout de l'échelle. **Ce sont les deux seules couleurs fonctionnelles du produit ; toute
+troisième candidate doit s'écrire ici avant d'exister.**
+
+### Couleurs de série des graphiques
+
+Cinq jetons, `--chart-1` à `--chart-5`, attribués **dans cet ordre** par
+`takussan-web/src/components/charts/palette.ts` — jamais écrits à la main dans un graphique.
+Le seuil applicable est celui de **WCAG 2.2 §1.4.11 (3:1)** : une couleur de série est un objet
+graphique porteur de sens. Mesures par `node scripts/check-chart-contrast.mjs --report`,
+2026-08-27 — **sur les DEUX surfaces où un graphique se pose**, la carte et le fond de page :
+
+| Jeton | Clair | `--card` #ffffff | `--background` #fcf9f3 | Sombre | `--card` #2a2018 | `--background` #1f1812 |
+|---|---|---|---|---|---|---|
+| `--chart-1` | `#a85332` | 5,32:1 | 5,06:1 | `#c87a52` | 4,83:1 | 5,31:1 |
+| `--chart-2` | `#5d6e4f` | 5,51:1 | 5,25:1 | `#7d8d6e` | 4,48:1 | 4,93:1 |
+| `--chart-3` | `#ad8034` | 3,55:1 | **3,38:1** | `#d6b66c` | 8,17:1 | 8,99:1 |
+| `--chart-4` | `#6e655a` | 5,72:1 | 5,44:1 | `#b8aa97` | 7,01:1 | 7,71:1 |
+| `--chart-5` | `#1f1812` | 17,53:1 | 16,69:1 | `#fcf9f3` | 15,16:1 | 16,69:1 |
+
+> **La garde ne mesurait que `--card` jusqu'au 2026-08-27**, et son titre le disait. C'était un
+> trou et non un cadrage : les deux surfaces se trompent en sens OPPOSÉS selon le thème — en clair
+> `--background` est plus sombre que `--card` (donc plus favorable), en sombre il l'est aussi
+> (donc moins favorable, la série étant claire). N'en mesurer qu'une laisse toujours une moitié
+> dehors. Le minimum du dépôt est désormais **3,38:1**, `--chart-3` sur `--background` clair.
+
+> **DÉCISION TCK-404 (2026-08-27) — `--chart-3` EST une couleur de série, et sa valeur claire a
+> été corrigée pour que ce soit vrai.**
+>
+> Le jeton valait `#c89a4a` et rendait **2,57:1** sur `--card` clair — sous le seuil, et moins bien
+> que la couleur hors charte qu'il était censé remplacer. TCK-374 l'avait **écarté** de l'ordre des
+> séries plutôt que corrigé, laissant une charte de cinq jetons dont un ne servait à rien.
+>
+> Les deux voies possibles étaient « corriger la valeur » et « acter qu'il n'est pas une couleur de
+> série ». **La première est retenue**, sur trois mesures :
+>
+> 1. L'obstacle que le ticket citait est PÉRIMÉ. Il bloquait la correction sur « l'ambre sert aussi
+>    de fond, le ton `warning` de `StatCard` le porte à 15 % ». Mesuré : depuis TCK-381 cette tuile
+>    rend `bg-warning/10`, et `--chart-3` n'a plus **aucun** usage de fond. Il n'y avait plus deux
+>    rôles à arbitrer ensemble, il n'en restait qu'un.
+> 2. Rétrograder le rôle n'aurait rien corrigé, et aurait *entériné* le seul usage restant :
+>    `components/profile/ProfileBadge.tsx` rend `bg-chart-3/20 text-chart-3`, soit du TEXTE sur un
+>    aplat de lui-même — 2,17:1 avant la correction, 2,90:1 après. Toujours sous AA ; amélioré
+>    gratuitement par la correction, ce que la rétrogradation n'aurait pas fait.
+> 3. En thème SOMBRE le jeton était irréprochable (8,17:1) — le défaut n'existait qu'en clair.
+>    C'est la valeur claire qui était fausse, pas le rôle.
+>
+> La valeur retenue, `#ad8034`, ne fait descendre que la **clarté** HSL ; teinte et saturation
+> bougent de moins d'un demi-point. Mesuré, et non arrondi :
+>
+> | | `#c89a4a` | `#ad8034` | écart |
+> |---|---|---|---|
+> | teinte | 38,10° | 37,69° | −0,41° |
+> | saturation | 53,39 % | 53,78 % | +0,39 pt |
+> | clarté | 53,73 % | 44,12 % | **−9,61 pt** |
+>
+> Ce n'est pas une couleur nouvelle, c'est la même assez foncée pour se voir sur du blanc. La
+> valeur sombre (`#d6b66c`) ne bouge pas.
+>
+> ⚠ **Conséquence à connaître** : un graphique à trois séries voit sa troisième passer de taupe
+> (`--chart-4`) à ocre (`--chart-3`). C'est la restauration de l'ordre de la charte, pas un effet
+> de bord.
 
 ### Règle fondamentale — design tokens
 
