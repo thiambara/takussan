@@ -39,20 +39,25 @@
  *          garde à 260 exceptions, c'est-à-dire pas de garde du tout.
  *     T2 · les couleurs NOMMÉES ........................................... 54 occurrences
  *          `bg-white` 36 · `text-white` 14 · `bg-black` 4. Celles de la navbar et du pied de page
- *          SONT converties par TCK-440 (le ticket les nomme) ; les autres restent.
+ *          SONT converties par TCK-440 ; les autres restent.
  *
- *          ⚠⚠ **LES QUATRE `bg-black/*` SONT DES VOILES, ET LEUR CONVERSION EST DIFFÉRÉE À
- *          L'INTÉGRATION — délibérément.** Le jeton de voile `--scrim` vit sur `feat/lot-g3-design`
- *          et **pas ici**. La conversion a été écrite, puis ANNULÉE, parce qu'une branche doit être
- *          cohérente SEULE : une classe dont le jeton n'est pas déclaré n'émet aucune règle et rend
- *          le voile TRANSPARENT — mesuré par compilation Tailwind, et invisible à `tsc`, à ESLint,
- *          au build et à cette garde. Les quatre sites, avec leur opacité, sont dans le rapport
- *          d'intégration sous `conversions_scrim_a_faire_apres_fusion`.
- *
- *          C'est une instance vivante du trou que l'auteur de `--scrim` avait lui-même déclaré :
- *          *une garde de jetons ne sait pas si un jeton EXISTE.* Ce qui l'attrape est
- *          `takussan-web/src/test/__tests__/jetons-compiles.test.ts`, qui compile réellement
- *          `globals.css` — c'est le test à exiger au moment de la conversion.
+ *          ⚠ **Les quatre `bg-black/*` sont des VOILES, et leur conversion est DIFFÉRÉE.** Le
+ *          jeton de voile `--scrim` vit sur `feat/lot-g3-design` et pas ici. La conversion a été
+ *          écrite, mesurée par compilation, puis ANNULÉE : une classe dont le jeton n'est pas
+ *          déclaré n'émet aucune règle et rend le voile TRANSPARENT. Une branche doit être
+ *          cohérente seule. Les sites sont dans le rapport d'intégration.
+ *     T3 · les VALEURS ARBITRAIRES par indirection .......................  8 occurrences
+ *          `bg-[var(--pg-*)]` et `text-[var(--pg-*)]`, toutes dans `/playground`, plus les 70
+ *          hexadécimaux de son `playground.css` — fichier que cette garde LIT sans rien y voir,
+ *          puisque le contrôle D ne refuse que les hex écrits DANS une classe. C'est délibéré :
+ *          TCK-440 met `/playground` explicitement hors périmètre (« il charge des palettes
+ *          alternatives »), son sort appartient à TCK-431. Les refuser demanderait une exception,
+ *          les taire serait un mensonge — ils sont donc déclarés.
+ *     T4 · la CASSE ...................................................... 0 occurrence, et
+ *          ce n'est PAS un trou : `bg-GRAY-400` n'est pas émise par Tailwind, donc la classe est
+ *          déjà sans effet et la refuser n'apprendrait rien. Mesuré par compilation (revue
+ *          adverse, 2026-08-28). Le drapeau `i` exigé de la garde jumelle ne se transporte pas
+ *          ici — écrit pour que personne ne « corrige » cette absence.
  *
  * **Un trou déclaré est ce qui distingue une garde d'une garde qui se croit exhaustive.** Le
  * moment de fermer T1 et T2 est le ticket qui convertira ces familles-là ; jusque-là, ce fichier
@@ -64,7 +69,7 @@
  * geste visible en revue, que {@link TEMOINS} rend en outre rouge.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
- * LES TROIS FAÇONS DE LA DÉSARMER, ET CE QUI LES ATTRAPE
+ * LES QUATRE FAÇONS DE LA DÉSARMER, ET CE QUI LES ATTRAPE
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
  *   1. casser l'expression régulière  → {@link EPREUVE}, qui exige qu'elle reconnaisse encore
@@ -76,7 +81,7 @@
  *   4. retirer un CONTRÔLE entier (B ou C) → l'ablation de configuration, qui exige qu'au moins
  *      une sonde cesse d'être vue quand on l'enlève.
  *
- * Aucun de ces trois crans n'est infranchissable — retirer un répertoire, son témoin et baisser
+ * Aucun de ces quatre crans n'est infranchissable — retirer un répertoire, son témoin et baisser
  * le plancher passe, en trois gestes dans un commit. Le but n'est pas de rendre la manœuvre
  * impossible, il est de la rendre PLURIELLE : un diff d'une ligne se relit distraitement.
  *
@@ -146,26 +151,45 @@ const TEMOINS = [
 /** Plancher de fichiers analysés — 76 le 2026-08-27. Vider un répertoire ne doit pas être muet. */
 const FICHIERS_MINIMUM = 60;
 
-const PREFIXES = ['bg', 'text', 'border', 'ring'];
+/**
+ * Les préfixes d'utilitaires de couleur de Tailwind v4 — liste délibérément LARGE.
+ *
+ * ⚠ Elle s'arrêtait à `bg|text|border|ring`, et la revue adverse a mesuré le trou : `from-gray-400`
+ * était ACCEPTÉE alors que sa famille est gardée et que Tailwind l'émet parfaitement. La famille
+ * était gardée, le préfixe non — *une garde qui énumère se trompe toujours par le bord.* Zéro
+ * occurrence vivante au 2026-08-28, donc l'élargissement ne coûte aucune exception : c'est le
+ * moment le moins cher de fermer un trou, et le seul où ça ne coûte rien.
+ */
+const PREFIXES = [
+  'bg', 'text', 'border', 'ring',
+  'from', 'via', 'to', 'divide', 'outline', 'placeholder',
+  'fill', 'stroke', 'shadow', 'caret', 'accent', 'decoration',
+];
 const FAMILLES = ['slate', 'gray', 'zinc', 'neutral'];
 
 /**
- * TROIS contrôles, et non un — chacun ferme un défaut que les deux autres laissent passer.
+ * TROIS contrôles — A, C, D. Chacun ferme un défaut que les deux autres laissent passer.
  *
- *   A · ÉCHELLE NEUTRE BRUTE — le contrôle du § Contexte de TCK-440, sa regex verbatim.
- *   B · LE NOIR NU — `bg-black/40` et consorts. Ce n'est PAS un neutre à convertir vers une
- *       surface : c'est un VOILE, et un voile doit rester sombre dans les DEUX thèmes. Le jeton
- *       `--scrim` existe pour ça (`docs/design-guidelines.md`), il est OPAQUE et ne s'inverse
- *       pas sous `.dark` ; l'appelant pose l'alpha, d'où `bg-scrim/<n>`. Écrire le noir en clair
- *       marche aujourd'hui et devient faux le jour où quelqu'un cherche « toutes les surfaces
- *       sombres » — il n'en trouvera aucune.
- *   C · `scrim` HORS DE SON RÔLE — `text-scrim`, `ring-scrim/20`, `border-scrim` compilent
- *       parfaitement et ne veulent rien dire. C'est le trou que la garde jumelle a DÉCLARÉ sans
- *       le fermer, faute de pouvoir le faire en général : *une garde sait qu'un jeton est
- *       déclaré, pas quels utilitaires il a le droit de prendre.* Il se ferme ici parce que
- *       `--scrim` n'a qu'un seul rôle et qu'il est connu — un voile est un FOND. Ce qui reste
- *       ouvert, et qui l'est chez la jumelle aussi, c'est le cas général : `text-card` passe
- *       encore, ici comme ailleurs.
+ *   A · ÉCHELLE NEUTRE BRUTE — le contrôle du § Contexte de TCK-440, sa regex verbatim, sur une
+ *       liste de préfixes désormais large.
+ *   C · `scrim` HORS DE SON RÔLE — un voile est un FOND ; `text-scrim` et `ring-scrim/20`
+ *       compilent parfaitement et ne veulent rien dire. C'est le trou que la garde jumelle a
+ *       DÉCLARÉ sans pouvoir le fermer en général : *une garde sait qu'un jeton est déclaré, pas
+ *       quels utilitaires il a le droit de prendre.* Il se ferme ICI parce que `--scrim` n'a qu'un
+ *       rôle et qu'il est connu. Le cas général reste ouvert — `text-card` passe encore.
+ *   D · VALEUR ARBITRAIRE HEXADÉCIMALE — `bg-[#6b7280]`. La revue adverse a mesuré que la garde
+ *       l'acceptait, **en contradiction directe avec la règle que son propre en-tête cite** :
+ *       *« Zéro valeur hex arbitraire dans le code. »* Une garde qui cite une règle sans
+ *       l'appliquer est pire qu'une garde absente : elle fait croire que la règle est tenue.
+ *
+ * ⚠ **Il n'y a PAS de contrôle B, et c'est une décision, pas un oubli.** Il refusait le noir nu
+ * (`bg-black/40`), parce qu'un voile s'écrit avec le jeton `--scrim`. Il a été écrit, éprouvé par
+ * mutation, puis RETIRÉ en même temps que la conversion des quatre voiles était annulée : ce jeton
+ * vit sur une autre branche, et une garde ne peut pas refuser ce que sa propre branche doit encore
+ * écrire. Les formes d'épreuve correspondantes sont restées dans {@link EPREUVE}, du côté « non
+ * vues » : les rebasculer à `true` est le diff qui rendra le changement d'avis visible au moment
+ * de l'intégration. La lettre B n'est pas réattribuée, pour que les deux moitiés de cette
+ * histoire portent le même nom.
  */
 function construireMotif({ prefixes = PREFIXES, familles = FAMILLES } = {}) {
   return new RegExp(`\\b(?:${prefixes.join('|')})-(?:${familles.join('|')})-[0-9]{2,3}\\b`, 'g');
@@ -177,9 +201,23 @@ function construireMotifScrimHorsRole({ prefixes = PREFIXES } = {}) {
   return new RegExp(`\\b(?:${horsBg.join('|')})-scrim(?:\\/[0-9]{1,3})?\\b`, 'g');
 }
 
+/**
+ * D — une couleur ÉCRITE À LA MAIN dans une classe : `bg-[#6b7280]`, `text-[#fff]`.
+ *
+ * ⚠ Volontairement borné aux HEXADÉCIMAUX, et pas à toute valeur arbitraire. `bg-[var(--pg-ink)]`
+ * en est une aussi, mais c'est une INDIRECTION vers une variable — et les huit qui vivent dans le
+ * périmètre sont toutes dans `/playground`, que TCK-440 met explicitement hors périmètre (son sort
+ * appartient à TCK-431). Les refuser demanderait une exception ; les ignorer est un trou DÉCLARÉ,
+ * en tête de fichier, ce qui est le seul des deux qui reste honnête.
+ */
+function construireMotifHexArbitraire({ prefixes = PREFIXES } = {}) {
+  return new RegExp(`\\b(?:${prefixes.join('|')})-\\[#[0-9a-fA-F]{3,8}\\]`, 'g');
+}
+
 const CONTROLES = [
   ['A', 'échelle neutre brute', construireMotif()],
   ['C', 'jeton de voile hors de son rôle (--scrim est un FOND)', construireMotifScrimHorsRole()],
+  ['D', 'couleur hexadécimale écrite à la main', construireMotifHexArbitraire()],
 ];
 
 /** Conservé pour l'ablation de configuration, qui raisonne sur le contrôle A. */
@@ -210,6 +248,26 @@ const EPREUVE = [
   ['focus-visible:ring-neutral-400', true],
   ['text-zinc-50', true],
   ['data-[state=open]:bg-slate-100', true],
+  // ── A · VUES : les préfixes ajoutés le 2026-08-28, un par entrée de PREFIXES ─────────────
+  // ⚠ Chacun DOIT être ici : l'ablation de configuration refuse une entrée que rien n'exerce,
+  // et c'est elle qui a attrapé l'élargissement quand il a été fait sans ces lignes.
+  ['from-gray-400', true],
+  ['via-slate-200', true],
+  ['to-neutral-900', true],
+  ['divide-gray-200', true],
+  ['outline-gray-400', true],
+  ['placeholder-gray-400', true],
+  ['fill-gray-300', true],
+  ['stroke-slate-500', true],
+  ['shadow-gray-200', true],
+  ['caret-gray-700', true],
+  ['accent-gray-600', true],
+  ['decoration-slate-300', true],
+  // ── D · VUES : une couleur écrite à la main ──────────────────────────────────────────────
+  ['bg-[#6b7280]', true],
+  ['text-[#fff]', true],
+  ['border-[#A1B2C3]', true],
+  ['hover:bg-[#6b7280]', true],
   // ── C · VUES : le jeton de voile hors de son rôle ───────────────────────────────────────
   ['text-scrim', true],
   ['ring-scrim/20', true],
@@ -258,6 +316,21 @@ const EPREUVE = [
   ['bg-black', false],
   ['bg-black/40', false],
   ['text-black', false],
+  // ── D · NON VUES : les arbitraires qui ne sont PAS des couleurs écrites à la main ────────
+  //
+  // Une INDIRECTION vers une variable n'est pas une couleur décidée dans le JSX : les huit qui
+  // vivent dans le périmètre sont dans `/playground`, hors périmètre par TCK-440. Trou déclaré.
+  ['bg-[var(--pg-ink)]', false],
+  ['text-[var(--pg-accent)]', false],
+  ['bg-[length:200%]', false],
+  ['text-[11px]', false],
+  ['w-[264px]', false],
+  ['top-[145px]', false],
+  // La CASSE n'est pas un défaut ici, et c'est MESURÉ : Tailwind n'émet pas `bg-GRAY-400`, donc
+  // la classe est déjà sans effet et la refuser n'apprendrait rien. Le drapeau `i` exigé de la
+  // garde jumelle ne se transporte pas — vérifié par compilation, revue adverse du 2026-08-28.
+  ['bg-GRAY-400', false],
+  ['TEXT-gray-400', false],
 ];
 
 function autoEpreuve() {
@@ -398,15 +471,15 @@ function main() {
   if (REPORT) {
     console.log(`  PORTÉE — ce contrôle est EXACT sur ce qu'il regarde : une classe Tailwind est
     un littéral, elle ne se calcule pas sous peine de ne pas être compilée. Ce
-    qu'il NE regarde PAS, mesuré le 2026-08-27 sur le même périmètre : 260
-    occurrences de familles chaudes ou sémantiques (pierre en tête) et 50
-    emplois du blanc nommé. Le noir, lui, N'EST plus un trou — les quatre voiles
-    sont passés au jeton de voile et le contrôle B les refuse. Les trous sont
-    détaillés en tête de ce fichier : un vert ici ne veut PAS dire « la chrome
-    publique n'a plus une seule couleur brute ».
+    qu'il NE regarde PAS, et qui est détaillé en tête de ce fichier : les
+    familles chaudes ou sémantiques (260 occurrences, pierre en tête), les
+    couleurs nommées (54, dont les quatre voiles en attente de leur jeton) et
+    les arbitraires par indirection de /playground, hors périmètre par TCK-440.
+    Un vert ici ne veut PAS dire « la chrome publique n'a plus une seule couleur
+    brute ».
     ⚠ Cette garde ne voit pas non plus si un jeton EXISTE : une classe dont le
-    jeton n'est pas déclaré n'émet aucune règle et ne fait aucune erreur. C'est
-    src/test/__tests__/jetons-compiles.test.ts qui l'attrape, par compilation.`);
+    jeton n'est pas déclaré n'émet aucune règle et ne fait aucune erreur. Aucun
+    mécanisme du dépôt ne l'attrape aujourd'hui — c'est l'objet de TCK-453.`);
   }
 }
 

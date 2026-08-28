@@ -95,6 +95,32 @@ Sa valeur dépasse largement le motif qui l'a fait naître, puisqu'il ne sait ri
 - une **variante mal écrite** — un `data-[state=open]` mal fermé, un `hover;` ;
 - une classe héritée d'une **version antérieure de Tailwind** que la v4 n'émet plus.
 
+### L'objection qui a été faite, et pourquoi elle est écartée
+
+La revue adverse propose une autre forme : garder un filtre, mais le retourner — ne plus retenir
+les radicaux *connus*, mais écarter les utilitaires **non chromatiques** connus (`sm`, `center`,
+`cover`, `inset`, `2`…), ou n'accepter que les formes portant un alpha.
+
+**Les deux positions, honnêtement :**
+
+| | filtre inversé (revue) | dérivation du compilateur (retenu) |
+|---|---|---|
+| Ce qu'il faut savoir d'avance | la liste des utilitaires non chromatiques de Tailwind | rien |
+| Ce qu'il attrape | un jeton absent de couleur | un jeton absent, une faute de frappe, un séparateur fautif, une variante mal écrite |
+| Ce qui arrive quand Tailwind ajoute un utilitaire | la liste devient fausse, en silence | rien |
+| Ce qui arrive quand un utilitaire est retiré | la liste devient fausse, en silence | rien |
+
+**C'est écarté parce que c'est encore une liste, et que c'est la liste qui a échoué.** Le filtre
+inversé déplace le défaut sans le supprimer : il faut toujours énumérer un ensemble ouvert que
+Tailwind fait bouger sans nous prévenir, et l'erreur devient silencieuse dans l'autre sens — un
+utilitaire non chromatique oublié dans la liste produit un faux positif, un utilitaire chromatique
+oublié produit un faux négatif. Le compilateur, lui, connaît déjà la réponse.
+
+⚠ L'objection garde un mérite qu'il faut nommer : elle rendrait le relevé **insensible à la
+qualité de l'extracteur**, alors que la forme retenue y déplace tout le coût. C'est un vrai
+échange, pas un mauvais argument — et c'est pourquoi la ligne de base de faux positifs est une
+condition de livraison plutôt qu'un détail.
+
 ## Contrat de données
 
 Sans objet — outillage de test.

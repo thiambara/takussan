@@ -1,6 +1,6 @@
 ---
 id: TCK-452
-title: "Le thème sombre est INATTEIGNABLE : 37 jetons, 75 utilitaires `dark:` et la moitié du harnais de contraste qu'aucun chemin d'exécution n'atteint"
+title: "Aucune BASCULE de thème sombre n'existe : le bloc `.dark` sert de surface locale à deux composants et n'est atteignable par aucun utilisateur"
 status: todo
 phase: P2
 family: technique
@@ -18,15 +18,13 @@ tags: [front, design-system, tokens, dette, decision]
 
 ## Objectif utilisateur
 
-Aucun — et c'est le point du ticket. **Personne ne peut voir le thème sombre de ce produit**, et
+Aucun — et c'est le point du ticket. **Aucun utilisateur ne peut choisir un thème sombre**, et
 personne ne le pourra tant qu'une décision n'aura pas été prise. Ce ticket ne livre pas une
 fonctionnalité : il ferme une ambiguïté qui coûte à chaque écran écrit.
 
 ## Contexte
 
-**Le bloc `.dark` de `globals.css` n'est activé par rien.** Ce n'est pas « aucune classe `.dark`
-n'est posée aujourd'hui » — c'est **qu'il n'existe aucun mécanisme pour en poser une**. Relevé du
-2026-08-27 sur `takussan-web/` :
+**Il n'existe aucune BASCULE de thème.** Relevé du 2026-08-27 sur `takussan-web/` :
 
 ```
 grep -rn "ThemeProvider|next-themes|documentElement.classList" src   → 1 occurrence,
@@ -36,14 +34,28 @@ grep -c next-themes package.json                                     → 0
 grep -rn "prefers-color-scheme" src                                  → 0
 ```
 
-La variante est pourtant déclarée (`globals.css:6`, `@custom-variant dark (&:is(.dark *))`) et le
-produit écrit du code sombre en permanence. Ce code est **inatteignable**, au sens strict : aucun
-chemin d'exécution ne le traverse.
+Aucun mécanisme **global** : ni bibliothèque de thème, ni fournisseur, ni écriture sur
+`documentElement`, ni respect de la préférence système. **Un visiteur ne peut donc pas voir ce
+produit en sombre, et aucun réglage ne le lui propose.**
 
-> ⚠ **Inatteignable n'est pas faux, et c'est pire à évaluer.** Un code faux finit par produire un
-> défaut que quelqu'un voit. Un code inatteignable ne peut ni régresser visiblement, ni être
-> validé : il est écrit, relu, mesuré, gardé — et jamais éprouvé par la réalité. Toute affirmation
-> à son sujet, y compris « il est correct », est invérifiable.
+> ⚠⚠ **CORRECTION DU 2026-08-28 — la première rédaction de ce ticket disait « il n'existe aucun
+> mécanisme pour poser la classe ». C'ÉTAIT FAUX**, et la revue adverse l'a mesuré. La classe est
+> posée, en toutes lettres, sur deux composants livrés :
+>
+> ```
+> src/components/layout/SuperAdminSidebar.tsx:224   'dark flex h-full w-64 …'
+> src/components/layout/SuperAdminTopbar.tsx:49     'dark flex h-14 shrink-0 …'
+> ```
+>
+> Leurs docblocks le disent depuis TCK-358, et l'un d'eux prend soin de préciser : *« La classe
+> `dark` n'est PAS le mode sombre de l'utilisateur : c'est une surface »*. **Le bloc `.dark` est
+> donc VIVANT — il est le socle chromatique de la chrome super-admin, réellement rendue.**
+>
+> Ce que ça change, et c'est considérable : le sombre n'est pas du code mort. Il est **rendu sans
+> être choisi**. Une partie est éprouvée par l'écran (la chrome super-admin), le reste — les 37
+> jetons dans leur ensemble, les `dark:` du produit — ne l'est que pour les composants que ces
+> deux barres montent. La distinction à tenir n'est donc pas « mort / vivant » mais **« portée
+> locale assumée » contre « bascule globale absente »**.
 
 ### Ce que ça représente — mesuré le 2026-08-27, pas estimé
 
@@ -109,12 +121,22 @@ Local Contemporain »* sans thème sombre, et le bloc `.dark` actuel n'a jamais 
 
 ### Issue B — le produit N'EN VEUT PAS
 
-Alors le sombre est de la dette, et elle se retire :
+⚠⚠ **Cette issue NE PEUT PAS être « retirer le bloc `.dark` ».** Sa première rédaction le
+proposait : elle aurait retiré le socle chromatique de la chrome super-admin, qui porte la classe
+délibérément. C'est le défaut que la revue adverse a attrapé, et il illustre le coût d'une prémisse
+fausse — le remède proposé cassait la surface que la prémisse n'avait pas vue.
 
-- le bloc `.dark` (37 jetons) sort de `globals.css`, avec `@custom-variant dark` ;
-- les 29 utilitaires `dark:` du code produit sortent ;
-- `JETONS_SOMBRE` et la moitié sombre des trois tests de contraste sortent, ce qui **divise par
-  deux** le coût d'entretien du harnais ;
+Ce qui se retire, si le produit ne veut pas de bascule utilisateur :
+
+- le bloc `.dark` **RESTE**, mais change de nom et de statut : il n'est plus « le thème sombre »,
+  il est **la surface sombre locale** que deux composants demandent. Le renommer (`.surface-sombre`
+  ou un jeton dédié) est ce qui empêche la prochaine personne de croire qu'un thème existe ;
+- les `dark:` du code produit sortent — **sauf ceux des composants que la chrome super-admin
+  monte réellement**, qui sont la moitié utile et doivent être recensés avant d'être touchés ;
+- `JETONS_SOMBRE` NE sort PAS : il mesure une surface réellement rendue. ⚠ C'est ce qui donne sa
+  vraie portée à la correction faite pendant TCK-440 — les 14 jetons qui héritaient en silence des
+  valeurs claires étaient **mesurés à faux sur un écran que des gens regardent**, pas sur un thème
+  hypothétique ;
 - ⚠ **les 46 utilitaires des primitives `src/components/ui/**` sont le vrai sujet** : ils viennent
   de *shadcn* et reviendront à la prochaine primitive ajoutée ou régénérée. Les retirer sans
   garde, c'est les voir repousser ; il faut donc soit une garde qui refuse `dark:` dans ce dépôt,
@@ -145,17 +167,22 @@ Alors le sombre est de la dette, et elle se retire :
 ## Critères d'acceptation
 
 - [ ] AC1 — une commande décide, et pas une lecture : `grep` sur `ThemeProvider|next-themes|
-      documentElement.classList|prefers-color-scheme` rend **> 0** (issue A) ou le bloc `.dark`
-      n'existe plus dans `globals.css` (issue B). L'état actuel — 0 des deux côtés et un bloc
-      présent — fait échouer le test dans les deux lectures.
+      documentElement.classList|prefers-color-scheme` rend **> 0** (issue A), ou le bloc a été
+      renommé en surface locale et plus rien ne l'appelle « thème » (issue B). L'état actuel — 0
+      côté bascule, et un bloc nommé `.dark` que deux composants utilisent comme surface — fait
+      échouer le test dans les deux lectures.
+- [ ] AC1bis — quelle que soit l'issue, la chrome super-admin **rend toujours ses couleurs**. Un
+      test le vérifie sur les valeurs, pas à l'œil : c'est la surface que la première rédaction de
+      ce ticket aurait cassée.
 - [ ] AC2 — issue A : un test éprouve la bascule **par le mécanisme réel**, pas par une table de
       jetons simulée. Un test qui résout deux tables sans activer la classe passerait déjà
       aujourd'hui : c'est celui de TCK-440, et il ne suffit pas ici.
-- [ ] AC3 — issue B : le compte d'utilitaires `dark:` du code produit passe de 29 à 0, et une
-      garde échoue si un seul revient. Une garde livrée avec des exceptions ne compte pas.
-- [ ] AC4 — le nombre de jetons de `JETONS_SOMBRE` (24) est cohérent avec l'issue retenue : égal
-      au bloc `.dark` (A) ou supprimé (B). Un harnais qui mesure un thème qui n'existe plus est le
-      même défaut, à l'envers.
+- [ ] AC3 — issue B : le compte d'utilitaires `dark:` **hors chrome super-admin** tombe à 0, et
+      une garde échoue si un seul revient. Le périmètre exact se dérive de ce que les deux barres
+      montent — il ne s'énumère pas à la main.
+- [ ] AC4 — `JETONS_SOMBRE` (24 entrées) reste cohérent avec le bloc, dans les deux issues :
+      `src/test/__tests__/jetons-compiles.test.ts` le confronte déjà valeur par valeur à la
+      feuille compilée, et ce contrôle doit rester vert.
 - [ ] AC5 — le coût est reconsigné après coup : le relevé de ce ticket date du 2026-08-27 et sera
       périmé. Une mesure sans sa date devient une croyance.
 
