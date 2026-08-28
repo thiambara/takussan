@@ -78,14 +78,37 @@
  *          ⚠ **Pourquoi il n'est pas fermé ici, et c'est un arbitrage, pas un oubli** : le fermer
  *          rendrait la garde ROUGE sur ces deux lignes, et les corriger demande une décision qui
  *          n'est pas celle de cette garde. Le remède évident — remplacer par le jeton — pose le
- *          piège d'inversion déjà rencontré sur les voiles : `--foreground` vaut #fcf9f3 en
- *          contexte `.dark`, donc une ombre écrite avec lui devient CLAIRE sur les surfaces qui
- *          portent la classe. Une ombre a besoin d'un jeton qui ne s'inverse pas, comme un voile.
- *          C'est un ticket, pas une ligne.
+ *          piège d'inversion des voiles : `--foreground` vaut #fcf9f3 en contexte `.dark`, donc
+ *          une ombre écrite avec lui devient CLAIRE sur les surfaces qui portent la classe.
+ *          Vérifié par compilation : `shadow-foreground/10` émet
+ *          `--tw-shadow-color: var(--foreground)`.
+ *
+ *          ⚠ **Nuance, et elle corrige une formulation trop large que ce fichier a portée** :
+ *          l'inversion ne mordrait PAS sur ces deux fichiers-ci. Ce sont des cartes de la chrome
+ *          PUBLIQUE, dont l'AC4 de TCK-440 établit qu'elle n'est jamais dans un sous-arbre
+ *          `.dark`. L'argument porte donc sur le REMÈDE GÉNÉRAL — on n'introduit pas un jeton
+ *          inversant pour les ombres du produit entier — et non sur un blocage immédiat ici.
+ *          La conclusion tient, la raison est plus étroite qu'écrit. C'est un ticket, pas une
+ *          ligne.
  *
  *          Forme de fermeture, le jour où le jeton existe (mesurée par la revue adverse sur 18
  *          formes, 8 rouges / 10 vertes, 0 faux positif) — elle laisse `var()` hors de portée :
  *              -\[[^\]]*(?:#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|oklch\()
+ *     T6 · CETTE GARDE N'A AUCUNE NOTION DE `className` ................ 0 occurrence, LATENT
+ *          Elle cherche un MOTIF DE TEXTE dans un fichier, pas une classe dans un attribut. Tout
+ *          ce qui contient la forme d'une classe la fait rougir, mesuré par la revue adverse :
+ *          un chemin d'actif (`/images/bg-gray-200.png`), un `data-testid`, un `aria-label`, une
+ *          propriété CSS personnalisée (`--text-gray-400`, et les `.css` SONT lus), une URL.
+ *
+ *          ⚠ **C'est la catégorie que la doctrine de ce fichier dit la plus coûteuse** — un faux
+ *          positif coûte PLUS qu'un trou, parce qu'il rougit sur du code juste et apprend à
+ *          contourner la garde. Le compromis déclaré plus haut ne couvre que les COMMENTAIRES :
+ *          un chemin d'actif n'en est pas un, et il n'était couvert par rien.
+ *
+ *          Non fermé : distinguer une classe d'une chaîne qui lui ressemble demande de savoir où
+ *          commence un `className`, c'est-à-dire d'analyser le JSX. Déclaré plutôt que tenté à
+ *          moitié — et sans occurrence vivante, le coût est nul aujourd'hui.
+ *
  * **Un trou déclaré est ce qui distingue une garde d'une garde qui se croit exhaustive.** Le
  * moment de fermer T1 et T2 est le ticket qui convertira ces familles-là ; jusque-là, ce fichier
  * dit ce qu'il ne voit pas plutôt que de laisser croire qu'il voit tout.
@@ -246,6 +269,12 @@ function construireMotifScrimHorsRole({ prefixes = PREFIXES } = {}) {
 /**
  * D — une couleur ÉCRITE À LA MAIN dans une classe : `bg-[#6b7280]`, `text-[#fff]`.
  *
+ * ⚠⚠ **Le même groupe {@link SUFFIXES} qu'au contrôle A, et il a manqué ici pendant un commit
+ * entier.** `border-t-[#6b7280]` traversait cette garde alors que Tailwind l'émet : *la faille
+ * refermée pour les échelles nommées est restée ouverte pour les hexadécimaux, dans le fichier
+ * même qui la fermait.* Un correctif appliqué à un contrôle et pas à son voisin est la forme la
+ * plus discrète du défaut — le diff a l'air complet.
+ *
  * ⚠ **La borne réelle est « hexadécimal », et rien de plus — ce docblock a prétendu autre chose.**
  * Il justifiait la borne par l'indirection (`bg-[var(--pg-ink)]` est une variable, pas une couleur
  * décidée). C'est vrai de `var()`, et FAUX de `rgb()`, `hsl()` et `oklch()`, qui sont des couleurs
@@ -256,7 +285,10 @@ function construireMotifScrimHorsRole({ prefixes = PREFIXES } = {}) {
  * VIVANTES, qui font toute la différence avec les autres trous de ce fichier.
  */
 function construireMotifHexArbitraire({ prefixes = PREFIXES } = {}) {
-  return new RegExp(`\\b(?:${prefixes.join('|')})-\\[#[0-9a-fA-F]{3,8}\\]`, 'g');
+  return new RegExp(
+    `\\b(?:${prefixes.join('|')})(?:-(?:${SUFFIXES.join('|')}))?-\\[#[0-9a-fA-F]{3,8}\\]`,
+    'g',
+  );
 }
 
 const CONTROLES = [
@@ -317,6 +349,10 @@ const EPREUVE = [
   ['bg-[#6b7280]', true],
   ['text-[#fff]', true],
   ['border-[#A1B2C3]', true],
+  // Le 3e bord, sur D cette fois — il a manqué un commit entier.
+  ['border-t-[#6b7280]', true],
+  ['ring-offset-[#6b7280]', true],
+  ['divide-x-[#6b7280]', true],
   ['hover:bg-[#6b7280]', true],
   // ── C · VUES : le jeton de voile hors de son rôle ───────────────────────────────────────
   ['text-scrim', true],
@@ -373,6 +409,8 @@ const EPREUVE = [
   ['bg-[var(--pg-ink)]', false],
   ['text-[var(--pg-accent)]', false],
   ['bg-[length:200%]', false],
+  ['border-t-[3px]', false],
+  ['ring-offset-[2px]', false],
   ['text-[11px]', false],
   ['w-[264px]', false],
   ['top-[145px]', false],

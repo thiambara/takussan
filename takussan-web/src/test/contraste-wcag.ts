@@ -89,7 +89,20 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
  * ci-dessous : la DÉRIVER**, parce que la première correction de cette erreur en avait énuméré
  * DEUX et qu'il y en a TROIS —
  *
- *     grep -rnE "['\"`]dark[ \"'`]" takussan-web/src --include='*.tsx'
+ *     grep -rnE "(['\"`]|[[:space:]])dark([[:space:]]|['\"`])" takussan-web/src --include='*.tsx'
+ *
+ * ⚠⚠ **La première version de cette commande faisait 3 SUR 7, et rendait pourtant le bon compte.**
+ * Elle exigeait un guillemet immédiatement avant `dark`, alors que dans une liste de classes le
+ * séparateur est une ESPACE : elle ratait `className="flex dark bg-x"`, la position finale, et un
+ * gabarit au milieu. Elle donnait trois parce que les trois posages réels écrivent `dark` en
+ * premier — *coïncidence, pas propriété.* **Une commande qui rend le bon nombre sur les cas
+ * existants n'est pas une dérivation, c'est une énumération déguisée** : exactement ce qu'elle
+ * était censée remplacer. La forme ci-dessus fait 6 sur 7 pour une ligne de bruit en plus (20 au
+ * lieu de 19 sur ce dépôt).
+ *
+ * ⚠ **Le septième cas est hors de portée de TOUT grep** : `clsx({ dark: x })` écrit la classe en
+ * clé d'objet, et `dark:` est par ailleurs le préfixe de la variante Tailwind — aucun motif
+ * textuel ne peut les distinguer. Écrit ici plutôt que laissé croire exhaustif.
  *
  * Au 2026-08-28 elle rend `SuperAdminSidebar.tsx:224`, `SuperAdminTopbar.tsx:49` et
  * `SuperAdminShell.tsx:80`. ⚠ La troisième est la plus instructive : c'est un `<SheetContent

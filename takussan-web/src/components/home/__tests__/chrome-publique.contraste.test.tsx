@@ -35,9 +35,18 @@
  * **Puis la correction elle-même a énuméré DEUX composants, et il y en a TROIS.** La troisième
  * passe par un portail (`SuperAdminShell.tsx:80`, un `<SheetContent className="dark …">` rendu au
  * niveau du `body`), donc hors position d'arbre. *Le texte écrit pour fermer une énumération
- * incomplète en était une.* Ne pas recopier la liste : la dériver —
+ * incomplète en était une.*
  *
- *     grep -rnE "['\"`]dark[ \"'`]" takussan-web/src --include='*.tsx'
+ * ⚠⚠ **Et la commande de dérivation qui a remplacé cette liste faisait 3 SUR 7 — en rendant le
+ * bon compte.** Elle exigeait un guillemet juste avant `dark`, alors que le séparateur d'une liste
+ * de classes est une ESPACE ; elle donnait trois parce que les trois posages réels écrivent `dark`
+ * en premier. *Une commande qui rend le bon nombre sur les cas existants n'est pas une dérivation,
+ * c'est une énumération déguisée.* Corrigée ci-dessous (6 sur 7). Le septième — `clsx({ dark: x })`
+ * — est hors de portée de tout grep, `dark:` étant aussi le préfixe de la variante.
+ *
+ * Ne pas recopier la liste : la dériver —
+ *
+ *     grep -rnE "(['\"`]|[[:space:]])dark([[:space:]]|['\"`])" takussan-web/src --include='*.tsx'
  *
  * Le détail et la leçon de forme sont dans `src/test/contraste-wcag.ts`.
  *

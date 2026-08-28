@@ -150,10 +150,25 @@ Deux choses à trancher, et elles sont indépendantes :
       Un composant neuf y entre sans que personne l'y déclare — c'est l'AC central du ticket.
 - [ ] AC3 — l'ablation se fait sur un couple **inventé pour l'occasion** et non sur celui-ci : un
       test qui n'attraperait que le défaut connu passerait déjà, et c'est ce qui s'est produit.
-- [ ] AC4 — un texte posé sur un média est mesuré **sur son pire fond, qui est nommable** : pour
-      cette pastille, le pixel blanc (démonstration en § Contexte). Le test le vérifie là, pas sur
-      la surface qui l'arrange. ⚠ Le pire fond dépend du SENS du couple — encre claire sur plaque
-      sombre ⇒ pixel blanc ; l'inverse ⇒ pixel noir. Le test doit le dériver, pas le supposer.
+- [ ] AC4 — un texte posé sur un média est mesuré **sur son pire fond, et ce pire fond se DÉRIVE
+      par balayage des 256 valeurs de gris** — pas en choisissant une extrémité.
+
+      ⚠⚠ **Une version antérieure de cette AC disait « pixel blanc si l'encre est claire, pixel
+      noir sinon ». C'est vrai ici et FAUX en général.** Quand la luminance de l'encre tombe *à
+      l'intérieur* de la plage que la plaque peut atteindre, le couple n'a pas de sens fixe et le
+      minimum est **au croisement**, pas à une extrémité. Contre-exemple mesuré — encre `#808080`
+      sur plaque `#808080/90` :
+
+          pixel 0 → 1,20:1     pixel 128 → **1,00:1**  ← le vrai minimum     pixel 255 → 1,19:1
+
+      Une règle « blanc ou noir selon le sens » rendrait 1,19 et manquerait 1,00, c'est-à-dire un
+      texte littéralement invisible. *Choisir une extrémité est une optimisation qui suppose la
+      monotonie ; elle est vraie pour cette pastille et fausse en général, et rien dans l'AC ne
+      disait laquelle des deux on écrivait.* Le balayage coûte 256 évaluations — moins que la
+      règle qu'il remplace.
+
+      Pour cette pastille, le balayage confirme l'extrémité blanche (minimum en 255, à 4,22:1) :
+      le chiffre du § Contexte tient.
 - [ ] AC5 — le seuil appliqué distingue le texte (4,5:1) du non textuel (3:1), et le test dit
       lequel il applique à chaque couple. `--accent` sur `--card` à 4,48:1 sur une icône
       `aria-hidden` reste conforme et doit rester vert : un test qui le ferait rougir serait faux
