@@ -30,8 +30,11 @@
  * ⚠ Les jetons sont recopiés de `src/app/globals.css` à dessein, comme dans
  * `ui/__tests__/tabs.contrast.test.tsx` : jsdom ne charge aucune feuille, et un test qui lirait
  * la feuille COMPILÉE mesurerait ce que Tailwind a bien voulu émettre. Celui-ci mesure ce que le
- * design system DÉCLARE. `JETONS_SOMBRE` est présent pour le jour où un `ThemeProvider`
- * existera ; aucune classe `.dark` n'est posée nulle part aujourd'hui (vérifié).
+ * design system DÉCLARE.
+ *
+ * ⚠ **`JETONS_SOMBRE` n'est PAS « pour le jour où » : il mesure une surface RENDUE.** Cette
+ * ligne a affirmé le contraire, avec un « (vérifié) » qui la rendait crédible — cf.
+ * {@link JETONS_SOMBRE}, dont l'en-tête porte le détail et l'angle mort qui a produit l'erreur.
  */
 
 /** Seuil WCAG 1.4.11 — indicateur non textuel (anneau de focus, bordure porteuse de sens). */
@@ -68,15 +71,54 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
 };
 
 /**
- * Bloc `.dark` de `globals.css` — inatteignable aujourd'hui, tenu à jour pour le jour où.
+ * Bloc `.dark` de `globals.css` — la table d'une surface RÉELLEMENT RENDUE, et non d'un thème
+ * hypothétique.
  *
- * ⚠ **« Inatteignable » a été RE-VÉRIFIÉ le 2026-08-27** (TCK-440), et c'est plus vrai que ce que
- * l'en-tête laissait croire : il n'y a pas seulement aucune classe `.dark` posée, il n'y a
- * **aucun mécanisme** pour en poser une — ni `ThemeProvider`, ni `next-themes` au `package.json`,
- * ni un seul `documentElement.classList` dans `src/`. La bascule sombre est un jeu de valeurs
- * déclarées que rien n'active. C'est ce qui donne son sens exact à l'AC4 de TCK-440 : ce qu'un
- * test peut éprouver, ce sont les VALEURS que le design system déclare de part et d'autre, pas
- * un basculement qu'aucun utilisateur ne peut produire.
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * UNE RE-VÉRIFICATION QUI A CONCLU À FAUX, ET PAR QUEL ANGLE MORT
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Cet en-tête a porté, du 2026-08-27 au 2026-08-28, l'affirmation suivante — **elle était
+ * fausse**, et elle est recopiée ici plutôt que effacée, parce que c'est sa FORME qui instruit :
+ *
+ *     « ⚠ « Inatteignable » a été RE-VÉRIFIÉ le 2026-08-27 (TCK-440) […] il n'y a pas seulement
+ *       aucune classe .dark posée, il n'y a AUCUN MÉCANISME pour en poser une […] La bascule
+ *       sombre est un jeu de valeurs déclarées que rien n'active. »
+ *
+ * **La classe est posée, en toutes lettres et en première position, sur deux composants livrés :**
+ *
+ *     src/components/layout/SuperAdminSidebar.tsx:224   'dark flex h-full w-64 …'
+ *     src/components/layout/SuperAdminTopbar.tsx:49     'dark flex h-14 shrink-0 …'
+ *
+ * Leurs docblocks le disent depuis TCK-358, et l'un précise même : *« La classe `dark` n'est PAS
+ * le mode sombre de l'utilisateur : c'est une surface. »*
+ *
+ * ⚠ **L'ANGLE MORT, qui est le seul détail utile ici** : la re-vérification a cherché un
+ * MÉCANISME — `ThemeProvider`, `next-themes` au `package.json`, `documentElement.classList`. Les
+ * trois sont bien absents, et c'est ce qui l'a rendue convaincante. Elle n'a pas cherché **une
+ * classe littérale dans un `className`**, qui est pourtant la façon la plus simple de poser une
+ * classe. *Chercher l'outil et pas le geste : on ne trouve alors que les usages sophistiqués.*
+ *
+ * Et la leçon de forme, qui vaut au-delà de ce fichier : **une re-vérification qui conclut à faux
+ * est plus difficile à défaire que l'erreur d'origine.** Elle porte sa date et son ticket, elle a
+ * l'air d'avoir déjà résisté à un examen. Le « (vérifié) » de l'en-tête de fichier faisait le même
+ * travail. Un lecteur les croit tous les deux sans les rejouer — c'est exactement ce qui s'est
+ * passé pendant deux passes de revue.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * CE QUE CETTE TABLE MESURE DONC, ET QUI EST DOUBLE
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * · Pour la chrome SUPER-ADMIN : un écran que des gens regardent. Ces valeurs-là sont éprouvées
+ *   par la réalité, et une erreur dedans est un défaut visible. C'est ce qui donne sa portée au
+ *   piège du `...JETONS_CLAIR` décrit plus bas — il mesurait à faux une surface rendue.
+ * · Pour la chrome PUBLIQUE : une hypothèse. Aucune bascule globale n'existe, et la navbar n'est
+ *   jamais dans un sous-arbre `.dark` — les deux composants qui posent la classe sont ailleurs.
+ *   Les mesures « en sombre » de `chrome-publique.contraste.test.tsx` gardent donc la COHÉRENCE
+ *   des jetons, pas la lisibilité d'un écran existant.
+ *
+ * La distinction juste n'est pas « mort / vivant » mais **« portée locale assumée » contre
+ * « bascule globale absente »** (TCK-452).
  *
  * ⚠ **Le `...JETONS_CLAIR` de la première ligne est un piège, et il a mordu.** Il fait hériter en
  * silence des valeurs CLAIRES tout jeton non ré-écrit ci-dessous — `primary`, `secondary`,

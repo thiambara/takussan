@@ -21,19 +21,41 @@
  *  1. **jsdom ne charge aucune feuille de style.** `getComputedStyle()` y rend la valeur initiale
  *     pour toute propriété qu'aucun style en ligne ne pose : un test qui la lirait mesurerait
  *     jsdom, pas le design system.
- *  2. **Rien n'active `.dark` dans ce produit** — ni `ThemeProvider`, ni `next-themes` au
- *     `package.json`, ni un seul `documentElement.classList` sous `src/`. Le thème sombre est un
- *     jeu de valeurs déclarées que personne ne peut atteindre aujourd'hui.
+ *  2. **Aucune BASCULE globale n'existe** — ni `ThemeProvider`, ni `next-themes` au
+ *     `package.json`, ni un seul `documentElement.classList` sous `src/`. Aucun utilisateur ne
+ *     peut demander le thème sombre.
  *
- * Ce qu'un test peut donc éprouver, et ce qu'il éprouve ici : que les classes rendues **résolvent
- * vers des valeurs différentes** selon la table de jetons — clair ou sombre — recopiée de
- * `globals.css`. C'est la définition même de « la palette est changeable en un endroit », et c'est
- * ce que la conversion vient d'obtenir : avant elle, la navbar rendait des couleurs figées qui ne
- * bougeaient d'AUCUN côté.
+ * ⚠⚠ **CORRECTION DU 2026-08-28.** Ce paragraphe disait « rien n'active `.dark` dans ce produit ».
+ * **C'était faux** : `layout/SuperAdminSidebar.tsx:224` et `layout/SuperAdminTopbar.tsx:49` posent
+ * la classe en toutes lettres, comme SURFACE locale (TCK-358). L'erreur venait d'un angle mort —
+ * on avait cherché un MÉCANISME (`ThemeProvider`, `next-themes`, `documentElement`), pas **une
+ * classe littérale dans un `className`**. Le détail est dans `src/test/contraste-wcag.ts`, avec la
+ * leçon de forme : une re-vérification qui conclut à faux résiste mieux que l'erreur d'origine.
  *
- * ⚠ La conséquence est à énoncer plutôt qu'à taire, comme les contraintes du ticket l'exigent :
- * **ce vert ne prouve pas qu'un utilisateur puisse voir un thème sombre.** Il prouve que la chrome
- * a cessé d'y être insensible.
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * L'AC4 RE-JUGÉE UNE FOIS LA PRÉMISSE REDRESSÉE — conclusion tenue, justification changée
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * La conclusion **tient**, et il faut dire pourquoi elle tient AUTREMENT : la navbar publique
+ * n'est jamais dans un sous-arbre `.dark` — les deux composants qui posent la classe sont
+ * ailleurs, dans la console — et aucune bascule globale n'existe. Le rendu sombre de la NAVBAR
+ * reste donc inatteignable, mais pas parce que « rien n'active `.dark` » : parce que ce qui
+ * l'active ne l'enveloppe pas.
+ *
+ * ⚠ **Ce que ça retire à ce fichier, et qu'il faut lire avant de s'appuyer dessus** : la moitié
+ * « sombre » des mesures ci-dessous porte sur une configuration qui **ne peut pas se produire pour
+ * la chrome publique**. Elle garde la COHÉRENCE des jetons — utile, et ce serait la première chose
+ * à casser le jour où une bascule existe — mais elle n'est PAS le témoignage d'un écran lisible.
+ * Pour la chrome super-admin, les mêmes jetons gardent un écran réellement rendu ; ce n'est pas le
+ * cas ici, et confondre les deux ferait croire à une garantie qu'on n'a pas.
+ *
+ * Ce que ce fichier éprouve donc, exactement : que les classes rendues **résolvent vers des
+ * valeurs différentes** selon la table de jetons — clair ou sombre. C'est la définition de « la
+ * palette est changeable en un endroit », et c'est ce que la conversion a obtenu : avant elle, la
+ * navbar rendait des couleurs figées qui ne bougeaient d'AUCUN côté.
+ *
+ * ⚠ **Ce vert ne prouve pas qu'un utilisateur puisse voir un thème sombre.** Il prouve que la
+ * chrome a cessé d'y être insensible.
  */
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
