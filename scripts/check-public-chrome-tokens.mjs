@@ -138,8 +138,19 @@
  *   2. retirer un répertoire du périmètre → {@link TEMOINS} : chaque espace nomme un fichier qui
  *      DOIT se retrouver dans l'ensemble analysé.
  *   3. vider le périmètre de ses fichiers → le plancher {@link FICHIERS_MINIMUM}.
- *   4. retirer un CONTRÔLE entier (B ou C) → l'ablation de configuration, qui exige qu'au moins
- *      une sonde cesse d'être vue quand on l'enlève.
+ *   4. retirer un CONTRÔLE entier → l'ablation de configuration, qui exige qu'au moins une sonde
+ *      cesse d'être vue quand on l'enlève.
+ *
+ * ⚠⚠ **Le cran n°4 a été INERTE du 2026-08-27 au 2026-08-28, et rien ne le disait.** Son helper
+ * `sansEntree` reconstruisait deux contrôles sur trois — le contrôle D est arrivé plus tard et
+ * n'y a pas été ajouté. Comme les sondes contiennent des formes que SEUL D voit, le jeu réduit ne
+ * les voyait jamais, et l'ensemble des orphelines restait vide **par construction**. Mesuré :
+ * trois entrées bidon (une famille, un préfixe, un suffixe) passaient en silence.
+ *
+ * *Les trois premiers voisins manqués par ce correctif ouvraient un trou de DÉTECTION ; le
+ * quatrième éteignait une DÉFENSE.* Une garde peut donc perdre un cran entier sans qu'aucun de
+ * ses contrôles ne change — et le seul moyen de s'en apercevoir est de lui soumettre une entrée
+ * décorative exprès, ce que personne ne fait spontanément.
  *
  * Aucun de ces quatre crans n'est infranchissable — retirer un répertoire, son témoin et baisser
  * le plancher passe, en trois gestes dans un commit. Le but n'est pas de rendre la manœuvre
@@ -263,9 +274,9 @@ const FAMILLES = ['slate', 'gray', 'zinc', 'neutral'];
  */
 const SUFFIXES = ['t', 'b', 'l', 'r', 'x', 'y', 's', 'e', 'offset'];
 
-function construireMotif({ prefixes = PREFIXES, familles = FAMILLES } = {}) {
+function construireMotif({ prefixes = PREFIXES, familles = FAMILLES, suffixes = SUFFIXES } = {}) {
   return new RegExp(
-    `\\b(?:${prefixes.join('|')})(?:-(?:${SUFFIXES.join('|')}))?-(?:${familles.join('|')})-[0-9]{2,3}\\b`,
+    `\\b(?:${prefixes.join('|')})(?:-(?:${suffixes.join('|')}))?-(?:${familles.join('|')})-[0-9]{2,3}\\b`,
     'g',
   );
 }
@@ -282,10 +293,10 @@ function construireMotif({ prefixes = PREFIXES, familles = FAMILLES } = {}) {
  * où il arrive. `border-t-scrim` compilera alors exactement comme `text-scrim`, que ce même
  * fichier décrit déjà comme « compile parfaitement et ne veut rien dire ».
  */
-function construireMotifScrimHorsRole({ prefixes = PREFIXES } = {}) {
+function construireMotifScrimHorsRole({ prefixes = PREFIXES, suffixes = SUFFIXES } = {}) {
   const horsBg = prefixes.filter((p) => p !== 'bg');
   return new RegExp(
-    `\\b(?:${horsBg.join('|')})(?:-(?:${SUFFIXES.join('|')}))?-scrim(?:\\/[0-9]{1,3})?\\b`,
+    `\\b(?:${horsBg.join('|')})(?:-(?:${suffixes.join('|')}))?-scrim(?:\\/[0-9]{1,3})?\\b`,
     'g',
   );
 }
@@ -308,9 +319,9 @@ function construireMotifScrimHorsRole({ prefixes = PREFIXES } = {}) {
  * Ce qui passe encore, et pourquoi, est en trou T5 en tête de fichier — avec ses DEUX occurrences
  * VIVANTES, qui font toute la différence avec les autres trous de ce fichier.
  */
-function construireMotifHexArbitraire({ prefixes = PREFIXES } = {}) {
+function construireMotifHexArbitraire({ prefixes = PREFIXES, suffixes = SUFFIXES } = {}) {
   return new RegExp(
-    `\\b(?:${prefixes.join('|')})(?:-(?:${SUFFIXES.join('|')}))?-\\[#[0-9a-fA-F]{3,8}\\]`,
+    `\\b(?:${prefixes.join('|')})(?:-(?:${suffixes.join('|')}))?-\\[#[0-9a-fA-F]{3,8}\\]`,
     'g',
   );
 }
@@ -370,6 +381,14 @@ const EPREUVE = [
   ['border-e-neutral-200', true],
   ['ring-offset-gray-200', true],
   ['hover:border-b-zinc-400', true],
+  // Les QUATRE côtés que l'ablation de configuration a dénoncés le 2026-08-28 : déclarés dans
+  // SUFFIXES et exercés par rien. ⚠ Ce ne sont PAS des entrées inutiles — `border-l-*` et
+  // `border-y-*` sont de vraies classes et le motif les couvre, vérifié. Le défaut était que
+  // rien ne l'aurait dit si elles cessaient de l'être.
+  ['border-l-gray-300', true],
+  ['border-r-slate-200', true],
+  ['border-y-zinc-100', true],
+  ['border-s-neutral-400', true],
   ['bg-[#6b7280]', true],
   ['text-[#fff]', true],
   ['border-[#A1B2C3]', true],
@@ -485,9 +504,20 @@ function autoEpreuve() {
 function ablationDeConfiguration() {
   const sondes = EPREUVE.filter(([forme, attendu]) => attendu && vuParUnControle(forme)).map(([f]) => f);
   const orphelines = [];
+  // ⚠⚠ LES TROIS CONTRÔLES, et il en manquait UN. `sansEntree` a été écrit quand la garde en
+  // avait deux ; le contrôle D est arrivé plus tard et ce helper ne l'a pas suivi. Conséquence
+  // mesurée : `sondes` contient des formes que SEUL D voit, le jeu réduit ne les voyait donc
+  // JAMAIS, `sondes.every(...)` était faux pour toute entrée candidate, et `orphelines` restait
+  // vide INCONDITIONNELLEMENT. **L'ablation de configuration ne pouvait signaler aucune entrée
+  // décorative** — trois entrées bidon (une famille, un préfixe, un suffixe) passaient en silence.
+  //
+  // C'est le QUATRIÈME voisin manqué par le même correctif, et le plus coûteux : les trois
+  // premiers ouvraient un trou de détection, celui-ci ÉTEIGNAIT une défense entière — la
+  // quatrième de celles que l'en-tête énumère comme façons de résister au désarmement.
   const sansEntree = (opts) => [
     ['A', '', construireMotif(opts)],
     ['C', '', construireMotifScrimHorsRole(opts)],
+    ['D', '', construireMotifHexArbitraire(opts)],
   ];
 
   for (const famille of FAMILLES) {
@@ -497,6 +527,13 @@ function ablationDeConfiguration() {
   for (const prefixe of PREFIXES) {
     const sans = sansEntree({ prefixes: PREFIXES.filter((p) => p !== prefixe) });
     if (sondes.every((forme) => vuParUnControle(forme, sans))) orphelines.push(`préfixe « ${prefixe} »`);
+  }
+  // SUFFIXES est la liste la PLUS RÉCENTE — celle qui vient de refermer trois bords — et elle
+  // n'était couverte par aucune boucle. Une liste neuve échappe à l'ablation par défaut : c'est
+  // au moment de l'ajouter qu'il faut l'y inscrire, pas à la passe suivante.
+  for (const suffixe of SUFFIXES) {
+    const sans = sansEntree({ suffixes: SUFFIXES.filter((x) => x !== suffixe) });
+    if (sondes.every((forme) => vuParUnControle(forme, sans))) orphelines.push(`suffixe « ${suffixe} »`);
   }
   // Un CONTRÔLE entier retiré doit lui aussi faire tomber une sonde : sans ça, B ou C
   // pourraient devenir décoratifs sans que rien ne le dise.
