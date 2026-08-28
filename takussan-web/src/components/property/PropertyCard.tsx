@@ -122,7 +122,7 @@ export function PropertyCard({
           )}
 
           {/* Time */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full shadow-sm">
+          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-scrim/50 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full shadow-sm">
             <Clock className="w-2.5 h-2.5 opacity-80" />
             {timeAgo}
           </div>

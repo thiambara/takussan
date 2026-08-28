@@ -1722,8 +1722,20 @@ const ESPACES = [
      * *Un cliquet ne s'arbitre pas entre deux branches, il se re-mesure sur leur fusion.* Choisir
      * le plus bas des deux (32) aurait laissé six unités de mou ; choisir le plus haut (54) en
      * aurait laissé vingt-huit — et aucun des deux ne l'aurait dit.
+     *
+     * ⚠ **26 → 25, le 2026-08-28, et cette descente-là vient d'AILLEURS.** La conversion des
+     * voiles du site public en `bg-scrim/*` a touché `property/PropertyCard.tsx:125`
+     * (`bg-black/50`), l'un des quatre fichiers nommés ci-dessus. Il est monté par `/app` ET par
+     * le site public : un jeton posé pour une surface publique a fait descendre le reste du
+     * tableau de bord, sans qu'aucun ticket de `/app` soit ouvert.
+     *
+     * Isolé par ablation, les cinq conversions remises une à une : seule celle-ci déplace le
+     * chiffre (les quatre autres vivent dans des fichiers que `/app` ne monte pas). *Le reste
+     * d'un espace n'est pas descendu que par les tickets de cet espace* — et c'est le
+     * `resteBilateral` qui l'a rendu visible, en refusant un reste PLUS BAS que son plafond.
+     * Un cliquet unidirectionnel aurait encaissé la baisse en silence et gardé six unités de mou.
      */
-    plafondReste: 26,
+    plafondReste: 25,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     natureDuReste: 'primitives partagées avec le site public',

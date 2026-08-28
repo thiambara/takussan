@@ -633,7 +633,7 @@ export function FilterSidebar({
       {open && (
         <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-scrim/40 backdrop-blur-sm"
             onClick={onClose}
           />
           <div className="relative bg-popover rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">

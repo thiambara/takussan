@@ -92,7 +92,7 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
           >
             <ChevronRight className="size-4" aria-hidden />
           </button>
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs text-white">
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-scrim/60 px-3 py-1 text-xs text-white">
             {selected + 1} / {photos.length}
           </div>
         </>

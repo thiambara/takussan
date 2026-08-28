@@ -35,15 +35,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const locale = isLocale(brut) ? brut : 'fr';
   const resultat = await getProperty(slug, locale);
 
-  // ⚠️ **`notFound()` est appelé ICI, et pas seulement dans la page — c'est ce qui décide du
-  // CODE HTTP.** Mesuré le 2026-08-21 sur `next start` ET sur `next dev` : avec l'appel dans le
-  // seul corps de la page, un slug inexistant rendait le bon écran… en **HTTP 200**. La racine du
-  // layout (`await cookies()`) se résout avant `getProperty()` (un aller-retour HTTP vers l'API),
-  // Next valide alors le statut de la réponse, et le `notFound()` de la page arrive trop tard.
-  // `generateMetadata`, lui, est attendu AVANT que la coque ne parte.
-  //
-  // Ablation faite : sans cette ligne, `curl -o /dev/null -w '%{http_code}'` rend **200** ; avec,
-  // **404**. Le `notFound()` du corps de page reste — il porte le rendu, celui-ci porte le statut.
+  // ⚠️ **Cet appel ne porte AUCUN code HTTP** — c'est le `notFound()` du CORPS DE PAGE qui le
+  // porte. La mesure de TCK-335 (2026-08-21) portait sur une sonde qui appelait `notFound()`
+  // AUX DEUX endroits : elle n'avait jamais séparé leurs effets. Désagrégé le 2026-08-28 —
+  //     generateMetadata seul → 200  |  corps seul → 404  |  les deux → 404
+  // Ce que le corps produit ne survit qu'en l'absence de TOUTE frontière de suspension au-dessus
+  // de lui ; c'est `[locale]/(public)/__tests__/pas-de-frontiere-de-suspension.test.ts` qui le
+  // verrouille. Cette ligne reste parce qu'elle est PORTEUSE POUR LES TYPES : `notFound()` rend
+  // `never` et retire `introuvable` de l'union avant la lecture de `resultat.bien`.
   if (resultat.etat === 'introuvable') notFound();
 
   if (resultat.etat === 'indisponible') {

@@ -37,15 +37,32 @@
  *          servi pour approcher Lin à la main. Le convertir demande le même travail que
  *          celui-ci, sur un volume deux fois plus grand ; l'inclure ici aurait fait naître la
  *          garde à 260 exceptions, c'est-à-dire pas de garde du tout.
- *     T2 · les couleurs NOMMÉES ........................................... 54 occurrences
- *          `bg-white` 36 · `text-white` 14 · `bg-black` 4. Celles de la navbar et du pied de page
- *          SONT converties par TCK-440 ; les autres restent.
+ *     T2 · les couleurs NOMMÉES ........................................... 50 occurrences
+ *          `bg-white` 36 · `text-white` 14. Celles de la navbar et du pied de page SONT
+ *          converties par TCK-440 ; les autres restent, et resteront : le blanc sur photo est un
+ *          absolu légitime, et les refuser ferait naître 50 exceptions — c'est-à-dire pas de garde.
  *
- *          ⚠ **Les quatre `bg-black/*` sont des VOILES, et leur conversion est DIFFÉRÉE.** Le
- *          jeton de voile `--scrim` vit sur `feat/lot-g3-design` et pas ici. La conversion a été
- *          écrite, mesurée par compilation, puis ANNULÉE : une classe dont le jeton n'est pas
- *          déclaré n'émet aucune règle et rend le voile TRANSPARENT. Une branche doit être
- *          cohérente seule. Les sites sont dans le rapport d'intégration.
+ *          ⚠ **Le noir, lui, n'est plus dans ce trou : il est passé sous le contrôle B.** Les
+ *          cinq voiles du périmètre sont convertis en `bg-scrim/*` à l'intégration du lot
+ *          (2026-08-28), `--scrim` est déclaré, et B refuse désormais le noir nu. Le compte de ce
+ *          trou baisse donc de 4 par transfert, pas par correction cosmétique.
+ *
+ *          ⚠⚠ **CE QUI RESTE EN NOIR NU HORS PÉRIMÈTRE — dérivé, pas énuméré.** La question
+ *          « qu'est-ce qui échappe encore ? » ne se répond pas depuis un rapport d'agent : elle se
+ *          prend sur l'arbre, en retirant les six répertoires gardés de {@link PERIMETRES}.
+ *          Relevé du 2026-08-28 sur tout `src/`, tests et markdown exclus — **deux sites** :
+ *
+ *              app/(auth)/layout.tsx:66            to-black/60   (dégradé décoratif d'un écran
+ *                                                                 d'authentification, hors surface
+ *                                                                 publique indexée)
+ *              components/chat-widget/ChatWidget.tsx:136  ring-black/5  (un anneau, pas un voile :
+ *                                                                 `--scrim` ne lui conviendrait pas,
+ *                                                                 et le contrôle C le refuserait)
+ *
+ *          Un rapport d'intégration en annonçait TROIS de plus — `ui/sheet.tsx`, `ui/dialog.tsx`,
+ *          `shared/LanguageSwitcher.tsx`. **Ils n'en portent plus aucun** : TCK-384 les a convertis
+ *          entre-temps, et la note n'avait pas suivi. *Une liste de sites périme entre le moment où
+ *          on l'écrit et celui où on l'applique ; la commande, non.*
  *     T3 · les VALEURS ARBITRAIRES par indirection .......................  8 occurrences
  *          `bg-[var(--pg-*)]` et `text-[var(--pg-*)]`, toutes dans `/playground`, plus les 70
  *          hexadécimaux de son `playground.css` — fichier que cette garde LIT sans rien y voir,
@@ -253,14 +270,22 @@ const FAMILLES = ['slate', 'gray', 'zinc', 'neutral'];
  *       *« Zéro valeur hex arbitraire dans le code. »* Une garde qui cite une règle sans
  *       l'appliquer est pire qu'une garde absente : elle fait croire que la règle est tenue.
  *
- * ⚠ **Il n'y a PAS de contrôle B, et c'est une décision, pas un oubli.** Il refusait le noir nu
- * (`bg-black/40`), parce qu'un voile s'écrit avec le jeton `--scrim`. Il a été écrit, éprouvé par
- * mutation, puis RETIRÉ en même temps que la conversion des quatre voiles était annulée : ce jeton
- * vit sur une autre branche, et une garde ne peut pas refuser ce que sa propre branche doit encore
- * écrire. Les formes d'épreuve correspondantes sont restées dans {@link EPREUVE}, du côté « non
- * vues » : les rebasculer à `true` est le diff qui rendra le changement d'avis visible au moment
- * de l'intégration. La lettre B n'est pas réattribuée, pour que les deux moitiés de cette
- * histoire portent le même nom.
+ *   B · LE NOIR NU — `bg-black/40`. **Rétabli à l'intégration, le 2026-08-28**, et son
+ *       aller-retour est le seul commentaire utile qu'on puisse écrire sur lui.
+ *
+ *       Il avait été écrit, éprouvé par mutation, puis RETIRÉ sur `feat/lot-g6-chrome` en même
+ *       temps que la conversion des voiles : `--scrim` vivait sur `feat/lot-g3-design`, et une
+ *       classe dont le jeton n'est pas déclaré n'émet aucune règle — le voile serait devenu
+ *       TRANSPARENT. *Une garde ne peut pas refuser ce que sa propre branche doit encore écrire ;
+ *       une branche doit être cohérente seule.* Les deux branches sont désormais fusionnées,
+ *       `--scrim` est déclaré (`globals.css:158`), et le contrôle retrouve sa condition.
+ *
+ *       ⚠ Il ne refuse QUE le noir. `bg-white` (36) et `text-white` (14) restent tolérés — trou
+ *       T2 en tête de fichier — parce que le blanc sur photo est un absolu légitime et que les
+ *       refuser ferait naître 50 exceptions, c'est-à-dire pas de garde. Le noir n'a pas cette
+ *       excuse : il a un jeton, et depuis l'intégration **zéro occurrence vivante** dans le
+ *       périmètre (mesuré, tous préfixes et tous côtés). Fermeture gratuite — le seul moment
+ *       où elle l'est.
  */
 /**
  * A — l'échelle neutre brute.
@@ -282,6 +307,25 @@ function construireMotif({ prefixes = PREFIXES, familles = FAMILLES, suffixes = 
 }
 
 /**
+ * B — le NOIR NU, tous préfixes et tous côtés.
+ *
+ * Le miroir exact du contrôle C : C refuse le jeton hors de son rôle, B refuse le rôle sans son
+ * jeton. Les deux gardent la même phrase — *un voile s'écrit `bg-scrim/<alpha>`* — par ses deux
+ * bords, et aucun des deux ne suffit seul.
+ *
+ * ⚠ Le `\b` final est ce qui sépare `bg-black` de `bg-blackboard` : après `black` vient `b`,
+ * donc pas de frontière, donc pas de correspondance. Les deux formes sont dans {@link EPREUVE}
+ * du côté « non vues », et elles y étaient AVANT ce contrôle — c'est ce qui rend leur maintien
+ * probant plutôt que rassurant.
+ */
+function construireMotifNoirNu({ prefixes = PREFIXES, suffixes = SUFFIXES } = {}) {
+  return new RegExp(
+    `\\b(?:${prefixes.join('|')})(?:-(?:${suffixes.join('|')}))?-black(?:\\/[0-9]{1,3})?\\b`,
+    'g',
+  );
+}
+
+/**
  * C — `scrim` partout SAUF derrière `bg-`. Le préfixe est capturé pour le message d'échec.
  *
  * ⚠⚠ **{@link SUFFIXES} est arrivé ici en TROISIÈME**, après le contrôle A (passe 3) et le
@@ -293,8 +337,23 @@ function construireMotif({ prefixes = PREFIXES, familles = FAMILLES, suffixes = 
  * où il arrive. `border-t-scrim` compilera alors exactement comme `text-scrim`, que ce même
  * fichier décrit déjà comme « compile parfaitement et ne veut rien dire ».
  */
+/**
+ * Les préfixes qui produisent un FOND — c'est-à-dire le rôle légitime de `--scrim`.
+ *
+ * ⚠⚠ **Cet ensemble valait `['bg']` jusqu'au 2026-08-28, et le contrôle C a rougi sur la première
+ * conversion réelle qu'on lui a soumise** : `to-scrim/80`, le dégradé qui assombrit la photo de
+ * `PropertyCardCover`. Un point de dégradé alimente `background-image` — c'est un fond, au même
+ * titre que `bg-`, et le refuser demandait d'écrire le voile en noir nu, que le contrôle B refuse.
+ * Les deux contrôles se contredisaient sur le seul site qui les exerçait tous les deux.
+ *
+ * *Le contrôle C énumérait le vocabulaire du fond au lieu de le dériver du rendu* — exactement le
+ * défaut que ce fichier attrape ailleurs, ici dans le fichier qui l'attrape. `divide`, `outline`,
+ * `ring`, `shadow`, `text` et les autres restent refusés : aucun ne peint un fond.
+ */
+const PREFIXES_DE_FOND = ['bg', 'from', 'via', 'to'];
+
 function construireMotifScrimHorsRole({ prefixes = PREFIXES, suffixes = SUFFIXES } = {}) {
-  const horsBg = prefixes.filter((p) => p !== 'bg');
+  const horsBg = prefixes.filter((p) => !PREFIXES_DE_FOND.includes(p));
   return new RegExp(
     `\\b(?:${horsBg.join('|')})(?:-(?:${suffixes.join('|')}))?-scrim(?:\\/[0-9]{1,3})?\\b`,
     'g',
@@ -328,6 +387,7 @@ function construireMotifHexArbitraire({ prefixes = PREFIXES, suffixes = SUFFIXES
 
 const CONTROLES = [
   ['A', 'échelle neutre brute', construireMotif()],
+  ['B', 'noir nu — un voile s\'écrit avec le jeton `--scrim`', construireMotifNoirNu()],
   ['C', 'jeton de voile hors de son rôle (--scrim est un FOND)', construireMotifScrimHorsRole()],
   ['D', 'couleur hexadécimale écrite à la main', construireMotifHexArbitraire()],
 ];
@@ -417,6 +477,11 @@ const EPREUVE = [
   ['bg-scrim/40', false],
   ['bg-scrim/90', false],
   ['hover:bg-scrim/60', false],
+  // Les POINTS DE DÉGRADÉ — un fond, eux aussi. Absents jusqu'au 2026-08-28, et c'est leur
+  // absence qui laissait `PREFIXES_DE_FOND` valoir `['bg']` sans que rien le dise.
+  ['to-scrim/80', false],
+  ['from-scrim', false],
+  ['via-scrim/40', false],
   ['text-muted-foreground', false],
   ['text-muted-foreground/60', false],
   ['bg-card', false],
@@ -443,13 +508,20 @@ const EPREUVE = [
   ['text-amber-400', false],
   ['text-white', false],
   ['bg-white', false],
-  // ⚠ Le NOIR NU est délibérément TOLÉRÉ sur cette branche — cf. le trou T2 en tête de fichier.
-  // Ces formes sont ici pour que le jour où le contrôle correspondant naîtra, il soit
-  // impossible de le faire naître sans basculer ces lignes : une garde qui change d'avis doit
-  // le faire par un diff visible.
-  ['bg-black', false],
-  ['bg-black/40', false],
-  ['text-black', false],
+  // ── B · VUES : le noir nu ────────────────────────────────────────────────────────────────
+  //
+  // ⚠ Ces trois lignes portaient `false` jusqu'au 2026-08-28, sous un commentaire annonçant que
+  // le jour où le contrôle naîtrait, il serait « impossible de le faire naître sans basculer ces
+  // lignes ». C'est ce diff-là. *Une garde qui change d'avis le fait par un diff visible* — la
+  // promesse a été tenue par le fichier contre lui-même.
+  ['bg-black', true],
+  ['bg-black/40', true],
+  ['text-black', true],
+  // Les côtés, exercés dès la naissance du contrôle plutôt qu'au troisième voisin manqué.
+  ['border-t-black', true],
+  ['ring-offset-black', true],
+  ['hover:bg-black/60', true],
+  ['to-black/80', true],
   // ── D · NON VUES : les arbitraires qui ne sont PAS des couleurs écrites à la main ────────
   //
   // Une INDIRECTION vers une variable n'est pas une couleur décidée dans le JSX : les huit qui

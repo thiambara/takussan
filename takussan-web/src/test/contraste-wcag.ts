@@ -67,6 +67,17 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
   'sidebar-accent': '#f1ece0',
   white: '#ffffff',
   black: '#000000',
+  /*
+   * Le VOILE. Même valeur que `black`, et ce n'est pas une redondance : `black` est la couleur
+   * nommée de Tailwind, `scrim` est le jeton `--scrim` de `globals.css` (TCK-384). Les mesurer
+   * séparément est ce qui permet à la garde de chrome de refuser l'une et d'admettre l'autre.
+   *
+   * ⚠ Il est le SEUL jeton dont l'héritage par `...JETONS_CLAIR` soit légitime — le piège que
+   * décrit l'en-tête de {@link JETONS_SOMBRE} porte sur les jetons QUE `.dark` REDÉFINIT. Vérifié :
+   * `grep -c -- '--scrim:' globals.css` → **1**, ligne 158, dans `:root`, jamais sous `.dark`.
+   * Un voile qui s'éclaircirait en thème sombre cesserait d'être un voile.
+   */
+  scrim: '#000000',
   transparent: 'transparent',
 };
 

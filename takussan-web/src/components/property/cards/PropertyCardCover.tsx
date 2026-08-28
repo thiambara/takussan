@@ -42,7 +42,7 @@ export function PropertyCardCover({
           />
 
           {/* Gradient bas pour lisibilité du texte. */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-45% to-foreground/80" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-45% to-scrim/80" />
 
           {property.contract_type && (
             <ContractTypeChip
