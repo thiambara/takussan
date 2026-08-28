@@ -89,7 +89,7 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
  * ci-dessous : la DÉRIVER**, parce que la première correction de cette erreur en avait énuméré
  * DEUX et qu'il y en a TROIS —
  *
- *     grep -rnE "(['\"`]|[[:space:]])dark([[:space:]]|['\"`])" takussan-web/src --include='*.tsx'
+ *     grep -rnE "(^|['\"`]|[[:space:]])dark([[:space:]]|['\"`]|$)" takussan-web/src --include='*.tsx'
  *
  * ⚠⚠ **La première version de cette commande faisait 3 SUR 7, et rendait pourtant le bon compte.**
  * Elle exigeait un guillemet immédiatement avant `dark`, alors que dans une liste de classes le
@@ -97,8 +97,13 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
  * gabarit au milieu. Elle donnait trois parce que les trois posages réels écrivent `dark` en
  * premier — *coïncidence, pas propriété.* **Une commande qui rend le bon nombre sur les cas
  * existants n'est pas une dérivation, c'est une énumération déguisée** : exactement ce qu'elle
- * était censée remplacer. La forme ci-dessus fait 6 sur 7 pour une ligne de bruit en plus (20 au
- * lieu de 19 sur ce dépôt).
+ * était censée remplacer. La forme ci-dessus fait **7 sur 7**, pour **zéro ligne de bruit en plus**
+ * (22 dans les deux cas sur ce dépôt).
+ *
+ * ⚠ Les ancres `^` et `$` ne sont pas décoratives : `grep` est orienté LIGNE, et un gabarit
+ * multiligne peut mettre `dark` seule sur sa ligne. Sans elles, la version « 6 sur 7 » exigeait
+ * un caractère APRÈS `dark` sur la même ligne et ratait ce cas-là — un huitième bord, trouvé
+ * une passe après les sept autres.
  *
  * ⚠ **Le septième cas est hors de portée de TOUT grep** : `clsx({ dark: x })` écrit la classe en
  * clé d'objet, et `dark:` est par ailleurs le préfixe de la variante Tailwind — aucun motif

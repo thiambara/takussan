@@ -41,12 +41,13 @@
  * bon compte.** Elle exigeait un guillemet juste avant `dark`, alors que le séparateur d'une liste
  * de classes est une ESPACE ; elle donnait trois parce que les trois posages réels écrivent `dark`
  * en premier. *Une commande qui rend le bon nombre sur les cas existants n'est pas une dérivation,
- * c'est une énumération déguisée.* Corrigée ci-dessous (6 sur 7). Le septième — `clsx({ dark: x })`
- * — est hors de portée de tout grep, `dark:` étant aussi le préfixe de la variante.
+ * c'est une énumération déguisée.* Corrigée ci-dessous (7 sur 7 après ancrage : `grep` est orienté ligne, et un
+ * gabarit multiligne peut mettre `dark` seule sur la sienne). `clsx({ dark: x })` reste hors de
+ * portée de tout grep, `dark:` étant aussi le préfixe de la variante.
  *
  * Ne pas recopier la liste : la dériver —
  *
- *     grep -rnE "(['\"`]|[[:space:]])dark([[:space:]]|['\"`])" takussan-web/src --include='*.tsx'
+ *     grep -rnE "(^|['\"`]|[[:space:]])dark([[:space:]]|['\"`]|$)" takussan-web/src --include='*.tsx'
  *
  * Le détail et la leçon de forme sont dans `src/test/contraste-wcag.ts`.
  *

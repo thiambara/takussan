@@ -169,6 +169,22 @@ Deux choses à trancher, et elles sont indépendantes :
 
       Pour cette pastille, le balayage confirme l'extrémité blanche (minimum en 255, à 4,22:1) :
       le chiffre du § Contexte tient.
+
+      ⚠ **256 GRIS SUFFISENT — ne pas « améliorer » en balayant les 16,7 millions de couleurs.**
+      C'est contre-intuitif, donc c'est écrit ici comme justification : le contraste ne dépend que
+      de la LUMINANCE, la plaque est affine en le pixel, et l'ensemble des luminances atteignables
+      sur le cube 256³ est exactement celui que la droite des gris parcourt. La 3-D n'ouvre aucune
+      luminance nouvelle. Mesuré sur quatre couples, dont deux construits pour la mettre en
+      défaut :
+
+          pastille réelle ............... gris 4,2230 · 3D 4,2230 · écart 0,0000
+          croisement décalé ............. gris 1,0000 · 3D 1,0000 · écart 0,0000
+          croisement, encre colorée ..... gris 1,0002 · 3D 1,0000 · écart 0,0002
+          encre médiane, alpha faible ... gris 1,0010 · 3D 1,0000 · écart 0,0010
+
+      Le pire écart construit vaut 0,0010, et il se produit au croisement — là où 1,0000 et 1,0010
+      sont mauvais de la même façon. *Sans cette note, quelqu'un remplacera 256 évaluations par
+      16,7 millions pour gagner un millième de rapport sur un couple déjà refusé.*
 - [ ] AC5 — le seuil appliqué distingue le texte (4,5:1) du non textuel (3:1), et le test dit
       lequel il applique à chaque couple. `--accent` sur `--card` à 4,48:1 sur une icône
       `aria-hidden` reste conforme et doit rester vert : un test qui le ferait rougir serait faux

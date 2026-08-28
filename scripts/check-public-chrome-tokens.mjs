@@ -98,7 +98,17 @@
  *          Elle cherche un MOTIF DE TEXTE dans un fichier, pas une classe dans un attribut. Tout
  *          ce qui contient la forme d'une classe la fait rougir, mesuré par la revue adverse :
  *          un chemin d'actif (`/images/bg-gray-200.png`), un `data-testid`, un `aria-label`, une
- *          propriété CSS personnalisée (`--text-gray-400`, et les `.css` SONT lus), une URL.
+ *          propriété CSS personnalisée (`--text-gray-400`), un chemin d'import, un attribut `alt`,
+ *          une URL.
+ *
+ *          ⚠ **Le cas le plus aigu est le SÉLECTEUR CSS écrit à la main** (`.bg-gray-100 { }`) :
+ *          les `.css` sont lus, `playground.css` est dans le périmètre, et un fichier CSS est
+ *          FAIT pour écrire des sélecteurs. C'est le seul endroit où le faux positif est la forme
+ *          normale d'écriture du fichier.
+ *
+ *          ⚠ `EXTENSIONS` inclut aussi `md` et `mdx` : un document posé dans le périmètre serait
+ *          lu comme du code. Il n'y en a aucun aujourd'hui (vérifié), et ce n'était écrit nulle
+ *          part.
  *
  *          ⚠ **C'est la catégorie que la doctrine de ce fichier dit la plus coûteuse** — un faux
  *          positif coûte PLUS qu'un trou, parce qu'il rougit sur du code juste et apprend à
@@ -260,10 +270,24 @@ function construireMotif({ prefixes = PREFIXES, familles = FAMILLES } = {}) {
   );
 }
 
-/** C — `scrim` partout SAUF derrière `bg-`. Le préfixe est capturé pour le message d'échec. */
+/**
+ * C — `scrim` partout SAUF derrière `bg-`. Le préfixe est capturé pour le message d'échec.
+ *
+ * ⚠⚠ **{@link SUFFIXES} est arrivé ici en TROISIÈME**, après le contrôle A (passe 3) et le
+ * contrôle D (passe 4). `border-t-scrim` et `ring-offset-scrim` traversaient — mesuré. *Le même
+ * correctif a manqué trois voisins successifs, et chaque fois le diff avait l'air complet.*
+ *
+ * Ce n'est pas émis aujourd'hui (`--scrim` vit sur une autre branche), et c'est précisément
+ * pourquoi il fallait le fermer AVANT : ce contrôle existe pour garder le RÔLE du jeton le jour
+ * où il arrive. `border-t-scrim` compilera alors exactement comme `text-scrim`, que ce même
+ * fichier décrit déjà comme « compile parfaitement et ne veut rien dire ».
+ */
 function construireMotifScrimHorsRole({ prefixes = PREFIXES } = {}) {
   const horsBg = prefixes.filter((p) => p !== 'bg');
-  return new RegExp(`\\b(?:${horsBg.join('|')})-scrim(?:\\/[0-9]{1,3})?\\b`, 'g');
+  return new RegExp(
+    `\\b(?:${horsBg.join('|')})(?:-(?:${SUFFIXES.join('|')}))?-scrim(?:\\/[0-9]{1,3})?\\b`,
+    'g',
+  );
 }
 
 /**
@@ -359,6 +383,11 @@ const EPREUVE = [
   ['ring-scrim/20', true],
   ['border-scrim', true],
   ['hover:text-scrim/50', true],
+  // Le groupe SUFFIXES sur le contrôle C — sans ces formes, l'ablation de configuration ne
+  // l'exercerait que sur A et D, et il resterait décoratif pour C sans que personne le sache.
+  ['border-t-scrim', true],
+  ['ring-offset-scrim', true],
+  ['divide-x-scrim/40', true],
 
   // ── NON VUES : le vocabulaire légitime ──────────────────────────────────────────────────
   //
@@ -586,6 +615,12 @@ function main() {
 
     Non fermé à dessein : une ombre a besoin d'un jeton qui ne s'inverse pas,
     comme un voile — cf. le trou T5 en tête de ce fichier pour l'arbitrage.
+
+    ⚠ ET DANS L'AUTRE SENS — ce qu'il attraperait À TORT : cette garde cherche
+    un motif de TEXTE, pas une classe dans un attribut de classe. Un sélecteur
+    CSS écrit à la main, un chemin d'actif, un libellé d'accessibilité ou un
+    texte alternatif la feraient rougir sur du code juste. 0 occurrence
+    aujourd'hui ; trou T6, détaillé en tête de ce fichier.
 
     Un vert ici ne veut donc PAS dire « la chrome publique n'a plus une seule
     couleur brute » : il en reste au moins ces deux-là.
