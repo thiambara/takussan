@@ -317,6 +317,7 @@
     }
   },
   "homepage": {
+    "h1": "Property listings in Senegal",
     "row": {
       "viewAll": "View all",
       "error": "Listings could not be loaded right now.",

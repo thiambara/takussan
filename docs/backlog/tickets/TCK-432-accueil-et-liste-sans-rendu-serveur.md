@@ -1,13 +1,13 @@
 ---
 id: TCK-432
 title: "La page d'accueil et /properties ne rendent aucun bien côté serveur, et ni l'une ni l'autre n'a de `<h1>`"
-status: todo
+status: doing
 phase: P1
 family: front
 estimate: L
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -135,4 +135,58 @@ règle `font-display` des directives.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### La forme retenue
+
+Les deux pages deviennent des composants serveur `async` qui vont chercher la donnée et la
+**sèment** en prop. Les composants d'écran restent `'use client'` — c'est la leçon de TCK-335,
+réécrite dans le docblock de chaque page : *un composant `'use client'` EST rendu en HTML par le
+serveur ; ce qui manquait, c'était la DONNÉE.*
+
+| module neuf | rôle |
+|---|---|
+| `lib/recherche-publique.ts` | **une** définition de la requête `/public/properties/search`, partagée par la page serveur et `useSearch` ; plus `clefDeRecherche`, l'identité triée d'une requête |
+| `lib/rangees-de-l-accueil.ts` | `HOMEPAGE_DISCOVERY_PER_ROW`, en module **neutre** — un module `'use client'` n'expose que des références clients, constantes comprises |
+| `lib/queries/public-discovery.ts` | `decouverteDeLAccueil(locale, nearCity?)`, mémoïsée par `cache()` |
+| `lib/queries/public-search.ts` | `rechercherBiensPublics(requete, locale)`, mémoïsée ; clef `string`, pas `URLSearchParams` (`cache()` mémoïse par identité) |
+| `lib/titre-de-la-liste.ts` | `titreEtDescription`, extraite de `(liste)/page.tsx` : le `<title>` **et** le `<h1>` en dérivent |
+
+### La ville devinée, et pourquoi le serveur ne l'attend pas
+
+Le serveur demande les rangées **sans ville**. Le back-end distingue déjà « on ne sait pas où est le
+visiteur » (`requested_city: null`, `fallback: false`) de « le visiteur est à Dakar » : le HTML
+initial porte donc une rangée honnête. `useHomepageDiscovery` démarre `loading: false` sur la graine
+et **ne relance qu'en présence d'une ville réellement devinée** — sinon l'appel serait identique à
+celui que le serveur vient de faire.
+
+L'invariant d'UN appel de TCK-247 devient : **un** appel (serveur), ou **deux** quand la
+personnalisation a lieu — et le second rapporte une réponse différente.
+
+### La graine porte sa clef
+
+`useSearch({ graine })` ne réutilise le résultat semé que si l'URL décrit **toujours** la même
+requête. Sans clef, un clic sur « Appartement » réafficherait les villas du serveur sous une puce
+« Appartement » : un écran qui ment est pire qu'un écran qui charge. La clef échoue en sûreté — si
+elle ne coïncide pas, le client refait l'appel, comme avant.
+
+### Ce que ce ticket a invalidé ailleurs
+
+`lib/canonique.ts` justifiait le repli de `page`/`sort`/`per_page` par « la liste est rendue côté
+CLIENT, donc la même coque HTML sur `?page=1` et `?page=42` ». **Mesuré le 2026-08-28 :
+`?page=2` rend 30 biens différents, recouvrement 0 avec la page 1.** La prémisse est morte ; la
+décision est **maintenue** sur deux raisons qui ne dépendent d'aucun mode de rendu (le sitemap rend
+la pagination inutile à la découverte ; la découpe est volatile, et `sort`/`per_page` rendent le
+même ensemble réordonné). Le commentaire porte le relevé de sa propre invalidation.
+
+### Un défaut réparé en passant, et un autre laissé ouvert
+
+`titreEtDescription` traduisait `?type=` **pris brut dans l'URL** : `?type=nimportequoi` rendait
+`<title>property.types.nimportequoi — Takussan</title>` (défaut de TCK-433, visible seulement dans
+l'onglet). Le `<h1>` l'aurait affiché en grand : garde-fou `t.has()`, éprouvé par
+`lib/__tests__/titre-de-la-liste.test.ts`.
+
+⚠️ **Reste ouvert, hors périmètre** : `types/search.ts` traduit la même valeur non validée pour la
+puce de filtre (`libelle` de `type` et de `rent_period`). Le `MISSING_MESSAGE` y **lève**, et fait
+échouer le rendu serveur entier de `/properties?type=<inconnu>` — 0 bien, 0 `<h1>`, squelette seul.
+Ni `types/search.ts` ni `SearchToolbar.tsx` ne sont touchés par ce ticket. À router vers un ticket
+propre : la bonne réponse (déposer le filtre ? afficher l'erreur ? libeller la valeur brute ?) est
+une décision de la surface des puces.

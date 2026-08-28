@@ -42,19 +42,38 @@ import {
  * ── LA PAGINATION ET LE TRI SE REPLIENT AUSSI, ET C'EST LE POINT LE PLUS DISCUTABLE ─────────────
  *
  * `page`, `sort`, `per_page` sont écartés : `?page=3` est canonique vers la page 1 du même jeu de
- * filtres. C'est contraire au réflexe habituel (une page de pagination est canonique d'elle-même),
- * et la raison est mesurée, pas doctrinale :
+ * filtres. C'est contraire au réflexe habituel (une page de pagination est canonique d'elle-même).
  *
- * · **la liste est rendue côté CLIENT** — `PropertiesDiscoveryPage` lit `useSearchParams` — donc
- *   un explorateur reçoit la MÊME coque HTML sur `?page=1` et sur `?page=42`. Les déclarer
- *   distinctes serait affirmer une différence que le document servi ne porte pas
- *   ([TCK-432](../../../docs/backlog/tickets/TCK-432-accueil-et-liste-sans-rendu-serveur.md)) ;
+ * ⚠️ **CETTE DÉCISION A ÉTÉ REPRISE PAR TCK-432, ET L'UNE DE SES DEUX RAISONS EST MORTE.**
+ * Le paragraphe qui précédait invoquait d'abord ceci :
+ *
+ * > *la liste est rendue côté CLIENT — `PropertiesDiscoveryPage` lit `useSearchParams` — donc un
+ * > explorateur reçoit la MÊME coque HTML sur `?page=1` et sur `?page=42`.*
+ *
+ * **C'était vrai le 2026-08-27 et c'est FAUX depuis TCK-432** : la page est un composant serveur
+ * qui exécute la recherche avec les filtres de l'URL, `page` compris, et `?page=42` rend
+ * aujourd'hui quarante-deux biens différents dans le HTML servi (mesuré, cf. le docblock de
+ * `(liste)/page.tsx`). *Un commentaire qui affirme encore la mesure que le commit d'à côté vient
+ * d'invalider est pire qu'un commentaire absent : on ne s'en méfie pas.*
+ *
+ * La décision est **maintenue**, sur deux raisons qui ne dépendent d'aucun mode de rendu :
+ *
  * · **aucune fiche n'en dépend pour être découverte** : depuis TCK-431, `/sitemap.xml` liste
  *   chaque fiche publiée, dans les trois langues. L'argument habituel contre le repli — « les
- *   biens des pages profondes deviennent introuvables » — ne tient pas ici.
+ *   biens des pages profondes deviennent introuvables » — ne tient pas ici. C'est la seule des
+ *   deux raisons d'origine qui survive, et elle était déjà la plus forte ;
+ * · **la découpe est VOLATILE, et c'est ce que le rendu serveur rend visible plutôt qu'il ne
+ *   l'introduit** : une publication décale toutes les bornes. Une URL `?page=3` indexée ne
+ *   désigne donc pas un contenu, elle désigne un rang — le troisième wagon d'un train dont les
+ *   wagons changent. Déclarer canonique une page dont le contenu se renouvelle sans que l'URL
+ *   bouge, c'est indexer une adresse et servir autre chose. `sort` et `per_page` sont plus
+ *   simples encore : à filtres égaux ils rendent le MÊME ensemble de biens, réordonné ou
+ *   redécoupé. C'est la définition du contenu dupliqué, et elle n'a jamais rien eu à voir avec
+ *   l'endroit où le HTML est fabriqué.
  *
- * ⚠ **Le jour où TCK-432 rendra la liste côté serveur, cette décision doit être reprise** : la
- * première de ses deux raisons tombera.
+ * ⚠ Ce qui rouvrirait la question : des **pages de facettes paginées** délibérément indexables
+ * (« villas à Dakar, page 2 »), c'est-à-dire une surface produit qui n'existe pas — elle est
+ * explicitement hors périmètre, cf. AC5 plus bas. Le point de reprise est ce paragraphe.
  *
  * ── COHÉRENCE AVEC LE SITEMAP (AC5) ─────────────────────────────────────────────────────────────
  *
