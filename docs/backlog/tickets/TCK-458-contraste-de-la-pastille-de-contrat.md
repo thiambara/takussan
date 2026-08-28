@@ -57,6 +57,11 @@ dans un seul couple de jetons.**
 >     gris moyen ......... 5,07:1        pixel BLANC ........ 4,22:1   ← le plancher
 >
 > Vérifié par balayage exhaustif de 18³ pixels : le minimum tombe exactement sur (255,255,255).
+>
+> ⚠ Un relevé indépendant donne **4,20:1** au lieu de 4,22 : l'écart vient de l'ARRONDI ENTIER de
+> la plaque composée (109,2 / 124,5 / 96,6 → 109 / 125 / 97), et de rien d'autre — vérifié. Les
+> deux chiffres sont justes sous leur convention ; celui-ci ne quantifie pas. La conclusion est la
+> même à 0,02 près, et **très loin du seuil dans les deux cas**.
 > **Et 4,22:1 est le chiffre déjà mesuré sur `--card`, parce que `--card` EST #ffffff.** Le
 > tableau ci-dessus n'était donc pas une hypothèse optimiste à dépasser : il contenait déjà le
 > pire cas.
@@ -135,8 +140,11 @@ Deux choses à trancher, et elles sont indépendantes :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — la variante *location* atteint 4,5:1 sur `--card` ET sur `--background`, dans les deux
-      thèmes. Les quatre ratios sont consignés.
+- [ ] AC1 — la variante *location* atteint 4,5:1 **sur son pire fond, qui est le pixel blanc**
+      (démonstration en § Contexte), donc a fortiori sur `--card` et `--background`, dans les deux
+      thèmes. Les ratios sont consignés. ⚠ Mesurer sur `--card` SUFFIT ici — `--card` vaut #ffffff,
+      qui EST le pire fond — mais ce n'est vrai que parce que l'encre est claire ; l'écrire évite
+      qu'on généralise la commodité en règle.
 - [ ] AC2 — **le test de contraste couvre toute la surface publique, et son périmètre est dérivé**
       (parcours du système de fichiers ou de la clôture d'import), pas une liste de composants.
       Un composant neuf y entre sans que personne l'y déclare — c'est l'AC central du ticket.
