@@ -595,10 +595,42 @@ function construireControles({
     // justifiait l'exemption par « une lecture de jeton » — *une forme qui lit puis jette n'en
     // est pas une*, c'est une couleur décidée hors de `globals.css`, déguisée en lecture.
     //
-    // Le partage est la présence d'une LETTRE dans les canaux : une relative qui garde le jeton
-    // nomme ses composantes (`r g b`, `l c h`, `alpha`), éventuellement dans un `calc()` ; une
-    // qui le jette n'écrit que des nombres. La classe `[-0-9.%/\s_]` ne contient aucune lettre,
-    // et c'est tout le contrôle.
+    // ⚠⚠ LE PARTAGE N'EST PAS « il y a une lettre », ET CE FICHIER L'A ÉCRIT PENDANT UNE PASSE.
+    // C'est **« aucun canal ne NOMME une composante de l'origine »** — une NÉGATION, pas une
+    // présence. La différence n'est pas théorique : neuf formes qui JETTENT le jeton contiennent
+    // une lettre qui ne nomme rien, et passaient toutes —
+    //
+    //   un espace colorimétrique  `color(from var(--x) srgb 1 0 0)`, `display-p3`
+    //                             ⚠ toute la famille `color(from …)` était hors d'atteinte PAR
+    //                               CONSTRUCTION : elle porte toujours un espace.
+    //   une unité                 `hsl(from var(--x) 120deg 50% 50%)`
+    //   un mot-clé                `rgb(from var(--x) 255 none none)`
+    //   une notation scientifique `rgb(from var(--x) 2.55e2 0 0)`
+    //   un `calc()` de constantes `rgb(from var(--x) calc(255) 0 0)`
+    //
+    // Le dernier est le plus instructif : **la version précédente de ce commentaire citait
+    // `calc()` comme le SIGNE qu'on garde le jeton.** `calc(l * 0.8)` le garde, `calc(255)` le
+    // jette — la même fonction des deux côtés du partage. *Un critère qui porte sur la FORME de
+    // l'expression ne peut pas trancher ce qui dépend de ce qu'elle NOMME.*
+    //
+    // D'où le regard avant NÉGATIF : la branche ne tire que si, dans les canaux, aucune
+    // composante d'origine n'apparaît isolément. Les deux gardes de mot neutralisent les lettres
+    // parasites — dans `srgb` le `r` est précédé d'un `s`, dans `deg` le `g` est précédé d'un
+    // `e`, dans `calc` le `c` est suivi d'un `a`.
+    //
+    // ⚠ DEUX PIÈGES MESURÉS EN ÉPROUVANT LA FORME AVANT DE L'ADOPTER, et sans eux elle est pire
+    // que le trou qu'elle ferme :
+    //
+    //   1. **Le séparateur `[\s_]+` après la source est OBLIGATOIRE.** Sans lui, le moteur
+    //      revient en arrière sur l'alternative `[^\s_)]+`, fait finir la source à `var(--x`,
+    //      et le regard avant ne voit plus qu'un `)` — donc aucune composante, donc il tire.
+    //      Mesuré : la forme sans séparateur refuse **les douze** relatives légitimes. Une garde
+    //      qui refuse la bonne façon de faire est pire qu'une garde qui laisse passer la
+    //      mauvaise, parce qu'elle se fait désarmer.
+    //   2. **Le balayage doit tolérer UN niveau de parenthèses** (`(?:[^()]|\([^()]*\))*`) et
+    //      non s'arrêter au premier `)`. Sinon `rgb(from var(--x) calc(255) g b)` — qui GARDE
+    //      `g` et `b` — est refusée : le balayage s'arrête dans le `calc` et ne voit jamais les
+    //      composantes qui suivent. Trois formes de ce genre sont dans `EPREUVE`.
     //
     // Signalé par la revue adverse de la passe 3 sur deux formes ; six mesurées ici — les quatre
     // familles de fonction, plus les syntaxes de propriété arbitraire et d'attribut, qui partagent
@@ -609,7 +641,9 @@ function construireControles({
     // fonction. C'est de la défense en profondeur réelle, et elle explique pourquoi la porte était
     // étroite — il fallait un `var()` en source ET des canaux littéraux.
     '(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\([\\s_]*from[\\s_]+'
-      + '(?:var\\([^)]*\\)|[^\\s_)]+)[\\s_]+[-0-9.%/\\s_]+\\)',
+      + '(?:var\\([^)]*\\)|[^\\s_)]+)[\\s_]+'
+      + '(?!(?:[^()]|\\([^()]*\\))*(?<![a-zA-Z])(?:alpha|[rgbhswlcxyz])(?![a-zA-Z]))'
+      + '(?:[^()]|\\([^()]*\\))*\\)',
     `(?<![a-zA-Z0-9-])(?:${couleurs.join('|')})(?![a-zA-Z0-9-])`,
   ];
   /*
@@ -1020,6 +1054,39 @@ const EPREUVE = [
   // l'exemption n'a jamais porté que sur le nom de fonction. Défense en profondeur, figée ici.
   ['bg-[rgb(from_#a85332_r_g_b)]', true], ['bg-[rgb(from_rebeccapurple_r_g_b)]', true],
   ['bg-[rgb(fromage_1_2_3)]', true],
+
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // R · LES LETTRES QUI NE NOMMENT RIEN — la correction du partage, passe 4.
+  //
+  // ⚠ Le bloc P ci-dessus a été posé avec un critère FAUX : « une lettre dans les canaux ». Ces
+  // neuf formes JETTENT le jeton et contiennent une lettre — elles passaient toutes. La famille
+  // `color(from …)` était hors d'atteinte PAR CONSTRUCTION : elle porte toujours un espace
+  // colorimétrique, donc toujours une lettre.
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  ['bg-[color(from_var(--x)_srgb_1_0_0)]', true],              // un espace colorimétrique
+  ['bg-[color(from_var(--x)_display-p3_1_0_0)]', true],
+  ['[color:color(from_var(--x)_display-p3_1_0_0)]', true],
+  ['bg-[hsl(from_var(--x)_120deg_50%_50%)]', true],            // une unité
+  ['fill="hsl(from var(--x) 120deg 50% 50%)"', true],
+  ['bg-[rgb(from_var(--x)_255_none_none)]', true],             // un mot-clé
+  ['bg-[rgb(from_var(--x)_2.55e2_0_0)]', true],                // une notation scientifique
+  ['bg-[rgb(from_var(--x)_calc(255)_0_0)]', true],             // un calc() de CONSTANTES
+  ['bg-[oklch(from_var(--x)_calc(0.5)_0.2_30)]', true],
+  //
+  // …et l'AUTRE CÔTÉ, qui compte autant : `calc(l * 0.8)` GARDE le jeton et doit rester verte
+  // alors que `calc(255)` le jette. La même fonction des deux côtés du partage — c'est ce qui
+  // interdit un critère portant sur la forme de l'expression.
+  ['bg-[color(from_var(--x)_srgb_r_g_b)]', false],
+  ['bg-[hsl(from_var(--x)_h_50%_50%)]', false],
+  ['bg-[rgb(from_var(--x)_r_g_b)]', false],
+  ['bg-[RGB(FROM_var(--x)_r_g_b)]', false],
+  //
+  // ⚠ LES TROIS QUI ONT IMPOSÉ LE BALAYAGE IMBRIQUÉ. Un `calc()` de constantes SUIVI d'une
+  // composante nommée garde le jeton. Un balayage qui s'arrête au premier `)` ne voit jamais ce
+  // qui suit le `calc` et les refuse — trouvées en éprouvant la forme proposée avant de l'adopter.
+  ['bg-[rgb(from_var(--x)_calc(255)_g_b)]', false],
+  ['bg-[oklch(from_var(--x)_calc(0.5)_c_h)]', false],
+  ['bg-[rgb(from_var(--x)_calc(2_*_100)_g_b)]', false],
 
   // ⚠ LES RELATIVES MIXTES — la frontière exacte, trouvée en écrivant le risque résiduel plutôt
   //   qu'en le supposant. Une relative dont UN SEUL canal réfère au jeton le garde, et doit
