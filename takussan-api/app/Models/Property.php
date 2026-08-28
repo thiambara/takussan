@@ -432,6 +432,40 @@ class Property extends AbstractModel implements HasMedia
         return $query->where('status', PropertyStatus::Available);
     }
 
+    /**
+     * Le PORTEFEUILLE PUBLIC d'un profil — TCK-436.
+     *
+     * ────────────────────────────────────────────────────────────────────────────────────────────
+     * POURQUOI IL COMPOSE LES DEUX SCOPES AU LIEU DE RÉÉCRIRE UN PRÉDICAT
+     * ────────────────────────────────────────────────────────────────────────────────────────────
+     *
+     * Trois prédicats « ce bien est public » coexistaient dans ce dépôt le 2026-08-27, et ils ne
+     * désignent pas le même ensemble :
+     *
+     *   1. {@see scopePublic()} — `visibility=public`, `is_test=false`, `published_at` non nul,
+     *      huit statuts exclus. C'est ce que servent `/public/properties` et le sitemap de
+     *      TCK-431. Il ADMET donc `pending` et `published` en plus d'`available`.
+     *   2. `status=available` + `visibility=public`, écrit à la main quatre fois dans
+     *      `PublicAgencyController` et `PublicAgentController` — c'est ce que les fiches
+     *      `/agencies/{slug}` et `/agents/{slug}` AFFICHENT réellement.
+     *   3. {@see isPubliclyVisible()}, un troisième découpage encore, sur l'instance.
+     *
+     * L'index public de TCK-436 doit satisfaire les DEUX premiers à la fois, et l'intersection est
+     * la seule réponse qui ne mente pas :
+     *
+     * · plus étroit que (1) ⇒ tout profil listé a une place légitime au sitemap ;
+     * · plus étroit que (2) ⇒ **un profil listé a un portefeuille non vide sur sa propre fiche.**
+     *   Un index qui annoncerait « 3 biens » et mènerait à une fiche vide est le défaut que ce
+     *   ticket existe pour ne pas produire.
+     *
+     * Elle est COMPOSÉE et non recopiée : le jour où `scopePublic()` change, ce scope suit. Une
+     * quatrième liste de statuts écrite ici serait la divergence de demain.
+     */
+    public function scopePublicPortfolio(Builder $query): Builder
+    {
+        return $query->public()->available();
+    }
+
     public function scopeRoots(Builder $query): Builder
     {
         return $query->whereNull('parent_id');

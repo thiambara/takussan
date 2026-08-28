@@ -1,13 +1,13 @@
 ---
 id: TCK-383
 title: "Scheduler — enregistrer le statut RÉEL et la durée d'une exécution, au lieu d'une constante"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: S
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -84,15 +84,15 @@ et elle n'existera pas en changeant l'API seule** :
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une tâche planifiée qui sort en code non nul est enregistrée avec un statut distinct de
+- [x] AC1 — une tâche planifiée qui sort en code non nul est enregistrée avec un statut distinct de
       celui d'une tâche réussie. **Le test fait échouer une vraie tâche** : asserter sur deux lignes
       insérées à la main cocherait aussi l'implémentation actuelle.
-- [ ] AC2 — `GET /api/admin/scheduler` rend le statut de la DERNIÈRE exécution de chaque tâche. Le
+- [x] AC2 — `GET /api/admin/scheduler` rend le statut de la DERNIÈRE exécution de chaque tâche. Le
       test pose, pour une même tâche, une exécution ancienne `failed` et une récente `finished`, et
       attend `finished` — un test à une seule ligne par tâche ne distinguerait pas un agrégat d'un
       « dernier ».
-- [ ] AC3 — `average_duration_ms` rend une valeur non nulle après une exécution réelle.
-- [ ] AC4 — `./vendor/bin/pint`, les tests touchés, `npm run lint`, `npx tsc --noEmit` passent.
+- [x] AC3 — `average_duration_ms` rend une valeur non nulle après une exécution réelle.
+- [x] AC4 — `./vendor/bin/pint`, les tests touchés, `npm run lint`, `npx tsc --noEmit` passent.
 
 ## Hors périmètre
 
@@ -103,4 +103,138 @@ et elle n'existera pas en changeant l'API seule** :
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail.)_
+**Ce que la re-mesure a contredit — un défaut que le ticket ne connaissait pas.**
+
+Le ticket dit que `AppServiceProvider:413` « n'écoute que `ScheduledTaskFinished` ». C'est vrai de
+cette ligne, et faux de l'application : `Application::configure()` appelle `withEvents()` par défaut
+(Laravel 13.25), donc **tout `app/Listeners` est déjà découvert automatiquement**. Le
+`Event::listen()` explicite en posait donc un SECOND sur le même écouteur. Mesuré le 2026-08-27 sur
+le code de `dev` :
+
+```
+Event::getRawListeners()[ScheduledTaskFinished::class]  →  2
+sonde `schedule:run` sur une tâche unique               →  2 lignes dans scheduled_task_runs
+```
+
+**Chaque exécution planifiée écrivait deux lignes depuis toujours.** `max(last_run_at)` et
+`avg(duration_ms)` n'en souffraient pas — c'est pourquoi ça n'a jamais été vu —, mais tout compte
+d'exécutions l'aurait été du double. Les trois `Event::listen()` sont retirés : la découverte suffit,
+et un enregistrement explicite par-dessus une découverte automatique n'est pas une redondance
+inoffensive.
+
+**Ce que le ticket surestimait.** La branche `exitCode !== 0 → failed` de `RecordScheduledTaskRun`
+est en grande partie REDONDANTE avec le nouvel écouteur de `ScheduledTaskFailed` : le framework lève
+sur un code de sortie non nul, rattrape, et dispatche `ScheduledTaskFailed` juste après. Retirer la
+branche laisse l'ablation verte sur ce cas précis. Elle reste nécessaire pour `exitCode === null`
+(tâche détachée → `running`), et c'est ce cas-là que `test_a_task_with_no_exit_code_yet_is_not_recorded_as_finished`
+garde.
+
+**Déduplication.** Une exécution en échec passe par DEUX événements. `ScheduledRunRecorder` est un
+singleton qui indexe la ligne écrite par `spl_object_id($task)` — le framework passe le même objet
+`Event` aux deux événements du même processus — et met à jour au lieu d'insérer.
+
+**`average_duration_ms` à zéro.** L'écran rendait `—` sur `task.average_duration_ms ? … : '—'` :
+une tâche mesurée à 0 ms se lisait « jamais exécutée ». Passé à `!== null`.
+
+### Amendement après passe adverse (2026-08-27)
+
+**Le docblock de `ScheduledTaskRunStatus::Running` affirmait quelque chose de faux, dans le ticket
+même qui existe pour qu'un statut cesse de mentir.** Il disait que l'issue d'une tâche détachée
+« arrive plus tard, dans un AUTRE processus (`schedule:finish`) », ce qui se lit « le statut se
+répare tout seul ». Re-mesuré :
+
+```
+ScheduleFinishCommand:48                → dispatch(new ScheduledBackgroundTaskFinished($event))
+grep -rn 'ScheduledBackgroundTaskFinished' app/ routes/   → rien
+Event::getListeners(ScheduledBackgroundTaskFinished)      → 0
+tâches planifiées = 22, dont runInBackground = 0
+```
+
+`ScheduledBackgroundTaskFinished` est un événement **différent** de `ScheduledTaskFinished`, et il
+n'a **aucun** écouteur ici. Une ligne posée à `running` reste `running` pour toujours.
+
+**Voie retenue : garder la branche défensive et NOMMER l'impasse** — plutôt que poser l'écouteur
+manquant, qu'aucune des 22 tâches n'atteindrait et dont la correction (retrouver la bonne ligne
+`running` depuis un autre processus, l'identité d'objet ne survivant pas) ne serait vérifiable par
+aucun chemin réel. Écrire du code que rien n'exerce était le plus mauvais des deux.
+
+**Et le commentaire est doublé d'une garde**, parce qu'un commentaire ne garde rien :
+`test_a_background_task_would_leave_its_run_stuck_in_running` lit le planificateur RÉEL et exige un
+écouteur de `ScheduledBackgroundTaskFinished` dès qu'une tâche passe en `runInBackground()`. Vérifié
+par ablation : en ajoutant une tâche détachée à `routes/console.php`, le test rougit en imprimant
+quoi faire.
+
+**Le test de la branche `exitCode === null` dit désormais ce qu'il est** : un test de la branche, pas
+de son déclenchement — aucun chemin réel n'y mène aujourd'hui.
+
+**`test_each_scheduler_event_is_listened_to_exactly_once` est le SEUL test qui attrape le doublon
+d'enregistrement**, mesuré par ablation : la déduplication par `spl_object_id` du recorder absorbe
+le double appel et n'écrit qu'une ligne, donc l'assertion de compte reste verte. C'est écrit dans
+son docblock — le recorder rend le doublon invisible dans les données, ce qui est exactement ce qui
+l'a laissé vivre ailleurs dans le dépôt.
+
+### Second amendement — le compte du doublon, re-mesuré une quatrième fois (2026-08-27)
+
+**Quatre mesures successives de la même chose, toutes fausses dans le même sens : 7, puis 12/13,
+puis 15, puis 20.** La mienne (7) ne regardait que `Event::listen(` dans `AppServiceProvider` et
+comptait « événements ayant plus d'un écouteur ». La deuxième corrigeait la portée mais normalisait
+mal. La troisième — reprise d'une revue — héritait du même angle mort, et je l'ai créditée d'une
+vérification indépendante qu'elle n'était pas.
+
+**La règle exacte, lue dans `DiscoverEvents:86-94` et non déduite :**
+
+```php
+foreach ($listener->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+    if ((! Str::is('handle*', $method->name) && ! Str::is('__invoke', $method->name)) ||
+        ! isset($method->getParameters()[0])) { continue; }
+    $listenerEvents[$listener->name.'@'.$method->name] = …
+```
+
+`handle*`, **pas** `handle`. Donc `handleRequested()`, `handleOrderCreated()`… sont découvertes, et
+l'exclusion que j'avais écrite — « la forme tableau `[Classe::class, 'methode']` n'est pas
+concernée » — **est fausse**. C'est elle qui masquait six paires, dont trois traitements de webhook
+de paiement.
+
+**Le comptage juste se fait sur une identité CANONIQUE `Classe@methode`**, les trois formes
+d'enregistrement désignant le même écouteur : `Classe` nue (résolue vers `handle`, sinon
+`__invoke`), `[Classe::class, 'm']`, et `Classe@m` de la découverte.
+
+| état | paires | dont `App\Listeners` | événements |
+|---|---|---|---|
+| `dev` | **21** | **20** | 20 |
+| cette branche, après TCK-383 | **20** | **19** | 19 |
+
+Les deux lignes sont mesurées, pas déduites : l'état `dev` a été reproduit en remettant le
+`Event::listen` explicite et en retirant les deux écouteurs neufs.
+
+*Une revue qui corrige un chiffre faux par un autre chiffre faux dans le même sens ne se trompe pas
+seulement : elle donne à l'erreur l'autorité d'une vérification indépendante.*
+
+**Deux mesures fausses écrites DANS le code de ce lot, corrigées :** le commentaire
+d'`AppServiceProvider` disait que `getRawListeners()` rendait « 2 pour les trois événements du
+scheduler » — c'était **2 / 0 / 0** (seul `Finished` était écouté, et il l'était deux fois) —, et il
+attribuait la découverte au type de `handle()` au lieu de `handle*`.
+
+### Troisième amendement — la garde acceptait « bonne ligne, mauvais statut » (2026-08-27)
+
+`assertNotSame(Running, …)` répondait à « quelque chose a bougé », pas à « c'est juste ». Un écouteur
+qui retrouve la bonne ligne et y pose `skipped` la satisfaisait. La forme retenue joue les **deux**
+issues — code de sortie 0 puis 1 — et exige le statut que chacune commande.
+
+Quatre formes d'assertion écartées, chacune défaite en ÉCRIVANT l'écouteur qui la satisfait :
+
+| forme | ce qu'un écouteur défaillant y faisait passer |
+|---|---|
+| `assertNotEmpty(getListeners(…))` | un écouteur au corps vide |
+| `assertNotSame(Running, …)` | un statut FAUX sur la bonne ligne (`skipped`) |
+| un seul code de sortie | `finished` écrit EN DUR — le défaut d'origine du ticket, un cran plus loin |
+| **retenue : les deux codes de sortie** | rien : L1 rouge sur 0, L2 rouge sur 1 |
+
+Et la garde n'est pas seulement rouge : l'écouteur CORRECT la rend verte (L3). Il retrouve la
+dernière ligne `running` de la tâche par requête et la ferme sur `exitCode` — c'est-à-dire
+exactement la marche à suivre que le docblock de `ScheduledTaskRunStatus::Running` prescrit, dont
+l'ablation prouve donc au passage qu'elle est implémentable.
+
+*Une garde qui n'accepte aucune implémentation ne garde pas une propriété, elle interdit un
+répertoire.*
+

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { NextIntlClientProvider } from 'next-intl';
@@ -111,6 +113,88 @@ describe('<TenantOnboardingChecklistWidget>', () => {
     expect(screen.getByText("Signer l'état des lieux d'entrée")).toBeInTheDocument();
     expect(screen.getByText('Effectuer votre premier paiement')).toBeInTheDocument();
     expect(screen.getByText('Accuser réception de vos documents')).toBeInTheDocument();
+  });
+
+  it("mene le locataire vers un ecran qui existe pour ses deux etapes cliquables (TCK-419)", async () => {
+    // AC2 — le lien « premier paiement » pointait vers `/app/payments/new?lease_id=…`, une route
+    // sans `page.tsx` : un 404 servi à chaque nouveau locataire. On n'asserte donc PAS une
+    // chaîne — une chaîne fausse serait tout aussi verte. On prend le `href` que le composant
+    // REND, et on le confronte à l'inventaire des `page.tsx` du dépôt.
+    mockAuth();
+    setupFetchMap({
+      '/api/leases': { body: { data: [{ id: 42, reference_number: 'LS-ABC' }] } },
+    });
+    vi.spyOn(Api, 'apiRequest').mockResolvedValue({
+      data: {
+        id: 1,
+        lease_id: 42,
+        user_id: 1,
+        welcome_seen_at: null,
+        inventory_completed_at: null,
+        first_payment_at: null,
+        documents_acknowledged_at: null,
+        completed_at: null,
+        created_at: '2026-05-01T00:00:00Z',
+        updated_at: '2026-05-01T00:00:00Z',
+      },
+    } as never);
+
+    render(withProviders(<TenantOnboardingChecklistWidget />));
+    await screen.findByText(/LS-ABC/);
+
+    const APP = path.resolve(__dirname, '../../../app/(dashboard)/app');
+
+    /**
+     * ⚠ TROIS conventions du routeur, et la troisième a été ajoutée après coup — par le lot qui
+     * l'a rendue nécessaire. Une URL ne se lit pas comme un chemin de disque :
+     *
+     *  · un segment `[id]` accepte n'importe quelle valeur ;
+     *  · un GROUPE de routes `(nom)` est un répertoire réel qui ne consomme AUCUN segment
+     *    d'URL — TCK-426 en a posé trois (`app/(accueil)`, `leases/(liste)`,
+     *    `maintenance/(liste)`) pour sortir des pages de la portée d'un `loading.tsx` qui leur
+     *    volait leur statut HTTP. Sans cette traversée, `existe('/app/leases')` chercherait
+     *    `leases/page.tsx` là où il vit désormais dans `leases/(liste)/page.tsx`, et ce test
+     *    déclarerait morte une route parfaitement servie ;
+     *  · un segment exact l'emporte sur un segment dynamique.
+     *
+     * *Un test qui traduit une URL en chemin de fichier doit connaître les conventions du
+     * routeur, sinon il mesure une arborescence et prétend mesurer un produit.*
+     */
+    const existe = (href: string): boolean => {
+      const segments = href.split('?')[0].split('#')[0].replace(/^\/app\/?/, '').split('/').filter(Boolean);
+      const descendre = (dossier: string, reste: string[]): boolean => {
+        if (!fs.existsSync(dossier)) return false;
+        if (reste.length === 0 && fs.existsSync(path.join(dossier, 'page.tsx'))) return true;
+        const entrees = fs.readdirSync(dossier, { withFileTypes: true }).filter((e) => e.isDirectory());
+        // Les groupes de routes, à `reste` INCHANGÉ, et à TOUS les niveaux — y compris quand il
+        // ne reste plus de segment à consommer : c'est ce dernier cas que `leases/(liste)` exige.
+        if (entrees.filter((e) => /^\(.*\)$/.test(e.name))
+          .some((e) => descendre(path.join(dossier, e.name), reste))) return true;
+        if (reste.length === 0) return false;
+        const [tete, ...queue] = reste;
+        const exact = entrees.find((e) => e.name === tete);
+        const dynamique = entrees.find((e) => /^\[.+\]$/.test(e.name));
+        const suivant = exact ?? dynamique;
+        return suivant !== undefined && descendre(path.join(dossier, suivant.name), queue);
+      };
+      return descendre(APP, segments);
+    };
+
+    // Le pendant de non-vacuité : un résolveur trop complaisant rendrait le test ci-dessous vert
+    // sur n'importe quel `href`, y compris un lien mort — l'inverse exact de sa raison d'être.
+    expect(existe('/app/leases'), 'route servie via un groupe (liste)').toBe(true);
+    expect(existe('/app/leases/42'), 'segment dynamique').toBe(true);
+    expect(existe('/app'), 'route servie via le groupe (accueil)').toBe(true);
+    expect(existe('/app/payments/new'), 'route inexistante').toBe(false);
+    expect(existe('/app/nimporte-quoi'), 'route inexistante').toBe(false);
+
+    for (const libelle of ['Effectuer votre premier paiement', "Signer l'état des lieux d'entrée"]) {
+      const lien = screen.getByText(libelle).closest('a');
+      expect(lien, libelle).not.toBeNull();
+      const href = lien!.getAttribute('href') ?? '';
+      expect(href, libelle).toMatch(/^\/app\//);
+      expect(existe(href), `${libelle} → ${href} : aucun page.tsx sous /app`).toBe(true);
+    }
   });
 
   it('hides itself when the checklist is completed', async () => {

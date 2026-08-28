@@ -5,6 +5,7 @@ namespace App\Services\Invitation;
 use App\Models\Agency;
 use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
+use App\Models\Enums\Capability;
 use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\RoleDelegation;
@@ -211,8 +212,16 @@ class AgentInvitationService
         }
 
         // TCK-278 — Profile-based check (cf. policy).
+        // TCK-395 — la moitié « délégation » de ce test passait par
+        // `hasActiveAgencyDelegation($id, 'agency_admin')` : un simple test de
+        // CHAÎNE, qui accordait l'agency_admin PLEIN quel que soit ce que le
+        // délégant détenait lui-même. `canActAt()` consulte désormais les
+        // délégations (branche `delegationAllows`) et les BORNE par les
+        // capacités propres du délégant. Le geste reste le même ; ce qui
+        // change est qu'il passe enfin par le pivot `agency_role_capabilities`,
+        // comme tout le reste depuis TCK-315.
         $allowed = $actor->isAgencyAdminAt((int) $agency->id)
-            || $actor->hasActiveAgencyDelegation((int) $agency->id, 'agency_admin');
+            || $actor->canActAt(Capability::TeamInvite, $agency);
 
         if (! $allowed) {
             throw new HttpException(403, __('team.invite.errors.permission_denied'));

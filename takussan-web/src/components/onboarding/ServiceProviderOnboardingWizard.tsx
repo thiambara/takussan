@@ -158,7 +158,12 @@ export function ServiceProviderOnboardingWizard({
         ?? fromMaintenanceRequestId
         ?? null;
       if (target !== null) {
-        router.push(`/app/maintenance/requests/${target}`);
+        // TCK-419 — `/app/maintenance/requests/{id}` N'EXISTE PAS : le détail d'une demande est
+        // servi par `app/maintenance/[id]`, sans segment `requests`. Ce `router.push` est le
+        // dernier geste du parcours « un prestataire s'inscrit depuis une demande » : il le
+        // déposait sur un 404, exactement au moment où il vient de finir son onboarding. Ce
+        // lien-là ne figurait PAS dans les quatre du ticket ; il est sorti de la re-mesure.
+        router.push(`/app/maintenance/${target}`);
       } else {
         router.push('/app');
       }

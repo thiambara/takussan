@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { formatPrice } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
@@ -31,7 +31,7 @@ export function PropertyCardCompact({
       className="group w-[210px] shrink-0 animate-card-enter"
       style={{ animationDelay: staggerDelay(index) }}
     >
-      <Link href={`/properties/${property.slug}`} className="block">
+      <LienLocalise href={`/properties/${property.slug}`} className="block">
         <div className="relative aspect-square rounded-xl overflow-hidden bg-muted">
           <Image
             src={photo}
@@ -84,7 +84,7 @@ export function PropertyCardCompact({
             {property.area != null && <span>{property.area} m²</span>}
           </div>
         </div>
-      </Link>
+      </LienLocalise>
     </article>
   );
 }

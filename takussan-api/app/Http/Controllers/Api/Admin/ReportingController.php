@@ -154,7 +154,14 @@ class ReportingController extends Controller
         $rows = collect($payload['rows'] ?? [])
             ->filter(fn ($row) => is_array($row))
             ->map(fn (array $row) => collect($row)
-                ->map(fn ($value) => is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : $value)
+                ->map(fn ($value) => match (true) {
+                    is_array($value) => json_encode($value, JSON_UNESCAPED_UNICODE),
+                    // TCK-388 — un booléen brut s'écrit `1` et `` dans un CSV : la case VIDE d'un
+                    // `false` se relit comme une donnée manquante, pas comme « non ». Sur la colonne
+                    // `partial`, c'est exactement l'information que le ticket ajoute qui se perdrait.
+                    is_bool($value) => $value ? 'true' : 'false',
+                    default => $value,
+                })
                 ->all())
             ->values()
             ->all();

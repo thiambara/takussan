@@ -137,7 +137,13 @@ function TenantOnboardingChecklistCard({ lease }: { lease: LeaseSummary }) {
         // lui, décrivait ce chemin comme fonctionnel.
         return `/app/inventories/new?lease=${lease.id}`;
       case 'first_payment':
-        return `/app/payments/new?lease_id=${lease.id}`;
+        // TCK-419 — `/app/payments/new` N'EXISTE PAS : `app/payments/` ne porte que `page.tsx`
+        // (les trois onglets historique/factures/payouts) et `return/` (retour passerelle).
+        // Ce lien était donc un 404 servi à CHAQUE nouveau locataire, sur l'étape la plus
+        // visible de sa checklist. L'endroit où un locataire paie réellement est le détail de
+        // SON bail : `LeaseDetail` y monte `LeaseSchedule`, qui porte le `PayOnlineButton` de
+        // chaque échéance. On y envoie donc, avec l'id de bail qu'on a déjà sous la main.
+        return `/app/leases/${lease.id}`;
       // welcome_seen is owned by the modal hook ; documents_acknowledged is
       // a direct POST handled below.
       default:

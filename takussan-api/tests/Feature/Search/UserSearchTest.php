@@ -13,12 +13,36 @@ class UserSearchTest extends ApiTestCase
     use InteractsWithMeilisearch;
     use RefreshDatabase;
 
+    /**
+     * ⚠ **`meta.total` était compté sur un nom TIRÉ AU HASARD, et la CI a fini par tirer le
+     * mauvais.** Échec du 2026-08-28 (run 33169181854) : *« Failed asserting that 2 is identical
+     * to 1 »*, sur un test que ce dépôt n'avait pas touché depuis le 2026-08-15.
+     *
+     * `actingAsRole('agency_admin', ['agency' => $agency])` crée l'admin **dans la même agence**,
+     * `indexSearchable(User::class)` l'indexe comme les autres, et le périmètre de `/api/users`
+     * pour un admin d'agence est son agence. Le total attendu ne valait donc 1 que tant que le
+     * nom rendu par la fabrique ne tombait pas dans la tolérance aux fautes de « Amadu » — ce
+     * n'est pas une propriété du code, c'est un tirage.
+     *
+     * Reproduit à l'identique le 2026-08-28 en nommant l'admin `Amadou Sow` : **2 au lieu de 1**,
+     * même message. Corrigé sur les deux bords, et les deux comptent :
+     *
+     *   1. l'admin porte un nom que la tolérance aux fautes ne peut pas atteindre, écrit ici ;
+     *   2. l'assertion porte sur l'IDENTITÉ du résultat, pas sur son seul cardinal — un total
+     *      juste pour la mauvaise raison ne se distingue pas d'un total juste.
+     *
+     * *Un compte n'est une assertion que si l'on maîtrise ce qu'on compte.*
+     */
     public function test_user_search_is_typo_tolerant_for_agency_admin(): void
     {
         $agency = Agency::factory()->create();
-        $this->actingAsRole('agency_admin', ['agency' => $agency]);
+        $this->actingAsRole('agency_admin', [
+            'agency' => $agency,
+            'first_name' => 'Zulqarnayn',
+            'last_name' => 'Wxyzptlk',
+        ]);
 
-        User::factory()->create([
+        $cible = User::factory()->create([
             'agency_id' => $agency->id,
             'first_name' => 'Amadou',
             'last_name' => 'Diallo',
@@ -27,7 +51,8 @@ class UserSearchTest extends ApiTestCase
 
         $this->getJson('/api/users?filter[search]=Amadu')
             ->assertOk()
-            ->assertJsonPath('meta.total', 1);
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $cible->id);
     }
 
     /**

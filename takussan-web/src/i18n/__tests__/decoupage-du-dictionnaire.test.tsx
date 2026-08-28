@@ -130,17 +130,17 @@ describe('le piège des providers imbriqués', () => {
 
 describe('messagesPour', () => {
   it('ne rend QUE les espaces déclarés pour la frontière', async () => {
-    const servis = Object.keys(await messagesPour('(public)'));
-    expect(servis.sort()).toEqual([...(table.frontieres['(public)'] as readonly string[])].sort());
+    const servis = Object.keys(await messagesPour('[locale]/(public)'));
+    expect(servis.sort()).toEqual([...(table.frontieres['[locale]/(public)'] as readonly string[])].sort());
   });
 
   it('rend le contenu réel, pas une coquille — un sous-ensemble n’est pas un appauvrissement', async () => {
-    const servis = (await messagesPour('(public)')) as Arbre;
+    const servis = (await messagesPour('[locale]/(public)')) as Arbre;
     expect(servis.homepage).toEqual((fr as Arbre).homepage);
   });
 
   it('laisse dehors le back-office : c’est tout l’objet du ticket', async () => {
-    const servis = await messagesPour('(public)');
+    const servis = await messagesPour('[locale]/(public)');
     expect(servis).not.toHaveProperty('superAdmin');
     expect(servis).not.toHaveProperty('admin');
     expect(servis).not.toHaveProperty('crm');

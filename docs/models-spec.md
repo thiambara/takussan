@@ -2703,6 +2703,30 @@ le temps (`starts_at` → `ends_at`) et révocable. Une délégation programmée
 
 **Méthodes :** `markActive()`, `markExpired()`, `markRevoked(User $by)`
 
+> **Ce qu'une délégation accorde — TCK-395.** Une délégation active accorde la capacité `C` si, et
+> seulement si, les deux conditions tiennent : (1) le **rôle système** du type délégué, dans cette
+> agence, porte `C` — la délégation passe donc par le pivot `agency_role_capabilities` comme tout le
+> reste depuis TCK-315 ; et (2) le **délégant détient `C` en propre**, évalué à la lecture et non
+> figé à la création. `MembershipCapabilityResolver::delegationAllows()` porte la règle.
+>
+> Trois choses en découlent, et chacune corrige un défaut mesuré le 2026-08-27 :
+>
+> - **`role` accorde quelque chose pour chacune des trois valeurs de
+>   `config('role_delegations.delegable_roles')`.** Auparavant les six sites d'appel du dépôt
+>   n'interrogeaient que `'agency_admin'` : déléguer `agent` ou `owner` écrivait une ligne,
+>   émettait trois événements, envoyait deux notifications, s'affichait « Active » — et n'accordait
+>   rien nulle part.
+> - **Un délégant ne peut plus accorder plus qu'il ne détient.** Depuis TCK-279 deux `agency_admin`
+>   de la même agence peuvent porter des `AgencyRole` différents ; la délégation était le seul
+>   chemin du dépôt où une capacité s'obtenait sans passer par le pivot.
+> - **La délégation n'est pas transitive** : le délégant est interrogé sans consulter *ses* propres
+>   délégations, si bien que deux délégations en chaîne ne fabriquent pas un droit que personne ne
+>   détient en propre.
+>
+> Le geste lui-même est gardé par la capacité `team.delegate_role` (`RoleDelegationPolicy`), et non
+> plus par la présence d'un `AgencyAdminProfile` — *une capacité se juge pour un couple
+> (utilisateur, agence), pas sur la présence d'un profil.*
+
 > ⚠️ **Le nom `user_native_roles_snapshot` est un vestige lexical de l'ère spatie.** Ce que le
 > service y écrit (`RoleDelegationService`, TCK-278) est la liste des **types de profils
 > polymorphes** déjà détenus dans l'agence, et le commentaire du code le précise :
@@ -2972,7 +2996,7 @@ traite `key` comme un identifiant court opaque.
 | Groupe | Valeurs |
 |---|---|
 | `agency.*` | `agency.update`, `agency.update_kyc`, `agency.update_billing`, `agency.upgrade_request` |
-| `team.*` | `team.invite`, `team.assign_role`, `team.remove`, `team.suspend` |
+| `team.*` | `team.invite`, `team.assign_role`, `team.remove`, `team.suspend`, `team.delegate_role` (TCK-395) |
 | `properties.*` | `properties.create`, `properties.update_any`, `properties.update_own`, `properties.delete`, `properties.publish`, `properties.moderate` |
 | `bookings.*` | `bookings.validate`, `bookings.cancel`, `bookings.refund` |
 | `leases.*` | `leases.create`, `leases.sign`, `leases.terminate`, `leases.renew` |

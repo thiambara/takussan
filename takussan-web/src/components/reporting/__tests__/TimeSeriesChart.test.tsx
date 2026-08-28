@@ -213,6 +213,56 @@ describe('<TimeSeriesChart> (TCK-361)', () => {
   });
 
   /** Une série entièrement nulle ne doit pas rendre un axe de `NaN` (division par `max = 0`). */
+  /**
+   * TCK-388 — l'écran ne peut PAS présenter deux intervalles de durées différentes comme
+   * comparables sans le dire.
+   *
+   * L'assertion porte sur ce que l'utilisateur LIT, jamais sur la présence d'un nœud : c'est la
+   * leçon de D9, où `data-testid="serie-comparaison"` était présent sur une comparaison qui ne
+   * traçait rien.
+   */
+  it('nomme l’inégalité de durée quand la comparaison n’oppose pas des intervalles égaux', () => {
+    rendre({
+      points: [{ bucket: '2026-03', value: 5, jours: 17, partiel: true }],
+      comparison: { label: 'Période précédente', points: [{ bucket: '2026-02', value: 3, jours: 28, partiel: false }] },
+    });
+
+    expect(screen.getByText(/Durées inégales/)).toBeInTheDocument();
+    expect(screen.getByText(/contient donc une part de durée/)).toBeInTheDocument();
+  });
+
+  it('ne dit rien quand les deux intervalles couvrent la même durée', () => {
+    rendre({
+      points: [{ bucket: '2026-03', value: 5, jours: 31, partiel: false }],
+      comparison: { label: 'Période précédente', points: [{ bucket: '2026-01', value: 3, jours: 31, partiel: false }] },
+    });
+
+    expect(screen.queryByTestId('durees-inegales')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Durées inégales/)).not.toBeInTheDocument();
+  });
+
+  /** L'étiquette d'un intervalle PARTIEL cesse de dire un mois entier — sur l'axe et à l'infobulle. */
+  it('n’annonce plus un mois entier sur un intervalle partiel', () => {
+    rendre({
+      points: [
+        { bucket: '2026-03', value: 5, jours: 17, partiel: true },
+        { bucket: '2026-04', value: 8, jours: 30, partiel: false },
+      ],
+    });
+
+    // Le mois entier garde son étiquette nue ; le partiel porte sa durée.
+    expect(screen.getByText('2026-03 · 17 j')).toBeInTheDocument();
+    expect(screen.getByText('2026-04')).toBeInTheDocument();
+    expect(screen.queryByText('2026-03')).not.toBeInTheDocument();
+  });
+
+  /** La durée atteint aussi qui ne voit pas le graphique. */
+  it('porte la durée dans le libellé accessible du point partiel', () => {
+    rendre({ points: [{ bucket: '2026-03', value: 5, jours: 17, partiel: true }] });
+
+    expect(screen.getByRole('button', { name: '2026-03 · 17 j : 5' })).toBeInTheDocument();
+  });
+
   it('gradue une série entièrement nulle', () => {
     rendre({ points: [{ bucket: '2026-01', value: 0 }, { bucket: '2026-02', value: 0 }] });
 

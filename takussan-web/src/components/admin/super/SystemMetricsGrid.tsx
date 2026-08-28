@@ -150,7 +150,10 @@ function tilesOf(
       label: t('verified'),
       value: fmt.nombre(m.agencies.verified),
       hint: t('verificationRate', { rate: (m.agencies.verification_rate * 100).toFixed(1) }),
-      href: '/super-admin/agencies',
+      // TCK-390 — cette tuile portait `/super-admin/agencies`, le MÊME href au caractère près
+      // que « Agences (total) » juste au-dessus : on lisait un sous-ensemble et on atterrissait
+      // sur le tout. Le lien n'était pas constructible avant que l'API n'honore le filtre.
+      href: '/super-admin/agencies?is_verified=1',
     },
     {
       key: 'agenciesActive',

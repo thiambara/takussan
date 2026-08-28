@@ -1,13 +1,13 @@
 ---
 id: TCK-430
 title: "`/admin/settings/tags` n'a aucun chemin entrant — le bandeau réparé n'est vu que sur une URL tapée à la main"
-status: todo
+status: done
 phase: P3
 family: front
 estimate: S
 wave: 48
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -72,15 +72,57 @@ au même endroit :
 ⚠️ **Ne pas ajouter d'entrée « Tags » à `AdminSidebar` sans avoir tranché le point 2.** C'est la
 correction réflexe, et c'est celle qui aggrave.
 
+## La décision — **(1) assumer la souche**, et pourquoi
+
+Prise le 2026-08-27, sur une mesure que ce ticket n'avait pas : **la route a été un vrai écran, et
+elle était LIÉE.**
+
+```
+$ git log --oneline -- 'takussan-web/src/app/(dashboard)/admin/settings/tags/'
+99dcb493 fix(web): console agence — quatre chemins et gestes morts (TCK-370)
+59caa65d TCK-213 super-admin tags management        ← devient une souche ici
+2805140a feat(TCK-066): admin tags & amenities UI   ← `TagsManager` complet ici
+
+$ git grep -n "settings/tags" 80e306e3 -- takussan-web/src | grep -v 'tags/page'
+.../admin/settings/integrations/page.tsx:42:  href="/admin/settings/tags"
+.../admin/settings/page.tsx:45:               href="/admin/settings/tags"
+```
+
+Entre TCK-066 et TCK-213, l'écran montait `TagsManager` et **deux bandeaux d'onglets y menaient**.
+TCK-213 a déplacé la gestion vers `/super-admin/tags` et retiré les deux liens sans retirer la
+route. La souche a donc un ayant droit réel — les marque-pages de cette période — et elle leur
+répond une phrase juste. *Le ticket posait la question « la souche est-elle légitime ? » comme une
+question d'intention ; l'historique y répond comme une question de fait.*
+
+L'option (2) est **écartée**, et pas seulement par prudence : un `agency_admin` qui cherche les
+tags n'a rien à gagner à ATTEINDRE cette route — il a à apprendre qu'ils ne sont pas chez lui, ce
+qui est un contenu d'écran, pas une destination. Ouvrir un chemin vers une page qui redirige
+aussitôt serait le deuxième geste mort.
+
+### Deux limites nommées, que la mesure a ajoutées
+
+- **Pour une agence `individual`, le bandeau ne se rend jamais.** `/admin/settings/tags` n'est pas
+  dans `PRO_ROUTES`, mais `/admin` l'est : la souche redirige, puis `ensureStandardAgencyOrRedirect`
+  renvoie sur `/app` avant qu'`AdminNotice` ne rende. Le fil `?notice=` n'aboutit que pour une
+  agence `standard`. Ce n'est pas corrigé ici — la souche répond à un marque-page, et un
+  `agency_admin` d'agence `individual` n'a de toute façon pas accès à `/admin`.
+- **La décision est gardée, pas seulement commentée.** `redirection-tags.test.tsx` porte un
+  tripwire : il rougit si un `href`/`router.push`/`redirect` vers `/admin/settings/tags` apparaît
+  ailleurs (mentions et commentaires exclus), et il exige que `page.tsx` porte sa raison d'être.
+  Éprouvé par ablation dans les deux sens.
+
 ## Critères d'acceptation
 
-- [ ] La décision entre (1) et (2) est écrite dans ce ticket, avec sa raison.
-- [ ] Si (1) : `src/app/(dashboard)/admin/settings/tags/page.tsx` porte en en-tête la raison d'être
+- [x] La décision entre (1) et (2) est écrite dans ce ticket, avec sa raison.
+- [x] Si (1) : `src/app/(dashboard)/admin/settings/tags/page.tsx` porte en en-tête la raison d'être
       de la souche, et le corps de TCK-370 ne laisse plus croire que le bandeau est atteignable par
       la navigation.
-- [ ] Si (2) : le chemin ouvert mène à un écran qui **contient** ce qu'il annonce — un test le
-      vérifie en montant la destination, pas en assertant le `href`.
-- [ ] Dans les deux cas, `grep -rn "settings/tags" src/ | grep -v __tests__` rend un résultat qui
+- [x] **Sans objet** — l'option (2) est écartée ci-dessus, ce critère ne porte donc sur rien :
+      ~~Si (2) : le chemin ouvert mène à un écran qui **contient** ce qu'il annonce — un test le
+      vérifie en montant la destination, pas en assertant le `href`.~~
+  > ⚠ Case VACUEUSE, cochée pour « rien à faire », pas pour « fait » (relevé le 2026-08-28 : le
+  > barrage ne couvrait que « Si (2) » et la clause morte se lisait comme une exigence vivante).
+- [x] Dans les deux cas, `grep -rn "settings/tags" src/ | grep -v __tests__` rend un résultat qui
       s'explique sans lire ce ticket.
 
 ## Ce que ce ticket n'est PAS

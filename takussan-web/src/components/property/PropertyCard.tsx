@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import Image from 'next/image';
 import { MapPin, Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -94,7 +94,7 @@ export function PropertyCard({
   );
 
   return (
-    <Link href={`/properties/${property.slug}`} className="block">
+    <LienLocalise href={`/properties/${property.slug}`} className="block">
       <div
         ref={ref}
         style={{ animationDelay: staggerDelay(index) }}
@@ -122,7 +122,7 @@ export function PropertyCard({
           )}
 
           {/* Time */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-black/50 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full shadow-sm">
+          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-scrim/50 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full shadow-sm">
             <Clock className="w-2.5 h-2.5 opacity-80" />
             {timeAgo}
           </div>
@@ -153,35 +153,35 @@ export function PropertyCard({
           >
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
-              <span className="text-sm font-semibold text-gray-400 ml-0.5">
+              <span className="text-sm font-semibold text-muted-foreground ml-0.5">
                 /{t(`rentPeriodsShort.${property.rent_period}`)}
               </span>
             )}
           </p>
           <h3
-            className="font-semibold text-[14px] leading-snug text-gray-900 line-clamp-2 h-10"
+            className="font-semibold text-[14px] leading-snug text-foreground line-clamp-2 h-10"
             title={property.title}
           >
             {property.title}
           </h3>
           <p
-            className="text-gray-500 text-sm flex items-center gap-1.5 truncate"
+            className="text-muted-foreground text-sm flex items-center gap-1.5 truncate"
             title={location}
           >
             <MapPin className="w-4 h-4 shrink-0" />
             <span className="truncate">{location}</span>
           </p>
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-semibold text-gray-400">
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-semibold text-muted-foreground">
             {property.bedrooms != null && property.bedrooms > 0 && (
               <>
                 <span>{tCards('bedroomsAbbrev', { count: property.bedrooms })}</span>
-                <span className="text-gray-300">•</span>
+                <span className="text-muted-foreground/60">•</span>
               </>
             )}
             <span className="truncate">{surface}</span>
             {property.type && (
               <>
-                <span className="text-gray-300">•</span>
+                <span className="text-muted-foreground/60">•</span>
                 <span className="truncate capitalize">
                   {t.has(`types.${property.type}`)
                     ? t(`types.${property.type}`)
@@ -192,6 +192,6 @@ export function PropertyCard({
           </div>
         </div>
       </div>
-    </Link>
+    </LienLocalise>
   );
 }

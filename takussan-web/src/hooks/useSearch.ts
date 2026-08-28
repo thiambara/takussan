@@ -1,7 +1,12 @@
 'use client';
-import { useReducer, useEffect, useCallback, useMemo } from 'react';
+import { useReducer, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api';
+import {
+  clefDeRecherche,
+  normaliserGeo,
+  parametresDeRecherche,
+} from '@/lib/recherche-publique';
 import {
   CLES_DE_RECHERCHE,
   CLES_DE_CONTROLE,
@@ -45,44 +50,15 @@ function reducer(state: State, action: Action): State {
  * sans erreur ni trace.
  */
 /**
- * Les trois états géographiques que le SERVEUR refuse — TCK-346.
+ * `normaliserGeo` **vit désormais dans `lib/recherche-publique.ts`** (TCK-432) et n'est ré-exportée
+ * ici que pour ses appelants existants.
  *
- * `SearchPublicPropertyRequest` les rend en 422 : `lat`/`lng` s'exigent mutuellement
- * (`required_with`), `radius_km` et `sort=distance` exigent le point complet. Une interface qui
- * peut produire ces états les produira : il suffit d'un retrait de puce, d'un lien hérité, ou
- * d'un critère sauvegardé sous une version antérieure.
- *
- * Le choix ici est de **normaliser plutôt que d'afficher l'erreur**, et il n'est pas
- * symétrique du reste du hook. Sur `furnished=nimportequoi`, le 422 est une information : la
- * demande de l'utilisateur est inintelligible, on la lui rend. Ici il n'y a rien à rendre —
- * une demi-coordonnée n'est pas une demande à moitié comprise, c'est un fragment que **le
- * front lui-même** vient de fabriquer en retirant l'autre moitié. Le seul état honnête est
- * « pas de géographie », et il ne coûte aucun aller-retour.
- *
- * Mutation : rendre cette fonction inerte fait rougir `useSearch.geo.test.ts`.
+ * La raison du déménagement est la frontière client : ce fichier porte `'use client'`, donc tout ce
+ * qu'il exporte devient une *référence client*. Le rendu serveur de `/properties` a besoin de la
+ * MÊME normalisation — sans quoi le serveur et le client demanderaient deux requêtes différentes et
+ * la liste changerait à l'hydratation — et il ne peut pas la prendre ici.
  */
-export function normaliserGeo(params: URLSearchParams): URLSearchParams {
-  const aPoint = params.has('lat') && params.has('lng');
-
-  if (!aPoint) {
-    // Une demi-coordonnée n'est jamais un filtre à moitié appliqué : c'est un 422.
-    params.delete('lat');
-    params.delete('lng');
-    params.delete('radius_km');
-    if (params.get('sort') === 'distance') params.delete('sort');
-    return params;
-  }
-
-  // Point complet mais plus personne pour le consommer : ni rayon, ni tri par distance.
-  // Le laisser serait pire que le retirer — il est INVISIBLE (aucune puce ne le décrit) et
-  // il repartirait dans la prochaine recherche sauvegardée sans que rien ne l'ait annoncé.
-  if (!params.has('radius_km') && params.get('sort') !== 'distance') {
-    params.delete('lat');
-    params.delete('lng');
-  }
-
-  return params;
-}
+export { normaliserGeo, clefDeRecherche, parametresDeRecherche };
 
 export function filtersToParams(filters: SearchFilters): URLSearchParams {
   const params = new URLSearchParams();
@@ -139,12 +115,60 @@ export type OptionsNavigation = {
 
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
-export function useSearch() {
+/**
+ * Ce que le rendu SERVEUR a déjà obtenu, et pour quelle requête — TCK-432.
+ *
+ * Les deux champs vont **par paire, et le second est le load-bearing**. Semer le résultat sans dire
+ * à quelle requête il répond produirait exactement le défaut que ce ticket doit éviter : sur
+ * `?type=villa`, le serveur rend des villas, l'utilisateur clique « Appartement », et le hook
+ * ré-affiche la graine — les villas — sous une puce « Appartement ». Un écran qui ment est pire
+ * qu'un écran qui charge.
+ *
+ * La clef se compare donc à celle de l'URL courante. Elles coïncident **au premier rendu et à lui
+ * seul** : dès que l'URL bouge, la graine est périmée par construction et le hook reprend son
+ * cycle nominal.
+ */
+export type GraineDeRecherche = {
+  readonly resultat: SearchResult;
+  /** `clefDeRecherche(parametresDeRecherche(...))` de la requête que le serveur a exécutée. */
+  readonly clef: string;
+};
+
+export type OptionsDeRecherche = {
+  readonly graine?: GraineDeRecherche | null;
+};
+
+export function useSearch({ graine }: OptionsDeRecherche = {}) {
   const router   = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [state, dispatch] = useReducer(reducer, { status: 'idle' });
+  /**
+   * L'état initial EST la graine quand il y en a une — TCK-432 · AC5.
+   *
+   * Démarrer en `idle` puis remplacer par la graine dans un effet ferait rendre **un premier
+   * commit sans résultats** : `loading` vaut `true` en `idle`, et `properties.length === 0`, donc
+   * la page repartirait en dix squelettes juste après avoir affiché trente biens. C'est
+   * précisément le clignotement que ce ticket interdit — « une page qui affiche des biens puis les
+   * remplace par des rectangles gris est pire que celle d'aujourd'hui ».
+   *
+   * La graine n'est lue qu'à l'initialisation du reducer : React ignore l'argument aux rendus
+   * suivants, ce qui est exactement voulu — une graine ne doit jamais écraser un résultat plus
+   * frais obtenu depuis.
+   */
+  const [state, dispatch] = useReducer(
+    reducer,
+    graine ? { status: 'success' as const, result: graine.resultat } : { status: 'idle' as const },
+  );
+
+  /**
+   * La requête que le serveur a DÉJÀ honorée, à ne pas redemander — consommée une seule fois.
+   *
+   * `useRef` et non un état : la mise à zéro ne doit pas provoquer de rendu, et elle doit être
+   * visible du prochain passage de l'effet. Le nom dit ce que la valeur signifie — « cette
+   * requête-là est servie » — et `null` signifie « plus rien n'est servi d'avance ».
+   */
+  const requeteDejaServie = useRef<string | null>(graine?.clef ?? null);
 
   // TCK-316 — `searchParams.toString()` était un APPEL dans le tableau de
   // dépendances, ce que React ne sait pas comparer (`react-hooks/use-memo`), et
@@ -271,16 +295,30 @@ export function useSearch() {
                : state.status === 'error'   ? state.prev
                : null;
 
-    dispatch({ type: 'LOADING', prev });
-
     // Même normalisation que `currentFilters` : ce qui est demandé au serveur est exactement
     // ce que l'écran affiche, et un 422 géographique fabriqué par une URL héritée n'atteint
     // jamais le réseau.
-    const apiParams = normaliserGeo(new URLSearchParams(qs));
-    if (!apiParams.has('q') && apiParams.has('search')) {
-      apiParams.set('q', apiParams.get('search') ?? '');
+    //
+    // ⚠ TCK-432 — la construction est passée dans `lib/recherche-publique.ts`. Elle vivait ici, et
+    // elle est désormais LA MÊME que celle du rendu serveur : deux écritures séparées feraient
+    // demander deux requêtes différentes pour un seul écran, et la liste changerait à
+    // l'hydratation sans qu'aucun test ne rougisse.
+    const apiParams = parametresDeRecherche(new URLSearchParams(qs));
+
+    // TCK-432 — le serveur a déjà répondu à CETTE requête, et son résultat est déjà à l'écran.
+    // Le redemander coûterait un aller-retour pour réafficher la même chose, et le `LOADING`
+    // qui le précède ferait grisonner la grille au premier battement d'hydratation.
+    //
+    // ⚠ Le `return` est AVANT le `dispatch({ type: 'LOADING' })`, et l'ordre est le correctif :
+    // placé après, l'état serait passé par `loading` puis n'en serait jamais ressorti — la grille
+    // resterait à `opacity-50` pour toujours, sur une page qui, elle, a bien ses résultats.
+    if (requeteDejaServie.current !== null && requeteDejaServie.current === clefDeRecherche(apiParams)) {
+      requeteDejaServie.current = null;
+      return;
     }
-    if (!apiParams.has('per_page')) apiParams.set('per_page', '30');
+    requeteDejaServie.current = null;
+
+    dispatch({ type: 'LOADING', prev });
 
     let cancelled = false;
     apiFetch<SearchResult>(`/public/properties/search?${apiParams.toString()}`)

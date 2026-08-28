@@ -1,13 +1,13 @@
 ---
 id: TCK-420
 title: "L'acteur 🔧 (prestataire) n'est pas dans la légende de features.md, et un générateur du dépôt le dit depuis longtemps"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 48
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -52,18 +52,23 @@ décision perdue.*
 
 ## Delta à produire
 
-- [ ] Déclarer 🔧 dans la légende des acteurs de `docs/features.md`
-- [ ] Placer 🔧 sur les lignes que le produit lui sert déjà (§1.8 maintenance & interventions au
+- [x] Déclarer 🔧 dans la légende des acteurs de `docs/features.md`
+- [x] Placer 🔧 sur les lignes que le produit lui sert déjà (§1.8 maintenance & interventions au
       minimum) — **relevé depuis le code, pas depuis l'intention**
-- [ ] Trancher explicitement en §2.5 : tableau de bord prestataire, ou son absence assumée
-- [ ] Faire de l'avertissement de `gen-features-by-actor.mjs --check` un **échec** (sortie ≠ 0)
+- [x] Trancher explicitement en §2.5 : tableau de bord prestataire, ou son absence assumée
+- [x] Faire de l'avertissement de `gen-features-by-actor.mjs --check` un **échec** (sortie ≠ 0)
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `node docs/gen-features-by-actor.mjs --check` n'émet plus d'avertissement d'acteur
+- [x] AC1 — `node docs/gen-features-by-actor.mjs --check` n'émet plus d'avertissement d'acteur
       non déclaré, et sort en 0
-- [ ] AC2 — le même script sort en **≠ 0** si on retire 🔧 de la légende ; vérifié par ablation
-- [ ] AC3 — §2.5 dit ce qu'il en est du tableau de bord prestataire, dans un sens ou dans l'autre
+- [x] AC2 — le même script sort en **≠ 0** si on retire 🔧 de la légende ; vérifié par ablation
+  > ⚠ **L'ablation naïve est contaminée** (mesuré le 2026-08-28, sur une copie de `docs/`) : retirer
+  > la ligne de légende périme aussi `features-by-actor.md`, et `--check` sort 1 en disant
+  > *« ne suit plus features.md »* — un rouge qu'une régression de la règle d'acteur produirait tout
+  > autant. Il faut **régénérer la sortie d'abord** ; `--check` sort alors 1 avec le bon motif
+  > (`✗ 1 acteur(s) non déclaré(s) … : 🔧`), et la forme écriture aussi.
+- [x] AC3 — §2.5 dit ce qu'il en est du tableau de bord prestataire, dans un sens ou dans l'autre
 
 ## Hors périmètre
 

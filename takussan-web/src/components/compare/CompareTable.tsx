@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import Image from 'next/image';
 import { ExternalLink, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -214,7 +214,7 @@ function CompareColumnHeader({
 
   return (
     <div className="flex flex-col gap-2">
-      <Link
+      <LienLocalise
         href={`/properties/${property.slug}`}
         className="relative block aspect-4/3 overflow-hidden rounded-lg ring-1 ring-stone-200 hover:ring-primary transition"
       >
@@ -226,24 +226,24 @@ function CompareColumnHeader({
           className="object-cover"
           unoptimized={image.startsWith('https://placehold.co')}
         />
-      </Link>
+      </LienLocalise>
       <div className="flex flex-col gap-0.5">
-        <Link
+        <LienLocalise
           href={`/properties/${property.slug}`}
           className="line-clamp-2 text-sm font-semibold text-stone-900 hover:text-primary transition-colors"
           title={property.title}
         >
           {property.title}
-        </Link>
+        </LienLocalise>
       </div>
       <div className="flex items-center justify-between gap-2">
-        <Link
+        <LienLocalise
           href={`/properties/${property.slug}`}
           className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           {viewLabel}
-        </Link>
+        </LienLocalise>
         <button
           type="button"
           onClick={() => onRemove(property.id)}

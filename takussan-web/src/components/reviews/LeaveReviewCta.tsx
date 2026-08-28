@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -58,13 +58,13 @@ export function LeaveReviewCta({ slug, context, propertyTitle }: LeaveReviewCtaP
             )}
           </p>
         </div>
-        <Link
+        <LienLocalise
           href={`/properties/${slug}#avis`}
           className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-foreground"
           data-testid="leave-review-cta"
         >
           {t('action')}
-        </Link>
+        </LienLocalise>
       </div>
     </section>
   );

@@ -51,6 +51,25 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     Route::get('properties/discovery', [PublicPropertyController::class, 'discovery'])
         ->name('properties.discovery');
 
+    // TCK-431 — l'énumération du catalogue indexable pour `/sitemap.xml` du site public.
+    // Segment littéral : elle DOIT rester au-dessus de `properties/{slug}`, sans quoi elle est
+    // avalée comme un slug — c'est le piège que le commentaire de `discovery` signale déjà, et il
+    // ne produit pas d'erreur, il produit un 404 sur une fiche nommée « sitemap ».
+    //
+    // Aucun `cache.headers` : le corps ne varie PAS avec l'appelant (ni `PropertyResource` ni
+    // e-mail ici, seulement `slug` et `updated_at`), mais l'unique appelant est le SERVEUR Next,
+    // dont le `fetch` est `no-store` par défaut sous Next 16 — il n'émettra jamais
+    // d'`If-None-Match`. Un ETag ici ne servirait personne (même mesure que pour la fiche,
+    // TCK-341).
+    Route::get('properties/sitemap', [PublicPropertyController::class, 'sitemap'])
+        ->name('properties.sitemap');
+
+    // TCK-433 (passe 2) — le DOMAINE de la facette `city`. Jumeau de `property-types` : sans lui,
+    // `?city=<n'importe quoi>` produisait une URL indexable et canonique d'elle-même, donc un
+    // espace d'URL indexables non borné. Segment littéral : au-dessus de `properties/{slug}`.
+    Route::get('properties/cities', [PublicPropertyController::class, 'cities'])
+        ->name('properties.cities');
+
     Route::get('properties/compare', [PublicPropertyController::class, 'compare'])
         ->middleware('throttle:30,1')
         ->name('properties.compare');
@@ -121,6 +140,21 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
         Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])
             ->name('properties.contact-message');
     });
+
+    // TCK-436 — les deux INDEX de profils. Segments littéraux : ils DOIVENT rester au-dessus de
+    // `agents/{slug}` et `agencies/{slug}`… ce qui est automatique ici, puisqu'ils n'ont AUCUN
+    // segment après le nom de ressource. Le piège qui menace `properties/sitemap` et
+    // `properties/discovery` — être avalé comme un slug — ne s'applique donc pas.
+    //
+    // Aucun `cache.headers`, pour la raison exacte de `properties/sitemap` : le corps ne varie pas
+    // avec l'appelant (aucun champ de contact, aucune ressource sensible à `$request->user()`),
+    // mais l'appelant est le SERVEUR Next, dont le `fetch` est `no-store` par défaut sous Next 16
+    // — il n'émettra jamais d'`If-None-Match`. Un ETag ici ne servirait personne.
+    Route::get('agencies', [PublicAgencyController::class, 'index'])
+        ->name('agencies.index');
+
+    Route::get('agents', [PublicAgentController::class, 'index'])
+        ->name('agents.index');
 
     // TCK-177 — public agent / agency profile pages.
     Route::get('agents/{slug}', [PublicAgentController::class, 'show'])

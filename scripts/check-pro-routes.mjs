@@ -21,7 +21,7 @@
  *   node scripts/check-pro-routes.mjs --report   # + l'inventaire route par route
  */
 import { readFileSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -273,6 +273,38 @@ function page(route) {
   return candidats.find(existsSync) ?? null;
 }
 
+/**
+ * TCK-426 — LA GARDE N'EST PLUS FORCÉMENT DANS LA PAGE, ET C'EST UN PROGRÈS.
+ *
+ * Ce script ne lisait que `page.tsx`. Il est donc passé au rouge le jour où les refus
+ * d'autorisation ont REMONTÉ dans le `layout.tsx` de leur segment — et il avait raison de
+ * parler, mais tort de conclure : `/app/owners` était annoncée « ne porte aucune garde
+ * reconnaissable » alors que sa garde venait de devenir strictement plus forte.
+ *
+ * Plus forte, parce qu'un `loading.tsx` ouvre une frontière de suspension : Next envoie la coque
+ * ET le code de réponse avant que la page n'ait rien décidé. Mesuré sur le Next 16.3.1 du dépôt
+ * (sondes jetables, `next dev -p 3999`) — un `redirect()` de PAGE sous un repli rend **200** + le
+ * squelette de la route interdite ; le même `redirect()` dans le LAYOUT du segment rend **307**,
+ * et le repli continue de couvrir la page. Une garde écrite dans la page d'une route à repli
+ * refusait donc l'accès en répondant « succès » à tout ce qui n'est pas un navigateur.
+ *
+ * On lit désormais la page ET tous les `layout.tsx` de ses ancêtres jusqu'au groupe de routes.
+ * C'est le même raisonnement que le suivi dans `HELPER` quelques lignes plus bas : *ne regarder
+ * qu'un fichier revient à certifier une garde qu'on n'a pas lue.*
+ */
+function layoutsAncetres(cheminPage) {
+  const sortie = [];
+  let dossier = dirname(cheminPage);
+  // On remonte jusqu'au groupe `(dashboard)` inclus — au-dessus, c'est la racine du site.
+  for (let i = 0; i < 12 && dossier.startsWith(join(WEB, 'app')); i += 1) {
+    const layout = join(dossier, 'layout.tsx');
+    if (existsSync(layout)) sortie.push(layout);
+    if (basename(dossier) === '(dashboard)') break;
+    dossier = dirname(dossier);
+  }
+  return sortie;
+}
+
 const gardees = [];
 const nues = [];
 const failOpen = [];
@@ -284,7 +316,10 @@ for (const route of routes) {
     introuvables.push(route);
     continue;
   }
-  const brut = readFileSync(p, 'utf8');
+  // La page ET ses layouts d'ancêtres : depuis TCK-426, la garde d'une route à repli vit
+  // au-dessus de la frontière de suspension, donc dans un `layout.tsx`.
+  const sources = [p, ...layoutsAncetres(p)];
+  const brut = sources.map((f) => readFileSync(f, 'utf8')).join('\n');
   const src = canonique(sansCommentaires(brut));
   const trouvee = GARDES.find((g) => g.motif.test(src));
   // La règle n°3 plus bas relit la page pour décider entre « nue » et « je ne reconnais pas » :
@@ -298,7 +333,16 @@ for (const route of routes) {
   // était lui-même écrit en `if (agency && …)`. On corrigeait les instances et pas la classe.
   //
   // On suit donc dans le helper, et on juge les DEUX sources.
-  const aExaminer = [[p.slice(ROOT.length + 1), src]];
+  //
+  // ⚠ FICHIER PAR FICHIER, jamais sur la concaténation — mesuré le 2026-08-27 en écrivant
+  // TCK-426. Un fail-open est une propriété du FLOT DE CONTRÔLE d'un fichier ; sur une
+  // concaténation, la fenêtre « entre `getToken()` et la décision » enjambe la frontière entre
+  // deux fichiers et désigne comme sortie anticipée un `return` qui appartient à un autre flot.
+  // Concrètement : `owners/page.tsx` résout un jeton et sort (narrowing de type — le layout a
+  // déjà tranché), `owners/layout.tsx` résout un jeton et décide ; collés, ils composaient un
+  // faux positif parfait. *Chercher un chemin d'évitement dans un texte qui n'est le flot de
+  // personne rend un verdict sur un programme qui n'existe pas.*
+  const aExaminer = sources.map((f) => [f.slice(ROOT.length + 1), canonique(sansCommentaires(readFileSync(f, 'utf8')))]);
   if (/ensureStandardAgencyOrRedirect\s*\(/.test(src) && existsSync(HELPER)) {
     aExaminer.push([HELPER.slice(ROOT.length + 1), canonique(sansCommentaires(readFileSync(HELPER, 'utf8')))]);
   }

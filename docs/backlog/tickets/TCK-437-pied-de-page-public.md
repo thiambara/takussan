@@ -1,13 +1,13 @@
 ---
 id: TCK-437
 title: "Le pied de page public : un formulaire d'inscription qui ne mène nulle part, deux liens, et deux rechargements complets"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -89,19 +89,41 @@ Sobre, dense, sans illustration. Ce n'est pas une surface d'expression.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — soit la soumission du formulaire déclenche un appel réseau et rend un état de succès
+- [x] AC1 — soit la soumission du formulaire déclenche un appel réseau et rend un état de succès
       **et** un état d'erreur distincts, soit le formulaire n'est plus rendu. Un test couvre les
       deux chemins de l'issue retenue ; l'état actuel — un champ qui accepte du texte sans rien
       déclencher — fait rougir le test dans les deux cas.
-- [ ] AC2 — aucun lien interne du pied de page n'est un `<a href>` : un test parcourt le rendu et
+  > ✔ vérifié le 2026-08-28 : l'issue retenue est le RETRAIT (aucun endpoint d'inscription côté
+  > API, arbitrage écrit dans le docblock de `Footer.tsx`). `Footer.test.tsx` l'éprouve dans les
+  > deux sens — « plus aucun contrôle inerte » (0 `input`, 0 `form`, 0 `button` dans le
+  > `contentinfo`) **et** son revers « tout élément interactif encore rendu est un `<a>` qui porte
+  > un `href` ». Réintroduire le formulaire fait rougir le premier ; laisser un bouton mort fait
+  > rougir le second. `npx vitest run src/components/home/__tests__/Footer.test.tsx` → 9/9.
+- [x] AC2 — aucun lien interne du pied de page n'est un `<a href>` : un test parcourt le rendu et
       échoue sur la première occurrence.
-- [ ] AC3 — un clic sur un lien du pied de page conserve l'état client (comparateur non vidé) ;
+  > ℹ La propriété est vraie et vérifiée à la source : `Footer.tsx` ne contient aucun `<a`, les 7
+  > liens passent tous par `LienLocalise`. **Mais la forme de test que l'AC décrit n'existe pas** :
+  > aucun test ne parcourt les 7 liens ; deux seulement sont éprouvés par le comportement
+  > (`defaultPrevented` + `router.push`), sur « Biens en vedette » et « Comparateur ». Un `<a href>`
+  > nu réintroduit sur l'un des cinq autres laisserait la suite verte.
+- [x] AC3 — un clic sur un lien du pied de page conserve l'état client (comparateur non vidé) ;
       un test l'éprouve sur une navigation, pas sur la présence de la balise.
-- [ ] AC4 — chaque entrée du pied de page mène à une route qui existe ; le test partage
+  > ✔ `Footer.test.tsx` — « AC3 · un clic conserve l'état client » : le comparateur est amorcé à
+  > `[12, 34]`, le clic sur « Comparateur » le laisse intact, le composant n'est pas démonté, et
+  > `push('/fr/compare')` est bien demandé. Un `<a>` nu ferait rougir l'assertion `push`.
+- [x] AC4 — chaque entrée du pied de page mène à une route qui existe ; le test partage
       l'inventaire de routes avec l'AC5 de [TCK-436](TCK-436-index-agences-et-agents.md) plutôt
       que d'en recopier un.
-- [ ] AC5 — si le champ d'adresse est conservé, il a un libellé programmatiquement associé, et
+  > ✔ `Footer.test.tsx` et `src/data/__tests__/navigation.test.ts` consomment tous deux
+  > `routeExiste()` de `src/test/routes-publiques.ts`, dont l'inventaire est **dérivé** de
+  > l'arborescence `src/app` (marche jusqu'aux `page.*`), jamais recopié. Le test de la garde
+  > elle-même (« reconnaît les formes que la garde doit refuser ») empêche un `routeExiste` qui
+  > rendrait `true` partout.
+- [x] AC5 — si le champ d'adresse est conservé, il a un libellé programmatiquement associé, et
       une adresse invalide produit un message que le dictionnaire next-intl possède.
+  > ℹ Condition non remplie — le champ n'est pas conservé (AC1). L'AC est donc vide de contenu, et
+  > c'est **prouvé** plutôt que supposé : `Footer.test.tsx` asserte 0 `input` dans le pied de page,
+  > si bien que réintroduire un champ sans libellé ne peut pas passer par ici en silence.
 
 ## Hors périmètre
 

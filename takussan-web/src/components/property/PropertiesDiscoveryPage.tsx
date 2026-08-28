@@ -16,7 +16,7 @@ import { PropertyCard } from '@/components/property/PropertyCard';
 import { PropertyMap } from '@/components/map';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useSearch } from '@/hooks/useSearch';
+import { useSearch, type GraineDeRecherche } from '@/hooks/useSearch';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
@@ -129,7 +129,24 @@ function ViewToggle({
   );
 }
 
-export function PropertiesDiscoveryPage() {
+/**
+ * TCK-432 — la page reçoit désormais deux choses du serveur, et aucune n'est décorative.
+ */
+export type ProprietesDeLaListe = {
+  /**
+   * Le `<h1>`, DÉRIVÉ des mêmes filtres que le `<title>` (`lib/titre-de-la-liste.ts`).
+   *
+   * Il arrive en prop plutôt que d'être calculé ici, et pour une raison de fond : la dérivation
+   * lit `filtresCanoniques` et les gabarits de `meta.propertiesFiltered` via `getTranslations` de
+   * `next-intl/server`. La recalculer côté client serait une SECONDE dérivation du même titre —
+   * exactement ce que le docblock de `titreEtDescription` existe pour empêcher.
+   */
+  readonly titre?: string;
+  /** Ce que le rendu serveur a déjà obtenu, et pour quelle requête. `null` = rien à semer. */
+  readonly graine?: GraineDeRecherche | null;
+};
+
+export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLaListe = {}) {
   const t = useTranslations('search.results');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [view, setView] = useState<View>('list');
@@ -146,7 +163,7 @@ export function PropertiesDiscoveryPage() {
     removeFilter,
     repli,
     retirerTerme,
-  } = useSearch();
+  } = useSearch({ graine });
 
   const properties = data?.data ?? [];
   const meta = data?.meta;
@@ -230,6 +247,27 @@ export function PropertiesDiscoveryPage() {
           />
 
           <main className="flex-1 min-w-0">
+            {/*
+              TCK-432 — le `<h1>` de la liste, et il n'y en avait AUCUN (mesuré : `grep -o '<h1'`
+              sur le HTML servi de `?type=villa` rendait 0). `docs/design-guidelines.md` pose
+              « Hiérarchie stricte : `h1` → titre de page » ; la page commençait sa hiérarchie aux
+              `<h3>` du panneau de filtres.
+
+              Il dit ce que la page MONTRE, filtres compris — « Villa à louer à Dakar » — parce
+              qu'il vient de la même dérivation que le `<title>`. Il est donc juste sur une page de
+              facette autant que sur la page nue, sans deuxième règle à tenir.
+
+              ⚠ `titre` est optionnel : la page reste montable sans lui (tests existants, et tout
+              appelant qui ne le fournirait pas). Un `<h1>` VIDE serait pire que pas de `<h1>` —
+              un lecteur d'écran annoncerait un titre de niveau 1 sans contenu — d'où la garde,
+              qui porte sur la chaîne et pas seulement sur `undefined`.
+            */}
+            {titre?.trim() ? (
+              <h1 className="font-display text-[28px] md:text-[34px] leading-[1.1] font-semibold text-foreground mb-5">
+                {titre}
+              </h1>
+            ) : null}
+
             <SearchToolbar
               total={error ? null : (meta?.total ?? 0)}
               loading={loading}

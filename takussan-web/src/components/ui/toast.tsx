@@ -37,12 +37,47 @@ function useToast() {
   return ToastPrimitive.useToastManager<ToastData>()
 }
 
+/**
+ * Le ton du toast, sur les jetons du design system (TCK-384).
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * ⚠ POURQUOI LES VARIANTES `dark:` ONT DISPARU, ET POURQUOI CE N'EST PAS UNE PERTE
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Les tons `success` et `warning` portaient SIX classes chacun : un triplet clair sur l'échelle
+ * Tailwind, plus un triplet `dark:` sur la même échelle en échelon inverse. C'est la forme qu'on
+ * écrit quand aucun jeton ne bascule tout seul — et `error`, dix lignes plus bas, montrait déjà
+ * la forme qui n'en a pas besoin.
+ *
+ * `--success` et `--warning` sont redéfinis dans `.dark` de `globals.css` (TCK-358 pour l'ocre,
+ * TCK-381 pour le vert), donc `bg-success/10 text-success` bascule SEUL. Les douze classes
+ * deviennent six, et le thème sombre cesse d'être une seconde table à tenir alignée à la main.
+ *
+ * Contrastes mesurés (WCAG 2.1, 2026-08-27) — l'aplat est à canal alpha, il se mesure donc
+ * aplati sur `--card`, la surface sur laquelle le toast se pose :
+ *
+ *                 avant (échelle Tailwind)          après (jetons)
+ *   succès clair  émeraude 900 sur 50 ... 9,14:1    #3f6b45 sur success/10 ... 5,36:1
+ *   succès sombre émeraude 100 sur 950/40 13,98:1   #8fbf87 sur success/10 ... 6,26:1
+ *   avert. clair  ambre 900 sur 50 ...... 8,73:1    #8a5410 sur warning/10 ... 5,42:1
+ *   avert. sombre ambre 100 sur 950/40 .. 14,13:1   #e0a458 sur warning/10 ... 6,07:1
+ *
+ * ⚠ **Les quatre chiffres BAISSENT, et c'est écrit ici plutôt que tu.** Une échelle Tailwind
+ * pousse le fond à l'extrême de sa rampe (`-50`, `-950`) et l'encre à l'autre : elle achète du
+ * contraste en sortant de la famille chromatique du produit. Les quatre valeurs d'arrivée restent
+ * au-dessus des 4,5:1 d'AA pour du texte normal, ce qui est le seuil qui s'applique — et le
+ * bénéfice est ailleurs : `#ecfdf5` ne se retournait PAS sous `.dark`, il fallait le doubler.
+ *
+ * ⚠ **Le ton `error` n'est pas touché, délibérément.** Il ne portait aucune palette brute, et
+ * l'aligner sur `/10` par symétrie ferait passer `--destructive` de 4,36:1 à 4,01:1 — sous AA.
+ * *Une régression mesurée n'est pas un prix acceptable pour de la symétrie.*
+ */
 function kindClasses(kind: string | undefined) {
   switch (kind) {
     case "success":
-      return "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-100"
+      return "border-success/30 bg-success/10 text-success"
     case "warning":
-      return "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-100"
+      return "border-warning/30 bg-warning/10 text-warning"
     case "error":
       return "border-destructive/30 bg-destructive/5 text-destructive dark:bg-destructive/10"
     default:

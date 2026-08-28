@@ -249,12 +249,42 @@ trait HasProfiles
     }
 
     /**
-     * TCK-278 — Vrai si l'utilisateur dispose d'une `RoleDelegation` active
-     * pour le rôle indiqué dans l'agence donnée. Remplace l'ancien check
-     * spatie `hasPermissionTo` qui dépendait de `setPermissionsTeamId`.
+     * TCK-395 (revue) — comme {@see self::canActAt()}, mais **sans consulter
+     * les délégations** : ne rend vrai que si l'utilisateur tient la capacité
+     * de ses propres profils.
      *
-     * Une délégation est active quand : status = Active et (ends_at est
-     * null OU dans le futur).
+     * À n'employer que pour un geste dont la délégation serait absurde ou
+     * inerte — aujourd'hui `team.delegate_role` et lui seul. Partout ailleurs,
+     * `canActAt()` est le bon site d'appel : une délégation est faite pour
+     * conférer.
+     */
+    public function canActDirectlyAt(Capability $capability, ?Agency $agency = null): bool
+    {
+        return app(MembershipCapabilityResolver::class)->allowsDirectly($this, $capability, $agency);
+    }
+
+    /**
+     * Vrai si l'utilisateur dispose d'une `RoleDelegation` active pour le rôle
+     * indiqué dans l'agence donnée : status = Active et (`ends_at` nul OU dans
+     * le futur).
+     *
+     * @deprecated TCK-395 — **pour autoriser.** C'est un PRÉDICAT D'ÉTAT sur la
+     * table `role_delegations`, pas un contrôle d'autorisation, et la nuance
+     * lui a coûté cher : elle teste une CHAÎNE (`'agency_admin'`) sans regarder
+     * ce que le rôle délégué porte réellement, ni ce que le délégant détient.
+     * Les six sites d'appel qui s'en servaient pour autoriser accordaient donc
+     * l'agency_admin PLEIN à qui n'aurait rien dû recevoir.
+     *
+     * Pour autoriser, employer `canActAt()` — qui consulte les délégations via
+     * {@see MembershipCapabilityResolver::delegationAllows()} et les borne par
+     * le pivot `agency_role_capabilities` et par le délégant.
+     *
+     * **Conservée, et non supprimée, pour une raison précise** : elle reste le
+     * seul moyen d'asserter l'ÉTAT d'une délégation sans passer par la
+     * résolution de capacités, ce que font dix assertions de tests — et
+     * notamment celles qui doivent distinguer « la ligne est active » de « le
+     * privilège est ouvert », deux choses que TCK-395 vient justement de
+     * séparer. Aucun appelant de production ne subsiste dans `app/`.
      */
     public function hasActiveAgencyDelegation(int $agencyId, string $role): bool
     {

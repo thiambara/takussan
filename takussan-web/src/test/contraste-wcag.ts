@@ -30,8 +30,11 @@
  * ⚠ Les jetons sont recopiés de `src/app/globals.css` à dessein, comme dans
  * `ui/__tests__/tabs.contrast.test.tsx` : jsdom ne charge aucune feuille, et un test qui lirait
  * la feuille COMPILÉE mesurerait ce que Tailwind a bien voulu émettre. Celui-ci mesure ce que le
- * design system DÉCLARE. `JETONS_SOMBRE` est présent pour le jour où un `ThemeProvider`
- * existera ; aucune classe `.dark` n'est posée nulle part aujourd'hui (vérifié).
+ * design system DÉCLARE.
+ *
+ * ⚠ **`JETONS_SOMBRE` n'est PAS « pour le jour où » : il mesure une surface RENDUE.** Cette
+ * ligne a affirmé le contraire, avec un « (vérifié) » qui la rendait crédible — cf.
+ * {@link JETONS_SOMBRE}, dont l'en-tête porte le détail et l'angle mort qui a produit l'erreur.
  */
 
 /** Seuil WCAG 1.4.11 — indicateur non textuel (anneau de focus, bordure porteuse de sens). */
@@ -64,18 +67,151 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
   'sidebar-accent': '#f1ece0',
   white: '#ffffff',
   black: '#000000',
+  /*
+   * Le VOILE. Même valeur que `black`, et ce n'est pas une redondance : `black` est la couleur
+   * nommée de Tailwind, `scrim` est le jeton `--scrim` de `globals.css` (TCK-384). Les mesurer
+   * séparément est ce qui permet à la garde de chrome de refuser l'une et d'admettre l'autre.
+   *
+   * ⚠ Il est le SEUL jeton dont l'héritage par `...JETONS_CLAIR` soit légitime — le piège que
+   * décrit l'en-tête de {@link JETONS_SOMBRE} porte sur les jetons QUE `.dark` REDÉFINIT. Vérifié :
+   * `grep -c -- '--scrim:' globals.css` → **1**, ligne 158, dans `:root`, jamais sous `.dark`.
+   * Un voile qui s'éclaircirait en thème sombre cesserait d'être un voile.
+   */
+  scrim: '#000000',
   transparent: 'transparent',
 };
 
-/** Bloc `.dark` de `globals.css` — inatteignable aujourd'hui, tenu à jour pour le jour où. */
+/**
+ * Bloc `.dark` de `globals.css` — la table d'une surface RÉELLEMENT RENDUE, et non d'un thème
+ * hypothétique.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * UNE RE-VÉRIFICATION QUI A CONCLU À FAUX, ET PAR QUEL ANGLE MORT
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Cet en-tête a porté, du 2026-08-27 au 2026-08-28, l'affirmation suivante — **elle était
+ * fausse**, et elle est recopiée ici plutôt que effacée, parce que c'est sa FORME qui instruit :
+ *
+ *     « ⚠ « Inatteignable » a été RE-VÉRIFIÉ le 2026-08-27 (TCK-440) […] il n'y a pas seulement
+ *       aucune classe .dark posée, il n'y a AUCUN MÉCANISME pour en poser une […] La bascule
+ *       sombre est un jeu de valeurs déclarées que rien n'active. »
+ *
+ * **La classe est posée, en toutes lettres, sur des composants livrés. Ne pas recopier la liste
+ * ci-dessous : la DÉRIVER**, parce que la première correction de cette erreur en avait énuméré
+ * DEUX et qu'il y en a TROIS —
+ *
+ *     grep -rnE "(^|['\"`]|[[:space:]])dark([[:space:]]|['\"`]|$)" takussan-web/src --include='*.tsx'
+ *
+ * ⚠⚠ **La première version de cette commande faisait 3 SUR 7, et rendait pourtant le bon compte.**
+ * Elle exigeait un guillemet immédiatement avant `dark`, alors que dans une liste de classes le
+ * séparateur est une ESPACE : elle ratait `className="flex dark bg-x"`, la position finale, et un
+ * gabarit au milieu. Elle donnait trois parce que les trois posages réels écrivent `dark` en
+ * premier — *coïncidence, pas propriété.* **Une commande qui rend le bon nombre sur les cas
+ * existants n'est pas une dérivation, c'est une énumération déguisée** : exactement ce qu'elle
+ * était censée remplacer. La forme ci-dessus fait **7 sur 7** sur ce banc.
+ *
+ * ⚠⚠ **LE BRUIT NE SE CHIFFRE PAS SANS SON PÉRIMÈTRE, et cette phrase l'a fait.** Elle a annoncé
+ * « zéro ligne de bruit en plus (22 dans les deux cas) » — un chiffre exact, mesuré ailleurs, et
+ * donc invérifiable par qui le relit. Trois relevés du même écart ont donné trois nombres, tous
+ * justes sous leur propre périmètre :
+ *
+ *     commande TELLE QU'ÉCRITE ci-dessous, depuis la racine, à 82d83706, le 2026-08-28
+ *         → 23 lignes sans ancre, 23 avec .................................... +0
+ *     `takussan-web/src` en `.tsx` ET `.ts` (1129 fichiers) ................... +0  (30 / 30)
+ *     le seul périmètre gardé par `check-public-chrome-tokens.mjs` ........... +0  (4 / 4)
+ *     un relevé sur un AUTRE commit ........................................ +1  (22 / 23)
+ *
+ * L'ancre ne change ici que l'ORDRE de parcours de `grep`, pas l'ensemble rendu — vérifié par
+ * `diff`. *Une mesure juste ne le reste pas quand on la transporte sur un autre commit, ni sur un
+ * autre périmètre.* Le choix reste évidemment le bon : un cas réel gagné contre, au pire, une
+ * ligne de commentaire.
+ *
+ * ⚠ Les ancres `^` et `$` ne sont pas décoratives : `grep` est orienté LIGNE, et un gabarit
+ * multiligne peut mettre `dark` seule sur sa ligne. Sans elles, la version « 6 sur 7 » exigeait
+ * un caractère APRÈS `dark` sur la même ligne et ratait ce cas-là — un huitième bord, trouvé
+ * une passe après les sept autres.
+ *
+ * ⚠ **Le septième cas est hors de portée de TOUT grep** : `clsx({ dark: x })` écrit la classe en
+ * clé d'objet, et `dark:` est par ailleurs le préfixe de la variante Tailwind — aucun motif
+ * textuel ne peut les distinguer. Écrit ici plutôt que laissé croire exhaustif.
+ *
+ * Au 2026-08-28 elle rend `SuperAdminSidebar.tsx:224`, `SuperAdminTopbar.tsx:49` et
+ * `SuperAdminShell.tsx:80`. ⚠ La troisième est la plus instructive : c'est un `<SheetContent
+ * className="dark …">`, donc une portée qui traverse un **portail** et atterrit au niveau du
+ * `body`, hors position d'arbre. Un raisonnement sur l'arbre JSX ne l'aurait pas trouvée.
+ *
+ * ⚠ Et le piège du relevé lui-même : `variant="dark"` (`AppTopbar.tsx:80`, `UserMenu.tsx`) n'est
+ * PAS la classe — c'est une prop de composant. Le motif de recherche ci-dessus les écarte.
+ *
+ * Leurs docblocks le disent depuis TCK-358, et l'un précise même : *« La classe `dark` n'est PAS
+ * le mode sombre de l'utilisateur : c'est une surface. »*
+ *
+ * ⚠ **L'ANGLE MORT, qui est le seul détail utile ici** : la re-vérification a cherché un
+ * MÉCANISME — `ThemeProvider`, `next-themes` au `package.json`, `documentElement.classList`. Les
+ * trois sont bien absents, et c'est ce qui l'a rendue convaincante. Elle n'a pas cherché **une
+ * classe littérale dans un `className`**, qui est pourtant la façon la plus simple de poser une
+ * classe. *Chercher l'outil et pas le geste : on ne trouve alors que les usages sophistiqués.*
+ *
+ * Et la leçon de forme, qui vaut au-delà de ce fichier : **une re-vérification qui conclut à faux
+ * est plus difficile à défaire que l'erreur d'origine.** Elle porte sa date et son ticket, elle a
+ * l'air d'avoir déjà résisté à un examen. Le « (vérifié) » de l'en-tête de fichier faisait le même
+ * travail. Un lecteur les croit tous les deux sans les rejouer — c'est exactement ce qui s'est
+ * passé pendant deux passes de revue.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * CE QUE CETTE TABLE MESURE DONC, ET QUI EST DOUBLE
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * · Pour la chrome SUPER-ADMIN : un écran que des gens regardent. Ces valeurs-là sont éprouvées
+ *   par la réalité, et une erreur dedans est un défaut visible. C'est ce qui donne sa portée au
+ *   piège du `...JETONS_CLAIR` décrit plus bas — il mesurait à faux une surface rendue.
+ * · Pour la chrome PUBLIQUE : une hypothèse. Aucune bascule globale n'existe, et la navbar n'est
+ *   jamais dans un sous-arbre `.dark` — les deux composants qui posent la classe sont ailleurs.
+ *   Les mesures « en sombre » de `chrome-publique.contraste.test.tsx` gardent donc la COHÉRENCE
+ *   des jetons, pas la lisibilité d'un écran existant.
+ *
+ * La distinction juste n'est pas « mort / vivant » mais **« portée locale assumée » contre
+ * « bascule globale absente »** (TCK-452).
+ *
+ * ⚠ **Le `...JETONS_CLAIR` de la première ligne est un piège, et il a mordu.** Il fait hériter en
+ * silence des valeurs CLAIRES tout jeton non ré-écrit ci-dessous — `primary`, `secondary`,
+ * `popover`, `border`, `accent` restaient donc à leur valeur de thème clair, et une mesure
+ * « en sombre » les comparait à un fond sombre : un rapport rassurant, calculé sur une paire qui
+ * n'existe nulle part. Les huit lignes ajoutées le 2026-08-27 (TCK-440) recopient le bloc `.dark`
+ * en entier. Une valeur absente de `globals.css` n'est pas une valeur héritée du clair.
+ */
 export const JETONS_SOMBRE: Readonly<Record<string, string>> = {
   ...JETONS_CLAIR,
   background: '#1f1812',
   foreground: '#fcf9f3',
   card: '#2a2018',
+  'card-foreground': '#fcf9f3',
+  popover: '#2a2018',
+  'popover-foreground': '#fcf9f3',
+  primary: '#c87a52',
+  'primary-foreground': '#1f1812',
+  secondary: '#3a2e23',
+  'secondary-foreground': '#fcf9f3',
   muted: '#3a2e23',
   'muted-foreground': '#b8aa97',
+  accent: '#7d8d6e',
+  'accent-foreground': '#1f1812',
+  warning: '#e0a458',
+  'warning-foreground': '#1f1812',
   ring: '#c87a52',
+  sidebar: '#2a2018',
+  'sidebar-accent': '#3a2e23',
+  /*
+   * ⚠ `--border` et `--input` sont les DEUX seuls jetons du bloc `.dark` qui ne sont pas des hex :
+   * `oklch(1 0 0 / 10%)` et `oklch(1 0 0 / 15%)`, c'est-à-dire du blanc translucide. Les valeurs
+   * ci-dessous sont ces blancs COMPOSÉS sur `--background` #1f1812, la seule composition qu'ils
+   * subissent en pratique — les recopier translucides ferait lever `versRvb()`, et les laisser à
+   * leur valeur claire (ce que faisait le `...JETONS_CLAIR`) mesurerait une bordure crème sur un
+   * fond sombre, c'est-à-dire rien de réel. C'est une APPROXIMATION assumée : posée sur `--card`
+   * (#2a2018), la vraie bordure serait un cran plus claire.
+   */
+  border: '#352f2a',
+  input: '#413b36',
 };
 
 export type Rvb = readonly [number, number, number];

@@ -12,6 +12,7 @@ use App\Http\Resources\Api\Me\ProfileResource;
 use App\Http\Resources\DocumentVersionResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\PropertyMapGeoJsonResource;
+use App\Http\Resources\PropertySitemapResource;
 use App\Models\Agency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -83,6 +84,13 @@ final class ResourceInventory
         PropertyMapGeoJsonResource::class => [
             'modeles' => [Property::class],
             'raison' => 'Enveloppe un Property sous une Feature GeoJSON — le nom décrit le format de sortie, pas le modèle.',
+        ],
+        PropertySitemapResource::class => [
+            'modeles' => [Property::class],
+            'raison' => 'Enveloppe un Property sous les deux clés que le protocole sitemap attend '
+                .'(`slug`, `updated_at`) — même écart de nommage que la GeoJSON juste au-dessus : '
+                .'le suffixe décrit le FORMAT DE SORTIE, pas le modèle. Ajoutée par TCK-431 et '
+                .'oubliée ici ; la garde de registre est le seul mécanisme qui l\'ait dit.',
         ],
         ProfileResource::class => [
             'modeles' => [

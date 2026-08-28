@@ -1,13 +1,13 @@
 ---
 id: TCK-436
 title: "`/agencies` et `/agents` n'existent pas : deux surfaces publiques soignées n'ont qu'un seul chemin entrant"
-status: todo
+status: done
 phase: P2
 family: full
 estimate: M
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-28
 depends_on: []
 blocks: []
 spec_refs:
@@ -117,19 +117,55 @@ ville suffisent — pas de rail de filtres à la `/properties`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/public/agencies` et `GET /api/public/agents` répondent 200 sans
+- [x] AC1 — `GET /api/public/agencies` et `GET /api/public/agents` répondent 200 sans
       authentification et rendent une enveloppe paginée. Un test éprouve la **seconde page**, pas
       seulement la première : une pagination cassée rend la première page correctement.
-- [ ] AC2 — un profil non éligible à la présence publique est absent de l'index. Le test crée un
+  > vérifié : `takussan-api/tests/Feature/Public/PublicProfileIndexTest.php` (22 tests, 157
+  > assertions, verts). `test_ac1_…_repond_200_sans_authentification_avec_enveloppe_paginee` pour
+  > les deux ressources, puis `test_ac1_la_seconde_page_…_rend_des_…_differentes_de_la_premiere`
+  > **pour chacune**, `test_ac1_lordre_de_pagination_est_total_sur_les_deux_index` (aucun doublon ni
+  > oubli entre les pages) et `test_ac1_per_page_est_plafonne`. Routes déclarées en
+  > `routes/api/public.php:153-157` sous le même `throttle:public-read` que l'existant.
+- [x] AC2 — un profil non éligible à la présence publique est absent de l'index. Le test crée un
       profil de chaque sorte et vérifie **l'exclusion**, pas seulement la présence de l'éligible.
-- [ ] AC3 — aucune des deux réponses ne porte d'e-mail ni de téléphone personnel. Un test le
+  > vérifié : `test_ac2_agences_non_eligibles_absentes_de_lindex` crée **huit** cas non éligibles
+  > (sans bien, brouillon seul, agence suspendue, archivée, bien non publié, `is_test`, bien privé,
+  > bien `pending`) et assère `assertNotContains` sur chacun **plus** `meta.total === 1` — le compte
+  > ferme le cas d'un index vide qui passerait toutes les exclusions. Idem pour les agents. La règle
+  > vit dans `Property::scopePublicPortfolio()` et les deux `index()`.
+- [x] AC3 — aucune des deux réponses ne porte d'e-mail ni de téléphone personnel. Un test le
       vérifie sur la charge sérialisée entière, pas champ par champ.
-- [ ] AC4 — `/agencies` et `/agents` répondent avec du contenu et non 404, et un clic sur un
+  > vérifié : `test_ac3_lindex_des_agents_…` et `test_ac3_lindex_des_agences_ne_porte_aucune_
+  > coordonnee_personnelle` balaient la **charge sérialisée entière**. Et
+  > `test_la_garde_de_pii_voit_reellement_une_fuite` est l'ablation de la garde elle-même : sans
+  > elle, un balayage qui ne regarderait rien serait vert. `description` a été retiré de la sortie
+  > pour cette raison (texte libre = champ de contact non déclaré).
+- [x] AC4 — `/agencies` et `/agents` répondent avec du contenu et non 404, et un clic sur un
       profil mène à sa fiche existante.
-- [ ] AC5 — un test confronte les liens de la chrome publique aux routes existantes et échouerait
+  > vérifié : `src/app/[locale]/(public)/{agencies,agents}/page.tsx` existent ;
+  > `src/components/public/index/__tests__/IndexDeProfils.test.tsx` bloc « AC4 » rend un titre, un
+  > compte et une carte par profil, et chaque carte est un **lien préfixé de la langue** vers la
+  > fiche (slug encodé) ; `routeExiste('/agencies/sahel-homes')` et `('/agents/awa-diop')` sont
+  > vrais dans `src/data/__tests__/navigation.test.ts`. Les états vide et erreur sont éprouvés
+  > exclusifs. `node scripts/check-i18n-namespaces.mjs` → vert, la garde qui attrape la régression
+  > de namespace ayant causé les 500 de la passe 2. Le 200 × 6 lui-même est un relevé serveur
+  > consigné en Notes d'implémentation, non rejoué ici.
+- [x] AC5 — un test confronte les liens de la chrome publique aux routes existantes et échouerait
       si `/agencies` ou `/agents` redevenait un lien sans écran.
-- [ ] AC6 — le sitemap contient les URL des profils éligibles, et aucune de celles qui ne le sont
+  > vérifié : `src/data/__tests__/navigation.test.ts` confronte **chaque** entrée de `navLinks` et
+  > `footerLinks` à un inventaire **dérivé** de `src/app` (`src/test/routes-publiques.ts`) ; le pied
+  > de page porte bien les deux (`src/data/navigation.ts:133-134`, colonne « Professionnels »). La
+  > garde est mutée dans les deux sens (« reconnaît les formes que la garde doit refuser » :
+  > `/services`, `#`, trop de segments → `false`), et `/agencies` / `/agents` y sont nommés
+  > explicitement pour que la suppression d'une page rougisse même si le lien partait avec elle.
+- [x] AC6 — le sitemap contient les URL des profils éligibles, et aucune de celles qui ne le sont
       pas.
+  > vérifié : `src/app/__tests__/sitemap.route.test.ts` bloc « AC6 » — les deux index et les fiches
+  > de profils dans les **trois** langues ; source vide ⇒ **aucune** fiche de profil (les index
+  > restent) ; slug encodé (`awa&diop` → `awa%26diop`). L'exclusion elle-même n'est pas rejugée par
+  > le sitemap : il pagine `GET /public/{ressource}` (`listerSlugsDeProfils`), dont l'AC2 ci-dessus
+  > éprouve le prédicat — une seule décision, un seul endroit. Le cas des slugs à point (relevés
+  > réels) est couvert : la page fautive sort, la source reste, et l'écart est journalisé.
 
 ## Hors périmètre
 
@@ -141,4 +177,133 @@ ville suffisent — pas de rail de filtres à la `/properties`.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### La règle d'éligibilité, et pourquoi la définition métier a été écartée
+
+Le ticket demandait de trancher « présence publique ». La règle retenue, écrite dans le code qui
+l'applique (`PublicAgencyController::index()`, `PublicAgentController::index()`,
+`Property::scopePublicPortfolio()`) :
+
+| | condition |
+|---|---|
+| Agence | `status = active` **et** ≥ 1 bien `publicPortfolio()` sous `agency_id` |
+| Agent | `status = active`, `username` non nul, **et** ≥ 1 bien `publicPortfolio()` sous `user_id` |
+
+`scopePublicPortfolio()` est l'**intersection** de `scopePublic()` (le prédicat du sitemap et de
+`/public/properties`) et de `available()` (ce que les fiches `/agencies/{slug}` et
+`/agents/{slug}` affichent réellement). Plus étroit que le premier ⇒ tout profil listé a sa place
+au sitemap ; plus étroit que le second ⇒ **un profil listé a un portefeuille non vide sur sa
+fiche**.
+
+**La définition métier de l'agent — « porteur d'un `AgentProfile` » — a été mesurée et écartée.**
+Relevé du 2026-08-28 sur la base de développement (SQL, lecture seule) :
+
+```
+utilisateurs actifs porteurs d'un AgentProfile ET publiant un bien public ....  0
+idem pour AgencyAdminProfile .................................................  0
+publieurs publics porteurs d'un OwnerProfile ................................. 44 / 44
+publieurs publics dont au moins un bien porte un `agency_id` ................. 44 / 44
+```
+
+`properties.user_id` est le **bailleur** depuis TCK-142. La retenir aurait livré une page
+`/agents` vide et un sitemap sans une seule URL d'agent — un endpoint vert qui ne montre rien.
+L'index retient donc la définition que le produit APPLIQUE déjà : *la personne publiquement
+présentée comme contact d'au moins un bien publié* — celle que `PublicAgentController::show()`
+sert, et que `PropertyResource::buildOwner()` lie déjà à `/agents/{slug}`. **L'index n'expose
+donc aucun nom que `/public/properties` ne rende déjà énumérable**, un bien à la fois.
+
+### La redaction, et ce qui la borne
+
+Les deux index ne servent **ni e-mail, ni téléphone, ni adresse** — ni ceux du profil, ni ceux
+d'un membre d'équipe. C'est plus strict que les fiches, qui publient le `phone` d'un agent
+(TCK-441) et l'`email` d'une agence : *une donnée consultable fiche par fiche et la même servie
+par paquets de 48, filtrables et paginés, ne sont pas la même donnée.*
+
+`description` a été retiré de la sortie **après** que le test d'AC3 l'a attrapé sur une
+description portant « Nous écrire : contact@… » : un champ de texte libre est un champ de contact
+que personne n'a déclaré. Le second demi-verrou est le plafond `per_page = 48`, que
+`PublicPropertyController::index()` n'a pas.
+
+La **ville** rendue vient du PORTEFEUILLE (villes des annonces publiées) et non de l'adresse
+postale du profil, contrairement aux fiches. C'est à la fois la réponse à « qui opère dans ma
+ville » et l'assurance qu'aucune commune de résidence n'entre dans l'index.
+
+### Ce qui a été branché ailleurs
+
+- **Pied de page** — la colonne « Professionnels » de TCK-437, qui existait vide en attendant ce
+  ticket, porte ses deux liens. `src/data/__tests__/navigation.test.ts` les confronte à
+  l'arborescence réelle : supprimer une des deux pages fait rougir six tests dans trois fichiers
+  (mesuré par ablation).
+- **Sitemap** — les deux index entrent dans `PAGES_STATIQUES_INDEXABLES`, et les deux sources
+  `agences` / `agents` remplacent les `source: null` de `ROUTES_DYNAMIQUES_PUBLIQUES`. Le sitemap
+  **ne rejuge pas l'éligibilité** : il pagine l'endpoint d'index, qui l'applique déjà.
+- **Canonique** — `src/lib/canonique-profils.ts` applique le critère de TCK-433 : `city` garde son
+  URL indexable (ensemble fini, servi par l'API en `meta.cities`), `q` et `page` se replient.
+
+### Passe 2 — ce que la revue adverse a refusé, et ce que la mesure a rendu
+
+Trois rouges, tous côté front, tous invisibles depuis les tests :
+
+1. **`/agencies` et `/agents` rendaient 500 dans les trois langues.** `ProfileFilters` est un
+   composant client et `publicProfileIndex` n'était pas déclaré à la frontière
+   `[locale]/(public)` de `src/i18n/namespaces.json` (découpage du dictionnaire client, TCK-337).
+   ⚠ En **production** le symptôme n'est pas un 500 mais le **chemin de clé peint à l'écran** :
+   `src/i18n/erreurs.ts` ne lève que hors production. Un 500 se voit ; une clé affichée se lit
+   comme du contenu.
+
+2. **`/sitemap.xml` passait de 200 à 500, zéro octet.** Quatre agents éligibles réels portent un
+   `username` contenant un point, et `estCheminLocalisable()` refuse un dernier segment qui
+   ressemble à une extension. Le défaut de fond n'était pas le slug : **`construireSitemap()`
+   courait hors du `try` par source**, donc une seule URL emportait le catalogue entier. Le
+   docblock qui affirmait « chaque source échoue séparément » a été corrigé en même temps que le
+   code.
+
+3. **Espace d'URL indexables non borné.** `?city=<n'importe quoi>` produisait une page 200,
+   `index, follow`, canonique d'elle-même, au `<title>` choisi par l'appelant. Une valeur de
+   `city` n'entre désormais dans le titre, la canonique et les `hreflang` que si l'API certifie
+   que la facette porte du contenu (`verdictDeFacette`, `total > 0`).
+
+**La cause commune vaut plus que les trois défauts** : la vérification avait été prise sur
+`scripts/check-*.mjs` à la **racine** seulement. Les trois gardes qui attrapent tout ceci vivent
+dans `takussan-web/scripts/` et sont jouées par `web-ci.yml`, pas par `repo-ci.yml`. *Un
+inventaire de gardes qui s'arrête à un répertoire n'est pas un inventaire, c'est un répertoire.*
+
+**Mesuré sur un serveur réel** (`next dev` + `php artisan serve` sur le code de la branche), parce
+qu'un vert de vitest ne dit rien ici — les 71 tests du ticket étaient verts sur ces mêmes 500 :
+
+| | avant | après |
+|---|---|---|
+| `/{fr,en,wo}/{agencies,agents}` | 500 × 6 | **200 × 6**, `<h1>`, profils liés, wolof en wolof |
+| `/sitemap.xml` | 500, 0 octet | **200, 616 680 octets, 897 `<url>`** |
+| `?city=<inventée>` | 200, `index, follow`, titre attaquant | **`noindex, follow`**, canonique repliée |
+| `?city=dakar` | canonique `?city=dakar` | canonique **`?city=Dakar`** (graphie de l'API) |
+
+### Un défaut préexistant, mesuré au passage — hors périmètre
+
+La fiche d'un agent dont le `username` porte un point **ne rend pas 500** : elle rend **200 en
+perdant son `<title>` et sa canonique**. Next sert la page et jette silencieusement les
+métadonnées quand `generateMetadata` lève. Mesuré :
+
+```
+/fr/agents/owner.agency1             → 200,  <title> absent,  canonical absente
+/fr/agents/thies-properties-owner-1  → 200,  <title> présent, canonical présente
+```
+
+Quatre agents réels sont dans ce cas, et toute fiche de bien dont le slug porterait un point le
+serait aussi. Cela relève de TCK-434 / TCK-433, pas de ce ticket — qui se contente d'écarter ces
+pages du sitemap **en les nommant dans le journal**. *Un défaut qui rend 200 et perd son titre est
+plus cher qu'un 500 : rien ne le signale.*
+
+⚠ J'avais d'abord écrit « la fiche rend 500 », déduit du fait qu'`alternatesLangues` lève.
+C'était une déduction, pas une mesure, et elle était fausse.
+
+### Ce que ce lot laisse ouvert
+
+- Les deux pages sont rendues **côté serveur**, contrairement à `/properties` (TCK-432) : c'est
+  une divergence assumée, dans le sens de ce que TCK-432 veut obtenir.
+- Le sitemap pagine l'index par lots de 48. À l'échelle actuelle c'est 1 à 2 requêtes par
+  ressource ; à 10 000 profils ce serait 209. Un endpoint `sitemap` dédié, comme celui des biens,
+  serait alors la suite — pas avant.
+- L'`avatar_url` d'un agent et le `logo_url` d'une agence n'existent **pas** comme attributs sur
+  `User` / `Agency` (ni colonne, ni accesseur) : les fiches livrées par TCK-242/276 émettent donc
+  toujours `null`. Les index emploient `getFirstMediaUrl()`, la forme qui fonctionne ; corriger
+  les fiches est hors périmètre.

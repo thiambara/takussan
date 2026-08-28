@@ -16,25 +16,38 @@ import { InviteMemberButton } from '../InviteMemberButton';
  * n'existait aucun fichier de test pour ce composant. Le raccord était livré et
  * NON exécuté ; ce fichier le rend exécuté.
  *
- * ## Pourquoi le dialogue est bouchonné
+ * TCK-392 — l'en-tête porte désormais DEUX gestes, et le défaut corrigé est
+ * précisément qu'on n'en voyait qu'un : le bouton « Inviter » ouvrait le
+ * dialogue « compte existant », qui appelle `POST /members` et n'écrit aucune
+ * ligne `invitations`. Les deux cas ci-dessous vérifient que chaque libellé
+ * ouvre le dialogue qui porte son nom — *un test qui n'ouvrirait qu'« Inviter »
+ * serait resté vert pendant tout le temps où « Inviter » n'invitait pas.*
  *
- * Ce qu'on éprouve ici est le RACCORD, pas le formulaire : quelles clés de
- * cache le succès d'une invitation emporte. Le vrai `InviteMemberDialog` a son
- * propre schéma, son propre appel réseau et ses propres tests ; le traverser
- * ferait dépendre cette assertion de trois choses qui n'ont rien à voir avec
- * elle, et un test qui rougit pour trois raisons n'en désigne aucune.
+ * ## Pourquoi les dialogues sont bouchonnés
+ *
+ * Ce qu'on éprouve ici est le RACCORD, pas les formulaires : quel dialogue
+ * s'ouvre, et quelles clés de cache le succès emporte. Les vrais dialogues ont
+ * leurs propres schémas, leurs propres appels réseau et leurs propres tests ;
+ * les traverser ferait dépendre ces assertions de trois choses qui n'ont rien à
+ * voir avec elles, et un test qui rougit pour trois raisons n'en désigne aucune.
  */
-const dialogProps = vi.fn();
-
-vi.mock('@/components/admin/InviteMemberDialog', () => ({
-  InviteMemberDialog: (props: { open: boolean; onSuccess?: () => void }) => {
-    dialogProps(props);
-    return props.open ? (
+function bouchon(testId: string) {
+  const Bouchon = (props: { open: boolean; onSuccess?: () => void }) =>
+    props.open ? (
       <button type="button" onClick={() => props.onSuccess?.()}>
-        simuler-succes
+        {testId}
       </button>
     ) : null;
-  },
+  Bouchon.displayName = `Bouchon(${testId})`;
+  return Bouchon;
+}
+
+vi.mock('@/components/admin/InviteMemberDialog', () => ({
+  InviteMemberDialog: bouchon('succes-compte-existant'),
+}));
+
+vi.mock('@/components/admin/InviteAgentDialog', () => ({
+  InviteAgentDialog: bouchon('succes-invitation'),
 }));
 
 function monter() {
@@ -61,15 +74,40 @@ function clesInvalidees(invalidate: { mock: { calls: unknown[][] } }): string[] 
 
 describe('<InviteMemberButton>', () => {
   beforeEach(() => {
-    dialogProps.mockReset();
+    vi.clearAllMocks();
+  });
+
+  /**
+   * TCK-392, AC1 — le libellé « Inviter » doit ouvrir le dialogue d'INVITATION
+   * (`POST /agents/invite`), pas celui qui ajoute un compte existant. C'est
+   * exactement l'échange que le ticket décrit.
+   */
+  it('« Inviter » ouvre le dialogue d’invitation par e-mail, pas l’ajout d’un compte existant', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(screen.getByRole('button', { name: /^Inviter$/ }));
+
+    expect(screen.getByRole('button', { name: 'succes-invitation' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'succes-compte-existant' })).toBeNull();
+  });
+
+  it('« Ajouter un compte existant » ouvre l’autre dialogue', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.click(screen.getByRole('button', { name: /compte existant/i }));
+
+    expect(screen.getByRole('button', { name: 'succes-compte-existant' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'succes-invitation' })).toBeNull();
   });
 
   it('invalide LES DEUX listes après une invitation réussie', async () => {
     const user = userEvent.setup();
     const { invalidate } = monter();
 
-    await user.click(screen.getByRole('button', { name: /Inviter/ }));
-    await user.click(screen.getByRole('button', { name: 'simuler-succes' }));
+    await user.click(screen.getByRole('button', { name: /^Inviter$/ }));
+    await user.click(screen.getByRole('button', { name: 'succes-invitation' }));
 
     const cles = clesInvalidees(invalidate);
     // Le tableau des membres : une invitation acceptée y fait apparaître une ligne.
@@ -80,11 +118,23 @@ describe('<InviteMemberButton>', () => {
     expect(cles).toContain(JSON.stringify(['agency-invitations']));
   });
 
-  it("n'invalide rien tant qu'aucune invitation n'a abouti", async () => {
+  it('invalide LES DEUX listes après l’ajout d’un compte existant', async () => {
     const user = userEvent.setup();
     const { invalidate } = monter();
 
-    await user.click(screen.getByRole('button', { name: /Inviter/ }));
+    await user.click(screen.getByRole('button', { name: /compte existant/i }));
+    await user.click(screen.getByRole('button', { name: 'succes-compte-existant' }));
+
+    const cles = clesInvalidees(invalidate);
+    expect(cles).toContain(JSON.stringify(['admin-users']));
+    expect(cles).toContain(JSON.stringify(['agency-invitations']));
+  });
+
+  it("n'invalide rien tant qu'aucun geste n'a abouti", async () => {
+    const user = userEvent.setup();
+    const { invalidate } = monter();
+
+    await user.click(screen.getByRole('button', { name: /^Inviter$/ }));
 
     expect(invalidate).not.toHaveBeenCalled();
   });
