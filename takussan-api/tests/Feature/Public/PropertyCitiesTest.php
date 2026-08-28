@@ -2,8 +2,8 @@
 
 namespace Tests\Feature\Public;
 
-use App\Http\Controllers\Public\PublicPropertyController;
 use App\Models\Address;
+use App\Models\Customer;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -112,11 +112,95 @@ class PropertyCitiesTest extends TestCase
         $this->assertArrayHasKey('truncated', $response->json('meta'));
     }
 
-    public function test_cap_is_declared_and_plausible(): void
+    /**
+     * ⚠️ **LE BORD DU PLAFOND, éprouvé avec TROIS biens.**
+     *
+     * La passe 1 avait argué qu'éprouver le plafond coûterait 501 insertions et s'était contentée
+     * de vérifier que la constante existait — c'est-à-dire de ne rien mesurer. Le coût réel
+     * n'était pas 501 insertions, c'était **une ligne de configuration** : `catalogue.cities_max`
+     * s'abaisse à 2, et les trois cas du bord tiennent en trois biens.
+     *
+     * *Un seuil qu'on ne peut pas atteindre en test est un seuil qu'on ne teste pas.*
+     */
+    public function test_exactly_at_the_cap_is_not_truncated(): void
     {
-        // Le plafond garde contre une base polluée. Il ne se mesure pas en créant 501 biens —
-        // ce serait payer 501 insertions pour éprouver une comparaison —, mais il doit exister
-        // et rester au-dessus de tout catalogue plausible.
-        $this->assertGreaterThan(100, PublicPropertyController::CITIES_MAX);
+        config(['catalogue.cities_max' => 2]);
+        $this->bienA('Dakar');
+        $this->bienA('Thiès');
+
+        $this->getJson('/api/public/properties/cities')
+            ->assertOk()
+            ->assertJsonPath('meta.truncated', false)
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_one_over_the_cap_is_truncated_and_capped(): void
+    {
+        config(['catalogue.cities_max' => 2]);
+        $this->bienA('Dakar');
+        $this->bienA('Thiès');
+        $this->bienA('Touba');
+
+        $reponse = $this->getJson('/api/public/properties/cities');
+
+        // Les DEUX assertions comptent. `truncated` sans plafonnement rendrait un domaine complet
+        // que le front refuserait pour rien ; le plafonnement sans `truncated` rendrait un domaine
+        // AMPUTÉ que le front emploierait comme s'il était complet — et déclarerait alors non
+        // canonique chaque ville qui n'a pas tenu. C'est ce second cas qui coûte.
+        $reponse->assertOk()
+            ->assertJsonPath('meta.truncated', true)
+            ->assertJsonCount(2, 'data');
+    }
+
+    public function test_the_cap_comes_from_configuration_not_from_a_frozen_constant(): void
+    {
+        // Le contrôle qui garde le test : sans lui, un contrôleur qui ignorerait la configuration
+        // passerait les deux cas ci-dessus dès que le plafond réel serait supérieur à 3.
+        config(['catalogue.cities_max' => 1]);
+        $this->bienA('Dakar');
+        $this->bienA('Thiès');
+
+        $this->getJson('/api/public/properties/cities')
+            ->assertOk()
+            ->assertJsonPath('meta.truncated', true)
+            ->assertJsonCount(1, 'data');
+    }
+
+    /**
+     * ⚠️ **L'ISOLEMENT DE LA JOINTURE POLYMORPHE — une surface publique ANONYME.**
+     *
+     * Quatre modèles sont adressables : `User`, `Agency`, `Property`, `Customer`. La jointure de
+     * `cities()` porte `->where('addresses.addressable_type', '=', Property::class)` ; **la
+     * retirer laissait les sept tests de ce fichier VERTS**, alors que l'adresse d'un CLIENT dont
+     * l'id coïncide avec celui d'un bien public entrerait dans « le domaine des villes du
+     * catalogue public ».
+     *
+     * Le test force la coïncidence d'id plutôt que d'espérer qu'elle se produise : les séquences
+     * de `customers` et de `properties` sont indépendantes, et `nextval()` n'est pas
+     * transactionnel (piège PostgreSQL n°6), donc « les ids se croisent parfois » n'est pas une
+     * garantie — c'est un test qui passerait au hasard.
+     */
+    public function test_an_address_of_another_addressable_type_never_enters_the_domain(): void
+    {
+        $bien = $this->bienA('Dakar');
+
+        $client = Customer::factory()->create();
+        Address::factory()->create([
+            'addressable_id' => $bien->id,
+            'addressable_type' => Customer::class,
+            'city' => 'VilleDeClient',
+        ]);
+        // Et une seconde, sur l'id réel du client, pour couvrir les deux façons de se tromper.
+        Address::factory()->create([
+            'addressable_id' => $client->id,
+            'addressable_type' => Customer::class,
+            'city' => 'AutreVilleDeClient',
+        ]);
+
+        $villes = collect($this->getJson('/api/public/properties/cities')->json('data'))
+            ->pluck('value')
+            ->all();
+
+        $this->assertSame(['Dakar'], $villes);
     }
 }

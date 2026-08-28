@@ -59,6 +59,39 @@ function sansCommentaires(source: string): string {
 }
 
 /**
+ * Le corps d'un objet littéral, ACCOLADES ÉQUILIBRÉES, à partir de son `{`.
+ *
+ * ⚠ La version précédente lisait `\{([^}]*)\}`, qui s'arrête à la PREMIÈRE accolade fermante :
+ * `robots: { googleBot: { index: false }, index: true }` — une page indexable pour tous les
+ * moteurs sauf Google — en sortait classée `noindex`. L'erreur allait dans le sens sûr (la page
+ * aurait été refusée au sitemap) mais elle aurait produit une « page indexable absente du
+ * sitemap » que rien d'autre ne signale.
+ */
+function corpsEquilibre(source: string, debut: number): string | null {
+  let profondeur = 0;
+  for (let i = debut; i < source.length; i += 1) {
+    if (source[i] === '{') profondeur += 1;
+    else if (source[i] === '}') {
+      profondeur -= 1;
+      if (profondeur === 0) return source.slice(debut + 1, i);
+    }
+  }
+  return null;
+}
+
+/** Le corps privé de ses objets IMBRIQUÉS — pour ne lire que le premier niveau. */
+function premierNiveau(corps: string): string {
+  let sortie = '';
+  let profondeur = 0;
+  for (const c of corps) {
+    if (c === '{') profondeur += 1;
+    else if (c === '}') profondeur -= 1;
+    else if (profondeur === 0) sortie += c;
+  }
+  return sortie;
+}
+
+/**
  * L'indexabilité déclarée par un fichier de route — **et `'inconnu'` est une VALEUR, pas un repli.**
  *
  * ════════════════════════════════════════════════════════════════════════════════════════════════
@@ -73,25 +106,52 @@ function sansCommentaires(source: string): string {
  *     robots: 'noindex, nofollow'                 ← chaîne
  *
  * Une page écrite sous la seconde était classée **indexable**, donc RÉCLAMÉE dans
- * `PAGES_STATIQUES_INDEXABLES` — et une fois ajoutée, les 57 tests passaient avec trois `<loc>`
- * `noindex` dans le sitemap. La garde de l'AC3 ne connaissait qu'une des deux formes valides.
+ * `PAGES_STATIQUES_INDEXABLES` — et une fois ajoutée, les tests passaient avec trois `<loc>`
+ * `noindex` dans le sitemap.
  *
- * ⚠️ **Le défaut n'était pas la forme manquante, c'était le REPLI SUR « indexable ».** Une
- * troisième forme apparaîtra (`robots: FONCTION()`, un objet importé, une variable). Elle rend
- * désormais `'inconnu'`, et `'inconnu'` fait ROUGIR en nommant le fichier — au lieu d'être
- * silencieusement rangée du côté qui ouvre l'indexation.
+ * ⚠️ **Le défaut n'était pas la forme manquante, c'était le REPLI SUR « indexable ».** Il avait
+ * d'ailleurs SURVÉCU à la première correction, d'un cran plus bas : la fonction rendait
+ * `'indexable'` dès que le jeton `robots:` était absent du fichier — donc une page dont la
+ * métadonnée est IMPORTÉE (`export { META as metadata } from './meta'`) passait pour indexable
+ * alors qu'elle sert `noindex`. C'est le cas que le docblock prétendait couvrir.
+ *
+ * La règle est désormais **positive** : on ne classe que ce qu'on peut LIRE SUR PLACE.
+ *
+ * · aucune déclaration littérale de `metadata` / `generateMetadata` dans le fichier → `'inconnu'` ;
+ * · une métadonnée réexportée ou affectée depuis un identifiant importé → `'inconnu'` ;
+ * · une déclaration lisible SANS `robots` → `'indexable'` (elle hérite du layout du groupe, qui
+ *   déclare `robots: { index: true, follow: true }`) ;
+ * · une déclaration lisible AVEC `robots` sous une forme reconnue → cette forme ;
+ * · toute autre forme de `robots` → `'inconnu'`.
+ *
+ * Mesuré le 2026-08-28 : les NEUF pages publiques déclarent leur métadonnée sur place, donc
+ * exiger la déclaration ne coûte aucun faux positif aujourd'hui.
  */
 function indexabiliteDe(source: string): Indexabilite {
   const propre = sansCommentaires(source);
+
+  // ── Ce qui n'est pas lisible sur place n'est pas classé ────────────────────────────────────
+  if (/export\s*\{[^}]*\bmetadata\b[^}]*\}\s*from/.test(propre)) return 'inconnu';
+  if (/export\s+const\s+metadata\s*(?::[^=]*)?=\s*[A-Za-z_$][\w$]*\s*;/.test(propre)) return 'inconnu';
+  if (!/export\s+(?:async\s+)?function\s+generateMetadata|export\s+const\s+metadata\s*[:=]/.test(propre)) {
+    return 'inconnu';
+  }
+
   if (!/\brobots\s*:/.test(propre)) return 'indexable';
 
   const chaine = propre.match(/\brobots\s*:\s*(['"`])([^'"`]*)\1/);
   if (chaine) return /\bnoindex\b/i.test(chaine[2]!) ? 'noindex' : 'indexable';
 
-  const objet = propre.match(/\brobots\s*:\s*\{([^}]*)\}/);
-  if (objet) {
-    if (/\bindex\s*:\s*false\b/.test(objet[1]!)) return 'noindex';
-    if (/\bindex\s*:\s*true\b/.test(objet[1]!)) return 'indexable';
+  const ouverture = propre.search(/\brobots\s*:\s*\{/);
+  if (ouverture !== -1) {
+    const corps = corpsEquilibre(propre, propre.indexOf('{', ouverture));
+    if (corps !== null) {
+      // ⚠ PREMIER NIVEAU seulement : un `googleBot: { index: false }` imbriqué ne décide pas de
+      // l'indexabilité générale de la page.
+      const plat = premierNiveau(corps);
+      if (/\bindex\s*:\s*false\b/.test(plat)) return 'noindex';
+      if (/\bindex\s*:\s*true\b/.test(plat)) return 'indexable';
+    }
   }
 
   return 'inconnu';
@@ -163,6 +223,48 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     // La troisième forme, celle qui n'existe pas encore.
     expect(indexabiliteDe('export const metadata = { robots: robotsDeLaPage() };')).toBe('inconnu');
     expect(indexabiliteDe('export const metadata = { robots: REGLES };')).toBe('inconnu');
+  });
+
+  it('une métadonnée qu’on ne peut pas LIRE SUR PLACE rend « inconnu »', () => {
+    /*
+     * ⚠ Le repli sur « indexable » avait SURVÉCU à la première correction, d'un cran plus bas :
+     * la fonction rendait `'indexable'` dès que le jeton `robots:` était absent du fichier. Une
+     * page dont la métadonnée est IMPORTÉE n'en porte aucun — elle passait donc pour indexable,
+     * était réclamée dans le sitemap, et 60 tests passaient avec elle dedans alors qu'elle sert
+     * `noindex`. C'est le cas que le docblock prétendait déjà couvrir.
+     */
+    expect(indexabiliteDe("export { META as metadata } from './meta';")).toBe('inconnu');
+    expect(indexabiliteDe("import { META } from './meta';\nexport const metadata = META;")).toBe(
+      'inconnu',
+    );
+    expect(indexabiliteDe('export default function Page() { return null; }')).toBe('inconnu');
+  });
+
+  it('lit l’objet `robots` AU-DELÀ de la première accolade fermante', () => {
+    // `robots: { googleBot: { index: false }, index: true }` est une page indexable pour tous les
+    // moteurs SAUF Google. L'ancienne lecture `\{([^}]*)\}` s'arrêtait à l'accolade de
+    // `googleBot` et la classait `noindex` : l'erreur allait dans le sens sûr, mais elle
+    // produisait une « page indexable absente du sitemap » que rien d'autre ne signale.
+    expect(
+      indexabiliteDe(
+        'export const metadata = { robots: { googleBot: { index: false }, index: true } };',
+      ),
+    ).toBe('indexable');
+    expect(
+      indexabiliteDe(
+        'export const metadata = { robots: { googleBot: { index: true }, index: false } };',
+      ),
+    ).toBe('noindex');
+  });
+
+  it('les NEUF pages publiques déclarent leur métadonnée sur place', () => {
+    // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
+    // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
+    // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
+    expect(ROUTES.length).toBe(9);
+    for (const route of ROUTES) {
+      expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
+    }
   });
 
   it('ne se laisse pas tromper par un `robots:` cité dans un COMMENTAIRE', () => {

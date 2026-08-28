@@ -81,14 +81,20 @@ class PublicPropertyController extends Controller
     public const SITEMAP_MAX_PER_PAGE = 1000;
 
     /**
-     * Plafond du nombre de villes rendues par `GET /public/properties/cities`.
+     * Repli du plafond de `GET /public/properties/cities`, si la configuration disparaissait.
      *
-     * Ce n'est pas une pagination : la liste est un DOMAINE, et un domaine se rend entier ou pas
-     * du tout. Le plafond est une garde contre une base polluée (une ville par annonce), pas une
-     * fenêtre — au-delà, la réponse le DIT (`truncated: true`) pour que l'appelant sache qu'il ne
-     * peut plus s'en servir comme domaine.
+     * La valeur qui fait foi vit dans `config/catalogue.php` — pas ici — pour que son BORD soit
+     * éprouvable : un test l'abaisse à 2 et mesure la troncature avec trois biens, là où
+     * l'éprouver à 500 coûterait 501 insertions. *Un seuil qu'on ne peut pas atteindre en test
+     * est un seuil qu'on ne teste pas.*
      */
-    public const CITIES_MAX = 500;
+    public const CITIES_MAX_DEFAUT = 500;
+
+    /** Le plafond effectif. */
+    public static function citiesMax(): int
+    {
+        return (int) config('catalogue.cities_max', self::CITIES_MAX_DEFAUT);
+    }
 
     public function index(Request $request): AnonymousResourceCollection
     {
@@ -187,12 +193,12 @@ class PublicPropertyController extends Controller
             ->where('addresses.city', '!=', '')
             ->groupBy('addresses.city')
             ->orderByDesc(DB::raw('count(*)'))
-            ->limit(self::CITIES_MAX + 1)
+            ->limit(self::citiesMax() + 1)
             ->pluck(DB::raw('count(*) as cnt'), 'addresses.city');
 
-        $tronque = $lignes->count() > self::CITIES_MAX;
+        $tronque = $lignes->count() > self::citiesMax();
 
-        $data = $lignes->take(self::CITIES_MAX)
+        $data = $lignes->take(self::citiesMax())
             ->map(fn ($compte, $ville) => ['value' => (string) $ville, 'count' => (int) $compte])
             ->values()
             ->all();

@@ -97,14 +97,41 @@ export type DomainesDeFacette = {
  *
  * Sans elle, la liste runtime pourrait diverger du type sans qu'aucun test ne bouge : un type de
  * bien ajouté à l'union et oublié dans la liste cesserait silencieusement d'être une facette
- * indexable. `tsc` casse désormais dans les DEUX sens — liste incomplète, ou liste inventant une
- * valeur que le type ne connaît pas.
+ * indexable. `tsc` casse dans les DEUX sens — liste incomplète, ou liste inventant une valeur que
+ * le type ne connaît pas.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * ⚠️⚠️ LA PREMIÈRE VERSION DE CETTE PREUVE NE POUVAIT PAS ÉCHOUER
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Elle s'écrivait :
+ *
+ *     const _preuve: [_ListeCouvreLeType, _TypeCouvreLaListe, _ContratsCouvrent][] = [];
+ *
+ * **Un littéral de tableau VIDE est assignable à n'importe quel type de tableau.** Que les
+ * `Exclude<>` rendent `never` ou un littéral de chaîne n'y change rien : l'annotation est
+ * satisfaite dans tous les cas. Mesuré le 2026-08-28, sur les deux sens que son propre docblock
+ * annonçait :
+ *
+ * ```
+ * 'chalet' AJOUTÉ à propertyTypeValues, absent de l'union   → npx tsc --noEmit  exit 0
+ * 'garage' RETIRÉ de propertyTypeValues, resté dans l'union → npx tsc --noEmit  exit 0
+ * ```
+ *
+ * Le second est exactement le cas que le docblock promettait d'attraper. *Une garde qui ne peut
+ * pas échouer est pire qu'une garde absente : elle occupe la place et se relit comme une preuve.*
+ *
+ * La forme ci-dessous ÉCHOUE : {@link Verifie} contraint son paramètre à `never`, donc un
+ * `Exclude<>` non vide viole la contrainte et `tsc` sort en 1 sur CE fichier. Les deux ablations
+ * ci-dessus la font rougir toutes les deux — vérifié avant de l'écrire ici.
  */
+type Verifie<T extends never> = T;
 type _ListeCouvreLeType = Exclude<PropertyType, (typeof propertyTypeValues)[number]>;
 type _TypeCouvreLaListe = Exclude<(typeof propertyTypeValues)[number], PropertyType>;
 type _ContratsCouvrent = Exclude<ContractType, (typeof contractTypeValues)[number]>;
-const _preuveDExhaustivite: [_ListeCouvreLeType, _TypeCouvreLaListe, _ContratsCouvrent][] = [];
-void _preuveDExhaustivite;
+export type _PreuveListeCouvreLeType = Verifie<_ListeCouvreLeType>;
+export type _PreuveTypeCouvreLaListe = Verifie<_TypeCouvreLaListe>;
+export type _PreuveContratsCouvrent = Verifie<_ContratsCouvrent>;
 
 /**
  * Les deux domaines que le dépôt connaît sans rien demander à personne.

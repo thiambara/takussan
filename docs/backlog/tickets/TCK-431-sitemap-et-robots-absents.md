@@ -227,6 +227,25 @@ pages d'`alternates.test.ts`, écrite à la main sur cinq chemins, ne pouvait pa
 elle est désormais **dérivée** des deux tables que `sitemap-couverture.test.ts` confronte déjà à
 l'arborescence.
 
+### Passe 3 — le repli sur « indexable » avait SURVÉCU à sa correction
+
+Il avait simplement reculé d'un cran : `indexabiliteDe` rendait `'indexable'` dès que le jeton
+`robots:` était absent du fichier. Une page dont la métadonnée est **importée**
+(`export { META as metadata } from './meta'`) n'en porte aucun — elle passait donc pour indexable,
+était réclamée dans le sitemap, et 60 tests passaient avec elle dedans alors qu'elle sert
+`noindex`. C'est le cas que le docblock prétendait déjà couvrir.
+
+La règle est désormais **positive** : *on ne classe que ce qu'on peut lire sur place.* Une
+métadonnée réexportée, affectée depuis un identifiant importé, ou absente, rend `'inconnu'` — et
+`'inconnu'` fait rougir en nommant le fichier. Mesuré : les **neuf** pages publiques déclarent leur
+métadonnée sur place, donc exiger la déclaration ne coûte aucun faux positif.
+
+Second point du même correctif : l'objet `robots` était lu par `\{([^}]*)\}`, qui s'arrête à la
+PREMIÈRE accolade fermante. `robots: { googleBot: { index: false }, index: true }` — une page
+indexable pour tous les moteurs sauf Google — en sortait `noindex`. L'erreur allait dans le sens
+sûr, mais elle aurait produit une « page indexable absente du sitemap » que rien d'autre ne
+signale. La lecture est maintenant à accolades équilibrées, et ne juge que le PREMIER NIVEAU.
+
 ### `/sitemap.xml` et `/robots.txt` face au proxy
 
 Les deux vivent à la RACINE et non sous `[locale]`. Ce n'est pas une préférence : ils portent une

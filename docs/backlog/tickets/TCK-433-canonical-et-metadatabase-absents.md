@@ -220,6 +220,44 @@ relatif reste RELATIF** (`const result = metadataBase ? resolveUrl(url, metadata
 repli localhost n'est atteint que par `resolveUrl`, donc par les **images** `openGraph`/`twitter`.
 La règle ne change pas, sa justification si.
 
+### Passe 3 — une garde qui ne pouvait pas échouer, et trois surfaces non éprouvées
+
+**La « preuve de type » de la passe 2 ne prouvait rien.** Elle s'écrivait
+`const _preuve: [A, B, C][] = [];` — et **un littéral de tableau vide est assignable à n'importe
+quel type de tableau**. Que les `Exclude<>` rendent `never` ou un littéral de chaîne n'y changeait
+rien. Mesuré sur les deux sens que son propre docblock annonçait :
+
+```
+'chalet' AJOUTÉ à propertyTypeValues, absent de l'union   → npx tsc --noEmit  exit 0
+'garage' RETIRÉ de propertyTypeValues, resté dans l'union → npx tsc --noEmit  exit 0
+```
+
+Le second est exactement le cas promis. *Une garde qui ne peut pas échouer est pire qu'une garde
+absente : elle occupe la place et se relit comme une preuve.* La forme retenue —
+`type Verifie<T extends never> = T` — **a été vérifiée par les deux mêmes ablations avant d'être
+écrite comme mesure** : elles rendent maintenant `TS2344 … does not satisfy the constraint 'never'`
+sur `canonique.ts` lui-même, et non sur un fichier tiers.
+
+**`src/lib/queries/facettes.ts` n'avait aucun test** — et c'est le module qui DÉCIDE « domaine
+inconnaissable ». Le seul test qui le touchait le REMPLAÇAIT par un double : aucune de ses lignes
+ne s'exécutait. Ce qui était éprouvé, c'était la RÉACTION du consommateur à `villes: null`, pas la
+DÉCISION de le rendre. Le rapport de passe 2 affirmait le contraire ; il avait tort.
+`src/lib/queries/__tests__/facettes.test.ts` couvre les dix cas, et trois ablations le confirment.
+
+**Le plafond des villes est devenu pilotable** (`config/catalogue.php`), et son BORD est éprouvé
+avec **trois biens** : exactement le plafond → `truncated` faux ; plafond + 1 → `truncated` vrai
+ET `data` plafonnée. L'arbitrage de la passe 2 — « éprouver le plafond coûterait 501 insertions » —
+était juste sur le coût et faux sur la conclusion : le coût n'était pas 501 insertions, c'était une
+ligne de configuration. ⚠ Le fichier de config ne lit **aucun** `env()` : c'est une décision de
+produit, pas d'environnement.
+
+**L'isolement de la jointure polymorphe est éprouvé.** Quatre modèles sont adressables (`User`,
+`Agency`, `Property`, `Customer`) ; retirer
+`->where('addresses.addressable_type', '=', Property::class)` laissait les sept tests VERTS. Le
+test force la coïncidence d'id plutôt que d'espérer qu'elle survienne — les séquences sont
+indépendantes et `nextval()` n'est pas transactionnel (piège PostgreSQL n°6), donc « les ids se
+croisent parfois » aurait été un test qui passe au hasard.
+
 ### Vérification de bout en bout
 
 `next start`, HTML servi :
