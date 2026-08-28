@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '@/lib/api';
+import { HOMEPAGE_DISCOVERY_PER_ROW } from '@/lib/rangees-de-l-accueil';
 import type { HomepageDiscoveryData, HomepageDiscoveryResponse } from '@/types/property';
 
 /**
@@ -22,8 +23,14 @@ import type { HomepageDiscoveryData, HomepageDiscoveryResponse } from '@/types/p
  * light (list) shape of `PropertyResource`.
  */
 
-/** One value for the four rows — the endpoint caps it at 20 (422 above). */
-export const HOMEPAGE_DISCOVERY_PER_ROW = 12;
+/**
+ * Ré-export — la constante vit dans `lib/rangees-de-l-accueil.ts` depuis TCK-432.
+ *
+ * Ce fichier porte `'use client'`, donc tout ce qu'il exporte est une *référence client* : le
+ * module serveur qui prépare les rangées ne peut pas lire la valeur ici. Elle a déménagé dans un
+ * module neutre plutôt que d'être recopiée des deux côtés.
+ */
+export { HOMEPAGE_DISCOVERY_PER_ROW };
 
 export interface UseHomepageDiscoveryParams {
   /**
@@ -35,6 +42,18 @@ export interface UseHomepageDiscoveryParams {
   readonly perRow?: number;
   /** Hold the request until the caller knows whether it has a city to send. */
   readonly enabled?: boolean;
+  /**
+   * Les rangées que le SERVEUR a déjà rendues, sans ville — TCK-432.
+   *
+   * Elles sont l'état INITIAL, pas un repli : le hook démarre `loading: false` avec elles, si bien
+   * que le premier commit d'hydratation rend exactement ce que le HTML portait déjà. Les rendre
+   * dans un effet ferait rendre un premier commit en squelette par-dessus des biens visibles —
+   * le clignotement que TCK-432 interdit.
+   *
+   * `null` (panne serveur, ou appelant qui n'en fournit pas) rétablit à l'identique le
+   * comportement d'avant TCK-432 : squelette, appel, résultat ou erreur.
+   */
+  readonly donneesInitiales?: HomepageDiscoveryData | null;
 }
 
 export interface UseHomepageDiscoveryResult {
@@ -51,15 +70,44 @@ export function useHomepageDiscovery({
   nearCity,
   perRow = HOMEPAGE_DISCOVERY_PER_ROW,
   enabled = true,
+  donneesInitiales = null,
 }: UseHomepageDiscoveryParams = {}): UseHomepageDiscoveryResult {
   const [state, setState] = useState<UseHomepageDiscoveryResult>({
-    rows: null,
-    loading: true,
+    rows: donneesInitiales,
+    // ⚠ `loading` suit la GRAINE, pas `enabled`. Avec des rangées semées, il n'y a rien à
+    // attendre : la page est complète dès le premier commit. Sans elles, tout est à faire.
+    loading: donneesInitiales === null,
     failed: false,
   });
 
+  /**
+   * TCK-432 — ce que le serveur a déjà demandé : les rangées SANS ville.
+   *
+   * Le rendu serveur ne peut pas attendre ipapi.co ; il demande donc sans `near_city`, et le
+   * back-end sert son marché de référence. Relancer le même appel après hydratation
+   * redemanderait à l'identique ce qui est déjà à l'écran — un aller-retour pour rien, sur un
+   * marché où la bande passante mobile est la contrainte dimensionnante.
+   *
+   * La relance n'a lieu que lorsqu'il y a **quelque chose de neuf à demander**, c'est-à-dire une
+   * ville réellement devinée. C'est aussi ce qui préserve l'invariant d'un seul appel de
+   * TCK-247 : le total reste UN appel (serveur), ou DEUX quand la personnalisation a lieu — et
+   * le second, lui, rapporte une réponse différente.
+   *
+   * `useRef` : la consommation ne doit pas provoquer de rendu, et elle doit être visible du
+   * prochain passage de l'effet.
+   */
+  const rangeesSansVilleDejaServies = useRef(donneesInitiales !== null);
+
   useEffect(() => {
     if (!enabled) return;
+
+    if (rangeesSansVilleDejaServies.current) {
+      // Consommée dans tous les cas : elle ne vaut que pour le premier passage. Sans ça, un
+      // visiteur qui perdrait sa ville (`nearCity` repassant à `undefined`) resterait bloqué
+      // sur les rangées semées alors que l'écran, lui, aurait changé de titre.
+      rangeesSansVilleDejaServies.current = false;
+      if (!nearCity) return;
+    }
 
     let cancelled = false;
 

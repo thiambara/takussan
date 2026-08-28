@@ -122,6 +122,15 @@ const R_ERREUR_SITEMAP =
   + "pas là, et le ferait dépendre du dictionnaire qu'une panne d'i18n aurait justement cassé. "
   + "Chacun de ces messages NOMME la variable d'environnement à corriger — c'est sa raison d'être.";
 
+const R_JOURNAL_RENDU_PUBLIC =
+  "Argument de `console.error` dans un module de requête SERVEUR du catalogue public (TCK-432). "
+  + "Il ne peut pas atteindre un écran : la fonction qui l'émet rend `null` à l'appelant, et c'est "
+  + "ce `null` — pas cette phrase — que la page traduit en comportement (le composant client "
+  + "reprend son cycle nominal et affiche, lui, un libellé de dictionnaire). Le lecteur de cette "
+  + "ligne est le développeur qui cherche pourquoi l'accueil est vide, jamais le visiteur. La "
+  + "traduire la rendrait dans la langue du visiteur à un lecteur qui n'est pas là, et la ferait "
+  + "dépendre du dictionnaire — que la panne journalisée pourrait justement avoir cassé.";
+
 const R_ZONE_SENEGAL =
   "Toponyme sénégalais dans une liste de suggestions de zones d'intervention. Un nom de ville ou "
   + "de quartier ne se traduit pas : la valeur saisie part telle quelle vers l'API et sert de "
@@ -342,6 +351,14 @@ export const EXCEPTIONS_JUSTIFIEES = [
   { fichier: 'src/lib/queries/sitemap-catalogue.ts', motif: /^sitemap peut porter/, famille: 'TECHNIQUE', raison: R_ERREUR_SITEMAP },
   { fichier: 'src/lib/queries/facettes.ts', motif: /^\[canonique\] /, famille: 'TECHNIQUE', raison: R_JOURNAL_DOMAINE },
   { fichier: 'src/lib/queries/facettes.ts', motif: /^sur la page nue plut\u00f4t que de rejeter/, famille: 'TECHNIQUE', raison: R_JOURNAL_DOMAINE },
+
+  // ── TECHNIQUE — journal serveur des requêtes du catalogue public (TCK-432) ────────────────────
+  // ⚠ Le pendant de cette ligne dans `public-search.ts` n'apparaît PAS ici, et ce n'est pas un
+  // oubli : il est écrit en gabarit (`` `[liste publique] ?${requete} : ` ``), que l'analyse
+  // lexicale ne compte pas comme littéral. *Deux messages de même nature, dont un seul est vu par
+  // la garde* — le noter ici évite qu'on en conclue un jour que l'autre était volontairement
+  // traduisible.
+  { fichier: 'src/lib/queries/public-discovery.ts', litteral: '[accueil] découverte indisponible :', famille: 'TECHNIQUE', raison: R_JOURNAL_RENDU_PUBLIC },
 
   // ── TECHNIQUE — un JETON du vocabulaire schema.org (TCK-435) ───────────────────────────────────
   { fichier: 'src/lib/jsonld-site.ts', litteral: 'required name=search_term_string', famille: 'TECHNIQUE', raison: R_JETON_SCHEMA_ORG },

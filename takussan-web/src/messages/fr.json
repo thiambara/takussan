@@ -2834,6 +2834,7 @@
     }
   },
   "homepage": {
+    "h1": "Annonces immobilières au Sénégal",
     "row": {
       "viewAll": "Tout voir",
       "error": "Impossible de charger les annonces pour le moment.",
