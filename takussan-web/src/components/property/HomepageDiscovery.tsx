@@ -117,8 +117,26 @@ export function HomepageDiscovery({
           les directives pour `h1`-`h3` ; la taille reste au-dessus des `h2` des rangées
           (26/30 px) sans rien déplacer d'autre : ce ticket n'ouvre aucune refonte visuelle, et
           il n'introduit pas le hero marketing que la home refuse depuis TCK-129.
+
+          ⚠⚠ **`-mb-8` ICI CHEVAUCHAIT LA PREMIÈRE RANGÉE, et le motif se reproduira ailleurs.**
+          Écrit pour ramener l'écart de `space-y-20` (80 px) à 48 px, il l'a mis à **−32 px** :
+          en Tailwind v4, `space-y-*` est défini dans un `:where()`, donc à spécificité NULLE.
+          Un utilitaire de marge explicite ne s'y AJOUTE pas, il le REMPLACE. Mesuré dans le
+          navigateur le 2026-08-28 :
+
+              h1        top 181 · bottom 223
+              1re rangée top 191                    ← 32 px de recouvrement
+              margin-top du frère suivant : 0px     ← et non 80px
+
+          Le sur-titre « Près de toi » passait donc SOUS le titre de la page. Corrigé en écrivant
+          l'écart voulu en clair (`mb-12`, 48 px) au lieu de le calculer contre une valeur que la
+          cascade n'applique jamais.
+
+          *Une marge négative écrite pour corriger une autre marge suppose que les deux
+          s'additionnent — et dans une v4 qui pose ses écarts en `:where()`, elles ne
+          s'additionnent pas.* Aucun test ne pouvait le voir : jsdom ne fait pas de mise en page.
         */}
-        <h1 className="font-display text-[32px] md:text-[40px] leading-[1.05] font-semibold text-foreground -mb-8">
+        <h1 className="font-display text-[32px] md:text-[40px] leading-[1.05] font-semibold text-foreground mb-12">
           {tPage('h1')}
         </h1>
 
