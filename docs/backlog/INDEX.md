@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**418 tickets** — 42 ouverts, 375 livrés.
+**424 tickets** — 48 ouverts, 375 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 41 |
+| 📋 Todo | 47 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -74,6 +74,12 @@
 - [TCK-468](tickets/TCK-468-cibles-tactiles-champs.md) — Les champs de formulaire font 32 px de haut là où les pastilles en font 44 `M · P2 · front`
 - [TCK-469](tickets/TCK-469-valeur-devenue-non-pertinente.md) — Changer le type d'un bien laisse en base des valeurs que le nouveau type ne justifie plus `M · P1 · full`
 - [TCK-470](tickets/TCK-470-server-actions-payload-plat.md) — Les server actions des biens sont typées à plat alors que les payloads sont imbriqués `S · P2 · technique`
+- [TCK-471](tickets/TCK-471-bouton-deverifier-invisible-sur-la-fiche-agence.md) — Le bouton « Déverifier » de la fiche agence est invisible : contraste 1,00:1 `S · P1 · technique`
+- [TCK-472](tickets/TCK-472-statusbadge-nest-pas-le-seul-a-decider-la-couleur-dun-statut.md) — `StatusBadge` affirme être le seul à décider la couleur d'un statut ; ils sont quatre `M · P2 · technique`
+- [TCK-473](tickets/TCK-473-corpus-depreuve-pour-les-gardes-de-gen-features-by-actor.md) — Les trois gardes de `gen-features-by-actor.mjs` ne sont prouvées par rien `S · P2 · technique`
+- [TCK-474](tickets/TCK-474-resolution-report-valide-et-fillable-sans-colonne.md) — `resolution_report` est validé et `$fillable`, mais aucune migration ne crée la colonne `S · P1 · technique`
+- [TCK-475](tickets/TCK-475-toast-de-succes-sur-une-ecriture-echouee.md) — Le brouillon d'assistant annonce « Progression sauvegardée » quand l'écriture a échoué `S · P2 · technique`
+- [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
 
 ## 🚧 Doing
 
