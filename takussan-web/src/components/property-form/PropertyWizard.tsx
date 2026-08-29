@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { FormGlobalError } from '@/components/forms';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useGeoSuggestion } from '@/hooks/useGeoSuggestion';
 import { useWizardDraft } from '@/hooks/useWizardDraft';
@@ -467,6 +468,14 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
     <form
       noValidate
       className="flex h-full min-h-0 flex-col"
+      /*
+        TCK-468 — la PORTÉE de densité, posée une fois pour tout le parcours. Chaque `Input`,
+        `SelectTrigger` et `DatePicker` rendu dessous passe à 44 px, la cible tactile que les
+        pastilles de `ChoiceChips` tiennent déjà — sans qu'aucune étape n'ait à le redire, et
+        donc sans qu'un champ ajouté demain puisse l'oublier. L'attribut est SPREADÉ sur le
+        `<form>` existant : un `<div>` de plus casserait la chaîne `h-full min-h-0` de l'AC9.
+      */
+      {...fieldDensityScope()}
       /*
         ⚠ La soumission IMPLICITE — Entrée dans un champ — n'est pas neutre dans un parcours.
         À l'étape du prix, `price` est le SEUL champ qui la bloque au sens HTML, donc Entrée y
