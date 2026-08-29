@@ -1177,7 +1177,65 @@
       "titleTypeHint": "The document proving ownership of the land. Leave empty if you do not know it.",
       "titleComposedHint": "Title suggested from your answers — edit it freely.",
       "photosCounter": "{count, plural, =0 {No photo yet — up to {max}} one {# photo of {max}} other {# photos of {max}}}",
-      "descriptionCounter": "{count, plural, one {# character} other {# characters}}"
+      "descriptionCounter": "{count, plural, one {# character} other {# characters}}",
+      "steps": {
+        "bien": {
+          "title": "What are you listing?",
+          "subtitle": "These two answers decide which questions come next."
+        },
+        "lieu": {
+          "title": "Where is it?",
+          "subtitle": "The city is enough to publish. The rest sharpens search results."
+        },
+        "caracteristiques": {
+          "title": "Tell us about {type}",
+          "subtitle": "These are the figures visitors compare first.",
+          "subtitleShort": "A couple of measurements, and that is all we need here."
+        },
+        "prix": {
+          "title": "At what price?",
+          "subtitleRent": "The rent, how often it is due, and when the property becomes free.",
+          "subtitleSale": "The asking price. You can change it after publishing."
+        },
+        "photos": {
+          "title": "Add photos",
+          "subtitle": "Optional — but a listing with photos gets far more views."
+        },
+        "finition": {
+          "title": "A title, and it is live",
+          "subtitle": "We drafted one from your answers. Edit it freely."
+        }
+      },
+      "typeArticle": {
+        "land": "the land",
+        "house": "the house",
+        "apartment": "the apartment",
+        "villa": "the villa",
+        "studio": "the studio",
+        "room": "the room",
+        "office": "the office",
+        "shop": "the retail unit",
+        "warehouse": "the warehouse",
+        "factory": "the factory",
+        "farm": "the farm",
+        "hotel": "the hotel",
+        "resort": "the complex",
+        "garage": "the garage",
+        "parking": "the parking space",
+        "other": "the property"
+      },
+      "partial": {
+        "tags": "the amenities",
+        "photos": "the photos",
+        "message": "The property is created and saved. We could not upload {items} though. Retry, or continue without.",
+        "continueAnyway": "Continue without"
+      },
+      "publish": "Publish listing",
+      "resumeLater": "Resume later",
+      "missingId": "The property was created, but no identifier came back. Find it in your property list.",
+      "close": "Close",
+      "loadingDraft": "Restoring your draft…",
+      "draftResumed": "We picked your draft up where you left it."
     },
     "titleTypes": {
       "bail": "Lease",

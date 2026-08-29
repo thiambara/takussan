@@ -4321,7 +4321,65 @@
       "titleTypeHint": "Kayit bi wone ne suuf si sa moom la. Su nga ko xamul, bàyyil ko neen.",
       "titleComposedHint": "Bopp bu ñu jubbanti ci sa tontu yi — man nga koo soppi.",
       "photosCounter": "{count, plural, =0 {Amul benn nataal — ba {max}} one {# nataal ci {max}} other {# nataal ci {max}}}",
-      "descriptionCounter": "{count, plural, one {# araf} other {# araf}}"
+      "descriptionCounter": "{count, plural, one {# araf} other {# araf}}",
+      "steps": {
+        "bien": {
+          "title": "Ban xeetu kër ngay teg ?",
+          "subtitle": "Ñaari tontu yii ñoo tànn laaj yi ci topp."
+        },
+        "lieu": {
+          "title": "Fan la nekk ?",
+          "subtitle": "Dëkk bi doy na ngir teg ko. Li ci des dafay gënal seet bi."
+        },
+        "caracteristiques": {
+          "title": "Wax nu ci {type}",
+          "subtitle": "Limu yii la ñi ngi door a mengale.",
+          "subtitleShort": "Ay natt yu néew, te loolu doy na fii."
+        },
+        "prix": {
+          "title": "Ci ban njëg ?",
+          "subtitleRent": "Luwaa bi, jamono ji, ak bés bi kër gi di jot.",
+          "subtitleSale": "Njëg gi ngay laaj. Man nga koo soppi bu ñu ko tegee."
+        },
+        "photos": {
+          "title": "Yokk ay nataal",
+          "subtitle": "Doyul waar — waaye anons bu am nataal, ñu ngi koy gën a xool."
+        },
+        "finition": {
+          "title": "Benn bopp, te teg na",
+          "subtitle": "Jubbanti nanu benn ci sa tontu yi. Man nga koo soppi."
+        }
+      },
+      "typeArticle": {
+        "land": "suuf si",
+        "house": "kër gi",
+        "apartment": "apartama bi",
+        "villa": "wiila bi",
+        "studio": "studio bi",
+        "room": "neeg bi",
+        "office": "biro bi",
+        "shop": "butik bi",
+        "warehouse": "magasin bi",
+        "factory": "usin bi",
+        "farm": "tool bi",
+        "hotel": "otel bi",
+        "resort": "kompleks bi",
+        "garage": "garaas bi",
+        "parking": "parking bi",
+        "other": "beneen bi"
+      },
+      "partial": {
+        "tags": "jumtukaay yi",
+        "photos": "nataal yi",
+        "message": "Kër gi sos na te ñu denc ko. Waaye mënunu woon a yónnee {items}. Jéemaat, walla jàll ko.",
+        "continueAnyway": "Jàll ko"
+      },
+      "publish": "Teg anons bi",
+      "resumeLater": "Dellusiwaat ci kanam",
+      "missingId": "Kër gi sos na, waaye jotunu ko benn nimero. Wutal ko ci limu kër yi.",
+      "close": "Tëj",
+      "loadingDraft": "Ñu ngi dellusi sa brouillon…",
+      "draftResumed": "Dellusi nanu sa brouillon fu nga ko bàyyee woon."
     },
     "titleTypes": {
       "bail": "Contrat",
