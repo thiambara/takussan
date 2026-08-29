@@ -173,7 +173,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           ...basePayload,
           ...(address ? { address } : {}),
         };
-        const result = await updatePropertyAction(property.id, finalPayload as never);
+        const result = await updatePropertyAction(property.id, finalPayload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
             message: result.message,

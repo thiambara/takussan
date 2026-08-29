@@ -107,20 +107,71 @@ export function areaLabelKey(type: PropertyTypeValue): 'fields.areaLand' | 'fiel
 }
 
 /**
- * Retire de `values` toute clé conditionnelle que le contexte déclare non pertinente.
+ * TCK-469 — ce que devient une clé conditionnelle que le contexte ne justifie plus.
  *
- * ⚠ Une clé absente de l'entrée reste absente de la sortie : la fonction n'ajoute jamais
- * `undefined`, sans quoi un `PATCH` partiel effacerait en base des champs que personne n'a
- * touchés.
+ * - `'omit'` — la clé disparaît du payload. C'est le chemin de CRÉATION : on n'envoie pas ce
+ *   qu'on n'a pas, et il n'existe aucune valeur antérieure en base à contredire.
+ * - `'erase'` — la clé part avec sa valeur d'effacement. C'est le chemin d'ÉDITION.
+ */
+export type SanitizeMode = 'omit' | 'erase';
+
+/**
+ * TCK-469 — LA décision : à l'édition, on EFFACE plutôt qu'on ne conserve.
+ *
+ * Les deux réponses se défendaient. Celle-ci l'emporte pour une raison qui n'est pas d'esthétique
+ * de la donnée : une valeur conservée n'a, depuis cet écran, plus AUCUNE affordance pour être
+ * corrigée — le champ n'y est plus rendu. Un `bedrooms: 3` sur un terrain devient alors invisible
+ * ET faux, et il ressort ailleurs : filtres de recherche, exports, comparateur, cartes de liste —
+ * aucun de ces lecteurs ne consulte la matrice de pertinence avant d'afficher un nombre de
+ * chambres. Le coût du choix inverse est borné et visible : qui fait un aller-retour de type
+ * ressaisit sa valeur, une fois, sur un écran où le champ est de nouveau rendu.
+ *
+ * ⚠ La valeur d'effacement n'est pas `null` partout, et ce n'est pas un détail de style :
+ * `UpdatePropertyRequest` déclare `nullable` sur les dix clés qui suivent, mais `furnished` y est
+ * `['sometimes', 'boolean']` et sa colonne est `boolean NOT NULL DEFAULT false`. Un `null` sur
+ * `furnished` produirait un 422, pas un effacement. Sa valeur d'effacement est donc `false` —
+ * l'état vrai d'un bien qui ne peut pas être meublé.
+ *
+ * ⚠ `tag_ids` est absent de cette table DÉLIBÉRÉMENT : il ne voyage jamais dans le corps du bien
+ * (`payload.ts` l'en retire, `UpdatePropertyRequest` ne le déclare pas) et passe par son propre
+ * endpoint. Il reste donc omis dans les deux modes.
+ */
+const VALEUR_D_EFFACEMENT = {
+  area: null,
+  bedrooms: null,
+  bathrooms: null,
+  furnished: false,
+  year_built: null,
+  parking_spaces: null,
+  floor_number: null,
+  total_floors: null,
+  title_type: null,
+  rent_period: null,
+  available_from: null,
+} as const satisfies Partial<Record<ConditionalFieldKey, null | false>>;
+
+/**
+ * Retire de `values` toute clé conditionnelle que le contexte déclare non pertinente — ou, en
+ * mode `'erase'`, lui substitue sa valeur d'effacement (cf. `VALEUR_D_EFFACEMENT`).
+ *
+ * ⚠ Une clé absente de l'entrée reste absente de la sortie, DANS LES DEUX MODES : la fonction
+ * n'ajoute jamais `undefined` ni `null`, sans quoi un `PATCH` partiel effacerait en base des
+ * champs que personne n'a touchés.
  */
 export function sanitizeByType<T extends Record<string, unknown>>(
   values: T,
   ctx: RelevanceContext,
+  mode: SanitizeMode = 'omit',
 ): T {
   const sortie: Record<string, unknown> = { ...values };
   for (const cle of Object.keys(sortie)) {
     if (!estConditionnelle(cle)) continue;
-    if (!isFieldRelevant(cle, ctx)) delete sortie[cle];
+    if (isFieldRelevant(cle, ctx)) continue;
+    if (mode === 'erase' && cle in VALEUR_D_EFFACEMENT) {
+      sortie[cle] = VALEUR_D_EFFACEMENT[cle as keyof typeof VALEUR_D_EFFACEMENT];
+      continue;
+    }
+    delete sortie[cle];
   }
   return sortie as T;
 }

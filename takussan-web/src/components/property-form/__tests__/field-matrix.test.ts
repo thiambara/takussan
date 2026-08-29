@@ -125,3 +125,61 @@ describe('sanitizeByType', () => {
     expect(Object.keys(purge)).toEqual(['title']);
   });
 });
+
+describe('sanitizeByType — mode `erase` (TCK-469)', () => {
+  const terrain = { type: 'land', contract: 'sale' } as const;
+
+  it('substitue la valeur d’effacement au lieu d’omettre la clé', () => {
+    const sortie = sanitizeByType(
+      { title: 'Mon terrain', area: 300, bedrooms: 3, year_built: 2010 },
+      terrain,
+      'erase',
+    );
+    expect(sortie).toHaveProperty('bedrooms', null);
+    expect(sortie).toHaveProperty('year_built', null);
+  });
+
+  /**
+   * ⚠ Le pendant indispensable du test ci-dessus : purger TOUT le satisferait aussi. Ici, `area`
+   * et `title_type` sont pertinents pour un terrain — ils doivent traverser INTACTS, et surtout
+   * pas à `null`.
+   */
+  it('ne touche pas aux champs que le nouveau type justifie encore', () => {
+    const sortie = sanitizeByType(
+      { title: 'Mon terrain', area: 300, title_type: 'bail', bedrooms: 3 },
+      terrain,
+      'erase',
+    );
+    expect(sortie.area).toBe(300);
+    expect(sortie.title_type).toBe('bail');
+    expect(sortie.title).toBe('Mon terrain');
+  });
+
+  /**
+   * `furnished` est la seule exception, et elle est structurelle : sa colonne est
+   * `boolean NOT NULL DEFAULT false` et `UpdatePropertyRequest` la déclare `['sometimes',
+   * 'boolean']` — un `null` y produirait un 422, pas un effacement.
+   */
+  it('efface `furnished` par `false`, jamais par `null`', () => {
+    const sortie = sanitizeByType({ furnished: true }, terrain, 'erase');
+    expect(sortie.furnished).toBe(false);
+    expect(sortie.furnished).not.toBeNull();
+  });
+
+  /** AC3 — une clé absente de l’entrée le reste : rien à écraser en base. */
+  it('n’ajoute aucune clé que l’entrée ne portait pas', () => {
+    const sortie = sanitizeByType({ title: 'Mon terrain' }, terrain, 'erase');
+    expect(Object.keys(sortie)).toEqual(['title']);
+  });
+
+  /** `tag_ids` ne voyage pas dans le corps du bien : il reste omis, même en mode `erase`. */
+  it('omet `tag_ids` dans les deux modes', () => {
+    const sortie = sanitizeByType({ title: 'x', tag_ids: [1, 2] }, terrain, 'erase');
+    expect(sortie).not.toHaveProperty('tag_ids');
+  });
+
+  it('le mode par défaut reste `omit` — le contrat de la création ne bouge pas', () => {
+    const sortie = sanitizeByType({ title: 'x', bedrooms: 3 }, terrain);
+    expect(sortie).not.toHaveProperty('bedrooms');
+  });
+});

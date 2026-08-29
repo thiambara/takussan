@@ -19,7 +19,15 @@ import type {
   PropertyListItem,
   PropertyPriceHistoryItem,
 } from '@/types/property';
-import type { PropertyFormPayload } from '@/lib/schemas/property';
+/**
+ * TCK-470 — le corps part IMBRIQUÉ, et le type le dit désormais. `PropertyFormPayload` (plat,
+ * `city` au premier niveau) n'est PAS ce que ces deux fonctions envoient : c'est l'entrée de
+ * `payload.ts`, pas sa sortie.
+ */
+import type {
+  PropertyCreatePayload,
+  PropertyUpdatePayload,
+} from '@/components/property-form/payload';
 
 /**
  * Colonnes que la liste CRUD agent rend réellement — la garder étroite.
@@ -176,7 +184,7 @@ export async function fetchDashboardProperty(
 
 export async function createProperty(
   token: string,
-  payload: PropertyFormPayload,
+  payload: PropertyCreatePayload,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>('/api/properties', {
     method: 'POST',
@@ -189,7 +197,7 @@ export async function createProperty(
 export async function updateProperty(
   token: string,
   propertyId: number,
-  payload: PropertyFormPayload,
+  payload: PropertyUpdatePayload,
 ): Promise<PropertyDetail> {
   const res = await apiRequest<ApiResponse<PropertyDetail>>(
     `/api/properties/${propertyId}`,
