@@ -25,6 +25,7 @@ import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 
 import { isFieldRelevant, type ConditionalFieldKey } from './field-matrix';
+import { PROPERTY_ENUM_NAMESPACES } from './options';
 import { toCreatePayload } from './payload';
 import { WizardShell, type WizardStepDef } from './wizard/WizardShell';
 import { StepBien } from './wizard/steps/StepBien';
@@ -165,6 +166,7 @@ type EtatBrouillon = 'attente' | 'vide' | 'restaure';
 
 export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
   const t = useTranslations('property.wizard');
+  const tTypeArticle = useTranslations(PROPERTY_ENUM_NAMESPACES.typeArticle);
   const router = useRouter();
   const { defaults, loading: geoEnCours } = useGeoSuggestion();
   const brouillon = useWizardDraft<Partial<PropertyFormValues>>(CLE_BROUILLON);
@@ -378,13 +380,14 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
       // « Parlez-nous du terrain », « … de la maison » : c'est le VOCABULAIRE qui porte l'article,
       // pas le gabarit. Un `{type}` en minuscule suivi d'un article écrit dans la phrase
       // produirait « du maison » une fois sur deux en français — d'où `typeArticle` et non un
-      // simple nom en minuscule.
+      // simple nom en minuscule. Le vocabulaire est adressé via `PROPERTY_ENUM_NAMESPACES.typeArticle`
+      // et son propre traducteur, jamais par un chemin de clé composé à la main (TCK-464).
       // Le repli sur `other` n'est pas décoratif : l'objet `etapes` est construit à CHAQUE rendu,
       // y compris à l'étape 1 où aucun type n'est encore choisi. `typeArticle.undefined`
       // n'existant pas, `surErreurIntl` lèverait hors production — sur une étape que l'utilisateur
       // ne peut de toute façon pas atteindre sans avoir répondu.
       title: t('steps.caracteristiques.title', {
-        type: t(`typeArticle.${type ?? 'other'}`),
+        type: tTypeArticle(type ?? 'other'),
       }),
       subtitle: t(
         isFieldRelevant('bedrooms', { type, contract: contrat })

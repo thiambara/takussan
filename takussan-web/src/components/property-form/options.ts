@@ -65,6 +65,13 @@ export const PROPERTY_ENUM_NAMESPACES = {
    * des badges.
    */
   contractTypeWizard: 'property.wizard.contract',
+  /**
+   * Le type de bien précédé de son ARTICLE (« du terrain », « de la maison ») — vocabulaire du
+   * titre de l'étape « Caractéristiques » du parcours de publication (TCK-464). Second vocabulaire
+   * de `type`, même motif que `contractTypeWizard` juste au-dessus : la valeur ne varie pas, le mot
+   * varie avec la phrase qui l'accueille.
+   */
+  typeArticle: 'property.wizard.typeArticle',
 } as const;
 
 function auxOptions<T extends string>(
