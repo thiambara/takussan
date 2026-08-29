@@ -805,8 +805,20 @@ export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'aut
 et dans l'interface `PropertyDetail`, à côté de `title_type` :
 
 ```ts
-  available_from: string | null;
+  /**
+   * OPTIONNEL, et ce n'est pas de la prudence : `PropertyResource` expose ce champ par
+   * `whenHas`, donc la clé est ABSENTE du JSON — pas `null` — dès que les sparse fieldsets
+   * ne la sélectionnent pas. C'est le cas de `DASHBOARD_PROPERTY_DETAIL_FIELDS` et de
+   * `COMPARE_FIELDS`. Un type qui l'exige décrit une réponse que l'API ne produit presque
+   * jamais, et se « satisfait » en rustinant les fixtures. `title_type` porte le même cas.
+   */
+  available_from?: string | null;
 ```
+
+⚠ Ce Step prescrivait `available_from: string | null` **non optionnel**, et `title_type`
+l'était déjà. La revue de la tâche 3 l'a démenti sur deux chemins d'appel réels ; corrigé ici
+et dans le code (`4dbaa726`). *Un type de lecture se dérive de ce que la requête demande, pas
+de ce que la colonne contient.*
 
 - [ ] **Step 5 : Écrire le module de sérialisation**
 
