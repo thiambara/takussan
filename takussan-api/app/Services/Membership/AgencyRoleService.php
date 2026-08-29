@@ -9,6 +9,7 @@ use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
+use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -35,6 +36,26 @@ class AgencyRoleService
      */
     public function create(Agency $agency, array $data): AgencyRole
     {
+        // TCK-454 — REFUS PLAT sur une agence `individual` : tout rôle produit
+        // par cette méthode est personnalisé PAR CONSTRUCTION (`is_system` y est
+        // écrit en dur à `false` plus bas), et `features.md:293` refuse les rôles
+        // personnalisés aux agences individuelles.
+        //
+        // Le garde vit dans le SERVICE et non dans les contrôleurs : `create()`
+        // et `assign()` n'ont que deux appelants, tous deux des contrôleurs, et
+        // la règle survit ainsi à l'ajout d'une troisième route — ce qui n'est
+        // pas hypothétique, TCK-392 a dû éprouver deux routes menant à la même
+        // méthode. `StoreAgencyRoleRequest::authorize()` ne pouvait pas la
+        // porter : TCK-305 a posé qu'elle n'est qu'une délégation à la policy,
+        // et `AgencyPolicy@update` ne juge pas le `kind`.
+        //
+        // ⚠ `AgencySystemRoleSeeder` n'entre PAS par ici : il écrit ses rôles
+        // système directement et ne passe que par `replaceCapabilities()`. Le
+        // garde ne l'atteint donc pas — vérifié par exécution
+        // (`AgencyIndividualCustomRolesTest::test_le_seeder_de_roles_systeme_reste_operant…`),
+        // et pas déduit de la lecture.
+        AgencyKindGuard::ensureCustomRolesAllowed($agency);
+
         $type = AgencyRoleBaseType::from((string) $data['base_profile_type']);
         $source = null;
 
@@ -174,6 +195,25 @@ class AgencyRoleService
             throw ValidationException::withMessages([
                 'agency_role_id' => 'Ce rôle ne cible pas le même type de profil.',
             ]);
+        }
+
+        // TCK-454 — l'assignation est gardée SOUS CONDITION, et la condition
+        // est tout le ticket : une agence `individual` A un rôle — son rôle
+        // SYSTÈME, celui que porte son unique `agency_admin` et que pose
+        // `AgencySystemRoleSeeder`. Ce que `features.md:293` lui refuse, ce
+        // sont les rôles PERSONNALISÉS.
+        //
+        // Un refus plat ici fermerait donc le seul rôle légitime de ces
+        // agences : *une garde qui rend vert en fermant aussi ce qui devait
+        // rester ouvert n'est pas une garde, c'est une panne qui a l'air d'un
+        // correctif.* D'où le témoin « rôle système sur agence individuelle →
+        // succès » dans les tests, sans lequel un refus global cocherait les
+        // mêmes critères.
+        if (! $role->is_system) {
+            $agency = $role->agency;
+            if ($agency !== null) {
+                AgencyKindGuard::ensureCustomRolesAllowed($agency);
+            }
         }
 
         $this->assertNotLastAdminLosingControl($profile, $role);
