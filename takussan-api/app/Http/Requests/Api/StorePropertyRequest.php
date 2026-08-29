@@ -9,6 +9,7 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
+use App\Models\Enums\TitleType;
 use Illuminate\Validation\Rule;
 
 /**
@@ -40,6 +41,7 @@ class StorePropertyRequest extends BaseFormRequest
             'type' => ['required', Rule::enum(PropertyType::class)],
             'contract_type' => ['required', Rule::enum(ContractType::class)],
             'rent_period' => ['nullable', Rule::enum(RentPeriod::class)],
+            'title_type' => ['nullable', Rule::enum(TitleType::class)],
             'status' => ['nullable', Rule::enum(PropertyStatus::class)],
             'visibility' => ['nullable', Rule::enum(PropertyVisibility::class)],
             'price' => ['required', 'numeric', 'min:0'],
@@ -60,6 +62,7 @@ class StorePropertyRequest extends BaseFormRequest
             'address.city' => ['nullable', 'string'],
             'address.region' => ['nullable', 'string'],
             'address.country' => ['nullable', 'string', 'size:2'],
+            'address.postal_code' => ['nullable', 'string', 'max:20'],
             'address.latitude' => ['nullable', 'numeric'],
             'address.longitude' => ['nullable', 'numeric'],
         ];
