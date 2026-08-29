@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**424 tickets** — 48 ouverts, 375 livrés.
+**425 tickets** — 49 ouverts, 375 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 47 |
+| 📋 Todo | 48 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -80,6 +80,7 @@
 - [TCK-474](tickets/TCK-474-resolution-report-valide-et-fillable-sans-colonne.md) — `resolution_report` est validé et `$fillable`, mais aucune migration ne crée la colonne `S · P1 · technique`
 - [TCK-475](tickets/TCK-475-toast-de-succes-sur-une-ecriture-echouee.md) — Le brouillon d'assistant annonce « Progression sauvegardée » quand l'écriture a échoué `S · P2 · technique`
 - [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
+- [TCK-477](tickets/TCK-477-le-dock-delegue-la-safe-area-a-un-mecanisme-inexistant.md) — L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé `S · P2 · technique`
 
 ## 🚧 Doing
 
