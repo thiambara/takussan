@@ -515,9 +515,6 @@ const EMPLACEMENT = ['garage', 'parking'] as const;
 /** Le bien occupe un niveau DANS un bâtiment qu'il ne possède pas en entier. */
 const DANS_UN_BATIMENT = ['apartment', 'studio', 'room', 'office', 'shop'] as const;
 
-/** Le statut foncier porte sur le SOL — donc sur ce qui en possède un en propre. */
-const AVEC_FONCIER = ['land', 'house', 'villa', 'farm'] as const;
-
 function dans(liste: readonly string[], type: PropertyTypeValue): boolean {
   return liste.includes(type);
 }
@@ -555,8 +552,12 @@ export function isFieldRelevant(cle: ConditionalFieldKey, ctx: RelevanceContext)
     case 'total_floors':
       return !dans(NU, type) && !dans(DANS_UN_BATIMENT, type);
 
+    // Le statut foncier porte sur le SOL. Il est donc sans objet dans deux cas
+    // seulement — un lot dans un immeuble qu'on ne possède pas en entier, et un
+    // emplacement. Écrit en exclusion et non en liste : une liste des types qui
+    // « ont un terrain » s'oublie à chaque nouveau type, l'exclusion se tient seule.
     case 'title_type':
-      return dans(AVEC_FONCIER, type);
+      return !dans(DANS_UN_BATIMENT, type) && !dans(EMPLACEMENT, type);
 
     case 'rent_period':
     case 'available_from':
