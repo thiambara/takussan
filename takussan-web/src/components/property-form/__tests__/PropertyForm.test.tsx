@@ -7,8 +7,13 @@ import React from 'react';
 import messages from '@/messages/fr.json';
 import { PropertyForm } from '../PropertyForm';
 import type { Tag } from '@/types/tag';
+import type { PropertyDetail } from '@/types/property';
 
 // ── Server actions ──────────────────────────────────────────────────────────
+//
+// TCK-464 — `PropertyForm` ne sert plus que `mode="edit"` : la création vit désormais dans
+// `PropertyWizard` (voir `PropertyWizard.test.tsx`). Seules les deux actions que l'édition
+// appelle réellement sont mockées ici.
 
 const routerMocks = vi.hoisted(() => ({
   push: vi.fn(),
@@ -17,11 +22,8 @@ const routerMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/app/actions/dashboard-properties', () => ({
-  createPropertyAction: vi.fn(),
   updatePropertyAction: vi.fn(),
-  setPropertyAddressAction: vi.fn(),
   setPropertyTagsAction: vi.fn(),
-  uploadPropertyPhotosAction: vi.fn(),
 }));
 
 vi.mock('next/navigation', () => ({
@@ -34,10 +36,8 @@ vi.mock('@/components/map/LocationPickerMapLoader', () => ({
 }));
 
 import {
-  createPropertyAction,
-  setPropertyAddressAction,
   setPropertyTagsAction,
-  uploadPropertyPhotosAction,
+  updatePropertyAction,
 } from '@/app/actions/dashboard-properties';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -50,52 +50,60 @@ function wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function renderForm(tags: Tag[] = []) {
-  return render(<PropertyForm mode="create" tags={tags} />, { wrapper });
+/** Un bien minimal, apte à la maison — sert aux assertions qui ne portent pas sur la matrice. */
+function maison(patch: Record<string, unknown> = {}): PropertyDetail {
+  return {
+    id: 7,
+    title: 'Villa Almadies',
+    type: 'house',
+    contract_type: 'sale',
+    price: 85_000_000,
+    currency: 'XOF',
+    location: { city: 'Dakar' },
+    tags: [],
+    ...patch,
+  } as never;
 }
 
-async function fillRequiredFields(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText(/titre/i), 'Ma villa test');
-  await user.clear(screen.getByLabelText(/prix/i));
-  await user.type(screen.getByLabelText(/prix/i), '500000');
-  await user.type(screen.getByLabelText(/ville/i), 'Dakar');
+function renderForm(property: PropertyDetail, tags: Tag[] = []) {
+  return render(<PropertyForm mode="edit" property={property} tags={tags} />, { wrapper });
 }
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(updatePropertyAction).mockResolvedValue({
+    ok: true,
+    data: { id: 7 } as never,
+  });
+  vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true });
+});
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
-describe('PropertyForm — creation mode', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    vi.mocked(createPropertyAction).mockResolvedValue({
-      ok: true,
-      data: { id: 42, reference_number: 'TK-2026-0042' } as never,
-    });
-    vi.mocked(setPropertyAddressAction).mockResolvedValue({ ok: true });
-    vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true });
-    vi.mocked(uploadPropertyPhotosAction).mockResolvedValue({ ok: true });
-  });
-
-  it('renders all required sections', () => {
-    renderForm();
+describe('PropertyForm — edit mode', () => {
+  it('renders all required sections and no photo section', () => {
+    renderForm(maison());
     const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toContain('Informations générales');
     expect(headings).toContain('Prix');
     expect(headings).toContain('Localisation');
     expect(headings).toContain('Caractéristiques');
     expect(headings).toContain('Description');
-    expect(headings).toContain('Photos');
+    // La création possédait sa propre section Photos ; l'édition passe par
+    // `PropertyMediaPanel`, monté ailleurs (cf. `PropertyDetailTabs`).
+    expect(headings).not.toContain('Photos');
   });
 
   it('shows the address and GPS section', () => {
-    renderForm();
+    renderForm(maison());
     expect(screen.getByLabelText(/rue \/ adresse/i)).toBeDefined();
     expect(screen.getByLabelText(/code postal/i)).toBeDefined();
     expect(screen.getByLabelText(/pays/i)).toBeDefined();
     expect(screen.getByTestId('location-picker-map')).toBeDefined();
   });
 
-  it('shows year_built and parking_spaces in characteristics', () => {
-    renderForm();
+  it('shows year_built and parking_spaces in characteristics for a habitable property', () => {
+    renderForm(maison());
     expect(screen.getByLabelText(/année de construction/i)).toBeDefined();
     expect(screen.getByLabelText(/places de parking/i)).toBeDefined();
   });
@@ -105,150 +113,171 @@ describe('PropertyForm — creation mode', () => {
       { id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' as const, icon: null, color: null, description: null },
       { id: 2, name: 'Parking', slug: 'parking', type: 'amenity' as const, icon: null, color: null, description: null },
     ];
-    renderForm(tags);
+    renderForm(maison(), tags);
     expect(screen.getByText('Équipements')).toBeDefined();
     expect(screen.getByText('Piscine')).toBeDefined();
     expect(screen.getByText('Parking')).toBeDefined();
   });
 
   it('does not show tags section when no tags provided', () => {
-    renderForm([]);
+    renderForm(maison(), []);
     expect(screen.queryByText('Équipements')).toBeNull();
   });
 
-  it('submits and calls createPropertyAction with basic fields only', async () => {
+  it('submits and calls updatePropertyAction with the property id and no tag_ids in the body', async () => {
     const user = userEvent.setup();
-    renderForm();
-    await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
+    renderForm(maison());
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
     await waitFor(() => {
-      expect(createPropertyAction).toHaveBeenCalledOnce();
-      const payload = vi.mocked(createPropertyAction).mock.calls[0][0] as Record<string, unknown>;
-      expect(payload.title).toBe('Ma villa test');
-      expect(payload.price).toBe(500000);
-      // Address fields must NOT go to createPropertyAction
-      expect('street' in payload).toBe(false);
+      expect(updatePropertyAction).toHaveBeenCalledOnce();
+      const [id, payload] = vi.mocked(updatePropertyAction).mock.calls[0] as [
+        number,
+        Record<string, unknown>,
+      ];
+      expect(id).toBe(7);
+      expect(payload.title).toBe('Villa Almadies');
       expect('tag_ids' in payload).toBe(false);
     });
   });
 
-  it('redirects to the created draft detail page after server id confirmation', async () => {
+  it('shows validation error when city is cleared', async () => {
     const user = userEvent.setup();
-    renderForm();
-    await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /enregistrer en brouillon/i }));
-
+    renderForm(maison());
+    await user.clear(screen.getByLabelText(/ville/i));
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
     await waitFor(() => {
-      expect(createPropertyAction).toHaveBeenCalledOnce();
-      expect(routerMocks.push).toHaveBeenCalledWith('/app/properties/42');
+      expect(screen.getByText(/la ville est requise/i)).toBeDefined();
     });
-    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({
-      status: 'draft',
-      visibility: 'private',
-    });
-    expect(screen.getByRole('status')).toHaveTextContent('Bien créé. Ouverture de la fiche');
+    expect(updatePropertyAction).not.toHaveBeenCalled();
   });
 
-  it('redirects to the created detail page after publication submission', async () => {
+  it('keeps entered values and stays on the form when the update fails', async () => {
+    vi.mocked(updatePropertyAction).mockResolvedValue({
+      ok: false,
+      status: 500,
+      message: 'Mise à jour impossible.',
+    });
     const user = userEvent.setup();
-    renderForm();
-    await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
+    renderForm(maison());
+    await user.clear(screen.getByLabelText(/titre/i));
+    await user.type(screen.getByLabelText(/titre/i), 'Villa modifiée');
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
 
-    await waitFor(() => {
-      expect(createPropertyAction).toHaveBeenCalledOnce();
-      expect(routerMocks.push).toHaveBeenCalledWith('/app/properties/42');
-    });
-    expect(vi.mocked(createPropertyAction).mock.calls[0][0]).toMatchObject({
-      status: 'pending_review',
-      visibility: 'private',
-    });
+    expect(await screen.findByText('Mise à jour impossible.')).toBeDefined();
+    expect(routerMocks.push).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/titre/i)).toHaveValue('Villa modifiée');
   });
 
-  it('calls setPropertyAddressAction when street is filled', async () => {
+  it('shows description character counter', () => {
+    renderForm(maison({ description: null }));
+    expect(screen.getByText(/0 \/ 10 000 caractères/i)).toBeDefined();
+  });
+});
+
+describe('adresse — champ vidé exprès contre champ jamais touché (TCK-464)', () => {
+  it('un champ vidé exprès part explicitement à `null` dans le bloc address', async () => {
     const user = userEvent.setup();
-    renderForm();
-    await fillRequiredFields(user);
-    await user.type(screen.getByLabelText(/rue \/ adresse/i), '12 Rue des Baobabs');
-    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
+    renderForm(maison({ location: { city: 'Dakar', street: '12 Rue des Baobabs' } }));
+
+    await user.clear(screen.getByLabelText(/rue \/ adresse/i));
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
     await waitFor(() => {
-      expect(setPropertyAddressAction).toHaveBeenCalledWith(
-        42,
-        expect.objectContaining({ street: '12 Rue des Baobabs' }),
+      expect(updatePropertyAction).toHaveBeenCalledWith(
+        7,
+        expect.objectContaining({ address: expect.objectContaining({ street: null }) }),
       );
     });
   });
 
-  it('calls setPropertyTagsAction when tags are selected', async () => {
+  it('un champ resté intact — jamais soumis vide, jamais touché — est OMIS, pas nullifié', async () => {
     const user = userEvent.setup();
-    const tags = [
-      { id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' as const, icon: null, color: null, description: null },
+    renderForm(maison({ location: { city: 'Dakar', street: '12 Rue des Baobabs' } }));
+
+    // On ne touche à rien qui concerne l'adresse : seul le titre change.
+    await user.clear(screen.getByLabelText(/titre/i));
+    await user.type(screen.getByLabelText(/titre/i), 'Villa Almadies (rénovée)');
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
+    await waitFor(() => {
+      expect(updatePropertyAction).toHaveBeenCalledOnce();
+    });
+    const [, payload] = vi.mocked(updatePropertyAction).mock.calls[0] as [
+      number,
+      { address?: Record<string, unknown> },
     ];
-    renderForm(tags);
-    await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: 'Piscine' }));
-    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
-    await waitFor(() => {
-      expect(setPropertyTagsAction).toHaveBeenCalledWith(42, [1]);
-    });
+    // `street` est rempli et jamais touché : il doit traverser tel quel, jamais `null`.
+    expect(payload.address?.street).toBe('12 Rue des Baobabs');
   });
 
-  it('does not call setPropertyTagsAction when no tags selected', async () => {
+  it('un champ jamais rempli ET jamais touché reste ABSENT du bloc address (pas nullifié)', async () => {
     const user = userEvent.setup();
-    const tags = [
-      { id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' as const, icon: null, color: null, description: null },
+    // `region`/`street`/`postal_code`/`country` n'ont jamais eu de valeur : l'utilisateur ne les
+    // voit jamais remplis, ne les touche pas. `city` reste seule dans le bloc — elle est requise,
+    // donc TOUJOURS présente, ce qui est le témoin qu'`address` lui-même n'est pas vide.
+    renderForm(maison({ location: { city: 'Dakar' } }));
+
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
+    await waitFor(() => {
+      expect(updatePropertyAction).toHaveBeenCalledOnce();
+    });
+    const [, payload] = vi.mocked(updatePropertyAction).mock.calls[0] as [
+      number,
+      { address?: Record<string, unknown> },
     ];
-    renderForm(tags);
-    await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
-    await waitFor(() => {
-      expect(createPropertyAction).toHaveBeenCalledOnce();
-    });
-    expect(setPropertyTagsAction).not.toHaveBeenCalled();
+    expect(payload.address).toEqual({ city: 'Dakar' });
+  });
+});
+
+describe('conditionnalité en édition (TCK-464)', () => {
+  function bien(patch: Record<string, unknown> = {}) {
+    return {
+      id: 7, title: 'Terrain Diamniadio', type: 'land', contract_type: 'sale',
+      price: 25_000_000, currency: 'XOF', title_type: 'bail',
+      location: { city: 'Diamniadio' }, tags: [], ...patch,
+    } as never;
+  }
+
+  it('AC2 — éditer un terrain ne demande plus ses chambres', () => {
+    render(<PropertyForm mode="edit" property={bien()} tags={[]} />, { wrapper });
+    expect(screen.queryByLabelText(/chambres/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/année de construction/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/statut foncier/i)).toBeInTheDocument();
   });
 
-  it('shows validation error when city is empty', async () => {
+  it('AC5 — le statut foncier existant est pré-rempli', () => {
+    render(<PropertyForm mode="edit" property={bien()} tags={[]} />, { wrapper });
+    // ⚠ `FormSelect` (base-ui) rend un `<button role="combobox">`, pas un `<select>` natif : sa
+    // valeur DOM (`.value`) est toujours `""`, ce que `toHaveValue()` ne distingue pas d'un champ
+    // réellement vide (vérifié : le même assert échoue aussi sur un champ non pré-rempli). Le
+    // libellé RENDU (« Bail », résolu par `PROPERTY_ENUM_NAMESPACES.titleType`) est l'unique
+    // témoin observable du pré-remplissage pour ce composant.
+    expect(screen.getByLabelText(/statut foncier/i)).toHaveTextContent('Bail');
+  });
+
+  it('AC3 — éditer un appartement demande son étage, pas ses niveaux', () => {
+    render(
+      <PropertyForm mode="edit" property={bien({ type: 'apartment', contract_type: 'rent' })} tags={[]} />,
+      { wrapper },
+    );
+    expect(screen.getByLabelText(/étage/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/nombre de niveaux/i)).not.toBeInTheDocument();
+  });
+
+  it('AC1 — la ville modifiée part dans le bloc address du PUT', async () => {
     const user = userEvent.setup();
-    renderForm();
-    await user.type(screen.getByLabelText(/titre/i), 'Villa');
-    await user.clear(screen.getByLabelText(/prix/i));
-    await user.type(screen.getByLabelText(/prix/i), '100000');
-    // city left blank
-    await user.click(screen.getByRole('button', { name: /soumettre à publication/i }));
+    vi.mocked(updatePropertyAction).mockResolvedValue({ ok: true, data: { id: 7 } } as never);
+    render(<PropertyForm mode="edit" property={bien()} tags={[]} />, { wrapper });
+
+    await user.clear(screen.getByLabelText(/ville/i));
+    await user.type(screen.getByLabelText(/ville/i), 'Thiès');
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
     await waitFor(() => {
-      expect(screen.getByText(/la ville est requise/i)).toBeDefined();
+      expect(updatePropertyAction).toHaveBeenCalledWith(
+        7, expect.objectContaining({ address: expect.objectContaining({ city: 'Thiès' }) }),
+      );
     });
-    expect(createPropertyAction).not.toHaveBeenCalled();
-  });
-
-  it('keeps entered values and stays on the form when creation fails', async () => {
-    vi.mocked(createPropertyAction).mockResolvedValue({
-      ok: false,
-      status: 500,
-      message: 'Création impossible.',
-    });
-    const user = userEvent.setup();
-    renderForm();
-    await fillRequiredFields(user);
-    await user.click(screen.getByRole('button', { name: /enregistrer en brouillon/i }));
-
-    // Le message du server action est DÉJÀ traduit et plus précis que le générique : il gagne.
-    // L'ordre inverse jetait aussi le `t('missingIdError')` que ce même formulaire lève en 500
-    // (`PropertyForm.tsx:192`). La 5xx anglaise de Laravel (« Server Error ») reste, elle,
-    // remplacée par le libellé générique — cf. SENTINELLES_FRAMEWORK dans `src/lib/api.ts`.
-    expect(await screen.findByText('Création impossible.')).toBeDefined();
-    expect(routerMocks.push).not.toHaveBeenCalled();
-    expect(screen.getByLabelText(/titre/i)).toHaveValue('Ma villa test');
-    expect(screen.getByLabelText(/ville/i)).toHaveValue('Dakar');
-  });
-
-  it('shows description character counter', () => {
-    renderForm();
-    expect(screen.getByText(/0 \/ 10 000 caractères/i)).toBeDefined();
-  });
-
-  it('shows photo count', () => {
-    renderForm();
-    expect(screen.getByText(/0 \/ 10 photo/i)).toBeDefined();
   });
 });

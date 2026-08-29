@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**411 tickets** — 36 ouverts, 374 livrés.
+**418 tickets** — 43 ouverts, 374 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 35 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 41 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 374 |
@@ -68,10 +68,17 @@
 - [TCK-461](tickets/TCK-461-trois-proprietes-prouvees-par-lecture-gardees-par-rien.md) — Trois propriétés livrées sont prouvées par LECTURE et gardées par rien — leur régression resterait verte `S · P2 · front`
 - [TCK-462](tickets/TCK-462-des-totaux-comptes-sur-un-nom-tire-au-hasard.md) — Des totaux de recherche comptés sur un nom TIRÉ AU HASARD — un a rougi en CI, deux autres l'attendent `S · P2 · technique`
 - [TCK-463](tickets/TCK-463-typescript-7-bloque-par-typescript-eslint.md) — TypeScript 7 est bloqué par `typescript-eslint`, pas par notre code — mesuré, et la branche qui le portait est supprimée `S · P3 · technique`
+- [TCK-465](tickets/TCK-465-brouillon-echec-silencieux.md) — Un brouillon de parcours peut échouer à s'enregistrer sans que personne ne le sache `S · P2 · technique`
+- [TCK-466](tickets/TCK-466-garde-espaces-de-noms-enum.md) — Rien n'empêche de composer à la main le chemin d'un vocabulaire d'enum `S · P2 · technique`
+- [TCK-467](tickets/TCK-467-reduced-motion-site-wide.md) — Les animations du site s'exécutent quelle que soit la préférence système de mouvement réduit `S · P1 · front`
+- [TCK-468](tickets/TCK-468-cibles-tactiles-champs.md) — Les champs de formulaire font 32 px de haut là où les pastilles en font 44 `M · P2 · front`
+- [TCK-469](tickets/TCK-469-valeur-devenue-non-pertinente.md) — Changer le type d'un bien laisse en base des valeurs que le nouveau type ne justifie plus `M · P1 · full`
+- [TCK-470](tickets/TCK-470-server-actions-payload-plat.md) — Les server actions des biens sont typées à plat alors que les payloads sont imbriqués `S · P2 · technique`
 
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-464](tickets/TCK-464-publication-bien-parcours-guide.md) — Publication d'un bien — parcours guidé, champs conditionnés au type, et l'adresse qui n'était jamais enregistrée `L · P0 · full`
 
 ## 👀 Review
 

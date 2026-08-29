@@ -8,6 +8,7 @@ use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
+use App\Models\Enums\TitleType;
 use App\Models\Property;
 use App\Services\Property\HierarchyService;
 use Closure;
@@ -37,6 +38,9 @@ class UpdatePropertyRequest extends FormRequest
             'type' => ['sometimes', Rule::enum(PropertyType::class)],
             'contract_type' => ['sometimes', Rule::enum(ContractType::class)],
             'rent_period' => ['sometimes', 'nullable', Rule::enum(RentPeriod::class)],
+            'title_type' => ['sometimes', 'nullable', Rule::enum(TitleType::class)],
+            'floor_number' => ['sometimes', 'nullable', 'integer', 'min:-5', 'max:200'],
+            'total_floors' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:200'],
             'status' => ['sometimes', Rule::enum(PropertyStatus::class)],
             'visibility' => ['sometimes', Rule::enum(PropertyVisibility::class)],
             'price' => ['sometimes', 'numeric', 'min:0'],
@@ -62,6 +66,7 @@ class UpdatePropertyRequest extends FormRequest
             'address.city' => ['sometimes', 'nullable', 'string'],
             'address.region' => ['sometimes', 'nullable', 'string'],
             'address.country' => ['sometimes', 'nullable', 'string', 'size:2'],
+            'address.postal_code' => ['sometimes', 'nullable', 'string', 'max:20'],
             'address.latitude' => ['sometimes', 'nullable', 'numeric'],
             'address.longitude' => ['sometimes', 'nullable', 'numeric'],
         ];

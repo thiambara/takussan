@@ -53,12 +53,17 @@ import { fileURLToPath } from 'node:url';
 const RACINE = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const LOCALES = ['fr', 'en', 'wo'] as const;
 
-/** Groupe PHP → sous-arbre `property.*` du dictionnaire. `title_type` n'a pas de pendant front. */
+/** Groupe PHP → sous-arbre `property.*` du dictionnaire. */
 const GROUPES: Record<string, string> = {
   type: 'types',
   contract_type: 'contractTypes',
   rent_period: 'rentPeriods',
   status: 'status',
+  // TCK-464 — `title_type` A un pendant front depuis que le formulaire l'expose. Le
+  // vocabulaire a été aligné au caractère près sur `lang/<locale>/properties.php` DANS le
+  // même lot : aucune entrée n'entre dans DIVERGENCES_CONNUES, la garde se resserre sans
+  // acquérir de tolérance.
+  title_type: 'titleTypes',
 };
 
 /**

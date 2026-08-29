@@ -76,6 +76,7 @@ class PropertyResource extends BaseResource
             'total_floors' => $this->whenHas('total_floors'),
             'year_built' => $this->whenHas('year_built'),
             'parking_spaces' => $this->whenHas('parking_spaces'),
+            'available_from' => $this->whenHas('available_from', fn ($valeur) => $this->calendarDate($valeur)),
             'furnished' => $this->whenHas('furnished', fn ($valeur) => (bool) $valeur),
             'featured' => $this->whenHas('featured', fn ($valeur) => (bool) $valeur),
             // ⚠ `views_count` / `favorites_count` restent dans la FORME LISTE, et c'est mesuré :

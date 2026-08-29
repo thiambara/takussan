@@ -336,6 +336,63 @@
   animation: sectionEnter 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* ─── Parcours de publication d'un bien (TCK-464) ───────────────────── */
+
+/*
+ * La DIRECTION porte le sens : on avance, l'étape entre par la droite ; on revient, par la
+ * gauche. C'est ce qui fait ressentir un lieu qu'on parcourt plutôt qu'un écran qu'on remplace.
+ */
+@keyframes wizardInForward  { from { opacity: 0; transform: translateX(26px);  } to { opacity: 1; transform: none; } }
+@keyframes wizardInBack     { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
+
+.wizard-step-in-forward  { animation: wizardInForward  300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.wizard-step-in-back     { animation: wizardInBack     300ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+/*
+ * Pas de sortie animée, délibérément : le remount par `key` (`WizardShell`) détruit l'ancien
+ * nœud de façon synchrone, donc rien ne reste à animer en sortie. La faire vivre supposerait de
+ * garder l'ancienne étape montée le temps de sa sortie, en superposant deux étapes de hauteurs
+ * différentes — un jank de mise en page sur mobile plus coûteux que ce qu'il rapporterait.
+ */
+
+/* Les champs d'une étape entrent en cascade : l'œil suit une ligne au lieu de recevoir un mur. */
+@keyframes wizardFieldRise { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+.wizard-field-rise { animation: wizardFieldRise 340ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/*
+ * Ce qu'une suggestion a rempli doit se VOIR, sinon elle a écrit à la place de l'utilisateur
+ * sans qu'il puisse le savoir (AC6). Le flash emprunte `--accent` (sage), jamais `--primary` :
+ * ce n'est pas une erreur ni une action, c'est une valeur posée.
+ */
+@keyframes wizardFlash {
+  0%   { background-color: color-mix(in oklch, var(--accent) 22%, transparent); }
+  100% { background-color: var(--card); }
+}
+.wizard-flash { animation: wizardFlash 750ms ease-out; }
+
+/*
+ * ⚠ Garde PORTÉE À CE PARCOURS, et pas au dépôt.
+ *
+ * `globals.css` n'a aujourd'hui AUCUN bloc `prefers-reduced-motion` : `fadeInUp`, `cardEnter` et
+ * `sectionEnter` s'exécutent quelle que soit la préférence système. C'est un manquement réel, et
+ * il déborde ce ticket — poser une règle universelle ici changerait le comportement de tout le
+ * site depuis un ticket qui ne parle que de publication. On neutralise donc ce qu'on introduit,
+ * et le manquement plus large reste à instruire pour lui-même.
+ *
+ * Un glissement horizontal répété six fois est un déclencheur vestibulaire connu : le fondu
+ * subsiste, la translation disparaît.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .wizard-step-in-forward,
+  .wizard-step-in-back,
+  .wizard-field-rise {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: opacity 120ms linear;
+  }
+  .wizard-flash { animation: none; }
+}
+
 /* ─── Dark mode (non prioritaire — conservé fonctionnel) ────────────── */
 
 .dark {

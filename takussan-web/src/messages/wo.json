@@ -4005,9 +4005,13 @@
         "bathrooms": "Sanjaan yi",
         "yearBuilt": "Atum tabax",
         "parking": "Palaasu parking",
+        "floorNumber": "Etaas",
+        "totalFloors": "Limu etaas",
+        "titleType": "Kayitu suuf",
         "furnished": "Ame na meebal",
         "description": "Leeral",
-        "descriptionPlaceholder": "Leeralal kër gi, li ko wër, ak li ko gën a rafetal."
+        "descriptionPlaceholder": "Leeralal kër gi, li ko wër, ak li ko gën a rafetal.",
+        "availableFrom": "Jotna ci"
       },
       "price": {
         "title": "Njëg",
@@ -4252,6 +4256,140 @@
       "bathrooms": "Sanjaan yi",
       "address": "Adres",
       "description": "Leeral"
+    },
+    "wizard": {
+      "railLabel": "Étapes de la publication",
+      "progressLabel": "Progression",
+      "position": "Étape {current} sur {total}",
+      "back": "Précédent",
+      "continue": "Continuer",
+      "skip": "Plus tard",
+      "saving": "Enregistrement…",
+      "fields": {
+        "type": "Xeetu kër",
+        "contract": "Njaay walla luwaa",
+        "city": "Dëkk",
+        "quarter": "Gox",
+        "region": "Diiwaan",
+        "street": "Mbedd / adres",
+        "postalCode": "Kodu poost",
+        "country": "Réew (kodu ISO)",
+        "areaLand": "Yaatuwaayu suuf (m²)",
+        "areaLiving": "Yaatuwaayu dëkkuwaay (m²)",
+        "bedrooms": "Neeg yi",
+        "bathrooms": "Sanjaan yi",
+        "floorNumber": "Etaas",
+        "totalFloors": "Limu etaas",
+        "yearBuilt": "Atum tabax",
+        "parking": "Palaasu parking",
+        "furnished": "Ame na meebal",
+        "titleType": "Kayitu suuf",
+        "amenities": "Jumtukaay yi",
+        "price": "Njëg",
+        "currency": "Xaalis",
+        "period": "Jamono",
+        "availableFrom": "Jotna ci",
+        "title": "Boppu anons bi",
+        "description": "Leeral"
+      },
+      "contract": {
+        "sale": "Jaay",
+        "rent": "Luwe"
+      },
+      "placeholders": {
+        "city": "Ndakaaru",
+        "quarter": "Almadies",
+        "region": "Ndakaaru",
+        "street": "12 Mbeddu Jacaranda",
+        "postalCode": "10700",
+        "country": "SN",
+        "area": "120",
+        "yearBuilt": "2010",
+        "parking": "2",
+        "priceSale": "25000000",
+        "priceRent": "350000",
+        "period": "Weer wu nekk",
+        "description": "Li nataal yi wonewul: gox bi, li ko wër, ak li ñu def bu yagul."
+      },
+      "geoSuggestFull": "Jëfandikoo {city}, {region}",
+      "geoSuggestCity": "Jëfandikoo {city}",
+      "geoDefaultsNote": "Réew mi ak xaalis bi ñu leen dugal na ci sa koneksiyon. Man nga leen a soppi.",
+      "addressDetailsShow": "Yokk mbedd mi ak kodu poost bi",
+      "addressDetailsHide": "Nëbb mbedd mi ak kodu poost bi",
+      "useMyPosition": "Jëfandikoo fu ma nekk léegi",
+      "useMyPositionLoading": "Ñu ngi seet fu nga nekk…",
+      "useMyPositionDenied": "Nanguwoo joxe sa bérébu. Tann bérébu bi ci kaart bi ci suuf.",
+      "useMyPositionUnavailable": "Naawalkat bi mënul joxe sa bérébu. Tann bérébu bi ci kaart bi ci suuf.",
+      "useMyPositionFailed": "Gisunu sa bérébu léegi. Jéemaat, walla tann bérébu bi ci kaart bi ci suuf.",
+      "mapHint": "Laal kart bi ngir teg kër gi, walla toxal maarker bi.",
+      "titleTypeHint": "Kayit bi wone ne suuf si sa moom la. Su nga ko xamul, bàyyil ko neen.",
+      "titleComposedHint": "Bopp bu ñu jubbanti ci sa tontu yi — man nga koo soppi.",
+      "photosCounter": "{count, plural, =0 {Amul benn nataal — ba {max}} one {# nataal ci {max}} other {# nataal ci {max}}}",
+      "descriptionCounter": "{count, plural, one {# araf} other {# araf}}",
+      "steps": {
+        "bien": {
+          "title": "Ban xeetu kër ngay teg ?",
+          "subtitle": "Ñaari tontu yii ñoo tànn laaj yi ci topp."
+        },
+        "lieu": {
+          "title": "Fan la nekk ?",
+          "subtitle": "Dëkk bi doy na ngir teg ko. Li ci des dafay gënal seet bi."
+        },
+        "caracteristiques": {
+          "title": "Wax nu ci {type}",
+          "subtitle": "Limu yii la ñi ngi door a mengale.",
+          "subtitleShort": "Ay natt yu néew, te loolu doy na fii."
+        },
+        "prix": {
+          "title": "Ci ban njëg ?",
+          "subtitleRent": "Luwaa bi, jamono ji, ak bés bi kër gi di jot.",
+          "subtitleSale": "Njëg gi ngay laaj. Man nga koo soppi bu ñu ko tegee."
+        },
+        "photos": {
+          "title": "Yokk ay nataal",
+          "subtitle": "Doyul waar — waaye anons bu am nataal, ñu ngi koy gën a xool."
+        },
+        "finition": {
+          "title": "Benn bopp, te teg na",
+          "subtitle": "Jubbanti nanu benn ci sa tontu yi. Man nga koo soppi."
+        }
+      },
+      "typeArticle": {
+        "land": "suuf si",
+        "house": "kër gi",
+        "apartment": "apartama bi",
+        "villa": "wiila bi",
+        "studio": "studio bi",
+        "room": "neeg bi",
+        "office": "biro bi",
+        "shop": "butik bi",
+        "warehouse": "magasin bi",
+        "factory": "usin bi",
+        "farm": "tool bi",
+        "hotel": "otel bi",
+        "resort": "kompleks bi",
+        "garage": "garaas bi",
+        "parking": "parking bi",
+        "other": "beneen bi"
+      },
+      "partial": {
+        "tags": "jumtukaay yi",
+        "photos": "nataal yi",
+        "message": "Kër gi sos na te ñu denc ko. Waaye mënunu woon a yónnee {items}. Jéemaat, walla jàll ko.",
+        "continueAnyway": "Jàll ko"
+      },
+      "publish": "Teg anons bi",
+      "resumeLater": "Dellusiwaat ci kanam",
+      "missingId": "Kër gi sos na, waaye jotunu ko benn nimero. Wutal ko ci limu kër yi.",
+      "close": "Tëj",
+      "loadingDraft": "Ñu ngi dellusi sa brouillon…",
+      "draftResumed": "Dellusi nanu sa brouillon fu nga ko bàyyee woon."
+    },
+    "titleTypes": {
+      "bail": "Contrat",
+      "titre_foncier": "Titre foncier",
+      "deliberation": "Délibération",
+      "autre": "Yeneen"
     }
   },
   "documents": {
@@ -6636,8 +6774,7 @@
       },
       "propertyNew": {
         "metaTitle": "Génne benn kër",
-        "title": "Génne benn kër",
-        "subtitle": "Bindal li am solo. Dinga man a yokk ci fiis bi ginnaaw génne bi."
+        "title": "Génne benn kër"
       },
       "privacy": {
         "metaTitle": "Sutura",
@@ -7223,6 +7360,7 @@
       "valueInvalid": "Lim wu baaxul.",
       "valueUnrealistic": "Lim wu jaaduwul.",
       "yearInvalid": "At mu baaxul.",
+      "dateInvalid": "Melokaanu bés bu baaxul (AAAA-MM-JJ).",
       "descriptionTooLong": "Leeral gi dafa gudd lool.",
       "statusInvalid": "Nekkin wu baaxul."
     },
