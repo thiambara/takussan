@@ -863,9 +863,13 @@
         "bathrooms": "Salles de bain",
         "yearBuilt": "Année de construction",
         "parking": "Places de parking",
+        "floorNumber": "Étage",
+        "totalFloors": "Nombre de niveaux",
+        "titleType": "Statut foncier",
         "furnished": "Meublé",
         "description": "Description",
-        "descriptionPlaceholder": "Décrivez le bien, son environnement, ses atouts."
+        "descriptionPlaceholder": "Décrivez le bien, son environnement, ses atouts.",
+        "availableFrom": "Disponible à partir du"
       },
       "price": {
         "title": "Prix",

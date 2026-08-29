@@ -888,9 +888,13 @@
         "bathrooms": "Bathrooms",
         "yearBuilt": "Year built",
         "parking": "Parking spaces",
+        "floorNumber": "Floor",
+        "totalFloors": "Number of floors",
+        "titleType": "Land title status",
         "furnished": "Furnished",
         "description": "Description",
-        "descriptionPlaceholder": "Describe the property, its surroundings, its strengths."
+        "descriptionPlaceholder": "Describe the property, its surroundings, its strengths.",
+        "availableFrom": "Available from"
       },
       "price": {
         "title": "Price",

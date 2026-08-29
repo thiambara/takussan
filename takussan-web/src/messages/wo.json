@@ -4005,9 +4005,13 @@
         "bathrooms": "Sanjaan yi",
         "yearBuilt": "Atum tabax",
         "parking": "Palaasu parking",
+        "floorNumber": "Etaas",
+        "totalFloors": "Limu etaas",
+        "titleType": "Kayitu suuf",
         "furnished": "Ame na meebal",
         "description": "Leeral",
-        "descriptionPlaceholder": "Leeralal kër gi, li ko wër, ak li ko gën a rafetal."
+        "descriptionPlaceholder": "Leeralal kër gi, li ko wër, ak li ko gën a rafetal.",
+        "availableFrom": "Jotna ci"
       },
       "price": {
         "title": "Njëg",
