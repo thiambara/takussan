@@ -2,36 +2,7 @@
 
 namespace App\Providers;
 
-use App\Events\Accounting\BankStatementFinalized;
-use App\Events\Accounting\BankStatementImported;
-use App\Events\AgencyUpgradeApproved;
-use App\Events\Lease\LeaseActivated;
-use App\Events\Lease\LeaseDepositRefunded;
-use App\Events\Lease\LeaseEarlyTerminationCancelled;
-use App\Events\Lease\LeaseEarlyTerminationConfirmed;
-use App\Events\Lease\LeaseEarlyTerminationRequested;
-use App\Events\Lease\LeasePaymentLateFeeApplied;
-use App\Events\Lease\LeaseRenewed;
-use App\Events\Lease\LeaseRentReviewed;
-use App\Events\Permissions\RoleDelegationActivated;
-use App\Events\Permissions\RoleDelegationExpired;
-use App\Events\Permissions\RoleDelegationRevoked;
-use App\Listeners\Accounting\NotifyStatementFinalized;
-use App\Listeners\Accounting\NotifyStatementImported;
 use App\Listeners\Admin\DispatchAlerts;
-use App\Listeners\Agency\FlipAgencyKindOnUpgradeApproved;
-use App\Listeners\Lease\CreateTenantOnboardingChecklist;
-use App\Listeners\Lease\NotifyOnEarlyTermination;
-use App\Listeners\Lease\NotifyTenantOfDepositRefund;
-use App\Listeners\Lease\NotifyTenantOfLateFee;
-use App\Listeners\Lease\NotifyTenantOfRenewal;
-use App\Listeners\Lease\NotifyTenantOfRentReview;
-use App\Listeners\Lease\SendTenantWelcomeNotification;
-use App\Listeners\Media\ApplyWatermarkOnConversionListener;
-use App\Listeners\Payments\LemonSqueezyEventListener;
-use App\Listeners\Permissions\NotifyDelegationActivated;
-use App\Listeners\Permissions\NotifyDelegationExpired;
-use App\Listeners\Permissions\NotifyDelegationRevoked;
 use App\Models\Agency;
 use App\Models\AgencyRole;
 use App\Models\AgencyUpgradeRequest;
@@ -130,8 +101,6 @@ use App\Services\Notifications\Whatsapp\LogWhatsappDriver;
 use App\Services\Notifications\Whatsapp\ServiceWindow;
 use App\Services\Notifications\Whatsapp\WhatsappDriverInterface;
 use App\Services\Reporting\PlatformReportingService;
-use Illuminate\Auth\Events\Registered;
-use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -139,18 +108,13 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Sanctum\PersonalAccessToken;
-use LemonSqueezy\Laravel\Events\OrderCreated as LemonSqueezyOrderCreated;
-use LemonSqueezy\Laravel\Events\OrderRefunded as LemonSqueezyOrderRefunded;
-use LemonSqueezy\Laravel\Events\SubscriptionCreated as LemonSqueezySubscriptionCreated;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\MediaLibrary\Conversions\Events\ConversionHasBeenCompletedEvent;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class AppServiceProvider extends ServiceProvider
@@ -176,13 +140,34 @@ class AppServiceProvider extends ServiceProvider
         $this->bootGatesAndPolicies();
         $this->bootBladeDirectives();
         $this->bootSocialiteProviders($events);
-        $this->bootPaymentEventListeners();
-        $this->bootLeaseEventListeners($events);
-        $this->bootAgencyEventListeners($events);
-        $this->bootRoleDelegationEventListeners();
-        $this->bootMediaEventListeners();
-        $this->bootBankReconciliationListeners();
-        $this->bootAuthEventListeners($events);
+        // TCK-443 — les écouteurs de `app/Listeners` ne sont PAS enregistrés ici, et
+        // c'est une correction, pas un oubli. `Application::configure()` appelle
+        // `withEvents()` lui-même (Laravel 13,
+        // `Illuminate/Foundation/Application.php:250`) : tout `app/Listeners` est DÉJÀ
+        // auto-découvert, alors que `bootstrap/app.php` n'écrit `withEvents()` nulle
+        // part. ⚠ Ne pas conclure de `bootstrap/app.php` que la découverte est éteinte
+        // — le fichier de configuration ne dit pas l'état de l'application.
+        //
+        // La règle du framework est le glob `handle*` plus `__invoke`, premier
+        // paramètre typé classe (`Foundation/Events/DiscoverEvents.php:87-90`) : la
+        // forme tableau `[Classe::class, 'handleOrderCreated']` n'y échappe donc PAS,
+        // contrairement à ce qu'on a cru trois fois de suite.
+        //
+        // Chaque `Event::listen()` qui vivait ici en posait un SECOND — les deux
+        // inscriptions apparaissant sous des chaînes différentes (`App\Listeners\X` et
+        // `App\Listeners\X@handle`), rien ne les dédoublonnait. Mesuré sur
+        // l'application bootée : 20 couples (écouteur, méthode, événement) enregistrés
+        // deux fois, dont deux courriels de vérification par inscription.
+        //
+        // Le cas `Registered` → `SendEmailVerificationNotification` venait d'un SECOND
+        // mécanisme : cet écouteur vit hors de `app/Listeners`, la découverte ne le voit
+        // pas, et c'est `EventServiceProvider::configureEmailVerification()` qui le
+        // ré-enregistre en `booted()` tant que `$listen[Registered::class]` est absent.
+        //
+        // ⚠ Ne PAS « corriger » en coupant la découverte : `DispatchAlerts` n'a aucun
+        // enregistrement explicite et ne vit que par elle.
+        // `tests/Feature/Events/EventListenerDuplicationTest.php` garde les deux sens.
+        $this->bootAuthEventListeners();
         $this->bootNotificationChannels();
     }
 
@@ -572,81 +557,8 @@ class AppServiceProvider extends ServiceProvider
         $events->listen(SocialiteWasCalled::class, 'SocialiteProviders\\Facebook\\FacebookExtendSocialite@handle');
     }
 
-    private function bootPaymentEventListeners(): void
+    private function bootAuthEventListeners(): void
     {
-        // TCK-079 — bridge lemonsqueezy/laravel webhook events onto our
-        // domain payment gateway service. The package validates X-Signature
-        // upstream; we only need to map events to local payment rows.
-        // TCK-087 — fire tenant notification when a late fee is applied.
-        Event::listen(LeasePaymentLateFeeApplied::class, NotifyTenantOfLateFee::class);
-
-        Event::listen(LemonSqueezyOrderCreated::class, [LemonSqueezyEventListener::class, 'handleOrderCreated']);
-        Event::listen(LemonSqueezyOrderRefunded::class, [LemonSqueezyEventListener::class, 'handleOrderRefunded']);
-        Event::listen(LemonSqueezySubscriptionCreated::class, [LemonSqueezyEventListener::class, 'handleSubscriptionCreated']);
-    }
-
-    private function bootLeaseEventListeners(Dispatcher $events): void
-    {
-        // TCK-088 — notify the tenant when their lease deposit is refunded.
-        $events->listen(LeaseDepositRefunded::class, NotifyTenantOfDepositRefund::class);
-
-        // TCK-089 — notify the tenant when their lease has been renewed.
-        $events->listen(LeaseRenewed::class, NotifyTenantOfRenewal::class);
-
-        // TCK-090 — notify stakeholders on every early-termination transition.
-        $events->listen(LeaseEarlyTerminationRequested::class, [NotifyOnEarlyTermination::class, 'handleRequested']);
-        $events->listen(LeaseEarlyTerminationCancelled::class, [NotifyOnEarlyTermination::class, 'handleCancelled']);
-        $events->listen(LeaseEarlyTerminationConfirmed::class, [NotifyOnEarlyTermination::class, 'handleConfirmed']);
-
-        // TCK-091 — notify the tenant when the rent on their lease is reviewed.
-        $events->listen(LeaseRentReviewed::class, NotifyTenantOfRentReview::class);
-
-        // TCK-265 — welcome the tenant the first time their lease is activated.
-        $events->listen(LeaseActivated::class, SendTenantWelcomeNotification::class);
-
-        // TCK-266 — also kick off the onboarding checklist on activation
-        // (independent listener: welcome notification can be skipped per
-        // user preference, the checklist must always be created).
-        $events->listen(LeaseActivated::class, CreateTenantOnboardingChecklist::class);
-    }
-
-    private function bootAgencyEventListeners(Dispatcher $events): void
-    {
-        // TCK-269 — safety-net flip listener. The HTTP approve flow already
-        // performs the flip inline (Option A — see AgencyUpgradeReviewService),
-        // so on the happy path this is a no-op. Stays registered so direct
-        // event dispatchers (jobs, scripts) still get the flip applied.
-        $events->listen(AgencyUpgradeApproved::class, FlipAgencyKindOnUpgradeApproved::class);
-    }
-
-    private function bootRoleDelegationEventListeners(): void
-    {
-        // TCK-108 — notify on role delegation lifecycle events.
-        Event::listen(RoleDelegationActivated::class, NotifyDelegationActivated::class);
-        Event::listen(RoleDelegationExpired::class, NotifyDelegationExpired::class);
-        Event::listen(RoleDelegationRevoked::class, NotifyDelegationRevoked::class);
-    }
-
-    private function bootMediaEventListeners(): void
-    {
-        // TCK-106 — apply watermark after Spatie generates each conversion.
-        Event::listen(ConversionHasBeenCompletedEvent::class, ApplyWatermarkOnConversionListener::class);
-    }
-
-    private function bootBankReconciliationListeners(): void
-    {
-        // TCK-109 — bank reconciliation event listeners.
-        Event::listen(BankStatementImported::class, NotifyStatementImported::class);
-        Event::listen(BankStatementFinalized::class, NotifyStatementFinalized::class);
-    }
-
-    private function bootAuthEventListeners(Dispatcher $events): void
-    {
-        // TCK-022: dispatch the email verification notification on user
-        // registration (Laravel no longer auto-registers this in the
-        // "modern" bootstrap structure).
-        $events->listen(Registered::class, SendEmailVerificationNotification::class);
-
         // TCK-230 — the email opens on the frontend, but the signature is
         // generated for the API route that ultimately validates it.
         VerifyEmail::createUrlUsing(function (object $notifiable): string {
