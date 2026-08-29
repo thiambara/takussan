@@ -11,6 +11,7 @@ import {
   rentPeriodOptions as fabriqueRentPeriodOptions,
 } from '../../options';
 import { isFieldRelevant } from '../../field-matrix';
+import { WizardCollapsibleSection } from '../WizardCollapsibleSection';
 
 /**
  * TCK-464 — le prix, et les deux champs qui n'existent qu'en location.
@@ -48,36 +49,22 @@ export function StepPrix({ form }: { readonly form: UseFormReturn<PropertyFormVa
         />
       </div>
 
-      {/*
-        Le bloc replié reste dans le DOM pour que la transition de hauteur existe, mais il sort de
-        l'arbre d'accessibilité ET du parcours clavier — sans quoi un lecteur d'écran annoncerait
-        deux champs invisibles, et le tabulateur s'y arrêterait. `aria-hidden` seul sur des
-        éléments focusables est en soi une violation.
-      */}
-      <div
-        data-testid="bloc-location"
-        aria-hidden={!location}
-        inert={!location}
-        className="grid transition-[grid-template-rows,opacity] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-        style={{ gridTemplateRows: location ? '1fr' : '0fr', opacity: location ? 1 : 0 }}
-      >
-        <div className="overflow-hidden">
-          <div className="space-y-5 pt-1">
-            <FormSelect
-              control={control}
-              name="rent_period"
-              label={t('fields.period')}
-              options={fabriqueRentPeriodOptions(tPeriode)}
-              placeholder={t('placeholders.period')}
-            />
-            <FormDatePicker
-              control={control}
-              name="available_from"
-              label={t('fields.availableFrom')}
-            />
-          </div>
+      <WizardCollapsibleSection open={location} testId="bloc-location">
+        <div className="space-y-5 pt-1">
+          <FormSelect
+            control={control}
+            name="rent_period"
+            label={t('fields.period')}
+            options={fabriqueRentPeriodOptions(tPeriode)}
+            placeholder={t('placeholders.period')}
+          />
+          <FormDatePicker
+            control={control}
+            name="available_from"
+            label={t('fields.availableFrom')}
+          />
         </div>
-      </div>
+      </WizardCollapsibleSection>
     </>
   );
 }
