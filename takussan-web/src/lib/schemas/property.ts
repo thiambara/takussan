@@ -50,6 +50,13 @@ export const currencyValues = ['XOF', 'XAF', 'EUR', 'USD'] as const;
 export const rentPeriodValues = ['daily', 'weekly', 'monthly', 'yearly'] as const;
 
 /**
+ * TCK-464 — `TitleType` côté backend. ⚠ La quatrième valeur est `'autre'` et non `'other'` :
+ * `src/types/property.ts` écrivait `'other'`, une valeur que l'API n'a jamais pu émettre. Le
+ * défaut était invisible tant qu'aucun écran n'écrivait ni ne discriminait `title_type`.
+ */
+export const titleTypeValues = ['bail', 'titre_foncier', 'deliberation', 'autre'] as const;
+
+/**
  * Input for the create / edit property form. All fields are required by
  * UX (per TCK-041 AC) except the optional descriptors.
  * TCK-120 adds: address fields, year_built, parking_spaces, tag_ids.
@@ -71,6 +78,14 @@ export const propertyFormSchema = z.object({
     .max(1_000_000_000_000, msgValidation('property.priceUnrealistic')),
   currency: z.enum(currencyValues).default('XOF'),
   rent_period: z.enum(rentPeriodValues).optional(),
+  title_type: z.enum(titleTypeValues).optional(),
+  available_from: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, msgValidation('property.dateInvalid'))
+    .optional()
+    .or(z.literal(''))
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
   city: requiredStringSchema(msgValidation('property.cityRequired')).max(120, msgValidation('property.cityTooLong')),
   quarter: z
     .string()
@@ -145,6 +160,18 @@ export const propertyFormSchema = z.object({
     .int(msgValidation('property.integerExpected'))
     .min(0, msgValidation('property.valueInvalid'))
     .max(500, msgValidation('property.valueUnrealistic'))
+    .optional(),
+  floor_number: z.coerce
+    .number()
+    .int(msgValidation('property.integerExpected'))
+    .min(-5, msgValidation('property.valueInvalid'))
+    .max(200, msgValidation('property.valueUnrealistic'))
+    .optional(),
+  total_floors: z.coerce
+    .number()
+    .int(msgValidation('property.integerExpected'))
+    .min(1, msgValidation('property.valueInvalid'))
+    .max(200, msgValidation('property.valueUnrealistic'))
     .optional(),
   description: z
     .string()

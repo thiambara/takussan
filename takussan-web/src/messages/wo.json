@@ -7223,6 +7223,7 @@
       "valueInvalid": "Lim wu baaxul.",
       "valueUnrealistic": "Lim wu jaaduwul.",
       "yearInvalid": "At mu baaxul.",
+      "dateInvalid": "Melokaanu bés bu baaxul (AAAA-MM-JJ).",
       "descriptionTooLong": "Leeral gi dafa gudd lool.",
       "statusInvalid": "Nekkin wu baaxul."
     },

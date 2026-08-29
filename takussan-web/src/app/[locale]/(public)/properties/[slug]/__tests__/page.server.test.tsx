@@ -112,6 +112,7 @@ function bien(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     title_type_label: null,
     floor_number: null,
     total_floors: null,
+    available_from: null,
     year_built: null,
     parking_spaces: null,
     views_count: 0,

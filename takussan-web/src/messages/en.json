@@ -7223,6 +7223,7 @@
       "valueInvalid": "Invalid value.",
       "valueUnrealistic": "Unrealistic value.",
       "yearInvalid": "Invalid year.",
+      "dateInvalid": "Invalid date format (YYYY-MM-DD).",
       "descriptionTooLong": "The description is too long.",
       "statusInvalid": "Invalid status."
     },

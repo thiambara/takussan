@@ -7,7 +7,7 @@ export type ContractType = 'sale' | 'rent';
 
 export type RentPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
-export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'other';
+export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'autre';
 
 export interface PropertyListItem {
   id: number;
@@ -139,6 +139,7 @@ export interface PropertyDetail extends PropertyListItem {
   title_type_label: string | null;
   floor_number: number | null;
   total_floors: number | null;
+  available_from: string | null;
   year_built: number | null;
   parking_spaces: number | null;
   views_count: number;
