@@ -3,6 +3,17 @@ import { render, screen } from '@testing-library/react';
 import { ProfileBadge, profileShortLabel, profileTypeLabel } from '../ProfileBadge';
 import { PROFILE_TYPES, type Profile, type ProfileType } from '@/types/profile';
 import { withIntl } from '@/test/intl';
+import {
+  JETONS_CLAIR,
+  JETONS_SOMBRE,
+  SEUIL_AA_TEXTE,
+  composer,
+  contraste,
+  fmt,
+  litUtilitaireDeCouleur,
+  resoudreCouleur,
+  versRvb,
+} from '@/test/contraste-wcag';
 import fr from '@/messages/fr.json';
 
 /**
@@ -109,5 +120,77 @@ describe('<ProfileBadge>', () => {
     render(withIntl(<ProfileBadge profile={makeProfile(type)} />));
     const pill = screen.getByText(profileTypeLabel(type, t));
     expect(pill.className).toMatch(CLASSE_DE_SERIE);
+  });
+});
+
+/**
+ * LE CONTRASTE DU COUPLE RENDU — TCK-444, AC1.
+ *
+ * Les cas ci-dessus éprouvent la DISTINCTION (une couleur par type) et le REPLI. Aucun ne
+ * regardait la lisibilité, et c'est ce qui a permis à **12 couples sur 20** de vivre sous le seuil
+ * AA : la recette `bg-chart-N/20 text-chart-N` posait du texte sur un aplat de sa propre couleur.
+ *
+ * ⚠ Ce cas MESURE au lieu d'asserter une chaîne de classes — leçon de `src/test/contraste-wcag.ts`,
+ * écrite après qu'un anneau de focus à 1,00:1 soit passé au vert d'une suite entière. Il double
+ * `scripts/check-profile-badge-contrast.mjs` sans le remplacer : la garde lit la TABLE (elle
+ * attrape une recette fautive même si le composant ne la rend jamais), ce test lit le DOM RENDU
+ * (il attrape une classe que le composant ajouterait ailleurs qu'à la table).
+ *
+ * Les DEUX surfaces et les DEUX thèmes, 20 couples : en clair `--background` est toujours pire que
+ * `--card`, en sombre toujours meilleur — une seule surface donne un classement faux.
+ */
+describe('<ProfileBadge> — contraste du couple rendu (TCK-444)', () => {
+  const SURFACES = ['card', 'background'] as const;
+
+  it.each([
+    ['clair', JETONS_CLAIR],
+    ['sombre', JETONS_SOMBRE],
+  ])('thème %s : les 5 types × 2 surfaces atteignent 4,5:1', (_nom, jetons) => {
+    const table = jetons as Readonly<Record<string, string>>;
+    const echecs: string[] = [];
+    let mesures = 0;
+
+    for (const type of PROFILE_TYPES) {
+      render(withIntl(<ProfileBadge profile={makeProfile(type)} />));
+      const pastille = screen.getByText(profileTypeLabel(type, t));
+      const classes = [...pastille.classList];
+      const fond = classes.map((c) => litUtilitaireDeCouleur(c, 'bg')).find((u) => u !== null);
+      const encre = classes.map((c) => litUtilitaireDeCouleur(c, 'text')).find((u) => u !== null);
+      expect(fond, `${type} : la pastille ne déclare aucun fond`).toBeDefined();
+      expect(encre, `${type} : la pastille ne déclare aucune encre`).toBeDefined();
+
+      for (const surface of SURFACES) {
+        const dessous = versRvb(resoudreCouleur(surface, table));
+        const aplat = fond!.alpha === 1
+          ? versRvb(resoudreCouleur(fond!.jeton, table))
+          : composer(versRvb(resoudreCouleur(fond!.jeton, table)), dessous, fond!.alpha);
+        const posee = encre!.alpha === 1
+          ? versRvb(resoudreCouleur(encre!.jeton, table))
+          : composer(versRvb(resoudreCouleur(encre!.jeton, table)), aplat, encre!.alpha);
+        const ratio = contraste(posee, aplat);
+        mesures += 1;
+        if (ratio < SEUIL_AA_TEXTE) {
+          echecs.push(`${type} sur --${surface} = ${fmt(ratio)} (${classes.join(' ')})`);
+        }
+      }
+    }
+
+    // Une garde qui n'a plus rien à mesurer rend le même vert qu'une garde satisfaite.
+    expect(mesures, 'aucun couple mesuré — le relevé est cassé, pas le badge').toBe(10);
+    expect(echecs, 'couple(s) sous le seuil AA').toEqual([]);
+  });
+
+  it("le repli lui-même est lisible — c'est ce qui s'affiche à un type inconnu du front", () => {
+    render(withIntl(<ProfileBadge profile={makeProfile('notaire' as ProfileType)} />));
+    const pastille = screen.getByText('notaire');
+    const classes = [...pastille.classList];
+    for (const [nom, jetons] of [['clair', JETONS_CLAIR], ['sombre', JETONS_SOMBRE]] as const) {
+      const table = jetons as Readonly<Record<string, string>>;
+      const fond = classes.map((c) => litUtilitaireDeCouleur(c, 'bg')).find((u) => u !== null)!;
+      const encre = classes.map((c) => litUtilitaireDeCouleur(c, 'text')).find((u) => u !== null)!;
+      const aplat = versRvb(resoudreCouleur(fond.jeton, table));
+      const ratio = contraste(versRvb(resoudreCouleur(encre.jeton, table)), aplat);
+      expect(ratio, `repli, thème ${nom} = ${fmt(ratio)}`).toBeGreaterThanOrEqual(SEUIL_AA_TEXTE);
+    }
   });
 });

@@ -87,21 +87,21 @@ même chose en restant lisible. Le repli `FALLBACK_COLOR` pour un type inconnu r
 
 ## Delta à produire
 
-- [ ] Remplacer le motif `bg-chart-N/20 text-chart-N` de la table `TYPE_COLOR` **entière**
-- [ ] Étendre `scripts/check-chart-contrast.mjs` — ou poser une garde sœur — qui mesure le
+- [x] Remplacer le motif `bg-chart-N/20 text-chart-N` de la table `TYPE_COLOR` **entière**
+- [x] Étendre `scripts/check-chart-contrast.mjs` — ou poser une garde sœur — qui mesure le
       **couple rendu** (aplat composé + texte) au seuil 4,5:1, sur `--card` **et**
       `--background`, dans les deux thèmes
-- [ ] Mettre à jour l'en-tête de la garde existante si son périmètre change
-- [ ] Tests : le test de `ProfileBadge` couvre le contraste, pas seulement la distinction
+- [x] Mettre à jour l'en-tête de la garde existante si son périmètre change
+- [x] Tests : le test de `ProfileBadge` couvre le contraste, pas seulement la distinction
 
 ## Critères d'acceptation
 
-- [ ] AC1 — les **20** couples (5 types × 2 thèmes × 2 surfaces) atteignent 4,5:1, chiffres à
+- [x] AC1 — les **20** couples (5 types × 2 thèmes × 2 surfaces) atteignent 4,5:1, chiffres à
       l'appui
-- [ ] AC2 — la garde ROUGIT si l'on remet un seul type sur `bg-chart-N/20 text-chart-N` ;
+- [x] AC2 — la garde ROUGIT si l'on remet un seul type sur `bg-chart-N/20 text-chart-N` ;
       vérifié par ablation
-- [ ] AC3 — les cinq types restent distinguables deux à deux (test existant toujours vert)
-- [ ] AC4 — la garde nomme le type, le thème ET la surface fautifs, pas seulement un total
+- [x] AC3 — les cinq types restent distinguables deux à deux (test existant toujours vert)
+- [x] AC4 — la garde nomme le type, le thème ET la surface fautifs, pas seulement un total
 
 ## Hors périmètre
 
@@ -110,4 +110,77 @@ même chose en restant lisible. Le repli `FALLBACK_COLOR` pour un type inconnu r
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Ce qui a été livré, 2026-08-29
+
+| Fichier | Rôle |
+|---|---|
+| `src/components/profile/ProfileBadge.tsx` | `TYPE_COLOR` **entière** : `text-chart-N` → `text-foreground` |
+| `scripts/check-profile-badge-contrast.mjs` | la garde SŒUR (24 mesures, seuil 4,5:1) |
+| `.github/workflows/repo-ci.yml` | la garde rejouée à chaque PR |
+| `src/components/profile/__tests__/ProfileBadge.test.tsx` | +2 cas : le contraste, pas seulement la distinction |
+
+**Le motif est remplacé, pas une ligne — et il fallait le prouver, pas l'affirmer.** La
+démonstration tient en une phrase : l'aplat `bg-chart-N/20` vit ENTRE la surface et `--chart-N`,
+donc le contraste de `text-chart-N` dessus est **borné par** celui du jeton nu sur la surface. Ce
+majorant vaut **3,55:1** pour `--chart-3` — *aucune valeur d'alpha ne pouvait sauver `agent`*.
+L'aplat reste (il porte la CATÉGORIE, acquis de TCK-381) ; c'est l'encre qui change pour
+`--foreground`, qui s'inverse avec le thème.
+
+**AC1 — les 20 couples, mesurés par la garde** (arrondi entier de l'aplat composé, comme le
+navigateur) :
+
+|  | clair `--card` | clair `--bg` | sombre `--card` | sombre `--bg` |
+|---|---|---|---|---|
+| `agency_admin` | 13,32 | 12,71 | 11,27 | 12,45 |
+| `owner` | 13,40 | 12,79 | 11,45 | 12,75 |
+| `agent` | 14,16 | 13,54 | 9,85 | 10,88 |
+| `broker` | 13,32 | 12,74 | 10,24 | 11,41 |
+| `service_provider` | 11,50 | 10,97 | 8,10 | 8,99 |
+| *(repli `FALLBACK_COLOR`)* | 14,87 | 14,87 | 12,53 | 12,53 |
+
+Minimum **8,10:1**, soit 1,80× le seuil, contre **2,87:1** avant. Le repli est mesuré lui aussi :
+c'est ce qui s'affiche à un type inconnu du front, donc en production.
+
+> ⚠ **Le 2,17:1 du tableau de ce ticket n'est pas reproductible, et ce n'est pas une erreur.** Il a
+> été mesuré le 2026-08-27 sur `--chart-3 = #c89a4a` — valeur que **TCK-404 a corrigée le même
+> jour** en `#ad8034`. Avec la valeur d'aujourd'hui le même couple rend **2,87:1**. Les quatre
+> autres lignes sont inchangées à 0,02 près (arrondi). *Une mesure sans sa date devient une
+> croyance* : celle-ci a vécu douze heures. Le verdict, lui, n'a pas bougé d'un cran.
+
+**AC2 — ablation, hachages du contenu pris AVANT lecture du résultat :**
+
+| état | md5 de `ProfileBadge.tsx` | garde |
+|---|---|---|
+| livré | `d1912b49914abed5c4dcdfdbee6aad1a` | ✓ 24 couples ≥ 4,5:1, minimum 8,10:1 |
+| **un seul** type remis sur `text-chart-3` | `1ab909558d2fa480070c0d5fdc3bf3c7` | ✗ **2 défauts** (clair `--card` 2,87 ; clair `--background` 2,74) |
+| les **cinq** types remis | `346be748783a99dd8200a5b646ea4357` | ✗ **12 défauts** — le compte exact du ticket |
+| retour | `d1912b49914abed5c4dcdfdbee6aad1a` | ✓ |
+
+⚠ L'ablation d'un seul type ne rougit **qu'en thème clair** : `--chart-3` se comporte bien en
+sombre (5,30 / 5,90). C'est le piège n°2 du § Contexte, reproduit par l'ablation elle-même — une
+garde d'un seul thème aurait conclu l'inverse.
+
+**AC3** — les 29 cas préexistants de `ProfileBadge.test.tsx` restent verts, `CLASSE_DE_SERIE`
+comprise : la recette garde son `bg-chart-N/20`, donc les cinq types restent distincts deux à deux.
+
+**AC4** — le message nomme le type, la recette, le ratio, **le thème ET la surface**, plus les deux
+couleurs composées : `« agent » (bg-chart-3/20 text-chart-3) rend 2.87:1 en thème clair sur --card
+— encre #ad8034 sur aplat #efe6d6`.
+
+### Sur la garde existante
+
+`scripts/check-chart-contrast.mjs` **n'a pas changé de périmètre** — elle mesure les jetons NUS au
+seuil de 3:1 (objet graphique), ce qu'annonce son en-tête — donc rien n'y était à corriger. Une
+garde SŒUR plutôt qu'un élargissement : mélanger deux seuils dans un même script est précisément
+l'erreur qui a laissé passer ce défaut. Les deux partagent en revanche leurs **valeurs de
+contrôle** d'arithmétique (21:1 blanc sur noir, 2,57:1 pour `#c89a4a` sur blanc, la composition à
+50 %), pour qu'une divergence de calcul entre les trois implémentations WCAG du dépôt fasse rougir
+au lieu de se propager en silence.
+
+### Trouvé au passage, non corrigé
+
+Le même motif — du texte sur un aplat de sa propre couleur — vit ailleurs sur la **surface
+publique**, et c'est la garde dérivée de TCK-458 qui l'a relevé indépendamment :
+`text-primary sur bg-primary/{5,8,15}` (`SearchToolbar`, `SearchAutocomplete`, `FilterSidebar`) et
+`text-success sur bg-success/5` (`FormSuccess`). Consignés dans l'ardoise de
+`surface-publique.contraste.test.ts`, hors du périmètre de ce ticket.
