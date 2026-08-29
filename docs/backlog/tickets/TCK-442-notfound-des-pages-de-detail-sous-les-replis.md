@@ -91,7 +91,7 @@ endroit** : remonter la requête côté serveur.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /app/leases/<id inexistant>` rend **404**, mesuré par `curl` sur l'application
+- [x] AC1 — `GET /app/leases/<id inexistant>` rend **404**, mesuré par `curl` sur l'application
       réelle avec une session valide, comme TCK-426 l'a fait pour les 307. Le relevé, sa date et sa
       commande sont écrits dans ce ticket.
 - [x] AC2 — le squelette d'attente de la page de détail est **toujours servi** pour une ressource
@@ -151,42 +151,88 @@ et deux tests lisaient les chemins déplacés (`crm/pipeline/__tests__/garde.tes
 Tous restaurés, empreintes re-vérifiées identiques ; suite du périmètre verte (104 fichiers,
 769 tests), `npx tsc --noEmit` propre, `npm run lint` à 0 erreur.
 
-### AC1 — ce que le `curl` doit vérifier, et pourquoi il n'est pas joué ici
+### AC1 — le relevé, pris le 2026-08-29 sur l'application servie
 
-**Non fait. Il exige un `next dev` servi, une session valide et une machine au repos** — c'est un
-relevé de session principale, pas de tâche déléguée (une commande de plus de ~10 minutes est coupée
-sans rien produire). Ce qu'il doit établir, exactement :
+**Fait.** `next dev` sur `127.0.0.1:3000` pointant l'API sur `127.0.0.1:8002`
+(`takussan-web/.env.local` → `NEXT_PUBLIC_API_URL`), session d'un utilisateur porteur de baux
+(`owner2@dakarimmo.sn`), jeton Sanctum émis pour la mesure puis révoqué.
 
-```bash
-# 1. Se connecter et garder le cookie httpOnly (AUTH_COOKIE_NAME = auth_token).
-curl -s -c /tmp/tck442.jar -X POST http://127.0.0.1:3000/api/auth/set-token \
-     -H 'Content-Type: application/json' -d '{"token":"<jeton Sanctum d agent>"}'
+**La condition préalable, mesurée AVANT le front** — sans elle le relevé ne dirait rien du ticket,
+seulement de l'API :
 
-# 2. AC1 — une ressource INEXISTANTE, identifiant BIEN FORMÉ (c'est tout le point : `999999`,
-#    pas `abc`). L'API doit répondre 404 sur /api/leases/999999 pour que le test ait un sens.
-curl -s -o /dev/null -b /tmp/tck442.jar -w '%{http_code}\n' \
-     http://127.0.0.1:3000/app/leases/999999
-#    ATTENDU : 404       AVANT ce ticket : 200 (avec l ecran introuvable affiche quand meme)
-
-# 3. AC2 — une ressource qui EXISTE : le squelette part toujours avant la donnee.
-curl -s -b /tmp/tck442.jar http://127.0.0.1:3000/app/leases/<id existant> \
-  | grep -c 'data-testid="route-skeleton"'
-#    ATTENDU : >= 1, ET le statut 200
+```
+$ curl -H 'Authorization: Bearer …' -H 'Accept: application/json' :8002/api/leases/999999  → 404
+$ curl -H 'Authorization: Bearer …' -H 'Accept: application/json' :8002/api/leases/2       → 200
 ```
 
-**Ce qui compte comme succès, et pas autre chose :**
+#### Points 1 à 3 — le statut, et l'identifiant illisible
 
-1. **404 au point 2** — pas 200, pas 500. Un 500 dirait que le layout a laissé remonter une
-   exception au lieu de traduire le 404.
-2. **200 + `route-skeleton` au point 3** — les deux ensemble. Le squelette seul ne prouve rien si le
-   statut a bougé ; le 200 seul ne prouve pas que le patron (a) n'a rien coûté à TCK-382.
-3. ⚠️ **Refaire le point 2 avec un identifiant ILLISIBLE (`/app/leases/abc`) doit aussi rendre
-   404** : c'est le seul cas que les pages traitaient avant, et il ne doit pas avoir régressé.
-4. ⚠️ **Prendre le relevé sur les huit segments, pas seulement `leases`** : les six `(liste)` créés
-   par ce ticket sont autant d'occasions d'avoir laissé un repli d'ancêtre en place. Le test
-   `etats-de-route.test.ts` le garde dans l'arbre, mais l'arbre n'est pas le serveur.
-5. ⚠️ **Vérifier au passage que les six listes déplacées répondent encore** — `/app/bookings`,
-   `/app/customers`, `/app/documents`, `/app/inventories`, `/app/properties`, `/app/visits`, plus
-   `/admin/properties` qui réexporte la cinquième. Un groupe de routes ne change pas l'URL, mais
-   c'est une affirmation sur Next, pas une mesure.
+```
+$ curl -s -c $JAR -X POST :3000/api/auth/set-token \
+       -H 'Content-Type: application/json' -d '{"token":"…"}'          → 200, cookie auth_token posé
 
+$ curl -s -o /dev/null -b $JAR -w '%{http_code}' :3000/app/leases/999999   → 404   ← AC1
+$ curl -s -L      -b $JAR                        :3000/app/leases/2        → 200   ← AC2
+    grep -c 'data-testid="route-skeleton"'                                 → 1     ← AC2
+```
+
+Aucune redirection sur le 404 : `%{redirect_url}` est vide, l'URL finale sous `-L` est celle
+demandée. Ce n'est ni un 500 (le layout n'a pas laissé remonter l'exception) ni un 307.
+
+#### L'ABLATION — ce qui distingue un 404 juste d'un 404 qui serait arrivé tout seul
+
+Un statut juste ne prouve pas que c'est ce ticket qui le produit. `layout.tsx` du segment
+`leases/[id]` sorti de l'arbre (md5 `52c7a46fdba609c61a2ad74286c5f763`, empreinte relevée AVANT de
+lire le résultat), `next dev` recompilé :
+
+| | `/app/leases/999999` | `/app/leases/2` |
+|---|---|---|
+| livré | **404** | 200 |
+| **`layout.tsx` retiré** | **200** ← le défaut d'origine, reproduit | 200 |
+| restauré (md5 identique) | **404** | 200 |
+
+Le 200 sous ablation est exactement ce que ce ticket annonçait comme état antérieur : *l'écran
+introuvable s'affichait quand même, sous un statut qui disait « trouvé »*. Le témoin de droite ne
+bouge pas : l'ablation ne casse pas la page, elle lui retire son statut.
+
+#### Points 4 et 5 — les huit segments et les huit listes
+
+Les huit segments de détail, chacun sur les **deux** formes d'identifiant :
+
+```
+segment       /app/<s>/999999   /app/<s>/abc
+bookings            404              404
+customers           404              404
+documents           404              404
+inventories         404              404
+leases              404              404
+maintenance         404              404
+properties          404              404
+visits              404              404
+```
+
+⚠ **Les groupes `(liste)` sont HUIT, pas six** — et le point 5 de ce ticket n'en nommait que six.
+Relevé, pas recopié : `find 'src/app/(dashboard)' -type d -name '(liste)'` rend `bookings`,
+`customers`, `documents`, `inventories`, **`leases`**, **`maintenance`**, `properties`, `visits`.
+Les deux manquants sont précisément ceux dont ce ticket parle le plus. *Une liste de vérification
+écrite à la main omet ce qu'elle a le plus regardé.* Les huit sont donc mesurés ici :
+
+```
+/app/bookings        200      /app/leases         200
+/app/customers       200      /app/maintenance    200
+/app/documents       200      /app/properties     200
+/app/inventories     200      /app/visits         200
+
+/admin/properties    307 → /app/profile
+```
+
+⚠ **Le 307 de `/admin/properties` n'est pas une régression de ce ticket, et il fallait le mesurer
+pour le savoir** : l'utilisateur de la mesure est un bailleur, pas un administrateur. C'est le refus
+d'autorisation de TCK-426, qui s'exécute **avant** le `notFound()` — l'ordre voulu.
+
+⚠ **Sans cookie, `/app/leases/999999` rend 307 vers `/auth/login?redirect=…`, pas 404.** L'ordre est
+le même et il est juste : un visiteur anonyme apprend qu'il doit se connecter, jamais si la
+ressource existe.
+
+**Les huit segments répondent 404 sur les DEUX formes d'identifiant.** Le cas `abc` — le seul que
+les pages traitaient avant ce ticket — n'a pas régressé.
