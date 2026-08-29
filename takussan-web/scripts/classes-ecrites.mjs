@@ -110,7 +110,7 @@ function ouvreUnLitteral(precedent) {
  * `tsc --noEmit` ni `next build` ne bronchent (TCK-323). Rebrancher sur un analyseur tiers
  * reproduirait la même exposition, un nom de paquet plus loin.
  */
-export function lexe(source) {
+function lexe(source) {
   const jetons = [];
   const lignes = [0];
   for (let k = 0; k < source.length; k++) if (source[k] === '\n') lignes.push(k + 1);
@@ -309,7 +309,7 @@ function jetonBienForme(jeton) {
  * Une chaîne HORS position de classe est-elle une LISTE de classes ? Grammaire de forme, jamais de
  * vocabulaire (cf. l'en-tête, route « forme »).
  */
-export function ressembleAUneListeDeClasses(chaine) {
+function ressembleAUneListeDeClasses(chaine) {
   const jetons = jetonsDe(chaine);
   if (jetons.length < 2) return false;
   if (!jetons.some((j) => MARQUE_TAILWIND.test(j))) return false;
@@ -439,6 +439,13 @@ function positionsDeClasse(jetons) {
 
 /**
  * Relève les classes écrites par un fichier.
+ *
+ * ⚠ **`scanneClasses` est le SEUL export de ce module, et c'est délibéré.** `lexe` et
+ * `ressembleAUneListeDeClasses` ont été exportées « pour la testabilité » et n'ont jamais eu de
+ * consommateur : c'est exactement le motif — un symbole que personne ne consomme — que TCK-453 a
+ * fait retirer de `ui/badge.tsx`, `ui/button.tsx` et `ui/card.tsx` le jour de sa mise en service.
+ * Le corpus d'épreuve qui les couvre passe par `scanneClasses`, qui les appelle toutes les deux.
+ * *Ne pas les ré-exporter sans le consommateur qui va avec.*
  *
  * @returns {{classe: string, ligne: number, route: 'attribut'|'forme'}[]}
  */
