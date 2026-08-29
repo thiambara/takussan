@@ -8,6 +8,7 @@ import type { PropertyFormValues } from '@/lib/schemas/property';
 import { titleTypeValues } from '@/lib/schemas/property';
 import type { Tag } from '@/types/tag';
 import { areaLabelKey, isFieldRelevant, type ConditionalFieldKey } from '../../field-matrix';
+import { PROPERTY_ENUM_NAMESPACES } from '../../options';
 import { ChoiceChips } from '../ChoiceChips';
 
 /**
@@ -37,7 +38,7 @@ export function StepCaracteristiques({
   readonly tags: readonly Tag[];
 }) {
   const t = useTranslations('property.wizard');
-  const tTitre = useTranslations('property.titleTypes');
+  const tTitre = useTranslations(PROPERTY_ENUM_NAMESPACES.titleType);
   const { control, watch, setValue } = form;
   const ctx = { type: watch('type'), contract: watch('contract_type') } as const;
   const pertinent = (cle: ConditionalFieldKey) => isFieldRelevant(cle, ctx);
@@ -56,16 +57,23 @@ export function StepCaracteristiques({
         La surface se demande TOUJOURS ; seul son libellé change. Un terrain se mesure en surface
         de parcelle, un logement en surface habitable — ce n'est pas la même grandeur, et les
         confondre fausse la comparaison entre deux annonces.
+
+        ⚠ `pertinent('area')` répond `true` pour les seize types AUJOURD'HUI (field-matrix.ts) —
+        mais c'est la matrice qui le dit, pas cette ligne. La rendre inconditionnellement serait la
+        seule des douze clés conditionnelles à ne pas interroger la matrice, et c'est précisément
+        le genre d'exception qui survit à un changement de la règle.
       */}
-      <FormInput
-        control={control}
-        name="area"
-        label={t(areaLabelKey(ctx.type))}
-        type="number"
-        inputMode="numeric"
-        min={0}
-        placeholder={t('placeholders.area')}
-      />
+      {pertinent('area') ? (
+        <FormInput
+          control={control}
+          name="area"
+          label={t(areaLabelKey(ctx.type))}
+          type="number"
+          inputMode="numeric"
+          min={0}
+          placeholder={t('placeholders.area')}
+        />
+      ) : null}
 
       {pertinent('bedrooms') || pertinent('bathrooms') ? (
         <div className="wizard-field-rise grid gap-4 sm:grid-cols-2">
@@ -135,9 +143,9 @@ export function StepCaracteristiques({
           <ChoiceChips
             id="wizard-tags"
             label={t('fields.amenities')}
-            value={undefined}
             // Sélection MULTIPLE : c'est `selected` qui montre ce qui est déjà retenu. Sans elle,
-            // rien à l'écran ne distinguait un équipement coché d'un équipement disponible.
+            // rien à l'écran ne distinguait un équipement coché d'un équipement disponible. Le
+            // type de `ChoiceChips` interdit désormais de fournir `value` en même temps.
             selected={tagIds.map(String)}
             onChange={(v) => {
               const id = Number(v);

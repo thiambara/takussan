@@ -85,6 +85,17 @@ describe('StepCaracteristiques', () => {
     expect(screen.queryByLabelText(/nombre de niveaux/i)).not.toBeInTheDocument();
   });
 
+  it('une VILLA demande meublé, année de construction et places de parking — les trois champs qu’un TERRAIN n’a pas', () => {
+    // Contrepartie POSITIVE du test « un TERRAIN ne demande ni… » ci-dessus : sans elle, une clé
+    // renommée, un `<label>` désassocié ou les trois champs purement et simplement supprimés
+    // laisseraient les assertions négatives sur `land` vertes.
+    monter({ type: 'villa' });
+
+    expect(screen.getByLabelText(/meublé/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/année de construction/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/places de parking/i)).toBeInTheDocument();
+  });
+
   it('une MAISON demande son nombre de niveaux, pas son étage', () => {
     monter({ type: 'house' });
 
