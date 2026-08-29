@@ -78,6 +78,27 @@ import { CONSOLE_SEARCH_DEBOUNCE_MS, DebouncedSearchInput } from '../DebouncedSe
  * **4 tests sur 15** de ce fichier, dont les trois qui gardent la temporisation elle-même. Un
  * correctif de fiabilité qui rendrait ces tests insensibles à la régression qu'ils gardent serait
  * pire que le défaut.
+ *
+ * ⚠⚠ **Et les deux DÉFAUTS démontés ENSEMBLE, dans cet ordre : corpus puis branche de garde.**
+ * C'est la combinaison que l'ablation une-par-une ne sonde jamais, et elle a trouvé un trou chez
+ * deux autres gardes du même lot. Mesuré :
+ *
+ * ```
+ *   anti-rebond retiré seul ................................... 4 rouges
+ *   resynchronisation rendue inconditionnelle seule ........... 3 rouges  (dont « défaut a »)
+ *   LES DEUX ................................................. 4 rouges  ← les MÊMES 4
+ * ```
+ *
+ * **Aucune combinaison ne rend le fichier vert** — c'est ce qui compte, et c'est vérifié. Mais le
+ * recouvrement n'est pas neutre : *retirer l'anti-rebond MASQUE le défaut de resynchronisation
+ * dans la liste des rouges.* Les deux tests qui le nomment (« garde l'espace… », « garde les
+ * espaces intérieurs ») cessent de mordre dès que la fenêtre disparaît, parce qu'ils ont besoin
+ * qu'un commit revienne PENDANT la frappe pour éprouver la comparaison.
+ *
+ * Conséquence pratique, et la seule à retenir : **un rouge de ce fichier ne se lit pas en une
+ * passe.** Réparer l'anti-rebond peut faire APPARAÎTRE trois rouges de plus au lieu d'en retirer.
+ * Ce n'est pas une régression du correctif — c'est l'ordre dans lequel deux défauts superposés se
+ * découvrent.
  */
 
 /**
