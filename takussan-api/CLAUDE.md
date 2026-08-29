@@ -325,10 +325,29 @@ Le namespace `/api/admin/*` est gardé par le middleware alias `super-admin`
 
 ## Câblage — tout passe par `AppServiceProvider`
 
-574 lignes, structurées en helpers privés nommés (`bootRateLimiters`, `bootObservers`,
-`bootGatesAndPolicies`, `bootLeaseEventListeners`, `registerSmsServices`…). **Il n'y a pas
-d'`EventServiceProvider` ni d'auto-discovery d'événements** : un listener neuf s'inscrit dans le
-helper `boot*` de son domaine.
+~600 lignes, structurées en helpers privés nommés (`bootRateLimiters`, `bootObservers`,
+`bootGatesAndPolicies`, `bootAuthEventListeners`, `registerSmsServices`…). Il n'y a pas
+d'`EventServiceProvider`.
+
+⚠️ **MAIS LA DÉCOUVERTE AUTOMATIQUE D'ÉVÉNEMENTS EST ACTIVE, et ce paragraphe a affirmé le
+contraire.** Il disait *« ni d'auto-discovery d'événements »*, et **cette phrase a coûté 20
+écouteurs enregistrés deux fois** (TCK-443) : on inscrivait à la main ce que Laravel posait déjà
+en scannant `app/Listeners`. Un doublon n'échoue pas — il exécute l'effet deux fois, et personne
+ne le voit tant que l'effet est idempotent.
+
+**Un écouteur neuf ne s'inscrit donc PAS dans un helper `boot*`.** Il se nomme
+`app/Listeners/<Domaine>/<Nom>.php`, type-hinte son événement dans `handle()`, et c'est tout. Un
+`listen()` explicite en plus le double.
+
+> **La découverte se mesure, elle ne se déduit pas d'un fichier de configuration** — c'est
+> précisément l'erreur que ce paragraphe portait. La sonde est un test du dépôt :
+> `tests/Feature/Events/EventListenerDuplicationTest.php::test_discovery_is_still_on`, qui assert
+> que `DispatchAlerts@handle` est bien enregistré sur `Activity` **sans qu'aucun `listen()` ne le
+> déclare**. Et `test_no_listener_is_registered_twice` rougit sur tout doublon réintroduit.
+
+Les six helpers `boot*EventListeners` qui existaient sont **supprimés** : ils étaient vides une
+fois les doublons retirés. Restent `bootAuthEventListeners` (le seul câblage d'événement encore
+explicite) et les huit helpers non événementiels.
 
 **Pattern driver/registry**, récurrent et systématique : une interface + N drivers + un binding
 conditionnel par config. Instances : SMS (`SmsDriverInterface` + Orange/Mtarget/LAfricaMobile/Log +

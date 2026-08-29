@@ -210,3 +210,56 @@ Aucun endpoint, aucune migration, aucun modèle. Le delta est un retrait d'enreg
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Correction de prémisse — mesuré le 2026-08-29
+
+Deux affirmations de ce ticket sont fausses. Elles sont corrigées ici plutôt que réécrites plus
+haut : *ce que le ticket a cru vaut d'être lu à côté de ce que la mesure rend* — c'est déjà la
+leçon de la section « L'histoire du comptage : 7 → 12/13 → 15 → 21 », et l'écraser en ferait la
+cinquième lecture attentive au lieu d'une mesure.
+
+**La sonde**, dans les deux cas : `Event::getRawListeners()` sur l'application réellement bootée
+(`php artisan tinker`), normalisée en identités `Classe@methode` — `Classe::class` nu compte pour
+`Classe@handle` (`Str::parseCallback`), `[Classe::class, 'methode']` pour `Classe@methode` — puis
+comptée par couple *(événement, identité)*. C'est la même normalisation que
+`tests/Feature/Events/EventListenerDuplicationTest.php`, qui la garde désormais à chaque exécution.
+
+### 1. Le compte est **20**, pas 21 — et l'écart est déjà soldé
+
+Le 21ᵉ doublon annoncé était `ScheduledTaskFinished` → `RecordScheduledTaskRun`. **TCK-383 l'avait
+déjà retiré** ; son raisonnement complet vit dans le commentaire de
+`AppServiceProvider::bootReportingHooks()`, qui décrivait exactement le mécanisme que ce ticket
+généralise. La mesure d'ouverture était statique et lisait un état antérieur.
+
+Mesure sur l'application bootée : **125 identités distinctes, dont 20 enregistrées deux fois**
+avant le correctif, **125 identités distinctes, 0 doublon** après. *Le total inchangé est la moitié
+qui compte : « 0 doublon » se coche aussi en perdant des écouteurs.*
+
+C'est l'AC7 qui a joué : le compte mesuré fait foi, et le ticket est corrigé — pas l'inverse.
+
+### 2. « Deux listes d'onboarding par bail activé » n'a **jamais** pu se produire
+
+Le ticket range `CreateTenantOnboardingChecklist` parmi les conséquences visibles par des
+utilisateurs réels. **C'est faux :** `TenantOnboardingService::create()` est idempotent
+(`firstOrCreate` sur `lease_id`), et son entrée d'activity log est gardée par
+`wasRecentlyCreated`. Le second passage de l'écouteur doublé était un **no-op complet**. Même
+constat pour `SendTenantWelcomeNotification`, idempotent via `tenant_welcomed_at` : jamais deux
+messages d'accueil.
+
+Ce qui doublait est l'**invocation**, pas la ligne. Conséquence directe pour l'AC3, qui exige un
+test « échouant avant le correctif » : un compte de LIGNES aurait été vert des deux côtés, et aurait
+donc coché l'AC sans rien éprouver.
+`ListenerSideEffectsRunOnceTest::test_lease_activation_creates_exactly_one_onboarding_checklist()`
+compte donc l'invocation (2 avant, 1 après) **et** fixe l'invariant de lignes, qui doit rester vrai
+des deux côtés.
+
+*Le doublon n'était pas moins réel, il était absorbé.* Le raisonnement est le même que celui déjà
+tenu par ce ticket sur le chemin de paiement — lequel était juste, et l'est resté : une garde
+d'idempotence rend le second passage inoffensif sans le faire disparaître. La différence est que le
+ticket avait mené cette lecture jusqu'au bout pour `LemonSqueezyEventListener` et pas pour
+`app/Listeners/Lease/`.
+
+**Les doublons réellement visibles** par un utilisateur restent : deux courriels de vérification
+par inscription (mesuré : `assertSentToTimes` rendait 2), le filigrane appliqué deux fois, et les
+doubles notifications de délégation, de relevé bancaire et de retard de loyer — aucun de ces
+écouteurs-là ne porte de garde d'idempotence.
