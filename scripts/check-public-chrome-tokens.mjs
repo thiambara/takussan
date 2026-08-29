@@ -915,8 +915,11 @@ function main() {
     couleur brute » : il en reste 260 en familles chaudes et 50 nommées, tous
     hors borne à dessein (T1, T2).
     ⚠ Cette garde ne voit pas non plus si un jeton EXISTE : une classe dont le
-    jeton n'est pas déclaré n'émet aucune règle et ne fait aucune erreur. Aucun
-    mécanisme du dépôt ne l'attrape aujourd'hui — c'est l'objet de TCK-453.`);
+    jeton n'est pas déclaré n'émet aucune règle et ne fait aucune erreur. Ce
+    n'est plus un trou du dépôt depuis TCK-453 (2026-08-29), mais ce n'est
+    toujours pas CETTE garde qui le couvre : c'est
+    takussan-web/scripts/check-classes-emises.mjs, jouée par web-ci.yml, qui
+    soumet chaque classe écrite dans src/ au compilateur Tailwind.`);
   }
 }
 

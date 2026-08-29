@@ -45,10 +45,20 @@
  * ne connaît que la liste des valeurs valides et écarte le reste ne garde rien : *« le reste » est
  * précisément le défaut.*
  *
- * La forme correcte est plus SIMPLE que la fausse — aucune liste, le compilateur arbitre — et elle
- * est mesurée dans [TCK-453](../../../../docs/backlog/tickets/TCK-453-classes-non-emises.md), avec
- * le coût réel qu'elle déplace sur l'extracteur. **Ne pas la réintroduire ici sans sa ligne de
- * base de faux positifs**, qui est une condition de livraison et non un détail.
+ * La forme correcte est plus SIMPLE que la fausse — aucune liste, le compilateur arbitre.
+ *
+ * ⚠ **ELLE EXISTE DEPUIS TCK-453, ET ELLE NE VIT PAS ICI :** `scripts/check-classes-emises.mjs`,
+ * branchée dans `web-ci.yml` (`npm run check:classes-emises`), avec son relevé dans
+ * `scripts/classes-ecrites.mjs`. Elle soumet chaque classe écrite dans `src/` à Tailwind par un
+ * `@source inline()` et rougit en nommant la classe ET son fichier. Ligne de base mesurée le
+ * 2026-08-29 sur TOUT `src/` : 923 fichiers, 1 533 classes distinctes, **0 faux positif**.
+ *
+ * Elle est en `.mjs` et non en test vitest parce qu'elle lit tout `src/` et compile : c'est une
+ * garde de CI, pas un test unitaire — et parce qu'elle porte son propre corpus d'épreuve, ses
+ * planchers et ses ablations, que le harnais de vitest ne lui apporterait pas.
+ *
+ * **Ne rien réintroduire ici** : deux contrôles du même objet dans deux fichiers divergent, et
+ * c'est le second qui ment.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  * CE QUE CE FICHIER FAIT, LUI, ET QUI TIENT

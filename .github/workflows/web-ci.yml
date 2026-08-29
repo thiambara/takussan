@@ -119,6 +119,22 @@ jobs:
         # voisines ne peut le voir : c'est une donnée absente d'un objet, découverte au rendu.
         run: npm run check:i18n-namespaces
 
+      - name: Classes Tailwind non émises (TCK-453)
+        # Troisième garde qui vit dans `takussan-web/scripts/` et non dans `scripts/` à la racine,
+        # et pour la MÊME raison que les deux i18n ci-dessus : `repo-ci.yml` n'exécute aucun
+        # `npm ci`, or celle-ci COMPILE `globals.css` avec `@tailwindcss/postcss`. Elle est donc
+        # ici, où `npm ci` a déjà tourné.
+        #
+        # ⚠ Ce qu'elle garde n'est vu par AUCUNE des cinq étapes voisines. Une classe dont le
+        # jeton n'existe pas est une CHAÎNE : `tsc --noEmit` ne la lit pas, ESLint non plus,
+        # `next build` réussit, et les ~810 tests passent — l'élément est simplement rendu sans sa
+        # couleur. C'est arrivé sur les quatre voiles de la surface publique pendant TCK-440, et
+        # seule une relecture de diff l'a rattrapé.
+        #
+        # Elle a son étape à elle plutôt qu'une ligne dans une autre parce que son échec se lit
+        # autrement : « cette classe n'émet rien », pas « ce code est mal écrit ».
+        run: npm run check:classes-emises
+
       - name: Tests (Vitest)
         run: npm run test
 
