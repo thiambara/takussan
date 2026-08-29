@@ -1552,8 +1552,7 @@
       },
       "propertyNew": {
         "metaTitle": "Publish a property",
-        "title": "Publish a property",
-        "subtitle": "Fill in the essentials. You can enrich the record after publishing."
+        "title": "Publish a property"
       },
       "privacy": {
         "metaTitle": "Privacy",
