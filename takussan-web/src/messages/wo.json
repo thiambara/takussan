@@ -4252,6 +4252,15 @@
       "bathrooms": "Sanjaan yi",
       "address": "Adres",
       "description": "Leeral"
+    },
+    "wizard": {
+      "railLabel": "Étapes de la publication",
+      "progressLabel": "Progression",
+      "position": "Étape {current} sur {total}",
+      "back": "Précédent",
+      "continue": "Continuer",
+      "skip": "Plus tard",
+      "saving": "Enregistrement…"
     }
   },
   "documents": {

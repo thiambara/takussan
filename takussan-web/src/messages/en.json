@@ -1108,6 +1108,15 @@
       "XAF": "FCFA (XAF)",
       "EUR": "Euro (EUR)",
       "USD": "Dollar (USD)"
+    },
+    "wizard": {
+      "railLabel": "Publishing steps",
+      "progressLabel": "Progress",
+      "position": "Step {current} of {total}",
+      "back": "Back",
+      "continue": "Continue",
+      "skip": "Later",
+      "saving": "Saving…"
     }
   },
   "dashboard": {
