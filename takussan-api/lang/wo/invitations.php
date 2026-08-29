@@ -16,6 +16,12 @@ return [
         'super_admin' => 'super-administrateur',
     ],
     'errors' => [
+        // TCK-455 — invitation bu xamul lu mu takk sa sàq day sos ab sàq bu
+        // nekkul ci dara. Bàyyi ko ci bind bi.
+        'invitable_required' => 'Invitation bii war na wax profil bi mu takk sàq bi.',
+        'invitable_unknown' => 'Xeetu profil bii mënul jot invitation.',
+        'invitable_mismatch' => 'Profil bi ñu tànn dëppoowul ak rol :role (li ñu doon xaar : :expected).',
+        'role_has_no_invitable' => 'Rol :role mënul jot invitation ci yoon wii : amul profil bu ko takk.',
         'duplicate_pending' => 'Am na ndaw lu xaaru ngir email bi (#:id).',
         'requires_login' => 'Email bii dafa am ab compte. Dugg al ngir nangu invitation bi.',
         'email_mismatch' => 'Email bu nga dugg ci compte bi du jaadu ak email bu invitation bi.',

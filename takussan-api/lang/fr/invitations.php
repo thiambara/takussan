@@ -9,6 +9,12 @@ return [
         'super_admin' => 'super administrateur',
     ],
     'errors' => [
+        // TCK-455 — une invitation qui ne sait pas à quoi elle rattache le
+        // compte crée un compte accepté membre de rien. Refus à l'émission.
+        'invitable_required' => 'Cette invitation doit préciser le profil auquel elle rattache le compte.',
+        'invitable_unknown' => "Ce type de profil ne peut pas recevoir d'invitation.",
+        'invitable_mismatch' => 'Le profil visé ne correspond pas au rôle :role (attendu : :expected).',
+        'role_has_no_invitable' => 'Le rôle :role ne peut pas être invité par ce chemin : aucun profil ne lui serait rattaché.',
         'duplicate_pending' => 'Une invitation est déjà en attente pour cet email (#:id).',
         'requires_login' => 'Cet email correspond à un compte existant. Veuillez vous connecter pour accepter l\'invitation.',
         'email_mismatch' => 'L\'email du compte connecté ne correspond pas à celui de l\'invitation.',
