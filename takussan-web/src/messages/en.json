@@ -1602,7 +1602,10 @@
       },
       "propertyDetail": {
         "metaTitle": "Property record",
-        "eyebrow": "Property · {reference}"
+        "eyebrow": "Property · {reference}",
+        "forbidden_title": "Property access denied",
+        "forbidden_message": "Your active profile cannot open this property record.",
+        "back_cta": "Back to properties"
       },
       "leaseDetail": {
         "metaTitleFallback": "Lease not found",

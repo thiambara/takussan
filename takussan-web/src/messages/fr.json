@@ -1577,7 +1577,10 @@
       },
       "propertyDetail": {
         "metaTitle": "Fiche bien",
-        "eyebrow": "Bien · {reference}"
+        "eyebrow": "Bien · {reference}",
+        "forbidden_title": "Accès au bien refusé",
+        "forbidden_message": "Votre profil actif ne permet pas d'ouvrir la fiche de ce bien.",
+        "back_cta": "Revenir aux biens"
       },
       "leaseDetail": {
         "metaTitleFallback": "Bail introuvable",

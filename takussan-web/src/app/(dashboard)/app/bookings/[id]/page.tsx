@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
@@ -19,13 +18,11 @@ export default async function Page({
   const { id } = await params;
   const bookingId = Number(id);
 
-  // Un identifiant qui n'en est pas un ne désigne aucune réservation : c'est un INTROUVABLE, pas
-  // une panne. L'écran d'avant était un bloc rouge disant « introuvable » — rouge 600 de la
-  // palette brute avant TCK-381, jeton « destructive » après, et le défaut est le même dans les
-  // deux vocabulaires : il empruntait la forme de l'erreur pour dire l'absence, et proposait donc
-  // implicitement de réessayer. `notFound()` rend `app/not-found.tsx`, dans le shell, avec le
-  // retour à la liste.
-  if (!Number.isFinite(bookingId) || bookingId <= 0) notFound();
+  // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
+  // `[id]/layout.tsx`, strictement au-dessus du `loading.tsx` de ce segment : un `notFound()`
+  // écrit ici rendrait 200, avec l'écran introuvable affiché quand même. La décision n'a pas
+  // changé de nature — un identifiant illisible reste un INTROUVABLE, jamais une panne — elle
+  // a changé d'étage, et elle couvre désormais aussi le 404 de l'API.
 
   return <BookingDetail bookingId={bookingId} />;
 }

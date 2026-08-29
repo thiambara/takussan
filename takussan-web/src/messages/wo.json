@@ -6824,7 +6824,10 @@
       },
       "propertyDetail": {
         "metaTitle": "Fiisu kër",
-        "eyebrow": "Kër · {reference}"
+        "eyebrow": "Kër · {reference}",
+        "forbidden_title": "Bañ nañu la ci kër gi",
+        "forbidden_message": "Sa profil buy dox mënul ubbi fiisu kër gii.",
+        "back_cta": "Dellu ci kër yi"
       },
       "leaseDetail": {
         "metaTitleFallback": "Gisuñu kontaraa bi",
