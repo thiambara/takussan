@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import React from 'react';
+import React, { StrictMode } from 'react';
 
 import { withIntl } from '@/test/intl';
 import { WizardShell, type WizardStepDef } from '../wizard/WizardShell';
@@ -141,5 +141,28 @@ describe('WizardShell', () => {
     const titreSuivant = await screen.findByRole('heading', { level: 2, name: 'Où' });
     await waitFor(() => expect(titreSuivant).toHaveFocus());
     expect(titreSuivant).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('ne vole pas le focus au premier montage sous le Strict Mode de React (TCK-464)', () => {
+    // ⚠ `render()` seul ne monte PAS en Strict Mode : c'est pourquoi le test ci-dessus ne peut
+    // pas attraper le défaut réel — un drapeau « premier passage » (`estMonte`) reste vrai après
+    // la double invocation d'effet que React fait subir à CHAQUE montage en développement sous
+    // `<StrictMode>`, et il volerait alors le focus dès le premier rendu réel. La comparaison
+    // d'identité (`dernierId`) doit rester silencieuse ici.
+    //
+    // ⚠ `<StrictMode>` doit être la racine PASSÉE À `render()`, pas un enfant de `withIntl(...)` :
+    // mesuré empiriquement, la double invocation des effets ne se déclenche QUE quand
+    // `<StrictMode>` est l'élément racine du rendu — un simple `Context.Provider` (dont
+    // `NextIntlClientProvider`, que `withIntl` pose) au-dessus la supprime silencieusement. D'où
+    // l'imbrication inversée ci-dessous par rapport aux autres tests du fichier.
+    render(
+      <StrictMode>
+        {withIntl(
+          <WizardShell steps={etapes()} index={0} direction={1} onNavigate={vi.fn()}
+            onFinish={vi.fn()} finishLabel="Publier" />,
+        )}
+      </StrictMode>,
+    );
+    expect(screen.getByRole('heading', { level: 2, name: 'Le bien' })).not.toHaveFocus();
   });
 });

@@ -62,18 +62,23 @@ export function WizardShell({
   const peutAvancer = etape.canAdvance !== false;
 
   const titreRef = useRef<HTMLHeadingElement>(null);
-  // Premier rendu excepté (`estMonte` passe à `true` au premier passage de l'effet, jamais
-  // remis à `false`) : le focus ne se déplace que sur un CHANGEMENT d'étape, jamais au montage —
-  // sans quoi on arracherait l'utilisateur de là où il vient d'arriver sur la page. `etape.id` en
-  // dépendance, pas `index` : c'est l'identité de l'étape affichée qui doit changer, comme pour
-  // le remount de `key` juste en dessous.
-  const estMonte = useRef(false);
+  // Premier rendu excepté : le focus ne se déplace que sur un CHANGEMENT d'étape, jamais au
+  // montage — sans quoi on arracherait l'utilisateur de là où il vient d'arriver sur la page.
+  // ⚠ On compare une IDENTITÉ mémorisée (`dernierId`), pas un compteur de passages d'effet : sous
+  // le Strict Mode de React (actif ici, `next.config.ts` ne désactive pas `reactStrictMode`), un
+  // effet de montage s'exécute deux fois sur la même fibre en développement. Un booléen
+  // « premier passage » passerait à `true` dès la première passe et volerait le focus dès la
+  // seconde, sur le MÊME `etape.id` — exactement ce que ce garde-fou existe pour empêcher. Une
+  // comparaison d'identité relit la même valeur à la seconde passe et ne focalise pas : elle est
+  // insensible au nombre d'exécutions de l'effet. `etape.id` en dépendance, pas `index` : c'est
+  // l'identité de l'étape affichée qui doit changer, comme pour le remount de `key` juste en
+  // dessous.
+  const dernierId = useRef<string | null>(null);
   useEffect(() => {
-    if (!estMonte.current) {
-      estMonte.current = true;
-      return;
+    if (dernierId.current !== null && dernierId.current !== etape.id) {
+      titreRef.current?.focus();
     }
-    titreRef.current?.focus();
+    dernierId.current = etape.id;
   }, [etape.id]);
 
   return (
@@ -166,7 +171,15 @@ export function WizardShell({
             <h2
               ref={titreRef}
               tabIndex={-1}
-              className="font-display text-2xl font-bold tracking-tight text-foreground focus:outline-none"
+              // ⚠ Pas de `focus:outline-none` nu (motif de `SuperAdminShell`) : là-bas la cible
+              // est une grande zone de contenu atteinte une fois par session via un lien
+              // d'évitement — ici c'est un titre de section atteint par une action clavier
+              // répétée (jusqu'à cinq fois dans un parcours), et retirer l'indicateur visuel
+              // priverait exactement le moment où quelqu'un au clavier veut confirmer où le
+              // focus est allé. `--ring` (#a85332) mesure ≈5,07:1 sur `--background` (#fcf9f3),
+              // au-dessus du seuil non-texte de 3:1 : pas de `ring-offset` nécessaire, comme pour
+              // `FOCUS_RING` d'`AppSidebar` sur la même palette claire.
+              className="font-display text-2xl font-bold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {etape.title}
             </h2>
