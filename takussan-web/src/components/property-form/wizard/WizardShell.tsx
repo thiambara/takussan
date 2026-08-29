@@ -1,6 +1,7 @@
 'use client';
 
 import type React from 'react';
+import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 
@@ -59,6 +60,21 @@ export function WizardShell({
   const etape = steps[index];
   const derniere = index === steps.length - 1;
   const peutAvancer = etape.canAdvance !== false;
+
+  const titreRef = useRef<HTMLHeadingElement>(null);
+  // Premier rendu excepté (`estMonte` passe à `true` au premier passage de l'effet, jamais
+  // remis à `false`) : le focus ne se déplace que sur un CHANGEMENT d'étape, jamais au montage —
+  // sans quoi on arracherait l'utilisateur de là où il vient d'arriver sur la page. `etape.id` en
+  // dépendance, pas `index` : c'est l'identité de l'étape affichée qui doit changer, comme pour
+  // le remount de `key` juste en dessous.
+  const estMonte = useRef(false);
+  useEffect(() => {
+    if (!estMonte.current) {
+      estMonte.current = true;
+      return;
+    }
+    titreRef.current?.focus();
+  }, [etape.id]);
 
   return (
     <div className="flex h-full min-h-0 flex-col lg:flex-row lg:gap-10">
@@ -147,7 +163,11 @@ export function WizardShell({
               direction > 0 ? 'wizard-step-in-forward' : 'wizard-step-in-back',
             )}
           >
-            <h2 className="font-display text-2xl font-bold tracking-tight text-foreground">
+            <h2
+              ref={titreRef}
+              tabIndex={-1}
+              className="font-display text-2xl font-bold tracking-tight text-foreground focus:outline-none"
+            >
               {etape.title}
             </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{etape.subtitle}</p>

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 
@@ -116,5 +116,30 @@ describe('WizardShell', () => {
     const barre = screen.getByRole('progressbar');
     expect(barre).toHaveAttribute('aria-valuenow', '2');
     expect(barre).toHaveAttribute('aria-valuemax', '3');
+  });
+
+  it('déplace le focus sur le titre au changement d’étape, jamais au premier rendu', async () => {
+    const { rerender } = render(
+      withIntl(
+        <WizardShell steps={etapes()} index={0} direction={1} onNavigate={vi.fn()}
+          onFinish={vi.fn()} finishLabel="Publier" />,
+      ),
+    );
+    // Montage initial : le focus reste où l'utilisateur est arrivé sur la page — il ne doit PAS
+    // être arraché vers le titre de la première étape.
+    expect(screen.getByRole('heading', { level: 2, name: 'Le bien' })).not.toHaveFocus();
+
+    rerender(
+      withIntl(
+        <WizardShell steps={etapes()} index={1} direction={1} onNavigate={vi.fn()}
+          onFinish={vi.fn()} finishLabel="Publier" />,
+      ),
+    );
+
+    // Changement d'étape : le nouveau titre reçoit le focus (WCAG 2.4.3), sans entrer dans
+    // l'ordre de tabulation (il est atteint par programme, pas par Tab).
+    const titreSuivant = await screen.findByRole('heading', { level: 2, name: 'Où' });
+    await waitFor(() => expect(titreSuivant).toHaveFocus());
+    expect(titreSuivant).toHaveAttribute('tabindex', '-1');
   });
 });
