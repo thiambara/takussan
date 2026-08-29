@@ -13,7 +13,10 @@ const location = { contract: 'rent' } as const;
 describe('isFieldRelevant', () => {
   it('un terrain ne demande ni chambres, ni meublé, ni année de construction', () => {
     const ctx = { type: 'land', ...vente } as const;
-    for (const cle of ['bedrooms', 'bathrooms', 'furnished', 'year_built', 'parking_spaces'] as const) {
+    const cles: ConditionalFieldKey[] = [
+      'bedrooms', 'bathrooms', 'furnished', 'year_built', 'parking_spaces',
+    ];
+    for (const cle of cles) {
       expect(isFieldRelevant(cle, ctx), `${cle} ne concerne pas un terrain`).toBe(false);
     }
   });
@@ -49,10 +52,21 @@ describe('isFieldRelevant', () => {
   });
 
   it('la fréquence et la disponibilité ne concernent QUE la location', () => {
-    for (const cle of ['rent_period', 'available_from'] as const) {
+    const cles: ConditionalFieldKey[] = ['rent_period', 'available_from'];
+    for (const cle of cles) {
       expect(isFieldRelevant(cle, { type: 'villa', ...location })).toBe(true);
       expect(isFieldRelevant(cle, { type: 'villa', ...vente })).toBe(false);
     }
+  });
+
+  it('un entrepôt et une usine ont un statut foncier — ce n’est pas réservé à l’habitat', () => {
+    expect(isFieldRelevant('title_type', { type: 'warehouse', ...vente })).toBe(true);
+    expect(isFieldRelevant('title_type', { type: 'factory', ...vente })).toBe(true);
+  });
+
+  it('un lot dans un immeuble ou un emplacement n’ont pas de statut foncier propre', () => {
+    expect(isFieldRelevant('title_type', { type: 'apartment', ...vente })).toBe(false);
+    expect(isFieldRelevant('title_type', { type: 'parking', ...vente })).toBe(false);
   });
 
   it('les équipements domestiques ne concernent pas un terrain, un garage ni un parking', () => {
