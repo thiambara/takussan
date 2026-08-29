@@ -169,7 +169,7 @@ un statut « active ».
       et le chiffre est écrit dans le fichier avec sa date. Vérifié par calcul, jamais à l'œil.
 - [ ] **AC3** — les 21 sites du tableau ci-dessus rendent toujours un badge, et **aucun n'a gagné
       d'exception locale de couleur**. Le vérifier par relevé (`grep`), pas par lecture.
-- [ ] **AC4** — ⚠ **VÉRIFICATION À L'ÉCRAN, et c'est la raison d'être de ce ticket.** Au moins
+- [x] **AC4** — ⚠ **VÉRIFICATION À L'ÉCRAN, et c'est la raison d'être de ce ticket.** Au moins
       **trois** écrans capturés dans les **deux** thèmes : un qui porte plusieurs tons côte à côte
       (`/super-admin/kyc` ou `/super-admin/agency-upgrade-requests`), un qui porte le badge
       *featured* et un statut positif sur la même page (fiche d'agence), et un assistant
@@ -203,6 +203,90 @@ un statut « active ».
   la bannière publique en émeraude.** À traiter dans un ticket qui l'aura mesuré.
 - Le vocabulaire des toasts (`toast.add({ type: 'success' })`), qui passe par `ui/toast.tsx` et
   porte déjà `--success` depuis TCK-384.
+
+## AC4 — la vérification à l'écran, prise le 2026-08-29
+
+`next dev` sur `127.0.0.1:3000`, API sur `:8002`, Chrome à 1440×900, sessions réelles (super-admin,
+puis administrateur d'agence), jetons Sanctum émis pour la mesure puis **révoqués**. Les valeurs
+ci-dessous sont lues par `getComputedStyle` sur les pastilles rendues — pas estimées à l'œil.
+
+### Écran 1 — `/super-admin/properties` : QUATRE tons côte à côte
+
+Le ticket proposait `/super-admin/kyc` ou `/super-admin/agency-upgrade-requests`. **Les deux sont
+inexploitables sur ce jeu de données** : la file KYC est vide (« Rien à instruire ») et les demandes
+d'upgrade ne portent qu'une seule pastille, en `attention`. `/super-admin/properties` en porte
+**quinze, de quatre tons**, sur des données réelles : `success` ×10 (*Available*), `attention` ×2
+(*Under Maintenance*), `neutral` ×2 (*rejected*), `info` ×1 (*Rented*). *Un écran choisi pour ce
+qu'il devrait montrer vaut moins qu'un écran choisi pour ce qu'il montre.*
+
+```
+                clair                          sombre (forcé, cf. plus bas)
+success   #3f6b45 sur success/10        #8fbf87 sur success/10
+attention #8a5410 sur warning/12        #e0a458 sur warning/12
+info      --secondary plein             --secondary plein
+neutral   #6e655a sur --muted           #b8aa97 sur --muted
+```
+
+Les quatre se distinguent nettement les uns des autres **et** de la terracotta `--primary` du
+chrome (barre latérale, onglet actif). Le vert `success` ne se confond avec rien à l'écran.
+
+### Écran 2 — `/super-admin/agencies/1` : le statut positif en tête de fiche
+
+`success` (*Vérifiée*, `#3f6b45` clair / `#8fbf87` sombre) et `neutral` (*À compléter*) dans le
+même bandeau. Lisible dans les deux thèmes.
+
+⚠ **La prémisse du ticket est fausse sur cet écran, et il fallait l'ouvrir pour le voir.** Il
+annonçait « une fiche d'agence avec un badge de mise en avant et un statut *active* » : la fiche ne
+porte **aucun** élément `bg-accent`/`text-accent` (`nbAccents = 0`, mesuré). Le sage y entre
+seulement par le `<CheckCircle2 className="text-accent">` de `KycReviewPanel`
+(`kyc-components.tsx:200`) — une **icône**, pas un badge, et qui ne s'affiche que pour une pièce
+DÉJÀ déposée. Sur ce jeu de données les trois pièces manquent, donc les trois icônes sont les
+`XCircle` rouges. **Le sage et le vert ne se sont donc jamais touchés à l'écran** ; quand ils le
+feront ce sera une icône de 20 px contre une pastille de texte, ce qui est le cas le moins risqué
+des deux qu'on redoutait.
+
+### Écran 3 — `/admin/agency/kyc` (session administrateur d'agence)
+
+Trois pastilles *Manquant* en `neutral` et la timeline en `neutral`. **La pastille `success` de
+TCK-385 n'y est PAS observable, et ce n'est pas un défaut** : `KycUploader` ne rend son
+`<StatusBadge tone="success">` que sur son état local `uploaded`, c'est-à-dire dans la seconde qui
+suit un téléversement, et le composant lui-même vit dans les assistants d'onboarding — inaccessibles
+à un compte déjà onboardé. Une pièce attachée en base pour la mesure n'a rien fait apparaître (elle
+alimente la liste de `AgencyKycClient`, pas l'état local de l'uploader) ; elle a été **supprimée**.
+Ce qui couvre ce cas est `KycUploader.pastille-tck-385.test.tsx`, qui monte le composant réel et lit
+ses classes rendues — et dont l'ablation C (`bg-emerald-100 text-emerald-800`) rougit sur 8 cas.
+
+### ⚠ Le « thème sombre » de cette application est une PORTÉE, pas une préférence
+
+Mesuré, et ça change la lecture d'AC2 : **aucun sélecteur de thème n'existe**, et la classe `.dark`
+n'est posée que sur deux surfaces — `SuperAdminTopbar.tsx:49` et `SuperAdminSidebar.tsx:224`, dont
+le propre docblock dit « La classe `dark` n'est PAS le mode sombre de l'utilisateur : c'est une
+surface sombre ». Relevé sur `/super-admin/properties` : **`pastillesSousDark = 0`** — les deux
+portées sombres de la page ne contiennent aucune pastille.
+
+Les colonnes « sombre » ci-dessus ont donc été prises en **posant `.dark` sur `<html>` à la main**.
+Ce n'est pas une triche, c'est la seule forme possible : les treize ratios sombres d'AC2 sont une
+**garantie pour le jour où** une portée sombre entourera une pastille, pas la description d'un écran
+d'aujourd'hui. Écrit ici pour qu'on ne relise pas ce ticket comme une mesure de l'existant.
+
+## Ce que l'AC4 a trouvé EN PLUS, et qui ne relève pas de ce ticket
+
+**Un contrôle invisible sur `/super-admin/agencies/[id]`, contraste 1,00:1.** Le bouton
+*Déverifier* rend `color: #fcf9f3` sur `background-color: #fcf9f3` — les deux mesurés identiques
+au `getComputedStyle`. Il est illisible en thème clair, sur un écran de production.
+
+Cause, remontée à la ligne : `agency-detail.tsx:300` pose `<section className="… bg-foreground …
+text-background">`. Ce couple retourne **deux propriétés**, il ne retourne pas les jetons : tout
+enfant qui tire son fond d'une variante continue de lire la palette CLAIRE. `variant="default"` et
+`variant="destructive"` s'en sortent parce qu'ils posent leur propre `color` ; `variant="outline"`
+prend `bg-background` de sa variante et **hérite** `text-background` de la section — d'où
+`#fcf9f3` sur `#fcf9f3`. C'est exactement ce que `SuperAdminSidebar` évite en écrivant `dark`, qui
+bascule les jetons pour tout le sous-arbre.
+
+Ampleur mesurée : `bg-foreground` apparaît dans 33 fichiers, mais un seul est un CONTENEUR qui
+impose `text-background` à des enfants — `agency-detail.tsx:300`. Les trois autres couples
+(`Navbar.tsx:314` et `:369`, `ContractTypeChip.tsx:69`) sont des feuilles qui portent les deux
+classes sur elles-mêmes. **Un site, un contrôle.** À traiter dans son propre ticket.
 
 ## Notes d'implémentation
 
