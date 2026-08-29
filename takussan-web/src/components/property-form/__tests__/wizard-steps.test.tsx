@@ -49,20 +49,28 @@ function harnais(
 }
 
 describe('StepPrix', () => {
-  it('demande la fréquence et la disponibilité en LOCATION', () => {
+  it('demande la fréquence ET la disponibilité en LOCATION, et elles sont ATTEIGNABLES', () => {
     harnais({ contract_type: 'rent' }, (form) => <StepPrix form={form} />);
 
     const bloc = screen.getByTestId('bloc-location');
     expect(bloc).not.toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByLabelText(/^prix/i)).toBeInTheDocument();
+    // `getByRole` exclut par défaut ce qui est `aria-hidden` : un `StepPrix` qui rendrait un
+    // `bloc-location` vide (mais sans `aria-hidden`) passerait un test qui ne vérifierait que
+    // l'attribut du conteneur — c'est exactement le défaut que ce test corrige.
+    expect(screen.getByRole('combobox', { name: /fréquence/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /disponible/i })).toBeInTheDocument();
   });
 
-  it('sort le bloc de location de l’arbre d’accessibilité en VENTE', () => {
+  it('sort le bloc de location de l’arbre d’accessibilité en VENTE — fréquence et disponibilité EN SONT RETIRÉES', () => {
     harnais({ contract_type: 'sale' }, (form) => <StepPrix form={form} />);
 
     // Le bloc reste dans le DOM pour que la transition de hauteur existe — mais un lecteur
-    // d'écran ne doit pas annoncer deux champs invisibles.
+    // d'écran ne doit pas annoncer deux champs invisibles, et `getByRole` s'en assure : un rôle
+    // porté par un ancêtre `aria-hidden` n'est PAS résolu, contrairement à `getByLabelText`.
     expect(screen.getByTestId('bloc-location')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.queryByRole('combobox', { name: /fréquence/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /disponible/i })).not.toBeInTheDocument();
   });
 
   it('demande toujours le prix et la devise, quel que soit le contrat', () => {
@@ -112,6 +120,10 @@ describe('StepLieu', () => {
 
     expect(screen.getByLabelText(/ville/i)).toHaveValue('');
     expect(screen.getByRole('button', { name: /dakar/i })).toBeInTheDocument();
+    // Assertion POSITIVE sur le `data-testid` lui-même : sans elle, un renommage de
+    // `geo-suggestion` dans `GeoSuggestionChip.tsx` ne serait jamais attrapé par le test qui ne
+    // l'emploie qu'en négatif (« ne propose rien… », plus bas).
+    expect(screen.getByTestId('geo-suggestion')).toBeInTheDocument();
   });
 
   it('AC6 — remplit ville ET région une fois la suggestion acceptée, puis se retire', async () => {
@@ -150,9 +162,20 @@ describe('StepLieu', () => {
     // `wizard-flash` (globals.css) est le seul signal visuel que la suggestion a écrit ici. Le
     // poser sur la région, que la géo-IP ne connaissait pas, annoncerait une écriture qui n'a pas
     // eu lieu — et l'utilisateur irait vérifier un champ intact.
-    const conteneur = (nom: RegExp) => screen.getByLabelText(nom).closest('div')?.parentElement;
-    expect(conteneur(/ville/i)?.className).toContain('wizard-flash');
-    expect(conteneur(/région/i)?.className ?? '').not.toContain('wizard-flash');
+    //
+    // ⚠ M-8 — `conteneur` LÈVE plutôt que de rendre `undefined` si la chaîne DOM casse (structure
+    // interne de `FormInput` modifiée). Un `?? ''` masquait ce cas : `''.not.toContain(...)`
+    // passerait toujours, silencieusement, même si l'assertion ne portait plus rien.
+    function conteneur(nom: RegExp): HTMLElement {
+      const label = screen.getByLabelText(nom);
+      const enveloppe = label.closest('div')?.parentElement;
+      if (!(enveloppe instanceof HTMLElement)) {
+        throw new Error(`conteneur(${nom}) — chaîne DOM inattendue, structure de FormInput modifiée ?`);
+      }
+      return enveloppe;
+    }
+    expect(conteneur(/ville/i).className).toContain('wizard-flash');
+    expect(conteneur(/région/i).className).not.toContain('wizard-flash');
   });
 
   it('ne propose rien quand la géo-IP n’a pas de ville', () => {
@@ -173,6 +196,44 @@ describe('StepLieu', () => {
 
     await user.click(bascule);
     expect(screen.getByTestId('details-adresse')).not.toHaveAttribute('aria-hidden', 'true');
+  });
+
+  /**
+   * I-5 — « Utiliser ma position » était muet pendant l'attente GPS (couramment plusieurs
+   * secondes sur mobile) et restait en attente pour toujours en cas de refus, faute de callback
+   * d'erreur. Même contrat d'injection que `AutourDeMoi` (`geolocalisation`), pour ne jamais
+   * dépendre d'un `navigator.geolocation` que jsdom n'a pas.
+   */
+  it('« Utiliser ma position » se désactive et s’annonce occupé PENDANT l’acquisition', async () => {
+    const user = userEvent.setup();
+    geo.valeur = { suggestion: null, defaults: {}, loading: false };
+    const jamaisResolue = { getCurrentPosition: vi.fn() }; // ne rappelle jamais : capture l'ATTENTE
+    harnais({}, (form) => <StepLieu form={form} geolocalisation={jamaisResolue} />);
+
+    const bouton = screen.getByTestId('bouton-position');
+    expect(bouton).not.toBeDisabled();
+
+    await user.click(bouton);
+
+    expect(bouton).toBeDisabled();
+    expect(screen.getByText(/localisation en cours/i)).toBeInTheDocument();
+  });
+
+  it('rend le REFUS de géolocalisation comme un état, et redonne la main au bouton', async () => {
+    const user = userEvent.setup();
+    geo.valeur = { suggestion: null, defaults: {}, loading: false };
+    const refusee = {
+      getCurrentPosition: vi.fn(
+        (_ok: PositionCallback, ko?: PositionErrorCallback | null) =>
+          ko?.({ code: 1, message: '' } as GeolocationPositionError),
+      ),
+    };
+    harnais({}, (form) => <StepLieu form={form} geolocalisation={refusee} />);
+
+    await user.click(screen.getByTestId('bouton-position'));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/refusé/i);
+    expect(screen.getByTestId('bouton-position')).not.toBeDisabled();
   });
 });
 
