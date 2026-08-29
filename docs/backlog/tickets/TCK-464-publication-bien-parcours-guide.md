@@ -9,7 +9,7 @@ wave: 51
 created: 2026-08-29
 updated: 2026-08-29
 depends_on: []
-blocks: []
+blocks: [TCK-469, TCK-470]
 spec_refs:
   features:
     - docs/features.md#11-gestion-des-biens
