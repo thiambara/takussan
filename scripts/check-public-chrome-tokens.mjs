@@ -76,40 +76,37 @@
  *          adverse, 2026-08-28). Le drapeau `i` exigé de la garde jumelle ne se transporte pas
  *          ici — écrit pour que personne ne « corrige » cette absence.
  *
- *     T5 · les VALEURS ARBITRAIRES portant une FONCTION de couleur ..... **2 occurrences VIVANTES**
- *          Le contrôle D ne refuse que l'hexadécimal. `rgb()`, `hsl()` et `oklch()` écrits à la
- *          main dans une valeur arbitraire passent — et ce ne sont pas des indirections, ce sont
- *          des couleurs décidées hors de `globals.css`, exactement ce que la règle interdit.
- *
- *          ⚠⚠ **C'est le SEUL trou vivant de ce fichier, et il ne se compare pas aux autres.**
- *          T1 à T4, ci-dessus, sont latents ou hors périmètre ; celui-ci laisse passer du code livré :
+ *     T5 · les VALEURS ARBITRAIRES portant une FONCTION de couleur ..... **FERMÉ (TCK-460)**
+ *          Le contrôle D ne refusait que l'hexadécimal COLLÉ au crochet ouvrant. `rgb()`,
+ *          `hsl()`, `oklch()` — et un hexadécimal au MILIEU d'une valeur — passaient. Ce ne sont
+ *          pas des indirections : ce sont des couleurs décidées hors de `globals.css`, exactement
+ *          ce que la règle interdit. C'était le SEUL trou vivant de ce fichier, le seul qui
+ *          laissait passer du code LIVRÉ :
  *
  *              components/property/cards/PropertyCardListing.tsx:40
  *                shadow-[0_8px_24px_rgba(31,24,18,0.08)]
  *              components/property/cards/PropertyCardStandard.tsx:61
  *                shadow-[0_1px_4px_rgba(31,24,18,0.10)]
  *
- *          `rgba(31,24,18)` **EST `--foreground`** (#1f1812), recopié à la main en décimal — le
- *          cas d'école de la couleur décidée ailleurs. Antérieur au lot (`git log -S` vide).
+ *          `rgba(31,24,18)` **EST `--foreground`** (#1f1812), recopié à la main en décimal.
  *
- *          ⚠ **Pourquoi il n'est pas fermé ici, et c'est un arbitrage, pas un oubli** : le fermer
- *          rendrait la garde ROUGE sur ces deux lignes, et les corriger demande une décision qui
- *          n'est pas celle de cette garde. Le remède évident — remplacer par le jeton — pose le
- *          piège d'inversion des voiles : `--foreground` vaut #fcf9f3 en contexte `.dark`, donc
- *          une ombre écrite avec lui devient CLAIRE sur les surfaces qui portent la classe.
- *          Vérifié par compilation : `shadow-foreground/10` émet
- *          `--tw-shadow-color: var(--foreground)`.
+ *          **La fermeture a demandé les deux moitiés, et l'ordre importait** : la borne seule
+ *          aurait rendu la garde rouge sur du code livré. Le jeton `--shadow-color` est arrivé
+ *          d'abord (`globals.css`), les deux ombres l'ont pris, puis la borne s'est élargie.
  *
- *          ⚠ **Nuance, et elle corrige une formulation trop large que ce fichier a portée** :
- *          l'inversion ne mordrait PAS sur ces deux fichiers-ci. Ce sont des cartes de la chrome
- *          PUBLIQUE, dont l'AC4 de TCK-440 établit qu'elle n'est jamais dans un sous-arbre
- *          `.dark`. L'argument porte donc sur le REMÈDE GÉNÉRAL — on n'introduit pas un jeton
- *          inversant pour les ombres du produit entier — et non sur un blocage immédiat ici.
- *          La conclusion tient, la raison est plus étroite qu'écrit. C'est un ticket, pas une
- *          ligne.
+ *          ⚠ **Le remède ÉVIDENT était le piège, et il est mesuré** : `--foreground` vaut
+ *          #fcf9f3 sous `.dark`. Chrome, sur la feuille compilée, le 2026-08-29 —
+ *          `color-mix(…, var(--foreground) 8%, …)` rend `srgb .1216 .0941 .0706 / .08` en clair
+ *          et `srgb .9882 .9765 .9529 / .08` sous `.dark` ; avec `var(--shadow-color)`, les deux
+ *          contextes rendent la MÊME valeur. `--shadow-color` n'est redéclaré nulle part, et
+ *          c'est cette absence qui porte la propriété.
  *
- *          Forme de fermeture, le jour où le jeton existe (mesurée par la revue adverse sur 18
- *          formes, 8 rouges / 10 vertes, 0 faux positif) — elle laisse `var()` hors de portée :
+ *          ⚠ Ce trou portait une nuance qui reste vraie : l'inversion ne mordait pas sur ces
+ *          deux fichiers-ci, la chrome publique n'étant jamais dans un sous-arbre `.dark`
+ *          (AC4 de TCK-440). L'argument portait sur le remède GÉNÉRAL — on n'introduit pas un
+ *          jeton inversant pour les ombres du produit entier.
+ *
+ *          Borne appliquée, et elle laisse `var()` hors de portée — détail au docblock de D :
  *              -\[[^\]]*(?:#[0-9a-fA-F]{3,8}|rgba?\(|hsla?\(|oklch\()
  *     T6 · CETTE GARDE N'A AUCUNE NOTION DE `className` ................ 0 occurrence, LATENT
  *          Elle cherche un MOTIF DE TEXTE dans un fichier, pas une classe dans un attribut. Tout
@@ -157,6 +154,18 @@
  *   3. vider le périmètre de ses fichiers → le plancher {@link FICHIERS_MINIMUM}.
  *   4. retirer un CONTRÔLE entier → l'ablation de configuration, qui exige qu'au moins une sonde
  *      cesse d'être vue quand on l'enlève.
+ *   5. retirer d'abord le CORPUS, puis rétrécir la borne → le plancher
+ *      {@link EPREUVE_PLANCHER_PAR_CONTROLE}.
+ *
+ * ⚠⚠ **Le cran n°5 est arrivé par la mesure, pas par la prévoyance (TCK-460, 2026-08-29).** Le
+ * cran n°1 ne mord que sur les formes qu'`EPREUVE` contient : *en deux gestes — retirer les huit
+ * formes que la borne élargie attrape, PUIS rétrécir la borne — la garde ressortait en **0, avec
+ * un ✓**.* Mesuré, dans cet ordre, sur ce fichier. L'ordre est tout le sujet : rétrécir d'abord
+ * fait rougir, ce qui envoie retirer les formes gênantes, et le second geste est alors muet.
+ *
+ * *Un corpus d'épreuve sans plancher n'est pas un cran, c'est une convention* — et une convention
+ * se contourne dans le sens où l'on pousse déjà. Le plancher compte les formes que CHAQUE contrôle
+ * attrape seul : en retirer une le fait rougir, avant même qu'on touche à la borne.
  *
  * ⚠⚠ **Le cran n°4 a été INERTE du 2026-08-27 au 2026-08-28, et rien ne le disait.** Son helper
  * `sansEntree` reconstruisait deux contrôles sur trois — le contrôle D est arrivé plus tard et
@@ -187,12 +196,28 @@
  *
  * Une garde éprouvée seulement sur ce qu'elle doit refuser devient, le lendemain, un générateur
  * de faux positifs ; et un faux positif coûte PLUS qu'un trou, parce qu'il apprend à contourner
- * la garde. {@link EPREUVE} porte donc 49 formes — 22 à attraper, 27 à ignorer, dont des voisines
- * délibérément trompeuses.
+ * la garde. {@link EPREUVE} porte donc les deux moitiés, dont des voisines délibérément
+ * trompeuses.
+ *
+ * ⚠ **Le COMPTE ne s'écrit pas ici, il se prend** — cette phrase annonçait « 49 formes, 22 à
+ * attraper, 27 à ignorer » alors que le tableau en portait plus du double : chaque passe en a
+ * ajouté sans remonter le corriger. *Un compte recopié à la main dans un docblock est faux le
+ * jour de la passe suivante.* La commande, elle, reste juste :
+ *
+ *     node -e "…"  # ou plus simplement : compter les lignes du tableau EPREUVE
+ *
+ * Ce qui est GARDÉ, en revanche, et non raconté : {@link EPREUVE_PLANCHER_PAR_CONTROLE}, qui
+ * exige un nombre plancher de formes attrapées PAR CHAQUE contrôle à lui seul.
  *
  * Balayage de faux positifs sur du RÉEL, mesuré le 2026-08-27 : les trois contrôles rejoués sur
  * **les 484 classes distinctes réellement écrites dans les 1130 fichiers de `takussan-web/src`**,
  * dont 479 sont légitimes → **0 faux positif**.
+ *
+ * ⚠ **Ce chiffre date d'AVANT la borne élargie de TCK-460, et il en existe désormais un connu**,
+ * nommé au docblock du contrôle D : `shadow-[…rgb(var(--jeton)/0.08)]`. Il n'apparaît pas dans le
+ * balayage ci-dessus parce que **personne ne l'avait écrit ce jour-là** — un « 0 faux positif »
+ * mesuré sur un corpus décrit le CORPUS, pas la garde, et il cesse d'être vrai le jour où le
+ * corpus s'élargit. *Un compte de faux positifs sans son corpus est une opinion datée.*
  */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -369,18 +394,66 @@ function construireMotifScrimHorsRole({ prefixes = PREFIXES, suffixes = SUFFIXES
  * même qui la fermait.* Un correctif appliqué à un contrôle et pas à son voisin est la forme la
  * plus discrète du défaut — le diff a l'air complet.
  *
- * ⚠ **La borne réelle est « hexadécimal », et rien de plus — ce docblock a prétendu autre chose.**
- * Il justifiait la borne par l'indirection (`bg-[var(--pg-ink)]` est une variable, pas une couleur
- * décidée). C'est vrai de `var()`, et FAUX de `rgb()`, `hsl()` et `oklch()`, qui sont des couleurs
- * écrites à la main tout autant qu'un hexadécimal et que ce contrôle laisse passer. *Une borne
- * déclarée qui ne décrit pas la borne appliquée est une garde qui se raconte une histoire.*
+ * ⚠ **BORNE ÉLARGIE PAR TCK-460, le 2026-08-29 — et voici EXACTEMENT ce qu'elle porte.**
  *
- * Ce qui passe encore, et pourquoi, est en trou T5 en tête de fichier — avec ses DEUX occurrences
- * VIVANTES, qui font toute la différence avec les autres trous de ce fichier.
+ * Elle ne portait que `-[#hex]`, hexadécimal collé au crochet ouvrant. Elle porte désormais, à
+ * n'importe quelle position DANS la valeur arbitraire :
+ *
+ *     un hexadécimal ......... `shadow-[0_1px_0_#6b7280]`, `bg-[#fff]`
+ *     `rgb(` / `rgba(` ....... `shadow-[0_8px_24px_rgba(31,24,18,0.08)]`
+ *     `hsl(` / `hsla(` ....... `bg-[hsl(12_55%_43%)]`
+ *     `oklch(` ............... `bg-[oklch(0.7_0.02_260)]`
+ *
+ * **Et rien d'autre. Ce qui reste hors de portée est déclaré, pas sous-entendu :**
+ *
+ *   · `var(--…)` — DÉLIBÉRÉMENT. Une indirection n'est pas une couleur décidée dans le JSX ;
+ *     c'est la lecture d'un jeton, c'est-à-dire ce que cette garde veut voir. `bg-[var(--pg-ink)]`
+ *     reste vert, et huit formes d'`EPREUVE` le figent.
+ *   · `color-mix(…)` — même raison : un conteneur, dont la littéralité dépend de ses arguments.
+ *     C'est la forme d'arrivée de TCK-460 (`color-mix(in srgb, var(--shadow-color) 8%, …)`), et
+ *     un littéral NOYÉ dedans reste attrapé par la branche hexadécimale ou par une des fonctions.
+ *   · `lab(`, `lch(`, `oklab(`, `hwb(`, `color(` — RÉSIDU ASSUMÉ, et il n'est pas mesuré. La borne
+ *     appliquée ici est celle que la revue adverse a éprouvée sur 18 formes (8 rouges, 10 vertes,
+ *     0 faux positif SUR CE CORPUS, qui ne contenait pas la forme ci-dessus) ; l'élargir à ces
+ *     cinq-là n'a été éprouvé par personne, et *une borne qu'on
+ *     étend au-delà de ce qu'on a mesuré n'est plus une mesure, c'est une intention.* La garde
+ *     jumelle `check-super-admin-tokens.mjs` les porte, elle, sur son propre périmètre.
+ *
+ * ⚠⚠ **UN FAUX POSITIF CONNU, ASSUMÉ, ET C'EN EST BIEN UN — pas une subtilité de vocabulaire.**
+ *
+ * `shadow-[0_8px_24px_rgb(var(--shadow-color-rgb)/0.08)]` LIT un jeton et compose son alpha ; elle
+ * ne décide aucune couleur, elle rend au pixel près ce que rend la forme retenue (mesuré au
+ * navigateur), et **cette garde la refuse**. C'est du code correct rendu rouge : la définition
+ * même d'un faux positif.
+ *
+ * La borne est donc DÉLIBÉRÉMENT plus large que le défaut, et voici le prix, mesuré le
+ * 2026-08-29 en rejouant la seule exemption qui la sauverait — `rgba?\((?![^)]*var\()`, « ne pas
+ * tirer si les arguments contiennent un `var()` » :
+ *
+ *     SAUVÉES (2)   `rgb(var(--shadow-color-rgb)/0.08)`      lit le jeton, ne décide rien
+ *                   `rgb(var(--a)_var(--b)_var(--c))`        lit trois jetons
+ *     ROUVERTES (3) `rgb(var(--x),0,0)`                      LIT puis JETTE deux canaux
+ *                   `rgb(var(--x)_255_0)`                    LIT puis JETTE deux canaux
+ *                   `rgba(var(--x),31,24,0.1)`               LIT puis JETTE trois canaux
+ *
+ * **Ce n'est pas 2 contre 3, c'est une asymétrie de recours** : la forme refusée a un substitut
+ * exact (`color-mix(in srgb, var(--jeton) 8%, transparent)`, que la garde accepte et que TCK-460
+ * a retenue pour cette raison) ; les trois fuites n'en ont aucun, et *une forme qui lit un jeton
+ * puis jette ses canaux est une couleur décidée hors de `globals.css`, déguisée en lecture*. Le
+ * partage exact n'est pas « il y a un `var()` » — c'est « aucun canal n'est littéral », et le
+ * motif qui trancherait ça est celui que la garde jumelle a mis trois passes à écrire.
+ *
+ * ⚠ **Ce qu'on doit à qui rougit dessus : le substitut, dans le message.** *Un contrôle qui
+ * refuse du code correct ne se fait pas corriger, il se fait contourner* — et la sortie de secours
+ * la moins chère devant ce refus-ci serait de réinjecter un hexadécimal.
+ *
+ * *Une borne déclarée qui ne décrit pas la borne appliquée est une garde qui se raconte une
+ * histoire* — ce docblock a porté ce défaut, et tout ce qui précède est sa correction.
  */
 function construireMotifHexArbitraire({ prefixes = PREFIXES, suffixes = SUFFIXES } = {}) {
   return new RegExp(
-    `\\b(?:${prefixes.join('|')})(?:-(?:${suffixes.join('|')}))?-\\[#[0-9a-fA-F]{3,8}\\]`,
+    `\\b(?:${prefixes.join('|')})(?:-(?:${suffixes.join('|')}))?`
+    + '-\\[[^\\]]*(?:#[0-9a-fA-F]{3,8}|rgba?\\(|hsla?\\(|oklch\\()',
     'g',
   );
 }
@@ -389,7 +462,11 @@ const CONTROLES = [
   ['A', 'échelle neutre brute', construireMotif()],
   ['B', 'noir nu — un voile s\'écrit avec le jeton `--scrim`', construireMotifNoirNu()],
   ['C', 'jeton de voile hors de son rôle (--scrim est un FOND)', construireMotifScrimHorsRole()],
-  ['D', 'couleur hexadécimale écrite à la main', construireMotifHexArbitraire()],
+  // ⚠ Le libellé porte la borne APPLIQUÉE, pas la borne d'origine : il s'affiche à l'échec, et
+  // c'est la seule phrase que lit celui qui doit corriger. Il disait « couleur hexadécimale
+  // écrite à la main » quand le motif attrapait déjà `rgba(` — AC3 de TCK-460.
+  ['D', 'couleur écrite à la main en valeur arbitraire (#hex, rgb/rgba, hsl/hsla, oklch)',
+    construireMotifHexArbitraire()],
 ];
 
 /** Conservé pour l'ablation de configuration, qui raisonne sur le contrôle A. */
@@ -539,16 +616,89 @@ const EPREUVE = [
   // garde jumelle ne se transporte pas — vérifié par compilation, revue adverse du 2026-08-28.
   ['bg-GRAY-400', false],
   ['TEXT-gray-400', false],
-  // ── T5 · NON VUES, et c'est le trou VIVANT de ce fichier ─────────────────────────────────
+  // ── T5 · FERMÉ par TCK-460 le 2026-08-29 — et voici le diff qui le rend visible ───────────
   //
-  // Ces formes DOIVENT rester ici du côté « non vues » tant que T5 est ouvert : elles rendent
-  // le trou exécutable plutôt que seulement raconté, et les basculer à `true` sera le diff qui
-  // rend sa fermeture visible.
-  ['shadow-[0_1px_0_#6b7280]', false],
-  ['bg-[rgb(107,114,128)]', false],
-  ['bg-[oklch(0.7_0.02_260)]', false],
-  ['shadow-[0_8px_24px_rgba(31,24,18,0.08)]', false],
+  // Ces quatre formes ont vécu ici du côté « non vues », pour rendre le trou exécutable plutôt
+  // que seulement raconté. Leur bascule à `true` EST la fermeture ; c'est aussi ce qui empêche
+  // la fermeture de se défaire en silence, puisque rétrécir la borne les fait rougir.
+  ['shadow-[0_1px_0_#6b7280]', true],
+  ['bg-[rgb(107,114,128)]', true],
+  ['bg-[oklch(0.7_0.02_260)]', true],
+  ['shadow-[0_8px_24px_rgba(31,24,18,0.08)]', true],
+  // …et les quatre qui manquaient au corpus : la seconde ombre vivante, les deux familles que la
+  // borne porte sans qu'aucune forme ne les exerçât (`rgba(` avec alpha, `hsl(`/`hsla(`), et
+  // l'hexadécimal COURT noyé au milieu d'une valeur. *Une borne déclarée qu'aucune forme
+  // n'exerce se rétrécit sans que rien ne bronche.*
+  ['shadow-[0_1px_4px_rgba(31,24,18,0.10)]', true],
+  ['bg-[hsl(12_55%_43%)]', true],
+  ['bg-[hsla(12,55%,43%,0.5)]', true],
+  ['ring-[0_0_0_1px_#abc]', true],
+  //
+  // ⚠ LA FORME D'ARRIVÉE de TCK-460, et elle doit rester VERTE — sinon la garde refuserait la
+  // substitution qu'elle exige, et *une garde qui refuse la bonne façon de faire se fait
+  // contourner*. Elle LIT un jeton et compose son alpha ; elle ne décide aucune couleur.
+  ['shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)]', false],
+  ['shadow-[0_1px_4px_color-mix(in_srgb,var(--shadow-color)_10%,transparent)]', false],
+  // …et le RÉSIDU, déclaré au docblock du contrôle D : ces cinq familles de fonction ne sont PAS
+  // dans la borne appliquée. Elles sont ici à `false` **avec leur verdict réel**, pas avec le
+  // verdict qu'on voudrait — c'est la seule façon qu'un résidu déclaré reste un résidu mesuré.
+  //
+  // ⚠ LE FAUX POSITIF ASSUMÉ — figé ici AVEC SON VERDICT RÉEL, `true`, et non avec le verdict
+  // qu'on voudrait. C'est du code correct que cette garde refuse ; le docblock du contrôle D
+  // porte le prix mesuré de l'exemption qui le sauverait (2 formes sauvées, 3 fuites rouvertes).
+  // *Une garde dont le corpus ne contient que ce qu'elle réussit ne dit rien de ce qu'elle rate.*
+  ['shadow-[0_8px_24px_rgb(var(--shadow-color-rgb)/0.08)]', true],
+  ['bg-[rgb(var(--a)_var(--b)_var(--c))]', true],
+  //
+  ['bg-[lab(50%_40_59.5)]', false],
+  ['bg-[oklab(0.4_0.2_-0.1)]', false],
+  ['bg-[hwb(12_20%_30%)]', false],
 ];
+
+/**
+ * LE PLANCHER DU CORPUS — combien de formes CHAQUE contrôle doit attraper à lui seul.
+ *
+ * Compté le 2026-08-29, contrôle par contrôle, sur les 62 formes `true` d'{@link EPREUVE} : A 33,
+ * B 7, C 7, D 15. Les valeurs ci-dessous SONT ce relevé — c'est un cliquet, pas une cible.
+ *
+ * ⚠ « à lui seul » et non « au total » : une forme que deux contrôles voient ne prouve rien du
+ * second, puisque le premier la couvrirait. C'est la même raison qui rend l'ablation de
+ * configuration probante — *une garde couverte par une autre ne rougit pas quand elle casse.*
+ *
+ * ⚠ **Il se LÈVE quand on ajoute des formes, il ne se baisse pas sans le dire.** Baisser un
+ * chiffre ici est un geste visible en revue, avec sa ligne de diff et sa justification ; retirer
+ * silencieusement quatre lignes d'un tableau de 107, non. Toute la valeur du cran est là.
+ */
+const EPREUVE_PLANCHER_PAR_CONTROLE = { A: 33, B: 7, C: 7, D: 15 };
+
+/**
+ * Le cran n°5 — le corpus ne se vide pas sans rougir.
+ */
+function plancherDuCorpus() {
+  const sous = [];
+  for (const [nom, , motif] of CONTROLES) {
+    const seul = EPREUVE.filter(([forme, attendu]) => {
+      if (!attendu) return false;
+      motif.lastIndex = 0;
+      if (!motif.test(forme)) return false;
+      return !CONTROLES.some(([autre, , m]) => {
+        if (autre === nom) return false;
+        m.lastIndex = 0;
+        return m.test(forme);
+      });
+    }).length;
+    const plancher = EPREUVE_PLANCHER_PAR_CONTROLE[nom] ?? 0;
+    if (seul < plancher) sous.push([nom, seul, plancher]);
+  }
+  if (sous.length === 0) return true;
+  console.error('✗ PLANCHER DU CORPUS — une forme d\'épreuve a disparu, et c\'est le premier');
+  console.error('  des deux gestes qui désarment cette garde en silence (cf. le cran n°5).\n');
+  for (const [nom, seul, plancher] of sous) {
+    console.error(`    contrôle ${nom} : ${seul} forme(s) attrapée(s) par lui seul, plancher ${plancher}`);
+  }
+  console.error('\n  Rendre la forme, ou baisser le plancher DANS LE MÊME DIFF, avec sa raison.');
+  return false;
+}
 
 function autoEpreuve() {
   const echecs = [];
@@ -660,7 +810,7 @@ function fichiersDe(dir, acc = []) {
 }
 
 function main() {
-  if (!autoEpreuve() || !ablationDeConfiguration()) process.exit(1);
+  if (!autoEpreuve() || !plancherDuCorpus() || !ablationDeConfiguration()) process.exit(1);
 
   const manquants = PERIMETRES.filter((p) => !existsSync(p));
   if (manquants.length > 0) {
@@ -719,6 +869,13 @@ function main() {
 
   Un contraste doit être MESURÉ avant d'être introduit : le harnais est
   takussan-web/src/test/contraste-wcag.ts.
+
+  ⚠ SI C'EST UNE OMBRE, et si vous veniez d'écrire rgb(var(--jeton)/0.08) : cette
+  forme est CORRECTE et cette garde la refuse quand même — faux positif assumé,
+  son prix est mesuré au docblock du contrôle D. Le substitut exact, que la garde
+  accepte, est color-mix(in_srgb,var(--shadow-color)_8%,transparent). Ne
+  réinjectez pas un hexadécimal : c'est précisément ce que ce contrôle existe
+  pour empêcher.
 `);
     process.exit(1);
   }
@@ -733,18 +890,20 @@ function main() {
     arbitraires par indirection de /playground, hors périmètre par TCK-440, et
     la casse, qui n'est pas un défaut puisque Tailwind ne l'émet pas.
 
-    ⚠ ET UN TROU VIVANT — le SEUL de cette liste, le seul qui laisse passer du
-    code LIVRÉ, et donc le seul que ce résumé n'avait pas le droit d'omettre :
-    une couleur écrite à la main dans une valeur arbitraire sous forme de
-    FONCTION (rgb, hsl, oklch) traverse le contrôle D, qui ne refuse que
-    l'hexadécimal. DEUX occurrences aujourd'hui, deux ombres qui recopient
-    --foreground en décimal :
+    ⚠ LE TROU T5 EST FERMÉ depuis TCK-460 (2026-08-29) — c'était le SEUL de
+    cette liste qui laissait passer du code LIVRÉ. Le contrôle D ne refusait
+    que l'hexadécimal collé au crochet ouvrant ; il refuse désormais #hex,
+    rgb/rgba, hsl/hsla et oklch à n'importe quelle position DANS la valeur
+    arbitraire. Les deux ombres qui recopiaient --foreground en décimal sont
+    passées au jeton --shadow-color, qui n'est redéclaré nulle part et ne
+    s'inverse donc pas sous .dark. Une ombre a besoin d'un jeton qui ne
+    s'inverse pas, comme un voile.
 
-        takussan-web/src/components/property/cards/PropertyCardListing.tsx:40
-        takussan-web/src/components/property/cards/PropertyCardStandard.tsx:61
-
-    Non fermé à dessein : une ombre a besoin d'un jeton qui ne s'inverse pas,
-    comme un voile — cf. le trou T5 en tête de ce fichier pour l'arbitrage.
+    ⚠ RÉSIDU DÉCLARÉ de cette borne, et il n'est pas mesuré : lab(, lch(,
+    oklab(, hwb( et color( restent hors de portée. La borne appliquée est celle
+    que la revue adverse a éprouvée (18 formes, 8 rouges, 10 vertes, 0 faux
+    positif) ; l'étendre au-delà ne l'a été par personne. var() et color-mix()
+    restent DÉLIBÉRÉMENT hors de portée — ce sont des lectures de jeton.
 
     ⚠ ET DANS L'AUTRE SENS — ce qu'il attraperait À TORT : cette garde cherche
     un motif de TEXTE, pas une classe dans un attribut de classe. Un sélecteur
@@ -753,7 +912,8 @@ function main() {
     aujourd'hui ; trou T6, détaillé en tête de ce fichier.
 
     Un vert ici ne veut donc PAS dire « la chrome publique n'a plus une seule
-    couleur brute » : il en reste au moins ces deux-là.
+    couleur brute » : il en reste 260 en familles chaudes et 50 nommées, tous
+    hors borne à dessein (T1, T2).
     ⚠ Cette garde ne voit pas non plus si un jeton EXISTE : une classe dont le
     jeton n'est pas déclaré n'émet aucune règle et ne fait aucune erreur. Aucun
     mécanisme du dépôt ne l'attrape aujourd'hui — c'est l'objet de TCK-453.`);

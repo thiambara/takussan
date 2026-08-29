@@ -49,6 +49,7 @@ Palette officielle : **Lin** — fond clair quasi-blanc, terracotta atténué, s
 | Hairline / bordure | `#ebe5d5` | `--border` | `border-border` |
 | Focus ring | `#a85332` | `--ring` | `ring-ring` |
 | Voile de dialogue / panneau | `#000000` | `--scrim` | `bg-scrim/10`, `bg-scrim/30` |
+| Couleur d'ombre | `#1f1812` | `--shadow-color` | `shadow-[…_color-mix(in_srgb,var(--shadow-color)_8%,transparent)]` |
 
 ### Couleurs sémantiques
 
@@ -83,8 +84,33 @@ trou), et `--background` est déjà clair en thème clair.
 `--scrim` est donc déclaré OPAQUE dans `globals.css`, et ce sont les appelants qui posent l'alpha
 (`bg-scrim/10` pour un dialogue, `bg-scrim/30` pour un panneau). C'est le même raisonnement que
 `.qr-surface` — le blanc d'un QR code, qu'un téléphone doit lire quel que soit le thème — appliqué
-à l'autre bout de l'échelle. **Ce sont les deux seules couleurs fonctionnelles du produit ; toute
-troisième candidate doit s'écrire ici avant d'exister.**
+à l'autre bout de l'échelle.
+
+### L'OMBRE — la troisième couleur qui ne suit pas le thème (TCK-460)
+
+**Une ombre assombrit dans les deux thèmes, exactement comme un voile.** Deux cartes de bien
+écrivaient pourtant la leur en `rgba(31, 24, 18, …)` — c'est-à-dire `--foreground` recopié à la
+main en décimal. Le remède évident (lire `--foreground`) est un piège : sous `.dark` le jeton vaut
+`#fcf9f3`, et l'ombre devient **claire**. Mesuré au navigateur le 2026-08-29, sur la feuille
+compilée, `getComputedStyle().boxShadow` :
+
+| forme | `:root` | `.dark` |
+|---|---|---|
+| `color-mix(…, var(--shadow-color) 8%, …)` | `srgb .1216 .0941 .0706 / .08` | **identique** |
+| `color-mix(…, var(--foreground) 8%, …)` | `srgb .1216 .0941 .0706 / .08` | `srgb .9882 .9765 .9529 / .08` |
+
+`--shadow-color` est donc déclaré dans `:root` et **redéclaré nulle part** : cette absence EST la
+propriété. Il ne réemploie pas `--scrim`, dont la valeur est un noir pur — le confondre avec le
+brun de la charte aurait changé le rendu sous couvert de factoriser.
+
+⚠ **Le jeton porte la couleur, pas l'alpha.** `shadow-[…_var(--shadow-color)]` compile, passe les
+gardes, et peint une ombre **opaque** : c'est le correctif vert et invisible. L'opacité se compose
+par `color-mix`, et non par `rgb(var(--…-rgb)/0.08)` — cette seconde forme rend le même pixel mais
+`scripts/check-super-admin-tokens.mjs` la refuse, son motif ne pouvant distinguer un `rgb(` qui
+lit un jeton d'un `rgb(` qui décide une couleur.
+
+**Ce sont les trois seules couleurs fonctionnelles du produit ; toute quatrième candidate doit
+s'écrire ici avant d'exister.**
 
 ### Couleurs de série des graphiques
 
@@ -165,7 +191,7 @@ Interdits :
 ## Composants
 
 - **Arrondis** : `rounded-xl` pour les cartes et modales, `rounded-lg` pour les boutons et inputs, `rounded-full` pour les avatars/badges/pills.
-- **Ombres** : légères et subtiles (`shadow-sm`, `shadow-md`, ou customs `shadow-[0_8px_24px_rgba(27,40,69,0.08)]`). Jamais de `shadow-2xl` sur un élément courant.
+- **Ombres** : légères et subtiles (`shadow-sm`, `shadow-md`, ou customs `shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)]`). Jamais de `shadow-2xl` sur un élément courant. ⚠ Cette ligne prescrivait `rgba(27, 40, 69, 0.08)` — un bleu marine qui n'est dans AUCUN jeton de la charte Lin, hérité du `/playground` — et c'est de là que venaient les ombres littérales corrigées par TCK-460. *Une charte qui donne un hexadécimal en exemple enseigne l'hexadécimal.*
 - **Bouton principal** : plein (filled), `bg-primary text-primary-foreground`, label court et actionnable (verbe + objet). Un seul CTA principal par écran.
 - **Bouton secondaire** : outline ou ghost, jamais aussi saillant que le primaire.
 - **États interactifs** : tous les éléments cliquables ont un état `hover` visible et un état `focus-visible` accessible (`ring-2 ring-ring`).
