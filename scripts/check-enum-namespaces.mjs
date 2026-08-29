@@ -106,19 +106,43 @@
  * CE QUI EMPÊCHE CETTE GARDE D'ÊTRE DÉSARMÉE EN SILENCE
  * ────────────────────────────────────────────────────────────────────────────────────────────
  *
- * Un défaut mesuré ailleurs dans ce lot : **retirer le corpus d'épreuve PUIS la branche de garde
- * rend `exit 0` sans que rien ne bronche.** Trois verrous, et ils se tiennent :
+ * ⚠⚠ **À LIRE AVANT D'ÉCRIRE VOTRE PROPRE GARDE — le trou que celle-ci a eu, mesuré le
+ * 2026-08-29.** Ce dépôt se répète que *« retirer le corpus d'épreuve PUIS la branche de garde
+ * rend `exit 0` sans que rien ne bronche »*. La phrase se recopie facilement ; on la rejoue
+ * rarement sur sa propre garde. Rejouée ici, **elle a mordu**.
+ *
+ * La première version de ce fichier avait bien une auto-épreuve et bien une inégalité de
+ * protection. Elle s'écrivait `casRouges.length >= table.size`. Elle ne valait rien :
+ *
+ * ```js
+ * ❌  for (const cas of []) {  … }        // les DEUX boucles neutralisées
+ *     if (true) continue;                 // + la branche de garde démontée
+ *     → ✓ 0 chemin composé à la main sur 905 fichiers      exit 0
+ * ```
+ *
+ * Le tableau était resté plein — 16 cas, tous déclarés, aucun exécuté. *Un corpus qu'on ne
+ * parcourt pas est un corpus vide, quelle que soit sa longueur*, et **une inégalité qui mesure la
+ * DÉCLARATION au lieu de l'EXÉCUTION ne protège rien.** Deux gestes suffisaient, et la sortie
+ * imprimait fièrement les 905 fichiers scannés.
+ *
+ * La fermeture tient en un mot : **compter ce qui a tourné, jamais ce qui est écrit.**
+ * {@link autoEpreuve} incrémente `rouges` / `verts` DANS le corps des boucles, et le même contrôle
+ * est rejoué une seconde fois dans le flux principal, hors de son corps (V2 bis) — le désarmer
+ * demande de saboter deux endroits au lieu d'un.
+ *
+ * ⚠ Et l'honnêteté sur le plancher, parce qu'une garde inviolable n'existe pas : neutraliser les
+ * deux boucles **et** la branche **et** les deux inégalités d'`autoEpreuve` **et** V2 bis rend
+ * toujours `exit 0`. C'est six éditions coordonnées qui suppriment explicitement chaque verrou —
+ * une réécriture, plus une dérive. La garde vise la dérive ; elle ne prétend pas au reste.
+ *
+ * Trois verrous, donc, et ils se tiennent :
  *
  *   V1 · {@link lireTable} ÉCHOUE DUR si le bloc `PROPERTY_ENUM_NAMESPACES` est introuvable ou
  *        vide. Une garde qui passe parce qu'elle ne trouve plus sa cible est pire qu'aucune garde.
  *   V2 · La moitié « doit rougir » du corpus est **DÉRIVÉE de la table** : une entrée = un cas.
- *        {@link autoEpreuve} compte ce qu'elle a RÉELLEMENT éprouvé — jamais la longueur du
- *        tableau — et exige les trois inégalités : `rouges >= TABLE.size`, `rouges` = tous les cas
- *        rouges déclarés, `verts` = tous les cas verts déclarés. La première version portait sur
- *        `casRouges.length`, et **l'ablation l'a prise en défaut le 2026-08-29** : neutraliser les
- *        deux boucles (`for (const cas of [])`) puis démonter la branche de garde rendait `exit 0`,
- *        le tableau étant resté plein. Le même contrôle est **rejoué dans le flux principal**
- *        (V2 bis), hors du corps d'`autoEpreuve` : il faut saboter deux endroits, pas un.
+ *        {@link autoEpreuve} exige les trois inégalités sur ce qu'elle a RÉELLEMENT éprouvé —
+ *        `rouges >= TABLE.size`, `rouges` = tous les cas rouges déclarés, `verts` = tous les cas
+ *        verts déclarés — et V2 bis les rejoue dehors (cf. l'encadré ci-dessus).
  *   V3 · {@link TEMOINS} : trois fichiers du dépôt dont on sait ce que la garde doit y voir. Ils
  *        attrapent le périmètre qui se vide (répertoire renommé, marche interrompue) et la
  *        résolution des traducteurs qui cesse de résoudre — les deux façons dont un scan rend

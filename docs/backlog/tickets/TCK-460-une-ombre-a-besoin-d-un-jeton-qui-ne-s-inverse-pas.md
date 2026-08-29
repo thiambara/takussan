@@ -136,3 +136,32 @@ C'est ce diff qui rend la fermeture visible et l'empêche de se défaire en sile
 
 Les deux occurrences connues ne sont pas présumées seules : la garde ne voyait pas cette forme.
 Balayer `src/` **avec le motif élargi lui-même** avant de corriger, et écrire le compte trouvé.
+
+---
+
+## Correction de prémisse — mesuré le 2026-08-29
+
+**Le § Contexte désigne `scripts/check-super-admin-tokens.mjs`. Ce n'est pas la garde qui portait
+le trou, et la mesure le dit en une commande.**
+
+| ce que le ticket affirmait | ce que la mesure rend |
+|---|---|
+| « la garde `check-super-admin-tokens.mjs` ne le voit pas : son contrôle D ne regardait que `-[#hexadécimal]` » | son contrôle D porte `(?:rgba?\|hsla?\|hwb\|lab\|lch\|oklab\|oklch\|color)\(` **depuis `10ec116d`** (revue adverse TCK-358→362), et son `EPREUVE` fige `['shadow-[0_0_40px_0_rgba(31,27,23,0.04)]', true]`. Rejoué sur les deux ombres vivantes : **attrapées toutes les deux.** |
+| « deux fichiers du **périmètre gardé** » | `components/property` n'est dans **aucun** de ses trois espaces, ni dans la clôture d'imports de `/app` : `node scripts/check-super-admin-tokens.mjs --report` ne nomme ni `PropertyCardStandard` ni `PropertyCardListing`. **Elle ne lit pas ces fichiers.** |
+
+**La garde qui portait réellement le trou est `scripts/check-public-chrome-tokens.mjs`** :
+`components/property` est l'un de ses six répertoires, son contrôle D valait exactement
+`-\[#[0-9a-fA-F]{3,8}\]`, et son en-tête **nommait déjà les deux fichiers ligne à ligne** sous
+« T5 · les VALEURS ARBITRAIRES portant une FONCTION de couleur — **2 occurrences VIVANTES** », avec
+la forme de fermeture que la « Décision — étape 0 » recopie mot pour mot. Les quatre formes
+« déjà déposées dans `EPREUVE` côté non vues » sont les siennes.
+
+*Deux gardes jumelles, dont l'une porte le nom que tout le monde cite* : la confusion n'a rien
+coûté ici parce qu'elle a été mesurée avant d'être appliquée — mais élargir la borne de la garde
+super-admin aurait été un diff vert, sans effet, et refermant le ticket sur un trou intact. **La
+leçon est celle du dépôt, retournée vers un ticket : on ne déduit pas d'un nom quelle garde lit un
+fichier, on le lui demande** (`--report`).
+
+AC2 et AC3 ont donc été implémentés sur `check-public-chrome-tokens.mjs`. `check-super-admin-tokens.mjs`
+reçoit deux formes d'`EPREUVE` — la forme d'arrivée et la forme concurrente écartée — et la note
+disant que ce n'était pas son trou.
