@@ -135,11 +135,22 @@ export interface PropertyDetail extends PropertyListItem {
   contract_type_label: string | null;
   rent_period_label: string | null;
   status_label: string;
-  title_type: PropertyTitleType | null;
+  /**
+   * TCK-464 — `whenHas('title_type', …)` côté `PropertyResource` : la clé est ABSENTE du JSON,
+   * pas nulle, dès qu'elle ne fait pas partie du `fields[properties]` demandé. `COMPARE_FIELDS`
+   * (`useCompare.ts`) ne la demande pas — d'où l'optionalité, comme pour `available_from`
+   * ci-dessous.
+   */
+  title_type?: PropertyTitleType | null;
   title_type_label: string | null;
   floor_number: number | null;
   total_floors: number | null;
-  available_from: string | null;
+  /**
+   * TCK-464 — même défaut que `title_type` : absente du JSON (pas nulle) quand elle n'est pas
+   * dans `fields[properties]`. Ni `DASHBOARD_PROPERTY_DETAIL_FIELDS`
+   * (`properties-server.ts`) ni `COMPARE_FIELDS` (`useCompare.ts`) ne la demandent.
+   */
+  available_from?: string | null;
   year_built: number | null;
   parking_spaces: number | null;
   views_count: number;
