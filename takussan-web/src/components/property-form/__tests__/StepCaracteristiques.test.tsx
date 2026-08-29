@@ -164,4 +164,16 @@ describe('StepCaracteristiques', () => {
     await user.click(bail);
     expect(bail).toHaveAttribute('aria-pressed', 'false');
   });
+
+  it('re-revue M-12 — statut foncier ET équipements restent en `aria-pressed`, jamais en radiogroup', () => {
+    // La frontière est VOULUE, pas un oubli : ces deux champs sont multi-sélection (équipements)
+    // ou désélectionnables (statut foncier), et un groupe de radios ne convient à ni l'un ni
+    // l'autre (cf. le docblock de `ChoiceChips`). Nommer l'invariant ici évite qu'une future
+    // retouche les fasse basculer en `radioGroup` par mimétisme avec `StepBien`.
+    monter({ type: 'land' });
+
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio')).not.toBeInTheDocument();
+    expect(screen.getByRole('group', { name: /statut foncier/i })).toBeInTheDocument();
+  });
 });

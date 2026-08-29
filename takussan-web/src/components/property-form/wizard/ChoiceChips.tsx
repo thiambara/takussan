@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef, type KeyboardEvent } from 'react';
+
 import { cn } from '@/lib/utils';
 
 /**
@@ -11,16 +13,21 @@ import { cn } from '@/lib/utils';
  *
  * ⚠ Deux sémantiques ARIA cohabitent, choisies par `radioGroup` :
  *
- * - **`aria-pressed` (défaut)** — un groupe de boutons-bascule. Pour les choix FACULTATIFS qu'on
- *   peut désélectionner (statut foncier) et les choix MULTIPLES (équipements) : un groupe de
- *   radios ne se désélectionne pas, et n'admet qu'une valeur, donc ne convient à AUCUN des deux.
+ * - **`aria-pressed` (défaut)** — un groupe de boutons-bascule, chaque puce tabulable pour
+ *   elle-même. Pour les choix FACULTATIFS qu'on peut désélectionner (statut foncier) et les choix
+ *   MULTIPLES (équipements) : un groupe de radios ne se désélectionne pas, et n'admet qu'une
+ *   valeur, donc ne convient à AUCUN des deux.
  * - **`role="radiogroup"` / `role="radio"` / `aria-checked` (`radioGroup`)** — pour un choix à
  *   sélection UNIQUE et non désélectionnable (le type de bien, le contrat) : c'est la position
- *   dans un groupe qu'un lecteur d'écran doit annoncer, pas un bouton enfoncé seize fois.
+ *   dans un groupe qu'un lecteur d'écran doit annoncer, pas un bouton enfoncé seize fois. Le
+ *   clavier suit la même sémantique (patron *roving tabindex* de l'ARIA APG) : une seule puce dans
+ *   l'ordre de tabulation, les flèches déplacent la sélection à l'intérieur du groupe. Annoncer
+ *   « radio, 3 sur 16 » sans que les flèches ne fassent rien serait pire que l'ancien
+ *   `aria-pressed` : une promesse de navigation qui n'existe pas.
  *
- * ⚠ Le composant ne bascule RIEN : il remonte la valeur cliquée, qu'elle soit déjà retenue ou non.
- * C'est l'appelant qui sait si le clic ajoute, remplace ou retire — trois règles différentes selon
- * le champ, qui n'ont aucune raison de vivre ici.
+ * ⚠ Le composant ne bascule RIEN : il remonte la valeur cliquée (ou déplacée aux flèches en mode
+ * radio), qu'elle soit déjà retenue ou non. C'est l'appelant qui sait si le clic ajoute, remplace
+ * ou retire — trois règles différentes selon le champ, qui n'ont aucune raison de vivre ici.
  */
 export type ChoiceOption = {
   readonly value: string;
@@ -33,11 +40,6 @@ type ChoiceChipsCommun = {
   readonly onChange: (value: string) => void;
   readonly label: string;
   readonly id: string;
-  /**
-   * `true` pour un choix à sélection UNIQUE et non désélectionnable (type de bien, contrat) :
-   * bascule la sémantique ARIA vers un groupe de radios. Défaut `false` (groupe de boutons-bascule).
-   */
-  readonly radioGroup?: boolean;
 };
 
 export type ChoiceChipsProps =
@@ -45,6 +47,17 @@ export type ChoiceChipsProps =
       /** Sélection UNIQUE. */
       readonly value: string | undefined;
       readonly selected?: undefined;
+      /**
+       * `true` pour un choix à sélection UNIQUE et non désélectionnable (type de bien, contrat) :
+       * bascule la sémantique ARIA — et le clavier — vers un groupe de radios. Défaut `false`
+       * (groupe de boutons-bascule).
+       *
+       * N'existe que sur CETTE branche, jamais sur celle de `selected` : un groupe de radios est
+       * par construction à sélection unique, donc `radioGroup` combiné à `selected` (multi-valeurs)
+       * décrirait un groupe de radios à plusieurs cases cochées — un état illégal. Le type ferme
+       * la combinaison plutôt que de se contenter de la documenter.
+       */
+      readonly radioGroup?: boolean;
     })
   | (ChoiceChipsCommun & {
       /**
@@ -59,6 +72,8 @@ export type ChoiceChipsProps =
        */
       readonly selected: readonly string[];
       readonly value?: undefined;
+      /** Toujours absent ici — cf. le commentaire sur la branche `value`. */
+      readonly radioGroup?: undefined;
     });
 
 export function ChoiceChips({
@@ -71,6 +86,43 @@ export function ChoiceChips({
   radioGroup = false,
 }: ChoiceChipsProps) {
   const estRetenue = (v: string) => (selected ? selected.includes(v) : value === v);
+  const boutons = useRef<Array<HTMLButtonElement | null>>([]);
+
+  // Roving tabindex (patron ARIA APG pour un `radiogroup`) : UNE seule puce dans l'ordre de
+  // tabulation — la sélectionnée, ou la première si rien ne l'est encore. N'a de sens qu'en mode
+  // radio ; en `aria-pressed`, chaque puce reste tabulable pour elle-même (statut foncier,
+  // équipements : multi-sélection, désélectionnables — cf. le docblock plus haut).
+  const indexParDefaut = Math.max(
+    options.findIndex((o) => estRetenue(o.value)),
+    0,
+  );
+
+  const onKeyDownRadio = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    let prochain: number;
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        prochain = (index + 1) % options.length;
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        prochain = (index - 1 + options.length) % options.length;
+        break;
+      case 'Home':
+        prochain = 0;
+        break;
+      case 'End':
+        prochain = options.length - 1;
+        break;
+      default:
+        return;
+    }
+    // Déplacer la sélection aux flèches SÉLECTIONNE immédiatement — c'est le comportement attendu
+    // d'un groupe de radios natif, pas une simple navigation du focus.
+    e.preventDefault();
+    onChange(options[prochain].value);
+    boutons.current[prochain]?.focus();
+  };
 
   return (
     <div>
@@ -85,15 +137,20 @@ export function ChoiceChips({
         aria-labelledby={id}
         className="flex flex-wrap gap-2"
       >
-        {options.map((o) => {
+        {options.map((o, index) => {
           const actif = estRetenue(o.value);
           return (
             <button
               key={o.value}
+              ref={(el) => {
+                boutons.current[index] = el;
+              }}
               type="button"
               role={radioGroup ? 'radio' : undefined}
               aria-checked={radioGroup ? actif : undefined}
               aria-pressed={radioGroup ? undefined : actif}
+              tabIndex={radioGroup ? (index === indexParDefaut ? 0 : -1) : undefined}
+              onKeyDown={radioGroup ? (e) => onKeyDownRadio(e, index) : undefined}
               onClick={() => onChange(o.value)}
               className={cn(
                 // `min-h-11` = 44 px : la cible tactile minimale. En dessous, le doigt rate.

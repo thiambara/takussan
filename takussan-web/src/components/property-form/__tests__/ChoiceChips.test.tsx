@@ -136,6 +136,25 @@ describe('ChoiceChips', () => {
     expect(inactif).toHaveAttribute('aria-checked', 'false');
   });
 
+  it('re-revue M-12 — en mode `aria-pressed`, les flèches NE CHANGENT RIEN', async () => {
+    // C'est la moitié du test qui garde la frontière entre les deux modes (statut foncier,
+    // équipements : multi-sélection, désélectionnables — le roving tabindex du radiogroup n'a
+    // aucun sens ici, et chaque puce reste tabulable pour elle-même).
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <ChoiceChips id="c" label="Équipements" options={OPTIONS} value="clim" onChange={onChange} />,
+    );
+
+    for (const p of screen.getAllByRole('button')) expect(p).not.toHaveAttribute('tabindex');
+
+    screen.getByRole('button', { name: 'Climatisation' }).focus();
+    await user.keyboard('{ArrowRight}{ArrowLeft}{Home}{End}');
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Climatisation' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('n’affiche l’icône que lorsqu’elle existe, et jamais aux lecteurs d’écran', () => {
     render(
       <ChoiceChips
