@@ -9,13 +9,18 @@ import { cn } from '@/lib/utils';
  * étapes existent, ce coût est mal placé. Sur mobile, la pastille est aussi la seule cible
  * confortable au pouce.
  *
- * `aria-pressed` et non `role="radio"` : le composant sert aussi à des choix facultatifs qu'on
- * peut désélectionner (statut foncier) et à des choix MULTIPLES (les équipements) — or un groupe
- * de radios ne se désélectionne pas, et n'admet qu'une valeur.
+ * ⚠ Deux sémantiques ARIA cohabitent, choisies par `radioGroup` :
  *
- * ⚠ Le composant ne bascule RIEN : il remonte la valeur cliquée, enfoncée ou non. C'est l'appelant
- * qui sait si le clic ajoute, remplace ou retire — trois règles différentes selon le champ, qui
- * n'ont aucune raison de vivre ici.
+ * - **`aria-pressed` (défaut)** — un groupe de boutons-bascule. Pour les choix FACULTATIFS qu'on
+ *   peut désélectionner (statut foncier) et les choix MULTIPLES (équipements) : un groupe de
+ *   radios ne se désélectionne pas, et n'admet qu'une valeur, donc ne convient à AUCUN des deux.
+ * - **`role="radiogroup"` / `role="radio"` / `aria-checked` (`radioGroup`)** — pour un choix à
+ *   sélection UNIQUE et non désélectionnable (le type de bien, le contrat) : c'est la position
+ *   dans un groupe qu'un lecteur d'écran doit annoncer, pas un bouton enfoncé seize fois.
+ *
+ * ⚠ Le composant ne bascule RIEN : il remonte la valeur cliquée, qu'elle soit déjà retenue ou non.
+ * C'est l'appelant qui sait si le clic ajoute, remplace ou retire — trois règles différentes selon
+ * le champ, qui n'ont aucune raison de vivre ici.
  */
 export type ChoiceOption = {
   readonly value: string;
@@ -23,25 +28,48 @@ export type ChoiceOption = {
   readonly icon?: string;
 };
 
-export type ChoiceChipsProps = {
+type ChoiceChipsCommun = {
   readonly options: readonly ChoiceOption[];
-  /** Sélection UNIQUE. Ignoré dès que `selected` est fourni. */
-  readonly value: string | undefined;
-  /**
-   * Sélection MULTIPLE — prend le pas sur `value`.
-   *
-   * Sans elle, un appelant multi-valeurs (les équipements) devait passer `value={undefined}` pour
-   * neutraliser l'état actif : plus rien ne montrait alors ce qui était déjà retenu, et
-   * l'utilisateur re-cliquait pour désélectionner ce qu'il croyait absent. Une pastille retenue
-   * qui ne se distingue pas n'est pas une finition manquante, c'est une information perdue.
-   */
-  readonly selected?: readonly string[];
   readonly onChange: (value: string) => void;
   readonly label: string;
   readonly id: string;
+  /**
+   * `true` pour un choix à sélection UNIQUE et non désélectionnable (type de bien, contrat) :
+   * bascule la sémantique ARIA vers un groupe de radios. Défaut `false` (groupe de boutons-bascule).
+   */
+  readonly radioGroup?: boolean;
 };
 
-export function ChoiceChips({ options, value, selected, onChange, label, id }: ChoiceChipsProps) {
+export type ChoiceChipsProps =
+  | (ChoiceChipsCommun & {
+      /** Sélection UNIQUE. */
+      readonly value: string | undefined;
+      readonly selected?: undefined;
+    })
+  | (ChoiceChipsCommun & {
+      /**
+       * Sélection MULTIPLE — prend le pas sur `value`, qui n'a alors pas lieu d'être passé.
+       *
+       * Sans elle, un appelant multi-valeurs (les équipements) devait passer `value={undefined}`
+       * pour neutraliser l'état actif : plus rien ne montrait alors ce qui était déjà retenu, et
+       * l'utilisateur re-cliquait pour désélectionner ce qu'il croyait absent. Une pastille
+       * retenue qui ne se distingue pas n'est pas une finition manquante, c'est une information
+       * perdue. Le type interdit désormais de fournir les DEUX à la fois, plutôt que de se
+       * contenter de le documenter.
+       */
+      readonly selected: readonly string[];
+      readonly value?: undefined;
+    });
+
+export function ChoiceChips({
+  options,
+  value,
+  selected,
+  onChange,
+  label,
+  id,
+  radioGroup = false,
+}: ChoiceChipsProps) {
   const estRetenue = (v: string) => (selected ? selected.includes(v) : value === v);
 
   return (
@@ -52,14 +80,20 @@ export function ChoiceChips({ options, value, selected, onChange, label, id }: C
       >
         {label}
       </p>
-      <div role="group" aria-labelledby={id} className="flex flex-wrap gap-2">
+      <div
+        role={radioGroup ? 'radiogroup' : 'group'}
+        aria-labelledby={id}
+        className="flex flex-wrap gap-2"
+      >
         {options.map((o) => {
           const actif = estRetenue(o.value);
           return (
             <button
               key={o.value}
               type="button"
-              aria-pressed={actif}
+              role={radioGroup ? 'radio' : undefined}
+              aria-checked={radioGroup ? actif : undefined}
+              aria-pressed={radioGroup ? undefined : actif}
               onClick={() => onChange(o.value)}
               className={cn(
                 // `min-h-11` = 44 px : la cible tactile minimale. En dessous, le doigt rate.

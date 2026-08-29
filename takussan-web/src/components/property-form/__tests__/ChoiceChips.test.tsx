@@ -64,8 +64,13 @@ describe('ChoiceChips', () => {
     expect(screen.getByRole('button', { name: 'Climatisation' })).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('`selected` prend le pas sur `value` — les deux ne se cumulent jamais', () => {
+  it('`selected` prend le pas sur `value` au RUNTIME, si jamais les deux sont fournis', () => {
+    // M-10 — le type interdit désormais cette combinaison à un appelant TYPÉ (union discriminée) :
+    // c'est la correction. `estRetenue` garde néanmoins son repli défensif au runtime, pour un
+    // appelant qui contournerait le typage (`any`, JS pur) — ce test-là le vérifie, via le même
+    // contournement délibéré.
     render(
+      // @ts-expect-error — combinaison volontairement interdite par le type, testée au runtime seul.
       <ChoiceChips
         id="c"
         label="Équipements"
@@ -108,6 +113,27 @@ describe('ChoiceChips', () => {
     // `min-h-11` = 2,75rem = 44 px. jsdom ne calcule aucune hauteur : la classe est le seul
     // témoin vérifiable, et c'est elle que le composant ne doit pas perdre au fil des retouches.
     for (const p of screen.getAllByRole('button')) expect(p.className).toContain('min-h-11');
+  });
+
+  it('M-11 — `radioGroup` bascule vers la sémantique de groupe de radios', () => {
+    render(
+      <ChoiceChips
+        id="c"
+        label="Type"
+        options={OPTIONS}
+        value="clim"
+        onChange={vi.fn()}
+        radioGroup
+      />,
+    );
+
+    expect(screen.getByRole('radiogroup', { name: 'Type' })).toBeInTheDocument();
+    const actif = screen.getByRole('radio', { name: 'Climatisation' });
+    expect(actif).toHaveAttribute('aria-checked', 'true');
+    expect(actif).not.toHaveAttribute('aria-pressed');
+
+    const inactif = screen.getByRole('radio', { name: 'WiFi' });
+    expect(inactif).toHaveAttribute('aria-checked', 'false');
   });
 
   it('n’affiche l’icône que lorsqu’elle existe, et jamais aux lecteurs d’écran', () => {

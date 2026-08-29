@@ -55,6 +55,16 @@ export const PROPERTY_ENUM_NAMESPACES = {
   visibilityScope: 'property.visibilityScope',
   rentPeriod: 'property.rentPeriodUnits',
   currency: 'property.currencies',
+  /** Statut foncier (`title_type`) — champ conditionnel de `StepCaracteristiques` (TCK-464). */
+  titleType: 'property.titleTypes',
+  /**
+   * « Vendre / Louer » — SECOND vocabulaire de `contract_type`, employé par `StepBien` (TCK-464).
+   * Même motif que `visibility` / `visibilityScope` juste au-dessus : le mot varie avec l'écran
+   * (une question posée à quelqu'un répond mieux à un verbe qu'à un substantif), la valeur ne
+   * varie pas. `contractType` reste le vocabulaire substantif (« Vente / Location ») des listes et
+   * des badges.
+   */
+  contractTypeWizard: 'property.wizard.contract',
 } as const;
 
 function auxOptions<T extends string>(
