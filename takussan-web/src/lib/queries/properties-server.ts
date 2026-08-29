@@ -155,6 +155,7 @@ export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   'title_type',
   'floor_number',
   'total_floors',
+  'available_from',
   'year_built',
   'parking_spaces',
 ] as const;
