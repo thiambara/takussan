@@ -4383,7 +4383,10 @@
       "missingId": "Kër gi sos na, waaye jotunu ko benn nimero. Wutal ko ci limu kër yi.",
       "close": "Tëj",
       "loadingDraft": "Ñu ngi dellusi sa brouillon…",
-      "draftResumed": "Dellusi nanu sa brouillon fu nga ko bàyyee woon."
+      "draftResumed": "Dellusi nanu sa brouillon fu nga ko bàyyee woon.",
+      "draftSaveFailed": "Brouillon bi mënul a denc. Dara du ñàkk su nga desee ci xët bii.",
+      "draftSaveRetry": "Jéemaat",
+      "draftAutosaveFailed": "Denc bu boppam dafa taxaw: li nga soppi mujj mësul a wóor."
     },
     "titleTypes": {
       "bail": "Contrat",

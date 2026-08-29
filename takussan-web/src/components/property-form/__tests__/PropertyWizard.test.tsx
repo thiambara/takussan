@@ -102,7 +102,10 @@ beforeEach(() => {
   geo.loading = false;
   brouillon.etat.isLoading = false;
   brouillon.etat.draft = null;
-  brouillon.etat.flush.mockResolvedValue(undefined);
+  brouillon.etat.error = null;
+  // TCK-465 — `flush()` rend désormais le SORT de l'écriture. `undefined` ne serait plus le
+  // silence d'avant, ce serait une valeur que l'appelant ne sait pas lire.
+  brouillon.etat.flush.mockResolvedValue({ ok: true, ecrit: true });
   brouillon.etat.clear.mockResolvedValue(undefined);
   vi.mocked(createPropertyAction).mockResolvedValue({ ok: true, data: { id: 42 } } as never);
   vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: true } as never);
@@ -282,6 +285,63 @@ describe('PropertyWizard — le brouillon', () => {
     expect(brouillon.etat.flush.mock.invocationCallOrder[0]).toBeLessThan(
       routeur.push.mock.invocationCallOrder[0],
     );
+  });
+
+  /* ──────────────────────────────────────────────────────────────────────────────────────────
+   * TCK-465 — « Reprendre plus tard » n'affirme jamais un enregistrement qui n'a pas eu lieu
+   * ──────────────────────────────────────────────────────────────────────────────────────────
+   *
+   * ⚠ Le test juste au-dessus est la MOITIÉ de la preuve, et il faut le dire : un parcours qui
+   * n'enregistrerait plus jamais rien et ne quitterait plus jamais la page cocherait « l'échec
+   * remonte » sans rien valoir. C'est lui qui tient le cas nominal — `ok: true` → on navigue —
+   * et les deux ci-dessous qui tiennent l'échec.
+   */
+
+  it('AC2 — une écriture refusée retient l’utilisateur sur la page et le lui dit', async () => {
+    const user = userEvent.setup();
+    brouillon.etat.flush.mockResolvedValue({
+      ok: false,
+      ecrit: true,
+      error: new Error('PUT wizard-drafts failed (503)'),
+    });
+    monter();
+
+    await user.click(screen.getByRole('button', { name: /reprendre plus tard/i }));
+
+    await waitFor(() => expect(brouillon.etat.flush).toHaveBeenCalledTimes(1));
+    expect(routeur.push).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/n’a pas pu être enregistré/i);
+  });
+
+  it('AC2 — « Réessayer » rejoue l’écriture, et une réussite libère la navigation', async () => {
+    const user = userEvent.setup();
+    brouillon.etat.flush.mockResolvedValueOnce({
+      ok: false,
+      ecrit: true,
+      error: new Error('boom'),
+    });
+    monter();
+
+    await user.click(screen.getByRole('button', { name: /reprendre plus tard/i }));
+    await screen.findByRole('alert');
+    expect(routeur.push).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /réessayer/i }));
+
+    await waitFor(() => expect(routeur.push).toHaveBeenCalledWith('/app/properties'));
+    expect(brouillon.etat.flush).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('AC1 — un autosave silencieux qui échoue est annoncé sans qu’on ait rien cliqué', async () => {
+    // Le défaut d'origine dans sa forme la plus pure : la frappe part toute seule, le PUT meurt,
+    // et l'écran continue de ressembler à un écran où tout va bien.
+    brouillon.etat.error = new Error('PUT wizard-drafts failed (500)');
+    monter();
+
+    expect(
+      await screen.findByText(/l’enregistrement automatique ne répond plus/i),
+    ).toBeInTheDocument();
   });
 });
 

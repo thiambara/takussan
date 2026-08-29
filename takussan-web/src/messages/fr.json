@@ -1214,7 +1214,10 @@
       "missingId": "Le bien a été créé, mais son identifiant n’a pas été renvoyé. Retrouvez-le dans la liste de vos biens.",
       "close": "Fermer",
       "loadingDraft": "Reprise de votre brouillon…",
-      "draftResumed": "Nous avons repris votre brouillon là où vous l’aviez laissé."
+      "draftResumed": "Nous avons repris votre brouillon là où vous l’aviez laissé.",
+      "draftSaveFailed": "Votre brouillon n’a pas pu être enregistré. Rien n’est perdu tant que vous restez sur cette page.",
+      "draftSaveRetry": "Réessayer",
+      "draftAutosaveFailed": "L’enregistrement automatique ne répond plus : vos dernières modifications ne sont pas encore à l’abri."
     },
     "titleTypes": {
       "bail": "Bail",

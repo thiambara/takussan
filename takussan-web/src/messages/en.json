@@ -1239,7 +1239,10 @@
       "missingId": "The property was created, but no identifier came back. Find it in your property list.",
       "close": "Close",
       "loadingDraft": "Restoring your draft…",
-      "draftResumed": "We picked your draft up where you left it."
+      "draftResumed": "We picked your draft up where you left it.",
+      "draftSaveFailed": "Your draft could not be saved. Nothing is lost as long as you stay on this page.",
+      "draftSaveRetry": "Try again",
+      "draftAutosaveFailed": "Autosave is not responding: your latest changes are not safe yet."
     },
     "titleTypes": {
       "bail": "Lease",
