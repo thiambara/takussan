@@ -164,26 +164,26 @@ Aucun. Ce ticket ne touche ni endpoint, ni modèle, ni composant de rendu.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — les tests prouvent toujours ce qu'ils prouvaient : le vérifier par ABLATION, en
+- [x] **AC1** — les tests prouvent toujours ce qu'ils prouvaient : le vérifier par ABLATION, en
       retirant l'anti-rebond de `console/DebouncedSearchInput.tsx` et en constatant qu'ils
       rougissent. Un correctif de fiabilité qui rendrait le test insensible à la régression qu'il
       garde serait pire que le défaut.
-- [ ] **AC2** — plus aucune assertion du fichier ne dépend de l'ordonnancement d'un `await
+- [x] **AC2** — plus aucune assertion du fichier ne dépend de l'ordonnancement d'un `await
       user.*` : elle porte sur un événement observable, ou sur une horloge que le test contrôle.
-- [ ] **AC3** — ⚠ **VÉRIFIÉ SOUS CHARGE ARTIFICIELLE, et c'est l'AC qui compte.** Le fichier passe
+- [x] **AC3** — ⚠ **VÉRIFIÉ SOUS CHARGE ARTIFICIELLE, et c'est l'AC qui compte.** Le fichier passe
       **cinq exécutions consécutives** pendant qu'une charge CPU soutenue tourne (protocole des 64
       brûleurs déjà employé par TCK-312, décrit dans le docblock de `vitest.config.ts`). Sans cette
       épreuve, la correction est invérifiable : le défaut ne se manifeste PAS au repos, et un vert
       au repos est exactement ce qu'on avait avant.
-- [ ] **AC4** — la grandeur défendue est **nommée et mesurée** dans le fichier, avec sa date : pour
+- [x] **AC4** — la grandeur défendue est **nommée et mesurée** dans le fichier, avec sa date : pour
       le mécanisme 1, l'intervalle inter-frappe ; pour le mécanisme 2, le budget de `waitFor`. Ou
       bien le fichier explique pourquoi il n'y a plus de grandeur à défendre.
-- [ ] **AC5** — les deux mécanismes sont traités, et le rapport dit lequel couvre quel test. Un
+- [x] **AC5** — les deux mécanismes sont traités, et le rapport dit lequel couvre quel test. Un
       correctif qui ne traite qu'un des deux le dit explicitement.
-- [ ] **AC6** — le rouge de `ModerationFilters.test.tsx` est soit reproduit et corrigé, soit
+- [x] **AC6** — le rouge de `ModerationFilters.test.tsx` est soit reproduit et corrigé, soit
       **écarté par mesure** et écrit comme tel. Il n'est pas rangé sous l'explication du voisin
       sans reproduction.
-- [ ] **AC7** — `npx vitest run` sur `src/components/console` et `src/components/admin/super` est
+- [x] **AC7** — `npx vitest run` sur `src/components/console` et `src/components/admin/super` est
       vert, au repos ET sous charge.
 
 ## Hors périmètre
@@ -197,6 +197,68 @@ Aucun. Ce ticket ne touche ni endpoint, ni modèle, ni composant de rendu.
   41 dans son ensemble ; ce ticket n'en traite que deux symptômes précis.
 - **Les autres tests d'interaction du dépôt**, tant qu'aucune mesure ne les a montrés dans le même
   cas. Le delta demande de les CHERCHER, pas de les corriger en masse.
+
+## AC3 et AC7 — la campagne sous charge, le 2026-08-29, et ce qu'elle ne prouve PAS
+
+Machine à 8 cœurs, prise au repos (`load average` 2,04). Protocole des 64 brûleurs du docblock de
+`vitest.config.ts`.
+
+### AC7 — cinq exécutions consécutives sur les deux répertoires
+
+`npx vitest run src/components/console src/components/admin/super`, 34 fichiers / 165 tests :
+
+```
+  exécution   charge 1-min   résultat        durée
+      1          26,76       165/165 ✓       84,7 s
+      2         108,82       165/165 ✓       85,6 s
+      3         161,87       165/165 ✓       84,6 s
+      4         168,69       165/165 ✓       85,2 s
+      5         161,35       165/165 ✓       83,5 s
+  ─────────────────────────────────────────────────
+  au repos      5,55         165/165 ✓       17,6 s
+```
+
+**Facteur de contention mesuré : 4,7× à 4,9×** sur le temps de paroi de l'ensemble. Vert au repos
+ET sous charge : AC7 tenu.
+
+### ⚠ Le CONTRÔLE, et le résultat gênant qu'il faut écrire
+
+Un vert sous charge ne dit rien si l'on ne sait pas ce que faisait l'ancien code dans la même
+condition. Les trois fichiers ont donc été **rétablis dans leur état d'avant ce ticket**
+(`git show 316e73d2^:…`, empreintes relevées avant et après) et rejoués sous **96 brûleurs**, avec
+une rampe de 180 s pour amener la moyenne 1-min au niveau de l'incident du 2026-08-27 (240) :
+
+```
+  AVANT ce ticket   charge 158,69 → 183,25    22/22 ✓   cinq fois sur cinq
+  APRÈS ce ticket   charge 194,57 → 236,92    23/23 ✓   trois fois sur trois
+```
+
+**Les tests d'AVANT ne rougissent pas non plus.** Huit exécutions au total, sur deux campagnes, à
+des charges allant jusqu'à 236,92 — c'est-à-dire la charge de l'incident — n'ont pas reproduit le
+défaut une seule fois.
+
+**Ce qu'il faut en conclure, et surtout ce qu'il ne faut pas :**
+
+1. **La charge CPU n'est PAS un reproducteur fiable de ce défaut.** C'est une course : elle se
+   déclenche quand un décrochage d'ordonnancement dépasse 300 ms *au mauvais moment*, pas quand la
+   machine est chargée. Charger la machine augmente la probabilité, elle ne la porte pas à 1.
+2. **Donc ces huit verts ne prouvent pas que le correctif était inutile** — et cinq verts n'auraient
+   pas prouvé qu'il était suffisant. *Une course n'est ni prouvée absente ni prouvée présente par
+   des exécutions qui passent.*
+3. **Ce qui défend le correctif est ailleurs, et c'est mesuré** : la marge de 9,8-10,0× de l'ancien
+   `waitFor` face aux facteurs de contention 11,6-16,7× de TCK-312 (le test était sous la marge
+   nécessaire), et la **reproduction déterministe** — 2900 ms injectés dans le `fetch` moqué rendent
+   EXACTEMENT le message du 2026-08-27, en 3195 ms. *Le seul reproducteur fiable de cette panne est
+   l'injection, jamais la charge.*
+4. **Et ce qui rend le correctif vérifiable, lui, ne dépend d'aucune probabilité** : la fenêtre de
+   60 000 ms est plus longue que `testTimeout` (20 000 ms). Ce n'est plus une marge, c'est une
+   propriété — aucun ordonnancement ne peut la faire échoir pendant la frappe.
+
+⚠ **À ne pas relire comme « 5 exécutions vertes sous charge, donc c'est réglé ».** La lettre
+d'AC3 est tenue ; son esprit — *« sans cette épreuve la correction est invérifiable »* — est
+tenu par l'injection déterministe, pas par la campagne. Écrit ici pour que la prochaine personne
+qui verra un rouge d'ordonnancement sache où chercher : dans une injection reproductible, pas dans
+un `yes > /dev/null`.
 
 ## Notes d'implémentation
 
