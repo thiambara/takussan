@@ -88,25 +88,25 @@ de [TCK-452](TCK-452-theme-sombre-inatteignable.md) sur le statut de `.dark`.
 
 ## Delta à produire
 
-- [ ] Corriger la prémisse aux deux endroits de TCK-371, en disant ce que la vérification a
+- [x] Corriger la prémisse aux deux endroits de TCK-371, en disant ce que la vérification a
       manqué plutôt qu'en réécrivant l'histoire
-- [ ] **Une garde ou un test qui lie la tolérance à sa condition** : `AppTopbar` (et tout
+- [x] **Une garde ou un test qui lie la tolérance à sa condition** : `AppTopbar` (et tout
       composant portant un couple toléré) n'est sous aucune portée `.dark`. Le jour où il l'est,
       ça rougit.
-- [ ] Décider du sort du couple à 1,05:1 : corrigé, ou toléré sous condition gardée
-- [ ] Vérifier si d'autres tickets `done` portent la même prémisse — le balayage n'a couvert que
+- [x] Décider du sort du couple à 1,05:1 : corrigé, ou toléré sous condition gardée
+- [x] Vérifier si d'autres tickets `done` portent la même prémisse — le balayage n'a couvert que
       les fichiers de code jusqu'ici
 
 ## Critères d'acceptation
 
-- [ ] AC1 — la prémisse fausse n'apparaît plus dans TCK-371, et **ce que la vérification a manqué**
+- [x] AC1 — la prémisse fausse n'apparaît plus dans TCK-371, et **ce que la vérification a manqué**
       y est écrit : elle cherchait un mécanisme, pas une classe littérale.
-- [ ] AC2 — un contrôle échoue si `AppTopbar` se retrouve sous une portée `.dark`. L'ablation se
+- [x] AC2 — un contrôle échoue si `AppTopbar` se retrouve sous une portée `.dark`. L'ablation se
       fait en **plaçant réellement** le composant sous une telle portée, pas en simulant.
-- [ ] AC3 — la liste des portées `.dark` employée par ce contrôle est **dérivée**, jamais écrite.
+- [x] AC3 — la liste des portées `.dark` employée par ce contrôle est **dérivée**, jamais écrite.
       Un test qui la recopierait passerait le jour où une quatrième portée apparaît — et il y en
       a déjà eu une par portail, que personne n'avait vue.
-- [ ] AC4 — le balayage des tickets `done` portant la même prémisse est fait et son résultat
+- [x] AC4 — le balayage des tickets `done` portant la même prémisse est fait et son résultat
       consigné, y compris s'il est vide. Un balayage non fait et un balayage vide se ressemblent.
 
 ## Hors périmètre
@@ -125,4 +125,64 @@ textes écrits pour le corriger. Sa forme constante : *une garde, un test ou un 
 boucle sur la liste qu'il prétend garder ne garde que lui-même.* Ici la liste était « les façons
 d'activer un thème », et elle omettait la plus simple.
 
-_(le reste à remplir par implementing-specs)_
+### Ce qui a été livré, 2026-08-29
+
+| Fichier | Rôle |
+|---|---|
+| `takussan-web/src/test/analyse-statique.ts` | lecture de l'arbre JSX (classes simultanées, ancêtres, portées) |
+| `takussan-web/src/test/portees-sombres.ts` | **dérivation** des portées `.dark` + `estSousPorteeSombre()` |
+| `takussan-web/src/test/__tests__/portees-sombres.test.tsx` | la garde (5 cas) |
+| `docs/backlog/tickets/TCK-371-…md` | la prémisse corrigée aux DEUX endroits |
+
+**AC1** — les deux passages de TCK-371 portent la correction, et disent *ce que la vérification a
+manqué* : elle cherchait un MÉCANISME (`ThemeProvider`, `next-themes`, `documentElement`) — les
+trois sont bien absents, c'est ce qui la rendait convaincante — et pas **une classe littérale dans
+un `className`**. Le texte fautif est cité plutôt qu'effacé : c'est sa FORME qui instruit.
+
+**AC2/AC3** — la garde compare **deux ensembles dérivés**, aucun n'est écrit :
+
+- les portées `.dark`, lues dans l'arbre JSX de tout `src/` — 3 au 2026-08-29, dont
+  `SuperAdminShell.tsx` par un **portail**, que la garde exige nommément ;
+- les composants **tolérés**, dérivés de la mesure : tous leurs couples tiennent en thème clair,
+  au moins un tombe sous son seuil en sombre. Ils sont **16**, pas un — `AppTopbar` (1,04:1) mais
+  aussi `AppSidebar`, `ui/tabs`, `ui/date-picker`, `Navbar`, `EmptyState`… La garde vaut donc pour
+  *tout couple toléré*, ce que le delta demandait.
+
+L'intersection est **vide**, et c'est ça la tolérance : conditionnelle et vérifiée, plus affirmée.
+
+> ⚠ La lecture par AST ferme le cas que `contraste-wcag.ts` déclarait **hors de portée de tout
+> `grep`** : `clsx({ dark: actif })` écrit la classe en clé d'objet. Le banc de la garde fait
+> **10 sur 10** (7 écritures à voir, 3 sosies à refuser : `variant="dark"`, `dark:bg-x`,
+> `darkroom`). Le seul angle mort restant — une portée posée par `classList.add('dark')` — est
+> lui-même vérifié absent par un cas dédié, plutôt qu'affirmé dans un commentaire.
+
+**Ablations, prouvées par hachage du contenu AVANT lecture du résultat :**
+
+| ablation | md5 avant | md5 après | résultat |
+|---|---|---|---|
+| `dark` posée sur la racine d'`AppShell.tsx` | `797887679cde5b4366cf2f06c5df6e2e` | `4b246bf89f9ff70bac746bb61903e7b1` | **ROUGE** : « components/layout/AppTopbar.tsx (pire 1,04:1 en sombre) » + AppSidebar |
+| retour | — | `797887679cde5b4366cf2f06c5df6e2e` | vert (5/5) |
+
+L'ablation DOM est dans le test lui-même : la barre est **réellement** rendue sous
+`<div className="dark">`, et le contrôle mesure alors `text-white sur hérité — bg-foreground
+[repos] = 1,05:1` — le chiffre exact de TCK-371, recalculé et non recopié.
+
+**AC4 — balayage des tickets `done` portant la même prémisse. Résultat : UN SEUL, et c'est
+TCK-371.** Commande et relevé du 2026-08-29 :
+
+```
+grep -rlE "ThemeProvider|prefers-color-scheme|aucune classe .dark|jamais posée" docs/backlog/tickets
+  → TCK-371 (done)   ← la prémisse, corrigée par ce ticket
+  → TCK-382 (done)   ← faux positif : « conventions que /app n'a jamais posées »
+  → TCK-452, TCK-459, TCK-460 (todo)
+```
+
+Élargi aux formulations voisines (`mode sombre`, `inatteignable`) sur les seuls `done` : six
+tickets de plus, aucun ne porte la prémisse (`TCK-372` dit l'inverse — « le mode sombre n'est pas
+réparé, il est devenu réparable »). *Un balayage non fait et un balayage vide se ressemblent* : le
+voici fait, et il n'est pas vide — il rend exactement un.
+
+> ⚠ **Trouvé au passage, hors périmètre et non corrigé** : `TCK-452` (statut `todo`) porte sa
+> propre correction du 2026-08-28 et y écrit *« la classe est posée […] sur DEUX composants
+> livrés »*. Il y en a **trois** — la troisième est celle du portail. Même défaut que celui-ci,
+> une génération plus tard, dans le texte écrit pour le corriger. Laissé à TCK-452.

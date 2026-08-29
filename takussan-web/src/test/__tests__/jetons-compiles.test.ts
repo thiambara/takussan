@@ -82,14 +82,25 @@ const PERIMETRE = [
 ];
 
 /**
- * Les deux SEULS jetons que les tables ne peuvent pas reproduire à l'identique, et pourquoi.
+ * Les SEULS jetons que les tables ne peuvent pas reproduire à l'identique, et pourquoi.
  *
  * `.dark` les écrit en blanc translucide (`oklch(1 0 0 / 10%)` et `/ 15%`), que `versRvb()` ne
  * sait pas lire. `contraste-wcag.ts` en porte la composition sur `--background`, ce qui est une
  * APPROXIMATION assumée et documentée sur place. Les exclure ici est le seul geste honnête : les
  * comparer ferait rougir sur une différence qu'on a choisie.
+ *
+ * ⚠ `sidebar-border` a rejoint les deux autres le 2026-08-29 (TCK-458), quand les 21 jetons du DS
+ * qui manquaient à `contraste-wcag.ts` y sont entrés. Le laisser DEHORS de la table n'était pas
+ * l'option prudente : il aurait alors hérité de sa valeur CLAIRE par le `...JETONS_CLAIR`, soit
+ * une bordure crème mesurée sur un fond sombre — le piège que l'en-tête de `JETONS_SOMBRE`
+ * raconte, exactement. Une approximation déclarée vaut mieux qu'un héritage silencieux.
+ *
+ * ⚠ `--destructive`, lui, n'est PAS dans les tables : il est en `oklch(…)` dans les DEUX blocs, et
+ * l'approximer demanderait une conversion OKLCH → sRGB que rien ne vérifierait. Il reste « hors
+ * jetons », donc compté et non mesuré. Il n'a rien à faire ici : ce jeu-ci ne liste que ce qui EST
+ * dans la table et diffère volontairement de la feuille.
  */
-const APPROXIMES_EN_SOMBRE = new Set(['border', 'input']);
+const APPROXIMES_EN_SOMBRE = new Set(['border', 'input', 'sidebar-border']);
 
 
 function fichiersDe(dir: string, acc: string[] = []): string[] {
