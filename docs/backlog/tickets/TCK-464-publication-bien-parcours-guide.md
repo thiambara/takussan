@@ -38,6 +38,12 @@ concerne pas ce bien-là, et sans qu'aucune information saisie ne soit perdue en
 `total_floors` (`PropertyResource:69,70,75,76`) et `location.postal_code` sont déjà émis et déjà
 typés côté front. Le trou est en écriture seule ; aucune migration n'est nécessaire.
 
+⚠ **Une valeur du typage front est fausse.** `src/types/property.ts:10` déclare
+`PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'other'`, quand
+`TitleType::Autre` vaut `'autre'`. La quatrième valeur n'a jamais pu être émise par l'API.
+Le défaut est resté invisible parce qu'aucun écran n'écrit ni ne discrimine `title_type` —
+il devient visible dès qu'un sélecteur l'expose.
+
 **Adresse — `POST /api/properties` accepte déjà `address` imbriquée** et la crée dans la même
 transaction que le bien (`PropertyController::store()`). Le front ne s'en sert pas : il envoie
 `city`/`quarter`/`region` au premier niveau — où aucune règle ne les déclare — puis rattrape par un
@@ -132,8 +138,16 @@ Bricolage Grotesque / DM Sans, primitives `base-nova`.
 - [ ] Résultats de l'association des tags et de l'envoi des photos vérifiés et affichés
 - [ ] Écran d'édition aligné sur la même règle de pertinence, et exposant `title_type`,
       `available_from`, `floor_number` / `total_floors`
-- [ ] Type `PropertyDetail` : `+ available_from`
-- [ ] Libellés `fr` / `en` / `wo`
+- [ ] Type `PropertyDetail` : `+ available_from` ; `PropertyTitleType` : `'other'` → `'autre'`
+- [ ] Libellés `fr` / `en` / `wo`, dont le vocabulaire de `TitleType`, aligné **au caractère près**
+      sur `takussan-api/lang/<locale>/properties.php` — puis `title_type` ajouté aux `GROUPES` de
+      `src/types/__tests__/property-labels.parity.test.ts`, dont le commentaire dit aujourd'hui
+      « n'a pas de pendant front ». Cela **resserre** la garde sans ajouter aucune tolérance ;
+      la liste `DIVERGENCES_CONNUES` ne doit pas grossir d'une seule entrée.
+- [ ] Neutralisation du mouvement sous `prefers-reduced-motion`, **portée aux animations de ce
+      parcours seulement** : `globals.css` n'a aujourd'hui aucun bloc `prefers-reduced-motion`, et
+      en poser un global neutraliserait aussi `fadeInUp`, `cardEnter` et `sectionEnter` sur tout le
+      site — un changement qui ne s'instruit pas depuis ce ticket
 - [ ] Tests : conditionnalité par type dans les deux modes, purge sur bascule de contrat,
       validation par étape, et **le test de non-régression de l'adresse** (cf. AC1)
 
