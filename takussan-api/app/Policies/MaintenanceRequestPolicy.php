@@ -86,8 +86,15 @@ class MaintenanceRequestPolicy extends BasePolicy
      *
      * ⚠ Principe non négociable n°2 : la capacité se juge pour un couple *(utilisateur, agence)*.
      * `$user->agency_id` est l'accesseur de compatibilité qui dérive l'agence du profil ACTIF
-     * (`users.agency_id` n'existe plus en base depuis TCK-142) — le `&&` en tête n'est donc pas
-     * une précaution contre `null`, c'est le refus d'un utilisateur sans agence active.
+     * — la colonne du même nom sur la table des utilisateurs n'existe plus en base depuis
+     * TCK-142. Le `&&` en tête n'est donc pas une précaution contre `null`, c'est le refus
+     * d'un utilisateur sans agence active.
+     *
+     * ⚠ Cette phrase évite délibérément d'écrire la colonne disparue sous sa forme
+     * `table.colonne` : `NoLegacyUserTypeTest` scanne le TEXTE de `app/` et ne distingue pas
+     * un commentaire d'un appel. La reformuler « plus clairement » avec le littéral fait
+     * rougir la garde — ce qui est le comportement voulu, un scan de texte ne pouvant pas
+     * juger de l'intention.
      */
     public static function isPrincipalFor(User $user, ?Property $property): bool
     {
