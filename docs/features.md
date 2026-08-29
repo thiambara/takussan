@@ -219,26 +219,36 @@ Signalement et suivi des problèmes techniques sur un bien loué.
 | P3 | 🛡️ | Facturation directe prestataire → agence |
 | P3 | 🧑‍💼 | Contrats de maintenance récurrents |
 
-**Deux écarts mesurés entre cette table et ce que la policy autorise vraiment** (TCK-420). Ils sont
-écrits plutôt que marqués : ajouter un acteur dans la colonne *entérinerait* le pouvoir au lieu de
-le signaler, et une spec décrit le produit voulu, pas l'état du code.
+**Les deux écarts relevés par TCK-420 sont tranchés** (TCK-445) — le premier était un oubli et il
+est corrigé, le second était une décision qui n'avait jamais été écrite et elle l'est ci-dessous.
+Ils restent écrits plutôt que marqués dans la table : un acteur ajouté dans la colonne *entérine*
+un pouvoir, il ne l'explique pas.
 
-- **« Assigner un prestataire » et « Priorisation des demandes » sont plus larges en code qu'ici.**
-  `PATCH /api/maintenance-requests/{id}` délègue à `can('update')`
-  (`UpdateMaintenanceRequestRequest.php:32`), que `MaintenanceRequestPolicy::update()` accorde au
-  **prestataire assigné** (`MaintenanceRequestPolicy.php:48`). Or `rules()` accepte `assigned_to`
-  et `priority` (l. 39-40), les deux sont `$fillable` (`MaintenanceRequest.php:28-29`), et
-  `MaintenanceRequestController::update()` (l. 155-165) fait un `fill()->save()` sans restriction
-  de champ : **un prestataire assigné peut se réassigner sa demande et en changer la priorité.**
-  Le chemin de CRÉATION, lui, s'en protège — `store()` retire `assigned_to` à qui n'est pas
-  donneur d'ordre (l. 81-92). *C'est cette asymétrie qui dit qu'on a affaire à une policy trop
-  large et non à une fonctionnalité* : à corriger côté code, pas à inscrire ici.
-- **« Ajouter photos et rapport après intervention » recouvre deux gestes de garde différente.**
-  Le rapport de fin (`PUT …/complete`) et la collection `completion_photos` exigent `update`,
-  d'où 🧑‍💼🔧 (`MaintenanceRequestController.php:213-215`). Mais `POST …/photos` sur la collection
-  `photos` par défaut ne demande que `can('view')` (`UploadPhotosMaintenanceRequestRequest.php:30`),
-  et `view` inclut le **demandeur** (`MaintenanceRequestPolicy.php:29`) : **un locataire 🏠 peut
-  ajouter des photos à sa demande** tant qu'elle n'est ni close ni annulée — ce que la ligne tait.
+- **« Assigner un prestataire » et « Priorisation des demandes » sont bien réservées au donneur
+  d'ordre — c'est désormais vrai en code.** `assigned_to` et `priority` exigent l'ability
+  `MaintenanceRequestPolicy::actAsPrincipal` : super-admin, propriétaire du bien, ou même agence.
+  Un `PATCH` du **prestataire assigné** qui porte l'un des deux est un **403** — pas un champ
+  ignoré en silence, pas un 422. Il garde tout le reste de ce que cette table lui accorde :
+  statut, rapport, planification, coût réel.
+
+  *Ce que l'oubli avait coûté, et pourquoi il était décidable* : `update()` accorde au prestataire
+  assigné, `rules()` acceptait les deux champs, les deux sont `$fillable`, et le contrôleur faisait
+  un `fill()->save()` sans restriction de champ. La preuve que c'était un oubli et non un arbitrage
+  était dans le chemin de CRÉATION, qui s'en protégeait déjà avec sa PROPRE copie de la définition
+  du donneur d'ordre. *Une asymétrie entre deux chemins du même contrôleur sur le même champ est la
+  signature d'un oubli.* Les deux chemins lisent maintenant la même définition
+  (`MaintenanceRequestPolicy::isPrincipalFor()`).
+- **« Ajouter photos et rapport après intervention » recouvre deux gestes de garde différente, et
+  c'est VOULU.** Le rapport de fin (`PUT …/complete`) et la collection `completion_photos` exigent
+  `update`, d'où 🧑‍💼🔧. Mais `POST …/photos` sur la collection `photos` par défaut ne demande que
+  `can('view')`, et `view` inclut le **demandeur** : **un locataire 🏠 peut ajouter des photos à sa
+  demande** tant qu'elle n'est ni close ni annulée.
+
+  **Décision (TCK-445) : cela reste ouvert au demandeur.** Compléter son propre signalement est
+  légitime — c'est la même personne qui l'a ouvert, et c'est elle qui voit la panne. La collection
+  qui engage la responsabilité du prestataire, `completion_photos`, reste gardée par `update`.
+  La ligne du tableau ne porte pas 🏠 parce que le geste appartient au signalement (P1, 🏠), pas à
+  l'intervention.
 
 ### 1.9 État des lieux & inventaires
 

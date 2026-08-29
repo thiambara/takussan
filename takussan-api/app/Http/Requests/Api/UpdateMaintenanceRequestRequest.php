@@ -25,11 +25,36 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
      * autorisé et mal formé. `authorize()` rétablit l'ordre d'origine.
      *
      * **Simple DÉLÉGATION** : la règle vit dans sa policy, cette méthode ne fait que l'invoquer —
-     * aucune règle d'autorisation n'a migré ici (AC4).
+     * aucune règle d'autorisation n'a migré ici (AC4). TCK-445 en ajoute une SECONDE, toujours
+     * par délégation : `actAsPrincipal`, pour les seuls champs du donneur d'ordre.
      */
+    /**
+     * TCK-445 — les deux champs du DONNEUR D'ORDRE.
+     *
+     * Ils ne sont pas retirés du corps en silence : les porter sans le droit est un **403**,
+     * pas un champ ignoré sans le dire (contrainte métier du ticket). D'où la garde ici et non
+     * dans `rules()` — une règle de validation rendrait 422, et un `unset()` en contrôleur
+     * rendrait 200 sur un geste refusé.
+     */
+    public const PRINCIPAL_FIELDS = ['assigned_to', 'priority'];
+
     public function authorize(): bool
     {
-        return $this->user()?->can('update', $this->route('maintenanceRequest')) === true;
+        $user = $this->user();
+        $maintenanceRequest = $this->route('maintenanceRequest');
+
+        if ($user?->can('update', $maintenanceRequest) !== true) {
+            return false;
+        }
+
+        // La PRÉSENCE du champ suffit à exiger le droit, même si la valeur postée est celle
+        // déjà en base : comparer les valeurs ferait dépendre le droit de l'état courant, et
+        // un prestataire pourrait sonder ce qu'il n'a pas le droit d'écrire.
+        if (! $this->hasAny(self::PRINCIPAL_FIELDS)) {
+            return true;
+        }
+
+        return $user->can('actAsPrincipal', $maintenanceRequest) === true;
     }
 
     /** @return array<string, mixed> */
