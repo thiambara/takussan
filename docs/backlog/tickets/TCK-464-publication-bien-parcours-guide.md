@@ -1,7 +1,7 @@
 ---
 id: TCK-464
 title: "Publication d'un bien — parcours guidé, champs conditionnés au type, et l'adresse qui n'était jamais enregistrée"
-status: doing
+status: done
 phase: P0
 family: full
 estimate: L

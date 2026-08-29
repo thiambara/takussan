@@ -7,7 +7,7 @@ family: back
 estimate: M
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-29
 depends_on: []
 blocks: []
 spec_refs:
@@ -89,3 +89,42 @@ Trois portes de la même famille ont été fermées par TCK-392 (`AgencyControll
 `AgencyMemberRoleController@update` atteint par deux routes, et les services d'invitation). Le
 patron de garde existe donc déjà et se recopie ; c'est la **décision** ci-dessus qui manque, pas
 le geste.
+
+---
+
+## Décision — mesure du 2026-08-29, étape 0 du lot
+
+**La mesure exigée par l'AC1 a été prise, et elle change la nature du ticket.**
+
+Sonde exécutée sur les deux types d'agence, chaîne entière (émission → acceptation →
+appartenance), même acteur `agency_admin`, même payload `{email, role: 'agent'}` :
+
+| Type d'agence | `POST /api/invitations` | `invitable_type` | `accept` | `isAgentAt` / `isOwnerAt` / `isAgencyAdminAt` |
+|---|---|---|---|---|
+| **`standard`** | **201** | **NULL** | **200** | **false / false / false** |
+| `individual` | 201 | NULL | 200 | false / false / false |
+
+**Le témoin `standard` se comporte exactement comme l'agence individuelle.** Le défaut n'a donc
+aucun rapport avec le type d'agence : c'est **la lecture 2** du ticket, et la lecture 1 tombe.
+
+La cause est lisible et ne demande aucune inférence : `CreateInvitationRequest` déclare
+`'invitable_type' => ['nullable', 'string']`, et `InvitationService::send()` reprend
+`$payload['invitable_type'] ?? null` tel quel. **Rien, nulle part, n'exige qu'une invitation sache
+à quoi elle rattache le compte.** Le `nullable` est commenté « pour la cooptation super-admin » —
+un cas réel, mais qui n'a jamais été distingué des autres.
+
+### Ce qui est donc à corriger
+
+**Refuser à l'émission une invitation qui ne rattache à rien**, quel que soit le type d'agence :
+un `invitable_type` absent est légitime **pour le seul rôle `super_admin`** (cooptation, hors
+agence) et illégitime pour `owner`, `agent`, `agency_admin`, `service_provider`.
+
+⚠ **Ne pas déduire la règle du `role` seul** : la mesurer sur les quatre rôles, et garder
+`super_admin` vert comme second témoin. Une garde qui refuserait aussi la cooptation
+transformerait ce ticket en régression sur un parcours qui marche.
+
+⚠ **Ne PAS fermer `POST /api/invitations` aux agences `individual`** : la mesure montre que ce
+n'était pas le sujet, et TCK-454 traite séparément la restriction qui, elle, est bien liée au
+type d'agence.
+
+*C'est la mesure qui a créé ce ticket ; c'est encore elle qui vient d'en écarter la moitié.*

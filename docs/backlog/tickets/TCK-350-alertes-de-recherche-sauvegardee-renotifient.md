@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 45
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-08-29
 depends_on: []
 blocks: []
 spec_refs:
@@ -141,3 +141,76 @@ structurelle (option 3), en ADR.
 - [ADR-0023](../../adr/0023-recherche-geographique-par-distances-sans-postgis.md) — pourquoi
   `SavedSearch.criteria` ne converge pas encore vers le vocabulaire de `/search`
 - [TCK-346](TCK-346-geo-postgis.md) § *Ce qui RESTE* — d'où vient ce constat
+
+---
+
+## Décision — étape 0 du lot, 2026-08-29
+
+### L'option retenue : la 1, dans une variante qui répond à l'objection portée contre elle
+
+**Ni la 1 telle qu'écrite, ni la 2, ni la 3. La borne est un ARGUMENT de méthode, jamais une clé
+de `criteria`.**
+
+```php
+public function getMatchingProperties(SavedSearch $search, ?CarbonInterface $publieApres = null): Collection
+```
+
+et `search()` apprend un filtre `published_after` qu'elle applique en SQL
+(`where('published_at', '>', …)`), alimenté par cet argument — **jamais** par le tableau persisté.
+
+**Ce que cette forme fait tomber, option par option :**
+
+| Objection du ticket | Ce qu'elle devient ici |
+|---|---|
+| **Option 1** — « injecter une clé de contrôle dans `criteria` mélange un critère d'utilisateur et un état d'envoi » | L'objection porte sur la **persistance** de la clé. Un argument de méthode ne s'écrit dans aucune colonne : `criteria` n'est jamais modifié, et la migration future vers le vocabulaire de `/search` n'aura aucune clé à démêler. |
+| **Option 2** — « paginate puis jette : une nouveauté classée plus loin est tue » | Ne s'applique pas : le filtre est **dans la requête**, donc la première page est déjà la page des seuls biens neufs. |
+| **Option 3** — republication, `published_at` rétrodaté, recherche modifiée entre deux passages | **Non couverts, et c'est assumé** — voir ci-dessous. |
+
+**Aucun ADR n'est donc requis** : ni table, ni colonne, ni décision structurelle. Un commentaire
+dans le job suffit (AC6, versant « décision locale »).
+
+⚠ **Le point de contrôle qui décide si cette variante tient :** `saveSearch()` recopie **tout**
+`$criteria` dans la colonne (`SearchService:100-105`), y compris `name` et
+`notification_frequency`. Une clé `published_after` qui y transiterait un jour y serait donc
+**persistée**. C'est précisément pourquoi elle doit rester un argument — et pourquoi **un test doit
+asserter qu'aucune ligne `saved_searches` ne porte `published_after` dans `criteria`** après un
+passage du job. Sans cette assertion, la décision ci-dessus n'est qu'une intention.
+
+### Ce qui est explicitement laissé de côté, et pourquoi
+
+Les trois cas que seule l'option 3 couvre — bien **republié**, `published_at` **rétrodaté**,
+recherche **modifiée** entre deux passages — restent non couverts. La raison n'est pas qu'ils sont
+improbables : c'est qu'aucun d'eux **n'existe comme geste produit aujourd'hui**. Les instruire
+demanderait d'abord de décider ce que « republier » veut dire, ce qu'aucun ticket ne tranche.
+
+*Une table de traçage posée pour des cas qu'aucun geste ne produit encore est une décision prise
+trop tôt, et qu'il faudra défaire.* → si l'un de ces gestes apparaît, **c'est lui** qui portera
+l'ADR et la table, avec le cas réel sous les yeux.
+
+**À écrire dans le commentaire du job**, sans quoi la limite se perd.
+
+### `notification_frequency` : lue, et lue au bon endroit
+
+Le job la consulte, et **le passage muet ne doit rien avancer** (AC4). Trois valeurs sur quatre
+sont à trancher, et le ticket ne les couvre pas : décision d'étape 0 —
+
+- `off` → aucun envoi, `last_notified_at` **inchangé** ;
+- `daily` → comportement nominal ;
+- `weekly` → envoi seulement si `last_notified_at` est nul **ou** vieux de ≥ 7 jours ;
+- `instant` → **traité comme `daily` par ce ticket**, et la limite écrite en commentaire : un envoi
+  réellement instantané suppose un déclencheur à la publication, pas une planification à 09:00.
+  *Le rendre silencieusement synonyme de `daily` sans le dire serait la troisième façon pour ce
+  job de mentir sur ce qu'il fait.*
+
+⚠ La valeur peut être **absente** (`sometimes`, jamais `nullable` — TCK-330). Le défaut de lecture
+est `daily`, aligné sur `saveSearch()` (`SearchService:104`). Un test le fixe : une recherche
+sans `notification_frequency` notifie.
+
+### Sur AC5 — l'exception qui tue les suivantes
+
+Le `each()` reste, l'appel est enveloppé **par recherche**, et l'erreur est journalisée avec
+l'`id`. ⚠ Sur PostgreSQL, **une exception SQL abandonne la transaction entière**
+(`SQLSTATE[25P02]`, cf. `CLAUDE.md`) : un `try/catch` qui poursuit après une erreur SQL dans la
+même transaction ne reprend pas — il accuse la recherche suivante. Le test d'AC5 doit donc rendre
+une recherche fautive **par une exception applicative**, et un second cas doit éprouver l'erreur
+SQL si le job venait à tourner dans une transaction.

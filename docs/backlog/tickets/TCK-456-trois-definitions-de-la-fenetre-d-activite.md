@@ -7,7 +7,7 @@ family: back
 estimate: S
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-29
 depends_on: []
 blocks: []
 spec_refs:
@@ -60,3 +60,58 @@ jour où on en modifie une.*
 
 À traiter avec [TCK-457](TCK-457-resolution-des-delegations-en-n-plus-un.md), relevé dans la même
 revue et sur le même mécanisme.
+
+---
+
+## Décision — étape 0 du lot, 2026-08-29
+
+### L'écart, écrit avant d'être corrigé (AC1, premier versant)
+
+Relevé terme à terme sur les trois corps, le 2026-08-29 :
+
+| | statut | `starts_at` | `ends_at` **NULL** | borne `ends_at` |
+|---|---|---|---|---|
+| `RoleDelegation::scopeActive()` | `Active` | `NULL OR <= now()` | **rejetée** | `>= now()` — **incluse** |
+| `HasProfiles::hasActiveAgencyDelegation()` | `Active` | **non testé** | **acceptée** | `> now()` — **exclue** |
+| `MembershipCapabilityResolver::delegationAllows()` | `Active` | **non testé** | **acceptée** | `> now()` — **exclue** |
+
+**Les deux dernières sont identiques ; `scopeActive` diverge sur les trois axes à la fois** — et
+sur `ends_at IS NULL` elle dit *l'inverse* des deux autres. Le docblock de `delegationAllows`
+nomme déjà une partie de l'écart (TCK-395) ; il ne mentionne pas `starts_at`.
+
+### Le sort de `scopeActive` (AC3) : **BRANCHÉ**, et il devient la source unique
+
+Supprimer un scope juste parce qu'il n'a pas d'appelant laisserait deux définitions au lieu de
+trois — l'AC2 demande *une* source, pas *moins de sources*.
+
+**Forme retenue :** le corps de `scopeActive()` devient **exactement la fenêtre qui autorise
+aujourd'hui** (`status = Active` ET (`ends_at IS NULL` OU `ends_at > now()`)), et les deux autres
+méthodes l'appellent au lieu de réécrire la clause.
+
+**Deux propriétés font que c'est le choix le moins risqué, et il faut les tenir :**
+
+1. **Le changement est neutre pour l'autorisation, par construction.** C'est la définition
+   *permissive* qui gagne — celle qui autorise déjà — donc aucun droit ne s'ouvre ni ne se ferme.
+   Prendre la fenêtre de `scopeActive` aurait, elle, **retiré** des droits en silence à toute
+   délégation sans fin. *Une convergence qui change qui peut faire quoi n'est pas une convergence,
+   c'est une décision d'autorisation déguisée en refactorisation.*
+2. **La clause `starts_at` est ABANDONNÉE, et c'est délibéré.** Une délégation qui n'a pas commencé
+   porte le statut `Scheduled`, pas `Active` (`scopeScheduled`, `scopeReadyToActivate`) : le test de
+   statut la couvre déjà. Une ligne `Active` avec un `starts_at` futur serait un défaut de
+   `RoleDelegationService`, **à garder là**, et non une fenêtre à rattraper ici. La rattraper ici
+   masquerait le défaut au lieu de l'attraper.
+
+⚠ **Vérifier par exécution que `scopeActive` n'a réellement aucun appelant — `app/` ET `tests/` ET
+`database/`.** Le ticket l'affirme sur `app/` seulement. Un appelant de test qui dépendrait de
+l'ancienne sémantique rougirait, et c'est le rouge qu'il faut lire, pas contourner.
+
+### Le test qui lie les trois (AC2)
+
+Aux **bornes**, et nulle part ailleurs — le cas nominal ne discrimine rien :
+
+- `ends_at = NULL` → les trois doivent répondre **pareil** (aujourd'hui : 2 oui, 1 non) ;
+- `ends_at = now()` exactement → inclusion stricte contre inclusion large ;
+- une ligne `Active` avec `starts_at` futur → aujourd'hui, `scopeActive` seule la rejette.
+
+Ce test doit **rougir si l'une des trois est modifiée seule**. L'ablation se fait donc dans les
+deux sens : rétablir l'ancienne clause de `scopeActive` doit le faire rougir.

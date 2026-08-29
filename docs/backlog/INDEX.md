@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**418 tickets** — 43 ouverts, 374 livrés.
+**418 tickets** — 42 ouverts, 375 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 41 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 374 |
+| ✅ Done | 375 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -78,7 +78,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-464](tickets/TCK-464-publication-bien-parcours-guide.md) — Publication d'un bien — parcours guidé, champs conditionnés au type, et l'adresse qui n'était jamais enregistrée `L · P0 · full`
 
 ## 👀 Review
 
@@ -90,7 +89,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 374
+## ✅ Done — 375
+
+<details>
+<summary><strong>Vague 51 — Publication d'un bien — refonte du parcours de création (2026-08-29)</strong> — 1 ticket</summary>
+
+- [TCK-464](tickets/TCK-464-publication-bien-parcours-guide.md) — Publication d'un bien — parcours guidé, champs conditionnés au type, et l'adresse qui n'était jamais enregistrée `L · P0 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 49 — Site public — audit design & fonctionnel (2026-08-27)</strong> — 11 tickets</summary>
