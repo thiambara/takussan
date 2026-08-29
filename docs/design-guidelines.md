@@ -65,14 +65,51 @@ existent pour ne plus employer.
 | Succès / confirmation | `#3f6b45` | `#8fbf87` | `--success` / `--success-foreground` |
 | Information | `#3f5a6b` | `#8fb2c8` | `--info` / `--info-foreground` |
 
-- **Succès n'est pas l'accent de marque.** `--accent` (sage `#5d6e4f`) reste l'accent des badges
-  *featured* ; « ça a marché » se dit `--success`. Les confondre retire au produit le moyen de
-  distinguer les deux. ⚠ Le ton `success` de `console/StatusBadge` emprunte encore `--accent` :
-  mesuré le 2026-08-27, `text-accent` sur `bg-accent/15` rend **4,19:1 en clair et 3,71:1 en
-  sombre**, sous les 4,5:1 d'AA, quand le même aplat sur `--success` rend 4,61 / 5,73. À corriger
-  en un point, pour toutes les pastilles de la console à la fois.
+- **Succès n'est pas l'accent de marque — décidé le 2026-08-29 (TCK-450).** `--accent` (sage
+  `#5d6e4f`) est l'accent des badges *featured*, et **rien d'autre** ; « ça a marché » se dit
+  `--success`. **Un statut positif et une mise en avant ne partagent plus la même teinte.** Le ton
+  `success` de `console/StatusBadge` empruntait `--accent` jusqu'à cette date : il rend désormais
+  `bg-success/10 text-success`, en un point, pour les 21 pastilles de la console à la fois.
 - **Info** reste déconseillée sur les surfaces publiques — préférer les eyebrows et le contenu
   textuel.
+
+#### L'aplat d'une pastille sémantique — la règle, et pourquoi elle n'est pas 15 %
+
+Une pastille de statut est un **aplat de sa propre encre**, à faible opacité, sur une surface que
+le composant ne choisit pas. Trois choses en découlent, et la troisième est contre-intuitive :
+
+1. **Le seuil est 4,5:1**, pas 3:1 — `Badge` porte `text-xs`, c'est du texte normal (WCAG 2.2
+   §1.4.3), jamais un objet graphique.
+2. **La mesure se prend sur la surface la plus SOMBRE que l'appelant pose**, pas sur `--card`.
+   Mesurer sur la plus claire, c'est mesurer le meilleur cas. Sept surfaces réelles portent
+   aujourd'hui une pastille de console — de `--card` à `bg-muted` PLEIN, que `kyc-queue.tsx` et
+   `admin/super/moderation.tsx` posent sur la ligne sélectionnée.
+3. ⚠ **Moins d'opacité = PLUS de contraste.** L'aplat rapproche le fond de la couleur du texte :
+   l'épaissir noie l'encre. Mesuré le 2026-08-29 sur les 14 couples (7 surfaces × 2 thèmes), pire
+   cas de chacun :
+
+   | aplat | pire cas | verdict |
+   |---|---|---|
+   | `accent/15` (l'ancien ton) | **3,05:1** | ✗ sur 13 des 14 couples |
+   | `success/20` | 4,00:1 | ✗ |
+   | `success/15` | 4,29:1 | ✗ — la seule ligne sélectionnée, en thème clair |
+   | **`success/10`** | **4,60:1** | **✓ sur les 14** |
+   | `success/5` | 4,91:1 | ✓, mais l'aplat cesse de se voir |
+
+   **10 % est donc le plafond, pas un réglage** — et c'est l'alpha que le docblock de `--success`
+   avait déjà mesuré dans `globals.css` en posant le jeton (TCK-381). `danger` s'écrit `/10`,
+   `attention` `/12` : une pastille neuve part à 10 % et ne monte qu'avec une mesure.
+
+⚠ **La valeur ne s'écrit jamais ici en hexadécimal.** Cette charte a PRESCRIT un défaut de cette
+façon — elle donnait `shadow-[0_8px_24px_rgba(27,40,69,0.08)]` en exemple, un bleu marine hors
+palette, corrigé par TCK-460. *Une charte qui donne un hexadécimal en exemple enseigne
+l'hexadécimal.* Un jeton et un alpha, jamais une couleur.
+
+La garde de cette décision est
+`takussan-web/src/components/console/__tests__/StatusBadge.contraste-tck-450.test.tsx` : elle lit
+l'encre et l'aplat **sur le badge rendu** et recalcule les 14 ratios à chaque exécution. Le tableau
+ci-dessus est donc un relevé daté, pas une entrée de test — s'il diverge un jour, c'est lui qui est
+périmé.
 
 ### Le VOILE — la couleur qui ne suit pas le thème (TCK-384)
 
