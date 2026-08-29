@@ -176,6 +176,22 @@ export const EXCEPTIONS_JUSTIFIEES = [
   { fichier: 'src/app/(dashboard)/error.tsx', litteral: '[dashboard] erreur non rattrapée', famille: 'TECHNIQUE', raison: R_CONSOLE_BOUNDARY },
 
   {
+    fichier: 'src/test/analyse-statique.ts',
+    litteral: 'clé',
+    famille: 'TECHNIQUE',
+    raison:
+      "Valeur d'un DISCRIMINANT interne (`{ id, branche: 'clé' }`) dans l'arbre de chemins que "
+      + "l'analyse AST produit pour distinguer la branche « clé d'objet » des autres. Elle n'est "
+      + 'ni rendue, ni journalisée, ni comparée à une saisie : ce module est une infrastructure '
+      + "de TEST, sans aucun chemin vers un écran. Le scanner l'attrape parce que c'est un mot "
+      + "français accentué, ce qui est exactement l'heuristique qu'il annonce.\n\n"
+      + "⚠ Posée en EXCEPTION nommée plutôt qu'en excluant `src/test/**` du parcours, comme "
+      + "`__tests__` l'est déjà : une exclusion de répertoire exempterait en silence tout fichier "
+      + "futur du même dossier, alors que cette entrée-ci est surveillée par le contrôle de "
+      + 'fraîcheur — elle rougira le jour où le littéral disparaîtra.',
+  },
+
+  {
     fichier: 'src/lib/access/server-guards.ts',
     litteral: 'fetch failed',
     famille: 'TECHNIQUE',
