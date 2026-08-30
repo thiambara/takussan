@@ -8,16 +8,24 @@ use Tests\Support\ImpactMap;
 use Tests\Support\ImpactSelector;
 
 /**
- * Les sept règles de sélection. Cinq d'entre elles existent pour ESCALADER, pas
+ * Les huit règles de sélection. Cinq d'entre elles existent pour ESCALADER, pas
  * pour sélectionner : un sélecteur qui se trompe en sélectionnant trop coûte du
  * temps, un sélecteur qui se trompe en sélectionnant trop peu produit un FAUX VERT.
  * Les tests ci-dessous sont écrits dans ce sens-là.
  */
 class ImpactSelectorTest extends TestCase
 {
-    private function selector(): ImpactSelector
+    /**
+     * @param  array<string,list<string>>  $consommateurs  domaine de `lang/` → ce qui le cite.
+     */
+    private function selector(array $consommateurs = []): ImpactSelector
     {
-        return new ImpactSelector(ImpactMap::fromJson(json_encode([
+        return new ImpactSelector($this->map(), fn (string $domaine): array => $consommateurs[$domaine] ?? []);
+    }
+
+    private function map(): ImpactMap
+    {
+        return ImpactMap::fromJson(json_encode([
             'version' => 1,
             'commit' => 'abc1234',
             'generated_at' => '2026-08-17T00:00:00+00:00',
@@ -37,7 +45,7 @@ class ImpactSelectorTest extends TestCase
                 'app/Http/Controllers/PropertyController.php' => [0],
                 'app/Support/Price.php' => [2],
             ],
-        ])));
+        ]));
     }
 
     private function noDiff(): callable
@@ -97,6 +105,9 @@ class ImpactSelectorTest extends TestCase
             ['takussan-api/tests/Support/TestProcessToken.php'],
             // C-1 : chemins hors `tests/`/`routes/`/`config/`/`app/`, même défaut.
             ['takussan-api/.env.example'],
+            // TCK-476 — `lang/` n'escalade plus en bloc, mais `validation.php` reste un
+            // dictionnaire du FRAMEWORK : il porte le message de chaque 422 du dépôt, et
+            // aucun balayage de `app/` ne peut en nommer les consommateurs.
             ['takussan-api/lang/fr/validation.php'],
             ['takussan-api/resources/views/pdf/invoice.blade.php'],
             // I-6 : `config/` n'a plus le repli conçu pour `routes/` — déclencheur dur.
@@ -185,6 +196,111 @@ class ImpactSelectorTest extends TestCase
             $s->classes,
             'une classe de test écrite APRÈS la carte ne peut pas y figurer : elle est ajoutée d\'office',
         );
+    }
+
+    // ── TCK-476 : les fichiers de `lang/` ────────────────────────────────────
+    //
+    // Le repli n'est PAS remplacé, il est BORNÉ à ce qu'on sait situer. Les six
+    // tests ci-dessous sont donc écrits dans les deux sens : un qui sélectionne,
+    // CINQ qui escaladent.
+
+    public function test_an_application_dictionary_selects_the_classes_covering_its_consumers(): void
+    {
+        $s = $this->selector([
+            'invitations' => ['app/Http/Controllers/PropertyController.php'],
+        ])->select(['takussan-api/lang/en/invitations.php'], $this->noDiff(), []);
+
+        $this->assertFalse($s->fullSuite, (string) $s->reason);
+        $this->assertSame(['Tests\Feature\Api\PropertyCrudTest'], $s->classes);
+    }
+
+    public function test_a_dictionary_consumed_by_a_test_class_selects_that_class(): void
+    {
+        $s = $this->selector([
+            'team' => ['tests/Feature/Api/TeamTest.php', 'app/Support/Price.php'],
+        ])->select(['takussan-api/lang/wo/team.php'], $this->noDiff(), []);
+
+        $this->assertFalse($s->fullSuite, (string) $s->reason);
+        $this->assertSame(['Tests\Feature\Api\TeamTest', 'Tests\Unit\PriceTest'], $s->classes);
+    }
+
+    /**
+     * @return list<array{0:string}>
+     */
+    public static function dictionnairesDuFramework(): array
+    {
+        return [['auth'], ['pagination'], ['passwords'], ['validation']];
+    }
+
+    /**
+     * Ceux-là escaladent MÊME si un consommateur est résolu : le framework les lit
+     * lui-même, depuis du code que rien dans `app/` ne cite. `validation.php` porte
+     * le message de chaque 422 du dépôt et n'est écrit que par 13 fichiers de `app/` —
+     * une sélection de 13 consommateurs y serait un faux vert.
+     */
+    #[DataProvider('dictionnairesDuFramework')]
+    public function test_a_framework_dictionary_escalates(string $domaine): void
+    {
+        $s = $this->selector([$domaine => ['app/Support/Price.php']])
+            ->select(["takussan-api/lang/fr/$domaine.php"], $this->noDiff(), []);
+
+        $this->assertTrue($s->fullSuite);
+        $this->assertStringContainsString('framework', (string) $s->reason);
+    }
+
+    public function test_a_dictionary_without_any_resolved_consumer_escalates(): void
+    {
+        $s = $this->selector()->select(['takussan-api/lang/fr/inconnu.php'], $this->noDiff(), []);
+
+        $this->assertTrue($s->fullSuite);
+        $this->assertStringContainsString('aucun consommateur', (string) $s->reason);
+    }
+
+    /**
+     * @return list<array{0:string}>
+     */
+    public static function cheminsDeLangueHorsForme(): array
+    {
+        return [
+            ['takussan-api/lang/en.json'],          // traductions par chaîne
+            ['takussan-api/lang/en/vendor/x/y.php'], // dictionnaire de paquet publié
+            ['takussan-api/lang/README.md'],
+        ];
+    }
+
+    #[DataProvider('cheminsDeLangueHorsForme')]
+    public function test_a_lang_path_of_unexpected_shape_escalates(string $path): void
+    {
+        $s = $this->selector()->select([$path], $this->noDiff(), []);
+
+        $this->assertTrue($s->fullSuite, "$path devrait imposer la suite entière");
+        $this->assertStringContainsString('forme inattendue', (string) $s->reason);
+    }
+
+    public function test_a_consumer_absent_from_the_map_escalates(): void
+    {
+        $s = $this->selector(['owners' => ['app/Models/ToutNeuf.php']])
+            ->select(['takussan-api/lang/fr/owners.php'], $this->noDiff(), []);
+
+        $this->assertTrue($s->fullSuite);
+        $this->assertStringContainsString('absent de la carte', (string) $s->reason);
+    }
+
+    public function test_a_consumer_in_the_harness_or_outside_app_escalates(): void
+    {
+        $harnais = $this->selector(['owners' => ['tests/Support/MeilisearchBarrier.php']])
+            ->select(['takussan-api/lang/fr/owners.php'], $this->noDiff(), []);
+
+        $this->assertTrue($harnais->fullSuite);
+        $this->assertStringContainsString('harnais', (string) $harnais->reason);
+
+        // Une vue dont aucun fichier de `app/` ne cite le nom : `TranslationUsage` la
+        // rend telle quelle plutôt que de la taire, et on ne sait pas la situer.
+        $vue = $this->selector(['owners' => ['resources/views/emails/orphan.blade.php']])
+            ->select(['takussan-api/lang/fr/owners.php'], $this->noDiff(), []);
+
+        $this->assertTrue($vue->fullSuite);
+        $this->assertStringContainsString('non situable', (string) $vue->reason);
     }
 
     public function test_one_escalating_file_wins_over_every_selection(): void
