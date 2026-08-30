@@ -147,27 +147,27 @@ un statut « active ».
 
 ## Delta à produire
 
-- [ ] Trancher la décision de charte, et l'écrire dans `docs/design-guidelines.md` — y compris si
+- [x] Trancher la décision de charte, et l'écrire dans `docs/design-guidelines.md` — y compris si
       la décision est de NE PAS séparer les deux teintes
-- [ ] Si séparation : `TONE_CLASSES.success` de `src/components/console/StatusBadge.tsx` passe de
+- [x] Si séparation : `TONE_CLASSES.success` de `src/components/console/StatusBadge.tsx` passe de
       `bg-accent/15 text-accent` à `bg-success/15 text-success`
-- [ ] Vérifier que le docblock de `StatusBadge` ne conserve aucune affirmation invalidée par le
+- [x] Vérifier que le docblock de `StatusBadge` ne conserve aucune affirmation invalidée par le
       changement (il explique aujourd'hui pourquoi `attention` a cessé d'emprunter `--primary` :
       le même récit vaut pour `success`)
-- [ ] Mesurer le contraste sur la surface RÉELLE de chaque famille d'appelant, pas seulement sur
+- [x] Mesurer le contraste sur la surface RÉELLE de chaque famille d'appelant, pas seulement sur
       `--card` : la pastille se pose aussi sur `bg-muted/30` (téléverseur KYC) et dans des
       cellules de `DataTable`
-- [ ] Vérifier à l'écran, dans les DEUX thèmes (cf. AC4)
+- [x] Vérifier à l'écran, dans les DEUX thèmes (cf. AC4)
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — `TONE_CLASSES.success` ne cite plus `accent`, et aucun autre ton ne change.
+- [x] **AC1** — `TONE_CLASSES.success` ne cite plus `accent`, et aucun autre ton ne change.
       L'assertion porte sur la table entière, pas sur la seule ligne modifiée : une substitution
       qui déplacerait un second ton passerait un contrôle ligne à ligne.
-- [ ] **AC2** — le contraste du ton `success` est **≥ 4,5:1 dans les deux thèmes**, mesuré sur la
+- [x] **AC2** — le contraste du ton `success` est **≥ 4,5:1 dans les deux thèmes**, mesuré sur la
       surface réelle (aplat à 15 % sur `--card` ET sur `bg-muted/30` aplati sur `--background`),
       et le chiffre est écrit dans le fichier avec sa date. Vérifié par calcul, jamais à l'œil.
-- [ ] **AC3** — les 21 sites du tableau ci-dessus rendent toujours un badge, et **aucun n'a gagné
+- [x] **AC3** — les 21 sites du tableau ci-dessus rendent toujours un badge, et **aucun n'a gagné
       d'exception locale de couleur**. Le vérifier par relevé (`grep`), pas par lecture.
 - [x] **AC4** — ⚠ **VÉRIFICATION À L'ÉCRAN, et c'est la raison d'être de ce ticket.** Au moins
       **trois** écrans capturés dans les **deux** thèmes : un qui porte plusieurs tons côte à côte
@@ -176,11 +176,11 @@ un statut « active ».
       d'onboarding (la pastille de TCK-385). *Un changement de couleur sur 21 badges validé par un
       ratio et aucune capture n'est pas une livraison* — c'est exactement pourquoi TCK-385 a sorti
       cette décision de son lot.
-- [ ] **AC5** — la décision de charte figure dans `docs/design-guidelines.md`, avec la mesure qui
+- [x] **AC5** — la décision de charte figure dans `docs/design-guidelines.md`, avec la mesure qui
       la motive, **quelle qu'elle soit** — y compris « on garde `--accent`, et voici pourquoi le
       contraste sous AA est accepté ».
-- [ ] **AC6** — ablation : rétablir `bg-accent/15 text-accent` fait rougir AC1 **et** AC2.
-- [ ] **AC7** — `npm run lint`, `npx tsc --noEmit` et les tests des répertoires touchés sont verts.
+- [x] **AC6** — ablation : rétablir `bg-accent/15 text-accent` fait rougir AC1 **et** AC2.
+- [x] **AC7** — `npm run lint`, `npx tsc --noEmit` et les tests des répertoires touchés sont verts.
 
 ## Hors périmètre
 

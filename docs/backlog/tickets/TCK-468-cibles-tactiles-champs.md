@@ -43,10 +43,10 @@ l'avoir décidé : les pastilles de choix du parcours de publication tiennent 44
 
 ## Delta à produire
 
-- [ ] Décider du régime — aligner les primitives, ou assumer deux tailles et documenter laquelle
+- [x] Décider du régime — aligner les primitives, ou assumer deux tailles et documenter laquelle
       s'emploie quand.
-- [ ] Traiter le cas de `date-picker.tsx`, qui n'accepte pas la personnalisation aujourd'hui.
-- [ ] Passer en revue les écrans denses, où un gain de hauteur se paie en défilement.
+- [x] Traiter le cas de `date-picker.tsx`, qui n'accepte pas la personnalisation aujourd'hui.
+- [x] Passer en revue les écrans denses, où un gain de hauteur se paie en défilement.
 
 ## Critères d'acceptation
 

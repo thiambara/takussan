@@ -40,18 +40,18 @@ défaut est entièrement dans ce que le hook **rend** à son appelant.
 
 ## Delta à produire
 
-- [ ] Rendre le sort de l'écriture observable par l'appelant (valeur de retour de `flush()`, ou
+- [x] Rendre le sort de l'écriture observable par l'appelant (valeur de retour de `flush()`, ou
       état dédié — l'implémentation décide).
-- [ ] Recenser les consommateurs du hook et les adapter.
-- [ ] Le parcours de publication dit à l'utilisateur si son brouillon est enregistré ou non.
-- [ ] Tests : le cas d'échec réseau est couvert et l'appelant le voit.
+- [x] Recenser les consommateurs du hook et les adapter.
+- [x] Le parcours de publication dit à l'utilisateur si son brouillon est enregistré ou non.
+- [x] Tests : le cas d'échec réseau est couvert et l'appelant le voit.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une écriture de brouillon qui échoue produit, chez l'appelant, une information
+- [x] AC1 — une écriture de brouillon qui échoue produit, chez l'appelant, une information
       distincte d'une écriture réussie ; un test le prouve par ablation.
-- [ ] AC2 — « Reprendre plus tard » n'affirme jamais un enregistrement qui n'a pas eu lieu.
-- [ ] AC3 — les autres consommateurs du hook compilent et leurs tests restent verts.
+- [x] AC2 — « Reprendre plus tard » n'affirme jamais un enregistrement qui n'a pas eu lieu.
+- [x] AC3 — les autres consommateurs du hook compilent et leurs tests restent verts.
 
 ## Hors périmètre
 

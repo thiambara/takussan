@@ -171,30 +171,30 @@ Aucun endpoint, aucune migration, aucun modèle. Le delta est un retrait d'enreg
 
 ## Delta à produire
 
-- [ ] Retirer d'`AppServiceProvider` les 20 `listen()` que la découverte double, formes tableau
+- [x] Retirer d'`AppServiceProvider` les 20 `listen()` que la découverte double, formes tableau
       comprises
-- [ ] Trancher le cas `Registered` → `SendEmailVerificationNotification` : retirer la ligne 628
+- [x] Trancher le cas `Registered` → `SendEmailVerificationNotification` : retirer la ligne 628
       (le framework l'enregistre déjà) **ou** documenter pourquoi elle reste
-- [ ] Test/garde : `EventListenerDuplicationTest` — monte l'application, lit
+- [x] Test/garde : `EventListenerDuplicationTest` — monte l'application, lit
       `Event::getRawListeners()`, normalise `/@(handle\w*|__invoke)$/`, compte par identité
       *(écouteur, méthode, événement)* et **échoue** s'il reste un couple à plus d'un
-- [ ] Vérifier par ablation que la garde rougit : remettre **un** `Event::listen()` retiré
+- [x] Vérifier par ablation que la garde rougit : remettre **un** `Event::listen()` retiré
 
 ## Critères d'acceptation
 
-- [ ] AC1 — la garde compte **0** couple *(écouteur, méthode, événement)* enregistré plus d'une
+- [x] AC1 — la garde compte **0** couple *(écouteur, méthode, événement)* enregistré plus d'une
       fois, sur l'application réellement bootée
-- [ ] AC2 — la garde ROUGIT si l'on réintroduit un seul des `listen()` retirés ; vérifié par
+- [x] AC2 — la garde ROUGIT si l'on réintroduit un seul des `listen()` retirés ; vérifié par
       ablation, et le rouge nomme le couple fautif
-- [ ] AC3 — un test d'inscription n'envoie qu'**un** courriel de vérification, et un test
+- [x] AC3 — un test d'inscription n'envoie qu'**un** courriel de vérification, et un test
       d'activation de bail ne crée qu'**une** liste d'onboarding — chacun échouant avant le
       correctif
-- [ ] AC4 — `DispatchAlerts` reste enregistré (preuve que la découverte n'a pas été coupée)
-- [ ] AC5 — la garde compte deux écouteurs distincts sur `LeaseActivated` comme **normaux**
-- [ ] AC6 — le chemin de paiement est non régressé : un `order_created` reçu **une** fois produit
+- [x] AC4 — `DispatchAlerts` reste enregistré (preuve que la découverte n'a pas été coupée)
+- [x] AC5 — la garde compte deux écouteurs distincts sur `LeaseActivated` comme **normaux**
+- [x] AC6 — le chemin de paiement est non régressé : un `order_created` reçu **une** fois produit
       exactement une entrée `metadata.gateway_events`, et le retrait des doublons ne change ni ce
       compte ni le statut du paiement
-- [ ] AC7 — le compte de l'AC1 est pris sur l'application **bootée**, et non recopié depuis ce
+- [x] AC7 — le compte de l'AC1 est pris sur l'application **bootée**, et non recopié depuis ce
       ticket ; s'il diffère de 21, c'est le compte mesuré qui fait foi et le ticket est corrigé
 
 ## Hors périmètre

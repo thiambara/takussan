@@ -71,11 +71,11 @@ Aucune. Le périmètre est `docs/gen-features-by-actor.mjs` et sa sortie génér
 
 ## Delta à produire
 
-- [ ] Trancher l'angle mort n°1 : calculer aussi le sens « déclaré et inemployé » et le faire
+- [x] Trancher l'angle mort n°1 : calculer aussi le sens « déclaré et inemployé » et le faire
       échouer, **ou** écrire pourquoi un acteur déclaré d'avance est légitime
-- [ ] Trancher l'angle mort n°2 : refuser une ligne de fonctionnalité hors section, **ou** écrire
+- [x] Trancher l'angle mort n°2 : refuser une ligne de fonctionnalité hors section, **ou** écrire
       pourquoi elle est ignorée
-- [ ] Mettre l'en-tête à jour — il annonce aujourd'hui deux angles morts ; il doit annoncer ce
+- [x] Mettre l'en-tête à jour — il annonce aujourd'hui deux angles morts ; il doit annoncer ce
       qui reste vrai après ce ticket
 - [ ] Ablation pour chaque garde ajoutée, et restauration vérifiée
 
@@ -83,10 +83,10 @@ Aucune. Le périmètre est `docs/gen-features-by-actor.mjs` et sa sortie génér
 
 - [ ] AC1 — pour chaque angle mort fermé, la sonde correspondante du tableau ci-dessus fait
       sortir le script en **1**, dans les deux formes
-- [ ] AC2 — pour chaque angle mort **non** fermé, la raison est écrite dans l'en-tête, et la
+- [x] AC2 — pour chaque angle mort **non** fermé, la raison est écrite dans l'en-tête, et la
       sonde est citée pour que le lecteur suivant n'ait pas à la refaire
-- [ ] AC3 — `node docs/gen-features-by-actor.mjs --check` reste vert sur `features.md` tel quel
-- [ ] AC4 — les renvois de ligne de l'en-tête sont exacts, vérifiés **après** l'édition par la
+- [x] AC3 — `node docs/gen-features-by-actor.mjs --check` reste vert sur `features.md` tel quel
+- [x] AC4 — les renvois de ligne de l'en-tête sont exacts, vérifiés **après** l'édition par la
       commande de re-dérivation qu'il publie
 
 ## Hors périmètre

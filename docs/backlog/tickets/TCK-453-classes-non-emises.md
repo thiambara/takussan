@@ -303,18 +303,60 @@ de TCK-440. Mesure du 2026-08-29 sur tout `src/`, tests exclus :
 
     923 fichiers · 1 533 classes distinctes · 4 non émis · 0 faux positif · 0,53 s
 
+### Le corpus d'épreuve — où il vit, et pourquoi personne ne l'a trouvé
+
+`takussan-web/scripts/check-classes-emises.mjs`, constante `EPREUVE` (ligne 155) et son plancher
+`PLANCHER_PAR_FAMILLE`. **30 cas, 8 familles**, et le plancher déclaré est égal au compte réel dans
+les huit : retirer UN SEUL cas fait rougir la garde.
+
+| famille | cas | ce qu'elle éprouve |
+|---|---|---|
+| `A-jeton-absent` | 3 | AC1 — un jeton **inventé** (`vertkalpe`, `ocrezanzibar`, `krinkel`), jamais un nom que le contrôle connaîtrait |
+| `B-faute-de-frappe` | 2 | `text-mutted-foreground`, `bg-primry` |
+| `C-separateur-decimal` | 2 | `p-4,5`, `mb-2,5` |
+| `D-variante-mal-ecrite` | 3 | `hover;bg-card`, `data-[state=open:bg-card`, `hoverr:bg-card` |
+| `E-extracteur` | 6 | les six artefacts du 2026-08-27, **un par un** : prose de docblock, commentaire de ligne, variantes arbitraires, `slide-in-from-*` |
+| `F-discriminant` | 6 | la chaîne qui CHOISIT la classe n'est pas une classe |
+| `G-execution` | 2 | `` `bg-${x}` `` — le trou déclaré, écarté sans fabriquer de faux candidat |
+| `H-valide` | 6 | la moitié « zéro faux positif » : `2xl:`, `bg-[rgb(1,2,3)]`, `supports-[…]`, et l'apostrophe de texte JSX |
+
+> ⚠ **Il était invisible à `grep`, et c'est un défaut de livraison qu'il faut écrire.** Le fichier
+> portait **deux octets NUL**, entrés dans un `join(' ')` de comparaison d'ensembles. `file(1)` le
+> déclarait *binary data*, et **`grep` sautait le fichier entier en silence** — la revue est venue
+> dire que le corpus n'existait pas, `grep -rn` à l'appui, et elle avait raison de le croire. Le
+> code, lui, marchait : `\0` est un séparateur comme un autre. *Un fichier que `grep` ne lit pas
+> est un fichier que personne ne relit* — et c'est le même genre de panne muette que ce ticket
+> corrige, un étage au-dessus. Corrigé ; balayage du dépôt entier : aucun autre fichier source ne
+> porte d'octet NUL.
+
+> ⚠ **Le relevé n'exporte plus que `scanneClasses`.** `lexe` et `ressembleAUneListeDeClasses`
+> avaient été exportées « pour la testabilité » et n'avaient **aucun consommateur** — le motif
+> exact que cette garde venait de faire retirer de `ui/badge.tsx`, `ui/button.tsx` et
+> `ui/card.tsx`. Relevé par la revue, et corrigé plutôt que justifié.
+
 ### Les ablations
 
-- **AC1, sur un jeton INVENTÉ** — `bg-zirkonpapaye/40` injectée dans
-  `PropertyGalleryMosaic.tsx` (radical absent de tout le dépôt, vérifié) : la garde la nomme, elle
-  et son fichier, à la ligne exacte. Empreintes `md5` avant / pendant / après restauration :
-  `7aa1b05b…` → `838bdc99…` → `7aa1b05b…`.
-- **La branche de garde démontée** (`!emises.has(c)` → `false`) : rouge, code 1, sur l'auto-épreuve
-  de l'émission.
-- **Le corpus vidé PUIS la branche démontée, dans cet ordre** : rouge, code 1, sur le plancher du
-  corpus. C'est le geste qui a rendu `exit 0` chez trois gardes de la vague 50 ; il est sondé par
-  la garde elle-même à chaque exécution.
-- **Le relevé rendu muet** : rouge sur l'auto-épreuve du relevé.
+Chacune se prouve par une empreinte de contenu prise **avant de lire le résultat** : `git diff
+--numstat` ne distingue pas une substitution à nombre de lignes égal.
+
+| ce qu'on démonte | md5 avant → démonté → restauré | résultat |
+|---|---|---|
+| **AC1 — un jeton INVENTÉ**, `text-diourbelaya` injecté dans `PropertyRow.tsx` (radical absent de tout le dépôt, vérifié avant) | `49cf4b55…` → `f0f1557c…` → `49cf4b55…` | **code 1**, classe + fichier + ligne 60 nommés |
+| **UN SEUL cas d'épreuve retiré** (H6) | `d1bb336d…` → `389f7815…` → `d1bb336d…` | **code 1** — `H-valide : 5 cas, plancher 6` |
+| **la branche de garde** (`!emises.has(c)` → `false`) | `d1bb336d…` → `eb519581…` → `d1bb336d…` | **code 1** — auto-épreuve de l'émission |
+| **le corpus VIDÉ puis la branche démontée, DANS CET ORDRE** | `d1bb336d…` → `b9e95136…` → `d1bb336d…` | **code 1** — plancher du corpus |
+| **le relevé rendu muet** (`lexe()` court-circuité) | `a251bf75…` → `1cb09f68…` → `a251bf75…` | rouge — auto-épreuve du relevé |
+
+La quatrième est celle qui compte : c'est le geste qui a rendu `exit 0` chez plusieurs gardes de la
+vague 50, chacune passant pourtant les deux ablations séparées. Elle est sondée **par la garde
+elle-même**, à chaque exécution (`ablationDeLaBranche`, cran n°4), avec deux ablations de plus —
+chaque route du relevé retirée doit faire tomber un cas, sinon elle est décorative.
+
+Une première ablation d'AC1 avait été faite sur `bg-zirkonpapaye/40` dans
+`PropertyGalleryMosaic.tsx` (`7aa1b05b…` → `838bdc99…` → `7aa1b05b…`), et la revue en a fait une
+troisième, indépendante, sur `bg-koumpentoum/10` dans `StatusBadge.tsx`. **Trois radicaux inventés,
+trois fichiers, trois fois rouge** — aucun nom soufflé à la garde, ce qui était le défaut exact de
+la version retirée le 2026-08-27.
 
 ### Ce qui reste hors de portée, et c'est déclaré, pas oublié
 

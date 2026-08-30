@@ -110,25 +110,25 @@ structurelle (option 3), en ADR.
 Écrits pour qu'une régression ne puisse pas les cocher : chacun porte son versant négatif, sans quoi
 « ne notifie pas » serait satisfait par un job qui ne notifie plus jamais.
 
-- [ ] **AC1 — deux passages consécutifs sans publication n'envoient qu'UNE notification.** Un test
+- [x] **AC1 — deux passages consécutifs sans publication n'envoient qu'UNE notification.** Un test
       exécute le job deux fois de suite sur une recherche qui correspond à des biens existants, et
       assert **1** notification au total. ⚠ Le même test assert que le **premier** passage en a bien
       produit une : un job cassé qui ne notifie plus rien cocherait autrement la moitié du critère.
-- [ ] **AC2 — un bien publié ENTRE les deux passages est notifié, et lui seul.** Le second passage
+- [x] **AC2 — un bien publié ENTRE les deux passages est notifié, et lui seul.** Le second passage
       produit une notification dont la charge utile (`count`) vaut **1**, pas le total de la
       recherche. Sans cette assertion sur le compte, un correctif qui renotifie tout dès qu'un seul
       bien est neuf passerait.
-- [ ] **AC3 — `notification_frequency = 'off'` n'envoie RIEN**, et `'daily'` envoie, dans le même
+- [x] **AC3 — `notification_frequency = 'off'` n'envoie RIEN**, et `'daily'` envoie, dans le même
       test, sur deux recherches sœurs du même utilisateur. Les deux moitiés sont nécessaires : une
       garde qui écarterait tout le monde cocherait la première seule.
-- [ ] **AC4 — `last_notified_at` n'est PAS avancé quand rien n'est envoyé.** Sinon la borne dérive
+- [x] **AC4 — `last_notified_at` n'est PAS avancé quand rien n'est envoyé.** Sinon la borne dérive
       en silence à chaque passage muet, et une nouveauté publiée entre-temps devient invisible pour
       toujours. Assertion sur la valeur exacte avant/après.
-- [ ] **AC5 — une exception sur UNE recherche ne tue pas les suivantes.** Le job itère par `each()` :
+- [x] **AC5 — une exception sur UNE recherche ne tue pas les suivantes.** Le job itère par `each()` :
       aujourd'hui, une seule recherche fautive interrompt toutes les alertes du jour (c'est ce
       qu'ADR-0023 a mesuré sur le `acos()` de PostgreSQL). Le test rend une recherche fautive puis
       assert que la suivante a bien été notifiée.
-- [ ] **AC6 — la décision de l'option retenue est écrite** : en commentaire du job si elle est
+- [x] **AC6 — la décision de l'option retenue est écrite** : en commentaire du job si elle est
       locale, en ADR si elle introduit une table ou une colonne.
 - [ ] **AC7 — vérifié par ablation.** Retirer le correctif fait rougir AC1 et AC2 ; les restaurer
       les rend verts. Le rapport porte les deux sorties.

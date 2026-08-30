@@ -74,28 +74,28 @@ Aucun endpoint à créer, aucune migration. Les routes concernées existent
 
 ## Delta à produire
 
-- [ ] Restreindre les champs assignables de `update()` selon le côté donneur d'ordre — soit dans
+- [x] Restreindre les champs assignables de `update()` selon le côté donneur d'ordre — soit dans
       `MaintenanceRequestController::update()`, soit par une règle dédiée du FormRequest, soit
       en scindant la policy ; la forme est au choix de l'implémenteur, l'invariant ne l'est pas
-- [ ] Factoriser la définition de `$isStaff` pour que `store()` et `update()` la partagent au
+- [x] Factoriser la définition de `$isStaff` pour que `store()` et `update()` la partagent au
       lieu de la réécrire
-- [ ] Trancher le second point et **l'écrire** : soit `photos` reste ouvert au demandeur (et la
+- [x] Trancher le second point et **l'écrire** : soit `photos` reste ouvert au demandeur (et la
       décision est consignée), soit il passe sous `update`
-- [ ] Répercuter la décision dans la note de [§1.8](../../features.md#18-maintenance--interventions),
+- [x] Répercuter la décision dans la note de [§1.8](../../features.md#18-maintenance--interventions),
       qui pointe aujourd'hui vers ce ticket
-- [ ] Tests : un prestataire assigné se voit refuser `assigned_to` et `priority` ; un agent de
+- [x] Tests : un prestataire assigné se voit refuser `assigned_to` et `priority` ; un agent de
       l'agence les obtient ; le prestataire conserve statut, rapport et photos de fin
 
 ## Critères d'acceptation
 
-- [ ] AC1 — un `PATCH` d'un prestataire assigné portant `assigned_to` **ou** `priority` est
+- [x] AC1 — un `PATCH` d'un prestataire assigné portant `assigned_to` **ou** `priority` est
       refusé, et le test échoue avant le correctif
-- [ ] AC2 — le même `PATCH` par un agent de l'agence ou le propriétaire du bien réussit
-- [ ] AC3 — le prestataire assigné peut toujours faire avancer le statut et déposer son rapport
+- [x] AC2 — le même `PATCH` par un agent de l'agence ou le propriétaire du bien réussit
+- [x] AC3 — le prestataire assigné peut toujours faire avancer le statut et déposer son rapport
       (non-régression sur ce que §1.8 lui accorde)
 - [ ] AC4 — `store()` et `update()` partagent **une seule** définition du côté donneur d'ordre ;
       une ablation sur cette définition fait rougir des tests des deux chemins
-- [ ] AC5 — le sort de `POST .../photos` est écrit quelque part de durable, dans un sens ou dans
+- [x] AC5 — le sort de `POST .../photos` est écrit quelque part de durable, dans un sens ou dans
       l'autre
 
 ## Hors périmètre

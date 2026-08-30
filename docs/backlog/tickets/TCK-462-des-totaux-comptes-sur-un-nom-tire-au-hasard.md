@@ -67,17 +67,17 @@ requête plus réaliste, et rien ne le dira.
 
 ## Delta à produire
 
-- [ ] **D1** — Fermer les deux sites à risque **haut** de la même façon que celui déjà corrigé :
+- [x] **D1** — Fermer les deux sites à risque **haut** de la même façon que celui déjà corrigé :
       acteur nommé hors d'atteinte, et assertion d'identité en plus du cardinal.
-- [ ] **D2** — Fermer les deux sites à risque faible, pour la raison ci-dessus.
-- [ ] **D3** — Décider si `actingAsRole` doit nommer ses acteurs de façon déterministe et
+- [x] **D2** — Fermer les deux sites à risque faible, pour la raison ci-dessus.
+- [x] **D3** — Décider si `actingAsRole` doit nommer ses acteurs de façon déterministe et
       non-collisionnable par défaut. ⚠ C'est le remède le plus large et **le plus risqué** : il
       touche tous les tests du dépôt, et un nom fixe partagé peut créer d'autres collisions
       (unicité, recherche exacte). À mesurer avant, pas à décider ici.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Pour chaque site corrigé, la collision est **provoquée puis constatée** avant
+- [x] **AC1** — Pour chaque site corrigé, la collision est **provoquée puis constatée** avant
       correction (nommer l'acteur de façon à matcher, vérifier le rouge, avec l'empreinte md5 du
       fichier relevée avant et après la mutation pour établir que l'ablation a bien EU LIEU),
       puis la correction est posée et le rouge ne se reproduit plus.

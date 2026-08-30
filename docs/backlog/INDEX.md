@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 48 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 47 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 375 |
@@ -53,11 +53,10 @@
 - [TCK-446](tickets/TCK-446-spec-muette-sur-le-prestataire.md) — La spec ne décrit pas ce que le produit sert déjà au prestataire — sa vue de travail principale n'a aucune ligne `S · P2 · technique`
 - [TCK-447](tickets/TCK-447-angles-morts-du-generateur-par-acteur.md) — Les deux angles morts de `gen-features-by-actor` : un acteur déclaré et inemployé passe, une ligne hors section n'est pas même lue `S · P3 · technique`
 - [TCK-448](tickets/TCK-448-dialogues-invitation-avalent-lerreur.md) — Les dialogues d'invitation avalent l'erreur de saisie : la soumission est bloquée et rien ne s'affiche — cause non identifiée `M · P2 · bug`
-- [TCK-449](tickets/TCK-449-ajout-de-membre-ignore-le-type-dagence.md) — `POST /api/agencies/{id}/members` ignore le type d'agence : une agence `individual` se constitue une équipe en contournant l'écran `S · P1 · bug`
+- [TCK-449](tickets/TCK-449-ajout-de-membre-ignore-le-type-dagence.md) — `POST /api/agencies/{id}/members` ignore le type d'agence : une agence `individual` se constitue une équipe en contournant l'écran `S · P1 · technique`
 - [TCK-450](tickets/TCK-450-ton-success-de-statusbadge-emprunte-accent.md) — Le ton `success` de `StatusBadge` emprunte `--accent` — décider la charte, et le vérifier à l'écran `S · P2 · front`
 - [TCK-451](tickets/TCK-451-assertion-negative-contre-horloge-reelle.md) — Deux mécanismes rendent `DebouncedSearchInput.test.tsx` sensible aux décrochages d'ordonnancement `S · P2 · technique`
 - [TCK-452](tickets/TCK-452-theme-sombre-inatteignable.md) — Aucune BASCULE de thème sombre n'existe : le bloc `.dark` sert de surface locale à deux composants et n'est atteignable par aucun utilisateur `M · P2 · technique`
-- [TCK-453](tickets/TCK-453-classes-non-emises.md) — Une classe dont le jeton n'existe pas ne fait AUCUNE erreur : la couleur disparaît, et rien dans le dépôt ne peut le voir `M · P2 · technique`
 - [TCK-454](tickets/TCK-454-roles-personnalises-sur-agence-individuelle.md) — Deux endpoints acceptent des rôles personnalisés sur une agence `individual`, que la spec leur refuse `S · P1 · back`
 - [TCK-455](tickets/TCK-455-invitation-generique-fabrique-un-compte-sans-acces.md) — `POST /api/invitations` fabrique un compte accepté qui n'est membre de rien `M · P1 · back`
 - [TCK-456](tickets/TCK-456-trois-definitions-de-la-fenetre-d-activite.md) — Trois définitions divergentes de la fenêtre d'activité d'une délégation, qu'aucune garde ne lie `S · P2 · back`
@@ -85,6 +84,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-453](tickets/TCK-453-classes-non-emises.md) — Une classe dont le jeton n'existe pas ne fait AUCUNE erreur : la couleur disparaît, et rien dans le dépôt ne peut le voir `M · P2 · technique`
 
 ## 👀 Review
 
