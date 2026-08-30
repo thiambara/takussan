@@ -16,6 +16,41 @@ on:
 
 jobs:
   lint-and-test:
+    # ─── L'ANTI-BOUCLE, ET CE QU'ELLE A REMPLACÉ (TCK-479) ──────────────────────────────
+    #
+    # Le step « Régénérer la carte d'impact » (plus bas) pousse un commit sur `dev`. Ce push
+    # touche `takussan-api/tests/`, donc le déclencheur ci-dessus : sans frein, il relance ce
+    # workflow, qui régénère, qui repousse — une boucle qui ne s'arrête pas seule.
+    #
+    # Le frein a été, jusqu'au 2026-08-30, le marqueur d'exclusion GLOBAL de GitHub, écrit
+    # dans le message du commit. Il coupait bien la boucle. Il coupait AUSSI tout le reste :
+    # GitHub applique ce marqueur au COMMIT, et pour TOUS les événements qui le visent —
+    # `push` comme `pull_request`. Ce commit devenant la tête de `dev`, il était le `head` de
+    # la PR d'intégration `dev` → `preview` suivante, ouverte des jours plus tard et sans
+    # aucun rapport avec la carte : elle n'exécutait alors AUCUN workflow du dépôt. Mesuré le
+    # 2026-08-30 : 7 des 12 dernières PR vers `preview` — celles qui alimentent
+    # `preview.api.takussan.com` — n'affichaient qu'un seul contrôle, celui de Vercel, qui
+    # n'est pas GitHub Actions et ignore le marqueur. Une PR sans garde s'y présentait
+    # `mergeable: CLEAN`, avec un vert.
+    #
+    # Le frein est donc DÉPLACÉ, pas supprimé. Le commit du bot porte `[carte-impact]`, un
+    # marqueur PROPRE À CE DÉPÔT que GitHub ne connaît pas, et c'est la condition ci-dessous
+    # qui saute les jobs. Différence entière : elle n'éteint QUE ce workflow, QUE sur ce
+    # push, et elle ne survit pas au commit. La PR d'intégration suivante voit ses gardes.
+    #
+    # ⚠ `github.event.head_commit` n'existe QUE pour `push`. La première clause fait donc
+    # passer tout `pull_request` sans même évaluer les deux autres : le comportement en PR
+    # est inchangé, `paths:` compris.
+    #
+    # ⚠ DEUX CÔTÉS QUI DOIVENT BOUGER ENSEMBLE — le littéral de cette condition et la chaîne
+    # du `git commit -m` plus bas. S'ils divergent, la boucle revient, et elle revient en
+    # silence. `scripts/check-skip-ci-marker.mjs` les compare, et refuse en plus que le
+    # marqueur global reparaisse dans ce message.
+    if: >-
+      ${{ github.event_name != 'push'
+      || github.event.head_commit.author.name != 'github-actions[bot]'
+      || !contains(github.event.head_commit.message, '[carte-impact]') }}
+
     # TCK-320 — `contents: write` pour le step « Régénérer la carte d'impact » : il pousse un
     # commit sur `dev` après coup. `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
     # repos/thiambara/takussan/branches/dev/protection` → 404), le push direct est donc possible.
@@ -401,10 +436,19 @@ jobs:
       # deviendrait un aimant à conflits de merge, pour une donnée que personne ne
       # relit. Sur `dev`, il n'y a qu'un seul écrivain.
       #
-      # `[skip ci]` n'est pas une politesse : sans lui, ce push relancerait API CI
-      # (le déclencheur couvre `takussan-api/**`, et la carte vit sous
-      # `takussan-api/tests/`), qui régénérerait la carte, qui repousserait — une
-      # boucle qui ne s'arrête pas toute seule.
+      # LA BOUCLE ET SON FREIN — le frein n'est plus ici, il est en tête de job.
+      # Sans frein, ce push relancerait API CI (le déclencheur couvre
+      # `takussan-api/**`, et la carte vit sous `takussan-api/tests/`), qui
+      # régénérerait la carte, qui repousserait. Le marqueur d'exclusion global de
+      # GitHub tenait ce rôle et en tenait un second, non voulu : il éteignait aussi
+      # la PR d'intégration suivante, dont ce commit devenait le `head` (TCK-479, et
+      # le bloc `if:` en tête de `lint-and-test`). Le message porte désormais
+      # `[carte-impact]`, que GitHub ignore et que la condition de job lit.
+      #
+      # CE QUE LE CHANGEMENT AJOUTE, ET C'EST UN GAIN : ce push déclenche maintenant
+      # `repo-ci.yml` (`push: branches: [dev]`, `paths: takussan-api/tests/**`).
+      # Un workflow de plus par carte poussée — celui qui la vérifie. Il ne pousse
+      # rien, donc il ne referme aucune boucle.
       #
       # `dev` n'est pas protégée (vérifié le 2026-08-17 : `gh api
       # repos/thiambara/takussan/branches/dev/protection` → 404). Le jour où elle le
@@ -414,7 +458,9 @@ jobs:
       # personne ici n'a choisie, et qui change avec l'image du runner. On épingle la même
       # que `repo-ci.yml`, et seulement quand le step suivant tourne réellement.
       - uses: actions/setup-node@v7
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        if: >-
+          ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev'
+          && !contains(github.event.head_commit.message, '[carte-impact]') }}
         with:
           node-version: '24'
 
@@ -439,7 +485,14 @@ jobs:
       # scannés, carte valide. Ce qui reste à observer ici, et NE PEUT l'être qu'ici, c'est
       # le commit automatique sur `dev`.
       - name: Régénérer la carte d'impact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+        # SECOND FREIN, délibérément redondant avec la condition de job. Celle-ci lit AUSSI
+        # l'auteur ; celle-là, non — un commit humain qui citerait `[carte-impact]` ferait
+        # tourner le job (c'est voulu : on ne veut pas qu'une phrase éteigne la CI) mais ne
+        # repousserait pas de carte. Le jour où la condition de job est cassée par une
+        # refonte, c'est ce `if:`-ci qui empêche la boucle de repartir.
+        if: >-
+          ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev'
+          && !contains(github.event.head_commit.message, '[carte-impact]') }}
         run: |
           # Pas de `-f` silencieux : si `cov.php` manque alors que la condition ci-dessus est
           # vraie, c'est que le step de test a menti sur ce qu'il produit. On le DIT.
@@ -450,14 +503,18 @@ jobs:
 
           php bin/build-impact-map.php storage/coverage/cov.php tests/impact-map.json
 
-          # ⚠ LA CARTE EST VALIDÉE PAR CELUI QUI LA PRODUIT, ET C'EST LE SEUL MOMENT OÙ
-          # ELLE PEUT L'ÊTRE. `repo-ci.yml` déclenche bien `check-impact-map.mjs` sur ce
-          # fichier — mais le commit ci-dessous porte `[skip ci]`, qui saute TOUS les
-          # workflows sur ce commit, Repo CI compris ; et aucune PR ne touche la carte,
-          # puisqu'elle n'est réécrite que sur `dev`. Le déclencheur ajouté là-bas ne
-          # s'exerce donc jamais sur le cas qu'il vise : une carte corrompue sortirait
-          # « sur la PR de quelqu'un d'autre », exactement l'issue que son commentaire dit
-          # éviter. Ici, en revanche, l'échec appartient à celui qui l'a causé.
+          # ⚠ LA CARTE EST VALIDÉE PAR CELUI QUI LA PRODUIT, ET C'EST LE PREMIER MOMENT
+          # OÙ ELLE PEUT L'ÊTRE. Cette phrase disait « le SEUL moment », et elle avait
+          # raison tant que le commit ci-dessous portait le marqueur d'exclusion global :
+          # il sautait TOUS les workflows sur ce commit, Repo CI compris, et le
+          # déclencheur `takussan-api/tests/**` ajouté là-bas ne s'exerçait jamais sur le
+          # cas qu'il vise. Depuis TCK-479 le marqueur global a disparu du message : Repo
+          # CI tourne sur ce push et rejoue `check-impact-map.mjs`.
+          #
+          # L'appel reste ici, et ce n'est pas une redondance qu'on tolère, c'en est une
+          # qu'on veut : ici l'échec appartient à celui qui l'a causé, et il arrive AVANT
+          # le push — une carte structurellement fausse n'atteint pas `dev`. Là-bas, il
+          # sortirait après coup.
           #
           # Pas de `|| exit 0` : une carte structurellement fausse ne se pousse pas. C'est
           # la SEULE chose de ce step qui fasse rougir le job — sa fraîcheur, non (cf. plus
@@ -479,7 +536,12 @@ jobs:
 
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore(tests): régénérer la carte d'impact [skip ci]"
+          # ⚠ `[carte-impact]` est LU par la condition `if:` en tête des deux jobs de ce
+          # fichier : c'est lui, et lui seul, qui coupe la boucle. Ne pas le retirer, ne
+          # pas le renommer d'un seul côté, et ne JAMAIS remettre ici le marqueur
+          # d'exclusion global de GitHub — il éteindrait de nouveau la PR d'intégration
+          # suivante (TCK-479). `scripts/check-skip-ci-marker.mjs` tient les deux côtés.
+          git commit -m "chore(tests): régénérer la carte d'impact [carte-impact]"
 
           # Une seule tentative de rebase : si un autre push est arrivé entretemps, on
           # se replace dessus. Au-delà, on abandonne SANS faire rougir le job — la
@@ -542,6 +604,18 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────────────────────
   migrations-pgsql:
     name: Rollback des migrations sur PostgreSQL 17 (le code que rien d'autre n'exécute)
+    # Même condition, même raison qu'en tête de `lint-and-test` (TCK-479) — recopiée parce
+    # que GitHub Actions n'a NI ancre YAML NI `if:` au niveau du workflow. C'est justement
+    # cette recopie que `scripts/check-skip-ci-marker.mjs` compare, job par job.
+    #
+    # Ce job ne pousse rien : il ne participe pas à la boucle. Il est sauté quand même,
+    # parce qu'un commit du bot ne change que `tests/impact-map.json` — aucune migration,
+    # rien à rejouer en arrière, et cinq minutes de runner pour un `down()` déjà éprouvé au
+    # commit d'avant.
+    if: >-
+      ${{ github.event_name != 'push'
+      || github.event.head_commit.author.name != 'github-actions[bot]'
+      || !contains(github.event.head_commit.message, '[carte-impact]') }}
     runs-on: ubuntu-latest
     defaults:
       run:

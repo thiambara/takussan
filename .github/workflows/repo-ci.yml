@@ -897,3 +897,25 @@ jobs:
         # ⚠ Elle ne lit que les `use` de portée fichier. Un `new \Dompdf\Dompdf` en dur lui
         # échappe — c'est un PLANCHER, elle attrape la forme qui a coûté, pas toutes les formes.
         run: node scripts/check-deps-dev-atteignables.mjs --report
+
+      - name: Aucune tête de branche n'éteint la CI, et le frein anti-boucle est lu des deux côtés
+        # ⚠ LIRE LA PORTÉE AVANT DE CROIRE CE VERT (TCK-479). Ce step porte DEUX contrôles qui
+        # ne valent pas la même chose ici :
+        #
+        #   · le contrôle B — le marqueur `[carte-impact]` qu'`api-ci.yml` COMMITE est bien
+        #     celui que ses conditions `if:` LISENT — s'exerce pleinement. C'est lui qui garde
+        #     le remède : les deux côtés divergent en silence, et la boucle de régénération
+        #     repart un dimanche.
+        #
+        #   · le contrôle A — la tête ne porte pas le marqueur d'exclusion global de GitHub —
+        #     est VERT PAR CONSTRUCTION quand il tourne ici. Le défaut supprime son propre
+        #     détecteur : une tête marquée saute TOUS les workflows, Repo CI compris, et ce
+        #     step n'est jamais exécuté. Aucun événement `push` ni `pull_request` ne peut voir
+        #     ce cas — le câbler ailleurs n'y changerait rien.
+        #
+        # Il reste ici pour le contrôle B, et parce qu'un vert qui explique ce qu'il ne prouve
+        # pas vaut mieux qu'un vert muet. Le contrôle A s'exerce, lui, AVANT le push : dans le
+        # rituel `for g in scripts/check-*.mjs` de CLAUDE.md, et sur la tête distante avant
+        # d'ouvrir une PR d'intégration —
+        #   git fetch origin dev && node scripts/check-skip-ci-marker.mjs --tete origin/dev
+        run: node scripts/check-skip-ci-marker.mjs --report
