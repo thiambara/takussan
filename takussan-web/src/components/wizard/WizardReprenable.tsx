@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,21 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   const [hydrated, setHydrated] = useState(false);
   const [completing, setCompleting] = useState(false);
 
+  /**
+   * ── TCK-483 — ce que le garde du toast de succès doit lire ───────────────────
+   *
+   * « Le brouillon a été effacé volontairement », et non « une finalisation est
+   * en cours ». Les deux ne coïncident pas : `completing` retombe à `false` dans
+   * le `finally` de `handleNext`, donc AVANT le démontage qu'une navigation de
+   * fin de parcours provoque. Un `completing` simplement rendu lisible laisserait
+   * donc passer le toast fautif exactement là où on veut l'éteindre.
+   *
+   * Le ref est armé à l'entrée du chemin de finalisation et désarmé si ce chemin
+   * s'interrompt avant `clear()` — auquel cas le brouillon vit toujours, et une
+   * sauvegarde ultérieure a bien lieu d'être annoncée.
+   */
+  const finalisationRef = useRef(false);
+
   // Hydratation de l'état local dès que le GET initial est résolu.
   //
   // TCK-316 — pendant le RENDU, pas dans un effet : l'effet affichait l'étape 0
@@ -151,7 +166,21 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
         }
         // Toast only when leaving via React unmount with pending work —
         // skip if we already cleared the draft (completion path).
-        if (!completing) {
+        //
+        // ⚠ TCK-483 — un REF, pas l'état. Cette fermeture appartient à un effet
+        // dont la liste de dépendances est `[hydrated]` : elle capture donc
+        // `completing` tel qu'il valait à l'hydratation — `false`, pour toujours.
+        // Le garde était écrit, juste, et ne gardait rien.
+        //
+        // ⚠⚠ Et le remède n'est PAS d'ajouter `completing` aux dépendances :
+        // mesuré sur un parcours complet (hydratation → finalisation →
+        // démontage), `[hydrated, completing]` fait passer l'effet de 1 à 3
+        // exécutions et ses nettoyages de 1 à 3 — donc trois `flush()`, et un
+        // « Progression sauvegardée » qui part dès le clic sur *Terminer*, avant
+        // que la personne n'ait quitté quoi que ce soit (deux sur le parcours).
+        // Le ref laisse le compte à 1, et garde en prime le cas que la dépendance
+        // ne couvre pas : le démontage qui SUIT la finalisation.
+        if (!finalisationRef.current) {
           toast.add({ title: t('savedToastTitle'), description: t('savedToastBody'), type: 'success' });
         }
       });
@@ -180,6 +209,9 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
       return;
     }
     setCompleting(true);
+    // TCK-483 — armé AVANT le premier `await` : le démontage peut survenir
+    // pendant `onComplete` (une navigation) aussi bien qu'après.
+    finalisationRef.current = true;
     try {
       // ── TCK-475, SITE 2 (finalisation) ──────────────────────────────────────
       // `flush()` était appelé pour son seul effet de bord, son sort jeté. Ce
@@ -192,6 +224,10 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
       // le brouillon serveur — périmé mais présent — n'est pas supprimé.
       const resultat = await flush();
       if (!resultat.ok) {
+        // TCK-483 — la finalisation n'a pas eu lieu : `clear()` n'est pas passé,
+        // le brouillon serveur vit toujours. Le garde se désarme, sans quoi le
+        // toast de sauvegarde resterait éteint pour le reste de la session.
+        finalisationRef.current = false;
         toast.add({
           title: t('completionFailedToastTitle'),
           description: t('completionFailedToastBody'),
