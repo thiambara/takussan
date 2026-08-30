@@ -37,12 +37,12 @@ const STATUS_TONE: Record<MaintenanceStatus, string> = {
   quote_requested: 'bg-primary/12 text-primary',
   quote_submitted: 'bg-primary/12 text-primary',
   approved: 'bg-success/15 text-success',
-  rejected: 'bg-destructive/15 text-destructive',
+  rejected: 'bg-destructive/10 text-destructive',
   assigned: 'bg-info/15 text-info',
   in_progress: 'bg-warning/15 text-warning',
   completed: 'bg-success/15 text-success',
   closed: 'bg-muted text-muted-foreground',
-  cancelled: 'bg-destructive/15 text-destructive',
+  cancelled: 'bg-destructive/10 text-destructive',
 };
 
 export function maintenanceStatusBadgeClass(status: MaintenanceStatus): string {
@@ -53,7 +53,7 @@ const PRIORITY_TONE: Record<MaintenancePriority, string> = {
   low: 'bg-muted text-muted-foreground',
   normal: 'bg-info/15 text-info',
   high: 'bg-warning/15 text-warning',
-  urgent: 'bg-destructive/15 text-destructive',
+  urgent: 'bg-destructive/10 text-destructive',
 };
 
 export function maintenancePriorityBadgeClass(priority: MaintenancePriority): string {

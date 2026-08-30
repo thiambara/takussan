@@ -20,7 +20,7 @@ const STATUS_TONE: Record<InventoryStatus, string> = {
   draft: 'bg-muted text-muted-foreground',
   pending_signature: 'bg-warning/15 text-warning',
   signed: 'bg-success/15 text-success',
-  disputed: 'bg-destructive/15 text-destructive',
+  disputed: 'bg-destructive/10 text-destructive',
 };
 
 export function inventoryStatusBadgeClass(status: InventoryStatus): string {
@@ -47,7 +47,7 @@ const ELEMENT_STATE_TONE: Record<InventoryElementState, string> = {
   // `endommagé` était en orange et `usé` en ambre : deux crans d'un même avertissement. Le DS
   // n'a qu'un jeton d'avertissement — on garde le cran par l'INTENSITÉ, pas par la teinte.
   'endommagé': 'bg-warning/30 text-warning',
-  manquant: 'bg-destructive/15 text-destructive',
+  manquant: 'bg-destructive/10 text-destructive',
 };
 
 export function inventoryElementStateBadgeClass(state: InventoryElementState): string {

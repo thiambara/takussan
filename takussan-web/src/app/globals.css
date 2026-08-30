@@ -33,8 +33,59 @@
   --accent: #5d6e4f;            /* sage discret pour badges featured */
   --accent-foreground: #fcf9f3;
 
-  /* === Sémantiques (inchangées) === */
-  --destructive: oklch(0.577 0.245 27.325);
+  /*
+   * === Sémantiques ===
+   *
+   * ⚠ `--destructive` A CHANGÉ DE VALEUR ET DE FORME LE 2026-08-30 (TCK-480). Il valait
+   * `oklch(0.577 0.245 27.325)`, soit `#e7000b` une fois rendu — le rouge par défaut de
+   * shadcn, jamais mesuré contre la palette Lin. Deux tickets l'ont heurté séparément, sur
+   * des écrans sans rapport et en cherchant autre chose : TCK-472 sur le ton `danger` de
+   * `StatusBadge` (3,41 – 3,99:1), TCK-471 sur la variante `destructive` de `Button`
+   * (~4,0:1). *C'est la signature d'un défaut de jeton et non d'un défaut d'écran* — et
+   * c'est pourquoi le correctif est ici, en un endroit, et non sur sept surfaces.
+   *
+   * ⚠ Un correctif d'écran ne pouvait pas y arriver, et c'est le fait le plus instructif du
+   * ticket : TCK-471 avait fait passer le bouton « Suspendre » de 3,48 à 4,48:1 en corrigeant
+   * son CONTENEUR. 4,48 — sous les 4,5, et assez près pour que le chiffre cesse d'avoir l'air
+   * faux. *Approcher un seuil est pire que le rater franchement.*
+   *
+   * LA VALEUR, ET COMMENT ELLE A ÉTÉ CHOISIE. Le balayage part des LITTÉRAUX du code
+   * (`text-destructive`, `bg-destructive/NN`), jamais des importateurs : 154 fichiers, 381
+   * occurrences, dont 236 `text-destructive`. Les couples RÉELS — l'encre et l'aplat écrits
+   * dans la même liste de classes — donnent les aplats /5, /10, /15 (et /20, /30, corrigés
+   * ci-contre). La clarté descend jusqu'à ce que le PIRE couple tienne 4,5:1, la teinte ne
+   * bouge pas, et le chroma est ramené au maximum que sRGB tient à cette clarté — sinon la
+   * couleur sort du gamut et se fait écrêter, ce qui déplace la teinte en silence.
+   *
+   *     clair   oklch(0.491 0.200 27.325) = #b70110   pire couple 4,93:1 (--muted + /10)
+   *     sombre  #ff7f7d, plus clair et moins saturé   pire couple 4,55:1 (--muted + /10)
+   *
+   * ⚠ LE SOMBRE AUSSI ÉTAIT FAUTIF, contrairement à ce que le ticket annonçait. `#ff6467`
+   * passait sur `--card` et `--background` NUS — c'est exactement ce qui avait été mesuré — et
+   * échouait dès qu'il se posait sur son PROPRE aplat (3,39:1 sur `--card + /30`) ou sur
+   * `--muted`, la surface la plus CLAIRE du thème (4,10:1 sous le ton `danger`). *Un jeton ne
+   * se mesure pas sur les surfaces du DS, il se mesure sur les surfaces où le code le pose.*
+   *
+   * ⚠⚠ ET LE PLAFOND NE COÛTE PAS LA MÊME CHOSE DES DEUX CÔTÉS. En clair, l'encre est sombre :
+   * son aplat assombrit la surface et ÉLOIGNE les deux, un aplat lourd aide presque. En sombre,
+   * l'encre est claire : son aplat éclaircit la surface et l'en RAPPROCHE. Sur `--muted` sombre,
+   * /15 rend 4,16:1 quand /10 rend 4,55:1. *Un plafond choisi dans un seul thème est un plafond
+   * choisi dans le mauvais* — d'où /10, imposé par le sombre, appliqué aux deux.
+   *
+   * ⚠ ÉCRIT EN HEXADÉCIMAL, ET C'EST UN GAIN, PAS UN DÉTAIL DE STYLE. `--destructive` était
+   * le SEUL jeton de couleur non hexadécimal des deux blocs, et cette singularité coûtait :
+   * `src/test/contraste-wcag.ts` et `scripts/check-heritage-encre.mjs` le déclaraient tous
+   * deux « COMPTÉ et non mesuré », faute de vouloir embarquer une conversion OKLCH que rien
+   * ne vérifierait. Le trou était déclaré, il n'en était pas moins un trou — et il portait
+   * précisément sur le jeton qui échouait. La conversion a été faite une fois, et confrontée
+   * au relevé pris au moteur de rendu par TCK-480 (canvas CDP) : `oklch(0.577 0.245 27.325)`
+   * → `#e7000b` et `oklch(0.704 0.191 22.216)` → `#ff6467`, les deux exactement.
+   *
+   * Le plafond qui accompagne la valeur : AUCUN aplat portant `text-destructive` au-delà de
+   * `/10`, dans les deux thèmes. `scripts/check-destructive-contrast.mjs` tient les deux
+   * ensemble — la valeur ET le plafond — parce qu'ils ne se relisent pas l'un sans l'autre.
+   */
+  --destructive: #b70110;
 
   /*
    * === Avertissement (TCK-358) ===
@@ -485,7 +536,10 @@
   --muted-foreground: #b8aa97;
   --accent: #7d8d6e;
   --accent-foreground: #1f1812;
-  --destructive: oklch(0.704 0.191 22.216);
+  /* TCK-480 — cf. le bloc de `:root`. #ff6467 → #ff7f7d : plus clair et moins saturé, ce que
+     le thème sombre exige puisque l'encre y est la couleur CLAIRE du couple. Le pire couple
+     réel passe de 3,39:1 (`--card` + /30) à 4,55:1 (`--muted` + /10). */
+  --destructive: #ff7f7d;
   /*
    * Mesures en sombre (2026-08-27) : #e0a458 rend 8,03:1 sur `--background` #1f1812 et 7,30:1
    * sur `--card` #2a2018 ; #8fbf87 rend 8,32 / 7,56 ; #8fb2c8 rend 7,82 / 7,11. Les trois

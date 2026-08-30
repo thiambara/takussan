@@ -99,15 +99,22 @@ interface StatusBadgeProps {
  * ratio et reste au-dessus d'AA. Écrit ici parce que le chiffre qui baisse est celui qu'on doit
  * pouvoir défendre.
  *
- * ⚠⚠ **`danger` est SOUS AA, et il l'est sur les sept surfaces des deux thèmes en clair** :
- * `bg-destructive/10 text-destructive` mesure **3,41 à 3,99:1** en clair (et 3,96 à 5,30:1 en
- * sombre). La cause est le jeton lui-même — `--destructive` vaut `oklch(0.577 0.245 27.325)`,
- * soit **#e7000b** relevé au moteur de rendu le 2026-08-30 (canvas, Chrome 9342 ; témoins #ffffff
- * et #fcf9f3 rendus à l'identique), et #e7000b sur blanc plafonne à 3,99:1. Aucun alpha d'aplat
- * ne rattrape une encre trop claire. **Cela ne se corrige pas ici** : il faut redescendre
- * `--destructive`, ce qui touche `Badge`, `Button`, `toast` et les bandeaux — son propre ticket.
- * Relevé par l'AC3 de TCK-472, qui a mesuré les cinq tons là où TCK-450 n'avait mesuré que
- * `success` ; écrit ici plutôt que laissé croire mesuré et vert.
+ * ⚠⚠ **`danger` A ÉTÉ SOUS AA sur les sept surfaces, et il ne l'est plus — TCK-480.** Ce
+ * paragraphe portait le relevé suivant, qu'on garde parce que c'est sa CONCLUSION qui instruit :
+ * `bg-destructive/10 text-destructive` mesurait **3,41 à 3,99:1** en clair, la cause était le
+ * jeton (`#e7000b`, relevé au moteur de rendu), et *aucun alpha d'aplat ne rattrape une encre
+ * trop claire* — **« cela ne se corrige pas ici »**. C'était juste : le correctif est descendu
+ * dans `globals.css`, pas dans cette table, et cette table n'a pas changé d'un caractère.
+ *
+ * Remesuré le 2026-08-30 sur les sept surfaces, après le nouveau jeton :
+ * **4,93 à 5,77:1 en clair, 4,55 à 5,51:1 en sombre.**
+ *
+ * ⚠ Et le sombre était fautif LUI AUSSI, ce que ni TCK-472 ni le ticket du jeton n'avaient vu :
+ * il passait sur `--card` et `--background`, échouait à 4,10:1 sur les lignes `bg-muted` de
+ * `kyc-queue.tsx` et `moderation.tsx`. *Une surface qu'on n'a pas listée est une mesure qu'on
+ * n'a pas faite* — les sept surfaces de `StatusBadge.contraste-tck-450.test.tsx` sont la liste,
+ * et c'est elle qui a rattrapé le jeu de valeurs intermédiaire.
+ * `scripts/check-destructive-contrast.mjs` tient le jeton et le plafond de ses aplats (/10).
  */
 const TONE_CLASSES: Record<StatusTone, string> = {
   neutral: 'bg-muted text-muted-foreground',

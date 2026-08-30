@@ -50,11 +50,17 @@
  * LES TROUS, DÉCLARÉS
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
- *  · **`--destructive`** est en `oklch(…)` dans `globals.css` — seul jeton non hexadécimal des deux
- *    blocs, avec `--border` et `--input` sous `.dark`. Il est COMPTÉ et non mesuré, comme le fait
- *    `src/test/contraste-wcag.ts` pour la même raison : l'inventer serait pire que l'omettre.
- *    (`--border` et `--input` sombres sont approchés par leur blanc translucide COMPOSÉ sur
- *    `--background`, valeurs reprises telles quelles de ce même module.)
+ *  · **`--border` et `--input` sous `.dark`** sont approchés par leur blanc translucide COMPOSÉ sur
+ *    `--background`, valeurs reprises telles quelles de `src/test/contraste-wcag.ts`.
+ *
+ *    ⚠ **`--destructive` figurait ici, et il n'y est plus — TCK-480.** Il était le troisième jeton
+ *    non hexadécimal, « COMPTÉ et non mesuré » au motif qu'inventer une conversion OKLCH serait
+ *    pire que l'omettre. Le motif était bon, le résultat non : c'est précisément ce jeton-là qui
+ *    échouait, à 3,17:1 sur son propre aplat, pendant que deux gardes le comptaient. TCK-480 l'a
+ *    converti à la SOURCE (`globals.css`), une fois, contre un relevé pris au moteur de rendu —
+ *    et cette garde, qui lit la feuille, le mesure depuis sans qu'une ligne d'elle ait changé.
+ *    Elle est passée de 10 à 11 couples mesurés le 2026-08-30. *Un trou déclaré dit où l'on ne
+ *    regarde pas ; il n'empêche pas que ce soit là que ça casse.*
  *  · **L'imbrication est lue au texte**, pas par un AST : la balise fermante est trouvée en
  *    comptant les ouvertes/fermées de même nom. Une balise citée dans une chaîne fausserait le
  *    compte ; aucune ne le fait aujourd'hui, et le compte de conteneurs (cliquet ci-dessous) le
@@ -63,7 +69,7 @@
  *    alpha. Sur-approximation assumée : elle ne peut que rendre le rapport moins bon, jamais
  *    meilleur — une garde doit couvrir plus, jamais moins.
  *  · **Les échelles Tailwind brutes** (`text-white`, `bg-stone-700`, `text-amber-900`…) ne sont pas
- *    des jetons du design system : elles sont COMPTÉES et non mesurées, comme `--destructive`.
+ *    des jetons du design system : elles sont COMPTÉES et non mesurées.
  *    C'est `check-super-admin-tokens.mjs` qui les refuse, là où son périmètre porte.
  *  · `src/test/` et les répertoires `__tests__/` sont ÉCARTÉS : le harnais et le banc d'ablation
  *    de `agency-detail-contrast.test.tsx` CITENT le motif interdit pour prouver qu'il est refusé,

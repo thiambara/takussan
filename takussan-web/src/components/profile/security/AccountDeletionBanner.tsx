@@ -52,7 +52,7 @@ export function AccountDeletionBanner({ daysRemaining, onCancelled }: Props) {
         size="sm"
         onClick={handleCancel}
         disabled={pending}
-        className="border-destructive/40 text-destructive hover:bg-destructive/15"
+        className="border-destructive/40 text-destructive hover:bg-destructive/10"
       >
         {t('cancel')}
       </Button>

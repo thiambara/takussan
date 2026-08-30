@@ -68,6 +68,10 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// L'auto-épreuve de ce fichier porte DÉJÀ les valeurs de contrôle, avec des messages qui disent
+// ce que chacune a coûté : on n'importe donc pas `verifierControles`, qui les redirait plus mal.
+import { bloc, composer, contraste, jeton, utilitaire } from './lib/contraste.mjs';
+
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const REPORT = process.argv.includes('--report');
 const SRC = join(ROOT, 'takussan-web', 'src');
@@ -158,55 +162,23 @@ function sansCommentaires(texte) {
   return sortie;
 }
 
-// ── L'arithmétique des couleurs, avec les MÊMES valeurs de contrôle que check-chart-contrast ────
+// ── L'arithmétique des couleurs — EXTRAITE, plus recopiée ───────────────────────────────────────
 /*
- * ⚠ Ce dépôt porte désormais TROIS implémentations du calcul WCAG : ce script,
- * `check-chart-contrast.mjs` et `src/test/contraste-wcag.ts`. La dette est connue (TCK-371, notes
- * de revue) et n'est pas résolue ici. Ce qui l'est : les trois partagent les MÊMES valeurs de
- * contrôle (21:1 blanc sur noir, 2,57:1 pour #c89a4a sur blanc, la composition à 50 %), de sorte
- * qu'une divergence de calcul fasse rougir au lieu de se propager en silence.
+ * ⚠ CE BLOC PORTAIT SIX FONCTIONS, ET IL PORTAIT AUSSI L'AVEU : le dépôt tenait TROIS
+ * implémentations du calcul WCAG — celle-ci, `check-chart-contrast.mjs` et
+ * `src/test/contraste-wcag.ts` — avec, pour parade, les mêmes valeurs de contrôle « de sorte
+ * qu'une divergence de calcul fasse rougir au lieu de se propager en silence ».
+ *
+ * TCK-480 avait besoin de la même arithmétique pour une garde de plus. Une quatrième copie
+ * aurait ajouté une divergence possible à chaque affinage ; les fonctions sont donc parties
+ * dans `lib/contraste.mjs` — d'où elles VIENNENT, ce fichier étant la source de l'extraction —
+ * et les valeurs de contrôle avec elles. **Le comportement est inchangé, et c'est vérifiable :
+ * le relevé daté ci-dessus est rejoué à chaque exécution.**
+ *
+ * `check-chart-contrast.mjs` n'est pas converti : il mesure au seuil de 3:1 des objets
+ * graphiques, sa reprise appartient à TCK-371, et un refactor de plus se relit mal dans le diff
+ * d'un ticket de couleur.
  */
-function luminance(hex) {
-  const canaux = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
-  const [r, v, b] = canaux.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-  return 0.2126 * r + 0.7152 * v + 0.0722 * b;
-}
-
-function contraste(a, b) {
-  const [l1, l2] = [luminance(a), luminance(b)];
-  const [haut, bas] = l1 > l2 ? [l1, l2] : [l2, l1];
-  return (haut + 0.05) / (bas + 0.05);
-}
-
-/** La couleur RÉELLEMENT rendue par `<couleur>/<alpha>` posée sur `fond`. */
-function composer(hex, fond, alpha) {
-  const canaux = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  const [f, d] = [canaux(hex), canaux(fond)];
-  return `#${f.map((v, i) => Math.round(v * alpha + d[i] * (1 - alpha)).toString(16).padStart(2, '0')).join('')}`;
-}
-
-function bloc(css, selecteur) {
-  const i = css.indexOf(`${selecteur} {`);
-  if (i === -1) return '';
-  const j = css.indexOf('\n}', i);
-  return j === -1 ? '' : css.slice(i, j);
-}
-
-function jeton(source, nom) {
-  const m = source.match(new RegExp(`--${nom}\\s*:\\s*(#[0-9a-fA-F]{6})\\s*;`));
-  return m ? m[1].toLowerCase() : null;
-}
-
-// ── La LECTURE de la recette ────────────────────────────────────────────────────────────────────
-
-/** `bg-chart-1/20`, `text-foreground`, `bg-muted` → `{ prefixe, jeton, alpha }`. */
-function utilitaire(classe) {
-  const m = /^(bg|text)-([a-z0-9-]+?)(?:\/(\d{1,3}))?$/.exec(classe);
-  if (!m) return null;
-  const alpha = m[3] === undefined ? 1 : Number(m[3]) / 100;
-  if (!(alpha > 0 && alpha <= 1)) return null;
-  return { prefixe: m[1], jeton: m[2], alpha };
-}
 
 /** Les couples déclarés : `TYPE_COLOR` en entier, plus le repli. */
 function recettes(texte) {

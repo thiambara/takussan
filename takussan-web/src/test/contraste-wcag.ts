@@ -72,12 +72,22 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
    * Les valeurs sont recopiées de `globals.css`, comme les précédentes. `--radius`,
    * `--floating-dock-base` et consorts n'y sont pas : ce ne sont pas des couleurs.
    *
-   * ⚠ `--destructive` est ABSENT, et délibérément : `globals.css` le déclare en
+   * ⚠ `--destructive` A ÉTÉ ABSENT DE CETTE TABLE, ET LE TROU PORTAIT SUR LE JETON QUI ÉCHOUAIT.
+   *
+   * Ce commentaire disait : « ABSENT, et délibérément : `globals.css` le déclare en
    * `oklch(0.577 0.245 27.325)`, seul jeton de couleur non hexadécimal des deux blocs. Le
-   * convertir ici demanderait une implémentation d'OKLCH → sRGB qu'aucune garde ne vérifierait ;
-   * l'inventer serait pire. Il reste donc « hors jetons », c'est-à-dire COMPTÉ et non mesuré —
-   * un trou déclaré vaut mieux qu'un trou.
+   * convertir ici demanderait une implémentation d'OKLCH → sRGB qu'aucune garde ne
+   * vérifierait ; l'inventer serait pire. Il reste donc COMPTÉ et non mesuré — un trou déclaré
+   * vaut mieux qu'un trou. » Le raisonnement était juste ; la conclusion a coûté. Pendant que
+   * la table le comptait sans le mesurer, `#e7000b` rendait **3,17:1** sur son propre aplat, et
+   * DEUX tickets l'ont heurté sans pouvoir le nommer (TCK-471, TCK-472).
+   *
+   * *Un trou déclaré reste un trou : il dit où l'on ne regarde pas, il n'empêche pas que ce soit
+   * là que ça casse.* TCK-480 a converti le jeton en hexadécimal DANS `globals.css` — une fois,
+   * à la source, la conversion confrontée au relevé pris au moteur de rendu — et il se recopie
+   * ici comme les autres.
    */
+  destructive: '#b70110',
   success: '#3f6b45',
   'success-foreground': '#fcf9f3',
   info: '#3f5a6b',
@@ -244,6 +254,9 @@ export const JETONS_SOMBRE: Readonly<Record<string, string>> = {
   'muted-foreground': '#b8aa97',
   accent: '#7d8d6e',
   'accent-foreground': '#1f1812',
+  // TCK-480 — cf. la note de `JETONS_CLAIR` : le jeton est hexadécimal des deux côtés
+  // depuis ce ticket, il n'est donc plus « compté et non mesuré » ici non plus.
+  destructive: '#ff7f7d',
   warning: '#e0a458',
   'warning-foreground': '#1f1812',
   ring: '#c87a52',

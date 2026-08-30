@@ -11,7 +11,7 @@ interface MaintenancePriorityBadgeProps {
 
 const PRIORITY_CONFIG: Record<MaintenancePriority, { color: string; icon: LucideIcon }> = {
   urgent: {
-    color: 'bg-destructive/15 text-destructive border-destructive/30 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/30',
+    color: 'bg-destructive/10 text-destructive border-destructive/30 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/30',
     icon: AlertTriangle,
   },
   high: {

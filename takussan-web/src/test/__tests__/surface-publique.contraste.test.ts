@@ -139,16 +139,46 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/search/SearchAutocomplete.tsx · text-primary sur bg-primary/15 sur un sous-jacent inconnu (pire pixel 108)', 1.01, 'idem, le `<mark>` de la surbrillance'],
   ['components/search/FilterSidebar.tsx · text-primary sur bg-primary/5 sur un sous-jacent inconnu (pire pixel 108)', 1.01, 'idem'],
   ['components/forms/FormSuccess.tsx · text-success sur bg-success/5 sur un sous-jacent inconnu (pire pixel 97)', 1.00, 'idem, avec `--success` : le motif n’est pas propre à `--primary`'],
+  /*
+   * ⚠ LES QUATRE SUIVANTES SONT APPARUES LE 2026-08-30 SANS QU'AUCUN DE CES FICHIERS NE CHANGE.
+   *
+   * Elles ne sont pas une régression : `--destructive` était déclaré en `oklch(…)` et donc
+   * IRRÉSOLVABLE pour ce harnais, qui le rangeait en `horsJetons` — compté, jamais mesuré.
+   * TCK-480 l'a converti en hexadécimal à la source ; les couples qui l'emploient sont devenus
+   * mesurables, et le pire cas des 256 gris leur donne 1,00:1 comme à toute la famille 4.
+   *
+   * *Un jeton irrésolvable ne produit pas un rouge, il produit un silence* — et c'est ce
+   * silence-là qui a laissé le ton `danger` sous AA pendant des mois (TCK-471, TCK-472).
+   *
+   * Le fond RÉEL de ces quatre-là est `--card` ou `--background`, jamais un gris arbitraire :
+   * `scripts/check-destructive-contrast.mjs` les mesure sur les trois surfaces réelles et rend
+   * 4,93:1 au pire en clair. Ne pas les « corriger » ici : il n'y a rien à corriger, il y a un
+   * sous-jacent que le lecteur statique ne voit pas.
+   */
+  ['components/forms/FormError.tsx · text-destructive sur bg-destructive/5 sur un sous-jacent inconnu (pire pixel 92)', 1.00, 'aplat de sa propre couleur, sous-jacent invisible au lecteur statique — mesuré 6,05:1 sur `--background` réel'],
+  ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem — 5,48:1 sur `--background` réel'],
+  ['components/search/SearchToolbar.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé'],
+  ['components/ui/destructive-banner.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem'],
 ];
 
 /**
- * Le nombre de fichiers de la surface publique qui portent encore une échelle Tailwind BRUTE.
+ * Le nombre de fichiers de la surface publique dont un couple n'a PAS PU être résolu.
  *
  * ⚠ **Cliquet à DEUX sens.** Il descend quand la famille TCK-440 convertit un fichier : c'est le
  * geste attendu, et corriger ce chiffre en fait partie. Il ne doit jamais monter. *Un cliquet à
  * sens unique est une tolérance, pas une garde.*
+ *
+ * ⚠⚠ **54 → 43 le 2026-08-30, et PAS par une conversion de fichier.** Ce compte s'appelait « les
+ * fichiers qui portent une échelle Tailwind brute », et c'était une description trop étroite de
+ * ce qu'il mesure : il compte les couples IRRÉSOLVABLES, quelle qu'en soit la cause. Onze
+ * fichiers y figuraient parce que `--destructive` était déclaré en `oklch(…)`, forme que ce
+ * harnais ne lit pas. TCK-480 l'a converti en hexadécimal — les onze en sont sortis d'un coup,
+ * sans qu'une ligne n'y soit touchée.
+ *
+ * *Un cliquet dit « ce chiffre a bougé » ; il ne dit jamais POURQUOI, et le nom qu'on lui donne
+ * oriente la réponse.* Celui-ci a failli faire chercher onze conversions qui n'ont pas eu lieu.
  */
-const FICHIERS_HORS_JETONS = 54;
+const FICHIERS_HORS_JETONS = 43;
 
 /** Idem pour les encres inverses laissées de côté (cf. `couples-de-contraste.ts`). */
 const ENCRES_INVERSES = 150;
@@ -289,9 +319,11 @@ describe('surface publique — contraste sur un périmètre dérivé (TCK-458)',
     const fichiers = new Set(horsJetons.map((h) => h.split(':')[0]));
     expect(
       fichiers.size,
-      `fichiers de la surface publique portant une échelle Tailwind brute (famille TCK-440). `
-      + `Ce compte ne doit JAMAIS monter ; s'il descend, c'est qu'un fichier a été converti — `
-      + `corriger FICHIERS_HORS_JETONS ici, avec sa date.`,
+      `fichiers de la surface publique dont un couple reste IRRÉSOLVABLE. `
+      + `Ce compte ne doit JAMAIS monter ; s'il descend, deux causes possibles et il faut `
+      + `savoir laquelle : un fichier converti (famille TCK-440), ou un JETON devenu `
+      + `lisible (TCK-480 en a sorti onze d'un coup). Corriger FICHIERS_HORS_JETONS ici, `
+      + `avec sa date ET sa cause.`,
     ).toBe(FICHIERS_HORS_JETONS);
     expect(
       encresInverses.length,
