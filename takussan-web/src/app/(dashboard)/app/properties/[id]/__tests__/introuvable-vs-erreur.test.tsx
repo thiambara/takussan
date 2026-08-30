@@ -1,11 +1,23 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+import fr from '@/messages/fr.json';
+
 /**
  * AC2 nomme explicitement `/app/properties/999`. La page appelait déjà `notFound()` sur un 404
- * (l. 43 avant ce ticket) — mais rien ne le gardait, et surtout il n'existait AUCUN
- * `not-found.tsx` : ce `notFound()` rendait la page 404 par défaut de Next, hors du shell. Le
- * comportement de la page ne change donc pas ici ; ce qui change, c'est l'écran qu'il produit,
- * plus le fait qu'une régression sur ces quatre branches soit désormais rouge.
+ * (l. 43 avant TCK-382) — mais rien ne le gardait, et surtout il n'existait AUCUN
+ * `not-found.tsx` : ce `notFound()` rendait la page 404 par défaut de Next, hors du shell.
+ *
+ * ⚠ **DEUX des quatre issues ont déménagé avec TCK-442, et ce fichier a suivi.**
+ *
+ * · Le **404** est décidé par `[id]/layout.tsx`, au-dessus du `loading.tsx` de ce segment : dans
+ *   la page, il rendait 200 avec l'écran introuvable affiché quand même. Il est éprouvé, pour les
+ *   huit segments d'un coup, par `app/__tests__/introuvable-de-detail.test.tsx`.
+ * · Le **403** ne redirige plus vers `/app` : il rend un panneau « accès refusé », comme
+ *   `customers/[id]` le faisait déjà. Un `redirect()` de page sous un repli rendait 200 + le
+ *   squelette au lieu du 307, et surtout il ne DISAIT rien.
+ *
+ * Restent ici les deux issues que la page décide encore, et c'est bien à elle de les décider :
+ * la panne qui remonte, et le bien qui se rend.
  */
 const notFoundMock = vi.fn(() => { throw new Error('NEXT_NOT_FOUND'); });
 const redirectMock = vi.fn((url: string) => { throw new Error(`NEXT_REDIRECT:${url}`); });
@@ -42,18 +54,21 @@ beforeEach(() => {
   fetchPropertyMock.mockReset();
 });
 
-describe('TCK-382 / AC2-AC3 — fiche de bien : quatre causes, quatre issues', () => {
-  it('404 de l’API → introuvable', async () => {
-    fetchPropertyMock.mockRejectedValue(new ApiError(404, 'Not Found'));
-    await expect(rendu('999')).rejects.toThrow('NEXT_NOT_FOUND');
-    expect(notFoundMock).toHaveBeenCalledTimes(1);
-    expect(redirectMock).not.toHaveBeenCalled();
-  });
-
-  it('403 de l’API → renvoi vers /app, PAS l’introuvable', async () => {
+describe('TCK-382 / TCK-442 — fiche de bien : quatre causes, quatre issues', () => {
+  it('403 de l’API → un panneau « accès refusé » RENDU, ni introuvable ni redirection', async () => {
     fetchPropertyMock.mockRejectedValue(new ApiError(403, 'Forbidden'));
-    await expect(rendu('9')).rejects.toThrow('NEXT_REDIRECT:/app');
+
+    const arbre = await rendu('9');
+    // Le panneau porte les trois libellés du dictionnaire, et il propose le retour à la liste :
+    // c'est ce qu'un `redirect('/app')` muet ne faisait pas.
+    // Les libellés VIENNENT du dictionnaire — jamais recopiés ici : une chaîne écrite en dur
+    // resterait verte le jour où la clé disparaîtrait des trois langues.
+    const libelles = fr.dashboard.pages.propertyDetail;
+    const rendu_ = JSON.stringify(arbre);
+    expect(rendu_).toContain(libelles.forbidden_title);
+    expect(rendu_).toContain(libelles.back_cta);
     expect(notFoundMock).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it('panne réseau (500) → l’exception remonte, PAS l’introuvable', async () => {

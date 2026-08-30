@@ -6,11 +6,14 @@ use App\Mail\InvitationMailable;
 use App\Models\Enums\CollaborationStatus;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
+use App\Models\Profiles\AgentProfile;
+use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
 use App\Notifications\InvitationAcceptedNotification;
 use App\Notifications\InvitationExpiredNotification;
+use App\Services\Auth\SuperAdminCooptationService;
 use App\Support\CaseInsensitive;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Carbon;
@@ -42,6 +45,65 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  */
 class InvitationService
 {
+    /**
+     * TCK-455 — À QUOI un rôle rattache le compte qu'il invite.
+     *
+     * ── Le défaut mesuré ─────────────────────────────────────────────────
+     *
+     * `POST /api/invitations` rendait **201** sur `{email, role:'agent'}` sans
+     * `invitable_type`. L'acceptation rendait **200** et créait bien un `User`
+     * — qui n'était membre de RIEN : `isAgentAt`, `isOwnerAt` et
+     * `isAgencyAdminAt` tous faux. Un couloir sans issue, au bout d'un
+     * courriel d'invitation.
+     *
+     * La mesure du 2026-08-29 a pris les DEUX types d'agence, chaîne entière :
+     * une agence `standard` se comportait exactement comme une `individual`.
+     * Le défaut n'avait donc rien à voir avec le type d'agence — c'est
+     * `'invitable_type' => ['nullable']` plus `$payload['invitable_type'] ?? null`
+     * repris tel quel : **rien, nulle part, n'exigeait qu'une invitation sache
+     * à quoi elle rattache le compte.**
+     *
+     * ── Pourquoi une TABLE et pas un simple `required` ───────────────────
+     *
+     * Un `invitable_type` présent ne suffit pas à tenir la promesse « une
+     * invitation acceptée rend un compte membre de quelque chose » : c'est
+     * `finalizeAccept()` qui rattache, et il ne rattache que pour les rôles
+     * qu'il connaît. Un couple incohérent — `role=owner` avec un
+     * `AgentProfile`, ou n'importe quel `invitable_type` sur un rôle absent de
+     * sa liste — repasserait 201 puis referait le même couloir sans issue.
+     * La table dit donc le COUPLE, et se lit à côté de la liste de rôles de
+     * `finalizeAccept()` : les deux disent la même chose et doivent bouger
+     * ensemble.
+     *
+     * `agency_admin` n'y figure pas, et c'est le constat de TCK-392 :
+     * l'acceptation ne matérialise aucun `AgencyAdminProfile`, « l'invité
+     * obtiendrait un compte accepté et aucun accès — pire que le refus
+     * actuel ». Le second administrateur d'agence passe donc, comme
+     * aujourd'hui, par `POST /agencies/{id}/members`.
+     *
+     * @var array<string,class-string>
+     */
+    public const INVITABLE_TYPE_BY_ROLE = [
+        'owner' => OwnerProfile::class,
+        'agent' => AgentProfile::class,
+        'agent_senior' => AgentProfile::class,
+        'agent_manager' => AgentProfile::class,
+        'service_provider' => ServiceProviderProfile::class,
+    ];
+
+    /**
+     * TCK-455 — les rôles pour lesquels l'ABSENCE d'`invitable` est légitime.
+     *
+     * `super_admin` est une cooptation hors agence
+     * ({@see SuperAdminCooptationService}) : elle n'a
+     * aucun profil à cibler, et son acceptation passe par une branche à elle.
+     * Le `nullable` d'origine était commenté « pour la cooptation super-admin »
+     * — un cas réel, jamais distingué des autres. Il l'est ici.
+     *
+     * @var list<string>
+     */
+    public const ROLES_WITHOUT_INVITABLE = ['super_admin'];
+
     /**
      * Default token lifetime (days). Kept here so the cron + the controller
      * + the resend path all agree.
@@ -86,6 +148,15 @@ class InvitationService
         $invitableId = $payload['invitable_id'] ?? null;
         $agencyId = $payload['agency_id'] ?? null;
         $metadata = $payload['metadata'] ?? null;
+
+        // TCK-455 — refus À L'ÉMISSION d'une invitation qui ne rattache à
+        // rien. Le garde vit ICI et non seulement dans
+        // `CreateInvitationRequest` : `send()` est le seul point que
+        // traversent AUSSI les quatre services par rôle, et une règle posée
+        // dans la seule FormRequest laisserait ouvert tout appelant interne.
+        // La FormRequest la rejoue pour rendre une erreur de CHAMP au client,
+        // en lisant les mêmes constantes — deux couches, une définition.
+        self::assertInvitationAttachesToSomething($role, $invitableType);
 
         // Dedup guard: a pending `sent` invitation for the same
         // (email, invitable_type, agency_id) tuple is a 409 — the caller
@@ -638,8 +709,47 @@ class InvitationService
     }
 
     /**
-     * TCK-368 — la ligne `sent` qui occupe le créneau de dédup.
+     * TCK-455 — « 201 puis un couloir sans issue » ou un refus : jamais les
+     * deux. Voir {@see self::INVITABLE_TYPE_BY_ROLE} pour le pourquoi de la
+     * table.
      *
+     * 422 et non 403 : ce n'est pas une question d'autorisation — l'inviteur a
+     * le droit d'inviter —, c'est un payload qui ne décrit pas une invitation
+     * complète.
+     *
+     * @throws ValidationException
+     */
+    public static function assertInvitationAttachesToSomething(string $role, ?string $invitableType): void
+    {
+        $attendu = self::INVITABLE_TYPE_BY_ROLE[$role] ?? null;
+
+        if (in_array($role, self::ROLES_WITHOUT_INVITABLE, true)) {
+            return;
+        }
+
+        if ($attendu === null) {
+            throw ValidationException::withMessages([
+                'role' => [__('invitations.errors.role_has_no_invitable', ['role' => $role])],
+            ])->status(422);
+        }
+
+        if ($invitableType === null || $invitableType === '') {
+            throw ValidationException::withMessages([
+                'invitable_type' => [__('invitations.errors.invitable_required')],
+            ])->status(422);
+        }
+
+        if ($invitableType !== $attendu) {
+            throw ValidationException::withMessages([
+                'invitable_type' => [__('invitations.errors.invitable_mismatch', [
+                    'role' => $role,
+                    'expected' => $attendu,
+                ])],
+            ])->status(422);
+        }
+    }
+
+    /**
      * Le couple est celui de `send()` : (email, invitable_type, agency_id).
      * `Builder::where($col, null)` se traduit en `IS NULL` — les créneaux
      * sans profil cible ni agence (cooptation) sont donc comparés

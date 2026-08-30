@@ -3,13 +3,13 @@
 namespace App\Services\Invitation;
 
 use App\Models\Agency;
-use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Capability;
 use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Invitation;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -125,13 +125,10 @@ class OwnerInvitationService
      */
     protected function assertAgencyCanInvite(Agency $agency): void
     {
-        $kind = $agency->kind instanceof AgencyKind
-            ? $agency->kind
-            : AgencyKind::tryFrom((string) $agency->kind);
-
-        if ($kind !== AgencyKind::Standard) {
-            throw new HttpException(403, __('owners.invite.errors.individual_agency'));
-        }
+        // TCK-449 (AC5) — même règle que l'invitation d'agents et que le
+        // rattachement direct, lue au même endroit. Seul le LIBELLÉ diffère :
+        // ici on parle de portefeuille de propriétaires, pas d'équipe.
+        AgencyKindGuard::ensureCanFormTeam($agency, 'owners.invite.errors.individual_agency');
     }
 
     /**

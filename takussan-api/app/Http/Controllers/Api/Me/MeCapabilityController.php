@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Me;
 use App\Http\Controllers\Base\Controller;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
+use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -36,17 +37,29 @@ use Illuminate\Http\Request;
  */
 class MeCapabilityController extends Controller
 {
+    public function __construct(
+        private readonly MembershipCapabilityResolver $resolver,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
         $agency = $this->resolveAgency($request);
 
-        $granted = [];
-        foreach (Capability::cases() as $capability) {
-            if ($user->canActAt($capability, $agency)) {
-                $granted[] = $capability->value;
-            }
-        }
+        // TCK-457 — une PASSE pour les 45 capacités, et non 45 résolutions
+        // indépendantes. `canActAt()` rechargeait les délégations du couple
+        // `(user, agence)` à chaque capacité refusée en propre : 45 `SELECT`
+        // mesurés ici, plus 45 sur `agency_roles`. `filterAllowed()` les
+        // charge une fois pour la passe — et ne retient RIEN au-delà, ce qui
+        // est ce qui le sépare d'un cache (cf. son docblock).
+        //
+        // ⚠ Ne pas revenir à la boucle sur `canActAt()` « pour la lisibilité » :
+        // c'est le site d'appel qui justifie la méthode groupée, et il est le
+        // seul du dépôt à balayer le catalogue entier.
+        $granted = array_map(
+            static fn (Capability $capability): string => $capability->value,
+            $this->resolver->filterAllowed($user, Capability::cases(), $agency),
+        );
 
         return $this->json([
             'data' => [

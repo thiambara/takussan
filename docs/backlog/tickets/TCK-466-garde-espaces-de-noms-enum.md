@@ -1,13 +1,13 @@
 ---
 id: TCK-466
 title: "Rien n'empêche de composer à la main le chemin d'un vocabulaire d'enum"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 52
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:
@@ -44,16 +44,16 @@ ailleurs. »* Aucune garde ne le vérifie : `ls scripts/check-*.mjs` n'a rien su
 
 ## Delta à produire
 
-- [ ] `scripts/check-enum-namespaces.mjs`, avec en-tête portant son motif, sa portée **et sa limite**.
-- [ ] Branchement dans `.github/workflows/repo-ci.yml`.
-- [ ] Éprouver la garde par ablation : rétablir un contournement connu et vérifier qu'elle rougit
+- [x] `scripts/check-enum-namespaces.mjs`, avec en-tête portant son motif, sa portée **et sa limite**.
+- [x] Branchement dans `.github/workflows/repo-ci.yml`.
+- [x] Éprouver la garde par ablation : rétablir un contournement connu et vérifier qu'elle rougit
       en nommant le fichier et la ligne.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — la garde rougit sur un chemin de clé d'enum composé par interpolation hors de la table.
-- [ ] AC2 — elle reste verte sur l'état actuel du dépôt, sans exception inscrite.
-- [ ] AC3 — son en-tête énonce explicitement le faux négatif qu'elle ne couvre pas.
+- [x] AC1 — la garde rougit sur un chemin de clé d'enum composé par interpolation hors de la table.
+- [x] AC2 — elle reste verte sur l'état actuel du dépôt, sans exception inscrite.
+- [x] AC3 — son en-tête énonce explicitement le faux négatif qu'elle ne couvre pas.
 
 ## Hors périmètre
 

@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
 import {
   FormCheckbox,
@@ -173,7 +174,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           ...basePayload,
           ...(address ? { address } : {}),
         };
-        const result = await updatePropertyAction(property.id, finalPayload as never);
+        const result = await updatePropertyAction(property.id, finalPayload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
             message: result.message,
@@ -233,7 +234,9 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+    /* TCK-468 — même portée de densité que le parcours de publication : les deux écrans qui
+       portent des champs ET des pastilles répondent au même régime (44 px). */
+    <form onSubmit={handleSubmit} className="space-y-8" noValidate {...fieldDensityScope()}>
       <FormGlobalError>
         {globalError ? (
           <span className="flex items-center justify-between gap-4">
@@ -536,7 +539,10 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
                   type="button"
                   onClick={() => toggleTag(tag.id)}
                   aria-pressed={checked}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors ${
+                  // TCK-468 — `min-h-11` = 44 px, comme les pastilles de `ChoiceChips` dans le
+                  // parcours de publication. Sans ça, l'édition alignait ses CHAMPS sur 44 px et
+                  // gardait ses pastilles à 28 : l'écart changeait de camp au lieu de disparaître.
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors ${
                     checked
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border bg-transparent text-foreground hover:bg-muted'

@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Models\MaintenanceRequest;
+use App\Models\Property;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
@@ -57,8 +58,46 @@ class MaintenanceRequestPolicy extends BasePolicy
      */
     public function manageQuotes(User $user, MaintenanceRequest $request): bool
     {
-        $property = $request->property;
+        return self::isPrincipalFor($user, $request->property);
+    }
 
+    /**
+     * TCK-445 — les champs du DONNEUR D'ORDRE : `assigned_to` et `priority`.
+     *
+     * `update()` accorde à qui fait AVANCER l'intervention, prestataire assigné compris ; cette
+     * ability-ci accorde à qui la COMMANDE. Sans elle, un prestataire assigné pouvait se
+     * réassigner sa propre demande et en changer la priorité : `update` ouvrait la porte,
+     * `rules()` acceptait les deux champs, ils étaient `$fillable`, et le contrôleur faisait un
+     * `fill()->save()` sans restriction. *Une chaîne d'autorisation ne se vérifie pas en lisant
+     * la policy — elle se vérifie jusqu'au `save()`.*
+     */
+    public function actAsPrincipal(User $user, MaintenanceRequest $request): bool
+    {
+        return self::isPrincipalFor($user, $request->property);
+    }
+
+    /**
+     * TCK-445 — LA définition du côté donneur d'ordre, et la seule.
+     *
+     * `MaintenanceRequestController::store()` en portait une copie littérale sous le nom
+     * `$isStaff`, et `update()` n'en portait aucune : c'est cette asymétrie entre deux chemins du
+     * même contrôleur sur le même champ qui a signé l'oubli. Les deux chemins lisent désormais
+     * cette méthode — une divergence ne peut plus se produire sans être écrite ici.
+     *
+     * ⚠ Principe non négociable n°2 : la capacité se juge pour un couple *(utilisateur, agence)*.
+     * `$user->agency_id` est l'accesseur de compatibilité qui dérive l'agence du profil ACTIF
+     * — la colonne du même nom sur la table des utilisateurs n'existe plus en base depuis
+     * TCK-142. Le `&&` en tête n'est donc pas une précaution contre `null`, c'est le refus
+     * d'un utilisateur sans agence active.
+     *
+     * ⚠ Cette phrase évite délibérément d'écrire la colonne disparue sous sa forme
+     * `table.colonne` : `NoLegacyUserTypeTest` scanne le TEXTE de `app/` et ne distingue pas
+     * un commentaire d'un appel. La reformuler « plus clairement » avec le littéral fait
+     * rougir la garde — ce qui est le comportement voulu, un scan de texte ne pouvant pas
+     * juger de l'intention.
+     */
+    public static function isPrincipalFor(User $user, ?Property $property): bool
+    {
         return $user->isSuperAdmin()
             || ($property && $property->user_id === $user->id)
             || ($user->agency_id && $property && $property->agency_id === $user->agency_id);

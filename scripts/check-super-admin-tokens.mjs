@@ -1226,6 +1226,29 @@ const EPREUVE = [
   // …et l'ombre ambiante qui LIT `--foreground` au lieu de réécrire son hexadécimal. C'est la
   // forme d'arrivée des deux `shadow-[…rgba(…)]` que le contrôle D comptait.
   ['shadow-[0_0_40px_0_color-mix(in_srgb,var(--foreground)_4%,transparent)]', false],
+
+  // R · LE JETON D'OMBRE, créé par TCK-460 — et la forme CONCURRENTE que la garde a écartée.
+  //
+  //     ⚠ Le contrôle D voyait DÉJÀ ces deux ombres : la branche `rgba?\(` du contrôle date de
+  //     TCK-358→362 (`10ec116d`), bien avant que TCK-460 ne soit écrit. Ce que le ticket appelait
+  //     « le trou » était en réalité le PÉRIMÈTRE — `components/property` n'est gardé par aucun
+  //     espace et n'est même pas dans la clôture de `/app`, donc rien ne lisait ces fichiers.
+  //     *Une garde qui sait voir une forme ne l'attrape que là où on lui donne à lire.* C'est le
+  //     trou T2, déclaré en tête, et non un trou de motif.
+  //
+  //     Les deux lignes ci-dessous figent le résultat des deux formes MESURÉES le 2026-08-29 :
+  //
+  //       `color-mix(…, var(--shadow-color) 8%, transparent)` — retenue. Verte ici, et Chrome
+  //       rend `srgb .1216 .0941 .0706 / .08` en clair COMME sous `.dark` : l'alpha est composé
+  //       et l'ombre ne s'inverse pas.
+  //
+  //       `rgb(var(--shadow-color-rgb)/0.08)` — écartée, et c'est CETTE garde qui l'a écartée :
+  //       elle rend le même pixel, mais le motif ne peut pas distinguer un `rgb(` qui LIT un
+  //       jeton d'un `rgb(` qui décide une couleur. La ligne reste `true` délibérément — le
+  //       resserrer pour l'exempter rouvrirait `bg-[rgb(255,0,0)]`. *Une garde qui refuse une
+  //       forme correcte se paie en écrivant l'autre forme correcte, pas en s'amputant.*
+  ['shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)]', false],
+  ['shadow-[0_8px_24px_rgb(var(--shadow-color-rgb)/0.08)]', true],
 ];
 
 function autoEpreuve() {

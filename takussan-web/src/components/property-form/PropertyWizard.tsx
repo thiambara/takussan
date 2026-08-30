@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { FormGlobalError } from '@/components/forms';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { useApiForm } from '@/hooks/useApiForm';
 import { useGeoSuggestion } from '@/hooks/useGeoSuggestion';
 import { useWizardDraft } from '@/hooks/useWizardDraft';
@@ -179,6 +180,13 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
   const [avertissement, setAvertissement] = useState<string | null>(null);
   const [etatBrouillon, setEtatBrouillon] = useState<EtatBrouillon>('attente');
   const [repriseAnnoncee, setRepriseAnnoncee] = useState(false);
+  /**
+   * « Reprendre plus tard » a demandé l'écriture du brouillon et le serveur l'a refusée (TCK-465).
+   * ⚠ Distinct de `brouillon.error`, qui porte AUSSI les échecs de l'autosave silencieux : celui-ci
+   * est le seul qui doive retenir l'utilisateur sur la page, parce que c'est le seul où il était en
+   * train de partir.
+   */
+  const [echecReprise, setEchecReprise] = useState(false);
 
   // Ce que la soumission a DÉJÀ obtenu. Trois atomes, parce que trois écritures indépendantes :
   // recréer le bien produirait un doublon, rejouer les photos dupliquerait les médias.
@@ -206,7 +214,7 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
       if (idCree !== null) return { id: idCree } as PropertyDetail;
 
       const resultat = await createPropertyAction(
-        toCreatePayload(values as unknown as PropertyFormPayload, 'submit') as never,
+        toCreatePayload(values as unknown as PropertyFormPayload, 'submit'),
       );
       if (!resultat.ok) {
         throw new ApiError(resultat.status ?? 500, {
@@ -356,8 +364,23 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
     setIndex(prochain);
   };
 
+  /**
+   * TCK-465 — le geste qui promet le plus, et qui ne mesurait rien.
+   *
+   * `flush()` rendait `Promise<void>` : on l'attendait, puis on quittait la page QUOI QU'IL
+   * ARRIVE. Un 500 sur le PUT et l'utilisateur revenait sur un formulaire vide, sans avoir jamais
+   * rien vu. On ne navigue donc plus que sur une écriture dont on a le résultat.
+   *
+   * ⚠ `ecrit: false` n'est PAS un échec : il n'y avait simplement rien de neuf à envoyer, l'état
+   * connu du serveur est déjà à jour, et le hook le distingue d'un échec antérieur non rattrapé.
+   */
   const reprendrePlusTard = async () => {
-    await viderFileBrouillon();
+    setEchecReprise(false);
+    const issue = await viderFileBrouillon();
+    if (!issue.ok) {
+      setEchecReprise(true);
+      return;
+    }
     router.push('/app/properties');
   };
 
@@ -446,6 +469,14 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
       noValidate
       className="flex h-full min-h-0 flex-col"
       /*
+        TCK-468 — la PORTÉE de densité, posée une fois pour tout le parcours. Chaque `Input`,
+        `SelectTrigger` et `DatePicker` rendu dessous passe à 44 px, la cible tactile que les
+        pastilles de `ChoiceChips` tiennent déjà — sans qu'aucune étape n'ait à le redire, et
+        donc sans qu'un champ ajouté demain puisse l'oublier. L'attribut est SPREADÉ sur le
+        `<form>` existant : un `<div>` de plus casserait la chaîne `h-full min-h-0` de l'AC9.
+      */
+      {...fieldDensityScope()}
+      /*
         ⚠ La soumission IMPLICITE — Entrée dans un champ — n'est pas neutre dans un parcours.
         À l'étape du prix, `price` est le SEUL champ qui la bloque au sens HTML, donc Entrée y
         déclenche la soumission ; et sur un brouillon repris, toutes les valeurs requises sont
@@ -488,6 +519,36 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
               {t('partial.continueAnyway')}
             </Button>
           </div>
+        ) : null}
+
+        {echecReprise ? (
+          <div
+            role="alert"
+            className="mb-4 flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-foreground sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span>{t('draftSaveFailed')}</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => void reprendrePlusTard()}
+            >
+              {t('draftSaveRetry')}
+            </Button>
+          </div>
+        ) : null}
+
+        {/*
+          L'autosave, lui, est silencieux par construction — c'est ce qui le rend agréable et c'est
+          ce qui le rend dangereux. Tant qu'il échoue, la ligne reste : elle ne promet rien, elle
+          dit seulement ce qu'on sait. `echecReprise` la remplace le cas échéant, pour ne pas dire
+          deux fois la même chose.
+        */}
+        {!echecReprise && brouillon.error ? (
+          <p role="status" className="mb-4 text-sm text-destructive">
+            {t('draftAutosaveFailed')}
+          </p>
         ) : null}
 
         {repriseAnnoncee ? (

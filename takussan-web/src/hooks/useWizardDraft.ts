@@ -14,6 +14,24 @@ import type { WizardDraft, WizardDraftResponse } from '@/types/wizard-draft';
  *
  * The hook does NOT prescribe the shape of `data` — each consumer wizard
  * brings its own schema and validates it.
+ *
+ * ────────────────────────────────────────────────────────────────────────────
+ * TCK-465 — le sort de l'écriture est RENDU à l'appelant
+ * ────────────────────────────────────────────────────────────────────────────
+ *
+ * `flush()` rendait `Promise<void>` et rangeait l'échec dans l'état `error` :
+ * un appelant qui `await flush()` puis navigue ne pouvait pas distinguer
+ * « c'est écrit » de « c'est perdu ». Le hook garde son état `error` — utile
+ * pour un bandeau permanent — mais `flush()` rend désormais le RÉSULTAT de
+ * l'écriture qu'il vient de provoquer.
+ *
+ * ⚠ Trois issues et non deux, et la troisième est celle qui fait mentir un
+ * booléen : `flush()` peut n'avoir RIEN à envoyer (aucune frappe en attente).
+ * Rendre `ok: true` dans ce cas serait affirmer un enregistrement sans preuve
+ * — précisément l'inverse du défaut qu'on corrige. D'où {@link ecrit}, et d'où
+ * {@link dernierEchecRef} : si la dernière sauvegarde débouncée a échoué et
+ * qu'aucune réussite ne l'a remplacée depuis, un `flush()` sans rien à écrire
+ * rend cet échec-là plutôt qu'un vert qu'il n'a pas mesuré.
  */
 export type UseWizardDraftOptions = {
   /** Debounce window for autosave in ms. Default 800ms (per TCK-250 spec). */
@@ -21,6 +39,20 @@ export type UseWizardDraftOptions = {
   /** Skip the initial GET (e.g. when the consumer already has the draft). */
   skipInitialFetch?: boolean;
 };
+
+/**
+ * Le sort d'une écriture de brouillon, tel que l'appelant peut le lire.
+ *
+ * - `{ ok: true, ecrit: true }`  — un PUT est parti et le serveur l'a accepté.
+ * - `{ ok: true, ecrit: false }` — il n'y avait rien à écrire, et rien d'échoué
+ *   auparavant. Le brouillon connu du serveur est à jour ; personne n'a rien
+ *   promis de plus.
+ * - `{ ok: false, error }`       — l'écriture a échoué, ou la dernière écriture
+ *   débouncée avait échoué sans qu'une réussite la remplace.
+ */
+export type ResultatEcritureBrouillon =
+  | { ok: true; ecrit: boolean }
+  | { ok: false; ecrit: boolean; error: Error };
 
 export type UseWizardDraftResult<TData> = {
   /** True while the initial fetch is in flight. */
@@ -40,9 +72,11 @@ export type UseWizardDraftResult<TData> = {
   save: (step: number, data: TData) => void;
   /**
    * Force an immediate flush of any pending debounced save. Useful before
-   * navigating away or unmounting. Resolves once the in-flight PUT settles.
+   * navigating away or unmounting. Resolves once the in-flight PUT settles,
+   * **avec le sort de cette écriture** (TCK-465) — un appelant qui s'apprête à
+   * quitter la page doit pouvoir ne PAS la quitter.
    */
-  flush: () => Promise<void>;
+  flush: () => Promise<ResultatEcritureBrouillon>;
   /** Delete the draft on the server and reset local state. */
   clear: () => Promise<void>;
 };
@@ -78,6 +112,12 @@ export function useWizardDraft<TData = Record<string, unknown>>(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Promise resolver for the current debounce window — `flush()` awaits it.
   const flushResolversRef = useRef<Array<() => void>>([]);
+  /**
+   * La dernière écriture ayant ÉCHOUÉ et qu'aucune réussite n'a remplacée
+   * depuis (TCK-465). C'est ce qui permet à `flush()` sans rien en attente de
+   * rendre un échec au lieu d'un vert qu'il n'a pas mesuré.
+   */
+  const dernierEchecRef = useRef<Error | null>(null);
 
   // TCK-316 — la remise à zéro « nouvelle clé, on recharge » se fait pendant le
   // RENDU, pas au début de l'effet. `setIsLoading(true)` y était de toute façon
@@ -125,7 +165,7 @@ export function useWizardDraft<TData = Record<string, unknown>>(
   }, [key, skipInitialFetch]);
 
   const performSave = useCallback(
-    async (payload: { step: number; data: TData }): Promise<void> => {
+    async (payload: { step: number; data: TData }): Promise<ResultatEcritureBrouillon> => {
       setIsSaving(true);
       setError(null);
       try {
@@ -136,8 +176,16 @@ export function useWizardDraft<TData = Record<string, unknown>>(
         if (!res.ok) throw new Error(`PUT wizard-drafts failed (${res.status})`);
         const body = await res.json();
         setDraft(body.data);
+        dernierEchecRef.current = null;
+        return { ok: true, ecrit: true };
       } catch (err) {
-        setError(err instanceof Error ? err : new Error(String(err)));
+        const erreur = err instanceof Error ? err : new Error(String(err));
+        setError(erreur);
+        // ⚠ Un ref et non le seul état : `flush()` est appelé dans le même tour
+        // que l'échec d'une sauvegarde débouncée, avant que React n'ait re-rendu.
+        // Lire `error` là serait lire la valeur d'avant.
+        dernierEchecRef.current = erreur;
+        return { ok: false, ecrit: true, error: erreur };
       } finally {
         setIsSaving(false);
       }
@@ -145,7 +193,7 @@ export function useWizardDraft<TData = Record<string, unknown>>(
     [key],
   );
 
-  const flush = useCallback(async (): Promise<void> => {
+  const flush = useCallback(async (): Promise<ResultatEcritureBrouillon> => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -154,10 +202,13 @@ export function useWizardDraft<TData = Record<string, unknown>>(
     pendingRef.current = null;
     const resolvers = flushResolversRef.current;
     flushResolversRef.current = [];
-    if (payload) {
-      await performSave(payload);
-    }
+    const resultat: ResultatEcritureBrouillon = payload
+      ? await performSave(payload)
+      : dernierEchecRef.current
+        ? { ok: false, ecrit: false, error: dernierEchecRef.current }
+        : { ok: true, ecrit: false };
     resolvers.forEach((r) => r());
+    return resultat;
   }, [performSave]);
 
   const save = useCallback(
@@ -186,6 +237,10 @@ export function useWizardDraft<TData = Record<string, unknown>>(
       timerRef.current = null;
     }
     pendingRef.current = null;
+    // Le brouillon est en train de disparaître : un échec d'écriture antérieur
+    // n'a plus rien à signaler. Le laisser ferait rendre `ok: false` au
+    // `flush()` d'un parcours suivant, sur une donnée qui n'existe plus.
+    dernierEchecRef.current = null;
     setIsSaving(true);
     setError(null);
     try {

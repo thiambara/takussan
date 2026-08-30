@@ -122,10 +122,16 @@ import { fileURLToPath } from 'node:url';
  * UTILISATEUR sous une frontière, aucun layout de refus sous le repli d'un ancêtre — plus
  * `scripts/check-pro-routes.mjs`, qui lit maintenant la page ET ses layouts d'ancêtres.
  *
- * ⚠ Ce qui reste dû : les 9 `notFound()` des pages de détail rendent toujours 200. Ils réagissent
- * à la RÉPONSE de l'API et non à l'utilisateur, donc les remonter demande de remonter la REQUÊTE.
- * C'est l'objet de **TCK-442**, et la règle de ce fichier les exclut par une propriété DÉRIVÉE du
- * code (l'appel vit dans un bloc `catch`), pas par une liste.
+ * ⚠ **CE PARAGRAPHE DISAIT « ce qui reste dû », ET IL NE RESTE PLUS RIEN — TCK-442.** Il écrivait :
+ * *« les 9 `notFound()` des pages de détail rendent toujours 200 ; la règle de ce fichier les exclut
+ * par une propriété DÉRIVÉE du code (l'appel vit dans un bloc `catch`) »*. L'exclusion est
+ * **supprimée**, avec la fonction `estDansUnCatch` qui la calculait et le test qui la délimitait :
+ * la requête est montée avec la décision, dans un `layout.tsx` par segment de détail
+ * (`src/lib/detail/ressource-de-detail.ts`), et les six `loading.tsx` de segment parent qui les
+ * couvraient sont descendus dans un groupe `(liste)`.
+ *
+ * *Une exception dérivée se referme le jour où le code change — encore faut-il la retirer ce
+ * jour-là. Une exclusion qu'on garde « au cas où » redevient une liste.*
  *
  * ⚠ Il n'existe toujours aucune suite e2e dans ce dépôt (`npm run test` = vitest/jsdom). Les
  * relevés HTTP ci-dessus ont été pris à la main, sur sondes jetables et sur l'application réelle ;
@@ -325,36 +331,19 @@ describe('TCK-382 — inventaire', () => {
  * ⚠ La liste reste FERMÉE, et c'est le point : une forme neuve de refus devra s'ajouter ici
  * explicitement. Une expression ouverte (« tout ce qui ressemble à un refus ») rendrait la règle
  * ininterprétable le jour où elle rougit.
- */
-const REFUS = /\b(permanentRedirect|redirect)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect)\s*\(/;
-
-/**
- * L'indice `i` tombe-t-il DANS un bloc `catch (…) { … }` ?
  *
- * On compte les accolades : à chaque `catch (…) {` rencontré on empile la profondeur d'ouverture,
- * et on dépile quand on repasse en dessous. Rustique, et suffisant sur du code TS formaté — mais
- * la limite est réelle et vaut d'être dite : une accolade dans une chaîne ou une expression
- * régulière fausserait le compte. Le test « délimite bien ce qui reste dû » est là pour ça : il
- * rougit si cette fonction se met à rendre `true` trop souvent.
+ * ⚠⚠ **`notFound` y est entré avec TCK-442, et c'est ce qui rend la règle sans exception.** Il
+ * refuse pour une autre raison que les cinq autres — l'absence de la RESSOURCE, pas le droit de
+ * l'utilisateur — mais il perd son statut exactement de la même façon : sous un repli, un
+ * `notFound()` de page rend **200**, avec l'écran introuvable affiché quand même. La distinction
+ * qui justifiait de l'exclure portait sur le COÛT du remède, jamais sur la justesse de la règle ;
+ * le remède est payé, la distinction n'a plus lieu d'être.
+ *
+ * ⚠ `exigerRessource` est le terminateur qui porte ce `notFound()` dans les huit layouts de
+ * détail — même motif que les trois terminateurs ci-dessus : *un refus délégué refuse tout autant
+ * qu'un refus écrit sur place.*
  */
-function estDansUnCatch(source: string, i: number): boolean {
-  const debuts: number[] = [];
-  let profondeur = 0;
-  let attendAccolade = false;
-  for (let k = 0; k < i; k += 1) {
-    if (source.startsWith('catch', k) && /catch\s*(\([^)]*\))?\s*\{/.test(source.slice(k, k + 60))) {
-      attendAccolade = true;
-    }
-    if (source[k] === '{') {
-      profondeur += 1;
-      if (attendAccolade) { debuts.push(profondeur); attendAccolade = false; }
-    } else if (source[k] === '}') {
-      while (debuts.length && debuts[debuts.length - 1] > profondeur - 1) debuts.pop();
-      profondeur -= 1;
-    }
-  }
-  return debuts.length > 0;
-}
+const REFUS = /\b(permanentRedirect|redirect|notFound)\s*\(|\b(assertCanReach\w*|ensureStandardAgencyOrRedirect|exigerRessource)\s*\(/;
 
 describe('TCK-426 — aucune page muette sous une frontière de suspension', () => {
   it('aucune redirection nue de /app ne vit sous un loading.tsx', () => {
@@ -377,18 +366,19 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
     ).toEqual([]);
   });
 
-  it('aucune page ne refuse un UTILISATEUR depuis sous une frontière', () => {
-    // LA RÈGLE, et elle est à zéro exception. Un refus fondé sur l'utilisateur — son rôle, son
-    // jeton, son agence — se décide AVANT toute donnée, donc il peut toujours vivre dans un
-    // `layout.tsx`, au-dessus du repli. TCK-426 y a remonté 23 refus répartis sur 14 segments.
+  it('aucune page ne REFUSE depuis sous une frontière — utilisateur ou ressource', () => {
+    // LA RÈGLE, et elle est désormais à zéro exception — AC3 de TCK-442. Un refus fondé sur
+    // l'utilisateur — son rôle, son jeton, son agence — se décide AVANT toute donnée : TCK-426 en
+    // a remonté 23 sur 14 segments. Un refus fondé sur la RÉPONSE de l'API — « ce bail n'existe
+    // pas » — ne montait pas sans que la REQUÊTE monte avec lui : TCK-442 l'a fait monter, dans
+    // huit `[id]/layout.tsx`.
     //
-    // La frontière avec ce qui RESTE est dérivée, pas listée : un refus écrit dans un bloc
-    // `catch` réagit à la RÉPONSE de l'API (« ce dossier-ci n'est pas le vôtre »), pas à
-    // l'utilisateur. Le remonter demande de remonter la REQUÊTE, ce qui change la forme des
-    // pages de détail — c'est le périmètre de TCK-442, et c'est pour ça que ce test l'exclut au
-    // lieu de le tolérer. *Une exception dérivée d'une propriété du code se referme toute seule
-    // le jour où le code change ; une exception écrite dans une liste, jamais.*
+    // ⚠ **Il n'y a plus d'exclusion « dans un bloc `catch` », ni de test qui la délimite.** Elle
+    // était dérivée et non listée, ce qui était le bon choix tant qu'elle décrivait un reste à
+    // faire ; une fois le reste fait, une exclusion qu'on garde redevient une liste. Ce test
+    // porte donc sur TOUS les appels de `REFUS`, où qu'ils soient écrits dans la page.
     const fautifs: string[] = [];
+    let examinees = 0;
 
     for (const page of PAGES) {
       let dossier = page.segment;
@@ -399,6 +389,7 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
         dossier = dirname(dossier);
       }
       if (!couverte) continue;
+      examinees += 1;
 
       const source = sansCommentaires(page.source)
         .split('\n')
@@ -406,10 +397,8 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
         .join('\n');
 
       for (const trouve of source.matchAll(new RegExp(REFUS, 'g'))) {
-        if (!estDansUnCatch(source, trouve.index ?? 0)) {
-          const ligne = source.slice(0, trouve.index).split('\n').length;
-          fautifs.push(`${page.rel}:${ligne} → ${trouve[0]}`);
-        }
+        const ligne = source.slice(0, trouve.index).split('\n').length;
+        fautifs.push(`${page.rel}:${ligne} → ${trouve[0]}`);
       }
     }
 
@@ -418,21 +407,11 @@ describe('TCK-426 — aucune page muette sous une frontière de suspension', () 
       'ces refus rendent 200 + le squelette de la route interdite au lieu de leur statut ; ' +
         `remonte-les dans le layout.tsx de leur segment : ${fautifs.join(', ')}`,
     ).toEqual([]);
-  });
 
-  it('délimite bien ce qui reste dû à TCK-442 (non-vacuité de la règle ci-dessus)', () => {
-    // Le pendant obligatoire : si `estDansUnCatch` se mettait à rendre `true` partout — une
-    // accolade mal comptée suffit — la règle ci-dessus passerait au vert en n'examinant rien.
-    // On fige donc ce que l'exclusion couvre RÉELLEMENT. Une entrée de plus est un acte
-    // conscient, une entrée de moins est un progrès à retirer d'ici.
-    const dansCatch: string[] = [];
-    for (const page of PAGES) {
-      const source = sansCommentaires(page.source);
-      for (const trouve of source.matchAll(/\b(permanentRedirect|redirect)\s*\(/g)) {
-        if (estDansUnCatch(source, trouve.index ?? 0)) dansCatch.push(page.rel);
-      }
-    }
-    expect([...new Set(dansCatch)].sort()).toEqual(['properties/[id]/page.tsx']);
+    // Le plancher OBLIGATOIRE, joué après la règle : elle serait verte si `couverte` devenait
+    // faux partout — c'est-à-dire au moment précis où elle cesserait d'examiner quoi que ce
+    // soit. C'est le mode de défaillance que le test « délimite » couvrait autrement.
+    expect(examinees, 'la règle n’a examiné AUCUNE page sous une frontière').toBeGreaterThanOrEqual(20);
   });
 
   it("aucun layout qui refuse ne vit SOUS le repli d'un ancêtre", () => {
@@ -539,32 +518,45 @@ describe('TCK-382 / AC1 — l’attente', () => {
   });
 });
 
-describe('TCK-382 — l’introuvable est branché sur toutes les pages de détail', () => {
+describe('TCK-382 / TCK-442 — l’introuvable est branché sur toutes les pages de détail', () => {
   const DETAILS = PAGES.filter((p) => /\[[^\]]+\]\/page\.tsx$/.test(p.rel));
 
   it('relève les pages de détail (non-vacuité)', () => {
     expect(DETAILS.length).toBeGreaterThanOrEqual(6);
   });
 
-  it('chacune appelle notFound() sur un identifiant illisible', () => {
-    // Trois d'entre elles ont un test de comportement dédié (`customers`, `leases`,
-    // `properties`). Pour les cinq autres, l'appel n'est tenu que par ce cliquet : sans lui,
-    // retirer leur `notFound()` serait SILENCIEUX.
+  it('chacune décide son introuvable DANS SON LAYOUT, jamais dans sa page', () => {
+    // ⚠ **Cette règle disait l'inverse jusqu'à TCK-442** : elle exigeait que chaque
+    // `[id]/page.tsx` appelle `notFound()`. C'était le bon cliquet tant que l'appel vivait là —
+    // et c'était aussi la raison pour laquelle il rendait 200. Il a déménagé d'un étage, la
+    // règle avec lui.
     //
-    // ⚠ Ce que ce cliquet NE dit PAS : que la page traduit un 404 de l'API en introuvable.
-    // Seules `properties/[id]` et `customers/[id]` le font — les cinq autres délèguent la
-    // requête à un composant client, où `notFound()` n'existe pas. `/app/bookings/999999`
-    // (identifiant bien formé, réservation inexistante) ne rend donc PAS l'introuvable.
-    // C'est une limite connue, pas un oubli : elle demande de remonter la requête côté
-    // serveur, ce que le ticket met hors périmètre (« le contenu des pages »).
-    // ⚠ Sur la source DÉBARRASSÉE de ses commentaires. Première version : le cliquet lisait
-    // `page.source` brut, et les docblocks de ces pages *expliquent* le passage à `notFound()`.
-    // Ablation mesurée : retirer l'appel de `bookings/[id]` laissait le test VERT, parce que le
-    // commentaire qui le justifiait le contenait encore. *Une garde qui lit ses propres
-    // explications se prouve elle-même.*
-    const sans = DETAILS.filter((p) => !/\bnotFound\(\)/.test(sansCommentaires(p.source)))
+    // ⚠ Sur la source DÉBARRASSÉE de ses commentaires. La rédaction d'origine lisait la source
+    // brute, et l'ablation mesurée l'avait montré vert : le docblock qui *expliquait*
+    // `notFound()` le contenait encore. *Une garde qui lit ses propres explications se prouve
+    // elle-même.* Le même piège s'applique mot pour mot au layout — les huit en portent un.
+    const sansLayout: string[] = [];
+    for (const page of DETAILS) {
+      const layout = join(page.segment, 'layout.tsx');
+      const source = existsSync(layout) ? sansCommentaires(readFileSync(layout, 'utf8')) : '';
+      if (!/\bnotFound\s*\(|\bexigerRessource\s*\(/.test(source)) sansLayout.push(page.rel);
+    }
+    expect(
+      sansLayout,
+      'ces pages de détail ne refusent l’introuvable nulle part au-dessus de leur repli : leur ' +
+        `404 rendrait 200 — ${sansLayout.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('et AUCUNE ne le décide encore dans sa page (le pendant du test ci-dessus)', () => {
+    // Sans ce pendant, l'appel pourrait vivre AUX DEUX endroits : le layout cocherait la règle,
+    // et celui de la page continuerait de rendre 200 sur les chemins qu'il est seul à couvrir.
+    const dansLaPage = DETAILS.filter((p) => /\bnotFound\s*\(/.test(sansCommentaires(p.source)))
       .map((p) => p.rel);
-    expect(sans, `pages de détail sans notFound() : ${sans.join(', ')}`).toEqual([]);
+    expect(
+      dansLaPage,
+      `un notFound() de PAGE rend 200 sous un repli : remonte-le dans le layout du segment — ${dansLaPage.join(', ')}`,
+    ).toEqual([]);
   });
 });
 

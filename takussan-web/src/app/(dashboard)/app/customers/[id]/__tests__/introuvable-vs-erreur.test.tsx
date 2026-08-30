@@ -57,16 +57,22 @@ beforeEach(() => {
 });
 
 describe('TCK-382 / AC3 — fiche client : l’introuvable et la panne ne se disent pas pareil', () => {
-  it('identifiant illisible → introuvable', async () => {
-    await expect(rendu('pas-un-nombre')).rejects.toThrow('NEXT_NOT_FOUND');
-    expect(notFoundMock).toHaveBeenCalledTimes(1);
-    expect(fetchCustomerMock).not.toHaveBeenCalled();
-  });
-
-  it('404 de l’API → introuvable', async () => {
+  /**
+   * ⚠ **Les deux cas d'introuvable — identifiant illisible et 404 de l'API — ont déménagé dans
+   * `[id]/layout.tsx` (TCK-442).** Ce n'était pas un déplacement de confort : dans la page, sous
+   * le `loading.tsx` de ce segment, ce `notFound()` rendait **200**, avec l'écran introuvable
+   * affiché quand même. Ils sont éprouvés pour les huit segments par
+   * `app/__tests__/introuvable-de-detail.test.tsx`.
+   *
+   * Ce qui reste ici est la distinction que ce fichier existe pour tenir, et qui appartient bien
+   * à la page : 403 ≠ 500 ≠ succès.
+   */
+  it('la page ne décide plus AUCUN introuvable — c’est le layout qui le porte', async () => {
+    // Le pendant obligatoire : sans lui, remettre un `notFound()` dans la page — donc réintroduire
+    // le 200 — laisserait ce fichier vert.
     fetchCustomerMock.mockRejectedValue(new ApiError(404, 'Not Found'));
-    await expect(rendu('999')).rejects.toThrow('NEXT_NOT_FOUND');
-    expect(notFoundMock).toHaveBeenCalledTimes(1);
+    await expect(rendu('999')).rejects.toThrow('API error 404');
+    expect(notFoundMock).not.toHaveBeenCalled();
   });
 
   it('403 de l’API → accès refusé, et surtout PAS introuvable', async () => {

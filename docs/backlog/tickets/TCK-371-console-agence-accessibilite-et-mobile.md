@@ -163,9 +163,30 @@ c'est une propriété du code, pas une faiblesse du test, et elle est notée ici
 rejouera l'ablation.
 
 **Le mode sombre reste hors périmètre et reste cassé** : `bg-foreground` vaut `#fcf9f3` sous
-`.dark`, où le `text-white` de la barre mesure **1,05:1**. Aucune classe `.dark` n'est jamais
-posée (aucun `ThemeProvider`, aucun `prefers-color-scheme`), donc rien de tout cela n'est
-atteignable aujourd'hui.
+`.dark`, où le `text-white` de la barre mesure **1,05:1**.
+
+> ⚠⚠ **CORRECTION DU 2026-08-29 (TCK-459) — la justification écrite ici était FAUSSE.** Elle
+> disait : *« Aucune classe `.dark` n'est jamais posée (aucun `ThemeProvider`, aucun
+> `prefers-color-scheme`), donc rien de tout cela n'est atteignable aujourd'hui. »* La classe EST
+> posée, en toutes lettres, sur des composants livrés — trois portées au 2026-08-28, dont une par
+> un `<SheetContent className="dark …">` rendu dans un PORTAIL, donc hors position d'arbre.
+>
+> **Ce que la vérification a manqué, et c'est le seul détail utile ici** : elle cherchait un
+> MÉCANISME — `ThemeProvider`, `next-themes`, `documentElement.classList`. Les trois sont bien
+> absents, et c'est ce qui la rendait convaincante. Elle n'a pas cherché **une classe littérale
+> dans un `className`**, qui est pourtant la façon la plus simple de poser une classe. *Chercher
+> l'outil et pas le geste : on ne trouve alors que les usages sophistiqués.*
+>
+> **La conclusion, elle, tient — et c'est ce qui rendait l'erreur difficile à voir.** `AppTopbar`
+> n'est monté que par `AppShell` et `AdminShell`, qu'aucune de ces portées n'enveloppe. Le 1,05:1
+> reste inatteignable. *Un raisonnement faux qui conclut juste est le plus difficile à corriger :
+> rien ne le contredit, donc rien ne le rejoue.*
+>
+> **La tolérance est désormais CONDITIONNELLE ET GARDÉE**, au lieu d'être affirmée :
+> `src/test/__tests__/portees-sombres.test.tsx` compare deux ensembles DÉRIVÉS — les portées
+> `.dark` de tout `src/`, et les composants dont les couples tiennent en clair et tombent en
+> sombre (`AppTopbar` et quinze autres) — et rougit si l'intersection cesse d'être vide. Ne pas
+> recopier la liste des portées : elle se dérive (`src/test/portees-sombres.ts`).
 
 
 ## Reprise après revue adverse — 2026-08-27
@@ -232,8 +253,13 @@ défaut d'origine du ticket, rougit bien.
   AC4 ne rend pas : ni elle ni son `overflow-x-auto` n'entrent dans l'invariant. Si l'invariant
   « aucune `<table>` à la main sur `/admin` » doit être gardé, c'est là qu'il reste à le faire.
 - **Le mode sombre reste hors périmètre et reste cassé** (`bg-foreground` vaut `#fcf9f3` sous
-  `.dark`, où `text-white` mesure 1,05:1) — et reste inatteignable : aucun `ThemeProvider`, aucun
-  `prefers-color-scheme`.
+  `.dark`, où `text-white` mesure 1,05:1) — et reste inatteignable, mais **PAS pour la raison
+  écrite ici jusqu'au 2026-08-29** : ce n'était pas « aucun `ThemeProvider`, aucun
+  `prefers-color-scheme` » (vrai, et hors sujet — on cherchait un mécanisme, pas une classe
+  littérale, et la classe est posée sur trois composants livrés). C'est que **rien de ce qui pose
+  `.dark` n'enveloppe `AppShell` ni `AdminShell`**, les deux seuls points de montage d'`AppTopbar`.
+  La condition est vérifiée par `portees-sombres.test.tsx` depuis TCK-459 ; le détail est dans la
+  correction du § précédent.
 - **Le dépôt porte désormais deux implémentations du calcul WCAG** : `src/test/contraste-wcag.ts`
   (jetons recopiés, fond remonté du DOM, pour les tests) et `scripts/check-chart-contrast.mjs`
   (jetons parsés depuis `globals.css`, pour la CI). Elles ne mesurent pas la même chose et la

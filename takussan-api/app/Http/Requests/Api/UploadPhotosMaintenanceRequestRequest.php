@@ -24,6 +24,18 @@ class UploadPhotosMaintenanceRequestRequest extends BaseFormRequest
      *
      * **Simple DÉLÉGATION** : la règle vit dans sa policy, cette méthode ne fait que l'invoquer —
      * aucune règle d'autorisation n'a migré ici (AC4).
+     *
+     * TCK-445 — **`can('view')` ici est une DÉCISION, pas un oubli.** `view` inclut le DEMANDEUR
+     * (`MaintenanceRequestPolicy::view()`) : un locataire peut donc alimenter la collection
+     * `photos` de sa propre demande tant qu'elle n'est ni close ni annulée. Compléter son propre
+     * signalement est légitime, et c'est la même personne qui l'a ouvert.
+     *
+     * La collection sensible, elle, reste gardée : `completion_photos` re-autorise `update` dans
+     * `MaintenanceRequestController::uploadPhotos()` — le rapport de fin d'intervention n'est pas
+     * un complément de signalement. La décision est écrite en toutes lettres dans
+     * `docs/features.md` §1.8 et épinglée par
+     * `tests/Feature/Api/MaintenancePrincipalFieldsTest::test_requester_can_still_add_photos_to_his_own_report()`,
+     * pour qu'un resserrement futur soit un choix et non un effet de bord.
      */
     public function authorize(): bool
     {

@@ -420,6 +420,39 @@ jobs:
         # HAUSSE de plafond immédiatement rouge — l'une des trois façons de désarmer une garde à
         # seuil, à côté du répertoire retiré et du fichier exempté, que ses témoins couvrent.
         run: node scripts/check-locale-figee.mjs --report
+      - name: Aucun chemin de vocabulaire d'enum n'est composé à la main
+        # TCK-466. `PROPERTY_ENUM_NAMESPACES` (`property-form/options.ts`) porte depuis TCK-292 la
+        # consigne « ne jamais recopier ces chaînes à la main ailleurs », et rien ne la vérifiait.
+        # TCK-464 a dû la faire respecter TROIS FOIS À LA MAIN, sur trois tâches différentes :
+        # *une règle qu'une revue doit rappeler à chaque tâche n'est pas une règle, c'est une
+        # habitude — et une habitude ne survit pas à la fusion.*
+        #
+        # Le contournement visé n'a pas l'air d'en être : le traducteur est borné PLUS HAUT
+        # (`useTranslations('property')`) et le reste du chemin se recompose dans un gabarit
+        # (`t(`types.${bien.type}`)`). Les deux moitiés sont anodines séparément — ni le typage ni
+        # le lint n'y voient rien. La garde recompose et confronte à la table.
+        #
+        # ⚠ LA TABLE EST LUE, jamais recopiée : une entrée ajoutée est gardée le jour même, sans
+        # que la garde bouge. Une copie des dix chemins ici recréerait l'inventaire parallèle que
+        # la règle existe pour interdire (J-07).
+        #
+        # Le jour de sa pose elle a nommé un contournement VIVANT que personne n'avait vu :
+        # `PropertyCard.tsx:187`, le composant le plus rendu du site public, recopiait
+        # `property.types` en deux morceaux. Corrigé dans le même geste.
+        #
+        # ⚠⚠ C'EST UN PLANCHER, PAS UNE PREUVE, et son en-tête le dit avant tout le reste : une clé
+        # d'enum écrite en dur SANS interpolation (`if (type === 'villa') t('types.villa')`) ne
+        # matche aucun motif et reste un travail de revue. *Une garde qui se lit comme une garantie
+        # est pire qu'une garde absente.* Trois autres faux négatifs sont énumérés et mesurés là-bas.
+        #
+        # BORNE APPLIQUÉE = BORNE DÉCLARÉE : zéro, sur tout `takussan-web/src` hors tests. Pas de
+        # cliquet, pas de fichier exempté. Éprouvée par ablation dans LES DEUX SENS le 2026-08-29 :
+        # le contournement de `PropertyCard` rétabli la fait rougir en nommant fichier et ligne ;
+        # et démonter sa branche de garde, vider son corpus dérivé, ou court-circuiter les boucles
+        # qui l'exercent la font échouer — ce dernier cas est un trou qu'elle avait, trouvé par
+        # l'ablation et fermé (l'inégalité portait sur la LONGUEUR du corpus, pas sur ce qui en
+        # était réellement éprouvé).
+        run: node scripts/check-enum-namespaces.mjs --report
       - name: Les couleurs de série des graphiques atteignent 3:1 sur --card
         # TCK-374. L'AC ne demandait qu'un contraste « calculé et reporté dans la PR » — donc un
         # nombre vrai le jour où on l'écrit, que personne ne rejoue. Or la matière première est un
@@ -445,6 +478,35 @@ jobs:
         # périmètre, valeur de contrôle, cliquet à 28 mesures qui échoue dans les deux sens).
         # Vérifiée par ablation : 14 mutations, 14 rouges.
         run: node scripts/check-chart-contrast.mjs --report
+      - name: Le couple RENDU par ProfileBadge atteint 4,5:1 (texte, deux thèmes, deux surfaces)
+        # TCK-444. Garde SŒUR de la précédente, et la distinction est tout le sujet :
+        # `check-chart-contrast` mesure les jetons `--chart-*` NUS au seuil de 3:1 (objet
+        # graphique, WCAG 1.4.11) ; celle-ci mesure le COUPLE COMPOSÉ que `ProfileBadge` rend —
+        # l'aplat `bg-chart-N/20` aplati sur la surface, plus l'encre posée dessus — au seuil de
+        # 4,5:1 (TEXTE, 1.4.3). Le badge porte un mot, pas une icône.
+        #
+        # ⚠ La garde de graphiques était VERTE pendant que **12 couples sur 20** échouaient ici,
+        # et son en-tête le disait déjà : elle « ne dit rien [d']une série posée sur une autre
+        # surface ». Ce n'était pas un défaut de la garde, c'était le périmètre qu'elle annonce —
+        # d'où une sœur, et non un élargissement qui aurait mélangé deux seuils.
+        #
+        # Ce que la recette avait de faux n'était pas une ligne, c'était le MOTIF : du texte posé
+        # sur un aplat à 20 % de SA PROPRE couleur. Le contraste y est borné par celui du jeton nu
+        # sur la surface — 3,55:1 pour `--chart-3` — donc **aucune valeur d'alpha ne pouvait
+        # sauver `agent`**. Corriger la seule ligne fautive aurait corrigé un cinquième du défaut.
+        #
+        # BORNE APPLIQUÉE = BORNE DÉCLARÉE : 4,5:1, sur les 24 couples (5 types + le repli) × 2
+        # thèmes × 2 surfaces, aucun exempté. Le compte est un cliquet à DEUX sens — une garde à
+        # lecture de texte meurt en ne trouvant plus rien, pas en rougissant.
+        #
+        # Ablation le 2026-08-29, dans les deux sens : remettre le SEUL type `agent` sur
+        # `text-chart-3` la fait rougir en nommant le type, le thème ET la surface (2,87:1 clair
+        # sur --card, 2,74 sur --background, et rien en sombre — `--chart-3` s'y comporte bien,
+        # ce qui est exactement le piège du « vérifié dans un seul thème ») ; remettre les CINQ
+        # rend 12 défauts, le compte même du ticket. L'auto-épreuve refuse par ailleurs qu'on
+        # abaisse le seuil à 3, qu'on retire un thème ou une surface, et qu'on lise les
+        # commentaires — le docblock de la table CITE la recette interdite pour l'expliquer.
+        run: node scripts/check-profile-badge-contrast.mjs --report
       - name: Aucun refus par `forbidden()` tant que authInterrupts est désactivé
         # TCK-167 avait retiré `forbidden()` de six pages, posé `assertCanReachAgentArea` et
         # décidé en AC3 que `experimental.authInterrupts` ne serait pas activé. Les trois points

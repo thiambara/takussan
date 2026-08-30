@@ -3,12 +3,12 @@
 namespace App\Policies;
 
 use App\Models\Agency;
-use App\Models\Enums\AgencyKind;
 use App\Models\Enums\Capability;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
+use App\Support\AgencyKindGuard;
 
 /**
  * TCK-256 — gates the owner invitation surface.
@@ -54,11 +54,10 @@ class OwnerProfilePolicy
      */
     public function invite(User $user, Agency $agency): bool
     {
-        $kind = $agency->kind instanceof AgencyKind
-            ? $agency->kind
-            : AgencyKind::tryFrom((string) $agency->kind);
-
-        if ($kind !== AgencyKind::Standard) {
+        // TCK-449 (AC5) — même définition que l'invitation et le rattachement,
+        // lue au même endroit. La policy rend un booléen là où les services
+        // lèvent un 403 : c'est la FORME qui diffère, pas la règle.
+        if (! AgencyKindGuard::canFormTeam($agency)) {
             return false;
         }
 

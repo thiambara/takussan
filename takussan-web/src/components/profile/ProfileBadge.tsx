@@ -50,11 +50,47 @@ const TYPE_COLOR: Record<ProfileType, string> = {
   // Un type de profil n'est pas un état : c'est une CATÉGORIE, et le DS publie exactement cela
   // depuis TCK-129 — `--chart-1..5`, cinq teintes de la famille Lin, distinguables et sans
   // sémantique de gravité.
-  agency_admin: 'bg-chart-1/20 text-chart-1',
-  owner: 'bg-chart-2/20 text-chart-2',
-  agent: 'bg-chart-3/20 text-chart-3',
-  broker: 'bg-chart-4/20 text-chart-4',
-  service_provider: 'bg-chart-5/20 text-chart-5',
+  //
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  // TCK-444 — L'ENCRE N'EST PLUS LA COULEUR DE SON PROPRE APLAT
+  // ────────────────────────────────────────────────────────────────────────────────────────────
+  //
+  // La recette était `bg-chart-N/20 text-chart-N` : du texte posé sur un aplat à 20 % de SA PROPRE
+  // couleur. **12 couples sur 20** (5 types × 2 thèmes × 2 surfaces) tombaient sous le seuil AA de
+  // 4,5:1 — jusqu'à 2,17:1 pour `agent` en thème clair.
+  //
+  // ⚠ **Ce n'était pas une ligne de la table, c'était le MOTIF**, et la démonstration tient en une
+  // ligne : l'aplat vit ENTRE la surface et `--chart-N`, donc le contraste de `text-chart-N`
+  // dessus est *borné par* celui de `--chart-N` sur la surface nue. Or `--chart-3` y rend 3,55:1
+  // (sa valeur corrigée par TCK-404, pour le seuil de 3:1 des objets graphiques). **Aucune valeur
+  // d'alpha ne peut donc sauver `agent` :** corriger la seule ligne fautive aurait corrigé un
+  // cinquième du défaut et laissé le mécanisme intact.
+  //
+  // La recette retenue garde l'aplat — c'est lui qui porte la CATÉGORIE, acquis de TCK-381 — et
+  // change l'encre pour `--foreground`, qui s'inverse avec le thème. Mesuré (composition alpha en
+  // espace gamma, puis WCAG 2.x) ; le pire des 20 couples vaut **8,10:1**, contre 2,17:1 avant :
+  //
+  //                       clair --card   clair --bg   sombre --card   sombre --bg
+  //     agency_admin         13,32         12,71          11,27          12,45
+  //     owner                13,40         12,79          11,45          12,75
+  //     agent                14,16         13,54           9,85          10,88
+  //     broker               13,32         12,74          10,24          11,41
+  //     service_provider     11,50         10,97           8,10           8,99
+  //
+  // ⚠ Ces chiffres sont ceux de la GARDE, qui arrondit l'aplat composé à l'entier comme le fait
+  // le navigateur. Le harnais de test (`src/test/couples-de-contraste.ts`) ne l'arrondit pas et
+  // rend jusqu'à 0,03 de plus. Les deux sont justes sous leur convention ; ne pas « corriger »
+  // l'un vers l'autre — c'est la même remarque que TCK-458 fait sur 4,20 contre 4,22.
+  //
+  // Gardé par `scripts/check-profile-badge-contrast.mjs`, qui relit CETTE table et `globals.css` :
+  // remettre un seul type sur `text-chart-N` fait rougir la CI en nommant le type, le thème et la
+  // surface. `check-chart-contrast.mjs` ne le voyait pas, et le disait — elle mesure le jeton NU
+  // au seuil de 3:1, ce qui est son périmètre annoncé, pas un défaut.
+  agency_admin: 'bg-chart-1/20 text-foreground',
+  owner: 'bg-chart-2/20 text-foreground',
+  agent: 'bg-chart-3/20 text-foreground',
+  broker: 'bg-chart-4/20 text-foreground',
+  service_provider: 'bg-chart-5/20 text-foreground',
 };
 
 /**

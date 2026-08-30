@@ -16,6 +16,7 @@ use App\Models\Enums\NotificationType;
 use App\Models\MaintenanceRequest;
 use App\Models\Property;
 use App\Notifications\UrgentMaintenanceCreatedNotification;
+use App\Policies\MaintenanceRequestPolicy;
 use App\Services\Model\MaintenanceRequestService;
 use App\Services\Model\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -78,9 +79,11 @@ class MaintenanceRequestController extends Controller
         $user = $request->user();
         $property = Property::findOrFail($data['property_id']);
 
-        $isStaff = $user->isSuperAdmin()
-            || $property->user_id === $user->id
-            || ($user->agency_id && $user->agency_id === $property->agency_id);
+        // TCK-445 — UNE seule définition du côté donneur d'ordre, partagée avec `update()`
+        // (via l'ability `actAsPrincipal`). Elle était recopiée ici, et nulle part côté
+        // `update()` : c'est cette asymétrie qui a laissé un prestataire assigné se
+        // réassigner sa propre demande.
+        $isStaff = MaintenanceRequestPolicy::isPrincipalFor($user, $property);
         $isActiveTenant = $property->leases()
             ->where('status', LeaseStatus::Active)
             ->whereHas('tenant', fn ($q) => $q->where('user_id', $user->id))

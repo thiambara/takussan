@@ -157,6 +157,34 @@
    */
   --scrim: #000000;
 
+  /*
+   * === L'OMBRE (TCK-460) — la TROISIÈME couleur fonctionnelle, et la dernière en date ===
+   *
+   * Deux cartes de bien écrivaient leur ombre en décimal (`rgba(31, 24, 18, …)`), c'est-à-dire
+   * la valeur de `--foreground` recopiée à la main. Le jeton existe pour que cette valeur
+   * s'écrive une fois, ici, sous un nom qui dit son rôle.
+   *
+   * ⚠ **Pourquoi ce n'est PAS `--foreground`** : il vaut #fcf9f3 sous `.dark`. L'ombre
+   * deviendrait CLAIRE sur les surfaces qui portent la classe — et elles existent, trois portées
+   * `.dark` sont posées dans la console. Une ombre ASSOMBRIT, dans les deux thèmes ; elle ne suit
+   * pas plus le thème qu'un voile. C'est pourquoi ce jeton est déclaré ici et **redéclaré nulle
+   * part** — ni sous `.dark`, ni sous `prefers-color-scheme`. Cette absence EST la propriété, et
+   * un test l'éprouve (`__tests__/jeton-d-ombre-tck-460.test.ts`).
+   *
+   * ⚠ **Pourquoi ce n'est PAS `--scrim`** : le voile vaut #000000, un noir pur. Le réemployer ne
+   * serait pas neutre — il ferait passer l'ombre du brun chaud de la charte Lin à un noir franc,
+   * sur tout le produit. Ce serait un changement de charte glissé sous couvert d'une
+   * factorisation. Deux jetons distincts parce que les deux VALEURS diffèrent, pas par symétrie.
+   *
+   * Le jeton est OPAQUE, comme `--scrim` : les appelants posent l'alpha. Mais un `box-shadow` n'a
+   * pas de modificateur d'opacité Tailwind — la forme mesurée et retenue est
+   * `shadow-[…_color-mix(in_srgb,var(--shadow-color)_8%,transparent)]`, celle que `ui/sheet` et
+   * `ui/dropdown-menu` emploient déjà. ⚠ La forme concurrente `rgb(var(--…-rgb)/0.08)` a été
+   * écartée sur mesure : `scripts/check-super-admin-tokens.mjs` (contrôle D) la REFUSE, son motif
+   * ne pouvant distinguer un `rgb(` qui lit un jeton d'un `rgb(` qui décide une couleur.
+   */
+  --shadow-color: #1f1812;
+
   /* === Geometry === */
   --radius: 0.625rem;
 
@@ -306,7 +334,14 @@
  * c'est la meilleure preuve qu'il pouvait donner : le contrôle B lit `globals.css` comme le
  * reste, commentaires compris. La classe est donc décrite, pas citée.
  *
- * **Ces deux-là sont les SEULES couleurs fonctionnelles du produit ; une troisième candidate
+ * ⚠ LA TROISIÈME COULEUR FONCTIONNELLE EST `--shadow-color` (TCK-460), déclarée elle aussi plus
+ * haut dans `:root`, et elle est arrivée par la porte que ce paragraphe demandait d'emprunter.
+ * Même raisonnement encore : une ombre ASSOMBRIT, dans les deux thèmes, donc elle ne s'inverse
+ * pas. Elle ne réemploie pourtant PAS `--scrim` — le voile est un noir pur, l'ombre est le brun
+ * de la charte, et confondre les deux aurait changé le rendu sous couvert de factoriser. *Deux
+ * jetons ne se fondent que si leurs VALEURS coïncident ; un rôle partagé ne suffit pas.*
+ *
+ * **Ces trois-là sont les SEULES couleurs fonctionnelles du produit ; une quatrième candidate
  * s'écrit ici, avec son motif, avant d'exister.**
  */
 
@@ -334,6 +369,40 @@
 }
 .animate-section-enter {
   animation: sectionEnter 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/*
+ * ⚠ Garde de MOUVEMENT RÉDUIT pour les trois animations du SITE (TCK-467).
+ *
+ * Elle est ici, collée à ce qu'elle garde, et non fondue dans le bloc du parcours de publication
+ * plus bas : chacune des deux couvre une famille, et les lire ensemble demanderait de retenir
+ * lequel des huit sélecteurs appartient à quoi.
+ *
+ * **Ce qui disparaît est le DÉPLACEMENT, pas le retour visuel.** Les trois animations sont des
+ * `translateY` (20px, 14px, 8px) : c'est le glissement qui déclenche vertige et migraine, pas le
+ * changement d'état. Un `animation: none` sec ferait apparaître les blocs d'un coup ; la
+ * transition d'opacité courte est le même arbitrage que celui du parcours de publication, et ce
+ * ticket a été écrit pour le reconduire au reste du site.
+ *
+ * ⚠ `both` est ce qui rend la règle NÉCESSAIRE plutôt que cosmétique : tant que l'animation
+ * existe, sa phase `fill` MAINTIENT l'élément à `opacity: 0` pendant tout son retard — et
+ * `PropertyCard` pose un retard échelonné en style inline (`card-stagger.ts`). Sans
+ * `animation: none`, neutraliser la seule `transform` laisserait des cartes invisibles.
+ *
+ * Consommateurs au 2026-08-29, recensés avant d'écrire la règle : `animate-fade-in-up` dans 3
+ * fichiers (`PropertyCard`, `PropertyDetailContent`, le layout `(auth)`), `animate-card-enter`
+ * dans les 4 variantes de cartes, `animate-section-enter` 5 fois dans `HomepageDiscovery`. Aucun
+ * autre consommateur, et aucun usage des noms de `@keyframes` hors de ce fichier.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-card-enter,
+  .animate-section-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: opacity 120ms linear;
+  }
 }
 
 /* ─── Parcours de publication d'un bien (TCK-464) ───────────────────── */
@@ -372,14 +441,20 @@
 /*
  * ⚠ Garde PORTÉE À CE PARCOURS, et pas au dépôt.
  *
- * `globals.css` n'a aujourd'hui AUCUN bloc `prefers-reduced-motion` : `fadeInUp`, `cardEnter` et
- * `sectionEnter` s'exécutent quelle que soit la préférence système. C'est un manquement réel, et
- * il déborde ce ticket — poser une règle universelle ici changerait le comportement de tout le
- * site depuis un ticket qui ne parle que de publication. On neutralise donc ce qu'on introduit,
- * et le manquement plus large reste à instruire pour lui-même.
- *
  * Un glissement horizontal répété six fois est un déclencheur vestibulaire connu : le fondu
  * subsiste, la translation disparaît.
+ *
+ * ⚠ **Ce commentaire disait « `globals.css` n'a aujourd'hui AUCUN bloc `prefers-reduced-motion` »
+ * et ce n'est plus vrai** — il l'a cessé le 2026-08-29. TCK-464 avait délibérément borné sa garde
+ * à ce parcours : poser une règle universelle depuis un ticket sur la publication aurait changé
+ * le produit entier sans que personne ne l'ait instruit. Le manquement plus large a donc été
+ * instruit pour lui-même — c'est TCK-467, et sa règle vit plus haut, collée aux trois animations
+ * du site (`fadeInUp`, `cardEnter`, `sectionEnter`) qu'elle neutralise.
+ *
+ * Les deux blocs sont disjoints : celui-ci nomme les quatre classes `.wizard-*`, l'autre les
+ * trois `.animate-*`, et aucune classe n'apparaît dans les deux. La portée de TCK-464 est donc
+ * intacte, pas absorbée. *Un commentaire qui décrit l'état du fichier vieillit ; il doit dire
+ * pourquoi la borne a été posée, et être corrigé quand elle bouge.*
  */
 @media (prefers-reduced-motion: reduce) {
   .wizard-step-in-forward,

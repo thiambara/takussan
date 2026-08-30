@@ -6,12 +6,12 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\UpdateAgencyMemberRoleRequest;
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
-use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
+use App\Support\AgencyKindGuard;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
@@ -46,10 +46,12 @@ class AgencyMemberRoleController extends Controller
         // *Deux passes successives ont chacune trouvé un geste de plus que la
         // précédente croyait exhaustive* — d'où l'inventaire dérivé des routes
         // réelles, et non de la mémoire, reporté dans le rapport du lot.
-        $kind = $agency->kind instanceof AgencyKind
-            ? $agency->kind
-            : AgencyKind::tryFrom((string) $agency->kind);
-        abort_if($kind !== AgencyKind::Standard, 403, __('team.invite.errors.individual_agency'));
+        //
+        // TCK-449 (AC5) — la règle elle-même a quitté ce fichier : elle vivait
+        // ici en quatrième exemplaire, et une cinquième copie manquante est ce
+        // qui avait laissé `POST /members` ouvert. Une seule définition,
+        // {@see AgencyKindGuard::canFormTeam()}.
+        AgencyKindGuard::ensureCanFormTeam($agency);
 
         abort_unless(
             $user->isAgentAt($agency->id)

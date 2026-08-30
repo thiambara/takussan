@@ -1239,7 +1239,10 @@
       "missingId": "The property was created, but no identifier came back. Find it in your property list.",
       "close": "Close",
       "loadingDraft": "Restoring your draft…",
-      "draftResumed": "We picked your draft up where you left it."
+      "draftResumed": "We picked your draft up where you left it.",
+      "draftSaveFailed": "Your draft could not be saved. Nothing is lost as long as you stay on this page.",
+      "draftSaveRetry": "Try again",
+      "draftAutosaveFailed": "Autosave is not responding: your latest changes are not safe yet."
     },
     "titleTypes": {
       "bail": "Lease",
@@ -1599,7 +1602,10 @@
       },
       "propertyDetail": {
         "metaTitle": "Property record",
-        "eyebrow": "Property · {reference}"
+        "eyebrow": "Property · {reference}",
+        "forbidden_title": "Property access denied",
+        "forbidden_message": "Your active profile cannot open this property record.",
+        "back_cta": "Back to properties"
       },
       "leaseDetail": {
         "metaTitleFallback": "Lease not found",

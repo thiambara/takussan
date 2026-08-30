@@ -1,13 +1,13 @@
 ---
 id: TCK-470
 title: "Les server actions des biens sont typées à plat alors que les payloads sont imbriqués"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 52
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: [TCK-464]
 blocks: []
 spec_refs:
@@ -44,17 +44,17 @@ L'écart est masqué par un `as never` aux deux points d'appel :
 
 ## Delta à produire
 
-- [ ] Aligner le type accepté par les deux server actions sur la forme réellement envoyée.
-- [ ] Retirer les deux `as never`.
-- [ ] Vérifier qu'un payload mal formé **ne compile plus** — et le montrer, message d'erreur à
+- [x] Aligner le type accepté par les deux server actions sur la forme réellement envoyée.
+- [x] Retirer les deux `as never`.
+- [x] Vérifier qu'un payload mal formé **ne compile plus** — et le montrer, message d'erreur à
       l'appui, plutôt que de le supposer.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — plus aucun `as never` sur ces deux appels.
-- [ ] AC2 — un payload plat passé à l'action est une erreur de compilation ; le message obtenu est
+- [x] AC1 — plus aucun `as never` sur ces deux appels.
+- [x] AC2 — un payload plat passé à l'action est une erreur de compilation ; le message obtenu est
       consigné.
-- [ ] AC3 — les suites de création et d'édition restent vertes, et le corps de requête émis est
+- [x] AC3 — les suites de création et d'édition restent vertes, et le corps de requête émis est
       inchangé.
 
 ## Hors périmètre

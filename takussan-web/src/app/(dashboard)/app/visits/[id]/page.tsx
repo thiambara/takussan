@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
@@ -19,9 +18,11 @@ export default async function Page({
   const { id } = await params;
   const visitId = Number(id);
 
-  // Aucune garde n'existait ici : `Number('abc')` donnait `NaN`, transmis tel quel à `VisitDetail`
-  // qui interrogeait `/api/property-visits/NaN`.
-  if (!Number.isFinite(visitId) || visitId <= 0) notFound();
+  // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
+  // `[id]/layout.tsx`, strictement au-dessus du `loading.tsx` de ce segment : un `notFound()`
+  // écrit ici rendrait 200, avec l'écran introuvable affiché quand même. La décision n'a pas
+  // changé de nature — un identifiant illisible reste un INTROUVABLE, jamais une panne — elle
+  // a changé d'étage, et elle couvre désormais aussi le 404 de l'API.
 
   return (
     <div className="space-y-6">

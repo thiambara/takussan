@@ -1,13 +1,13 @@
 ---
 id: TCK-454
 title: "Deux endpoints acceptent des rôles personnalisés sur une agence `individual`, que la spec leur refuse"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: S
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:
@@ -96,3 +96,68 @@ L'éditeur de rôles personnalisés lui-même reste au backlog produit
 (`docs/features.md:398`, P1) et « le mécanisme reste à concevoir », `Capability` étant défini en
 code ([ADR-0003](../../adr/0003-capacites-enum-code-defined.md)). Ce ticket ne le conçoit pas :
 il ferme une porte ouverte en attendant, sur une surface où la spec est déjà tranchée.
+
+---
+
+## Décisions — étape 0 du lot, 2026-08-29
+
+Les trois questions ci-dessus sont tranchées ici. **La garde s'écrit d'après ces réponses ; elle ne
+les rediscute pas.**
+
+### 1. La garde va dans le SERVICE, `AgencyRoleService`
+
+Et non sur les deux contrôleurs. La raison est mesurée, pas doctrinale :
+
+```
+$ grep -rn "AgencyRoleService" app/ database/
+app/Http/Controllers/Api/Agency/RoleController.php          ← create()
+app/Http/Controllers/Api/Profile/AgencyRoleController.php   ← assign()
+app/Services/Membership/AgencySystemRoleSeeder.php:108      ← replaceCapabilities() SEULEMENT
+```
+
+`assign()` et `create()` n'ont **que ces deux appelants**, tous deux des contrôleurs : poser la
+règle dans le service ne casse donc aucun chemin interne, et elle survit à l'ajout d'une troisième
+route — ce qui n'est pas hypothétique, TCK-392 a précisément dû éprouver deux routes menant à la
+même méthode.
+
+⚠ `AgencySystemRoleSeeder` passe par `replaceCapabilities()`, **pas** par `create()` ni `assign()` :
+la garde ne peut pas l'atteindre. **À vérifier par exécution avant de conclure** (`php artisan
+migrate:fresh --seed` n'est pas délégable ; un test qui appelle le seeder sur une agence
+`individual` suffit et se délègue).
+
+### 2. La règle porte sur le RÔLE PERSONNALISÉ, pas sur le geste
+
+`features.md:293` refuse à l'agence `individual` **les rôles personnalisés** — pas l'existence de
+rôles. Une agence individuelle **a** un rôle système (son unique `agency_admin` le porte).
+
+- `AgencyRoleService::create()` → **refus plat** sur `individual` : tout rôle créé par cet endpoint
+  est personnalisé par construction, les rôles système venant du seeder. *À confirmer par mesure —
+  si `create()` peut produire `is_system = true`, la garde devient conditionnelle comme ci-dessous.*
+- `AgencyRoleService::assign()` → refus **si et seulement si** `$role->is_system === false` sur une
+  agence `individual`. Une garde plate y interdirait le seul rôle légitime de ces agences.
+
+*Une garde qui rend vert en fermant aussi ce qui devait rester ouvert n'est pas une garde, c'est
+une panne qui a l'air d'un correctif.* → **le test doit porter un troisième témoin** : rôle
+**système** assigné sur agence **`individual`** → **succès**. Sans lui, l'AC1 et l'AC2 sont
+cochables par un refus global.
+
+### 3. Les écrans, dérivés du front
+
+```
+$ grep -rln "agency-role" takussan-web/src/
+src/components/admin/roles/CreateRoleDialog.tsx        → POST /agencies/{a}/roles
+src/components/admin/roles/MemberAgencyRoleSelect.tsx  → PATCH /profiles/{p}/agency-role
+        (montés par AgencyRolesConsole.tsx et TeamConsole.tsx)
+```
+
+**Ces deux écrans ne doivent pas mener au 403 : ils ne doivent pas être proposés.** Sur une agence
+`individual`, `AgencyRolesConsole` n'offre pas la création et `MemberAgencyRoleSelect` n'offre que
+le rôle système. Le 403 reste la garde de dernier ressort — *un 403 qu'un écran laisse atteindre
+est un cul-de-sac ; un 403 que personne ne peut atteindre depuis l'interface est une garde.*
+
+### 4. La clé i18n
+
+`agencies.errors.individual_no_custom_roles`, dans `fr` / `en` / `wo`.
+
+⚠ Le wolof s'aligne sur le vocabulaire déjà employé par les refus de TCK-392 dans le même
+dictionnaire — **le recopier, ne pas en inventer un second** (c'est la dette que TCK-339 instruit).

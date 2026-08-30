@@ -1,13 +1,13 @@
 ---
 id: TCK-458
 title: "La pastille de type de contrat est sous le seuil AA sur toutes les cartes de bien — et la mesure de contraste ne couvrait que deux composants"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:
@@ -132,25 +132,25 @@ Deux choses à trancher, et elles sont indépendantes :
 
 ## Delta à produire
 
-- [ ] Corriger le couple de la variante *location*, avec la mesure qui le justifie
-- [ ] Trancher le traitement de la pastille sur média (fond opaque, ou voile)
-- [ ] **Étendre la mesure de contraste à toute la surface publique**, périmètre DÉRIVÉ
-- [ ] Recenser les autres emplois d'`--accent` avant de toucher au jeton lui-même
-- [ ] Consigner chaque couple mesuré, comme le fait déjà le test de la chrome
+- [x] Corriger le couple de la variante *location*, avec la mesure qui le justifie
+- [x] Trancher le traitement de la pastille sur média (fond opaque, ou voile)
+- [x] **Étendre la mesure de contraste à toute la surface publique**, périmètre DÉRIVÉ
+- [x] Recenser les autres emplois d'`--accent` avant de toucher au jeton lui-même
+- [x] Consigner chaque couple mesuré, comme le fait déjà le test de la chrome
 
 ## Critères d'acceptation
 
-- [ ] AC1 — la variante *location* atteint 4,5:1 **sur son pire fond, qui est le pixel blanc**
+- [x] AC1 — la variante *location* atteint 4,5:1 **sur son pire fond, qui est le pixel blanc**
       (démonstration en § Contexte), donc a fortiori sur `--card` et `--background`, dans les deux
       thèmes. Les ratios sont consignés. ⚠ Mesurer sur `--card` SUFFIT ici — `--card` vaut #ffffff,
       qui EST le pire fond — mais ce n'est vrai que parce que l'encre est claire ; l'écrire évite
       qu'on généralise la commodité en règle.
-- [ ] AC2 — **le test de contraste couvre toute la surface publique, et son périmètre est dérivé**
+- [x] AC2 — **le test de contraste couvre toute la surface publique, et son périmètre est dérivé**
       (parcours du système de fichiers ou de la clôture d'import), pas une liste de composants.
       Un composant neuf y entre sans que personne l'y déclare — c'est l'AC central du ticket.
-- [ ] AC3 — l'ablation se fait sur un couple **inventé pour l'occasion** et non sur celui-ci : un
+- [x] AC3 — l'ablation se fait sur un couple **inventé pour l'occasion** et non sur celui-ci : un
       test qui n'attraperait que le défaut connu passerait déjà, et c'est ce qui s'est produit.
-- [ ] AC4 — un texte posé sur un média est mesuré **sur son pire fond, et ce pire fond se DÉRIVE
+- [x] AC4 — un texte posé sur un média est mesuré **sur son pire fond, et ce pire fond se DÉRIVE
       par balayage des 256 valeurs de gris** — pas en choisissant une extrémité.
 
       ⚠⚠ **Une version antérieure de cette AC disait « pixel blanc si l'encre est claire, pixel
@@ -185,7 +185,7 @@ Deux choses à trancher, et elles sont indépendantes :
       Le pire écart construit vaut 0,0010, et il se produit au croisement — là où 1,0000 et 1,0010
       sont mauvais de la même façon. *Sans cette note, quelqu'un remplacera 256 évaluations par
       16,7 millions pour gagner un millième de rapport sur un couple déjà refusé.*
-- [ ] AC5 — le seuil appliqué distingue le texte (4,5:1) du non textuel (3:1), et le test dit
+- [x] AC5 — le seuil appliqué distingue le texte (4,5:1) du non textuel (3:1), et le test dit
       lequel il applique à chaque couple. `--accent` sur `--card` à 4,48:1 sur une icône
       `aria-hidden` reste conforme et doit rester vert : un test qui le ferait rougir serait faux
       dans l'autre sens.
@@ -203,4 +203,88 @@ Le harnais existe et n'est pas à réécrire : `src/test/contraste-wcag.ts` comp
 calcul, remonte le fond réel ancêtre par ancêtre, et **lève** sur un jeton inconnu plutôt que de
 mesurer contre une valeur de repli. Ce qui manque n'est pas la mesure, c'est son **périmètre**.
 
-_(le reste à remplir par implementing-specs)_
+### Ce qui a été livré, 2026-08-29
+
+| Fichier | Rôle |
+|---|---|
+| `src/components/property/cards/ContractTypeChip.tsx` | `bg-accent/90` → **`bg-accent`** (opaque) |
+| `src/test/contraste-wcag.ts` | `pireFondSurMedia()` (balayage 256 gris) + **21 jetons du DS qui manquaient** |
+| `src/test/analyse-statique.ts` | lecture de l'arbre JSX — classes simultanées, ancêtres, texte |
+| `src/test/couples-de-contraste.ts` | la mesure sur un arbre de sources |
+| `src/test/__tests__/surface-publique.contraste.test.ts` | la garde (7 cas) |
+
+**AC1 — le correctif est le retrait de l'alpha, pas un déplacement de jeton.** Mesuré :
+
+| | `bg-accent/90` (avant) | `bg-accent` (après) |
+|---|---|---|
+| clair, pire fond (**pixel blanc**) | **4,22:1** ✗ | **5,25:1** ✓ |
+| sombre, pire fond (**pixel noir**) | **4,10:1** ✗ | **4,93:1** ✓ |
+
+⚠ Le pire pixel n'est pas le même dans les deux thèmes — 255 en clair, 0 en sombre, pour le **même
+couple** : l'encre passe de quasi blanche à quasi noire. C'est la meilleure illustration possible
+de l'AC4 : la « règle par extrémité » aurait fallu la choisir juste deux fois.
+
+Une plaque OPAQUE ne dépend plus de l'image : **le 5,25:1 vaut sur toutes les photos**, ce qui
+tranche aussi le § *Direction UX* n°2 (« fond opaque, ou voile ») sans rien calculer. La variante
+*vente* garde son `/85` — son pire cas vaut 10,56:1 — et le `backdrop-blur-md` reste pour elle.
+
+**AC2 — le périmètre est dérivé par CLÔTURE D'IMPORT** depuis les 18 fichiers de route de
+`app/[locale]/(public)` : **133 fichiers `.tsx`**, contre 2 auparavant. Un composant neuf y entre
+du jour où une page publique l'importe. La garde vérifie aussi qu'elle sait s'ARRÊTER (aucun
+fichier de `super-admin/`) : un périmètre qui avale tout ne mesure plus rien de précis.
+
+**AC3 — ablation sur un couple INVENTÉ, deux fois plutôt qu'une.**
+
+- *Dans le test* : une page et un composant fabriqués dans un répertoire temporaire — que personne
+  n'a déclarés — sont ramassés par la clôture, et leur couple `bg-muted text-border` est refusé ;
+  le même composant avec `text-foreground` passe. Une garde qui refuse tout ne garde rien.
+- *Sur un fichier RÉEL du périmètre*, `components/compare/CompareCarousel.tsx` (qui n'est ni la
+  pastille ni un fichier de ce ticket) — hachages pris avant lecture du résultat :
+
+  | | md5 |
+  |---|---|
+  | avant | `5333affe197a351d4a664be93d208c16` |
+  | avec le couple inventé `bg-muted text-muted-foreground/45` | `7e7c1dce5177a0cfddcac599c769711f` |
+  | après retour | `5333affe197a351d4a664be93d208c16` |
+
+  Rouge obtenu : `components/compare/CompareCarousel.tsx · text-muted-foreground/45 sur bg-muted =
+  1,84:1 (seuil 4.5, texte)`.
+
+**AC4 — le balayage des 256 gris est implémenté et éprouvé par son contre-exemple** : encre
+`#808080` sur plaque `#808080/90` rend **1,0000 au pixel 128**, alors que les deux extrémités
+rendent 1,20 et 1,19. Le test asserte l'écart, pas seulement la valeur.
+
+**AC5 — le seuil est DÉRIVÉ du contenu**, pas déclaré : un élément dont le sous-arbre JSX porte une
+lettre, un chiffre ou une interpolation est du texte (4,5:1) ; sinon c'est un objet graphique
+(3:1). Une ponctuation seule (« • ») ne compte pas comme du texte. `--accent` sur `--card` en
+sombre (4,48:1, l'icône `aria-hidden` de `WidenedSearchNotice`) reste **vert**, comme l'AC l'exige.
+
+### Ce que le périmètre élargi a trouvé — 27 couples, consignés et gardés
+
+L'ardoise `DETTES` du test porte chacun avec son ratio et son motif ; la garde échoue **dans les
+deux sens** (un couple neuf n'y est pas ; une entrée éteinte doit en sortir). Quatre familles :
+
+1. **sous-jacent inconnu** (8) — plaque translucide dont le fichier ne dit pas sur quoi elle se
+   pose ; mesure pessimiste par construction. Deux sont des risques réels : `FavoriteButton` et
+   `CompareToggleButton` posent `bg-card/20 text-primary-foreground` **sur la photo du bien** —
+   exactement le motif que ce ticket corrige, sur deux autres composants ;
+2. **boutons primaires au survol** (8) — `hover:bg-primary/80` sous `text-primary-foreground` tombe
+   à **3,45:1** ; l'alpha du survol mange la marge ;
+3. **`text-border` en séparateur ou étoile vide** (8) — 1,20 à 1,26:1 au seuil non textuel de 3:1 ;
+4. **texte sur un aplat de sa propre couleur** (3+1) — `text-primary sur bg-primary/{5,8,15}` et
+   `text-success sur bg-success/5` : **le motif de TCK-444**, retrouvé indépendamment sur la
+   surface publique.
+
+**Deux trous DÉCLARÉS et comptés** (cliquets à deux sens) : 54 fichiers portent encore une échelle
+Tailwind brute (famille TCK-440 — aucune valeur du DS à leur opposer), et 150 encres inverses sans
+fond déclaré dans leur groupe.
+
+### Recensement d'`--accent` (delta), 2026-08-29
+
+45 emplois, sur 20 fichiers : `text-accent` ×12, `bg-accent` ×9, `text-accent-foreground` ×7,
+`bg-accent/90` ×5 (dont **4 dans le docblock** de la pastille elle-même), `border-accent` ×3,
+`bg-accent/15` ×3, `bg-accent/10` ×3, `border-accent/40`, `border-accent/25`, `bg-accent/8`.
+**Le jeton n'a pas été touché** — le correctif est local, donc aucun de ces 45 emplois n'est à
+re-mesurer. ⚠ Un seul autre site porte la recette fautive :
+`components/admin/PropertyModerationDetail.tsx:182`, `hover:bg-accent/90` sous
+`text-accent-foreground` — hors surface publique, non corrigé, signalé.

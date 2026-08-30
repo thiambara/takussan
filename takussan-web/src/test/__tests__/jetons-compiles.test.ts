@@ -45,10 +45,20 @@
  * ne connaît que la liste des valeurs valides et écarte le reste ne garde rien : *« le reste » est
  * précisément le défaut.*
  *
- * La forme correcte est plus SIMPLE que la fausse — aucune liste, le compilateur arbitre — et elle
- * est mesurée dans [TCK-453](../../../../docs/backlog/tickets/TCK-453-classes-non-emises.md), avec
- * le coût réel qu'elle déplace sur l'extracteur. **Ne pas la réintroduire ici sans sa ligne de
- * base de faux positifs**, qui est une condition de livraison et non un détail.
+ * La forme correcte est plus SIMPLE que la fausse — aucune liste, le compilateur arbitre.
+ *
+ * ⚠ **ELLE EXISTE DEPUIS TCK-453, ET ELLE NE VIT PAS ICI :** `scripts/check-classes-emises.mjs`,
+ * branchée dans `web-ci.yml` (`npm run check:classes-emises`), avec son relevé dans
+ * `scripts/classes-ecrites.mjs`. Elle soumet chaque classe écrite dans `src/` à Tailwind par un
+ * `@source inline()` et rougit en nommant la classe ET son fichier. Ligne de base mesurée le
+ * 2026-08-29 sur TOUT `src/` : 923 fichiers, 1 533 classes distinctes, **0 faux positif**.
+ *
+ * Elle est en `.mjs` et non en test vitest parce qu'elle lit tout `src/` et compile : c'est une
+ * garde de CI, pas un test unitaire — et parce qu'elle porte son propre corpus d'épreuve, ses
+ * planchers et ses ablations, que le harnais de vitest ne lui apporterait pas.
+ *
+ * **Ne rien réintroduire ici** : deux contrôles du même objet dans deux fichiers divergent, et
+ * c'est le second qui ment.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  * CE QUE CE FICHIER FAIT, LUI, ET QUI TIENT
@@ -82,14 +92,25 @@ const PERIMETRE = [
 ];
 
 /**
- * Les deux SEULS jetons que les tables ne peuvent pas reproduire à l'identique, et pourquoi.
+ * Les SEULS jetons que les tables ne peuvent pas reproduire à l'identique, et pourquoi.
  *
  * `.dark` les écrit en blanc translucide (`oklch(1 0 0 / 10%)` et `/ 15%`), que `versRvb()` ne
  * sait pas lire. `contraste-wcag.ts` en porte la composition sur `--background`, ce qui est une
  * APPROXIMATION assumée et documentée sur place. Les exclure ici est le seul geste honnête : les
  * comparer ferait rougir sur une différence qu'on a choisie.
+ *
+ * ⚠ `sidebar-border` a rejoint les deux autres le 2026-08-29 (TCK-458), quand les 21 jetons du DS
+ * qui manquaient à `contraste-wcag.ts` y sont entrés. Le laisser DEHORS de la table n'était pas
+ * l'option prudente : il aurait alors hérité de sa valeur CLAIRE par le `...JETONS_CLAIR`, soit
+ * une bordure crème mesurée sur un fond sombre — le piège que l'en-tête de `JETONS_SOMBRE`
+ * raconte, exactement. Une approximation déclarée vaut mieux qu'un héritage silencieux.
+ *
+ * ⚠ `--destructive`, lui, n'est PAS dans les tables : il est en `oklch(…)` dans les DEUX blocs, et
+ * l'approximer demanderait une conversion OKLCH → sRGB que rien ne vérifierait. Il reste « hors
+ * jetons », donc compté et non mesuré. Il n'a rien à faire ici : ce jeu-ci ne liste que ce qui EST
+ * dans la table et diffère volontairement de la feuille.
  */
-const APPROXIMES_EN_SOMBRE = new Set(['border', 'input']);
+const APPROXIMES_EN_SOMBRE = new Set(['border', 'input', 'sidebar-border']);
 
 
 function fichiersDe(dir: string, acc: string[] = []): string[] {

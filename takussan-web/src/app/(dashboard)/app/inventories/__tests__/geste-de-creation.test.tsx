@@ -25,7 +25,7 @@ vi.mock('@/components/inventory', () => ({
 async function canCreatePour(roles: UserRole[]): Promise<boolean | undefined> {
   me.user = { id: 1, roles } as unknown as User;
   rendu.dernierCanCreate = undefined;
-  const { default: Page } = await import('../page');
+  const { default: Page } = await import('../(liste)/page');
   const arbre = await Page();
   // On monte l'arbre sans DOM : le composant enfant enregistre sa prop au rendu.
   const { renderToStaticMarkup } = await import('react-dom/server');

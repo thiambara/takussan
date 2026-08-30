@@ -70,7 +70,7 @@ export function PropertyMobileBottomBar({
   return (
     <div
       style={{ bottom }}
-      className="lg:hidden fixed inset-x-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur px-4 py-3 flex items-center gap-3 safe-area-bottom"
+      className="lg:hidden fixed inset-x-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur px-4 py-3 flex items-center gap-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
     >
       <div className="min-w-0">
         <p className="text-lg font-bold text-stone-900 truncate">

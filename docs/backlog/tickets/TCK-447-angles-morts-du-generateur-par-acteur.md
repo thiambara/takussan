@@ -1,13 +1,13 @@
 ---
 id: TCK-447
 title: "Les deux angles morts de `gen-features-by-actor` : un acteur déclaré et inemployé passe, une ligne hors section n'est pas même lue"
-status: todo
+status: done
 phase: P3
 family: technique
 estimate: S
 wave: 50
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:
@@ -71,22 +71,22 @@ Aucune. Le périmètre est `docs/gen-features-by-actor.mjs` et sa sortie génér
 
 ## Delta à produire
 
-- [ ] Trancher l'angle mort n°1 : calculer aussi le sens « déclaré et inemployé » et le faire
+- [x] Trancher l'angle mort n°1 : calculer aussi le sens « déclaré et inemployé » et le faire
       échouer, **ou** écrire pourquoi un acteur déclaré d'avance est légitime
-- [ ] Trancher l'angle mort n°2 : refuser une ligne de fonctionnalité hors section, **ou** écrire
+- [x] Trancher l'angle mort n°2 : refuser une ligne de fonctionnalité hors section, **ou** écrire
       pourquoi elle est ignorée
-- [ ] Mettre l'en-tête à jour — il annonce aujourd'hui deux angles morts ; il doit annoncer ce
+- [x] Mettre l'en-tête à jour — il annonce aujourd'hui deux angles morts ; il doit annoncer ce
       qui reste vrai après ce ticket
-- [ ] Ablation pour chaque garde ajoutée, et restauration vérifiée
+- [x] Ablation pour chaque garde ajoutée, et restauration vérifiée
 
 ## Critères d'acceptation
 
-- [ ] AC1 — pour chaque angle mort fermé, la sonde correspondante du tableau ci-dessus fait
+- [x] AC1 — pour chaque angle mort fermé, la sonde correspondante du tableau ci-dessus fait
       sortir le script en **1**, dans les deux formes
-- [ ] AC2 — pour chaque angle mort **non** fermé, la raison est écrite dans l'en-tête, et la
+- [x] AC2 — pour chaque angle mort **non** fermé, la raison est écrite dans l'en-tête, et la
       sonde est citée pour que le lecteur suivant n'ait pas à la refaire
-- [ ] AC3 — `node docs/gen-features-by-actor.mjs --check` reste vert sur `features.md` tel quel
-- [ ] AC4 — les renvois de ligne de l'en-tête sont exacts, vérifiés **après** l'édition par la
+- [x] AC3 — `node docs/gen-features-by-actor.mjs --check` reste vert sur `features.md` tel quel
+- [x] AC4 — les renvois de ligne de l'en-tête sont exacts, vérifiés **après** l'édition par la
       commande de re-dérivation qu'il publie
 
 ## Hors périmètre
@@ -97,3 +97,23 @@ Aucune. Le périmètre est `docs/gen-features-by-actor.mjs` et sa sortie génér
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Ablation des deux gardes — jouée le 2026-08-30
+
+Les deux sondes du tableau ci-dessus, exécutées sur `features.md` muté, **dans les deux formes**
+que le script expose.
+
+| Angle mort | Sonde | Sortie | Ce qui est imprimé |
+|---|---|---|---|
+| n°1 — acteur déclaré et inemployé | un acteur `🦆` déclaré, cité nulle part | **1** | le nom de l'acteur fautif |
+| n°2 — ligne de fonctionnalité hors section | une ligne orpheline insérée hors de toute section | **1** | la ligne fautive et son numéro |
+
+⚠ **Un détail qui aurait pu passer pour un faux positif** : dans la forme `--check`, le premier
+rouge n'est pas celui de la sonde — c'est le contrôle de fraîcheur, qui tourne légitimement en
+premier et voit `features.md` modifié. Ce n'est pas la garde qui se trompe de motif, c'est
+l'ordre des contrôles. La sonde a donc été relue dans la forme sans `--check` pour établir
+qu'elle nomme bien son propre fautif. *Lire le premier rouge venu comme la preuve attendue est
+la manière la plus courante de valider une garde qui ne garde pas.*
+
+Restauration vérifiée par empreinte : `features.md` retrouve `40145391fb3e929a38c31e7532615a03`,
+et `node docs/gen-features-by-actor.mjs --check` redevient vert.

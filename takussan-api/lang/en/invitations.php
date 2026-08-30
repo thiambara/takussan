@@ -9,6 +9,12 @@ return [
         'super_admin' => 'super administrator',
     ],
     'errors' => [
+        // TCK-455 — an invitation that doesn't know what it attaches the
+        // account to creates an accepted account that belongs to nothing.
+        'invitable_required' => 'This invitation must state the profile it attaches the account to.',
+        'invitable_unknown' => 'This profile type cannot receive an invitation.',
+        'invitable_mismatch' => 'The target profile does not match the :role role (expected: :expected).',
+        'role_has_no_invitable' => 'The :role role cannot be invited through this path: no profile would be attached to it.',
         'duplicate_pending' => 'An invitation is already pending for this email (#:id).',
         'requires_login' => 'This email maps to an existing account. Please log in to accept the invitation.',
         'email_mismatch' => 'The logged-in account email does not match this invitation.',

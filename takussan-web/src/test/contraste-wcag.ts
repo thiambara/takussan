@@ -60,6 +60,45 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
   'accent-foreground': '#fcf9f3',
   warning: '#8a5410',
   'warning-foreground': '#fcf9f3',
+  /*
+   * ⚠ LES JETONS AJOUTÉS LE 2026-08-29 (TCK-458/444), ET POURQUOI LEUR ABSENCE ÉTAIT UN DÉFAUT.
+   *
+   * Cette table ne portait que les jetons qu'un test avait eu besoin de résoudre. Tant qu'elle
+   * servait deux composants, l'absence des autres ne se voyait pas : `resoudreCouleur()` LÈVE sur
+   * un jeton inconnu, et personne n'écrivait `text-success` dans la navbar. Sur un périmètre
+   * dérivé, la même absence devient un TROU — le couple n'est pas mesuré à faux, il n'est pas
+   * mesuré du tout, et c'est le mode d'échec silencieux que ce fichier existe pour refuser.
+   *
+   * Les valeurs sont recopiées de `globals.css`, comme les précédentes. `--radius`,
+   * `--floating-dock-base` et consorts n'y sont pas : ce ne sont pas des couleurs.
+   *
+   * ⚠ `--destructive` est ABSENT, et délibérément : `globals.css` le déclare en
+   * `oklch(0.577 0.245 27.325)`, seul jeton de couleur non hexadécimal des deux blocs. Le
+   * convertir ici demanderait une implémentation d'OKLCH → sRGB qu'aucune garde ne vérifierait ;
+   * l'inventer serait pire. Il reste donc « hors jetons », c'est-à-dire COMPTÉ et non mesuré —
+   * un trou déclaré vaut mieux qu'un trou.
+   */
+  success: '#3f6b45',
+  'success-foreground': '#fcf9f3',
+  info: '#3f5a6b',
+  'info-foreground': '#fcf9f3',
+  'chart-1': '#a85332',
+  'chart-2': '#5d6e4f',
+  'chart-3': '#ad8034',
+  'chart-4': '#6e655a',
+  'chart-5': '#1f1812',
+  'shadow-color': '#1f1812',
+  'sidebar-foreground': '#1f1812',
+  'sidebar-primary': '#a85332',
+  'sidebar-primary-foreground': '#fcf9f3',
+  'sidebar-accent-foreground': '#1f1812',
+  'sidebar-border': '#ebe5d5',
+  'sidebar-ring': '#a85332',
+  surface: '#fcf9f3',
+  'surface-container': '#f1ece0',
+  'on-surface': '#1f1812',
+  'on-surface-variant': '#6e655a',
+  outline: '#ebe5d5',
   border: '#ebe5d5',
   input: '#ebe5d5',
   ring: '#a85332',
@@ -135,6 +174,15 @@ export const JETONS_CLAIR: Readonly<Record<string, string>> = {
  * clé d'objet, et `dark:` est par ailleurs le préfixe de la variante Tailwind — aucun motif
  * textuel ne peut les distinguer. Écrit ici plutôt que laissé croire exhaustif.
  *
+ * ⚠⚠ **DEPUIS TCK-459 (2026-08-29), LA COMMANDE CI-DESSUS N'EST PLUS LE MOYEN DE DÉRIVER CETTE
+ * LISTE** — elle reste écrite parce que c'est son HISTOIRE qui instruit. La dérivation vit dans
+ * `src/test/portees-sombres.ts`, qui lit l'arbre JSX plutôt que des lignes, et qui ferme le
+ * septième cas : un lecteur d'AST distingue une clé d'objet d'un préfixe de variante, là où aucun
+ * motif textuel ne le peut. Son banc fait **10 sur 10** (7 écritures à voir, 3 sosies à refuser).
+ * Et surtout, la liste n'est plus lue par un humain : `portees-sombres.test.tsx` la confronte à
+ * l'ensemble — dérivé lui aussi — des composants dont un couple tombe sous le seuil en sombre.
+ * *Une liste dérivée qu'aucune garde ne consomme reste une liste à recopier.*
+ *
  * Au 2026-08-28 elle rend `SuperAdminSidebar.tsx:224`, `SuperAdminTopbar.tsx:49` et
  * `SuperAdminShell.tsx:80`. ⚠ La troisième est la plus instructive : c'est un `<SheetContent
  * className="dark …">`, donc une portée qui traverse un **portail** et atterrit au niveau du
@@ -201,6 +249,26 @@ export const JETONS_SOMBRE: Readonly<Record<string, string>> = {
   ring: '#c87a52',
   sidebar: '#2a2018',
   'sidebar-accent': '#3a2e23',
+  success: '#8fbf87',
+  'success-foreground': '#1f1812',
+  info: '#8fb2c8',
+  'info-foreground': '#1f1812',
+  'chart-1': '#c87a52',
+  'chart-2': '#7d8d6e',
+  'chart-3': '#d6b66c',
+  'chart-4': '#b8aa97',
+  'chart-5': '#fcf9f3',
+  'sidebar-foreground': '#fcf9f3',
+  'sidebar-primary': '#c87a52',
+  'sidebar-primary-foreground': '#1f1812',
+  'sidebar-accent-foreground': '#fcf9f3',
+  /*
+   * ⚠ `--sidebar-border` rejoint `--border` et `--input` : `oklch(1 0 0 / 10%)` sous `.dark`,
+   * donc du blanc translucide. La valeur ci-dessous est ce blanc COMPOSÉ sur `--background`, la
+   * même approximation assumée que pour les deux autres — cf. leur commentaire.
+   */
+  'sidebar-border': '#352f2a',
+  'sidebar-ring': '#c87a52',
   /*
    * ⚠ `--border` et `--input` sont les DEUX seuls jetons du bloc `.dark` qui ne sont pas des hex :
    * `oklch(1 0 0 / 10%)` et `oklch(1 0 0 / 15%)`, c'est-à-dire du blanc translucide. Les valeurs
@@ -421,4 +489,56 @@ export function anneauDeFocus(
     hex: resoudreCouleur(brut.u.jeton, jetons),
     rentrant: classes.includes('focus-visible:-outline-offset-2'),
   };
+}
+
+/**
+ * LE PIRE FOND D'UNE PLAQUE SEMI-TRANSPARENTE POSÉE SUR UN MÉDIA — TCK-458, AC4.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * POURQUOI UN BALAYAGE, ET PAS « BLANC SI L'ENCRE EST CLAIRE, NOIR SINON »
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Un texte posé sur une photo par une plaque `bg-X/90` n'a pas de contraste garanti *par
+ * construction* : les 10 % restants laissent passer un pixel quelconque. Le ratio VARIE donc avec
+ * l'image, et la seule question qui vaille est son MINIMUM.
+ *
+ * La règle intuitive — « le pire cas est à une extrémité, blanc si l'encre est claire, noir
+ * sinon » — est vraie pour la pastille de contrat et **fausse en général**. Elle suppose la
+ * monotonie du contraste en le pixel, ce qui n'est vrai que si la luminance de l'encre tombe HORS
+ * de la plage que la plaque peut atteindre. Quand elle tombe DEDANS, le minimum est au
+ * **croisement**, pas à un bord. Contre-exemple, encre `#808080` sur plaque `#808080/90`, mesuré :
+ *
+ *     pixel 0 → 1,20:1        pixel 128 → **1,00:1**  ← le vrai minimum        pixel 255 → 1,19:1
+ *
+ * Une règle par extrémité rendrait 1,19 et manquerait 1,00, c'est-à-dire un texte littéralement
+ * invisible. Le balayage coûte 256 évaluations — moins que la règle qu'il remplace.
+ *
+ * ⚠ **256 GRIS SUFFISENT — ne pas « améliorer » en balayant les 16,7 millions de couleurs.**
+ * C'est contre-intuitif, donc c'est écrit ici : le contraste ne dépend que de la LUMINANCE, la
+ * plaque est affine en le pixel, et l'ensemble des luminances atteignables sur le cube 256³ est
+ * exactement celui que la droite des gris parcourt. La 3-D n'ouvre aucune luminance nouvelle.
+ * Mesuré sur quatre couples, dont deux construits pour la mettre en défaut : le pire écart vaut
+ * **0,0010**, et il se produit au croisement — là où 1,0000 et 1,0010 sont mauvais de la même
+ * façon (le détail est dans l'AC4 de TCK-458).
+ *
+ * ⚠ Le pire pixel n'est PAS une propriété de la plaque seule : pour `bg-accent/90` la pastille de
+ * contrat le trouve en **255** en thème clair (encre quasi blanche) et en **0** en thème sombre
+ * (encre quasi noire). Le même couple, deux extrémités opposées — raison de plus pour balayer.
+ */
+export function pireFondSurMedia(
+  encre: Rvb,
+  plaque: Rvb,
+  alpha: number,
+  alphaEncre = 1,
+): { readonly ratio: number; readonly pixel: number; readonly fond: Rvb } {
+  let pire = { ratio: Number.POSITIVE_INFINITY, pixel: -1, fond: plaque };
+  for (let gris = 0; gris < 256; gris += 1) {
+    const fond = composer(plaque, [gris, gris, gris], alpha);
+    // Une encre elle-même translucide se compose sur CE fond-là et pas sur un autre : la
+    // recomposer à chaque pas est la seule façon de ne pas mesurer une encre imaginaire.
+    const posee = alphaEncre === 1 ? encre : composer(encre, fond, alphaEncre);
+    const ratio = contraste(posee, fond);
+    if (ratio < pire.ratio) pire = { ratio, pixel: gris, fond };
+  }
+  return pire;
 }

@@ -91,4 +91,93 @@ describe('toUpdatePayload', () => {
     expect(payload).not.toHaveProperty('status');
     expect(payload).not.toHaveProperty('visibility');
   });
+
+  /**
+   * TCK-469 AC1 — LE test du ticket. Avant lui, `bedrooms` était OMIS du corps : le backend
+   * laissait donc `3` en base sur un terrain, et plus aucun écran ne rendait le champ qui aurait
+   * permis de le corriger.
+   */
+  it('AC1 — un appartement à 3 chambres basculé en terrain envoie `bedrooms: null`', () => {
+    const payload = toUpdatePayload(
+      valeurs({ type: 'land', contract_type: 'sale', bedrooms: 3 }),
+    );
+    expect(payload).toHaveProperty('bedrooms', null);
+  });
+
+  /**
+   * ⚠ Le garde-fou du précédent : « tout purger » cocherait AC1 aussi. Ce que la bascule ne
+   * justifie PAS d'effacer doit traverser intact — ni omis, ni mis à `null`.
+   */
+  it('AC1 — les champs que le terrain justifie encore traversent intacts', () => {
+    const payload = toUpdatePayload(
+      valeurs({
+        type: 'land',
+        contract_type: 'sale',
+        bedrooms: 3,
+        area: 800,
+        title_type: 'titre_foncier',
+      }),
+    );
+    expect(payload.area).toBe(800);
+    expect(payload.title_type).toBe('titre_foncier');
+    expect(payload.title).toBe('Villa aux Almadies');
+    expect(payload.price).toBe(350_000);
+  });
+
+  it('AC1 — `furnished` s’efface par `false`, la colonne n’acceptant pas `null`', () => {
+    const payload = toUpdatePayload(
+      valeurs({ type: 'land', contract_type: 'sale', furnished: true }),
+    );
+    expect(payload.furnished).toBe(false);
+  });
+
+  /**
+   * AC3 — une valeur que le formulaire n'a jamais portée ne doit pas apparaître dans le corps :
+   * une clé émise à `null` écraserait en base un champ que personne n'a touché.
+   */
+  it('AC3 — n’émet aucune clé absente des valeurs du formulaire', () => {
+    const source = { ...valeurs({ type: 'land', contract_type: 'sale' }) } as Record<
+      string,
+      unknown
+    >;
+    for (const cle of ['bedrooms', 'bathrooms', 'year_built', 'parking_spaces']) {
+      delete source[cle];
+      expect(source).not.toHaveProperty(cle);
+    }
+    const payload = toUpdatePayload(source as unknown as PropertyFormPayload) as Record<
+      string,
+      unknown
+    >;
+    for (const cle of ['bedrooms', 'bathrooms', 'year_built', 'parking_spaces']) {
+      expect(payload, `${cle} n’était pas dans l’entrée`).not.toHaveProperty(cle);
+    }
+  });
+});
+
+/**
+ * TCK-469 AC2 — la création n'a PAS changé : elle omet, et n'émet aucun `null`. Les tests de
+ * `toCreatePayload` ci-dessus vérifient l'omission clé par clé ; celui-ci ferme l'autre moitié,
+ * celle qu'un « on efface partout » aurait franchie sans bruit.
+ */
+describe('toCreatePayload — AC2 de TCK-469 : le contrat de création ne bouge pas', () => {
+  it('n’émet aucune valeur `null` dans le corps', () => {
+    const payload = toCreatePayload(
+      valeurs({
+        type: 'land',
+        contract_type: 'sale',
+        bedrooms: 3,
+        year_built: 2010,
+        furnished: true,
+        rent_period: 'monthly',
+        available_from: '2026-10-01',
+      }),
+      'submit',
+    ) as Record<string, unknown>;
+
+    const nulles = Object.entries(payload)
+      .filter(([, v]) => v === null)
+      .map(([k]) => k);
+    expect(nulles, 'aucune clé ne doit partir à null à la création').toEqual([]);
+    expect(payload).not.toHaveProperty('furnished');
+  });
 });
