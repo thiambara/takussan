@@ -1,7 +1,7 @@
 ---
 id: TCK-484
 title: "Cinq tables de tons décident encore une couleur hors de `StatusBadge`, figées au cliquet faute de vocabulaire commun"
-status: todo
+status: doing
 phase: P3
 family: front
 estimate: M
@@ -83,3 +83,23 @@ Aucun.
 Ouvert par la session à la clôture du lot de la vague 52, sur la liste que TCK-472 a figée. Le
 ticket existe pour que le cliquet ait une adresse : *une tolérance sans ticket est une décision que
 personne ne reprendra.*
+
+---
+
+## Implémentation — 2026-08-30
+
+*(Notes écrites au fur et à mesure, sur disque. Une mesure qui ne vit que dans une fenêtre de
+contexte est une mesure perdue.)*
+
+### Relevé de départ — le cliquet au 2026-08-30, avant tout changement
+
+```
+$ node scripts/check-status-badge-unique.mjs --report
+  tables de tons en dur (C)    5 fichier(s)
+      takussan-web/src/components/calendar/CalendarPage.tsx:55,61,67
+      takussan-web/src/components/calendar/event-colors.ts:38,45,52,59
+      takussan-web/src/components/inventory/labels.ts:20,21,22,23,36,37,45,46,49,50
+      takussan-web/src/components/maintenance/MaintenancePriorityBadge.tsx:14,18,22,26
+      takussan-web/src/components/maintenance/labels.ts:35,…,56
+✓ … 5 table(s) d'un autre vocabulaire déclarée(s)
+```
