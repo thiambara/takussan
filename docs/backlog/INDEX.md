@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**435 tickets** — 26 ouverts, 408 livrés.
+**435 tickets** — 20 ouverts, 414 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 19 |
-| 🚧 Doing | 7 |
+| 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 408 |
+| ✅ Done | 414 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -56,12 +56,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-479](tickets/TCK-479-skip-ci-eteint-la-ci-de-la-pr-dintegration-suivante.md) — Le `[skip ci]` de la carte d'impact éteint la CI de la PR d'intégration suivante — 7 fois sur 12 `M · P1 · full`
-- [TCK-480](tickets/TCK-480-jeton-destructive-sous-aa-en-theme-clair.md) — Le jeton `--destructive` est sous AA en thème clair, partout où il porte du texte `M · P1 · front`
-- [TCK-481](tickets/TCK-481-encre-heritee-dans-twofactorsection.md) — `TwoFactorSection` hérite l'encre de son conteneur : 3,94:1, seconde occurrence du motif de TCK-471 `S · P2 · front`
-- [TCK-482](tickets/TCK-482-upgraderequestform-jette-le-resultat-du-flush.md) — `UpgradeRequestForm` jette le résultat de `flush()` puis détruit le brouillon — 3ᵉ exemplaire du défaut de TCK-475 `S · P1 · front`
-- [TCK-483](tickets/TCK-483-garde-mort-du-toast-de-wizardreprenable.md) — Le garde `if (!completing)` de `WizardReprenable` est du code mort : la fermeture fige `completing` à `false` `S · P2 · front`
-- [TCK-484](tickets/TCK-484-cinq-tables-de-tons-figees-au-cliquet.md) — Cinq tables de tons décident encore une couleur hors de `StatusBadge`, figées au cliquet faute de vocabulaire commun `M · P3 · front`
 
 ## 👀 Review
 
@@ -73,10 +67,21 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 408
+## ✅ Done — 414
 
 <details>
-<summary><strong>Vague 52 — Dettes relevées par les revues du parcours de publication (2026-08-29)</strong> — 14 tickets</summary>
+<summary><strong>Vague 53 — Débordements mesurés pendant le lot de la vague 52 : jeton de contraste, encre héritée, brouillons non lus (2026-08-30)</strong> — 5 tickets</summary>
+
+- [TCK-480](tickets/TCK-480-jeton-destructive-sous-aa-en-theme-clair.md) — Le jeton `--destructive` est sous AA en thème clair, partout où il porte du texte `M · P1 · front`
+- [TCK-481](tickets/TCK-481-encre-heritee-dans-twofactorsection.md) — `TwoFactorSection` hérite l'encre de son conteneur : 3,94:1, seconde occurrence du motif de TCK-471 `S · P2 · front`
+- [TCK-482](tickets/TCK-482-upgraderequestform-jette-le-resultat-du-flush.md) — `UpgradeRequestForm` jette le résultat de `flush()` puis détruit le brouillon — 3ᵉ exemplaire du défaut de TCK-475 `S · P1 · front`
+- [TCK-483](tickets/TCK-483-garde-mort-du-toast-de-wizardreprenable.md) — Le garde `if (!completing)` de `WizardReprenable` est du code mort : la fermeture fige `completing` à `false` `S · P2 · front`
+- [TCK-484](tickets/TCK-484-cinq-tables-de-tons-figees-au-cliquet.md) — Cinq tables de tons décident encore une couleur hors de `StatusBadge`, figées au cliquet faute de vocabulaire commun `M · P3 · front`
+
+</details>
+
+<details>
+<summary><strong>Vague 52 — Dettes relevées par les revues du parcours de publication (2026-08-29)</strong> — 15 tickets</summary>
 
 - [TCK-465](tickets/TCK-465-brouillon-echec-silencieux.md) — Un brouillon de parcours peut échouer à s'enregistrer sans que personne ne le sache `S · P2 · technique`
 - [TCK-466](tickets/TCK-466-garde-espaces-de-noms-enum.md) — Rien n'empêche de composer à la main le chemin d'un vocabulaire d'enum `S · P2 · technique`
@@ -92,6 +97,7 @@ _(aucun)_
 - [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
 - [TCK-477](tickets/TCK-477-le-dock-delegue-la-safe-area-a-un-mecanisme-inexistant.md) — L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé `S · P2 · technique`
 - [TCK-478](tickets/TCK-478-le-motif-de-tck-451-existe-en-trois-exemplaires.md) — Le motif corrigé par TCK-451 existe en trois exemplaires — deux n'ont jamais été touchés `S · P1 · front`
+- [TCK-479](tickets/TCK-479-skip-ci-eteint-la-ci-de-la-pr-dintegration-suivante.md) — Le `[skip ci]` de la carte d'impact éteint la CI de la PR d'intégration suivante — 7 fois sur 12 `M · P1 · full`
 
 </details>
 

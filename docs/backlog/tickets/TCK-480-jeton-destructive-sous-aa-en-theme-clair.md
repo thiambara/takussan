@@ -1,7 +1,7 @@
 ---
 id: TCK-480
 title: "Le jeton `--destructive` est sous AA en thème clair, partout où il porte du texte"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: M
@@ -60,23 +60,23 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Trancher, et écrire la décision **avec le nombre de surfaces affectées**, mesuré.
-- [ ] Recenser tout ce qui peint du texte avec ce jeton — pas seulement `StatusBadge` et `Button`.
-- [ ] Vérifier que le thème sombre ne régresse pas : il passe aujourd'hui.
+- [x] Trancher, et écrire la décision **avec le nombre de surfaces affectées**, mesuré.
+- [x] Recenser tout ce qui peint du texte avec ce jeton — pas seulement `StatusBadge` et `Button`.
+- [x] Vérifier que le thème sombre ne régresse pas : il passe aujourd'hui.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — tout texte peint avec `--destructive` atteint **4,5:1** sur la surface où il est
+- [x] **AC1** — tout texte peint avec `--destructive` atteint **4,5:1** sur la surface où il est
       réellement posé, dans les **deux** thèmes, mesuré par calcul sur les couleurs RENDUES.
-- [ ] **AC2** — le recensement ne part **pas** des importateurs du jeton : il part des littéraux
+- [x] **AC2** — le recensement ne part **pas** des importateurs du jeton : il part des littéraux
       (`text-destructive`, `bg-destructive`, `border-destructive`) et des recettes de variantes.
       *Un relevé qui part des importateurs ne voit que les usages corrects* — la leçon de TCK-472.
-- [ ] **AC3** — une garde refuse le retour sous seuil. `scripts/check-profile-badge-contrast.mjs`
+- [x] **AC3** — une garde refuse le retour sous seuil. `scripts/check-profile-badge-contrast.mjs`
       et `scripts/check-chart-contrast.mjs` portent déjà la formule et le patron ; l'étendre plutôt
       que d'en écrire une troisième, **ou dire pourquoi c'est impossible**.
-- [ ] **AC4** — ablation : rétablir la valeur d'aujourd'hui fait rougir AC1 **et** AC3, et le
+- [x] **AC4** — ablation : rétablir la valeur d'aujourd'hui fait rougir AC1 **et** AC3, et le
       changement est prouvé par `md5` **avant** qu'on lise le résultat.
-- [ ] **AC5** — vérification à l'écran, thème clair, sur au moins un bouton et une pastille.
+- [x] **AC5** — vérification à l'écran, thème clair, sur au moins un bouton et une pastille.
       *C'est une vérification à l'écran qui a trouvé le défaut de TCK-471 ; un ratio seul ne
       l'aurait pas vu.*
 

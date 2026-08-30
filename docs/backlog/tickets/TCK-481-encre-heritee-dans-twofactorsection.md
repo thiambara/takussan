@@ -1,7 +1,7 @@
 ---
 id: TCK-481
 title: "`TwoFactorSection` hérite l'encre de son conteneur : 3,94:1, seconde occurrence du motif de TCK-471"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
@@ -48,22 +48,22 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Appliquer la forme tranchée par TCK-471 — la classe `dark`, qui bascule les jetons pour tout
+- [x] Appliquer la forme tranchée par TCK-471 — la classe `dark`, qui bascule les jetons pour tout
       le sous-arbre — ou dire pourquoi cet écran demande autre chose.
-- [ ] Retirer l'entrée du cliquet de `scripts/check-heritage-encre.mjs` **dans le même diff** : le
+- [x] Retirer l'entrée du cliquet de `scripts/check-heritage-encre.mjs` **dans le même diff** : le
       cliquet est à sens unique, une entrée corrigée qui y reste est une tolérance qui ne
       correspond plus à rien.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — le contraste du texte concerné atteint **≥ 4,5:1** en thème clair, mesuré par
+- [x] **AC1** — le contraste du texte concerné atteint **≥ 4,5:1** en thème clair, mesuré par
       calcul sur les couleurs RENDUES.
-- [ ] **AC2** — les autres textes de la même section sont mesurés, pas seulement celui-là : *un
+- [x] **AC2** — les autres textes de la même section sont mesurés, pas seulement celui-là : *un
       correctif qui réparerait l'un en cassant l'autre passerait un contrôle qui n'en regarde
       qu'un* (AC2 de TCK-471, qui a servi).
-- [ ] **AC3** — `node scripts/check-heritage-encre.mjs` reste vert **avec une entrée de moins** au
+- [x] **AC3** — `node scripts/check-heritage-encre.mjs` reste vert **avec une entrée de moins** au
       cliquet, et rougit si l'entrée est réintroduite sans le défaut.
-- [ ] **AC4** — ablation : rétablir le couple d'origine fait rougir AC1 et la garde, changement
+- [x] **AC4** — ablation : rétablir le couple d'origine fait rougir AC1 et la garde, changement
       prouvé par `md5` **avant** lecture du résultat.
 
 ## Hors périmètre

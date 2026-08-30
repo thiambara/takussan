@@ -1,7 +1,7 @@
 ---
 id: TCK-483
 title: "Le garde `if (!completing)` de `WizardReprenable` est du code mort : la fermeture fige `completing` à `false`"
-status: doing
+status: done
 phase: P2
 family: front
 estimate: S
@@ -46,19 +46,19 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Rendre la valeur lisible au moment du nettoyage — une `ref` plutôt qu'une variable capturée,
+- [x] Rendre la valeur lisible au moment du nettoyage — une `ref` plutôt qu'une variable capturée,
       ou une dépendance juste — et **écrire laquelle**, parce que les deux ont des conséquences
       différentes sur le nombre d'exécutions de l'effet.
-- [ ] Vérifier que corriger la dépendance ne fait pas repartir l'effet à chaque changement d'état :
+- [x] Vérifier que corriger la dépendance ne fait pas repartir l'effet à chaque changement d'état :
       c'est probablement pour ça que `[hydrated]` avait été écrit.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — sur le chemin de finalisation, le toast « Progression sauvegardée » **ne part
+- [x] **AC1** — sur le chemin de finalisation, le toast « Progression sauvegardée » **ne part
       pas** ; sur le chemin de démontage ordinaire, il part toujours.
-- [ ] **AC2** — un test **compte** les exécutions de l'effet avant et après : une correction par la
+- [x] **AC2** — un test **compte** les exécutions de l'effet avant et après : une correction par la
       liste de dépendances qui multiplierait les écritures serait un remède pire que le mal.
-- [ ] **AC3** — ablation : rétablir la capture figée fait rougir AC1, changement prouvé par `md5`
+- [x] **AC3** — ablation : rétablir la capture figée fait rougir AC1, changement prouvé par `md5`
       **avant** lecture du résultat.
 
 ## Hors périmètre

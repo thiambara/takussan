@@ -1,7 +1,7 @@
 ---
 id: TCK-482
 title: "`UpgradeRequestForm` jette le résultat de `flush()` puis détruit le brouillon — 3ᵉ exemplaire du défaut de TCK-475"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: S

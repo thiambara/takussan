@@ -1,7 +1,7 @@
 ---
 id: TCK-484
 title: "Cinq tables de tons décident encore une couleur hors de `StatusBadge`, figées au cliquet faute de vocabulaire commun"
-status: doing
+status: done
 phase: P3
 family: front
 estimate: M

@@ -1,7 +1,7 @@
 ---
 id: TCK-479
 title: "Le `[skip ci]` de la carte d'impact éteint la CI de la PR d'intégration suivante — 7 fois sur 12"
-status: doing
+status: done
 phase: P1
 family: full
 estimate: M
@@ -137,25 +137,25 @@ Trois directions, aucune évidente — c'est pourquoi ce ticket existe plutôt q
 
 ## Delta à produire
 
-- [ ] Trancher entre les trois pistes, et **écrire pourquoi** — celle qu'on ne documente pas
+- [x] Trancher entre les trois pistes, et **écrire pourquoi** — celle qu'on ne documente pas
       coûtera au prochain lecteur
-- [ ] Appliquer, en conservant la propriété anti-boucle
-- [ ] Rendre l'absence de contrôles **visible** dans tous les cas, même après correctif : une PR
+- [x] Appliquer, en conservant la propriété anti-boucle
+- [x] Rendre l'absence de contrôles **visible** dans tous les cas, même après correctif : une PR
       d'intégration sans run Actions doit le dire, pas se présenter `CLEAN`
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une PR `dev` → `preview` ouverte alors que la tête de `dev` porte `[skip ci]`
+- [x] AC1 — une PR `dev` → `preview` ouverte alors que la tête de `dev` porte `[skip ci]`
       exécute les workflows du dépôt. **Éprouvé sur une PR réelle**, pas sur une lecture de YAML :
       `gh pr view <n> --json statusCheckRollup` doit rendre plus que `Vercel`.
-- [ ] AC2 — **témoin** : une PR dont la tête ne porte pas `[skip ci]` continue d'exécuter
+- [x] AC2 — **témoin** : une PR dont la tête ne porte pas `[skip ci]` continue d'exécuter
       exactement ce qu'elle exécutait. Une garde qui déclenche tout, tout le temps, n'a rien
       réparé — elle a supprimé les `paths:`.
-- [ ] AC3 — la boucle de régénération ne revient pas : après un push sur `dev`, `api-ci.yml` ne
+- [x] AC3 — la boucle de régénération ne revient pas : après un push sur `dev`, `api-ci.yml` ne
       se relance pas en chaîne. Vérifié sur `gh run list`, pas déduit du YAML.
-- [ ] AC4 — `php bin/impacted-tests.php --run` trouve toujours sa carte et rend le même
+- [x] AC4 — `php bin/impacted-tests.php --run` trouve toujours sa carte et rend le même
       résultat qu'avant sur un diff témoin.
-- [ ] AC5 — le commentaire d'`api-ci.yml` est mis à jour : il porte aujourd'hui la moitié du
+- [x] AC5 — le commentaire d'`api-ci.yml` est mis à jour : il porte aujourd'hui la moitié du
       raisonnement (le fichier), il doit porter l'autre (la tête de branche) ou dire que le
       mécanisme a disparu.
 
@@ -297,3 +297,53 @@ déclenche la CI — ce qui n'a jamais été en doute. **AC1 au sens strict rest
 demande une tête portant le marqueur **neuf** (`[carte-impact]`), donc le correctif d'abord mergé
 sur `dev`, puis un push du bot, puis une PR d'intégration. La séquence de vérification ci-dessus
 tient inchangée. **AC3 reste NON ÉPROUVÉ** pour la même raison.
+
+⚠ **Les deux paragraphes ci-dessus sont périmés depuis le 2026-08-30 17:15 UTC** — la séquence
+qu'ils décrivaient a eu lieu. Voir la section suivante, qui les remplace ; ils restent écrits
+parce que *ce qui n'était pas encore éprouvé au moment du merge est la moitié de l'histoire de
+ce ticket.*
+
+### AC1 et AC3 — ÉPROUVÉS sur la PR #243, 2026-08-30
+
+La séquence attendue s'est déroulée d'elle-même : #242 mergé sur `dev` à 17:07, `api-ci.yml`
+régénère la carte et la pousse à **17:15:13** sous le marqueur neuf, la PR d'intégration #243
+prend cette tête.
+
+**AC1 — tenu, au sens strict.** La tête de `dev` porte le marqueur, et la PR d'intégration
+exécute les workflows du dépôt :
+
+```
+$ git log -1 --format='%an | %s' origin/dev
+github-actions[bot] | chore(tests): régénérer la carte d'impact [carte-impact]
+$ gh pr view 243 --json headRefOid -q .headRefOid
+4d8b39ed6d3899743f4742a4ebe7c5ba1f9c22bd          ← exactement ce commit
+$ gh run list --branch dev --limit 12   # sur 4d8b39ed
+  17:15:20  4d8b39ed  pull_request  Web CI                              → in_progress
+  17:15:20  4d8b39ed  pull_request  API CI                              → in_progress
+  17:15:20  4d8b39ed  pull_request  Front — garde du mapping            → success
+  17:15:20  4d8b39ed  pull_request  Repo CI                             → failure
+```
+
+**Quatre workflows, sept contrôles.** Le critère demandait « plus que `Vercel` » : avec l'ancien
+marqueur, cette tête-là aurait rendu `Vercel` et rien d'autre — c'est exactement le cas de #239.
+
+⚠ Le `failure` de Repo CI est **sans rapport** avec ce ticket : `check-backlog.mjs` refusait cinq
+tickets de la vague 53 restés `doing` après leur merge. C'est ce commit-ci qui le corrige. *Un
+rouge n'est une réfutation que si on lit lequel* — et il vaut ici comme preuve supplémentaire :
+une garde qui rougit sur cette PR est une garde qui a tourné.
+
+**AC3 — tenu. Aucune chaîne.** Le push du bot à 17:15:13 n'a produit **aucun** run `push` :
+
+```
+$ gh run list --workflow=api-ci.yml --branch dev --limit 6
+  17:15:20  pull_request  (PR #243)
+  17:07:18  push          Merge pull request #242 …   success
+  15:16:08  push          Merge pull request #241 …   success
+```
+
+Le dernier run `push` d'`api-ci.yml` est celui du merge de #242, pas celui du bot. La boucle est
+fermée, et elle l'est **sans** le marqueur global : la propriété anti-boucle survit à son
+remplacement.
+
+**AC4 — tenu.** `php bin/impacted-tests.php` trouve sa carte sur la tête du bot et la lit :
+`carte : efce44de · engendrée il y a 0 jour(s) · 12 commit(s) en arrière`, sortie 0.
