@@ -41,13 +41,26 @@ interface StatusBadgeProps {
  * « de la CONSOLE » n'est donc pas une atténuation de style — c'est ce qui reste vrai après
  * mesure, et `scripts/check-status-badge-unique.mjs` la tient.
  *
- * **Ce qui n'est PAS gardé, nommément** (AC4 de TCK-472) : cinq fichiers décident encore une
- * couleur depuis une table de statuts à eux, sous un autre vocabulaire que `StatusBadge` —
- * `inventory/labels.ts`, `maintenance/labels.ts`, `maintenance/MaintenancePriorityBadge.tsx`,
- * `calendar/event-colors.ts` et `calendar/CalendarPage.tsx`. Le contrôle C de la garde les tient
+ * **Ce qui n'est PAS gardé, nommément** (AC4 de TCK-472, remesuré par TCK-484) : **TROIS**
+ * fichiers décident encore une couleur depuis une table à eux, sous un autre vocabulaire que
+ * `StatusBadge` — `inventory/labels.ts` (types et états d'élément), `maintenance/labels.ts` (onze
+ * statuts) et `calendar/event-colors.ts` (types d'événement). Le contrôle C de la garde les tient
  * par un cliquet à DEUX sens (aucun de plus, et aucun de moins) : ils ne peuvent ni se multiplier
- * ni disparaître en silence. Les absorber demande leur propre ticket, hors du périmètre de
- * TCK-472.
+ * ni disparaître en silence.
+ *
+ * ✅ **Ils étaient CINQ, et le compte a baissé pour la première fois — TCK-484.**
+ * `calendar/CalendarPage.tsx` recopiait `event-colors.ts` (et la copie avait divergé : sa légende
+ * peignait la visite de la couleur d'une réservation) ; elle dérive désormais.
+ * `maintenance/MaintenancePriorityBadge.tsx` n'était retenu que par une variante `dark:` — laquelle
+ * rendait **2,16:1**, crème sur crème ; ses quatre priorités traduisent maintenant vers quatre des
+ * cinq tons d'ici. *Un cliquet dont le compte ne baisse jamais n'est pas une dette suivie, c'est
+ * une tolérance.*
+ *
+ * ⚠ **Deux de ces trois familles ont absorbé une partie d'elles-mêmes sans quitter la liste** :
+ * `inventory/labels.ts` a rendu ses STATUTS (`INVENTORY_STATUS_TONE` → un ton, plus une classe) et
+ * `maintenance/labels.ts` a perdu sa table de PRIORITÉS, morte et contradictoire avec le badge qui
+ * la doublait. Le cliquet est par FICHIER : il ne peut pas voir ça, et c'est sa limite — le compte
+ * baisse moins vite que la dette.
  *
  * Elles ne citent que des jetons publiés par `globals.css` (`--muted`, `--success`, `--warning`,
  * `--destructive`, `--info`). Aucune couleur Tailwind brute : au 2026-08-26, la

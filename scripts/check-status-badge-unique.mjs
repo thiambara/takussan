@@ -39,7 +39,7 @@
  *   défaut, écrit en table plutôt qu'en ternaires. Ce contrôle ne réclame RIEN — il compte, et
  *   confronte le compte à une liste FIGÉE, dans les deux sens.
  *
- * ⚠ **Pourquoi C est un cliquet et non une interdiction.** Cinq fichiers décident encore une
+ * ⚠ **Pourquoi C est un cliquet et non une interdiction.** Des fichiers décident encore une
  * couleur depuis une table à eux, sous un vocabulaire qui n'est pas celui de `StatusBadge`
  * (inventaire, maintenance, calendrier). Les absorber est un vrai travail de design, hors du
  * périmètre de TCK-472 — mais les laisser SANS TRACE, c'est reproduire exactement ce que ce
@@ -48,6 +48,24 @@
  * de garde — sauf qu'elle est exécutable. Elle échoue **DANS LES DEUX SENS** : un fichier de plus
  * est un doublon neuf ; un fichier de moins est une entrée périmée, et une liste périmée est
  * précisément ce dont ce ticket est né.
+ *
+ * ✅ **ELLE S'EST VIDÉE UNE PREMIÈRE FOIS — 5 → 3 (TCK-484), et c'est le sens « de moins » qui
+ * l'a rendu visible.** Deux entrées ont été absorbées, chacune dans le même diff que son
+ * absorption :
+ *
+ *   · `calendar/CalendarPage.tsx` — sa légende RECOPIAIT `event-colors.ts`, et la copie avait
+ *     divergé : elle peignait la visite en `--info`, c'est-à-dire de la couleur d'une
+ *     réservation, quand la grille juste en dessous la peignait en `--primary`. Elle dérive
+ *     désormais par `paletteForType()`. *Une duplication qui a divergé ne se corrige pas, elle se
+ *     supprime : corriger la copie ne fait que remettre le compteur à zéro.*
+ *   · `maintenance/MaintenancePriorityBadge.tsx` — retenu au motif d'une variante `dark:` que
+ *     `StatusBadge` n'a pas. La variante était l'unique apport du fichier, et elle rendait
+ *     **2,16:1** (`dark:bg-foreground dark:text-muted-foreground` : crème sur crème). Ses quatre
+ *     priorités tombent sur quatre des cinq tons ; il traduit et délègue désormais.
+ *
+ * *Les trois qui restent portent chacune, dans leur propre fichier, la phrase qui dit ce que
+ * `StatusBadge` ne sait pas faire pour elles* — la raison abrégée ci-dessous en est le résumé,
+ * pas la source.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * CE QU'ELLE NE GARDE PAS, DÉLIBÉRÉMENT
@@ -102,15 +120,14 @@ const RAPPORT = process.argv.includes('--report');
  */
 const TABLES_DE_TONS_CONNUES = new Map([
   ['takussan-web/src/components/inventory/labels.ts',
-    "statuts d'état des lieux, types et états d'élément — trois tables, vocabulaire propre"],
+    "TYPES (`move_in`/`move_out`, deux opposés qui ne se rangent pas sur l'axe des cinq tons) et "
+    + "ÉTATS D'ÉLÉMENT (quatre crans de dégradation pour un seul jeton d'avertissement)"],
   ['takussan-web/src/components/maintenance/labels.ts',
-    'statuts et priorités de maintenance — onze statuts, dont aucun ne se plie aux cinq tons'],
-  ['takussan-web/src/components/maintenance/MaintenancePriorityBadge.tsx',
-    'priorités, pas statuts — et une variante `dark:` explicite que `StatusBadge` ne porte pas'],
+    'onze statuts, dont `quote_requested`/`quote_submitted` : une SUSPENSION du cycle, qui n’est '
+    + 'ni « en cours » ni « à traiter » — aucun des cinq tons ne la dit'],
   ['takussan-web/src/components/calendar/event-colors.ts',
-    "types d'événement du calendrier — une couleur par TYPE, jamais par statut"],
-  ['takussan-web/src/components/calendar/CalendarPage.tsx',
-    'la légende du calendrier, qui recopie les pastilles d’`event-colors.ts`'],
+    "une couleur par TYPE d'événement, jamais par statut — dans la grille du mois la bulle tronque "
+    + 'son titre, la teinte y est le seul canal d’information'],
 ]);
 
 /** Les lignes de MESSAGE qui tombent dans la forme du contrôle B sans être des statuts. */
