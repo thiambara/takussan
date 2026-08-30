@@ -1,7 +1,7 @@
 ---
 id: TCK-471
 title: "Le bouton « Déverifier » de la fiche agence est invisible : contraste 1,00:1"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: S

@@ -1,7 +1,7 @@
 ---
 id: TCK-477
 title: "L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S

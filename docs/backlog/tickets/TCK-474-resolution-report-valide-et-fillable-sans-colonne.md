@@ -1,7 +1,7 @@
 ---
 id: TCK-474
 title: "`resolution_report` est validé et `$fillable`, mais aucune migration ne crée la colonne"
-status: review
+status: done
 phase: P1
 family: technique
 estimate: S

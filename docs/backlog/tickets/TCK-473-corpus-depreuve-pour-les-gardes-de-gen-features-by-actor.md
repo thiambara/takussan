@@ -1,7 +1,7 @@
 ---
 id: TCK-473
 title: "Les trois gardes de `gen-features-by-actor.mjs` ne sont prouvées par rien"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S

@@ -63,6 +63,20 @@
  * `src/components/ui/` est hors périmètre entier : ce sont les primitives du design system, dont
  * les recettes de variantes SONT la table de référence.
  *
+ * ⚠ **UN FAUX VERT EST POSSIBLE, et il est nommé ici plutôt que découvert plus tard.** Mesuré le
+ * 2026-08-30, en éprouvant la garde par des formes inventées après coup : le contrôle B attrape
+ * `status === 'x' && 'bg-…'`, `row.status === …`, et même `item.etat === …` — il n'est donc PAS
+ * une liste de noms connus, ce que son AC exigeait. Mais il laisse passer une **variable locale
+ * nue au nom quelconque** :
+ *
+ *   const _f = (s) => s === 'rejected' && 'bg-destructive/15 text-destructive';   // ← VERT
+ *
+ * Le discriminant est l'accès de propriété ou le nom `status` ; un paramètre d'une lettre n'a ni
+ * l'un ni l'autre. La forme est rare — dans ce dépôt un statut arrive par une prop ou un objet —
+ * mais elle existe, et *une garde dont on ignore l'angle mort est une garde à laquelle on fait
+ * plus confiance qu'elle n'en mérite.* Élargir le contrôle à tout identifiant comparé à un
+ * littéral rendrait des faux rouges en masse ; le choix est assumé, il n'est pas ignoré.
+ *
  * ────────────────────────────────────────────────────────────────────────────────────────────
  * USAGE
  * ────────────────────────────────────────────────────────────────────────────────────────────

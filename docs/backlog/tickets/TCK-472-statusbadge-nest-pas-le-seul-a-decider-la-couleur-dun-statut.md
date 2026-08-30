@@ -1,7 +1,7 @@
 ---
 id: TCK-472
 title: "`StatusBadge` affirme être le seul à décider la couleur d'un statut ; ils sont quatre"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: M
@@ -77,24 +77,24 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Décider, pour chacun des trois doublons : **absorbé** par `StatusBadge` (avec un ton neuf si
+- [x] Décider, pour chacun des trois doublons : **absorbé** par `StatusBadge` (avec un ton neuf si
       son vocabulaire l'exige), ou **conservé et justifié** par écrit.
-- [ ] Corriger l'affirmation du docblock de `console/StatusBadge.tsx` — quelle que soit la décision.
+- [x] Corriger l'affirmation du docblock de `console/StatusBadge.tsx` — quelle que soit la décision.
       Une affirmation fausse en tête du fichier canonique est ce qui a permis aux doublons de vivre.
-- [ ] Mesurer les surfaces réelles de `PropertyList` avant de toucher son `/15`.
+- [x] Mesurer les surfaces réelles de `PropertyList` avant de toucher son `/15`.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — le relevé des composants qui décident une couleur de statut est pris par une
+- [x] **AC1** — le relevé des composants qui décident une couleur de statut est pris par une
       commande qui **ne part pas des importateurs** (chercher les définitions, ou les littéraux de
       classe de statut), et il est écrit dans le ticket avec sa date.
-- [ ] **AC2** — chaque doublon est soit supprimé, soit accompagné d'une phrase disant ce que
+- [x] **AC2** — chaque doublon est soit supprimé, soit accompagné d'une phrase disant ce que
       `StatusBadge` ne sait pas faire pour lui. *« C'est historique » n'est pas cette phrase.*
-- [ ] **AC3** — le contraste des tons de chaque composant conservé est mesuré **sur ses propres
+- [x] **AC3** — le contraste des tons de chaque composant conservé est mesuré **sur ses propres
       surfaces**, dans les deux thèmes, par calcul.
-- [ ] **AC4** — une garde refuse qu'un composant neuf redéfinisse un `StatusBadge` local, ou à
+- [x] **AC4** — une garde refuse qu'un composant neuf redéfinisse un `StatusBadge` local, ou à
       défaut le déclare comme non gardé, nommément, dans l'en-tête du fichier canonique.
-- [ ] **AC5** — ablation : rétablir l'un des doublons supprimé fait rougir AC1 ou AC4 — et le
+- [x] **AC5** — ablation : rétablir l'un des doublons supprimé fait rougir AC1 ou AC4 — et le
       vérifier, car une garde qui ne cherche que les trois noms connus ne garde rien.
 
 ## Hors périmètre
@@ -307,3 +307,27 @@ consommateurs du ton `info` ont été joués nommément parce que ce ton change 
    bandeaux). Mesures ci-dessus.
 4. **Ticket à ouvrir — les cinq tables de tons figées au cliquet C** (inventaire, maintenance,
    calendrier) : quatre à cinq vocabulaires à absorber ou à justifier un par un.
+
+## Vérification indépendante de la session — 2026-08-30
+
+L'AC5 exigeait « au moins une forme de TON invention », et la session a rejoué l'épreuve avec
+quatre formes écrites APRÈS coup, sans lire celles de l'implémenteur.
+
+| forme greffée | garde |
+|---|---|
+| homonyme `StatusBadge` sous `memo()`, fichier neuf | ✓ rouge |
+| table de classes par statut, nom sans rapport (`Pastille`) | ✓ rouge |
+| `row.status === 'rejected' && 'bg-destructive/15 …'` | ✓ rouge |
+| `item.etat === 'rejected' && …` (nom de propriété inventé) | ✓ rouge |
+| **`s === 'rejected' && 'bg-destructive/15 …'`** (variable locale nue) | **✗ VERT** |
+
+**Ce que ça établit, et ce que ça ne dit pas.** La garde n'est PAS une liste de noms connus —
+c'est ce que l'AC réclamait, et `item.etat` le prouve : un nom de propriété jamais vu rougit.
+Son discriminant est **l'accès de propriété OU l'identifiant `status`** ; une variable locale
+d'une lettre n'a ni l'un ni l'autre, et passe.
+
+Le faux vert est donc **possible et étroit**. Il est désormais **déclaré dans l'en-tête de
+`scripts/check-status-badge-unique.mjs`** plutôt que laissé à découvrir : élargir le contrôle à
+tout identifiant comparé à un littéral rendrait des faux rouges en masse, le choix est assumé.
+*Une garde dont on ignore l'angle mort est une garde à laquelle on fait plus confiance qu'elle
+n'en mérite.*

@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**431 tickets** — 30 ouverts, 400 livrés.
+**431 tickets** — 22 ouverts, 408 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 21 |
 | 🚧 Doing | 1 |
-| 👀 Review | 8 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 400 |
+| ✅ Done | 408 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -61,6 +61,25 @@
 
 ## 👀 Review
 
+_(aucun)_
+
+## ⛔ Blocked
+
+_(aucun)_
+
+---
+
+## ✅ Done — 408
+
+<details>
+<summary><strong>Vague 52 — Dettes relevées par les revues du parcours de publication (2026-08-29)</strong> — 14 tickets</summary>
+
+- [TCK-465](tickets/TCK-465-brouillon-echec-silencieux.md) — Un brouillon de parcours peut échouer à s'enregistrer sans que personne ne le sache `S · P2 · technique`
+- [TCK-466](tickets/TCK-466-garde-espaces-de-noms-enum.md) — Rien n'empêche de composer à la main le chemin d'un vocabulaire d'enum `S · P2 · technique`
+- [TCK-467](tickets/TCK-467-reduced-motion-site-wide.md) — Les animations du site s'exécutent quelle que soit la préférence système de mouvement réduit `S · P1 · front`
+- [TCK-468](tickets/TCK-468-cibles-tactiles-champs.md) — Les champs de formulaire font 32 px de haut là où les pastilles en font 44 `M · P2 · front`
+- [TCK-469](tickets/TCK-469-valeur-devenue-non-pertinente.md) — Changer le type d'un bien laisse en base des valeurs que le nouveau type ne justifie plus `M · P1 · full`
+- [TCK-470](tickets/TCK-470-server-actions-payload-plat.md) — Les server actions des biens sont typées à plat alors que les payloads sont imbriqués `S · P2 · technique`
 - [TCK-471](tickets/TCK-471-bouton-deverifier-invisible-sur-la-fiche-agence.md) — Le bouton « Déverifier » de la fiche agence est invisible : contraste 1,00:1 `S · P1 · technique`
 - [TCK-472](tickets/TCK-472-statusbadge-nest-pas-le-seul-a-decider-la-couleur-dun-statut.md) — `StatusBadge` affirme être le seul à décider la couleur d'un statut ; ils sont quatre `M · P2 · technique`
 - [TCK-473](tickets/TCK-473-corpus-depreuve-pour-les-gardes-de-gen-features-by-actor.md) — Les trois gardes de `gen-features-by-actor.mjs` ne sont prouvées par rien `S · P2 · technique`
@@ -69,24 +88,6 @@
 - [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
 - [TCK-477](tickets/TCK-477-le-dock-delegue-la-safe-area-a-un-mecanisme-inexistant.md) — L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé `S · P2 · technique`
 - [TCK-478](tickets/TCK-478-le-motif-de-tck-451-existe-en-trois-exemplaires.md) — Le motif corrigé par TCK-451 existe en trois exemplaires — deux n'ont jamais été touchés `S · P1 · front`
-
-## ⛔ Blocked
-
-_(aucun)_
-
----
-
-## ✅ Done — 400
-
-<details>
-<summary><strong>Vague 52 — Dettes relevées par les revues du parcours de publication (2026-08-29)</strong> — 6 tickets</summary>
-
-- [TCK-465](tickets/TCK-465-brouillon-echec-silencieux.md) — Un brouillon de parcours peut échouer à s'enregistrer sans que personne ne le sache `S · P2 · technique`
-- [TCK-466](tickets/TCK-466-garde-espaces-de-noms-enum.md) — Rien n'empêche de composer à la main le chemin d'un vocabulaire d'enum `S · P2 · technique`
-- [TCK-467](tickets/TCK-467-reduced-motion-site-wide.md) — Les animations du site s'exécutent quelle que soit la préférence système de mouvement réduit `S · P1 · front`
-- [TCK-468](tickets/TCK-468-cibles-tactiles-champs.md) — Les champs de formulaire font 32 px de haut là où les pastilles en font 44 `M · P2 · front`
-- [TCK-469](tickets/TCK-469-valeur-devenue-non-pertinente.md) — Changer le type d'un bien laisse en base des valeurs que le nouveau type ne justifie plus `M · P1 · full`
-- [TCK-470](tickets/TCK-470-server-actions-payload-plat.md) — Les server actions des biens sont typées à plat alors que les payloads sont imbriqués `S · P2 · technique`
 
 </details>
 

@@ -1,7 +1,7 @@
 ---
 id: TCK-478
 title: "Le motif corrigé par TCK-451 existe en trois exemplaires — deux n'ont jamais été touchés"
-status: review
+status: done
 phase: P1
 family: front
 estimate: S

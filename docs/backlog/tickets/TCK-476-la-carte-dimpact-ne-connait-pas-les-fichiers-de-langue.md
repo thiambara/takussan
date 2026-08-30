@@ -1,7 +1,7 @@
 ---
 id: TCK-476
 title: "La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S
@@ -39,8 +39,8 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Faire connaître `lang/**` à la carte, ou lui donner une règle explicite pour cette famille.
-- [ ] ⚠ **Sans casser le repli** : un fichier vraiment inconnu doit continuer de rendre la suite
+- [x] Faire connaître `lang/**` à la carte, ou lui donner une règle explicite pour cette famille.
+- [x] ⚠ **Sans casser le repli** : un fichier vraiment inconnu doit continuer de rendre la suite
       entière.
 
 ## Critères d'acceptation

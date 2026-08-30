@@ -1,7 +1,7 @@
 ---
 id: TCK-475
 title: "Le brouillon d'assistant annonce « Progression sauvegardée » quand l'écriture a échoué"
-status: review
+status: done
 phase: P2
 family: technique
 estimate: S
