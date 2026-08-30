@@ -41,7 +41,7 @@ import {
 import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 
-import { isFieldRelevant, type RelevanceContext } from './field-matrix';
+import { areaLabelKey, isFieldRelevant, type RelevanceContext } from './field-matrix';
 import {
   PROPERTY_ENUM_NAMESPACES,
   contractTypeOptions as fabriqueContractTypeOptions,
@@ -88,7 +88,13 @@ function toDefaults(property: PropertyDetail): PropertyFormValues {
     floor_number: property.floor_number ?? undefined,
     total_floors: property.total_floors ?? undefined,
     description: property.description ?? '',
-    tag_ids: Array.isArray(property.tags) ? property.tags.map((t) => t.id) : [],
+    // TCK-488 — les SEULS tags d'équipement. L'écran n'affiche que ceux-là
+    // (`fetchTagsAction({ type: 'amenity' })`), et `SyncPropertyTagRequest` n'accepte que ceux-là :
+    // composer la liste à partir de TOUS les tags du bien faisait 422 — avalé — à chaque
+    // enregistrement d'un bien porteur d'un tag `feature`, ce que le seeder produit couramment.
+    tag_ids: Array.isArray(property.tags)
+      ? property.tags.filter((t) => t.type === 'amenity').map((t) => t.id)
+      : [],
   };
 }
 
@@ -156,6 +162,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   const rentPeriodOptions = fabriqueRentPeriodOptions(tRentPeriod);
   const titleTypeOptions = titleTypeValues.map((v) => ({ value: v, label: tTitleType(v) }));
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [tagsWarning, setTagsWarning] = useState<string | null>(null);
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<PropertyFormValues, PropertyDetail>({
@@ -163,6 +170,7 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
       defaultValues: toDefaults(property),
       onSubmit: async (values) => {
         setSuccessMessage(null);
+        setTagsWarning(null);
         const payload = values as unknown as PropertyFormPayload;
         const basePayload = toUpdatePayload(payload);
         const address = withAddressErasures(
@@ -192,9 +200,28 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
         const pid = result.id;
         const values = form.getValues() as unknown as PropertyFormPayload;
 
-        // Tags
-        if (values.tag_ids && values.tag_ids.length > 0) {
-          await setPropertyTagsAction(pid, values.tag_ids);
+        // TCK-488 — les équipements, quand la matrice leur reconnaît un objet pour ce type.
+        //
+        // Trois écarts fermés d'un coup, et ils se tenaient : la liste ne partait QUE non vide
+        // (décocher le dernier équipement ne l'enlevait donc jamais), son résultat n'était PAS lu
+        // (contrainte 3 de TCK-464 : « leur échec doit être affiché »), et le parcours de création,
+        // lui, testait déjà `r.ok` — deux écrans, deux comportements pour le même geste.
+        //
+        // ⚠ La liste ne part pas du tout quand la section n'est pas rendue : `tag_ids` est
+        // délibérément absent de la table d'effacement de TCK-469, il reste omis dans les deux
+        // modes. Un changement de type ne détache donc rien.
+        const contexteCourant: RelevanceContext = {
+          type: values.type,
+          contract: values.contract_type,
+        };
+        if (isFieldRelevant('tag_ids', contexteCourant)) {
+          const resultatTags = await setPropertyTagsAction(pid, values.tag_ids ?? []);
+          if (!resultatTags.ok) {
+            // Le bien EST enregistré : quitter la page ou parler d'échec enverrait ressaisir des
+            // modifications déjà en base. On reste ici, c'est d'ici qu'on réessaie.
+            setTagsWarning(t('amenities.saveFailed'));
+            return;
+          }
         }
 
         setSuccessMessage(t('updated'));
@@ -257,6 +284,14 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
           className="rounded-md border border-success/30 bg-success/10 px-4 py-3 text-sm font-medium text-success"
         >
           {successMessage}
+        </p>
+      ) : null}
+      {tagsWarning ? (
+        <p
+          role="status"
+          className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm font-medium text-warning-foreground"
+        >
+          {tagsWarning}
         </p>
       ) : null}
 
@@ -411,7 +446,9 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
             <FormInput
               control={control}
               name="area"
-              label={t('fields.area')}
+              // TCK-488 — un terrain se mesure en surface de PARCELLE, un logement en surface
+              // HABITABLE : `areaLabelKey` porte la distinction, et le parcours l'appliquait déjà.
+              label={t(areaLabelKey(ctx.type))}
               type="number"
               inputMode="numeric"
               min={0}
@@ -523,8 +560,12 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
         </p>
       </section>
 
-      {/* ── Section 6 : Équipements / Tags ── */}
-      {tags.length > 0 && (
+      {/* ── Section 6 : Équipements / Tags ──
+        TCK-488 — les équipements seedés sont domestiques : les proposer sur un terrain, un garage
+        ou un parking n'offre aucun choix pertinent. Le parcours de publication le gardait déjà
+        (`StepCaracteristiques`), l'édition ne le gardait pas — alors que l'AC2 de TCK-464 exigeait
+        la vérification « à la création ET à l'édition ». */}
+      {isFieldRelevant('tag_ids', ctx) && tags.length > 0 && (
         <section className="rounded-xl bg-card p-6 space-y-4">
           <header>
             <h2 className="text-base font-semibold text-foreground">{t('amenities.title')}</h2>

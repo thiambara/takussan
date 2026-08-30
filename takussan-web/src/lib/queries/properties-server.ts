@@ -365,29 +365,6 @@ export async function reorderPropertyMedia(
   });
 }
 
-export interface PropertyAddressPayload {
-  readonly street?: string;
-  readonly neighborhood?: string;
-  readonly city?: string;
-  readonly region?: string;
-  readonly country?: string;
-  readonly postal_code?: string;
-  readonly latitude?: number | null;
-  readonly longitude?: number | null;
-}
-
-export async function setPropertyAddress(
-  token: string,
-  propertyId: number,
-  data: PropertyAddressPayload,
-): Promise<void> {
-  await apiRequest<unknown>(`/api/properties/${propertyId}/address`, {
-    method: 'PUT',
-    body: data,
-    token,
-  });
-}
-
 export async function setPropertyTags(
   token: string,
   propertyId: number,

@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**435 tickets** — 20 ouverts, 414 livrés.
+**439 tickets** — 20 ouverts, 418 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 414 |
+| ✅ Done | 418 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -67,7 +67,17 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 414
+## ✅ Done — 418
+
+<details>
+<summary><strong>Vague 55 — Ce que TCK-464 a ouvert en aval : les lecteurs des champs devenus écrivables (2026-08-30)</strong> — 4 tickets</summary>
+
+- [TCK-488](tickets/TCK-488-fiche-bien-matrice-lue-a-moitie.md) — La fiche d'un bien ne lit la matrice de pertinence qu'à moitié : une tâche impossible dans l'aperçu, des équipements domestiques sur un terrain à l'édition `S · P1 · front`
+- [TCK-489](tickets/TCK-489-date-de-disponibilite-jamais-affichee.md) — La date de disponibilité s'écrit, se filtre, et ne s'affiche nulle part `S · P1 · front`
+- [TCK-490](tickets/TCK-490-second-chemin-d-ecriture-d-adresse-sans-appelant.md) — Un second chemin d'écriture d'adresse survit sans aucun appelant, et c'est celui dont TCK-464 a corrigé le défaut `S · P2 · technique`
+- [TCK-491](tickets/TCK-491-statut-foncier-invisible-comparateur-et-recherche.md) — Le statut foncier est renseignable depuis TCK-464 et reste invisible du comparateur comme de la recherche publique `M · P2 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 53 — Débordements mesurés pendant le lot de la vague 52 : jeton de contraste, encre héritée, brouillons non lus (2026-08-30)</strong> — 5 tickets</summary>

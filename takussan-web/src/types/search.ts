@@ -53,6 +53,14 @@ export type TraducteursDeFiltre = {
   readonly contract: Traducteur;
   /** `useTranslations('property.rentPeriods')` */
   readonly periods: Traducteur;
+  /**
+   * `useTranslations('property.titleTypes')` — TCK-491.
+   *
+   * Le MÊME vocabulaire que le parcours de publication (`PROPERTY_ENUM_NAMESPACES.titleType`),
+   * tenu aligné sur `lang/<locale>/properties.php` par `property-labels.parity.test.ts`. Aucune
+   * seconde table de libellés : c'est la contrainte 1 du ticket.
+   */
+  readonly titleTypes: Traducteur;
 };
 
 type CleCommune<V> = {
@@ -339,6 +347,17 @@ export const SEARCH_FILTER_KEYS = {
           day: '2-digit', month: 'short', year: 'numeric',
         }),
       }),
+  },
+  title_type: {
+    role: 'filtre',
+    params: ['title_type'],
+    lire: (sp: URLSearchParams) => litTexte(sp, 'title_type'),
+    ecrire: (v: string) => v,
+    // La puce dit « Titre : Bail », pas `titre_foncier` : la valeur d'URL est un jeton d'enum,
+    // le libellé vient du dictionnaire — comme pour `type` et `contract_type` — et le préfixe
+    // nomme le critère, sans quoi « Bail » seul ne dit pas de quoi il est la réponse.
+    libelle: (v: string, t: TraducteursDeFiltre) =>
+      t.tags('tags.titleType', { value: t.titleTypes(String(v)) }),
   },
   tags: {
     role: 'filtre',

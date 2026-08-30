@@ -624,6 +624,9 @@
         "parking": "Parking spaces",
         "furnished": "Furnished",
         "titleDeed": "Title deed",
+        "availability": "Availability",
+        "availabilityNow": "Immediately",
+        "availabilityFrom": "From {date}",
         "yes": "Yes"
       },
       "specs": {
@@ -884,6 +887,8 @@
         "country": "Country (ISO code)",
         "countryPlaceholder": "SN",
         "area": "Area (m²)",
+        "areaLand": "Plot area (m²)",
+        "areaLiving": "Living area (m²)",
         "bedrooms": "Bedrooms",
         "bathrooms": "Bathrooms",
         "yearBuilt": "Year built",
@@ -920,7 +925,8 @@
       },
       "amenities": {
         "title": "Amenities",
-        "hint": "Select the available amenities and facilities."
+        "hint": "Select the available amenities and facilities.",
+        "saveFailed": "The property is saved. We could not save the amenities though. Retry."
       },
       "photos": {
         "title": "Photos",
@@ -965,7 +971,10 @@
         "priceHistoryHint": "Last 5 recorded changes.",
         "seeAll": "See all",
         "noPriceHistory": "No price change recorded yet.",
-        "unknownDate": "Unknown date"
+        "unknownDate": "Unknown date",
+        "availability": "Availability",
+        "availabilityNow": "Immediately",
+        "availabilityFrom": "From {date}"
       },
       "tabs": {
         "overview": "Overview",
@@ -2012,7 +2021,8 @@
       "yearBuilt": "Year built",
       "parking": "Parking spots",
       "amenities": "Amenities",
-      "tags": "Other tags"
+      "tags": "Other tags",
+      "titleDeed": "Title deed"
     },
     "table": {
       "ariaLabel": "Property comparison table",
@@ -3112,7 +3122,8 @@
         "availability": "Availability",
         "amenities": "Amenities",
         "advanced": "Advanced search",
-        "aroundMe": "Around me"
+        "aroundMe": "Around me",
+        "titleDeed": "Title deed"
       },
       "aroundMe": {
         "use": "Use my location",
@@ -3143,7 +3154,8 @@
         "second": "2nd",
         "third": "3rd",
         "fourthPlus": "4th+"
-      }
+      },
+      "titleDeedHint": "Only applies to properties that own their land: houses, villas, plots, warehouses. Not relevant for a flat, an office or a shop."
     },
     "toolbar": {
       "loading": "Loading…",
@@ -3174,7 +3186,8 @@
       "bathrooms": "{n} ba",
       "areaMin": "≥ {value} m²",
       "areaMax": "≤ {value} m²",
-      "radius": "Within {km} km"
+      "radius": "Within {km} km",
+      "titleType": "Deed: {value}"
     },
     "pagination": {
       "aria": "Pagination",

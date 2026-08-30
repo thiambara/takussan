@@ -4,8 +4,10 @@ namespace App\Http\Requests\Public;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\FiltreParPointEtRayon;
+use App\Models\Enums\TitleType;
 use Closure;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 
 /**
  * TCK-304/305 — extrait de PublicPropertyController::search(), ou les regles etaient inline.
@@ -141,6 +143,9 @@ class SearchPublicPropertyRequest extends BaseFormRequest
                 },
             ],
             'floor_number' => 'nullable|integer|min:0|max:200',
+            // TCK-491 — une enum, jamais une chaine libre : un statut inconnu doit rendre 422
+            // plutot que d'ecarter le catalogue entier en silence, comme `contract_type`.
+            'title_type' => ['nullable', Rule::enum(TitleType::class)],
             // TCK-335 — `after_or_equal:today` faisait POURRIR toute recherche sauvegardee
             // et tout lien partage : le jour ou la date passait, l'URL rendait 422, et le
             // front affichait « 0 bien trouve ». La borne n'a de sens qu'a la SAISIE, pas a

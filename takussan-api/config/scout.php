@@ -172,7 +172,7 @@ return [
                 'filterableAttributes' => [
                     'type', 'contract_type', 'rent_period', 'status', 'visibility',
                     'price', 'bedrooms', 'bathrooms', 'area', 'furnished',
-                    'floor_number', 'featured', 'is_test', 'agency_id', 'user_id',
+                    'floor_number', 'title_type', 'featured', 'is_test', 'agency_id', 'user_id',
                     'available_from', 'published_at', 'city', 'neighborhood',
                     'tags', '_geo',
                 ],

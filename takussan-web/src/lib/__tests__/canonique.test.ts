@@ -30,10 +30,10 @@ const canonique = (requete: string, domaines: DomainesDeFacette = DOMAINES) =>
  * la canonique disparaissait que si elle recopiait l'URL demandée »*.
  *
  * Les deux moitiés sont éprouvées séparément : ce qui est RETENU (trois clés, un ordre fixe) et ce
- * qui est ÉCARTÉ (les dix-sept autres filtres, plus les trois contrôles). Un test qui n'aurait
+ * qui est ÉCARTÉ (les dix-huit autres filtres, plus les trois contrôles). Un test qui n'aurait
  * vérifié que la première serait vert sur une canonique qui recopie l'URL.
  */
-describe('la partition des 23 clés est TOTALE', () => {
+describe('la partition des 24 clés est TOTALE', () => {
   it('couvre exactement `CLES_DE_RECHERCHE`', () => {
     // Le contrôle qui empêche une clé neuve d'échapper à la décision : ajouter une entrée à
     // `SEARCH_FILTER_KEYS` sans trancher sa canonicité fait rougir ici.

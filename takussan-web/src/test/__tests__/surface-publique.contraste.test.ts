@@ -180,8 +180,18 @@ const DETTES: readonly (readonly [string, number, string])[] = [
  */
 const FICHIERS_HORS_JETONS = 43;
 
-/** Idem pour les encres inverses laissées de côté (cf. `couples-de-contraste.ts`). */
-const ENCRES_INVERSES = 150;
+/**
+ * Idem pour les encres inverses laissées de côté (cf. `couples-de-contraste.ts`).
+ *
+ * **150 → 151 le 2026-08-30 (TCK-491).** Cause : le rappel sous le filtre « Statut foncier » de
+ * `FilterSidebar.tsx`, `text-[11px] text-muted-foreground` — les MÊMES classes que les onze autres
+ * rappels du même fichier, déjà comptés ici. Le groupe ne déclare pas de fond parce qu'aucun de
+ * ces rappels ne le fait : le fond est celui du panneau, posé par un ancêtre.
+ *
+ * *Écrire ce couple autrement pour ne pas faire monter le compteur aurait rendu ce rappel
+ * différent de ses onze voisins* — le cliquet dirait vrai, et l'écran serait moins cohérent.
+ */
+const ENCRES_INVERSES = 151;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

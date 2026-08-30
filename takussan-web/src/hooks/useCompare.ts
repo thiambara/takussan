@@ -41,6 +41,15 @@ function reducer(state: State, action: Action): State {
   }
 }
 
+/**
+ * Les colonnes que le comparateur LIT.
+ *
+ * ⚠ TCK-491, mesuré le 2026-08-30 : `PublicPropertyController::compare()` construit un
+ * `Property::query()` nu et **n'honore pas** `fields[properties]` — comme `show()`, `search()` et
+ * `discovery()`. Cette liste ne réduit donc aucune charge utile ; elle dit l'intention de
+ * l'appelant, et c'est elle qui restera vraie le jour où la route passera par `buildQuery()`.
+ * `title_type` y figure depuis que le comparateur affiche le statut foncier.
+ */
 const COMPARE_FIELDS = [
   'id',
   'reference_number',
@@ -51,6 +60,7 @@ const COMPARE_FIELDS = [
   'type',
   'contract_type',
   'rent_period',
+  'title_type',
   'bedrooms',
   'bathrooms',
   'area',

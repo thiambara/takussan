@@ -98,6 +98,29 @@ export function isFieldRelevant(cle: ConditionalFieldKey, ctx: RelevanceContext)
 }
 
 /**
+ * TCK-488 / TCK-489 — le contexte de pertinence d'un bien LU depuis l'API.
+ *
+ * Les trois consommateurs de TCK-464 partaient tous d'un FORMULAIRE, où `type` et `contract_type`
+ * sont garantis par le schéma. Les LECTEURS — l'aperçu du tableau de bord, la fiche publique, le
+ * comparateur — partent d'une charge utile où `contract_type` peut être nul. Sans ce pont, chacun
+ * écrit son propre `?? 'sale'` : c'est exactement la troisième version de la règle que l'en-tête
+ * de ce fichier existe pour empêcher.
+ *
+ * ⚠ Un `contract_type` nul retombe sur `'sale'`, et c'est un choix, pas un défaut : `contract` ne
+ * sert à la matrice qu'à distinguer la location du reste. Un bien sans contrat n'est pas une
+ * location — il n'a donc ni périodicité de loyer ni date de disponibilité.
+ */
+export function relevanceContextOf(bien: {
+  readonly type: string | null | undefined;
+  readonly contract_type?: string | null;
+}): RelevanceContext {
+  return {
+    type: (bien.type ?? 'other') as PropertyTypeValue,
+    contract: (bien.contract_type === 'rent' ? 'rent' : 'sale') as ContractTypeValue,
+  };
+}
+
+/**
  * La clé i18n du libellé de surface. Un terrain et une ferme se mesurent en surface de PARCELLE,
  * un logement en surface HABITABLE — ce n'est pas la même grandeur, et les confondre fausse la
  * comparaison entre deux annonces.
