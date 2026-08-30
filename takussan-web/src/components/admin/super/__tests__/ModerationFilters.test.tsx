@@ -16,6 +16,12 @@ import { ModerationFilters } from '../moderation';
  * ⚠ Cet écran n'a **pas** de champ de recherche : l'AC3 (« au plus 2 requêtes pour 10
  * caractères ») ne s'y applique pas. Elle est couverte sur `/users`, `/properties` et dans le
  * test du sélecteur lui-même.
+ *
+ * ⚠ **TCK-451** — ce fichier a rougi le 2026-08-27 sous `load average 240`, vert au repos. Il
+ * partage l'horloge de son voisin `DebouncedSearchInput.test.tsx` (`AgencyCombobox` porte son
+ * propre `AGENCY_SEARCH_DEBOUNCE_MS = 300`) mais **pas** son mécanisme : son assertion est
+ * POSITIVE, et le seul mécanisme qui l'atteint est le budget de l'attente. La mesure, la
+ * reproduction et la borne sont écrites au point exact où elles s'appliquent, l. ~86.
  */
 
 const mockReplace = vi.fn();
@@ -83,7 +89,34 @@ describe('<ModerationFilters>', () => {
     await user.click(champ);
     await user.type(champ, 'Ziguinchor');
 
-    await user.click(await screen.findByRole('option', { name: 'Ziguinchor Habitat' }));
+    // ⚠ Borne LOCALE explicite (TCK-451, mécanisme 2) — pas un confort.
+    //
+    // Cette attente est la seule du fichier, et elle attend un `setTimeout` réel : la frappe
+    // arme `AGENCY_SEARCH_DEBOUNCE_MS` (300 ms, `AgencyCombobox`), puis la requête part, puis
+    // l'option se rend. Elle consomme donc du budget d'`asyncUtilTimeout` (3000 ms,
+    // `vitest.setup.ts`, TCK-313) — mesuré le **2026-08-29**, 8 cœurs, `load average` 3,2, cinq
+    // essais : **321,7 à 329,4 ms sur 3000**, soit une marge de **9,1× à 9,3×**.
+    //
+    // Cette marge est AU-DESSOUS des facteurs de contention mesurés par TCK-312 sur les tests
+    // d'interaction (11,6× à 16,7×) : le test était sur la falaise, ce qui explique le rouge du
+    // 2026-08-27 sur ce fichier sous `load average 240`.
+    //
+    // Reproduit, et non rangé sous l'explication du voisin : en portant le chemin asynchrone à
+    // ~3,2 s (retard injecté dans le `fetch` moqué), le test rend EXACTEMENT le message observé —
+    // « TestingLibraryElementError: Unable to find role="option" and name "Ziguinchor Habitat" »,
+    // en 3195 ms — un message qui accuse le composant, lequel n'y est pour rien.
+    //
+    // 10 000 ms porte la marge à 30× (et 2,5× sur le pire cas voisin jamais chronométré sous
+    // contention, 4032 ms), tout en restant sous `testTimeout` (20 s) pour que l'échec d'une VRAIE
+    // régression reste un message d'assertion et non un « Test timed out ».
+    const BUDGET_DE_LATTENTE_MS = 10_000;
+    await user.click(
+      await screen.findByRole(
+        'option',
+        { name: 'Ziguinchor Habitat' },
+        { timeout: BUDGET_DE_LATTENTE_MS },
+      ),
+    );
 
     expect(mockReplace).toHaveBeenCalledWith(
       expect.stringContaining('filter%5Bagency_id%5D=63'),

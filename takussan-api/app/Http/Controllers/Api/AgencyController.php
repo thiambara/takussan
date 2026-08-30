@@ -10,7 +10,6 @@ use App\Http\Resources\AgencyResource;
 use App\Http\Resources\UserResource;
 use App\Models\Agency;
 use App\Models\Enums\AgencyAdminProfileStatus;
-use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgencyStatus;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Currency;
@@ -18,6 +17,7 @@ use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\User;
 use App\Services\Billing\QuotaResolver;
+use App\Support\AgencyKindGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -164,13 +164,18 @@ class AgencyController extends Controller
         // Le garde vit ICI et non dans `AddAgentAgencyRequest::authorize()` :
         // TCK-305 a posé que cette méthode est une SIMPLE DÉLÉGATION à la policy
         // (« aucune règle d'autorisation n'a migré ici »), et `AgencyPolicy@update`
-        // ne juge pas le `kind`. Le chemin d'invitation place la même règle dans
-        // son service (`AgentInvitationService::assertAgencyCanInvite()`) ; les
-        // deux gestes la portent désormais, chacun chez lui.
-        $kind = $agency->kind instanceof AgencyKind
-            ? $agency->kind
-            : AgencyKind::tryFrom((string) $agency->kind);
-        abort_if($kind !== AgencyKind::Standard, 403, __('team.invite.errors.individual_agency'));
+        // ne juge pas le `kind`.
+        //
+        // TCK-449 (AC5) — la RÈGLE, elle, ne vit plus ici : elle était recopiée
+        // dans quatre fichiers, et c'est la copie manquante qui a produit ce
+        // ticket. `AgencyKindGuard::canFormTeam()` en porte désormais la seule
+        // définition, partagée par l'invitation ET le rattachement.
+        //
+        // ⚠ Les DEUX routes qui mènent ici — `POST /agencies/{id}/members`
+        // (canonique, TCK-015) et son alias historique `…/agents` — sont
+        // couvertes par ce seul appel, parce qu'il est dans le contrôleur et
+        // non sur une route.
+        AgencyKindGuard::ensureCanFormTeam($agency);
 
         app(QuotaResolver::class)->assertCanAddAgent($agency);
 

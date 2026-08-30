@@ -16,3 +16,6 @@ node_modules/
 # Reference deployment files from another project (CheckPrint), kept local
 docs/reference-dploiement/
 .wt/
+
+# Maquettes de brainstorming (superpowers) — locales, non versionnées
+.superpowers/

@@ -107,7 +107,7 @@ describe('/app/crm/pipeline — le lien n’élargit aucun accès (TCK-379)', ()
     // deviendrait une invitation vers un 403 — la forme de défaut que ce lot corrige ailleurs.
     const src = (p: string) => fs.readFileSync(path.resolve(__dirname, p), 'utf8');
     expect(src('../../../customers/layout.tsx')).toContain('assertCanReachAgentArea');
-    expect(src('../../../customers/page.tsx')).toContain('/app/crm/pipeline');
+    expect(src('../../../customers/(liste)/page.tsx')).toContain('/app/crm/pipeline');
     const guards = src('../../../../../../lib/auth/guards.ts');
     expect(guards).toContain('isAgent(roles) || isOwner(roles) || isAdmin(roles)');
     // ⚠ Cette ligne exigeait que la page RECOPIE l'expression de rôles en ligne

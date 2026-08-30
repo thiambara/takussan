@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 
 import { getMeAction } from '@/app/actions/auth';
 
@@ -24,10 +23,11 @@ export default async function Page({ params }: PageProps) {
   const { id } = await params;
   const numericId = Number(id);
 
-  // Identifiant illisible : introuvable, et non panne. L'écran local qui rendait ici un
-  // titre + un lien de retour est remplacé par `app/not-found.tsx`, qui dit la même chose
-  // en UN endroit et depuis le shell du tableau de bord.
-  if (!Number.isInteger(numericId) || numericId <= 0) notFound();
+  // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
+  // `[id]/layout.tsx`, strictement au-dessus du `loading.tsx` de ce segment : un `notFound()`
+  // écrit ici rendrait 200, avec l'écran introuvable affiché quand même. La décision n'a pas
+  // changé de nature — un identifiant illisible reste un INTROUVABLE, jamais une panne — elle
+  // a changé d'étage, et elle couvre désormais aussi le 404 de l'API.
 
   return (
     <div className="space-y-6">

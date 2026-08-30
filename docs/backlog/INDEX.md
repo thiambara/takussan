@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**411 tickets** — 36 ouverts, 374 livrés.
+**426 tickets** — 25 ouverts, 400 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 35 |
+| 📋 Todo | 24 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 374 |
+| ✅ Done | 400 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -42,32 +42,21 @@
 - [TCK-345](tickets/TCK-345-recherche-postgresql-contre-meilisearch.md) — Recherche PostgreSQL (pg_trgm / FTS) : faut-il retirer Meilisearch ? `XL · P3 · technique`
 - [TCK-347](tickets/TCK-347-formatage-nombres-et-dates-suit-la-locale.md) — Le formatage des nombres et des dates est figé en français, quelle que soit la langue `L · P3 · front`
 - [TCK-349](tickets/TCK-349-index-des-cles-etrangeres-nues.md) — Indexer les clés étrangères nues que la mesure justifie (85 restantes) `M · P3 · technique`
-- [TCK-350](tickets/TCK-350-alertes-de-recherche-sauvegardee-renotifient.md) — Les alertes de recherche sauvegardée renotifient les mêmes biens tous les jours `M · P1 · technique`
 - [TCK-351](tickets/TCK-351-deux-sources-de-libelles-de-bien.md) — Deux sources de libellés de bien s'affichent dans le même parcours — 44 divergences mesurées `M · P2 · technique`
 - [TCK-352](tickets/TCK-352-mailer-resend-declare-sans-dependance.md) — Le mailer `resend` est déclaré mais son paquet n'est pas une dépendance — aucun courriel n'est jamais parti `S · P1 · bug`
 - [TCK-355](tickets/TCK-355-blocages-noyau-sur-le-vps.md) — Le VPS se bloque au niveau du noyau : l'API devient injoignable pendant plusieurs minutes, cause non établie `M · P1 · technique`
-- [TCK-442](tickets/TCK-442-notfound-des-pages-de-detail-sous-les-replis.md) — Les 9 `notFound()` des pages de détail de `/app` rendent 200 : remonter la REQUÊTE, pas seulement la décision `M · P3 · front`
-- [TCK-443](tickets/TCK-443-ecouteurs-enregistres-deux-fois.md) — 21 écouteurs sont enregistrés DEUX fois — la découverte automatique et `AppServiceProvider` font le même travail, et l'utilisateur reçoit tout en double `M · P1 · bug`
-- [TCK-444](tickets/TCK-444-profilebadge-aplat-a-20-pour-cent.md) — `ProfileBadge` — 12 couples sur 20 sous le seuil de contraste : c'est le motif `bg-chart-N/20 text-chart-N` qui est en cause, pas une ligne de la table `S · P2 · front`
-- [TCK-445](tickets/TCK-445-prestataire-se-reassigne-sa-demande.md) — Un prestataire assigné peut se réassigner sa propre demande et en changer la priorité — `PATCH /api/maintenance-requests/{id}` ne restreint aucun champ `S · P1 · bug`
 - [TCK-446](tickets/TCK-446-spec-muette-sur-le-prestataire.md) — La spec ne décrit pas ce que le produit sert déjà au prestataire — sa vue de travail principale n'a aucune ligne `S · P2 · technique`
-- [TCK-447](tickets/TCK-447-angles-morts-du-generateur-par-acteur.md) — Les deux angles morts de `gen-features-by-actor` : un acteur déclaré et inemployé passe, une ligne hors section n'est pas même lue `S · P3 · technique`
 - [TCK-448](tickets/TCK-448-dialogues-invitation-avalent-lerreur.md) — Les dialogues d'invitation avalent l'erreur de saisie : la soumission est bloquée et rien ne s'affiche — cause non identifiée `M · P2 · bug`
-- [TCK-449](tickets/TCK-449-ajout-de-membre-ignore-le-type-dagence.md) — `POST /api/agencies/{id}/members` ignore le type d'agence : une agence `individual` se constitue une équipe en contournant l'écran `S · P1 · bug`
-- [TCK-450](tickets/TCK-450-ton-success-de-statusbadge-emprunte-accent.md) — Le ton `success` de `StatusBadge` emprunte `--accent` — décider la charte, et le vérifier à l'écran `S · P2 · front`
-- [TCK-451](tickets/TCK-451-assertion-negative-contre-horloge-reelle.md) — Deux mécanismes rendent `DebouncedSearchInput.test.tsx` sensible aux décrochages d'ordonnancement `S · P2 · technique`
 - [TCK-452](tickets/TCK-452-theme-sombre-inatteignable.md) — Aucune BASCULE de thème sombre n'existe : le bloc `.dark` sert de surface locale à deux composants et n'est atteignable par aucun utilisateur `M · P2 · technique`
-- [TCK-453](tickets/TCK-453-classes-non-emises.md) — Une classe dont le jeton n'existe pas ne fait AUCUNE erreur : la couleur disparaît, et rien dans le dépôt ne peut le voir `M · P2 · technique`
-- [TCK-454](tickets/TCK-454-roles-personnalises-sur-agence-individuelle.md) — Deux endpoints acceptent des rôles personnalisés sur une agence `individual`, que la spec leur refuse `S · P1 · back`
-- [TCK-455](tickets/TCK-455-invitation-generique-fabrique-un-compte-sans-acces.md) — `POST /api/invitations` fabrique un compte accepté qui n'est membre de rien `M · P1 · back`
-- [TCK-456](tickets/TCK-456-trois-definitions-de-la-fenetre-d-activite.md) — Trois définitions divergentes de la fenêtre d'activité d'une délégation, qu'aucune garde ne lie `S · P2 · back`
-- [TCK-457](tickets/TCK-457-resolution-des-delegations-en-n-plus-un.md) — La résolution des délégations fait N requêtes là où une seule suffirait — et la sortie n'est PAS un cache `M · P3 · back`
-- [TCK-458](tickets/TCK-458-contraste-de-la-pastille-de-contrat.md) — La pastille de type de contrat est sous le seuil AA sur toutes les cartes de bien — et la mesure de contraste ne couvrait que deux composants `M · P2 · front`
-- [TCK-459](tickets/TCK-459-un-raisonnement-faux-dans-un-ticket-clos.md) — Un raisonnement faux vit dans un ticket `done`, et il y sert à justifier de laisser un contraste à 1,05:1 `S · P2 · technique`
-- [TCK-460](tickets/TCK-460-une-ombre-a-besoin-d-un-jeton-qui-ne-s-inverse-pas.md) — Deux ombres recopient `--foreground` en décimal, et le remède évident les casserait sous `.dark` `S · P2 · front`
-- [TCK-461](tickets/TCK-461-trois-proprietes-prouvees-par-lecture-gardees-par-rien.md) — Trois propriétés livrées sont prouvées par LECTURE et gardées par rien — leur régression resterait verte `S · P2 · front`
-- [TCK-462](tickets/TCK-462-des-totaux-comptes-sur-un-nom-tire-au-hasard.md) — Des totaux de recherche comptés sur un nom TIRÉ AU HASARD — un a rougi en CI, deux autres l'attendent `S · P2 · technique`
 - [TCK-463](tickets/TCK-463-typescript-7-bloque-par-typescript-eslint.md) — TypeScript 7 est bloqué par `typescript-eslint`, pas par notre code — mesuré, et la branche qui le portait est supprimée `S · P3 · technique`
+- [TCK-471](tickets/TCK-471-bouton-deverifier-invisible-sur-la-fiche-agence.md) — Le bouton « Déverifier » de la fiche agence est invisible : contraste 1,00:1 `S · P1 · technique`
+- [TCK-472](tickets/TCK-472-statusbadge-nest-pas-le-seul-a-decider-la-couleur-dun-statut.md) — `StatusBadge` affirme être le seul à décider la couleur d'un statut ; ils sont quatre `M · P2 · technique`
+- [TCK-473](tickets/TCK-473-corpus-depreuve-pour-les-gardes-de-gen-features-by-actor.md) — Les trois gardes de `gen-features-by-actor.mjs` ne sont prouvées par rien `S · P2 · technique`
+- [TCK-474](tickets/TCK-474-resolution-report-valide-et-fillable-sans-colonne.md) — `resolution_report` est validé et `$fillable`, mais aucune migration ne crée la colonne `S · P1 · technique`
+- [TCK-475](tickets/TCK-475-toast-de-succes-sur-une-ecriture-echouee.md) — Le brouillon d'assistant annonce « Progression sauvegardée » quand l'écriture a échoué `S · P2 · technique`
+- [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
+- [TCK-477](tickets/TCK-477-le-dock-delegue-la-safe-area-a-un-mecanisme-inexistant.md) — L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé `S · P2 · technique`
+- [TCK-478](tickets/TCK-478-le-motif-de-tck-451-existe-en-trois-exemplaires.md) — Le motif corrigé par TCK-451 existe en trois exemplaires — deux n'ont jamais été touchés `S · P1 · front`
 
 ## 🚧 Doing
 
@@ -83,10 +72,40 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 374
+## ✅ Done — 400
 
 <details>
-<summary><strong>Vague 49 — Site public — audit design & fonctionnel (2026-08-27)</strong> — 11 tickets</summary>
+<summary><strong>Vague 52 — Dettes relevées par les revues du parcours de publication (2026-08-29)</strong> — 6 tickets</summary>
+
+- [TCK-465](tickets/TCK-465-brouillon-echec-silencieux.md) — Un brouillon de parcours peut échouer à s'enregistrer sans que personne ne le sache `S · P2 · technique`
+- [TCK-466](tickets/TCK-466-garde-espaces-de-noms-enum.md) — Rien n'empêche de composer à la main le chemin d'un vocabulaire d'enum `S · P2 · technique`
+- [TCK-467](tickets/TCK-467-reduced-motion-site-wide.md) — Les animations du site s'exécutent quelle que soit la préférence système de mouvement réduit `S · P1 · front`
+- [TCK-468](tickets/TCK-468-cibles-tactiles-champs.md) — Les champs de formulaire font 32 px de haut là où les pastilles en font 44 `M · P2 · front`
+- [TCK-469](tickets/TCK-469-valeur-devenue-non-pertinente.md) — Changer le type d'un bien laisse en base des valeurs que le nouveau type ne justifie plus `M · P1 · full`
+- [TCK-470](tickets/TCK-470-server-actions-payload-plat.md) — Les server actions des biens sont typées à plat alors que les payloads sont imbriqués `S · P2 · technique`
+
+</details>
+
+<details>
+<summary><strong>Vague 51 — Publication d'un bien — refonte du parcours de création (2026-08-29)</strong> — 1 ticket</summary>
+
+- [TCK-464](tickets/TCK-464-publication-bien-parcours-guide.md) — Publication d'un bien — parcours guidé, champs conditionnés au type, et l'adresse qui n'était jamais enregistrée `L · P0 · full`
+
+</details>
+
+<details>
+<summary><strong>Vague 50 — Revues adverses du lot 383-440 : défauts constatés hors périmètre (2026-08-27)</strong> — 5 tickets</summary>
+
+- [TCK-443](tickets/TCK-443-ecouteurs-enregistres-deux-fois.md) — 21 écouteurs sont enregistrés DEUX fois — la découverte automatique et `AppServiceProvider` font le même travail, et l'utilisateur reçoit tout en double `M · P1 · bug`
+- [TCK-444](tickets/TCK-444-profilebadge-aplat-a-20-pour-cent.md) — `ProfileBadge` — 12 couples sur 20 sous le seuil de contraste : c'est le motif `bg-chart-N/20 text-chart-N` qui est en cause, pas une ligne de la table `S · P2 · front`
+- [TCK-445](tickets/TCK-445-prestataire-se-reassigne-sa-demande.md) — Un prestataire assigné peut se réassigner sa propre demande et en changer la priorité — `PATCH /api/maintenance-requests/{id}` ne restreint aucun champ `S · P1 · bug`
+- [TCK-447](tickets/TCK-447-angles-morts-du-generateur-par-acteur.md) — Les deux angles morts de `gen-features-by-actor` : un acteur déclaré et inemployé passe, une ligne hors section n'est pas même lue `S · P3 · technique`
+- [TCK-449](tickets/TCK-449-ajout-de-membre-ignore-le-type-dagence.md) — `POST /api/agencies/{id}/members` ignore le type d'agence : une agence `individual` se constitue une équipe en contournant l'écran `S · P1 · technique`
+
+</details>
+
+<details>
+<summary><strong>Vague 49 — Site public — audit design & fonctionnel (2026-08-27)</strong> — 22 tickets</summary>
 
 - [TCK-431](tickets/TCK-431-sitemap-et-robots-absents.md) — Le catalogue public n'est déclaré à aucun crawler : ni sitemap, ni robots, et un POC de design indexable `M · P1 · front`
 - [TCK-432](tickets/TCK-432-accueil-et-liste-sans-rendu-serveur.md) — La page d'accueil et /properties ne rendent aucun bien côté serveur, et ni l'une ni l'autre n'a de `<h1>` `L · P1 · front`
@@ -99,6 +118,17 @@ _(aucun)_
 - [TCK-439](tickets/TCK-439-champ-de-recherche-a-deux-filtres.md) — Le même champ de recherche écrit `q` ou `city` selon le bouton cliqué — et deux entrées du menu mobile mènent à `#` `S · P1 · bug`
 - [TCK-440](tickets/TCK-440-chrome-publique-en-palette-brute.md) — La chrome publique en palette brute : 121 classes hors tokens, dont la navbar et un pied de page entièrement hors palette `M · P2 · front`
 - [TCK-441](tickets/TCK-441-contact-personnel-agent-sans-authentification.md) — L'adresse de CONNEXION d'un agent est publiée sur un endpoint public énumérable — là où l'API voisine la retire pour les mêmes personnes `S · P1 · back`
+- [TCK-442](tickets/TCK-442-notfound-des-pages-de-detail-sous-les-replis.md) — Les 9 `notFound()` des pages de détail de `/app` rendent 200 : remonter la REQUÊTE, pas seulement la décision `M · P3 · front`
+- [TCK-453](tickets/TCK-453-classes-non-emises.md) — Une classe dont le jeton n'existe pas ne fait AUCUNE erreur : la couleur disparaît, et rien dans le dépôt ne peut le voir `M · P2 · technique`
+- [TCK-454](tickets/TCK-454-roles-personnalises-sur-agence-individuelle.md) — Deux endpoints acceptent des rôles personnalisés sur une agence `individual`, que la spec leur refuse `S · P1 · back`
+- [TCK-455](tickets/TCK-455-invitation-generique-fabrique-un-compte-sans-acces.md) — `POST /api/invitations` fabrique un compte accepté qui n'est membre de rien `M · P1 · back`
+- [TCK-456](tickets/TCK-456-trois-definitions-de-la-fenetre-d-activite.md) — Trois définitions divergentes de la fenêtre d'activité d'une délégation, qu'aucune garde ne lie `S · P2 · back`
+- [TCK-457](tickets/TCK-457-resolution-des-delegations-en-n-plus-un.md) — La résolution des délégations fait N requêtes là où une seule suffirait — et la sortie n'est PAS un cache `M · P3 · back`
+- [TCK-458](tickets/TCK-458-contraste-de-la-pastille-de-contrat.md) — La pastille de type de contrat est sous le seuil AA sur toutes les cartes de bien — et la mesure de contraste ne couvrait que deux composants `M · P2 · front`
+- [TCK-459](tickets/TCK-459-un-raisonnement-faux-dans-un-ticket-clos.md) — Un raisonnement faux vit dans un ticket `done`, et il y sert à justifier de laisser un contraste à 1,05:1 `S · P2 · technique`
+- [TCK-460](tickets/TCK-460-une-ombre-a-besoin-d-un-jeton-qui-ne-s-inverse-pas.md) — Deux ombres recopient `--foreground` en décimal, et le remède évident les casserait sous `.dark` `S · P2 · front`
+- [TCK-461](tickets/TCK-461-trois-proprietes-prouvees-par-lecture-gardees-par-rien.md) — Trois propriétés livrées sont prouvées par LECTURE et gardées par rien — leur régression resterait verte `S · P2 · front`
+- [TCK-462](tickets/TCK-462-des-totaux-comptes-sur-un-nom-tire-au-hasard.md) — Des totaux de recherche comptés sur un nom TIRÉ AU HASARD — un a rougi en CI, deux autres l'attendent `S · P2 · technique`
 
 </details>
 
@@ -138,7 +168,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 46 — Console super-admin — audit design & fonctionnel (2026-08-26)</strong> — 16 tickets</summary>
+<summary><strong>Vague 46 — Console super-admin — audit design & fonctionnel (2026-08-26)</strong> — 17 tickets</summary>
 
 - [TCK-357](tickets/TCK-357-console-super-admin-primitives-partagees.md) — Console super-admin — primitives partagées (table, en-tête, tuile, badge, filtres, états) `L · P2 · front`
 - [TCK-358](tickets/TCK-358-console-super-admin-tokens-et-cliquet.md) — Console super-admin — éteindre la palette Tailwind brute, et poser le cliquet qui l'empêche de revenir `M · P2 · front`
@@ -156,13 +186,15 @@ _(aucun)_
 - [TCK-385](tickets/TCK-385-kyc-uploader-palette-brute-onboarding.md) — Assistants d'onboarding — la pastille KYC en palette brute, dans le seul répertoire que deux gardes se renvoient `S · P2 · front`
 - [TCK-388](tickets/TCK-388-comparaison-de-durees-inegales-sur-plage-partielle.md) — Rapports — la comparaison oppose des durées inégales dès que la plage ne couvre pas des mois entiers `M · P2 · back`
 - [TCK-389](tickets/TCK-389-plafond-de-60-buckets-tronque-en-silence.md) — Rapports — le plafond de 60 buckets tronque une plage choisie sans le dire `S · P2 · back`
+- [TCK-450](tickets/TCK-450-ton-success-de-statusbadge-emprunte-accent.md) — Le ton `success` de `StatusBadge` emprunte `--accent` — décider la charte, et le vérifier à l'écran `S · P2 · front`
 
 </details>
 
 <details>
-<summary><strong>Vague 45 — Solde des tickets ouverts : barrière Meilisearch, dates par valeur, i18n résiduel, géo par distances (2026-08-22)</strong> — 1 ticket</summary>
+<summary><strong>Vague 45 — Solde des tickets ouverts : barrière Meilisearch, dates par valeur, i18n résiduel, géo par distances (2026-08-22)</strong> — 2 tickets</summary>
 
 - [TCK-348](tickets/TCK-348-compression-et-deploiement-preprod.md) — Préproduction : la compression n'est pas active, et la branche est 34 commits derrière `dev` `S · P2 · technique`
+- [TCK-350](tickets/TCK-350-alertes-de-recherche-sauvegardee-renotifient.md) — Les alertes de recherche sauvegardée renotifient les mêmes biens tous les jours `M · P1 · technique`
 
 </details>
 
@@ -193,7 +225,7 @@ _(aucun)_
 </details>
 
 <details>
-<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 7 tickets</summary>
+<summary><strong>Vague 41 — Temps d'exécution de la suite de tests : sélection par impact, puis parallélisation (2026-08-17)</strong> — 8 tickets</summary>
 
 - [TCK-320](tickets/TCK-320-selection-des-tests-par-impact.md) — Sélection des tests par impact — 42 % de la suite est du plancher de harnais, et rien à optimiser dans les tests `M · P2 · technique`
 - [TCK-321](tickets/TCK-321-parallel-en-ci.md) — Rouvrir `--parallel` — un de ses deux verrous était levé depuis six semaines, et l'autre était mal posé `M · P2 · technique`
@@ -202,6 +234,7 @@ _(aucun)_
 - [TCK-325](tickets/TCK-325-garde-des-declencheurs-durs-du-selecteur.md) — Garder la liste des déclencheurs durs du sélecteur d'impact — elle est recopiée à la main et avait dérivé le jour de son écriture `S · P2 · technique`
 - [TCK-331](tickets/TCK-331-coverage-php-en-double-casse-le-cliquet.md) — `--coverage-php` est passé DEUX FOIS — le cliquet sort en 1 sans un mot, et la carte d'impact n'a jamais été régénérée `M · P2 · technique`
 - [TCK-334](tickets/TCK-334-meilisearch-file-partagee-par-machine.md) — Deux `--parallel` simultanés saturent la file de tâches Meilisearch — la CINQUIÈME ressource partagée par machine `M · P2 · technique`
+- [TCK-451](tickets/TCK-451-assertion-negative-contre-horloge-reelle.md) — Deux mécanismes rendent `DebouncedSearchInput.test.tsx` sensible aux décrochages d'ordonnancement `S · P2 · technique`
 
 </details>
 

@@ -1,13 +1,13 @@
 ---
 id: TCK-462
 title: "Des totaux de recherche comptés sur un nom TIRÉ AU HASARD — un a rougi en CI, deux autres l'attendent"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:
@@ -67,21 +67,21 @@ requête plus réaliste, et rien ne le dira.
 
 ## Delta à produire
 
-- [ ] **D1** — Fermer les deux sites à risque **haut** de la même façon que celui déjà corrigé :
+- [x] **D1** — Fermer les deux sites à risque **haut** de la même façon que celui déjà corrigé :
       acteur nommé hors d'atteinte, et assertion d'identité en plus du cardinal.
-- [ ] **D2** — Fermer les deux sites à risque faible, pour la raison ci-dessus.
-- [ ] **D3** — Décider si `actingAsRole` doit nommer ses acteurs de façon déterministe et
+- [x] **D2** — Fermer les deux sites à risque faible, pour la raison ci-dessus.
+- [x] **D3** — Décider si `actingAsRole` doit nommer ses acteurs de façon déterministe et
       non-collisionnable par défaut. ⚠ C'est le remède le plus large et **le plus risqué** : il
       touche tous les tests du dépôt, et un nom fixe partagé peut créer d'autres collisions
       (unicité, recherche exacte). À mesurer avant, pas à décider ici.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Pour chaque site corrigé, la collision est **provoquée puis constatée** avant
+- [x] **AC1** — Pour chaque site corrigé, la collision est **provoquée puis constatée** avant
       correction (nommer l'acteur de façon à matcher, vérifier le rouge, avec l'empreinte md5 du
       fichier relevée avant et après la mutation pour établir que l'ablation a bien EU LIEU),
       puis la correction est posée et le rouge ne se reproduit plus.
-- [ ] **AC2** — Chaque test corrigé **continue de prouver ce qu'il prouvait** : ablation de la
+- [x] **AC2** — Chaque test corrigé **continue de prouver ce qu'il prouvait** : ablation de la
       propriété cherchée (rendre la cible hors d'atteinte de la tolérance aux fautes) → rouge.
       *Rendre un test stable en le rendant creux serait pire que le laisser instable.*
 
@@ -91,3 +91,15 @@ requête plus réaliste, et rien ne le dira.
 > et le réflexe interdit par CLAUDE.md (relancer jusqu'au vert) aurait marché ici. C'est
 > précisément ce qui le rend coûteux : *un défaut qui disparaît quand on relance apprend à
 > relancer.*
+
+## AC2 — ablation jouée le 2026-08-30
+
+La question d'AC2 n'est pas « le test passe-t-il ? » mais « prouve-t-il encore quelque chose ? ».
+Un test rendu stable en devenant creux passerait AC1 sans rien garder.
+
+Ablation : la cible renommée hors de portée de la tolérance aux fautes — la propriété cherchée
+devient introuvable sans que rien d'autre ne change. Empreinte avant lecture : `f68cd6e4…` →
+`5de29014…`.
+
+**1 échec / 3 verts**, puis **10 verts / 10** après restauration, empreinte de référence
+retrouvée. Le test cherche donc bien encore ce pour quoi il a été écrit.

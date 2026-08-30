@@ -12,6 +12,8 @@ import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
 import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
+import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
+import { propertyTypeValues } from '@/lib/schemas/property';
 
 /**
  * Canonical PropertyCard used by the homepage, search results and any
@@ -79,6 +81,14 @@ export function PropertyCard({
 }: PropertyCardProps) {
   const t = useTranslations('property');
   const tCards = useTranslations('property.cards');
+  // TCK-466 — le vocabulaire des types de bien s'adresse par la TABLE, jamais par un chemin
+  // composé à la main. Cette carte écrivait `t(`types.${property.type}`)` sur un traducteur borné
+  // à `property` : la chaîne `property.types` s'y retrouvait recopiée, en deux morceaux, hors de
+  // `PROPERTY_ENUM_NAMESPACES`. `enumLabel` reconduit exactement le repli d'avant — la valeur
+  // BRUTE quand elle n'est pas un type connu — sur l'appartenance à l'enum plutôt que sur
+  // `t.has()` : les 16 valeurs de `propertyTypeValues` sont présentes dans les trois
+  // dictionnaires (mesuré le 2026-08-29), les deux critères coïncident donc à l'écran.
+  const tTypes = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const ref = useRef<HTMLDivElement>(null);
   // Priority cards (above-the-fold) skip the initial hidden state so the
   // browser can count their image as the LCP candidate immediately.
@@ -183,9 +193,7 @@ export function PropertyCard({
               <>
                 <span className="text-muted-foreground/60">•</span>
                 <span className="truncate capitalize">
-                  {t.has(`types.${property.type}`)
-                    ? t(`types.${property.type}`)
-                    : property.type}
+                  {enumLabel(tTypes, propertyTypeValues, property.type)}
                 </span>
               </>
             )}

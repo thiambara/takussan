@@ -67,8 +67,15 @@ export function computeBottom(
 ): string {
   if (self.corner === 'bottom-full') {
     // Full-width sticky bars hug the floor (the safe-area inset is the
-    // consumer's responsibility — see `safe-area-bottom` on the existing
-    // `PropertyMobileBottomBar`).
+    // consumer's responsibility — see the `pb-[calc(…+env(safe-area-inset-bottom))]`
+    // on the existing `PropertyMobileBottomBar`).
+    //
+    // ⚠ Ce commentaire citait `safe-area-bottom` jusqu'au 2026-08-29, et cette classe
+    // n'a JAMAIS existé : elle n'est déclarée ni dans `globals.css`, ni ailleurs, donc
+    // elle n'émettait aucune règle et la barre n'avait aucun rembourrage de zone sûre.
+    // Trois endroits y croyaient (ici, la barre elle-même, et TCK-275) ; zéro
+    // l'implémentait. Trouvée par `scripts/check-classes-emises.mjs` (TCK-453) le jour
+    // de sa mise en service.
     return '0px';
   }
 

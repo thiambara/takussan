@@ -5,13 +5,13 @@ namespace App\Models\Concerns;
 use App\Models\Agency;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PlatformProfileLevel;
-use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\Profiles\ServiceProviderProfile;
+use App\Models\RoleDelegation;
 use App\Services\Membership\MembershipCapabilityResolver;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -265,8 +265,13 @@ trait HasProfiles
 
     /**
      * Vrai si l'utilisateur dispose d'une `RoleDelegation` active pour le rôle
-     * indiqué dans l'agence donnée : status = Active et (`ends_at` nul OU dans
-     * le futur).
+     * indiqué dans l'agence donnée.
+     *
+     * TCK-456 — la fenêtre n'est plus réécrite ici : elle est empruntée à
+     * {@see RoleDelegation::scopeActive()}, devenue la source
+     * unique. La clause qui vivait ici était identique à celle du résolveur et
+     * divergeait de ce scope ; les trois sont désormais liées par
+     * `RoleDelegationActivityWindowTest`.
      *
      * @deprecated TCK-395 — **pour autoriser.** C'est un PRÉDICAT D'ÉTAT sur la
      * table `role_delegations`, pas un contrôle d'autorisation, et la nuance
@@ -291,10 +296,7 @@ trait HasProfiles
         return $this->roleDelegations()
             ->where('agency_id', $agencyId)
             ->where('role', $role)
-            ->where('status', RoleDelegationStatus::Active)
-            ->where(function ($q) {
-                $q->whereNull('ends_at')->orWhere('ends_at', '>', now());
-            })
+            ->active()
             ->exists();
     }
 

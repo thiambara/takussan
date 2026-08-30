@@ -61,22 +61,28 @@ beforeEach(() => {
   apiRequestMock.mockReset();
 });
 
-describe('TCK-382 / AC3 — fiche de bail', () => {
-  it('identifiant illisible → introuvable', async () => {
-    await expect(rendu('abc')).rejects.toThrow('NEXT_NOT_FOUND');
-    expect(notFoundMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('identifiant négatif ou nul → introuvable', async () => {
-    await expect(rendu('0')).rejects.toThrow('NEXT_NOT_FOUND');
-    await expect(rendu('-3')).rejects.toThrow('NEXT_NOT_FOUND');
-  });
-
+describe('TCK-382 / TCK-442 — fiche de bail', () => {
+  /**
+   * ⚠ **Les trois cas d'introuvable ont déménagé dans `[id]/layout.tsx` (TCK-442)**, et ce n'est
+   * pas un déplacement de confort : dans la page, sous le `loading.tsx` de ce segment, ce
+   * `notFound()` rendait **200**. Ils sont éprouvés — pour les huit segments, et sur le 404 de
+   * l'API en plus des identifiants illisibles — par
+   * `app/__tests__/introuvable-de-detail.test.tsx`.
+   *
+   * Ce qui reste ici est ce que la PAGE décide, et le pendant de non-vacuité de là-bas : sur un
+   * identifiant valide elle rend la fiche et n'appelle rien.
+   */
   it('identifiant valide → la fiche, et PAS l’introuvable', async () => {
-    // Non-vacuité des trois précédents : une page qui `notFound()` sur tout les passerait aussi.
     const arbre = await rendu('7');
     expect(notFoundMock).not.toHaveBeenCalled();
     expect(JSON.stringify(arbre)).toContain('7');
+  });
+
+  it('la page ne décide plus AUCUN introuvable — c’est le layout qui le porte', async () => {
+    // Le pendant obligatoire : sans lui, remettre un `notFound()` dans la page (donc réintroduire
+    // le 200) laisserait ce fichier vert. L'identifiant est illisible ; la page rend quand même.
+    await expect(rendu('abc')).resolves.toBeTruthy();
+    expect(notFoundMock).not.toHaveBeenCalled();
   });
 });
 

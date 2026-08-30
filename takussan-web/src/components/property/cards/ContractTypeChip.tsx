@@ -28,8 +28,32 @@ interface ContractTypeChipProps {
  *
  * Corroboré indépendamment par TCK-458, ouvert le même jour sur ce fichier : la paire mesure
  * **10,5 à 12,4:1** selon le fond, très au-dessus du seuil AA. C'est l'AUTRE variante — la
- * location, `bg-accent/90 text-accent-foreground`, 4,22 à 4,29:1 — qui est en défaut. Deux
- * raisonnements partis d'endroits opposés désignent la même ligne : celle-ci n'est pas à toucher.
+ * location — qui était en défaut. Deux raisonnements partis d'endroits opposés désignent la même
+ * ligne : celle-ci n'est pas à toucher.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LA VARIANTE *LOCATION* A PERDU SON ALPHA — TCK-458
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Elle valait `bg-accent/90 text-accent-foreground`, et ce `/90` la faisait passer SOUS le seuil
+ * AA. Le mot « Location » est du TEXTE (10-11 px semi-gras), donc gouverné par 4,5:1 (WCAG 2.1
+ * §1.4.3) et non par les 3:1 du non textuel — confondre les deux est exactement l'erreur qui avait
+ * laissé passer le défaut. Mesuré, alpha composé avant le calcul :
+ *
+ *     bg-accent/90   clair 4,22:1 (--card)  4,26 (--background)   sombre 4,29 / 4,24     ✗
+ *     bg-accent      clair 5,25:1                                 sombre 4,93:1          ✓
+ *
+ * ⚠ **Retirer l'alpha ne fait pas que remonter le ratio : il ferme la question.** Un fond
+ * semi-transparent posé SUR UNE PHOTO n'a pas de contraste garanti par construction — les 10 %
+ * restants laissaient passer un pixel quelconque, et le pire cas (pixel BLANC en thème clair,
+ * pixel NOIR en thème sombre — les deux extrémités opposées pour le même couple) valait 4,22:1 et
+ * 4,10:1. Une plaque OPAQUE ne dépend plus de l'image : le 5,25:1 vaut sur toutes les photos.
+ * `backdrop-blur-md` reste, pour la variante *vente* qui, elle, garde son `/85` — et qui le peut,
+ * son pire cas valant 10,56:1.
+ *
+ * Le pire fond se DÉRIVE (balayage des 256 gris, `pireFondSurMedia`), il ne se choisit pas : la
+ * règle « blanc si l'encre est claire » est vraie ici et fausse en général — cf. le contre-exemple
+ * mesuré dans `src/test/contraste-wcag.ts`.
  */
 export function ContractTypeChip({ type, compact = false, className }: ContractTypeChipProps) {
   const t = useTranslations('property.contractTypes');
@@ -43,7 +67,7 @@ export function ContractTypeChip({ type, compact = false, className }: ContractT
       className={`inline-flex items-center rounded-full font-semibold backdrop-blur-md ${sizing} ${
         isSale
           ? 'bg-foreground/85 text-background'
-          : 'bg-accent/90 text-accent-foreground'
+          : 'bg-accent text-accent-foreground'
       } ${className || ''}`}
     >
       <span className="size-1.5 rounded-full bg-current opacity-70" />

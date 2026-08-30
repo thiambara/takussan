@@ -6,6 +6,7 @@ use App\Mail\InvitationMailable;
 use App\Models\Agency;
 use App\Models\Enums\InvitationStatus;
 use App\Models\Invitation;
+use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,9 +26,18 @@ class InvitationSendTest extends TestCase
         Mail::fake();
         $admin = $this->actingAsRole('agency_admin');
 
+        // TCK-455 — le couple (rôle, profil visé) est désormais EXIGÉ : une
+        // invitation qui ne rattache à rien produisait un compte accepté membre
+        // de rien. Ce test poste donc l'invitation complète que la production
+        // émet, et non plus le payload minimal qui fabriquait le couloir sans
+        // issue.
+        $profil = OwnerProfile::factory()->create(['agency_id' => $admin->agency_id]);
+
         $response = $this->postJson('/api/invitations', [
             'email' => 'NewOwner@example.com',
             'role' => 'owner',
+            'invitable_type' => OwnerProfile::class,
+            'invitable_id' => $profil->id,
         ]);
 
         $response->assertStatus(201)
@@ -52,10 +62,13 @@ class InvitationSendTest extends TestCase
         Mail::fake();
         $admin = $this->actingAsRole('agency_admin');
         $existing = User::factory()->create(['email' => 'existing@example.com']);
+        $profil = AgentProfile::factory()->create(['agency_id' => $admin->agency_id, 'user_id' => null]);
 
         $this->postJson('/api/invitations', [
             'email' => 'existing@example.com',
             'role' => 'agent',
+            'invitable_type' => AgentProfile::class,
+            'invitable_id' => $profil->id,
         ])->assertStatus(201);
 
         $invitation = Invitation::query()->where('email', 'existing@example.com')->first();
@@ -99,9 +112,13 @@ class InvitationSendTest extends TestCase
             'invited_by' => $admin->id,
         ]);
 
+        $profil = OwnerProfile::factory()->create(['agency_id' => $admin->agency_id]);
+
         $this->postJson('/api/invitations', [
             'email' => 'revoked@example.com',
             'role' => 'owner',
+            'invitable_type' => OwnerProfile::class,
+            'invitable_id' => $profil->id,
         ])->assertStatus(201);
     }
 
@@ -110,9 +127,13 @@ class InvitationSendTest extends TestCase
         Mail::fake();
         $admin = $this->actingAsRole('agency_admin');
 
+        $profil = OwnerProfile::factory()->create(['agency_id' => $admin->agency_id]);
+
         $this->postJson('/api/invitations', [
             'email' => 'log@example.com',
             'role' => 'owner',
+            'invitable_type' => OwnerProfile::class,
+            'invitable_id' => $profil->id,
         ])->assertStatus(201);
 
         $activity = Activity::query()->where('event', 'invitation_sent')->first();
@@ -122,10 +143,18 @@ class InvitationSendTest extends TestCase
 
     public function test_non_admin_user_cannot_create_invitation(): void
     {
-        $this->actingAsRole('agent');
+        $agent = $this->actingAsRole('agent');
+        // TCK-455 — le payload doit rester VALIDE : la validation court avant
+        // la policy sur ce chemin, et un payload incomplet rendrait 422. Ce
+        // test-là porte sur l'autorisation ; un 422 l'aurait coché sans rien
+        // éprouver.
+        $profil = OwnerProfile::factory()->create(['agency_id' => $agent->agency_id]);
+
         $this->postJson('/api/invitations', [
             'email' => 'test@example.com',
             'role' => 'owner',
+            'invitable_type' => OwnerProfile::class,
+            'invitable_id' => $profil->id,
         ])->assertStatus(403);
     }
 
@@ -135,10 +164,19 @@ class InvitationSendTest extends TestCase
         $superAdmin = $this->actingAsRole('super_admin');
         $otherAgency = Agency::factory()->create();
 
+        // TCK-455 — le rôle passe d'`agency_admin` à `owner`, et ce n'est pas
+        // un contournement : l'acceptation d'une invitation `agency_admin` ne
+        // matérialise AUCUN profil (constat de TCK-392), donc ce chemin est
+        // désormais refusé. Ce test porte sur le franchissement d'agence par un
+        // super-admin, pas sur un rôle en particulier.
+        $profil = OwnerProfile::factory()->create(['agency_id' => $otherAgency->id]);
+
         $this->postJson('/api/invitations', [
             'email' => 'cross@example.com',
-            'role' => 'agency_admin',
+            'role' => 'owner',
             'agency_id' => $otherAgency->id,
+            'invitable_type' => OwnerProfile::class,
+            'invitable_id' => $profil->id,
         ])->assertStatus(201);
 
         $this->assertDatabaseHas('invitations', [

@@ -7,7 +7,7 @@ export type ContractType = 'sale' | 'rent';
 
 export type RentPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
-export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'other';
+export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'autre';
 
 export interface PropertyListItem {
   id: number;
@@ -135,10 +135,25 @@ export interface PropertyDetail extends PropertyListItem {
   contract_type_label: string | null;
   rent_period_label: string | null;
   status_label: string;
-  title_type: PropertyTitleType | null;
+  /**
+   * TCK-464 — `whenHas('title_type', …)` côté `PropertyResource` : la clé est ABSENTE du JSON,
+   * pas nulle, dès qu'elle ne fait pas partie du `fields[properties]` demandé. `COMPARE_FIELDS`
+   * (`useCompare.ts`) ne la demande pas — d'où l'optionalité, comme pour `available_from`
+   * ci-dessous.
+   */
+  title_type?: PropertyTitleType | null;
   title_type_label: string | null;
   floor_number: number | null;
   total_floors: number | null;
+  /**
+   * TCK-464 — même défaut que `title_type` : absente du JSON (pas nulle) quand elle n'est pas
+   * dans `fields[properties]`. `COMPARE_FIELDS` (`useCompare.ts`) ne la demande pas — d'où
+   * l'optionalité. `DASHBOARD_PROPERTY_DETAIL_FIELDS`, lui, la demande DEPUIS que la page
+   * d'édition l'affiche : le type dit ce que l'API peut omettre, la liste de champs dit ce
+   * que la page a besoin de lire. Les deux ne se déduisent pas l'un de l'autre, et c'est la
+   * garde de TCK-336 qui a attrapé l'écart.
+   */
+  available_from?: string | null;
   year_built: number | null;
   parking_spaces: number | null;
   views_count: number;

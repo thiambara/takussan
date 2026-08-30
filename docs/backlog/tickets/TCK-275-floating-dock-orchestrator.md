@@ -62,6 +62,23 @@ place à une éventuelle sticky bar full-width (mobile).
   recouvrir ni être recouverts par elle).
 - **Safe areas iOS / Android** — l'orchestrateur respecte `safe-area-inset-bottom`
   comme le fait déjà `PropertyMobileBottomBar` (`safe-area-bottom`).
+
+  > ⚠ **Correction du 2026-08-29 (TCK-453) — cette phrase était fausse quand elle a été
+  > écrite, et ce ticket est clos.** `safe-area-bottom` n'a **jamais existé** : elle n'est
+  > déclarée ni dans `takussan-web/src/app/globals.css`, ni ailleurs, donc elle n'émettait
+  > aucune règle CSS et `PropertyMobileBottomBar` n'avait **aucun** rembourrage de zone
+  > sûre. Trois endroits y croyaient — cette ligne, la barre elle-même, et un commentaire
+  > de `useFloatingDockSlot.ts` — et zéro l'implémentait ; c'est sur cette base que le
+  > prochain implémenteur du dock aurait construit.
+  >
+  > La barre porte désormais `pb-[calc(0.75rem+env(safe-area-inset-bottom))]`, forme
+  > vérifiée par compilation : elle **s'ajoute** au `py-3` existant au lieu de le
+  > remplacer — `pb-[env(safe-area-inset-bottom)]` seul aurait corrigé iOS en faisant
+  > perdre 12 px à tous les appareils sans encoche.
+  >
+  > *Le ticket n'est pas réécrit : la ligne d'origine reste, avec ce qu'elle affirmait.*
+  > Trouvée par `takussan-web/scripts/check-classes-emises.mjs`, le jour de sa mise en
+  > service.
 - **Pas de FOUC ni de saut** — les éléments doivent se positionner
   correctement dès le premier paint, sans flash de chevauchement pendant
   l'hydratation.

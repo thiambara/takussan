@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check:i18n": "node scripts/check-i18n.mjs",
-    "check:i18n-namespaces": "node scripts/check-i18n-namespaces.mjs"
+    "check:i18n-namespaces": "node scripts/check-i18n-namespaces.mjs",
+    "check:classes-emises": "node scripts/check-classes-emises.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

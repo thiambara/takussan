@@ -3,13 +3,13 @@
 namespace App\Services\Invitation;
 
 use App\Models\Agency;
-use App\Models\Enums\AgencyKind;
 use App\Models\Enums\AgentProfileStatus;
 use App\Models\Enums\Capability;
 use App\Models\Invitation;
 use App\Models\Profiles\AgentProfile;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use App\Support\AgencyKindGuard;
 use App\Support\CaseInsensitive;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -187,16 +187,15 @@ class AgentInvitationService
     /**
      * Throws 403 if the agency is not `standard`. Individual agencies
      * are sole-host (TCK-248) and don't manage a team.
+     *
+     * TCK-449 (AC5) — la règle est celle d'{@see AgencyKindGuard::canFormTeam()},
+     * et non plus une copie locale. Le rattachement direct
+     * (`AgencyController::addAgent()`) lisait la sienne, mot pour mot ; c'est
+     * la copie qui manquait au cinquième chemin qui a produit TCK-449.
      */
     protected function assertAgencyCanInvite(Agency $agency): void
     {
-        $kind = $agency->kind instanceof AgencyKind
-            ? $agency->kind
-            : AgencyKind::tryFrom((string) $agency->kind);
-
-        if ($kind !== AgencyKind::Standard) {
-            throw new HttpException(403, __('team.invite.errors.individual_agency'));
-        }
+        AgencyKindGuard::ensureCanFormTeam($agency);
     }
 
     /**

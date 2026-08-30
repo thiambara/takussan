@@ -58,7 +58,7 @@ export function PropertyCardStandard({
             />
           )}
 
-          <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/90 backdrop-blur-sm text-[10px] font-medium text-foreground shadow-[0_1px_4px_rgba(31,24,18,0.10)]">
+          <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/90 backdrop-blur-sm text-[10px] font-medium text-foreground shadow-[0_1px_4px_color-mix(in_srgb,var(--shadow-color)_10%,transparent)]">
             <Clock className="size-3 opacity-70" strokeWidth={2} />
             {timeAgo}
           </div>

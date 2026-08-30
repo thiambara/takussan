@@ -6,6 +6,7 @@ use App\Models\Property;
 use App\Models\SavedSearch;
 use App\Models\User;
 use App\Support\DistanceHaversine;
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
@@ -45,6 +46,22 @@ class SearchService
         }
         if (isset($filters['furnished'])) {
             $query->where('furnished', $filters['furnished']);
+        }
+
+        // TCK-350 — borne temporelle des alertes de recherche sauvegardée.
+        //
+        // ⚠ CETTE CLÉ N'EST PAS UN CRITÈRE D'UTILISATEUR, et elle n'a qu'un
+        // seul alimentateur légitime : l'argument `$publieApres` de
+        // `getMatchingProperties()`, qui la pose dans un tableau LOCAL. Elle
+        // n'est jamais lue depuis `SavedSearch.criteria` — cf. le `unset()`
+        // explicite là-bas, et la décision d'étape 0 du ticket.
+        //
+        // Le filtre vit ICI, dans la requête, et non dans un tri-après-coup
+        // côté job : une recherche large rendrait sinon une première page
+        // entièrement composée de biens déjà notifiés, et tairait la nouveauté
+        // classée plus loin.
+        if (! empty($filters['published_after'])) {
+            $query->where('published_at', '>', $filters['published_after']);
         }
 
         // Tag-based filtering
@@ -136,10 +153,34 @@ class SearchService
             && (float) $filters['radius_km'] > 0;
     }
 
-    /** @return Collection<int,Property> */
-    public function getMatchingProperties(SavedSearch $search): Collection
+    /**
+     * Les biens que cette recherche sauvegardée capte, éventuellement bornés
+     * aux seuls biens publiés APRÈS `$publieApres`.
+     *
+     * ⚠ **`$publieApres` est un ARGUMENT et jamais une clé de `criteria`**
+     * (TCK-350, décision d'étape 0). `criteria` est un tableau LIBRE — validé
+     * `['required','array']`, sans schéma de clés — et `saveSearch()` y recopie
+     * *tout* ce qu'on lui passe (`:100-106`, `name` et `notification_frequency`
+     * compris). Une clé de contrôle qui y transiterait serait donc PERSISTÉE, et
+     * le jour où l'on migrera les `criteria` vers le vocabulaire de `/search`
+     * (ADR-0023), il faudrait savoir laquelle des clés n'en était pas une.
+     *
+     * Le `unset()` ci-dessous n'est pas une précaution de style : il rend cette
+     * propriété VRAIE même si une ligne portait déjà la clé. C'est lui qui fait
+     * que la borne ne peut venir que d'ici.
+     *
+     * @return Collection<int,Property>
+     */
+    public function getMatchingProperties(SavedSearch $search, ?CarbonInterface $publieApres = null): Collection
     {
         $filters = $search->criteria ?? [];
+
+        unset($filters['published_after']);
+
+        if ($publieApres !== null) {
+            $filters['published_after'] = $publieApres;
+        }
+
         $paginator = $this->search($filters);
 
         return $paginator->getCollection();

@@ -7,7 +7,7 @@ family: technique
 estimate: M
 wave: 44
 created: 2026-08-22
-updated: 2026-08-22
+updated: 2026-08-29
 depends_on: [TCK-343]
 blocks: []
 spec_refs:
@@ -93,3 +93,51 @@ Il ne revient pas sur les 3 index `agency_id` de TCK-343, ni sur la garde
 - [TCK-343](TCK-343-index-gin-et-requetes-jsonb.md) — la mesure fondatrice et le tri des 88
 - `takussan-api/database/migrations/2026_08_22_090000_add_agency_id_indexes_on_scoped_tables.php`
 - [ADR-0020](../../adr/0020-postgresql-sur-tous-les-environnements.md)
+
+---
+
+## Ajourné du lot des vagues 50-51 — décidé le 2026-08-29, sur mesure
+
+**Ce ticket sort du lot, et la raison est un relevé `EXPLAIN`, pas un arbitrage de charge.**
+
+Il a été mesuré incidemment par TCK-457, qui devait justifier *un* index sur `role_delegations`
+avant de le poser. Banc : table temporaire de **200 000 lignes** (5 000 utilisateurs × 200 agences,
+25 % `active`), `ANALYZE` avant chaque plan.
+
+| config | plan | temps | buffers |
+|---|---|---|---|
+| A — index du dépôt | `Bitmap Index Scan` sur `(user_id, status)` | 0,122 ms | 14 |
+| B — **sans** `(agency_id, status)` | **identique à A** | 0,124 ms | 14 |
+| C — avec `(user_id, agency_id, status)` | `Index Scan` | 0,096 ms | **6** |
+| D — témoin, aucun index utile | 49 985 lignes rejetées | **23,6 ms** | 3 118 |
+
+**Trois résultats, et le troisième décide :**
+
+1. L'index portant `agency_id` en tête **existe déjà** (`$table->index(['agency_id','status'])`).
+2. **Le planificateur ne l'emprunte pas** : A et B sont indiscernables. Un index posé n'est pas un
+   index employé, et rien dans le compte des « 85 FK nues » ne distingue les deux.
+3. Le seul gain mesurable — 0,026 ms sur 200 000 lignes — est à comparer à ce que la table porte
+   **en production : zéro ligne** (l'API n'a jamais servi, D-04/TCK-288).
+
+> Le témoin **D** est ce qui rend les trois autres lisibles : sans lui, on ne saurait pas si le banc
+> mesure quelque chose. *Un banc sans témoin ne mesure pas la requête, il mesure la confiance qu'on
+> lui accorde.*
+
+### Ce que l'ajournement dit, et ce qu'il ne dit pas
+
+Il ne dit **pas** que les 85 FK n'ont pas besoin d'index. Il dit que **la mesure qui déciderait
+n'est pas disponible** : ce ticket exige un `EXPLAIN` sur des tables gonflées, et une table gonflée
+artificiellement ne répond que sur la *forme* du plan — jamais sur la distribution réelle, qui est
+ce qui fait choisir un index à PostgreSQL.
+
+Le premier relevé réel le montre déjà : sur données fabriquées, un index existant et pertinent
+**n'est pas emprunté**. Poser 85 index sur cette base-là, c'est écrire 85 fois la même incertitude.
+
+**Reprise conditionnée à un fait, pas à une date** : que l'API serve en production et que les tables
+portent des lignes (TCK-288). Ce ticket reprend alors, avec les `EXPLAIN` de la vraie distribution —
+et il commencera par vérifier lesquels des index **déjà posés** sont réellement empruntés, ce qui
+est la question que le relevé ci-dessus vient d'ouvrir et qu'aucun ticket ne porte encore.
+
+⚠ Le ticket annonçait lui-même que « il reste 85 index à créer » est la conclusion à ne pas tirer.
+La mesure va plus loin : elle rend suspecte l'hypothèse inverse aussi — que ceux qui existent
+servent.

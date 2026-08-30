@@ -1,8 +1,11 @@
 import type { Metadata } from 'next';
-import { notFound, redirect } from 'next/navigation';
 
+import Link from 'next/link';
+import { AlertTriangle } from 'lucide-react';
 
 import { fetchTagsAction } from '@/app/actions/admin-tags';
+import { EmptyState } from '@/components/feedback';
+import { buttonVariants } from '@/components/ui/button';
 import { getToken } from '@/lib/session';
 import { fetchDashboardProperty } from '@/lib/queries/properties-server';
 import { ApiError } from '@/lib/api';
@@ -46,9 +49,25 @@ export default async function Page({ params }: { params: Params }) {
   try {
     property = await fetchDashboardProperty(token, id);
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) notFound();
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
-      redirect('/app');
+      // TCK-442 — **un panneau RENDU, plus un `redirect('/app')`.** Le ticket demandait de dire
+      // lequel des deux était un choix : deux pages sœurs répondaient différemment au même 403,
+      // `customers/[id]` par un panneau et celle-ci par une redirection muette. C'est la
+      // redirection qui était l'oubli, pour deux raisons qui vont dans le même sens.
+      //
+      // · Sous le `loading.tsx` de ce segment, un `redirect()` de PAGE rend **200 + le squelette**
+      //   au lieu du 307 (tableau mesuré de TCK-426) : l'utilisateur atterrissait sur `/app`, mais
+      //   toute sonde lisait un succès. Le remonter dans le layout n'est pas possible ici — le
+      //   refus vient de la RÉPONSE de l'API, pas de l'utilisateur.
+      // · Et surtout, il ne DISAIT rien : on quittait la page sans savoir pourquoi. Le panneau
+      //   nomme le refus et propose le retour, comme `CustomerDetailUnavailable`.
+      return (
+        <PropertyDetailUnavailable
+          title={t('forbidden_title')}
+          message={t('forbidden_message')}
+          backLabel={t('back_cta')}
+        />
+      );
     }
     throw e;
   }
@@ -84,5 +103,34 @@ export default async function Page({ params }: { params: Params }) {
 
       <PropertyDetailTabs property={property} tags={tags} />
     </div>
+  );
+}
+
+/**
+ * L'écran d'un 403 sur la fiche d'un bien — le pendant de `CustomerDetailUnavailable`.
+ *
+ * `EmptyState` et non `ErrorState` : ce n'est pas une panne, il n'y a rien à réessayer. La seule
+ * action utile est le retour à la liste.
+ */
+function PropertyDetailUnavailable({
+  title,
+  message,
+  backLabel,
+}: {
+  readonly title: string;
+  readonly message: string;
+  readonly backLabel: string;
+}) {
+  return (
+    <EmptyState
+      icon={<AlertTriangle className="size-8" aria-hidden="true" />}
+      title={title}
+      description={message}
+      action={
+        <Link href="/app/properties" className={buttonVariants()}>
+          {backLabel}
+        </Link>
+      }
+    />
   );
 }

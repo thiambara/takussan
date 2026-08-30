@@ -863,9 +863,13 @@
         "bathrooms": "Salles de bain",
         "yearBuilt": "Année de construction",
         "parking": "Places de parking",
+        "floorNumber": "Étage",
+        "totalFloors": "Nombre de niveaux",
+        "titleType": "Statut foncier",
         "furnished": "Meublé",
         "description": "Description",
-        "descriptionPlaceholder": "Décrivez le bien, son environnement, ses atouts."
+        "descriptionPlaceholder": "Décrivez le bien, son environnement, ses atouts.",
+        "availableFrom": "Disponible à partir du"
       },
       "price": {
         "title": "Prix",
@@ -1083,6 +1087,143 @@
       "XAF": "FCFA (XAF)",
       "EUR": "Euro (EUR)",
       "USD": "Dollar (USD)"
+    },
+    "wizard": {
+      "railLabel": "Étapes de la publication",
+      "progressLabel": "Progression",
+      "position": "Étape {current} sur {total}",
+      "back": "Précédent",
+      "continue": "Continuer",
+      "skip": "Plus tard",
+      "saving": "Enregistrement…",
+      "fields": {
+        "type": "Type de bien",
+        "contract": "Vente ou location",
+        "city": "Ville",
+        "quarter": "Quartier",
+        "region": "Région",
+        "street": "Rue / adresse",
+        "postalCode": "Code postal",
+        "country": "Pays (code ISO)",
+        "areaLand": "Surface du terrain (m²)",
+        "areaLiving": "Surface habitable (m²)",
+        "bedrooms": "Chambres",
+        "bathrooms": "Salles de bain",
+        "floorNumber": "Étage",
+        "totalFloors": "Nombre de niveaux",
+        "yearBuilt": "Année de construction",
+        "parking": "Places de parking",
+        "furnished": "Meublé",
+        "titleType": "Statut foncier",
+        "amenities": "Équipements",
+        "price": "Prix",
+        "currency": "Devise",
+        "period": "Fréquence",
+        "availableFrom": "Disponible à partir du",
+        "title": "Titre de l'annonce",
+        "description": "Description"
+      },
+      "contract": {
+        "sale": "Vendre",
+        "rent": "Louer"
+      },
+      "placeholders": {
+        "city": "Dakar",
+        "quarter": "Almadies",
+        "region": "Dakar",
+        "street": "12 Rue des Jacarandas",
+        "postalCode": "10700",
+        "country": "SN",
+        "area": "120",
+        "yearBuilt": "2010",
+        "parking": "2",
+        "priceSale": "25000000",
+        "priceRent": "350000",
+        "period": "Mensuel",
+        "description": "Ce qu'on ne voit pas sur les photos : le quartier, le voisinage, ce qui vient d'être refait."
+      },
+      "geoSuggestFull": "Utiliser {city}, {region}",
+      "geoSuggestCity": "Utiliser {city}",
+      "geoDefaultsNote": "Le pays et la devise sont déjà renseignés d'après votre connexion. Vous pourrez les corriger.",
+      "addressDetailsShow": "Ajouter la rue et le code postal",
+      "addressDetailsHide": "Masquer la rue et le code postal",
+      "useMyPosition": "Utiliser ma position actuelle",
+      "useMyPositionLoading": "Localisation en cours…",
+      "useMyPositionDenied": "Vous avez refusé le partage de votre position. Choisissez l'emplacement sur la carte ci-dessous.",
+      "useMyPositionUnavailable": "Ce navigateur ne sait pas donner votre position. Choisissez l'emplacement sur la carte ci-dessous.",
+      "useMyPositionFailed": "Position introuvable pour l'instant. Réessayez, ou choisissez l'emplacement sur la carte ci-dessous.",
+      "mapHint": "Touchez la carte pour placer le bien, ou déplacez le repère.",
+      "titleTypeHint": "Le document qui atteste de la propriété du sol. Si vous ne le connaissez pas, laissez vide.",
+      "titleComposedHint": "Titre proposé d'après vos réponses — modifiez-le librement.",
+      "photosCounter": "{count, plural, =0 {Aucune photo pour l'instant — jusqu'à {max}} one {# photo sur {max}} other {# photos sur {max}}}",
+      "descriptionCounter": "{count, plural, one {# caractère} other {# caractères}}",
+      "steps": {
+        "bien": {
+          "title": "Quel bien publiez-vous ?",
+          "subtitle": "Ces deux réponses décident des questions suivantes."
+        },
+        "lieu": {
+          "title": "Où se trouve-t-il ?",
+          "subtitle": "La ville suffit pour publier. Le reste affine la recherche."
+        },
+        "caracteristiques": {
+          "title": "Parlez-nous {type}",
+          "subtitle": "Ce sont les chiffres que les visiteurs comparent en premier.",
+          "subtitleShort": "Deux ou trois mesures, et c’est tout ce qu’il faut ici."
+        },
+        "prix": {
+          "title": "À quel prix ?",
+          "subtitleRent": "Le loyer, sa fréquence, et la date à partir de laquelle le bien est libre.",
+          "subtitleSale": "Le prix demandé. Vous pourrez le modifier après publication."
+        },
+        "photos": {
+          "title": "Ajoutez des photos",
+          "subtitle": "Facultatif — mais une annonce avec photos est bien plus consultée."
+        },
+        "finition": {
+          "title": "Un titre, et c’est publié",
+          "subtitle": "Nous en avons composé un d’après vos réponses. Corrigez-le librement."
+        }
+      },
+      "typeArticle": {
+        "land": "du terrain",
+        "house": "de la maison",
+        "apartment": "de l’appartement",
+        "villa": "de la villa",
+        "studio": "du studio",
+        "room": "de la chambre",
+        "office": "du bureau",
+        "shop": "du commerce",
+        "warehouse": "de l’entrepôt",
+        "factory": "de l’usine",
+        "farm": "de la ferme",
+        "hotel": "de l’hôtel",
+        "resort": "du complexe",
+        "garage": "du garage",
+        "parking": "du parking",
+        "other": "de ce bien"
+      },
+      "partial": {
+        "tags": "les équipements",
+        "photos": "les photos",
+        "message": "Le bien est créé et enregistré. En revanche, nous n’avons pas pu envoyer {items}. Réessayez, ou continuez sans.",
+        "continueAnyway": "Continuer sans"
+      },
+      "publish": "Publier l’annonce",
+      "resumeLater": "Reprendre plus tard",
+      "missingId": "Le bien a été créé, mais son identifiant n’a pas été renvoyé. Retrouvez-le dans la liste de vos biens.",
+      "close": "Fermer",
+      "loadingDraft": "Reprise de votre brouillon…",
+      "draftResumed": "Nous avons repris votre brouillon là où vous l’aviez laissé.",
+      "draftSaveFailed": "Votre brouillon n’a pas pu être enregistré. Rien n’est perdu tant que vous restez sur cette page.",
+      "draftSaveRetry": "Réessayer",
+      "draftAutosaveFailed": "L’enregistrement automatique ne répond plus : vos dernières modifications ne sont pas encore à l’abri."
+    },
+    "titleTypes": {
+      "bail": "Bail",
+      "titre_foncier": "Titre foncier",
+      "deliberation": "Délibération",
+      "autre": "Autre"
     }
   },
   "dashboard": {
@@ -1389,8 +1530,7 @@
       },
       "propertyNew": {
         "metaTitle": "Publier un bien",
-        "title": "Publier un bien",
-        "subtitle": "Remplissez les informations essentielles. Vous pourrez enrichir la fiche après publication."
+        "title": "Publier un bien"
       },
       "privacy": {
         "metaTitle": "Confidentialité",
@@ -1437,7 +1577,10 @@
       },
       "propertyDetail": {
         "metaTitle": "Fiche bien",
-        "eyebrow": "Bien · {reference}"
+        "eyebrow": "Bien · {reference}",
+        "forbidden_title": "Accès au bien refusé",
+        "forbidden_message": "Votre profil actif ne permet pas d'ouvrir la fiche de ce bien.",
+        "back_cta": "Revenir aux biens"
       },
       "leaseDetail": {
         "metaTitleFallback": "Bail introuvable",
@@ -7223,6 +7366,7 @@
       "valueInvalid": "Valeur invalide.",
       "valueUnrealistic": "Valeur irréaliste.",
       "yearInvalid": "Année invalide.",
+      "dateInvalid": "Format de date invalide (AAAA-MM-JJ).",
       "descriptionTooLong": "La description est trop longue.",
       "statusInvalid": "Statut invalide."
     },

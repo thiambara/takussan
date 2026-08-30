@@ -7,10 +7,10 @@ use App\Models\AgencyRole;
 use App\Models\Enums\AgencyRoleBaseType;
 use App\Models\Enums\Capability;
 use App\Models\Enums\PlatformProfileLevel;
-use App\Models\Enums\RoleDelegationStatus;
 use App\Models\Profiles\ServiceProviderAgencyCollaboration;
 use App\Models\RoleDelegation;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 /**
  * TCK-278 → TCK-279 — Résolveur de capacités. Mappe `(User, Capability,
@@ -75,6 +75,73 @@ class MembershipCapabilityResolver
     }
 
     /**
+     * TCK-457 — les capacités accordées parmi `$capabilities`, en UNE passe.
+     *
+     * **Ce n'est pas un cache : c'est un chargement groupé, et la distinction
+     * est toute la sécurité de cette méthode.** Rien ne survit à la passe —
+     * ni entre deux requêtes HTTP, ni entre deux appels — donc il n'y a rien à
+     * invalider. Une mémoïsation par `(user, agence, capacité)` avait été
+     * essayée en revue de TCK-395 : elle fait rougir 4 des 10 cas de
+     * `RoleDelegationCapabilityTest`, et surtout **la fenêtre n'a rien à quoi
+     * s'accrocher** : aucun événement n'est émis quand l'horloge franchit
+     * `ends_at`. Un TTL bornerait la péremption, or une fenêtre d'autorisation
+     * périmée est exactement ce que cette borne existe pour fermer.
+     *
+     * Ce que la passe groupe, et rien d'autre :
+     *
+     *  1. les délégations actives du couple `(user, agence)` — un `SELECT` au
+     *     lieu d'un par capacité refusée ; c'était le +20 % mesuré du ticket ;
+     *  2. leur délégant, chargé en relation plutôt qu'un par ligne ;
+     *  3. les rôles SYSTÈME de l'agence, sans quoi le N+1 se serait seulement
+     *     déplacé sur `agency_roles`.
+     *
+     * ⚠ Le chargement est PARESSEUX : tant qu'aucune capacité n'est refusée en
+     * propre, aucune requête de délégation n'est émise. C'est ce qui préserve
+     * le coût nul du chemin super-admin, qui court-circuite tout.
+     *
+     * ⚠ `resolveDirect()` reste appelé par capacité, sur le user comme sur le
+     * délégant. Le grouper demanderait de retenir un VERDICT, c'est-à-dire
+     * précisément le cache que ce ticket refuse.
+     *
+     * @param  iterable<Capability>  $capabilities
+     * @return list<Capability>
+     */
+    public function filterAllowed(User $user, iterable $capabilities, ?Agency $agency = null): array
+    {
+        $granted = [];
+
+        /** @var \Illuminate\Database\Eloquent\Collection<int,RoleDelegation>|null $delegations */
+        $delegations = null;
+        /** @var array<string,int>|null $systemRoleIds */
+        $systemRoleIds = null;
+
+        foreach ($capabilities as $capability) {
+            if ($this->resolveDirect($user, $capability, $agency)) {
+                $granted[] = $capability;
+
+                continue;
+            }
+
+            if ($agency === null) {
+                continue;
+            }
+
+            if ($delegations === null) {
+                $delegations = $this->loadActiveDelegations($user, $agency);
+                $systemRoleIds = $delegations->isEmpty()
+                    ? []
+                    : $this->loadSystemRoleIds((int) $agency->id);
+            }
+
+            if ($this->delegationsAllow($delegations, $systemRoleIds ?? [], $capability, $agency)) {
+                $granted[] = $capability;
+            }
+        }
+
+        return $granted;
+    }
+
+    /**
      * Les capacités que le user tient EN PROPRE, délégations exclues.
      *
      * TCK-395 (revue) — exposée parce qu'un geste au moins doit pouvoir exiger
@@ -133,34 +200,59 @@ class MembershipCapabilityResolver
      * permet au test d'AC1 de prouver la borne *par exécution d'un geste*
      * derrière la délégation plutôt que par un assert sur un champ.
      *
-     * ⚠ La fenêtre d'activité reprend celle de
-     * `HasProfiles::hasActiveAgencyDelegation()` — statut `Active` ET
-     * (`ends_at` nul OU futur) — et **non** `RoleDelegation::scopeActive()`,
-     * qui exige en plus `ends_at >= now()` et rejette donc une délégation sans
-     * fin. Les deux définitions cohabitent dans le dépôt ; adopter la seconde
-     * ici aurait fait diverger cette branche des six sites d'appel qu'elle
-     * doit précisément rejoindre.
+     * ⚠ La fenêtre d'activité n'est plus écrite ici — TCK-456.
+     *
+     * Ce docblock disait, jusqu'au 2026-08-29 : « la fenêtre reprend celle de
+     * `hasActiveAgencyDelegation()` et **non** `RoleDelegation::scopeActive()`,
+     * qui exige en plus `ends_at >= now()` ». C'était juste, et c'était le
+     * problème : la même règle était écrite trois fois, la divergence était
+     * documentée au lieu d'être fermée, et rien ne rougissait si l'une des
+     * trois bougeait seule.
+     *
+     * `scopeActive()` porte désormais **exactement** cette fenêtre — la
+     * permissive, celle qui autorisait déjà — et les trois l'empruntent.
+     * `RoleDelegationActivityWindowTest` les lie aux bornes.
      */
     private function delegationAllows(User $user, Capability $capability, Agency $agency): bool
     {
-        $agencyId = (int) $agency->id;
+        $delegations = $this->loadActiveDelegations($user, $agency);
+        if ($delegations->isEmpty()) {
+            return false;
+        }
 
-        $delegations = RoleDelegation::query()
-            ->where('user_id', $user->id)
-            ->where('agency_id', $agencyId)
-            ->where('status', RoleDelegationStatus::Active)
-            ->where(function ($query): void {
-                $query->whereNull('ends_at')->orWhere('ends_at', '>', now());
-            })
-            ->get();
+        return $this->delegationsAllow(
+            $delegations,
+            $this->loadSystemRoleIds((int) $agency->id),
+            $capability,
+            $agency,
+        );
+    }
 
+    /**
+     * Le verdict de la branche délégation sur un jeu de lignes DÉJÀ chargé.
+     *
+     * Extrait de {@see self::delegationAllows()} par TCK-457 pour que le
+     * chemin unitaire et la passe groupée aient **un seul corps** — c'est la
+     * même leçon que TCK-456 sur la fenêtre : deux écritures d'une même règle
+     * ne divergent pas le jour où on les écrit.
+     *
+     * @param  Collection<int,RoleDelegation>  $delegations
+     * @param  array<string,int>  $systemRoleIds  type de rôle → id du rôle SYSTÈME de l'agence
+     */
+    private function delegationsAllow(
+        Collection $delegations,
+        array $systemRoleIds,
+        Capability $capability,
+        Agency $agency,
+    ): bool {
         foreach ($delegations as $delegation) {
             $type = AgencyRoleBaseType::tryFrom((string) $delegation->role);
             if ($type === null) {
                 continue;
             }
 
-            if (! $this->systemRoleAllows($agencyId, $type, $capability)) {
+            $roleId = $systemRoleIds[$type->value] ?? null;
+            if ($roleId === null || ! $this->cache->allows($roleId, $capability)) {
                 continue;
             }
 
@@ -178,22 +270,65 @@ class MembershipCapabilityResolver
     }
 
     /**
-     * Le rôle SYSTÈME de ce type, dans cette agence, porte-t-il la capacité ?
+     * Les délégations actives du couple `(user, agence)`, délégant compris.
+     *
+     * Le délégant est chargé en relation et non ligne par ligne : sa capacité
+     * est réévaluée à CHAQUE lecture (borne de TCK-395), mais sa LIGNE n'a
+     * aucune raison d'être relue une fois par délégation.
+     *
+     * ⚠⚠ **NE PAS MÉMOÏSER CE RÉSULTAT.** Cette méthode est appelée en boucle,
+     * et un `static $memo` par `(user, agence)` a l'air d'être l'optimisation
+     * évidente. Mesuré (TCK-457, ablation F) : le compteur de requêtes reste
+     * IMPECCABLE — 296/1/1, exactement comme sans mémoïsation — et cinq tests
+     * passent au rouge, dont trois des dix de `RoleDelegationCapabilityTest`.
+     *
+     * *Un chargement groupé et une mémoïsation sont indiscernables au compteur
+     * de requêtes, et opposés au compteur de tests.* C'est le genre
+     * d'optimisation qu'une revue de performance approuve et qu'une revue de
+     * correction refuse. Les gardes qui rougissent :
+     * `RoleDelegationBulkResolutionTest::test_une_delegation_echue_par_lhorloge_cesse_daccorder_a_la_requete_suivante()`
+     * — car **rien n'émet d'événement quand l'horloge franchit `ends_at`** :
+     * cette fenêtre-là n'a aucune histoire d'invalidation à écrire.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int,RoleDelegation>
+     */
+    private function loadActiveDelegations(User $user, Agency $agency): \Illuminate\Database\Eloquent\Collection
+    {
+        return RoleDelegation::query()
+            ->with('delegator')
+            ->where('user_id', $user->id)
+            ->where('agency_id', (int) $agency->id)
+            ->active()
+            ->get();
+    }
+
+    /**
+     * Les rôles SYSTÈME de l'agence, indexés par type — en une requête.
      *
      * On vise `is_system` et non un rôle personnalisé : une délégation nomme un
      * TYPE (`agent`, `owner`, `agency_admin`), pas un rôle précis — et une
      * agence peut porter plusieurs rôles personnalisés du même type. Le rôle
-     * système est le seul qu'il y ait exactement un par type et par agence.
+     * système est le seul qu'il y ait exactement un par type et par agence,
+     * ce qui est aussi ce qui rend cette table indexable par `$type->value`.
+     *
+     * @return array<string,int>
      */
-    private function systemRoleAllows(int $agencyId, AgencyRoleBaseType $type, Capability $capability): bool
+    private function loadSystemRoleIds(int $agencyId): array
     {
-        $roleId = AgencyRole::query()
-            ->where('agency_id', $agencyId)
-            ->where('base_profile_type', $type)
-            ->where('is_system', true)
-            ->value('id');
+        $map = [];
 
-        return $roleId !== null && $this->cache->allows((int) $roleId, $capability);
+        $roles = AgencyRole::query()
+            ->where('agency_id', $agencyId)
+            ->where('is_system', true)
+            ->get(['id', 'base_profile_type']);
+
+        foreach ($roles as $role) {
+            $type = $role->base_profile_type;
+            $key = $type instanceof AgencyRoleBaseType ? $type->value : (string) $type;
+            $map[$key] = (int) $role->id;
+        }
+
+        return $map;
     }
 
     /**

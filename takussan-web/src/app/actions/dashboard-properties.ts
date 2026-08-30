@@ -21,7 +21,10 @@ import {
   type PropertyMediaItem,
   assignPropertyAgent,
 } from '@/lib/queries/properties-server';
-import type { PropertyFormPayload } from '@/lib/schemas/property';
+import type {
+  PropertyCreatePayload,
+  PropertyUpdatePayload,
+} from '@/components/property-form/payload';
 import type { PropertyDetail } from '@/types/property';
 
 /**
@@ -82,7 +85,7 @@ async function requireToken(): Promise<
 }
 
 export async function createPropertyAction(
-  payload: PropertyFormPayload,
+  payload: PropertyCreatePayload,
 ): Promise<ActionResult<PropertyDetail>> {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;
@@ -97,7 +100,7 @@ export async function createPropertyAction(
 
 export async function updatePropertyAction(
   propertyId: number,
-  payload: PropertyFormPayload,
+  payload: PropertyUpdatePayload,
 ): Promise<ActionResult<PropertyDetail>> {
   const auth = await requireToken();
   if (!auth.ok) return auth.result;

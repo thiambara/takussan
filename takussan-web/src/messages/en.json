@@ -888,9 +888,13 @@
         "bathrooms": "Bathrooms",
         "yearBuilt": "Year built",
         "parking": "Parking spaces",
+        "floorNumber": "Floor",
+        "totalFloors": "Number of floors",
+        "titleType": "Land title status",
         "furnished": "Furnished",
         "description": "Description",
-        "descriptionPlaceholder": "Describe the property, its surroundings, its strengths."
+        "descriptionPlaceholder": "Describe the property, its surroundings, its strengths.",
+        "availableFrom": "Available from"
       },
       "price": {
         "title": "Price",
@@ -1108,6 +1112,143 @@
       "XAF": "FCFA (XAF)",
       "EUR": "Euro (EUR)",
       "USD": "Dollar (USD)"
+    },
+    "wizard": {
+      "railLabel": "Publishing steps",
+      "progressLabel": "Progress",
+      "position": "Step {current} of {total}",
+      "back": "Back",
+      "continue": "Continue",
+      "skip": "Later",
+      "saving": "Saving…",
+      "fields": {
+        "type": "Property type",
+        "contract": "Sale or rent",
+        "city": "City",
+        "quarter": "Neighbourhood",
+        "region": "Region",
+        "street": "Street / address",
+        "postalCode": "Postal code",
+        "country": "Country (ISO code)",
+        "areaLand": "Plot area (m²)",
+        "areaLiving": "Living area (m²)",
+        "bedrooms": "Bedrooms",
+        "bathrooms": "Bathrooms",
+        "floorNumber": "Floor",
+        "totalFloors": "Number of floors",
+        "yearBuilt": "Year built",
+        "parking": "Parking spaces",
+        "furnished": "Furnished",
+        "titleType": "Land title status",
+        "amenities": "Amenities",
+        "price": "Price",
+        "currency": "Currency",
+        "period": "Frequency",
+        "availableFrom": "Available from",
+        "title": "Listing title",
+        "description": "Description"
+      },
+      "contract": {
+        "sale": "Sell",
+        "rent": "Rent out"
+      },
+      "placeholders": {
+        "city": "Dakar",
+        "quarter": "Almadies",
+        "region": "Dakar",
+        "street": "12 Jacaranda Street",
+        "postalCode": "10700",
+        "country": "SN",
+        "area": "120",
+        "yearBuilt": "2010",
+        "parking": "2",
+        "priceSale": "25000000",
+        "priceRent": "350000",
+        "period": "Monthly",
+        "description": "What the photos do not show: the neighbourhood, the surroundings, what has just been renovated."
+      },
+      "geoSuggestFull": "Use {city}, {region}",
+      "geoSuggestCity": "Use {city}",
+      "geoDefaultsNote": "Country and currency are already filled in from your connection. You can correct them.",
+      "addressDetailsShow": "Add street and postal code",
+      "addressDetailsHide": "Hide street and postal code",
+      "useMyPosition": "Use my current position",
+      "useMyPositionLoading": "Locating…",
+      "useMyPositionDenied": "You declined to share your location. Pick the spot on the map below.",
+      "useMyPositionUnavailable": "This browser cannot provide your location. Pick the spot on the map below.",
+      "useMyPositionFailed": "Could not find your location right now. Try again, or pick the spot on the map below.",
+      "mapHint": "Tap the map to place the property, or drag the marker.",
+      "titleTypeHint": "The document proving ownership of the land. Leave empty if you do not know it.",
+      "titleComposedHint": "Title suggested from your answers — edit it freely.",
+      "photosCounter": "{count, plural, =0 {No photo yet — up to {max}} one {# photo of {max}} other {# photos of {max}}}",
+      "descriptionCounter": "{count, plural, one {# character} other {# characters}}",
+      "steps": {
+        "bien": {
+          "title": "What are you listing?",
+          "subtitle": "These two answers decide which questions come next."
+        },
+        "lieu": {
+          "title": "Where is it?",
+          "subtitle": "The city is enough to publish. The rest sharpens search results."
+        },
+        "caracteristiques": {
+          "title": "Tell us about {type}",
+          "subtitle": "These are the figures visitors compare first.",
+          "subtitleShort": "A couple of measurements, and that is all we need here."
+        },
+        "prix": {
+          "title": "At what price?",
+          "subtitleRent": "The rent, how often it is due, and when the property becomes free.",
+          "subtitleSale": "The asking price. You can change it after publishing."
+        },
+        "photos": {
+          "title": "Add photos",
+          "subtitle": "Optional — but a listing with photos gets far more views."
+        },
+        "finition": {
+          "title": "A title, and it is live",
+          "subtitle": "We drafted one from your answers. Edit it freely."
+        }
+      },
+      "typeArticle": {
+        "land": "the land",
+        "house": "the house",
+        "apartment": "the apartment",
+        "villa": "the villa",
+        "studio": "the studio",
+        "room": "the room",
+        "office": "the office",
+        "shop": "the retail unit",
+        "warehouse": "the warehouse",
+        "factory": "the factory",
+        "farm": "the farm",
+        "hotel": "the hotel",
+        "resort": "the complex",
+        "garage": "the garage",
+        "parking": "the parking space",
+        "other": "the property"
+      },
+      "partial": {
+        "tags": "the amenities",
+        "photos": "the photos",
+        "message": "The property is created and saved. We could not upload {items} though. Retry, or continue without.",
+        "continueAnyway": "Continue without"
+      },
+      "publish": "Publish listing",
+      "resumeLater": "Resume later",
+      "missingId": "The property was created, but no identifier came back. Find it in your property list.",
+      "close": "Close",
+      "loadingDraft": "Restoring your draft…",
+      "draftResumed": "We picked your draft up where you left it.",
+      "draftSaveFailed": "Your draft could not be saved. Nothing is lost as long as you stay on this page.",
+      "draftSaveRetry": "Try again",
+      "draftAutosaveFailed": "Autosave is not responding: your latest changes are not safe yet."
+    },
+    "titleTypes": {
+      "bail": "Lease",
+      "titre_foncier": "Land Title",
+      "deliberation": "Deliberation",
+      "autre": "Other"
     }
   },
   "dashboard": {
@@ -1414,8 +1555,7 @@
       },
       "propertyNew": {
         "metaTitle": "Publish a property",
-        "title": "Publish a property",
-        "subtitle": "Fill in the essentials. You can enrich the record after publishing."
+        "title": "Publish a property"
       },
       "privacy": {
         "metaTitle": "Privacy",
@@ -1462,7 +1602,10 @@
       },
       "propertyDetail": {
         "metaTitle": "Property record",
-        "eyebrow": "Property · {reference}"
+        "eyebrow": "Property · {reference}",
+        "forbidden_title": "Property access denied",
+        "forbidden_message": "Your active profile cannot open this property record.",
+        "back_cta": "Back to properties"
       },
       "leaseDetail": {
         "metaTitleFallback": "Lease not found",
@@ -7223,6 +7366,7 @@
       "valueInvalid": "Invalid value.",
       "valueUnrealistic": "Unrealistic value.",
       "yearInvalid": "Invalid year.",
+      "dateInvalid": "Invalid date format (YYYY-MM-DD).",
       "descriptionTooLong": "The description is too long.",
       "statusInvalid": "Invalid status."
     },

@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { getMeAction } from '@/app/actions/auth';
@@ -61,11 +60,11 @@ export default async function Page({
   const { id } = await params;
   const leaseId = Number(id);
 
-  // L'identifiant de l'URL est illisible : aucun bail ne porte ce numéro. C'est un INTROUVABLE.
-  // L'écran d'avant était un `ErrorState` — la forme de la PANNE — avec un commentaire expliquant
-  // qu'il n'y avait délibérément pas de bouton « réessayer ». Le commentaire disait la bonne
-  // chose ; le composant disait l'autre. `notFound()` rend le seul écran qui n'en propose pas.
-  if (!Number.isFinite(leaseId) || leaseId <= 0) notFound();
+  // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
+  // `[id]/layout.tsx`, strictement au-dessus du `loading.tsx` de ce segment : un `notFound()`
+  // écrit ici rendrait 200, avec l'écran introuvable affiché quand même. La décision n'a pas
+  // changé de nature — un identifiant illisible reste un INTROUVABLE, jamais une panne — elle
+  // a changé d'étage, et elle couvre désormais aussi le 404 de l'API.
 
   return <LeaseDetail leaseId={leaseId} />;
 }

@@ -6,6 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
+import { litUtilitaireDeCouleur, resoudreCouleur } from '@/test/contraste-wcag';
 import { KycUploader, type KycUploaderProps } from '../KycUploader';
 
 /**
@@ -121,11 +122,37 @@ describe('TCK-385 — la pastille « fourni » des assistants d\'onboarding', ()
       // décide la couleur, et `data-tone` est ce qui le prouve. La pastille faite main que ce
       // ticket remplace n'en portait aucun.
       expect(badge.getAttribute('data-tone')).toBe('success');
-      // …et sur les CLASSES rendues : le ton `success` est un aplat de `--accent`, jamais une
-      // famille de l'échelle Tailwind. Ce second volet est ce qui rougit si la pastille faite
-      // main revient sous un habit qui porterait quand même `data-tone`.
-      expect(badge.className).toMatch(/\bbg-accent\//);
-      expect(badge.className).toMatch(/\btext-accent\b/);
+
+      // …et sur les CLASSES rendues : c'est ce second volet qui rougit si la pastille faite main
+      // revient sous un habit qui porterait quand même `data-tone`.
+      //
+      // ⚠ IL NE NOMME PLUS LE JETON, ET C'EST UNE CORRECTION (TCK-450, 2026-08-29). Il écrivait
+      // `toMatch(/\bbg-accent\//)` — c'est-à-dire qu'il RECOPIAIT ici la décision de couleur du
+      // ton `success`, alors que `StatusBadge` est « le seul endroit du dépôt où la couleur d'un
+      // statut est décidée ». Le jour où ce ton a cessé d'emprunter l'accent de MARQUE pour
+      // prendre `--success`, ce fichier est devenu rouge sur un changement JUSTE : huit échecs
+      // dans un composant qui n'avait pas bougé. *Un test d'appelant qui recopie la table du
+      // fournisseur ne garde pas le fournisseur, il interdit de le corriger.*
+      //
+      // Ce qui reste ici est la propriété que cet appelant peut légitimement affirmer : la
+      // pastille porte un aplat ET une encre du VOCABULAIRE du design system — des jetons de
+      // `globals.css`, résolubles, jamais une famille de l'échelle Tailwind. QUEL jeton, et à
+      // quel contraste, est gardé une fois pour toutes par
+      // `console/__tests__/StatusBadge.contraste-tck-450.test.tsx`.
+      const utilitaires = Array.from(badge.classList);
+      const aplat = utilitaires
+        .map((c) => litUtilitaireDeCouleur(c, 'bg'))
+        .find((u) => u !== null && u.variante === '');
+      const encre = utilitaires
+        .map((c) => litUtilitaireDeCouleur(c, 'text'))
+        .find((u) => u !== null && u.variante === '');
+
+      expect(aplat, 'la pastille doit porter un aplat inconditionnel').not.toBeUndefined();
+      expect(encre, 'la pastille doit porter une encre inconditionnelle').not.toBeUndefined();
+      // `resoudreCouleur` LÈVE sur un jeton absent de `globals.css` : un `bg-emerald-100` neuf
+      // fait donc rougir AVEC SON NOM, au lieu d'être admis en silence.
+      expect(() => resoudreCouleur(aplat!.jeton)).not.toThrow();
+      expect(() => resoudreCouleur(encre!.jeton)).not.toThrow();
       expect(badge.className).not.toMatch(/-(emerald|green)-[0-9]{2,3}\b/);
     },
   );

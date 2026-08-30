@@ -139,7 +139,7 @@ const APPELANTS: readonly Appelant[] = [
     nom: 'fetchDashboardProperties → DASHBOARD_PROPERTY_FIELDS',
     demande: DASHBOARD_PROPERTY_FIELDS,
     consommateurs: [
-      ['src/app/(dashboard)/app/properties/page.tsx', ['property']],
+      ['src/app/(dashboard)/app/properties/(liste)/page.tsx', ['property']],
       ['src/components/property-dashboard/PropertyList.tsx', ['property']],
       ['src/components/property-dashboard/PropertyRowActions.tsx', ['property']],
     ],

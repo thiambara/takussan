@@ -11,15 +11,16 @@
 // select itself.
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { MediaDropzone } from '@/components/media';
+import { fieldDensityScope } from '@/components/ui/field-density';
 import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
 import {
   FormCheckbox,
+  FormDatePicker,
   FormGlobalError,
   FormInput,
   FormSelect,
@@ -29,19 +30,18 @@ import { useApiForm } from '@/hooks/useApiForm';
 import { ApiError } from '@/lib/api';
 import {
   propertyFormSchema,
+  titleTypeValues,
   type PropertyFormPayload,
   type PropertyFormValues,
 } from '@/lib/schemas/property';
 import {
-  createPropertyAction,
-  setPropertyAddressAction,
   setPropertyTagsAction,
   updatePropertyAction,
-  uploadPropertyPhotosAction,
 } from '@/app/actions/dashboard-properties';
 import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 
+import { isFieldRelevant, type RelevanceContext } from './field-matrix';
 import {
   PROPERTY_ENUM_NAMESPACES,
   contractTypeOptions as fabriqueContractTypeOptions,
@@ -49,42 +49,15 @@ import {
   propertyTypeOptions as fabriquePropertyTypeOptions,
   rentPeriodOptions as fabriqueRentPeriodOptions,
 } from './options';
-
-const MAX_PHOTOS = 10;
+import { toUpdatePayload, type PropertyAddressBlock, type PropertyUpdatePayload } from './payload';
 
 interface PropertyFormProps {
-  readonly mode: 'create' | 'edit';
-  readonly property?: PropertyDetail;
+  readonly mode: 'edit';
+  readonly property: PropertyDetail;
   readonly tags?: Tag[];
 }
 
-function toDefaults(property?: PropertyDetail): PropertyFormValues {
-  if (!property) {
-    return {
-      title: '',
-      type: 'apartment',
-      contract_type: 'rent',
-      price: undefined as unknown as number,
-      currency: 'XOF',
-      rent_period: undefined,
-      city: '',
-      quarter: '',
-      region: '',
-      street: '',
-      postal_code: '',
-      country: '',
-      latitude: undefined,
-      longitude: undefined,
-      area: undefined,
-      bedrooms: undefined,
-      bathrooms: undefined,
-      furnished: false,
-      year_built: undefined,
-      parking_spaces: undefined,
-      description: '',
-      tag_ids: [],
-    };
-  }
+function toDefaults(property: PropertyDetail): PropertyFormValues {
   return {
     title: property.title ?? '',
     type: (property.type as PropertyFormValues['type']) ?? 'apartment',
@@ -95,6 +68,9 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
       (property.currency as PropertyFormValues['currency']) ?? 'XOF',
     rent_period:
       (property.rent_period as PropertyFormValues['rent_period']) ?? undefined,
+    title_type:
+      (property.title_type as PropertyFormValues['title_type']) ?? undefined,
+    available_from: property.available_from ?? undefined,
     city: property.location?.city ?? '',
     quarter: property.location?.quarter ?? '',
     region: property.location?.region ?? '',
@@ -109,23 +85,62 @@ function toDefaults(property?: PropertyDetail): PropertyFormValues {
     furnished: Boolean(property.furnished),
     year_built: property.year_built ?? undefined,
     parking_spaces: property.parking_spaces ?? undefined,
+    floor_number: property.floor_number ?? undefined,
+    total_floors: property.total_floors ?? undefined,
     description: property.description ?? '',
     tag_ids: Array.isArray(property.tags) ? property.tags.map((t) => t.id) : [],
   };
 }
 
-function toPropertyCrudPayload(payload: PropertyFormPayload): PropertyFormPayload {
-  const basicPayload: Partial<PropertyFormPayload> = { ...payload };
-  delete basicPayload.street;
-  delete basicPayload.postal_code;
-  delete basicPayload.country;
-  delete basicPayload.latitude;
-  delete basicPayload.longitude;
-  delete basicPayload.tag_ids;
-  return basicPayload as PropertyFormPayload;
+/**
+ * TCK-464 — les cinq champs d'adresse TEXTE qu'on peut vider depuis cet écran, et la traduction
+ * de leur clé de formulaire vers la clé du bloc `address` (cf. `payload.ts`).
+ *
+ * `city` en est délibérément absente : le schéma la rend requise, elle ne peut donc jamais
+ * atteindre cette fonction vide. `latitude`/`longitude` aussi : aucune affordance de cet écran ne
+ * les remet à vide (seul le clic sur la carte les modifie), donc aucun champ à couvrir ici.
+ */
+const CHAMPS_ADRESSE_EFFACABLES = [
+  { formulaire: 'street', bloc: 'street' },
+  { formulaire: 'quarter', bloc: 'neighborhood' },
+  { formulaire: 'region', bloc: 'region' },
+  { formulaire: 'postal_code', bloc: 'postal_code' },
+  { formulaire: 'country', bloc: 'country' },
+] as const satisfies readonly {
+  formulaire: keyof PropertyFormPayload;
+  bloc: keyof PropertyAddressBlock;
+}[];
+
+/**
+ * `toUpdatePayload` (payload.ts) OMET toute clé d'adresse vide — juste pour un champ jamais
+ * rempli, faux pour un champ qu'on vient de VIDER : la clé omise ne dit rien au backend, qui
+ * laisse alors l'ancienne valeur en base (charge héritée de TCK-464, reportée deux fois).
+ *
+ * `dirtyFields` (react-hook-form) est la SEULE source qui distingue les deux cas : un champ
+ * revenu à vide APRÈS avoir été modifié est marqué `dirty`, un champ jamais touché ne l'est
+ * jamais — alors que les deux valident au même résultat (`undefined`, après le `transform` du
+ * schéma). Le backend accepte `null` sur ces colonnes : c'est ce qui efface réellement la valeur.
+ *
+ * ⚠ Cette fonction n'AJOUTE que des clés, jamais n'en retire : un champ déjà présent dans `address`
+ * (rempli ou modifié vers une nouvelle valeur) traverse intact.
+ */
+function withAddressErasures(
+  address: PropertyAddressBlock | undefined,
+  values: PropertyFormPayload,
+  dirtyFields: Partial<Record<string, unknown>>,
+): PropertyAddressBlock | undefined {
+  let bloc = address;
+  for (const { formulaire, bloc: cleBloc } of CHAMPS_ADRESSE_EFFACABLES) {
+    const toucheParUtilisateur = Boolean(dirtyFields[formulaire]);
+    const estVide = !values[formulaire];
+    if (toucheParUtilisateur && estVide) {
+      bloc = { ...(bloc ?? {}), [cleBloc]: null };
+    }
+  }
+  return bloc;
 }
 
-export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
+export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   const t = useTranslations('property.form');
   // TCK-292 — les six vocabulaires d'enum viennent du dictionnaire ; `./options` ne porte plus que
   // l'espace de noms et la fabrique. Les hooks sont posés AVANT toute sortie anticipée.
@@ -133,30 +148,14 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const tContractType = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
   const tCurrency = useTranslations(PROPERTY_ENUM_NAMESPACES.currency);
   const tRentPeriod = useTranslations(PROPERTY_ENUM_NAMESPACES.rentPeriod);
+  const tTitleType = useTranslations(PROPERTY_ENUM_NAMESPACES.titleType);
   const router = useRouter();
   const propertyTypeOptions = fabriquePropertyTypeOptions(tType);
   const contractTypeOptions = fabriqueContractTypeOptions(tContractType);
   const currencyOptions = fabriqueCurrencyOptions(tCurrency);
   const rentPeriodOptions = fabriqueRentPeriodOptions(tRentPeriod);
-  const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
-  const [photoError, setPhotoError] = useState<string | null>(null);
-  const [photoUploading, setPhotoUploading] = useState(false);
-  const submitIntentRef = useRef<'draft' | 'submit'>('submit');
+  const titleTypeOptions = titleTypeValues.map((v) => ({ value: v, label: tTitleType(v) }));
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const selectSubmitIntent = useCallback((intent: 'draft' | 'submit') => {
-    submitIntentRef.current = intent;
-  }, []);
-
-  const onPhotosChange = useCallback((files: File[]) => {
-    setPhotoError(null);
-    setPendingPhotos((prev) => [...prev, ...files]);
-  }, []);
-
-  const removePhoto = useCallback((index: number) => {
-    setPhotoError(null);
-    setPendingPhotos((prev) => prev.filter((_, i) => i !== index));
-  }, []);
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<PropertyFormValues, PropertyDetail>({
@@ -165,19 +164,17 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       onSubmit: async (values) => {
         setSuccessMessage(null);
         const payload = values as unknown as PropertyFormPayload;
-        const basicPayload = toPropertyCrudPayload(payload);
-        const createPayload =
-          mode === 'create'
-            ? {
-                ...basicPayload,
-                status: submitIntentRef.current === 'draft' ? 'draft' : 'pending_review',
-                visibility: 'private',
-              }
-            : basicPayload;
-        const result =
-          mode === 'edit' && property
-            ? await updatePropertyAction(property.id, basicPayload as PropertyFormPayload)
-            : await createPropertyAction(createPayload as PropertyFormPayload);
+        const basePayload = toUpdatePayload(payload);
+        const address = withAddressErasures(
+          basePayload.address,
+          payload,
+          form.formState.dirtyFields,
+        );
+        const finalPayload: PropertyUpdatePayload = {
+          ...basePayload,
+          ...(address ? { address } : {}),
+        };
+        const result = await updatePropertyAction(property.id, finalPayload);
         if (!result.ok) {
           throw new ApiError(result.status ?? 500, {
             message: result.message,
@@ -188,11 +185,6 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
       },
       onSuccess: async (result) => {
         if (!result?.id) {
-          if (mode === 'create') {
-            throw new ApiError(500, {
-              message: t('missingIdError'),
-            });
-          }
           router.push('/app/properties');
           router.refresh();
           return;
@@ -200,52 +192,13 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
         const pid = result.id;
         const values = form.getValues() as unknown as PropertyFormPayload;
 
-        // Address
-        const hasAddress =
-          values.street || values.postal_code || values.country ||
-          values.latitude != null || values.longitude != null;
-        if (hasAddress) {
-          await setPropertyAddressAction(pid, {
-            street: values.street,
-            neighborhood: values.quarter,
-            city: values.city,
-            region: values.region,
-            country: values.country,
-            postal_code: values.postal_code,
-            latitude: values.latitude ?? null,
-            longitude: values.longitude ?? null,
-          });
-        }
-
         // Tags
         if (values.tag_ids && values.tag_ids.length > 0) {
           await setPropertyTagsAction(pid, values.tag_ids);
         }
 
-        // Photos
-        if (pendingPhotos.length > 0) {
-          setPhotoUploading(true);
-          try {
-            const formData = new FormData();
-            for (const file of pendingPhotos) formData.append('photos', file);
-            const uploadResult = await uploadPropertyPhotosAction(pid, formData);
-            if (!uploadResult.ok) {
-              setPhotoError(uploadResult.message);
-              setPhotoUploading(false);
-              return;
-            }
-          } finally {
-            setPhotoUploading(false);
-          }
-        }
-
-        if (mode === 'create') {
-          setSuccessMessage(t('created'));
-          router.push(`/app/properties/${pid}`);
-        } else {
-          setSuccessMessage(t('updated'));
-          router.push('/app/properties');
-        }
+        setSuccessMessage(t('updated'));
+        router.push('/app/properties');
         router.refresh();
       },
     });
@@ -257,6 +210,7 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   const lat = watch('latitude') as number | null | undefined;
   const lng = watch('longitude') as number | null | undefined;
   const tagIds = (watch('tag_ids') ?? []) as number[];
+  const ctx: RelevanceContext = { type: watch('type'), contract: contractType };
 
   // Ces deux gestionnaires sont passés en props à des enfants, et ils ne sont PAS enveloppés dans
   // un `useCallback` : le React Compiler s'en charge (ADR-0015). Les `useCallback` qui s'y
@@ -280,7 +234,9 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8" noValidate>
+    /* TCK-468 — même portée de densité que le parcours de publication : les deux écrans qui
+       portent des champs ET des pastilles répondent au même régime (44 px). */
+    <form onSubmit={handleSubmit} className="space-y-8" noValidate {...fieldDensityScope()}>
       <FormGlobalError>
         {globalError ? (
           <span className="flex items-center justify-between gap-4">
@@ -437,60 +393,116 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
         </div>
       </section>
 
-      {/* ── Section 4 : Caractéristiques ── */}
+      {/*
+        ── Section 4 : Caractéristiques ──
+        TCK-464 — chaque champ conditionnel demande à `isFieldRelevant` (field-matrix.ts), la
+        SEULE source de vérité, partagée avec le parcours de création et la sérialisation du
+        payload. Aucune condition sur `type`/`contract_type` ne s'écrit ici en clair : une
+        deuxième version de la règle est celle qui finit par diverger (cf. l'en-tête de la
+        matrice).
+      */}
       <section className="rounded-xl bg-card p-6 space-y-4">
         <header>
           <h2 className="text-base font-semibold text-foreground">{t('features.title')}</h2>
           <p className="text-xs text-muted-foreground">{t('features.hintFull')}</p>
         </header>
         <div className="grid gap-4 md:grid-cols-3">
-          <FormInput
-            control={control}
-            name="area"
-            label={t('fields.area')}
-            type="number"
-            inputMode="numeric"
-            min={0}
-          />
-          <FormInput
-            control={control}
-            name="bedrooms"
-            label={t('fields.bedrooms')}
-            type="number"
-            inputMode="numeric"
-            min={0}
-          />
-          <FormInput
-            control={control}
-            name="bathrooms"
-            label={t('fields.bathrooms')}
-            type="number"
-            inputMode="numeric"
-            min={0}
-          />
+          {isFieldRelevant('area', ctx) ? (
+            <FormInput
+              control={control}
+              name="area"
+              label={t('fields.area')}
+              type="number"
+              inputMode="numeric"
+              min={0}
+            />
+          ) : null}
+          {isFieldRelevant('bedrooms', ctx) ? (
+            <FormInput
+              control={control}
+              name="bedrooms"
+              label={t('fields.bedrooms')}
+              type="number"
+              inputMode="numeric"
+              min={0}
+            />
+          ) : null}
+          {isFieldRelevant('bathrooms', ctx) ? (
+            <FormInput
+              control={control}
+              name="bathrooms"
+              label={t('fields.bathrooms')}
+              type="number"
+              inputMode="numeric"
+              min={0}
+            />
+          ) : null}
         </div>
         <div className="grid gap-4 md:grid-cols-3">
-          <FormInput
-            control={control}
-            name="year_built"
-            label={t('fields.yearBuilt')}
-            type="number"
-            inputMode="numeric"
-            min={1800}
-            max={2100}
-            placeholder="2010"
-          />
-          <FormInput
-            control={control}
-            name="parking_spaces"
-            label={t('fields.parking')}
-            type="number"
-            inputMode="numeric"
-            min={0}
-            placeholder="2"
-          />
+          {isFieldRelevant('floor_number', ctx) ? (
+            <FormInput
+              control={control}
+              name="floor_number"
+              label={t('fields.floorNumber')}
+              type="number"
+              inputMode="numeric"
+              min={-5}
+              max={200}
+            />
+          ) : null}
+          {isFieldRelevant('total_floors', ctx) ? (
+            <FormInput
+              control={control}
+              name="total_floors"
+              label={t('fields.totalFloors')}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={200}
+            />
+          ) : null}
+          {isFieldRelevant('year_built', ctx) ? (
+            <FormInput
+              control={control}
+              name="year_built"
+              label={t('fields.yearBuilt')}
+              type="number"
+              inputMode="numeric"
+              min={1800}
+              max={2100}
+              placeholder="2010"
+            />
+          ) : null}
+          {isFieldRelevant('parking_spaces', ctx) ? (
+            <FormInput
+              control={control}
+              name="parking_spaces"
+              label={t('fields.parking')}
+              type="number"
+              inputMode="numeric"
+              min={0}
+              placeholder="2"
+            />
+          ) : null}
         </div>
-        <FormCheckbox control={control} name="furnished" label={t('fields.furnished')} />
+        {isFieldRelevant('furnished', ctx) ? (
+          <FormCheckbox control={control} name="furnished" label={t('fields.furnished')} />
+        ) : null}
+        {isFieldRelevant('title_type', ctx) ? (
+          <FormSelect
+            control={control}
+            name="title_type"
+            label={t('fields.titleType')}
+            options={titleTypeOptions}
+          />
+        ) : null}
+        {isFieldRelevant('available_from', ctx) ? (
+          <FormDatePicker
+            control={control}
+            name="available_from"
+            label={t('fields.availableFrom')}
+          />
+        ) : null}
       </section>
 
       {/* ── Section 5 : Description ── */}
@@ -527,7 +539,10 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
                   type="button"
                   onClick={() => toggleTag(tag.id)}
                   aria-pressed={checked}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors ${
+                  // TCK-468 — `min-h-11` = 44 px, comme les pastilles de `ChoiceChips` dans le
+                  // parcours de publication. Sans ça, l'édition alignait ses CHAMPS sur 44 px et
+                  // gardait ses pastilles à 28 : l'écart changeait de camp au lieu de disparaître.
+                  className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors ${
                     checked
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border bg-transparent text-foreground hover:bg-muted'
@@ -542,35 +557,9 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
         </section>
       )}
 
-      {/* ── Section 7 : Photos (creation only — edit uses PropertyMediaPanel) ── */}
-      {mode === 'create' && (
-        <section className="rounded-xl bg-card p-6 space-y-4">
-          <header>
-            <h2 className="text-base font-semibold text-foreground">{t('photos.title')}</h2>
-            <p className="text-xs text-muted-foreground">{t('photos.hint', { max: MAX_PHOTOS })}</p>
-          </header>
-          <MediaDropzone
-            onChange={onPhotosChange}
-            files={pendingPhotos}
-            onRemove={removePhoto}
-            maxFiles={MAX_PHOTOS}
-          />
-          <p className="text-xs text-muted-foreground">
-            {t('photos.counter', { count: pendingPhotos.length, max: MAX_PHOTOS })}
-          </p>
-          {photoError ? (
-            <p className="text-xs text-destructive" role="alert">
-              {photoError}
-            </p>
-          ) : null}
-        </section>
-      )}
-
       <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
         <p className="text-xs text-muted-foreground" aria-live="polite">
-          {mode === 'edit' && dirtyCount > 0
-            ? t('footer.dirty', { count: dirtyCount })
-            : t(mode === 'edit' ? 'footer.noChanges' : 'footer.requiredHint')}
+          {dirtyCount > 0 ? t('footer.dirty', { count: dirtyCount }) : t('footer.noChanges')}
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button
@@ -578,36 +567,18 @@ export function PropertyForm({ mode, property, tags = [] }: PropertyFormProps) {
             variant="ghost"
             size="lg"
             onClick={() => router.back()}
-            disabled={isSubmitting || photoUploading}
+            disabled={isSubmitting}
           >
             {t('footer.cancel')}
           </Button>
-          {mode === 'create' && (
-            <Button
-              type="submit"
-              disabled={isSubmitting || photoUploading}
-              size="lg"
-              variant="outline"
-              onClick={() => selectSubmitIntent('draft')}
-            >
-              {t('footer.saveDraft')}
-            </Button>
-          )}
-          <Button
-            type="submit"
-            disabled={isSubmitting || photoUploading}
-            size="lg"
-            onClick={() => selectSubmitIntent('submit')}
-          >
-            {isSubmitting || photoUploading ? (
+          <Button type="submit" disabled={isSubmitting} size="lg">
+            {isSubmitting ? (
               <>
                 <Loader2 className="animate-spin" aria-hidden="true" />
                 <span>{t('footer.saving')}</span>
               </>
             ) : (
-              <span>
-                {t(mode === 'create' ? 'footer.submit' : 'footer.saveChanges')}
-              </span>
+              <span>{t('footer.saveChanges')}</span>
             )}
           </Button>
         </div>

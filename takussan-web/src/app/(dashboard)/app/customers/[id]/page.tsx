@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 
 import { getTranslations } from 'next-intl/server';
@@ -69,11 +68,11 @@ export default async function Page({ params }: { params: Params }) {
   const tStage = await getTranslations(CUSTOMER_ENUM_NAMESPACES.pipelineStage);
 
   const customerId = Number.parseInt(id, 10);
-  // Identifiant illisible et 404 de l'API disent la MÊME chose à l'utilisateur — « cette fiche
-  // n'existe pas, ou elle n'est pas la vôtre » — et se rendent donc au même endroit
-  // (`app/not-found.tsx`). Le 403 ci-dessous, lui, en dit une AUTRE : la fiche existe et
-  // l'agence n'est pas la vôtre. Les fondre aurait fait de l'écran d'accès refusé un introuvable.
-  if (!Number.isFinite(customerId) || customerId <= 0) notFound();
+  // TCK-442 — la validité de l'identifiant ET l'existence de la ressource sont tranchées par
+  // `[id]/layout.tsx`, strictement au-dessus du `loading.tsx` de ce segment : un `notFound()`
+  // écrit ici rendrait 200, avec l'écran introuvable affiché quand même. La décision n'a pas
+  // changé de nature — un identifiant illisible reste un INTROUVABLE, jamais une panne — elle
+  // a changé d'étage, et elle couvre désormais aussi le 404 de l'API.
 
   let customer;
   let notes;
@@ -87,7 +86,6 @@ export default async function Page({ params }: { params: Params }) {
       fetchCrmTags(token).catch(() => []),
     ]);
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) notFound();
     if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
       return (
         <CustomerDetailUnavailable

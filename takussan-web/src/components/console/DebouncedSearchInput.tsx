@@ -20,6 +20,17 @@ interface DebouncedSearchInputProps {
   readonly 'aria-label': string;
   /** `true` quand une requête dérivée de cette recherche est en vol. */
   readonly busy?: boolean;
+  /**
+   * La fenêtre de temporisation, en millisecondes — {@link CONSOLE_SEARCH_DEBOUNCE_MS} par défaut.
+   *
+   * ⚠ **Aucun écran ne la passe, et aucun ne doit la passer** : le délai que l'utilisateur subit
+   * avant que sa recherche parte est un arbitrage de PRODUIT, pas un réglage d'appelant. Cette
+   * porte existe pour que le TEST puisse choisir le moment où la fenêtre échoit au lieu de
+   * l'espérer d'une horloge réelle qu'il ne contrôle pas (TCK-451). Le compte des appelants qui
+   * la passent se prend à la source — `grep -rn 'debounceMs=' src` — et il doit rendre les seuls
+   * fichiers de test.
+   */
+  readonly debounceMs?: number;
   readonly className?: string;
   readonly id?: string;
 }
@@ -58,6 +69,16 @@ interface DebouncedSearchInputProps {
  *
  * La règle tient en une phrase : **on ne compare jamais le brouillon à la valeur qu'on a
  * transformée avant de l'envoyer.** Des deux côtés de la comparaison, la même normalisation.
+ *
+ * ## `debounceMs` : une porte pour le test, pas un réglage pour l'écran (TCK-451)
+ *
+ * Le test ne peut pas contrôler l'horloge — `vi.useFakeTimers()` plus `userEvent` fait sortir sa
+ * suite en « timed out » sur 8 tests sur 11 (mesuré). Il ne lui restait donc qu'à PARIER que la
+ * fenêtre de 300 ms n'échoirait pas pendant la frappe : un pari dont la marge est l'intervalle
+ * inter-frappe, mesuré à 2,9-4,6 ms au repos le 2026-08-29, mais qui est une grandeur de QUEUE —
+ * un seul décrochage d'ordonnancement au-dessus de 300 ms, où qu'il tombe, retourne le pari.
+ * Avec `debounceMs`, le test choisit une fenêtre plus longue que son propre plafond et fait
+ * échoir la temporisation par le seul moyen qu'a l'utilisateur : `blur`.
  */
 export function DebouncedSearchInput({
   value,
@@ -67,9 +88,10 @@ export function DebouncedSearchInput({
   busy = false,
   className,
   id,
+  debounceMs = CONSOLE_SEARCH_DEBOUNCE_MS,
 }: DebouncedSearchInputProps) {
   const t = useTranslations('console.search');
-  const commit = useDebouncedCallback((next: string) => onCommit(next), CONSOLE_SEARCH_DEBOUNCE_MS);
+  const commit = useDebouncedCallback((next: string) => onCommit(next), debounceMs);
 
   // `useStateSyncedWith(value)` — ajustement d'état pendant le rendu, sans `useEffect` — avec la
   // seule différence qui compte ici : la valeur externe ne REMPLACE le brouillon que si elle dit

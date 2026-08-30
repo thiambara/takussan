@@ -12,32 +12,43 @@
 //   node docs/gen-features-by-actor.mjs           # (ré)écrit docs/features-by-actor.md
 //   node docs/gen-features-by-actor.mjs --check   # n'écrit rien, sort 1 si la sortie est périmée
 //
-// Les DEUX formes sortent aussi en 1 si `features.md` marque un acteur qui n'est pas dans sa
-// légende (TCK-420) — la forme écriture régénère d'abord, puis échoue.
+// CE QUE LES DEUX FORMES REFUSENT. Trois défauts de la SOURCE font sortir en 1 — la forme
+// écriture régénère d'abord, puis échoue : le défaut est dans `features.md`, pas dans la vue.
 //
-// OÙ CETTE GARDE S'ARRÊTE. Elle ne couvre qu'UN sens et qu'UN emplacement ; les deux angles morts
-// ci-dessous ont été mesurés (TCK-420), et sont écrits ici parce qu'*une garde dont on croit la
-// portée plus large qu'elle n'est coûte plus cher que pas de garde du tout* — on cesse de
-// chercher à la main ce qu'on la croit capable d'attraper.
+//  1. **Jeton employé sans être déclaré** (TCK-420). Un jeton de la colonne « Acteurs » qui ne
+//     figure pas dans le tableau `### Acteurs`. `undeclared`, l. 195.
+//  2. **Acteur déclaré et employé nulle part** (TCK-447). La réciproque du n°1, qui passait en
+//     silence : l'acteur se faisait recopier dans la légende du fichier généré (l. 254, qui boucle
+//     sur `legend` sans condition) et n'obtenait AUCUNE section, `groups` étant filtré par
+//     `byActor.has(g.key)` (l. 218). `unusedDeclared`, l. 196.
+//  3. **Ligne de fonctionnalité hors d'une section `### N.M`** (TCK-447). `parseFeatures`
+//     l'ignorait purement : `if (!row) continue;` puis `if (!current)` (l. 149-150). Une ligne
+//     `| Pn | acteurs | … |` posée avant le premier `### N.M`, ou après un `##` qui a clos la
+//     section, n'a AUCUN domaine où être rangée — le générateur ne peut donc pas la rendre,
+//     seulement la refuser. Il la refuse, en la citant par son numéro de ligne. `orphans`, l. 151.
 //
-//  1. **Sens unique : déclaré-mais-inemployé passe en silence.** `undeclared` (l. 165) ne calcule
-//     que « employé sans être déclaré ». La réciproque n'est calculée nulle part : un acteur ajouté
-//     à la légende et marqué sur aucune ligne sort en 0 dans les deux formes, se fait recopier
-//     dans la légende du fichier généré (l. 223, qui boucle sur `legend` sans condition) et
-//     n'obtient AUCUNE section — `groups` est filtré par `byActor.has(g.key)` (l. 187). Mesuré :
-//     un `| 🦄 | … |` ajouté à la légende seule → EXIT 0, 🦄 présent dans la légende générée,
-//     0 section sous lui.
-//  2. **Hors d'une section `### N.M`, une ligne de tableau est INVISIBLE.** `parseFeatures` fait
-//     `if (!row || !current) continue;` (l. 126) : tant qu'aucun titre `### N.M` n'a été
-//     rencontré — ou après qu'un `##` non numéroté a remis `current` à `null` —, toute ligne
-//     `| Pn | acteurs | … |` est ignorée, acteur non déclaré compris. Mesuré : une ligne
-//     `| P1 | 🦄 | … |` ajoutée sous « ## Notes de priorisation » → EXIT 0 et compte de
-//     placements INCHANGÉ (286), donc pas même lue.
+// POURQUOI ON EN EST LÀ. Les n°2 et n°3 ont été mesurés en vérifiant TCK-420, et ont vécu écrits
+// dans cet en-tête comme angles morts, parce qu'*une garde dont on croit la portée plus large
+// qu'elle n'est coûte plus cher que pas de garde du tout* — on cesse de chercher à la main ce
+// qu'on la croit capable d'attraper. TCK-447 les a fermés plutôt que documentés.
 //
-// Aucun des deux n'est exigé par les AC de TCK-420 et aucun n'est corrigé ici : les nommer est ce
-// qui permettra de décider plus tard s'ils valent un ticket. Les quatre numéros ci-dessus sont
-// EXACTS à ce commit et se re-dérivent sans les croire :
-//   grep -n "if (!row || !current) continue;\|const undeclared = \|byActor.has(g.key)\|for (const a of legend)" docs/gen-features-by-actor.mjs
+// LES SONDES, à rejouer puis restaurer (`git checkout docs/features.md`) — chacune EXIT 1 :
+//   n°1  ajouter `| 🦄 | … |` à une ligne de la colonne « Acteurs » d'une section
+//   n°2  ajouter `| 🦄 | Acteur bidon |` à la seule légende `### Acteurs`
+//   n°3  ajouter `| P1 | 🦄 | bidon |` sous « ## Notes de priorisation »
+//
+// CE QUI RESTE NON GARDÉ, et qui ne l'a jamais été — mesuré le 2026-08-29 :
+//   - Une ligne dont la PRIORITÉ ne s'écrit pas `P0`..`P3` ne correspond à aucune ligne de
+//     fonctionnalité pour ce script, même AU MILIEU d'une section : elle est invisible partout,
+//     y compris du n°3. Sonde : `| P4 | 🦄 | bidon |` inséré dans §1.1 → EXIT 0, 233 lignes /
+//     286 placements INCHANGÉS. La refuser demanderait de décider ce qu'est « une ligne qui
+//     voulait être une fonctionnalité », ce qu'aucune règle du dépôt ne dit.
+//   - La légende est éprouvée sur la PRÉSENCE d'un jeton, jamais sur la justesse de son libellé.
+//
+// Les numéros de ligne ci-dessus sont EXACTS à ce commit et se re-dérivent sans les croire. En
+// SIMPLES quotes, et par `-e` : en zsh interactif, un `!` entre doubles quotes part en expansion
+// d'historique et le motif cherché n'est plus celui qu'on a écrit.
+//   grep -n -e 'const undeclared = ' -e 'const unusedDeclared = ' -e 'row) continue;' -e 'if (!current) {' -e 'orphans.push(' -e 'byActor.has(g.key)' -e 'for (const a of legend)' docs/gen-features-by-actor.mjs | grep -v '://'
 //
 // La sortie est INTÉGRALEMENT dérivée : chaque ligne de fonctionnalité vient d'une ligne de
 // `features.md`, et la colonne « Domaine » renvoie à la section d'origine. Aucun contenu n'est
@@ -104,13 +115,26 @@ function splitActors(cell, icons) {
   return out;
 }
 
-/** Parse les sections `### N.M Titre` et leurs lignes `| Pn | acteurs | fonctionnalité |`. */
+/**
+ * Parse les sections `### N.M Titre` et leurs lignes `| Pn | acteurs | fonctionnalité |`.
+ *
+ * Une ligne rencontrée hors d'une section n'est pas ignorée : elle part dans `orphans` avec son
+ * numéro de ligne, et fera échouer le script. Elle n'a pas de « Domaine » où être rangée — la
+ * rendre est impossible, la taire reviendrait à faire disparaître une fonctionnalité de la vue
+ * sans que rien ne le dise (TCK-447, angle mort n°2 du ticket).
+ *
+ * TOUT titre de niveau 2 clôt la section courante, numéroté ou non. Ce script exceptait
+ * auparavant `## N. …` : une ligne posée entre `## 2. Domaines applicatifs transverses` et
+ * `### 2.1` héritait alors du §1.12 en silence. Mesuré au 2026-08-29 : 0 ligne dans ce cas, la
+ * sortie est donc inchangée — mais la borne dit désormais ce qu'elle applique.
+ */
 function parseFeatures(src, icons) {
   const lines = src.split('\n');
   const rows = [];
+  const orphans = []; // [{ line, text }] — lignes de fonctionnalité hors de toute section
   const sections = new Map(); // "1.2" → titre
   let current = null;
-  for (const line of lines) {
+  for (const [i, line] of lines.entries()) {
     const head = line.match(/^###\s+(\d+\.\d+)\s+(.+?)\s*$/);
     if (head) {
       current = head[1];
@@ -118,12 +142,15 @@ function parseFeatures(src, icons) {
       continue;
     }
     if (/^##\s/.test(line) && !/^###/.test(line)) {
-      // Un titre de niveau 2 (« ## Notes de priorisation ») clôt la section courante.
-      if (!/^##\s+\d/.test(line)) current = null;
+      current = null;
       continue;
     }
     const row = line.match(/^\|\s*(P[0-3])\s*\|([^|]*)\|\s*(.+?)\s*\|\s*$/);
-    if (!row || !current) continue;
+    if (!row) continue;
+    if (!current) {
+      orphans.push({ line: i + 1, text: line.trim() });
+      continue;
+    }
     rows.push({
       prio: row[1],
       actors: splitActors(row[2], icons),
@@ -132,7 +159,7 @@ function parseFeatures(src, icons) {
     });
   }
   if (!rows.length) throw new Error(`Aucune ligne de fonctionnalité lue dans ${SOURCE_NAME}`);
-  return { rows, sections };
+  return { rows, sections, orphans };
 }
 
 /** Ancre GitHub d'un titre markdown. */
@@ -147,7 +174,7 @@ function anchor(text) {
 function render(src) {
   const legend = parseActorLegend(src);
   const icons = legend.map((a) => a.icon);
-  const { rows, sections } = parseFeatures(src, icons);
+  const { rows, sections, orphans } = parseFeatures(src, icons);
 
   // Regroupement : acteur → section → lignes. L'ordre des acteurs suit la légende, l'ordre des
   // sections et des lignes suit `features.md`. Rien n'est trié ici : la source porte déjà l'ordre.
@@ -162,7 +189,11 @@ function render(src) {
   }
 
   const known = new Set([...icons, ALL_USERS]);
+  // Les deux sens, et non plus un seul : employé-sans-être-déclaré (TCK-420), et déclaré-sans-
+  // être-employé (TCK-447). Le second produisait une légende qui promet un acteur suivi d'aucune
+  // section — la vue affirmait alors ce que la source ne dit nulle part.
   const undeclared = [...byActor.keys()].filter((a) => !known.has(a));
+  const unusedDeclared = legend.map((a) => a.icon).filter((icon) => !byActor.has(icon));
 
   const groups = [
     ...legend.map((a) => ({ key: a.icon, title: `${a.icon} ${a.label}`, note: null })),
@@ -287,15 +318,31 @@ function render(src) {
     );
     out.push('');
   }
-  return { text: out.join('\n'), undeclared, total, placements };
+  if (unusedDeclared.length) {
+    out.push(
+      `> ⚠️ ${unusedDeclared.length} acteur(s) de la légende de \`${SOURCE_NAME}\` ne portent aucune ` +
+        `fonctionnalité : ${unusedDeclared.join(', ')}. Ils apparaissent dans la légende ci-dessus ` +
+        'et n\'ont aucune section. À corriger dans la source.',
+    );
+    out.push('');
+  }
+  if (orphans.length) {
+    out.push(
+      `> ⚠️ ${orphans.length} ligne(s) de fonctionnalité de \`${SOURCE_NAME}\` sont hors de toute ` +
+        `section \`### N.M\` (l. ${orphans.map((o) => o.line).join(', ')}) : sans domaine où les ` +
+        'ranger, elles ne sont rendues nulle part. À corriger dans la source.',
+    );
+    out.push('');
+  }
+  return { text: out.join('\n'), undeclared, unusedDeclared, orphans, total, placements };
 }
 
 const src = readFileSync(SOURCE, 'utf8');
-const { text, undeclared, total, placements } = render(src);
+const { text, undeclared, unusedDeclared, orphans, total, placements } = render(src);
 const check = process.argv.includes('--check');
 
 /**
- * Un acteur non déclaré est un ÉCHEC, pas un avertissement (TCK-420).
+ * Un défaut de la source est un ÉCHEC, pas un avertissement (TCK-420, élargi par TCK-447).
  *
  * Ce script a émis `⚠ 1 acteur(s) non déclaré(s) … : 🔧` en sortant en **0** pendant tout le
  * temps où 🔧 manquait à la légende. Aucune CI ne casse sur une sortie 0 : l'écart ne se lisait
@@ -307,13 +354,36 @@ const check = process.argv.includes('--check');
  *
  * En mode écriture, la sortie est produite AVANT de sortir en 1 : le défaut est dans la source,
  * pas dans la vue, et refuser de régénérer punirait le mauvais fichier.
+ *
+ * Les trois défauts sont RAPPORTÉS ENSEMBLE avant de sortir. Un script qui s'arrête au premier
+ * fait relancer autant de fois qu'il y a de défauts, et chaque relance coûte le temps de la CI.
  */
-function failOnUndeclared() {
-  if (!undeclared.length) return;
-  console.error(
-    `✗ ${undeclared.length} acteur(s) non déclaré(s) dans la légende de ${SOURCE_NAME} : ${undeclared.join(', ')}\n` +
-      `  Chaque jeton de la colonne « Acteurs » doit figurer dans le tableau \`### Acteurs\` de ${SOURCE_NAME}.`,
-  );
+function failOnSourceDefects() {
+  const problems = [];
+  if (undeclared.length) {
+    problems.push(
+      `✗ ${undeclared.length} acteur(s) non déclaré(s) dans la légende de ${SOURCE_NAME} : ${undeclared.join(', ')}\n` +
+        `  Chaque jeton de la colonne « Acteurs » doit figurer dans le tableau \`### Acteurs\` de ${SOURCE_NAME}.`,
+    );
+  }
+  if (unusedDeclared.length) {
+    problems.push(
+      `✗ ${unusedDeclared.length} acteur(s) déclaré(s) dans la légende de ${SOURCE_NAME} et employé(s) nulle part : ${unusedDeclared.join(', ')}\n` +
+        '  Un acteur en légende sans aucune fonctionnalité produit une vue qui le promet et ne le sert pas :\n' +
+        `  il figure dans la légende générée et n'obtient aucune section. Le marquer sur au moins une ligne\n` +
+        `  de ${SOURCE_NAME}, ou le retirer de la légende.`,
+    );
+  }
+  if (orphans.length) {
+    problems.push(
+      `✗ ${orphans.length} ligne(s) de fonctionnalité hors de toute section \`### N.M\` dans ${SOURCE_NAME} :\n` +
+        orphans.map((o) => `    l. ${o.line} : ${o.text}`).join('\n') +
+        '\n  Une telle ligne n\'a pas de « Domaine » où être rangée : le générateur ne peut pas la rendre,\n' +
+        '  seulement la refuser. La déplacer sous une section `### N.M`.',
+    );
+  }
+  if (!problems.length) return;
+  console.error(problems.join('\n'));
   process.exit(1);
 }
 
@@ -332,10 +402,10 @@ if (check) {
     );
     process.exit(1);
   }
-  failOnUndeclared();
+  failOnSourceDefects();
   console.log(`✓ ${OUTPUT_NAME} est à jour de ${SOURCE_NAME} (${total} lignes, ${placements} placements).`);
 } else {
   writeFileSync(OUTPUT, text);
   console.log(`✓ ${OUTPUT_NAME} régénéré depuis ${SOURCE_NAME} (${total} lignes, ${placements} placements).`);
-  failOnUndeclared();
+  failOnSourceDefects();
 }
