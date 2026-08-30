@@ -313,3 +313,173 @@ describe('WizardReprenable', () => {
     ).toBeGreaterThanOrEqual(1);
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────────
+// TCK-483 — le garde du toast de succès lit une valeur VIVANTE
+//
+// Le garde `if (!completing)` du site 1 était du code mort : la fermeture de
+// nettoyage de l'effet `[hydrated]` capturait `completing` tel qu'il valait à
+// l'hydratation — `false`, définitivement. Le toast « Progression sauvegardée »
+// partait donc AUSSI derrière une finalisation, là où `clear()` vient de
+// SUPPRIMER le brouillon : on annonçait la sauvegarde de ce qu'on venait
+// d'effacer.
+//
+// ⚠ Et l'état `completing` n'est PAS non plus la valeur à lire, même rendue
+// lisible : il retombe à `false` dans le `finally` de `handleNext`, donc AVANT
+// le démontage qui suit une finalisation réussie. Ce que le garde doit lire,
+// c'est ce que son commentaire dit déjà — « le brouillon a été effacé
+// volontairement » — et non « une finalisation est en cours ».
+// ────────────────────────────────────────────────────────────────────────────
+describe('TCK-483 — le garde du toast lit une valeur vivante', () => {
+  beforeEach(() => {
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, init) => {
+      const method = (init as RequestInit | undefined)?.method ?? 'GET';
+      if (method === 'GET') return { ok: false, status: 404, json: async () => ({}) };
+      if (method === 'PUT') {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: { id: 1, key: 'host-individual-wizard', step: 0, data: {}, updated_at: 'now' },
+          }),
+        };
+      }
+      if (method === 'DELETE') return { ok: true, status: 204, json: async () => null };
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as unknown as typeof fetch;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("AC1 — chemin de finalisation : le démontage qui suit n'annonce PAS « Progression sauvegardée »", async () => {
+    const onComplete = vi.fn();
+    const { demonterAssistant } = renderWizard({ onComplete, debounceMs: 5000 });
+    await tick();
+
+    fireEvent.change(screen.getByLabelText('title'), { target: { value: 'Studio' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    await tick();
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
+    await tick(80);
+
+    // On a bien emprunté le chemin de finalisation : le brouillon est supprimé.
+    const fetchMock = globalThis.fetch as unknown as ReturnType<typeof vi.fn>;
+    expect(onComplete).toHaveBeenCalled();
+    expect(
+      fetchMock.mock.calls.filter((c) => (c[1]?.method ?? 'GET') === 'DELETE').length,
+    ).toBeGreaterThanOrEqual(1);
+
+    // C'est le démontage qui suit la finalisation — celui qu'une navigation
+    // provoque — qui déclenchait le toast fautif.
+    demonterAssistant();
+    await tick(80);
+
+    expect(screen.queryByText('Progression sauvegardée')).not.toBeInTheDocument();
+    expect(screen.queryByText('Progression non enregistrée')).not.toBeInTheDocument();
+  });
+
+  it('AC1 (contre-épreuve) — démontage ordinaire sans rien en attente : le toast part TOUJOURS', async () => {
+    const { demonterAssistant } = renderWizard({ debounceMs: 5000 });
+    await tick();
+
+    // Aucune saisie : `flush()` rend `{ ok: true, ecrit: false }`. Le garde ne
+    // doit pas devenir un interrupteur qui éteint le toast en général.
+    demonterAssistant();
+    await tick(80);
+
+    expect(screen.getByText('Progression sauvegardée')).toBeInTheDocument();
+  });
+
+  it('AC1 (discriminant) — finalisation ÉCHOUÉE puis démontage réussi : le toast part, le brouillon vit encore', async () => {
+    // Le PUT de la finalisation échoue ; celui du démontage réussit.
+    let puts = 0;
+    globalThis.fetch = vi.fn().mockImplementation(async (_url, init) => {
+      const method = (init as RequestInit | undefined)?.method ?? 'GET';
+      if (method === 'GET') return { ok: false, status: 404, json: async () => ({}) };
+      if (method === 'PUT') {
+        puts += 1;
+        if (puts === 1) return { ok: false, status: 503, json: async () => ({}) };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: { id: 1, key: 'host-individual-wizard', step: 1, data: {}, updated_at: 'now' },
+          }),
+        };
+      }
+      if (method === 'DELETE') return { ok: true, status: 204, json: async () => null };
+      return { ok: true, status: 200, json: async () => ({}) };
+    }) as unknown as typeof fetch;
+
+    const onComplete = vi.fn();
+    const { demonterAssistant } = renderWizard({ onComplete, debounceMs: 5000 });
+    await tick();
+
+    fireEvent.change(screen.getByLabelText('title'), { target: { value: 'Studio' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    await tick();
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
+    await tick(80);
+    expect(onComplete).not.toHaveBeenCalled();
+
+    // La finalisation n'a PAS eu lieu : le brouillon existe toujours, et une
+    // écriture acceptée au démontage doit s'annoncer comme n'importe quelle
+    // autre. Un garde armé à l'entrée de `handleNext` et jamais désarmé
+    // éteindrait ce toast-là.
+    fireEvent.change(screen.getByLabelText('rooms'), { target: { value: '3' } });
+    demonterAssistant();
+    await tick(80);
+
+    expect(screen.getByText('Progression sauvegardée')).toBeInTheDocument();
+  });
+
+  it("AC2 — le correctif ne multiplie PAS les exécutions de l'effet : 1 pose, 1 dépose sur un parcours complet", async () => {
+    // L'effet pose un écouteur `pagehide` dans son corps et le retire dans sa
+    // fermeture : les compter, c'est compter l'effet lui-même. Une correction
+    // par la liste de dépendances (`[hydrated, completing]`) relancerait l'effet
+    // à chaque bascule de `completing` — donc autant de `flush()` de nettoyage,
+    // donc autant de PUT et de toasts en trop.
+    const poses: string[] = [];
+    const deposes: string[] = [];
+    // ⚠ Capturer les originaux AVANT d'espionner, et LIÉS à `window` : appeler
+    // `EventTarget.prototype.addEventListener` avec un `this` reconstruit fait
+    // lever jsdom (« not a valid instance of EventTarget »).
+    const poseReelle = window.addEventListener.bind(window);
+    const deposeReelle = window.removeEventListener.bind(window);
+    vi.spyOn(window, 'addEventListener').mockImplementation(((
+      ...args: Parameters<typeof window.addEventListener>
+    ) => {
+      if (args[0] === 'pagehide') poses.push('pagehide');
+      return poseReelle(...args);
+    }) as typeof window.addEventListener);
+    vi.spyOn(window, 'removeEventListener').mockImplementation(((
+      ...args: Parameters<typeof window.removeEventListener>
+    ) => {
+      if (args[0] === 'pagehide') deposes.push('pagehide');
+      return deposeReelle(...args);
+    }) as typeof window.removeEventListener);
+
+    const onComplete = vi.fn();
+    const { demonterAssistant } = renderWizard({ onComplete, debounceMs: 5000 });
+    await tick();
+
+    fireEvent.change(screen.getByLabelText('title'), { target: { value: 'Studio' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+    await tick();
+    fireEvent.click(screen.getByRole('button', { name: 'Terminer' }));
+    await tick(80);
+
+    // `completing` a basculé deux fois (false→true→false) et l'étape une fois :
+    // l'effet ne doit rien en savoir.
+    expect(poses).toHaveLength(1);
+    expect(deposes).toHaveLength(0);
+
+    demonterAssistant();
+    await tick(80);
+
+    expect(poses).toHaveLength(1);
+    expect(deposes).toHaveLength(1);
+  });
+});

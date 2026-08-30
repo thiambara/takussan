@@ -627,7 +627,9 @@
           "file_too_large": "Fichier bi épp na 10 Mo.",
           "unauthorized": "Dafa nga war duggu.",
           "forbidden": "Amul nga ndombo-tànk ngir loolu.",
-          "generic": "Am na njumte. Jëkkël tey."
+          "generic": "Am na njumte. Jëkkël tey.",
+          "draft_not_saved_title": "Yónni bi taxaw na : brouillon bi dencuñu ko",
+          "draft_not_saved_body": "Denc brouillon bi dañu ko bañ (kotëk bi dagg na walla sa session jeex na). Seetal sa kotëk, duggati su soxlawoon, ba noppi bësaat ci « Yónni demaande bi » — say mbind mu ngi fi."
         },
         "toasts": {
           "submitted": "Demaande bi dem na."

@@ -1,7 +1,7 @@
 ---
 id: TCK-479
 title: "Le `[skip ci]` de la carte d'impact éteint la CI de la PR d'intégration suivante — 7 fois sur 12"
-status: todo
+status: doing
 phase: P1
 family: full
 estimate: M
@@ -168,6 +168,132 @@ Trois directions, aucune évidente — c'est pourquoi ce ticket existe plutôt q
 
 ## Notes d'implémentation
 
+### La piste retenue : aucune des trois — le frein est DÉPLACÉ, pas supprimé
+
+Les trois pistes du ticket partagent une prémisse — « le marqueur global doit rester, on va
+composer avec » — et c'est elle qu'il fallait défaire. Le marqueur n'était pas le frein : il
+était *un* frein, emprunté à GitHub, dont la portée (le commit, pour toujours, pour tous les
+événements) dépasse de très loin ce qu'on lui demandait (ce push-ci, ce workflow-ci). Ce qu'on
+demande est exprimable dans le dépôt.
+
+`api-ci.yml` commite donc `[carte-impact]` — marqueur propre au dépôt, que GitHub ne connaît
+pas — et deux conditions `if:` le lisent : une par job (elle évite de payer la suite entière
+sur un commit qui ne change qu'un index) et une sur le step qui pousse (c'est elle, seule, qui
+ferme réellement la boucle ; elle est délibérément redondante, pour tenir le jour où une
+refonte casse la condition de job).
+
+**Pourquoi pas les trois autres :**
+
+1. *Sortir la carte de l'historique* (artefact de build) supprime la cause, et supprime aussi
+   `php bin/impacted-tests.php --run` pour tout le monde : la carte est lue localement, et
+   `CLAUDE.md` en fait **la** commande du quotidien. Un cache Actions n'est pas lisible depuis
+   un poste. Le remède coûterait la boucle de retour qu'il protège.
+2. *Réarmer à l'ouverture d'une PR* ne peut pas marcher sous la forme décrite : le workflow de
+   réarmement serait lui-même `on: pull_request`, donc lui-même sauté par le marqueur qu'il
+   existe pour rattraper. Il faudrait un déclencheur hors `push`/`pull_request` (`schedule`) —
+   une pièce mobile, en retard sur la PR qu'elle doit couvrir.
+3. *Ne plus pousser sur la tête* (branche dédiée, amend au merge) déplace le problème dans la
+   plomberie git du bot — le cas le plus délicat à éprouver, sur `dev` non protégée, pour un
+   gain identique.
+
+### Ce que le changement ajoute, et qu'il faut savoir
+
+Le push de la carte déclenche désormais **`repo-ci.yml`** (`push: branches: [dev]`,
+`paths: takussan-api/tests/**`), qui était sauté jusqu'ici. Un workflow de plus par carte
+poussée — celui qui la vérifie. Il ne pousse rien : il ne referme aucune boucle. Le
+commentaire d'`api-ci.yml` qui disait « la carte est validée par celui qui la produit, et
+c'est le SEUL moment où elle peut l'être » a été corrigé en conséquence (AC5) : c'est
+désormais le **premier** moment, et l'appel local reste, parce qu'ici l'échec arrive AVANT le
+push et appartient à celui qui l'a causé.
+
+### La visibilité (3ᵉ point du delta) : `scripts/check-skip-ci-marker.mjs`
+
+Deux contrôles, qui ne valent pas la même chose, et l'en-tête de la garde le dit :
+
+- **Contrôle B** — le marqueur qu'`api-ci.yml` commite est bien celui que ses `if:` lisent,
+  et aucun workflow ne commite le marqueur global. **Non tautologique**, il s'exerce en CI, et
+  c'est lui qui garde le remède contre une divergence silencieuse des deux côtés.
+- **Contrôle A** — la tête ne porte aucune des sept formes que GitHub reconnaît. **Vert par
+  construction quand il tourne en CI** : le défaut supprime son propre détecteur, une tête
+  marquée saute Repo CI aussi. Aucun événement `push` ni `pull_request` ne peut voir ce cas —
+  le câbler ailleurs n'y changerait rien. Son point d'exécution utile est **avant le push** :
+  le rituel `for g in scripts/check-*.mjs` de `CLAUDE.md`, et, avant d'ouvrir la PR
+  d'intégration, `node scripts/check-skip-ci-marker.mjs --tete origin/dev`.
+
+C'est le contrôle A qui couvre le cas que le ticket signale comme non réductible au bot :
+n'importe quel message **citant** le marqueur, guillemets inverses compris. La garde regarde
+le message, jamais l'auteur.
+
+⚠ **Le titre de ce ticket contient la forme littérale.** Un message de commit qui le recopie
+éteint la CI de sa propre PR — c'est exactement ce qui est arrivé au premier commit du ticket.
+Le contrôle A l'attrape localement ; le renommer serait plus sûr encore.
+
+### Éprouvé, et ce qui ne l'est pas
+
+Ablations (le changement prouvé par `md5` avant lecture du résultat, garde restaurée ensuite) :
+tête portant le marqueur — sur `1946e513`, un vrai commit de l'historique — condition de job
+retirée, condition de step retirée, marqueur global remis dans le message, marqueur renommé
+d'un seul côté, une des sept formes retirée (l'auto-épreuve jette) : **six rouges, six**.
+
+**AC1 est NON ÉPROUVÉ, et il ne peut pas l'être sans pousser.** Après merge sur `dev`, il faut
+attendre qu'`api-ci.yml` pousse une carte, puis :
+
+```bash
+git fetch origin dev
+git log -1 --format='%an | %s' origin/dev       # attendu : github-actions[bot] | …[carte-impact]
+node scripts/check-skip-ci-marker.mjs --tete origin/dev   # doit être VERT
+gh pr create --base preview --head dev --title 'chore: intégration' --body '…'
+gh pr view <n> --json statusCheckRollup -q '[.statusCheckRollup[]|.name]|unique|join(", ")'
+# AC1 tenu si la sortie rend PLUS que « Vercel ».
+```
+
+**AC3 est NON ÉPROUVÉ** pour la même raison. Après le premier push du bot :
+
+```bash
+gh run list --workflow=api-ci.yml --branch dev --limit 5
+# attendu : le run déclenché par le commit du bot existe et ses jobs sont « skipped » —
+# pas de second run, pas de chaîne.
+```
+
 Relevé en ouvrant la PR #239 (`dev` → `preview`, 77 commits) et en constatant qu'elle n'affichait
 qu'un seul contrôle. *Le défaut n'a pas été trouvé en lisant les workflows — il a été trouvé en
 regardant ce qu'une PR affichait réellement, ce qu'aucune lecture de YAML n'aurait rendu.*
+
+### Ce que la PR #242 a éprouvé, et ce qu'elle n'a pas éprouvé (2026-08-30)
+
+**Le défaut est encore vivant sur `dev` au moment d'ouvrir le lot de la vague 53**, et la garde le
+dit sans qu'on ait à le chercher :
+
+```
+$ git fetch origin dev && node scripts/check-skip-ci-marker.mjs --tete origin/dev
+✗ contrôle A : le commit de tête porte le marqueur d'exclusion global de GitHub
+  sujet : « chore(tests): régénérer la carte d'impact [skip ci] »   ← 1946e513
+```
+
+**La mesure du coût, elle, s'est révélée bien plus lourde que ce que le tableau des 12 PR
+laissait voir.** En relevant les têtes des quatre dernières PR :
+
+| PR | commit de tête | contrôles |
+|---|---|---|
+| #238 | `chore(backlog): les 25 tickets du lot passent à done…` | 8 |
+| **#239** | **`chore(tests): régénérer la carte d'impact [skip ci]`** | **`Vercel` — 1** |
+| #240 | `docs(backlog): une PR d'intégration sur deux…` | 3 |
+| #241 | `merge: dev dans le lot de la vague 52…` | 8 |
+| #242 | `merge: reprendre dev dans le lot de la vague 53…` | 8 |
+
+**PR #239 portait 95 fichiers** — dont ~30 fichiers PHP applicatifs (contrôleurs, policies,
+services, `MembershipCapabilityResolver`), 15 fichiers de tests, 4 scripts de garde, les deux
+fichiers de workflow eux-mêmes — et elle a été **fusionnée vers `preview` sans qu'un seul test,
+un seul lint ni une seule garde n'ait tourné.** Seul `Vercel` s'affichait, qui n'est pas un
+workflow de ce dépôt et ne lit pas le marqueur.
+
+⚠️ *Le ticket disait « 7 fois sur 12 ». Le chiffre est juste ; ce qu'il ne disait pas, c'est ce
+qu'une seule de ces sept fois laisse passer.* Une PR muette n'est pas une PR moins vérifiée : sur
+#239, c'est **toute** la vérification qui est absente, et son affichage `CLEAN` est indiscernable
+d'un vert.
+
+**Ce que la PR #242 NE prouve PAS.** Ses 8 contrôles montrent qu'une tête au message propre
+déclenche la CI — ce qui n'a jamais été en doute. **AC1 au sens strict reste NON ÉPROUVÉ** : il
+demande une tête portant le marqueur **neuf** (`[carte-impact]`), donc le correctif d'abord mergé
+sur `dev`, puis un push du bot, puis une PR d'intégration. La séquence de vérification ci-dessus
+tient inchangée. **AC3 reste NON ÉPROUVÉ** pour la même raison.

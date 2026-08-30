@@ -1,7 +1,7 @@
 ---
 id: TCK-482
 title: "`UpgradeRequestForm` jette le résultat de `flush()` puis détruit le brouillon — 3ᵉ exemplaire du défaut de TCK-475"
-status: todo
+status: doing
 phase: P1
 family: front
 estimate: S
@@ -57,23 +57,23 @@ Aucun.
 
 ## Delta à produire
 
-- [ ] Lire le résultat de `flush()` et **ne pas poursuivre** vers la soumission puis `clear()`
+- [x] Lire le résultat de `flush()` et **ne pas poursuivre** vers la soumission puis `clear()`
       quand l'écriture a échoué — la forme tranchée par TCK-475 pour son site 2.
-- [ ] Message d'échec par next-intl, qui **dit quoi faire**. Le chemin est un PUT réseau, pas un
+- [x] Message d'échec par next-intl, qui **dit quoi faire**. Le chemin est un PUT réseau, pas un
       `localStorage` : les remèdes parlent de connexion et de session, jamais de quota.
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — `flush()` en échec → ni `submitAgencyUpgradeRequest`, ni `clear()`, un message
+- [x] **AC1** — `flush()` en échec → ni `submitAgencyUpgradeRequest`, ni `clear()`, un message
       d'échec, et le brouillon **toujours là**.
-- [ ] **AC2** — `flush()` en réussite → le chemin nominal est inchangé, soumission et `clear()`
+- [x] **AC2** — `flush()` en réussite → le chemin nominal est inchangé, soumission et `clear()`
       compris. *Un correctif qui éteindrait les deux passerait un test qui ne regarde que
       l'échec.*
-- [ ] **AC3** — un test assert que le brouillon **n'a pas été détruit** dans le cas d'échec — pas
+- [x] **AC3** — un test assert que le brouillon **n'a pas été détruit** dans le cas d'échec — pas
       seulement qu'un toast est parti.
-- [ ] **AC4** — ablation : rendre le résultat toujours-`ok` du point de vue de l'appelant fait
+- [x] **AC4** — ablation : rendre le résultat toujours-`ok` du point de vue de l'appelant fait
       rougir AC1, changement prouvé par `md5` **avant** lecture du résultat.
-- [ ] **AC5** — la doublure de test de ce fichier reste honnête : elle rend un
+- [x] **AC5** — la doublure de test de ce fichier reste honnête : elle rend un
       `ResultatEcritureBrouillon`, jamais `undefined`.
 
 ## Hors périmètre
@@ -89,3 +89,31 @@ lui-même**. ⚠ Le balayage a aussi montré qu'il existe **deux contrats homony
 `useDebouncedValue.flush()` rend `void` pour de bon, et les `commit.flush()` de
 `DebouncedSearchInput`, `FilterSidebar` et des deux écrans admin en relèvent. Ne pas les
 « corriger » : ce serait les casser.
+
+---
+
+**Ce que l'implémentation a ajouté au constat du ticket (2026-08-30).**
+
+**La doublure honnête ne suffisait pas : elle était aussi JETABLE.** `vi.mock('@/hooks/useWizardDraft')`
+rendait un **objet littéral neuf à chaque appel du hook**, donc un `clear` neuf à chaque rendu. AC3
+— « le brouillon n'a pas été détruit » — n'était pas assertable dans cette forme : `expect(clear)
+.not.toHaveBeenCalled()` aurait porté sur une référence que le composant n'avait jamais tenue, et
+serait passé **quoi qu'il arrive**. Les trois doublures sont donc hoistées (`vi.hoisted`) et
+stables. *Une assertion de non-appel sur une doublure re-fabriquée à chaque rendu est verte par
+construction — c'est le défaut de ce ticket transposé dans l'outil de mesure.*
+
+**Le `catch` n'a pas été touché, et c'est délibéré.** Il reste juste pour ce qu'il attrape
+vraiment (les `ApiError` de `submitAgencyUpgradeRequest`) ; le correctif se place **avant** lui,
+sur un chemin qui ne lève pas.
+
+**Message : `errors.draft_not_saved_title` / `…_body`, dans les trois locales.** Le remède parle de
+connexion et de session, jamais de quota — reconduction de la note de TCK-475 : il n'y a aucun
+`localStorage` sur ce chemin, c'est un PUT vers `/api/me/wizard-drafts/{key}`.
+
+**Vérifications.** `npm test -- --run src/components/agency/__tests__/UpgradeRequestForm.test.tsx`
+→ 4/4 vert (3 avant, 1 neuf). AC4, ablation par `{ ...(await flush()), ok: true as const }`,
+changement prouvé par `md5` (`df9899d5…` → `81019341…`) **avant** lecture du résultat : 1 rouge
+(AC1) / 3 verts — le chemin nominal d'AC2 reste vert sous l'ablation, ce qui montre que les deux
+tests éprouvent bien deux choses distinctes. `npx tsc --noEmit` propre, `eslint` propre sur les
+deux fichiers, `node scripts/check-i18n.mjs` vert (parité `en` 0/0, `wo` 0/0),
+`check-feedback-states.mjs` et `check-inline-validation.mjs` verts.

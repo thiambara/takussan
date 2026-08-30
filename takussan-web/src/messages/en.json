@@ -1914,7 +1914,9 @@
           "file_too_large": "File exceeds 10 MB.",
           "unauthorized": "You must be signed in to submit the request.",
           "forbidden": "You are not allowed to submit this request.",
-          "generic": "Something went wrong. Please try again."
+          "generic": "Something went wrong. Please try again.",
+          "draft_not_saved_title": "Submission stopped: your draft wasn’t saved",
+          "draft_not_saved_body": "Saving your draft was refused (lost connection or expired session). Check your connection, sign back in if needed, then click “Submit request” again — your entries are still here."
         },
         "toasts": {
           "submitted": "Your request has been sent."

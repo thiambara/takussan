@@ -1,7 +1,7 @@
 ---
 id: TCK-480
 title: "Le jeton `--destructive` est sous AA en thème clair, partout où il porte du texte"
-status: todo
+status: doing
 phase: P1
 family: front
 estimate: M
@@ -90,3 +90,75 @@ Aucun.
 Relevé deux fois indépendamment pendant le lot de la vague 52, par TCK-471 et TCK-472, sur des
 écrans sans rapport et en cherchant autre chose. Aucun des deux ne pouvait le corriger sans sortir
 de son périmètre — et c'est bien un jeton, pas un écran.
+
+### La décision : assombrir, et plafonner les aplats — les deux, pas l'un
+
+Le ticket proposait deux issues (assombrir / dissocier fond et encre). **Ni l'une ni l'autre seule
+ne suffisait**, et c'est le fait qui gouverne tout le reste.
+
+- **Assombrir seul** aurait exigé, en thème sombre, un rose délavé (`#ffb3af`, chroma 0,089 contre
+  0,191) pour tenir un aplat `/30`. Le jeton aurait payé le poids des aplats.
+- **Dissocier** (`--destructive` / `--destructive-ink`) aurait demandé de renommer **236**
+  occurrences de `text-destructive` dans 110 fichiers, et laissé toute nouvelle occurrence
+  régresser en silence.
+
+Retenu : le jeton descend en clair, monte très peu en sombre, et **aucun aplat porteur de
+`text-destructive` ne dépasse `/10`** — 11 recettes corrigées. Le plafond a un sens opposé selon
+le thème, ce qui n'était écrit nulle part : en clair l'encre est sombre, son aplat assombrit la
+surface et *éloigne* les deux ; en sombre l'encre est claire, son aplat *rapproche*. Sur `--muted`
+sombre, `/15` rend 4,16:1 quand `/10` rend 4,55:1.
+
+|  | avant | après |
+|---|---|---|
+| jeton clair | `oklch(0.577 0.245 27.325)` = `#e7000b` | `#b70110` |
+| jeton sombre | `oklch(0.704 0.191 22.216)` = `#ff6467` | `#ff7f7d` |
+| ton `danger`, 7 surfaces réelles, clair | 3,40 – 4,01:1 | **4,93 – 5,77:1** |
+| ton `danger`, 7 surfaces réelles, sombre | 3,97 – 5,29:1 | **4,55 – 5,51:1** |
+
+### Trois choses que le ticket ne pouvait pas savoir
+
+1. **Le thème sombre était fautif LUI AUSSI.** Le ticket écrivait « en thème sombre, `#ff6467`
+   passe », et c'était vrai — sur les surfaces NUES, celles qu'on pense à mesurer. Il rendait
+   3,39:1 sur son propre aplat `/30` et 4,10:1 sous le ton `danger` posé sur les lignes
+   `bg-muted` de `kyc-queue.tsx` et `moderation.tsx`.
+2. **Une garde qui hérite le jeu de surfaces d'une autre hérite son périmètre.** La première
+   version de `check-destructive-contrast.mjs` ne mesurait que `--background` et `--card` — les
+   surfaces de `check-profile-badge-contrast.mjs` — et **est passée au vert sur un jeu de valeurs
+   qui laissait `danger` à 4,10:1**. C'est la liste des sept surfaces de
+   `StatusBadge.contraste-tck-450.test.tsx` qui l'a rattrapée. `--muted` est désormais mesurée :
+   elle majore les deux autres dans les deux thèmes.
+3. **Un jeton irrésolvable ne produit pas un rouge, il produit un silence.** `--destructive` était
+   le seul jeton non hexadécimal ; `src/test/contraste-wcag.ts` ET `check-heritage-encre.mjs` le
+   déclaraient « compté et non mesuré », chacun avec un bon motif. Le trou déclaré portait
+   précisément sur le jeton qui échouait. Il est converti en hexadécimal à la source, la
+   conversion confrontée au relevé pris au moteur de rendu (`oklch(0.577 0.245 27.325)` → `#e7000b`
+   et `oklch(0.704 0.191 22.216)` → `#ff6467`, exactement). Conséquences mesurées, toutes deux
+   attendues : `check-heritage-encre.mjs` passe de 10 à 11 couples mesurés, et
+   `surface-publique.contraste.test.ts` voit son cliquet d'irrésolvables tomber de 54 à 43 — onze
+   fichiers sortis d'un coup, sans qu'une ligne n'y soit touchée. Le message du cliquet ne
+   nommait qu'une cause de descente (« un fichier a été converti ») ; il en nomme deux désormais.
+
+### AC3 — une garde sœur, et une formule extraite plutôt qu'une quatrième copie
+
+L'AC demandait d'étendre une garde existante « ou de dire pourquoi c'est impossible ». Ni l'un ni
+l'autre : `check-profile-badge-contrast.mjs` mesure une TABLE FIGÉE dans un composant, celle-ci
+balaie UN JETON sur tout `src/` avec un jeu d'aplats dérivé du code et séparé par thème — l'étendre
+lui aurait fait dire autre chose que son nom. Mais le fichier d'où elle vient portait déjà l'aveu
+de TROIS implémentations du calcul WCAG ; **la formule est donc partie dans `scripts/lib/contraste.mjs`**
+(patron de `scripts/lib/env-keys.mjs`), et `check-profile-badge-contrast.mjs` l'importe désormais.
+Preuve de non-régression : sa sortie `--report` est identique au caractère près avant et après.
+
+### AC5 — ce qui a été regardé, et ce qui ne l'a pas été
+
+Les deux recettes (bouton `destructive`, pastille `danger`) ont été rendues **dans un vrai
+navigateur** avec les jetons réels, sur `--card` et sur `bg-muted`, avant/après côte à côte. Le
+libellé cesse d'être filant et le rouge reste un rouge. ⚠ **Ce n'est pas un écran de
+l'application** : le serveur de développement n'a pas été lancé, aucune route n'a été parcourue.
+
+### Deux défauts constatés au passage, NON corrigés ici
+
+- `ChatWidget.tsx` pose `bg-destructive` PLEIN sous du `text-white` : **2,89:1 en thème sombre
+  avant ce ticket, 2,77:1 après**. L'encre n'y est pas le jeton, elle est dessus — hors du
+  périmètre d'AC1, défaut préexistant, et ce ticket le dégrade de 0,12. Voir TCK-485.
+- Les aplats translucides au survol de `CalendarPage.tsx:280` et `BrandingBanner.tsx:46` (relevé
+  de TCK-481) : voir TCK-486.

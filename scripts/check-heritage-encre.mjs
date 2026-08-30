@@ -50,11 +50,17 @@
  * LES TROUS, DÉCLARÉS
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
- *  · **`--destructive`** est en `oklch(…)` dans `globals.css` — seul jeton non hexadécimal des deux
- *    blocs, avec `--border` et `--input` sous `.dark`. Il est COMPTÉ et non mesuré, comme le fait
- *    `src/test/contraste-wcag.ts` pour la même raison : l'inventer serait pire que l'omettre.
- *    (`--border` et `--input` sombres sont approchés par leur blanc translucide COMPOSÉ sur
- *    `--background`, valeurs reprises telles quelles de ce même module.)
+ *  · **`--border` et `--input` sous `.dark`** sont approchés par leur blanc translucide COMPOSÉ sur
+ *    `--background`, valeurs reprises telles quelles de `src/test/contraste-wcag.ts`.
+ *
+ *    ⚠ **`--destructive` figurait ici, et il n'y est plus — TCK-480.** Il était le troisième jeton
+ *    non hexadécimal, « COMPTÉ et non mesuré » au motif qu'inventer une conversion OKLCH serait
+ *    pire que l'omettre. Le motif était bon, le résultat non : c'est précisément ce jeton-là qui
+ *    échouait, à 3,17:1 sur son propre aplat, pendant que deux gardes le comptaient. TCK-480 l'a
+ *    converti à la SOURCE (`globals.css`), une fois, contre un relevé pris au moteur de rendu —
+ *    et cette garde, qui lit la feuille, le mesure depuis sans qu'une ligne d'elle ait changé.
+ *    Elle est passée de 10 à 11 couples mesurés le 2026-08-30. *Un trou déclaré dit où l'on ne
+ *    regarde pas ; il n'empêche pas que ce soit là que ça casse.*
  *  · **L'imbrication est lue au texte**, pas par un AST : la balise fermante est trouvée en
  *    comptant les ouvertes/fermées de même nom. Une balise citée dans une chaîne fausserait le
  *    compte ; aucune ne le fait aujourd'hui, et le compte de conteneurs (cliquet ci-dessous) le
@@ -63,7 +69,7 @@
  *    alpha. Sur-approximation assumée : elle ne peut que rendre le rapport moins bon, jamais
  *    meilleur — une garde doit couvrir plus, jamais moins.
  *  · **Les échelles Tailwind brutes** (`text-white`, `bg-stone-700`, `text-amber-900`…) ne sont pas
- *    des jetons du design system : elles sont COMPTÉES et non mesurées, comme `--destructive`.
+ *    des jetons du design system : elles sont COMPTÉES et non mesurées.
  *    C'est `check-super-admin-tokens.mjs` qui les refuse, là où son périmètre porte.
  *  · `src/test/` et les répertoires `__tests__/` sont ÉCARTÉS : le harnais et le banc d'ablation
  *    de `agency-detail-contrast.test.tsx` CITENT le motif interdit pour prouver qu'il est refusé,
@@ -94,25 +100,29 @@ const SEUIL = 4.5;
  * qu'on l'ait corrigé fait rougir la garde ; un couple qu'on y ajoute doit porter sa mesure, sa
  * date et la raison de ne pas le corriger ici. *Un cliquet à deux sens est une tolérance.*
  *
- * ⚠ **Une seule entrée, et c'est un RÉSULTAT** : le ticket annonçait « un seul conteneur porte le
- * motif » sur la foi d'un `grep bg-foreground`. Le balayage en trouve **deux**, et le second n'écrit
- * ni `bg-foreground` ni `text-background` — c'est exactement pourquoi une garde ne doit pas chercher
+ * ⚠ **Elle est VIDE depuis TCK-481, et c'est le cliquet qui a joué.** Elle a porté UNE entrée, et
+ * c'était déjà un résultat : le ticket TCK-471 annonçait « un seul conteneur porte le motif » sur
+ * la foi d'un `grep bg-foreground`, le balayage en a trouvé **deux**, et le second n'écrivait ni
+ * `bg-foreground` ni `text-background` — c'est exactement pourquoi une garde ne doit pas chercher
  * l'occurrence. *Une classe utilitaire n'est dangereuse que là où elle est héritée ; encore
  * faut-il chercher l'héritage et pas la classe.*
+ *
+ * L'entrée retirée, pour mémoire : `src/components/profile/security/TwoFactorSection.tsx ·
+ * <button> bg-warning/20` — un bouton « Copier tout » sans encre à lui dans un bandeau
+ * `bg-warning/10 text-warning`, **3,94:1** au relevé du 2026-08-30 (4,10:1 sur le fond réel : le
+ * bandeau est posé sur `--card`, pas sur `--background` — cf. la sur-approximation déclarée
+ * ci-dessus). Corrigé par TCK-481, qui lui a donné SON fond et SON encre
+ * (`bg-card text-warning hover:bg-secondary`) : **6,26:1** au repos, **5,24:1** au survol.
+ * Le correctif n'est pas la portée `dark` de TCK-471, et la raison est écrite dans le ticket — ce
+ * bandeau est une surface CLAIRE teintée, pas une surface sombre.
+ *
+ * ⚠ **Ce que ce ticket a appris à CETTE garde, et qui n'est pas dans son code** : un commentaire
+ * `//` placé ENTRE DEUX ATTRIBUTS d'une balise la rend AVEUGLE sur l'élément — ses apostrophes
+ * ouvrent, dans `finDeBaliseOuvrante()`, une chaîne que rien ne referme. Mesuré : le défaut
+ * ci-dessus, commenté de la sorte, laissait la garde VERTE. La lecture au texte est un trou
+ * déclaré (voir plus haut) ; celui-ci en est une conséquence concrète, et il se voit à l'ablation.
  */
-const TOLERES = new Set([
-  /*
-   * `<div role="status" class="… bg-warning/10 … text-warning">` avec, dedans, un
-   * `<button class="… bg-warning/20 … text-xs …">` qui n'a pas d'encre à lui : l'encre #8a5410
-   * du conteneur sur l'aplat #dccbb3 du bouton rend **3,94:1** (mesuré le 2026-08-30, seuil 4,5).
-   *
-   * Non corrigé ici, et la raison est de PÉRIMÈTRE, pas de gravité : TCK-471 est un lot mené par
-   * huit agents en parallèle sur un arbre partagé, et `components/profile/` n'appartient pas à ce
-   * ticket. Il lui faut le sien — le correctif tient en une classe (`text-foreground` sur le
-   * bouton, ou un aplat plus clair), mais il se mesure et se voit à l'écran comme celui-ci.
-   */
-  'src/components/profile/security/TwoFactorSection.tsx · <button> bg-warning/20',
-]);
+const TOLERES = new Set([]);
 
 /**
  * Le nombre de CONTENEURS que la lecture doit trouver dans `src/`.
@@ -678,6 +688,23 @@ if (nonToleres.length > 0) {
   console.error('    `dark` — une SURFACE sombre, pas un couple retourné — comme le font');
   console.error('    `SuperAdminSidebar.tsx` et `SuperAdminTopbar.tsx`. À défaut, poser une encre');
   console.error('    explicite sur le descendant.');
+  process.exit(1);
+}
+
+/*
+ * L'AUTRE SENS DU CLIQUET, ajouté par TCK-481 : une tolérance qui ne désigne plus rien.
+ *
+ * Le cliquet refusait déjà qu'un couple SORTE de la liste sans être corrigé. Il laissait passer
+ * l'inverse — une entrée pour un couple corrigé — et ça n'est pas anodin : la ligne reste, elle
+ * cite une mesure devenue fausse, et le jour où le défaut revient elle l'absorbe SANS UN MOT.
+ * *Une tolérance qui ne correspond à aucun défaut mesuré n'est pas une tolérance, c'est une porte.*
+ */
+const perimees = [...TOLERES].filter((e) => !fautifs.some((c) => `${c.nom} · ${c.enfant}` === e));
+if (perimees.length > 0) {
+  console.error(`✗ TOLÉRANCE PÉRIMÉE — ${perimees.length} entrée(s) ne désignent aucun couple sous ${SEUIL}:1 :\n`);
+  for (const e of perimees) console.error(`    ${e}`);
+  console.error('\n  Soit le couple a été CORRIGÉ — retirer l’entrée, dans le diff qui le corrige ;');
+  console.error('  soit la lecture ne le voit plus, et c’est la garde qu’il faut regarder, pas la liste.');
   process.exit(1);
 }
 

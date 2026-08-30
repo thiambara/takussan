@@ -22,7 +22,7 @@ const PALETTE = [
   { bg: 'bg-info/15', text: 'text-info', border: 'border-info/30' },
   { bg: 'bg-success/15', text: 'text-success', border: 'border-success/30' },
   { bg: 'bg-warning/15', text: 'text-warning', border: 'border-warning/30' },
-  { bg: 'bg-destructive/15', text: 'text-destructive', border: 'border-destructive/30' },
+  { bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/30' },
   { bg: 'bg-info/15', text: 'text-info', border: 'border-info/30' },
   { bg: 'bg-success/15', text: 'text-success', border: 'border-success/30' },
   { bg: 'bg-warning/15', text: 'text-warning', border: 'border-warning/30' },

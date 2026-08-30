@@ -507,6 +507,24 @@ jobs:
         # abaisse le seuil à 3, qu'on retire un thème ou une surface, et qu'on lise les
         # commentaires — le docblock de la table CITE la recette interdite pour l'expliquer.
         run: node scripts/check-profile-badge-contrast.mjs --report
+      - name: Le jeton --destructive tient le seuil AA là où le code le pose
+        # TCK-480. Le jeton — `#e7000b` rendu, le rouge par défaut de shadcn — a été heurté par
+        # DEUX tickets du lot précédent, séparément, sur des écrans sans rapport, en mesurant
+        # autre chose : 3,41 – 3,99:1 (TCK-472, ton `danger`) et ~4,0:1 (TCK-471, variante
+        # `destructive`). *Deux relevés indépendants qui tombent sur le même chiffre décrivent un
+        # jeton, pas un écran* — et un correctif d'écran ne pouvait pas y arriver : TCK-471 a
+        # porté son bouton de 3,48 à 4,48:1 en corrigeant son conteneur, sous le seuil, et assez
+        # près pour que le chiffre cesse d'avoir l'air faux.
+        #
+        # ⚠ CE QUE CETTE GARDE MESURE ET QUE LES DEUX AUTRES NE POUVAIENT PAS : l'encre sur SON
+        # PROPRE APLAT, à chacun des poids que le code écrit, thème par thème. C'est là que le
+        # défaut vivait — et c'est ainsi que le thème SOMBRE a été trouvé fautif alors que le
+        # ticket l'annonçait conforme : `#ff6467` passait sur les surfaces NUES, celles qu'on
+        # pense à mesurer, et rendait 3,39:1 sur `bg-destructive/30`.
+        #
+        # Le jeu d'aplats est DÉRIVÉ du source, jamais écrit ici : un `/25` écrit demain est
+        # mesuré demain. Une liste tenue à la main serait juste le jour où on l'écrit.
+        run: node scripts/check-destructive-contrast.mjs --report
       - name: Aucune encre héritée ne rend un descendant illisible
         # TCK-471. `bg-foreground text-background` retourne DEUX PROPRIÉTÉS, pas les jetons : un
         # descendant qui tire son fond d'une variante (`outline` → `bg-background`) hérite de
@@ -897,3 +915,25 @@ jobs:
         # ⚠ Elle ne lit que les `use` de portée fichier. Un `new \Dompdf\Dompdf` en dur lui
         # échappe — c'est un PLANCHER, elle attrape la forme qui a coûté, pas toutes les formes.
         run: node scripts/check-deps-dev-atteignables.mjs --report
+
+      - name: Aucune tête de branche n'éteint la CI, et le frein anti-boucle est lu des deux côtés
+        # ⚠ LIRE LA PORTÉE AVANT DE CROIRE CE VERT (TCK-479). Ce step porte DEUX contrôles qui
+        # ne valent pas la même chose ici :
+        #
+        #   · le contrôle B — le marqueur `[carte-impact]` qu'`api-ci.yml` COMMITE est bien
+        #     celui que ses conditions `if:` LISENT — s'exerce pleinement. C'est lui qui garde
+        #     le remède : les deux côtés divergent en silence, et la boucle de régénération
+        #     repart un dimanche.
+        #
+        #   · le contrôle A — la tête ne porte pas le marqueur d'exclusion global de GitHub —
+        #     est VERT PAR CONSTRUCTION quand il tourne ici. Le défaut supprime son propre
+        #     détecteur : une tête marquée saute TOUS les workflows, Repo CI compris, et ce
+        #     step n'est jamais exécuté. Aucun événement `push` ni `pull_request` ne peut voir
+        #     ce cas — le câbler ailleurs n'y changerait rien.
+        #
+        # Il reste ici pour le contrôle B, et parce qu'un vert qui explique ce qu'il ne prouve
+        # pas vaut mieux qu'un vert muet. Le contrôle A s'exerce, lui, AVANT le push : dans le
+        # rituel `for g in scripts/check-*.mjs` de CLAUDE.md, et sur la tête distante avant
+        # d'ouvrir une PR d'intégration —
+        #   git fetch origin dev && node scripts/check-skip-ci-marker.mjs --tete origin/dev
+        run: node scripts/check-skip-ci-marker.mjs --report
