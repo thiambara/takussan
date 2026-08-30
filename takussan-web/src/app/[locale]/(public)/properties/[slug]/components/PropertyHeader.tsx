@@ -3,6 +3,7 @@ import { useTranslations } from 'next-intl';
 import { Star, Eye, Heart, Share2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { CompareToggleAction } from '@/components/compare/CompareToggleAction';
 import { formatAddressShort } from '@/lib/format/address';
 import type { PropertyDetail } from '@/types/property';
 
@@ -74,6 +75,24 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
             />
             <span className="hidden sm:inline">{isFavorite ? 'Favori' : 'Ajouter'}</span>
           </Button>
+          {/*
+            Ajouter au comparateur DEPUIS LA FICHE — le chemin manquait, alors que l'état
+            vide de `/compare` promettait déjà « depuis la liste ou la fiche d'un bien ».
+            Jusqu'ici il fallait revenir à une liste de résultats pour sélectionner un bien
+            qu'on était en train de lire.
+
+            ⚠ EN DERNIER, après Partager et Favori : c'est l'ordre des cartes de liste
+            (favori puis comparateur), et un utilisateur ne réapprend pas une rangée
+            d'actions parce qu'il a changé d'écran.
+          */}
+          <CompareToggleAction
+            propertyId={property.id}
+            preview={{
+              title: property.title,
+              slug: property.slug,
+              photo: property.main_photo_url,
+            }}
+          />
         </div>
       </div>
     </header>

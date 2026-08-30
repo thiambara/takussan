@@ -2044,7 +2044,9 @@
       "count": "{count, plural, =1 {1 property selected} other {# properties selected}} of {max}",
       "cta": "Compare ({count})",
       "removeAria": "Remove property #{id} from the comparator",
-      "clearAria": "Clear comparator"
+      "clearAria": "Clear comparator",
+      "needOneMore": "Add a 2nd property",
+      "removeNamedAria": "Remove “{title}” from the comparator"
     },
     "button": {
       "full": "Remove a property to add another one.",
@@ -2052,7 +2054,9 @@
       "remove": "Remove from the comparison",
       "add": "Add to the comparison",
       "maxTitle": "Maximum {max} properties",
-      "addedBody": "{count} / {max} properties selected."
+      "addedBody": "{count} / {max} properties selected.",
+      "shortAdd": "Compare",
+      "shortRemove": "Compared"
     },
     "loadError": "The comparison could not be loaded."
   },

@@ -747,8 +747,10 @@
       "title": "Méengal",
       "count": "{count, plural, =1 {1 kër bu tànn} other {# kër yu tànn}} ci {max}",
       "cta": "Méengal ({count})",
-      "removeAria": "Jëla kër #{id} ci méengal bi",
-      "clearAria": "Fommi méengal bi"
+      "removeAria": "Dindil këru #{id} ci comparateur bi",
+      "clearAria": "Fommi méengal bi",
+      "needOneMore": "Yokkal ñaareelu këru",
+      "removeNamedAria": "Dindil « {title} » ci comparateur bi"
     },
     "button": {
       "full": "Dindil benn kër ngir yokk beneen.",
@@ -756,7 +758,9 @@
       "remove": "Dindi ci mengale bi",
       "add": "Yokk ci mengale bi",
       "maxTitle": "Lu ëpp {max} kër",
-      "addedBody": "{count} / {max} kër la ñu tànn."
+      "addedBody": "{count} / {max} kër la ñu tànn.",
+      "shortAdd": "Mengale",
+      "shortRemove": "Mengale na"
     },
     "loadError": "Mënunu yeb méengal bi."
   },

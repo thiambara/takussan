@@ -13,6 +13,8 @@ import {
   COMPARE_STORAGE_KEY,
   readCompare,
   writeCompare,
+  type ComparePreview,
+  type ComparePreviews,
 } from '@/lib/compare';
 
 /**
@@ -32,12 +34,18 @@ export type AddResult =
 
 type CompareContextValue = {
   ids: number[];
+  /**
+   * Le titre / la vignette de chaque bien sélectionné, quand l'appelant les a fournis au
+   * moment du clic. Toujours consultable, jamais garanti : un état écrit avant l'aperçu,
+   * ou une sélection venue d'une URL partagée, n'en porte aucun.
+   */
+  previews: ComparePreviews;
   isHydrated: boolean;
   isFull: boolean;
   has: (id: number) => boolean;
-  add: (id: number) => AddResult;
+  add: (id: number, preview?: ComparePreview) => AddResult;
   remove: (id: number) => void;
-  toggle: (id: number) => AddResult;
+  toggle: (id: number, preview?: ComparePreview) => AddResult;
   /** Replace the selection entirely — used by the /compare page cold-share. */
   replace: (ids: readonly number[]) => void;
   clear: () => void;
@@ -46,22 +54,28 @@ type CompareContextValue = {
 // ─── Module-level external store ─────────────────────────────────────────────
 
 const listeners = new Set<() => void>();
-let cachedIds: number[] = [];
-let cachedIdsKey = '';
+let cachedSnapshot: CompareSnapshot = { ids: [], previews: {} };
+let cachedSnapshotKey = '';
+
+type CompareSnapshot = { ids: number[]; previews: ComparePreviews };
 
 /**
- * Build a stable array identity for each distinct id-sequence. Two reads
- * that yield the same sequence must return the *same* reference, otherwise
+ * Build a stable identity for each distinct (ids, previews) pair. Two reads
+ * that yield the same content must return the *same* reference, otherwise
  * `useSyncExternalStore` will tear.
+ *
+ * La signature couvre les aperçus et pas seulement les ids : sans ça, ajouter la vignette
+ * d'un bien déjà sélectionné ne re-rendrait rien — la barre garderait son initiale grise
+ * alors que la photo est en stockage.
  */
-function selectIds(): number[] {
-  const next = readCompare().ids;
-  const key = next.join(',');
-  if (key !== cachedIdsKey) {
-    cachedIds = next;
-    cachedIdsKey = key;
+function selectSnapshot(): CompareSnapshot {
+  const { ids, previews } = readCompare();
+  const key = `${ids.join(',')}|${ids.map((id) => previews[id]?.photo ?? previews[id]?.title ?? '').join('\u0001')}`;
+  if (key !== cachedSnapshotKey) {
+    cachedSnapshot = { ids, previews };
+    cachedSnapshotKey = key;
   }
-  return cachedIds;
+  return cachedSnapshot;
 }
 
 function subscribe(listener: () => void): () => void {
@@ -85,25 +99,25 @@ function notify(): void {
   for (const l of listeners) l();
 }
 
-function persist(next: number[]): void {
-  writeCompare(next);
+function persist(next: number[], previews: ComparePreviews): void {
+  writeCompare(next, Date.now(), previews);
   // Invalidate the cached snapshot so the next read picks up the new ids.
-  cachedIdsKey = '__invalid__';
+  cachedSnapshotKey = '__invalid__';
   notify();
 }
 
-function getServerSnapshot(): number[] {
-  return EMPTY_IDS;
+function getServerSnapshot(): CompareSnapshot {
+  return EMPTY_SNAPSHOT;
 }
 
-const EMPTY_IDS: number[] = [];
+const EMPTY_SNAPSHOT: CompareSnapshot = { ids: [], previews: {} };
 
 // ─── React surface ───────────────────────────────────────────────────────────
 
 const CompareContext = createContext<CompareContextValue | null>(null);
 
 export function CompareProvider({ children }: { children: React.ReactNode }) {
-  const ids = useSyncExternalStore(subscribe, selectIds, getServerSnapshot);
+  const { ids, previews } = useSyncExternalStore(subscribe, selectSnapshot, getServerSnapshot);
 
   // Hydration flag — flips once the client store has run at least once.
   // We derive it from the subscription side-effect via a separate external
@@ -116,46 +130,63 @@ export function CompareProvider({ children }: { children: React.ReactNode }) {
 
   const has = useCallback((id: number) => ids.includes(id), [ids]);
 
+  const withPreview = useCallback(
+    (id: number, preview?: ComparePreview): ComparePreviews =>
+      preview ? { ...previews, [id]: preview } : previews,
+    [previews],
+  );
+
   const add = useCallback(
-    (id: number): AddResult => {
-      if (ids.includes(id)) return { status: 'noop', reason: 'already-selected' };
+    (id: number, preview?: ComparePreview): AddResult => {
+      if (ids.includes(id)) {
+        // L'aperçu peut arriver APRÈS l'ajout — la carte n'en donnait pas, la fiche si.
+        // On le complète sans changer la sélection, et le retour reste `noop`.
+        if (preview && !previews[id]) persist(ids, withPreview(id, preview));
+        return { status: 'noop', reason: 'already-selected' };
+      }
       if (ids.length >= COMPARE_MAX_IDS) return { status: 'rejected', reason: 'full' };
-      persist([...ids, id]);
+      persist([...ids, id], withPreview(id, preview));
       return { status: 'added' };
     },
-    [ids],
+    [ids, previews, withPreview],
   );
 
   const remove = useCallback(
     (id: number) => {
       if (!ids.includes(id)) return;
-      persist(ids.filter((v) => v !== id));
+      persist(ids.filter((v) => v !== id), previews);
     },
-    [ids],
+    [ids, previews],
   );
 
   const toggle = useCallback(
-    (id: number): AddResult => {
+    (id: number, preview?: ComparePreview): AddResult => {
       if (ids.includes(id)) {
-        persist(ids.filter((v) => v !== id));
+        persist(ids.filter((v) => v !== id), previews);
         return { status: 'removed' };
       }
       if (ids.length >= COMPARE_MAX_IDS) return { status: 'rejected', reason: 'full' };
-      persist([...ids, id]);
+      persist([...ids, id], withPreview(id, preview));
       return { status: 'added' };
     },
-    [ids],
+    [ids, previews, withPreview],
   );
 
-  const replace = useCallback((next: readonly number[]) => {
-    persist([...next]);
-  }, []);
+  const replace = useCallback(
+    (next: readonly number[]) => {
+      // Une sélection venue d'une URL partagée ne porte aucun aperçu ; ceux des ids qui
+      // survivent au remplacement sont conservés, `writeCompare` élague le reste.
+      persist([...next], previews);
+    },
+    [previews],
+  );
 
-  const clear = useCallback(() => persist([]), []);
+  const clear = useCallback(() => persist([], {}), []);
 
   const value = useMemo<CompareContextValue>(
     () => ({
       ids,
+      previews,
       isHydrated,
       isFull: ids.length >= COMPARE_MAX_IDS,
       has,
@@ -165,7 +196,7 @@ export function CompareProvider({ children }: { children: React.ReactNode }) {
       replace,
       clear,
     }),
-    [ids, isHydrated, has, add, remove, toggle, replace, clear],
+    [ids, previews, isHydrated, has, add, remove, toggle, replace, clear],
   );
 
   return <CompareContext.Provider value={value}>{children}</CompareContext.Provider>;
@@ -205,6 +236,7 @@ export function useCompare(): CompareContextValue {
 
 const FALLBACK_VALUE: CompareContextValue = {
   ids: [],
+  previews: {},
   isHydrated: false,
   isFull: false,
   has: () => false,

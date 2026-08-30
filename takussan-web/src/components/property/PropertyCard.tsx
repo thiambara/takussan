@@ -150,6 +150,13 @@ export function PropertyCard({
             <CompareToggleButton
               propertyId={property.id}
               size="sm"
+              // L'aperçu que la barre flottante affichera. La carte l'a déjà sous la main :
+              // le lui passer coûte trois champs et évite une requête par page montée.
+              preview={{
+                title: property.title,
+                slug: property.slug,
+                photo: property.main_photo_url,
+              }}
               className={hideFavorite ? 'absolute top-4 right-4' : 'absolute top-16 right-4'}
             />
           )}

@@ -2019,7 +2019,9 @@
       "count": "{count, plural, =1 {1 bien sélectionné} other {# biens sélectionnés}} sur {max}",
       "cta": "Comparer ({count})",
       "removeAria": "Retirer le bien #{id} du comparateur",
-      "clearAria": "Vider le comparateur"
+      "clearAria": "Vider le comparateur",
+      "needOneMore": "Ajoutez un 2ᵉ bien",
+      "removeNamedAria": "Retirer « {title} » du comparateur"
     },
     "button": {
       "full": "Retirez un bien pour en ajouter un autre.",
@@ -2027,7 +2029,9 @@
       "remove": "Retirer du comparateur",
       "add": "Ajouter au comparateur",
       "maxTitle": "Maximum {max} biens",
-      "addedBody": "{count} / {max} biens sélectionnés."
+      "addedBody": "{count} / {max} biens sélectionnés.",
+      "shortAdd": "Comparer",
+      "shortRemove": "Comparé"
     },
     "loadError": "Impossible de charger le comparatif."
   },
