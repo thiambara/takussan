@@ -60,17 +60,24 @@ export function PropertyMobileBottomBar({
   // claim a `bottom-full` slot — otherwise desktop chat/compare slots would
   // float above an invisible 76px bar (phantom offset → AC3 regression).
   const isMobile = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
-  const { bottom } = useFloatingDockSlot({
+  // TCK-477 — `safeAreaInset` est EXIGÉ par le type pour tout slot `bottom-full`, et
+  // le hook le rend sous `paddingBottom` : la valeur déclarée ici est celle qui est
+  // posée plus bas, il n'y en a pas deux. La somme n'est pas décorative — mesurée
+  // sous TCK-453 : `env(safe-area-inset-bottom)` seul REMPLACE le `py-3` au lieu de
+  // s'y ajouter, et vaut `0px` sur tout appareil sans encoche. iOS serait corrigé en
+  // faisant perdre 12 px à tous les autres.
+  const { bottom, paddingBottom } = useFloatingDockSlot({
     id: 'property-mobile-bottom-bar',
     corner: 'bottom-full',
     height: MOBILE_BOTTOM_BAR_HEIGHT_PX,
     enabled: isMobile,
+    safeAreaInset: 'calc(0.75rem + env(safe-area-inset-bottom))',
   });
 
   return (
     <div
-      style={{ bottom }}
-      className="lg:hidden fixed inset-x-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur px-4 py-3 flex items-center gap-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+      style={{ bottom, paddingBottom }}
+      className="lg:hidden fixed inset-x-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur px-4 py-3 flex items-center gap-3"
     >
       <div className="min-w-0">
         <p className="text-lg font-bold text-stone-900 truncate">

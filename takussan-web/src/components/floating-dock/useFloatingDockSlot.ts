@@ -33,6 +33,11 @@ export function useFloatingDockSlot(config: FloatingDockSlotConfig): FloatingDoc
   const priority = config.priority ?? 0;
   const isActive = enabled !== false;
 
+  // TCK-477 — l'encart de zone sûre déclaré par le consommateur lui est rendu tel
+  // quel, pour qu'il n'ait pas à l'écrire deux fois. `undefined` pour un
+  // `bottom-right`, qui ne touche pas le bord bas (cf. § DÉCISION dans `types.ts`).
+  const paddingBottom = config.corner === 'bottom-full' ? config.safeAreaInset : undefined;
+
   // Register / unregister effect. `mutations` is intentionally stable across
   // re-renders (split context, see `FloatingDockProvider`), so this effect
   // runs only when the slot's identity / shape really changes.
@@ -54,7 +59,7 @@ export function useFloatingDockSlot(config: FloatingDockSlotConfig): FloatingDoc
     return computeBottom(slots, { id, corner, priority, height });
   }, [slots, isActive, id, corner, priority, height]);
 
-  return { bottom };
+  return { bottom, paddingBottom };
 }
 
 /**
@@ -66,16 +71,22 @@ export function computeBottom(
   self: FloatingDockSlot,
 ): string {
   if (self.corner === 'bottom-full') {
-    // Full-width sticky bars hug the floor (the safe-area inset is the
-    // consumer's responsibility — see the `pb-[calc(…+env(safe-area-inset-bottom))]`
-    // on the existing `PropertyMobileBottomBar`).
+    // Une barre pleine largeur colle au sol : `bottom: 0`. L'encart de zone sûre
+    // n'est PAS un décalage de position — ce serait une bande transparente sous une
+    // barre qui a un fond — mais un rembourrage intérieur, porté par le consommateur.
     //
-    // ⚠ Ce commentaire citait `safe-area-bottom` jusqu'au 2026-08-29, et cette classe
-    // n'a JAMAIS existé : elle n'est déclarée ni dans `globals.css`, ni ailleurs, donc
-    // elle n'émettait aucune règle et la barre n'avait aucun rembourrage de zone sûre.
-    // Trois endroits y croyaient (ici, la barre elle-même, et TCK-275) ; zéro
-    // l'implémentait. Trouvée par `scripts/check-classes-emises.mjs` (TCK-453) le jour
-    // de sa mise en service.
+    // Ce commentaire ne délègue plus RIEN : l'exigence est portée par le type
+    // `FloatingDockSlotConfig` (un `bottom-full` ne se construit pas sans
+    // `safeAreaInset`, et `tsc` en vérifie la forme), et le fait qu'elle atteigne le
+    // DOM est vérifié par `__tests__/safe-area-contract.test.ts`. La décision et ses
+    // trois motifs sont écrits dans `types.ts`, pas ici — TCK-477.
+    //
+    // ⚠ Jusqu'au 2026-08-29 ces lignes citaient `safe-area-bottom` comme la preuve
+    // que les consommateurs honoraient la délégation. Cette classe n'a JAMAIS existé :
+    // elle n'émettait aucune règle, et la barre n'avait aucun rembourrage sur iOS.
+    // Trois endroits y croyaient, zéro l'implémentait ; trouvée par
+    // `scripts/check-classes-emises.mjs` (TCK-453) le jour de sa mise en service.
+    // *Un commentaire n'est pas une garde* — c'est exactement ce qui a échoué ici.
     return '0px';
   }
 
