@@ -24,6 +24,18 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
 {
     use HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
 
+    /**
+     * ⚠ TCK-474 — `resolution_report` A ÉTÉ RETIRÉ d'ici, et ne doit pas y revenir sans
+     * migration. Il y avait été ajouté par une passe de scaffolding (74c507bb) qui, dans
+     * le MÊME commit, écrivait dans `docs/backend-gap-report.md` que le champ n'existait
+     * pas — jamais aucune migration ne l'a créé. Un `$fillable` sans colonne n'est pas
+     * inerte : il traverse la validation puis meurt à l'UPDATE en 500 (`SQLSTATE[42703]`),
+     * et sur PostgreSQL abandonne la transaction entière au passage.
+     *
+     * Le rapport d'intervention passe par `resolution_notes` (colonne `text`) et la
+     * collection média `completion_photos`. Voir `UpdateMaintenanceRequestRequest`, qui
+     * refuse le champ explicitement plutôt que de l'avaler.
+     */
     protected $fillable = [
         'property_id', 'lease_id', 'requester_id', 'assigned_to',
         'title', 'description', 'category', 'priority', 'status',
@@ -31,7 +43,7 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
         'quote_amount', 'quote_currency', 'quote_submitted_at',
         'quote_decision_at', 'quote_decision_by_id', 'quote_rejection_reason',
         'scheduled_at', 'started_at', 'completed_at',
-        'resolution_notes', 'resolution_report', 'metadata',
+        'resolution_notes', 'metadata',
     ];
 
     protected $casts = [

@@ -143,7 +143,7 @@
 | P1 | Signaler un problème | ✅ | `MaintenanceRequestController::store` |
 | P1 | Assigner un prestataire | ✅ | Champ `assigned_to_id` dans update |
 | P1 | Suivi des statuts | ✅ | `MaintenanceStatus` enum (Open, InProgress, Resolved, Cancelled…) |
-| P1 | Photos + rapport après intervention | ⚠️ | Le modèle supporte les documents, **mais pas de champ structuré `resolution_report` ou collection media dédiée pour le rapport.** |
+| P1 | Photos + rapport après intervention | ⚠️ | Le modèle supporte les documents, **mais pas de champ structuré `resolution_report` ou collection media dédiée pour le rapport.** <br>⚠ **Précision du 2026-08-30 (TCK-474)** : le besoin reste ouvert, mais le demi-champ qui traînait a été RETIRÉ. `resolution_report` était validé et `$fillable` sans qu'aucune migration ne crée la colonne — un `PATCH` qui le portait rendait un **500** (`SQLSTATE[42703]`), pas un 422. Il est désormais `prohibited` : la route refuse le champ en nommant l'erreur, plutôt que d'avaler la valeur en silence ou d'exploser à l'écriture. *Le jour où ce manque sera comblé, la colonne sera une décision, pas un héritage de scaffolding.* |
 | P1 | Historique par bien | ✅ | `Property::maintenanceRequests()` relation |
 
 ### 1.9 État des lieux & inventaires
@@ -316,7 +316,7 @@
 | 19 | Recherche | Recherche géospatiale (carte) | P1 | Endpoint bounding box ou radius sur lat/lng |
 | 20 | Baux | Pénalités de retard (montant calculé) | P1 | Calculer un `penalty_amount` avec un taux configurable |
 | 21 | Baux | Résiliation anticipée + pénalités | P2 | Calcul auto des pénalités dans `terminate` |
-| 22 | Maintenance | Rapport structuré post-intervention | P1 | Champ `resolution_report` + media dédiée |
+| 22 | Maintenance | Rapport structuré post-intervention | P1 | Champ `resolution_report` + media dédiée — ⚠ le champ fantôme du même nom a été retiré par TCK-474 (2026-08-30) : repartir d'une décision de schéma, pas du code qui le mentionnait |
 | 23 | Inventaire | Photos par pièce | P1 | Upload de medias liés aux rooms |
 | 24 | Documents | Recherche plein-texte sur bibliothèque | P1 | Indexer les titres/descriptions dans Scout |
 | 25 | Agence | Endpoint ajout/retrait d'agent | P0 | Route dédiée `POST agencies/{id}/agents` |

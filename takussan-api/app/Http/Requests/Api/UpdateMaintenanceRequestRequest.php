@@ -57,7 +57,29 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
         return $user->can('actAsPrincipal', $maintenanceRequest) === true;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * TCK-474 — `resolution_report` est `prohibited`, et ce n'est pas un oubli de règle.
+     *
+     * Le champ était validé `['sometimes', 'nullable', 'string']` et `$fillable` sur le
+     * modèle, mais **aucune migration ne crée la colonne** : le `PATCH` qui le portait
+     * traversait la validation puis mourait à l'UPDATE en **500** (`SQLSTATE[42703]`).
+     * Le ticket a tranché le RETRAIT et non la création de la colonne — `docs/models-spec.md`
+     * ne déclare que `resolution_notes`, `MaintenanceRequestResource` n'expose que
+     * `resolution_notes`, et le front n'envoie jamais `resolution_report`. Créer la colonne
+     * aurait laissé le code décider du schéma, sur un champ dont `docs/backend-gap-report.md`
+     * décrit encore la forme (texte libre ? structure ? média dédié ?) comme non tranchée.
+     *
+     * ⚠ Le retirer PUREMENT ET SIMPLEMENT des règles aurait rendu **200 en avalant la
+     * valeur en silence** — pour le client qui joint son rapport, c'est aussi trompeur que
+     * le 500. `prohibited` rend un 422 qui NOMME le champ. Même geste que
+     * `RenewLeaseRequest`.
+     *
+     * ⚠ `prohibited` laisse passer une valeur VIDE (`null`, `""`) : envoyer « rien » n'est
+     * pas demander une écriture, et un corps généré côté client qui porte la clé à null
+     * n'a pas à être refusé.
+     *
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [
@@ -70,7 +92,7 @@ class UpdateMaintenanceRequestRequest extends BaseFormRequest
             'started_at' => ['sometimes', 'nullable', 'date'],
             'completed_at' => ['sometimes', 'nullable', 'date'],
             'resolution_notes' => ['sometimes', 'nullable', 'string'],
-            'resolution_report' => ['sometimes', 'nullable', 'string'],
+            'resolution_report' => ['prohibited'],
         ];
     }
 }
