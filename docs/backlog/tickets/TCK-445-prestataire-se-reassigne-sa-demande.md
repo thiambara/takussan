@@ -93,7 +93,7 @@ Aucun endpoint à créer, aucune migration. Les routes concernées existent
 - [x] AC2 — le même `PATCH` par un agent de l'agence ou le propriétaire du bien réussit
 - [x] AC3 — le prestataire assigné peut toujours faire avancer le statut et déposer son rapport
       (non-régression sur ce que §1.8 lui accorde)
-- [ ] AC4 — `store()` et `update()` partagent **une seule** définition du côté donneur d'ordre ;
+- [x] AC4 — `store()` et `update()` partagent **une seule** définition du côté donneur d'ordre ;
       une ablation sur cette définition fait rougir des tests des deux chemins
 - [x] AC5 — le sort de `POST .../photos` est écrit quelque part de durable, dans un sens ou dans
       l'autre
@@ -106,3 +106,16 @@ Aucun endpoint à créer, aucune migration. Les routes concernées existent
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## AC4 — ablation jouée le 2026-08-30
+
+`MaintenanceRequestPolicy::isPrincipalFor()` neutralisée en `return true || …` — la forme qui
+laisse le corps en place et n'en change que la valeur, pour que le compilateur ne signale rien et
+que seuls les tests parlent. Empreinte prise avant lecture : `b870f745…` → `c3922010…`.
+
+**7 échecs / 64 verts**, et le point d'AC4 n'est pas le compte : **les rouges tombent des DEUX
+côtés**, `store()` et `update()`. C'est exactement ce que la case demandait — qu'une seule
+ablation, sur une seule définition, atteigne les deux chemins. Si les deux avaient gardé leur
+copie, un seul des deux aurait rougi.
+
+Restauration vérifiée par empreinte : **71 verts / 71**.

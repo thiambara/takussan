@@ -133,13 +133,15 @@ Aucun endpoint à créer, aucune migration.
       ou dans le contrôleur ; réutiliser le patron d'`AgentInvitationService::assertAgencyCanInvite()`
       plutôt que de le réécrire
 - [x] Vérifier que l'alias `agencies/{agency}/agents` est couvert par la même garde
-- [ ] Tests : 403 sur `individual` pour les **deux** routes ; 200 inchangé sur `standard` ; un
+- [x] Tests : 403 sur `individual` pour les **deux** routes ; 200 inchangé sur `standard` ; un
       test qui échoue avant le correctif
+      *(voir ci-dessous : la seconde moitié de cette case est sans objet)*
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `POST /api/agencies/{id}/members` sur une agence `individual` rend **403**, et le
+- [x] AC1 — `POST /api/agencies/{id}/members` sur une agence `individual` rend **403**, et le
       test échoue avant le correctif
+      *(idem — le 403 est éprouvé, le « avant le correctif » n'existe pas)*
 - [x] AC2 — l'alias `POST /api/agencies/{id}/agents` rend **403** dans les mêmes conditions
 - [x] AC3 — sur une agence `standard`, les deux routes rendent toujours 200 (non-régression)
 - [x] AC4 — le cas « agence `individual` **sans** souscription » est couvert par un test : c'est
@@ -156,3 +158,22 @@ Aucun endpoint à créer, aucune migration.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Ces deux cases sont cochées à moitié, et il faut dire laquelle — 2026-08-30
+
+Les deux portent la même conjonction : « **403** sur les deux routes » **et** « un test qui
+échoue **avant le correctif** ».
+
+- La **première moitié est tenue et mesurée** : `TeamFormationBoundaryTest` dérive les deux
+  routes de `route:list`, les refuse toutes deux sur `individual` sans souscription, et garde un
+  **témoin** `standard` qui reste ouvert — sans quoi une garde qui refuserait tout le monde
+  passerait pour un correctif.
+- La **seconde est sans objet**, et le bloc de correction daté plus haut le montre par exécution :
+  le défaut était **déjà clos sur `origin/dev`** quand cette branche est partie. Il n'existe
+  aucun « avant le correctif » où faire rougir quoi que ce soit — six fichiers ramenés à l'état
+  de `dev` laissent le test vert.
+
+Ce qui reste réellement livré par ce ticket, et qui n'existait pas : la définition unique
+(`AgencyKindGuard::canFormTeam()`) là où six copies écrites à la main disaient chacune la même
+chose, et le témoin `standard`. *Cocher la case entière aurait attesté d'un rouge que personne
+n'a vu ; la laisser vide aurait effacé le 403 qui, lui, est prouvé.*

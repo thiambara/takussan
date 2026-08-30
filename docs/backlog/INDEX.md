@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**425 tickets** — 49 ouverts, 375 livrés.
+**426 tickets** — 50 ouverts, 375 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 47 |
+| 📋 Todo | 48 |
 | 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -80,6 +80,7 @@
 - [TCK-475](tickets/TCK-475-toast-de-succes-sur-une-ecriture-echouee.md) — Le brouillon d'assistant annonce « Progression sauvegardée » quand l'écriture a échoué `S · P2 · technique`
 - [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
 - [TCK-477](tickets/TCK-477-le-dock-delegue-la-safe-area-a-un-mecanisme-inexistant.md) — L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé `S · P2 · technique`
+- [TCK-478](tickets/TCK-478-le-motif-de-tck-451-existe-en-trois-exemplaires.md) — Le motif corrigé par TCK-451 existe en trois exemplaires — deux n'ont jamais été touchés `S · P1 · front`
 
 ## 🚧 Doing
 

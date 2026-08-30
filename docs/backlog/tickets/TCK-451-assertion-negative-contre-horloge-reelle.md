@@ -153,14 +153,14 @@ Aucun. Ce ticket ne touche ni endpoint, ni modèle, ni composant de rendu.
 
 ## Delta à produire
 
-- [ ] Mécanisme 1 — retirer la course sur l'intervalle : faire porter l'assertion négative sur un
+- [x] Mécanisme 1 — retirer la course sur l'intervalle : faire porter l'assertion négative sur un
       **événement** (le compte d'appels observé au dernier `keydown`) plutôt que sur l'état du
       monde après un `await user.type` dont l'ordonnancement n'est pas borné ; ou rendre la fenêtre
       injectable, sans toucher la constante de production
-- [ ] Mécanisme 2 — traiter les `waitFor` qui crèvent `asyncUtilTimeout` : borne locale explicite,
+- [x] Mécanisme 2 — traiter les `waitFor` qui crèvent `asyncUtilTimeout` : borne locale explicite,
       ou attente d'un signal plutôt que d'une condition
-- [ ] Reproduire, ou écarter par mesure, le rouge de `ModerationFilters.test.tsx`
-- [ ] Chercher les autres occurrences des deux motifs dans la suite frontend
+- [x] Reproduire, ou écarter par mesure, le rouge de `ModerationFilters.test.tsx`
+- [x] Chercher les autres occurrences des deux motifs dans la suite frontend
 
 ## Critères d'acceptation
 
@@ -263,3 +263,33 @@ un `yes > /dev/null`.
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Les quatre cases du delta, relevées le 2026-08-30
+
+| # | Ce qui est livré | Où se prend la preuve |
+|---|---|---|
+| 1 | fenêtre **injectable**, la constante de production intacte : `debounceMs?: number` par défaut à `CONSOLE_SEARCH_DEBOUNCE_MS` | `DebouncedSearchInput.tsx:33`, `:91` ; le test choisit une fenêtre plus longue que son propre plafond |
+| 2 | le seul `waitFor` du fichier porte une **borne locale explicite** ; celui de `ModerationFilters.test.tsx:92` aussi, et son commentaire dit que ce n'est pas un confort | 1 `waitFor` / 1 borné |
+| 3 | `ModerationFilters.test.tsx` : **écarté par mesure**, pas par raisonnement | 8 exécutions sur deux campagnes, jusqu'à `load average 236.92` — la charge de l'incident — **toutes vertes**, y compris sur les fichiers d'avant le correctif |
+| 4 | balayage du corpus fait — **et il rapporte** | ci-dessous |
+
+### Le balayage rapporte trois fichiers, et deux portent le motif exact
+
+Le motif de l'incident n'est pas « un `await user.type` » : c'est *une assertion négative qui
+court contre l'intervalle d'anti-rebond, après une frappe assez longue pour que la fenêtre
+puisse expirer en cours de route*.
+
+| Fichier | Frappe | Assertion | `waitFor` bornés |
+|---|---|---|---|
+| `admin/__tests__/PropertyModerationWorkspace.test.tsx:208` | `'Ziguinchor'` — **10 caractères**, le même mot | `expect(replace).not.toHaveBeenCalled()` | — |
+| `admin/super/__tests__/SuperAdminPropertiesFilters.test.tsx:116` | `'appartemen'` — **10 caractères** | `expect(mockReplace).not.toHaveBeenCalled()` | 1 `waitFor`, **0 borné** |
+| `search/__tests__/FilterSidebar.test.tsx` | — | — | 2 `waitFor`, **0 borné** |
+
+Les deux premiers ne ressemblent pas au fichier corrigé : ils en sont des **copies**, jusqu'au
+commentaire (« Rien n'est encore parti… ») et au mot de dix lettres. Ce ticket a réparé un
+exemplaire d'un motif qui en compte trois.
+
+⚠ **Le balayage était la case ; la réparation ne l'est pas.** Étendre ici aurait fait de ce
+ticket un chantier ouvert sur trois fichiers de plus, sans que le motif y ait jamais rougi.
+C'est TCK-478. *Ce qui coûte n'est pas qu'un motif se répète — c'est qu'on le corrige une fois et
+qu'on croie la famille close.*

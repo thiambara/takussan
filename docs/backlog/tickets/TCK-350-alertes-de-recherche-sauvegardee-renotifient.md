@@ -130,7 +130,7 @@ structurelle (option 3), en ADR.
       assert que la suivante a bien été notifiée.
 - [x] **AC6 — la décision de l'option retenue est écrite** : en commentaire du job si elle est
       locale, en ADR si elle introduit une table ou une colonne.
-- [ ] **AC7 — vérifié par ablation.** Retirer le correctif fait rougir AC1 et AC2 ; les restaurer
+- [x] **AC7 — vérifié par ablation.** Retirer le correctif fait rougir AC1 et AC2 ; les restaurer
       les rend verts. Le rapport porte les deux sorties.
 
 ## Références
@@ -214,3 +214,20 @@ l'`id`. ⚠ Sur PostgreSQL, **une exception SQL abandonne la transaction entièr
 même transaction ne reprend pas — il accuse la recherche suivante. Le test d'AC5 doit donc rendre
 une recherche fautive **par une exception applicative**, et un second cas doit éprouver l'erreur
 SQL si le job venait à tourner dans une transaction.
+
+## AC7 — ablation jouée le 2026-08-30
+
+Elle était annoncée, pas exécutée. Jouée, elle mord.
+
+`SearchService.php` — le correctif retiré, la borne du curseur revenant à l'état d'avant le
+ticket. Empreinte relevée **avant** de lire le résultat : `8a46edeb…` → `14e02695…`, la mutation
+est donc bien appliquée et non seulement écrite.
+
+| | Tests |
+|---|---|
+| correctif retiré | **3 échecs / 6 verts** |
+| correctif restauré | **9 verts / 9**, empreinte de référence retrouvée |
+
+Les trois rouges sont ceux d'AC1 et d'AC2 — la renotification, et le curseur qui n'avance pas —
+et aucun des six autres ne bouge. *Une ablation qui fait tout rougir n'a rien isolé ; celle-ci
+sépare.*

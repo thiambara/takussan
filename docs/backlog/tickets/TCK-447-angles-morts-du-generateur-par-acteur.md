@@ -77,11 +77,11 @@ Aucune. Le périmètre est `docs/gen-features-by-actor.mjs` et sa sortie génér
       pourquoi elle est ignorée
 - [x] Mettre l'en-tête à jour — il annonce aujourd'hui deux angles morts ; il doit annoncer ce
       qui reste vrai après ce ticket
-- [ ] Ablation pour chaque garde ajoutée, et restauration vérifiée
+- [x] Ablation pour chaque garde ajoutée, et restauration vérifiée
 
 ## Critères d'acceptation
 
-- [ ] AC1 — pour chaque angle mort fermé, la sonde correspondante du tableau ci-dessus fait
+- [x] AC1 — pour chaque angle mort fermé, la sonde correspondante du tableau ci-dessus fait
       sortir le script en **1**, dans les deux formes
 - [x] AC2 — pour chaque angle mort **non** fermé, la raison est écrite dans l'en-tête, et la
       sonde est citée pour que le lecteur suivant n'ait pas à la refaire
@@ -97,3 +97,23 @@ Aucune. Le périmètre est `docs/gen-features-by-actor.mjs` et sa sortie génér
 ## Notes d'implémentation
 
 _(à remplir par implementing-specs)_
+
+## Ablation des deux gardes — jouée le 2026-08-30
+
+Les deux sondes du tableau ci-dessus, exécutées sur `features.md` muté, **dans les deux formes**
+que le script expose.
+
+| Angle mort | Sonde | Sortie | Ce qui est imprimé |
+|---|---|---|---|
+| n°1 — acteur déclaré et inemployé | un acteur `🦆` déclaré, cité nulle part | **1** | le nom de l'acteur fautif |
+| n°2 — ligne de fonctionnalité hors section | une ligne orpheline insérée hors de toute section | **1** | la ligne fautive et son numéro |
+
+⚠ **Un détail qui aurait pu passer pour un faux positif** : dans la forme `--check`, le premier
+rouge n'est pas celui de la sonde — c'est le contrôle de fraîcheur, qui tourne légitimement en
+premier et voit `features.md` modifié. Ce n'est pas la garde qui se trompe de motif, c'est
+l'ordre des contrôles. La sonde a donc été relue dans la forme sans `--check` pour établir
+qu'elle nomme bien son propre fautif. *Lire le premier rouge venu comme la preuve attendue est
+la manière la plus courante de valider une garde qui ne garde pas.*
+
+Restauration vérifiée par empreinte : `features.md` retrouve `40145391fb3e929a38c31e7532615a03`,
+et `node docs/gen-features-by-actor.mjs --check` redevient vert.
