@@ -6,13 +6,13 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**426 tickets** — 25 ouverts, 400 livrés.
+**431 tickets** — 30 ouverts, 400 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 24 |
+| 📋 Todo | 21 |
 | 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 👀 Review | 8 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 400 |
 | 🗑️ Obsolete | 1 |
@@ -49,6 +49,18 @@
 - [TCK-448](tickets/TCK-448-dialogues-invitation-avalent-lerreur.md) — Les dialogues d'invitation avalent l'erreur de saisie : la soumission est bloquée et rien ne s'affiche — cause non identifiée `M · P2 · bug`
 - [TCK-452](tickets/TCK-452-theme-sombre-inatteignable.md) — Aucune BASCULE de thème sombre n'existe : le bloc `.dark` sert de surface locale à deux composants et n'est atteignable par aucun utilisateur `M · P2 · technique`
 - [TCK-463](tickets/TCK-463-typescript-7-bloque-par-typescript-eslint.md) — TypeScript 7 est bloqué par `typescript-eslint`, pas par notre code — mesuré, et la branche qui le portait est supprimée `S · P3 · technique`
+- [TCK-480](tickets/TCK-480-jeton-destructive-sous-aa-en-theme-clair.md) — Le jeton `--destructive` est sous AA en thème clair, partout où il porte du texte `M · P1 · front`
+- [TCK-481](tickets/TCK-481-encre-heritee-dans-twofactorsection.md) — `TwoFactorSection` hérite l'encre de son conteneur : 3,94:1, seconde occurrence du motif de TCK-471 `S · P2 · front`
+- [TCK-482](tickets/TCK-482-upgraderequestform-jette-le-resultat-du-flush.md) — `UpgradeRequestForm` jette le résultat de `flush()` puis détruit le brouillon — 3ᵉ exemplaire du défaut de TCK-475 `S · P1 · front`
+- [TCK-483](tickets/TCK-483-garde-mort-du-toast-de-wizardreprenable.md) — Le garde `if (!completing)` de `WizardReprenable` est du code mort : la fermeture fige `completing` à `false` `S · P2 · front`
+- [TCK-484](tickets/TCK-484-cinq-tables-de-tons-figees-au-cliquet.md) — Cinq tables de tons décident encore une couleur hors de `StatusBadge`, figées au cliquet faute de vocabulaire commun `M · P3 · front`
+
+## 🚧 Doing
+
+- [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+
+## 👀 Review
+
 - [TCK-471](tickets/TCK-471-bouton-deverifier-invisible-sur-la-fiche-agence.md) — Le bouton « Déverifier » de la fiche agence est invisible : contraste 1,00:1 `S · P1 · technique`
 - [TCK-472](tickets/TCK-472-statusbadge-nest-pas-le-seul-a-decider-la-couleur-dun-statut.md) — `StatusBadge` affirme être le seul à décider la couleur d'un statut ; ils sont quatre `M · P2 · technique`
 - [TCK-473](tickets/TCK-473-corpus-depreuve-pour-les-gardes-de-gen-features-by-actor.md) — Les trois gardes de `gen-features-by-actor.mjs` ne sont prouvées par rien `S · P2 · technique`
@@ -57,14 +69,6 @@
 - [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
 - [TCK-477](tickets/TCK-477-le-dock-delegue-la-safe-area-a-un-mecanisme-inexistant.md) — L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé `S · P2 · technique`
 - [TCK-478](tickets/TCK-478-le-motif-de-tck-451-existe-en-trois-exemplaires.md) — Le motif corrigé par TCK-451 existe en trois exemplaires — deux n'ont jamais été touchés `S · P1 · front`
-
-## 🚧 Doing
-
-- [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-
-## 👀 Review
-
-_(aucun)_
 
 ## ⛔ Blocked
 
