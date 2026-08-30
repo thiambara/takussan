@@ -258,3 +258,42 @@ gh run list --workflow=api-ci.yml --branch dev --limit 5
 Relevé en ouvrant la PR #239 (`dev` → `preview`, 77 commits) et en constatant qu'elle n'affichait
 qu'un seul contrôle. *Le défaut n'a pas été trouvé en lisant les workflows — il a été trouvé en
 regardant ce qu'une PR affichait réellement, ce qu'aucune lecture de YAML n'aurait rendu.*
+
+### Ce que la PR #242 a éprouvé, et ce qu'elle n'a pas éprouvé (2026-08-30)
+
+**Le défaut est encore vivant sur `dev` au moment d'ouvrir le lot de la vague 53**, et la garde le
+dit sans qu'on ait à le chercher :
+
+```
+$ git fetch origin dev && node scripts/check-skip-ci-marker.mjs --tete origin/dev
+✗ contrôle A : le commit de tête porte le marqueur d'exclusion global de GitHub
+  sujet : « chore(tests): régénérer la carte d'impact [skip ci] »   ← 1946e513
+```
+
+**La mesure du coût, elle, s'est révélée bien plus lourde que ce que le tableau des 12 PR
+laissait voir.** En relevant les têtes des quatre dernières PR :
+
+| PR | commit de tête | contrôles |
+|---|---|---|
+| #238 | `chore(backlog): les 25 tickets du lot passent à done…` | 8 |
+| **#239** | **`chore(tests): régénérer la carte d'impact [skip ci]`** | **`Vercel` — 1** |
+| #240 | `docs(backlog): une PR d'intégration sur deux…` | 3 |
+| #241 | `merge: dev dans le lot de la vague 52…` | 8 |
+| #242 | `merge: reprendre dev dans le lot de la vague 53…` | 8 |
+
+**PR #239 portait 95 fichiers** — dont ~30 fichiers PHP applicatifs (contrôleurs, policies,
+services, `MembershipCapabilityResolver`), 15 fichiers de tests, 4 scripts de garde, les deux
+fichiers de workflow eux-mêmes — et elle a été **fusionnée vers `preview` sans qu'un seul test,
+un seul lint ni une seule garde n'ait tourné.** Seul `Vercel` s'affichait, qui n'est pas un
+workflow de ce dépôt et ne lit pas le marqueur.
+
+⚠️ *Le ticket disait « 7 fois sur 12 ». Le chiffre est juste ; ce qu'il ne disait pas, c'est ce
+qu'une seule de ces sept fois laisse passer.* Une PR muette n'est pas une PR moins vérifiée : sur
+#239, c'est **toute** la vérification qui est absente, et son affichage `CLEAN` est indiscernable
+d'un vert.
+
+**Ce que la PR #242 NE prouve PAS.** Ses 8 contrôles montrent qu'une tête au message propre
+déclenche la CI — ce qui n'a jamais été en doute. **AC1 au sens strict reste NON ÉPROUVÉ** : il
+demande une tête portant le marqueur **neuf** (`[carte-impact]`), donc le correctif d'abord mergé
+sur `dev`, puis un push du bot, puis une PR d'intégration. La séquence de vérification ci-dessus
+tient inchangée. **AC3 reste NON ÉPROUVÉ** pour la même raison.
