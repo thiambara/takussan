@@ -49,6 +49,7 @@ const TOUS_LES_FILTRES: SearchFilters = {
   featured: true,
   floor_number: 0,
   available_from: '2026-09-01',
+  title_type: 'bail',
   tags: 'piscine,parking',
   sort: 'price_asc',
   page: 7,
@@ -103,6 +104,7 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
       '★ En vedette',
       'Rez-de-chaussée',
       'Dispo dès 01 sept. 2026',
+      'Titre : Bail',
       'Tags : piscine,parking',
     ]);
   });

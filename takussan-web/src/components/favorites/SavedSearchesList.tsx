@@ -84,6 +84,7 @@ function SavedSearchRow({
     types: useTranslations('property.types'),
     contract: useTranslations('property.contractTypes'),
     periods: useTranslations('property.rentPeriods'),
+    titleTypes: useTranslations('property.titleTypes'),
   };
   const qs = criteriaToQueryString(search.criteria);
   const href = `/properties${qs ? `?${qs}` : ''}`;

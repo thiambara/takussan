@@ -189,3 +189,76 @@ describe('<CompareTable>', () => {
     expect(screen.getByText('Bien indisponible')).toBeInTheDocument();
   });
 });
+
+describe('statut foncier au comparateur (TCK-491)', () => {
+  it('AC1 — deux statuts différents rendent la ligne, et elle est signalée divergente', () => {
+    const columns: CompareColumn[] = [
+      { id: 1, property: makeProperty({ id: 1, title: 'A', title_type: 'bail', title_type_label: 'Bail' }) },
+      {
+        id: 2,
+        property: makeProperty({
+          id: 2, title: 'B', title_type: 'titre_foncier', title_type_label: 'Titre foncier',
+        }),
+      },
+    ];
+    const { container } = render(wrap(<CompareTable columns={columns} onRemove={() => undefined} />));
+
+    const ligne = Array.from(container.querySelectorAll('tr')).find((tr) =>
+      tr.querySelector('th')?.textContent?.includes('Titre foncier'),
+    );
+    expect(ligne).toBeDefined();
+    expect(ligne?.getAttribute('data-divergent')).toBe('true');
+    expect(ligne?.textContent).toContain('Bail');
+  });
+
+  it('AC2 — deux biens sans statut foncier n’affichent pas la ligne', () => {
+    const columns: CompareColumn[] = [
+      { id: 1, property: makeProperty({ id: 1, title: 'A' }) },
+      { id: 2, property: makeProperty({ id: 2, title: 'B' }) },
+    ];
+    const { container } = render(wrap(<CompareTable columns={columns} onRemove={() => undefined} />));
+
+    const entetes = Array.from(container.querySelectorAll('th[scope="row"]')).map(
+      (th) => th.textContent ?? '',
+    );
+    expect(entetes.some((e) => e.includes('Titre foncier'))).toBe(false);
+  });
+
+  it('AC3 — la valeur affichée est le libellé émis par l’API, jamais un second vocabulaire', () => {
+    const columns: CompareColumn[] = [
+      { id: 1, property: makeProperty({ id: 1, title_type: 'deliberation', title_type_label: 'Délibération' }) },
+      { id: 2, property: makeProperty({ id: 2, title_type: null, title_type_label: null }) },
+    ];
+    render(wrap(<CompareTable columns={columns} onRemove={() => undefined} />));
+    expect(screen.getByText('Délibération')).toBeInTheDocument();
+  });
+
+  it('une ligne entièrement vide ne s’affiche plus — le comparateur montre ce qui diverge', () => {
+    // `rent_period` est nul des deux côtés sur deux ventes : la ligne n’alignait que des tirets.
+    const columns: CompareColumn[] = [
+      { id: 1, property: makeProperty({ id: 1, rent_period: null, rent_period_label: null }) },
+      { id: 2, property: makeProperty({ id: 2, rent_period: null, rent_period_label: null }) },
+    ];
+    const { container } = render(wrap(<CompareTable columns={columns} onRemove={() => undefined} />));
+
+    const entetes = Array.from(container.querySelectorAll('th[scope="row"]')).map(
+      (th) => th.textContent ?? '',
+    );
+    expect(entetes.some((e) => e.includes('Périodicité'))).toBe(false);
+    // …mais une ligne dont une seule colonne porte une valeur reste rendue.
+    expect(entetes.some((e) => e.includes('Prix'))).toBe(true);
+  });
+
+  it('une valeur booléenne `false` n’est pas une absence : la ligne « Meublé » survit', () => {
+    const columns: CompareColumn[] = [
+      { id: 1, property: makeProperty({ id: 1, furnished: false }) },
+      { id: 2, property: makeProperty({ id: 2, furnished: false }) },
+    ];
+    const { container } = render(wrap(<CompareTable columns={columns} onRemove={() => undefined} />));
+
+    const entetes = Array.from(container.querySelectorAll('th[scope="row"]')).map(
+      (th) => th.textContent ?? '',
+    );
+    expect(entetes.some((e) => e.includes('Meublé'))).toBe(true);
+  });
+});

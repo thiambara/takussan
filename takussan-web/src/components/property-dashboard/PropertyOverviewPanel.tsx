@@ -4,9 +4,16 @@ import { ArrowRight, MapPin, Pencil } from 'lucide-react';
 
 import { StatCard } from '@/components/charts/StatCard';
 import { Button } from '@/components/ui/button';
-import { formatCurrency } from '@/lib/format';
+import {
+  isFieldRelevant,
+  relevanceContextOf,
+} from '@/components/property-form/field-matrix';
+import { formatCurrency, formatDate } from '@/lib/format';
+import { disponibiliteDe } from '@/lib/property-availability';
 import type { PropertyDetail } from '@/types/property';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 
 type TabKey = 'overview' | 'edit' | 'media' | 'history';
 
@@ -22,8 +29,21 @@ interface ChecklistItem {
   readonly target: TabKey;
 }
 
+/**
+ * TCK-488 — la liste des tâches restantes, filtrée par la matrice de pertinence.
+ *
+ * Un item de checklist est une PROMESSE : « clique ici, tu pourras le faire ». Le statut foncier
+ * n'a pas d'objet pour un lot situé DANS un bâtiment (`field-matrix.ts`), et l'onglet d'édition
+ * n'y rend donc aucun champ : la tâche envoyait sur un écran où elle est introuvable. Pire, avec
+ * le mode `erase` de TCK-469, une valeur héritée d'un ancien type est remise à `null` au premier
+ * enregistrement — l'item repassait alors à *non fait*, sans aucune affordance de retour.
+ *
+ * ⚠ L'item n'est pas rendu « fait », il est ABSENT : le compte de tâches restantes suit, sans
+ * quoi la checklist mentirait dans l'autre sens.
+ */
 function buildChecklist(property: PropertyDetail): ChecklistItem[] {
   const description = (property.description ?? '').trim();
+  const ctx = relevanceContextOf(property);
   return [
     {
       id: 'description',
@@ -45,18 +65,27 @@ function buildChecklist(property: PropertyDetail): ChecklistItem[] {
       done: Boolean(property.main_photo_url),
       target: 'media',
     },
-    {
-      id: 'title-type',
-      labelKey: 'checklist.titleType',
-      done: Boolean(property.title_type),
-      target: 'edit',
-    },
+    ...(isFieldRelevant('title_type', ctx)
+      ? [
+          {
+            id: 'title-type',
+            labelKey: 'checklist.titleType',
+            done: Boolean(property.title_type),
+            target: 'edit' as const,
+          },
+        ]
+      : []),
   ];
 }
 
 export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
   const t = useTranslations('property.dashboard.overview');
+  const localeBrute = useLocale();
+  const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
   const checklist = buildChecklist(property);
+  // TCK-489 — le bailleur relit ici ce qu'il a annoncé. Rien pour une vente, rien pour une clé
+  // absente ou nulle, et une date déjà passée se dit « immédiatement ».
+  const disponibilite = disponibiliteDe(property);
   const remaining = checklist.filter((c) => !c.done);
   const recentPrices = property.price_history?.slice(0, 5) ?? [];
   const fullAddress =
@@ -93,6 +122,17 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
           hint={t('ratingHint', { count: property.reviews_count ?? 0 })}
         />
       </div>
+
+      {disponibilite ? (
+        <p className="text-xs text-muted-foreground">
+          {t('availability')}{' '}
+          <span className="font-medium text-foreground">
+            {disponibilite.etat === 'immediate'
+              ? t('availabilityNow')
+              : t('availabilityFrom', { date: formatDate(disponibilite.date, locale) })}
+          </span>
+        </p>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl bg-card p-6">

@@ -725,7 +725,8 @@
       "yearBuilt": "Atum tabax",
       "parking": "Parking",
       "amenities": "Jumtukaay",
-      "tags": "Yeneen"
+      "tags": "Yeneen",
+      "titleDeed": "Kayitu suuf"
     },
     "table": {
       "ariaLabel": "Tàbloo méengal kër yi",
@@ -1825,7 +1826,8 @@
         "availability": "Jotaay",
         "amenities": "Jumtukaay yi",
         "advanced": "Seet bu xóot",
-        "aroundMe": "Ci wetu ma"
+        "aroundMe": "Ci wetu ma",
+        "titleDeed": "Kayitu suuf"
       },
       "aroundMe": {
         "use": "Jëfandikoo sama bérébu",
@@ -1856,7 +1858,8 @@
         "second": "2u",
         "third": "3u",
         "fourthPlus": "4u+"
-      }
+      },
+      "titleDeedHint": "Kër yi moom seen suuf rekk lay jëfe: kër, wilaa, tool, magasin. Amul solo ci apartemaa, biro walla butik."
     },
     "toolbar": {
       "loading": "Mu ngi yeb…",
@@ -1887,7 +1890,8 @@
       "bathrooms": "{n} sanjaan",
       "areaMin": "≥ {value} m²",
       "areaMax": "≤ {value} m²",
-      "radius": "Ci {km} km ci wetu bérébu bi"
+      "radius": "Ci {km} km ci wetu bérébu bi",
+      "titleType": "Kayit: {value}"
     },
     "pagination": {
       "aria": "Xët yi",
@@ -3747,6 +3751,9 @@
         "parking": "Palaasu parking",
         "furnished": "Ame na meebal",
         "titleDeed": "Kayitu suuf",
+        "availability": "Jotaay",
+        "availabilityNow": "Léegi",
+        "availabilityFrom": "Ci {date}",
         "yes": "Waaw"
       },
       "specs": {
@@ -4007,6 +4014,8 @@
         "country": "Réew (kodu ISO)",
         "countryPlaceholder": "SN",
         "area": "Yaatuwaay (m²)",
+        "areaLand": "Yaatuwaayu suuf (m²)",
+        "areaLiving": "Yaatuwaayu dëkkuwaay (m²)",
         "bedrooms": "Neeg yi",
         "bathrooms": "Sanjaan yi",
         "yearBuilt": "Atum tabax",
@@ -4043,7 +4052,8 @@
       },
       "amenities": {
         "title": "Jumtukaay yi",
-        "hint": "Tànnal jumtukaay yi jot."
+        "hint": "Tànnal jumtukaay yi jot.",
+        "saveFailed": "Kër gi denc na. Waaye mënunu woon a denc jumtukaay yi. Jéemaat."
       },
       "photos": {
         "title": "Nataal yi",
@@ -4088,7 +4098,10 @@
         "priceHistoryHint": "5 coppite yu mujj yu ñu bind.",
         "seeAll": "Gis lépp",
         "noPriceHistory": "Amul coppiteg njëg bu ñu bind ba tey.",
-        "unknownDate": "Bes bu ñu xamul"
+        "unknownDate": "Bes bu ñu xamul",
+        "availability": "Jotaay",
+        "availabilityNow": "Léegi",
+        "availabilityFrom": "Ci {date}"
       },
       "tabs": {
         "overview": "Wonewu",

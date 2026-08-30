@@ -83,6 +83,50 @@ class PropertyTagsTest extends TestCase
         $this->assertSame([$tagB->id], $ids);
     }
 
+    /**
+     * TCK-488 — la synchronisation porte sur les ÉQUIPEMENTS, pas sur tous les tags du bien.
+     *
+     * `sync()` remplaçait la totalité de la table de liaison, alors que `SyncPropertyTagRequest`
+     * n'accepte que des ids de type `amenity` : un tag `feature` — ce que `FilterCoverageSeeder`
+     * attache couramment — ne pouvait ni être renvoyé (422) ni survivre (détaché). L'écran
+     * d'édition n'en affiche aucun : il ne peut pas en répondre.
+     */
+    public function test_sync_preserves_tags_the_screen_never_shows(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $feature = Tag::factory()->create(['type' => TagType::Feature]);
+        $ancienneAmenite = Tag::factory()->create(['type' => TagType::Amenity]);
+        $property->tags()->attach([$feature->id, $ancienneAmenite->id]);
+
+        $nouvelleAmenite = Tag::factory()->create(['type' => TagType::Amenity]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/properties/{$property->id}/tags", [
+            'tag_ids' => [$nouvelleAmenite->id],
+        ])->assertOk();
+
+        $ids = $property->refresh()->tags->pluck('id')->sort()->values()->all();
+        $attendus = collect([$feature->id, $nouvelleAmenite->id])->sort()->values()->all();
+        $this->assertSame($attendus, $ids);
+    }
+
+    public function test_sync_with_empty_array_keeps_non_amenity_tags(): void
+    {
+        $owner = User::factory()->create();
+        $property = Property::factory()->create(['user_id' => $owner->id]);
+        $feature = Tag::factory()->create(['type' => TagType::Feature]);
+        $amenite = Tag::factory()->create(['type' => TagType::Amenity]);
+        $property->tags()->attach([$feature->id, $amenite->id]);
+
+        Sanctum::actingAs($owner);
+
+        $this->postJson("/api/properties/{$property->id}/tags", ['tag_ids' => []])->assertOk();
+
+        $this->assertSame([$feature->id], $property->refresh()->tags->pluck('id')->all());
+    }
+
     public function test_random_user_cannot_sync_tags(): void
     {
         $property = Property::factory()->create();

@@ -42,7 +42,6 @@ export type {
   DashboardPropertyFilters,
   FetchDashboardPropertiesParams,
   PropertyMediaItem,
-  PropertyAddressPayload,
 } from './properties-server';
 export {
   DASHBOARD_PROPERTY_FIELDS,
@@ -59,7 +58,6 @@ export {
   fetchPropertyMedia,
   deletePropertyMedia,
   reorderPropertyMedia,
-  setPropertyAddress,
   setPropertyTags,
   fetchPropertyPriceHistory,
 } from './properties-server';

@@ -24,6 +24,9 @@ export const COMPARE_ROW_DEFS: readonly CompareRowDef[] = [
   { id: 'contract_type', labelKey: 'contractType', category: 'general' },
   { id: 'type', labelKey: 'type', category: 'general' },
   { id: 'rent_period', labelKey: 'rentPeriod', category: 'general' },
+  // TCK-491 — au Sénégal, le statut foncier départage deux terrains au même prix : il se lit avec
+  // les critères qui décident, pas noyé dans les équipements.
+  { id: 'title_type', labelKey: 'titleDeed', category: 'general' },
   { id: 'city', labelKey: 'city', category: 'location' },
   { id: 'quarter', labelKey: 'quarter', category: 'location' },
   { id: 'area', labelKey: 'area', category: 'interior' },
@@ -79,6 +82,10 @@ export function buildCell(
       return property.type_label ?? property.type ?? null;
     case 'rent_period':
       return property.rent_period_label ?? property.rent_period ?? null;
+    // Le libellé vient de l'API, dans la langue négociée — le même que celui de la fiche. Aucun
+    // second vocabulaire côté front : `DIVERGENCES_CONNUES` de la garde de parité ne grossit pas.
+    case 'title_type':
+      return property.title_type_label ?? null;
     case 'city':
       return property.location?.city ?? null;
     case 'quarter':
@@ -116,6 +123,23 @@ export function buildCompareRows(
   const rows: CompareRow<CompareCell>[] = COMPARE_ROW_DEFS.map((def) => ({
     id: def.id,
     values: properties.map((property) => buildCell(def, property)),
-  }));
+  })).filter((row) => row.values.some(porteUneValeur));
   return highlightDivergent<CompareCell>(rows);
+}
+
+/**
+ * TCK-491 — une ligne dont AUCUNE colonne ne porte de valeur ne s'affiche pas.
+ *
+ * Le comparateur existe pour montrer ce qui **diverge** ; une ligne de tirets alignés n'apprend
+ * rien et pousse le reste hors de l'écran. La règle est unique — elle vaut pour le statut foncier
+ * comme pour la périodicité d'un loyer entre deux ventes — parce qu'une exception par ligne est
+ * exactement ce qui finit par diverger.
+ *
+ * ⚠ `false` PORTE une valeur : « non meublé » des deux côtés est une information, pas une absence.
+ * Un test l'épingle — la confusion entre `false` et « vide » est le défaut classique de ce filtre.
+ */
+function porteUneValeur(cellule: CompareCell): boolean {
+  if (cellule === null || cellule === undefined || cellule === '') return false;
+  if (Array.isArray(cellule)) return cellule.length > 0;
+  return true;
 }
