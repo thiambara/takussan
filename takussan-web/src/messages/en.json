@@ -3207,7 +3207,11 @@
       "complete": "Finish",
       "loading": "Loading…",
       "savedToastTitle": "Progress saved",
-      "savedToastBody": "You can pick up right where you left off."
+      "savedToastBody": "You can pick up right where you left off.",
+      "saveFailedToastTitle": "Progress not saved",
+      "saveFailedToastBody": "The save was refused (lost connection or expired session). Sign back in, reopen the wizard and check your latest entries: they were not kept.",
+      "completionFailedToastTitle": "Can’t finish just yet",
+      "completionFailedToastBody": "Your progress could not be saved. Check your connection, then click “Finish” again — nothing is lost."
     },
     "banner": {
       "ariaLabel": "Resume an in-progress flow",

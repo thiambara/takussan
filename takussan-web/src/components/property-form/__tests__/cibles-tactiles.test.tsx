@@ -31,7 +31,15 @@ vi.mock('@/components/providers/UserLocationProvider', () => ({
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
     isLoading: false, isSaving: false, error: null, draft: null,
-    save: vi.fn(), flush: vi.fn(), clear: vi.fn(),
+    save: vi.fn(),
+    // TCK-475 — cette doublure rendait `undefined`, et c'était FAUX depuis
+    // TCK-465 : `flush()` rend un `ResultatEcritureBrouillon`, plus
+    // `Promise<void>`. Elle est verte aujourd'hui *parce que* ce test n'atteint
+    // pas l'appelant qui lit le résultat — un test vert qui ne prouve rien.
+    // `{ ok: true, ecrit: false }` est ce que la production rend au repos : rien
+    // en attente, aucun échec antérieur (`useWizardDraft.ts`, `flush()`).
+    flush: vi.fn().mockResolvedValue({ ok: true, ecrit: false }),
+    clear: vi.fn(),
   }),
 }));
 

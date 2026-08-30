@@ -1920,7 +1920,11 @@
       "complete": "Mottali",
       "loading": "Yëgël…",
       "savedToastTitle": "Sa liggéey denc nañu ko",
-      "savedToastBody": "Dinga waax dellusi fa nga taxoon."
+      "savedToastBody": "Dinga waax dellusi fa nga taxoon.",
+      "saveFailedToastTitle": "Sa liggéey dencuñu ko",
+      "saveFailedToastBody": "Denc bi dañu ko bañ (kotëk bi dagg na walla sa session jeex na). Dellul duggati, ubbi jëf-jëf bi te seetaat say mbind yu mujj: dencuñu leen.",
+      "completionFailedToastTitle": "Mënuñu koo mottali léegi",
+      "completionFailedToastBody": "Sa liggéey dencuñu ko. Seetal sa kotëk, te bësaat ci « Mottali » — dara sànkuwul."
     },
     "banner": {
       "ariaLabel": "Dellusi liggéey bi nga taxoon",
