@@ -17,6 +17,7 @@ import {
 
 import { DataTable, type DataTableColumn } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
+import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import {
@@ -37,7 +38,6 @@ import {
 } from '@/components/property-form/options';
 import {
   contractTypeValues,
-  propertyStatusValues,
   propertyTypeValues,
   propertyVisibilityValues,
 } from '@/lib/schemas/property';
@@ -267,7 +267,7 @@ export function PropertyList({
                   ) : null}
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <StatusBadge status={property.status} />
+                  <PropertyStatusBadge status={property.status} />
                   <VisibilityBadge visibility={property.visibility} />
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -432,7 +432,7 @@ function StatusStack({
 }) {
   return (
     <div className="flex flex-col items-start gap-1">
-      <StatusBadge status={status} />
+      <PropertyStatusBadge status={status} />
       <VisibilityBadge visibility={visibility} />
     </div>
   );
@@ -531,29 +531,22 @@ function formatRelative(date: Date): string {
   return rtf.format(Math.round(diffSec / (86400 * 365)), 'year');
 }
 
-function StatusBadge({ status }: { status: string | null }) {
-  const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
-  const key = status ?? 'available';
-  const label = propertyStatusValues.includes(key as never)
-    ? tStatus(key)
-    : (status ?? '—');
-  return (
-    <Badge
-      className={cn(
-        'border-transparent bg-muted text-foreground',
-        status === 'available' && 'bg-success/10 text-success',
-        status === 'sold' && 'bg-success/15 text-success',
-        status === 'rented' && 'bg-info/10 text-info',
-        status === 'unavailable' && 'bg-destructive/10 text-destructive',
-        status === 'pending' && 'bg-warning/10 text-warning',
-        status === 'under_maintenance' && 'bg-warning/10 text-warning',
-        status === 'archived' && 'bg-muted text-muted-foreground',
-      )}
-    >
-      {label}
-    </Badge>
-  );
-}
+/*
+ * ⚠ **Le `StatusBadge` LOCAL de ce fichier a été supprimé le 2026-08-30** (TCK-472), et le trou
+ * qu'il laisse est intentionnellement bruyant : il n'y a plus rien ici qui décide la couleur d'un
+ * statut de bien. Ce composant s'appelait `StatusBadge` sans être celui de `console/` — dans un
+ * fichier qui définit son propre `StatusBadge`, `<StatusBadge …>` résout vers le local, et ni le
+ * typage ni le lint ne le signalent. Il coloriait `sold` en `bg-success/15` là où la console était
+ * passée à `/10`, parce qu'il ne lisait pas la table.
+ *
+ * La table `statut → ton` vit désormais dans `PropertyStatusBadge.tsx`, seule, pour la liste comme
+ * pour la fiche. `scripts/check-status-badge-unique.mjs` refuse qu'un homonyme reparaisse.
+ *
+ * ⚠ **Un écart de comportement, assumé** : l'ancien badge faisait `status ?? 'available'` et
+ * peignait donc « Disponible » sur un bien dont l'API ne servait PAS le statut. `PropertyStatusBadge`
+ * ne rend rien dans ce cas. Une pastille absente est une donnée absente ; une pastille verte est
+ * une affirmation.
+ */
 
 function VisibilityBadge({ visibility }: { visibility: string | null }) {
   const tVisibility = useTranslations(PROPERTY_ENUM_NAMESPACES.visibility);

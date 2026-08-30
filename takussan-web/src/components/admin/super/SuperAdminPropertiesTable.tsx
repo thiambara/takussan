@@ -10,7 +10,6 @@ import {
   DataTable,
   StatusBadge,
   type DataTableColumn,
-  type StatusTone,
 } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
 import {
@@ -30,21 +29,15 @@ import {
 import type { AdminPropertyRow } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
+// TCK-472 (intégration) — cette table était recopiée ici, et il lui manquait SIX clés :
+// `published`, `pending`, `pending_review` et `rejected` retombaient sur `neutral`. Un bien
+// rejeté s'affichait donc en gris dans la table super-admin, quand le reste du produit le
+// peint en rouge. Une copie ne diverge pas seulement en contredisant — elle diverge en
+// OMETTANT, ce qui est plus discret encore. La table canonique est la seule source.
+import { PROPERTY_STATUS_TONE } from '@/components/property-dashboard/PropertyStatusBadge';
 import { DATE_COURTE, useFormatteurs } from '@/lib/format/useFormatteurs';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
-/**
- * Le statut du bien → le ton du DS. Les quatre familles de couleurs faites main (vert 50,
- * bleu 50, ambre 50, pierre 100) tenaient dans un ternaire à quatre branches ici ;
- * elles vivent maintenant dans `StatusBadge`, et cette table ne dit plus que le SENS.
- */
-const PROPERTY_STATUS_TONES: Record<string, StatusTone> = {
-  available: 'success',
-  sold: 'info',
-  rented: 'info',
-  unavailable: 'attention',
-  under_maintenance: 'attention',
-};
 
 type ConfirmIntent =
   | { action: 'unpublish'; ids: number[] }
@@ -220,7 +213,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       header: t('colStatus'),
       cell: (row) =>
         row.status ? (
-          <StatusBadge tone={PROPERTY_STATUS_TONES[row.status] ?? 'neutral'} label={row.status_label ?? row.status} />
+          <StatusBadge tone={PROPERTY_STATUS_TONE[row.status] ?? 'neutral'} label={row.status_label ?? row.status} />
         ) : (
           <span className="text-muted-foreground">—</span>
         ),
