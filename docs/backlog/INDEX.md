@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**431 tickets** — 22 ouverts, 408 livrés.
+**432 tickets** — 23 ouverts, 408 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 21 |
+| 📋 Todo | 22 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -49,6 +49,7 @@
 - [TCK-448](tickets/TCK-448-dialogues-invitation-avalent-lerreur.md) — Les dialogues d'invitation avalent l'erreur de saisie : la soumission est bloquée et rien ne s'affiche — cause non identifiée `M · P2 · bug`
 - [TCK-452](tickets/TCK-452-theme-sombre-inatteignable.md) — Aucune BASCULE de thème sombre n'existe : le bloc `.dark` sert de surface locale à deux composants et n'est atteignable par aucun utilisateur `M · P2 · technique`
 - [TCK-463](tickets/TCK-463-typescript-7-bloque-par-typescript-eslint.md) — TypeScript 7 est bloqué par `typescript-eslint`, pas par notre code — mesuré, et la branche qui le portait est supprimée `S · P3 · technique`
+- [TCK-479](tickets/TCK-479-skip-ci-eteint-la-ci-de-la-pr-dintegration-suivante.md) — Le `[skip ci]` de la carte d'impact éteint la CI de la PR d'intégration suivante — 7 fois sur 12 `M · P1 · full`
 - [TCK-480](tickets/TCK-480-jeton-destructive-sous-aa-en-theme-clair.md) — Le jeton `--destructive` est sous AA en thème clair, partout où il porte du texte `M · P1 · front`
 - [TCK-481](tickets/TCK-481-encre-heritee-dans-twofactorsection.md) — `TwoFactorSection` hérite l'encre de son conteneur : 3,94:1, seconde occurrence du motif de TCK-471 `S · P2 · front`
 - [TCK-482](tickets/TCK-482-upgraderequestform-jette-le-resultat-du-flush.md) — `UpgradeRequestForm` jette le résultat de `flush()` puis détruit le brouillon — 3ᵉ exemplaire du défaut de TCK-475 `S · P1 · front`
