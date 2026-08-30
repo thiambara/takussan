@@ -1889,7 +1889,9 @@
           "file_too_large": "Le fichier dépasse 10 Mo.",
           "unauthorized": "Vous devez être connecté pour soumettre la demande.",
           "forbidden": "Vous n'avez pas la permission de soumettre cette demande.",
-          "generic": "Une erreur est survenue. Réessayez dans quelques instants."
+          "generic": "Une erreur est survenue. Réessayez dans quelques instants.",
+          "draft_not_saved_title": "Envoi interrompu : brouillon non enregistré",
+          "draft_not_saved_body": "L'enregistrement de votre brouillon a été refusé (connexion perdue ou session expirée). Vérifiez votre connexion, reconnectez-vous si besoin, puis cliquez de nouveau sur « Envoyer la demande » — vos saisies sont toujours là."
         },
         "toasts": {
           "submitted": "Votre demande a bien été envoyée."

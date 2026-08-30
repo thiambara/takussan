@@ -132,7 +132,29 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
 
       setSubmitting(true);
       try {
-        await flush();
+        // ── TCK-482 (3ᵉ exemplaire du défaut de TCK-475) ────────────────────
+        // `flush()` était appelé pour son seul effet de bord, son sort jeté.
+        // Depuis TCK-465 il REND `{ ok, ecrit }` et ne LÈVE PAS : le `catch`
+        // ci-dessous, qui a tout l'air d'être la parade, n'est branché sur
+        // rien. Une écriture refusée traversait donc le `try` intacte, la
+        // demande partait, puis `clear()` DÉTRUISAIT le brouillon serveur —
+        // la seule copie des saisies d'une personne dont le lien vient de
+        // lâcher. On lit le résultat, et on s'arrête avant.
+        //
+        // Le remède énoncé est celui du réseau et de la session : la
+        // persistance est un PUT vers `/api/me/wizard-drafts/{key}`, il n'y a
+        // aucun `localStorage` sur ce chemin (TCK-475, note d'implémentation).
+        // Le bouton reste actionnable, la saisie reste en mémoire, et le
+        // brouillon serveur — périmé mais présent — n'est pas supprimé.
+        const ecriture = await flush();
+        if (!ecriture.ok) {
+          toast.add({
+            title: t('errors.draft_not_saved_title'),
+            description: t('errors.draft_not_saved_body'),
+            type: 'error',
+          });
+          return;
+        }
         await submitAgencyUpgradeRequest(token, agencyId, form, statutsDoc);
         await clear();
         toast.add({ title: t('toasts.submitted'), type: 'success' });

@@ -32,21 +32,32 @@ vi.mock('next/navigation', () => ({
 
 // `useWizardDraft` autosaves via fetch — short-circuit so we can hydrate
 // instantly with empty state and assert on submit synchronously.
+//
+// TCK-482 — les doublures sont HOISTÉES et STABLES, et c'est ce qui rend le
+// ticket testable : la fabrique rendait un objet neuf à chaque rendu, donc un
+// `clear` neuf à chaque rendu. Assurer « le brouillon n'a pas été détruit »
+// exigeait de tenir la MÊME référence d'un bout à l'autre du test.
+const brouillon = vi.hoisted(() => ({
+  save: vi.fn(),
+  // TCK-475 — cette doublure rendait `undefined`, et c'était FAUX depuis
+  // TCK-465 : `flush()` rend un `ResultatEcritureBrouillon`, plus
+  // `Promise<void>`. Elle était verte *parce que* l'appelant ne lisait rien —
+  // un test vert qui ne prouvait rien. `{ ok: true, ecrit: false }` est ce que
+  // la production rend au repos : rien en attente, aucun échec antérieur
+  // (`useWizardDraft.ts`, `flush()`). AC5 : jamais `undefined`.
+  flush: vi.fn(),
+  clear: vi.fn(),
+}));
+
 vi.mock('@/hooks/useWizardDraft', () => ({
   useWizardDraft: () => ({
     draft: null,
     isLoading: false,
     isSaving: false,
     error: null,
-    save: vi.fn(),
-    // TCK-475 — cette doublure rendait `undefined`, et c'était FAUX depuis
-    // TCK-465 : `flush()` rend un `ResultatEcritureBrouillon`, plus
-    // `Promise<void>`. Elle est verte aujourd'hui *parce que* ce test n'atteint
-    // pas l'appelant qui lit le résultat — un test vert qui ne prouve rien.
-    // `{ ok: true, ecrit: false }` est ce que la production rend au repos : rien
-    // en attente, aucun échec antérieur (`useWizardDraft.ts`, `flush()`).
-    flush: vi.fn().mockResolvedValue({ ok: true, ecrit: false }),
-    clear: vi.fn().mockResolvedValue(undefined),
+    save: brouillon.save,
+    flush: brouillon.flush,
+    clear: brouillon.clear,
   }),
 }));
 
@@ -87,6 +98,9 @@ function fillRequiredText() {
 describe('<UpgradeRequestForm>', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // AC5 — la doublure rend un `ResultatEcritureBrouillon`, jamais `undefined`.
+    brouillon.flush.mockResolvedValue({ ok: true, ecrit: false });
+    brouillon.clear.mockResolvedValue(undefined);
   });
 
   it('blocks submission when no statuts file is attached', async () => {
@@ -154,6 +168,54 @@ describe('<UpgradeRequestForm>', () => {
       );
     });
     expect(routerRefresh).toHaveBeenCalled();
+    // TCK-482 / AC2 — le chemin nominal détruit toujours le brouillon : un
+    // correctif qui éteindrait les DEUX chemins passerait un test qui ne
+    // regarde que l'échec.
+    expect(brouillon.clear).toHaveBeenCalledTimes(1);
+  });
+
+  // ── TCK-482 ────────────────────────────────────────────────────────────────
+  // `flush()` NE LÈVE PAS : il rend `{ ok: false, error }`. Le `try/catch` de
+  // `handleSubmit` a donc l'air d'être la parade et n'est branché sur rien —
+  // le chemin d'échec le traversait sans jamais l'atteindre, soumettait, puis
+  // `clear()` détruisait le brouillon serveur.
+  it('TCK-482 — flush en échec : ni soumission, ni clear(), et un message qui dit quoi faire', async () => {
+    brouillon.flush.mockResolvedValue({
+      ok: false,
+      ecrit: true,
+      error: new Error('PUT wizard-drafts failed (503)'),
+    });
+
+    render(withIntl(<UpgradeRequestForm agencyId={42} />));
+    fillRequiredText();
+    const file = new File(['%PDF-1.4'], 'statuts.pdf', { type: 'application/pdf' });
+    fireEvent.change(screen.getByLabelText(/Statuts juridiques/i), {
+      target: { files: [file] },
+    });
+
+    fireEvent.submit(screen.getByRole('form', { name: /Formulaire de demande/i }));
+
+    // AC1 — un message d'échec part, et il dit quoi faire (réseau / session),
+    // jamais quoi que ce soit sur un quota : le chemin est un PUT réseau.
+    await waitFor(() => {
+      expect(toastAdd).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: frMessages.agency.upgrade.form.errors.draft_not_saved_title,
+          description: frMessages.agency.upgrade.form.errors.draft_not_saved_body,
+          type: 'error',
+        }),
+      );
+    });
+
+    // AC1 — la demande n'est pas partie.
+    expect(submitAgencyUpgradeRequest).not.toHaveBeenCalled();
+    // AC3 — et le brouillon est TOUJOURS LÀ : `clear()` est le DELETE serveur,
+    // il ne doit pas avoir été appelé. On l'assert, pas seulement le toast.
+    expect(brouillon.clear).not.toHaveBeenCalled();
+    // Le bouton reste actionnable : la personne peut réessayer.
+    expect(screen.getByRole('button', { name: /Envoyer la demande/i })).not.toBeDisabled();
+    // La saisie est intacte à l'écran.
+    expect(screen.getByLabelText(/Numéro RC/i)).toHaveValue('RC-123');
   });
 
   it('surfaces 422 validation errors inline', async () => {
