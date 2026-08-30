@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**434 tickets** — 25 ouverts, 408 livrés.
+**435 tickets** — 26 ouverts, 408 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 18 |
+| 📋 Todo | 19 |
 | 🚧 Doing | 7 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -51,6 +51,7 @@
 - [TCK-463](tickets/TCK-463-typescript-7-bloque-par-typescript-eslint.md) — TypeScript 7 est bloqué par `typescript-eslint`, pas par notre code — mesuré, et la branche qui le portait est supprimée `S · P3 · technique`
 - [TCK-485](tickets/TCK-485-blanc-sur-destructive-plein-dans-le-badge-du-chat.md) — Le badge du chat pose du blanc sur `--destructive` plein : 2,77:1 en thème sombre `S · P2 · front`
 - [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
+- [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
 
 ## 🚧 Doing
 
