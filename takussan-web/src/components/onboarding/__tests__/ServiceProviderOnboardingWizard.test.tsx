@@ -48,7 +48,15 @@ vi.mock('@/hooks/useWizardDraft', () => ({
     draft: null,
     isLoading: false,
     save: vi.fn(),
-    flush: vi.fn().mockResolvedValue(undefined),
+    // TCK-475 — cette doublure rendait `undefined`, et c'était FAUX depuis
+    // TCK-465 : `flush()` rend un `ResultatEcritureBrouillon`, plus
+    // `Promise<void>`. `undefined` ne simule pas le silence d'avant — c'est une
+    // valeur qu'aucun appelant ne sait lire, et elle est restée verte tant que
+    // personne ne lisait. Le jour où `WizardReprenable` s'est mis à consulter ce
+    // résultat, les trois assistants d'onboarding sont tombés en TypeError.
+    // `{ ok: true, ecrit: false }` est ce que la production rend au repos : rien
+    // en attente, aucun échec antérieur (`useWizardDraft.ts`, `flush()`).
+    flush: vi.fn().mockResolvedValue({ ok: true, ecrit: false }),
     clear: vi.fn().mockResolvedValue(undefined),
   }),
 }));

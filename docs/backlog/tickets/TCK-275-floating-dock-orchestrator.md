@@ -79,6 +79,19 @@ place à une éventuelle sticky bar full-width (mobile).
   > *Le ticket n'est pas réécrit : la ligne d'origine reste, avec ce qu'elle affirmait.*
   > Trouvée par `takussan-web/scripts/check-classes-emises.mjs`, le jour de sa mise en
   > service.
+
+  > ⚠ **Correction du 2026-08-30 (TCK-477).** La classe `pb-[calc(…)]` ci-dessus a été
+  > remplacée par un style en ligne : la barre déclare son encart dans
+  > `useFloatingDockSlot({ corner: 'bottom-full', safeAreaInset: … })` — champ que le TYPE
+  > exige désormais, la branche `bottom-full` de `FloatingDockSlotConfig` ne se construisant
+  > plus sans lui — et le hook le lui rend sous `paddingBottom`. Un style en ligne l'emporte
+  > sur toute classe : la dépendance à l'ordre longhand-après-shorthand disparaît.
+  >
+  > *La délégation que cette ligne ratifiait est ce qui restait à fermer.* TCK-453 avait
+  > supprimé la classe morte ; il restait qu'un prochain consommateur de `bottom-full`
+  > pouvait retomber dans le même trou sans que rien ne le lui dise. C'est le type qui le
+  > lui dit maintenant, à la frappe — et non un commentaire, dont l'échec est précisément
+  > ce que ce ticket a coûté.
 - **Pas de FOUC ni de saut** — les éléments doivent se positionner
   correctement dès le premier paint, sans flash de chevauchement pendant
   l'hydratation.

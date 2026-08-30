@@ -222,10 +222,29 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
               <li key={c}>{c}</li>
             ))}
           </ul>
+          {/*
+            TCK-481 — ce bouton n'avait PAS d'encre a lui : il heritait le text-warning du
+            bandeau tout en repeignant son fond, soit #8a5410 sur l'aplat bg-warning/20
+            (4,10:1 au repos) et #8a5410 sur #8a5410 AU SURVOL — 1,00:1, le libelle de la
+            couleur de son fond, exactement le defaut de TCK-471. Il pose desormais SON fond
+            et SON encre : 6,26:1 au repos, 5,24:1 au survol.
+
+            Les deux fonds sont OPAQUES, et c'est mesure, pas stylistique. Un survol
+            translucide (hover:bg-warning/15, la forme de CalendarPage.tsx et de
+            BrandingBanner.tsx) ne se compose PAS sur le blanc du bouton : background-color
+            REMPLACE, l'aplat se pose donc sur le bandeau teinte qui est dessous et rend
+            #e3d7c7 — 4,41:1, sous le seuil.
+
+            Ce commentaire est HORS de la balise ouvrante, et ce n'est pas une preference :
+            un commentaire // entre deux attributs rend scripts/check-heritage-encre.mjs
+            AVEUGLE sur cet element (ses apostrophes ouvrent une chaine que sa lecture ne
+            referme jamais), et la garde reste verte sur le defaut meme. Mesure ici le
+            2026-08-30, ablation a l'appui.
+          */}
           <button
             type="button"
             onClick={() => navigator.clipboard?.writeText(recoveryCodes.join('\n'))}
-            className="mt-3 rounded-md bg-warning/20 px-3 py-1 text-xs font-semibold hover:bg-warning"
+            className="mt-3 rounded-md bg-card px-3 py-1 text-xs font-semibold text-warning shadow-sm hover:bg-secondary"
           >
             {t('copyAll')}
           </button>

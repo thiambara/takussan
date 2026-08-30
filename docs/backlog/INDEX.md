@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**426 tickets** — 25 ouverts, 400 livrés.
+**435 tickets** — 20 ouverts, 414 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 24 |
+| 📋 Todo | 19 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 400 |
+| ✅ Done | 414 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -49,14 +49,9 @@
 - [TCK-448](tickets/TCK-448-dialogues-invitation-avalent-lerreur.md) — Les dialogues d'invitation avalent l'erreur de saisie : la soumission est bloquée et rien ne s'affiche — cause non identifiée `M · P2 · bug`
 - [TCK-452](tickets/TCK-452-theme-sombre-inatteignable.md) — Aucune BASCULE de thème sombre n'existe : le bloc `.dark` sert de surface locale à deux composants et n'est atteignable par aucun utilisateur `M · P2 · technique`
 - [TCK-463](tickets/TCK-463-typescript-7-bloque-par-typescript-eslint.md) — TypeScript 7 est bloqué par `typescript-eslint`, pas par notre code — mesuré, et la branche qui le portait est supprimée `S · P3 · technique`
-- [TCK-471](tickets/TCK-471-bouton-deverifier-invisible-sur-la-fiche-agence.md) — Le bouton « Déverifier » de la fiche agence est invisible : contraste 1,00:1 `S · P1 · technique`
-- [TCK-472](tickets/TCK-472-statusbadge-nest-pas-le-seul-a-decider-la-couleur-dun-statut.md) — `StatusBadge` affirme être le seul à décider la couleur d'un statut ; ils sont quatre `M · P2 · technique`
-- [TCK-473](tickets/TCK-473-corpus-depreuve-pour-les-gardes-de-gen-features-by-actor.md) — Les trois gardes de `gen-features-by-actor.mjs` ne sont prouvées par rien `S · P2 · technique`
-- [TCK-474](tickets/TCK-474-resolution-report-valide-et-fillable-sans-colonne.md) — `resolution_report` est validé et `$fillable`, mais aucune migration ne crée la colonne `S · P1 · technique`
-- [TCK-475](tickets/TCK-475-toast-de-succes-sur-une-ecriture-echouee.md) — Le brouillon d'assistant annonce « Progression sauvegardée » quand l'écriture a échoué `S · P2 · technique`
-- [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
-- [TCK-477](tickets/TCK-477-le-dock-delegue-la-safe-area-a-un-mecanisme-inexistant.md) — L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé `S · P2 · technique`
-- [TCK-478](tickets/TCK-478-le-motif-de-tck-451-existe-en-trois-exemplaires.md) — Le motif corrigé par TCK-451 existe en trois exemplaires — deux n'ont jamais été touchés `S · P1 · front`
+- [TCK-485](tickets/TCK-485-blanc-sur-destructive-plein-dans-le-badge-du-chat.md) — Le badge du chat pose du blanc sur `--destructive` plein : 2,77:1 en thème sombre `S · P2 · front`
+- [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
+- [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
 
 ## 🚧 Doing
 
@@ -72,10 +67,21 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 400
+## ✅ Done — 414
 
 <details>
-<summary><strong>Vague 52 — Dettes relevées par les revues du parcours de publication (2026-08-29)</strong> — 6 tickets</summary>
+<summary><strong>Vague 53 — Débordements mesurés pendant le lot de la vague 52 : jeton de contraste, encre héritée, brouillons non lus (2026-08-30)</strong> — 5 tickets</summary>
+
+- [TCK-480](tickets/TCK-480-jeton-destructive-sous-aa-en-theme-clair.md) — Le jeton `--destructive` est sous AA en thème clair, partout où il porte du texte `M · P1 · front`
+- [TCK-481](tickets/TCK-481-encre-heritee-dans-twofactorsection.md) — `TwoFactorSection` hérite l'encre de son conteneur : 3,94:1, seconde occurrence du motif de TCK-471 `S · P2 · front`
+- [TCK-482](tickets/TCK-482-upgraderequestform-jette-le-resultat-du-flush.md) — `UpgradeRequestForm` jette le résultat de `flush()` puis détruit le brouillon — 3ᵉ exemplaire du défaut de TCK-475 `S · P1 · front`
+- [TCK-483](tickets/TCK-483-garde-mort-du-toast-de-wizardreprenable.md) — Le garde `if (!completing)` de `WizardReprenable` est du code mort : la fermeture fige `completing` à `false` `S · P2 · front`
+- [TCK-484](tickets/TCK-484-cinq-tables-de-tons-figees-au-cliquet.md) — Cinq tables de tons décident encore une couleur hors de `StatusBadge`, figées au cliquet faute de vocabulaire commun `M · P3 · front`
+
+</details>
+
+<details>
+<summary><strong>Vague 52 — Dettes relevées par les revues du parcours de publication (2026-08-29)</strong> — 15 tickets</summary>
 
 - [TCK-465](tickets/TCK-465-brouillon-echec-silencieux.md) — Un brouillon de parcours peut échouer à s'enregistrer sans que personne ne le sache `S · P2 · technique`
 - [TCK-466](tickets/TCK-466-garde-espaces-de-noms-enum.md) — Rien n'empêche de composer à la main le chemin d'un vocabulaire d'enum `S · P2 · technique`
@@ -83,6 +89,15 @@ _(aucun)_
 - [TCK-468](tickets/TCK-468-cibles-tactiles-champs.md) — Les champs de formulaire font 32 px de haut là où les pastilles en font 44 `M · P2 · front`
 - [TCK-469](tickets/TCK-469-valeur-devenue-non-pertinente.md) — Changer le type d'un bien laisse en base des valeurs que le nouveau type ne justifie plus `M · P1 · full`
 - [TCK-470](tickets/TCK-470-server-actions-payload-plat.md) — Les server actions des biens sont typées à plat alors que les payloads sont imbriqués `S · P2 · technique`
+- [TCK-471](tickets/TCK-471-bouton-deverifier-invisible-sur-la-fiche-agence.md) — Le bouton « Déverifier » de la fiche agence est invisible : contraste 1,00:1 `S · P1 · technique`
+- [TCK-472](tickets/TCK-472-statusbadge-nest-pas-le-seul-a-decider-la-couleur-dun-statut.md) — `StatusBadge` affirme être le seul à décider la couleur d'un statut ; ils sont quatre `M · P2 · technique`
+- [TCK-473](tickets/TCK-473-corpus-depreuve-pour-les-gardes-de-gen-features-by-actor.md) — Les trois gardes de `gen-features-by-actor.mjs` ne sont prouvées par rien `S · P2 · technique`
+- [TCK-474](tickets/TCK-474-resolution-report-valide-et-fillable-sans-colonne.md) — `resolution_report` est validé et `$fillable`, mais aucune migration ne crée la colonne `S · P1 · technique`
+- [TCK-475](tickets/TCK-475-toast-de-succes-sur-une-ecriture-echouee.md) — Le brouillon d'assistant annonce « Progression sauvegardée » quand l'écriture a échoué `S · P2 · technique`
+- [TCK-476](tickets/TCK-476-la-carte-dimpact-ne-connait-pas-les-fichiers-de-langue.md) — La carte d'impact ne connaît pas les fichiers de langue, et retombe sur la suite entière `S · P2 · technique`
+- [TCK-477](tickets/TCK-477-le-dock-delegue-la-safe-area-a-un-mecanisme-inexistant.md) — L'orchestrateur de dock délègue la safe-area iOS à un mécanisme qui n'a jamais existé `S · P2 · technique`
+- [TCK-478](tickets/TCK-478-le-motif-de-tck-451-existe-en-trois-exemplaires.md) — Le motif corrigé par TCK-451 existe en trois exemplaires — deux n'ont jamais été touchés `S · P1 · front`
+- [TCK-479](tickets/TCK-479-skip-ci-eteint-la-ci-de-la-pr-dintegration-suivante.md) — Le `[skip ci]` de la carte d'impact éteint la CI de la PR d'intégration suivante — 7 fois sur 12 `M · P1 · full`
 
 </details>
 

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 
+import { StatusBadge } from '@/components/console/StatusBadge';
 import { cn } from '@/lib/utils';
 import type {
   InventoryElementState,
@@ -10,12 +11,25 @@ import type {
 } from '@/types/inventory';
 import {
   inventoryElementStateBadgeClass,
-  inventoryStatusBadgeClass,
+  inventoryStatusTone,
   inventoryTypeBadgeClass,
 } from './labels';
 
-const BASE_BADGE = 'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium';
+/**
+ * ⚠ `border border-transparent` n'est pas décoratif — TCK-484. `endommagé` porte désormais une
+ * bordure PLEINE (le cran d'avertissement, passé sur un canal sans texte), et sans bordure
+ * transparente sur les autres pastilles, ce seul badge serait 2 px plus haut que ses voisins de
+ * la même ligne. C'est aussi ce que `Badge` fait, pour la même raison.
+ */
+const BASE_BADGE =
+  'inline-flex items-center rounded-full border border-transparent px-2 py-0.5 text-xs font-medium';
 
+/**
+ * Le statut d'un état des lieux — ABSORBÉ par `StatusBadge` (TCK-484).
+ *
+ * Il portait sa propre table de classes ; il ne porte plus qu'une table de TONS
+ * (`INVENTORY_STATUS_TONE`) et délègue la couleur. C'est la forme de `kyc/kyc-components.tsx`.
+ */
 export function InventoryStatusBadge({
   status,
   className,
@@ -25,9 +39,11 @@ export function InventoryStatusBadge({
 }) {
   const t = useTranslations('inventory.status');
   return (
-    <span className={cn(BASE_BADGE, inventoryStatusBadgeClass(status), className)}>
-      {t(status)}
-    </span>
+    <StatusBadge
+      label={t(status)}
+      tone={inventoryStatusTone(status)}
+      className={cn('rounded-full', className)}
+    />
   );
 }
 

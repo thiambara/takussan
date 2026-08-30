@@ -116,10 +116,12 @@ class MaintenancePrincipalFieldsTest extends TestCase
      * le statut, déposer son rapport, planifier son passage.
      *
      * ⚠ Le rapport passe par `resolution_notes` et NON par `resolution_report` : ce
-     * second champ est validé par `UpdateMaintenanceRequestRequest::rules()` et déclaré
-     * `$fillable`, mais **la colonne n'existe pas** — un `PATCH` qui le porte rend 500
-     * (`SQLSTATE[42703] Undefined column`). Défaut réel, hors périmètre de TCK-445,
-     * relevé le 2026-08-29 en écrivant ce test.
+     * second champ n'a jamais eu de colonne, et le `PATCH` qui le portait rendait 500
+     * (`SQLSTATE[42703] Undefined column`). Défaut relevé le 2026-08-29 en écrivant ce
+     * test, hors périmètre de TCK-445 — **corrigé depuis par TCK-474**, qui a tranché le
+     * retrait du champ plutôt que la création de la colonne : il est désormais
+     * `prohibited` (422 qui le nomme) et absent de `$fillable`. Le contre-témoin vit
+     * dans `MaintenanceResolutionReportTest`.
      */
     public function test_assigned_provider_keeps_status_and_report(): void
     {

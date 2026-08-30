@@ -24,6 +24,7 @@ import {
 } from '@/lib/calendar-date';
 import { useCalendar } from '@/lib/queries/calendar';
 import type { CalendarEvent, CalendarEventType, CalendarView } from '@/types/calendar';
+import { paletteEnAttente, paletteFor, paletteForType } from './event-colors';
 import { MonthView } from './MonthView';
 import { WeekView } from './WeekView';
 import { DayView } from './DayView';
@@ -42,30 +43,26 @@ const TYPE_OPTIONS: { value: CalendarEventType; labelKey: string }[] = [
   { value: 'visit', labelKey: 'types.visit' },
 ];
 
+/**
+ * La légende ne porte plus AUCUNE couleur — TCK-484.
+ *
+ * Elle en portait trois, recopiées d'`event-colors.ts`, et **la copie avait divergé** : `visit` y
+ * était peint en `--info`, c'est-à-dire de la couleur d'une réservation, alors que la grille juste
+ * en dessous le peint en `--primary` depuis TCK-381. *Une légende qui ment sur la grille qu'elle
+ * légende est pire que pas de légende du tout* — et rien ne pouvait le signaler, puisque les deux
+ * tables étaient justes chacune de son côté.
+ *
+ * Ce tableau ne transporte donc plus que des CLÉS ; la teinte se demande à `paletteForType()` au
+ * rendu. La divergence n'est pas corrigée, elle n'a plus d'endroit où naître.
+ */
 const LEGEND_ITEMS: {
   type: CalendarEventType;
   labelKey: string;
   helperKey: string;
-  className: string;
 }[] = [
-  {
-    type: 'booking',
-    labelKey: 'types.booking',
-    helperKey: 'legend.helper.booking',
-    className: 'bg-info/15 text-info border-info/30',
-  },
-  {
-    type: 'visit',
-    labelKey: 'types.visit',
-    helperKey: 'legend.helper.visit',
-    className: 'bg-info/15 text-info border-info/30',
-  },
-  {
-    type: 'lease',
-    labelKey: 'types.lease',
-    helperKey: 'legend.helper.lease',
-    className: 'bg-success/15 text-success border-success/30',
-  },
+  { type: 'booking', labelKey: 'types.booking', helperKey: 'legend.helper.booking' },
+  { type: 'visit', labelKey: 'types.visit', helperKey: 'legend.helper.visit' },
+  { type: 'lease', labelKey: 'types.lease', helperKey: 'legend.helper.lease' },
 ];
 
 export interface CalendarPageProps {
@@ -231,10 +228,12 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                   onClick={() => toggleType(opt.value)}
                   className={cn(
                     'px-3 py-1.5 text-sm transition-colors',
+                    // TCK-484 — ce ternaire portait DEUX branches identiques
+                    // (`booking ? 'bg-info/15 …' : 'bg-info/15 …'`) : une distinction écrite,
+                    // jamais rendue. Le bouton reprend la teinte du TYPE qu'il filtre, d'où
+                    // `paletteForType()` — la même source que la grille et que la légende.
                     active
-                      ? opt.value === 'booking'
-                        ? 'bg-info/15 text-info'
-                        : 'bg-info/15 text-info'
+                      ? paletteForType(opt.value).pill
                       : 'text-muted-foreground hover:bg-muted/50',
                   )}
                 >
@@ -360,7 +359,7 @@ function CalendarLegend() {
       {LEGEND_ITEMS.map((item) => (
         <div key={item.type} className="flex items-start gap-2">
           <span
-            className={cn('mt-0.5 h-3 w-3 shrink-0 rounded-full border', item.className)}
+            className={cn('mt-0.5 h-3 w-3 shrink-0 rounded-full border', paletteForType(item.type).pill)}
             aria-hidden="true"
           />
           <div className="min-w-0">
@@ -370,7 +369,10 @@ function CalendarLegend() {
         </div>
       ))}
       <div className="flex items-start gap-2 sm:col-span-3">
-        <span className="mt-0.5 h-3 w-3 shrink-0 rounded-full border border-border bg-muted" aria-hidden="true" />
+        <span
+          className={cn('mt-0.5 h-3 w-3 shrink-0 rounded-full border', paletteEnAttente().pill)}
+          aria-hidden="true"
+        />
         <p className="text-xs text-muted-foreground">{t('legend.pendingNote')}</p>
       </div>
     </section>
@@ -421,7 +423,11 @@ function SelectedDayPanel({
                   hour: '2-digit',
                   minute: '2-digit',
                 });
-            const palette = LEGEND_ITEMS.find((item) => item.type === event.type);
+            // TCK-484 — la pastille se demandait à `LEGEND_ITEMS`, qui ne connaît que le TYPE :
+            // un événement `pending` y prenait la couleur d'un événement confirmé, alors que la
+            // grille du mois, deux colonnes à gauche, le peignait en gris. `paletteFor()` lit le
+            // statut ET le type — c'est la même fonction que la grille appelle.
+            const palette = paletteFor(event);
             return (
               <li key={`${event.type}-${event.id}`}>
                 <button
@@ -431,7 +437,7 @@ function SelectedDayPanel({
                   data-testid={`calendar-selected-day-row-${event.type}-${event.id}`}
                 >
                   <span
-                    className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full border', palette?.className)}
+                    className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full border', palette.pill)}
                     aria-hidden="true"
                   />
                   <span className="min-w-0">

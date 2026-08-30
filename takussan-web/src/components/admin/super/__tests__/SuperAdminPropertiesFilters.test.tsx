@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { withIntl } from '@/test/intl';
@@ -17,7 +17,62 @@ import { SuperAdminPropertiesFilters } from '../SuperAdminPropertiesFilters';
  * · « debounces search via form submit » : ce n'était pas une temporisation. La recherche ne
  *   partait qu'à la soumission du formulaire, c'est-à-dire à la touche Entrée — un geste que
  *   rien n'annonçait, et qu'un utilisateur qui clique ailleurs ne fait jamais.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-478 — pourquoi la recherche ne se frappe plus par `await user.type`
+ *
+ * Le test « la recherche est TEMPORISÉE » portait le motif corrigé par TCK-451 dans
+ * `console/__tests__/DebouncedSearchInput.test.tsx`, à l'identique : dix caractères frappés par
+ * `await user.type`, puis `expect(mockReplace).not.toHaveBeenCalled()`. `user.type` cède la main
+ * entre chaque caractère et `useDebouncedCallback.call` ré-arme la fenêtre à chacun : ce qui doit
+ * rester sous les 300 ms n'est pas la frappe entière mais l'intervalle entre deux frappes, et un
+ * seul décrochage au-dessus de 300 ms retourne l'assertion. Mesuré au repos le 2026-08-29 :
+ * 2,9-4,6 ms d'intervalle, soit 65× à 103× — une marge de QUEUE, contre des facteurs de
+ * contention de 11,6× à 16,7× mesurés par TCK-312.
+ *
+ * TCK-451 ferme la course en injectant `debounceMs = 60 000`, plus long que `testTimeout`. Cette
+ * porte est inatteignable ici : ce fichier monte un ÉCRAN, et l'écran ne passe pas `debounceMs`
+ * au champ — le lui faire passer contredirait l'invariant que la prop documente elle-même
+ * (`grep -rn 'debounceMs=' src` doit rendre les seuls fichiers de test, le délai étant un
+ * arbitrage de produit et non un réglage d'appelant).
+ *
+ * D'où {@link frappe} : dix `fireEvent.change` dans une seule et même tâche, sans un `await`
+ * entre eux — le patron déjà éprouvé de `search/__tests__/FilterSidebar.test.tsx` (TCK-335).
+ * Aucune macro-tâche ne s'intercale, donc aucun `setTimeout` ne peut échoir pendant la frappe,
+ * quelle que soit la charge. La fenêtre est ensuite faite échoir par le `blur`, qui est le
+ * chemin de production (`onBlur={() => commit.flush()}`) et qui est SYNCHRONE : l'attente non
+ * bornée qui suivait ne se borne pas, elle disparaît.
+ *
+ * ⚠ Que la fenêtre échoie TOUTE SEULE reste prouvé, mais ailleurs : `DebouncedSearchInput.test
+ * .tsx` porte ce test-là. Ce fichier-ci ne le portait pas davantage avant le correctif — son
+ * `waitFor` attendait un commit, pas la preuve qu'il partait sans geste.
+ * ────────────────────────────────────────────────────────────────────────────────────────────
  */
+
+/**
+ * La borne locale de la seule attente de ce fichier qui paie l'horloge réelle : celle du
+ * sélecteur d'agence, dont la recherche est temporisée à 300 ms puis suivie d'un `fetch`.
+ *
+ * 10 000 ms — la valeur retenue par TCK-451 pour la même fenêtre : marge de 33× sur les
+ * 300,6-307,3 ms mesurés au repos le 2026-08-29, et 2,5× sur le pire cas observé sous contention
+ * (4032 ms). Le défaut global (`asyncUtilTimeout` = 3000 ms, TCK-313) n'offre qu'un facteur 10 —
+ * moins que les facteurs de contention 11,6-16,7× de TCK-312 — et vit dans un autre fichier,
+ * qu'un autre ticket peut resserrer sans voir celui-ci. La borne reste sous `testTimeout` (20 s)
+ * pour que l'échec soit une assertion lisible et non un « Test timed out ».
+ */
+const BUDGET_DES_ATTENTES_REELLES = 10_000;
+
+/**
+ * Frappe SANS céder la main : un `change` par caractère, tous dans la même tâche (TCK-478).
+ *
+ * Le champ ne lit que `onChange` et `onBlur` : ce que cette frappe lui montre est exactement ce
+ * que `user.type` lui montrait, à ceci près qu'aucun `setTimeout` ne peut s'intercaler.
+ */
+function frappe(champ: HTMLElement, texte: string) {
+  for (let i = 1; i <= texte.length; i += 1) {
+    fireEvent.change(champ, { target: { value: texte.slice(0, i) } });
+  }
+}
 
 const mockReplace = vi.fn();
 const mockSearchParams = {
@@ -84,7 +139,15 @@ describe('<SuperAdminPropertiesFilters>', () => {
     await user.click(champ);
     await user.type(champ, 'Ziguinchor');
 
-    await user.click(await screen.findByRole('option', { name: 'Ziguinchor Habitat' }));
+    // Borne locale (TCK-478) : cette attente-ci est réelle — 300 ms d'anti-rebond du sélecteur
+    // d'agence, puis un `fetch`. Le budget global de 3000 ms ne lui laissait qu'un facteur 10.
+    await user.click(
+      await screen.findByRole(
+        'option',
+        { name: 'Ziguinchor Habitat' },
+        { timeout: BUDGET_DES_ATTENTES_REELLES },
+      ),
+    );
 
     expect(mockReplace).toHaveBeenCalledWith(
       expect.stringContaining('filter%5Bagency_id%5D=63'),
@@ -107,21 +170,28 @@ describe('<SuperAdminPropertiesFilters>', () => {
     expect(replaced).toContain('filter%5Bstatus%5D=available');
   });
 
-  it('la recherche est TEMPORISÉE : 10 caractères ≤ 2 écritures d’URL — AC3 TCK-363', async () => {
-    const user = userEvent.setup();
+  it('la recherche est TEMPORISÉE : 10 caractères n’écrivent l’URL qu’une fois — AC3 TCK-363', () => {
     mockAgencies();
     renderFilters();
 
     const champ = screen.getByLabelText('Rechercher un bien');
-    await user.type(champ, 'appartemen');
+    frappe(champ, 'appartemen'); // 10 caractères, sans céder la main une seule fois
 
     // Rien n'est encore parti : on est dans la fenêtre de temporisation.
     expect(mockReplace).not.toHaveBeenCalled();
     // Et l'interface n'est pas muette pour autant (AC4).
     expect(screen.getByTestId('console-search-pending')).toBeInTheDocument();
 
-    await waitFor(() => expect(mockReplace).toHaveBeenCalled());
-    expect(mockReplace.mock.calls.length).toBeLessThanOrEqual(2);
+    // La fenêtre échoit MAINTENANT, par le geste de l'utilisateur qui quitte le champ ; `flush()`
+    // est synchrone, donc il n'y a plus d'attente à borner (TCK-478).
+    fireEvent.blur(champ);
+
+    // ⚠ Le test disait « ≤ 2 » : la borne haute était une prudence rendue nécessaire par le
+    // `waitFor` qu'il portait — on ne savait pas COMBIEN de fenêtres avaient échu pendant la
+    // frappe. Le commit étant désormais déclenché par un geste unique et synchrone, le compte
+    // est exact, et c'est lui qui distingue « temporisé » de « une écriture par caractère »
+    // (TCK-478).
+    expect(mockReplace).toHaveBeenCalledTimes(1);
     expect(String(mockReplace.mock.calls.at(-1)?.[0])).toContain(
       'filter%5Bsearch%5D=appartemen',
     );

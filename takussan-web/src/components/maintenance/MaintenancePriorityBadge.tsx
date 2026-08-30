@@ -1,6 +1,7 @@
 import { AlertCircle, AlertTriangle, ArrowDown, Circle, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Badge } from '@/components/ui/badge';
+
+import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
 import { cn } from '@/lib/utils';
 import type { MaintenancePriority } from '@/types/maintenance';
 
@@ -9,37 +10,59 @@ interface MaintenancePriorityBadgeProps {
   readonly className?: string;
 }
 
-const PRIORITY_CONFIG: Record<MaintenancePriority, { color: string; icon: LucideIcon }> = {
-  urgent: {
-    color: 'bg-destructive/15 text-destructive border-destructive/30 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/30',
-    icon: AlertTriangle,
-  },
-  high: {
-    color: 'bg-warning/15 text-warning border-warning/30 dark:bg-warning/10 dark:text-warning dark:border-warning/30',
-    icon: AlertCircle,
-  },
-  normal: {
-    color: 'bg-muted text-foreground border-border dark:bg-foreground dark:text-muted-foreground dark:border-border',
-    icon: Circle,
-  },
-  low: {
-    color: 'bg-info/10 text-info border-info/30 dark:bg-info/10 dark:text-info dark:border-info/30',
-    icon: ArrowDown,
-  },
+/**
+ * La priorité d'une demande de maintenance — ABSORBÉE par `StatusBadge` (TCK-484).
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * POURQUOI ELLE A ÉTÉ ABSORBÉE, ALORS QUE LES TROIS AUTRES FAMILLES NE L'ONT PAS ÉTÉ
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Le cliquet C de `scripts/check-status-badge-unique.mjs` la retenait au motif qu'elle *« porte
+ * une variante `dark:` explicite que `StatusBadge` n'a pas »*. **C'était le motif le plus faible
+ * des cinq, et la mesure l'a retourné :** cette variante `dark:` était la seule chose que ce
+ * fichier faisait de plus, et elle était FAUSSE.
+ *
+ *   normal: 'bg-muted text-foreground … dark:bg-foreground dark:text-muted-foreground'
+ *
+ * En thème sombre, `--foreground` est la crème #fcf9f3 et `--muted-foreground` le taupe #b8aa97 :
+ * la pastille rendait **2,16:1**, un texte clair sur un fond clair, sur les deux surfaces de ses
+ * écrans. Les trois autres `dark:` étaient soit des recopies exactes de leur valeur claire
+ * (`urgent`, `low` : sans effet), soit un ajustement d'alpha (`high`). *La seule justification de
+ * l'exception était l'inversion qui la cassait.*
+ *
+ * Et le vocabulaire, lui, tombe exactement : quatre priorités, quatre des cinq tons du DS —
+ * `urgent` → `danger`, `high` → `attention`, `normal` → `neutral`, `low` → `info`. Il n'y a rien
+ * ici que `StatusBadge` ne sache dire. Ce fichier ne décide donc plus aucune couleur : il traduit
+ * une priorité en TON et délègue, comme `kyc/kyc-components.tsx`.
+ *
+ * ⚠ **Ce qui est perdu, et assumé :** la bordure teintée (`border-destructive/30` …).
+ * `StatusBadge` pose `border-transparent` — c'est une décision du DS, pas un manque, et l'icône
+ * porte déjà la distinction non chromatique que la bordure n'apportait pas.
+ */
+const PRIORITY_TONE: Record<MaintenancePriority, StatusTone> = {
+  urgent: 'danger',
+  high: 'attention',
+  normal: 'neutral',
+  low: 'info',
+};
+
+const PRIORITY_ICON: Record<MaintenancePriority, LucideIcon> = {
+  urgent: AlertTriangle,
+  high: AlertCircle,
+  normal: Circle,
+  low: ArrowDown,
 };
 
 export function MaintenancePriorityBadge({ priority, className }: MaintenancePriorityBadgeProps) {
   const t = useTranslations('maintenance.priority');
-  const config = PRIORITY_CONFIG[priority] ?? PRIORITY_CONFIG.normal;
-  const Icon = config.icon;
+  const Icon = PRIORITY_ICON[priority] ?? PRIORITY_ICON.normal;
 
   return (
-    <Badge
-      variant="outline"
-      className={cn('flex w-fit items-center gap-1.5 px-2 py-0.5 whitespace-nowrap', config.color, className)}
-    >
-      <Icon className="h-3 w-3" />
-      <span>{t(priority)}</span>
-    </Badge>
+    <StatusBadge
+      label={t(priority)}
+      tone={PRIORITY_TONE[priority] ?? 'neutral'}
+      icon={<Icon className="h-3 w-3" />}
+      className={cn('gap-1.5 px-2', className)}
+    />
   );
 }

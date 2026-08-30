@@ -507,6 +507,55 @@ jobs:
         # abaisse le seuil à 3, qu'on retire un thème ou une surface, et qu'on lise les
         # commentaires — le docblock de la table CITE la recette interdite pour l'expliquer.
         run: node scripts/check-profile-badge-contrast.mjs --report
+      - name: Le jeton --destructive tient le seuil AA là où le code le pose
+        # TCK-480. Le jeton — `#e7000b` rendu, le rouge par défaut de shadcn — a été heurté par
+        # DEUX tickets du lot précédent, séparément, sur des écrans sans rapport, en mesurant
+        # autre chose : 3,41 – 3,99:1 (TCK-472, ton `danger`) et ~4,0:1 (TCK-471, variante
+        # `destructive`). *Deux relevés indépendants qui tombent sur le même chiffre décrivent un
+        # jeton, pas un écran* — et un correctif d'écran ne pouvait pas y arriver : TCK-471 a
+        # porté son bouton de 3,48 à 4,48:1 en corrigeant son conteneur, sous le seuil, et assez
+        # près pour que le chiffre cesse d'avoir l'air faux.
+        #
+        # ⚠ CE QUE CETTE GARDE MESURE ET QUE LES DEUX AUTRES NE POUVAIENT PAS : l'encre sur SON
+        # PROPRE APLAT, à chacun des poids que le code écrit, thème par thème. C'est là que le
+        # défaut vivait — et c'est ainsi que le thème SOMBRE a été trouvé fautif alors que le
+        # ticket l'annonçait conforme : `#ff6467` passait sur les surfaces NUES, celles qu'on
+        # pense à mesurer, et rendait 3,39:1 sur `bg-destructive/30`.
+        #
+        # Le jeu d'aplats est DÉRIVÉ du source, jamais écrit ici : un `/25` écrit demain est
+        # mesuré demain. Une liste tenue à la main serait juste le jour où on l'écrit.
+        run: node scripts/check-destructive-contrast.mjs --report
+      - name: Aucune encre héritée ne rend un descendant illisible
+        # TCK-471. `bg-foreground text-background` retourne DEUX PROPRIÉTÉS, pas les jetons : un
+        # descendant qui tire son fond d'une variante (`outline` → `bg-background`) hérite de
+        # l'encre du conteneur et peint du #fcf9f3 sur du #fcf9f3. **Contraste 1,00:1** sur le
+        # bouton « Déverifier » de la fiche agence — le bouton occupait sa place, réagissait au
+        # survol, se cliquait, et son libellé n'existait visuellement pas.
+        #
+        # ⚠ Ce défaut ne se voit qu'en thème CLAIR, qui est le thème de tout le monde : sous une
+        # portée `.dark` les jetons basculent et le libellé réapparaît. La seule condition qui le
+        # révèle est la condition normale, et c'est pourquoi il a survécu.
+        #
+        # La garde part du MOTIF, jamais de cette ligne-là : tout conteneur qui pose le couple et
+        # contient un descendant dont le fond vient d'une variante. Elle a d'ailleurs trouvé une
+        # seconde occurrence que le ticket disait unique (`TwoFactorSection.tsx`, 3,94:1).
+        run: node scripts/check-heritage-encre.mjs --report
+
+      - name: La couleur d'un statut se décide en un seul endroit
+        # TCK-472. `console/StatusBadge.tsx` ouvrait sur « le seul endroit du dépôt où la couleur
+        # d'un statut est décidée ». Ils étaient NEUF, et trois portaient le nom `StatusBadge`
+        # sans être celui-là — dans un fichier qui définit son propre homonyme, `<StatusBadge …>`
+        # résout vers le local, et ni le typage ni le lint ne le signalent.
+        #
+        # ⚠ Le relevé qui aurait dû les trouver ne le POUVAIT pas : l'AC3 de TCK-450 partait des
+        # fichiers qui IMPORTENT le canonique. Un homonyme local n'importe rien, il est invisible
+        # par construction. *Un relevé qui part des importateurs ne voit jamais les doublons — il
+        # ne voit que les usages corrects.* Cette garde part des DÉFINITIONS et des LITTÉRAUX.
+        #
+        # Son contrôle C est un cliquet à DEUX SENS : un fichier de plus est un doublon neuf, un
+        # fichier de moins est une entrée périmée — et une liste périmée est exactement ce dont ce
+        # ticket est né.
+        run: node scripts/check-status-badge-unique.mjs --report
       - name: Aucun refus par `forbidden()` tant que authInterrupts est désactivé
         # TCK-167 avait retiré `forbidden()` de six pages, posé `assertCanReachAgentArea` et
         # décidé en AC3 que `experimental.authInterrupts` ne serait pas activé. Les trois points
@@ -866,3 +915,25 @@ jobs:
         # ⚠ Elle ne lit que les `use` de portée fichier. Un `new \Dompdf\Dompdf` en dur lui
         # échappe — c'est un PLANCHER, elle attrape la forme qui a coûté, pas toutes les formes.
         run: node scripts/check-deps-dev-atteignables.mjs --report
+
+      - name: Aucune tête de branche n'éteint la CI, et le frein anti-boucle est lu des deux côtés
+        # ⚠ LIRE LA PORTÉE AVANT DE CROIRE CE VERT (TCK-479). Ce step porte DEUX contrôles qui
+        # ne valent pas la même chose ici :
+        #
+        #   · le contrôle B — le marqueur `[carte-impact]` qu'`api-ci.yml` COMMITE est bien
+        #     celui que ses conditions `if:` LISENT — s'exerce pleinement. C'est lui qui garde
+        #     le remède : les deux côtés divergent en silence, et la boucle de régénération
+        #     repart un dimanche.
+        #
+        #   · le contrôle A — la tête ne porte pas le marqueur d'exclusion global de GitHub —
+        #     est VERT PAR CONSTRUCTION quand il tourne ici. Le défaut supprime son propre
+        #     détecteur : une tête marquée saute TOUS les workflows, Repo CI compris, et ce
+        #     step n'est jamais exécuté. Aucun événement `push` ni `pull_request` ne peut voir
+        #     ce cas — le câbler ailleurs n'y changerait rien.
+        #
+        # Il reste ici pour le contrôle B, et parce qu'un vert qui explique ce qu'il ne prouve
+        # pas vaut mieux qu'un vert muet. Le contrôle A s'exerce, lui, AVANT le push : dans le
+        # rituel `for g in scripts/check-*.mjs` de CLAUDE.md, et sur la tête distante avant
+        # d'ouvrir une PR d'intégration —
+        #   git fetch origin dev && node scripts/check-skip-ci-marker.mjs --tete origin/dev
+        run: node scripts/check-skip-ci-marker.mjs --report

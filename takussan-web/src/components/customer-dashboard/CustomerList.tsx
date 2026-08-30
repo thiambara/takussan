@@ -2,12 +2,10 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { UserPlus } from 'lucide-react';
 
-import { DataTable, type DataTableColumn } from '@/components/console';
+import { DataTable, type DataTableColumn, StatusBadge, type StatusTone } from '@/components/console';
 import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
 import { EmptyState } from '@/components/feedback';
-import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { CustomerListItem } from '@/types/customer';
 import {
@@ -90,7 +88,7 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
     {
       id: 'status',
       header: t('columns.status'),
-      cell: (customer) => <StatusBadge status={customer.status} />,
+      cell: (customer) => <CustomerStatusBadge status={customer.status} />,
     },
   ];
 
@@ -119,7 +117,7 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
               </p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <PipelineBadge stage={customer.pipeline_stage} />
-                <StatusBadge status={customer.status} />
+                <CustomerStatusBadge status={customer.status} />
               </div>
               {customer.tags && customer.tags.length > 0 && (
                 <div className="mt-1.5">
@@ -152,37 +150,67 @@ function PipelineBadge({
   // Repli sur le jeton brut : même invariant que le `?? stage` d'avant, pour une
   // valeur de fil que le front ne connaîtrait pas.
   const label = (pipelineStageValues as readonly string[]).includes(stage) ? t(stage) : stage;
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        'border-border bg-muted text-foreground',
-        stage === 'converted' && 'border-success/30 bg-success/10 text-success',
-        stage === 'negotiating' && 'border-warning/30 bg-warning/10 text-warning',
-        stage === 'lost' && 'border-destructive/30 bg-destructive/10 text-destructive',
-        stage === 'qualified' && 'border-primary/30 bg-primary/5 text-primary',
-      )}
-    >
-      {label}
-    </Badge>
-  );
+  return <StatusBadge label={label} tone={PIPELINE_STAGE_TONE[stage] ?? 'neutral'} />;
 }
 
-function StatusBadge({ status }: { status: CustomerListItem['status'] }) {
+/**
+ * `étape du pipeline → ton du DS`, et `statut du client → ton du DS` (TCK-472).
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * CE QUE CES DEUX TABLES REMPLACENT
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Ce fichier définissait son propre `StatusBadge` — un HOMONYME du composant de `console/`, monté
+ * juste sous un `DataTable` importé de ce même barrel. `<StatusBadge …>` y résolvait vers le
+ * local, et rien, ni au typage ni au lint, ne le signalait. Il coloriait quatre étapes et deux
+ * statuts à la main, en quatre familles de jetons, sans lire la table des tons.
+ *
+ * L'écart n'était pas seulement structurel : `qualified` portait `bg-primary/5 text-primary`, qui
+ * mesure **4,24:1 en clair** sur `bg-muted` plein — la surface de la carte mobile survolée de ce
+ * fichier même (l. 112, `hover:bg-muted`) — et **3,73:1 en sombre**, sous le seuil AA de 4,5:1 des
+ * deux côtés. Personne ne l'avait mesuré : la couleur avait été choisie ici, pas dans la table.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LE CRITÈRE D'ARBITRAGE — repris tel quel de `kyc/kyc-components.tsx`
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ *   `attention` = une décision est attendue d'un opérateur.
+ *   `info`      = c'est décidé, ça suit son cours, il n'y a rien à faire.
+ *   `neutral`   = la fiche existe, rien n'est attendu.
+ *
+ * D'où `negotiating` → `attention` (il faut relancer), `qualified` → `info` (c'est engagé, ça
+ * avance), `lead` et `prospect` → `neutral`.
+ *
+ * ⚠ **`deleted` va à `neutral` et NON à `danger`**, alors que `blocked` va à `danger`. Un client
+ * supprimé est un état terminal dont plus rien n'est attendu ; un client bloqué est une décision
+ * active qu'un opérateur a prise et qu'il peut lever. Les peindre pareil aurait effacé la seule
+ * différence qui compte à l'écran. C'est aussi le choix qui expose le moins de surface au trou
+ * mesuré du ton `danger` (cf. le docblock de `TONE_CLASSES`).
+ *
+ * ⚠ `active` passe de gris à `success` — il était `bg-muted text-foreground`, exactement comme
+ * `deleted` et `lead`. Un statut nominal qui se peint comme l'absence de statut ne dit rien ; et
+ * `available` chez le bien porte déjà `success` pour la même idée.
+ */
+const PIPELINE_STAGE_TONE: Readonly<Record<string, StatusTone>> = {
+  lead: 'neutral',
+  prospect: 'neutral',
+  qualified: 'info',
+  negotiating: 'attention',
+  converted: 'success',
+  lost: 'danger',
+};
+
+const CUSTOMER_STATUS_TONE: Readonly<Record<string, StatusTone>> = {
+  active: 'success',
+  inactive: 'neutral',
+  blocked: 'danger',
+  deleted: 'neutral',
+};
+
+function CustomerStatusBadge({ status }: { status: CustomerListItem['status'] }) {
   const t = useTranslations('crm.customerStatus');
   const label = (customerStatusValues as readonly string[]).includes(status) ? t(status) : status;
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        'border-border bg-muted text-foreground',
-        status === 'blocked' && 'border-destructive/30 bg-destructive/10 text-destructive',
-        status === 'inactive' && 'border-border bg-muted/50 text-muted-foreground',
-      )}
-    >
-      {label}
-    </Badge>
-  );
+  return <StatusBadge label={label} tone={CUSTOMER_STATUS_TONE[status] ?? 'neutral'} />;
 }
 
 /**

@@ -108,7 +108,13 @@ const TONS_ATTENDUS: Readonly<Record<StatusTone, readonly string[]>> = {
   success: ['bg-success/10', 'text-success'],
   attention: ['bg-warning/12', 'text-warning'],
   danger: ['bg-destructive/10', 'text-destructive'],
-  info: ['bg-secondary', 'text-secondary-foreground'],
+  // ⚠ `info` valait `['bg-secondary', 'text-secondary-foreground']` jusqu'au 2026-08-30 (TCK-472).
+  // `--info` existe depuis TCK-381 pour « une pastille en cours » ; le ton qui porte ce nom ne
+  // s'en servait pas, et le beige de chrome (#f3ead8) est à trois points par canal de `--muted`
+  // (#f1ece0) — `info` et `neutral` étaient indiscernables à l'œil. Le récit complet est dans le
+  // docblock de `TONE_CLASSES`. La ligne est modifiée ICI et non dérivée : c'est un test de
+  // NON-DÉRIVE, et l'AC1 ci-dessous porte toujours sur la table ENTIÈRE.
+  info: ['bg-info/10', 'text-info'],
 };
 
 const TONS = Object.keys(TONS_ATTENDUS) as StatusTone[];

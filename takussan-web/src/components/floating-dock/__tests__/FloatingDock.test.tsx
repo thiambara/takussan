@@ -15,8 +15,12 @@ import React from 'react';
 
 import { FloatingDockProvider } from '../FloatingDockProvider';
 import { useFloatingDockSlot } from '../useFloatingDockSlot';
+import type { FloatingDockSlotConfig } from '../types';
 
 const BASE = 'var(--floating-dock-base, 16px)';
+
+/** Encart de zone sûre de la sonde — cf. `describe('… la zone sûre …')` plus bas. */
+const PROBE_INSET = 'calc(1rem + env(safe-area-inset-bottom))';
 
 function Probe({
   id,
@@ -31,9 +35,16 @@ function Probe({
   height: number;
   enabled?: boolean;
 }) {
-  const { bottom } = useFloatingDockSlot({ id, corner, priority, height, enabled });
+  // TCK-477 — la configuration est une union discriminée : un `bottom-full` ne se
+  // construit pas sans `safeAreaInset`. La sonde branche donc explicitement, au lieu
+  // de passer un `corner` de type union (que `tsc` refuserait, à raison).
+  const config: FloatingDockSlotConfig =
+    corner === 'bottom-full'
+      ? { id, priority, height, enabled, corner, safeAreaInset: PROBE_INSET }
+      : { id, priority, height, enabled, corner };
+  const { bottom, paddingBottom } = useFloatingDockSlot(config);
   return (
-    <div data-testid={`probe-${id}`} data-bottom={bottom}>
+    <div data-testid={`probe-${id}`} data-bottom={bottom} data-padding={paddingBottom ?? ''}>
       {id}
     </div>
   );
@@ -280,6 +291,67 @@ describe('useFloatingDockSlot — config validation', () => {
     expect(screen.getByTestId('probe-b').dataset.bottom).toBe(
       `calc(var(--floating-dock-base, 16px) + 50px + 3mm)`,
     );
+  });
+});
+
+describe('useFloatingDockSlot — TCK-477, la zone sûre iOS est exigée puis rendue', () => {
+  // AC1 (versant type) — les deux cas ci-dessous DOIVENT faire échouer `tsc`. Le
+  // `@ts-expect-error` en fait une auto-épreuve : si le type cessait de refuser, `tsc`
+  // signalerait une directive inutilisée et `npx tsc --noEmit` sortirait rouge. La
+  // garde se surveille donc elle-même, sans qu'on ait à jouer l'ablation à la main.
+  it('un `bottom-full` sans encart, ou avec un encart qui n\'en est pas un, ne compile pas', () => {
+    const sansEncart = () =>
+      // @ts-expect-error TCK-477 — `safeAreaInset` est obligatoire sur un slot `bottom-full`.
+      ({ id: 'x', corner: 'bottom-full', height: 70 }) satisfies FloatingDockSlotConfig;
+
+    const encartSansEnv = () =>
+      ({
+        id: 'x',
+        corner: 'bottom-full',
+        height: 70,
+        // @ts-expect-error TCK-477 — une valeur qui ne contient pas `env(safe-area-inset-bottom)`
+        // n'est pas un encart de zone sûre : le type de motif la refuse.
+        safeAreaInset: '0.75rem',
+      }) satisfies FloatingDockSlotConfig;
+
+    // Les deux fabriques existent pour porter les directives ci-dessus ; à l'exécution
+    // elles ne prouvent rien d'autre que leur propre présence.
+    expect(typeof sansEncart).toBe('function');
+    expect(typeof encartSansEnv).toBe('function');
+  });
+
+  // AC2 (versant type) — le témoin légitime. Aucune directive ici : ce littéral DOIT
+  // compiler tel quel. S'il cessait de compiler, `tsc` rougirait — c'est-à-dire que
+  // l'exigence de `bottom-full` aurait débordé sur `bottom-right`, ce qu'on refuse.
+  it('un `bottom-right` se construit sans encart — il ne touche pas le bord bas', () => {
+    const temoin = {
+      id: 'chat',
+      corner: 'bottom-right',
+      priority: 0,
+      height: 56,
+    } satisfies FloatingDockSlotConfig;
+
+    expect(temoin.corner).toBe('bottom-right');
+  });
+
+  it('rend l\'encart déclaré à un slot `bottom-full`, et rien à un `bottom-right`', () => {
+    render(
+      <FloatingDockProvider>
+        <Probe id="bar" corner="bottom-full" height={70} />
+        <Probe id="chat" corner="bottom-right" priority={0} height={56} />
+      </FloatingDockProvider>,
+    );
+    // La valeur déclarée est celle qui revient : c'est le couplage qui rend
+    // « déclarer » et « appliquer » un seul geste.
+    expect(screen.getByTestId('probe-bar').dataset.padding).toBe(PROBE_INSET);
+    // Le témoin ne reçoit rien, et n'a rien à appliquer.
+    expect(screen.getByTestId('probe-chat').dataset.padding).toBe('');
+  });
+
+  it('rend l\'encart même hors provider (repli gracieux)', () => {
+    render(<Probe id="orphan-full" corner="bottom-full" height={70} />);
+    expect(screen.getByTestId('probe-orphan-full').dataset.bottom).toBe('0px');
+    expect(screen.getByTestId('probe-orphan-full').dataset.padding).toBe(PROBE_INSET);
   });
 });
 
