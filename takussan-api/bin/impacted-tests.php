@@ -19,6 +19,7 @@ require __DIR__.'/../vendor/autoload.php';
 
 use Tests\Support\ImpactMap;
 use Tests\Support\ImpactSelector;
+use Tests\Support\TranslationUsage;
 
 if (! class_exists(ImpactMap::class)) {
     fwrite(STDERR, "✗ Tests\\Support\\ImpactMap est introuvable (`composer install --no-dev` ?).\n");
@@ -151,7 +152,13 @@ if (! $statusKnown) {
     echo "rien n'a changé — arbre de travail propre. Comparer à `dev` avec --base=dev ?\n";
     exit(0);
 } else {
-    $selection = (new ImpactSelector($map))->select(array_keys($changed), $diffFor, $testClassesSince);
+    // TCK-476 — l'arête `lang/` → consommateurs se lit sur le DISQUE, pas dans la
+    // carte : elle est construite ici et injectée, pour que `ImpactSelector` continue
+    // de ne toucher ni git ni le disque.
+    $translations = new TranslationUsage($api);
+
+    $selection = (new ImpactSelector($map, $translations->consumersOf(...)))
+        ->select(array_keys($changed), $diffFor, $testClassesSince);
 
     if ($selection->fullSuite) {
         printf("règle : SUITE ENTIÈRE — %s\n", $selection->reason);

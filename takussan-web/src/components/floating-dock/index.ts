@@ -8,4 +8,5 @@ export type {
   FloatingDockSlotConfig,
   FloatingDockSlot,
   FloatingDockSlotResult,
+  SafeAreaInsetExpression,
 } from './types';

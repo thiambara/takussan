@@ -3,7 +3,7 @@
 namespace Tests\Support;
 
 /**
- * Les sept règles qui transforment un diff en liste de tests.
+ * Les huit règles qui transforment un diff en liste de tests.
  *
  * ⚠ CINQ de ces règles existent pour ESCALADER, pas pour sélectionner. L'asymétrie
  * est délibérée : sélectionner trop coûte des secondes, sélectionner trop peu
@@ -33,6 +33,13 @@ namespace Tests\Support;
  *     tromper à la baisse sur un fichier global. `config/` est donc un
  *     déclencheur dur, au même titre que `bootstrap/` : le coût est faible, les
  *     diffs de `config/` sont rares.
+ *   · un fichier de `lang/` n'est pas non plus dans la carte — la couverture ne
+ *     mesure que `app/`. Il escaladait donc au titre de « chemin non reconnu »,
+ *     et c'est le repli qui coûtait le plus cher au quotidien : les dictionnaires
+ *     changent souvent (TCK-476). L'arête manquante est rétablie hors de cette
+ *     classe, par `Tests\Support\TranslationUsage`, injectée en `Closure` :
+ *     `lang/<locale>/<domaine>.php` → ce qui cite les clés du domaine → la carte.
+ *     Le repli n'est PAS remplacé, il est borné à ce qu'on sait situer.
  *
  * ⚠ CE QUI ARRIVE À LA FIN DE LA BOUCLE SANS AVOIR ÉTÉ RECONNU ESCALADE (cf. la
  * revue de branche, constat C-1 — CRITIQUE). La version précédente de cette
@@ -57,6 +64,8 @@ namespace Tests\Support;
 final class ImpactSelector
 {
     private const API_PREFIX = 'takussan-api/';
+
+    private const TRANSLATION_PREFIX = 'lang/';
 
     /** Préfixes dont la modification invalide TOUTE la suite. */
     private const HARD_PREFIXES = [
@@ -103,7 +112,38 @@ final class ImpactSelector
         'public/build/',
     ];
 
-    public function __construct(private readonly ImpactMap $map) {}
+    /**
+     * Les dictionnaires de `lang/` que le FRAMEWORK lit lui-même, hors de portée de
+     * tout balayage de `app/` — ils imposent donc la suite entière, comme avant
+     * TCK-476.
+     *
+     * ⚠ C'est la liste dont un ajout à tort ne se voit JAMAIS : elle ne fait
+     * qu'escalader. C'est un oubli qui coûte — `validation.php` porte le message de
+     * CHAQUE 422 du dépôt, et 13 fichiers de `app/` seulement le citent : la règle
+     * du domaine applicatif y aurait sélectionné 13 consommateurs pour un
+     * dictionnaire qui en a des centaines. *Sélectionner trop peu produit un faux
+     * vert.*
+     *
+     * `scripts/check-impact-triggers.mjs` confronte cette liste à `CLAUDE.md`, au
+     * même titre que les trois autres.
+     */
+    private const GLOBAL_TRANSLATION_DOMAINS = [
+        'auth',        // `auth.failed`, `auth.throttle` — émis par le garde, pas par `app/`.
+        'pagination',  // rendu par le paginateur du framework.
+        'passwords',   // émis par le broker de réinitialisation.
+        'validation',  // le message de chaque 422, sur 535 routes.
+    ];
+
+    /**
+     * @param  \Closure(string):list<string>  $consumersOfTranslationDomain  `invitations` →
+     *                                                                       les fichiers de `app/`/`tests/` qui consomment ce dictionnaire. Injecté, comme
+     *                                                                       `$diffFor`, pour que cette classe continue de ne toucher NI git NI le disque.
+     *                                                                       `Tests\Support\TranslationUsage::consumersOf(...)` en est l'implémentation réelle.
+     */
+    public function __construct(
+        private readonly ImpactMap $map,
+        private readonly \Closure $consumersOfTranslationDomain,
+    ) {}
 
     /**
      * @param  list<string>  $changedPaths  chemins relatifs à la RACINE du dépôt
@@ -165,6 +205,16 @@ final class ImpactSelector
                 continue 2;
             }
 
+            if (str_starts_with($relative, self::TRANSLATION_PREFIX)) {
+                $selection = $this->selectForTranslationFile($relative, $selected);
+
+                if ($selection !== null) {
+                    return $selection;
+                }
+
+                continue;
+            }
+
             if (str_starts_with($relative, 'app/')) {
                 $classes = $this->map->classesFor($relative);
 
@@ -200,6 +250,74 @@ final class ImpactSelector
         }
 
         return ImpactSelection::partial(array_keys($selected));
+    }
+
+    /**
+     * La règle `lang/` (TCK-476). Rend `null` quand elle a nourri `$selected`, une
+     * escalade sinon.
+     *
+     * Le repli reste le BON défaut : ce qui change, c'est sa fréquence. Un
+     * dictionnaire applicatif — `invitations`, `properties`, `team` — a des
+     * consommateurs qu'on sait nommer ; tout le reste escalade, y compris une forme
+     * de chemin inattendue.
+     *
+     * @param  array<string,true>  $selected
+     */
+    private function selectForTranslationFile(string $relative, array &$selected): ?ImpactSelection
+    {
+        // `lang/<locale>/<domaine>.php`, et rien d'autre. Un `lang/en.json` (traductions
+        // par chaîne), un sous-répertoire, un fichier de vendor publié : on ne sait pas
+        // en dériver un domaine, donc on escalade.
+        if (! preg_match('#^lang/[^/]+/([a-z0-9_-]+)\.php$#', $relative, $m)) {
+            return ImpactSelection::full("fichier de langue de forme inattendue : $relative");
+        }
+
+        $domain = $m[1];
+
+        if (in_array($domain, self::GLOBAL_TRANSLATION_DOMAINS, true)) {
+            return ImpactSelection::full("dictionnaire lu par le framework : $relative");
+        }
+
+        $consumers = ($this->consumersOfTranslationDomain)($domain);
+
+        if ($consumers === []) {
+            // Un dictionnaire que personne ne cite est soit mort, soit consommé par une
+            // voie qu'on ne sait pas voir. Les deux se ressemblent ici ; seule la seconde
+            // coûte, et elle coûte un faux vert.
+            return ImpactSelection::full("aucun consommateur résolu pour le dictionnaire $domain");
+        }
+
+        foreach ($consumers as $consumer) {
+            if (str_starts_with($consumer, 'tests/')) {
+                $class = ImpactMap::classForFile($consumer);
+
+                if ($class === null) {
+                    return ImpactSelection::full("consommateur de $domain dans le harnais : $consumer");
+                }
+
+                $selected[$class] = true;
+
+                continue;
+            }
+
+            if (! str_starts_with($consumer, 'app/')) {
+                // Une vue dont aucun fichier de `app/` ne cite le nom, par exemple : le
+                // résolveur la rend telle quelle plutôt que de la taire.
+                return ImpactSelection::full("consommateur de $domain non situable : $consumer");
+            }
+
+            $classes = $this->map->classesFor($consumer);
+
+            if ($classes === null) {
+                return ImpactSelection::full("consommateur de $domain absent de la carte : $consumer");
+            }
+
+            foreach ($classes as $class) {
+                $selected[$class] = true;
+            }
+        }
+
+        return null;
     }
 
     /**

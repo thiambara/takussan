@@ -297,10 +297,37 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
   const meta = pending ? actionMeta(t)[pending] : null;
 
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-foreground p-4 text-background">
+    /*
+     * UNE SURFACE SOMBRE SE DIT `dark`, PAS `bg-foreground text-background` — TCK-471.
+     *
+     * Le couple `bg-foreground text-background` RETOURNE DEUX PROPRIÉTÉS, il ne retourne pas les
+     * jetons. Tout descendant qui repeint son propre fond continue de lire la palette CLAIRE tout
+     * en HÉRITANT l'encre claire du conteneur : le bouton `variant="outline"` prend
+     * `bg-background` (#fcf9f3) sans poser d'encre, hérite `text-background` (#fcf9f3) et rend
+     * **1,00:1** — mesuré sur l'application servie le 2026-08-30, avant correction. Le bouton
+     * occupait sa place, réagissait au survol, se cliquait, et son libellé n'existait pas.
+     *
+     * `dark` bascule les jetons pour TOUT le sous-arbre : c'est la forme déjà écrite par
+     * `SuperAdminSidebar.tsx` et `SuperAdminTopbar.tsx`, dont le docblock dit l'essentiel — *« la
+     * classe `dark` n'est PAS le mode sombre de l'utilisateur : c'est une surface sombre »*.
+     * Le rendu de la SECTION est inchangé (`--background` sous `.dark` vaut exactement le
+     * `--foreground` clair, #1f1812, et `--foreground` sous `.dark` vaut #fcf9f3).
+     *
+     * ⚠ Ce que ça change, et qui est le POINT et non un effet de bord : les deux autres boutons
+     * passent aux jetons sombres — ceux qui sont accordés à une surface sombre. `Suspendre`
+     * (`text-destructive` sur `bg-destructive/10`) était à **3,48:1**, sous le seuil AA, et
+     * personne ne l'avait vu parce que personne ne mesurait que celui qu'on ne voit pas. Les
+     * trois relevés, avant et après, sont dans le ticket.
+     *
+     * ⚠ `ConfirmActionDialog` passe par un PORTAIL : la portée ne l'atteint pas, il reste clair.
+     *
+     * La garde du MOTIF (et pas de cette ligne) : `scripts/check-heritage-encre.mjs` +
+     * `__tests__/agency-detail-contrast.test.tsx`.
+     */
+    <section className="dark flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background p-4 text-foreground">
       <div>
         <h2 className="font-display text-base font-semibold">{t('moderationTitle')}</h2>
-        <p className="text-sm text-background/70">{t('moderationSubtitle')}</p>
+        <p className="text-sm text-foreground/70">{t('moderationSubtitle')}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Button size="sm" onClick={() => setPending('verify')} disabled={mutation.isPending}>

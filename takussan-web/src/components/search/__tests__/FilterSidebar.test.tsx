@@ -20,7 +20,37 @@ import type { SearchFilters } from '@/types/search';
  * `vi.useFakeTimers()` nu et `userEvent` se marchent dessus (user-event programme ses propres
  * délais). Le patron du dépôt est celui de `WizardReprenable.test.tsx` : injecter un délai court
  * (`debounceMs`) et piloter la saisie par `fireEvent.change`.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-478 — ce qui a été remesuré ici, et ce qui n'a PAS été touché
+ *
+ * Ce fichier figurait au relevé de TCK-478 pour ses deux `waitFor` sans borne locale. Ses
+ * assertions négatives, elles, ne portent PAS le motif de TCK-451, et il faut le dire pour que
+ * personne ne vienne les « corriger » : {@link frappe} enchaîne ses `fireEvent.change` dans une
+ * seule et même tâche, sans un `await` entre eux. Aucune macro-tâche ne s'intercale, donc aucun
+ * `setTimeout` ne peut échoir pendant la frappe — `expect(onFilterChange).not.toHaveBeenCalled()`
+ * est vrai par construction, et non par marge. C'est précisément ce patron que TCK-478 a repris
+ * pour les deux écrans qui, eux, frappaient par `await user.type`.
+ *
+ * Restaient les deux attentes réelles, sur le seul budget GLOBAL de 3000 ms
+ * (`asyncUtilTimeout`, TCK-313) : elles portent désormais {@link BUDGET_DES_ATTENTES_REELLES}.
+ * ────────────────────────────────────────────────────────────────────────────────────────────
  */
+
+/**
+ * La borne locale des deux attentes réelles de ce fichier (TCK-478).
+ *
+ * La fenêtre injectée ici vaut 20 ms — deux ordres de grandeur sous celle de la console. 2000 ms
+ * lui laissent un facteur **100**, très au-dessus des facteurs de contention 11,6-16,7× mesurés
+ * par TCK-312, et au-dessus du pire cas d'attente jamais relevé sur cette suite (4853 ms sous
+ * `load average` 331 — mais sur une fenêtre de 300 ms, soit 16× celle-ci).
+ *
+ * Elle est DÉLIBÉRÉMENT plus serrée que le défaut global de 3000 ms : une borne locale ne sert à
+ * rien si elle se contente de recopier le global. Ce qu'elle apporte est de rendre la marge
+ * lisible à côté de la fenêtre qu'elle borne, et de ne plus dépendre d'un réglage qui vit dans
+ * `vitest.setup.ts` et qu'un autre ticket peut resserrer sans voir ce fichier.
+ */
+const BUDGET_DES_ATTENTES_REELLES = 2_000;
 
 const PLACEHOLDER_VILLE = 'Ville (ex : Dakar, Mbour…)';
 const PLACEHOLDER_PRIX_MIN = 'Min';
@@ -61,7 +91,9 @@ describe('<FilterSidebar> — anti-rebond de saisie (TCK-335)', () => {
     // 5 `router.replace` et 5 aller-retours RSC (mesuré le 2026-08-21).
     expect(onFilterChange).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(onFilterChange).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onFilterChange).toHaveBeenCalledTimes(1), {
+      timeout: BUDGET_DES_ATTENTES_REELLES,
+    });
     // TCK-335 étape 5 — le second argument marque un commit de champ CONTINU : l'appelant
     // l'inscrit par `replace` plutôt que d'empiler une entrée d'historique par mot tapé.
     expect(onFilterChange).toHaveBeenCalledWith({ city: 'Dakar', page: 1 }, { continu: true });
@@ -158,7 +190,9 @@ describe('<FilterSidebar> — anti-rebond de saisie (TCK-335)', () => {
     const nouveau = vi.fn();
     rerender(withIntl(props(nouveau)));
 
-    await waitFor(() => expect(nouveau).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(nouveau).toHaveBeenCalledTimes(1), {
+      timeout: BUDGET_DES_ATTENTES_REELLES,
+    });
     expect(nouveau).toHaveBeenCalledWith({ city: 'Dakar', page: 1 }, { continu: true });
     expect(ancien).not.toHaveBeenCalled();
   });

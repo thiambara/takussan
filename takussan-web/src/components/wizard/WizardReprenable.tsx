@@ -121,6 +121,12 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
 
   // Toast a discreet "progress saved" message on unmount / page hide so
   // the user knows nothing was lost. We flush any pending debounce first.
+  //
+  // ── TCK-475, SITE 1 (démontage / départ de page) ────────────────────────────
+  // Le toast partait sans jamais regarder le sort de l'écriture : un PUT refusé
+  // (réseau coupé, session expirée, 5xx du proxy) affichait le même
+  // « Progression sauvegardée » qu'un PUT accepté. `flush()` rend ce sort depuis
+  // TCK-465 ; il ne restait qu'à le LIRE. On le lit ici.
   useEffect(() => {
     if (!hydrated) return;
 
@@ -131,13 +137,22 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
 
     return () => {
       window.removeEventListener('pagehide', handlePageHide);
-      void flush().then(() => {
-        if (typeof window !== 'undefined') {
-          // Toast only when leaving via React unmount with pending work —
-          // skip if we already cleared the draft (completion path).
-          if (!completing) {
-            toast.add({ title: t('savedToastTitle'), description: t('savedToastBody'), type: 'success' });
-          }
+      void flush().then((resultat) => {
+        if (typeof window === 'undefined') return;
+        if (!resultat.ok) {
+          // Le remède n'est PAS le même que sur le chemin de finalisation : ici
+          // la personne est déjà partie, on lui dit quoi retrouver en revenant.
+          toast.add({
+            title: t('saveFailedToastTitle'),
+            description: t('saveFailedToastBody'),
+            type: 'error',
+          });
+          return;
+        }
+        // Toast only when leaving via React unmount with pending work —
+        // skip if we already cleared the draft (completion path).
+        if (!completing) {
+          toast.add({ title: t('savedToastTitle'), description: t('savedToastBody'), type: 'success' });
         }
       });
     };
@@ -166,13 +181,30 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
     }
     setCompleting(true);
     try {
-      await flush();
+      // ── TCK-475, SITE 2 (finalisation) ──────────────────────────────────────
+      // `flush()` était appelé pour son seul effet de bord, son sort jeté. Ce
+      // site n'annonçait donc PAS un succès faux — il n'annonçait rien du tout,
+      // ce qui est le même défaut d'un cran plus loin : l'échec enchaînait sur
+      // `onComplete` puis sur `clear()`, qui DÉTRUIT le brouillon côté serveur.
+      // Une écriture refusée ici dit que le réseau vient de refuser un PUT, et
+      // `onComplete` emprunte exactement le même chemin. On s'arrête avant, en
+      // disant quoi faire : le bouton reste là, la saisie reste en mémoire, et
+      // le brouillon serveur — périmé mais présent — n'est pas supprimé.
+      const resultat = await flush();
+      if (!resultat.ok) {
+        toast.add({
+          title: t('completionFailedToastTitle'),
+          description: t('completionFailedToastBody'),
+          type: 'error',
+        });
+        return;
+      }
       await onComplete(data);
       await clear();
     } finally {
       setCompleting(false);
     }
-  }, [canAdvance, isLast, totalSteps, flush, onComplete, data, clear]);
+  }, [canAdvance, isLast, totalSteps, flush, onComplete, data, clear, toast, t]);
 
   return (
     <section

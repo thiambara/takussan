@@ -4,7 +4,7 @@
  *
  * `bin/impacted-tests.php` ne lance que les tests que le diff touche — sauf quand le
  * fichier touché sort de la portée de la carte, auquel cas il impose la SUITE ENTIÈRE.
- * La liste de ces chemins-là est définie EN CODE, dans trois constantes de
+ * La liste de ces chemins-là est définie EN CODE, dans quatre constantes de
  * `takussan-api/tests/Support/ImpactSelector.php`, et elle est RECOPIÉE À LA MAIN dans
  * `takussan-api/CLAUDE.md` § « Ne lancer que les tests que le diff touche ».
  *
@@ -23,9 +23,17 @@
  *     TCK-320 existe pour rendre impossible.
  * D'où la comparaison dans LES DEUX SENS, et l'égalité stricte plutôt que l'inclusion.
  *
- * **`INERT_PREFIXES` est couverte au même titre que les deux autres**, et c'est elle la
+ * **`INERT_PREFIXES` est couverte au même titre que les autres**, et c'est elle la
  * plus coûteuse à laisser dériver : c'est la seule liste dont un ajout non documenté
  * fabrique le faux vert ci-dessus. Un préfixe déclaré inerte à tort n'escalade jamais.
+ *
+ * **`GLOBAL_TRANSLATION_DOMAINS` a rejoint les trois autres avec TCK-476.** Depuis que
+ * `lang/<locale>/<domaine>.php` se résout au lieu d'escalader en bloc, cette liste porte
+ * l'exception : les dictionnaires que le FRAMEWORK lit lui-même (`validation.php` émet le
+ * message de chaque 422 du dépôt) et dont aucun balayage de `app/` ne peut nommer les
+ * consommateurs. Elle penche du côté qui ne coûte que des secondes — mais un domaine qui
+ * en SORT sans que la documentation bouge fait croire à une escalade qui n'a plus lieu,
+ * c'est-à-dire le sens coûteux décrit ci-dessus.
  *
  * ⚠ **PORTÉE, écrite ici parce qu'une garde qui laisse croire plus qu'elle ne prouve est
  * pire qu'aucune garde :**
@@ -35,7 +43,7 @@
  *     documentation ne distingue pas — à juste titre — le préfixe du fichier : pour son
  *     lecteur, les deux imposent la suite entière et rien d'autre ne compte. Déplacer une
  *     entrée d'une constante à l'autre reste donc vert.
- *   · Elle ne lit PAS le code exécuté : elle lit trois littéraux de tableau. Une refonte
+ *   · Elle ne lit PAS le code exécuté : elle lit quatre littéraux de tableau. Une refonte
  *     du sélecteur qui cesserait d'utiliser ces constantes rendrait la garde muette —
  *     d'où l'échec dur ci-dessous sur « constante introuvable », qui est le seul filet
  *     contre ce cas.
@@ -62,7 +70,7 @@ const SOURCE_REL = 'takussan-api/tests/Support/ImpactSelector.php';
 const DOC_REL = 'takussan-api/CLAUDE.md';
 
 /**
- * Les deux confrontations. Chacune nomme sa zone de documentation par un marqueur HTML
+ * Les trois confrontations. Chacune nomme sa zone de documentation par un marqueur HTML
  * explicite plutôt que par une heuristique « ça ressemble à un chemin » : la section
  * contient des dizaines d'autres empans de code — `app/`, `tests/BaseTestCase.php`,
  * `.env.example`, `git diff --name-only` — dont AUCUN n'est un déclencheur. Une garde qui
@@ -79,6 +87,11 @@ const CONFRONTATIONS = [
     titre: 'chemins inertes (aucun test exécuté)',
     constantes: ['INERT_PREFIXES'],
     marqueur: 'garde:chemins-inertes',
+  },
+  {
+    titre: 'dictionnaires de lang/ lus par le framework (suite entière imposée)',
+    constantes: ['GLOBAL_TRANSLATION_DOMAINS'],
+    marqueur: 'garde:dictionnaires-globaux',
   },
 ];
 
@@ -231,6 +244,6 @@ if (erreurs.length > 0) {
 }
 
 console.log(
-  "✓ déclencheurs d'impact : les trois constantes d'ImpactSelector et l'énumération de " +
+  "✓ déclencheurs d'impact : les quatre constantes d'ImpactSelector et les énumérations de " +
     `${DOC_REL} disent la même chose (comparaison dans les deux sens).`,
 );

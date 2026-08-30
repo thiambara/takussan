@@ -3207,7 +3207,11 @@
       "complete": "Terminer",
       "loading": "Chargement…",
       "savedToastTitle": "Progression sauvegardée",
-      "savedToastBody": "Vous pourrez reprendre exactement où vous en êtes."
+      "savedToastBody": "Vous pourrez reprendre exactement où vous en êtes.",
+      "saveFailedToastTitle": "Progression non enregistrée",
+      "saveFailedToastBody": "L'enregistrement a été refusé (connexion perdue ou session expirée). Reconnectez-vous, rouvrez l'assistant et vérifiez vos dernières saisies : elles n'ont pas été conservées.",
+      "completionFailedToastTitle": "Impossible de terminer pour l'instant",
+      "completionFailedToastBody": "Votre progression n'a pas pu être enregistrée. Vérifiez votre connexion, puis cliquez de nouveau sur « Terminer » — rien n'est perdu."
     },
     "banner": {
       "ariaLabel": "Reprendre une démarche en cours",

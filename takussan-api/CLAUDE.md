@@ -616,6 +616,31 @@ et `tests/TestCase.php` <!-- /garde:déclencheurs-durs --> : une migration chang
 factory et un seeder changent la fixture, un fichier de harnais change l'environnement — tous
 modifient ce que **tous** les tests voient, pas seulement ceux qui les référencent explicitement.
 
+**`lang/` ne retombe plus sur la suite entière** (TCK-476). Un fichier de langue n'est dans la
+carte à aucun titre — la couverture ne mesure que `app/` — et il escaladait donc au titre de
+« chemin non reconnu ». Le repli était le bon défaut ; c'est sa FRÉQUENCE qui coûtait : les
+dictionnaires changent souvent, et l'outil du quotidien retombait sur son pire cas. Relevé du
+2026-08-30 sur `takussan-api/lang/en/invitations.php` : **404 classes (suite entière) avant, 18
+après.**
+
+L'arête manquante est rétablie par `tests/Support/TranslationUsage`, injectée en `Closure` pour que
+`ImpactSelector` continue de ne toucher ni git ni le disque : `lang/<locale>/<domaine>.php` → les
+fichiers qui **citent une clé du domaine** → la carte. Deux ordres de recherche, et le second n'est
+pas un raffinement : les cinq fichiers de `app/` qui écrivent `'invitations.…'` **ne contiennent pas**
+`app/Mail/InvitationMailable.php`, qui rend pourtant la vue qui porte ces clés. Une règle de premier
+ordre seul aurait oublié les tests couvrant ce Mailable.
+
+Ce qui escalade encore, et délibérément : un chemin de langue hors de la forme
+`lang/<locale>/<domaine>.php` (un `lang/en.json`, un dictionnaire de paquet publié) ; un domaine dont
+**aucun** consommateur n'est résolu ; un consommateur absent de la carte, dans le harnais de test, ou
+non situable (une vue que rien ne rend) ; et les dictionnaires que le **framework** lit lui-même —
+<!-- garde:dictionnaires-globaux -->
+`auth`, `pagination`, `passwords`
+et `validation` <!-- /garde:dictionnaires-globaux -->. Ce dernier point est celui qui compte :
+`validation.php` porte le message de **chaque 422** du dépôt et n'est cité que par 13 fichiers de
+`app/` — y sélectionner 13 consommateurs serait un faux vert. *Sélectionner trop coûte des secondes,
+sélectionner trop peu produit un vert qui ne prouve rien.*
+
 **Le défaut de la règle est d'ESCALADER, pas d'ignorer.** Tout chemin sous `takussan-api/` qui
 n'entre dans aucune règle impose la suite entière, sauf s'il figure dans la liste explicite de
 chemins inertes — <!-- garde:chemins-inertes -->
@@ -627,9 +652,10 @@ dont **89** classes héritent — ou `.env.example` — qui **est** l'environnem
 rendait « rien à lancer » et sortie 0. *Une sélection trop large coûte des secondes ; une sélection
 trop étroite produit un vert qui ne prouve rien.*
 
-> ⚠️ **Ces deux listes sont recopiées à la main depuis `ImpactSelector::HARD_PREFIXES`,
-> `::HARD_FILES` et `::INERT_PREFIXES`. `scripts/check-impact-triggers.mjs` les confronte au code
-> dans les deux sens, à chaque PR** (Repo CI, TCK-325) — les marqueurs HTML ci-dessus délimitent ce
+> ⚠️ **Ces trois listes sont recopiées à la main depuis `ImpactSelector::HARD_PREFIXES`,
+> `::HARD_FILES`, `::INERT_PREFIXES` et `::GLOBAL_TRANSLATION_DOMAINS`.
+> `scripts/check-impact-triggers.mjs` les confronte au code dans les deux sens, à chaque PR**
+> (Repo CI, TCK-325, TCK-476) — les marqueurs HTML ci-dessus délimitent ce
 > qu'elle compare ; les déplacer sans la prévenir la fait rougir. **La source de vérité reste le
 > code** : si les deux divergent, croire le code et corriger la prose.
 >
