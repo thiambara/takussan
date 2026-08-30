@@ -1,13 +1,13 @@
 ---
 id: TCK-465
 title: "Un brouillon de parcours peut échouer à s'enregistrer sans que personne ne le sache"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 52
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

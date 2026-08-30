@@ -1,13 +1,13 @@
 ---
 id: TCK-453
 title: "Une classe dont le jeton n'existe pas ne fait AUCUNE erreur : la couleur disparaît, et rien dans le dépôt ne peut le voir"
-status: doing
+status: done
 phase: P2
 family: technique
 estimate: M
 wave: 49
 created: 2026-08-27
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

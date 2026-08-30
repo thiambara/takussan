@@ -1,13 +1,13 @@
 ---
 id: TCK-445
 title: "Un prestataire assigné peut se réassigner sa propre demande et en changer la priorité — `PATCH /api/maintenance-requests/{id}` ne restreint aucun champ"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: S
 wave: 50
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

@@ -1,13 +1,13 @@
 ---
 id: TCK-443
 title: "21 écouteurs sont enregistrés DEUX fois — la découverte automatique et `AppServiceProvider` font le même travail, et l'utilisateur reçoit tout en double"
-status: todo
+status: done
 phase: P1
 family: bug
 estimate: M
 wave: 50
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

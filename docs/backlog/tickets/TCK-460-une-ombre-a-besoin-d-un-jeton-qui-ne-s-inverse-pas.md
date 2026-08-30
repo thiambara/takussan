@@ -1,13 +1,13 @@
 ---
 id: TCK-460
 title: "Deux ombres recopient `--foreground` en décimal, et le remède évident les casserait sous `.dark`"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 49
 created: 2026-08-28
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

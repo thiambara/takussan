@@ -1,13 +1,13 @@
 ---
 id: TCK-447
 title: "Les deux angles morts de `gen-features-by-actor` : un acteur déclaré et inemployé passe, une ligne hors section n'est pas même lue"
-status: todo
+status: done
 phase: P3
 family: technique
 estimate: S
 wave: 50
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

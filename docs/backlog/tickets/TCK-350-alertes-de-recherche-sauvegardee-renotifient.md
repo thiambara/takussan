@@ -1,13 +1,13 @@
 ---
 id: TCK-350
 title: "Les alertes de recherche sauvegardée renotifient les mêmes biens tous les jours"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: M
 wave: 45
 created: 2026-08-22
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

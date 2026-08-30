@@ -1,13 +1,13 @@
 ---
 id: TCK-458
 title: "La pastille de type de contrat est sous le seuil AA sur toutes les cartes de bien — et la mesure de contraste ne couvrait que deux composants"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

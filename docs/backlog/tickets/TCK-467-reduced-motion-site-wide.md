@@ -1,13 +1,13 @@
 ---
 id: TCK-467
 title: "Les animations du site s'exécutent quelle que soit la préférence système de mouvement réduit"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
 wave: 52
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

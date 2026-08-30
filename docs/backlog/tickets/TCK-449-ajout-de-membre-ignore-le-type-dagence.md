@@ -1,13 +1,13 @@
 ---
 id: TCK-449
 title: "`POST /api/agencies/{id}/members` ignore le type d'agence : une agence `individual` se constitue une équipe en contournant l'écran"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: S
 wave: 50
 created: 2026-08-27
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

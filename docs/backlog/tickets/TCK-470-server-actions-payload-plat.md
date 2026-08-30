@@ -1,13 +1,13 @@
 ---
 id: TCK-470
 title: "Les server actions des biens sont typées à plat alors que les payloads sont imbriqués"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 52
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: [TCK-464]
 blocks: []
 spec_refs:

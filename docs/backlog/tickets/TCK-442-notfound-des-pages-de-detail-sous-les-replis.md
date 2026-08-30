@@ -1,13 +1,13 @@
 ---
 id: TCK-442
 title: "Les 9 `notFound()` des pages de détail de `/app` rendent 200 : remonter la REQUÊTE, pas seulement la décision"
-status: todo
+status: done
 phase: P3
 family: front
 estimate: M
 wave: 49
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-30
 depends_on: [TCK-426]
 blocks: []
 spec_refs:

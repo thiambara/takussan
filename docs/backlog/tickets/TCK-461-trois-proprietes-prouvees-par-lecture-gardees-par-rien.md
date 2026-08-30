@@ -1,13 +1,13 @@
 ---
 id: TCK-461
 title: "Trois propriétés livrées sont prouvées par LECTURE et gardées par rien — leur régression resterait verte"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

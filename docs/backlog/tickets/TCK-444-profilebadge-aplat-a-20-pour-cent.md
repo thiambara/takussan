@@ -1,13 +1,13 @@
 ---
 id: TCK-444
 title: "`ProfileBadge` — 12 couples sur 20 sous le seuil de contraste : c'est le motif `bg-chart-N/20 text-chart-N` qui est en cause, pas une ligne de la table"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 50
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

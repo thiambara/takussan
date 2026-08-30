@@ -1,13 +1,13 @@
 ---
 id: TCK-469
 title: "Changer le type d'un bien laisse en base des valeurs que le nouveau type ne justifie plus"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M
 wave: 52
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: [TCK-464]
 blocks: []
 spec_refs:

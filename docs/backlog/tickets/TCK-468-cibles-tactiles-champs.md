@@ -1,13 +1,13 @@
 ---
 id: TCK-468
 title: "Les champs de formulaire font 32 px de haut là où les pastilles en font 44"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: M
 wave: 52
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

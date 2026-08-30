@@ -1,13 +1,13 @@
 ---
 id: TCK-462
 title: "Des totaux de recherche comptés sur un nom TIRÉ AU HASARD — un a rougi en CI, deux autres l'attendent"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

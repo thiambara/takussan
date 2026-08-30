@@ -1,13 +1,13 @@
 ---
 id: TCK-451
 title: "Deux mécanismes rendent `DebouncedSearchInput.test.tsx` sensible aux décrochages d'ordonnancement"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 41
 created: 2026-08-27
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

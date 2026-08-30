@@ -1,13 +1,13 @@
 ---
 id: TCK-450
 title: "Le ton `success` de `StatusBadge` emprunte `--accent` — décider la charte, et le vérifier à l'écran"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 46
 created: 2026-08-27
-updated: 2026-08-27
+updated: 2026-08-30
 depends_on: [TCK-385]
 blocks: []
 spec_refs:

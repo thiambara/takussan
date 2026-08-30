@@ -1,13 +1,13 @@
 ---
 id: TCK-466
 title: "Rien n'empêche de composer à la main le chemin d'un vocabulaire d'enum"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 52
 created: 2026-08-29
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

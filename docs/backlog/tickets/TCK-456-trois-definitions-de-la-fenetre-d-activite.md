@@ -1,13 +1,13 @@
 ---
 id: TCK-456
 title: "Trois définitions divergentes de la fenêtre d'activité d'une délégation, qu'aucune garde ne lie"
-status: todo
+status: done
 phase: P2
 family: back
 estimate: S
 wave: 49
 created: 2026-08-28
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

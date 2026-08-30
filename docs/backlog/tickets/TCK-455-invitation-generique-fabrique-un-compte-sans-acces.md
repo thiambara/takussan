@@ -1,13 +1,13 @@
 ---
 id: TCK-455
 title: "`POST /api/invitations` fabrique un compte accepté qui n'est membre de rien"
-status: todo
+status: done
 phase: P1
 family: back
 estimate: M
 wave: 49
 created: 2026-08-28
-updated: 2026-08-29
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

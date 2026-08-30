@@ -1,13 +1,13 @@
 ---
 id: TCK-457
 title: "La résolution des délégations fait N requêtes là où une seule suffirait — et la sortie n'est PAS un cache"
-status: todo
+status: done
 phase: P3
 family: back
 estimate: M
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:

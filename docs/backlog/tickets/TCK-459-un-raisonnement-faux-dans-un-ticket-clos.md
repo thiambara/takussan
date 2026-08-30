@@ -1,13 +1,13 @@
 ---
 id: TCK-459
 title: "Un raisonnement faux vit dans un ticket `done`, et il y sert à justifier de laisser un contraste à 1,05:1"
-status: todo
+status: done
 phase: P2
 family: technique
 estimate: S
 wave: 49
 created: 2026-08-28
-updated: 2026-08-28
+updated: 2026-08-30
 depends_on: []
 blocks: []
 spec_refs:
