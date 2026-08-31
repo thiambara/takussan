@@ -4,7 +4,7 @@
  * chat widget on mobile (FAB redirect) and from the widget's "Manage group"
  * link when the user wants the full /app/messages experience.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -31,6 +31,17 @@ vi.mock('../ChatView', () => ({
 
 vi.mock('../NewGroupDialog', () => ({
   NewGroupDialog: () => null,
+}));
+
+vi.mock('../PropertyDraftChatView', () => ({
+  PropertyDraftChatView: ({ property }: { property: { slug: string } }) => (
+    <div data-testid="chat-draft">draft={property.slug}</div>
+  ),
+}));
+
+const resolution = vi.fn<() => { data: unknown } | undefined>(() => undefined);
+vi.mock('@/lib/queries/conversations', () => ({
+  usePropertyConversation: () => ({ data: resolution() }),
 }));
 
 function wrap(ui: React.ReactElement) {
@@ -67,6 +78,56 @@ describe('<MessagesPage> deep-link', () => {
     );
     render(wrap(<MessagesPage />));
 
+    expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * TCK-500 — second point d'entrée : `?property=<slug>`, posé par la fiche d'un bien en dessous du
+ * point de rupture `md`. Le brouillon n'apparaît QUE si le fil n'existe pas encore : sur un fil
+ * déjà ouvert, la page montre l'historique et laisse le champ vide.
+ */
+describe('<MessagesPage> ?property=', () => {
+  const BIEN = {
+    id: 1,
+    slug: 'villa-almadies',
+    title: 'Villa 4 pièces aux Almadies',
+    reference_number: 'TK-2451',
+    main_photo_url: null,
+  };
+
+  beforeEach(() => {
+    resolution.mockReturnValue(undefined);
+    searchParamsGet.mockImplementation((key) => (key === 'property' ? 'villa-almadies' : null));
+  });
+
+  it('ouvre un fil neuf avec son brouillon quand aucune conversation n’existe', () => {
+    resolution.mockReturnValue({
+      data: { conversation_id: null, can_message: true, property: BIEN, recipient: null },
+    });
+    render(wrap(<MessagesPage />));
+
+    expect(screen.getByTestId('chat-draft')).toHaveTextContent('draft=villa-almadies');
+    expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
+  });
+
+  it('ouvre le fil EXISTANT sans brouillon quand il y en a un', () => {
+    resolution.mockReturnValue({
+      data: { conversation_id: 77, can_message: true, property: BIEN, recipient: null },
+    });
+    render(wrap(<MessagesPage />));
+
+    expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=77');
+    expect(screen.queryByTestId('chat-draft')).not.toBeInTheDocument();
+  });
+
+  it('ne propose rien quand le visiteur est lui-même le destinataire', () => {
+    resolution.mockReturnValue({
+      data: { conversation_id: null, can_message: false, property: BIEN, recipient: null },
+    });
+    render(wrap(<MessagesPage />));
+
+    expect(screen.queryByTestId('chat-draft')).not.toBeInTheDocument();
     expect(screen.queryByTestId('chat-view')).not.toBeInTheDocument();
   });
 });

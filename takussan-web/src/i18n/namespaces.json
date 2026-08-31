@@ -11,6 +11,7 @@
       "errors",
       "messaging",
       "meta",
+      "serverActions",
       "validation"
     ],
     "(auth)": [
@@ -32,6 +33,7 @@
       "meta",
       "profile",
       "publishRedirect",
+      "serverActions",
       "ui",
       "validation"
     ],
@@ -177,9 +179,9 @@
     ]
   },
   "plafondsPourcent": {
-    ".": 14,
-    "(auth)": 17,
-    "publish": 18,
+    ".": 15,
+    "(auth)": 18,
+    "publish": 19,
     "onboarding": 42,
     "(dashboard)": 16,
     "(dashboard)/app": 69,

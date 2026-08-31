@@ -91,3 +91,28 @@ export type Conversation = {
   };
   last_message?: Message;
 };
+
+/**
+ * TCK-500 — la réponse de `GET /api/public/properties/{slug}/conversation`.
+ *
+ * Une seule question posée à l'API au clic sur « Envoyer un message » : est-ce que ce bien a
+ * déjà un fil, et ai-je le droit d'écrire dessus ? `conversation_id === null` avec
+ * `can_message === true` est le cas qui déclenche le brouillon — le fil n'existe pas encore et
+ * il ne sera créé qu'à l'envoi.
+ */
+export type PropertyConversationResolution = {
+  conversation_id: number | null;
+  can_message: boolean;
+  property: {
+    id: number;
+    slug: string;
+    title: string;
+    reference_number: string;
+    main_photo_url: string | null;
+  };
+  recipient: {
+    id: number;
+    name: string;
+    avatar_url: string | null;
+  } | null;
+};

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -8,6 +8,8 @@ import { MessageSquare, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ConversationList } from '@/components/messages/ConversationList';
 import { ChatView } from '@/components/messages/ChatView';
+import { PropertyDraftChatView } from '@/components/messages/PropertyDraftChatView';
+import { useChatDraft } from '@/context/ChatDraftContext';
 import { useFloatingDockSlot } from '@/components/floating-dock';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { cn } from '@/lib/utils';
@@ -53,27 +55,68 @@ export function ChatWidget() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const launcherRef = useRef<HTMLButtonElement | null>(null);
 
+  /**
+   * TCK-500 — la discussion demandée depuis la fiche d'un bien.
+   *
+   * ⚠️ **La cible est DÉRIVÉE au rendu, jamais recopiée dans un état local par un effet.**
+   * La version qui la recopiait était refusée par `react-hooks/set-state-in-effect`, et la
+   * règle avait raison sur le fond : deux sources pour un même fait — le contexte et l'état
+   * local — se désynchronisent dès qu'on ferme le panneau sans vider l'une des deux. Ici la
+   * cible EST la vérité, et fermer le panneau la consomme.
+   *
+   * `brouillon` ne vaut QUE pour « le fil n'existe pas encore ». Quand la résolution a trouvé un
+   * fil, on ouvre `ChatView` dessus : le brouillon ouvre une discussion, il n'en continue pas
+   * une, et retrouver « Bonjour, je suis intéressé(e) par… » au quatrième échange avec le même
+   * agent serait absurde.
+   */
+  const chatDraft = useChatDraft();
+  const cible = chatDraft?.cible ?? null;
+  const consommerCible = chatDraft?.consommerCible;
+  const brouillon = cible && cible.conversation_id === null ? cible : null;
+  const conversationAffichee = cible?.conversation_id ?? selectedId;
+
+  /** Le panneau est ouvert soit par le lanceur, soit parce qu'une fiche a demandé une discussion. */
+  const panelOpen = open || cible !== null;
+
+  /** Referme et remet à zéro les deux sources. Un brouillon non envoyé est perdu, délibérément. */
+  const fermerPanneau = useCallback(() => {
+    setOpen(false);
+    setSelectedId(null);
+    consommerCible?.();
+  }, [consommerCible]);
+
+  /**
+   * « Retour » revient à la LISTE, il ne referme pas le panneau.
+   *
+   * ⚠️ `setOpen(true)` n'est pas redondant : quand le panneau a été ouvert depuis la fiche d'un
+   * bien, `open` est resté `false` et c'est la cible seule qui le tenait ouvert. Consommer la
+   * cible sans lever `open` faisait donc disparaître le panneau entier sur un clic qui promet
+   * de reculer d'un cran.
+   */
+  const retourALaListe = useCallback(() => {
+    setOpen(true);
+    setSelectedId(null);
+    consommerCible?.();
+  }, [consommerCible]);
+
   // Restore focus to the launcher on close (a11y).
   const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (wasOpenRef.current && !open) {
+    if (wasOpenRef.current && !panelOpen) {
       launcherRef.current?.focus();
     }
-    wasOpenRef.current = open;
-  }, [open]);
+    wasOpenRef.current = panelOpen;
+  }, [panelOpen]);
 
   // Escape closes the panel (a11y).
   useEffect(() => {
-    if (!open) return;
+    if (!panelOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        setSelectedId(null);
-      }
+      if (e.key === 'Escape') fermerPanneau();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open]);
+  }, [panelOpen, fermerPanneau]);
 
   // Visibility gates — derived booleans first so we can wire them into the
   // FloatingDock `enabled` flag without violating the Rules of Hooks (hooks
@@ -126,10 +169,10 @@ export function ChatWidget() {
           // floating UI (compare pill at z-40, Leaflet's internal panes that
           // reach z-700 on the publish location picker). When closed we stay
           // at z-40 so real Radix modals (z-50) can still cover the launcher.
-          open ? 'z-[1000]' : 'z-40',
+          panelOpen ? 'z-[1000]' : 'z-40',
         )}
       >
-        {open && (
+        {panelOpen && (
           <div
             role="dialog"
             aria-label={t('panelAriaLabel')}
@@ -149,10 +192,7 @@ export function ChatWidget() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setOpen(false);
-                  setSelectedId(null);
-                }}
+                onClick={fermerPanneau}
                 aria-label={t('closePanel')}
                 className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
                 data-testid="chat-widget-close"
@@ -161,26 +201,43 @@ export function ChatWidget() {
               </button>
             </header>
 
-            {selectedId ? (
+            {brouillon ? (
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <PropertyDraftChatView
+                  property={brouillon.property}
+                  recipientName={brouillon.recipient?.name ?? null}
+                  recipientAvatarUrl={brouillon.recipient?.avatar_url ?? null}
+                  variant="widget"
+                  onBack={retourALaListe}
+                  onCreated={(id) => {
+                    // Le fil vient de naître : on quitte le brouillon pour la vraie
+                    // conversation, sans rechargement ni navigation (AC4).
+                    setSelectedId(id);
+                    setOpen(true);
+                    consommerCible?.();
+                  }}
+                />
+              </div>
+            ) : conversationAffichee ? (
               <div className="flex flex-1 flex-col overflow-hidden">
                 <ChatView
-                  conversationId={selectedId}
+                  conversationId={conversationAffichee}
                   variant="widget"
-                  onBack={() => setSelectedId(null)}
+                  onBack={retourALaListe}
                 />
               </div>
             ) : (
               <>
                 <div className="flex-1 overflow-y-auto">
                   <ConversationList
-                    selectedId={selectedId}
+                    selectedId={conversationAffichee}
                     onSelect={(id) => setSelectedId(id)}
                   />
                 </div>
                 <footer className="border-t border-border/60 bg-background px-4 py-2 text-center">
                   <Link
                     href="/app/messages"
-                    onClick={() => setOpen(false)}
+                    onClick={fermerPanneau}
                     className="text-xs font-medium text-primary hover:underline"
                   >
                     {t('viewAll')}
@@ -195,11 +252,18 @@ export function ChatWidget() {
           ref={launcherRef}
           type="button"
           onClick={() => {
-            const next = !open;
-            setOpen(next);
-            if (!next) setSelectedId(null);
+            // ⚠ `panelOpen`, pas `open` : le panneau peut être ouvert par une fiche de bien
+            // sans que `open` l'ait jamais été. Le lire ici ferait « ouvrir » un panneau déjà
+            // visible, et il faudrait deux clics pour le fermer.
+            if (panelOpen) {
+              // Un brouillon non envoyé est PERDU à la fermeture, délibérément (TCK-500,
+              // « Hors périmètre »). Le rouvrir depuis la fiche le reconstruit à l'identique.
+              fermerPanneau();
+            } else {
+              setOpen(true);
+            }
           }}
-          aria-expanded={open}
+          aria-expanded={panelOpen}
           aria-label={launcherAria}
           data-testid="chat-widget-launcher"
           className={cn(

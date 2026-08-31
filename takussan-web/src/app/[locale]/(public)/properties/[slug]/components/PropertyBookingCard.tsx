@@ -11,6 +11,11 @@ interface PropertyBookingCardProps {
   onRequestVisit: () => void;
   onRequestBooking: () => void;
   onMessage: () => void;
+  /**
+   * TCK-500 — `false` retire le bouton. Un agent (ou le propriétaire) n'a personne à qui écrire
+   * sur son propre bien : l'API répondait 422 APRÈS qu'il ait rédigé son message.
+   */
+  canMessage?: boolean;
 }
 
 // TCK-078 — thin wrapper over the shared formatCurrency helper so the
@@ -24,6 +29,7 @@ export function PropertyBookingCard({
   onRequestVisit,
   onRequestBooking,
   onMessage,
+  canMessage = true,
 }: PropertyBookingCardProps) {
   const t = useTranslations('property.detail');
   const isRent = property.contract_type === 'rent';
@@ -53,10 +59,12 @@ export function PropertyBookingCard({
           <Calendar className="size-4" aria-hidden />
           {t('requestVisit')}
         </Button>
-        <Button type="button" variant="ghost" className="w-full gap-2" onClick={onMessage}>
-          <MessageCircle className="size-4" aria-hidden />
-          {t('sendMessage')}
-        </Button>
+        {canMessage && (
+          <Button type="button" variant="ghost" className="w-full gap-2" onClick={onMessage}>
+            <MessageCircle className="size-4" aria-hidden />
+            {t('sendMessage')}
+          </Button>
+        )}
       </div>
 
       <p className="text-xs text-stone-500 text-center">
