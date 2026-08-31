@@ -129,8 +129,42 @@ class DerivedRolesTest extends TestCase
 
         $user->profileTypes();
 
-        // 6 `exists()` de profil (dont le PlatformProfile) + 1 pour le bail.
-        $this->assertSame(7, $requetes);
+        // 5 `exists()` de profil — PlatformProfile, agencyAdmin, agent, owner,
+        // serviceProvider — plus 1 pour le bail.
+        //
+        // ⚠ **Ce chiffre valait 7 jusqu'au 2026-08-31** : TCK-495 a retiré le
+        // `exists()` du courtier, et ce test a rougi sur la suite entière alors
+        // que rien du COÛT de la dérivation n'avait changé. *Un compte écrit en
+        // dur mesure la composition de la méthode autant que son coût, et se
+        // périme au premier profil ajouté ou retiré.* Il reste néanmoins écrit
+        // en dur, et c'est délibéré : le dériver reviendrait à recompter ce que
+        // `profileTypes()` fait — un test qui recalcule son sujet ne le mesure
+        // plus. Le cliquet est à DEUX sens ; s'il bouge, corriger ICI, avec sa
+        // date et son motif.
+        $this->assertSame(6, $requetes);
+    }
+
+    /**
+     * AC6, la moitié qui NE dérive PAS — et c'est elle qui porte le sens.
+     *
+     * Le cas ci-dessus compte le total, donc il compte aussi le nombre de
+     * profils, qui n'a rien à voir avec la dérivation. Celui-ci mesure la seule
+     * propriété que le ticket affirmait : **`tenant` vaut exactement un
+     * `exists()`**, quel que soit le nombre de profils polymorphes.
+     */
+    public function test_le_role_tenant_vaut_exactement_une_requete(): void
+    {
+        [$locataire] = $this->userAvecBail(LeaseStatus::Active);
+        $locataire = $locataire->fresh();
+
+        $requetes = 0;
+        \DB::listen(function () use (&$requetes) {
+            $requetes++;
+        });
+
+        $this->assertTrue($locataire->hasActiveTenantLease());
+
+        $this->assertSame(1, $requetes);
     }
 
     /** @return array{0: User, 1: Lease} */

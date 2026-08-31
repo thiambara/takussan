@@ -1,7 +1,7 @@
 ---
 id: TCK-499
 title: "Refonte de la coque des assistants d'onboarding — radio natif, fil d'étapes qui se plie, aucune sortie"
-status: doing
+status: done
 phase: P1
 family: front
 estimate: M
@@ -16,14 +16,15 @@ spec_refs:
 tags: [front, onboarding, design-system, ux, i18n, a11y]
 ---
 
-> **`status: doing`, et il le reste après le merge — délibérément.** Le code est livré et toutes les
-> suites sont vertes, mais **AC2 n'est pas mesuré** : il porte sur ce qu'on VOIT à trois locales et à
-> plusieurs largeurs, et l'assistant exige une session authentifiée qu'aucune suite ne fabrique.
-> Un rail vertical ne PEUT structurellement pas se plier — c'est un raisonnement, pas une mesure, et
-> ce dépôt paie assez cher la différence pour ne pas cocher un critère sur cette base.
+> **Ce ticket est resté `doing` UN JOUR après que son code fut livré et ses suites vertes, parce
+> qu'AC2 attendait une MESURE.** Il porte sur ce qu'on VOIT à trois locales et à plusieurs largeurs,
+> et l'assistant exige une session authentifiée qu'aucune suite ne fabrique. Le raisonnement « un
+> rail vertical ne peut structurellement pas se plier » était juste — et n'a pas suffi : *ce dépôt
+> paie assez cher la différence entre un raisonnement juste et une mesure pour ne pas les
+> confondre.*
 >
-> **Ce qui reste à faire pour passer à `done`** : ouvrir `/onboarding/host` sur une session réelle,
-> en `fr`, `en` et `wo`, à trois largeurs, et regarder le rail.
+> ✅ **Mesuré au navigateur le 2026-08-31**, session réelle, `fr`/`en`/`wo`, **33 relevés** de 320 à
+> 1920 px. Détail dans les Notes d'implémentation. Le ticket passe à `done`.
 
 ## Objectif utilisateur
 
@@ -102,8 +103,12 @@ Référence obligatoire : [`docs/design-guidelines.md`](../../design-guidelines.
 
 - [x] **AC1** — Aucun `<input type="radio">` non stylé ne subsiste dans l'assistant hôte : l'état
       retenu se peint avec les jetons de la palette, jamais avec l'`accent-color` du système.
-- [ ] **AC2** — Le fil d'étapes ne passe à la ligne dans aucune des trois locales, à aucune largeur.
-      ⚠ **NON MESURÉ** — cf. l'encadré en tête de ticket. Le seul critère qui reste ouvert.
+- [x] **AC2** — Le fil d'étapes ne passe à la ligne dans aucune des trois locales, à aucune largeur.
+      **Mesuré, pas raisonné** : 33 relevés (`fr`/`en`/`wo` × 13 et 10 largeurs, 320→1920 px) sur
+      une session authentifiée réelle. Sous 1024 px le rail est `display:none` et c'est le compteur
+      qui porte l'information ; à partir de 1024 px, **3 étapes sur 3 rangées distinctes** dans les
+      trois locales — une par ligne, donc aucun pli. Zéro débordement de texte, zéro défilement
+      horizontal du document. Cf. Notes d'implémentation.
 - [x] **AC3** — Un seul indicateur de progression est visible à la fois.
 - [x] **AC4** — Toute page d'onboarding porte le nom de marque et une sortie vers le site.
 - [x] **AC5** — La sauvegarde automatique est annoncée **pendant** la saisie, pas seulement au
@@ -123,9 +128,66 @@ Référence obligatoire : [`docs/design-guidelines.md`](../../design-guidelines.
 - Le sélecteur de profil et ses deux entrées homonymes → TCK-497.
 - La refonte des corps d'étape des trois autres assistants : ils héritent de la coque, leurs champs
   ne sont pas retouchés.
-- Rien : la vérification au navigateur d'AC2 est DANS le périmètre, elle n'est simplement pas
-  faite. La sortir du périmètre reviendrait à supprimer le critère plutôt qu'à le tenir.
+- Rien n'en a été sorti : la vérification au navigateur d'AC2 était DANS le périmètre et elle a été
+  faite. *L'en sortir aurait supprimé le critère au lieu de le tenir* — c'est ce que cette ligne
+  refusait par avance, et elle a servi.
+- Les trois autres assistants (propriétaire, agent, prestataire) n'ont pas été ouverts au
+  navigateur : ils héritent de la coque et du rail, ce qui est un raisonnement et non un relevé.
+  La limite est écrite dans les Notes plutôt que tue.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### La mesure d'AC2 — comment, et ce qu'elle vaut
+
+**Le blocage n'était pas la mesure, c'était la session.** `/onboarding/host` exige un compte
+authentifié, qu'aucune suite ne fabrique. Levé en trois gestes : `php artisan serve` + `npm run dev`,
+un compte créé par `tinker` avec son jeton Sanctum, puis un `POST /api/auth/set-token` **depuis la
+page elle-même** — c'est le route handler BFF du front qui pose le cookie httpOnly, donc la session
+obtenue est celle d'un vrai utilisateur, pas une simulation.
+
+⚠ **Le compte de mesure rend `roles = ['customer']` et rien d'autre** — c'est exactement le public
+de cet assistant, et c'est ce que TCK-492 venait de rendre possible : avant lui, un compte nu
+n'avait aucun rôle du tout.
+
+**Le balayage se fait dans une `iframe` dont on pilote la largeur, pas en redimensionnant la
+fenêtre.** Les media queries répondent à la largeur du cadre : la mise en page mesurée est réelle, et
+13 largeurs tiennent dans un seul appel au lieu de 13 redimensionnements. Ce qui est relevé à chaque
+largeur : `display` calculé de l'`<aside>`, le nombre de **rangées distinctes** occupées par les
+`<li>` (`Math.round(getBoundingClientRect().top)` dédoublonné — *deux étapes sur la même rangée EST
+la définition du pli*), le débordement de texte (`scrollWidth > clientWidth`), et le défilement
+horizontal du document.
+
+**Résultat** — bascule nette à **1024 px** (`lg` = 64 rem), identique dans les trois locales :
+
+| Largeurs | Rail | Rangées / étapes | Débordement | Défilement horizontal |
+|---|---|---|---|---|
+| 320 → 1023 px | `display:none` | — (compteur + barre) | aucun | aucun |
+| 1024 → 1920 px | visible | **3 / 3** | aucun | aucun |
+
+Libellés relevés à 1024 px, qui confirment que les trois dictionnaires sont bien servis — *le repli
+`fr` sous toute autre locale aurait rendu du français sans le dire* :
+
+- `fr` — « Vous publiez en tant que… » · « Votre espace » · « Récapitulatif »
+- `en` — « You're publishing as… » · « Your space » · « Summary »
+- `wo` — « Yaa ngi publi ni… » · « Sa espas » · « Résumé »
+
+⚠ **Ce que cette mesure NE prouve pas** : elle porte sur l'assistant **hôte** et sur ses trois
+étapes. Les trois autres assistants héritent de la même coque et du même rail, mais n'ont pas été
+ouverts au navigateur — *hériter d'un composant est un raisonnement, pas un relevé*, et c'est la
+distinction même que ce ticket a tenue pendant un jour.
+
+### Ce que la capture a confirmé au passage
+
+AC1, AC3 et AC4 se lisent sur la même page rendue : la pastille de choix est peinte en `--primary`
+(terracotta) et non par l'`accent-color` du système, le rail et le compteur ne coexistent jamais, et
+la coque porte « Takussan » et « Retour au site ».
+
+**AC5 a failli être rouvert à tort.** La mention de sauvegarde n'apparaissait pas sur la capture —
+elle est sous la ligne de flottaison (page 779 px, fenêtre 695 px). Vérifiée dans le DOM plutôt que
+déduite de l'image : *« Vos réponses sont enregistrées au fur et à mesure — vous pouvez reprendre
+plus tard. »* Une absence à l'écran n'est pas une absence.
+
+### Trois étapes, pas quatre
+
+Le relevé compte **3** étapes : TCK-496 est vérifié sur l'application qui tourne, et pas seulement
+par ses tests.

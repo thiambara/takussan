@@ -5664,7 +5664,6 @@
         "agency_admin": "Admin agence",
         "agent": "Agent",
         "owner": "Propriétaire",
-        "broker": "Courtier",
         "service_provider": "Prestataire"
       },
       "rolesHint": "Aucun rôle coché : l'annonce n'est pas restreinte par rôle.",
@@ -6885,7 +6884,6 @@
       "agency_admin": "Administrateur",
       "owner": "Propriétaire",
       "agent": "Agent",
-      "broker": "Courtier",
       "service_provider": "Prestataire"
     },
     "roles": {
@@ -6893,7 +6891,6 @@
       "tenant": "Locataire",
       "agent": "Agent immobilier",
       "owner": "Propriétaire bailleur",
-      "broker": "Courtier",
       "agency_admin": "Admin agence",
       "super_admin": "Super administrateur",
       "service_provider": "Prestataire"
@@ -6927,12 +6924,6 @@
           "license": {
             "label": "Numéro de licence",
             "help": "Carte professionnelle agence — license_number."
-          }
-        },
-        "broker": {
-          "license": {
-            "label": "Numéro de licence",
-            "help": "Carte professionnelle de courtier indépendant."
           }
         },
         "serviceProvider": {

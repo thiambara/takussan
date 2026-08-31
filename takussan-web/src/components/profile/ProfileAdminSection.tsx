@@ -14,7 +14,6 @@ const ROLE_KEYS: Record<UserRole, string> = {
   tenant: 'tenant',
   agent: 'agent',
   owner: 'owner',
-  broker: 'broker',
   agency_admin: 'agency_admin',
   super_admin: 'super_admin',
   service_provider: 'service_provider',

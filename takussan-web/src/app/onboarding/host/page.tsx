@@ -26,8 +26,10 @@ import type { ProfileType } from '@/types/profile';
  * un `AgencyAdminProfile` ET un `OwnerProfile`, puis épingle le PREMIER comme
  * profil actif. Un compte dont l'`OwnerProfile` serait absent ou suspendu
  * repassait donc le garde et refaisait tourner l'assistant, sur un espace qu'il
- * possède déjà. `broker` et `service_provider` n'y figurent pas volontairement :
- * ni l'un ni l'autre ne matérialise l'agence personnelle que cet assistant crée.
+ * possède déjà. `service_provider` n'y figure pas volontairement : il ne
+ * matérialise pas l'agence personnelle que cet assistant crée. (`broker` était
+ * cité ici pour la même raison ; il n'est plus un `ProfileType` depuis le
+ * 2026-08-31 — TCK-495, ADR-0027.)
  */
 const PROFILS_LIES_A_UNE_AGENCE = new Set<ProfileType>(['owner', 'agent', 'agency_admin']);
 

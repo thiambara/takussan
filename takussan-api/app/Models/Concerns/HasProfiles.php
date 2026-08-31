@@ -74,10 +74,26 @@ trait HasProfiles
     }
 
     /**
-     * Unified collection of every profile this user holds, across all five
-     * concrete profile classes. Not a real Eloquent relation — eager load
-     * via `$user->load(['ownerProfiles', 'agentProfiles', 'agencyAdminProfiles',
-     * 'brokerProfile', 'serviceProviderProfile'])` upstream if needed.
+     * Les profils COMMUTABLES de cet utilisateur — ceux que
+     * `ActiveProfileResolver::TYPE_MAP` sait nommer. Ce n'est pas une relation
+     * Eloquent : précharger via `$user->load(['ownerProfiles', 'agentProfiles',
+     * 'agencyAdminProfiles', 'serviceProviderProfile'])` en amont si besoin.
+     *
+     * ⚠ **TCK-495 — `brokerProfile` a été RETIRÉ d'ici, et ce n'était pas
+     * optionnel.** Les trois appelants de cette méthode — le sélecteur
+     * (`MeProfilesController`), l'auto-bascule (`ResolveActiveProfile`) et
+     * `User::getAgencyIdAttribute()` — traitent tous son résultat comme « un
+     * profil qu'on peut rendre actif ». Or `ProfileResource` appelle
+     * `ActiveProfileResolver::aliasFor()`, qui **lève une
+     * `InvalidArgumentException` pour une classe absente de `TYPE_MAP`.
+     * Retirer l'alias sans retirer le profil d'ici aurait donc rendu **500** sur
+     * `GET /api/me/profiles` à tout compte portant un `BrokerProfile` — et les
+     * seeders en créent un (`UserSeeder`, `TestSeeder`). Le ticket ne
+     * l'anticipait pas ; `ProfilesEndpointTest` l'épingle maintenant.
+     *
+     * La relation `brokerProfile()` reste, et les lectures de modèle aussi
+     * (admin, export RGPD, `PropertyResource`) : ce qui disparaît est la
+     * COMMUTATION, pas la donnée.
      */
     public function profiles(): Collection
     {
@@ -90,9 +106,6 @@ trait HasProfiles
         $admins = $this->relationLoaded('agencyAdminProfiles')
             ? $this->agencyAdminProfiles
             : $this->agencyAdminProfiles()->get();
-        $broker = $this->relationLoaded('brokerProfile')
-            ? $this->brokerProfile
-            : $this->brokerProfile()->first();
         $sp = $this->relationLoaded('serviceProviderProfile')
             ? $this->serviceProviderProfile
             : $this->serviceProviderProfile()->first();
@@ -102,9 +115,6 @@ trait HasProfiles
         // share an id across different concrete classes.
         $collection = new Collection;
         $collection = $collection->concat($owners)->concat($agents)->concat($admins);
-        if ($broker) {
-            $collection->push($broker);
-        }
         if ($sp) {
             $collection->push($sp);
         }
@@ -178,8 +188,8 @@ trait HasProfiles
      * TCK-278 — Liste des "rôles" du user. Remplace l'ancien `getRoleNames()`
      * de spatie.
      *
-     * **Deux natures, et la distinction porte du sens.** Les six premières
-     * valeurs — `super_admin`, `agency_admin`, `agent`, `owner`, `broker`,
+     * **Deux natures, et la distinction porte du sens.** Les cinq premières
+     * valeurs — `super_admin`, `agency_admin`, `agent`, `owner`,
      * `service_provider` — sont dérivées des profils POLYMORPHES (Règle 5) :
      * une ligne existe en base, elle est commutable, elle entre dans
      * `ActiveProfileResolver::TYPE_MAP`. Les deux dernières — `customer` et
@@ -223,9 +233,12 @@ trait HasProfiles
         if ($this->ownerProfiles()->exists()) {
             $types->push('owner');
         }
-        if ($this->brokerProfile()->exists()) {
-            $types->push('broker');
-        }
+        // TCK-495 — `broker` était poussé ici. Il ne l'est plus : le courtier
+        // sort de la surface commutable (ADR-0027). La ligne de base survit,
+        // l'alias non — et ce `roles` est ce que le front lit pour bâtir son
+        // menu. Émettre un rôle auquel `buildNavItems` n'associe aucune entrée
+        // rend une barre latérale au socle nu ; le laisser sortir d'ici est ce
+        // qui empêche ce cas d'exister.
         if ($this->serviceProviderProfile()->exists()) {
             $types->push('service_provider');
         }

@@ -23,7 +23,6 @@ export const PROFILE_TYPES = [
   'agency_admin',
   'owner',
   'agent',
-  'broker',
   'service_provider',
 ] as const;
 

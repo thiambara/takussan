@@ -94,13 +94,13 @@ describe('decidePublishIntent', () => {
     expect(decision.resolvedAgencyId).toBeNull();
   });
 
-  it('ignores broker / service_provider profiles when scoring agencies', () => {
+  // TCK-495 — le cas portait `broker` ET `service_provider` ; le courtier n'est
+  // plus un `ProfileType` (ADR-0027). Ce qui est mesuré n'a pas changé : un
+  // profil qui n'autorise pas à publier ne fait pas compter son agence.
+  it('ignores service_provider profiles when scoring agencies', () => {
     const decision = decidePublishIntent(
       makeUser(),
-      [
-        makeProfile({ type: 'broker', agency_id: 99 }),
-        makeProfile({ type: 'service_provider', agency_id: 100 }),
-      ],
+      [makeProfile({ type: 'service_provider', agency_id: 100 })],
       false,
     );
     expect(decision.status).toBe('host-needed');

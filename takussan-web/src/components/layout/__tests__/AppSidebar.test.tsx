@@ -168,12 +168,11 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
   // favoris, recherches sauvegardées, statistiques, réservations, visites et baux, dont
   // `docs/features.md` §2.5 ne lui accorde rien. La liste suit le correctif, elle ne le
   // précède pas — et `AppSidebar.audience.test.tsx` mesure la même chose autrement.
-  // TCK-494 — `broker` entre dans `UserRole` : il est émis par `profileTypes()`
-  // depuis toujours et manquait de l'union. Sa ligne est un CONSTAT, pas un
-  // souhait — il n'a aujourd'hui aucune surface (0 route API, 0 page), ce qui
-  // est précisément l'objet de TCK-495. Elle rougira le jour où on lui en donne
-  // une, et c'est ce qu'on veut d'elle.
-  broker: ['/app', '/app/messages', '/app/documents'],
+  // TCK-494 avait ajouté ici une ligne `broker: ['/app', '/app/messages',
+  // '/app/documents']` — le socle nu, c'est-à-dire un rôle qui n'ouvre RIEN.
+  // TCK-495 a tranché ce constat : le courtier sort de la surface commutable
+  // (ADR-0027) et n'est plus émis par `profileTypes()`, donc plus un `UserRole`.
+  // La ligne n'est pas devenue fausse, elle n'a plus de sujet.
   service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
   super_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
@@ -520,12 +519,11 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
     // visites : c'est CE rôle qui rend `enabled: false` observable à l'écran.
     expect([...sondesAttendues('service_provider')]).toEqual(['unreadMessages']);
     const jamaisSondees = ROLES.filter((role) => !sondesAttendues(role).has('pendingVisits'));
-    // TCK-494 — `broker` rejoint la liste, et le constat n'est pas flatteur : un
-    // courtier ne sonde aucune visite parce qu'il n'a AUCUNE entrée de menu au
-    // delà du socle. C'est le défaut que TCK-495 doit trancher, pas une
-    // propriété qu'on souhaite ; cette ligne le rend visible plutôt que de le
-    // laisser dans un angle mort.
-    expect(jamaisSondees).toEqual(['broker', 'service_provider']);
+    // TCK-494 avait ajouté `broker` à cette liste — un courtier ne sondait aucune visite parce
+    // qu'il n'avait AUCUNE entrée de menu au-delà du socle. La ligne disait le défaut au lieu de
+    // le taire ; TCK-495 l'a tranché (ADR-0027) et le rôle n'existe plus. Le prestataire reste
+    // seul, et pour une raison qui, elle, est voulue : ses visites ne le concernent pas.
+    expect(jamaisSondees).toEqual(['service_provider']);
   });
 });
 

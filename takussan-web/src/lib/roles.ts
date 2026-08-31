@@ -83,39 +83,25 @@ export function isTenant(roles: UserRole[]): boolean {
 }
 
 /**
- * TCK-494 — `broker` était émis par `profileTypes()` et absent de l'union
- * `UserRole` : le prédicat n'existait donc pas, et rien ne pouvait le réclamer.
- * Il est ici pour que la liste des prédicats couvre ce que l'API émet.
- *
- * ⚠ Le profil `broker` n'a aujourd'hui aucune surface (0 route API, 0 page) —
- * c'est l'objet de TCK-495, qui tranchera entre lui en donner une et le
- * retirer. Ce prédicat ne préjuge pas de l'issue : il rend le rôle LISIBLE, il
- * ne lui ouvre rien.
- */
-export function isBroker(roles: UserRole[]): boolean {
-  return roles.includes('broker');
-}
-
-/**
  * Le rôle le plus « fort » que porte ce compte, du plus privilégié au plus
  * commun.
  *
  * ⚠ `Record<UserRole, number>` est EXHAUSTIF : ajouter une valeur à `UserRole`
  * sans lui donner de rang ici casse la compilation. La version précédente était
- * un tableau littéral, que `tsc` ne pouvait pas juger incomplet — `broker` y
- * manquait, et un courtier pur aurait obtenu `null`, c'est-à-dire « aucun rôle »
- * pour un compte qui en porte un. C'est le patron déjà retenu pour `TYPE_RANK`
- * dans `ProfileSwitcher` (TCK-329).
+ * un tableau littéral, que `tsc` ne pouvait pas juger incomplet. C'est le patron
+ * déjà retenu pour `TYPE_RANK` dans `ProfileSwitcher` (TCK-329), et c'est lui
+ * qui a signalé le retrait de `broker` (TCK-495) plutôt que de le laisser
+ * passer : une clé de trop dans une table exhaustive est une erreur `tsc`, pas
+ * un rang inerte.
  */
 const RANG: Record<UserRole, number> = {
   super_admin: 0,
   agency_admin: 1,
   agent: 2,
   owner: 3,
-  broker: 4,
-  service_provider: 5,
-  tenant: 6,
-  customer: 7,
+  service_provider: 4,
+  tenant: 5,
+  customer: 6,
 };
 
 export function getPrimaryRole(roles: UserRole[]): UserRole | null {

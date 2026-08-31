@@ -5,7 +5,6 @@ namespace App\Http\Resources\Api\Me;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Services\Profiles\ActiveProfileResolver;
@@ -59,7 +58,6 @@ class ProfileResource extends BaseResource
             $this->resource instanceof OwnerProfile,
             $this->resource instanceof AgentProfile,
             $this->resource instanceof AgencyAdminProfile => $this->resource->status?->value,
-            $this->resource instanceof BrokerProfile,
             $this->resource instanceof ServiceProviderProfile => null,
             default => null,
         };

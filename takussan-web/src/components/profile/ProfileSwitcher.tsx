@@ -37,8 +37,7 @@ const TYPE_RANK: Record<ProfileType, number> = {
   agency_admin: 0,
   owner: 1,
   agent: 2,
-  broker: 3,
-  service_provider: 4,
+  service_provider: 3,
 };
 
 const TYPE_ORDER: ProfileType[] = [...PROFILE_TYPES].sort((a, b) => TYPE_RANK[a] - TYPE_RANK[b]);

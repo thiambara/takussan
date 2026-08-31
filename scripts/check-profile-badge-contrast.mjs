@@ -97,26 +97,40 @@ const SURFACES = [
   { jeton: 'background', libelle: '--background' },
 ];
 
+const PROFILE_TS = join(SRC, 'types', 'profile.ts');
+
 /**
- * Les types de profil que la table DOIT couvrir.
+ * Les types de profil que la table DOIT couvrir — **LUS dans `src/types/profile.ts`**.
  *
  * ⚠ Ce n'est pas une énumération décorative : c'est la moitié « laisser passer » de la garde.
  * Sans elle, retirer une ligne de `TYPE_COLOR` ferait sortir le script en 0 avec un message
  * d'apparence saine (« 16 mesures ≥ 4,5:1 »). Un ensemble amputé n'est pas « conforme ».
- * La source de vérité du CÔTÉ TYPES reste `src/types/profile.ts`, et `ProfileBadge.test.tsx`
- * comme `profile-types.parity.test.ts` la gardent ; ici on garde le COUPLE de couleurs.
- */
-const TYPES_ATTENDUS = ['agency_admin', 'owner', 'agent', 'broker', 'service_provider'];
-
-/**
- * Le nombre de mesures soumises au seuil : (5 types + 1 repli) × 2 thèmes × 2 surfaces.
  *
- * ⚠ **Cliquet à DEUX sens.** Une garde à lecture de texte ne meurt pas en rougissant, elle meurt
- * en ne trouvant plus rien : un compte qui BAISSE est le seul signal que la lecture a cessé de
- * voir ce qu'elle voyait hier. S'il change pour de bon (un type ajouté), corriger ce chiffre ICI,
- * avec sa date.
+ * ⚠⚠ **TCK-495 — cette liste était RECOPIÉE ici, et elle a menti dès qu'un type a bougé.**
+ * `['agency_admin', 'owner', 'agent', 'broker', 'service_provider']` : le retrait du courtier de
+ * `PROFILE_TYPES` a fait rougir cette garde sur un défaut de CONTRASTE qui n'existait pas, en
+ * accusant la table du composant d'être « amputée » alors qu'elle était juste. *Une garde qui
+ * recopie ce qu'elle surveille est le défaut qu'elle existe pour attraper ailleurs* — c'est le
+ * même motif que TCK-329, TCK-476 et le `SelectActiveProfileRequest` du back.
+ *
+ * Elle est désormais DÉRIVÉE, et elle échoue bruyamment si elle ne peut pas lire sa source : un
+ * ensemble vide n'est pas une parité tenue.
  */
-const MESURES_ATTENDUES = 24;
+function typesAttendus() {
+  const texte = lire(PROFILE_TS);
+  const bloc = /export const PROFILE_TYPES = \[([\s\S]*?)\] as const;/.exec(texte);
+  if (bloc === null) {
+    console.error(`✗ PROFILE_TYPES introuvable dans ${relative(ROOT, PROFILE_TS)}`);
+    console.error('  Si la forme a changé, METTRE À JOUR ce script — ne pas le désactiver.');
+    process.exit(1);
+  }
+  const types = [...bloc[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+  if (types.length === 0) {
+    console.error('✗ aucun type extrait de PROFILE_TYPES — la garde n’aurait rien vérifié.');
+    process.exit(1);
+  }
+  return types;
+}
 
 function lire(chemin) {
   try {
@@ -288,6 +302,19 @@ const css = lire(CSS);
 const declarees = recettes(texte);
 const echecs = [];
 const lignes = [];
+
+const TYPES_ATTENDUS = typesAttendus();
+
+/**
+ * Le nombre de mesures soumises au seuil : (N types + 1 repli) × 2 thèmes × 2 surfaces.
+ *
+ * ⚠ **Cliquet à DEUX sens.** Une garde à lecture de texte ne meurt pas en rougissant, elle meurt
+ * en ne trouvant plus rien : un compte qui BAISSE est le seul signal que la lecture a cessé de
+ * voir ce qu'elle voyait hier. Il est calculé depuis `TYPES_ATTENDUS`, lui-même dérivé — mais
+ * `typesAttendus()` sort en 1 sur un ensemble vide, donc le cliquet ne peut pas s'auto-satisfaire
+ * en descendant à zéro.
+ */
+const MESURES_ATTENDUES = (TYPES_ATTENDUS.length + 1) * 2 * SURFACES.length;
 
 const nommees = declarees.map((r) => r.nom);
 for (const attendu of TYPES_ATTENDUS) {

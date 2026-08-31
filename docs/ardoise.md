@@ -2666,7 +2666,7 @@ note *« customer/tenant dérivés »*. C'est le code qui a divergé de la spec.
 **Portée** : c'est le public le plus nombreux d'une plateforme immobilière — celui qui cherche à
 louer ou à acheter — qui n'a ni rôle, ni onboarding, ni menu.
 
-### D-59 — Le courtier est un profil commutable sans aucune surface → [TCK-495](backlog/tickets/TCK-495-le-courtier-est-un-profil-sans-surface.md)
+### D-59 — Le courtier est un profil commutable sans aucune surface ✅ *corrigée le 2026-08-31* → [TCK-495](backlog/tickets/TCK-495-le-courtier-est-un-profil-sans-surface.md)
 
 `broker` est dans `ActiveProfileResolver::TYPE_MAP` — donc dans le sélecteur d'espaces et dans
 `GET /api/me/profiles` — et il est émis dans `roles`. En face, rien.
@@ -2688,6 +2688,45 @@ explicitement choisi cet espace.
 `features.md#22` et `models-spec.md#36-brokerprofile-` le décrivent pourtant au présent, et
 `features.md#21` cite « un courtier indépendant collaborant avec C et D » comme cas d'usage du
 multi-profil.
+
+> ✅ **Corrigée, non mergée** — TCK-495, branche `feat/lot-vague-56`. Issue retenue : **le courtier
+> SORT de la surface commutable, sans quitter la base**
+> ([ADR-0027](adr/0027-le-courtier-sort-de-la-surface-commutable.md)). L'alias quitte `TYPE_MAP`,
+> `profileTypes()` et `HasProfiles::profiles()` ; modèles, tables, migrations, factories et seeders
+> restent ; les lectures de modèle aussi (console super-admin, export RGPD, `PropertyResource`). Les
+> deux specs suivent.
+>
+> ⚠ **Le ticket n'avait pas vu le point qui casse** : `ProfileResource` demande son alias à
+> `aliasFor()`, **qui lève** pour une classe absente de `TYPE_MAP`. Retirer l'alias sans retirer le
+> profil de `User::profiles()` rendait **500** sur `GET /api/me/profiles` à tout compte portant un
+> `BrokerProfile` — et les seeders en fabriquent un. Ablation faite : l'exception se reproduit au
+> mot près.
+>
+> ⚠ **Et la garde d'AC2 a d'abord été un faux vert.** Écrite en un temps — « cet alias ouvre plus
+> que le socle » —, elle restait VERTE en remettant `broker` dans `TYPE_MAP` : un alias absent de
+> `UserRole` n'est reconnu par aucun prédicat, `isCustomerOnly()` le rend `true`, et le menu client
+> COMPLET lui est servi. *Un rôle inconnu qui reçoit le menu le plus fourni est le pire des faux
+> verts.* Le premier temps — « cet alias est un rôle que le front connaît » — a été ajouté après
+> l'ablation qui n'a pas rougi.
+
+### D-64 — La liste des rôles ciblables par une annonce est recopiée, et il lui manque deux rôles
+
+`ROLE_SLUGS` (`src/components/admin/super/announcements.tsx`) est une recopie à la main de la liste
+des rôles. `AnnouncementResolver::…` croise `segment.roles` avec `HasProfiles::profileTypes()` : un
+slug absent de `profileTypes()` cible **zéro compte**, en silence, sans rien dire à qui rédige
+l'annonce.
+
+**Preuve**, mesurée le 2026-08-31 : `profileTypes()` émet `customer` et `tenant` depuis TCK-492 ;
+`ROLE_SLUGS` ne les porte pas. Un super-admin ne peut donc **pas** adresser une annonce à l'ensemble
+des comptes authentifiés, ni aux locataires — les deux publics les plus nombreux.
+
+TCK-495 a retiré `broker` de cette liste (il ne ciblait plus personne), mais **n'a pas ajouté** les
+deux manquants : ce serait ouvrir un ciblage neuf, ce qui est une décision de produit et non un
+effet de bord du retrait du courtier.
+
+*Pas de ticket : décider si « tous les comptes » et « les locataires » doivent être des cibles
+d'annonce relève du produit. La correction technique, elle, est connue — dériver la liste au lieu de
+la recopier, comme `SelectActiveProfileRequest` le fait déjà côté back.*
 
 ### D-60 — Trois profils sur six ne s'obtiennent que sur invitation, et rien ne le dit
 

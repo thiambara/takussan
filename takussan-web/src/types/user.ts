@@ -9,8 +9,16 @@
  * (TCK-492). Ajouter une valeur ici sans l'ajouter là-bas, ou l'inverse, casse
  * la suite.
  *
+ * ⚠ **TCK-495 — `broker` a été RETIRÉ de cette union le 2026-08-31, un jour
+ * après y avoir été ajouté par TCK-494.** Ce n'est pas une hésitation : c'est
+ * la garde qui a fonctionné comme prévu. TCK-494 a rendu l'écart VISIBLE en
+ * mettant le front en accord avec ce que le back émettait ; ce que la ligne
+ * `broker: []` de la table d'audience du menu montrait alors — un rôle qui
+ * n'ouvre AUCUN écran au-delà du socle — est ce que TCK-495 a tranché
+ * (ADR-0027). Le back a cessé d'émettre l'alias, le front suit.
+ *
  * Deux natures se cachent dans une seule union, et la nuance compte à la
- * lecture : `agency_admin`, `agent`, `owner`, `broker`, `service_provider` et
+ * lecture : `agency_admin`, `agent`, `owner`, `service_provider` et
  * `super_admin` correspondent à des profils polymorphes — commutables, présents
  * dans `PROFILE_TYPES`. `customer` et `tenant` sont DÉRIVÉS d'un état : aucune
  * ligne en base, aucune entrée dans le sélecteur de profil.
@@ -20,7 +28,6 @@ export const USER_ROLES = [
   'agency_admin',
   'agent',
   'owner',
-  'broker',
   'service_provider',
   'customer',
   'tenant',

@@ -5664,7 +5664,6 @@
         "agency_admin": "Agency admin",
         "agent": "Agent",
         "owner": "Owner",
-        "broker": "Broker",
         "service_provider": "Service provider"
       },
       "rolesHint": "No role ticked: the announcement is not restricted by role.",
@@ -6885,7 +6884,6 @@
       "agency_admin": "Administrator",
       "owner": "Landlord",
       "agent": "Agent",
-      "broker": "Broker",
       "service_provider": "Service provider"
     },
     "roles": {
@@ -6893,7 +6891,6 @@
       "tenant": "Tenant",
       "agent": "Real estate agent",
       "owner": "Landlord",
-      "broker": "Broker",
       "agency_admin": "Agency admin",
       "super_admin": "Super administrator",
       "service_provider": "Service provider"
@@ -6927,12 +6924,6 @@
           "license": {
             "label": "Licence number",
             "help": "Agency professional card — license_number."
-          }
-        },
-        "broker": {
-          "license": {
-            "label": "Licence number",
-            "help": "Independent broker professional card."
           }
         },
         "serviceProvider": {

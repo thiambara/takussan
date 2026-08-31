@@ -16,7 +16,6 @@ import { ProfileBadge, profileTypeLabel } from './ProfileBadge';
 const DISPLAY_TYPES: ReadonlySet<ProfileType> = new Set([
   'owner',
   'agent',
-  'broker',
   'service_provider',
 ]);
 
@@ -38,9 +37,6 @@ const KYC_FIELDS: Record<ProfileType, { labelKey: string; helpKey: string }[]> =
   ],
   agent: [
     { labelKey: 'kyc.agent.license.label', helpKey: 'kyc.agent.license.help' },
-  ],
-  broker: [
-    { labelKey: 'kyc.broker.license.label', helpKey: 'kyc.broker.license.help' },
   ],
   service_provider: [
     { labelKey: 'kyc.serviceProvider.certifications.label', helpKey: 'kyc.serviceProvider.certifications.help' },

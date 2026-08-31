@@ -5112,7 +5112,6 @@
         "agency_admin": "Kilifa ajaans",
         "agent": "Ajaŋ",
         "owner": "Boroom",
-        "broker": "Courtier",
         "service_provider": "Kiy joxe sarwis"
       },
       "rolesHint": "Amul benn wàll bu ñu tànn : yégle bi dañu ko tënkul ci wàll.",
@@ -6333,7 +6332,6 @@
       "agency_admin": "Njiit",
       "owner": "Boroom kër",
       "agent": "Ajaŋ",
-      "broker": "Kurtiye",
       "service_provider": "Ku joxe liggéey"
     },
     "roles": {
@@ -6341,7 +6339,6 @@
       "tenant": "Ku dëkk",
       "agent": "Ajaŋu kër",
       "owner": "Boroom kër bu luy",
-      "broker": "Kurtiye",
       "agency_admin": "Njiitu ajaas",
       "super_admin": "Njiit bu mag",
       "service_provider": "Ku joxe liggéey"
@@ -6375,12 +6372,6 @@
           "license": {
             "label": "Nomboro lisaas",
             "help": "Kartu liggéeykatu ajaas — license_number."
-          }
-        },
-        "broker": {
-          "license": {
-            "label": "Nomboro lisaas",
-            "help": "Kartu liggéeykatu kurtiye bu bopp."
           }
         },
         "serviceProvider": {

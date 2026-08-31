@@ -15,7 +15,9 @@ import { USER_ROLES } from '../user';
  * C'est pourtant l'axe où la dérive a réellement eu lieu, et sur ses trois
  * valeurs à la fois, relevé le 2026-08-30 :
  *
- *   - `broker` était émis par le back et ABSENT de l'union ;
+ *   - `broker` était émis par le back et ABSENT de l'union — écart soldé le
+ *     lendemain, par le RETRAIT du rôle et non par son ajout au front
+ *     (TCK-495 / ADR-0027) ;
  *   - `customer` et `tenant` étaient déclarés dans l'union et JAMAIS émis, si
  *     bien que `isCustomer()` et `isTenant()` rendaient `false` en toutes
  *     circonstances — et que quatre surfaces front bâties dessus (menu latéral,
@@ -71,9 +73,23 @@ describe('parité UserRole ↔ HasProfiles::profileTypes()', () => {
     expect([...USER_ROLES].sort()).toEqual(rolesDuBack().sort());
   });
 
-  it('émet broker — l’écart où le back en disait plus que le front', () => {
-    expect(rolesDuBack()).toContain('broker');
-    expect(USER_ROLES).toContain('broker');
+  /**
+   * TCK-495 — ce cas affirmait l'inverse : *« émet broker — l'écart où le back
+   * en disait plus que le front »*. Il n'a pas été supprimé, il a été RETOURNÉ,
+   * parce que l'écart qu'il nommait a été soldé par une décision et non par un
+   * alignement de listes (ADR-0027).
+   *
+   * ⚠ **La garde de parité aurait été verte dans les deux sens** — back et
+   * front d'accord sur `broker` présent, ou d'accord sur `broker` absent. C'est
+   * la limite annoncée d'un test de parité : *il tient l'accord entre deux
+   * listes, jamais la justesse de ce qu'elles contiennent.* Ce qui a tranché,
+   * c'est `AppSidebar.audience.test.tsx` — un profil commutable qui n'ouvre
+   * aucun écran —, et le cas ci-dessous en garde la trace ici, là où quelqu'un
+   * qui voudrait « remettre broker pour faire propre » viendra lire.
+   */
+  it('n’émet plus broker — le rôle a été retiré, pas oublié', () => {
+    expect(rolesDuBack()).not.toContain('broker');
+    expect(USER_ROLES).not.toContain('broker');
   });
 
   it('émet customer et tenant — les deux écarts où le front en disait plus que le back', () => {

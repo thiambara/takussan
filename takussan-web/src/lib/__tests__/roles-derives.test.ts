@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   getPrimaryRole,
-  isBroker,
   isCustomer,
   isCustomerOnly,
   isTenant,
 } from '@/lib/roles';
 import { buildNavItems } from '@/components/layout/AppSidebar';
-import type { User, UserRole } from '@/types/user';
+import { USER_ROLES, type User, type UserRole } from '@/types/user';
 
 /**
  * TCK-492 — ce que la dérivation de `customer` et `tenant` change côté front.
@@ -63,7 +62,6 @@ describe('isCustomer est devenu un plancher, isCustomerOnly le discriminant', ()
     ['bailleur', ['owner', 'customer']],
     ['agent', ['agent', 'customer']],
     ['admin d’agence', ['agency_admin', 'customer']],
-    ['courtier', ['broker', 'customer']],
     ['prestataire', ['service_provider', 'customer']],
     ['super-admin', ['super_admin', 'customer']],
   ])('un %s n’est jamais « client seulement », même avec un bail en cours', (_nom, roles) => {
@@ -119,16 +117,18 @@ describe('les prédicats dérivés', () => {
     expect(isTenant(['customer', 'tenant'])).toBe(true);
   });
 
-  it('isBroker existe enfin — le rôle était émis et n’avait aucun prédicat', () => {
-    expect(isBroker(['broker', 'customer'])).toBe(true);
-    expect(isBroker(['customer'])).toBe(false);
-  });
-
-  it('getPrimaryRole rend broker plutôt que null pour un courtier', () => {
-    // Le tableau littéral qu'il employait omettait `broker` : un courtier
-    // obtenait `null`, c'est-à-dire « aucun rôle » pour un compte qui en porte
-    // un. `Record<UserRole, number>` rend l'oubli impossible à recommencer.
-    expect(getPrimaryRole(['broker', 'customer'])).toBe('broker');
+  /**
+   * TCK-495 — deux cas vivaient ici sur `broker` : `isBroker()` et le
+   * `getPrimaryRole` d'un courtier. Le prédicat est supprimé avec le rôle, et
+   * la propriété que le second mesurait — **`getPrimaryRole` ne rend jamais
+   * `null` à un compte qui porte un rôle** — n'est pas perdue : elle est
+   * reprise ci-dessous sur l'union entière, ce qui la rend plus forte que sur
+   * un seul rôle. C'est ce que TCK-494 reprochait au tableau littéral d'origine.
+   */
+  it('getPrimaryRole ne rend jamais null pour un rôle que l’API émet', () => {
+    for (const role of USER_ROLES) {
+      expect(getPrimaryRole([role]), `${role} doit avoir un rang`).toBe(role);
+    }
   });
 
   it('getPrimaryRole préfère toujours le rôle professionnel au plancher', () => {

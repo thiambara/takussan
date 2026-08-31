@@ -26,6 +26,9 @@ class ProfilesEndpointTest extends TestCase
 
         $owner = OwnerProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $a->id]);
         $agent = AgentProfile::factory()->create(['user_id' => $user->id, 'agency_id' => $b->id]);
+        // TCK-495 — le courtier est créé DÉLIBÉRÉMENT ici, et il ne doit PAS
+        // apparaître. Le retirer de la fixture rendrait ce test vert pour la
+        // mauvaise raison : il ne mesurerait plus rien du retrait.
         BrokerProfile::factory()->create(['user_id' => $user->id]);
 
         Sanctum::actingAs($user);
@@ -36,11 +39,52 @@ class ProfilesEndpointTest extends TestCase
         $expected = collect([
             "owner:{$owner->id}",
             "agent:{$agent->id}",
-            'broker:'.$user->brokerProfile->id,
         ])->sort()->values()->all();
 
         $this->assertSame($expected, $ids);
-        $this->assertSame(3, $response->json('meta.count'));
+        $this->assertSame(2, $response->json('meta.count'));
+    }
+
+    /**
+     * TCK-495 — le compte qui n'a QUE le profil retiré.
+     *
+     * ⚠ C'est le cas qui aurait rendu **500**, et le ticket ne l'avait pas vu :
+     * `ProfileResource` demande son alias à `ActiveProfileResolver::aliasFor()`,
+     * qui LÈVE `InvalidArgumentException` pour une classe absente de
+     * `TYPE_MAP`. Retirer l'alias sans retirer le profil de `User::profiles()`
+     * aurait donc cassé `/api/me/profiles` — pour un compte que les seeders
+     * fabriquent (`UserSeeder`, `TestSeeder`), pas pour un cas de laboratoire.
+     *
+     * Vérifié par ablation : rétablir `brokerProfile` dans `HasProfiles::profiles()`
+     * fait rougir ce test sur une 500, pas sur une liste trop longue.
+     */
+    public function test_un_compte_qui_n_a_que_le_profil_courtier_recoit_une_liste_vide_et_non_une_500(): void
+    {
+        $user = User::factory()->create();
+        BrokerProfile::factory()->create(['user_id' => $user->id]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/me/profiles')->assertOk();
+
+        $this->assertSame([], $response->json('data'));
+        $this->assertSame(0, $response->json('meta.count'));
+    }
+
+    /**
+     * TCK-495 — le pendant côté `roles` : le courtier n'est plus émis.
+     *
+     * `customer` reste, parce qu'il est le PLANCHER de toute identité
+     * authentifiée (TCK-492) — l'absence de `broker` se lit donc sur une liste
+     * qui n'est pas vide, ce qui est exactement le cas à distinguer d'une
+     * dérivation cassée.
+     */
+    public function test_le_profil_courtier_n_est_plus_emis_dans_roles(): void
+    {
+        $user = User::factory()->create();
+        BrokerProfile::factory()->create(['user_id' => $user->id]);
+
+        $this->assertSame(['customer'], $user->profileTypes()->all());
     }
 
     public function test_get_me_profiles_never_leaks_other_users_profiles(): void

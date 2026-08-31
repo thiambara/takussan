@@ -91,17 +91,20 @@ describe('espacesAProposer — une agence personnelle est UN espace', () => {
     expect(proposes.map((p) => p.agency_id)).toEqual([7, 9, 9, 11]);
   });
 
-  it('laisse passer un profil sans agence — courtier, prestataire', () => {
-    const courtier: Profile = {
-      id: 'broker:1',
-      type: 'broker',
+  it('laisse passer un profil sans agence — prestataire', () => {
+    // TCK-495 — le cas était écrit sur un courtier, qui n'est plus un
+    // `ProfileType` (ADR-0027). Le prestataire porte la même propriété et la
+    // porte toujours : `agency_id` nul, donc rien à fusionner.
+    const prestataire: Profile = {
+      id: 'service_provider:1',
+      type: 'service_provider',
       numeric_id: 1,
       agency_id: null,
       status: null,
       created_at: null,
     };
 
-    expect(espacesAProposer([courtier], null)).toEqual([courtier]);
+    expect(espacesAProposer([prestataire], null)).toEqual([prestataire]);
   });
 
   it('n’invente rien quand `kind` est absent de la charge utile', () => {
