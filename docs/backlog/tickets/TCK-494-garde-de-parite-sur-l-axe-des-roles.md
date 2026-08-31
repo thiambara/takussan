@@ -1,13 +1,13 @@
 ---
 id: TCK-494
 title: "La garde de parité couvre les profils, pas les rôles — l'axe où la dérive a réellement eu lieu"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: S
 wave: 56
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-08-31
 depends_on: [TCK-492]
 blocks: []
 spec_refs:
@@ -65,23 +65,23 @@ dans la garde de TCK-329, et c'est celui qui compte le plus ici.
 
 **Frontend — intentionnel**
 
-- [ ] Une garde de parité `UserRole` ↔ `HasProfiles::profileTypes()`, sur le patron de
+- [x] Une garde de parité `UserRole` ↔ `HasProfiles::profileTypes()`, sur le patron de
       `profile-types.parity.test.ts`
-- [ ] Elle échoue explicitement si elle ne peut pas extraire la liste du code PHP
-- [ ] Un cas nommé pour chacun des trois écarts qui ont motivé la garde : `broker` absent du front,
+- [x] Elle échoue explicitement si elle ne peut pas extraire la liste du code PHP
+- [x] Un cas nommé pour chacun des trois écarts qui ont motivé la garde : `broker` absent du front,
       `customer` et `tenant` absents du back
-- [ ] L'union `UserRole` et `lib/roles.ts` sont mises en accord avec ce que le back émet réellement
+- [x] L'union `UserRole` et `lib/roles.ts` sont mises en accord avec ce que le back émet réellement
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — La garde rougit si un alias est ajouté à `profileTypes()` sans l'être à `UserRole`,
+- [x] **AC1** — La garde rougit si un alias est ajouté à `profileTypes()` sans l'être à `UserRole`,
       et réciproquement. Vérifié par ablation dans les deux sens.
-- [ ] **AC2** — La garde rougit — sans passer au vert — si le fichier PHP est introuvable, si son
+- [x] **AC2** — La garde rougit — sans passer au vert — si le fichier PHP est introuvable, si son
       motif d'extraction ne trouve rien, ou si l'ensemble extrait est vide.
-- [ ] **AC3** — `broker` figure dans `UserRole` à l'issue du ticket.
-- [ ] **AC4** — La garde est verte sur `dev` une fois TCK-492 mergé, et rouge avant : c'est la
+- [x] **AC3** — `broker` figure dans `UserRole` à l'issue du ticket.
+- [x] **AC4** — La garde est verte sur `dev` une fois TCK-492 mergé, et rouge avant : c'est la
       preuve qu'elle mesure l'écart réel et non une liste réécrite pour lui plaire.
-- [ ] **AC5** — `npm run lint`, `npx tsc --noEmit`, `npm run test` verts.
+- [x] **AC5** — `npm run lint`, `npx tsc --noEmit`, `npm run test` verts.
 
 ## Hors périmètre
 
@@ -93,4 +93,31 @@ dans la garde de TCK-329, et c'est celui qui compte le plus ici.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+`src/types/__tests__/user-roles.parity.test.ts`, sur le patron de TCK-329. `UserRole` dérive
+désormais d'un `USER_ROLES` `as const` — la garde compare des ensembles, et le typage reste exhaustif.
+
+**L'extraction est en DEUX temps, et le premier n'est pas décoratif** : on isole le corps de
+`profileTypes()`, puis on y cherche les `$types->push('…')`. Chercher la forme sur le fichier entier
+reviendrait à faire confiance au reste du fichier pour ne jamais la contenir — dans un commentaire,
+dans une méthode voisine — et la contrainte n° 1 dit que la garde lit le code, pas ce qui l'entoure.
+Chaque étape qui peut échouer le dit : méthode introuvable, corps non borné, ensemble vide.
+
+**Ablation, trois sens (AC1 + AC2) :** retirer `broker` du front → 2 cas rouges ; ajouter un
+`push('concierge')` au back → 1 rouge ; renommer `profileTypes()` → 3 rouges avec le message
+« profileTypes() introuvable », **jamais un vert sur un ensemble vide**.
+
+**Deux effets de bord, tous deux attrapés par `tsc` et non par un humain** — c'est le second
+mécanisme dont parle TCK-329 (`Record<UserRole, …>` exhaustif) qui a fonctionné :
+`ProfileHeader.tsx` et `ProfileAdminSection.tsx` portaient des tables de libellés incomplètes, et
+`AppSidebar.test.tsx` une table d'href sans ligne `broker`. Les libellés `profile.roles.broker`
+sont ajoutés en `fr`/`en`/`wo`.
+
+**`getPrimaryRole` a été refait au passage** : sa liste de priorité était un tableau littéral que
+`tsc` ne pouvait pas juger incomplet, et `broker` y manquait — un courtier obtenait `null`,
+c'est-à-dire « aucun rôle » pour un compte qui en porte un. Elle est devenue un
+`Record<UserRole, number>`.
+
+**Ce que la ligne `broker: []` du relevé de menu dit vraiment** : un courtier ne reçoit AUCUNE entrée
+au-delà du socle (`/app`, `/app/messages`, `/app/documents`). Ce n'est pas une propriété souhaitée,
+c'est le constat que TCK-495 doit trancher — la garde le rend visible plutôt que de le laisser dans
+un angle mort.

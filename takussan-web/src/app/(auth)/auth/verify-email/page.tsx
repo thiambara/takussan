@@ -64,8 +64,13 @@ export default function VerifyEmailPage() {
           )}
         </Button>
 
+        {/* TCK-493 — même destination que le chemin OAuth : la question
+            d'orientation, qui renvoie vers `/app` quand elle n'a rien à
+            demander. Les deux chemins d'inscription posent la même question ;
+            une question posée sur un seul ne mesure rien et laisse le défaut
+            entier sur l'autre. */}
         <Link
-          href="/app"
+          href="/onboarding/intention"
           className="block text-center text-sm text-muted-foreground hover:text-foreground"
         >
           {t('continue')}

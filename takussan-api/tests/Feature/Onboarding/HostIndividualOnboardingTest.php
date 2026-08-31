@@ -56,6 +56,86 @@ class HostIndividualOnboardingTest extends TestCase
         ];
     }
 
+    /**
+     * TCK-496 / AC2 — l'assistant ne demande plus d'opérateur de paiement, et un
+     * parcours qui n'en nomme aucun aboutit.
+     *
+     * On demandait par quel opérateur être payé à quelqu'un qui n'avait pas
+     * encore d'annonce, et la réponse n'était lue par rien : le docblock du
+     * service reporte lui-même la configuration réelle au premier encaissement.
+     */
+    public function test_un_parcours_sans_mode_de_paiement_cree_l_espace(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '+221770000000',
+            'phone_verified_at' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $payload = $this->defaultPayload();
+        $payload['phone_otp']['code'] = $code;
+        unset($payload['payment_setting']);
+
+        $response = $this->postJson('/api/host/individual/onboard', $payload);
+
+        $response->assertStatus(201);
+        $agency = Agency::query()->findOrFail($response->json('data.agency.id'));
+
+        // AC5 — la clé n'est pas posée du tout. Surtout PAS posée à `''` : une
+        // préférence vide serait indiscernable en aval d'un choix délibéré.
+        $this->assertNull(data_get($agency->settings, 'payment'));
+        $this->assertSame('Dakar', data_get($agency->settings, 'primary_city'));
+    }
+
+    /**
+     * TCK-496 / AC3 — l'ancien contrat n'est pas cassé.
+     *
+     * Un brouillon repris, ou un client tiers resté sur la forme d'avant, poste
+     * encore `payment_setting.preferred_provider`. Il doit être accepté ET
+     * enregistré : le ticket change ce qui est DEMANDÉ, pas ce qui est reçu.
+     */
+    public function test_une_charge_utile_qui_porte_encore_l_operateur_est_acceptee_et_enregistree(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '+221770000000',
+            'phone_verified_at' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        $code = app(PhoneVerificationService::class)->sendOtp($user);
+        $payload = $this->defaultPayload();
+        $payload['phone_otp']['code'] = $code;
+        $payload['payment_setting']['preferred_provider'] = 'orange_money';
+
+        $response = $this->postJson('/api/host/individual/onboard', $payload);
+
+        $response->assertStatus(201);
+        $agency = Agency::query()->findOrFail($response->json('data.agency.id'));
+        $this->assertSame('orange_money', data_get($agency->settings, 'payment.preferred_provider'));
+    }
+
+    /**
+     * TCK-496 — devenu facultatif ne veut pas dire devenu libre. Un opérateur
+     * inconnu reste refusé : c'est la garde qui distingue « on ne demande plus »
+     * de « on ne valide plus ».
+     */
+    public function test_un_operateur_inconnu_reste_refuse(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '+221770000000',
+            'phone_verified_at' => now(),
+        ]);
+        Sanctum::actingAs($user);
+
+        $payload = $this->defaultPayload();
+        $payload['payment_setting']['preferred_provider'] = 'bitcoin';
+
+        $this->postJson('/api/host/individual/onboard', $payload)
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('payment_setting.preferred_provider');
+    }
+
     public function test_nominal_flow_creates_agency_admin_and_owner_profiles_and_attaches_roles(): void
     {
         $user = User::factory()->create([

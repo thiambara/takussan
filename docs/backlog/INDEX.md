@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**447 tickets** — 27 ouverts, 419 livrés.
+**447 tickets** — 22 ouverts, 424 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 24 |
+| 📋 Todo | 19 |
 | 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 1 |
-| ✅ Done | 419 |
+| ✅ Done | 424 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -52,11 +52,6 @@
 - [TCK-485](tickets/TCK-485-blanc-sur-destructive-plein-dans-le-badge-du-chat.md) — Le badge du chat pose du blanc sur `--destructive` plein : 2,77:1 en thème sombre `S · P2 · front`
 - [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
 - [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
-- [TCK-492](tickets/TCK-492-customer-et-tenant-jamais-emis-dans-roles.md) — `customer` et `tenant` ne sont jamais émis dans `roles` — quatre surfaces front sont mortes `M · P0 · full`
-- [TCK-493](tickets/TCK-493-question-d-intention-apres-inscription.md) — Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé `S · P1 · front`
-- [TCK-494](tickets/TCK-494-garde-de-parite-sur-l-axe-des-roles.md) — La garde de parité couvre les profils, pas les rôles — l'axe où la dérive a réellement eu lieu `S · P1 · technique`
-- [TCK-496](tickets/TCK-496-mode-de-paiement-demande-avant-la-premiere-annonce.md) — L'assistant hôte demande un mode de paiement que rien ne consomme, avant la première annonce `S · P2 · front`
-- [TCK-497](tickets/TCK-497-deux-espaces-indiscernables-pour-un-particulier.md) — Le sélecteur propose deux espaces au nom et au slug identiques — un choix qui n'en est pas un `M · P1 · full`
 
 ## 🚧 Doing
 
@@ -73,11 +68,16 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 419
+## ✅ Done — 424
 
 <details>
-<summary><strong>Vague 56 — Audit des parcours d'entrée : rôles jamais émis, portes manquantes, coque des assistants (2026-08-30)</strong> — 1 ticket</summary>
+<summary><strong>Vague 56 — Audit des parcours d'entrée : rôles jamais émis, portes manquantes, coque des assistants (2026-08-30)</strong> — 6 tickets</summary>
 
+- [TCK-492](tickets/TCK-492-customer-et-tenant-jamais-emis-dans-roles.md) — `customer` et `tenant` ne sont jamais émis dans `roles` — quatre surfaces front sont mortes `M · P0 · full`
+- [TCK-493](tickets/TCK-493-question-d-intention-apres-inscription.md) — Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé `S · P1 · front`
+- [TCK-494](tickets/TCK-494-garde-de-parite-sur-l-axe-des-roles.md) — La garde de parité couvre les profils, pas les rôles — l'axe où la dérive a réellement eu lieu `S · P1 · technique`
+- [TCK-496](tickets/TCK-496-mode-de-paiement-demande-avant-la-premiere-annonce.md) — L'assistant hôte demande un mode de paiement que rien ne consomme, avant la première annonce `S · P2 · front`
+- [TCK-497](tickets/TCK-497-deux-espaces-indiscernables-pour-un-particulier.md) — Le sélecteur propose deux espaces au nom et au slug identiques — un choix qui n'en est pas un `M · P1 · full`
 - [TCK-498](tickets/TCK-498-alias-agency-admin-refuse-par-la-validation.md) — On ne peut pas revenir sur son espace administrateur : la validation refuse l'alias que l'onboarding épingle `S · P0 · bug`
 
 </details>

@@ -1,4 +1,32 @@
-export type UserRole = 'customer' | 'tenant' | 'agent' | 'agency_admin' | 'owner' | 'service_provider' | 'super_admin';
+/**
+ * Les rôles que l'API émet dans `User.roles`.
+ *
+ * **Source de vérité : `HasProfiles::profileTypes()` côté back**, et cette
+ * union en est une RECOPIE. `types/__tests__/user-roles.parity.test.ts`
+ * (TCK-494) lit le fichier PHP et fait rougir tout écart — parce que la
+ * recopie avait dérivé sur les trois valeurs à la fois : `broker` était émis
+ * et absent d'ici, `customer` et `tenant` étaient déclarés ici et jamais émis
+ * (TCK-492). Ajouter une valeur ici sans l'ajouter là-bas, ou l'inverse, casse
+ * la suite.
+ *
+ * Deux natures se cachent dans une seule union, et la nuance compte à la
+ * lecture : `agency_admin`, `agent`, `owner`, `broker`, `service_provider` et
+ * `super_admin` correspondent à des profils polymorphes — commutables, présents
+ * dans `PROFILE_TYPES`. `customer` et `tenant` sont DÉRIVÉS d'un état : aucune
+ * ligne en base, aucune entrée dans le sélecteur de profil.
+ */
+export const USER_ROLES = [
+  'super_admin',
+  'agency_admin',
+  'agent',
+  'owner',
+  'broker',
+  'service_provider',
+  'customer',
+  'tenant',
+] as const;
+
+export type UserRole = (typeof USER_ROLES)[number];
 
 export type UserStatus = 'active' | 'inactive' | 'banned';
 
@@ -9,7 +37,24 @@ export type UserStatus = 'active' | 'inactive' | 'banned';
 export type UserPreferences = {
   city?: string;
   search_intent?: 'rent' | 'buy' | 'both';
+  /**
+   * TCK-493 — la réponse à la question d'orientation posée juste après la
+   * création du compte.
+   *
+   * ⚠ Elle ORIENTE, elle n'attribue rien : aucun profil n'est créé, aucune
+   * capacité accordée. `'publish'` mène à `/onboarding/host`, qui reste seul
+   * juge de ce qu'il crée.
+   *
+   * `'skipped'` est une réponse à part entière, et c'est le point qui compte :
+   * sans valeur enregistrée, « passer » deviendrait « repousser à la prochaine
+   * connexion », ce qui n'est pas passer.
+   */
+  entry_intent?: EntryIntent;
 };
+
+/** Les réponses possibles à la question d'orientation (TCK-493). */
+export const ENTRY_INTENTS = ['search', 'publish', 'skipped'] as const;
+export type EntryIntent = (typeof ENTRY_INTENTS)[number];
 
 export type User = {
   id: number;

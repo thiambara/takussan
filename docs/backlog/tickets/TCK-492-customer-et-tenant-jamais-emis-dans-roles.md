@@ -1,13 +1,13 @@
 ---
 id: TCK-492
 title: "`customer` et `tenant` ne sont jamais émis dans `roles` — quatre surfaces front sont mortes"
-status: todo
+status: done
 phase: P0
 family: full
 estimate: M
 wave: 56
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-08-31
 depends_on: []
 blocks: [TCK-493, TCK-494]
 spec_refs:
@@ -76,35 +76,35 @@ l'inverse.
 
 **Backend — prescriptif**
 
-- [ ] `App\Models\Concerns\HasProfiles::profileTypes()` — dérive `customer` (plancher) et `tenant`
+- [x] `App\Models\Concerns\HasProfiles::profileTypes()` — dérive `customer` (plancher) et `tenant`
       (au moins un bail actif), sans nouvelle table ni nouveau profil
-- [ ] Le coût en requêtes de la dérivation est mesuré et documenté dans le ticket
-- [ ] Tests : `HasProfilesTest` — un compte nu rend `['customer']` ; un compte avec bail actif rend
+- [x] Le coût en requêtes de la dérivation est mesuré et documenté dans le ticket
+- [x] Tests : `HasProfilesTest` — un compte nu rend `['customer']` ; un compte avec bail actif rend
       `customer` **et** `tenant` ; un bail terminé retire `tenant` ; un `agency_admin` conserve ses
       deux natures
 
 **Frontend — intentionnel**
 
-- [ ] Les quatre surfaces recensées ci-dessus redeviennent atteignables, sans qu'aucune ne soit
+- [x] Les quatre surfaces recensées ci-dessus redeviennent atteignables, sans qu'aucune ne soit
       réécrite : elles étaient justes, c'est leur condition qui ne s'allumait pas
-- [ ] Tests : le menu d'un acheteur pur porte réservations, visites et baux ; le widget de
+- [x] Tests : le menu d'un acheteur pur porte réservations, visites et baux ; le widget de
       check-list locataire se monte pour un locataire
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — `GET /api/auth/me` sur un compte fraîchement créé, sans aucun profil, rend
+- [x] **AC1** — `GET /api/auth/me` sur un compte fraîchement créé, sans aucun profil, rend
       `roles: ["customer"]`. *Ce test échoue sur le code actuel* : il rend `[]`.
-- [ ] **AC2** — Le même compte, devenu locataire d'un bail actif, rend `customer` et `tenant`. La
+- [x] **AC2** — Le même compte, devenu locataire d'un bail actif, rend `customer` et `tenant`. La
       fin du bail retire `tenant` et conserve `customer`.
-- [ ] **AC3** — Un `agency_admin` qui loue par ailleurs un logement rend ses deux natures : le
+- [x] **AC3** — Un `agency_admin` qui loue par ailleurs un logement rend ses deux natures : le
       modèle est additif, pas exclusif.
-- [ ] **AC4** — Le menu latéral d'un compte sans profil d'agence porte « Mes réservations »,
+- [x] **AC4** — Le menu latéral d'un compte sans profil d'agence porte « Mes réservations »,
       « Mes visites » et « Mes baux ». *Ce test échoue sur le code actuel.*
-- [ ] **AC5** — Le widget de check-list d'onboarding locataire (TCK-266) se monte pour un locataire.
+- [x] **AC5** — Le widget de check-list d'onboarding locataire (TCK-266) se monte pour un locataire.
       *Ce test échoue sur le code actuel.*
-- [ ] **AC6** — Le nombre de requêtes de `GET /api/auth/me` est relevé avant et après ; l'écart est
+- [x] **AC6** — Le nombre de requêtes de `GET /api/auth/me` est relevé avant et après ; l'écart est
       inscrit dans les notes d'implémentation. Une régression non bornée n'est pas acceptée.
-- [ ] **AC7** — Suite backend et suite front vertes ; Pint propre ; `npm run lint` et
+- [x] **AC7** — Suite backend et suite front vertes ; Pint propre ; `npm run lint` et
       `npx tsc --noEmit` propres.
 
 ## Hors périmètre
@@ -118,4 +118,52 @@ l'inverse.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Une prémisse du ticket était fausse, et elle aurait produit un code faux.**
+`leases.tenant_id` **ne référence pas `users`** : la contrainte pointe `customers`
+(`2026_04_17_160011_create_leases_table.php:15`), et `customers.user_id` est NULLABLE — un dossier
+locataire existe pour quelqu'un qui n'a pas de compte. Un `hasMany(Lease::class, 'tenant_id')` posé
+sur `User` aurait comparé un identifiant d'utilisateur à un identifiant de client : **silencieusement
+vide dans le cas courant, et FAUX le jour où les deux séquences se croisent.** La relation retenue
+est un `hasManyThrough` `User → Customer → Lease`, et
+`test_le_bail_d_un_dossier_client_sans_compte_ne_deteint_sur_personne` épingle le cas.
+
+**Le second piège était PostgreSQL, et il a rougi bruyamment.** `tenantLeases()` joint `customers`,
+qui porte elle aussi une colonne `status`. Un `whereIn('status', …)` nu rend
+`SQLSTATE[42702] column reference "status" is ambiguous` — mesuré par ablation. La requête écrit donc
+`leases.status` qualifié (piège n° 7 de `CLAUDE.md`).
+
+**Le coût mesuré (AC6) : 6 → 7 requêtes.** `customer` est gratuit (plancher, aucune requête) ;
+`tenant` vaut exactement un `exists()`. Épinglé par
+`test_la_derivation_coute_une_requete_et_une_seule`, qui compte les requêtes de `profileTypes()` —
+un test qui rougit si quelqu'un ajoute une dérivation coûteuse sans s'en apercevoir.
+
+**Ce que le ticket n'avait pas vu : la dérivation retourne le SENS d'`isCustomer` côté front.**
+`customer` devenant le plancher, `isCustomer()` rend `true` pour un agent, un bailleur et un
+super-admin. Or huit sites l'employaient comme DISCRIMINANT, dont
+`buildNavItems`, qui enchaîne `if (isCustomer) … else if (isOwner) … else if (isAgent)` : rallumer
+`customer` sans relire cette chaîne aurait donné **le menu d'un acheteur à tous les professionnels du
+produit**, et aucun test existant ne l'aurait vu (les tables de `AppSidebar.test.tsx` sondent des
+rôles isolés, `['agent']`, jamais les jeux que l'API émet réellement, `['agent', 'customer']`).
+
+D'où `isCustomerOnly()` (`lib/roles.ts`), qui répond à « ce compte est-il un client ET RIEN
+D'AUTRE ? ». `PROFESSIONAL_ROLES` s'en déduit par soustraction de `USER_ROLES`, jamais par une
+seconde liste. Les huit sites ont été relus un par un :
+
+| Site | Nouveau prédicat | Ce que l'ancien aurait produit |
+|---|---|---|
+| `AppSidebar:179` (chaîne `if/else if`) | `isCustomerOnly` | menu d'acheteur pour tous les professionnels |
+| `AppSidebar` ×3 libellés | `isCustomerOnly` | « Mes réservations » affiché à un agent |
+| `AppShell:38` (modale TCK-253) | `isCustomerOnly` | modale de bienvenue acheteur pour les admins |
+| `MinimalProfileTriggerProvider` | `isCustomerOnly` | feuille de profil minimal pour un agent |
+| `DashboardShortcuts:66` | `isCustomerOnly` | `/app/leases` poussé DEUX fois pour un bailleur |
+| `profile/page.tsx` ×2 | `isCustomerOnly` | sections « client » sur le profil d'un agent |
+| `(accueil):59` (widget TCK-266) | **`isTenant`** | requête de baux pour toute l'agence |
+| `InventoryDetail:344` | **`isTenant`** | canevas de signature LOCATAIRE ouvert au bailleur |
+| `overview:58` (`!isCustomer`) | terme retiré | prestataire pur plus jamais renvoyé vers `/app` |
+
+`lib/__tests__/roles-derives.test.ts` (17 cas) garde ces jeux de rôles réels ; c'est le fichier à
+lire avant de retoucher un prédicat de rôle.
+
+**Ablation faite dans les deux sens** : retirer la dérivation fait rougir 8 des 9 cas de
+`DerivedRolesTest` (le neuvième est un `assertNotContains`, vrai par vacuité — c'est attendu d'une
+garde négative) ; déqualifier `leases.status` les fait tomber en `QueryException`.

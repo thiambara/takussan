@@ -3989,6 +3989,27 @@
       "autosave": "Your answers are saved as you go — you can pick up where you left off.",
       "exit": "Back to site"
     },
+    "intention": {
+      "metaTitle": "What brings you to Takussan?",
+      "pageTitle": "Welcome, {name}",
+      "pageSubtitle": "One question, and we take you straight to the right place. You can always do both.",
+      "legend": "What you came to do",
+      "options": {
+        "search": {
+          "title": "I'm looking for a home",
+          "body": "Rent or buy — browse listings, request a viewing, follow your applications."
+        },
+        "publish": {
+          "title": "I want to list a property",
+          "body": "Put your property online and manage your bookings from your own space."
+        }
+      },
+      "submit": "Continue",
+      "submitting": "One moment…",
+      "skip": "I'll decide later",
+      "note": "This answer commits you to nothing — it only decides which screens you see first.",
+      "error": "We couldn't save your answer. Try again, or skip this step."
+    },
     "host": {
       "defaults": {
         "spaceNameOf": "{name}'s space"
@@ -4098,26 +4119,6 @@
             "sale": "Sale"
           }
         },
-        "payment": {
-          "title": "Payment method",
-          "subtitle": "Pick your preferred provider — full configuration will be requested at the first booking.",
-          "legend": "Payment provider",
-          "providers": {
-            "wave": {
-              "title": "Wave",
-              "body": "Mobile money — recommended in Senegal."
-            },
-            "orange_money": {
-              "title": "Orange Money",
-              "body": "Mobile money — West Africa."
-            },
-            "lemon_squeezy": {
-              "title": "Card (Lemon Squeezy)",
-              "body": "International card payments."
-            }
-          },
-          "disclaimer": "You'll be able to configure several providers and change the default from your dashboard."
-        },
         "recap": {
           "title": "Summary",
           "subtitle": "Check before publishing — you can edit everything later.",
@@ -4131,7 +4132,6 @@
             "firstPropertyType": "Property type",
             "firstPropertyContract": "Transaction",
             "firstPropertyPrice": "Price",
-            "paymentProvider": "Payment provider",
             "yes": "Yes",
             "no": "No"
           },
@@ -6893,6 +6893,7 @@
       "tenant": "Tenant",
       "agent": "Real estate agent",
       "owner": "Landlord",
+      "broker": "Broker",
       "agency_admin": "Agency admin",
       "super_admin": "Super administrator",
       "service_provider": "Service provider"

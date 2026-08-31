@@ -49,9 +49,16 @@ const ATTENDU: Record<string, string[]> = {
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
     '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
+  // TCK-492 — le locataire reçoit désormais le parcours client COMPLET, et pas
+  // un sous-ensemble. Ce n'est pas un élargissement décidé ici : `buildNavItems`
+  // ouvre son bloc client sur `isCustomerOnly`, et quelqu'un dont le seul rôle
+  // est `tenant` n'a aucun profil professionnel. L'ancienne ligne mesurait un
+  // monde où `customer` n'était jamais émis — un locataire y arrivait sans lui,
+  // ce qui ne se produit plus : l'API émet toujours `customer` avec `tenant`.
   tenant: [
-    '/app', '/app/favorites', '/app/saved-searches', '/app/messages', '/app/documents',
-    '/app/overview', '/app/bookings', '/app/visits', '/app/leases',
+    '/app', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
+    '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
+    '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
   owner: [
     '/app', '/app/properties', '/app/favorites', '/app/saved-searches', '/app/bookings',
@@ -82,6 +89,7 @@ const ATTENDU: Record<string, string[]> = {
     '/app/leases/onboarding-pending', '/admin',
   ],
   // Son métier, et rien d'autre : interventions, messagerie, documents (§1.8 de features.md).
+  broker: ['/app', '/app/messages', '/app/documents'],
   service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
 };
 

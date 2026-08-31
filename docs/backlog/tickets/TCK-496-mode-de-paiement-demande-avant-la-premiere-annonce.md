@@ -1,13 +1,13 @@
 ---
 id: TCK-496
 title: "L'assistant hôte demande un mode de paiement que rien ne consomme, avant la première annonce"
-status: todo
+status: done
 phase: P2
 family: front
 estimate: S
 wave: 56
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-08-31
 depends_on: []
 blocks: []
 spec_refs:
@@ -72,32 +72,32 @@ Référence obligatoire : [`docs/design-guidelines.md`](../../design-guidelines.
 
 **Frontend — intentionnel**
 
-- [ ] L'étape « mode de paiement » quitte l'assistant hôte
-- [ ] Le récapitulatif ne mentionne plus un fournisseur qui n'a pas été choisi
-- [ ] Un brouillon enregistré sous l'ancien parcours reprend sans erreur
-- [ ] Tests : le parcours complet en trois étapes aboutit à un espace créé ; un brouillon à
+- [x] L'étape « mode de paiement » quitte l'assistant hôte
+- [x] Le récapitulatif ne mentionne plus un fournisseur qui n'a pas été choisi
+- [x] Un brouillon enregistré sous l'ancien parcours reprend sans erreur
+- [x] Tests : le parcours complet en trois étapes aboutit à un espace créé ; un brouillon à
       l'ancienne étape 3 reprend sans casse
 
 **Backend — prescriptif**
 
-- [ ] `App\Http\Requests\Onboarding\HostIndividualOnboardRequest` — `payment_setting.preferred_provider`
+- [x] `App\Http\Requests\Onboarding\HostIndividualOnboardRequest` — `payment_setting.preferred_provider`
       devient `nullable`
-- [ ] `App\Services\Onboarding\HostIndividualOnboardingService` — n'écrit la clé que si elle est
+- [x] `App\Services\Onboarding\HostIndividualOnboardingService` — n'écrit la clé que si elle est
       fournie ; le docblock cesse de décrire une étape supprimée
-- [ ] Tests : `HostIndividualOnboardingTest` — une charge utile sans `payment_setting` aboutit ; une
+- [x] Tests : `HostIndividualOnboardingTest` — une charge utile sans `payment_setting` aboutit ; une
       charge utile qui le porte encore aboutit aussi et l'enregistre
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — L'assistant hôte compte trois étapes, et le rail les affiche toutes les trois.
-- [ ] **AC2** — Un parcours complet sans jamais nommer d'opérateur crée l'espace et mène à la
+- [x] **AC1** — L'assistant hôte compte trois étapes, et le rail les affiche toutes les trois.
+- [x] **AC2** — Un parcours complet sans jamais nommer d'opérateur crée l'espace et mène à la
       publication.
-- [ ] **AC3** — Une charge utile portant encore `payment_setting.preferred_provider` est acceptée et
+- [x] **AC3** — Une charge utile portant encore `payment_setting.preferred_provider` est acceptée et
       la valeur est enregistrée : l'ancien contrat n'est pas cassé.
-- [ ] **AC4** — Un brouillon serveur enregistré à l'étape 3 de l'ancien parcours reprend sans erreur
+- [x] **AC4** — Un brouillon serveur enregistré à l'étape 3 de l'ancien parcours reprend sans erreur
       et sans perdre les réponses déjà données.
-- [ ] **AC5** — Aucune agence existante ne voit ses `settings` modifiés par ce ticket.
-- [ ] **AC6** — Suites back et front vertes ; Pint propre ; `npm run lint` et `npx tsc --noEmit`
+- [x] **AC5** — Aucune agence existante ne voit ses `settings` modifiés par ce ticket.
+- [x] **AC6** — Suites back et front vertes ; Pint propre ; `npm run lint` et `npx tsc --noEmit`
       propres ; aucune chaîne affichée en dur hors dictionnaire.
 
 ## Hors périmètre
@@ -111,4 +111,24 @@ Référence obligatoire : [`docs/design-guidelines.md`](../../design-guidelines.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Back** — `payment_setting.preferred_provider` passe de `required` à `sometimes|nullable`, sans
+quitter le contrat (AC3). `HostIndividualOnboardingService::createAgency()` n'écrit plus la clé que
+si elle est fournie : la version précédente castait en `(string)` et posait donc `''` quand rien
+n'était donné — *une préférence VIDE, indiscernable en aval d'un choix délibéré. Une valeur par
+défaut fabriquée est un mensonge qui a l'air d'une donnée.*
+
+⚠ **Facultatif ne veut pas dire libre** : un opérateur inconnu rend toujours 422
+(`test_un_operateur_inconnu_reste_refuse`). C'est la garde qui sépare « on ne demande plus » de
+« on ne valide plus ».
+
+**Front** — l'étape quitte l'assistant, `HostWizardData` perd le champ, le récapitulatif perd sa
+ligne, et les clés i18n mortes (`steps.payment.*`, `recap.rows.paymentProvider`) sont retirées des
+trois locales.
+
+**AC4 tient par un mécanisme qui existait déjà, et la mesure le confirme.**
+`WizardReprenable` restaure l'étape par `setStepIndex(Math.min(draft.step, steps.length - 1))` : un
+brouillon enregistré à l'index 3 de l'ancien parcours atterrit sur le récapitulatif, et `mergeDraft`
+préserve les réponses déjà données — y compris la clé `payment_setting` de l'ancienne forme, qui est
+simplement ignorée. `HostIndividualWizard.test.tsx` monte ce cas exact plutôt que de le raisonner :
+*un brouillon qui rouvrirait un `steps[3]` d'un tableau de trois rendrait un écran blanc, à quelqu'un
+qui reprend son inscription.*

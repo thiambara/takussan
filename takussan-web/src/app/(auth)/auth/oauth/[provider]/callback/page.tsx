@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { oauthCallback, type OAuthProvider } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
+import { destinationInterne } from '@/lib/redirection-interne';
 import { useAuth } from '@/context/AuthContext';
 import { useTranslations } from 'next-intl';
 
@@ -17,9 +18,16 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
   const params = useSearchParams();
   const code = params.get('code');
   const state = params.get('state');
-  const rawRedirect = params.get('redirect') ?? '/app';
-  const redirectTo =
-    rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/app';
+  const redirectTo = destinationInterne(params.get('redirect'));
+  // TCK-493 — on ne va plus DIRECTEMENT à la destination. Une première connexion
+  // Google atterrissait sur `/app`, c'est-à-dire un tableau de bord vide, sans
+  // qu'on ait rien demandé au compte qui venait de se créer.
+  //
+  // ⚠ Ce n'est PAS une condition ici : cette page ne sait pas si le compte est
+  // neuf, et le lui faire deviner produirait un quatrième juge. `/onboarding/intention`
+  // décide, et renvoie vers `redirect` quand il n'a rien à demander — la
+  // destination voulue est donc toujours atteinte, avec au plus un rebond.
+  const apresConnexion = `/onboarding/intention?redirect=${encodeURIComponent(redirectTo)}`;
 
   useEffect(() => {
     if (!code || !state) {
@@ -37,13 +45,13 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
         });
         setUser(user);
         await refreshUser();
-        router.replace(redirectTo);
+        router.replace(apresConnexion);
       } catch (err) {
         const msg = err instanceof ApiError ? 'oauth_failed' : 'oauth_unknown';
         router.replace(`/auth/login?error=${msg}`);
       }
     })();
-  }, [provider, code, state, redirectTo, router]);
+  }, [provider, code, state, apresConnexion, router]);
 
   return (
     <div className="flex flex-col items-center gap-4 py-12 text-center">

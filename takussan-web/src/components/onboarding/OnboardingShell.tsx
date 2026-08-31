@@ -27,10 +27,21 @@ import { getTranslations } from 'next-intl/server';
 export async function OnboardingShell({
   title,
   subtitle,
+  note,
   children,
 }: {
   readonly title: string;
   readonly subtitle?: string;
+  /**
+   * Remplace la mention de sauvegarde automatique en pied de page.
+   *
+   * TCK-493 — la coque sert désormais un écran qui n'est PAS un assistant : la
+   * question d'orientation posée après l'inscription n'enregistre rien au fil de
+   * la saisie. Lui laisser la promesse « vos réponses sont enregistrées
+   * automatiquement » serait une affirmation fausse, sur le premier écran que
+   * voit un compte neuf.
+   */
+  readonly note?: string;
   readonly children: React.ReactNode;
 }) {
   const t = await getTranslations('onboarding.shell');
@@ -77,7 +88,7 @@ export async function OnboardingShell({
       <footer className="mx-auto w-full max-w-4xl px-4 pb-10 sm:px-6">
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
-          {t('autosave')}
+          {note ?? t('autosave')}
         </p>
       </footer>
     </div>

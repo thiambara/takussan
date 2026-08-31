@@ -20,7 +20,7 @@ import { useTranslations } from 'next-intl';
 import {
   isAdmin,
   isAgent,
-  isCustomer,
+  isCustomerOnly,
   isOwner,
   isServiceProvider,
   isSuperAdmin,
@@ -63,7 +63,10 @@ function buildShortcuts(roles: UserRole[], agencyId: number | null | undefined):
     list.push({ href: '/app/payments', labelKey: 'dashboard.shortcuts.myPayments', icon: CreditCard });
   }
 
-  if (isTenant(roles) || isCustomer(roles)) {
+  // TCK-492 — `isCustomerOnly` : avec `customer` en plancher, ce bloc se serait
+  // ajouté à celui du bailleur juste au-dessus et aurait poussé `/app/leases`
+  // une SECONDE fois dans la même liste.
+  if (isTenant(roles) || isCustomerOnly(roles)) {
     list.push({ href: '/app/leases', labelKey: 'nav.sidebar.myLeases', icon: FileText });
     list.push({ href: '/app/payments', labelKey: 'nav.sidebar.payments', icon: CreditCard });
     list.push({ href: '/app/documents', labelKey: 'nav.sidebar.documents', icon: FolderOpen });

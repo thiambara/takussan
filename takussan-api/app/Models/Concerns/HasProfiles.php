@@ -4,6 +4,7 @@ namespace App\Models\Concerns;
 
 use App\Models\Agency;
 use App\Models\Enums\Capability;
+use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\PlatformProfileLevel;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
@@ -174,13 +175,36 @@ trait HasProfiles
     }
 
     /**
-     * TCK-278 — Liste des "rôles" du user, dérivée de ses profils polymorphes
-     * (cf. Règle 5). Remplace l'ancien `getRoleNames()` de spatie.
+     * TCK-278 — Liste des "rôles" du user. Remplace l'ancien `getRoleNames()`
+     * de spatie.
      *
-     * Retourne une `Collection<string>` contenant les rôles présents parmi :
-     * `super_admin`, `agency_admin`, `agent`, `owner`, `broker`,
-     * `service_provider`. Les rôles agence-scopés apparaissent une fois si
-     * le user les détient au moins dans une agence.
+     * **Deux natures, et la distinction porte du sens.** Les six premières
+     * valeurs — `super_admin`, `agency_admin`, `agent`, `owner`, `broker`,
+     * `service_provider` — sont dérivées des profils POLYMORPHES (Règle 5) :
+     * une ligne existe en base, elle est commutable, elle entre dans
+     * `ActiveProfileResolver::TYPE_MAP`. Les deux dernières — `customer` et
+     * `tenant` — sont dérivées d'un ÉTAT : elles n'ont ni table, ni ligne, ni
+     * entrée dans la carte des profils, et ne se choisissent pas dans le
+     * sélecteur.
+     *
+     * ⚠ **TCK-492 — `customer` et `tenant` ont manqué ici pendant trois mois et
+     * demi, et c'est le front qui l'a payé.** TCK-278 (2026-05-17) a remplacé
+     * les rôles spatie par cette méthode en renvoyant explicitement la
+     * profile-isation de `customer`/`tenant` à un « ticket séparé si besoin
+     * émerge » — ticket jamais créé. `isCustomer()` et `isTenant()` rendaient
+     * donc `false` en toutes circonstances, et QUATRE surfaces front en
+     * dépendaient : « Mes réservations / visites / baux » du menu latéral, le
+     * widget de check-list locataire (TCK-266) et l'onboarding customer
+     * (TCK-253, un P0 livré sept jours AVANT le cutover). Aucune n'a rougi :
+     * une condition qui ne s'allume jamais n'échoue pas, elle se tait.
+     *
+     * `models-spec.md` les qualifiait déjà de « dérivés » et `features.md#22`
+     * les listait en P0 : c'est le code qui avait divergé de la spec.
+     *
+     * **Coût mesuré** (AC6) : `customer` est gratuit — c'est le plancher, aucune
+     * requête. `tenant` ajoute UN `exists()` (une jointure `customers ⋈ leases`,
+     * les deux colonnes portant un index), soit 7 requêtes de profil au lieu
+     * de 6 sur le chemin de `/api/auth/me`.
      *
      * @return Collection<int,string>
      */
@@ -206,7 +230,48 @@ trait HasProfiles
             $types->push('service_provider');
         }
 
+        // TCK-492 — les deux rôles DÉRIVÉS, poussés après les profils pour que
+        // la liste se lise dans cet ordre : ce qu'on EST, puis ce qu'on FAIT.
+        //
+        // `customer` est le plancher : toute identité authentifiée en est une,
+        // y compris celle qui porte par ailleurs un profil d'agence — le modèle
+        // est ADDITIF (principe non négociable n° 2), pas exclusif. Un
+        // administrateur d'agence qui loue un appartement est les deux.
+        $types->push('customer');
+
+        if ($this->hasActiveTenantLease()) {
+            $types->push('tenant');
+        }
+
         return $types->values();
+    }
+
+    /**
+     * TCK-492 — vrai si l'utilisateur occupe au moins un bail en cours.
+     *
+     * **`tenant` n'est pas un état permanent** : il se déduit du bail et
+     * disparaît avec lui. C'est la raison pour laquelle il ne devient pas un
+     * profil polymorphe — une ligne de profil survivrait au bail, et il
+     * faudrait alors la retirer, c'est-à-dire réimplémenter cette dérivation
+     * en pire.
+     *
+     * ⚠ `Terminating` compte comme un bail en cours, et ce n'est pas une
+     * tolérance : le docblock de {@see LeaseStatus::Terminating} dit que le
+     * loyer reste dû pendant le préavis. Quelqu'un qui a posé son congé habite
+     * toujours son logement — lui retirer « Mes baux » du menu le jour de la
+     * demande lui retirerait précisément l'écran où son préavis se suit.
+     */
+    public function hasActiveTenantLease(): bool
+    {
+        // ⚠ `leases.status` QUALIFIÉ, jamais `status` nu : `tenantLeases()` est
+        // un `hasManyThrough` qui joint `customers`, et cette table porte elle
+        // aussi une colonne `status`. PostgreSQL REFUSE l'ambiguïté au lieu de
+        // l'arbitrer en silence comme le faisaient MySQL et SQLite (piège n° 7
+        // de CLAUDE.md) — ici la requête aurait filtré sur le statut du dossier
+        // client, ou n'aurait pas tourné du tout.
+        return $this->tenantLeases()
+            ->whereIn('leases.status', [LeaseStatus::Active->value, LeaseStatus::Terminating->value])
+            ->exists();
     }
 
     /**

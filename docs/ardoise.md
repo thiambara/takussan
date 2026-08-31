@@ -2618,7 +2618,15 @@ Fermé par TCK-289.
 > depuis le dépôt sans jouer un parcours. *Un défaut qui n'apparaît qu'en traversant le produit ne se
 > trouve pas en le lisant.*
 
-### D-58 — `customer` et `tenant` ne sont jamais émis : quatre surfaces front sont mortes, dont un livrable P0 marqué `done` → [TCK-492](backlog/tickets/TCK-492-customer-et-tenant-jamais-emis-dans-roles.md)
+### D-58 — `customer` et `tenant` ne sont jamais émis : quatre surfaces front sont mortes, dont un livrable P0 marqué `done` ✅ *corrigée le 2026-08-31* → [TCK-492](backlog/tickets/TCK-492-customer-et-tenant-jamais-emis-dans-roles.md)
+
+> **Corrigée, non mergée.** `profileTypes()` dérive désormais `customer` (plancher) et `tenant`
+> (bail en cours), sans nouvelle table. Coût mesuré : 6 → 7 requêtes.
+>
+> ⚠ **Le ticket avait sous-estimé une conséquence** : `customer` devenant le plancher, `isCustomer()`
+> a cessé de discriminer, et **huit** sites front l'employaient comme tel — dont la chaîne
+> `if (isCustomer) … else if (isOwner)` de `buildNavItems`, qui aurait donné le menu d'un acheteur à
+> tous les professionnels. `isCustomerOnly()` porte désormais la discrimination.
 
 `UserResource:52` émet `'roles' => $this->profileTypes()->all()`. `HasProfiles::profileTypes()` ne
 peut rendre que six valeurs — `super_admin`, `agency_admin`, `agent`, `owner`, `broker`,
@@ -2700,7 +2708,12 @@ inviter**. Le pattern d'invitation unifié est bien la décision produit (`featu
 *Pas de ticket : la décision produit — faut-il une porte en libre-service, ou une page qui explique
 l'invitation ? — n'est pas instruite.*
 
-### D-61 — L'assistant hôte fabrique deux espaces indiscernables → [TCK-497](backlog/tickets/TCK-497-deux-espaces-indiscernables-pour-un-particulier.md)
+### D-61 — L'assistant hôte fabrique deux espaces indiscernables ✅ *corrigée le 2026-08-31* → [TCK-497](backlog/tickets/TCK-497-deux-espaces-indiscernables-pour-un-particulier.md)
+
+> **Corrigée, non mergée.** Issue retenue : fusionner. `ProfileResource` expose `agency.kind`, et le
+> sélecteur ne propose qu'une entrée pour une agence `individual` — le slug, qui portait un rang de
+> collision globale, n'est plus affiché sous un nom de particulier. Aucun profil supprimé, aucune
+> capacité perdue (le résolveur fait un OR entre profils d'une même agence).
 
 `HostIndividualOnboardingService::onboard()` crée dans une seule transaction une `Agency`, un
 `AgencyAdminProfile` et un `OwnerProfile` — les trois pour une seule personne, dans la même agence.
@@ -2721,7 +2734,14 @@ dépend. On demande donc d'arbitrer entre deux options que rien ne distingue à 
 d'agence est dérivé du nom de la personne. Deux homonymes se marchent dessus, et un identifiant
 destiné à l'URL publique finit par porter un rang qui ne signifie rien.
 
-### D-62 — Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé → [TCK-493](backlog/tickets/TCK-493-question-d-intention-apres-inscription.md)
+### D-62 — Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé ✅ *corrigée le 2026-08-31* → [TCK-493](backlog/tickets/TCK-493-question-d-intention-apres-inscription.md)
+
+> **Corrigée, non mergée.** Les quatre chemins d'inscription mènent à `/onboarding/intention`, qui
+> décide seule s'il y a lieu de demander quoi que ce soit.
+>
+> ⚠ **La prémisse « rien à créer côté API » était fausse** : `PATCH /api/me` n'accepte pas des
+> `preferences` libres, il a une liste blanche — recopiée en DEUX exemplaires, dans la validation et
+> dans le contrôleur. Les deux sont désormais `UpdateMeRequest::PREFERENCE_FIELDS`.
 
 `OAuthProvisioningService::provision()` crée un `User` **sans aucun profil et sans téléphone** ;
 `auth/oauth/[provider]/callback/page.tsx:40` redirige en dur vers `/app`. Combiné à D-58, le compte

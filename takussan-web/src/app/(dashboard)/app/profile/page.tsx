@@ -3,7 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { getMeAction } from '@/app/actions/auth';
 
-import { isAgent, isOwner, isCustomer, isAdmin } from '@/lib/roles';
+import { isAgent, isOwner, isCustomerOnly, isAdmin } from '@/lib/roles';
 import { ProfileLayout } from '@/components/profile/ProfileLayout';
 import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileContactSection } from '@/components/profile/ProfileContactSection';
@@ -30,7 +30,12 @@ export default async function ProfilePage() {
       <ProfileHeader user={user} />
       <ProfileContactSection user={user} />
       <MyProfilesSection />
-      {isCustomer(user.roles) && <ProfileCustomerSection user={user} />}
+      {/* TCK-492 — `isCustomerOnly` : ces deux sections n'ont plus été rendues
+          depuis le cutover TCK-278 (`customer` n'était plus émis). Les rétablir
+          sur `isCustomer` les aurait ajoutées à la page de profil de TOUT compte,
+          agents et administrateurs compris — un élargissement que personne n'a
+          demandé. */}
+      {isCustomerOnly(user.roles) && <ProfileCustomerSection user={user} />}
       {isAgent(user.roles) && <ProfileAgentSection user={user} />}
       {isOwner(user.roles) && <ProfileOwnerSection user={user} />}
       {isAdmin(user.roles) && <ProfileAdminSection user={user} />}
@@ -73,7 +78,7 @@ export default async function ProfilePage() {
         </div>
       </section>
 
-      {isCustomer(user.roles) && (
+      {isCustomerOnly(user.roles) && (
         <section className="rounded-2xl bg-card p-6">
           <div className="flex items-center justify-between gap-3">
             <div>

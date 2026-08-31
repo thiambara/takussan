@@ -1,13 +1,13 @@
 ---
 id: TCK-497
 title: "Le sélecteur propose deux espaces au nom et au slug identiques — un choix qui n'en est pas un"
-status: todo
+status: done
 phase: P1
 family: full
 estimate: M
 wave: 56
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-08-31
 depends_on: []
 blocks: []
 spec_refs:
@@ -91,32 +91,32 @@ Référence obligatoire : [`docs/design-guidelines.md`](../../design-guidelines.
 
 **Frontend — intentionnel**
 
-- [ ] Le sélecteur cesse de proposer deux entrées indiscernables pour une agence `individual`
-- [ ] Le slug n'est plus affiché là où il n'identifie rien
-- [ ] Si l'issue retenue conserve les deux entrées, chacune dit ce qu'elle ouvre
-- [ ] Tests : un particulier issu de l'assistant hôte ; un compte multi-agences, qui ne doit rien
+- [x] Le sélecteur cesse de proposer deux entrées indiscernables pour une agence `individual`
+- [x] Le slug n'est plus affiché là où il n'identifie rien
+- [x] Si l'issue retenue conserve les deux entrées, chacune dit ce qu'elle ouvre
+- [x] Tests : un particulier issu de l'assistant hôte ; un compte multi-agences, qui ne doit rien
       perdre ; un `agency_admin` d'agence `standard` également propriétaire, dont les deux espaces
       restent distincts
 
 **Backend — prescriptif**
 
-- [ ] `App\Http\Resources\Api\Me\ProfileResource` — expose de quoi distinguer deux profils d'une même
+- [x] `App\Http\Resources\Api\Me\ProfileResource` — expose de quoi distinguer deux profils d'une même
       agence sans que le front ait à le déduire d'un nom
-- [ ] Tests : `MeProfilesTest` — deux profils d'une même agence restent tous deux listés et
+- [x] Tests : `MeProfilesTest` — deux profils d'une même agence restent tous deux listés et
       commutables ; la charge utile porte de quoi les séparer
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Un compte issu de l'assistant hôte ne voit plus deux entrées portant le même libellé.
+- [x] **AC1** — Un compte issu de l'assistant hôte ne voit plus deux entrées portant le même libellé.
       *Ce test échoue sur le code actuel.*
-- [ ] **AC2** — Aucun slug n'est affiché sous le nom d'une agence `individual`.
-- [ ] **AC3** — Toutes les capacités des deux profils restent atteignables : aucun écran accessible
+- [x] **AC2** — Aucun slug n'est affiché sous le nom d'une agence `individual`.
+- [x] **AC3** — Toutes les capacités des deux profils restent atteignables : aucun écran accessible
       avant ne devient inaccessible.
-- [ ] **AC4** — Un `agency_admin` d'une agence `standard` qui y est aussi propriétaire conserve deux
+- [x] **AC4** — Un `agency_admin` d'une agence `standard` qui y est aussi propriétaire conserve deux
       espaces distincts et lisibles.
-- [ ] **AC5** — `GET /api/me/profiles` continue de lister les deux profils : le changement est de
+- [x] **AC5** — `GET /api/me/profiles` continue de lister les deux profils : le changement est de
       présentation, pas de contrat.
-- [ ] **AC6** — Suites back et front vertes ; Pint propre ; `npm run lint` et `npx tsc --noEmit`
+- [x] **AC6** — Suites back et front vertes ; Pint propre ; `npm run lint` et `npx tsc --noEmit`
       propres ; aucune chaîne affichée en dur hors dictionnaire.
 
 ## Hors périmètre
@@ -129,4 +129,35 @@ Référence obligatoire : [`docs/design-guidelines.md`](../../design-guidelines.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Issue retenue : FUSIONNER.** Pour une agence `kind: individual`, le sélecteur ne propose qu'une
+entrée — et un compte qui n'a que celle-là ne voit plus de menu déroulant du tout, seulement le
+libellé statique de son espace. C'est la lecture la plus fidèle au mot « particulier ».
+
+**Fusionner ne retire aucun droit, et ce n'est pas une intuition.**
+`MembershipCapabilityResolver` juge une capacité pour un couple *(utilisateur, agence)* et fait un
+OR entre les profils du user dans cette agence — son propre docblock l'écrit : « si plusieurs profils
+dans la même agence accordent la capacité, l'autorisation est OR ». Ce que le profil actif change,
+c'est le CONTEXTE d'agence, pas l'étendue des capacités (AC3).
+
+**Back** — `ProfileResource` expose `agency.kind`. C'est ce champ, et non une heuristique sur le nom
+(« Espace de … »), qui autorise la fusion : une heuristique de nom se casse au premier renommage, et
+à la première agence professionnelle qui s'appelle comme son fondateur.
+
+⚠ **Le piège du sparse fieldset, qui aurait fait échouer la fonctionnalité en silence.**
+`ProfileResource` construit son bloc `agency` à la main depuis le modèle, et `lib/profiles.ts` envoie
+`fields[agencies]=id,name,slug`. Sans ajouter `kind` à cette constante, l'attribut n'est pas
+sélectionné, Eloquent rend `null`, et le sélecteur retombe **sans erreur** dans le cas « agence
+professionnelle » — c'est-à-dire exactement le défaut d'avant, avec le code du correctif en place.
+
+**Front** — `lib/espaces.ts` porte les deux règles, pures et testées séparément du composant :
+`espacesAProposer()` (le représentant est le profil ACTIF s'il l'est, sinon `agency_admin`, celui que
+TCK-271 épingle — fusionner ne fait donc basculer personne) et `slugAAfficher()` (AC2 : le `-3` est
+un rang de collision GLOBALE, il compte des homonymes et ne signifie rien pour l'utilisateur).
+
+`espacesAProposer` **ne fusionne pas quand `kind` est absent** de la charge utile : montrer une ligne
+de trop est réparable, en escamoter une ne l'est pas.
+
+**Hors périmètre tenu** : aucun profil supprimé en base, `uniqueSlug()` non réécrit, profil actif
+inchangé après onboarding, et `GET /api/me/profiles` continue de lister les deux profils —
+`ProfilesEndpointTest::test_deux_profils_dune_meme_agence_portent_la_nature_de_l_agence` l'épingle
+(AC5).

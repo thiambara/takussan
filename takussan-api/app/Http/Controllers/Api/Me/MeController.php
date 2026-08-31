@@ -15,9 +15,10 @@ use Illuminate\Http\JsonResponse;
  * `last_name` on every call). This endpoint accepts the small set of
  * personalisation fields exposed by the deferred minimal-profile sheet.
  *
- * `city` and `search_intent` live in the JSON `preferences` column rather
- * than as dedicated columns — they are user-tunable hints, not first-class
- * domain attributes.
+ * Les clés de `preferences` vivent dans la colonne JSON plutôt que dans des
+ * colonnes dédiées — ce sont des indices réglables par l'utilisateur, pas des
+ * attributs de domaine. La liste fait foi une seule fois :
+ * {@see UpdateMeRequest::PREFERENCE_FIELDS}.
  */
 class MeController extends Controller
 {
@@ -38,9 +39,12 @@ class MeController extends Controller
             }
         }
 
-        if ($request->hasAny(['city', 'search_intent'])) {
+        // TCK-493 — la liste est EMPRUNTÉE à la requête, jamais recopiée : une
+        // clé validée mais absente de cette boucle rendrait 200 sans rien
+        // enregistrer, ce qui est la forme d'échec la plus difficile à voir.
+        if ($request->hasAny(UpdateMeRequest::PREFERENCE_FIELDS)) {
             $current = is_array($user->preferences) ? $user->preferences : [];
-            foreach (['city', 'search_intent'] as $field) {
+            foreach (UpdateMeRequest::PREFERENCE_FIELDS as $field) {
                 if (! $request->has($field)) {
                     continue;
                 }

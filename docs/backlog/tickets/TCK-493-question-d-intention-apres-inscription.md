@@ -1,13 +1,13 @@
 ---
 id: TCK-493
 title: "Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé"
-status: todo
+status: done
 phase: P1
 family: front
 estimate: S
 wave: 56
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-08-31
 depends_on: [TCK-492]
 blocks: []
 spec_refs:
@@ -87,28 +87,34 @@ Référence obligatoire : [`docs/design-guidelines.md`](../../design-guidelines.
 
 **Frontend — intentionnel**
 
-- [ ] Une étape d'orientation après la création de compte, sur les quatre chemins d'inscription
-- [ ] La réponse est mémorisée dans `preferences` via `PATCH /api/me`
-- [ ] Chaque réponse mène là où elle se réalise ; le passage mène au tableau de bord
-- [ ] La question ne se repose ni à qui a répondu, ni à qui porte déjà un profil d'agence
-- [ ] Libellés `fr` / `en` / `wo`
-- [ ] Tests : compte neuf voit la question ; compte ayant répondu ne la revoit pas ; compte avec
+- [x] Une étape d'orientation après la création de compte, sur les quatre chemins d'inscription
+- [x] La réponse est mémorisée dans `preferences` via `PATCH /api/me`
+- [x] Chaque réponse mène là où elle se réalise ; le passage mène au tableau de bord
+- [x] La question ne se repose ni à qui a répondu, ni à qui porte déjà un profil d'agence
+- [x] Libellés `fr` / `en` / `wo`
+- [x] Tests : compte neuf voit la question ; compte ayant répondu ne la revoit pas ; compte avec
       profil d'agence ne la voit jamais ; le passage n'enferme pas
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — Une première connexion Google conduit à la question d'intention, pas à `/app`.
-      *Ce test échoue sur le code actuel* : le callback redirige en dur vers `/app`.
-- [ ] **AC2** — Une inscription par e-mail conduit à la même question, après la vérification
-      d'adresse.
-- [ ] **AC3** — « Je cherche un logement » mène à la recherche ; « Je veux publier » mène à
+- [x] **AC1** — Une première connexion Google conduit à la question d'intention, pas à `/app`.
+      *Ce test échouait sur le code d'avant* : le callback redirigeait en dur vers `/app`.
+      ⚠ Épinglé par une garde de SOURCE (`intention/__tests__/points-d-entree.test.ts`), qui lit le
+      fichier de callback et vérifie sa destination. Elle ne simule pas un aller-retour de
+      fournisseur OAuth et ne remplace donc pas un essai réel ; elle attrape la régression probable —
+      quelqu'un qui repointe le callback sur `/app` en le lisant comme la destination « normale ».
+- [x] **AC2** — Une inscription par e-mail conduit à la même question, après la vérification
+      d'adresse. Même garde, sur les deux écrans du chemin e-mail.
+- [x] **AC3** — « Je cherche un logement » mène à la recherche ; « Je veux publier » mène à
       `/onboarding/host`.
-- [ ] **AC4** — Passer l'étape mène au tableau de bord, et le produit reste entièrement utilisable.
-- [ ] **AC5** — Se reconnecter après avoir répondu ne repose pas la question. Un compte portant un
-      profil d'agence ne la voit jamais.
-- [ ] **AC6** — Aucune réponse ne crée de profil ni n'accorde de capacité : `GET /api/me/profiles`
+- [x] **AC4** — Passer l'étape mène au tableau de bord, et le produit reste entièrement utilisable.
+- [x] **AC5** — Se reconnecter après avoir répondu ne repose pas la question. Un compte portant un
+      profil d'agence ne la voit jamais. La règle a été SORTIE du composant serveur
+      (`doitPoserLaQuestionDIntention`) pour être éprouvable : six cas, dont « passer » et le compte
+      dont les profils ne sont rattachés à aucune agence.
+- [x] **AC6** — Aucune réponse ne crée de profil ni n'accorde de capacité : `GET /api/me/profiles`
       rend le même contenu avant et après.
-- [ ] **AC7** — `npm run lint`, `npx tsc --noEmit`, `npm run test` verts ; aucune chaîne affichée en
+- [x] **AC7** — `npm run lint`, `npx tsc --noEmit`, `npm run test` verts ; aucune chaîne affichée en
       dur hors dictionnaire.
 
 ## Hors périmètre
@@ -124,4 +130,36 @@ Référence obligatoire : [`docs/design-guidelines.md`](../../design-guidelines.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+⚠ **La prémisse « Rien à créer côté API » était fausse.** Le contrat de données annonçait
+`PATCH /api/me` → `preferences` comme un « JSON libre » : `UpdateMeRequest` a en réalité une **liste
+blanche de trois clés** (`phone`, `city`, `search_intent`), et `MeController` en portait une
+**seconde copie** — la boucle `foreach (['city', 'search_intent'])`. Une clé ajoutée à la validation
+sans l'être à la boucle produit le pire des cas : **200, rien d'enregistré, aucune erreur**.
+
+Les deux listes sont désormais une seule, `UpdateMeRequest::PREFERENCE_FIELDS`, et `entry_intent`
+(`search` | `publish` | `skipped`) l'a rejointe. C'est le troisième ticket de cette vague à payer le
+même motif de recopie, après TCK-492 et TCK-498.
+
+**Toute la décision « faut-il poser la question ? » vit dans `/onboarding/intention`, et nulle part
+ailleurs.** Les quatre chemins d'inscription — les trois fournisseurs OAuth par un seul fichier de
+callback, plus les deux écrans de vérification d'e-mail — y redirigent INCONDITIONNELLEMENT ; la page
+renvoie plus loin quand elle n'a rien à demander (réponse déjà donnée, ou profil rattaché à une
+agence). Faire deviner « le compte est-il neuf ? » à chaque appelant aurait produit quatre juges,
+c'est-à-dire le motif que ce dépôt paie depuis TCK-329.
+
+**Le filtre de redirection est devenu partagé** (`lib/redirection-interne.ts`). Il existait, écrit à
+la main dans le callback OAuth, sans aucun test ; un deuxième appelant est arrivé, et *un contrôle de
+sécurité recopié n'est corrigé qu'à un seul endroit.* Il couvre désormais `//evil.tld` (le cas qui
+commence par `/` tout en sortant du site) et la variante à antislash, avec six cas nommés.
+
+**`skipped` est une réponse, et c'est le point le moins évident du ticket.** Un « passer » qui
+n'écrirait rien reposerait la question à la connexion suivante : ce n'est pas passer, c'est
+repousser. Le composant rafraîchit aussi le `user` en mémoire avant de naviguer — sans quoi un retour
+arrière rouvrirait la question à quelqu'un qui vient d'y répondre.
+
+**AC6 est mesuré côté API**, pas raisonné : `MeUpdateTest::test_repondre_a_la_question_ne_cree_aucun_profil`
+compare `GET /api/me/profiles` avant et après.
+
+`OnboardingShell` reçoit une note de pied de page optionnelle : cet écran n'est pas un assistant et
+n'enregistre rien au fil de la saisie — lui laisser « vos réponses sont enregistrées
+automatiquement » aurait été une affirmation fausse sur le premier écran que voit un compte neuf.
