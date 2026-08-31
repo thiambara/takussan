@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**447 tickets** — 20 ouverts, 426 livrés.
+**448 tickets** — 21 ouverts, 426 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 19 |
+| 📋 Todo | 20 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -52,6 +52,7 @@
 - [TCK-485](tickets/TCK-485-blanc-sur-destructive-plein-dans-le-badge-du-chat.md) — Le badge du chat pose du blanc sur `--destructive` plein : 2,77:1 en thème sombre `S · P2 · front`
 - [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
 - [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
+- [TCK-500](tickets/TCK-500-brouillon-de-contact-et-chat-en-contexte.md) — Contact d'un bien — brouillon pré-rempli et ouverture du chat en contexte `M · P2 · full`
 
 ## 🚧 Doing
 
