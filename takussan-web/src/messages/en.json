@@ -2365,6 +2365,11 @@
       "empty": "No conversation yet.",
       "groupBadge": "Group",
       "muted": "muted"
+    },
+    "propertyDraft": {
+      "message": "Hello, I'm interested in “{title}” (ref. {reference}). Is it still available?",
+      "newThreadHint": "Your first message to {name} about this property.",
+      "newThreadHintNoName": "Your first message about this property."
     }
   },
   "payments": {

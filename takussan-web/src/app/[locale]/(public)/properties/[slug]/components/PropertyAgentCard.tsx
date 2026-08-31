@@ -15,6 +15,8 @@ interface PropertyAgentCardProps {
   propertySlug: string;
   propertyTitle: string;
   onMessage: () => void;
+  /** TCK-500 — cf. `PropertyBookingCard` : pas de bouton quand on est soi-même le destinataire. */
+  canMessage?: boolean;
 }
 
 export function PropertyAgentCard({
@@ -23,6 +25,7 @@ export function PropertyAgentCard({
   propertySlug,
   propertyTitle,
   onMessage,
+  canMessage = true,
 }: PropertyAgentCardProps) {
   const t = useTranslations('property.detail.agent');
   const [calling, setCalling] = useState(false);
@@ -93,11 +96,13 @@ export function PropertyAgentCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="outline" onClick={onMessage} className="gap-2">
-          <MessageCircle className="size-4" aria-hidden />
-          {t('message')}
-        </Button>
+      <div className={canMessage ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
+        {canMessage && (
+          <Button type="button" variant="outline" onClick={onMessage} className="gap-2">
+            <MessageCircle className="size-4" aria-hidden />
+            {t('message')}
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"

@@ -37,6 +37,12 @@ interface AnonymousLeadDialogProps {
   readonly idPrefix?: string;
   readonly title?: string;
   readonly description?: string;
+  /**
+   * TCK-500 — le message déjà rédigé que le visiteur trouve dans le champ, et qu'il peut
+   * modifier ou effacer. C'est une VALEUR, pas le `placeholder` : sans elle, le champ est vide
+   * et le formulaire refuse l'envoi tant que rien n'est saisi.
+   */
+  readonly defaultMessage?: string;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -59,13 +65,16 @@ export function AnonymousLeadDialog({
   idPrefix = 'lead',
   title,
   description,
+  defaultMessage,
 }: AnonymousLeadDialogProps) {
   const t = useTranslations('publicContact');
   const toast = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [message, setMessage] = useState('');
+  // Initialiseur paresseux : le brouillon est posé au montage et JAMAIS réimposé ensuite,
+  // sans quoi il écraserait ce que le visiteur vient d'écrire.
+  const [message, setMessage] = useState(defaultMessage ?? '');
   const [company, setCompany] = useState(''); // honeypot
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<'name' | 'email' | 'message', string>>>({});
@@ -99,7 +108,7 @@ export function AnonymousLeadDialog({
       setName('');
       setEmail('');
       setPhone('');
-      setMessage('');
+      setMessage(defaultMessage ?? '');
     } else {
       toast.add({
         title: t('errorTitle'),

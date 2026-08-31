@@ -1,7 +1,7 @@
 ---
 id: TCK-500
 title: "Contact d'un bien — brouillon pré-rempli et ouverture du chat en contexte"
-status: todo
+status: review
 phase: P2
 family: full
 estimate: M
@@ -9,7 +9,7 @@ wave: 57
 created: 2026-08-31
 updated: 2026-08-31
 depends_on: []
-blocks: []
+blocks: [TCK-501, TCK-502]
 spec_refs:
   features:
     - docs/features.md#17-communication--messagerie
@@ -187,4 +187,58 @@ quatrième échange avec le même agent est absurde.
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Trois écarts au plan, chacun pour une raison mesurée.**
+
+1. **Le service vit dans `App\Services\Messaging\`, pas dans un namespace `Conversation` neuf.**
+   `Messaging/` existait déjà (`GroupConversationService`, `SystemMessageFactory`) ; ouvrir un
+   second toit pour la même matière aurait été un choix de plan contre un choix de dépôt.
+
+2. **`contactLead` passe aussi par le service, alors que le ticket ne le demandait pas.** Le calcul
+   du destinataire y était écrit une **troisième** fois, à l'identique, 90 lignes plus bas. Un
+   service qui prétend être la source unique pendant qu'une copie survit ne garde rien : c'est
+   exactement le motif que la classe existe pour fermer. Trois lignes, aucun changement de
+   comportement, couvert par `PropertyContactLeadTest` et `AgentContactLeadTest` (verts).
+
+3. **Pas de `ChatComposer` partagé — seulement `ChatComposerShell`, une coque de mise en forme.**
+   Les deux composeurs n'ont presque rien en commun : l'un poste sur `/conversations/{id}/messages`
+   avec react-hook-form et sait joindre un fichier, l'autre appelle `contact-message` et n'accepte
+   qu'un texte (AC12). Mutualiser la logique aurait demandé un composant à drapeaux décrivant deux
+   comportements. La coque garantit l'allure ; chacun garde sa mécanique.
+
+**Deux corrections imposées par des gardes du dépôt, et les deux avaient raison sur le fond :**
+
+- `react-hooks/set-state-in-effect` a refusé la première version de `ChatWidget`, qui recopiait la
+  cible du contexte dans un état local. La cible est désormais **dérivée au rendu**. Deux sources
+  pour un même fait se désynchronisent — et c'est précisément ce qui est arrivé au bouton
+  « retour ».
+- `react-hooks/refs` a refusé le brouillon calculé dans un `useRef` lu au rendu. Un initialiseur
+  paresseux de `useState` fait le même travail, en une ligne de moins.
+
+**Deux défauts trouvés au navigateur, invisibles en test :**
+
+- **Le bouton « retour » refermait tout le panneau** au lieu de revenir à la liste. Quand le
+  panneau est ouvert depuis une fiche de bien, `open` reste `false` : c'est la cible seule qui le
+  tient ouvert, et la consommer le faisait disparaître. Gardé par
+  `ChatWidget.test.tsx` › « retour » revient à la liste.
+- **La résolution restait en cache 30 s après un envoi** (`staleTime`), si bien qu'un second clic
+  sur « Envoyer un message » dans cette fenêtre reposait le brouillon par-dessus une conversation
+  déjà créée. Passé le délai, l'écran se corrigeait tout seul — d'où l'invalidation explicite de
+  `propertyConversationQueryKey` après l'envoi, et sa garde dans
+  `PropertyDraftChatView.test.tsx`. *Un défaut qui disparaît en trente secondes ne se reproduit
+  pas à la demande : il lui faut un test, pas une note.*
+
+**Mesures prises sur la base de développement le 2026-08-31** (837 biens, 300 utilisateurs) :
+quatre appels à `.../conversation` laissent `conversations`, `conversation_participants` et
+`messages` à 240 / 920 / 3590 — inchangés. Un envoi les porte à 241 / … / 3591. `redirect_to` rend
+`/app/messages?conversation=241`, qui répond 307 vers la connexion (route réelle) là où l'ancien
+`/messages/241` rend **404** après redirection de locale.
+
+**Deux découvertes hors périmètre, filées en tickets** : [TCK-501] (la messagerie pleine page
+impose deux panneaux fixes sur un écran de téléphone — préexistant, mais ce ticket en fait le
+chemin mobile nominal) et [TCK-502] (la carte de contact nomme le propriétaire, le message part au
+collaborateur `agent` — et « l'agent principal » n'est défini par aucun ordre).
+
+**Vérification par ablation (AC13)** — six correctifs cassés un par un, chacun fait rougir son test
+et lui seul : la clé `wo` du brouillon, `findExisting` remplacé par `firstOrCreate`, le brouillon
+ramené à un champ vide, un `&draft=` ajouté à l'URL mobile, le `setOpen(true)` du retour, et
+l'invalidation après envoi.

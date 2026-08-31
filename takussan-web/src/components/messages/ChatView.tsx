@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import type { ZodType } from 'zod';
 import { useResolveurValidation } from '@/hooks/useApiForm';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowLeft, Info, Paperclip, Send, Settings, Users } from 'lucide-react';
+import { ArrowLeft, Info, Paperclip, Settings, Users } from 'lucide-react';
 import {
   useConversation,
   useMessagesInfinite,
@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { SystemMessageBubble } from './SystemMessageBubble';
 import { ConversationInfoSheet } from './ConversationInfoSheet';
 import { MessageDateSeparator } from './MessageDateSeparator';
+import { ChatComposerShell } from './ChatComposerShell';
 import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
@@ -402,18 +403,16 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
         )}
       </div>
 
-      <form
+      <ChatComposerShell
         // TCK-316 — `handleSubmit(onSubmit)` était APPELÉ pendant le rendu pour
         // produire le gestionnaire, et `onSubmit` lit `fileInputRef.current` :
         // le compilateur ne peut pas prouver que la ref n'est pas lue au rendu.
         // On diffère l'appel dans l'événement, ce que fait déjà le bouton plus bas.
         onSubmit={(e) => void form.handleSubmit(onSubmit)(e)}
-        className="border-t border-border bg-card p-3"
-      >
-        {attachmentError && (
-          <p className="mb-2 text-xs text-destructive">{attachmentError}</p>
-        )}
-        <div className="flex items-end gap-2">
+        error={attachmentError}
+        sendDisabled={sendMessage.isPending || uploading}
+        sendAriaLabel={t('chat.sendAria')}
+        leading={
           <label
             htmlFor="chat-file"
             className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
@@ -429,28 +428,21 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
               onChange={handleFilePicked}
             />
           </label>
-          <Textarea
-            {...form.register('content')}
-            rows={1}
-            placeholder={t('chat.placeholder')}
-            className="min-h-9 resize-none"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                void form.handleSubmit(onSubmit)();
-              }
-            }}
-          />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={sendMessage.isPending || uploading}
-            aria-label={t('chat.sendAria')}
-          >
-            <Send className="size-4" aria-hidden />
-          </Button>
-        </div>
-      </form>
+        }
+      >
+        <Textarea
+          {...form.register('content')}
+          rows={1}
+          placeholder={t('chat.placeholder')}
+          className="min-h-9 resize-none"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              void form.handleSubmit(onSubmit)();
+            }
+          }}
+        />
+      </ChatComposerShell>
     </div>
   );
 }

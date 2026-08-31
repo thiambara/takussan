@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useFavorite } from '@/hooks/useFavorite';
 import { recentlyViewedStorage } from '@/lib/recently-viewed';
 import { formatAddressShort } from '@/lib/format/address';
@@ -21,6 +22,11 @@ import { PropertyVisitDialog } from './components/PropertyVisitDialog';
 import { PropertyReservationDialog } from './components/PropertyReservationDialog';
 import { PropertyShareDialog } from './components/PropertyShareDialog';
 import { PropertyContactMessageDialog } from './components/PropertyContactMessageDialog';
+import { useAuth } from '@/context/AuthContext';
+import { useChatDraft } from '@/context/ChatDraftContext';
+import { usePropertyConversation } from '@/lib/queries/conversations';
+import { construireBrouillonBien } from '@/lib/messages/brouillonBien';
+import { peutContacterLeBien } from '@/lib/property/contactDuBien';
 import { PropertyMobileBottomBar } from './components/PropertyMobileBottomBar';
 import { PropertyLocationMap } from './components/PropertyLocationMap';
 import { PropertyPriceHistory } from './components/PropertyPriceHistory';
@@ -53,6 +59,41 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
   const [reservationOpen, setReservationOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [messageOpen, setMessageOpen] = useState(false);
+
+  /**
+   * TCK-500 — « Envoyer un message » ne mène plus au même endroit selon qui clique.
+   *
+   *   · visiteur anonyme        → le formulaire de piste, sans compte (contact sans friction)
+   *   · connecté, ≥ md          → la discussion s'ouvre SUR la fiche, brouillon pré-rempli
+   *   · connecté, < md          → la messagerie pleine page, même brouillon
+   *   · destinataire = soi-même → pas de bouton du tout
+   *
+   * La résolution sert aux deux : elle dit s'il faut proposer le bouton, ET ce qu'il ouvre. Elle
+   * n'est demandée que pour un utilisateur connecté — la route est `auth:sanctum`, et cette page
+   * est massivement vue par des anonymes.
+   */
+  const { user } = useAuth();
+  const chatDraft = useChatDraft();
+  const { data: resolutionResponse } = usePropertyConversation(user ? property.slug : null);
+  const resolution = resolutionResponse?.data ?? null;
+
+  const tBrouillon = useTranslations('messaging.propertyDraft');
+  const brouillon = construireBrouillonBien((cle, valeurs) => tBrouillon(cle, valeurs), property);
+
+  const peutContacter = peutContacterLeBien({
+    utilisateurId: user?.id ?? null,
+    proprietaireId: property.owner?.id,
+    resolution,
+  });
+
+  function ouvrirContact(): void {
+    if (user && chatDraft && resolution?.can_message) {
+      chatDraft.ouvrirChatBien(resolution);
+      return;
+    }
+    // Repli : anonyme, ou résolution pas encore arrivée, ou page rendue hors du provider.
+    setMessageOpen(true);
+  }
 
   useEffect(() => {
     recentlyViewedStorage.push(property.id);
@@ -130,14 +171,16 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
             property={property}
             onRequestVisit={() => setVisitOpen(true)}
             onRequestBooking={() => setReservationOpen(true)}
-            onMessage={() => setMessageOpen(true)}
+            onMessage={ouvrirContact}
+            canMessage={peutContacter}
           />
           <PropertyAgentCard
             owner={property.owner}
             agency={property.agency}
             propertySlug={property.slug}
             propertyTitle={property.title}
-            onMessage={() => setMessageOpen(true)}
+            onMessage={ouvrirContact}
+            canMessage={peutContacter}
           />
         </aside>
       </div>
@@ -178,6 +221,7 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
         slug={property.slug}
         open={messageOpen}
         onOpenChange={setMessageOpen}
+        defaultMessage={brouillon}
       />
     </div>
   );
