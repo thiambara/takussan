@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**452 tickets** — 22 ouverts, 429 livrés.
+**452 tickets** — 21 ouverts, 430 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 20 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 429 |
+| ✅ Done | 430 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -60,7 +60,7 @@
 
 ## 👀 Review
 
-- [TCK-503](tickets/TCK-503-la-coque-du-tableau-de-bord-tient-en-100vh.md) — Coque du tableau de bord — `h-screen` sur un téléphone, une unité que TCK-501 a dû abandonner un cran plus bas `S · P2 · bug`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -68,7 +68,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 429
+## ✅ Done — 430
+
+<details>
+<summary><strong>Vague 58 — Débordements du lot de la vague 57 : la hauteur de la coque et l'agent principal choisi plutôt que déduit (2026-08-31)</strong> — 1 ticket</summary>
+
+- [TCK-503](tickets/TCK-503-la-coque-du-tableau-de-bord-tient-en-100vh.md) — Coque du tableau de bord — `h-screen` sur un téléphone, une unité que TCK-501 a dû abandonner un cran plus bas `S · P2 · bug`
+
+</details>
 
 <details>
 <summary><strong>Vague 57 — Contact d'un bien : brouillon pré-rempli et ouverture du chat en contexte (2026-08-31)</strong> — 3 tickets</summary>

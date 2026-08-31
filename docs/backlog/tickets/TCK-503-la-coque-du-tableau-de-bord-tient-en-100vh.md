@@ -1,7 +1,7 @@
 ---
 id: TCK-503
 title: "Coque du tableau de bord — `h-screen` sur un téléphone, une unité que TCK-501 a dû abandonner un cran plus bas"
-status: review
+status: done
 phase: P2
 family: bug
 estimate: S
