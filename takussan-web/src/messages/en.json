@@ -624,6 +624,9 @@
         "parking": "Parking spaces",
         "furnished": "Furnished",
         "titleDeed": "Title deed",
+        "availability": "Availability",
+        "availabilityNow": "Immediately",
+        "availabilityFrom": "From {date}",
         "yes": "Yes"
       },
       "specs": {
@@ -884,6 +887,8 @@
         "country": "Country (ISO code)",
         "countryPlaceholder": "SN",
         "area": "Area (m²)",
+        "areaLand": "Plot area (m²)",
+        "areaLiving": "Living area (m²)",
         "bedrooms": "Bedrooms",
         "bathrooms": "Bathrooms",
         "yearBuilt": "Year built",
@@ -920,7 +925,8 @@
       },
       "amenities": {
         "title": "Amenities",
-        "hint": "Select the available amenities and facilities."
+        "hint": "Select the available amenities and facilities.",
+        "saveFailed": "The property is saved. We could not save the amenities though. Retry."
       },
       "photos": {
         "title": "Photos",
@@ -965,7 +971,10 @@
         "priceHistoryHint": "Last 5 recorded changes.",
         "seeAll": "See all",
         "noPriceHistory": "No price change recorded yet.",
-        "unknownDate": "Unknown date"
+        "unknownDate": "Unknown date",
+        "availability": "Availability",
+        "availabilityNow": "Immediately",
+        "availabilityFrom": "From {date}"
       },
       "tabs": {
         "overview": "Overview",
@@ -2012,7 +2021,8 @@
       "yearBuilt": "Year built",
       "parking": "Parking spots",
       "amenities": "Amenities",
-      "tags": "Other tags"
+      "tags": "Other tags",
+      "titleDeed": "Title deed"
     },
     "table": {
       "ariaLabel": "Property comparison table",
@@ -2034,7 +2044,9 @@
       "count": "{count, plural, =1 {1 property selected} other {# properties selected}} of {max}",
       "cta": "Compare ({count})",
       "removeAria": "Remove property #{id} from the comparator",
-      "clearAria": "Clear comparator"
+      "clearAria": "Clear comparator",
+      "needOneMore": "Add a 2nd property",
+      "removeNamedAria": "Remove “{title}” from the comparator"
     },
     "button": {
       "full": "Remove a property to add another one.",
@@ -2042,7 +2054,9 @@
       "remove": "Remove from the comparison",
       "add": "Add to the comparison",
       "maxTitle": "Maximum {max} properties",
-      "addedBody": "{count} / {max} properties selected."
+      "addedBody": "{count} / {max} properties selected.",
+      "shortAdd": "Compare",
+      "shortRemove": "Compared"
     },
     "loadError": "The comparison could not be loaded."
   },
@@ -3112,7 +3126,8 @@
         "availability": "Availability",
         "amenities": "Amenities",
         "advanced": "Advanced search",
-        "aroundMe": "Around me"
+        "aroundMe": "Around me",
+        "titleDeed": "Title deed"
       },
       "aroundMe": {
         "use": "Use my location",
@@ -3143,7 +3158,8 @@
         "second": "2nd",
         "third": "3rd",
         "fourthPlus": "4th+"
-      }
+      },
+      "titleDeedHint": "Only applies to properties that own their land: houses, villas, plots, warehouses. Not relevant for a flat, an office or a shop."
     },
     "toolbar": {
       "loading": "Loading…",
@@ -3174,7 +3190,8 @@
       "bathrooms": "{n} ba",
       "areaMin": "≥ {value} m²",
       "areaMax": "≤ {value} m²",
-      "radius": "Within {km} km"
+      "radius": "Within {km} km",
+      "titleType": "Deed: {value}"
     },
     "pagination": {
       "aria": "Pagination",
@@ -3972,6 +3989,31 @@
     }
   },
   "onboarding": {
+    "shell": {
+      "autosave": "Your answers are saved as you go — you can pick up where you left off.",
+      "exit": "Back to site"
+    },
+    "intention": {
+      "metaTitle": "What brings you to Takussan?",
+      "pageTitle": "Welcome, {name}",
+      "pageSubtitle": "One question, and we take you straight to the right place. You can always do both.",
+      "legend": "What you came to do",
+      "options": {
+        "search": {
+          "title": "I'm looking for a home",
+          "body": "Rent or buy — browse listings, request a viewing, follow your applications."
+        },
+        "publish": {
+          "title": "I want to list a property",
+          "body": "Put your property online and manage your bookings from your own space."
+        }
+      },
+      "submit": "Continue",
+      "submitting": "One moment…",
+      "skip": "I'll decide later",
+      "note": "This answer commits you to nothing — it only decides which screens you see first.",
+      "error": "We couldn't save your answer. Try again, or skip this step."
+    },
     "host": {
       "defaults": {
         "spaceNameOf": "{name}'s space"
@@ -4081,26 +4123,6 @@
             "sale": "Sale"
           }
         },
-        "payment": {
-          "title": "Payment method",
-          "subtitle": "Pick your preferred provider — full configuration will be requested at the first booking.",
-          "legend": "Payment provider",
-          "providers": {
-            "wave": {
-              "title": "Wave",
-              "body": "Mobile money — recommended in Senegal."
-            },
-            "orange_money": {
-              "title": "Orange Money",
-              "body": "Mobile money — West Africa."
-            },
-            "lemon_squeezy": {
-              "title": "Card (Lemon Squeezy)",
-              "body": "International card payments."
-            }
-          },
-          "disclaimer": "You'll be able to configure several providers and change the default from your dashboard."
-        },
         "recap": {
           "title": "Summary",
           "subtitle": "Check before publishing — you can edit everything later.",
@@ -4114,7 +4136,6 @@
             "firstPropertyType": "Property type",
             "firstPropertyContract": "Transaction",
             "firstPropertyPrice": "Price",
-            "paymentProvider": "Payment provider",
             "yes": "Yes",
             "no": "No"
           },
@@ -5647,7 +5668,6 @@
         "agency_admin": "Agency admin",
         "agent": "Agent",
         "owner": "Owner",
-        "broker": "Broker",
         "service_provider": "Service provider"
       },
       "rolesHint": "No role ticked: the announcement is not restricted by role.",
@@ -6868,7 +6888,6 @@
       "agency_admin": "Administrator",
       "owner": "Landlord",
       "agent": "Agent",
-      "broker": "Broker",
       "service_provider": "Service provider"
     },
     "roles": {
@@ -6909,12 +6928,6 @@
           "license": {
             "label": "Licence number",
             "help": "Agency professional card — license_number."
-          }
-        },
-        "broker": {
-          "license": {
-            "label": "Licence number",
-            "help": "Independent broker professional card."
           }
         },
         "serviceProvider": {

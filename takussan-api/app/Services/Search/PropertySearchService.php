@@ -381,6 +381,13 @@ class PropertySearchService
         if (isset($p['floor_number']) && is_numeric($p['floor_number'])) {
             $filter[] = 'floor_number = '.(int) $p['floor_number'];
         }
+        // TCK-491 — meme regle que `floor_number` juste au-dessus, et surtout PAS le motif
+        // OR `IS NULL` d'`available_from` plus bas : un bien dont le statut foncier est
+        // inconnu ne satisfait pas « je veux un titre foncier ». On ne promet pas ce que la
+        // donnee ne dit pas.
+        if (! empty($p['title_type'])) {
+            $filter[] = 'title_type = '.self::quote((string) $p['title_type']);
+        }
         if (! empty($p['type'])) {
             $types = array_filter(array_map('trim', explode(',', (string) $p['type'])));
             if ($types !== []) {

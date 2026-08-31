@@ -9,7 +9,7 @@ import {
 } from './CustomerMinimalProfileSheet';
 import { useAuth } from '@/context/AuthContext';
 import type { WelcomeSeenListResponse } from '@/types/welcome-view';
-import { isCustomer } from '@/lib/roles';
+import { isCustomerOnly } from '@/lib/roles';
 
 /**
  * TCK-253 — Mounts the minimal-profile sheet once at the dashboard shell
@@ -47,7 +47,9 @@ export function MinimalProfileTriggerProvider({
   // Use the SSR-resolved roles here rather than the client `user` object —
   // the latter rehydrates asynchronously and would let the very first
   // sensitive click slip through unchecked.
-  const enabled = isCustomer(roles as never);
+  // TCK-492 — customer-ONLY : la feuille de profil minimal de TCK-253 vise
+  // l'acheteur qui vient de s'inscrire, pas l'agent qui a un compte.
+  const enabled = isCustomerOnly(roles as never);
 
   const [seen, setSeen] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);

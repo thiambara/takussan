@@ -31,10 +31,13 @@ use Symfony\Component\HttpFoundation\Response;
  *   4. Creates the {@see AgencyAdminProfile} (TCK-271 — agency-side
  *      profile, pinned as the active context cookie) and the
  *      {@see OwnerProfile} (KYC-bearing profile for the owner role).
- *   5. Stores `payment_setting.preferred_provider` on the agency's
- *      `settings` JSON column (no dedicated PaymentSetting model exists
- *      in V1 — full provider config is deferred to first booking per
- *      ticket scope).
+ *   5. TCK-496 — l'étape « mode de paiement » a quitté l'assistant : on ne
+ *      demande plus par quel opérateur être payé à quelqu'un qui n'a pas
+ *      encore d'annonce. La clé `settings.payment.preferred_provider` n'est
+ *      donc écrite QUE si l'appelant la fournit — un brouillon repris, ou un
+ *      client tiers resté sur l'ancien contrat. Une agence sans préférence
+ *      n'est pas une agence cassée : la question se repose au premier
+ *      encaissement, où elle a un sens immédiat.
  *   6. Sets the user's `active_profile` (returned to the caller so the
  *      controller can refresh the cookie).
  *   7. Logs the `host_individual_onboarded` activity.
@@ -161,19 +164,25 @@ class HostIndividualOnboardingService
         $primaryCity = (string) data_get($payload, 'agency.primary_city');
         $currencyValue = (string) data_get($payload, 'agency.currency', Currency::default()->value);
         $primaryPropertyType = (string) data_get($payload, 'preferences.primary_property_type');
-        $preferredProvider = (string) data_get($payload, 'payment_setting.preferred_provider');
+        $preferredProvider = data_get($payload, 'payment_setting.preferred_provider');
 
         $settings = [
             'primary_city' => $primaryCity,
             'primary_property_type' => $primaryPropertyType,
-            'payment' => [
-                'preferred_provider' => $preferredProvider,
-            ],
             // Marker so downstream surfaces can distinguish between an
             // individual created via the wizard and one provisioned by a
             // super-admin (see TCK-263).
             'onboarding_source' => 'host_individual_wizard',
         ];
+
+        // TCK-496 — la clé n'est posée que si elle a été fournie. La version
+        // précédente castait en `(string)` et écrivait donc `''` quand rien
+        // n'était donné : une préférence VIDE, indiscernable en aval d'un choix
+        // délibéré. *Une valeur par défaut fabriquée est un mensonge qui a l'air
+        // d'une donnée.*
+        if (is_string($preferredProvider) && $preferredProvider !== '') {
+            $settings['payment'] = ['preferred_provider' => $preferredProvider];
+        }
 
         return Agency::query()->create([
             'name' => $name,

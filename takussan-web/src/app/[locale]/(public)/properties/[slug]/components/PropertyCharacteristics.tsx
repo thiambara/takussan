@@ -1,5 +1,8 @@
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
+import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+import { formatDate } from '@/lib/format';
+import { disponibiliteDe } from '@/lib/property-availability';
 import type { PropertyDetail } from '@/types/property';
 
 function Row({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -14,6 +17,16 @@ function Row({ label, value }: { label: string; value: string | number | null | 
 
 export function PropertyCharacteristics({ property }: { property: PropertyDetail }) {
   const t = useTranslations('property.detail');
+  const localeBrute = useLocale();
+  const locale = isLocale(localeBrute) ? localeBrute : DEFAULT_LOCALE;
+  /**
+   * TCK-489 — la date de disponibilité s'écrivait, se filtrait, et ne s'affichait nulle part.
+   *
+   * `disponibiliteDe` porte les quatre cas — clé absente, clé nulle, date à venir, date passée —
+   * et lit la pertinence dans `field-matrix.ts` : rien ne s'affiche sur une vente. La ligne rend
+   * `null` dans les deux premiers cas, et le filtre de `visible` la retire alors comme les autres.
+   */
+  const disponibilite = disponibiliteDe(property);
   const rows: Array<{ label: string; value: string | number | null | undefined }> = [
     { label: t('rows.type'), value: property.type_label },
     { label: t('rows.contract'), value: property.contract_type_label },
@@ -30,6 +43,14 @@ export function PropertyCharacteristics({ property }: { property: PropertyDetail
     { label: t('rows.parking'), value: property.parking_spaces },
     { label: t('rows.furnished'), value: property.furnished ? t('rows.yes') : null },
     { label: t('rows.titleDeed'), value: property.title_type_label },
+    {
+      label: t('rows.availability'),
+      value: disponibilite
+        ? disponibilite.etat === 'immediate'
+          ? t('rows.availabilityNow')
+          : t('rows.availabilityFrom', { date: formatDate(disponibilite.date, locale) })
+        : null,
+    },
   ];
 
   const visible = rows.filter((r) => r.value !== null && r.value !== undefined && r.value !== '');

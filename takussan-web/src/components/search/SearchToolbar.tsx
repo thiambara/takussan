@@ -81,6 +81,7 @@ export function SearchToolbar({
     types: useTranslations('property.types'),
     contract: useTranslations('property.contractTypes'),
     periods: useTranslations('property.rentPeriods'),
+    titleTypes: useTranslations('property.titleTypes'),
   };
 
   const perPageOptions = [30, 40, 60, 70].map((n) => ({

@@ -62,7 +62,9 @@ Les conversions d'images (thumbnails, responsive) sont configurées dans `regist
 - Permissions atomiques (catalogue `Capability`) attachées à un `AgencyRole` via le pivot `agency_role_capabilities`.
 - `MembershipCapabilityResolver` consulte le pivot ; les sites d'appel `$user->canActAt(...)` restent inchangés.
 
-**Rôles métier actuels** (= types de profils en phase 1+) : owner, agent, agency_admin, broker, service_provider, *(customer/tenant dérivés)*.
+**Rôles métier actuels** (= types de profils en phase 1+) : owner, agent, agency_admin, service_provider, *(customer/tenant dérivés)*.
+
+> ⚠️ **`broker` a quitté cette liste le 2026-08-31** ([ADR-0027](adr/0027-le-courtier-sort-de-la-surface-commutable.md), TCK-495) : le modèle [BrokerProfile](#36-brokerprofile-) demeure, sa table aussi, mais l'alias n'est plus ni commutable (`ActiveProfileResolver::TYPE_MAP`) ni émis dans `roles` (`HasProfiles::profileTypes()`). *Un rôle qu'on peut choisir doit mener quelque part ; celui-ci n'avait aucun écran.*
 
 ### `spatie/laravel-activitylog`
 
@@ -231,7 +233,9 @@ Voir la section [13. ActivityLog](#13-activitylog) pour les détails de migratio
 ### 1. User
 
 **Table :** `users`
-**Description :** **Identité authentifiée pure.** Le User porte uniquement ce qui caractérise un humain (email, mot de passe, contacts, 2FA, OAuth, préférences). Sa **nature métier** (propriétaire, agent, admin agence, courtier, prestataire, opérateur plateforme) est portée par des **profils polymorphes** dédiés liés au user et scopés par agence — ou par la plateforme pour `PlatformProfile`. Un même humain peut cumuler plusieurs profils chez plusieurs agences via une seule identité.
+**Description :** **Identité authentifiée pure.** Le User porte uniquement ce qui caractérise un humain (email, mot de passe, contacts, 2FA, OAuth, préférences). Sa **nature métier** (propriétaire, agent, admin agence, prestataire, opérateur plateforme — et
+courtier, dont le modèle subsiste sans être exposé, cf. §36) est portée par des **profils
+polymorphes** dédiés liés au user et scopés par agence — ou par la plateforme pour `PlatformProfile`. Un même humain peut cumuler plusieurs profils chez plusieurs agences via une seule identité.
 
 > **Évolution TCK-138 → TCK-142.** Les colonnes `type` (enum `UserType`) et `agency_id` sont **dépréciées** ; elles disparaissent de `users` au cutover (TCK-142). Toute logique d'autorisation/scoping est rebasée sur le **profil actif** de la requête (voir [Active profile context](#active-profile-context)).
 
@@ -1608,6 +1612,14 @@ Un visiteur doit être identifié : soit un User inscrit, soit un Customer gér�
 ### 36. BrokerProfile 🆕
 
 **Table :** `broker_profiles`
+> ⚠️ **NON EXPOSÉ depuis le 2026-08-31** — [ADR-0027](adr/0027-le-courtier-sort-de-la-surface-commutable.md),
+> TCK-495. Le modèle, la table, la migration, la factory et les seeders VIVENT et cette fiche décrit
+> ce qui existe réellement. Ce qui a disparu est la surface : `broker` n'est plus dans
+> `ActiveProfileResolver::TYPE_MAP` (donc plus commutable), ni dans `HasProfiles::profileTypes()`
+> (donc plus émis dans `roles`), ni dans `HasProfiles::profiles()`. Les lectures de modèle restent —
+> console super-admin, export RGPD, `PropertyResource::ownerActsAsAgent()`. La même mention vaut
+> pour [BrokerAgencyCollaboration](#38-brokeragencycollaboration-).
+
 **Description :** Profil **courtier indépendant**. Contrairement aux profils owner/agent, un courtier n'est **pas attaché à une seule agence** : il opère pour son propre compte et collabore ponctuellement avec plusieurs agences via la table pivot [BrokerAgencyCollaboration](#38-brokeragencycollaboration-). Au plus un BrokerProfile par user.
 
 | Colonne | Type | Nullable | Défaut | Description |
@@ -3213,9 +3225,17 @@ Loi architecturale : **le rôle d'un humain dans un contexte est l'existence d'u
   - `AgencyAdminProfile` ↔ rôle `agency_admin`, scope `agency`
   - `OwnerProfile` ↔ rôle `owner`, scope `agency`
   - `ServiceProviderProfile` + `ServiceProviderAgencyCollaboration` ↔ rôle `service_provider`, scope `agency` via la collaboration
-  - `BrokerProfile` + `BrokerAgencyCollaboration` ↔ rôle `broker`, scope `agency` via la collaboration
+  - ~~`BrokerProfile` + `BrokerAgencyCollaboration` ↔ rôle `broker`~~ — **le rôle `broker` n'existe
+    plus** depuis le 2026-08-31 ([ADR-0027](adr/0027-le-courtier-sort-de-la-surface-commutable.md),
+    TCK-495). Les deux modèles vivent (cf. §36 et §38), mais aucun profil ne les porte vers un rôle :
+    ils sont hors de `TYPE_MAP` et de `profileTypes()`. *La loi architecturale ci-dessus reste
+    vraie ; c'est cette ligne qui décrivait un rôle sans produit derrière lui.*
   - `PlatformProfile` ↔ rôles plateforme (`super_admin` / `support` / `viewer`), scope `null` (cross-tenant)
-- **Rôles dérivés non-profil-isés** (phase 1) : `customer` ⇔ `Booking.user_id` existant chez l'agence ; `tenant` ⇔ `Lease.tenant_id` actif. Profile-isation reportée à un ticket dédié si TCK-020 / TCK-090 en font émerger le besoin.
+- **Rôles dérivés non-profil-isés** : `customer` et `tenant`. **Ils sont émis depuis TCK-492**
+  (2026-08-31) — `customer` est le PLANCHER de toute identité authentifiée, `tenant` se déduit d'un
+  bail `active` ou `terminating`. La « profile-isation reportée à un ticket dédié » que cette ligne
+  annonçait n'a jamais eu lieu et n'aura pas lieu : une ligne de profil survivrait au bail, et il
+  faudrait alors la retirer — c'est-à-dire réimplémenter la dérivation, en pire.
 - **Résolution d'une capacité** : un `MembershipCapabilityResolver` (service applicatif) mappe `(Capability, ProfileType) → bool` en phase 1 (table de vérité code-defined), et consulte le pivot `agency_role_capabilities` en phase 2 (TCK-279). Le site d'appel reste `$user->canActAt(Capability::PropertiesPublish, $agency)`.
 - **Suppression d'un profil** = révocation immédiate du rôle correspondant. Aucun héritage résiduel, aucun cache de rôle sur User.
 - **Invariant base de données** : il est **interdit** d'écrire dans `model_has_roles` / `model_has_permissions` après le cutover TCK-278. Ces tables sont supprimées par la migration de refonte.

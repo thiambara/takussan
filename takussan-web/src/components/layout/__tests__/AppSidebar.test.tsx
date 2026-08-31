@@ -133,9 +133,16 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
     '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
     '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
+  // TCK-492 — le locataire reçoit désormais le parcours client COMPLET, et pas
+  // un sous-ensemble. Ce n'est pas un élargissement décidé ici : `buildNavItems`
+  // ouvre son bloc client sur `isCustomerOnly`, et quelqu'un dont le seul rôle
+  // est `tenant` n'a aucun profil professionnel. L'ancienne ligne mesurait un
+  // monde où `customer` n'était jamais émis — un locataire y arrivait sans lui,
+  // ce qui ne se produit plus : l'API émet toujours `customer` avec `tenant`.
   tenant: [
-    '/app', '/app/favorites', '/app/saved-searches', '/app/messages', '/app/documents',
-    '/app/overview', '/app/bookings', '/app/visits', '/app/leases',
+    '/app', '/app/favorites', '/app/saved-searches', '/app/visits', '/app/bookings',
+    '/app/maintenance', '/app/leases', '/app/payments', '/app/inventories',
+    '/app/profile/reviews', '/app/messages', '/app/documents', '/app/overview',
   ],
   agent: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
@@ -161,6 +168,11 @@ const HREFS_PAR_ROLE: Record<UserRole, string[]> = {
   // favoris, recherches sauvegardées, statistiques, réservations, visites et baux, dont
   // `docs/features.md` §2.5 ne lui accorde rien. La liste suit le correctif, elle ne le
   // précède pas — et `AppSidebar.audience.test.tsx` mesure la même chose autrement.
+  // TCK-494 avait ajouté ici une ligne `broker: ['/app', '/app/messages',
+  // '/app/documents']` — le socle nu, c'est-à-dire un rôle qui n'ouvre RIEN.
+  // TCK-495 a tranché ce constat : le courtier sort de la surface commutable
+  // (ADR-0027) et n'est plus émis par `profileTypes()`, donc plus un `UserRole`.
+  // La ligne n'est pas devenue fausse, elle n'a plus de sujet.
   service_provider: ['/app', '/app/maintenance', '/app/messages', '/app/documents'],
   super_admin: [
     '/app', '/app/properties', '/app/properties/new', '/app/favorites', '/app/saved-searches',
@@ -507,6 +519,10 @@ describe('AC6 — aucun sondage pour un rôle qui ne voit pas l’entrée compt�
     // visites : c'est CE rôle qui rend `enabled: false` observable à l'écran.
     expect([...sondesAttendues('service_provider')]).toEqual(['unreadMessages']);
     const jamaisSondees = ROLES.filter((role) => !sondesAttendues(role).has('pendingVisits'));
+    // TCK-494 avait ajouté `broker` à cette liste — un courtier ne sondait aucune visite parce
+    // qu'il n'avait AUCUNE entrée de menu au-delà du socle. La ligne disait le défaut au lieu de
+    // le taire ; TCK-495 l'a tranché (ADR-0027) et le rôle n'existe plus. Le prestataire reste
+    // seul, et pour une raison qui, elle, est voulue : ses visites ne le concernent pas.
     expect(jamaisSondees).toEqual(['service_provider']);
   });
 });

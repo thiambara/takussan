@@ -17,7 +17,7 @@ vi.mock('@/lib/api', async () => {
   return { ...reel, apiFetch: (...args: unknown[]) => mockApiFetch(...args) };
 });
 
-import { useSearch } from '../useSearch';
+import { filtersFromSearchParams, filtersToParams, useSearch } from '../useSearch';
 import { ApiError } from '@/lib/api';
 
 function monte(url: string) {
@@ -63,6 +63,20 @@ describe('TCK-335 — lecture des booléens depuis l’URL', () => {
     const { result } = monte('featured=true');
     expect(result.current.filters.featured).toBe(true);
     expect(result.current.activeCount).toBe(1);
+  });
+});
+
+describe('TCK-491 — le statut foncier voyage dans l’URL', () => {
+  it('se relit depuis l’URL, et se réécrit à l’identique', () => {
+    const filtres = filtersFromSearchParams(new URLSearchParams('title_type=titre_foncier'));
+    expect(filtres.title_type).toBe('titre_foncier');
+    // L'aller-retour est ce qui fait survivre le filtre à un rechargement de page : le lire sans
+    // le réécrire le perdrait au premier changement d'un autre filtre.
+    expect(filtersToParams(filtres).get('title_type')).toBe('titre_foncier');
+  });
+
+  it('une URL sans statut foncier ne fabrique pas de filtre', () => {
+    expect(filtersFromSearchParams(new URLSearchParams('city=Dakar')).title_type).toBeUndefined();
   });
 });
 

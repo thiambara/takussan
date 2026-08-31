@@ -178,13 +178,13 @@
   },
   "plafondsPourcent": {
     ".": 14,
-    "(auth)": 18,
-    "publish": 19,
+    "(auth)": 17,
+    "publish": 18,
     "onboarding": 42,
     "(dashboard)": 16,
-    "(dashboard)/app": 68,
-    "(dashboard)/admin": 56,
-    "[locale]/(public)": 37,
-    "(super-admin)/super-admin": 43
+    "(dashboard)/app": 69,
+    "(dashboard)/admin": 57,
+    "[locale]/(public)": 39,
+    "(super-admin)/super-admin": 44
   }
 }

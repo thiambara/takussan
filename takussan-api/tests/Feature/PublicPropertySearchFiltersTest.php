@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyVisibility;
+use App\Models\Enums\TitleType;
 use App\Models\Property;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -60,6 +61,67 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
         $this->indexProperties();
 
         $response = $this->getJson('/api/public/properties/search?floor_number=1');
+
+        $response->assertOk();
+        $this->assertCount(0, $response->json('data'));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // title_type filter (TCK-491)
+    // ─────────────────────────────────────────────────────────────────────
+
+    public function test_title_type_filter_returns_only_matching_properties(): void
+    {
+        Property::factory()->create([
+            'status' => PropertyStatus::Available,
+            'visibility' => PropertyVisibility::Public,
+            'title_type' => TitleType::TitreFoncier,
+            'title' => 'Terrain titre',
+            'published_at' => now(),
+        ]);
+        Property::factory()->create([
+            'status' => PropertyStatus::Available,
+            'visibility' => PropertyVisibility::Public,
+            'title_type' => TitleType::Bail,
+            'title' => 'Terrain bail',
+            'published_at' => now(),
+        ]);
+        $this->indexProperties();
+
+        $response = $this->getJson('/api/public/properties/search?title_type=titre_foncier');
+
+        $response->assertOk();
+        $data = $response->json('data');
+        $this->assertCount(1, $data);
+        $this->assertSame('Terrain titre', $data[0]['title']);
+    }
+
+    /**
+     * Un statut foncier inconnu n'ecarte pas le catalogue en silence : il rend 422, comme
+     * `contract_type`. Le filtre porte une enum, pas une chaine libre.
+     */
+    public function test_unknown_title_type_is_rejected(): void
+    {
+        $this->getJson('/api/public/properties/search?title_type=nimportequoi')
+            ->assertStatus(422);
+    }
+
+    /**
+     * Meme regle que `floor_number` : un bien sans statut foncier ne satisfait pas un filtre
+     * qui en exige un. On ne promet pas ce que la donnee ne dit pas.
+     */
+    public function test_title_type_filter_excludes_properties_without_one(): void
+    {
+        Property::factory()->create([
+            'status' => PropertyStatus::Available,
+            'visibility' => PropertyVisibility::Public,
+            'title_type' => null,
+            'title' => 'Sans statut',
+            'published_at' => now(),
+        ]);
+        $this->indexProperties();
+
+        $response = $this->getJson('/api/public/properties/search?title_type=bail');
 
         $response->assertOk();
         $this->assertCount(0, $response->json('data'));

@@ -1,13 +1,11 @@
 'use client';
 
 import React, { useCallback } from 'react';
-import { Scale } from 'lucide-react';
+import { Check, Scale } from 'lucide-react';
 
-import { COMPARE_MAX_IDS } from '@/lib/compare';
-import { useCompare } from '@/context/CompareContext';
-import { useToast } from '@/components/ui/toast';
+import { useCompareToggle } from '@/components/compare/useCompareToggle';
+import type { ComparePreview } from '@/lib/compare';
 import { cn } from '@/lib/utils';
-import { useTranslations } from 'next-intl';
 
 /**
  * TCK-082 — "Compare" toggle rendered on every `PropertyCard`.
@@ -16,6 +14,12 @@ import { useTranslations } from 'next-intl';
  * backdrop-blur pill shape) so the two actions feel native on the card.
  * Consumes the shared {@link CompareProvider} — does not take any prop
  * besides the target id.
+ *
+ * L'icône BASCULE (balance → coche) au lieu de changer seulement de couleur : sur une
+ * photo, un fond de pastille qui passe de translucide à opaque est le signal le plus
+ * fragile qui soit — il dépend du pixel qu'il y a dessous. Les deux icônes restent dans
+ * le DOM et se croisent en opacité/échelle/flou, ce qui donne une sortie autant qu'une
+ * entrée sans dépendre d'une bibliothèque d'animation (il n'y en a aucune ici).
  */
 
 type Size = 'sm' | 'md' | 'lg';
@@ -36,44 +40,30 @@ export interface CompareToggleButtonProps {
   readonly propertyId: number;
   readonly className?: string;
   readonly size?: Size;
+  /**
+   * Titre / vignette du bien, gardés au clic pour que la barre flottante puisse les
+   * afficher sans requête. Facultatif : sans lui la barre retombe sur l'initiale.
+   */
+  readonly preview?: ComparePreview;
 }
 
 export function CompareToggleButton({
   propertyId,
   className,
   size = 'md',
+  preview,
 }: CompareToggleButtonProps) {
-  const t = useTranslations('compare.button');
-  const { has, toggle, ids } = useCompare();
-  const toast = useToast();
-
-  const isSelected = has(propertyId);
+  const { isSelected, onToggle, label } = useCompareToggle(propertyId, preview);
 
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
+      // La pastille vit DANS le lien de la carte : sans ces deux lignes, comparer
+      // navigue vers le bien.
       event.preventDefault();
       event.stopPropagation();
-
-      const result = toggle(propertyId);
-
-      if (result.status === 'rejected') {
-        toast.add({
-          title: t('maxTitle', { max: COMPARE_MAX_IDS }),
-          description: t('full'),
-          type: 'warning',
-        });
-        return;
-      }
-
-      if (result.status === 'added') {
-        toast.add({
-          title: t('added'),
-          description: t('addedBody', { count: ids.length + 1, max: COMPARE_MAX_IDS }),
-          type: 'info',
-        });
-      }
+      onToggle();
     },
-    [toggle, propertyId, toast, ids.length, t],
+    [onToggle],
   );
 
   return (
@@ -81,26 +71,53 @@ export function CompareToggleButton({
       type="button"
       onClick={handleClick}
       aria-pressed={isSelected}
-      aria-label={t(isSelected ? 'remove' : 'add')}
+      aria-label={label}
+      title={label}
       data-compare={isSelected ? 'true' : 'false'}
       className={cn(
         SIZE_CLASSES[size],
-        'rounded-full backdrop-blur-md flex items-center justify-center',
-        'transition-all duration-200 cursor-pointer focus-visible:outline-none',
+        'relative rounded-full backdrop-blur-md flex items-center justify-center',
+        'cursor-pointer focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+        'transition-[background-color,color,box-shadow,scale] duration-200 active:scale-[0.96]',
         isSelected
           ? 'bg-card text-primary shadow-md'
           : 'bg-card/20 text-primary-foreground hover:bg-card hover:text-primary',
         className,
       )}
     >
-      <Scale
-        className={cn(
-          ICON_CLASSES[size],
-          'transition-transform',
-          isSelected && 'scale-110',
-        )}
-      />
+      <IconeCroisee visible={!isSelected}>
+        <Scale className={ICON_CLASSES[size]} aria-hidden />
+      </IconeCroisee>
+      <IconeCroisee visible={isSelected}>
+        <Check className={cn(ICON_CLASSES[size], 'stroke-[2.5]')} aria-hidden />
+      </IconeCroisee>
     </button>
+  );
+}
+
+/**
+ * Les valeurs (échelle 0,25 → 1, flou 4px → 0, `cubic-bezier(0.2, 0, 0, 1)`) sont celles
+ * du guide de finition : elles donnent à un échange d'icône le même poids qu'un ressort
+ * sans bounce, sans dépendance.
+ */
+function IconeCroisee({
+  visible,
+  children,
+}: {
+  readonly visible: boolean;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'absolute inset-0 flex items-center justify-center',
+        'transition-[opacity,scale,filter] duration-300 ease-[cubic-bezier(0.2,0,0,1)]',
+        visible ? 'opacity-100 scale-100 blur-none' : 'opacity-0 scale-[0.25] blur-[4px]',
+      )}
+    >
+      {children}
+    </span>
   );
 }

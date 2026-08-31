@@ -65,6 +65,98 @@ function renderWithFetch(
 const mockProfilesFetch = (body: MyProfilesResponse): typeof fetch =>
   vi.fn(async () => new Response(JSON.stringify(body), { status: 200 })) as unknown as typeof fetch;
 
+/**
+ * TCK-497 — les deux profils que l'assistant hôte crée dans une agence
+ * `individual` ne font plus deux lignes.
+ */
+describe('<ProfileSwitcher> — l’espace personnel est unique', () => {
+  beforeEach(() => {
+    refreshUserMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const AGENCE_PERSO = {
+    id: 42,
+    name: 'Espace de Awa Diop',
+    slug: 'espace-de-awa-diop-3',
+    kind: 'individual' as const,
+  };
+
+  const sortieDeLAssistantHote: MyProfilesResponse = {
+    data: [
+      {
+        id: 'agency_admin:5',
+        type: 'agency_admin',
+        numeric_id: 5,
+        agency_id: 42,
+        agency: AGENCE_PERSO,
+        status: 'active',
+        created_at: null,
+      },
+      {
+        id: 'owner:9',
+        type: 'owner',
+        numeric_id: 9,
+        agency_id: 42,
+        agency: AGENCE_PERSO,
+        status: 'active',
+        created_at: null,
+      },
+    ],
+    meta: { active_profile_id: 'agency_admin:5', count: 2 },
+  };
+
+  it('n’affiche plus deux entrées portant le même libellé', async () => {
+    // AC1 — sur le code d'avant, ce compte ouvrait un menu déroulant offrant
+    // « Espace de Awa Diop » DEUX fois, avec le même slug sous chacune.
+    renderWithFetch(makeUser(), mockProfilesFetch(sortieDeLAssistantHote));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-switcher-static')).toBeInTheDocument();
+    });
+
+    // Un seul espace : plus de menu à ouvrir du tout — c'est la forme la plus
+    // fidèle au mot « particulier ».
+    expect(screen.queryByTestId('profile-switcher-trigger')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Espace de Awa Diop/)).toHaveLength(1);
+  });
+
+  it('n’affiche aucun slug sous le nom d’une agence personnelle', async () => {
+    // AC2 — le `-3` est un rang de collision GLOBALE : il compte des homonymes.
+    renderWithFetch(makeUser(), mockProfilesFetch(sortieDeLAssistantHote));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-switcher-static')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('espace-de-awa-diop-3')).not.toBeInTheDocument();
+  });
+
+  it('mais garde les deux espaces distincts d’une agence STANDARD', async () => {
+    // AC4 — la règle se lit dans `kind`, pas dans le nombre de profils.
+    const agencePro = { ...AGENCE_PERSO, id: 77, name: 'Agence Teranga', kind: 'standard' as const };
+    renderWithFetch(
+      makeUser(),
+      mockProfilesFetch({
+        data: sortieDeLAssistantHote.data.map((p) => ({ ...p, agency_id: 77, agency: agencePro })),
+        meta: { active_profile_id: 'agency_admin:5', count: 2 },
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-switcher-trigger')).toBeInTheDocument();
+    });
+    await userEvent.setup().click(screen.getByTestId('profile-switcher-trigger'));
+    await waitFor(() => {
+      expect(screen.getByTestId('profile-switcher-item-owner:9')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('profile-switcher-item-agency_admin:5')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-switcher-item-owner:9')).toBeInTheDocument();
+  });
+});
+
 describe('<ProfileSwitcher>', () => {
   beforeEach(() => {
     refreshUserMock.mockReset();

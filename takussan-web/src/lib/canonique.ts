@@ -13,7 +13,7 @@ import type { ContractType, PropertyType } from '@/types/property';
  * CE QUI EST TRANCHÉ, ET POURQUOI CE N'EST PAS « L'URL COURANTE »
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  *
- * `/properties` porte **23 clés** (`CLES_DE_RECHERCHE`, mesuré le 2026-08-27) : 20 filtres plus
+ * `/properties` porte **24 clés** (`CLES_DE_RECHERCHE`, mesuré le 2026-08-30) : 21 filtres plus
  * `sort`, `page` et `per_page`. Toutes sont sérialisées dans l'URL par `useSearch`, par
  * construction (TCK-340). Un moteur voit donc une page distincte par combinaison, servant
  * essentiellement le même catalogue.
@@ -49,7 +49,8 @@ import type { ContractType, PropertyType } from '@/types/property';
  *
  * Texte libre (`q`), rayon géographique (`radius_km`/`lat`/`lng`, à valeurs continues), bornes
  * numériques (`price_min`/`price_max`, `area_min`/`area_max`, `bedrooms`, `bathrooms`,
- * `floor_number`), `furnished`, `featured`, `available_from`, `tags`, `rent_period`, `location`.
+ * `floor_number`), `furnished`, `featured`, `available_from`, `title_type`, `tags`, `rent_period`,
+ * `location`.
  * Chacune multiplie les URL sans changer ce que la page EST : un sous-ensemble du même catalogue.
  *
  * ── LA PAGINATION ET LE TRI SE REPLIENT AUSSI, ET C'EST LE POINT LE PLUS DISCUTABLE ─────────────
@@ -372,7 +373,7 @@ export function versParametres(
 /**
  * Les clés que la canonique ÉCARTE — dérivé, jamais recopié.
  *
- * Exporté pour le test de la règle : il vérifie que la partition couvre les 23 clés de la table,
+ * Exporté pour le test de la règle : il vérifie que la partition couvre les 24 clés de la table,
  * de sorte qu'une clé ajoutée à `SEARCH_FILTER_KEYS` sans décision de canonicité fasse rougir.
  */
 export const CLES_ECARTEES: readonly CleDeRechercheNom[] = CLES_DE_RECHERCHE.filter(

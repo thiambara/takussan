@@ -11,13 +11,11 @@ import {
   duplicateProperty,
   fetchPropertyMedia,
   reorderPropertyMedia,
-  setPropertyAddress,
   setPropertyTags,
   updateProperty,
   updatePropertyStatus,
   updatePropertyVisibility,
   uploadPropertyPhotos,
-  type PropertyAddressPayload,
   type PropertyMediaItem,
   assignPropertyAgent,
 } from '@/lib/queries/properties-server';
@@ -207,24 +205,6 @@ export async function uploadPropertyPhotosAction(
   }
   try {
     await uploadPropertyPhotos(auth.token, propertyId, files);
-    revalidatePath(`/app/properties/${propertyId}`);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, ...(await mapError(e)) };
-  }
-}
-
-/**
- * TCK-120 — upsert the address (street, GPS, etc.) for a property.
- */
-export async function setPropertyAddressAction(
-  propertyId: number,
-  data: PropertyAddressPayload,
-): Promise<ActionResult> {
-  const auth = await requireToken();
-  if (!auth.ok) return auth.result;
-  try {
-    await setPropertyAddress(auth.token, propertyId, data);
     revalidatePath(`/app/properties/${propertyId}`);
     return { ok: true };
   } catch (e) {

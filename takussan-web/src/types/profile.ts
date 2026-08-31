@@ -23,16 +23,28 @@ export const PROFILE_TYPES = [
   'agency_admin',
   'owner',
   'agent',
-  'broker',
   'service_provider',
 ] as const;
 
 export type ProfileType = (typeof PROFILE_TYPES)[number];
 
+/** La nature d'une agence — `Agency.kind` côté back (`AgencyKind`). */
+export type AgencyKind = 'standard' | 'individual';
+
 export type ProfileAgencySummary = {
   id: number;
   name: string;
   slug: string;
+  /**
+   * TCK-497 — `individual` = l'espace personnel créé par l'assistant hôte, qui
+   * y matérialise DEUX profils (`agency_admin` + `owner`) pour une seule
+   * personne. C'est ce champ, et non une heuristique sur le nom, qui autorise
+   * le front à n'en présenter qu'un.
+   *
+   * Optionnel parce qu'un sparse fieldset peut ne pas le demander — mais celui
+   * de `lib/profiles.ts` le demande, et c'est le seul chemin de lecture.
+   */
+  kind?: AgencyKind | null;
 };
 
 export type Profile = {

@@ -16,7 +16,6 @@ use App\Http\Resources\PropertySitemapResource;
 use App\Models\Agency;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\Property;
@@ -97,12 +96,17 @@ final class ResourceInventory
                 OwnerProfile::class,
                 AgentProfile::class,
                 AgencyAdminProfile::class,
-                BrokerProfile::class,
                 ServiceProviderProfile::class,
             ],
-            'raison' => '« Profil » est POLYMORPHE : cinq tables distinctes, aucun modèle `Profile`. '
-                .'Les cinq sont éprouvés, pas un représentant — le principe non négociable n°1 en fait '
-                .'cinq contrats et non un.',
+            'raison' => '« Profil » est POLYMORPHE : quatre tables distinctes, aucun modèle `Profile`. '
+                .'Les quatre sont éprouvées, pas un représentant — le principe non négociable n°1 en '
+                .'fait quatre contrats et non un. '
+                .'⚠ TCK-495 — `BrokerProfile` figurait ici et en a été retiré : ce n\'est PAS un '
+                .'allègement de la garde, c\'est que `ProfileResource` ne sait plus le rendre. Elle '
+                .'demande son alias à `ActiveProfileResolver::aliasFor()`, qui LÈVE pour une classe '
+                .'absente de `TYPE_MAP` — et le courtier en est sorti (ADR-0027). Le lui donner '
+                .'quand même faisait échouer cette garde sur une exception, pas sur une date mal '
+                .'formée. La liste des sujets suit la liste des alias ; elle ne la précède pas.',
         ],
     ];
 

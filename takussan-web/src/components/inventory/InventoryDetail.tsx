@@ -341,15 +341,18 @@ function SignatureSection({ inventory }: { readonly inventory: Inventory }) {
     inventory.status === 'draft' || inventory.status === 'pending_signature';
 
   const roles = user?.roles ?? [];
-  const isCustomer = roles.includes('customer');
+  // TCK-492 — signer la partie locataire d'un état des lieux demande d'ÊTRE
+  // locataire. `roles.includes('customer')` est devenu vrai pour tout compte
+  // authentifié : le canevas locataire se serait ouvert au bailleur du bien.
+  const estLocataire = roles.includes('tenant');
   const isPrivileged = roles.some((r) =>
     ['agent', 'agency_admin', 'owner', 'super_admin'].includes(r),
   );
 
-  // Admins see both canvases; customer-only users only the tenant one;
+  // Admins see both canvases; tenants only the tenant one;
   // privileged users only the landlord one. Absent a logged-in user we
   // simply don't expose any canvas — the backend would 401 anyway.
-  const canSignTenant = signable && (isCustomer || roles.includes('super_admin'));
+  const canSignTenant = signable && (estLocataire || roles.includes('super_admin'));
   const canSignLandlord = signable && (isPrivileged || roles.includes('super_admin'));
 
   return (

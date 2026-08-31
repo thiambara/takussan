@@ -599,6 +599,9 @@
         "parking": "Places de parking",
         "furnished": "Meublé",
         "titleDeed": "Titre foncier",
+        "availability": "Disponibilité",
+        "availabilityNow": "Immédiatement",
+        "availabilityFrom": "À partir du {date}",
         "yes": "Oui"
       },
       "specs": {
@@ -859,6 +862,8 @@
         "country": "Pays (code ISO)",
         "countryPlaceholder": "SN",
         "area": "Superficie (m²)",
+        "areaLand": "Surface du terrain (m²)",
+        "areaLiving": "Surface habitable (m²)",
         "bedrooms": "Chambres",
         "bathrooms": "Salles de bain",
         "yearBuilt": "Année de construction",
@@ -895,7 +900,8 @@
       },
       "amenities": {
         "title": "Équipements",
-        "hint": "Sélectionnez les équipements et commodités disponibles."
+        "hint": "Sélectionnez les équipements et commodités disponibles.",
+        "saveFailed": "Le bien est enregistré. En revanche, nous n’avons pas pu enregistrer les équipements. Réessayez."
       },
       "photos": {
         "title": "Photos",
@@ -940,7 +946,10 @@
         "priceHistoryHint": "5 dernières évolutions enregistrées.",
         "seeAll": "Voir tout",
         "noPriceHistory": "Aucune évolution de prix enregistrée pour le moment.",
-        "unknownDate": "Date inconnue"
+        "unknownDate": "Date inconnue",
+        "availability": "Disponibilité",
+        "availabilityNow": "Immédiatement",
+        "availabilityFrom": "À partir du {date}"
       },
       "tabs": {
         "overview": "Aperçu",
@@ -1987,7 +1996,8 @@
       "yearBuilt": "Année de construction",
       "parking": "Places de parking",
       "amenities": "Équipements",
-      "tags": "Autres"
+      "tags": "Autres",
+      "titleDeed": "Titre foncier"
     },
     "table": {
       "ariaLabel": "Tableau comparatif des biens",
@@ -2009,7 +2019,9 @@
       "count": "{count, plural, =1 {1 bien sélectionné} other {# biens sélectionnés}} sur {max}",
       "cta": "Comparer ({count})",
       "removeAria": "Retirer le bien #{id} du comparateur",
-      "clearAria": "Vider le comparateur"
+      "clearAria": "Vider le comparateur",
+      "needOneMore": "Ajoutez un 2ᵉ bien",
+      "removeNamedAria": "Retirer « {title} » du comparateur"
     },
     "button": {
       "full": "Retirez un bien pour en ajouter un autre.",
@@ -2017,7 +2029,9 @@
       "remove": "Retirer du comparateur",
       "add": "Ajouter au comparateur",
       "maxTitle": "Maximum {max} biens",
-      "addedBody": "{count} / {max} biens sélectionnés."
+      "addedBody": "{count} / {max} biens sélectionnés.",
+      "shortAdd": "Comparer",
+      "shortRemove": "Comparé"
     },
     "loadError": "Impossible de charger le comparatif."
   },
@@ -3112,7 +3126,8 @@
         "availability": "Disponibilité",
         "amenities": "Équipements",
         "advanced": "Recherche avancée",
-        "aroundMe": "Autour de moi"
+        "aroundMe": "Autour de moi",
+        "titleDeed": "Statut foncier"
       },
       "aroundMe": {
         "use": "Utiliser ma position",
@@ -3143,7 +3158,8 @@
         "second": "2e",
         "third": "3e",
         "fourthPlus": "4e+"
-      }
+      },
+      "titleDeedHint": "Ne concerne que les biens qui possèdent leur sol : maisons, villas, terrains, entrepôts. Sans objet pour un appartement, un bureau ou un local."
     },
     "toolbar": {
       "loading": "Chargement…",
@@ -3174,7 +3190,8 @@
       "bathrooms": "{n} sdb",
       "areaMin": "≥ {value} m²",
       "areaMax": "≤ {value} m²",
-      "radius": "Dans un rayon de {km} km"
+      "radius": "Dans un rayon de {km} km",
+      "titleType": "Titre : {value}"
     },
     "pagination": {
       "aria": "Pagination",
@@ -3972,6 +3989,31 @@
     }
   },
   "onboarding": {
+    "shell": {
+      "autosave": "Vos réponses sont enregistrées au fur et à mesure — vous pouvez reprendre plus tard.",
+      "exit": "Retour au site"
+    },
+    "intention": {
+      "metaTitle": "Que venez-vous faire sur Takussan ?",
+      "pageTitle": "Bienvenue, {name}",
+      "pageSubtitle": "Une question, et on vous emmène directement au bon endroit. Vous pourrez toujours faire les deux.",
+      "legend": "Ce que vous venez faire",
+      "options": {
+        "search": {
+          "title": "Je cherche un logement",
+          "body": "Location ou achat — parcourez les annonces, demandez une visite, suivez vos dossiers."
+        },
+        "publish": {
+          "title": "Je veux publier un bien",
+          "body": "Mettez votre logement en ligne et gérez vos réservations depuis votre espace."
+        }
+      },
+      "submit": "Continuer",
+      "submitting": "Un instant…",
+      "skip": "Je verrai plus tard",
+      "note": "Cette réponse ne vous engage à rien : elle sert seulement à vous montrer les bons écrans en premier.",
+      "error": "Nous n’avons pas pu enregistrer votre réponse. Réessayez, ou passez cette étape."
+    },
     "host": {
       "defaults": {
         "spaceNameOf": "Espace de {name}"
@@ -4081,26 +4123,6 @@
             "sale": "Vente"
           }
         },
-        "payment": {
-          "title": "Mode de paiement",
-          "subtitle": "Choisissez votre fournisseur préféré — la configuration complète sera demandée à la première réservation.",
-          "legend": "Fournisseur de paiement",
-          "providers": {
-            "wave": {
-              "title": "Wave",
-              "body": "Mobile money — recommandé au Sénégal."
-            },
-            "orange_money": {
-              "title": "Orange Money",
-              "body": "Mobile money — Afrique de l'Ouest."
-            },
-            "lemon_squeezy": {
-              "title": "Carte bancaire (Lemon Squeezy)",
-              "body": "Paiements internationaux par carte."
-            }
-          },
-          "disclaimer": "Vous pourrez configurer plusieurs fournisseurs et changer de défaut depuis votre tableau de bord."
-        },
         "recap": {
           "title": "Récapitulatif",
           "subtitle": "Vérifiez avant de publier — vous pourrez tout modifier ensuite.",
@@ -4114,7 +4136,6 @@
             "firstPropertyType": "Type de bien",
             "firstPropertyContract": "Transaction",
             "firstPropertyPrice": "Prix",
-            "paymentProvider": "Fournisseur de paiement",
             "yes": "Oui",
             "no": "Non"
           },
@@ -5647,7 +5668,6 @@
         "agency_admin": "Admin agence",
         "agent": "Agent",
         "owner": "Propriétaire",
-        "broker": "Courtier",
         "service_provider": "Prestataire"
       },
       "rolesHint": "Aucun rôle coché : l'annonce n'est pas restreinte par rôle.",
@@ -6868,7 +6888,6 @@
       "agency_admin": "Administrateur",
       "owner": "Propriétaire",
       "agent": "Agent",
-      "broker": "Courtier",
       "service_provider": "Prestataire"
     },
     "roles": {
@@ -6909,12 +6928,6 @@
           "license": {
             "label": "Numéro de licence",
             "help": "Carte professionnelle agence — license_number."
-          }
-        },
-        "broker": {
-          "license": {
-            "label": "Numéro de licence",
-            "help": "Carte professionnelle de courtier indépendant."
           }
         },
         "serviceProvider": {

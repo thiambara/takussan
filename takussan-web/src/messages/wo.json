@@ -725,7 +725,8 @@
       "yearBuilt": "Atum tabax",
       "parking": "Parking",
       "amenities": "Jumtukaay",
-      "tags": "Yeneen"
+      "tags": "Yeneen",
+      "titleDeed": "Kayitu suuf"
     },
     "table": {
       "ariaLabel": "Tàbloo méengal kër yi",
@@ -746,8 +747,10 @@
       "title": "Méengal",
       "count": "{count, plural, =1 {1 kër bu tànn} other {# kër yu tànn}} ci {max}",
       "cta": "Méengal ({count})",
-      "removeAria": "Jëla kër #{id} ci méengal bi",
-      "clearAria": "Fommi méengal bi"
+      "removeAria": "Dindil këru #{id} ci comparateur bi",
+      "clearAria": "Fommi méengal bi",
+      "needOneMore": "Yokkal ñaareelu këru",
+      "removeNamedAria": "Dindil « {title} » ci comparateur bi"
     },
     "button": {
       "full": "Dindil benn kër ngir yokk beneen.",
@@ -755,7 +758,9 @@
       "remove": "Dindi ci mengale bi",
       "add": "Yokk ci mengale bi",
       "maxTitle": "Lu ëpp {max} kër",
-      "addedBody": "{count} / {max} kër la ñu tànn."
+      "addedBody": "{count} / {max} kër la ñu tànn.",
+      "shortAdd": "Mengale",
+      "shortRemove": "Mengale na"
     },
     "loadError": "Mënunu yeb méengal bi."
   },
@@ -1825,7 +1830,8 @@
         "availability": "Jotaay",
         "amenities": "Jumtukaay yi",
         "advanced": "Seet bu xóot",
-        "aroundMe": "Ci wetu ma"
+        "aroundMe": "Ci wetu ma",
+        "titleDeed": "Kayitu suuf"
       },
       "aroundMe": {
         "use": "Jëfandikoo sama bérébu",
@@ -1856,7 +1862,8 @@
         "second": "2u",
         "third": "3u",
         "fourthPlus": "4u+"
-      }
+      },
+      "titleDeedHint": "Kër yi moom seen suuf rekk lay jëfe: kër, wilaa, tool, magasin. Amul solo ci apartemaa, biro walla butik."
     },
     "toolbar": {
       "loading": "Mu ngi yeb…",
@@ -1887,7 +1894,8 @@
       "bathrooms": "{n} sanjaan",
       "areaMin": "≥ {value} m²",
       "areaMax": "≤ {value} m²",
-      "radius": "Ci {km} km ci wetu bérébu bi"
+      "radius": "Ci {km} km ci wetu bérébu bi",
+      "titleType": "Kayit: {value}"
     },
     "pagination": {
       "aria": "Xët yi",
@@ -2685,6 +2693,31 @@
     }
   },
   "onboarding": {
+    "shell": {
+      "autosave": "Say tontu yi dañuy denc ci saa si — man nga koy jëlaat ci kanam.",
+      "exit": "Dellu ci sit bi"
+    },
+    "intention": {
+      "metaTitle": "Lan nga ñëw def ci Takussan ?",
+      "pageTitle": "Dalal jàmm, {name}",
+      "pageSubtitle": "Benn laaj rekk, te danu la yóbbu ci bërëb bu baax bi. Man nga def ñaar yi lépp.",
+      "legend": "Li nga ñëw def",
+      "options": {
+        "search": {
+          "title": "Maa ngi wut kër",
+          "body": "Luy walla njënd — xoolal yi ñu tëral, laaj ngir gis kër gi, topp say dosye."
+        },
+        "publish": {
+          "title": "Bëgg naa tëral kër",
+          "body": "Tëralal sa kër ci internet te toppal say reservation ci sa bërëb."
+        }
+      },
+      "submit": "Kontine",
+      "submitting": "Xaaral tuuti…",
+      "skip": "Dinaa ko def ëllëg",
+      "note": "Tontu bii du la tëj dara : dafay wone rekk ban ekraan lañu la war a jëkk a wone.",
+      "error": "Manuñu woon a denc sa tontu. Jéemaatal, walla weesu etap bii."
+    },
     "host": {
       "defaults": {
         "spaceNameOf": "Espas {name}"
@@ -2794,26 +2827,6 @@
             "sale": "Jaay"
           }
         },
-        "payment": {
-          "title": "Mood paiement",
-          "subtitle": "Tànneel sa fournisseur préféré — configuration bi mu mat la nekk ci njëkk réservation.",
-          "legend": "Fournisseur paiement",
-          "providers": {
-            "wave": {
-              "title": "Wave",
-              "body": "Mobile money — recommandé Senegal."
-            },
-            "orange_money": {
-              "title": "Orange Money",
-              "body": "Mobile money — Afrique de l'Ouest."
-            },
-            "lemon_squeezy": {
-              "title": "Carte (Lemon Squeezy)",
-              "body": "Paiements internationaux."
-            }
-          },
-          "disclaimer": "Mën nga configurer ay fournisseur te soppi défaut bi ci sa tableau."
-        },
         "recap": {
           "title": "Résumé",
           "subtitle": "Verifié laata nga publi — mën nga soppi lépp sutura.",
@@ -2827,7 +2840,6 @@
             "firstPropertyType": "Xeetu biir",
             "firstPropertyContract": "Tijaari",
             "firstPropertyPrice": "Njëg",
-            "paymentProvider": "Fournisseur paiement",
             "yes": "Waaw",
             "no": "Déedéet"
           },
@@ -3747,6 +3759,9 @@
         "parking": "Palaasu parking",
         "furnished": "Ame na meebal",
         "titleDeed": "Kayitu suuf",
+        "availability": "Jotaay",
+        "availabilityNow": "Léegi",
+        "availabilityFrom": "Ci {date}",
         "yes": "Waaw"
       },
       "specs": {
@@ -4007,6 +4022,8 @@
         "country": "Réew (kodu ISO)",
         "countryPlaceholder": "SN",
         "area": "Yaatuwaay (m²)",
+        "areaLand": "Yaatuwaayu suuf (m²)",
+        "areaLiving": "Yaatuwaayu dëkkuwaay (m²)",
         "bedrooms": "Neeg yi",
         "bathrooms": "Sanjaan yi",
         "yearBuilt": "Atum tabax",
@@ -4043,7 +4060,8 @@
       },
       "amenities": {
         "title": "Jumtukaay yi",
-        "hint": "Tànnal jumtukaay yi jot."
+        "hint": "Tànnal jumtukaay yi jot.",
+        "saveFailed": "Kër gi denc na. Waaye mënunu woon a denc jumtukaay yi. Jéemaat."
       },
       "photos": {
         "title": "Nataal yi",
@@ -4088,7 +4106,10 @@
         "priceHistoryHint": "5 coppite yu mujj yu ñu bind.",
         "seeAll": "Gis lépp",
         "noPriceHistory": "Amul coppiteg njëg bu ñu bind ba tey.",
-        "unknownDate": "Bes bu ñu xamul"
+        "unknownDate": "Bes bu ñu xamul",
+        "availability": "Jotaay",
+        "availabilityNow": "Léegi",
+        "availabilityFrom": "Ci {date}"
       },
       "tabs": {
         "overview": "Wonewu",
@@ -5095,7 +5116,6 @@
         "agency_admin": "Kilifa ajaans",
         "agent": "Ajaŋ",
         "owner": "Boroom",
-        "broker": "Courtier",
         "service_provider": "Kiy joxe sarwis"
       },
       "rolesHint": "Amul benn wàll bu ñu tànn : yégle bi dañu ko tënkul ci wàll.",
@@ -6316,7 +6336,6 @@
       "agency_admin": "Njiit",
       "owner": "Boroom kër",
       "agent": "Ajaŋ",
-      "broker": "Kurtiye",
       "service_provider": "Ku joxe liggéey"
     },
     "roles": {
@@ -6357,12 +6376,6 @@
           "license": {
             "label": "Nomboro lisaas",
             "help": "Kartu liggéeykatu ajaas — license_number."
-          }
-        },
-        "broker": {
-          "license": {
-            "label": "Nomboro lisaas",
-            "help": "Kartu liggéeykatu kurtiye bu bopp."
           }
         },
         "serviceProvider": {

@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMyProfilesAction } from '@/app/actions/profiles';
 import { OwnerOnboardingWizard } from '@/components/onboarding/OwnerOnboardingWizard';
+import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { getToken } from '@/lib/session';
 
 /**
@@ -42,19 +43,8 @@ export default async function OwnerOnboardingPage() {
   }
 
   return (
-    <main className="min-h-[80vh] bg-background px-4 py-12 sm:px-6">
-      <div className="mx-auto max-w-3xl">
-        <header className="mb-8 text-center">
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {t('pageTitle')}
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {t('pageSubtitle')}
-          </p>
-        </header>
-
-        <OwnerOnboardingWizard ownerProfileId={owner.numeric_id} />
-      </div>
-    </main>
+    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+      <OwnerOnboardingWizard ownerProfileId={owner.numeric_id} />
+    </OnboardingShell>
   );
 }

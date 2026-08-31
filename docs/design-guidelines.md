@@ -326,8 +326,15 @@ Définies dans `globals.css` :
 | `animate-fade-in-up` | 0.5s | Apparition d'un bloc principal après chargement |
 | `animate-card-enter` | 540ms | Entrée d'une carte dans une rangée (avec `animationDelay` indexé) |
 | `animate-section-enter` | 640ms | Entrée d'une section au scroll |
+| `animate-compare-dock-in` | 320ms | Arrivée d'un panneau flottant depuis le bord bas (barre du comparateur) |
 
 Easing standard : `cubic-bezier(0.16, 1, 0.3, 1)` (out-expo doux).
+
+⚠ **Les quatre sont listées dans la garde de mouvement réduit de `globals.css`, et c'est la seule
+chose qui rende cette table vérifiable.** Une animation neuve qui n'y entre pas ne fait rougir
+rien du tout — elle continue simplement de bouger pour qui a demandé qu'on arrête. Ajouter la
+classe au sélecteur `@media (prefers-reduced-motion: reduce)` fait partie de sa livraison, pas de
+sa finition.
 
 ## Ton & Micro-copy
 

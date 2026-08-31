@@ -365,6 +365,10 @@ class Property extends AbstractModel implements HasMedia
             'area' => $this->area,
             'furnished' => (bool) $this->furnished,
             'floor_number' => $this->floor_number,
+            // TCK-491 — le critere qui decide d'un achat de terrain au Senegal. Il etait
+            // filtrable cote tableau de bord (`$requestFilterable`) et absent du document :
+            // la recherche publique ne pouvait donc pas le proposer.
+            'title_type' => $this->title_type?->value,
             'featured' => (bool) $this->featured,
             'is_test' => (bool) $this->is_test,
             'agency_id' => $this->agency_id,

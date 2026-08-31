@@ -281,3 +281,100 @@ describe('conditionnalité en édition (TCK-464)', () => {
     });
   });
 });
+
+describe('la matrice, lue jusqu’au bout par l’édition (TCK-488)', () => {
+  const AMENITES: Tag[] = [
+    { id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity', icon: null, color: null, description: null },
+    { id: 2, name: 'Climatisation', slug: 'clim', type: 'amenity', icon: null, color: null, description: null },
+  ] as never;
+
+  function terrain(patch: Record<string, unknown> = {}): PropertyDetail {
+    return {
+      id: 7, title: 'Terrain Diamniadio', type: 'land', contract_type: 'sale',
+      price: 25_000_000, currency: 'XOF', location: { city: 'Diamniadio' }, tags: [], ...patch,
+    } as never;
+  }
+
+  it('AC2 — un terrain ne se voit proposer aucun équipement, même quand la liste en porte', () => {
+    renderForm(terrain(), AMENITES);
+    expect(screen.queryByText('Équipements')).toBeNull();
+    expect(screen.queryByText('Piscine')).toBeNull();
+  });
+
+  it.each(['garage', 'parking'])('AC2 — un %s non plus', (type) => {
+    renderForm(terrain({ type }), AMENITES);
+    expect(screen.queryByText('Équipements')).toBeNull();
+  });
+
+  it('AC2 — une maison, elle, les propose toujours', () => {
+    renderForm(maison(), AMENITES);
+    expect(screen.getByText('Équipements')).toBeDefined();
+  });
+
+  it('AC3 — un terrain nomme sa surface comme le parcours la nomme', () => {
+    renderForm(terrain());
+    expect(screen.getByLabelText(/surface du terrain/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^superficie/i)).not.toBeInTheDocument();
+  });
+
+  it('AC3 — un appartement parle de surface habitable', () => {
+    renderForm(terrain({ type: 'apartment', contract_type: 'rent' }));
+    expect(screen.getByLabelText(/surface habitable/i)).toBeInTheDocument();
+  });
+
+  it('AC4 — décocher le dernier équipement envoie bien la liste VIDE', async () => {
+    const user = userEvent.setup();
+    renderForm(maison({ tags: [{ id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' }] }), AMENITES);
+
+    await user.click(screen.getByRole('button', { name: /piscine/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
+    await waitFor(() => {
+      expect(setPropertyTagsAction).toHaveBeenCalledWith(7, []);
+    });
+  });
+
+  it('AC5 — un tag qui n’est pas un équipement ne part jamais dans la liste', async () => {
+    const user = userEvent.setup();
+    renderForm(
+      maison({
+        tags: [
+          { id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' },
+          { id: 99, name: 'Coup de cœur', slug: 'coup-de-coeur', type: 'feature' },
+        ],
+      }),
+      AMENITES,
+    );
+
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
+    await waitFor(() => {
+      expect(setPropertyTagsAction).toHaveBeenCalledWith(7, [1]);
+    });
+  });
+
+  it('AC6 — un échec des équipements est affiché, et ne fait pas croire à un échec du bien', async () => {
+    vi.mocked(setPropertyTagsAction).mockResolvedValue({ ok: false, status: 500, message: 'boom' });
+    const user = userEvent.setup();
+    renderForm(maison(), AMENITES);
+
+    await user.click(screen.getByRole('button', { name: /piscine/i }));
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
+    expect(await screen.findByText(/le bien est enregistré/i)).toBeDefined();
+    // On ne quitte pas la page : c'est ici qu'on réessaie.
+    expect(routerMocks.push).not.toHaveBeenCalled();
+  });
+
+  it('un terrain ne touche pas aux équipements : la matrice les déclare sans objet', async () => {
+    const user = userEvent.setup();
+    renderForm(terrain({ tags: [{ id: 1, name: 'Piscine', slug: 'piscine', type: 'amenity' }] }), AMENITES);
+
+    await user.click(screen.getByRole('button', { name: /enregistrer les modifications/i }));
+
+    await waitFor(() => {
+      expect(updatePropertyAction).toHaveBeenCalledOnce();
+    });
+    expect(setPropertyTagsAction).not.toHaveBeenCalled();
+  });
+});

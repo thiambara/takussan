@@ -12,7 +12,13 @@ export type HostIndividualOnboardPayload = {
   agency: { name: string; primary_city: string; currency: string };
   phone_otp: { phone: string; code: string };
   preferences: { primary_property_type: string };
-  payment_setting: { preferred_provider: string };
+  /**
+   * TCK-496 — FACULTATIF depuis que l'étape « mode de paiement » a quitté
+   * l'assistant. Le champ reste dans le contrat, et le back l'accepte encore :
+   * un brouillon repris sous l'ancien parcours doit continuer de passer.
+   * L'assistant, lui, ne l'envoie plus.
+   */
+  payment_setting?: { preferred_provider: string };
   cgu_accepted: boolean;
 };
 

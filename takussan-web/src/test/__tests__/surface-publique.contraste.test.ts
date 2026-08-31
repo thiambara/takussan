@@ -177,11 +177,41 @@ const DETTES: readonly (readonly [string, number, string])[] = [
  *
  * *Un cliquet dit « ce chiffre a bougé » ; il ne dit jamais POURQUOI, et le nom qu'on lui donne
  * oriente la réponse.* Celui-ci a failli faire chercher onze conversions qui n'ont pas eu lieu.
+ *
+ * ⚠ **43 → 42 le 2026-08-30, et CETTE fois par une conversion de fichier** — la seule cause que
+ * le nom du compteur laissait attendre, et la première à se produire depuis qu'il existe.
+ * `components/compare/CompareFloatingBar.tsx` a été redessiné : il portait `bg-white/95`,
+ * `border-stone-200`, `text-stone-900`, `text-stone-500` et `bg-stone-100` — cinq couples
+ * qu'aucune valeur du design system ne décrivait, donc irrésolvables. Il n'écrit plus que des
+ * jetons (`bg-card`, `border-border`, `text-foreground`, `text-muted-foreground`, `bg-muted`),
+ * et ses couples sont désormais MESURÉS au lieu d'être comptés.
  */
-const FICHIERS_HORS_JETONS = 43;
+const FICHIERS_HORS_JETONS = 42;
 
-/** Idem pour les encres inverses laissées de côté (cf. `couples-de-contraste.ts`). */
-const ENCRES_INVERSES = 150;
+/**
+ * Idem pour les encres inverses laissées de côté (cf. `couples-de-contraste.ts`).
+ *
+ * **150 → 151 le 2026-08-30 (TCK-491).** Cause : le rappel sous le filtre « Statut foncier » de
+ * `FilterSidebar.tsx`, `text-[11px] text-muted-foreground` — les MÊMES classes que les onze autres
+ * rappels du même fichier, déjà comptés ici. Le groupe ne déclare pas de fond parce qu'aucun de
+ * ces rappels ne le fait : le fond est celui du panneau, posé par un ancêtre.
+ *
+ * *Écrire ce couple autrement pour ne pas faire monter le compteur aurait rendu ce rappel
+ * différent de ses onze voisins* — le cliquet dirait vrai, et l'écran serait moins cohérent.
+ *
+ * **151 → 154 le 2026-08-30**, et les trois viennent du même fichier : `CompareFloatingBar.tsx`
+ * redessiné, qui écrit désormais `text-muted-foreground` là où il écrivait `text-stone-500`.
+ * Le compteur monte donc parce qu'un fichier est PASSÉ AUX JETONS — c'est le même geste qui fait
+ * descendre {@link FICHIERS_HORS_JETONS} de 43 à 42, vu par l'autre trou.
+ *
+ * *Les deux compteurs bougent en sens opposés sur un seul changement, et aucun des deux n'est
+ * une régression* : une encre en échelle brute était comptée comme irrésolvable ; la même encre
+ * en jeton inverse est comptée comme non mesurée faute de fond DÉCLARÉ. Le fond réel est celui
+ * du panneau (`bg-card/95`, posé par l'ancêtre), et `--muted-foreground` #6e655a y tient
+ * largement AA — mais le déclarer sur chacun des trois éléments serait écrire un fond pour
+ * satisfaire un compteur, sur des enfants qui n'en ont aucun besoin à l'écran.
+ */
+const ENCRES_INVERSES = 154;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

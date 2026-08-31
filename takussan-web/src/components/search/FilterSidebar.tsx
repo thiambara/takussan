@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useDebouncedCallback } from '@/hooks/useDebouncedValue';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { AutourDeMoi } from '@/components/search/AutourDeMoi';
+import { titleTypeValues } from '@/lib/schemas/property';
 import type { SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -139,6 +140,9 @@ const PROPERTY_TYPE_VALUES = [
 ] as const;
 
 const RENT_PERIOD_VALUES = ['daily', 'weekly', 'monthly', 'yearly'] as const;
+// TCK-491 — la source des quatre valeurs est le schéma du parcours de publication : une
+// cinquième liste écrite ici divergerait le jour où l'enum backend bougerait.
+
 
 const BEDROOM_OPTIONS = [
   { label: '1', value: 1 },
@@ -236,6 +240,7 @@ export function FilterSidebar({
   const tTypes = useTranslations('property.types');
   const tContract = useTranslations('property.contractTypes');
   const tPeriods = useTranslations('property.rentPeriods');
+  const tTitleTypes = useTranslations('property.titleTypes');
 
   // ── Brouillons : la valeur AFFICHÉE est locale et immédiate ; `filters` ne fait que la
   //    resynchroniser quand l'URL change réellement (retour arrière, « Tout effacer », puce
@@ -338,6 +343,7 @@ export function FilterSidebar({
   const contractTypes = CONTRACT_TYPE_VALUES.map((v) => ({ label: tContract(v), value: v }));
   const rentPeriods = RENT_PERIOD_VALUES.map((v) => ({ label: tPeriods(v), value: v }));
   const floorOptions = FLOOR_KEYS.map((k, i) => ({ label: t(`floors.${k}`), value: i }));
+  const titleTypeOptions = titleTypeValues.map((v) => ({ label: tTitleTypes(v), value: v }));
 
   // Le rappel suit le BROUILLON, pas l'URL : il doit décrire ce que l'utilisateur voit dans le
   // champ, y compris avant que la borne ne soit validée.
@@ -572,7 +578,20 @@ export function FilterSidebar({
           />
         </Section>
 
-        {/* 11. Disponibilité */}
+        {/* 11. Statut foncier — TCK-491 */}
+        <Section title={t(`sections.titleDeed`)}>
+          <ChipGroup
+            options={titleTypeOptions}
+            value={filters.title_type}
+            onChange={(v) => set({ title_type: v as string })}
+          />
+          {/* Le statut foncier est sans objet pour un lot dans un immeuble (`field-matrix.ts`) :
+              sans ce rappel, un filtre actif sur un appartement se lit comme un catalogue vide
+              plutôt que comme un critère hors sujet. */}
+          <p className="text-[11px] text-muted-foreground mt-1.5">{t('titleDeedHint')}</p>
+        </Section>
+
+        {/* 12. Disponibilité */}
         <Section title={t(`sections.availability`)}>
           <div>
             <label className="block text-xs text-muted-foreground mb-1.5">{t('availableFrom')}</label>
@@ -585,7 +604,7 @@ export function FilterSidebar({
           </div>
         </Section>
 
-        {/* 12. Tags */}
+        {/* 13. Tags */}
         <Section title={t(`sections.amenities`)}>
           <div className="relative">
             <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -602,7 +621,7 @@ export function FilterSidebar({
           <p className="text-[11px] text-muted-foreground mt-1.5">{t('amenitiesHint')}</p>
         </Section>
 
-        {/* 13. Full-text search */}
+        {/* 14. Full-text search */}
         <Section title={t(`sections.advanced`)}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />

@@ -145,7 +145,7 @@ describe('<ProfileBadge> — contraste du couple rendu (TCK-444)', () => {
   it.each([
     ['clair', JETONS_CLAIR],
     ['sombre', JETONS_SOMBRE],
-  ])('thème %s : les 5 types × 2 surfaces atteignent 4,5:1', (_nom, jetons) => {
+  ])('thème %s : chaque type × 2 surfaces atteint 4,5:1', (_nom, jetons) => {
     const table = jetons as Readonly<Record<string, string>>;
     const echecs: string[] = [];
     let mesures = 0;
@@ -176,7 +176,15 @@ describe('<ProfileBadge> — contraste du couple rendu (TCK-444)', () => {
     }
 
     // Une garde qui n'a plus rien à mesurer rend le même vert qu'une garde satisfaite.
-    expect(mesures, 'aucun couple mesuré — le relevé est cassé, pas le badge').toBe(10);
+    //
+    // ⚠ TCK-495 — le compte attendu était le LITTÉRAL `10` (5 types × 2 surfaces). Il est devenu
+    // faux le jour où le courtier a quitté `PROFILE_TYPES`, alors que rien du contraste n'avait
+    // bougé : *un compte recopié à la main mesure la date à laquelle on l'a écrit.* Il est
+    // maintenant dérivé — et la clause `> 0` conserve ce que le littéral apportait vraiment, à
+    // savoir qu'un relevé vide ne passe pas pour un relevé satisfait.
+    expect(PROFILE_TYPES.length, 'aucun type de profil — le relevé est cassé').toBeGreaterThan(0);
+    expect(mesures, 'aucun couple mesuré — le relevé est cassé, pas le badge')
+      .toBe(PROFILE_TYPES.length * SURFACES.length);
     expect(echecs, 'couple(s) sous le seuil AA').toEqual([]);
   });
 

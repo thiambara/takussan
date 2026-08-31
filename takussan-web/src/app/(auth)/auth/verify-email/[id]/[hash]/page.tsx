@@ -39,7 +39,7 @@ export default async function VerifyEmailHashPage({ params, searchParams }: Prop
           {t('successTitle')}
         </h1>
         <p className="text-muted-foreground text-sm mb-8">{t('successBody')}</p>
-        <Link href="/app">
+        <Link href="/onboarding/intention">
           <Button className="w-full rounded-full h-11 text-base font-semibold">
             {t('successCta')}
           </Button>
