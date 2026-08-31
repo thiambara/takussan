@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 21 |
+| 📋 Todo | 20 |
 | 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 429 |
 | 🗑️ Obsolete | 1 |
@@ -52,7 +52,6 @@
 - [TCK-485](tickets/TCK-485-blanc-sur-destructive-plein-dans-le-badge-du-chat.md) — Le badge du chat pose du blanc sur `--destructive` plein : 2,77:1 en thème sombre `S · P2 · front`
 - [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
 - [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
-- [TCK-503](tickets/TCK-503-la-coque-du-tableau-de-bord-tient-en-100vh.md) — Coque du tableau de bord — `h-screen` sur un téléphone, une unité que TCK-501 a dû abandonner un cran plus bas `S · P2 · bug`
 - [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
 
 ## 🚧 Doing
@@ -61,7 +60,7 @@
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-503](tickets/TCK-503-la-coque-du-tableau-de-bord-tient-en-100vh.md) — Coque du tableau de bord — `h-screen` sur un téléphone, une unité que TCK-501 a dû abandonner un cran plus bas `S · P2 · bug`
 
 ## ⛔ Blocked
 
