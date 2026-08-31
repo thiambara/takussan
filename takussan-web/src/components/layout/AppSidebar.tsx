@@ -29,7 +29,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { User } from '@/types/user';
 import type { UserRole } from '@/types/user';
-import { isAgent, isOwner, isCustomer, isAdmin, isServiceProvider, isTenant } from '@/lib/roles';
+import { isAgent, isOwner, isCustomer, isCustomerOnly, isAdmin, isServiceProvider, isTenant } from '@/lib/roles';
 import { isProRouteLocked } from '@/lib/access/pro-features';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ProUpgradeCard } from './ProUpgradeCard';
@@ -176,7 +176,12 @@ export function buildNavItems(user: User): NavItem[] {
     });
   }
 
-  if (isCustomer(roles)) {
+  // TCK-492 — `isCustomerOnly`, et surtout PAS `isCustomer` : `customer` est
+  // devenu le plancher de toute identité authentifiée, si bien que cette
+  // première branche d'un `if / else if` aurait toujours gagné — un agent, un
+  // bailleur et un administrateur auraient reçu le menu d'un acheteur, et leurs
+  // propres entrées ne seraient jamais poussées.
+  if (isCustomerOnly(roles)) {
     // TCK-173 — full customer flow ordered by user journey:
     // discovery (favorites/saved searches above) →
     // requests (visits, bookings, maintenance) →
@@ -299,9 +304,9 @@ export function buildNavItems(user: User): NavItem[] {
   // prestataire, seul rôle à qui ces trois entrées n'arrivaient QUE par ici.
   if (occupeUnLogement(roles)) {
     // TCK-043 bookings
-    items.push({ href: '/app/bookings', labelKey: isCustomer(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck, section: 'requests' });
+    items.push({ href: '/app/bookings', labelKey: isCustomerOnly(roles) ? 'myBookings' : 'bookings', icon: CalendarCheck, section: 'requests' });
     // TCK-075 visits — customers see their requests, agents see what to manage.
-    items.push({ href: '/app/visits', labelKey: isCustomer(roles) ? 'myVisits' : 'visits', icon: CalendarClock, section: 'requests', counterKey: 'pendingVisits' });
+    items.push({ href: '/app/visits', labelKey: isCustomerOnly(roles) ? 'myVisits' : 'visits', icon: CalendarClock, section: 'requests', counterKey: 'pendingVisits' });
   }
   // TCK-072 — calendrier agrégé (visible pour agent/owner/admin qui gèrent un catalogue)
   if (isAgent(roles) || isOwner(roles) || isAdmin(roles)) {
@@ -309,7 +314,7 @@ export function buildNavItems(user: User): NavItem[] {
   }
   // TCK-044 leases
   if (occupeUnLogement(roles)) {
-    items.push({ href: '/app/leases', labelKey: isCustomer(roles) ? 'myLeases' : 'leases', icon: FileText, section: 'engagements' });
+    items.push({ href: '/app/leases', labelKey: isCustomerOnly(roles) ? 'myLeases' : 'leases', icon: FileText, section: 'engagements' });
   }
   // TCK-266 — sub-entry for the agency console: tenants whose move-in
   // inventory has been pending for more than 7 days. Visible to

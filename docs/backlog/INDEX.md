@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**439 tickets** — 20 ouverts, 418 livrés.
+**447 tickets** — 20 ouverts, 426 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 418 |
+| ✅ Done | 426 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -67,7 +67,21 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 418
+## ✅ Done — 426
+
+<details>
+<summary><strong>Vague 56 — Audit des parcours d'entrée : rôles jamais émis, portes manquantes, coque des assistants (2026-08-30)</strong> — 8 tickets</summary>
+
+- [TCK-492](tickets/TCK-492-customer-et-tenant-jamais-emis-dans-roles.md) — `customer` et `tenant` ne sont jamais émis dans `roles` — quatre surfaces front sont mortes `M · P0 · full`
+- [TCK-493](tickets/TCK-493-question-d-intention-apres-inscription.md) — Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé `S · P1 · front`
+- [TCK-494](tickets/TCK-494-garde-de-parite-sur-l-axe-des-roles.md) — La garde de parité couvre les profils, pas les rôles — l'axe où la dérive a réellement eu lieu `S · P1 · technique`
+- [TCK-495](tickets/TCK-495-le-courtier-est-un-profil-sans-surface.md) — Le courtier est un profil commutable sans aucune surface — lui en donner une, ou le retirer `M · P2 · applicatif`
+- [TCK-496](tickets/TCK-496-mode-de-paiement-demande-avant-la-premiere-annonce.md) — L'assistant hôte demande un mode de paiement que rien ne consomme, avant la première annonce `S · P2 · front`
+- [TCK-497](tickets/TCK-497-deux-espaces-indiscernables-pour-un-particulier.md) — Le sélecteur propose deux espaces au nom et au slug identiques — un choix qui n'en est pas un `M · P1 · full`
+- [TCK-498](tickets/TCK-498-alias-agency-admin-refuse-par-la-validation.md) — On ne peut pas revenir sur son espace administrateur : la validation refuse l'alias que l'onboarding épingle `S · P0 · bug`
+- [TCK-499](tickets/TCK-499-refonte-de-la-coque-des-assistants-d-onboarding.md) — Refonte de la coque des assistants d'onboarding — radio natif, fil d'étapes qui se plie, aucune sortie `M · P1 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 55 — Ce que TCK-464 a ouvert en aval : les lecteurs des champs devenus écrivables (2026-08-30)</strong> — 4 tickets</summary>

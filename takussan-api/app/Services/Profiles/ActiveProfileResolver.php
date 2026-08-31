@@ -8,7 +8,6 @@ use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Models\User;
@@ -24,12 +23,26 @@ class ActiveProfileResolver
     /**
      * Map of public type aliases to concrete profile classes. The aliases
      * are stable wire identifiers — used in headers, cookies and resources.
+     *
+     * ⚠ **TCK-495 — cette carte est la LISTE DES PROFILS COMMUTABLES, et rien
+     * d'autre.** `broker` en a été retiré le 2026-08-31
+     * ({@see docs/adr/0027-le-courtier-sort-de-la-surface-commutable.md}) :
+     * `BrokerProfile` et `BrokerAgencyCollaboration` restent en base, avec
+     * leurs migrations, leurs factories et leurs seeders, mais l'alias n'est
+     * plus proposé au choix. Un profil sélectionnable qui n'ouvre aucun écran
+     * coûte plus cher que pas de profil du tout — c'était le cas du courtier :
+     * zéro route API, zéro page front, aucun chemin qui crée le profil.
+     *
+     * **Y remettre `broker` ne suffira pas à le faire revenir**, et c'est
+     * délibéré : il lui faudra d'abord une porte, des capacités déclarées dans
+     * `MembershipCapabilityResolver`, et des écrans. La garde
+     * `AppSidebar.audience.test.tsx` refuse tout alias de cette carte qui
+     * n'ouvre rien de plus que le socle.
      */
     public const TYPE_MAP = [
         'agency_admin' => AgencyAdminProfile::class,
         'owner' => OwnerProfile::class,
         'agent' => AgentProfile::class,
-        'broker' => BrokerProfile::class,
         'service_provider' => ServiceProviderProfile::class,
     ];
 

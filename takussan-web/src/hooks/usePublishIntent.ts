@@ -61,8 +61,9 @@ const PROFILE_PICKER_TARGET = '/app?selectProfile=true&next=/publish';
  * `agent` profile with an agency_id as qualifying, plus — if the user carries
  * the `agency_admin` role and a top-level `agency_id` — that agency too.
  *
- * `broker` and `service_provider` profiles are intentionally excluded: per
- * §1.12, only agency_admin/agent profiles host listings.
+ * `service_provider` profiles are intentionally excluded: per §1.12, only
+ * agency_admin/agent profiles host listings. (`broker` figurait ici jusqu'au
+ * 2026-08-31 ; il n'est plus un `ProfileType` — TCK-495, ADR-0027.)
  */
 function collectAgencyIds(user: User | null, profiles: Profile[] | undefined): number[] {
   const ids = new Set<number>();

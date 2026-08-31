@@ -11,12 +11,21 @@ use Illuminate\Validation\Rule;
 /**
  * TCK-255 — validates the body of `POST /api/host/individual/onboard`.
  *
- * Mirrors the wizard step contract (four-step flow — the "first property"
+ * Mirrors the wizard step contract (three-step flow — the "first property"
  * step has been moved out of the wizard, the user is routed to
  * `/app/properties/new` after onboarding instead):
+ *   - Step 1 (Mode)      → orientation only, nothing posted
  *   - Step 2 (Identité)  → `agency.*`, `phone_otp.*`, `preferences.*`
- *   - Step 3 (Paiement)  → `payment_setting.preferred_provider`
- *   - Step 4 (Récap)     → `cgu_accepted`
+ *   - Step 3 (Récap)     → `cgu_accepted`
+ *
+ * TCK-496 — l'étape « mode de paiement » a quitté l'assistant. On demandait
+ * par quel opérateur être payé à quelqu'un qui n'a pas encore d'annonce, et la
+ * réponse n'était lue par rien : le docblock du service dit lui-même que la
+ * configuration réelle est reportée au premier encaissement.
+ *
+ * ⚠ Le champ reste ACCEPTÉ, il est seulement devenu facultatif. Un brouillon
+ * repris qui le porte encore doit continuer de passer — supprimer la clé du
+ * contrat aurait cassé les parcours en cours au moment du déploiement.
  *
  * The `cgu_accepted` flag must be true — the wizard disables the publish
  * button until the user ticks the box; we reject server-side too because
@@ -61,9 +70,13 @@ class HostIndividualOnboardRequest extends FormRequest
                 Rule::in(array_map(fn (PropertyType $t) => $t->value, PropertyType::cases())),
             ],
 
-            'payment_setting' => ['required', 'array'],
+            // TCK-496 — facultatif, et NON supprimé : cf. le docblock ci-dessus.
+            // `nullable` avant `Rule::in` pour qu'un `null` explicite passe sans
+            // être confronté à la liste des opérateurs.
+            'payment_setting' => ['sometimes', 'nullable', 'array'],
             'payment_setting.preferred_provider' => [
-                'required',
+                'sometimes',
+                'nullable',
                 'string',
                 Rule::in(array_map(fn (PaymentProvider $p) => $p->value, PaymentProvider::cases())),
             ],

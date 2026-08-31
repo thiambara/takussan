@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
-import { isAgent, isAdmin, isOwner, isCustomer, isServiceProvider, isTenant } from '@/lib/roles';
+import { isAgent, isAdmin, isOwner, isServiceProvider, isTenant } from '@/lib/roles';
 import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { getToken } from '@/lib/session';
 
@@ -55,8 +55,21 @@ export default async function OverviewPage() {
   // ⚠ Le test porte sur un prestataire PUR : les branches admin / agent / bailleur ci-dessus
   // s'appliquent d'abord, et un prestataire qui est AUSSI locataire garde sa vue locataire —
   // c'est son autre rôle qui la lui donne, pas celui-ci.
-  if (isServiceProvider(roles) && !isCustomer(roles) && !isTenant(roles)) redirect('/app');
-  if (isCustomer(roles) || isTenant(roles)) redirect('/app/overview/tenant');
+  //
+  // ⚠ TCK-492 — la condition portait aussi `!isCustomer(roles)`. Le terme a été
+  // retiré, et son retrait ne change RIEN au comportement : `customer` est
+  // devenu le plancher de toute identité authentifiée, si bien que
+  // `!isCustomer` était constamment faux et aurait empêché ce redirect de
+  // s'appliquer à qui que ce soit — y compris au prestataire pur qu'il vise.
+  // `!isTenant`, lui, discrimine réellement depuis que `tenant` est émis :
+  // c'est lui qui porte désormais l'exception écrite ci-dessus.
+  if (isServiceProvider(roles) && !isTenant(roles)) redirect('/app');
 
+  // Tout le reste — acheteur, locataire, compte neuf — atterrit sur la vue
+  // locataire. La ligne `if (isCustomer || isTenant) redirect(…)` qui précédait
+  // ce redirect final visait la même destination : sous la nouvelle sémantique
+  // elle serait devenue tautologique, et une condition toujours vraie devant un
+  // inconditionnel identique se lit comme une garde alors qu'elle n'en est plus
+  // une.
   redirect('/app/overview/tenant');
 }

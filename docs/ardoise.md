@@ -2607,6 +2607,221 @@ Fermé par TCK-289.
 
 ---
 
+## 🟠 Parcours d'entrée — rôles jamais émis, portes manquantes
+
+> **Mesuré le 2026-08-30**, huitième axe d'audit, déclenché par un signalement utilisateur : une
+> bascule de profil qui rendait 422 sur `preview.takussan.com`. Les cinq entrées ci-dessous ont été
+> trouvées en remontant ce seul symptôme.
+>
+> **Cet axe n'avait jamais été audité.** Les sept axes du 2026-08-12 portaient sur l'architecture, le
+> backlog, les décisions, l'environnement, la documentation, les tests et la CI — tous mesurables
+> depuis le dépôt sans jouer un parcours. *Un défaut qui n'apparaît qu'en traversant le produit ne se
+> trouve pas en le lisant.*
+
+### D-58 — `customer` et `tenant` ne sont jamais émis : quatre surfaces front sont mortes, dont un livrable P0 marqué `done` ✅ *corrigée le 2026-08-31* → [TCK-492](backlog/tickets/TCK-492-customer-et-tenant-jamais-emis-dans-roles.md)
+
+> **Corrigée, non mergée.** `profileTypes()` dérive désormais `customer` (plancher) et `tenant`
+> (bail en cours), sans nouvelle table. Coût mesuré : 6 → 7 requêtes.
+>
+> ⚠ **Le ticket avait sous-estimé une conséquence** : `customer` devenant le plancher, `isCustomer()`
+> a cessé de discriminer, et **huit** sites front l'employaient comme tel — dont la chaîne
+> `if (isCustomer) … else if (isOwner)` de `buildNavItems`, qui aurait donné le menu d'un acheteur à
+> tous les professionnels. `isCustomerOnly()` porte désormais la discrimination.
+
+`UserResource:52` émet `'roles' => $this->profileTypes()->all()`. `HasProfiles::profileTypes()` ne
+peut rendre que six valeurs — `super_admin`, `agency_admin`, `agent`, `owner`, `broker`,
+`service_provider`. **Ni `customer`, ni `tenant`, jamais.** Le front, lui, décide de tout le menu
+là-dessus : `isCustomer()` et `isTenant()` (`lib/roles.ts:21` et `:45`) rendent donc constamment
+`false`.
+
+**Preuve** : `grep -n "'roles'" app/Http/Resources/UserResource.php` → une seule ligne, la 52 ·
+`HasProfiles::profileTypes()` (lignes 187-210) — six `push()`, aucun `customer`, aucun `tenant` ·
+`php artisan route:list` ne rend aucun autre émetteur de `roles`.
+
+**Quatre surfaces en dépendent, et aucune ne s'allume :**
+
+| Site | Ce qui ne se produit jamais |
+|---|---|
+| `AppSidebar.tsx:143` | `occupeUnLogement()` est `false` pour un acheteur pur → « Mes réservations », « Mes visites », « Mes baux » ne sont jamais rendues |
+| `(accueil)/page.tsx:59` | le widget de check-list locataire livré par [TCK-266](backlog/tickets/TCK-266-tenant-onboarding-checklist.md) ne se monte pas |
+| `overview/page.tsx:59` | `redirect('/app/overview/tenant')` est une branche morte |
+| `AppShell.tsx:38` | `customerOnboardingActive` est `false` → le livrable **P0** de [TCK-253](backlog/tickets/TCK-253-onboarding-wizard-customer.md) ne se déclenche pas |
+
+**L'origine est écrite, datée, et c'est ce qui rend l'entrée instructive.**
+[TCK-278](backlog/tickets/TCK-278-rbac-profile-based-phase-1.md) (`created: 2026-05-17`) a remplacé
+les rôles spatie par `profileTypes()` et a renvoyé la suite à plus tard, en toutes lettres dans son
+§ *Hors périmètre* : *« Profile-isation de `customer` et `tenant` (création de `CustomerProfile` /
+`TenantProfile`) → ticket séparé si besoin émerge. »* **Ce ticket séparé n'a jamais été créé** — et
+TCK-253, `created: 2026-05-10`, `status: done`, lui est antérieur de sept jours.
+
+> *Un renvoi à « un ticket séparé si le besoin émerge » n'est pas une décision, c'est une décision
+> ajournée — et rien dans le dépôt ne surveille les ajournements.* Le besoin avait déjà émergé : il
+> était livré, marqué `done`, et il a cessé de fonctionner le jour du cutover sans qu'un seul test
+> rougisse.
+
+**Et la spec n'a pas bougé** : `features.md#22-rôles--permissions` liste toujours en P0 les rôles
+« `agency_admin`, `agent`, `owner`, `tenant`, `customer`, `service_provider` », et `models-spec.md`
+note *« customer/tenant dérivés »*. C'est le code qui a divergé de la spec.
+
+**Portée** : c'est le public le plus nombreux d'une plateforme immobilière — celui qui cherche à
+louer ou à acheter — qui n'a ni rôle, ni onboarding, ni menu.
+
+### D-59 — Le courtier est un profil commutable sans aucune surface ✅ *corrigée le 2026-08-31* → [TCK-495](backlog/tickets/TCK-495-le-courtier-est-un-profil-sans-surface.md)
+
+`broker` est dans `ActiveProfileResolver::TYPE_MAP` — donc dans le sélecteur d'espaces et dans
+`GET /api/me/profiles` — et il est émis dans `roles`. En face, rien.
+
+**Preuve**, mesurée le 2026-08-30 :
+
+```bash
+php artisan route:list --json | jq '[.[] | select((.uri + .action + (.name//"")) | test("broker";"i"))] | length'
+# → 0
+find takussan-web/src/app -ipath '*broker*'        # → aucun résultat
+grep broker takussan-web/src/types/user.ts         # → aucun résultat
+```
+
+Zéro route API, zéro page, absent de l'union `UserRole` côté front, aucun assistant, et aucun chemin
+— invitation comprise — qui crée un `BrokerProfile`. Si un compte en obtenait un, tous les prédicats
+`isX()` rendraient `false` et son menu serait vide : D-58, en pire, puisque là le compte a
+explicitement choisi cet espace.
+
+`features.md#22` et `models-spec.md#36-brokerprofile-` le décrivent pourtant au présent, et
+`features.md#21` cite « un courtier indépendant collaborant avec C et D » comme cas d'usage du
+multi-profil.
+
+> ✅ **Corrigée, non mergée** — TCK-495, branche `feat/lot-vague-56`. Issue retenue : **le courtier
+> SORT de la surface commutable, sans quitter la base**
+> ([ADR-0027](adr/0027-le-courtier-sort-de-la-surface-commutable.md)). L'alias quitte `TYPE_MAP`,
+> `profileTypes()` et `HasProfiles::profiles()` ; modèles, tables, migrations, factories et seeders
+> restent ; les lectures de modèle aussi (console super-admin, export RGPD, `PropertyResource`). Les
+> deux specs suivent.
+>
+> ⚠ **Le ticket n'avait pas vu le point qui casse** : `ProfileResource` demande son alias à
+> `aliasFor()`, **qui lève** pour une classe absente de `TYPE_MAP`. Retirer l'alias sans retirer le
+> profil de `User::profiles()` rendait **500** sur `GET /api/me/profiles` à tout compte portant un
+> `BrokerProfile` — et les seeders en fabriquent un. Ablation faite : l'exception se reproduit au
+> mot près.
+>
+> ⚠ **Et la garde d'AC2 a d'abord été un faux vert.** Écrite en un temps — « cet alias ouvre plus
+> que le socle » —, elle restait VERTE en remettant `broker` dans `TYPE_MAP` : un alias absent de
+> `UserRole` n'est reconnu par aucun prédicat, `isCustomerOnly()` le rend `true`, et le menu client
+> COMPLET lui est servi. *Un rôle inconnu qui reçoit le menu le plus fourni est le pire des faux
+> verts.* Le premier temps — « cet alias est un rôle que le front connaît » — a été ajouté après
+> l'ablation qui n'a pas rougi.
+
+### D-64 — La liste des rôles ciblables par une annonce est recopiée, et il lui manque deux rôles
+
+`ROLE_SLUGS` (`src/components/admin/super/announcements.tsx`) est une recopie à la main de la liste
+des rôles. `AnnouncementResolver::…` croise `segment.roles` avec `HasProfiles::profileTypes()` : un
+slug absent de `profileTypes()` cible **zéro compte**, en silence, sans rien dire à qui rédige
+l'annonce.
+
+**Preuve**, mesurée le 2026-08-31 : `profileTypes()` émet `customer` et `tenant` depuis TCK-492 ;
+`ROLE_SLUGS` ne les porte pas. Un super-admin ne peut donc **pas** adresser une annonce à l'ensemble
+des comptes authentifiés, ni aux locataires — les deux publics les plus nombreux.
+
+TCK-495 a retiré `broker` de cette liste (il ne ciblait plus personne), mais **n'a pas ajouté** les
+deux manquants : ce serait ouvrir un ciblage neuf, ce qui est une décision de produit et non un
+effet de bord du retrait du courtier.
+
+*Pas de ticket : décider si « tous les comptes » et « les locataires » doivent être des cibles
+d'annonce relève du produit. La correction technique, elle, est connue — dériver la liste au lieu de
+la recopier, comme `SelectActiveProfileRequest` le fait déjà côté back.*
+
+### D-60 — Trois profils sur six ne s'obtiennent que sur invitation, et rien ne le dit
+
+`app/onboarding/{owner,agent,service-provider}/page.tsx` redirigent toutes trois vers `/app` si le
+profil correspondant **n'existe pas déjà**. Ce ne sont donc pas des portes d'entrée : ce sont des
+écrans de finalisation d'invitation.
+
+**Preuve** : les trois pages portent la même forme — `getMyProfilesAction()` puis
+`profilesRes.data.data.find(p => p.type === '<type>')`, et `redirect('/app')` si absent (lignes 40-42,
+40-42 et 47-51 respectivement).
+
+La seule porte en libre-service est `/onboarding/host`, atteignable par le seul `usePublishIntent`
+(« Publier un bien »). Un prestataire — plombier, électricien, société de nettoyage — qui arrive sur
+le site n'a aucun moyen de se déclarer, et **aucune page ne lui explique qu'il doit se faire
+inviter**. Le pattern d'invitation unifié est bien la décision produit (`features.md#21`, §
+*Onboarding parcours*, P0) ; ce qui manque, c'est de le **dire** à qui frappe à la porte.
+
+*Pas de ticket : la décision produit — faut-il une porte en libre-service, ou une page qui explique
+l'invitation ? — n'est pas instruite.*
+
+### D-61 — L'assistant hôte fabrique deux espaces indiscernables ✅ *corrigée le 2026-08-31* → [TCK-497](backlog/tickets/TCK-497-deux-espaces-indiscernables-pour-un-particulier.md)
+
+> **Corrigée, non mergée.** Issue retenue : fusionner. `ProfileResource` expose `agency.kind`, et le
+> sélecteur ne propose qu'une entrée pour une agence `individual` — le slug, qui portait un rang de
+> collision globale, n'est plus affiché sous un nom de particulier. Aucun profil supprimé, aucune
+> capacité perdue (le résolveur fait un OR entre profils d'une même agence).
+
+`HostIndividualOnboardingService::onboard()` crée dans une seule transaction une `Agency`, un
+`AgencyAdminProfile` et un `OwnerProfile` — les trois pour une seule personne, dans la même agence.
+`ProfileSwitcher` libelle chaque entrée par `profile.agency.name`, et les deux profils pointent la
+même agence : les deux lignes **ne peuvent pas** différer.
+
+```
+Administrateur   Espace de Mouhamadoul Amine THIAM
+                 espace-de-mouhamadoul-amine-thiam-3
+Propriétaire     Espace de Mouhamadoul Amine THIAM
+                 espace-de-mouhamadoul-amine-thiam-3   ← identique
+```
+
+Le choix n'est pas cosmétique : les capacités sont additives par profil (ADR-0003) et le menu en
+dépend. On demande donc d'arbitrer entre deux options que rien ne distingue à l'écran.
+
+**Second défaut, indépendant** : `uniqueSlug()` incrémente sur collision **globale**, et le nom
+d'agence est dérivé du nom de la personne. Deux homonymes se marchent dessus, et un identifiant
+destiné à l'URL publique finit par porter un rang qui ne signifie rien.
+
+### D-62 — Après une inscription Google, le compte atterrit sur un tableau de bord vide sans qu'on lui ait rien demandé ✅ *corrigée le 2026-08-31* → [TCK-493](backlog/tickets/TCK-493-question-d-intention-apres-inscription.md)
+
+> **Corrigée, non mergée.** Les quatre chemins d'inscription mènent à `/onboarding/intention`, qui
+> décide seule s'il y a lieu de demander quoi que ce soit.
+>
+> ⚠ **La prémisse « rien à créer côté API » était fausse** : `PATCH /api/me` n'accepte pas des
+> `preferences` libres, il a une liste blanche — recopiée en DEUX exemplaires, dans la validation et
+> dans le contrôleur. Les deux sont désormais `UpdateMeRequest::PREFERENCE_FIELDS`.
+
+`OAuthProvisioningService::provision()` crée un `User` **sans aucun profil et sans téléphone** ;
+`auth/oauth/[provider]/callback/page.tsx:40` redirige en dur vers `/app`. Combiné à D-58, le compte
+arrive donc sur un tableau de bord dont trois entrées de menu subsistent et qui affiche « Aucune
+activité pour le moment ».
+
+Aucun des deux chemins d'inscription ne pose la question qui oriente tout le reste — *chercher un
+logement, ou en proposer un ?* L'asymétrie est le point : le chemin e-mail passe au moins par
+`/auth/verify-email`, le chemin Google va directement au vide.
+
+**Preuve** : `provision()` (lignes 78-99) — `type: 'individual'`, aucun profil créé ·
+`callback/page.tsx:20` — `params.get('redirect') ?? '/app'` · `auth/register/page.tsx:26-33` —
+`defaultValues` sans champ d'intention.
+
+### D-63 — L'alias `agency_admin` était refusé par la validation de la bascule de profil ✅ *mesurée et corrigée le 2026-08-30* → [TCK-498](backlog/tickets/TCK-498-alias-agency-admin-refuse-par-la-validation.md)
+
+> **Corrigé, non mergé.** `SelectActiveProfileRequest` dérive désormais son motif de
+> `ActiveProfileResolver::TYPE_MAP` au lieu de le recopier, et un test parcourt chaque alias de la
+> carte en exigeant 403 et jamais 422.
+
+`TYPE_MAP` porte cinq alias ; la regex de validation en listait quatre, sans `agency_admin` — c'est-à-dire
+sans celui que `HostIndividualOnboardingService` épingle lui-même comme profil actif (TCK-271). Un
+hôte pouvait donc quitter son espace Administrateur pour son espace Propriétaire, et jamais y
+revenir : **422 sur son propre profil, que `GET /api/me/profiles` venait de lui proposer.**
+
+Le même oubli vivait dans le garde de `/onboarding/host`, qui testait `owner` et `agent` sans
+`agency_admin`.
+
+**Preuve** : reproduit par test avant correction, au message près du signalement — *« The profile id
+field format is invalid »*. `SelectActiveProfileTest` comptait six cas, tous sur `owner:` et `agent:`.
+
+> **C'est la deuxième occurrence du même motif, et c'est ce qui compte.**
+> [TCK-329](backlog/tickets/TCK-329-profiletype-front-ignore-agency-admin.md) avait déjà payé une
+> liste d'alias écrite à la main qui avait dérivé — `PROFILE_TYPES`, où `agency_admin` manquait
+> aussi. La garde posée alors **ne couvre que le front**, et le back portait une seconde copie, dans
+> une regex, que rien ne regardait. *Une garde posée à l'endroit où le défaut a fait mal ne couvre
+> pas le défaut : elle couvre l'endroit.* La parité sur l'axe des rôles reste à poser
+> ([TCK-494](backlog/tickets/TCK-494-garde-de-parite-sur-l-axe-des-roles.md)).
+
+---
+
 ## Ce que cet inventaire ne couvre pas
 
 Il est dérivé de ce qu'on peut **mesurer depuis le dépôt** : fichiers, historique git, exécution des

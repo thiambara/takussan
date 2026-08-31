@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Mail } from 'lucide-react';
+import { Building2, Mail, User } from 'lucide-react';
 
 // HostWizardData / step list are intentionally trimmed compared to TCK-255:
 // the "Votre premier bien" step has been removed so the wizard focuses on
@@ -11,6 +11,7 @@ import { Mail } from 'lucide-react';
 // property-creation form (`/app/properties/new`) inside the dashboard.
 
 import { Button } from '@/components/ui/button';
+import { ChoiceCard, ChoiceCardGroup } from '@/components/ui/choice-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -40,7 +41,6 @@ type HostWizardData = {
   agency: { name: string; primary_city: string; currency: string };
   phone_otp: { phone: string; code: string; verified: boolean };
   preferences: { primary_property_type: string };
-  payment_setting: { preferred_provider: string };
   cgu_accepted: boolean;
 };
 
@@ -59,7 +59,6 @@ const PROPERTY_TYPES = [
 
 const CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD'] as const;
 type Currency = (typeof CURRENCIES)[number];
-const PAYMENT_PROVIDERS = ['wave', 'orange_money', 'lemon_squeezy'] as const;
 
 const SUPER_ADMIN_EMAIL = 'support@takussan.app';
 
@@ -79,11 +78,21 @@ function matchSupportedCurrency(raw: string | undefined): Currency | null {
 /**
  * TCK-255 — Host individual onboarding wizard.
  *
- * Four steps:
+ * Trois étapes :
  *   1. Intent (individual vs professional)
  *   2. Identity + phone OTP
- *   3. Payment provider
- *   4. Recap + CGU + publish
+ *   3. Recap + CGU + publish
+ *
+ * ⚠ TCK-496 — il y en avait QUATRE : un « mode de paiement » se glissait entre
+ * l'identité et le récapitulatif. On y demandait par quel opérateur être payé à
+ * quelqu'un qui n'avait pas encore d'annonce, et la réponse n'était lue par
+ * rien — le service back reporte lui-même la configuration réelle au premier
+ * encaissement. *Ce qui est demandé doit servir à ce qu'on est en train de
+ * faire.* La question reste légitime ; c'est son moment qui ne l'était pas.
+ *
+ * Les trois étapes restantes se défendent chacune : le mode oriente la suite,
+ * l'OTP est une exigence de sécurité (`features.md#21`), les CGU sont un
+ * consentement.
  *
  * Uses the generic `<WizardReprenable>` (TCK-250) for autosave + resume.
  * On completion, hits `hostIndividualOnboardAction` which creates the
@@ -131,7 +140,6 @@ export function HostIndividualWizard() {
         verified: Boolean(user?.phone_verified_at),
       },
       preferences: { primary_property_type: 'apartment' },
-      payment_setting: { preferred_provider: 'wave' },
       cgu_accepted: false,
     };
   }, [user, t, location]);
@@ -162,7 +170,6 @@ export function HostIndividualWizard() {
         agency: data.agency,
         phone_otp: { phone: data.phone_otp.phone, code: data.phone_otp.code },
         preferences: data.preferences,
-        payment_setting: data.payment_setting,
         cgu_accepted: data.cgu_accepted,
       });
 
@@ -209,15 +216,6 @@ export function HostIndividualWizard() {
           (d.preferences?.primary_property_type ?? '') !== '',
         render: ({ data, setData }) => (
           <IdentityStep data={data} setData={setData} />
-        ),
-      },
-      {
-        id: 'payment',
-        title: t('steps.payment.title'),
-        subtitle: t('steps.payment.subtitle'),
-        canAdvance: (d) => (d.payment_setting?.preferred_provider ?? '') !== '',
-        render: ({ data, setData }) => (
-          <PaymentStep data={data} setData={setData} />
         ),
       },
       {
@@ -277,88 +275,56 @@ function IntentStep({ data, setData }: StepProps) {
   const setIntent = (intent: Intent) => setData({ ...data, intent });
 
   return (
-    <div className="flex flex-col gap-4">
-      <fieldset className="flex flex-col gap-3">
-        <legend className="sr-only">{t('legend')}</legend>
-        <label
-          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-            data.intent === 'individual'
-              ? 'border-primary bg-primary/5'
-              : 'border-border'
-          }`}
-        >
-          <input
-            type="radio"
-            name="intent"
-            value="individual"
-            checked={data.intent === 'individual'}
-            onChange={() => setIntent('individual')}
-            className="mt-1"
-          />
-          <span>
-            <span className="block font-medium text-foreground">
-              {t('options.individual.title')}
-            </span>
-            <span className="block text-sm text-muted-foreground">
-              {t('options.individual.body')}
-            </span>
-          </span>
-        </label>
+    <ChoiceCardGroup legend={t('legend')}>
+      <ChoiceCard
+        name="intent"
+        value="individual"
+        checked={data.intent === 'individual'}
+        onSelect={() => setIntent('individual')}
+        icon={<User className="size-5" aria-hidden />}
+        title={t('options.individual.title')}
+        description={t('options.individual.body')}
+      />
 
-        <label
-          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-            data.intent === 'professional'
-              ? 'border-primary bg-primary/5'
-              : 'border-border'
-          }`}
-        >
-          <input
-            type="radio"
-            name="intent"
-            value="professional"
-            checked={data.intent === 'professional'}
-            onChange={() => setIntent('professional')}
-            className="mt-1"
-          />
-          <span>
-            <span className="block font-medium text-foreground">
-              {t('options.professional.title')}
-            </span>
-            <span className="block text-sm text-muted-foreground">
-              {t('options.professional.body')}
-            </span>
-          </span>
-        </label>
-      </fieldset>
-
-      {data.intent === 'professional' ? (
-        <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4 text-sm">
-          <p className="text-foreground">{t('professionalNotice.title')}</p>
-          <p className="mt-1 text-muted-foreground">
+      <ChoiceCard
+        name="intent"
+        value="professional"
+        checked={data.intent === 'professional'}
+        onSelect={() => setIntent('professional')}
+        icon={<Building2 className="size-5" aria-hidden />}
+        title={t('options.professional.title')}
+        description={t('options.professional.body')}
+      >
+        {/* Le professionnel n'est pas libre-service : il passe par le support.
+            L'avis vit SOUS l'option qui le déclenche plutôt qu'en bas de
+            l'étape — c'est la réponse à ce qu'on vient de cliquer. */}
+        <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-4 text-sm">
+          <p className="font-medium text-foreground">{t('professionalNotice.title')}</p>
+          <p className="mt-1 leading-relaxed text-muted-foreground">
             {t('professionalNotice.body')}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
             <a
               href={`mailto:${SUPER_ADMIN_EMAIL}?subject=${encodeURIComponent(t('professionalNotice.mailSubject'))}`}
-              className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+              className="inline-flex items-center gap-2 font-medium text-primary underline-offset-4 hover:underline"
             >
               <Mail className="size-4" aria-hidden />
               {t('professionalNotice.contactCta')}
             </a>
-            <span aria-hidden className="text-muted-foreground">
-              ·
+            <span aria-hidden className="text-border">
+              |
             </span>
             <button
               type="button"
-              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              className="font-medium text-primary underline-offset-4 hover:underline"
               onClick={() => setIntent('individual')}
             >
               {t('professionalNotice.continueIndividual')}
             </button>
           </div>
         </div>
-      ) : null}
-    </div>
+      </ChoiceCard>
+    </ChoiceCardGroup>
   );
 }
 
@@ -619,49 +585,6 @@ function PhoneOtpField({ data, setData }: StepProps) {
   );
 }
 
-function PaymentStep({ data, setData }: StepProps) {
-  const t = useTranslations('onboarding.host.steps.payment');
-
-  return (
-    <fieldset className="flex flex-col gap-3">
-      <legend className="sr-only">{t('legend')}</legend>
-      {PAYMENT_PROVIDERS.map((provider) => (
-        <label
-          key={provider}
-          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-            data.payment_setting.preferred_provider === provider
-              ? 'border-primary bg-primary/5'
-              : 'border-border'
-          }`}
-        >
-          <input
-            type="radio"
-            name="payment-provider"
-            value={provider}
-            checked={data.payment_setting.preferred_provider === provider}
-            onChange={() =>
-              setData({
-                ...data,
-                payment_setting: { preferred_provider: provider },
-              })
-            }
-            className="mt-1"
-          />
-          <span>
-            <span className="block font-medium text-foreground">
-              {t(`providers.${provider}.title` as never)}
-            </span>
-            <span className="block text-sm text-muted-foreground">
-              {t(`providers.${provider}.body` as never)}
-            </span>
-          </span>
-        </label>
-      ))}
-      <p className="text-xs text-muted-foreground">{t('disclaimer')}</p>
-    </fieldset>
-  );
-}
-
 function RecapStep({ data, setData }: StepProps) {
   const t = useTranslations('onboarding.host.steps.recap');
 
@@ -676,10 +599,6 @@ function RecapStep({ data, setData }: StepProps) {
     {
       label: t('rows.phoneVerified'),
       value: data.phone_otp.verified ? t('rows.yes') : t('rows.no'),
-    },
-    {
-      label: t('rows.paymentProvider'),
-      value: data.payment_setting.preferred_provider,
     },
   ];
 

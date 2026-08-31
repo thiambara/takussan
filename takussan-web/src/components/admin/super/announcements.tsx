@@ -53,7 +53,22 @@ const SEVERITY_TONES: Record<AnnouncementSeverity, StatusTone> = {
  * n'en font PAS partie : les cibler n'aurait jamais atteint personne. C'est pourquoi cette table
  * est écrite ici plutôt qu'empruntée à l'écran des utilisateurs.
  */
-const ROLE_SLUGS = ['super_admin', 'agency_admin', 'agent', 'owner', 'broker', 'service_provider'] as const;
+/**
+ * Les rôles ciblables par une annonce.
+ *
+ * ⚠ **TCK-495 — `broker` en a été retiré, et cette liste reste une RECOPIE.**
+ * `AnnouncementResolver` croise `segment.roles` avec `HasProfiles::profileTypes()` :
+ * un slug qui n'y figure pas cible zéro compte, en silence, sans que rien ne le
+ * dise à qui rédige l'annonce. Garder `broker` ici aurait donc laissé une case
+ * à cocher qui ne touche personne.
+ *
+ * ⚠ Elle n'est toujours PAS dérivée — et il lui manque `customer` et `tenant`,
+ * que `profileTypes()` émet depuis TCK-492. Ce n'est pas corrigé ici : ces deux
+ * rôles ouvriraient un ciblage neuf (tout compte authentifié, tout locataire),
+ * ce qui est une décision de produit et pas un effet de bord du retrait du
+ * courtier. Inscrit à l'ardoise.
+ */
+const ROLE_SLUGS = ['super_admin', 'agency_admin', 'agent', 'owner', 'service_provider'] as const;
 
 type RoleSlug = (typeof ROLE_SLUGS)[number];
 

@@ -35,7 +35,6 @@ const TYPE_LABEL_KEY: Record<ProfileType, string> = {
   agency_admin: 'agency_admin',
   owner: 'owner',
   agent: 'agent',
-  broker: 'broker',
   service_provider: 'service_provider',
 };
 
@@ -46,6 +45,11 @@ const TYPE_COLOR: Record<ProfileType, string> = {
   // information — ce qui donnait la même couleur à `agent` et `broker` (deux fois `--info`) et
   // faisait dire « erreur » au badge d'un administrateur d'agence. `ProfileBadge.test.tsx` exige
   // une couleur DISTINCTE par type déclaré : il a rougi sur les cinq, et il avait raison.
+  //
+  // ⚠ TCK-495 — ils sont QUATRE depuis le 2026-08-31, le courtier ayant quitté `PROFILE_TYPES`.
+  // `--chart-4` reste défini et libre : le prochain type de profil le prendra. Renuméroter les
+  // quatre survivants pour « combler le trou » ferait changer la couleur de trois badges
+  // existants pour rien.
   //
   // Un type de profil n'est pas un état : c'est une CATÉGORIE, et le DS publie exactement cela
   // depuis TCK-129 — `--chart-1..5`, cinq teintes de la famille Lin, distinguables et sans
@@ -74,8 +78,10 @@ const TYPE_COLOR: Record<ProfileType, string> = {
   //     agency_admin         13,32         12,71          11,27          12,45
   //     owner                13,40         12,79          11,45          12,75
   //     agent                14,16         13,54           9,85          10,88
-  //     broker               13,32         12,74          10,24          11,41
   //     service_provider     11,50         10,97           8,10           8,99
+  //
+  // (La ligne `broker  13,32  12,74  10,24  11,41` a été retirée avec le type — TCK-495. La
+  // mesure reste vraie de `--chart-4`, elle n'a simplement plus de type à décrire.)
   //
   // ⚠ Ces chiffres sont ceux de la GARDE, qui arrondit l'aplat composé à l'entier comme le fait
   // le navigateur. Le harnais de test (`src/test/couples-de-contraste.ts`) ne l'arrondit pas et
@@ -89,7 +95,6 @@ const TYPE_COLOR: Record<ProfileType, string> = {
   agency_admin: 'bg-chart-1/20 text-foreground',
   owner: 'bg-chart-2/20 text-foreground',
   agent: 'bg-chart-3/20 text-foreground',
-  broker: 'bg-chart-4/20 text-foreground',
   service_provider: 'bg-chart-5/20 text-foreground',
 };
 

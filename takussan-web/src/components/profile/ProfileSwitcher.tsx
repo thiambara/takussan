@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useMyProfiles, useSwitchActiveProfile } from '@/hooks/useProfiles';
+import { espacesAProposer, slugAAfficher } from '@/lib/espaces';
 import { isSuperAdmin } from '@/lib/roles';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types/user';
@@ -36,8 +37,7 @@ const TYPE_RANK: Record<ProfileType, number> = {
   agency_admin: 0,
   owner: 1,
   agent: 2,
-  broker: 3,
-  service_provider: 4,
+  service_provider: 3,
 };
 
 const TYPE_ORDER: ProfileType[] = [...PROFILE_TYPES].sort((a, b) => TYPE_RANK[a] - TYPE_RANK[b]);
@@ -59,8 +59,13 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
   const profilesQuery = useMyProfiles();
   const switchMutation = useSwitchActiveProfile();
 
-  const profiles = profilesQuery.data?.data ?? [];
   const activeId = profilesQuery.data?.meta.active_profile_id ?? null;
+  // TCK-497 — ce qu'on PROPOSE n'est plus exactement ce que l'API LISTE. Une
+  // agence `individual` porte deux profils pour une seule personne, dont le
+  // sélecteur tirait deux lignes identiques au caractère près. Le contrat ne
+  // change pas — `espacesAProposer` ne fusionne que l'affichage, et le résolveur
+  // de capacités fait déjà un OR entre les profils d'une même agence.
+  const profiles = espacesAProposer(profilesQuery.data?.data ?? [], activeId);
   const active = profiles.find((p) => p.id === activeId) ?? null;
 
   const grouped = useMemo(() => {
@@ -157,8 +162,10 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
                   >
                     <span className="flex flex-col">
                       <span className="font-medium">{profile.agency?.name ?? profileTypeLabel(type, tTypes)}</span>
-                      {profile.agency?.slug ? (
-                        <span className="text-xs text-muted-foreground">{profile.agency.slug}</span>
+                      {slugAAfficher(profile) ? (
+                        <span className="text-xs text-muted-foreground">
+                          {slugAAfficher(profile)}
+                        </span>
                       ) : null}
                     </span>
                     {isActive ? <Check className="size-4 text-success" aria-hidden="true" /> : null}

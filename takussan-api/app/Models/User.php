@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -410,6 +411,41 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
     public function leases(): HasMany
     {
         return $this->hasMany(Lease::class, 'landlord_id');
+    }
+
+    /**
+     * TCK-492 — les baux où cet utilisateur est le LOCATAIRE.
+     *
+     * ⚠ À ne pas confondre avec {@see self::leases()}, qui porte le côté
+     * BAILLEUR (`landlord_id`) et occupait seul le nom court. L'absence de
+     * cette relation est ce qui a permis à `tenant` de rester un rôle déclaré
+     * côté front et jamais émis par l'API : rien ne reliait une identité à un
+     * bail qu'elle occupe.
+     *
+     * ⚠⚠ **`leases.tenant_id` ne référence PAS `users`.** La contrainte pointe
+     * `customers` (`2026_04_17_160011_create_leases_table.php:15`), et
+     * `customers.user_id` est NULLABLE : un dossier locataire existe pour
+     * quelqu'un qui n'a pas de compte sur la plateforme. Le saut est donc
+     * `User → Customer → Lease`, et un `hasMany(Lease, 'tenant_id')` posé
+     * directement sur `User` aurait comparé un identifiant d'utilisateur à un
+     * identifiant de client : silencieusement vide dans le cas courant, et
+     * FAUX le jour où les deux séquences se croisent.
+     *
+     * Le lien reste `hasManyThrough` et non `hasMany` sur `customer()` parce
+     * qu'un même compte porte un dossier client PAR AGENCE — `customers.user_id`
+     * n'est pas unique. {@see self::customer()} est un `hasOne` de commodité,
+     * pas une contrainte de schéma.
+     */
+    public function tenantLeases(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Lease::class,
+            Customer::class,
+            'user_id',   // customers.user_id  → users.id
+            'tenant_id', // leases.tenant_id   → customers.id
+            'id',
+            'id',
+        );
     }
 
     public function writtenReviews(): HasMany

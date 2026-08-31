@@ -49,6 +49,7 @@
     "52": "Dettes relevées par les revues du parcours de publication (2026-08-29)",
     "53": "Débordements mesurés pendant le lot de la vague 52 : jeton de contraste, encre héritée, brouillons non lus (2026-08-30)",
     "54": "Débordements du lot de la vague 53 : les deux couples de contraste que la correction du jeton a rendus visibles (2026-08-30)",
-    "55": "Ce que TCK-464 a ouvert en aval : les lecteurs des champs devenus écrivables (2026-08-30)"
+    "55": "Ce que TCK-464 a ouvert en aval : les lecteurs des champs devenus écrivables (2026-08-30)",
+    "56": "Audit des parcours d'entrée : rôles jamais émis, portes manquantes, coque des assistants (2026-08-30)"
   }
 }

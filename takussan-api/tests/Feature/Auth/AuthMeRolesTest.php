@@ -48,7 +48,10 @@ class AuthMeRolesTest extends TestCase
         $this->withToken($token)
             ->getJson('/api/auth/me')
             ->assertOk()
-            ->assertJsonPath('roles', ['super_admin'])
+            // TCK-492 — `customer` est le PLANCHER : il accompagne désormais
+            // tout compte authentifié, super-admin compris. Le modèle est
+            // additif, pas exclusif.
+            ->assertJsonPath('roles', ['super_admin', 'customer'])
             ->assertJsonPath('agency_id', null);
     }
 

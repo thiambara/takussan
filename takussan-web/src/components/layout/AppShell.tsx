@@ -11,7 +11,7 @@ import { CustomerWelcomeWizard } from '@/components/customer/CustomerWelcomeWiza
 import { MinimalProfileTriggerProvider } from '@/components/customer/MinimalProfileTriggerProvider';
 import { OwnerWelcomeWizard } from '@/components/owner/OwnerWelcomeWizard';
 import { TenantWelcomeWizard } from '@/components/tenant/TenantWelcomeWizard';
-import { isAgencyAdmin, isAgent, isCustomer, isOwner } from '@/lib/roles';
+import { isAgencyAdmin, isAgent, isCustomerOnly, isOwner } from '@/lib/roles';
 
 interface AppShellProps {
   user: User;
@@ -35,7 +35,11 @@ export function AppShell({
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
-  const customerOnboardingActive = isCustomer(user.roles);
+  // TCK-492 — `isCustomerOnly` : `customer` étant devenu le plancher,
+  // `isCustomer` aurait armé la modale de bienvenue acheteur pour les agents,
+  // bailleurs et administrateurs — c'est-à-dire exactement ce que le
+  // commentaire ci-dessus dit vouloir éviter.
+  const customerOnboardingActive = isCustomerOnly(user.roles);
   // TCK-257 — Owner welcome modale, mounted once on /app for users
   // with the `owner` role. Independent of the customer wizard (its
   // welcome key is distinct), so an owner who is also a customer sees

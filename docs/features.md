@@ -362,7 +362,9 @@ Une agence porte un **`kind`** :
 
 #### Profils & contexte actif (TCK-138 → TCK-142)
 
-Une **identité = un User**, qui peut porter plusieurs **profils métier** chez plusieurs agences (ex. un même humain peut être propriétaire chez l'agence A, locataire chez l'agence B et courtier indépendant collaborant avec C et D). Email, mot de passe, 2FA et OAuth sont **uniques au user** (pas dupliqués par profil) ; le KYC et les informations administratives sont portés **par chaque profil** (RIB et tax_id par OwnerProfile, license_number par AgentProfile/BrokerProfile, certifications par ServiceProviderProfile).
+Une **identité = un User**, qui peut porter plusieurs **profils métier** chez plusieurs agences (ex. un même humain peut être propriétaire chez l'agence A, locataire chez l'agence B et prestataire collaborant avec C et D).
+
+> ⚠️ **Le courtier n'est plus un profil commutable depuis le 2026-08-31** ([ADR-0027](adr/0027-le-courtier-sort-de-la-surface-commutable.md), TCK-495). Il illustrait l'exemple ci-dessus jusque-là, et l'exemple était juste sur le principe — c'est le produit qui ne l'a jamais suivi : zéro route, zéro écran, aucun chemin qui crée le profil. `BrokerProfile` et `BrokerAgencyCollaboration` restent décrits par [`models-spec.md`](models-spec.md#36-brokerprofile-) et vivent en base ; ils ne sont ni sélectionnables dans le sélecteur d'espaces, ni émis dans `roles`. Email, mot de passe, 2FA et OAuth sont **uniques au user** (pas dupliqués par profil) ; le KYC et les informations administratives sont portés **par chaque profil** (RIB et tax_id par OwnerProfile, license_number par AgentProfile/BrokerProfile, certifications par ServiceProviderProfile).
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
@@ -394,7 +396,7 @@ Cartographie complète des parcours d'entrée dans le système (référence : `d
 
 ### 2.2 Rôles & permissions
 
-> **TCK-138 → TCK-142, puis TCK-278.** La nature métier (owner / agent / broker / service_provider) est portée par le **profil actif**, et les permissions en **découlent** : `spatie/laravel-permission` a été désinstallé, il n'y a plus ni table de rôles, ni `team_id`. Un « rôle » est un **profil polymorphe** ([ADR-0002](adr/0002-role-est-un-profil-polymorphe.md), [Règle 5 de `models-spec.md`](models-spec.md#règle-5--profil--rôle)) ; une « permission » est un cas de l'enum `Capability` (`<domaine>.<verbe>`), résolu par `MembershipCapabilityResolver` pour un couple *(utilisateur, agence)* et additif entre profils ([ADR-0003](adr/0003-capacites-enum-code-defined.md)). Plus aucun scoping direct par `users.agency_id` — la colonne n'existe plus en base.
+> **TCK-138 → TCK-142, puis TCK-278.** La nature métier (owner / agent / service_provider) est portée par le **profil actif**, et les permissions en **découlent** : `spatie/laravel-permission` a été désinstallé, il n'y a plus ni table de rôles, ni `team_id`. Un « rôle » est un **profil polymorphe** ([ADR-0002](adr/0002-role-est-un-profil-polymorphe.md), [Règle 5 de `models-spec.md`](models-spec.md#règle-5--profil--rôle)) ; une « permission » est un cas de l'enum `Capability` (`<domaine>.<verbe>`), résolu par `MembershipCapabilityResolver` pour un couple *(utilisateur, agence)* et additif entre profils ([ADR-0003](adr/0003-capacites-enum-code-defined.md)). Plus aucun scoping direct par `users.agency_id` — la colonne n'existe plus en base.
 >
 > ⚠️ **Cette section décrivait le mécanisme spatie au présent jusqu'au 2026-08-15**, plusieurs mois après sa suppression, alors qu'une garde CI casse déjà sur tout import `Spatie\Permission\`. Le **quoi** ci-dessous — rôles prédéfinis, permissions granulaires, éditeur de rôles réservé aux agences — est tranché et n'a pas bougé ; seul le **comment** était périmé. Si une ligne de ce tableau contredit le code, c'est le code qui a raison.
 

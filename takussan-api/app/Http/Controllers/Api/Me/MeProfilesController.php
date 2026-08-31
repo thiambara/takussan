@@ -11,7 +11,6 @@ use App\Models\Enums\OwnerProfileStatus;
 use App\Models\Enums\ServiceProviderProfileStatus;
 use App\Models\Profiles\AgencyAdminProfile;
 use App\Models\Profiles\AgentProfile;
-use App\Models\Profiles\BrokerProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\ServiceProviderProfile;
 use App\Services\Profiles\ActiveProfileResolver;
@@ -25,9 +24,15 @@ class MeProfilesController extends Controller
     public function __construct(private readonly ActiveProfileResolver $resolver) {}
 
     /**
-     * `GET /api/me/profiles` — every profile owned by the authenticated user,
-     * across the four concrete profile types. Always scoped to the caller —
-     * a user can never list someone else's profiles via this endpoint.
+     * `GET /api/me/profiles` — tous les profils COMMUTABLES du compte appelant,
+     * c'est-à-dire ceux que `ActiveProfileResolver::TYPE_MAP` sait nommer.
+     * Toujours borné à l'appelant : ce point d'entrée ne liste jamais les
+     * profils de quelqu'un d'autre.
+     *
+     * TCK-495 — `brokerProfile` n'est plus préchargé, et `User::profiles()` ne
+     * le rend plus : un `BrokerProfile` arrivé jusqu'ici ferait lever
+     * `ProfileResource` sur `aliasFor()`. Le préchargement suit donc la liste,
+     * il ne la précède pas.
      */
     public function index(Request $request): JsonResponse
     {
@@ -36,13 +41,11 @@ class MeProfilesController extends Controller
             'ownerProfiles.agency',
             'agentProfiles.agency',
             'agencyAdminProfiles.agency',
-            'brokerProfile',
             'serviceProviderProfile',
         ]);
         // Filter out non-Active profiles before exposing them to the client.
         // Stale/suspended profiles would otherwise clutter the switcher and
         // let the user pick a context the policy layer immediately rejects.
-        // Broker has no status enum — always include.
         $profiles = $user->profiles()->filter(fn (Model $p) => $this->isActive($p))->values();
 
         $active = $request->activeProfile();
@@ -64,7 +67,6 @@ class MeProfilesController extends Controller
             $profile instanceof AgentProfile => $profile->status === AgentProfileStatus::Active,
             $profile instanceof AgencyAdminProfile => $profile->status === AgencyAdminProfileStatus::Active,
             $profile instanceof ServiceProviderProfile => $profile->status === ServiceProviderProfileStatus::Active,
-            $profile instanceof BrokerProfile => true,
             default => true,
         };
     }

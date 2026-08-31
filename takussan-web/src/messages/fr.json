@@ -3989,6 +3989,31 @@
     }
   },
   "onboarding": {
+    "shell": {
+      "autosave": "Vos réponses sont enregistrées au fur et à mesure — vous pouvez reprendre plus tard.",
+      "exit": "Retour au site"
+    },
+    "intention": {
+      "metaTitle": "Que venez-vous faire sur Takussan ?",
+      "pageTitle": "Bienvenue, {name}",
+      "pageSubtitle": "Une question, et on vous emmène directement au bon endroit. Vous pourrez toujours faire les deux.",
+      "legend": "Ce que vous venez faire",
+      "options": {
+        "search": {
+          "title": "Je cherche un logement",
+          "body": "Location ou achat — parcourez les annonces, demandez une visite, suivez vos dossiers."
+        },
+        "publish": {
+          "title": "Je veux publier un bien",
+          "body": "Mettez votre logement en ligne et gérez vos réservations depuis votre espace."
+        }
+      },
+      "submit": "Continuer",
+      "submitting": "Un instant…",
+      "skip": "Je verrai plus tard",
+      "note": "Cette réponse ne vous engage à rien : elle sert seulement à vous montrer les bons écrans en premier.",
+      "error": "Nous n’avons pas pu enregistrer votre réponse. Réessayez, ou passez cette étape."
+    },
     "host": {
       "defaults": {
         "spaceNameOf": "Espace de {name}"
@@ -4098,26 +4123,6 @@
             "sale": "Vente"
           }
         },
-        "payment": {
-          "title": "Mode de paiement",
-          "subtitle": "Choisissez votre fournisseur préféré — la configuration complète sera demandée à la première réservation.",
-          "legend": "Fournisseur de paiement",
-          "providers": {
-            "wave": {
-              "title": "Wave",
-              "body": "Mobile money — recommandé au Sénégal."
-            },
-            "orange_money": {
-              "title": "Orange Money",
-              "body": "Mobile money — Afrique de l'Ouest."
-            },
-            "lemon_squeezy": {
-              "title": "Carte bancaire (Lemon Squeezy)",
-              "body": "Paiements internationaux par carte."
-            }
-          },
-          "disclaimer": "Vous pourrez configurer plusieurs fournisseurs et changer de défaut depuis votre tableau de bord."
-        },
         "recap": {
           "title": "Récapitulatif",
           "subtitle": "Vérifiez avant de publier — vous pourrez tout modifier ensuite.",
@@ -4131,7 +4136,6 @@
             "firstPropertyType": "Type de bien",
             "firstPropertyContract": "Transaction",
             "firstPropertyPrice": "Prix",
-            "paymentProvider": "Fournisseur de paiement",
             "yes": "Oui",
             "no": "Non"
           },
@@ -5664,7 +5668,6 @@
         "agency_admin": "Admin agence",
         "agent": "Agent",
         "owner": "Propriétaire",
-        "broker": "Courtier",
         "service_provider": "Prestataire"
       },
       "rolesHint": "Aucun rôle coché : l'annonce n'est pas restreinte par rôle.",
@@ -6885,7 +6888,6 @@
       "agency_admin": "Administrateur",
       "owner": "Propriétaire",
       "agent": "Agent",
-      "broker": "Courtier",
       "service_provider": "Prestataire"
     },
     "roles": {
@@ -6926,12 +6928,6 @@
           "license": {
             "label": "Numéro de licence",
             "help": "Carte professionnelle agence — license_number."
-          }
-        },
-        "broker": {
-          "license": {
-            "label": "Numéro de licence",
-            "help": "Carte professionnelle de courtier indépendant."
           }
         },
         "serviceProvider": {

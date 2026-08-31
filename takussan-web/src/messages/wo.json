@@ -2693,6 +2693,31 @@
     }
   },
   "onboarding": {
+    "shell": {
+      "autosave": "Say tontu yi dañuy denc ci saa si — man nga koy jëlaat ci kanam.",
+      "exit": "Dellu ci sit bi"
+    },
+    "intention": {
+      "metaTitle": "Lan nga ñëw def ci Takussan ?",
+      "pageTitle": "Dalal jàmm, {name}",
+      "pageSubtitle": "Benn laaj rekk, te danu la yóbbu ci bërëb bu baax bi. Man nga def ñaar yi lépp.",
+      "legend": "Li nga ñëw def",
+      "options": {
+        "search": {
+          "title": "Maa ngi wut kër",
+          "body": "Luy walla njënd — xoolal yi ñu tëral, laaj ngir gis kër gi, topp say dosye."
+        },
+        "publish": {
+          "title": "Bëgg naa tëral kër",
+          "body": "Tëralal sa kër ci internet te toppal say reservation ci sa bërëb."
+        }
+      },
+      "submit": "Kontine",
+      "submitting": "Xaaral tuuti…",
+      "skip": "Dinaa ko def ëllëg",
+      "note": "Tontu bii du la tëj dara : dafay wone rekk ban ekraan lañu la war a jëkk a wone.",
+      "error": "Manuñu woon a denc sa tontu. Jéemaatal, walla weesu etap bii."
+    },
     "host": {
       "defaults": {
         "spaceNameOf": "Espas {name}"
@@ -2802,26 +2827,6 @@
             "sale": "Jaay"
           }
         },
-        "payment": {
-          "title": "Mood paiement",
-          "subtitle": "Tànneel sa fournisseur préféré — configuration bi mu mat la nekk ci njëkk réservation.",
-          "legend": "Fournisseur paiement",
-          "providers": {
-            "wave": {
-              "title": "Wave",
-              "body": "Mobile money — recommandé Senegal."
-            },
-            "orange_money": {
-              "title": "Orange Money",
-              "body": "Mobile money — Afrique de l'Ouest."
-            },
-            "lemon_squeezy": {
-              "title": "Carte (Lemon Squeezy)",
-              "body": "Paiements internationaux."
-            }
-          },
-          "disclaimer": "Mën nga configurer ay fournisseur te soppi défaut bi ci sa tableau."
-        },
         "recap": {
           "title": "Résumé",
           "subtitle": "Verifié laata nga publi — mën nga soppi lépp sutura.",
@@ -2835,7 +2840,6 @@
             "firstPropertyType": "Xeetu biir",
             "firstPropertyContract": "Tijaari",
             "firstPropertyPrice": "Njëg",
-            "paymentProvider": "Fournisseur paiement",
             "yes": "Waaw",
             "no": "Déedéet"
           },
@@ -5112,7 +5116,6 @@
         "agency_admin": "Kilifa ajaans",
         "agent": "Ajaŋ",
         "owner": "Boroom",
-        "broker": "Courtier",
         "service_provider": "Kiy joxe sarwis"
       },
       "rolesHint": "Amul benn wàll bu ñu tànn : yégle bi dañu ko tënkul ci wàll.",
@@ -6333,7 +6336,6 @@
       "agency_admin": "Njiit",
       "owner": "Boroom kër",
       "agent": "Ajaŋ",
-      "broker": "Kurtiye",
       "service_provider": "Ku joxe liggéey"
     },
     "roles": {
@@ -6374,12 +6376,6 @@
           "license": {
             "label": "Nomboro lisaas",
             "help": "Kartu liggéeykatu ajaas — license_number."
-          }
-        },
-        "broker": {
-          "license": {
-            "label": "Nomboro lisaas",
-            "help": "Kartu liggéeykatu kurtiye bu bopp."
           }
         },
         "serviceProvider": {

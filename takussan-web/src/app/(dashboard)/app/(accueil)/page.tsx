@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/console';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 import { WizardDraftsBanner } from '@/components/wizard/WizardDraftsBanner';
 import { TenantOnboardingChecklistWidget } from '@/components/tenant/TenantOnboardingChecklistWidget';
-import { isAgencyAdmin, isCustomer, isSuperAdmin } from '@/lib/roles';
+import { isAgencyAdmin, isSuperAdmin, isTenant } from '@/lib/roles';
 import { fetchDashboardMe } from '@/lib/queries/dashboard-me';
 import { getTranslations } from 'next-intl/server';
 
@@ -53,10 +53,15 @@ export default async function DashboardPage() {
       {/* TCK-250 — Resumable wizard drafts banner. Renders nothing when no drafts. */}
       <WizardDraftsBanner />
 
-      {/* TCK-266 — Tenant onboarding checklist widget. Renders nothing
-          for non-customers and for tenants whose active leases are all
-          fully onboarded. */}
-      {isCustomer(user.roles) ? <TenantOnboardingChecklistWidget /> : null}
+      {/* TCK-266 — Tenant onboarding checklist widget. Renders nothing for
+          tenants whose active leases are all fully onboarded.
+          TCK-492 — la condition est passée de `isCustomer` à `isTenant`. Le
+          widget n'a jamais été monté depuis le cutover TCK-278 : `customer`
+          n'était plus émis, et un livrable P0 s'est éteint sans un rouge.
+          `tenant` est le prédicat JUSTE — c'est une check-list d'entrée dans
+          les lieux —, et il évite au passage d'aller chercher les baux de
+          quelqu'un qui n'en a aucun. */}
+      {isTenant(user.roles) ? <TenantOnboardingChecklistWidget /> : null}
 
       {payload?.data ? (
         <DashboardMeKpis role={payload.data.role} metrics={payload.data.metrics} />

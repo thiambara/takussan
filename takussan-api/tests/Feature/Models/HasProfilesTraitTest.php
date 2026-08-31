@@ -104,14 +104,18 @@ class HasProfilesTraitTest extends TestCase
 
         $profiles = $user->profiles();
 
-        $this->assertCount(4, $profiles);
+        // TCK-495 — `profiles()` rend les profils COMMUTABLES, et le courtier
+        // n'en est plus un. Sa ligne existe pourtant : elle vient d'être créée
+        // deux lignes plus haut, et `brokerProfile()` la rend toujours. Ce test
+        // sépare donc « la donnée est là » de « le profil est proposé au choix ».
+        $this->assertCount(3, $profiles);
         $classes = $profiles->map(fn ($p) => $p::class)->unique()->sort()->values()->all();
         $this->assertEquals([
             AgentProfile::class,
-            BrokerProfile::class,
             OwnerProfile::class,
             ServiceProviderProfile::class,
         ], $classes);
+        $this->assertNotNull($user->brokerProfile()->first());
     }
 
     public function test_is_professional_true_when_any_pro_profile_exists(): void

@@ -4,7 +4,11 @@ import type { MyProfilesResponse, Profile } from '@/types/profile';
 export const ACTIVE_PROFILE_COOKIE = 'active_profile_id';
 
 const PROFILE_FIELDS = ['id', 'type', 'numeric_id', 'agency_id', 'status', 'created_at'].join(',');
-const AGENCY_FIELDS = ['id', 'name', 'slug'].join(',');
+// TCK-497 — `kind` fait partie du sparse fieldset, faute de quoi il ne revient
+// PAS. `ProfileResource` construit son bloc `agency` à la main depuis le modèle :
+// une colonne absente du `fields[agencies]` rend `null`, sans erreur ni trace, et
+// le sélecteur retomberait silencieusement dans le cas « agence professionnelle ».
+const AGENCY_FIELDS = ['id', 'name', 'slug', 'kind'].join(',');
 
 const profilesQuery = buildQueryString({
   fields: { profiles: PROFILE_FIELDS, agencies: AGENCY_FIELDS },
