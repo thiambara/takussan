@@ -2689,6 +2689,10 @@
     }
   },
   "onboarding": {
+    "shell": {
+      "autosave": "Say tontu yi dañuy denc ci saa si — man nga koy jëlaat ci kanam.",
+      "exit": "Dellu ci sit bi"
+    },
     "host": {
       "defaults": {
         "spaceNameOf": "Espas {name}"

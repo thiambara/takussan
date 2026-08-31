@@ -14,7 +14,22 @@ import { getTranslations } from 'next-intl/server';
 
 import { getMyProfilesAction } from '@/app/actions/profiles';
 import { HostIndividualWizard } from '@/components/onboarding/HostIndividualWizard';
+import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { getToken } from '@/lib/session';
+import type { ProfileType } from '@/types/profile';
+
+/**
+ * Les types de profil qui PROUVENT qu'un espace existe déjà.
+ *
+ * ⚠ `agency_admin` manquait, et c'est le même oubli — au même endroit du même
+ * parcours — que celui de `SelectActiveProfileRequest` : l'assistant hôte crée
+ * un `AgencyAdminProfile` ET un `OwnerProfile`, puis épingle le PREMIER comme
+ * profil actif. Un compte dont l'`OwnerProfile` serait absent ou suspendu
+ * repassait donc le garde et refaisait tourner l'assistant, sur un espace qu'il
+ * possède déjà. `broker` et `service_provider` n'y figurent pas volontairement :
+ * ni l'un ni l'autre ne matérialise l'agence personnelle que cet assistant crée.
+ */
+const PROFILS_LIES_A_UNE_AGENCE = new Set<ProfileType>(['owner', 'agent', 'agency_admin']);
 
 export const dynamic = 'force-dynamic';
 
@@ -40,9 +55,7 @@ export default async function HostOnboardingPage() {
   const hasAgencyProfile =
     profilesRes.ok &&
     profilesRes.data.data.some(
-      (p) =>
-        (p.type === 'owner' || p.type === 'agent') &&
-        typeof p.agency_id === 'number',
+      (p) => PROFILS_LIES_A_UNE_AGENCE.has(p.type) && typeof p.agency_id === 'number',
     );
 
   if (hasAgencyProfile) {
@@ -50,19 +63,8 @@ export default async function HostOnboardingPage() {
   }
 
   return (
-    <main className="min-h-[80vh] bg-background px-4 py-12 sm:px-6">
-      <div className="mx-auto max-w-3xl">
-        <header className="mb-8 text-center">
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {t('pageTitle')}
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {t('pageSubtitle')}
-          </p>
-        </header>
-
-        <HostIndividualWizard />
-      </div>
-    </main>
+    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+      <HostIndividualWizard />
+    </OnboardingShell>
   );
 }

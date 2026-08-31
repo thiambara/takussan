@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Mail } from 'lucide-react';
+import { Building2, Mail, User } from 'lucide-react';
 
 // HostWizardData / step list are intentionally trimmed compared to TCK-255:
 // the "Votre premier bien" step has been removed so the wizard focuses on
@@ -11,6 +11,7 @@ import { Mail } from 'lucide-react';
 // property-creation form (`/app/properties/new`) inside the dashboard.
 
 import { Button } from '@/components/ui/button';
+import { ChoiceCard, ChoiceCardGroup } from '@/components/ui/choice-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -277,88 +278,56 @@ function IntentStep({ data, setData }: StepProps) {
   const setIntent = (intent: Intent) => setData({ ...data, intent });
 
   return (
-    <div className="flex flex-col gap-4">
-      <fieldset className="flex flex-col gap-3">
-        <legend className="sr-only">{t('legend')}</legend>
-        <label
-          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-            data.intent === 'individual'
-              ? 'border-primary bg-primary/5'
-              : 'border-border'
-          }`}
-        >
-          <input
-            type="radio"
-            name="intent"
-            value="individual"
-            checked={data.intent === 'individual'}
-            onChange={() => setIntent('individual')}
-            className="mt-1"
-          />
-          <span>
-            <span className="block font-medium text-foreground">
-              {t('options.individual.title')}
-            </span>
-            <span className="block text-sm text-muted-foreground">
-              {t('options.individual.body')}
-            </span>
-          </span>
-        </label>
+    <ChoiceCardGroup legend={t('legend')}>
+      <ChoiceCard
+        name="intent"
+        value="individual"
+        checked={data.intent === 'individual'}
+        onSelect={() => setIntent('individual')}
+        icon={<User className="size-5" aria-hidden />}
+        title={t('options.individual.title')}
+        description={t('options.individual.body')}
+      />
 
-        <label
-          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition ${
-            data.intent === 'professional'
-              ? 'border-primary bg-primary/5'
-              : 'border-border'
-          }`}
-        >
-          <input
-            type="radio"
-            name="intent"
-            value="professional"
-            checked={data.intent === 'professional'}
-            onChange={() => setIntent('professional')}
-            className="mt-1"
-          />
-          <span>
-            <span className="block font-medium text-foreground">
-              {t('options.professional.title')}
-            </span>
-            <span className="block text-sm text-muted-foreground">
-              {t('options.professional.body')}
-            </span>
-          </span>
-        </label>
-      </fieldset>
-
-      {data.intent === 'professional' ? (
-        <div className="rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4 text-sm">
-          <p className="text-foreground">{t('professionalNotice.title')}</p>
-          <p className="mt-1 text-muted-foreground">
+      <ChoiceCard
+        name="intent"
+        value="professional"
+        checked={data.intent === 'professional'}
+        onSelect={() => setIntent('professional')}
+        icon={<Building2 className="size-5" aria-hidden />}
+        title={t('options.professional.title')}
+        description={t('options.professional.body')}
+      >
+        {/* Le professionnel n'est pas libre-service : il passe par le support.
+            L'avis vit SOUS l'option qui le déclenche plutôt qu'en bas de
+            l'étape — c'est la réponse à ce qu'on vient de cliquer. */}
+        <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-4 text-sm">
+          <p className="font-medium text-foreground">{t('professionalNotice.title')}</p>
+          <p className="mt-1 leading-relaxed text-muted-foreground">
             {t('professionalNotice.body')}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
             <a
               href={`mailto:${SUPER_ADMIN_EMAIL}?subject=${encodeURIComponent(t('professionalNotice.mailSubject'))}`}
-              className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline"
+              className="inline-flex items-center gap-2 font-medium text-primary underline-offset-4 hover:underline"
             >
               <Mail className="size-4" aria-hidden />
               {t('professionalNotice.contactCta')}
             </a>
-            <span aria-hidden className="text-muted-foreground">
-              ·
+            <span aria-hidden className="text-border">
+              |
             </span>
             <button
               type="button"
-              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              className="font-medium text-primary underline-offset-4 hover:underline"
               onClick={() => setIntent('individual')}
             >
               {t('professionalNotice.continueIndividual')}
             </button>
           </div>
         </div>
-      ) : null}
-    </div>
+      </ChoiceCard>
+    </ChoiceCardGroup>
   );
 }
 

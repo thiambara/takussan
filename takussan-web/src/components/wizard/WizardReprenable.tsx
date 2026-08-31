@@ -12,11 +12,20 @@ import { useWizardDraft } from '@/hooks/useWizardDraft';
  * TCK-250 — Generic resumable wizard.
  *
  * Renders a multi-step form shell with:
- * - top progress bar + step badges,
+ * - un RAIL D'ÉTAPES vertical à partir de `lg`, remplacé sous cette largeur par
+ *   un compteur et une barre — jamais les deux à la fois : la coque affichait
+ *   une barre de progression ET des pastilles numérotées, qui disaient la même
+ *   chose deux fois, au-dessus d'un titre d'étape qui la disait une troisième,
  * - per-step body provided by the consumer (via `steps[i].render`),
  * - bottom Précédent / Suivant / Terminer navigation,
  * - silent autosave (debounced 800ms by default — see `useWizardDraft`),
  * - "progress saved" toast when navigating away mid-flow.
+ *
+ * ⚠ La liste d'étapes était HORIZONTALE et `flex-wrap` : son pli dépendait de la
+ * longueur des traductions, donc il ne tombait pas au même endroit en `fr`, `en`
+ * et `wo`. En colonne, il n'y a plus de pli à placer. Les animations d'entrée
+ * réemploient `.wizard-step-in-*` (TCK-464) — dont la garde
+ * `prefers-reduced-motion` de `globals.css` nomme déjà les classes.
  *
  * The consumer owns the data shape (`TData`) and per-step validation
  * (`steps[i].canAdvance`). The component is intentionally form-library
@@ -95,6 +104,10 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   });
 
   const [stepIndex, setStepIndex] = useState(0);
+  // La DIRECTION du dernier déplacement — elle porte le sens de l'animation
+  // d'entrée (`.wizard-step-in-forward` / `-back`, TCK-464) : on avance,
+  // l'étape entre par la droite ; on revient, par la gauche.
+  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
   const [data, setData] = useState<TData>(initialData);
   const [hydrated, setHydrated] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -199,12 +212,14 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   const isLast = stepIndex === totalSteps - 1;
 
   const handlePrevious = useCallback(() => {
+    setDirection('back');
     setStepIndex((i) => Math.max(0, i - 1));
   }, []);
 
   const handleNext = useCallback(async () => {
     if (!canAdvance) return;
     if (!isLast) {
+      setDirection('forward');
       setStepIndex((i) => Math.min(totalSteps - 1, i + 1));
       return;
     }
@@ -245,85 +260,145 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   return (
     <section
       aria-label={t('ariaLabel')}
-      className={cn('mx-auto flex w-full max-w-2xl flex-col gap-6', className)}
+      className={cn(
+        'mx-auto grid w-full max-w-4xl gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14',
+        className,
+      )}
     >
-      <header className="flex flex-col gap-3">
-        <div
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress}
-          aria-label={t('progressAriaLabel', { current: stepIndex + 1, total: totalSteps })}
-          className="h-2 w-full overflow-hidden rounded-full bg-muted"
-        >
-          <div
-            className="h-full rounded-full bg-primary transition-[width] duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-
-        <ol className="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+      {/* ── Rail d'étapes ─────────────────────────────────────────────────────
+          Vertical, et c'est le point de la refonte : la liste était horizontale
+          et `flex-wrap`, donc elle passait à la ligne dès que les intitulés
+          étaient longs — « 1 VOUS PUBLIEZ EN TANT QUE… · 2 VOTRE ESPACE · 3
+          MODE DE PAIEMENT » puis « 4 RÉCAPITULATIF » seul sur sa ligne. Un pli
+          qui dépend de la LONGUEUR DES TRADUCTIONS se déplace à chaque locale :
+          `wo` et `en` ne cassaient pas au même endroit que `fr`. En colonne, il
+          n'y a plus de pli à placer. */}
+      <aside className="hidden lg:block">
+        <ol className="sticky top-8 flex flex-col">
           {steps.map((step, idx) => {
             const isActive = idx === stepIndex;
             const isDone = idx < stepIndex;
+            const isLastBadge = idx === steps.length - 1;
+
             return (
-              <li key={step.id} className="flex items-center gap-2">
+              <li key={step.id} className="relative flex gap-3 pb-6 last:pb-0">
+                {!isLastBadge ? (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'absolute left-[11px] top-6 h-[calc(100%-1.5rem)] w-px',
+                      isDone ? 'bg-primary/40' : 'bg-border',
+                    )}
+                  />
+                ) : null}
+
+                <span
+                  aria-hidden
+                  className={cn(
+                    'relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-medium tabular-nums',
+                    'transition-colors duration-200 ease-out',
+                    isActive && 'border-primary bg-primary text-primary-foreground',
+                    isDone && 'border-primary/40 bg-primary/10 text-primary',
+                    !isActive && !isDone && 'border-border bg-card text-muted-foreground',
+                  )}
+                >
+                  {isDone ? <Check className="size-3" /> : idx + 1}
+                </span>
+
                 <span
                   aria-current={isActive ? 'step' : undefined}
                   className={cn(
-                    'inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 text-[11px]',
-                    isActive && 'border-primary bg-primary text-primary-foreground',
-                    isDone && 'border-accent bg-accent text-primary-foreground',
-                    !isActive && !isDone && 'border-border bg-background text-muted-foreground',
+                    'pt-0.5 text-sm leading-snug transition-colors duration-200 ease-out',
+                    isActive ? 'font-medium text-foreground' : 'text-muted-foreground',
                   )}
                 >
-                  {isDone ? <Check className="size-3" aria-hidden /> : idx + 1}
+                  {step.title}
                 </span>
-                <span className="hidden sm:inline">{step.title}</span>
-                {idx < steps.length - 1 ? <span aria-hidden>·</span> : null}
               </li>
             );
           })}
         </ol>
+      </aside>
 
-        <div className="space-y-1">
-          <h2 className="font-display text-2xl tracking-tight text-foreground">{current.title}</h2>
-          {current.subtitle ? (
-            <p className="text-sm text-muted-foreground">{current.subtitle}</p>
-          ) : null}
+      <div className="flex min-w-0 flex-col gap-7">
+        {/* Compteur + barre : la version COMPACTE du rail, pour les largeurs où
+            il n'a pas sa place. Les deux ne coexistent jamais — deux
+            indicateurs de progression simultanés (barre + pastilles) disaient
+            la même chose deux fois. */}
+        <div className="flex flex-col gap-2 lg:hidden">
+          <p className="text-sm font-medium text-muted-foreground tabular-nums">
+            {t('progressAriaLabel', { current: stepIndex + 1, total: totalSteps })}
+          </p>
+          <div
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+            aria-label={t('progressAriaLabel', { current: stepIndex + 1, total: totalSteps })}
+            className="h-1 w-full overflow-hidden rounded-full bg-muted"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300 ease-out motion-reduce:transition-none"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
-      </header>
 
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        {!hydrated ? (
-          <p className="text-sm text-muted-foreground">{t('loading')}</p>
-        ) : (
-          current.render({ data, setData })
-        )}
+        <header className="flex flex-col gap-2">
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-[1.75rem]">
+            {current.title}
+          </h2>
+          {current.subtitle ? (
+            <p className="max-w-[60ch] text-[0.9375rem] leading-relaxed text-muted-foreground">
+              {current.subtitle}
+            </p>
+          ) : null}
+        </header>
+
+        {/* Le corps d'étape n'est PLUS dans une carte : ses propres options en
+            sont déjà (`ChoiceCard`), et une carte dans une carte n'a jamais de
+            raison d'être. La clé de rendu porte l'étape, ce qui rejoue la
+            transition d'entrée à chaque changement — un signal d'état, pas une
+            décoration : 200 ms, et rien du tout en mouvement réduit. */}
+        <div
+          key={current.id}
+          className={direction === 'forward' ? 'wizard-step-in-forward' : 'wizard-step-in-back'}
+        >
+          {!hydrated ? (
+            <div role="status" aria-live="polite" className="flex flex-col gap-3">
+              <span className="sr-only">{t('loading')}</span>
+              <div className="h-11 w-full rounded-xl bg-muted motion-safe:animate-pulse" />
+              <div className="h-11 w-full rounded-xl bg-muted motion-safe:animate-pulse" />
+            </div>
+          ) : (
+            current.render({ data, setData })
+          )}
+        </div>
+
+        <footer className="flex items-center justify-between gap-3 border-t border-border pt-6">
+          <Button
+            type="button"
+            variant="ghost"
+            size="lg"
+            onClick={handlePrevious}
+            disabled={stepIndex === 0 || completing}
+            className={cn(stepIndex === 0 && 'invisible')}
+          >
+            <ChevronLeft className="size-4" aria-hidden />
+            {t('previous')}
+          </Button>
+
+          <Button
+            type="button"
+            size="lg"
+            onClick={handleNext}
+            disabled={!canAdvance || completing}
+          >
+            {isLast ? t('complete') : t('next')}
+            {!isLast ? <ChevronRight className="size-4" aria-hidden /> : null}
+          </Button>
+        </footer>
       </div>
-
-      <footer className="flex items-center justify-between gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          onClick={handlePrevious}
-          disabled={stepIndex === 0 || completing}
-        >
-          <ChevronLeft className="size-4" aria-hidden />
-          {t('previous')}
-        </Button>
-
-        <Button
-          type="button"
-          size="lg"
-          onClick={handleNext}
-          disabled={!canAdvance || completing}
-        >
-          {isLast ? t('complete') : t('next')}
-          {!isLast ? <ChevronRight className="size-4" aria-hidden /> : null}
-        </Button>
-      </footer>
     </section>
   );
 }

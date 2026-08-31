@@ -6,6 +6,7 @@ import { getMyProfilesAction } from '@/app/actions/profiles';
 import { getSpAgenciesAction } from '@/app/actions/service-provider-onboarding';
 import { ServiceProviderMultiAgencyWelcome } from '@/components/onboarding/ServiceProviderMultiAgencyWelcome';
 import { ServiceProviderOnboardingWizard } from '@/components/onboarding/ServiceProviderOnboardingWizard';
+import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { getToken } from '@/lib/session';
 
 /**
@@ -58,34 +59,21 @@ export default async function ServiceProviderOnboardingPage() {
 
   if (isExistingSp && collabs.length > 0) {
     return (
-      <main className="min-h-[80vh] bg-background px-4 py-12 sm:px-6">
-        <div className="mx-auto max-w-2xl">
-          <ServiceProviderMultiAgencyWelcome
-            collaborations={collabs}
-            spProfileId={sp.numeric_id}
-          />
-        </div>
-      </main>
+      <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+        <ServiceProviderMultiAgencyWelcome
+          collaborations={collabs}
+          spProfileId={sp.numeric_id}
+        />
+      </OnboardingShell>
     );
   }
 
   return (
-    <main className="min-h-[80vh] bg-background px-4 py-12 sm:px-6">
-      <div className="mx-auto max-w-3xl">
-        <header className="mb-8 text-center">
-          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {t('pageTitle')}
-          </h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            {t('pageSubtitle')}
-          </p>
-        </header>
-
-        <ServiceProviderOnboardingWizard
-          spProfileId={sp.numeric_id}
-          fromMaintenanceRequestId={null}
-        />
-      </div>
-    </main>
+    <OnboardingShell title={t('pageTitle')} subtitle={t('pageSubtitle')}>
+      <ServiceProviderOnboardingWizard
+        spProfileId={sp.numeric_id}
+        fromMaintenanceRequestId={null}
+      />
+    </OnboardingShell>
   );
 }

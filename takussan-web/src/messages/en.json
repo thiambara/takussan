@@ -3985,6 +3985,10 @@
     }
   },
   "onboarding": {
+    "shell": {
+      "autosave": "Your answers are saved as you go — you can pick up where you left off.",
+      "exit": "Back to site"
+    },
     "host": {
       "defaults": {
         "spaceNameOf": "{name}'s space"
