@@ -1,7 +1,7 @@
 ---
 id: TCK-500
 title: "Contact d'un bien — brouillon pré-rempli et ouverture du chat en contexte"
-status: review
+status: done
 phase: P2
 family: full
 estimate: M

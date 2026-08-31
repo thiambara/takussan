@@ -80,9 +80,20 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
   const tBrouillon = useTranslations('messaging.propertyDraft');
   const brouillon = construireBrouillonBien((cle, valeurs) => tBrouillon(cle, valeurs), property);
 
+  /**
+   * TCK-502 — **la personne que la fiche annonce est celle qui recevra.**
+   *
+   * Le repli sur `owner` couvre le seul cas où `primary_contact` peut manquer : un bien sans
+   * propriétaire ni collaborateur `agent`, où le serveur rend `null`. Il ne couvre PAS une
+   * clé absente — sur `public.properties.show` elle est toujours émise —, et c'est délibéré :
+   * s'il fallait un jour rétablir un repli permanent vers `owner`, ce serait ce défaut-ci qui
+   * reviendrait.
+   */
+  const destinataire = property.primary_contact ?? property.owner;
+
   const peutContacter = peutContacterLeBien({
     utilisateurId: user?.id ?? null,
-    proprietaireId: property.owner?.id,
+    destinataireId: destinataire?.id,
     resolution,
   });
 
@@ -175,7 +186,7 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
             canMessage={peutContacter}
           />
           <PropertyAgentCard
-            owner={property.owner}
+            contact={destinataire}
             agency={property.agency}
             propertySlug={property.slug}
             propertyTitle={property.title}

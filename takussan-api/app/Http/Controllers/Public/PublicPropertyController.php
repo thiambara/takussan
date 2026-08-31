@@ -39,6 +39,7 @@ use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\HomepageDiscoveryService;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
 use App\Support\DistanceHaversine;
@@ -309,7 +310,11 @@ class PublicPropertyController extends Controller
         }
 
         $properties = Property::query()
-            ->with(['address', 'media', 'tags'])
+            // TCK-502 — `owner` et `collaborators.user.media` sont chargés ICI parce que la
+            // route est `$isDetail` pour `PropertyResource` : sans eux, `owner` et
+            // `primary_contact` partaient en chargement paresseux, soit deux requêtes par bien
+            // comparé. C'était déjà vrai d'`owner` avant ce ticket.
+            ->with(['address', 'media', 'tags', 'owner.media', 'collaborators.user.media'])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->whereIn('id', $ids)
@@ -492,7 +497,9 @@ class PublicPropertyController extends Controller
                 'tags',
                 'owner.media',
                 'agency.media',
-                'collaborators.user',
+                // TCK-502 — `.media` en plus : la fiche nomme désormais le CONTACT PRINCIPAL,
+                // qui peut être un collaborateur, et sa carte porte son avatar.
+                'collaborators.user.media',
                 'documents.media',
                 'priceHistory',
                 'reviews' => fn ($q) => $q->where('is_approved', true),
@@ -902,10 +909,17 @@ class PublicPropertyController extends Controller
         return $this->json(['data' => ['accepted' => true]], 201);
     }
 
+    /**
+     * Le numéro à composer depuis la fiche.
+     *
+     * TCK-502 — il rendait `owner->phone` pendant que le bouton « Envoyer un message », juste à
+     * côté, écrivait au collaborateur `agent`. Deux boutons voisins, deux personnes. C'est la
+     * contrainte 3 du ticket : le téléphone fait partie du lot.
+     */
     public function contact(string $slug): JsonResponse
     {
         $property = Property::query()
-            ->with('owner', 'address')
+            ->with([...PrimaryPropertyContact::eagerLoads(), 'address'])
             ->public()
             ->where('slug', $slug)
             ->firstOrFail();
@@ -922,7 +936,7 @@ class PublicPropertyController extends Controller
             .'Vu sur Takussan.sn';
 
         return $this->json([
-            'phone' => $property->owner?->phone,
+            'phone' => PrimaryPropertyContact::for($property)?->phone,
             'message' => $message,
         ]);
     }

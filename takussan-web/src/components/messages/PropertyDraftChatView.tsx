@@ -26,8 +26,11 @@ interface PropertyDraftChatViewProps {
   readonly property: BienDuFilNeuf;
   readonly recipientName?: string | null;
   readonly recipientAvatarUrl?: string | null;
-  /** `widget` ajoute le bouton de retour, comme dans `ChatView`. */
-  readonly variant?: 'page' | 'widget';
+  /**
+   * Le retour vers la liste. **Sa PRÉSENCE seule décide du bouton** (TCK-501) — la variante
+   * `page` | `widget` qui le gouvernait ne distinguait plus rien d'autre et a disparu : la
+   * messagerie pleine page a besoin du même retour sous `md`, où la liste n'est plus à l'écran.
+   */
   readonly onBack?: () => void;
   /** Appelé avec l'identifiant du fil que l'envoi vient de créer. */
   readonly onCreated: (conversationId: number) => void;
@@ -56,7 +59,6 @@ export function PropertyDraftChatView({
   property,
   recipientName,
   recipientAvatarUrl,
-  variant = 'page',
   onBack,
   onCreated,
 }: PropertyDraftChatViewProps) {
@@ -109,7 +111,7 @@ export function PropertyDraftChatView({
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
-        {variant === 'widget' && (
+        {onBack && (
           <Button
             type="button"
             variant="ghost"

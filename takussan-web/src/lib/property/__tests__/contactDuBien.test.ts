@@ -4,20 +4,20 @@ import { peutContacterLeBien } from '../contactDuBien';
 describe('peutContacterLeBien', () => {
   it('propose le contact à un visiteur anonyme', () => {
     expect(
-      peutContacterLeBien({ utilisateurId: null, proprietaireId: 7, resolution: null }),
+      peutContacterLeBien({ utilisateurId: null, destinataireId: 7, resolution: null }),
     ).toBe(true);
   });
 
   /** La règle que le doute doit protéger : on ne masque pas pendant que le réseau réfléchit. */
   it('propose le contact tant que la résolution n’a pas répondu', () => {
     expect(
-      peutContacterLeBien({ utilisateurId: 3, proprietaireId: 7, resolution: null }),
+      peutContacterLeBien({ utilisateurId: 3, destinataireId: 7, resolution: null }),
     ).toBe(true);
   });
 
-  it('retire le contact au propriétaire, sans attendre le réseau', () => {
+  it('retire le contact au destinataire lui-même, sans attendre le réseau', () => {
     expect(
-      peutContacterLeBien({ utilisateurId: 7, proprietaireId: 7, resolution: null }),
+      peutContacterLeBien({ utilisateurId: 7, destinataireId: 7, resolution: null }),
     ).toBe(false);
   });
 
@@ -26,7 +26,7 @@ describe('peutContacterLeBien', () => {
     expect(
       peutContacterLeBien({
         utilisateurId: 12,
-        proprietaireId: 7,
+        destinataireId: 7,
         resolution: { can_message: false },
       }),
     ).toBe(false);
@@ -36,7 +36,7 @@ describe('peutContacterLeBien', () => {
     expect(
       peutContacterLeBien({
         utilisateurId: 12,
-        proprietaireId: 7,
+        destinataireId: 7,
         resolution: { can_message: true },
       }),
     ).toBe(true);
@@ -44,7 +44,7 @@ describe('peutContacterLeBien', () => {
 
   it('ne confond pas un propriétaire absent avec le visiteur', () => {
     expect(
-      peutContacterLeBien({ utilisateurId: 7, proprietaireId: null, resolution: null }),
+      peutContacterLeBien({ utilisateurId: 7, destinataireId: null, resolution: null }),
     ).toBe(true);
   });
 });

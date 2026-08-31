@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**450 tickets** — 23 ouverts, 426 livrés.
+**452 tickets** — 22 ouverts, 429 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 21 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 426 |
+| ✅ Done | 429 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -52,8 +52,8 @@
 - [TCK-485](tickets/TCK-485-blanc-sur-destructive-plein-dans-le-badge-du-chat.md) — Le badge du chat pose du blanc sur `--destructive` plein : 2,77:1 en thème sombre `S · P2 · front`
 - [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
 - [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
-- [TCK-501](tickets/TCK-501-messagerie-illisible-sous-le-point-de-rupture.md) — Messagerie pleine page — deux panneaux fixes sur un écran de téléphone `S · P2 · bug`
-- [TCK-502](tickets/TCK-502-le-destinataire-affiche-n-est-pas-celui-qui-recoit.md) — Fiche bien — la carte nomme un agent, le message part chez un autre `M · P2 · bug`
+- [TCK-503](tickets/TCK-503-la-coque-du-tableau-de-bord-tient-en-100vh.md) — Coque du tableau de bord — `h-screen` sur un téléphone, une unité que TCK-501 a dû abandonner un cran plus bas `S · P2 · bug`
+- [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
 
 ## 🚧 Doing
 
@@ -61,7 +61,7 @@
 
 ## 👀 Review
 
-- [TCK-500](tickets/TCK-500-brouillon-de-contact-et-chat-en-contexte.md) — Contact d'un bien — brouillon pré-rempli et ouverture du chat en contexte `M · P2 · full`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -69,7 +69,16 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 426
+## ✅ Done — 429
+
+<details>
+<summary><strong>Vague 57 — Contact d'un bien : brouillon pré-rempli et ouverture du chat en contexte (2026-08-31)</strong> — 3 tickets</summary>
+
+- [TCK-500](tickets/TCK-500-brouillon-de-contact-et-chat-en-contexte.md) — Contact d'un bien — brouillon pré-rempli et ouverture du chat en contexte `M · P2 · full`
+- [TCK-501](tickets/TCK-501-messagerie-illisible-sous-le-point-de-rupture.md) — Messagerie pleine page — deux panneaux fixes sur un écran de téléphone `S · P2 · bug`
+- [TCK-502](tickets/TCK-502-le-destinataire-affiche-n-est-pas-celui-qui-recoit.md) — Fiche bien — la carte nomme un agent, le message part chez un autre `M · P2 · bug`
+
+</details>
 
 <details>
 <summary><strong>Vague 56 — Audit des parcours d'entrée : rôles jamais émis, portes manquantes, coque des assistants (2026-08-30)</strong> — 8 tickets</summary>
