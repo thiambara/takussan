@@ -3,11 +3,11 @@
 namespace App\Services\Messaging;
 
 use App\Models\Conversation;
-use App\Models\Enums\CollaboratorRole;
 use App\Models\Enums\ConversationStatus;
 use App\Models\Enums\ConversationType;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
@@ -35,22 +35,26 @@ use Illuminate\Support\Facades\DB;
 class PropertyConversationResolver
 {
     /**
-     * Le destinataire d'un message portant sur ce bien : le collaborateur `Agent`, à défaut le
-     * propriétaire. Rend `null` quand le bien n'a ni l'un ni l'autre.
+     * Le destinataire d'un message portant sur ce bien.
+     *
+     * ⚠️ **Cette méthode ne CONNAÎT plus la règle, elle la DEMANDE** (TCK-502). Elle la portait,
+     * et la carte de contact de la fiche publique en portait une autre — `property.owner` — si
+     * bien que l'écran nommait quelqu'un et l'envoi quelqu'un d'autre. Une règle partagée par
+     * trois chemins de contact mais pas par l'écran qui les déclenche n'est pas partagée.
+     * {@see PrimaryPropertyContact} en est désormais la seule définition ; ce délégué reste pour
+     * que le vocabulaire de la messagerie — « le destinataire » — garde son mot.
      *
      * ⚠️ Suppose `collaborators.user` et `owner` chargés — cf. {@see self::eagerLoads()}.
      */
     public function recipientFor(Property $property): ?User
     {
-        return $property->collaborators
-            ->firstWhere('role', CollaboratorRole::Agent)?->user
-            ?? $property->owner;
+        return PrimaryPropertyContact::for($property);
     }
 
     /** Les relations que les deux appelants doivent charger pour que `recipientFor` soit juste. */
     public static function eagerLoads(): array
     {
-        return ['owner', 'collaborators.user'];
+        return PrimaryPropertyContact::eagerLoads();
     }
 
     /**

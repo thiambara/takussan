@@ -10,7 +10,15 @@ import { apiFetch } from '@/lib/api';
 import type { PropertyAgencyLite, PropertyOwnerLite } from '@/types/property';
 
 interface PropertyAgentCardProps {
-  owner: PropertyOwnerLite;
+  /**
+   * TCK-502 — **le CONTACT, pas le propriétaire.** Cette prop s'appelait `owner` et recevait
+   * `property.owner` : la carte montrait le nom et le visage du propriétaire pendant que le
+   * bouton « Envoyer un message », deux lignes plus bas, ouvrait un fil avec le collaborateur
+   * `agent`, et que « Appeler » composait un troisième numéro. L'appelant passe désormais
+   * `property.primary_contact`, calculé côté serveur par la MÊME règle que les trois chemins
+   * d'envoi. Le nom de la prop porte la correction : `owner` invitait à repasser le propriétaire.
+   */
+  contact: PropertyOwnerLite;
   agency: PropertyAgencyLite | null;
   propertySlug: string;
   propertyTitle: string;
@@ -20,7 +28,7 @@ interface PropertyAgentCardProps {
 }
 
 export function PropertyAgentCard({
-  owner,
+  contact,
   agency,
   propertySlug,
   propertyTitle,
@@ -52,28 +60,28 @@ export function PropertyAgentCard({
     <div className="rounded-xl border border-stone-200 bg-white p-5 space-y-4">
       <div className="flex items-center gap-3">
         <div className="relative size-12 shrink-0 rounded-full overflow-hidden bg-stone-100">
-          {owner.avatar_url ? (
+          {contact.avatar_url ? (
             <Image
-              src={owner.avatar_url}
-              alt={owner.name}
+              src={contact.avatar_url}
+              alt={contact.name}
               fill
               sizes="48px"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-stone-500 font-semibold">
-              {owner.name.charAt(0).toUpperCase()}
+              {contact.name.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
         <div className="min-w-0">
           <p className="font-semibold text-stone-900 truncate">
-            {owner.slug ? (
-              <LienLocalise href={`/agents/${owner.slug}`} className="hover:underline">
-                {owner.name}
+            {contact.slug ? (
+              <LienLocalise href={`/agents/${contact.slug}`} className="hover:underline">
+                {contact.name}
               </LienLocalise>
             ) : (
-              owner.name
+              contact.name
             )}
           </p>
           {agency ? (
@@ -88,7 +96,7 @@ export function PropertyAgentCard({
                 <BadgeCheck className="size-4 text-sky-500 shrink-0" aria-label={t('verifiedAria')} />
               )}
             </p>
-          ) : owner.is_agent ? (
+          ) : contact.is_agent ? (
             <p className="text-sm text-stone-500">{t('independent')}</p>
           ) : (
             <p className="text-sm text-stone-500">{t('private')}</p>

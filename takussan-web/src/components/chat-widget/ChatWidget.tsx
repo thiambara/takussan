@@ -207,7 +207,6 @@ export function ChatWidget() {
                   property={brouillon.property}
                   recipientName={brouillon.recipient?.name ?? null}
                   recipientAvatarUrl={brouillon.recipient?.avatar_url ?? null}
-                  variant="widget"
                   onBack={retourALaListe}
                   onCreated={(id) => {
                     // Le fil vient de naître : on quitte le brouillon pour la vraie

@@ -1,7 +1,7 @@
 ---
 id: TCK-501
 title: "Messagerie pleine page — deux panneaux fixes sur un écran de téléphone"
-status: todo
+status: done
 phase: P2
 family: bug
 estimate: S
@@ -9,7 +9,7 @@ wave: 57
 created: 2026-08-31
 updated: 2026-08-31
 depends_on: [TCK-500]
-blocks: []
+blocks: [TCK-503]
 spec_refs:
   features:
     - docs/features.md#17-communication--messagerie
@@ -69,4 +69,34 @@ Au-dessus, rien ne change : les deux panneaux côte à côte restent le bon écr
 
 ## Notes d'implémentation
 
-_(Rempli pendant le travail par spec-coder — décisions techniques, gotchas, PR liée, etc.)_
+**Le partage est fait en JS, pas par un `hidden` Tailwind — et c'est la seule décision du ticket.**
+Les deux panneaux montent chacun un sondage réseau (`ConversationList` toutes les 10 s, `ChatView`
+toutes les 3 s). Un panneau caché en CSS reste monté et continue de sonder : sur un téléphone, on
+aurait payé les deux. Le gate lit `useMatchesMaxWidth(767)` — la valeur `md` de Tailwind moins un —
+et la classe `md:grid-cols-[320px_1fr]` reste sur le conteneur pour l'AC4. Les deux couches
+basculent au même pixel ; s'en écarter créerait une largeur où le CSS montre deux colonnes et le JS
+n'en remplit qu'une.
+
+**`selectedId: number | null` est devenu `choix: number | null | undefined`, et le troisième état
+est ce que la contrainte 1 exigeait.** « Retour à la liste » est un CHOIX, qui doit l'emporter sur
+l'URL — laquelle, elle, ne bouge pas. La version qui remettait simplement la sélection à `null`
+rendait la main à `?conversation=42`, qui rouvrait aussitôt la même conversation : le lien restait
+un cul-de-sac, avec en plus un clignotement. Le booléen `brouillonEcarte` disparaît dans la
+foulée : « un choix a été fait » et « le brouillon est écarté » sont le même fait.
+
+**Le bouton retour est désormais gouverné par la PRÉSENCE de `onBack`, plus par `variant`.**
+`PropertyDraftChatView` n'avait plus que cet usage de sa prop `variant`, qui a donc disparu (le
+widget ne la passe plus). `ChatView` garde la sienne — elle distingue encore trois autres
+comportements de groupe.
+
+**`100vh` → `100dvh`** (contrainte 2). Sur téléphone `100vh` vaut la hauteur barre d'adresse
+*rétractée* : le composeur, dernière ligne de l'écran, passait sous le pli tant que la barre était
+déployée. ⚠ `AppShell` reste en `h-screen` (`100vh`) — hors périmètre, mais c'est le même défaut un
+cran plus haut, et il vaudra son propre ticket.
+
+**Ablations (AC5), les trois rouges puis vert restauré** : gate JS retiré → 5 rouges ;
+`md:grid-cols-[320px_1fr]` retirée → 1 rouge ; `dvh` remis en `vh` → 1 rouge.
+
+**Vérification** : `MessagesPage.test.tsx` 13 verts, suite front entière 3116 verts, `npm run lint`
+0 erreur, `tsc --noEmit` propre. **Non vérifié au navigateur** — les AC sont formulés en pixels
+(390 / 1440) et les tests portent sur ce qui est monté, pas sur ce qui est peint.

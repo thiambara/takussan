@@ -43,6 +43,7 @@ function bien(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     media_extra: { videos: [], plans: [], virtual_tour_url: null },
     tags: [],
     owner: { id: 1, name: 'Fatou', avatar_url: null, is_agent: true, member_since: null },
+    primary_contact: null,
     agency: null,
     documents: [],
     price_history: [],

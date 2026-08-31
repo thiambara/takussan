@@ -96,6 +96,7 @@ function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
       is_agent: true,
       member_since: null,
     },
+    primary_contact: null,
     agency: null,
     documents: [],
     price_history: [],

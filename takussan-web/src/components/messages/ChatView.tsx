@@ -43,7 +43,12 @@ interface ChatViewProps {
    * `/app/messages` page so admin actions stay in their dedicated UI.
    */
   readonly variant?: 'page' | 'widget';
-  /** Required when `variant === 'widget'` to render the back button. */
+  /**
+   * Le retour vers la liste. **Sa PRÉSENCE seule décide du bouton**, plus la variante
+   * (TCK-501) : la messagerie pleine page en a besoin sous `md`, où la liste a disparu de
+   * l'écran, et n'en veut pas au-dessus, où elle est restée à gauche. Le widget le passe
+   * toujours — son comportement est inchangé.
+   */
   readonly onBack?: () => void;
 }
 
@@ -270,7 +275,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3">
-        {isWidget && (
+        {onBack && (
           <Button
             type="button"
             variant="ghost"

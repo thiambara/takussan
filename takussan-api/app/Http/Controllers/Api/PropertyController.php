@@ -16,6 +16,7 @@ use App\Models\Enums\PropertyVisibility;
 use App\Models\Property;
 use App\Models\User;
 use App\Services\Billing\QuotaResolver;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\PropertyBulkArchiveService;
 use App\Services\Property\PropertyDuplicationService;
 use Illuminate\Http\JsonResponse;
@@ -113,7 +114,7 @@ class PropertyController extends Controller
         }
 
         return $this->json([
-            'data' => PropertyResource::make($property->load(['address', 'media', 'owner']))->toArray($request),
+            'data' => PropertyResource::make($property->load(['address', 'media', ...PrimaryPropertyContact::eagerLoads()]))->toArray($request),
         ]);
     }
 
