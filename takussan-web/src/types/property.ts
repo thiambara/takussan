@@ -165,6 +165,16 @@ export interface PropertyDetail extends PropertyListItem {
   media_extra: PropertyMediaExtra;
   tags: PropertyTag[];
   owner: PropertyOwnerLite;
+  /**
+   * TCK-502 — **qui répond pour ce bien**, et non qui le possède : le collaborateur `agent` le
+   * plus anciennement invité, à défaut le propriétaire. C'est cette personne que la carte de
+   * contact doit nommer, parce que c'est elle qui recevra le message, le lead anonyme et l'appel.
+   *
+   * Clé REQUISE, valeur nullable : un bien sans propriétaire ni agent rend `null`. La différence
+   * compte — une clé absente signalerait un endpoint qui ne charge pas ce qu'il faut, une valeur
+   * nulle signale un bien sans contact.
+   */
+  primary_contact: PropertyOwnerLite | null;
   agency: PropertyAgencyLite | null;
   documents: PropertyDocument[];
   price_history: PropertyPriceHistoryItem[];

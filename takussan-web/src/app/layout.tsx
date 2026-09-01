@@ -12,6 +12,7 @@ import { UserLocationProvider } from '@/components/providers/UserLocationProvide
 import { MaintenanceBanner } from '@/components/maintenance/MaintenanceBanner';
 import { GlobalAnnouncementBanner } from '@/components/announcements/GlobalAnnouncementBanner';
 import { ChatWidget } from '@/components/chat-widget/ChatWidget';
+import { ChatDraftProvider } from '@/context/ChatDraftContext';
 import { FloatingDockProvider } from '@/components/floating-dock';
 import { IntlProviderRacine } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
@@ -90,11 +91,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <FeatureFlagProvider>
                 <UserLocationProvider>
                   <FloatingDockProvider>
-                    <MaintenanceBanner />
-                    <GlobalAnnouncementBanner />
-                    <ChatWidget />
-                    {children}
-                    <Analytics />
+                    {/* TCK-500 — enveloppe le widget ET `{children}` : la fiche d'un bien
+                        demande l'ouverture d'une discussion, le widget l'exécute, et ce
+                        sont deux frères dans cet arbre. */}
+                    <ChatDraftProvider>
+                      <MaintenanceBanner />
+                      <GlobalAnnouncementBanner />
+                      <ChatWidget />
+                      {children}
+                      <Analytics />
+                    </ChatDraftProvider>
                   </FloatingDockProvider>
                 </UserLocationProvider>
               </FeatureFlagProvider>

@@ -12,7 +12,12 @@ import { useApiMutation, useApiQuery } from '@/hooks/useApiQuery';
 import { useAuth } from '@/context/AuthContext';
 import { apiRequest, buildQueryString, type ApiError } from '@/lib/api';
 import type { ApiResponse, PaginatedResponse, SpatieQueryParams } from '@/types/api';
-import type { Conversation, Message, MessageAttachment } from '@/types/message';
+import type {
+  Conversation,
+  Message,
+  MessageAttachment,
+  PropertyConversationResolution,
+} from '@/types/message';
 
 /**
  * React Query hooks for Conversations and Messages (TCK-045).
@@ -57,6 +62,35 @@ const MESSAGE_LIST_FIELDS: string[] = [
   'type',
   'created_at',
 ];
+
+/**
+ * TCK-500 — « ce bien, ai-je déjà un fil dessus, et ai-je le droit d'écrire ? »
+ *
+ * Deux écrans la posent : la fiche du bien (pour décider si le bouton « Envoyer un message » a
+ * un sens, et quoi ouvrir au clic) et la messagerie pleine page quand elle est atteinte depuis
+ * un mobile avec `?property=<slug>`.
+ *
+ * ⚠️ **Lecture pure.** L'endpoint ne crée rien : la conversation naît du premier message, pas de
+ * l'ouverture de l'écran. Le hook peut donc être monté sans conséquence.
+ *
+ * Gardée sur `user` comme `useConversations` : la route est `auth:sanctum`, et la fiche d'un bien
+ * est massivement vue par des visiteurs anonymes — sans cette garde, chaque visite publique
+ * partirait chercher un 401.
+ */
+export function propertyConversationQueryKey(slug: string | null): QueryKey {
+  return ['conversations', 'property', slug];
+}
+
+export function usePropertyConversation(slug: string | null, options: { enabled?: boolean } = {}) {
+  const { user } = useAuth();
+  const enabled = (options.enabled ?? true) && Boolean(user) && Boolean(slug);
+
+  return useApiQuery<ApiResponse<PropertyConversationResolution>>(
+    propertyConversationQueryKey(slug),
+    `/api/public/properties/${slug}/conversation`,
+    { enabled, staleTime: 30_000 },
+  );
+}
 
 export type UseConversationsParams = {
   status?: 'active' | 'archived' | 'closed';

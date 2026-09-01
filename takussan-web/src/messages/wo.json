@@ -1069,6 +1069,11 @@
       "empty": "Amul benn waxtaan ba tey.",
       "groupBadge": "Kuréel",
       "muted": "muted"
+    },
+    "propertyDraft": {
+      "message": "Salaam, bëgg naa xam lu ëpp ci « {title} » (réf. {reference}). Ndax mu ngi am ba tey ?",
+      "newThreadHint": "Sa bataaxal bu njëkk ci {name} ci mbirum kër bi.",
+      "newThreadHintNoName": "Sa bataaxal bu njëkk ci mbirum kër bi."
     }
   },
   "payments": {

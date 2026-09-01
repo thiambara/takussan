@@ -10,6 +10,7 @@ use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
+use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -118,6 +119,15 @@ class PropertyResource extends BaseResource
                 $isDetail || $this->resource->relationLoaded('owner'),
                 fn () => $this->buildOwner()
             ),
+            // TCK-502 — **qui répond pour ce bien**, et non qui le possède. La carte de contact
+            // de la fiche lisait `owner` et le message partait au collaborateur `agent` : l'écran
+            // nommait Pape Cissé, le fil naissait chez Ousmane Ndiaye.
+            //
+            // ⚠ `owner` est CONSERVÉ tel quel, avec son sens de toujours — il porte la propriété,
+            // et six surfaces le lisent pour ça (duplication, tableau de bord, politiques).
+            // Redéfinir une clé existante aurait corrigé la fiche en cassant tout le reste en
+            // silence. La clé neuve, elle, ne ment nulle part : là où elle manque, elle manque.
+            'primary_contact' => $this->when($isDetail, fn () => $this->buildPrimaryContact()),
             'collaborators' => $this->when(
                 $this->resource->relationLoaded('collaborators'),
                 fn () => $this->resource->collaborators->map(fn ($collaborator) => [
@@ -227,18 +237,21 @@ class PropertyResource extends BaseResource
 
     /**
      * TCK-142 — `is_agent` used to derive from a now-dropped column. "Agent"
-     * here means the owner holds a professional profile that can list
+     * here means the user holds a professional profile that can list
      * properties on behalf of the property's agency: an active AgentProfile
      * in that agency, or a BrokerProfile collaborating with it.
+     *
+     * TCK-502 — la méthode ne prend plus « le propriétaire » mais « un utilisateur » : le contact
+     * principal peut être un collaborateur, et la question posée est la même pour lui.
      */
-    private function ownerActsAsAgent(User $owner): bool
+    private function actsAsAgent(User $user): bool
     {
         $agency = $this->resource->agency;
-        if ($agency !== null && $owner->isAgentAt($agency->id)) {
+        if ($agency !== null && $user->isAgentAt($agency->id)) {
             return true;
         }
 
-        return $owner->hasProfile(BrokerProfile::class);
+        return $user->hasProfile(BrokerProfile::class);
     }
 
     /**
@@ -248,18 +261,36 @@ class PropertyResource extends BaseResource
     {
         /** @var User|null $owner */
         $owner = $this->resource->owner;
-        if ($owner === null) {
-            return null;
-        }
 
+        return $owner === null ? null : $this->buildUserLite($owner);
+    }
+
+    /**
+     * TCK-502 — la personne que la carte de contact doit nommer, parce que c'est elle qui
+     * recevra le message. Même forme que `owner`, pour que la carte n'ait qu'un repli à écrire.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function buildPrimaryContact(): ?array
+    {
+        $contact = PrimaryPropertyContact::for($this->resource);
+
+        return $contact === null ? null : $this->buildUserLite($contact);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildUserLite(User $user): array
+    {
         return [
-            'id' => $owner->id,
-            'name' => trim($owner->first_name.' '.$owner->last_name) ?: $owner->username,
+            'id' => $user->id,
+            'name' => trim($user->first_name.' '.$user->last_name) ?: $user->username,
             // TCK-177 — used to link the contact card to /agents/[slug].
-            'slug' => $owner->username,
-            'avatar_url' => $owner->getFirstMediaUrl('avatar') ?: null,
-            'is_agent' => $this->ownerActsAsAgent($owner),
-            'member_since' => $this->iso($owner->created_at),
+            'slug' => $user->username,
+            'avatar_url' => $user->getFirstMediaUrl('avatar') ?: null,
+            'is_agent' => $this->actsAsAgent($user),
+            'member_since' => $this->iso($user->created_at),
         ];
     }
 

@@ -7,7 +7,7 @@
  *   - visible everywhere else when authenticated
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import frMessages from '@/messages/fr.json';
@@ -35,7 +35,36 @@ vi.mock('@/components/messages/ConversationList', () => ({
 }));
 
 vi.mock('@/components/messages/ChatView', () => ({
-  ChatView: () => <div data-testid="chat-view" />,
+  ChatView: ({ onBack }: { onBack?: () => void }) => (
+    <div data-testid="chat-view">
+      <button type="button" onClick={onBack}>
+        retour-chat
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('@/components/messages/PropertyDraftChatView', () => ({
+  PropertyDraftChatView: ({ onBack }: { onBack?: () => void }) => (
+    <div data-testid="chat-draft">
+      <button type="button" onClick={onBack}>
+        retour-brouillon
+      </button>
+    </div>
+  ),
+}));
+
+const cibleMock = vi.fn<() => unknown>(() => null);
+const consommerCible = vi.fn();
+vi.mock('@/context/ChatDraftContext', () => ({
+  useChatDraft: () => ({
+    cible: cibleMock(),
+    ouvrirChatBien: vi.fn(),
+    consommerCible: () => {
+      consommerCible();
+      cibleMock.mockReturnValue(null);
+    },
+  }),
 }));
 
 function wrap(ui: React.ReactElement) {
@@ -101,5 +130,71 @@ describe('<ChatWidget> visibility', () => {
     usePathnameMock.mockReturnValue('/app/properties');
     render(wrap(<ChatWidget />));
     expect(screen.getByTestId('chat-widget-launcher')).toBeInTheDocument();
+  });
+});
+
+/**
+ * TCK-500 — le panneau ouvert par une fiche de bien.
+ *
+ * Le cas qui a été cassé une fois : `open` reste `false` quand c'est la CIBLE qui tient le
+ * panneau ouvert. Un « retour » qui se contentait de consommer la cible faisait donc disparaître
+ * le panneau entier, sur un bouton qui promet de reculer d'un cran.
+ */
+describe('<ChatWidget> ouvert depuis une fiche de bien', () => {
+  const BIEN = {
+    id: 1,
+    slug: 'villa-almadies',
+    title: 'Villa 4 pièces aux Almadies',
+    reference_number: 'TK-2451',
+    main_photo_url: null,
+  };
+
+  beforeEach(() => {
+    usePathnameMock.mockReturnValue('/properties/villa-almadies');
+    useAuthMock.mockReturnValue({ user: { id: 1 } });
+    consommerCible.mockReset();
+    cibleMock.mockReturnValue(null);
+  });
+
+  it('ouvre le panneau sur le brouillon sans que le lanceur ait été cliqué', () => {
+    cibleMock.mockReturnValue({
+      conversation_id: null,
+      can_message: true,
+      property: BIEN,
+      recipient: null,
+    });
+    render(wrap(<ChatWidget />));
+
+    expect(screen.getByTestId('chat-widget-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-draft')).toBeInTheDocument();
+  });
+
+  it('ouvre le fil EXISTANT plutôt que le brouillon quand il y en a un', () => {
+    cibleMock.mockReturnValue({
+      conversation_id: 55,
+      can_message: true,
+      property: BIEN,
+      recipient: null,
+    });
+    render(wrap(<ChatWidget />));
+
+    expect(screen.getByTestId('chat-view')).toBeInTheDocument();
+    expect(screen.queryByTestId('chat-draft')).not.toBeInTheDocument();
+  });
+
+  it('« retour » revient à la liste et NE referme PAS le panneau', () => {
+    cibleMock.mockReturnValue({
+      conversation_id: null,
+      can_message: true,
+      property: BIEN,
+      recipient: null,
+    });
+    render(wrap(<ChatWidget />));
+
+    fireEvent.click(screen.getByRole('button', { name: 'retour-brouillon' }));
+
+    expect(screen.getByTestId('chat-widget-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('conv-list')).toBeInTheDocument();
+    expect(screen.queryByTestId('chat-draft')).not.toBeInTheDocument();
   });
 });

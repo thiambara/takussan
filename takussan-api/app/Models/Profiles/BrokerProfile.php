@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * **Pourquoi il n'a pas été supprimé** : une migration de suppression est
  * irréversible en pratique, et le retrait décidé porte sur l'EXPOSITION, pas
  * sur la donnée. Les lectures de modèle restent en place et sont légitimes —
- * console super-admin, export RGPD, `PropertyResource::ownerActsAsAgent()`.
+ * console super-admin, export RGPD, `PropertyResource::actsAsAgent()`.
  *
  * **Le réexposer demande plus que de remettre l'alias** : une porte qui crée le
  * profil, des capacités déclarées dans `MembershipCapabilityResolver` (un profil

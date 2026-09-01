@@ -20,25 +20,40 @@ interface PropertyContactMessageDialogProps {
   slug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * TCK-500 — le message déjà rédigé, modifiable et effaçable, posé comme VALEUR du champ.
+   *
+   * ⚠️ Ce dialogue n'est plus le chemin nominal d'un utilisateur connecté : celui-ci ouvre la
+   * messagerie (panneau flottant, ou `/app/messages` sous le point de rupture `md`). La branche
+   * authentifiée ci-dessous reste le REPLI — quand la résolution du fil n'a pas encore répondu,
+   * ou quand la page est rendue hors du provider de messagerie. Elle garde donc le brouillon,
+   * sans quoi le même clic donnerait un champ rempli ou vide selon la vitesse du réseau.
+   */
+  defaultMessage?: string;
 }
 
 export function PropertyContactMessageDialog({
   slug,
   open,
   onOpenChange,
+  defaultMessage,
 }: PropertyContactMessageDialogProps) {
   const { user } = useAuth();
-  if (user) {
-    return <AuthenticatedDialog slug={slug} open={open} onOpenChange={onOpenChange} />;
-  }
-  return <AnonymousDialog slug={slug} open={open} onOpenChange={onOpenChange} />;
+  const props = { slug, open, onOpenChange, defaultMessage };
+  return user ? <AuthenticatedDialog {...props} /> : <AnonymousDialog {...props} />;
 }
 
-function AuthenticatedDialog({ slug, open, onOpenChange }: PropertyContactMessageDialogProps) {
+function AuthenticatedDialog({
+  slug,
+  open,
+  onOpenChange,
+  defaultMessage,
+}: PropertyContactMessageDialogProps) {
   const router = useRouter();
   const { submit, submitting, error } = useContactMessage(slug);
   const t = useTranslations('publicContact');
-  const [message, setMessage] = useState('');
+  // Initialiseur paresseux : posé au montage, jamais réimposé par-dessus une saisie.
+  const [message, setMessage] = useState(defaultMessage ?? '');
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -46,7 +61,7 @@ function AuthenticatedDialog({ slug, open, onOpenChange }: PropertyContactMessag
     try {
       const { redirect_to } = await submit(message.trim());
       onOpenChange(false);
-      setMessage('');
+      setMessage(defaultMessage ?? '');
       router.push(redirect_to);
     } catch {
       // error already tracked by hook
@@ -87,12 +102,18 @@ function AuthenticatedDialog({ slug, open, onOpenChange }: PropertyContactMessag
  * TCK-441 — le formulaire lui-même vit dans `AnonymousLeadDialog`, partagé avec la fiche
  * d'agent. Ne reste ici que ce qui est propre au bien : la destination de la piste.
  */
-function AnonymousDialog({ slug, open, onOpenChange }: PropertyContactMessageDialogProps) {
+function AnonymousDialog({
+  slug,
+  open,
+  onOpenChange,
+  defaultMessage,
+}: PropertyContactMessageDialogProps) {
   return (
     <AnonymousLeadDialog
       open={open}
       onOpenChange={onOpenChange}
       idPrefix="lead"
+      defaultMessage={defaultMessage}
       onSubmit={(payload) => submitContactLead(slug, payload)}
     />
   );

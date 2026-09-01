@@ -2340,6 +2340,11 @@
       "empty": "Pas encore de conversation.",
       "groupBadge": "Groupe",
       "muted": "muted"
+    },
+    "propertyDraft": {
+      "message": "Bonjour, je suis intéressé(e) par « {title} » (réf. {reference}). Est-il toujours disponible ?",
+      "newThreadHint": "Votre premier message à {name} au sujet de ce bien.",
+      "newThreadHintNoName": "Votre premier message au sujet de ce bien."
     }
   },
   "payments": {

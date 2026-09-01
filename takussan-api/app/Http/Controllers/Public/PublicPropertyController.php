@@ -21,11 +21,7 @@ use App\Http\Resources\PropertySitemapResource;
 use App\Http\Resources\PropertyVisitResource;
 use App\Http\Resources\ReviewResource;
 use App\Models\Booking;
-use App\Models\Conversation;
 use App\Models\Enums\BookingStatus;
-use App\Models\Enums\CollaboratorRole;
-use App\Models\Enums\ConversationStatus;
-use App\Models\Enums\ConversationType;
 use App\Models\Enums\MessageType;
 use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
@@ -38,9 +34,12 @@ use App\Models\PropertyContactLead;
 use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
 use App\Models\Review;
+use App\Models\User;
+use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
 use App\Services\Property\HomepageDiscoveryService;
+use App\Services\Property\PrimaryPropertyContact;
 use App\Services\Property\SimilarPropertiesService;
 use App\Services\Search\PropertySearchService;
 use App\Support\DistanceHaversine;
@@ -311,7 +310,11 @@ class PublicPropertyController extends Controller
         }
 
         $properties = Property::query()
-            ->with(['address', 'media', 'tags'])
+            // TCK-502 — `owner` et `collaborators.user.media` sont chargés ICI parce que la
+            // route est `$isDetail` pour `PropertyResource` : sans eux, `owner` et
+            // `primary_contact` partaient en chargement paresseux, soit deux requêtes par bien
+            // comparé. C'était déjà vrai d'`owner` avant ce ticket.
+            ->with(['address', 'media', 'tags', 'owner.media', 'collaborators.user.media'])
             ->public()
             ->whereNot('status', PropertyStatus::Draft)
             ->whereIn('id', $ids)
@@ -494,7 +497,9 @@ class PublicPropertyController extends Controller
                 'tags',
                 'owner.media',
                 'agency.media',
-                'collaborators.user',
+                // TCK-502 — `.media` en plus : la fiche nomme désormais le CONTACT PRINCIPAL,
+                // qui peut être un collaborateur, et sa carte porte son avatar.
+                'collaborators.user.media',
                 'documents.media',
                 'priceHistory',
                 'reviews' => fn ($q) => $q->where('is_approved', true),
@@ -740,52 +745,70 @@ class PublicPropertyController extends Controller
         ], 201);
     }
 
-    public function contactMessage(ContactMessagePublicPropertyRequest $request, NotificationService $notifications, string $slug): JsonResponse
+    /**
+     * TCK-500 — RÉSOLUTION, en lecture seule : « ce bien, ai-je déjà un fil dessus ? »
+     *
+     * Le front s'en sert pour décider ce qu'il affiche au clic sur « Envoyer un message » : un
+     * fil existant avec son historique et un champ vide, ou un fil qui n'existe pas encore avec
+     * un brouillon pré-rempli. Il y prend aussi le titre et la référence du bien, ce qui lui
+     * évite un second appel quand il arrive sur la messagerie pleine page depuis un mobile.
+     *
+     * ⚠️ Cet endpoint N'ÉCRIT RIEN, et c'est sa raison d'être. Créer le fil ici — la solution
+     * qui vient en premier, parce qu'elle simplifie le front — déposerait une conversation vide
+     * dans la boîte d'un agent à chaque visiteur qui ouvre le chat sans rien envoyer.
+     * `PropertyConversationResolveTest::test_resolve_writes_nothing` compte les lignes des trois
+     * tables autour de l'appel : c'est le seul test du fichier qu'un `firstOrCreate` ferait
+     * rougir.
+     */
+    public function conversation(Request $request, PropertyConversationResolver $resolver, string $slug): JsonResponse
     {
-        $property = Property::query()
-            ->with('owner', 'collaborators.user')
-            ->public()
-            ->whereNot('status', PropertyStatus::Draft)
-            ->where('slug', $slug)
-            ->firstOrFail();
+        $property = $this->publicPropertyForContact($slug, $resolver);
+
+        $user = $request->user();
+        abort_if($user === null, 401);
+
+        $recipient = $resolver->recipientFor($property);
+        $canMessage = $recipient !== null && $recipient->id !== $user->id;
+
+        return $this->json([
+            'data' => [
+                'conversation_id' => $canMessage
+                    ? $resolver->findExisting($property, $user, $recipient)?->id
+                    : null,
+                'can_message' => $canMessage,
+                'property' => [
+                    'id' => $property->id,
+                    'slug' => $property->slug,
+                    'title' => $property->title,
+                    'reference_number' => $property->reference_number,
+                    // La vignette de l'en-tête du fil. `preview`, jamais l'original : ce chemin
+                    // est public et l'original est la source non filigranée (TCK-106).
+                    'main_photo_url' => $property->getFirstMedia('photos')?->getUrl('preview'),
+                ],
+                'recipient' => $recipient === null ? null : [
+                    'id' => $recipient->id,
+                    'name' => $this->displayName($recipient),
+                    'avatar_url' => $recipient->getFirstMediaUrl('avatar') ?: null,
+                ],
+            ],
+        ]);
+    }
+
+    public function contactMessage(ContactMessagePublicPropertyRequest $request, NotificationService $notifications, PropertyConversationResolver $resolver, string $slug): JsonResponse
+    {
+        $property = $this->publicPropertyForContact($slug, $resolver);
 
         $data = $request->validated();
 
         $user = $request->user();
         abort_if($user === null, 401);
 
-        $primaryAgent = $property->collaborators
-            ->firstWhere('role', CollaboratorRole::Agent)?->user
-            ?? $property->owner;
+        $primaryAgent = $resolver->recipientFor($property);
 
         abort_if($primaryAgent === null, 422, 'No recipient available.');
         abort_if($primaryAgent->id === $user->id, 422, 'You cannot message yourself.');
 
-        $conversation = DB::transaction(function () use ($user, $primaryAgent, $property) {
-            $existing = Conversation::query()
-                ->where('property_id', $property->id)
-                ->whereHas('participants', fn ($q) => $q->where('user_id', $user->id))
-                ->whereHas('participants', fn ($q) => $q->where('user_id', $primaryAgent->id))
-                ->lockForUpdate()
-                ->first();
-
-            if ($existing) {
-                return $existing;
-            }
-
-            $conv = Conversation::create([
-                'type' => ConversationType::Direct->value,
-                'status' => ConversationStatus::Active->value,
-                'created_by' => $user->id,
-                'property_id' => $property->id,
-            ]);
-            $conv->participants()->attach([
-                $user->id => ['joined_at' => now()],
-                $primaryAgent->id => ['joined_at' => now()],
-            ]);
-
-            return $conv;
-        });
+        $conversation = $resolver->firstOrCreate($property, $user, $primaryAgent);
 
         $message = $conversation->messages()->create([
             'sender_id' => $user->id,
@@ -799,21 +822,43 @@ class PublicPropertyController extends Controller
             'last_message_at' => now(),
         ]);
 
-        $fullName = trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: ($user->username ?? 'Utilisateur');
         $notifications->notify(
             $primaryAgent,
             NotificationType::Message,
             'Nouveau message',
-            $fullName.': '.mb_strimwidth($data['message'], 0, 80, '…'),
+            $this->displayName($user).': '.mb_strimwidth($data['message'], 0, 80, '…'),
             ['conversation_id' => $conversation->id, 'message_id' => $message->id],
         );
 
         return $this->json([
             'data' => [
                 'conversation_id' => $conversation->id,
-                'redirect_to' => "/messages/{$conversation->id}",
+                // TCK-500 — `/messages/{id}` n'a JAMAIS existé côté front : la seule boîte de
+                // réception est `/app/messages`, qui lit la conversation dans `?conversation=`.
+                // Le front poussait donc l'utilisateur sur un 404 après chaque premier message.
+                'redirect_to' => "/app/messages?conversation={$conversation->id}",
             ],
         ], 201);
+    }
+
+    /**
+     * Le bien tel que les deux endpoints de contact le voient : public, jamais un brouillon, et
+     * avec les relations dont {@see PropertyConversationResolver::recipientFor()} a besoin.
+     */
+    private function publicPropertyForContact(string $slug, PropertyConversationResolver $resolver): Property
+    {
+        return Property::query()
+            ->with($resolver::eagerLoads())
+            ->public()
+            ->whereNot('status', PropertyStatus::Draft)
+            ->where('slug', $slug)
+            ->firstOrFail();
+    }
+
+    /** Le nom affiché d'un utilisateur, avec les mêmes replis que la notification d'origine. */
+    private function displayName(User $user): string
+    {
+        return trim(($user->first_name ?? '').' '.($user->last_name ?? '')) ?: ($user->username ?? 'Utilisateur');
     }
 
     /**
@@ -824,7 +869,7 @@ class PublicPropertyController extends Controller
      * existing notification channel. A filled honeypot returns 201 silently
      * — bots get a normal-looking success without polluting the database.
      */
-    public function contactLead(ContactLeadPublicRequest $request, NotificationService $notifications, string $slug): JsonResponse
+    public function contactLead(ContactLeadPublicRequest $request, NotificationService $notifications, PropertyConversationResolver $resolver, string $slug): JsonResponse
     {
         $data = $request->validated();
 
@@ -832,16 +877,13 @@ class PublicPropertyController extends Controller
             return $this->json(['data' => ['accepted' => true]], 201);
         }
 
-        $property = Property::query()
-            ->with('owner', 'collaborators.user')
-            ->public()
-            ->whereNot('status', PropertyStatus::Draft)
-            ->where('slug', $slug)
-            ->firstOrFail();
+        $property = $this->publicPropertyForContact($slug, $resolver);
 
-        $primaryAgent = $property->collaborators
-            ->firstWhere('role', CollaboratorRole::Agent)?->user
-            ?? $property->owner;
+        // TCK-500 — ce calcul était écrit ici À L'IDENTIQUE une troisième fois. Le service ne
+        // vaut que s'il est le seul à savoir : une copie oubliée finit toujours par diverger,
+        // et un lead anonyme livré à un autre agent que le message authentifié serait un défaut
+        // qu'aucun des deux endpoints ne montrerait seul.
+        $primaryAgent = $resolver->recipientFor($property);
 
         $lead = PropertyContactLead::create([
             'property_id' => $property->id,
@@ -867,10 +909,17 @@ class PublicPropertyController extends Controller
         return $this->json(['data' => ['accepted' => true]], 201);
     }
 
+    /**
+     * Le numéro à composer depuis la fiche.
+     *
+     * TCK-502 — il rendait `owner->phone` pendant que le bouton « Envoyer un message », juste à
+     * côté, écrivait au collaborateur `agent`. Deux boutons voisins, deux personnes. C'est la
+     * contrainte 3 du ticket : le téléphone fait partie du lot.
+     */
     public function contact(string $slug): JsonResponse
     {
         $property = Property::query()
-            ->with('owner', 'address')
+            ->with([...PrimaryPropertyContact::eagerLoads(), 'address'])
             ->public()
             ->where('slug', $slug)
             ->firstOrFail();
@@ -887,7 +936,7 @@ class PublicPropertyController extends Controller
             .'Vu sur Takussan.sn';
 
         return $this->json([
-            'phone' => $property->owner?->phone,
+            'phone' => PrimaryPropertyContact::for($property)?->phone,
             'message' => $message,
         ]);
     }

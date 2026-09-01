@@ -10,19 +10,30 @@ import { apiFetch } from '@/lib/api';
 import type { PropertyAgencyLite, PropertyOwnerLite } from '@/types/property';
 
 interface PropertyAgentCardProps {
-  owner: PropertyOwnerLite;
+  /**
+   * TCK-502 — **le CONTACT, pas le propriétaire.** Cette prop s'appelait `owner` et recevait
+   * `property.owner` : la carte montrait le nom et le visage du propriétaire pendant que le
+   * bouton « Envoyer un message », deux lignes plus bas, ouvrait un fil avec le collaborateur
+   * `agent`, et que « Appeler » composait un troisième numéro. L'appelant passe désormais
+   * `property.primary_contact`, calculé côté serveur par la MÊME règle que les trois chemins
+   * d'envoi. Le nom de la prop porte la correction : `owner` invitait à repasser le propriétaire.
+   */
+  contact: PropertyOwnerLite;
   agency: PropertyAgencyLite | null;
   propertySlug: string;
   propertyTitle: string;
   onMessage: () => void;
+  /** TCK-500 — cf. `PropertyBookingCard` : pas de bouton quand on est soi-même le destinataire. */
+  canMessage?: boolean;
 }
 
 export function PropertyAgentCard({
-  owner,
+  contact,
   agency,
   propertySlug,
   propertyTitle,
   onMessage,
+  canMessage = true,
 }: PropertyAgentCardProps) {
   const t = useTranslations('property.detail.agent');
   const [calling, setCalling] = useState(false);
@@ -49,28 +60,28 @@ export function PropertyAgentCard({
     <div className="rounded-xl border border-stone-200 bg-white p-5 space-y-4">
       <div className="flex items-center gap-3">
         <div className="relative size-12 shrink-0 rounded-full overflow-hidden bg-stone-100">
-          {owner.avatar_url ? (
+          {contact.avatar_url ? (
             <Image
-              src={owner.avatar_url}
-              alt={owner.name}
+              src={contact.avatar_url}
+              alt={contact.name}
               fill
               sizes="48px"
               className="object-cover"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-stone-500 font-semibold">
-              {owner.name.charAt(0).toUpperCase()}
+              {contact.name.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
         <div className="min-w-0">
           <p className="font-semibold text-stone-900 truncate">
-            {owner.slug ? (
-              <LienLocalise href={`/agents/${owner.slug}`} className="hover:underline">
-                {owner.name}
+            {contact.slug ? (
+              <LienLocalise href={`/agents/${contact.slug}`} className="hover:underline">
+                {contact.name}
               </LienLocalise>
             ) : (
-              owner.name
+              contact.name
             )}
           </p>
           {agency ? (
@@ -85,7 +96,7 @@ export function PropertyAgentCard({
                 <BadgeCheck className="size-4 text-sky-500 shrink-0" aria-label={t('verifiedAria')} />
               )}
             </p>
-          ) : owner.is_agent ? (
+          ) : contact.is_agent ? (
             <p className="text-sm text-stone-500">{t('independent')}</p>
           ) : (
             <p className="text-sm text-stone-500">{t('private')}</p>
@@ -93,11 +104,13 @@ export function PropertyAgentCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="outline" onClick={onMessage} className="gap-2">
-          <MessageCircle className="size-4" aria-hidden />
-          {t('message')}
-        </Button>
+      <div className={canMessage ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
+        {canMessage && (
+          <Button type="button" variant="outline" onClick={onMessage} className="gap-2">
+            <MessageCircle className="size-4" aria-hidden />
+            {t('message')}
+          </Button>
+        )}
         <Button
           type="button"
           variant="outline"

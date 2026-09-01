@@ -139,6 +139,14 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
 
         Route::post('properties/{slug}/contact-message', [PublicPropertyController::class, 'contactMessage'])
             ->name('properties.contact-message');
+
+        // TCK-500 — jumelle EN LECTURE SEULE de `contact-message`. Le front la questionne au clic
+        // sur « Envoyer un message » pour savoir s'il ouvre un fil existant (historique, champ
+        // vide) ou un fil qui n'existe pas encore (brouillon pré-rempli). Segment littéral après
+        // un `{slug}` : aucun risque d'être avalé, contrairement aux `properties/<mot>` du haut
+        // de ce fichier.
+        Route::get('properties/{slug}/conversation', [PublicPropertyController::class, 'conversation'])
+            ->name('properties.conversation');
     });
 
     // TCK-436 — les deux INDEX de profils. Segments littéraux : ils DOIVENT rester au-dessus de
