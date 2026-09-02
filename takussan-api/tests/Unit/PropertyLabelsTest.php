@@ -87,13 +87,16 @@ class PropertyLabelsTest extends TestCase
         $this->assertSame('F4 T4 3 chambres salon', PropertyLabels::rooms($this->bien(['type' => PropertyType::Apartment, 'bedrooms' => '3'])));
     }
 
-    public function test_les_niveaux_sont_bornes_a_ce_que_le_dictionnaire_couvre(): void
+    /** Au-delà de ce que le dictionnaire couvre, rien : « R+10 » pour 25 niveaux serait un fait faux indexé. */
+    public function test_au_dela_des_niveaux_couverts_aucun_etage_nest_emis(): void
     {
         $tour = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 2, 'total_floors' => 25]);
+        $plafond = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 2, 'total_floors' => PropertyLabels::NIVEAUX_MAX]);
 
-        $this->assertStringContainsString('R+'.PropertyLabels::NIVEAUX_MAX, PropertyLabels::facts($tour));
-        $this->assertStringNotContainsString('R+25', PropertyLabels::facts($tour));
-        $this->assertStringContainsString('R+'.PropertyLabels::NIVEAUX_MAX, PropertyLabels::title($tour, null));
+        $this->assertStringNotContainsString('R+', PropertyLabels::facts($tour));
+        $this->assertStringNotContainsString('R+', PropertyLabels::title($tour, null));
+        $this->assertStringContainsString('R+'.PropertyLabels::NIVEAUX_MAX, PropertyLabels::facts($plafond));
+        $this->assertStringContainsString('R+'.PropertyLabels::NIVEAUX_MAX, PropertyLabels::title($plafond, null));
     }
 
     public function test_f4_designe_trois_chambres_et_jamais_quatre(): void

@@ -314,6 +314,11 @@ MEILISEARCH_HOST=http://127.0.0.1:7701 MEILISEARCH_KEY=masterKey SCOUT_QUEUE=fal
   `fieldDistribution` : derived_title 795, rooms_label 795, facts_label 795.
 ```
 
+⚠ Ce premier relevé **précède le `dictionary`** (relevé par la revue : l'index local n'en avait
+pas). Rejoué à 21:41 après l'ajout, même commande, `load average` 31 : **5,4 s**, file vide 2 s
+plus tard, `GET /settings/dictionary` rend les 22 formes, 795 documents. *Une mesure sur un index
+dont on n'a pas relu les réglages mesure l'index d'avant.*
+
 **Ce que la revue adverse a trouvé, et ce qui en a été fait** (agent relecteur, même jour) :
 
 - **Bloquant, réel : `q=villa R+1` était un test à pile ou face.** Le dernier mot d'une requête
@@ -334,6 +339,10 @@ MEILISEARCH_HOST=http://127.0.0.1:7701 MEILISEARCH_KEY=masterKey SCOUT_QUEUE=fal
   dans les trois seeders/factory. Docblock « aucune dépendance au conteneur » corrigé (`trans()` en
   est une). Accord « meublée » pour maison, villa, chambre. Citation historique du provider
   restaurée.
+- **Seconde passe** (après correctifs) : rien de bloquant, deux mineurs pris — au-delà de
+  `NIVEAUX_MAX` on n'émet **rien** plutôt que « R+10 » pour 25 niveaux (un fait faux indexé), et
+  l'index local a été resynchronisé avant la re-mesure AC10 ci-dessus. Le relecteur a re-mesuré
+  le dictionnaire de son côté sur un index jetable : mêmes résultats.
 - RAS confirmé par la revue : aucune fuite hors index (`grep` sur `app/` et `takussan-web/src/`,
   resources, `hydrate()`, `fields[properties]`), `deploy.sh` juste sous `set -euo pipefail`,
   aucun autre seeder ne pose de chambres hors habitation.

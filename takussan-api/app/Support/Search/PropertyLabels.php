@@ -96,7 +96,7 @@ final class PropertyLabels
     /** Les types dont le nom est féminin — « Villa meublée », « Chambre meublée ». @var list<string> */
     private const NOM_FEMININ = ['house', 'villa', 'room'];
 
-    /** Le plus haut R+n que `facts()` et `title()` émettent ; le dictionnaire de l'index (config/scout.php) doit le couvrir. */
+    /** Le plus haut R+n que `facts()` et `title()` émettent ; le dictionnaire de l'index (config/scout.php) doit le couvrir. Au-delà, rien : un étage faux indexé vaut moins que pas d'étage. */
     public const NIVEAUX_MAX = 10;
 
     /** Les types pour lesquels le statut foncier décide de l'achat. @var list<string> */
@@ -188,8 +188,8 @@ final class PropertyLabels
         $famille = self::FAMILLES[$type] ?? null;
         $jetons = [];
 
-        if (in_array($type, self::AVEC_NIVEAUX, true) && $bien->total_floors !== null) {
-            $n = min((int) $bien->total_floors, self::NIVEAUX_MAX);
+        if (in_array($type, self::AVEC_NIVEAUX, true) && $bien->total_floors !== null && (int) $bien->total_floors <= self::NIVEAUX_MAX) {
+            $n = (int) $bien->total_floors;
             // « R+1 » n'est UN jeton que parce que le dictionnaire de l'index
             // le déclare (config/scout.php) ; sans lui le `+` sépare, et « 1 »
             // devient un chiffre nu qui répond à `q=1 chambre`. Mesuré.
@@ -265,8 +265,8 @@ final class PropertyLabels
             if ($bien->furnished) {
                 $segments[] = in_array($type, self::NOM_FEMININ, true) ? 'meublée' : 'meublé';
             }
-            if (in_array($type, self::AVEC_NIVEAUX, true) && (int) $bien->total_floors >= 1) {
-                $segments[] = 'R+'.min((int) $bien->total_floors, self::NIVEAUX_MAX);
+            if (in_array($type, self::AVEC_NIVEAUX, true) && (int) $bien->total_floors >= 1 && (int) $bien->total_floors <= self::NIVEAUX_MAX) {
+                $segments[] = 'R+'.(int) $bien->total_floors;
             }
         } else {
             if ($bien->area !== null && (int) $bien->area > 0) {
