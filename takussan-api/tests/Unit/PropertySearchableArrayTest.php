@@ -6,6 +6,7 @@ use App\Models\Address;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyType;
 use App\Models\Property;
+use App\Support\Search\PropertyLabels;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -128,7 +129,7 @@ class PropertySearchableArrayTest extends TestCase
             'contract_type' => ContractType::Sale,
         ]))->toSearchableArray();
 
-        $this->assertSame('terrain zzz-alias-type-wo', $arr['type_label']);
+        $this->assertSame('terrain parcelle lot zzz-alias-type-wo', $arr['type_label']);
         $this->assertSame('vendre vente achat acheter zzz-alias-contrat-wo', $arr['contract_label']);
 
         // Une clé wolof restée vide ne doit produire NI espace double NI espace
@@ -186,6 +187,95 @@ class PropertySearchableArrayTest extends TestCase
         foreach ($vocabulaire as $champ) {
             $this->assertContains($champ, $declares, "{$champ} est indexé mais n'est pas interrogeable");
         }
+
+        // TCK-506 — `derived_title` ne porte pas « label » et échapperait au
+        // filtre ci-dessus ; il est nommé exprès, avec sa POSITION : juste
+        // après `title` (mesurée, cf. config/scout.php), et les deux champs de
+        // vocabulaire EN FIN, après `furnished_label`.
+        $this->assertSame('title', $declares[0]);
+        $this->assertSame('derived_title', $declares[1]);
+        $this->assertSame(['rooms_label', 'facts_label'], array_slice($declares, -2));
+        $this->assertGreaterThan(
+            array_search('furnished_label', $declares, true),
+            array_search('rooms_label', $declares, true),
+        );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // TCK-506 — les trois champs dérivés sont DANS le document, et calculés
+    // depuis les colonnes (pas depuis le texte).
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function test_les_champs_derives_sont_dans_le_document_et_calcules_des_colonnes(): void
+    {
+        $property = Property::withoutSyncingToSearch(
+            fn () => Property::factory()->published()->create([
+                'type' => PropertyType::Apartment,
+                'title' => 'Bel appartement lumineux',
+                'description' => 'Proche des commerces.',
+                'bedrooms' => 3,
+                'bathrooms' => 2,
+                'furnished' => true,
+                'floor_number' => 0,
+                'area' => 95,
+                'parking_spaces' => 1,
+            ])
+        );
+        Address::create([
+            'addressable_type' => Property::class,
+            'addressable_id' => $property->id,
+            'city' => 'Dakar',
+            'neighborhood' => 'Médina',
+        ]);
+
+        $arr = $property->fresh('address')->toSearchableArray();
+
+        $this->assertSame('Appartement F4 meublé à Médina, Dakar', $arr['derived_title']);
+        $this->assertSame('F4 T4 3 chambres salon', $arr['rooms_label']);
+        $this->assertStringContainsString('rez-de-chaussee rdc', $arr['facts_label']);
+        $this->assertStringContainsString('sdb', $arr['facts_label']);
+        $this->assertStringContainsString('95 m2', $arr['facts_label']);
+        $this->assertStringContainsString('parking garage', $arr['facts_label']);
+    }
+
+    /**
+     * « R+1 » n'est un jeton entier que si le dictionnaire de l'index le dit,
+     * dans les DEUX casses (mesuré : sans « r+1 », une requête en minuscules
+     * rend 0). Chaque niveau que `PropertyLabels` peut émettre doit y être —
+     * sinon le chiffre nu de l'étage revient, et `q=1 chambre` rend les R+1.
+     */
+    public function test_le_dictionnaire_de_lindex_couvre_chaque_niveau_emis(): void
+    {
+        $dictionnaire = config('scout.meilisearch.index-settings.'.Property::class.'.dictionary');
+        $this->assertIsArray($dictionnaire);
+
+        for ($n = 0; $n <= PropertyLabels::NIVEAUX_MAX; $n++) {
+            $this->assertContains("R+{$n}", $dictionnaire);
+            $this->assertContains("r+{$n}", $dictionnaire);
+        }
+
+        $villa = Property::factory()->make(['type' => PropertyType::Villa, 'bedrooms' => 4, 'total_floors' => 1, 'user_id' => 1]);
+        $arr = $villa->toSearchableArray();
+        $this->assertStringContainsString('R+1', $arr['facts_label']);
+        $this->assertStringContainsString('R+1', $arr['derived_title']);
+    }
+
+    public function test_un_terrain_a_chambres_nemet_aucune_piece(): void
+    {
+        $arr = Property::factory()->make(['type' => PropertyType::Land, 'bedrooms' => 3, 'user_id' => 1])->toSearchableArray();
+
+        $this->assertSame('', $arr['rooms_label']);
+        $this->assertStringNotContainsString('F4', $arr['derived_title']);
+    }
+
+    public function test_la_table_des_familles_couvre_exactement_les_types(): void
+    {
+        $attendu = array_map(fn (PropertyType $c) => $c->value, PropertyType::cases());
+        $cles = array_keys(PropertyLabels::FAMILLES);
+        sort($attendu);
+        sort($cles);
+
+        $this->assertSame($attendu, $cles, 'PropertyLabels::FAMILLES ne couvre pas exactement PropertyType');
     }
 }
 

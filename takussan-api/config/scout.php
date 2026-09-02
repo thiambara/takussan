@@ -164,10 +164,21 @@ return [
                 // lui, aucun mot d'équipement — « piscine », « climatisation »,
                 // « ascenseur » — ne pouvait atteindre l'index autrement qu'en
                 // traînant dans une description.
+                //
+                // TCK-506 — trois champs DÉRIVÉS (App\Support\Search\PropertyLabels) :
+                //  - `derived_title` est discriminant PAR BIEN (« Appartement F4 à
+                //    Médina, Dakar ») : il se place juste après `title`. Position
+                //    MESURÉE par l'arbitre de TCK-335 — `PropertySearchVocabularyTest::
+                //    test_le_vocabulaire_elargit_le_rappel_sans_reordonner_la_pertinence`
+                //    reste vert avec lui en deuxième position (2026-09-02).
+                //  - `rooms_label` et `facts_label` sont des champs de VOCABULAIRE
+                //    (« F4 T4 3 chambres salon », « R+1 rdc sdb 300 m2 TF ») : ils valent
+                //    pour des dizaines de biens à la fois et vont EN DERNIER, comme
+                //    `contract_label` — même règle, même mesure.
                 'searchableAttributes' => [
-                    'title', 'type_label', 'description',
+                    'title', 'derived_title', 'type_label', 'description',
                     'neighborhood', 'city', 'tags', 'reference_number',
-                    'contract_label', 'furnished_label',
+                    'contract_label', 'furnished_label', 'rooms_label', 'facts_label',
                 ],
                 'filterableAttributes' => [
                     'type', 'contract_type', 'rent_period', 'status', 'visibility',
@@ -215,6 +226,23 @@ return [
                     'le', 'la', 'les', 'un', 'une',
                     'en', 'pour', 'avec', 'sur', 'dans',
                 ],
+                // TCK-506 — « R+1 » est UN jeton, pas « r » puis « 1 ». Sans ce
+                // dictionnaire, le `+` sépare et le chiffre nu de l'étage entre
+                // dans le document : mesuré le 2026-09-02 sur un index jetable,
+                // `q=1 chambre` rendait la villa R+1 à 4 chambres, et `q=villa
+                // R+1` rendait la villa BASSE de 150 m2 — le DERNIER mot d'une
+                // requête est complété par préfixe, chiffres compris, donc
+                // « 1 » matche « 150 ». Avec le dictionnaire : `q=1 chambre` →
+                // le seul bien à 1 chambre, `q=villa R+1` → les R+1 seules
+                // (plus R+10, préfixe du dernier mot, rare et accepté).
+                // ⚠ Les DEUX casses, parce que le dictionnaire est sensible à
+                // la casse AVANT le repli du moteur : sans « r+1 », une requête
+                // en minuscules rendait 0 (mesuré). `PropertySearchableArrayTest`
+                // épingle que chaque R+n que `PropertyLabels` peut émettre y est.
+                'dictionary' => array_merge(
+                    array_map(static fn (int $n): string => "R+{$n}", range(0, 10)),
+                    array_map(static fn (int $n): string => "r+{$n}", range(0, 10)),
+                ),
             ],
             Message::class => [
                 'searchableAttributes' => ['body'],

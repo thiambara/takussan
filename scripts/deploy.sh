@@ -296,6 +296,22 @@ if grep -qE '^SCOUT_DRIVER=meilisearch[[:space:]]*$' "${SHARED_DIR}/.env"; then
                     log "Search: ${f} changed since the live release — import scheduled."
                 fi
             done
+
+            # TCK-506 — the Property document is ALSO shaped by app/Support/Search/*.php
+            # (PropertyLabels derives rooms_label / facts_label / derived_title from the
+            # columns). A change there alone leaves app/Models/Property.php untouched,
+            # so the loop above would skip the import and every document would keep its
+            # old vocabulary — with nothing turning red. Same rule, one more file set.
+            for f in app/Support/Search/*.php; do
+                [ -e "${f}" ] || continue
+                if ! diff -q "${f}" "${PREVIOUS_RELEASE}/takussan-api/${f}" >/dev/null 2>&1; then
+                    if [[ ! " ${REINDEX_FILES[*]} " == *" app/Models/Property.php "* ]]; then
+                        REINDEX_FILES+=("app/Models/Property.php")
+                    fi
+                    log "Search: ${f} changed since the live release — Property import scheduled."
+                    break
+                fi
+            done
         fi
 
         if [ ${#REINDEX_FILES[@]} -eq 0 ]; then

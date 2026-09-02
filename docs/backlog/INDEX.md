@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 21 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 20 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 431 |
@@ -53,11 +53,11 @@
 - [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
 - [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
 - [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
-- [TCK-506](tickets/TCK-506-vocabulaire-immobilier-derive-dans-lindex.md) — Recherche publique — le vocabulaire immobilier (F4, chambre salon, R+1, TF, m²) dérivé des colonnes et indexé, index seulement `M · P0 · back`
 
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-506](tickets/TCK-506-vocabulaire-immobilier-derive-dans-lindex.md) — Recherche publique — le vocabulaire immobilier (F4, chambre salon, R+1, TF, m²) dérivé des colonnes et indexé, index seulement `M · P0 · back`
 
 ## 👀 Review
 
