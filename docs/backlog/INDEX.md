@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**452 tickets** — 21 ouverts, 430 livrés.
+**453 tickets** — 22 ouverts, 430 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 20 |
-| 🚧 Doing | 1 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 430 |
@@ -57,6 +57,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-505](tickets/TCK-505-responsive-onze-defauts-mesures-sur-135-ecrans.md) — Responsive — douze défauts mesurés sur 135 écrans × 5 largeurs, dont un qui fait défiler tout `/app` et `/admin` sur tablette `M · P1 · bug`
 
 ## 👀 Review
 
