@@ -63,12 +63,17 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
         {tCommon('appName')}
       </Link>
 
+      {/* TCK-505 (#1) — visible dès `lg` seulement, et compressible. À `md` la coque montre déjà
+          la barre latérale (256 px) : un `min-w-80` posé au même pixel faisait déborder le
+          document de +81 à +118 px sur les 58 pages `/app` et `/admin` à 768 px. */}
       <SearchAutocomplete
         variant="navbar"
-        className="ml-6 hidden md:block min-w-80 flex-1"
+        className="ml-6 hidden lg:block min-w-0 flex-1 max-w-xl"
       />
 
-      <div className="ml-auto flex items-center gap-2">
+      {/* TCK-505 (#1) — le cluster rétrécit au lieu de pousser ; ses libellés (profil actif,
+          prénom) se cachent sous `lg`, il ne reste que les icônes. */}
+      <div className="ml-auto flex min-w-0 shrink items-center gap-2">
         <ProfileSwitcher user={user} />
         {/* TCK-017 — language switcher persisted via cookie + (when logged in)
             PATCH /api/users/me by the client inside the switcher. */}

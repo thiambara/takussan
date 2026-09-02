@@ -97,8 +97,8 @@ export function SearchToolbar({
   return (
     <div className="mb-6 space-y-3">
       {/* Top row : count + sort + mobile filter button */}
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm font-semibold text-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="shrink-0 whitespace-nowrap text-sm font-semibold text-foreground">
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -109,7 +109,9 @@ export function SearchToolbar({
           )}
         </p>
 
-        <div className="flex items-center gap-3">
+        {/* TCK-505 (#8, second relevé) — `flex-wrap` ici aussi : à 360 px, les deux sélecteurs et
+            « Filtres » font 336 px dans 328 px disponibles et élargissaient le viewport à 368. */}
+        <div className="flex flex-wrap items-center gap-3">
           {/* Per-page selector */}
           <Select
             value={String(filters.per_page ?? 30)}

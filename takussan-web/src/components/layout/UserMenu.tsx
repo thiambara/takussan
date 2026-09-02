@@ -64,7 +64,8 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
             {initials}
           </AvatarFallback>
         </Avatar>
-        <span className="hidden sm:inline">{user.first_name}</span>
+        {/* TCK-505 (#1) — sous `lg`, l'avatar seul : à 768 la barre haute n'a pas la place du prénom. */}
+        <span className="hidden lg:inline">{user.first_name}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{user.full_name}</DropdownMenuLabel>

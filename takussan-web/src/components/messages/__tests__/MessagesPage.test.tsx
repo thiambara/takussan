@@ -159,14 +159,19 @@ describe('<MessagesPage> ?property=', () => {
 });
 
 /**
- * TCK-501 — sous le point de rupture `md`, la page montre UNE chose à la fois.
+ * TCK-501 — sous le point de rupture, la page montre UNE chose à la fois.
  *
  * ⚠️ Ces tests portent sur ce qui est MONTÉ, pas sur ce qui est visible : le partage est fait en
  * JS et non par un `hidden` Tailwind, précisément parce que les deux panneaux montent chacun un
  * sondage réseau. Un test qui n'assertait que la classe laisserait passer la version qui cache
  * la liste tout en la faisant sonder toutes les 10 s sur un téléphone.
+ *
+ * TCK-505 (#4) — le point de rupture est `lg` (1024 px), plus `md` (768 px) : entre 768 et 1023
+ * la coque montre sa barre latérale de 256 px, et la grille `320px 1fr` laissait ≈ 150 px au
+ * fil. La largeur simulée ici est un NOMBRE de pixels, pas un booléen : c'est ce qui permet au
+ * cas 768 de rougir si le gate revenait à `(max-width: 767px)`.
  */
-describe('<MessagesPage> sous le point de rupture md (TCK-501)', () => {
+describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => {
   const BIEN = {
     id: 1,
     slug: 'villa-almadies',
@@ -175,11 +180,16 @@ describe('<MessagesPage> sous le point de rupture md (TCK-501)', () => {
     main_photo_url: null,
   };
 
-  /** `md` vaut 768 px : le gate JS écoute `(max-width: 767px)`, comme la classe `md:`. */
-  function largeurDeFenetre(compact: boolean): void {
-    window.matchMedia = ((query: string) =>
-      ({
-        matches: compact && query === '(max-width: 767px)',
+  /**
+   * Simule un viewport de `largeurPx` : une requête `(max-width: Npx)` correspond ssi
+   * `largeurPx <= N`. Le test ne connaît donc pas le seuil du composant — il le SUBIT, comme un
+   * navigateur, et c'est le composant qui doit écouter la bonne valeur.
+   */
+  function largeurDeFenetre(largeurPx: number): void {
+    window.matchMedia = ((query: string) => {
+      const max = /\(max-width:\s*(\d+)px\)/.exec(query);
+      return {
+        matches: max !== null && largeurPx <= Number(max[1]),
         media: query,
         onchange: null,
         addListener: () => {},
@@ -187,13 +197,14 @@ describe('<MessagesPage> sous le point de rupture md (TCK-501)', () => {
         addEventListener: () => {},
         removeEventListener: () => {},
         dispatchEvent: () => false,
-      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+      } as unknown as MediaQueryList;
+    }) as typeof window.matchMedia;
   }
 
   beforeEach(() => {
     resolution.mockReturnValue(undefined);
     searchParamsGet.mockImplementation(() => null);
-    largeurDeFenetre(true);
+    largeurDeFenetre(390);
   });
 
   // AC1 — 390 px, aucune conversation choisie : la liste SEULE, sur toute la largeur.
@@ -260,7 +271,7 @@ describe('<MessagesPage> sous le point de rupture md (TCK-501)', () => {
 
   // AC4 — au-dessus du point de rupture, RIEN ne change : les deux panneaux, pas de retour.
   it('garde les deux panneaux côte à côte au-dessus du point de rupture', () => {
-    largeurDeFenetre(false);
+    largeurDeFenetre(1440);
     searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
     render(wrap(<MessagesPage />));
 
@@ -270,16 +281,52 @@ describe('<MessagesPage> sous le point de rupture md (TCK-501)', () => {
   });
 
   /**
-   * AC5 — l'ablation. Deux couches doivent basculer ensemble : retirer `md:grid-cols-…` rendrait
-   * une colonne unique à 1440 px, retirer le gate JS remonterait les deux panneaux à 390 px. Le
-   * test précédent garde la seconde ; celui-ci garde la première, que le DOM seul ne montre pas.
+   * TCK-505 AC2 — à 768 px, UN seul panneau. C'est la largeur où l'ancien gate `(max-width:
+   * 767px)` ne correspondait plus : les deux panneaux montaient, et la grille `md:[320px_1fr]`
+   * laissait ≈ 150 px au fil derrière une barre latérale de 256 px. À 1024, les deux panneaux
+   * reviennent, comme avant.
    */
-  it('déclare la grille à deux colonnes à partir de md, et une seule en dessous', () => {
+  it.each([768, 1023])('montre la conversation seule à %i px (tablette en portrait)', (largeur) => {
+    largeurDeFenetre(largeur);
+    searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
+    render(wrap(<MessagesPage />));
+
+    expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=42');
+    expect(screen.queryByTestId('conv-list')).not.toBeInTheDocument();
+    expect(screen.getByTestId('chat-back-button')).toBeInTheDocument();
+  });
+
+  it('remonte les deux panneaux dès 1024 px', () => {
+    largeurDeFenetre(1024);
+    searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
+    render(wrap(<MessagesPage />));
+
+    expect(screen.getByTestId('conv-list')).toBeInTheDocument();
+    expect(screen.getByTestId('chat-view')).toHaveTextContent('chat=42');
+    expect(screen.queryByTestId('chat-back-button')).not.toBeInTheDocument();
+  });
+
+  /**
+   * AC5 (TCK-501) — l'ablation. Deux couches doivent basculer ensemble : retirer
+   * `lg:grid-cols-…` rendrait une colonne unique à 1440 px, retirer le gate JS remonterait les
+   * deux panneaux à 390 px. Les tests précédents gardent la seconde ; celui-ci garde la
+   * première, que le DOM seul ne montre pas.
+   *
+   * TCK-505 — la classe est `lg:`, et l'ancienne `md:` doit être ABSENTE : un
+   * `md:grid-cols-[320px_1fr] lg:grid-cols-[320px_1fr]` passerait un `toContain('lg:…')` seul
+   * tout en rouvrant deux colonnes à 768 px, là où le JS n'en remplit qu'une.
+   */
+  it('déclare la grille à deux colonnes à partir de lg, et une seule en dessous', () => {
     render(wrap(<MessagesPage />));
 
     const grille = screen.getByTestId('messagerie-grille');
     expect(grille).toHaveClass('grid-cols-1');
-    expect(grille).toHaveClass('md:grid-cols-[320px_1fr]');
+    expect(grille).toHaveClass('lg:grid-cols-[320px_1fr]');
+    expect(grille.className).not.toMatch(/\bmd:grid-cols-/);
+    // La bordure entre les deux panneaux suit le même seuil que la grille.
+    const liste = screen.getByRole('complementary');
+    expect(liste).toHaveClass('lg:border-r');
+    expect(liste.className).not.toMatch(/\bmd:border-r\b/);
     // Contrainte 2 : `100vh` vaut la hauteur barre d'adresse RÉTRACTÉE sur un téléphone.
     expect(grille.className).toContain('h-[calc(100dvh-12rem)]');
     expect(grille.className).not.toContain('100vh');

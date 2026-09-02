@@ -85,7 +85,13 @@ export function MonthView({
             data-testid={`calendar-day-${day.toISOString().slice(0, 10)}`}
             data-in-month={inMonth ? 'true' : 'false'}
             className={cn(
-              'min-h-24 border-t border-l border-border p-1.5 text-left align-top',
+              // TCK-505 (#6) — `min-w-0` : un enfant de grille a `min-width: auto`, donc au
+              // moins la largeur du titre en `nowrap` ; la cellule s'élargissait au lieu de
+              // laisser `truncate` couper la puce (mesuré : puce à 486 px sur 360 de viewport).
+              // `overflow-hidden` retient ce qui dépasserait malgré tout. Aucun enfant en
+              // position absolue n'en dépend : le détail d'un événement s'ouvre dans un
+              // panneau hors de la grille.
+              'min-h-24 min-w-0 overflow-hidden border-t border-l border-border p-1.5 text-left align-top',
               !inMonth && 'bg-muted/60 text-muted-foreground',
               selected && 'bg-warning/10 ring-1 ring-inset ring-warning/30',
             )}
@@ -136,7 +142,13 @@ export function MonthView({
                         title: event.title,
                       })}
                     >
-                      <span className="truncate">{event.title}</span>
+                      {/*
+                        TCK-505 (#6) — `block` : `truncate` pose `overflow: hidden`, qui n'a
+                        aucun effet sur un élément inline. Le span gardait la largeur de son
+                        texte (mesuré : 410 px sur un viewport de 390) et seul le bouton le
+                        clippait ; en bloc, il prend la largeur du bouton et coupe vraiment.
+                      */}
+                      <span className="block truncate">{event.title}</span>
                     </button>
                   </li>
                 );

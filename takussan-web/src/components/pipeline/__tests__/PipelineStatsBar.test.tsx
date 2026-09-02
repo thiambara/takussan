@@ -56,3 +56,17 @@ describe('<PipelineStatsBar>', () => {
     expect(handler).toHaveBeenCalledWith('active');
   });
 });
+
+/**
+ * TCK-505, défaut #9 — quatre colonnes dès `md` dans la coque `/app` (barre latérale 256 px) :
+ * tuiles à ~120 px à 768. Les colonnes se posent dès `lg`. L'ablation : garder `md:grid-cols-4`
+ * à côté de `lg:grid-cols-4` rougit l'assertion d'absence.
+ */
+describe('<PipelineStatsBar> — quatre colonnes dès lg, pas dès md (TCK-505 #9)', () => {
+  it('la barre passe à quatre colonnes à lg seulement', () => {
+    render(withIntl(<PipelineStatsBar stats={stats} />));
+    const classes = screen.getByTestId('pipeline-stats-bar').className.split(/\s+/);
+    expect(classes).toContain('lg:grid-cols-4');
+    expect(classes).not.toContain('md:grid-cols-4');
+  });
+});

@@ -41,7 +41,7 @@ export function AdminPlansClient() {
         <CardHeader>
           <CardTitle>{t('newPlan')}</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-[1fr_1fr_160px_140px_auto]">
+        <CardContent className="grid gap-3 xl:grid-cols-[1fr_1fr_160px_140px_auto]">
           <Input placeholder={t('codePlaceholder')} value={draft.code} onChange={(event) => setDraft((v) => ({ ...v, code: event.target.value }))} />
           <Input placeholder={t('labelPlaceholder')} value={draft.label} onChange={(event) => setDraft((v) => ({ ...v, label: event.target.value }))} />
           <Input type="number" placeholder={t('pricePlaceholder')} value={draft.monthly_price_xof} onChange={(event) => setDraft((v) => ({ ...v, monthly_price_xof: Number(event.target.value) }))} />
@@ -83,7 +83,7 @@ function PlanRow({ plan }: { plan: Plan }) {
 
   return (
     <Card>
-      <CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_1fr_160px_140px_auto_auto]">
+      <CardContent className="grid gap-3 p-4 xl:grid-cols-[1fr_1fr_160px_140px_auto_auto]">
         <Input value={draft.code} onChange={(event) => setDraft((v) => ({ ...v, code: event.target.value }))} />
         <Input value={draft.label} onChange={(event) => setDraft((v) => ({ ...v, label: event.target.value }))} />
         <Input type="number" value={draft.monthly_price_xof} onChange={(event) => setDraft((v) => ({ ...v, monthly_price_xof: Number(event.target.value) }))} />

@@ -149,6 +149,16 @@ dans ce projet (`components.json`, et `grep radix package.json` → 0). 20 compo
 **Les graphiques sont maison en SVG + Tailwind** — aucune dépendance de charting, et c'est un choix
 documenté (`src/components/charts/README.md`).
 
+**Responsive — `md` n'est pas « bureau » dans une coque à barre latérale.** `md:` (768 px) est le
+seuil où `/app`, `/admin` et `/super-admin` montrent la barre latérale de 256 px : un composant qui
+passe « en colonnes dès `md` » dispose de 768 − 256 − 48 = **464 px**, pas de 768. Mesuré le
+2026-09-02 sur 135 écrans : 55 pages faisaient défiler le document à 768, **aucune** à 360, 390 ou
+1366 (TCK-505, `docs/qa/responsive-2026-09-02.md`). La règle : dans ces coques, ce qui se pose en
+colonnes se pose **dès `lg`** (`sm:grid-cols-2 lg:grid-cols-4`), une table large défile dans son
+conteneur (`overflow-x-auto`, jamais `overflow-hidden`), et une barre du haut cache ce qui n'a pas
+la place, elle ne pousse pas. Sur le site public, la `Navbar` passe en bureau dès `lg` pour la même
+raison : son contenu de bureau mesure 869 px.
+
 Règles complètes : `docs/design-guidelines.md`.
 
 > ⚠️ Deux affirmations de `docs/design-guidelines.md` sont fausses aujourd'hui : les 6 familles de

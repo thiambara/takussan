@@ -68,14 +68,14 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <div className="overflow-x-auto rounded-xl border border-border bg-card">
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
           <tr>
-            <th className="px-4 py-2 font-medium">{t('colPeriod')}</th>
-            <th className="px-4 py-2 font-medium">{t('colDueDate')}</th>
-            <th className="px-4 py-2 font-medium">{t('colAmount')}</th>
-            <th className="px-4 py-2 font-medium">{t('colStatus')}</th>
+            <th className="px-4 py-2 font-medium whitespace-nowrap">{t('colPeriod')}</th>
+            <th className="px-4 py-2 font-medium whitespace-nowrap">{t('colDueDate')}</th>
+            <th className="px-4 py-2 font-medium whitespace-nowrap">{t('colAmount')}</th>
+            <th className="px-4 py-2 font-medium whitespace-nowrap">{t('colStatus')}</th>
             <th className="px-4 py-2 font-medium" aria-label={t('colActions')} />
           </tr>
         </thead>
@@ -90,14 +90,14 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
                   st === 'late' && 'bg-destructive/10',
                 )}
               >
-                <td className="px-4 py-2 text-muted-foreground">
+                <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
                   {formatDate(p.period_start, locale)} →{' '}
                   {formatDate(p.period_end, locale)}
                 </td>
-                <td className="px-4 py-2 text-muted-foreground">
+                <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
                   {p.due_date ? formatDate(p.due_date, locale) : '—'}
                 </td>
-                <td className="px-4 py-2 font-medium text-foreground">
+                <td className="px-4 py-2 font-medium text-foreground whitespace-nowrap">
                   {formatCurrency(p.amount, locale)}
                   {typeof p.late_fee === 'number' && p.late_fee > 0 && (
                     <span className="ml-1 text-xs text-destructive">
@@ -105,7 +105,7 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 whitespace-nowrap">
                   <Badge
                     variant={
                       st === 'paid'

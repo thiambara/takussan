@@ -60,16 +60,16 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
 
         return (
           <div className="space-y-3">
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
               <table className="w-full text-left text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2">{tTable('reference')}</th>
                     <th className="px-3 py-2">{tTable('landlord')}</th>
-                    <th className="px-3 py-2">{tTable('period')}</th>
-                    <th className="px-3 py-2">{tTable('gross')}</th>
-                    <th className="px-3 py-2">{tTable('net')}</th>
-                    <th className="px-3 py-2">{tTable('status')}</th>
+                    <th className="px-3 py-2 whitespace-nowrap">{tTable('period')}</th>
+                    <th className="px-3 py-2 whitespace-nowrap">{tTable('gross')}</th>
+                    <th className="px-3 py-2 whitespace-nowrap">{tTable('net')}</th>
+                    <th className="px-3 py-2 whitespace-nowrap">{tTable('status')}</th>
                     <th className="px-3 py-2" aria-label={tTable('actions')} />
                   </tr>
                 </thead>
@@ -82,7 +82,7 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
                           {payout.reference_number ?? `#${payout.id}`}
                         </td>
                         <td className="px-3 py-2 text-xs">#{payout.landlord_id}</td>
-                        <td className="px-3 py-2 text-xs">
+                        <td className="px-3 py-2 text-xs whitespace-nowrap">
                           {payout.period_start ? formatDate(payout.period_start, locale) : '—'}
                           {payout.period_end ? (
                             <>
@@ -91,17 +91,17 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
                             </>
                           ) : null}
                         </td>
-                        <td className="px-3 py-2 text-xs">
+                        <td className="px-3 py-2 text-xs whitespace-nowrap">
                           {formatCurrency(payout.gross_amount, locale, {
                             currency: payout.currency || 'XOF',
                           })}
                         </td>
-                        <td className="px-3 py-2 font-semibold">
+                        <td className="px-3 py-2 font-semibold whitespace-nowrap">
                           {formatCurrency(payout.net_amount, locale, {
                             currency: payout.currency || 'XOF',
                           })}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 whitespace-nowrap">
                           <Badge variant={PAYOUT_STATUS_VARIANT[status] ?? 'outline'}>
                             {tStatus(status)}
                           </Badge>

@@ -54,7 +54,7 @@ export default async function AgencyDashboardPage() {
         })}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('activeProperties')}
           value={formatNumber(data.properties?.total ?? 0, 'fr')}
@@ -84,7 +84,7 @@ export default async function AgencyDashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('customers')}
           value={formatNumber(data.customers_count ?? 0, 'fr')}
