@@ -184,56 +184,56 @@ d'interface.
 
 **Backend, prescriptif**
 
-- [ ] `app/Support/Search/PropertyLabels.php` — classe pure, trois méthodes statiques
+- [x] `app/Support/Search/PropertyLabels.php` — classe pure, trois méthodes statiques
       `rooms(Property): string`, `facts(Property): string`, `title(Property): string`, plus la
       table fermée `FAMILLES` (type → habitation / foncier / professionnel).
-- [ ] `Property::toSearchableArray()` : `+ 'rooms_label'`, `+ 'facts_label'`, `+ 'derived_title'`.
-- [ ] `Property::TYPE_SEARCH_ALIASES` : alias enrichis, **après** mesure de collision.
-- [ ] `config/scout.php`, index `properties` : `derived_title` après `title`, `rooms_label` et
+- [x] `Property::toSearchableArray()` : `+ 'rooms_label'`, `+ 'facts_label'`, `+ 'derived_title'`.
+- [x] `Property::TYPE_SEARCH_ALIASES` : alias enrichis, **après** mesure de collision.
+- [x] `config/scout.php`, index `properties` : `derived_title` après `title`, `rooms_label` et
       `facts_label` en fin de `searchableAttributes` ; commentaire portant la mesure de position.
-- [ ] `database/seeders/Support/SenegalFakerProvider.php` : gabarits `F{bedrooms}` → F(chambres + 1)
+- [x] `database/seeders/Support/SenegalFakerProvider.php` : gabarits `F{bedrooms}` → F(chambres + 1)
       ; `PropertyFactory` : `bedrooms`, `bathrooms`, `floor_number` à `null` pour les types non
       habitables.
-- [ ] `scripts/deploy.sh` : motif de réimport étendu à `app/Support/Search/` si nécessaire.
-- [ ] Tests unitaires `tests/Unit/PropertyLabelsTest.php` — en table, un cas par ligne des trois
+- [x] `scripts/deploy.sh` : motif de réimport étendu à `app/Support/Search/` si nécessaire.
+- [x] Tests unitaires `tests/Unit/PropertyLabelsTest.php` — en table, un cas par ligne des trois
       grilles ci-dessus, plus les cas nuls (`bedrooms = null`, sans adresse, sans ville).
-- [ ] Tests unitaires `tests/Unit/PropertySearchableArrayTest.php` — les trois champs présents,
+- [x] Tests unitaires `tests/Unit/PropertySearchableArrayTest.php` — les trois champs présents,
       `test_tout_champ_de_vocabulaire_est_declare_searchable` étendu, la table `FAMILLES` couvre
       exactement `PropertyType`.
-- [ ] Tests moteur `tests/Feature/Search/PropertyDerivedVocabularyTest.php` (fichier neuf) — un scénario par
+- [x] Tests moteur `tests/Feature/Search/PropertyDerivedVocabularyTest.php` (fichier neuf) — un scénario par
       requête du tableau de prémisse (`F4`, `T4`, `4 pieces`, `chambre salon`, `villa R+1`,
       `terrain TF`, `rdc`, `appart`), chacun **vérifié par ablation** du champ qui le sert.
-- [ ] Notes d'implémentation : relevé de collision par alias, position mesurée de
+- [x] Notes d'implémentation : relevé de collision par alias, position mesurée de
       `derived_title`, temps de réindexation (méthode de TCK-491 : hôte surchargé sur la ligne
       de commande, `SCOUT_QUEUE=false`, attente de `/tasks` à 0).
 
 ## Critères d'acceptation
 
-- [ ] **AC1** — `q=F4` en stratégie stricte rend **tous** les biens habitables publics à
+- [x] **AC1** — `q=F4` en stratégie stricte rend **tous** les biens habitables publics à
       3 chambres, y compris un bien dont ni le titre ni la description ne contiennent « F4 » ;
       **et ne rend aucun** bien à 4 chambres. *(Le second membre est ce qu'une convention inversée
       cocherait.)*
-- [ ] **AC2** — `q=T4`, `q=3 chambres`, `q=3 chambres salon` rendent exactement le même ensemble
+- [x] **AC2** — `q=T4`, `q=3 chambres`, `q=3 chambres salon` rendent exactement le même ensemble
       que `q=F4`.
-- [ ] **AC3** — `q=chambre salon` rend le bien habitable à 1 chambre **en premier** et **aucun**
+- [x] **AC3** — `q=chambre salon` rend le bien habitable à 1 chambre **en premier** et **aucun**
       studio ; `q=studio` continue de rendre les studios. *(« Chambre » tolère une faute au-delà de
       5 lettres : « chambres » matche aussi, le classement tranche, pas l'ensemble.)*
-- [ ] **AC4** — `q=villa R+1` rend les villas à `total_floors = 1` ; `q=terrain TF` rend les
+- [x] **AC4** — `q=villa R+1` rend les villas à `total_floors = 1` ; `q=terrain TF` rend les
       terrains à `title_type = titre_foncier` et aucun terrain en `bail`.
-- [ ] **AC5** — Un terrain à `bedrooms = 3` (fixture délibérée) n'est **pas** rendu par `q=F4`.
-- [ ] **AC6** — Retirer `rooms_label` de `toSearchableArray()` fait rougir AC2 et AC3 (AC1 tient
+- [x] **AC5** — Un terrain à `bedrooms = 3` (fixture délibérée) n'est **pas** rendu par `q=F4`.
+- [x] **AC6** — Retirer `rooms_label` de `toSearchableArray()` fait rougir AC2 et AC3 (AC1 tient
       encore par `derived_title`, qui porte « F4 » ; retirer les deux fait rougir AC1) ; retirer
       `facts_label` fait rougir AC4 ; retirer `derived_title` fait rougir le test de classement ;
       retirer le `dictionary` de l'index fait rougir AC4 : les cinq ablations sont jouées et
       consignées.
-- [ ] **AC7** — L'ordre de pertinence mesuré par TCK-335 est inchangé : le test
+- [x] **AC7** — L'ordre de pertinence mesuré par TCK-335 est inchangé : le test
       `..._sans_reordonner_la_pertinence` reste vert avec les trois champs en place.
-- [ ] **AC8** — Ni `derived_title`, ni `rooms_label`, ni `facts_label` n'apparaissent dans une
+- [x] **AC8** — Ni `derived_title`, ni `rooms_label`, ni `facts_label` n'apparaissent dans une
       réponse de `GET /api/public/properties/search`, `show`, ni `GET /api/properties`.
-- [ ] **AC9** — Après `migrate:fresh --seed`, aucun bien de type `land`, `warehouse`, `office`,
+- [x] **AC9** — Après `migrate:fresh --seed`, aucun bien de type `land`, `warehouse`, `office`,
       `shop`, `garage`, `parking`, `factory` ne porte de `bedrooms`, et tout titre seedé
       « F{n} » correspond à `bedrooms = n − 1`.
-- [ ] **AC10** — `./vendor/bin/pint --test` et `php artisan test` verts ; le temps de
+- [x] **AC10** — `./vendor/bin/pint --test` et `php artisan test` verts ; le temps de
       réindexation est consigné avec sa commande et sa date.
 
 ## Hors périmètre
@@ -367,8 +367,18 @@ Le seul rouge est celui décrit ci-dessus, corrigé ensuite et vert seul (2 test
 Les deux correctifs postérieurs au départ (assertion resserrée, plafond `NIVEAUX_MAX`) sont
 couverts par leurs classes rejouées vertes (61 tests unitaires, 2 tests de la feuille). **1506 s
 n'est pas une référence** : la fourchette au repos est 470-610 s (cf. `CLAUDE.md`), le facteur
-×2,5-3 mesure la charge, pas le dépôt. Une exécution sur l'arbre final tel que poussé est en
-cours ; son résumé s'ajoute ici quand il tombe.
+×2,5-3 mesure la charge, pas le dépôt.
+
+Rejouée sur l'arbre final tel que poussé (`8d708770`, celui de la PR #253), charge en décrue
+pendant l'exécution (`load average` 31,70 au départ, 2,84 à l'arrivée) :
+
+```
+php artisan test          # 2026-09-02 21:46 → 22:05
+Tests: 2 skipped, 3107 passed (10257 assertions) — Duration: 1125 s
+```
+
+0 rouge. 1125 s reste hors de la fourchette au repos pour la même raison : la charge des trois
+premiers quarts d'heure.
 
 **`scripts/deploy.sh`** — la boucle de réimport ne regardait que `app/Models/*.php` portant
 `toSearchableArray` et `config/scout.php` ; un diff de `app/Support/Search/*.php` seul aurait
