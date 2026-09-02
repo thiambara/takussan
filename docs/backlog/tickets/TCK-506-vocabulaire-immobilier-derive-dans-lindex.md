@@ -1,7 +1,7 @@
 ---
 id: TCK-506
 title: "Recherche publique — le vocabulaire immobilier (F4, chambre salon, R+1, TF, m²) dérivé des colonnes et indexé, index seulement"
-status: doing
+status: done
 phase: P0
 family: back
 estimate: M
