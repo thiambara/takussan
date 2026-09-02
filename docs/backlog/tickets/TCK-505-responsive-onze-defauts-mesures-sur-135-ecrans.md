@@ -1,7 +1,7 @@
 ---
 id: TCK-505
 title: "Responsive — douze défauts mesurés sur 135 écrans × 5 largeurs, dont un qui fait défiler tout `/app` et `/admin` sur tablette"
-status: doing
+status: done
 phase: P1
 family: bug
 estimate: M
