@@ -231,19 +231,13 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         {/* Équipe — strip horizontal scrollable */}
         {agency.agents.length > 0 && (
           <section aria-labelledby="team-heading">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-              {t('teamEyebrow')}
-            </p>
-            <h2
-              id="team-heading"
-              className="mt-2 font-display text-2xl md:text-3xl font-semibold text-foreground"
-            >
-              {t('teamHeading', { count: agency.agents.length })}
-            </h2>
-
-            <div className="mt-6">
-              <TeamStrip agents={agency.agents} />
-            </div>
+            {/* TCK-505 #10 — l'en-tête (surtitre, titre, flèches) est rendu par le strip. */}
+            <TeamStrip
+              agents={agency.agents}
+              eyebrow={t('teamEyebrow')}
+              heading={t('teamHeading', { count: agency.agents.length })}
+              headingId="team-heading"
+            />
           </section>
         )}
 

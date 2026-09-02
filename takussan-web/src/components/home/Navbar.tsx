@@ -200,8 +200,10 @@ export function Navbar({ className }: NavbarProps) {
           {tCommon('appName')}
         </LienLocalise>
 
-        {/* Center column: Search bar + Categories stacked, left-aligned — desktop */}
-        <div className="hidden md:flex flex-col max-w-xl w-full mx-auto gap-0">
+        {/* Center column: Search bar + Categories stacked, left-aligned — desktop.
+            TCK-505 (#2) — la mise en page de bureau attend `lg` : son contenu mesure 869 px, et à
+            768 « Publier » sortait du viewport. Entre 768 et 1023 c'est la barre mobile, qui tient. */}
+        <div className="hidden lg:flex flex-col max-w-xl w-full mx-auto gap-0">
           {/* Search Bar */}
           <div className="flex items-center bg-card border border-border rounded-full shadow-sm hover:shadow-md transition-shadow">
             <SearchAutocomplete
@@ -301,7 +303,7 @@ export function Navbar({ className }: NavbarProps) {
         </div>
 
         {/* Actions — desktop, aligned to top */}
-        <div className="hidden md:flex items-center gap-3 shrink-0 ml-auto mt-2">
+        <div className="hidden lg:flex items-center gap-3 shrink-0 ml-auto mt-2">
           <FavoritesPopover />
           <LanguageSwitcher variant="compact" />
           {isLoading ? (
@@ -374,11 +376,17 @@ export function Navbar({ className }: NavbarProps) {
           )}
         </div>
 
-          {/* Mobile: search pill → opens search page */}
-          <div className="flex md:hidden flex-1 items-center gap-2">
+          {/* Mobile: search pill → opens search page.
+              TCK-505 (#3) — `min-w-0` sur la rangée ET sur la pastille. Un enfant flex garde
+              `min-width: auto`, la largeur de son contenu : la rangée, mesurée à 400 px sur un
+              viewport de 390, poussait le bouton menu hors champ. Posé sur la pastille seule, le
+              défaut restait entier (mesuré) — c'est la rangée que le conteneur externe doit
+              pouvoir compresser. Le libellé, lui, tronque : `truncate` rend son `overflow`
+              non visible, donc son minimum flex tombe à 0 sans autre classe. */}
+          <div className="flex lg:hidden min-w-0 flex-1 items-center gap-2">
             <button
               onClick={handleSearch}
-              className="flex-1 flex items-center gap-2 bg-card border border-border rounded-full px-4 py-2.5 shadow-sm text-left"
+              className="flex-1 min-w-0 flex items-center gap-2 bg-card border border-border rounded-full px-4 py-2.5 shadow-sm text-left"
             >
               <Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <span className="text-sm text-muted-foreground truncate">{t('searchPlaceholder')}</span>
@@ -396,7 +404,7 @@ export function Navbar({ className }: NavbarProps) {
 
       {/* Mobile menu panel */}
       {menuOpen && (
-        <div className="md:hidden absolute top-full left-0 w-full bg-popover border-t border-border shadow-lg">
+        <div className="lg:hidden absolute top-full left-0 w-full bg-popover border-t border-border shadow-lg">
             {/* Mobile search */}
             <div className="px-6 pt-5 pb-3">
               <div className="flex items-center gap-2 border border-border rounded-xl px-4 py-3 mb-2">

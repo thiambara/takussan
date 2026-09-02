@@ -19,7 +19,7 @@ const TONE_CLASSES: Record<NonNullable<KpiTile['tone']>, string> = {
 
 export function PropertyKpiStrip({ tiles }: { readonly tiles: readonly KpiTile[] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {tiles.map((tile) => (
         <Link
           key={tile.label}

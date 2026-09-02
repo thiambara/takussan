@@ -93,7 +93,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
       return (
         <span
           data-testid="profile-switcher-admin-label"
-          className={cn('hidden items-center gap-2 rounded-md px-2 py-1 text-sm text-primary-foreground/80 sm:inline-flex', className)}
+          className={cn('hidden items-center gap-2 rounded-md px-2 py-1 text-sm text-primary-foreground/80 lg:inline-flex', className)}
         >
           {t('adminLabel')}
         </span>
@@ -102,13 +102,16 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
     return null;
   }
 
+  // TCK-505 (#1) — sous `lg`, rien : un libellé statique n'est pas un contrôle, et son point seul
+  // (8 px, `aria-hidden`) ne dit rien. Le déclencheur multi-profils, lui, garde point + chevron
+  // pour que le changement de profil reste possible à 768 px ; seul son libellé se cache.
   if (profiles.length === 1) {
     const only = profiles[0];
     return (
       <span
         data-testid="profile-switcher-static"
         className={cn(
-          'hidden items-center gap-2 rounded-md px-2 py-1 text-sm text-primary-foreground/90 sm:inline-flex',
+          'hidden items-center gap-2 rounded-md px-2 py-1 text-sm text-primary-foreground/90 lg:inline-flex',
           className,
         )}
       >
@@ -132,7 +135,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
         {active ? (
           <>
             <ProfileBadge profile={active} variant="dot" />
-            <span className="truncate max-w-[14rem]">{profileShortLabel(active, tTypes)}</span>
+            <span className="hidden lg:inline truncate max-w-[14rem]">{profileShortLabel(active, tTypes)}</span>
           </>
         ) : (
           <span>{t('choose')}</span>

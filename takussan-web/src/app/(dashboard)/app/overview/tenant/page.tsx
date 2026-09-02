@@ -53,7 +53,7 @@ export default async function TenantDashboardPage() {
     <div className="space-y-6">
       <PageHeader title={t('tenant.title')} description={t('tenant.subtitle')} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label={t('tenant.activeLeases')} value={formatNumber(data.leases.active, 'fr')} />
         <StatCard
           label={t('tenant.nextRent')}
