@@ -354,6 +354,22 @@ le libellé front « Dépôt » atteint légitimement l'entrepôt ailleurs dans 
 est resserrée à la ligne de « Magasin » — le défaut qu'elle garde est intact, son périmètre était
 trop large. *Un test qui asserte sur toute la sortie asserte aussi sur ce qu'il ne regarde pas.*
 
+**AC10 — la suite entière**, jouée par la session principale, machine SOUS CHARGE (deux suites
+Pest d'autres projets, `load average` 31-35 sur 8 cœurs au départ comme à l'arrivée) :
+
+```
+php artisan test          # 2026-09-02 21:21 → 21:46, arbre 02c323a0 MOINS le correctif de
+                          #   SearchWolofReviewSheetTest, écrit après le départ de la suite
+Tests: 1 failed, 2 skipped, 3106 passed (10256 assertions) — Duration: 1506 s
+```
+
+Le seul rouge est celui décrit ci-dessus, corrigé ensuite et vert seul (2 tests, 28 assertions).
+Les deux correctifs postérieurs au départ (assertion resserrée, plafond `NIVEAUX_MAX`) sont
+couverts par leurs classes rejouées vertes (61 tests unitaires, 2 tests de la feuille). **1506 s
+n'est pas une référence** : la fourchette au repos est 470-610 s (cf. `CLAUDE.md`), le facteur
+×2,5-3 mesure la charge, pas le dépôt. Une exécution sur l'arbre final tel que poussé est en
+cours ; son résumé s'ajoute ici quand il tombe.
+
 **`scripts/deploy.sh`** — la boucle de réimport ne regardait que `app/Models/*.php` portant
 `toSearchableArray` et `config/scout.php` ; un diff de `app/Support/Search/*.php` seul aurait
 laissé tous les documents avec leur ancien vocabulaire, sans rouge. Il déclenche désormais l'import
