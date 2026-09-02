@@ -240,6 +240,15 @@ class PropertySearchService
      *    la traiter comme deux déclencherait un repli sur une conjonction
      *    triviale.
      *
+     * 4. **Le dictionnaire de l'index** (TCK-506). « R+1 » est UN terme pour le
+     *    moteur parce que `config/scout.php` le déclare ; découpé sur la
+     *    ponctuation il devenait « R » et « 1 », deux sondes qui touchent
+     *    presque tout (« rdc », « 150 m2 ») — `q=villa R+7` sans R+7 disait
+     *    « aucun bien ne combine tous vos mots » au lieu de nommer R+7, et
+     *    `q=R+1` seul passait pour deux termes (revue de PR 253). Les entrées
+     *    du dictionnaire sont LUES, jamais recopiées, et reconnues avant le
+     *    découpage.
+     *
      * Le pliage d'accents suit celui de Meilisearch, qui normalise le jeton
      * avant de le comparer à la liste — c'est ainsi que « À vendre » et
      * « a vendre » se réduisent au même terme utile unique. La casse et
@@ -255,7 +264,8 @@ class PropertySearchService
         }
 
         $stopWords = $this->stopWords();
-        $mots = preg_split('/[^\p{L}\p{N}]+/u', $term, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        preg_match_all($this->termPattern(), $term, $m);
+        $mots = $m[0];
 
         $useful = [];
         foreach ($mots as $mot) {
@@ -288,6 +298,29 @@ class PropertySearchService
         $mots = (array) ($settings[Property::class]['stopWords'] ?? []);
 
         return array_values(array_unique(array_map(fn (string $m): string => $this->fold($m), $mots)));
+    }
+
+    /**
+     * Le découpage en termes, tel que le moteur le fait : une entrée du
+     * `dictionary` de l'index `properties` est un terme entier, tout le reste
+     * se coupe sur la ponctuation. Les entrées les plus longues d'abord, pour
+     * que « R+10 » ne soit pas lu « R+1 » puis « 0 ».
+     */
+    private function termPattern(): string
+    {
+        /** @var array<class-string,array<string,mixed>> $settings */
+        $settings = (array) config('scout.meilisearch.index-settings', []);
+        /** @var list<string> $entrees */
+        $entrees = array_values(array_filter(
+            (array) ($settings[Property::class]['dictionary'] ?? []),
+            static fn ($e): bool => is_string($e) && $e !== '',
+        ));
+        usort($entrees, static fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+
+        $alternatives = array_map(static fn (string $e): string => preg_quote($e, '/'), $entrees);
+        $alternatives[] = '[\p{L}\p{N}]+';
+
+        return '/'.implode('|', $alternatives).'/u';
     }
 
     /** Minuscule + accents pliés — la normalisation sous laquelle on compare. */

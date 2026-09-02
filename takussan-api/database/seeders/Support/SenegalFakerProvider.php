@@ -58,18 +58,20 @@ class SenegalFakerProvider extends Base
      */
     protected static $propertyTitleTemplates = [
         PropertyType::Apartment->value => [
-            'Appartement F{bedrooms} à {neighborhood}',
-            'Studio moderne à {neighborhood}',
+            // ⚠ Pas de « Studio … » ici : un appartement tire 1 à 5 chambres
+            // et `title` est le premier attribut cherchable, donc `q=studio`
+            // rendait des F4 (revue de PR 253). Le type studio a ses gabarits.
+            'Appartement F{rooms} à {neighborhood}',
             'Bel appartement {bedrooms} chambres - {neighborhood}',
-            'Résidence F{bedrooms} avec ascenseur - {neighborhood}',
-            'Appartement lumineux F{bedrooms} à {neighborhood}',
+            'Résidence F{rooms} avec ascenseur - {neighborhood}',
+            'Appartement lumineux F{rooms} à {neighborhood}',
         ],
         PropertyType::House->value => [
             'Villa moderne à {neighborhood}',
             'Maison familiale {bedrooms} chambres - {neighborhood}',
             'Belle villa avec piscine à {neighborhood}',
             'Maison de standing à {neighborhood}',
-            'Villa contemporaine {bedrooms} pièces - {neighborhood}',
+            'Villa contemporaine {bedrooms} chambres - {neighborhood}',
         ],
         PropertyType::Studio->value => [
             'Studio économique à {neighborhood}',
@@ -218,9 +220,14 @@ class SenegalFakerProvider extends Base
 
         $template = static::randomElement($templates);
 
+        // TCK-506 — F(n) = chambres + 1, le salon compté : « Appartement F4 »
+        // a TROIS chambres. Les gabarits écrivaient `F{bedrooms}` — F4 pour
+        // 4 chambres —, l'inverse de la convention que `PropertyLabels` indexe,
+        // et un jeu de démonstration qui contredit l'index rend toute mesure
+        // de `q=F4` ininterprétable.
         return str_replace(
-            ['{bedrooms}', '{neighborhood}'],
-            [$bedrooms, $neighborhood],
+            ['{rooms}', '{bedrooms}', '{neighborhood}'],
+            [$bedrooms + 1, $bedrooms, $neighborhood],
             $template
         );
     }

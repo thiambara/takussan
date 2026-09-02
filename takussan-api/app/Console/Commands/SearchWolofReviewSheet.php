@@ -339,10 +339,11 @@ class SearchWolofReviewSheet extends Command
         $this->line('       sont permis, séparés par une espace — c\'est du rappel gagné.');
         $this->newLine();
         $this->line('  Les réponses se reportent dans <options=bold>Property::TYPE_SEARCH_ALIASES_WO</> et');
-        $this->line('  <options=bold>Property::CONTRACT_SEARCH_ALIASES_WO</>, jamais dans lang/ : `scripts/deploy.sh`');
-        $this->line('  réimporte l\'index sur un diff de app/Models/*.php ou de config/scout.php,');
-        $this->line('  JAMAIS sur un diff de lang/ — un alias posé dans lang/ n\'atteindrait pas');
-        $this->line('  l\'index, et rien ne rougirait.');
+        $this->line('  <options=bold>Property::CONTRACT_SEARCH_ALIASES_WO</>, jamais dans lang/wo/ : `scripts/deploy.sh`');
+        $this->line('  réimporte l\'index sur un diff de app/Models/*.php, de config/scout.php,');
+        $this->line('  de app/Support/Search/*.php ou de lang/fr/properties.php (le libellé de type');
+        $this->line('  du titre dérivé, TCK-506) — JAMAIS sur un diff de lang/wo/ : un alias posé là');
+        $this->line('  n\'atteindrait pas l\'index, et rien ne rougirait.');
         $this->newLine();
         $this->line('  Vérifier une proposition en séance :');
         $this->line('    php artisan search:wolof-review-sheet --probe=<mot> --probe=<autre>');
