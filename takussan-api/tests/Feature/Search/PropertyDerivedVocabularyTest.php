@@ -138,7 +138,8 @@ class PropertyDerivedVocabularyTest extends TestCase
             'description' => 'Vue dégagée sur l\'océan.',
             'type' => PropertyType::Villa,
             'bedrooms' => 4,
-            'total_floors' => 1,
+            // 2 NIVEAUX = R+1 : `total_floors` compte les niveaux, pas les étages.
+            'total_floors' => 2,
             'area' => 260,
         ], 'Ngor', 'Dakar');
 
@@ -153,7 +154,9 @@ class PropertyDerivedVocabularyTest extends TestCase
             'description' => 'Grand jardin arboré.',
             'type' => PropertyType::Villa,
             'bedrooms' => 4,
-            'total_floors' => 0,
+            // 1 NIVEAU = plain-pied. `0` n'existe pas : la validation exige min 1
+            // (seule la factory pouvait l'écrire — revue de PR 253).
+            'total_floors' => 1,
             'area' => 150,
         ], 'Almadies', 'Dakar');
     }
@@ -263,6 +266,30 @@ class PropertyDerivedVocabularyTest extends TestCase
             $this->idsAttendus('terrain_bail'),
             $this->idsRendus($this->service()->search(['q' => 'terrain 500 m2'])),
         );
+    }
+
+    /**
+     * Revue de PR 253 — le repli (TCK-335) découpe la requête en termes pour
+     * sonder chacun ; « R+7 » découpé sur le `+` donnait deux sondes « R » et
+     * « 7 » qui touchent presque tout, et le front disait « aucun bien ne
+     * combine tous vos mots » au lieu de nommer R+7. Le découpage suit
+     * désormais le `dictionary` de l'index : « R+7 » est UN terme, non trouvé.
+     */
+    public function test_le_repli_nomme_r_plus_n_entier_comme_terme_non_trouve(): void
+    {
+        $this->semerLeCorpus();
+        $this->indexProperties();
+
+        $resultat = $this->service()->search(['q' => 'villa R+7']);
+
+        $this->assertSame('widened', $resultat['search']['strategy']);
+        $this->assertSame(['R+7'], $resultat['search']['terms_unmatched']);
+        $this->assertSame($this->idsAttendus('villa_r1', 'villa_basse'), $this->idsRendus($resultat));
+
+        // « R+1 » seul est UN terme : à un terme, aucun repli ne s'essaie.
+        $seul = $this->service()->search(['q' => 'R+1']);
+        $this->assertSame('all', $seul['search']['strategy']);
+        $this->assertSame($this->idsAttendus('villa_r1'), $this->idsRendus($seul));
     }
 
     // AC5 — couvert par AC1 (le terrain à 3 chambres n'y est pas), épinglé seul.

@@ -70,7 +70,7 @@ class PropertyLabelsTest extends TestCase
     public function test_un_document_habitable_ne_porte_que_le_chiffre_des_chambres(): void
     {
         $appart = $this->bien(['type' => PropertyType::Apartment, 'bedrooms' => 3, 'bathrooms' => 2, 'floor_number' => 4, 'area' => 95]);
-        $villa = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 5, 'bathrooms' => 3, 'total_floors' => 2, 'area' => 300]);
+        $villa = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 5, 'bathrooms' => 3, 'total_floors' => 3, 'area' => 300]);
 
         foreach ([[$appart, ['3', '95']], [$villa, ['5', '300']]] as [$bien, $attendu]) {
             $texte = PropertyLabels::rooms($bien).' '.PropertyLabels::facts($bien);
@@ -87,11 +87,11 @@ class PropertyLabelsTest extends TestCase
         $this->assertSame('F4 T4 3 chambres salon', PropertyLabels::rooms($this->bien(['type' => PropertyType::Apartment, 'bedrooms' => '3'])));
     }
 
-    /** Au-delà de ce que le dictionnaire couvre, rien : « R+10 » pour 25 niveaux serait un fait faux indexé. */
+    /** Au-delà de ce que le dictionnaire couvre, rien : « R+10 » pour 25 niveaux serait un fait faux indexé. R+n = niveaux − 1 : le plafond R+10 est une villa de 11 niveaux. */
     public function test_au_dela_des_niveaux_couverts_aucun_etage_nest_emis(): void
     {
         $tour = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 2, 'total_floors' => 25]);
-        $plafond = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 2, 'total_floors' => PropertyLabels::NIVEAUX_MAX]);
+        $plafond = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 2, 'total_floors' => PropertyLabels::NIVEAUX_MAX + 1]);
 
         $this->assertStringNotContainsString('R+', PropertyLabels::facts($tour));
         $this->assertStringNotContainsString('R+', PropertyLabels::title($tour, null));
@@ -119,15 +119,21 @@ class PropertyLabelsTest extends TestCase
             'contract_type' => ContractType::Sale];
 
         return [
-            'villa R+1' => [['type' => PropertyType::Villa, 'total_floors' => 1] + $vide, ['R+1'], ['villa basse', 'R 1']],
-            'villa de plain-pied' => [['type' => PropertyType::Villa, 'total_floors' => 0] + $vide, ['R+0', 'villa basse plain-pied'], []],
-            'appartement : jamais de R+n' => [['type' => PropertyType::Apartment, 'total_floors' => 4] + $vide, [], ['R+4']],
+            // R+n = niveaux − 1 : `total_floors` est le NOMBRE DE NIVEAUX (min 1).
+            'villa R+1 (2 niveaux)' => [['type' => PropertyType::Villa, 'total_floors' => 2] + $vide, ['R+1'], ['villa basse', 'R 1', 'R+2']],
+            'villa de plain-pied (1 niveau)' => [['type' => PropertyType::Villa, 'total_floors' => 1] + $vide, ['R+0', 'villa basse plain-pied'], ['R+1']],
+            'maison de plain-pied : jamais « villa »' => [['type' => PropertyType::House, 'total_floors' => 1] + $vide, ['R+0', 'maison basse plain-pied'], ['villa']],
+            'maison à 0 niveau (hors validation) : rien' => [['type' => PropertyType::House, 'total_floors' => 0] + $vide, [], ['R+', 'basse', 'villa']],
+            'appartement : jamais de R+n' => [['type' => PropertyType::Apartment, 'total_floors' => 4] + $vide, [], ['R+']],
             'appartement au rez-de-chaussée' => [['type' => PropertyType::Apartment, 'floor_number' => 0] + $vide, ['rez-de-chaussee rdc'], ['etage']],
+            'appartement au 1er : « 1er » et « premier », pas « 1e »' => [['type' => PropertyType::Apartment, 'floor_number' => 1] + $vide, ['1er etage premier etage 1eme etage'], ['1e etage', 'rdc']],
             'bureau au 3e' => [['type' => PropertyType::Office, 'floor_number' => 3] + $vide, ['3e etage 3eme etage'], ['rdc', ' 3 ']],
+            'bureau en sous-sol : jamais « 1e etage »' => [['type' => PropertyType::Office, 'floor_number' => -1] + $vide, ['sous-sol'], ['etage', '-1']],
             'villa : pas d\'étage' => [['type' => PropertyType::Villa, 'floor_number' => 2] + $vide, [], ['etage']],
             '2 salles de bain' => [['type' => PropertyType::House, 'bathrooms' => 2] + $vide, ['sdb salle de bain salles de bain'], ['2 sdb']],
             'sdb sur un bureau : rien' => [['type' => PropertyType::Office, 'bathrooms' => 2] + $vide, [], ['sdb']],
-            'parking' => [['type' => PropertyType::Shop, 'parking_spaces' => 2] + $vide, ['parking garage'], []],
+            // Ni « parking » ni « garage » : ce sont les alias des types du même nom.
+            'parking' => [['type' => PropertyType::Shop, 'parking_spaces' => 2] + $vide, ['stationnement'], ['parking', 'garage']],
             'zéro parking' => [['type' => PropertyType::Shop, 'parking_spaces' => 0] + $vide, [], ['parking']],
             'surface' => [['type' => PropertyType::Land, 'area' => 300] + $vide, ['300 m2'], ['ha']],
             'surface en hectares' => [['type' => PropertyType::Farm, 'area' => 15000] + $vide, ['15000 m2', '1.5 ha hectare'], []],
@@ -218,9 +224,12 @@ class PropertyLabelsTest extends TestCase
 
     public function test_titre_derive_meuble_et_villa_a_etage(): void
     {
-        $villa = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 4, 'furnished' => true, 'total_floors' => 1]);
+        $villa = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 4, 'furnished' => true, 'total_floors' => 2]);
+        $basse = $this->bien(['type' => PropertyType::Villa, 'bedrooms' => 4, 'furnished' => true, 'total_floors' => 1]);
 
         $this->assertSame('Villa F5 meublée R+1 à Saly, Mbour', PropertyLabels::title($villa, $this->adresse('Saly', 'Mbour')));
+        // Un seul niveau : pas de « R+0 » dans un titre, ni de « R+1 » (revue de PR 253).
+        $this->assertSame('Villa F5 meublée à Saly, Mbour', PropertyLabels::title($basse, $this->adresse('Saly', 'Mbour')));
     }
 
     public function test_titre_derive_dun_studio_ne_repete_pas_f1(): void

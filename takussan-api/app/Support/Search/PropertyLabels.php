@@ -87,8 +87,26 @@ final class PropertyLabels
      */
     private const AVEC_PIECES = ['apartment', 'house', 'villa', 'studio'];
 
-    /** Les types dont on décrit les niveaux (« R+1 »). @var list<string> */
+    /**
+     * Les types dont on décrit les niveaux (« R+1 »).
+     *
+     * ⚠ `total_floors` est le NOMBRE DE NIVEAUX (« Nombre de niveaux » dans
+     * le formulaire, `min:1` à la validation et dans le schéma zod), pas le
+     * nombre d'étages au-dessus du sol : **R+n = total_floors − 1**. Une
+     * villa de plain-pied a `total_floors = 1` et s'indexe « R+0 villa basse » ;
+     * la première version de ce fichier l'indexait « R+1 », et une vraie R+1
+     * « R+2 » — le seul `total_floors = 0` du dépôt était celui des tests,
+     * écrit par la factory sans passer la validation (revue de PR 253).
+     *
+     * @var list<string>
+     */
     private const AVEC_NIVEAUX = ['house', 'villa'];
+
+    /** Le mot du marché pour un bien de plain-pied, PAR TYPE : « villa basse » sur une maison lui donnerait l'alias de type « villa » (revue de PR 253). @var array<string,string> */
+    private const PLAIN_PIED = [
+        'house' => 'maison basse plain-pied',
+        'villa' => 'villa basse plain-pied',
+    ];
 
     /** Les types qui ont un étage DANS un immeuble. @var list<string> */
     private const AVEC_ETAGE = ['apartment', 'office', 'studio', 'room'];
@@ -96,7 +114,7 @@ final class PropertyLabels
     /** Les types dont le nom est féminin — « Villa meublée », « Chambre meublée ». @var list<string> */
     private const NOM_FEMININ = ['house', 'villa', 'room'];
 
-    /** Le plus haut R+n que `facts()` et `title()` émettent ; le dictionnaire de l'index (config/scout.php) doit le couvrir. Au-delà, rien : un étage faux indexé vaut moins que pas d'étage. */
+    /** Le plus haut R+n que `facts()` et `title()` émettent (soit `total_floors = 11`) ; le dictionnaire de l'index (config/scout.php) doit le couvrir. Au-delà, rien : un étage faux indexé vaut moins que pas d'étage. */
     public const NIVEAUX_MAX = 10;
 
     /** Les types pour lesquels le statut foncier décide de l'achat. @var list<string> */
@@ -188,22 +206,19 @@ final class PropertyLabels
         $famille = self::FAMILLES[$type] ?? null;
         $jetons = [];
 
-        if (in_array($type, self::AVEC_NIVEAUX, true) && $bien->total_floors !== null && (int) $bien->total_floors <= self::NIVEAUX_MAX) {
-            $n = (int) $bien->total_floors;
+        $rPlus = self::rPlus($type, $bien->total_floors);
+        if ($rPlus !== null) {
             // « R+1 » n'est UN jeton que parce que le dictionnaire de l'index
             // le déclare (config/scout.php) ; sans lui le `+` sépare, et « 1 »
             // devient un chiffre nu qui répond à `q=1 chambre`. Mesuré.
-            $jetons[] = "R+{$n}";
-            if ($n === 0) {
-                $jetons[] = 'villa basse plain-pied';
+            $jetons[] = "R+{$rPlus}";
+            if ($rPlus === 0) {
+                $jetons[] = self::PLAIN_PIED[$type];
             }
         }
 
         if (in_array($type, self::AVEC_ETAGE, true) && $bien->floor_number !== null) {
-            $n = (int) $bien->floor_number;
-            // « 3e » et « 3eme » sont des jetons entiers, jamais le chiffre nu
-            // « 3 » — qui ferait rendre ce bien à `q=3 chambres` (cf. rooms()).
-            $jetons[] = $n === 0 ? 'rez-de-chaussee rdc' : "{$n}e etage {$n}eme etage";
+            $jetons[] = self::etage((int) $bien->floor_number);
         }
 
         if ($famille === self::FAMILLE_HABITATION && (int) $bien->bathrooms >= 1) {
@@ -213,7 +228,13 @@ final class PropertyLabels
         }
 
         if ((int) $bien->parking_spaces >= 1) {
-            $jetons[] = 'parking garage';
+            // ⚠ NI « parking » NI « garage » : ce sont les alias des types
+            // `parking` et `garage` (TYPE_SEARCH_ALIASES), et un fait qui porte
+            // le mot d'un type rend ce type inatteignable par son propre nom.
+            // Mesuré sur 795 documents locaux (revue de PR 253) : avec
+            // « parking garage » ici, `q=garage` rendait 652 biens de 16 types
+            // au lieu des 67 garages — 638 documents portaient le jeton.
+            $jetons[] = 'stationnement';
         }
 
         if ($bien->area !== null && (int) $bien->area > 0) {
@@ -238,7 +259,12 @@ final class PropertyLabels
             }
         }
 
-        if ($bien->year_built !== null && (int) $bien->year_built >= Carbon::now()->year - 1) {
+        // Le SEUL fait relatif au temps de tout document indexé : figé à
+        // l'indexation, il ne se périme que si quelque chose réindexe le bien.
+        // Rien ne le faisait (revue de PR 253) — c'est le rôle du job quotidien
+        // {@see \App\Jobs\RefreshNewBuildSearchLabel}, qui réindexe les biens
+        // construits dans les trois dernières années.
+        if ($bien->year_built !== null && (int) $bien->year_built >= self::anneeNeufMin()) {
             $jetons[] = 'neuf';
         }
 
@@ -265,8 +291,9 @@ final class PropertyLabels
             if ($bien->furnished) {
                 $segments[] = in_array($type, self::NOM_FEMININ, true) ? 'meublée' : 'meublé';
             }
-            if (in_array($type, self::AVEC_NIVEAUX, true) && (int) $bien->total_floors >= 1 && (int) $bien->total_floors <= self::NIVEAUX_MAX) {
-                $segments[] = 'R+'.(int) $bien->total_floors;
+            $rPlus = self::rPlus($type, $bien->total_floors);
+            if ($rPlus !== null && $rPlus >= 1) {
+                $segments[] = "R+{$rPlus}";
             }
         } else {
             if ($bien->area !== null && (int) $bien->area > 0) {
@@ -289,6 +316,50 @@ final class PropertyLabels
     }
 
     // ───────────────────────────────────────────────────────── interne
+
+    /** La première année de construction qui vaut « neuf » : l'année courante ou la précédente. */
+    public static function anneeNeufMin(): int
+    {
+        return Carbon::now()->year - 1;
+    }
+
+    /**
+     * Le « R+n » d'un bien, ou null quand il n'en a pas : type sans niveaux,
+     * colonne vide, `total_floors = 0` (refusé par la validation, mais pas par
+     * la base), ou au-delà de ce que le dictionnaire couvre.
+     */
+    private static function rPlus(?string $type, mixed $totalFloors): ?int
+    {
+        if (! in_array($type, self::AVEC_NIVEAUX, true) || $totalFloors === null) {
+            return null;
+        }
+
+        $rPlus = (int) $totalFloors - 1;
+
+        return $rPlus >= 0 && $rPlus <= self::NIVEAUX_MAX ? $rPlus : null;
+    }
+
+    /**
+     * L'étage d'un bien dans son immeuble, en jetons entiers — jamais le
+     * chiffre nu « 3 », qui ferait rendre ce bien à `q=3 chambres` (cf. rooms()).
+     *
+     * Trois cas mesurés sur Meilisearch 1.36 (revue de PR 253) :
+     * - le premier s'écrit « 1er » / « premier », jamais « 1e » : à 3 lettres,
+     *   aucune faute n'est tolérée, et « 1er » n'est pas un préfixe de « 1e » —
+     *   `q=1er etage` rendait 0 ;
+     * - un étage négatif s'écrivait « -1e etage », que le moteur découpe en
+     *   « 1e etage » (le tiret sépare) : un sous-sol répondait au premier ;
+     * - « 3e » et « 3eme » sont tous deux tapés, aucun n'est préfixe de l'autre.
+     */
+    private static function etage(int $n): string
+    {
+        return match (true) {
+            $n < 0 => 'sous-sol',
+            $n === 0 => 'rez-de-chaussee rdc',
+            $n === 1 => '1er etage premier etage 1eme etage',
+            default => "{$n}e etage {$n}eme etage",
+        };
+    }
 
     private static function cle(PropertyType|ContractType|RentPeriod|TitleType|string|null $valeur): ?string
     {

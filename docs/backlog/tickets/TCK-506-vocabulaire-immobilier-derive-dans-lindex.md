@@ -65,9 +65,10 @@ donc **gardé par le type**, et le seed est aligné dans ce ticket.
 
 ### Trois champs dérivés, calculés dans `App\Support\Search\PropertyLabels`
 
-Classe **pure** (aucun accès base, aucune dépendance au conteneur), appelée par
-`Property::toSearchableArray()`. Jamais saisis, jamais stockés : recalculés à chaque indexation,
-donc toujours cohérents avec les chiffres.
+Classe **pure** au sens « aucun accès base, aucune relation chargée » — l'adresse est passée par
+l'appelant, et elle lit le conteneur pour une seule chose, `trans()` (le libellé de type de
+`lang/fr/properties.php`) —, appelée par `Property::toSearchableArray()`. Jamais saisis, jamais
+stockés : recalculés à chaque indexation, donc toujours cohérents avec les chiffres.
 
 **1. `rooms_label`** — émis uniquement pour `apartment`, `house`, `villa`, `studio` ; chaîne vide
 sinon. Sans diacritiques : le moteur les replie (mesuré TCK-339).
@@ -93,14 +94,14 @@ champs de TCK-335 : un mot de fait élargit le rappel, il ne réordonne jamais l
 
 | Source | Condition | Jetons émis |
 |---|---|---|
-| `total_floors = n` | `house`, `villa` | `R+{n}`, borné à R+10 ; `villa basse plain-pied` si n = 0. **« R+n » est UN jeton, par le `dictionary` de l'index** (voir ci-dessous) |
-| `floor_number` | `apartment`, `office`, `studio`, `room` | `rez-de-chaussee rdc` si 0 ; `{n}e etage {n}eme etage` sinon — **jamais le chiffre nu** |
+| `total_floors = n` (**nombre de niveaux**, min 1) | `house`, `villa` | `R+{n−1}`, borné à R+10 ; `villa basse plain-pied` (villa) ou `maison basse plain-pied` (maison) si n = 1. **« R+n » est UN jeton, par le `dictionary` de l'index** (voir ci-dessous). *Revue de PR 253 : la première version émettait `R+{n}` — une villa de plain-pied s'indexait « R+1 » — et « villa basse » sur une maison lui donnait l'alias de type « villa ».* |
+| `floor_number` | `apartment`, `office`, `studio`, `room` | `sous-sol` si < 0 ; `rez-de-chaussee rdc` si 0 ; `1er etage premier etage 1eme etage` si 1 ; `{n}e etage {n}eme etage` sinon — **jamais le chiffre nu**. *Revue de PR 253 : « 1er » n'est pas un préfixe de « 1e » et ne tolère aucune faute ; « -1e » se découpe en « 1e ».* |
 | `bathrooms ≥ 1` | types habitables | `sdb salle de bain salles de bain` — **sans le compte**, même raison que les pièces |
-| `parking_spaces ≥ 1` | tous | `parking garage` |
+| `parking_spaces ≥ 1` | tous | `stationnement` — **ni « parking » ni « garage »**, qui sont les alias des types du même nom : avec eux, `q=garage` rendait 652 biens de 16 types au lieu des 67 garages (revue de PR 253, 795 documents locaux) |
 | `area = n` | tous | `{n} m2` ; **plus** `{n/10000} ha hectare` si n ≥ 10 000 |
 | `title_type` | `land`, `farm`, `house`, `villa` | `titre foncier TF` / `bail` / `deliberation` ; rien pour `autre` ou `null` |
 | `rent_period` | `contract_type = rent` | `par jour journalier courte duree` / `par semaine hebdomadaire` / `par mois mensuel` / `par an annuel` |
-| `year_built` | année courante ou précédente | `neuf` ; rien sinon |
+| `year_built` | année courante ou précédente | `neuf` ; rien sinon. **Le seul fait relatif au temps de l'index, figé à l'indexation** : le job quotidien `App\Jobs\RefreshNewBuildSearchLabel` (04:00) réindexe les biens construits depuis trois ans, sinon un bien de 2025 indexé en 2026 répond encore à `q=neuf` en 2028 (revue de PR 253) |
 
 ⚠ **« R+1 » n'est un jeton entier que par le réglage `dictionary` de l'index** (`config/scout.php`,
 `R+0`…`R+10` dans les **deux casses**). Sans lui, le `+` sépare, « 1 » devient un chiffre nu et
@@ -185,8 +186,8 @@ d'interface.
 **Backend, prescriptif**
 
 - [x] `app/Support/Search/PropertyLabels.php` — classe pure, trois méthodes statiques
-      `rooms(Property): string`, `facts(Property): string`, `title(Property): string`, plus la
-      table fermée `FAMILLES` (type → habitation / foncier / professionnel).
+      `rooms(Property): string`, `facts(Property): string`, `title(Property, ?Address): string`,
+      plus la table fermée `FAMILLES` (type → habitation / foncier / professionnel).
 - [x] `Property::toSearchableArray()` : `+ 'rooms_label'`, `+ 'facts_label'`, `+ 'derived_title'`.
 - [x] `Property::TYPE_SEARCH_ALIASES` : alias enrichis, **après** mesure de collision.
 - [x] `config/scout.php`, index `properties` : `derived_title` après `title`, `rooms_label` et
@@ -218,8 +219,10 @@ d'interface.
 - [x] **AC3** — `q=chambre salon` rend le bien habitable à 1 chambre **en premier** et **aucun**
       studio ; `q=studio` continue de rendre les studios. *(« Chambre » tolère une faute au-delà de
       5 lettres : « chambres » matche aussi, le classement tranche, pas l'ensemble.)*
-- [x] **AC4** — `q=villa R+1` rend les villas à `total_floors = 1` ; `q=terrain TF` rend les
-      terrains à `title_type = titre_foncier` et aucun terrain en `bail`.
+- [x] **AC4** — `q=villa R+1` rend les villas à `total_floors = 2` (deux **niveaux**, soit un
+      étage — corrigé par la revue de PR 253, qui l'écrivait `= 1`) ; `q=villa basse` rend celles
+      à `total_floors = 1` ; `q=terrain TF` rend les terrains à `title_type = titre_foncier` et
+      aucun terrain en `bail`.
 - [x] **AC5** — Un terrain à `bedrooms = 3` (fixture délibérée) n'est **pas** rendu par `q=F4`.
 - [x] **AC6** — Retirer `rooms_label` de `toSearchableArray()` fait rougir AC2 et AC3 (AC1 tient
       encore par `derived_title`, qui porte « F4 » ; retirer les deux fait rougir AC1) ; retirer
@@ -383,8 +386,62 @@ premiers quarts d'heure.
 **`scripts/deploy.sh`** — la boucle de réimport ne regardait que `app/Models/*.php` portant
 `toSearchableArray` et `config/scout.php` ; un diff de `app/Support/Search/*.php` seul aurait
 laissé tous les documents avec leur ancien vocabulaire, sans rouge. Il déclenche désormais l'import
-de `Property`.
+de `Property` — et, depuis la revue de PR 253, sur un diff de `lang/fr/properties.php` aussi (le
+titre dérivé y lit le libellé de type).
 
 **Piège payé : le `.env` local vise Meilisearch 7700** (l'instance brew, D-48) quand la suite vise
 7701 ; toute commande `scout:*` jouée à la main doit passer `MEILISEARCH_HOST` explicitement.
+
+### Revue de code de la PR #253 (2026-09-02) — dix findings, dix correctifs
+
+Huit angles de recherche, 41 candidats, 17 vérifiés un par un, deux réfutés (le tableau vide sous
+`set -u` — le serveur est en bash 5.2 ; une maison à `bedrooms = 0` indexée « studio » — c'est
+la convention du ticket). Les dix retenus, par gravité, et ce qui en a été fait :
+
+1. **`scout:import` sous `SCOUT_QUEUE=true` ne fait qu'empiler des jobs, drainés par le worker de
+   l'ANCIENNE release** (`queue:restart` est à l'étape 10, après la bascule du lien) : l'index
+   recevait les nouveaux réglages et des documents à l'ancienne forme, et l'import disait vert.
+   → `SCOUT_QUEUE=false php artisan scout:import`, synchrone dans le code de la release.
+2. **« parking garage » dans les faits = les alias des types `parking` et `garage`** : mesuré sur
+   795 documents locaux, `q=garage` rendait 652 biens de 16 types (67 sans le fait). → `stationnement`.
+3. **R+n était décalé d'un** : `total_floors` est le nombre de NIVEAUX (min 1 à la validation et
+   dans le formulaire), donc une villa de plain-pied s'indexait « R+1 » et une vraie R+1 « R+2 » ;
+   le `= 0` de « villa basse » n'était atteignable que par la factory. → `R+{n−1}`, plain-pied à
+   n = 1, `NIVEAUX_MAX` inchangé (R+10 = 11 niveaux), AC4 et corpus de test réécrits.
+4. **« villa basse » sur une maison lui donnait l'alias « villa »** (`POST` accepte
+   `total_floors = 0`). → jeton par type : `maison basse plain-pied` / `villa basse plain-pied`.
+5. **Le repli (TCK-335) découpait « R+7 » en « R » et « 7 »**, deux sondes qui touchent presque
+   tout (« rdc », « 150 m2 ») : `terms_unmatched` restait vide au lieu de nommer R+7, et `q=R+1`
+   seul passait pour deux termes. → `usefulTerms()` reconnaît les entrées du `dictionary` (lues,
+   jamais recopiées) avant de découper ; test moteur ajouté, rouge par ablation.
+6. **Le premier étage s'écrivait « 1e etage »** : « 1er » (3 lettres, aucune faute tolérée) n'en
+   est pas un préfixe — `q=1er etage` rendait 0, mesuré. → `1er etage premier etage 1eme etage`.
+7. **Un étage négatif s'écrivait « -1e etage »**, que le moteur découpe en « 1e etage » : un
+   sous-sol répondait au premier. → `sous-sol`.
+8. **« neuf » était figé à l'indexation** et rien ne le périmait (aucune réindexation planifiée,
+   `increment()` invisible pour l'observateur Scout, `deploy.sh` n'importe que sur un diff de
+   forme). → job quotidien `RefreshNewBuildSearchLabel`, testé (périmètre + planification).
+9. **« Studio moderne à {neighborhood} » restait dans les gabarits d'APPARTEMENT** : quatre sur
+   cinq portaient 2 chambres ou plus, et `q=studio` rendait des F4 sur le jeu de démonstration.
+   → gabarit retiré.
+10. **`lang/fr/properties.php` façonne `derived_title` sans déclencher de réimport**, et les
+    consignes de la feuille wolof affirmaient qu'aucun diff de `lang/` n'en déclenche. → fichier
+    ajouté à la boucle de `deploy.sh`, consignes reprises.
+
+Suite entière rejouée sur l'arbre corrigé, machine sous charge (8 cœurs, `load average`
+14,06 · 12,67 · 29,73 au départ, 3,95 · 15,20 · 22,38 à l'arrivée) :
+
+```
+php artisan test          # 2026-09-02 23:12 → 23:33
+Tests: 2 skipped, 3114 passed (10329 assertions) — Duration: 1264 s
+```
+
+0 rouge ; 1264 s mesure la charge, pas le dépôt (fourchette au repos : 470-610 s).
+
+Écartés par la revue, sans correctif, tous mineurs : `range(0, 10)` recopié dans le `dictionary`
+au lieu de `NIVEAUX_MAX` ; la règle des chambres écrite trois fois (factory 1..5 pour un studio
+contre 1 dans les seeders) et `comptePieces()` sans appelant ; `q=local` seul qui atteint les 70
+commerces ; un Meilisearch < 1.2 sur le serveur qui refuserait le `dictionary` (non mesuré, peu
+probable) ; la boucle `Support/Search` inatteignable sur ce déploiement-ci parce que le diff de
+`config/scout.php` importe déjà les sept modèles.
 

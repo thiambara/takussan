@@ -58,8 +58,10 @@ class SenegalFakerProvider extends Base
      */
     protected static $propertyTitleTemplates = [
         PropertyType::Apartment->value => [
+            // ⚠ Pas de « Studio … » ici : un appartement tire 1 à 5 chambres
+            // et `title` est le premier attribut cherchable, donc `q=studio`
+            // rendait des F4 (revue de PR 253). Le type studio a ses gabarits.
             'Appartement F{rooms} à {neighborhood}',
-            'Studio moderne à {neighborhood}',
             'Bel appartement {bedrooms} chambres - {neighborhood}',
             'Résidence F{rooms} avec ascenseur - {neighborhood}',
             'Appartement lumineux F{rooms} à {neighborhood}',

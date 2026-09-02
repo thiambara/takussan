@@ -235,7 +235,7 @@ class PropertySearchableArrayTest extends TestCase
         $this->assertStringContainsString('rez-de-chaussee rdc', $arr['facts_label']);
         $this->assertStringContainsString('sdb', $arr['facts_label']);
         $this->assertStringContainsString('95 m2', $arr['facts_label']);
-        $this->assertStringContainsString('parking garage', $arr['facts_label']);
+        $this->assertStringContainsString('stationnement', $arr['facts_label']);
     }
 
     /**
@@ -254,7 +254,7 @@ class PropertySearchableArrayTest extends TestCase
             $this->assertContains("r+{$n}", $dictionnaire);
         }
 
-        $villa = Property::factory()->make(['type' => PropertyType::Villa, 'bedrooms' => 4, 'total_floors' => 1, 'user_id' => 1]);
+        $villa = Property::factory()->make(['type' => PropertyType::Villa, 'bedrooms' => 4, 'total_floors' => 2, 'user_id' => 1]);
         $arr = $villa->toSearchableArray();
         $this->assertStringContainsString('R+1', $arr['facts_label']);
         $this->assertStringContainsString('R+1', $arr['derived_title']);
