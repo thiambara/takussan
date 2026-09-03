@@ -3080,11 +3080,7 @@
         "neighborhoods": "Neighborhoods",
         "property_types": "Types"
       },
-      "empty": "No results for « {query} »",
-      "fallback": {
-        "all_cities": "See all cities",
-        "all_types": "All types"
-      },
+      "searchAll": "Search “{query}” in the listings",
       "loading": "Loading…"
     },
     "saved": {

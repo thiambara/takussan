@@ -100,6 +100,19 @@ export function SearchAutocomplete({
   const showEmpty = query.length >= 1 && !isLoading && !isFetching && !hasResults && open;
   const showLoading = (isLoading || isFetching) && query.length >= 1 && open;
 
+  /**
+   * La recherche plein-texte sur la saisie telle quelle — ce que fait Entrée sans suggestion
+   * active, et ce que propose la ligne d'action du panneau quand aucun TERME ne correspond
+   * (TCK-507). Une seule construction d'URL pour les deux gestes.
+   */
+  const rechercherTexteLibre = useCallback(() => {
+    setOpen(false);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set(parametreDe('q'), query);
+    params.delete(parametreDe('page'));
+    router.push(hrefLocalise(`/properties?${params.toString()}`, locale));
+  }, [router, searchParams, locale, query]);
+
   const selectItem = useCallback(
     (item: SuggestItem) => {
       setOpen(false);
@@ -128,18 +141,14 @@ export function SearchAutocomplete({
         } else {
           // Entrée SANS suggestion active = texte libre, donc `q` — la même clé que le bouton
           // loupe et que la puce de catégorie. Les trois gestes construisent la même URL.
-          setOpen(false);
-          const params = new URLSearchParams(searchParams.toString());
-          params.set(parametreDe('q'), query);
-          params.delete(parametreDe('page'));
-          router.push(hrefLocalise(`/properties?${params.toString()}`, locale));
+          rechercherTexteLibre();
         }
       } else if (e.key === 'Escape') {
         setOpen(false);
         setActiveIndex(-1);
       }
     },
-    [open, query, flatItems, activeIndex, selectItem, router, searchParams, locale],
+    [open, query, flatItems, activeIndex, selectItem, rechercherTexteLibre],
   );
 
   useEffect(() => {
@@ -213,27 +222,22 @@ export function SearchAutocomplete({
             </div>
           )}
 
+          {/*
+            TCK-507 — aucun TERME ne correspond. Ce panneau suggère des villes, des quartiers et
+            des types ; il n'a pas interrogé les annonces, et n'a donc rien à dire de leur nombre.
+            Il disait pourtant « Aucun résultat pour « apprtement » » au-dessus de 34 biens.
+            Une seule ligne d'action, qui fait ce que fait déjà Entrée.
+          */}
           {showEmpty && (
-            <div className="px-4 py-5 text-center">
-              <p className="text-sm text-muted-foreground">
-                {t('empty', { query })}
-              </p>
-              <div className="mt-3 flex justify-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => router.push(hrefLocalise('/properties', locale))}
-                  className="text-xs text-primary font-semibold hover:underline underline-offset-2"
-                >
-                  {t('fallback.all_cities')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => router.push(hrefLocalise('/properties?type=apartment', locale))}
-                  className="text-xs text-primary font-semibold hover:underline underline-offset-2"
-                >
-                  {t('fallback.all_types')}
-                </button>
-              </div>
+            <div className="px-2 py-2">
+              <button
+                type="button"
+                onClick={rechercherTexteLibre}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                <Search className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="min-w-0 truncate">{t('searchAll', { query })}</span>
+              </button>
             </div>
           )}
 

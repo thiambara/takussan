@@ -120,7 +120,12 @@ describe('SearchAutocomplete', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
   });
 
-  it('empty state shows fallback links', async () => {
+  /**
+   * TCK-507 — aucun TERME ne correspond : le panneau ne dit jamais « Aucun résultat » (il n'a
+   * pas cherché dans les annonces) ; il propose la recherche plein-texte, qui construit la même
+   * URL que Entrée sans suggestion active.
+   */
+  it('sans terme correspondant : pas de « Aucun résultat », une ligne d’action qui pousse `?q=`', async () => {
     const { useSuggest } = await import('@/hooks/useSuggest');
     (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({
       data: { data: { cities: [], neighborhoods: [], property_types: [] } },
@@ -131,10 +136,15 @@ describe('SearchAutocomplete', () => {
     render(withProviders(<SearchAutocomplete />));
 
     const input = screen.getByRole('searchbox');
-    await userEvent.type(input, 'xyz');
+    await userEvent.type(input, 'apprtement');
 
-    await waitFor(() => expect(screen.getByText(/Aucun résultat/)).toBeInTheDocument());
-    expect(screen.getByText('Voir toutes les villes')).toBeInTheDocument();
-    expect(screen.getByText('Tous les types')).toBeInTheDocument();
+    const action = await screen.findByRole('button', { name: 'Rechercher « apprtement » dans les annonces' });
+    expect(screen.queryByText(/Aucun résultat/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Tous les types')).not.toBeInTheDocument();
+
+    await userEvent.click(action);
+
+    expect(mockPush).toHaveBeenCalledTimes(1);
+    expect(mockPush).toHaveBeenCalledWith('/fr/properties?q=apprtement');
   });
 });

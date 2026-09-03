@@ -1784,11 +1784,7 @@
         "neighborhoods": "Quartier yi",
         "property_types": "Wàll yi"
       },
-      "empty": "Amul dara ci « {query} »",
-      "fallback": {
-        "all_cities": "Xool dëkk yépp",
-        "all_types": "Wàll yépp"
-      },
+      "searchAll": "Seet « {query} » ci yégle yi",
       "loading": "Yëgël…"
     },
     "saved": {

@@ -6,12 +6,12 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**454 tickets** — 21 ouverts, 432 livrés.
+**455 tickets** — 22 ouverts, 432 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 20 |
-| 🚧 Doing | 1 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 432 |
@@ -57,6 +57,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-507](tickets/TCK-507-suggestions-sans-faux-aucun-resultat-et-types-tolerants.md) — Suggestions de la barre de recherche — un panneau qui ne promet que ce qu'il sait, et des types de bien tolérants à la faute `S · P2 · full`
 
 ## 👀 Review
 

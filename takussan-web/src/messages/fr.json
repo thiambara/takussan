@@ -3080,11 +3080,7 @@
         "neighborhoods": "Quartiers",
         "property_types": "Types"
       },
-      "empty": "Aucun résultat pour « {query} »",
-      "fallback": {
-        "all_cities": "Voir toutes les villes",
-        "all_types": "Tous les types"
-      },
+      "searchAll": "Rechercher « {query} » dans les annonces",
       "loading": "Chargement…"
     },
     "saved": {

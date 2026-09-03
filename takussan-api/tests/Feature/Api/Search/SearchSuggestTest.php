@@ -151,6 +151,35 @@ class SearchSuggestTest extends TestCase
         $this->assertEquals('Apartment', $foundEn['label']);
     }
 
+    /** TCK-507 (AC1, AC2) — une faute sur un type rend le libellé de la locale ; sous 5 caractères, rien. */
+    public function test_a_typo_on_a_property_type_yields_the_localised_label(): void
+    {
+        $property = Property::factory()->published()->create(['type' => PropertyType::Apartment]);
+        Address::factory()->create([
+            'addressable_type' => Property::class,
+            'addressable_id' => $property->id,
+            'city' => 'Dakar',
+        ]);
+
+        $this->indexProperties();
+
+        Cache::forget('search:suggest:types:fr');
+        $types = $this->withHeader('Accept-Language', 'fr')
+            ->getJson($this->url.'?q=apprtement')
+            ->assertOk()
+            ->json('data.property_types');
+        $found = collect($types)->firstWhere('value', 'apartment');
+        $this->assertNotNull($found, 'FR : « apprtement » doit atteindre le type appartement malgré la faute');
+        $this->assertSame('Appartement', $found['label']);
+        $this->assertSame(1, $found['count']);
+
+        $this->assertSame(
+            [],
+            $this->withHeader('Accept-Language', 'fr')->getJson($this->url.'?q=aprt')->assertOk()->json('data.property_types'),
+            'Sous 5 caractères, aucune tolérance',
+        );
+    }
+
     public function test_empty_query_returns_empty_groups(): void
     {
         $response = $this->getJson($this->url.'?q=');
