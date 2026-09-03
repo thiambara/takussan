@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**455 tickets** — 22 ouverts, 432 livrés.
+**455 tickets** — 21 ouverts, 433 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 20 |
-| 🚧 Doing | 2 |
+| 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 432 |
+| ✅ Done | 433 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -57,7 +57,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-507](tickets/TCK-507-suggestions-sans-faux-aucun-resultat-et-types-tolerants.md) — Suggestions de la barre de recherche — un panneau qui ne promet que ce qu'il sait, et des types de bien tolérants à la faute `S · P2 · full`
 
 ## 👀 Review
 
@@ -69,7 +68,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 432
+## ✅ Done — 433
+
+<details>
+<summary><strong>Vague 61 — Suggestions de la barre de recherche : un panneau qui ne promet que ce qu'il sait, et des types tolérants à la faute (2026-09-03)</strong> — 1 ticket</summary>
+
+- [TCK-507](tickets/TCK-507-suggestions-sans-faux-aucun-resultat-et-types-tolerants.md) — Suggestions de la barre de recherche — un panneau qui ne promet que ce qu'il sait, et des types de bien tolérants à la faute `S · P2 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 60 — Recherche publique : le vocabulaire immobilier dérivé des colonnes (F4, chambre salon, R+1, TF, m²) entre dans l'index (2026-09-02)</strong> — 1 ticket</summary>

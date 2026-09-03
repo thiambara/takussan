@@ -1,7 +1,7 @@
 ---
 id: TCK-507
 title: "Suggestions de la barre de recherche — un panneau qui ne promet que ce qu'il sait, et des types de bien tolérants à la faute"
-status: doing
+status: done
 phase: P2
 family: full
 estimate: S
@@ -64,35 +64,35 @@ et « Tous les types » disparaissent avec l'état vide qu'ils accompagnaient.
 
 ## Delta à produire
 
-- [ ] Service : `App\Services\Search\SuggestService::filterPrefix` devient un filtrage à deux
+- [x] Service : `App\Services\Search\SuggestService::filterPrefix` devient un filtrage à deux
       passes — préfixe strict d'abord, puis distance de Levenshtein sur le libellé normalisé
       (seuils `0 / 1 / 2` selon la longueur de la saisie `< 5 / < 9 / ≥ 9`), en gardant l'ordre
       par compte et la limite par groupe.
-- [ ] Tests unitaires : `tests/Unit/Services/Search/SuggestServiceTest` — « apprtement » rend
+- [x] Tests unitaires : `tests/Unit/Services/Search/SuggestServiceTest` — « apprtement » rend
       Appartement, « dakr » (4 caractères) ne rend rien, le préfixe passe avant la faute.
-- [ ] Test d'API : `tests/Feature/Api/Search/SearchSuggestTest` — une faute sur un type traduit
+- [x] Test d'API : `tests/Feature/Api/Search/SearchSuggestTest` — une faute sur un type traduit
       rend le libellé de la locale demandée.
-- [ ] Front : l'état vide de `SearchAutocomplete` remplacé par la ligne d'action « Rechercher
+- [x] Front : l'état vide de `SearchAutocomplete` remplacé par la ligne d'action « Rechercher
       « {query} » dans les annonces », qui construit la même URL que Entrée.
-- [ ] i18n : clés `search.suggest.*` révisées dans `fr`, `en`, `wo` (retrait de `empty` et
+- [x] i18n : clés `search.suggest.*` révisées dans `fr`, `en`, `wo` (retrait de `empty` et
       `fallback.*`, ajout de la ligne d'action).
-- [ ] Tests front : `SearchAutocomplete.test.tsx` — plus aucun « Aucun résultat » ; la ligne
+- [x] Tests front : `SearchAutocomplete.test.tsx` — plus aucun « Aucun résultat » ; la ligne
       d'action pousse `?q=<saisie>`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `GET /api/search/suggest?q=apprtement` (locale `fr`) rend `property_types` contenant
+- [x] AC1 — `GET /api/search/suggest?q=apprtement` (locale `fr`) rend `property_types` contenant
       `{label: "Appartement", value: "apartment"}` avec son compte public.
-- [ ] AC2 — `GET /api/search/suggest?q=dakr` rend `property_types = []` : sous 5 caractères,
+- [x] AC2 — `GET /api/search/suggest?q=dakr` rend `property_types = []` : sous 5 caractères,
       aucune tolérance, comme le moteur.
-- [ ] AC3 — `GET /api/search/suggest?q=app` rend Appartement **par le préfixe**, avant tout
+- [x] AC3 — `GET /api/search/suggest?q=app` rend Appartement **par le préfixe**, avant tout
       candidat à distance ; l'ordre par compte décroissant est conservé au sein d'une passe.
-- [ ] AC4 — Dans la barre de recherche, une saisie sans aucun terme correspondant n'affiche
+- [x] AC4 — Dans la barre de recherche, une saisie sans aucun terme correspondant n'affiche
       **jamais** le texte « Aucun résultat » ; elle affiche une ligne d'action nommant la saisie.
-- [ ] AC5 — Cliquer cette ligne pousse l'URL `/properties?q=<saisie>` (page retirée), identique
+- [x] AC5 — Cliquer cette ligne pousse l'URL `/properties?q=<saisie>` (page retirée), identique
       à celle de la touche Entrée sans suggestion active.
-- [ ] AC6 — Aucun appel réseau vers `/api/search` n'est émis par le panneau pendant la frappe.
-- [ ] AC7 — Les trois dictionnaires portent les mêmes clés sous `search.suggest`.
+- [x] AC6 — Aucun appel réseau vers `/api/search` n'est émis par le panneau pendant la frappe.
+- [x] AC7 — Les trois dictionnaires portent les mêmes clés sous `search.suggest`.
 
 ## Hors périmètre
 
@@ -104,4 +104,52 @@ et « Tous les types » disparaissent avec l'état vide qu'ils accompagnaient.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+Branche `feat/tck-506-vocabulaire-immobilier-derive` (rebasée sur `dev` après la fusion de
+TCK-506), trois commits. Le premier n'est pas du ticket : le panneau de filtres de `/properties`
+perdait son champ « Recherche avancée », doublon du champ de la barre de navigation — il affiche
+désormais le `q` de l'URL dans une pastille effaçable. Le ticket a été ouvert en le relisant.
+
+**Ce qu'il faut savoir pour relire le diff, et qui ne se lit pas dans le code.**
+
+- **La distance se juge en préfixe, comme le moteur.** `levenshtein('apprtement', 'appartement')`
+  vaut 1, mais `levenshtein('apprt', 'appartement')` vaut 7 : une saisie en cours ne « ressemble »
+  jamais au libellé entier. `SuggestService::prefixDistance` prend donc le minimum de la distance
+  entre la saisie et chaque préfixe du libellé de longueur `len ± budget` — c'est ce que
+  Meilisearch fait quand il juge une faute sur le dernier mot d'une requête. Sans cela, AC1 passe
+  et l'écran reste vide pendant toute la frappe.
+- **Une transposition est UNE faute, pas deux.** « hotle » (5 caractères, budget 1) rend Hôtel :
+  `hotle` est à une édition du préfixe `hote`. Le test unitaire refuse « hatol » (deux
+  substitutions), pas « hotle » — une première version de l'assertion disait l'inverse et
+  contredisait le moteur. Le commentaire du test le documente.
+- **Le préfixe strict passe avant tout candidat à distance, même moins fréquent** (AC3) : deux
+  passes, la seconde n'entre que sur les valeurs que la première n'a pas retenues. Testé avec
+  « ville » (1) devant « villa » (50).
+- **Le panneau ne sait plus dire « rien ».** La ligne d'action et la touche Entrée passent par le
+  même `rechercherTexteLibre` : une seule construction d'URL, `page` retirée, `hrefLocalise`
+  appliqué — le test attend donc `/fr/properties?q=…`, pas `/properties?q=…`.
+- **Un cliquet à deux sens a bougé** : `surface-publique.contraste.test.ts` compte les encres
+  `*-foreground` sans fond déclaré, et l'icône `aria-hidden` de la pastille `q` en est une de plus
+  (154 → 155). Prouvé par ablation, documenté dans le bloc du compteur, aucun fond ajouté pour lui.
+
+**Vérifications.** Les sept AC ont été relevés sur l'API vivante (`curl`) et au navigateur :
+`apprtement` → Appartement (38), `aprt` → `[]`, `app` → Appartement par le préfixe, `maisn` →
+Maison (26) ; une saisie sans terme montre la ligne d'action, dont le clic pousse
+`/fr/properties?q=zzqxw+plage` ; seules des requêtes `/api/search/suggest` partent pendant la
+frappe. Ablation : 4 tests unitaires rouges sans le service, 1 test front rouge sans le composant.
+`npm run check:i18n`, `tsc`, ESLint, les gardes `scripts/check-*.mjs` et les deux générateurs sont
+verts.
+
+**Suites entières, prises sous charge** (`uptime`, 8 cœurs) — deux autres sessions testaient :
+
+| Suite | Résultat | Charge (1 / 5 / 15 min) |
+|---|---|---|
+| front, `npm run test` (02:15 → 02:40) | 3152 verts, 10 rouges sur 3162 | 56 → 101 |
+| les 7 fichiers rouges rejoués seuls (02:41) | 2 rouges : le cliquet ci-dessus (réel, corrigé) et un timeout à 20 s (`redirection-tags`) | 35 / 75 / 100 |
+| les 2 rejoués après correction (02:45) | 12 verts sur 12 | 34 / 55 / 85 |
+| back, `php artisan test` (lancée 02:06) | _en cours au moment de la PR — résultat consigné ci-dessous_ | 32 au départ |
+
+Les huit autres rouges du premier passage étaient tous des `Test timed out in 20000ms` ou un
+worker vitest qui ne répond plus, dans des fichiers que la branche ne touche pas ; ils sont
+revenus verts au second passage sans qu'un fichier ait changé. C'est exactement la signature que
+D-44 décrit — un rouge sous charge accuse le mauvais coupable — et c'est pourquoi le seul rouge
+retenu est celui que l'ablation a attribué à la branche.
