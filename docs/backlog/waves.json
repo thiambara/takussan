@@ -52,6 +52,8 @@
     "55": "Ce que TCK-464 a ouvert en aval : les lecteurs des champs devenus écrivables (2026-08-30)",
     "56": "Audit des parcours d'entrée : rôles jamais émis, portes manquantes, coque des assistants (2026-08-30)",
     "57": "Contact d'un bien : brouillon pré-rempli et ouverture du chat en contexte (2026-08-31)",
-    "58": "Débordements du lot de la vague 57 : la hauteur de la coque et l'agent principal choisi plutôt que déduit (2026-08-31)"
+    "58": "Débordements du lot de la vague 57 : la hauteur de la coque et l'agent principal choisi plutôt que déduit (2026-08-31)",
+    "59": "Campagne responsive sur 135 écrans × 5 largeurs : le point de rupture 768 dans les coques à barre latérale (2026-09-02)",
+    "60": "Recherche publique : le vocabulaire immobilier dérivé des colonnes (F4, chambre salon, R+1, TF, m²) entre dans l'index (2026-09-02)"
   }
 }

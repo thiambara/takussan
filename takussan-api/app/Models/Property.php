@@ -11,6 +11,7 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -140,18 +141,27 @@ class Property extends AbstractModel implements HasMedia
      * @var array<string,string>
      */
     public const TYPE_SEARCH_ALIASES = [
-        'land' => 'terrain',
+        // TCK-506 — alias enrichis APRÈS mesure de collision de corpus (la
+        // règle de TCK-339), relevé dans docs/plans/2026-09-02-tck-506-…md :
+        // `appart` 61/61 apartment, `parcelle` 25/49 land (majorité), `lot`,
+        // `depot`, `colocation`, `auberge`, `lodge`, `campement`, `verger`
+        // 0 hit (aucun jeton pris), `hangar` 18/18 warehouse, `local commercial`
+        // 13/13 shop. ÉCARTÉS : `plateau de bureaux` — « plateau » seul rend
+        // 24 biens de 10 types, c'est le QUARTIER, l'alias enverrait tout
+        // chercheur du Plateau sur les 90 bureaux — et `champ`, 73 hits dont
+        // farm 0 (room 38, house 14, villa 14).
+        'land' => 'terrain parcelle lot',
         'house' => 'maison',
-        'apartment' => 'appartement',
+        'apartment' => 'appartement appart',
         'villa' => 'villa',
         'studio' => 'studio',
-        'room' => 'chambre',
+        'room' => 'chambre colocation',
         'office' => 'bureau',
-        'shop' => 'boutique magasin commerce',
-        'warehouse' => 'entrepot',
+        'shop' => 'boutique magasin commerce local commercial',
+        'warehouse' => 'entrepot depot hangar',
         'factory' => 'usine',
-        'farm' => 'ferme',
-        'hotel' => 'hotel',
+        'farm' => 'ferme verger',
+        'hotel' => 'hotel auberge lodge campement',
         'resort' => 'resort',
         'garage' => 'garage',
         'parking' => 'parking',
@@ -354,6 +364,14 @@ class Property extends AbstractModel implements HasMedia
             // classement, et elle est mesurée : ils y sont EN DERNIER.
             'contract_label' => static::joinSearchAliases(static::CONTRACT_SEARCH_ALIASES, static::CONTRACT_SEARCH_ALIASES_WO, $this->contract_type?->value),
             'furnished_label' => $this->furnished ? self::FURNISHED_SEARCH_LABEL : '',
+            // TCK-506 — trois champs DÉRIVÉS des colonnes, index seulement :
+            // « F4 » atteint tout bien à 3 chambres que personne ne l'ait écrit,
+            // « R+1 », « rdc », « TF », « 300 m2 » de même. Calculés par
+            // App\Support\Search\PropertyLabels — ⚠ un diff de CE fichier-là
+            // doit réimporter Property, `scripts/deploy.sh` le sait.
+            'derived_title' => PropertyLabels::title($this, $address),
+            'rooms_label' => PropertyLabels::rooms($this),
+            'facts_label' => PropertyLabels::facts($this),
             'type' => $this->type?->value,
             'contract_type' => $this->contract_type?->value,
             'rent_period' => $this->rent_period?->value,

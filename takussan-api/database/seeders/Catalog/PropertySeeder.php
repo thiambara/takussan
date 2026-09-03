@@ -10,6 +10,7 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
+use App\Support\Search\PropertyLabels;
 use Database\Seeders\Support\SeedingContext;
 use Database\Seeders\Support\StatusDistribution;
 use Database\Seeders\Support\Timeline;
@@ -89,14 +90,20 @@ class PropertySeeder extends Seeder
                     PropertyType::Room,
                     PropertyType::Garage,
                 ]);
-                // Studios have exactly 1 bedroom by definition
-                $bedrooms = $type === PropertyType::Studio
-                    ? 1
-                    : $this->ctx->faker()->numberBetween(1, 5);
+                // Studios have exactly 1 bedroom by definition.
+                // TCK-506 — et un terrain, un entrepôt, un bureau n'en ont AUCUNE :
+                // le seed en posait (moyenne 3,2 sur `land`), et `q=F4` aurait
+                // rendu des parcelles sans la garde par type de `PropertyLabels`.
+                $habitable = PropertyLabels::famille($type) === PropertyLabels::FAMILLE_HABITATION;
+                $bedrooms = match (true) {
+                    $type === PropertyType::Studio, $type === PropertyType::Room => 1,
+                    $habitable => $this->ctx->faker()->numberBetween(1, 5),
+                    default => null,
+                };
 
                 // Titre et description réalistes pour le Sénégal
                 $titleLocation = $neighborhood ?? $city;
-                $title = $this->ctx->faker()->senegalesePropertyTitle($type, $bedrooms, $titleLocation);
+                $title = $this->ctx->faker()->senegalesePropertyTitle($type, $bedrooms ?? 0, $titleLocation);
                 $description = $this->ctx->faker()->senegalesePropertyDescription($titleLocation);
 
                 // Calculer une surface réaliste basée sur le nombre de chambres
@@ -128,9 +135,9 @@ class PropertySeeder extends Seeder
                         'currency' => 'XOF',
                         'area' => $area,
                         'bedrooms' => $bedrooms,
-                        'bathrooms' => min($bedrooms, $this->ctx->faker()->numberBetween(1, 3)),
+                        'bathrooms' => $bedrooms === null ? null : min($bedrooms, $this->ctx->faker()->numberBetween(1, 3)),
                         'furnished' => $this->ctx->faker()->boolean(35),
-                        'floor_number' => $this->ctx->faker()->optional()->numberBetween(0, 8),
+                        'floor_number' => PropertyLabels::aUnEtage($type) ? $this->ctx->faker()->optional()->numberBetween(0, 8) : null,
                         'total_floors' => $this->ctx->faker()->optional()->numberBetween(1, 10),
                         'year_built' => $this->ctx->faker()->numberBetween(1990, 2024),
                         'parking_spaces' => $this->ctx->faker()->numberBetween(0, 3),

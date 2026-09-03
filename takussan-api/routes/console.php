@@ -10,6 +10,7 @@ use App\Jobs\Lease\ConfirmEarlyTerminationsJob;
 use App\Jobs\Notifications\SendNotificationDigestJob;
 use App\Jobs\Permissions\ProcessRoleDelegationsJob;
 use App\Jobs\Privacy\PurgeExpiredDataExports;
+use App\Jobs\RefreshNewBuildSearchLabel;
 use App\Jobs\SendLeasePaymentReminders;
 use App\Jobs\SendPropertyVisitReminders;
 use App\Jobs\SendSavedSearchAlerts;
@@ -46,6 +47,9 @@ Schedule::job(new SendPropertyVisitReminders)->everyFiveMinutes()->withoutOverla
 // their digest_send_at and dispatches per-user BuildUserDigestJob sub-jobs.
 Schedule::job(new SendNotificationDigestJob)->hourly()->withoutOverlapping();
 Schedule::command('media:cleanup')->dailyAt('03:00');
+// TCK-506 (revue de PR 253) — « neuf » est figé à l'indexation : sans ceci, un
+// bien de 2025 indexé en 2026 répond encore à `q=neuf` en 2028.
+Schedule::job(new RefreshNewBuildSearchLabel)->dailyAt('04:00')->withoutOverlapping();
 Schedule::command('dashboard:check-alerts')->hourly()->withoutOverlapping(); // TCK-032 P3
 // TCK-083 — Hourly reminder for tasks whose `due_at` falls in the
 // 23–25 h window. Idempotence is guaranteed by the marker stored in

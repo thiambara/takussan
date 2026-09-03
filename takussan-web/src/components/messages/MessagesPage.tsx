@@ -13,12 +13,17 @@ import { PropertyDraftChatView } from './PropertyDraftChatView';
 import { NewGroupDialog } from './NewGroupDialog';
 
 /**
- * Point de rupture `md` de Tailwind (TCK-501). La même valeur gouverne la classe CSS
- * (`md:grid-cols-[320px_1fr]`) et le gate JS ci-dessous : les deux couches doivent basculer
- * au même pixel, sinon il existe une largeur où le CSS montre deux colonnes et le JS n'en
- * remplit qu'une.
+ * Point de rupture `lg` de Tailwind (TCK-501, déplacé de `md` à `lg` par TCK-505 #4). La même
+ * valeur gouverne la classe CSS (`lg:grid-cols-[320px_1fr]`) et le gate JS ci-dessous : les
+ * deux couches doivent basculer au même pixel, sinon il existe une largeur où le CSS montre
+ * deux colonnes et le JS n'en remplit qu'une.
+ *
+ * ⚠️ Pourquoi `lg` et non `md` : entre 768 et 1023 px la coque `/app` montre déjà sa barre
+ * latérale de 256 px. Une grille `320px 1fr` dans les ≈ 464 px restants laissait ≈ 150 px au
+ * fil et au composeur — des bulles d'un mot par ligne, mesurées le 2026-09-02 sur tablette en
+ * portrait. `md` n'est pas « bureau » dans `/app`.
  */
-const MD_BREAKPOINT_PX = 768;
+const LG_BREAKPOINT_PX = 1024;
 
 /**
  * Two-pane messaging layout: conversation list on the left, active chat on
@@ -34,7 +39,7 @@ const MD_BREAKPOINT_PX = 768;
  * ICI, dans la locale de la page. Un `?draft=<texte>` aurait été plus simple à écrire et aurait
  * laissé n'importe qui forger un lien qui pré-remplit une phrase dans le composeur d'un tiers.
  *
- * TCK-501 — **sous `md`, la page montre UNE chose à la fois** : la liste, ou la conversation
+ * TCK-501 — **sous le point de rupture, la page montre UNE chose à la fois** : la liste, ou la conversation
  * avec un retour vers la liste. Les deux panneaux tenaient jusque-là dans une grille
  * `320px 1fr` sans variante mobile : à 390 px de large il restait 70 px pour le fil et le
  * composeur, qui se coupaient en une colonne d'un mot par ligne.
@@ -79,11 +84,11 @@ export function MessagesPage() {
   // Un choix explicite dans la liste l'emporte toujours sur ce que l'URL avait amené.
   const conversationAffichee = choix !== undefined ? choix : (bien?.conversation_id ?? null);
 
-  const compact = useMatchesMaxWidth(MD_BREAKPOINT_PX - 1);
+  const compact = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
   const panneauOuvert = brouillon !== null || conversationAffichee !== null;
   const afficheListe = !compact || !panneauOuvert;
   const affichePanneau = !compact || panneauOuvert;
-  /** Le retour n'existe que là où il a un sens : au-dessus de `md`, la liste n'a jamais disparu. */
+  /** Le retour n'existe que là où il a un sens : au-dessus de `lg`, la liste n'a jamais disparu. */
   const retourALaListe = compact ? () => setChoix(null) : undefined;
 
   function choisir(id: number): void {
@@ -101,10 +106,10 @@ export function MessagesPage() {
       */}
       <div
         data-testid="messagerie-grille"
-        className="grid h-[calc(100dvh-12rem)] min-h-[24rem] grid-cols-1 overflow-hidden rounded-xl border border-border bg-card md:grid-cols-[320px_1fr]"
+        className="grid h-[calc(100dvh-12rem)] min-h-[24rem] grid-cols-1 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[320px_1fr]"
       >
         {afficheListe && (
-          <aside className="flex min-w-0 flex-col md:border-r md:border-border">
+          <aside className="flex min-w-0 flex-col lg:border-r lg:border-border">
             <div className="flex items-center justify-between border-b border-border p-2">
               <h2 className="text-sm font-semibold text-muted-foreground">{t('listHeading')}</h2>
               <Button

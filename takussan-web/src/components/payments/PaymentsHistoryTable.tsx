@@ -78,15 +78,15 @@ export function PaymentsHistoryTable() {
 
         return (
           <div className="space-y-4">
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="overflow-x-auto rounded-xl border border-border bg-card">
             <table className="w-full text-left text-sm">
               <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">{tTable('reference')}</th>
                   <th className="px-3 py-2">{tTable('source')}</th>
-                  <th className="px-3 py-2">{tTable('date')}</th>
-                  <th className="px-3 py-2">{tTable('amount')}</th>
-                  <th className="px-3 py-2">{tTable('status')}</th>
+                  <th className="px-3 py-2 whitespace-nowrap">{tTable('date')}</th>
+                  <th className="px-3 py-2 whitespace-nowrap">{tTable('amount')}</th>
+                  <th className="px-3 py-2 whitespace-nowrap">{tTable('status')}</th>
                   <th className="px-3 py-2">{tTable('method')}</th>
                   <th className="px-3 py-2">{tTable('entity')}</th>
                 </tr>
@@ -111,10 +111,10 @@ export function PaymentsHistoryTable() {
                         {row.reference_number ?? `#${row.id}`}
                       </td>
                       <td className="px-3 py-2 text-xs">{tTable(`sources.${row.source}`)}</td>
-                      <td className="px-3 py-2 text-xs">
+                      <td className="px-3 py-2 text-xs whitespace-nowrap">
                         {row.date ? formatDate(row.date, locale) : '—'}
                       </td>
-                      <td className="px-3 py-2 font-semibold">
+                      <td className="px-3 py-2 font-semibold whitespace-nowrap">
                         {formatCurrency(row.amount, locale, {
                           currency: row.currency || 'XOF',
                         })}
@@ -128,7 +128,7 @@ export function PaymentsHistoryTable() {
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <Badge variant={PAYMENT_STATUS_VARIANT[status] ?? 'outline'}>
                           {tStatus(status)}
                         </Badge>

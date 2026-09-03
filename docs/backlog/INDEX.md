@@ -6,7 +6,7 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**452 tickets** — 21 ouverts, 430 livrés.
+**454 tickets** — 21 ouverts, 432 livrés.
 
 | Statut | Nombre |
 |---|---:|
@@ -14,7 +14,7 @@
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 430 |
+| ✅ Done | 432 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -68,7 +68,21 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 430
+## ✅ Done — 432
+
+<details>
+<summary><strong>Vague 60 — Recherche publique : le vocabulaire immobilier dérivé des colonnes (F4, chambre salon, R+1, TF, m²) entre dans l'index (2026-09-02)</strong> — 1 ticket</summary>
+
+- [TCK-506](tickets/TCK-506-vocabulaire-immobilier-derive-dans-lindex.md) — Recherche publique — le vocabulaire immobilier (F4, chambre salon, R+1, TF, m²) dérivé des colonnes et indexé, index seulement `M · P0 · back`
+
+</details>
+
+<details>
+<summary><strong>Vague 59 — Campagne responsive sur 135 écrans × 5 largeurs : le point de rupture 768 dans les coques à barre latérale (2026-09-02)</strong> — 1 ticket</summary>
+
+- [TCK-505](tickets/TCK-505-responsive-onze-defauts-mesures-sur-135-ecrans.md) — Responsive — douze défauts mesurés sur 135 écrans × 5 largeurs, dont un qui fait défiler tout `/app` et `/admin` sur tablette `M · P1 · bug`
+
+</details>
 
 <details>
 <summary><strong>Vague 58 — Débordements du lot de la vague 57 : la hauteur de la coque et l'agent principal choisi plutôt que déduit (2026-08-31)</strong> — 1 ticket</summary>

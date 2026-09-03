@@ -228,3 +228,40 @@ describe('<SearchToolbar> — le tri par distance suit le point', () => {
     expect(await optionsDeTri({ lat: 14.6928 })).not.toContain('Le plus proche');
   });
 });
+
+/**
+ * TCK-505, défaut #8 — à 360-390 px, la rangée du haut (`flex items-center justify-between`)
+ * n'avait pas le droit de passer à la ligne, et le compteur n'avait pas le droit de garder sa
+ * largeur : « 252 biens trouvés » se cassait sur trois lignes dans moins de 80 px et le bouton
+ * « Filtres » était rogné à droite du viewport (mesuré le 2026-09-02).
+ *
+ * Deux classes portent le correctif, et chacune rougit seule par ablation : `shrink-0
+ * whitespace-nowrap` sur le compteur (il garde sa ligne), `flex-wrap` sur la rangée (les
+ * contrôles passent dessous quand la largeur manque).
+ */
+describe('<SearchToolbar> — le compteur tient sur une ligne, les contrôles passent dessous (TCK-505 #8)', () => {
+  it('le compteur ne rétrécit pas et ne se casse pas', () => {
+    monte({ city: 'Dakar' });
+    const compteur = screen.getByText(/biens? trouvés?/);
+    expect(compteur.tagName).toBe('P');
+    expect(compteur.className.split(/\s+/)).toEqual(expect.arrayContaining(['shrink-0', 'whitespace-nowrap']));
+  });
+
+  it('la rangée du haut accepte le retour à la ligne', () => {
+    monte({ city: 'Dakar' });
+    const rangee = screen.getByText(/biens? trouvés?/).parentElement!;
+    expect(rangee.className.split(/\s+/)).toContain('flex-wrap');
+  });
+
+  /**
+   * Re-mesuré après le premier correctif, à 360 px : le groupe des contrôles (deux sélecteurs +
+   * « Filtres ») passait bien sous le compteur, mais lui-même ne se repliait pas — 336 px de
+   * contrôles dans 328 px, et le viewport s'élargissait à 368. Le groupe doit se replier aussi.
+   */
+  it('le groupe des contrôles se replie lui aussi quand la largeur manque', () => {
+    monte({ city: 'Dakar' });
+    const filtres = screen.getByRole('button', { name: /filtres/i });
+    const groupe = filtres.parentElement!;
+    expect(groupe.className.split(/\s+/)).toContain('flex-wrap');
+  });
+});

@@ -296,15 +296,41 @@ if grep -qE '^SCOUT_DRIVER=meilisearch[[:space:]]*$' "${SHARED_DIR}/.env"; then
                     log "Search: ${f} changed since the live release — import scheduled."
                 fi
             done
+
+            # TCK-506 — the Property document is ALSO shaped by app/Support/Search/*.php
+            # (PropertyLabels derives rooms_label / facts_label / derived_title from the
+            # columns) AND by lang/fr/properties.php (derived_title reads the French
+            # type label from it — PR 253 review). A change there alone leaves
+            # app/Models/Property.php untouched, so the loop above would skip the
+            # import and every document would keep its old vocabulary — with nothing
+            # turning red. Same rule, two more file sets.
+            for f in app/Support/Search/*.php lang/fr/properties.php; do
+                [ -e "${f}" ] || continue
+                if ! diff -q "${f}" "${PREVIOUS_RELEASE}/takussan-api/${f}" >/dev/null 2>&1; then
+                    if [[ ! " ${REINDEX_FILES[*]} " == *" app/Models/Property.php "* ]]; then
+                        REINDEX_FILES+=("app/Models/Property.php")
+                    fi
+                    log "Search: ${f} changed since the live release — Property import scheduled."
+                    break
+                fi
+            done
         fi
 
         if [ ${#REINDEX_FILES[@]} -eq 0 ]; then
             log "Search: index shape unchanged — skipping Meilisearch import."
         else
+            # ⚠ SCOUT_QUEUE=false, explicitly: with SCOUT_QUEUE=true in the shared .env
+            # (preview), scout:import only DISPATCHES MakeSearchable jobs — and the
+            # worker that drains them is still the PREVIOUS release, because
+            # queue:restart runs at Step 10, after the symlink swap. The jobs then
+            # run the OLD toSearchableArray(), the index gets old-shaped documents
+            # under new settings, and the import logs success (PR 253 review).
+            # A process env var wins over .env (Dotenv is immutable), and the config
+            # is not cached yet at this step (config:cache is Step 7).
             for f in "${REINDEX_FILES[@]}"; do
                 model="App\\Models\\$(basename "${f}" .php)"
-                log "Importing ${model} into Meilisearch..."
-                php artisan scout:import "${model}" \
+                log "Importing ${model} into Meilisearch (synchronously, in this release's code)..."
+                SCOUT_QUEUE=false php artisan scout:import "${model}" \
                     || log "WARNING: scout:import ${model} failed — index may be stale until the next reindex."
             done
         fi

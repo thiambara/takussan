@@ -84,11 +84,14 @@ export function PropertyAgentCard({
               contact.name
             )}
           </p>
+          {/* TCK-505 (#12) — c'est le LIEN de l'agence qui tronque, pas le paragraphe. `truncate`
+              sur le `<p>` posait `nowrap` sur le lien, enfant flex dont la largeur minimale reste
+              celle de son texte : à 360 px, la page entière s'élargissait à 369 (viewport mesuré). */}
           {agency ? (
-            <p className="text-sm text-stone-600 flex items-center gap-1 truncate">
+            <p className="text-sm text-stone-600 flex items-center gap-1 min-w-0">
               <LienLocalise
                 href={`/agencies/${agency.slug}`}
-                className="hover:underline"
+                className="min-w-0 truncate hover:underline"
               >
                 {agency.name}
               </LienLocalise>

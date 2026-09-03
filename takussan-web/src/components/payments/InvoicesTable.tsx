@@ -61,15 +61,15 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
 
         return (
           <div className="space-y-3">
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <div className="overflow-x-auto rounded-xl border border-border bg-card">
               <table className="w-full text-left text-sm">
                 <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2">{tTable('reference')}</th>
-                    <th className="px-3 py-2">{tTable('issuedOn')}</th>
-                    <th className="px-3 py-2">{tTable('dueDate')}</th>
-                    <th className="px-3 py-2">{tTable('amount')}</th>
-                    <th className="px-3 py-2">{tTable('status')}</th>
+                    <th className="px-3 py-2 whitespace-nowrap">{tTable('issuedOn')}</th>
+                    <th className="px-3 py-2 whitespace-nowrap">{tTable('dueDate')}</th>
+                    <th className="px-3 py-2 whitespace-nowrap">{tTable('amount')}</th>
+                    <th className="px-3 py-2 whitespace-nowrap">{tTable('status')}</th>
                     <th className="px-3 py-2" aria-label={tTable('actions')} />
                   </tr>
                 </thead>
@@ -81,18 +81,18 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
                         <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
                           {invoice.reference_number ?? `#${invoice.id}`}
                         </td>
-                        <td className="px-3 py-2 text-xs">
+                        <td className="px-3 py-2 text-xs whitespace-nowrap">
                           {invoice.issue_date ? formatDate(invoice.issue_date, locale) : '—'}
                         </td>
-                        <td className="px-3 py-2 text-xs">
+                        <td className="px-3 py-2 text-xs whitespace-nowrap">
                           {invoice.due_date ? formatDate(invoice.due_date, locale) : '—'}
                         </td>
-                        <td className="px-3 py-2 font-semibold">
+                        <td className="px-3 py-2 font-semibold whitespace-nowrap">
                           {formatCurrency(invoice.total_amount, locale, {
                             currency: invoice.currency || 'XOF',
                           })}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 whitespace-nowrap">
                           <Badge variant={INVOICE_STATUS_VARIANT[status] ?? 'outline'}>
                             {tStatus(status)}
                           </Badge>

@@ -85,3 +85,22 @@ describe('<DashboardMeKpis>', () => {
     expect(container.querySelector('[class*="bg-warning/"]')).not.toBeNull();
   });
 });
+
+/**
+ * TCK-505, défaut #9 — quatre colonnes dès `md` (768), dans une coque dont la barre latérale
+ * prend 256 px : chaque tuile tombait à ~120 px et ses libellés sur trois lignes. Les colonnes
+ * se posent dès `lg`. L'ablation : `md:grid-cols-4 lg:grid-cols-4` rougit par l'assertion
+ * d'absence.
+ */
+describe('<DashboardMeKpis> — quatre colonnes dès lg, pas dès md (TCK-505 #9)', () => {
+  it('la grille des tuiles passe à quatre colonnes à lg seulement', () => {
+    render(withIntl(<DashboardMeKpis
+        role="agency_admin"
+        metrics={{ properties_total: 1, leases_active: 1, revenue_month: 0, overdue_count: 0 }}
+      />));
+    const grille = screen.getByText('Biens').closest('[class*="grid-cols-"]') as HTMLElement;
+    const classes = grille.className.split(/\s+/);
+    expect(classes).toContain('lg:grid-cols-4');
+    expect(classes).not.toContain('md:grid-cols-4');
+  });
+});

@@ -83,7 +83,13 @@ class SearchWolofReviewSheetTest extends TestCase
             '/Magasin\s*\|[^|]*\|\s*1\s*\|\s*shop:1/u',
             $sortie,
         );
-        $this->assertStringNotContainsString('warehouse:1', $sortie);
+        // Sur la LIGNE de « Magasin » seulement : depuis TCK-506, « depot »
+        // est un alias de `warehouse`, donc le libellé front « Dépôt » atteint
+        // légitimement l'entrepôt ailleurs dans la feuille (« warehouse:1 »).
+        $this->assertDoesNotMatchRegularExpression(
+            '/Magasin\s*\|[^|]*\|\s*\d+\s*\|[^|\n]*warehouse/u',
+            $sortie,
+        );
 
         // Et un mot absent du corpus doit rendre 0 — sans quoi le test ci-dessus
         // passerait aussi sur une commande qui compte le catalogue entier.

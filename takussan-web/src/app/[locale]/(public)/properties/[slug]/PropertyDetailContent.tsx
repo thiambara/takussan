@@ -177,7 +177,9 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
           </div>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-24 self-start">
+        {/* TCK-505 (#12) — `min-w-0`, comme la colonne principale : sans lui, un enfant de grille
+            garde `min-width: auto` et tout contenu plus large que la colonne élargit la page. */}
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 self-start">
           <PropertyBookingCard
             property={property}
             onRequestVisit={() => setVisitOpen(true)}

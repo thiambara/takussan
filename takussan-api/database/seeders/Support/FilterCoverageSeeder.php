@@ -19,6 +19,7 @@ use App\Models\Profiles\AgentProfile;
 use App\Models\Profiles\OwnerProfile;
 use App\Models\Property;
 use App\Models\Tag;
+use App\Support\Search\PropertyLabels;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
@@ -186,7 +187,16 @@ class FilterCoverageSeeder extends Seeder
         $resolvedType = $typeValue instanceof PropertyType
             ? $typeValue
             : ($typeValue !== null ? PropertyType::from($typeValue) : PropertyType::Apartment);
-        $defaultBedrooms = $resolvedType === PropertyType::Studio ? 1 : 2;
+        // TCK-506 — pas de chambres, de salle de bain ni d'étage hors de ce que
+        // le type permet : ce seeder en posait sur les 16 types (2 chambres, un
+        // étage), et c'est lui — pas PropertySeeder — que la vérification AC9 a
+        // attrapé après coup. Une valeur explicite prime toujours.
+        $habitable = PropertyLabels::famille($resolvedType) === PropertyLabels::FAMILLE_HABITATION;
+        $defaultBedrooms = match (true) {
+            $resolvedType === PropertyType::Studio, $resolvedType === PropertyType::Room => 1,
+            $habitable => 2,
+            default => null,
+        };
 
         $property = Property::withoutEvents(fn () => Property::create(array_merge([
             'user_id' => $ownerId,
@@ -204,10 +214,10 @@ class FilterCoverageSeeder extends Seeder
             'currency' => 'XOF',
             'area' => $attributes['area'] ?? 100,
             'bedrooms' => $attributes['bedrooms'] ?? $defaultBedrooms,
-            'bathrooms' => $attributes['bathrooms'] ?? 1,
+            'bathrooms' => $attributes['bathrooms'] ?? ($habitable ? 1 : null),
             'furnished' => $attributes['furnished'] ?? false,
             'featured' => $attributes['featured'] ?? false,
-            'floor_number' => $this->ctx->faker()->numberBetween(0, 5),
+            'floor_number' => PropertyLabels::aUnEtage($resolvedType) ? $this->ctx->faker()->numberBetween(0, 5) : null,
             'total_floors' => $this->ctx->faker()->numberBetween(1, 8),
             'year_built' => $attributes['year_built'] ?? 2010,
             'parking_spaces' => $attributes['parking_spaces'] ?? 1,
