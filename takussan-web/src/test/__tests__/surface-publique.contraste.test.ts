@@ -210,8 +210,15 @@ const FICHIERS_HORS_JETONS = 42;
  * du panneau (`bg-card/95`, posé par l'ancêtre), et `--muted-foreground` #6e655a y tient
  * largement AA — mais le déclarer sur chacun des trois éléments serait écrire un fond pour
  * satisfaire un compteur, sur des enfants qui n'en ont aucun besoin à l'écran.
+ *
+ * **154 → 155 le 2026-09-03 (TCK-507).** Cause : `FilterSidebar.tsx` n'a plus de champ
+ * « Recherche avancée » — il affiche le `q` de l'URL dans une pastille, et l'icône `Search` de
+ * cette pastille porte `text-muted-foreground` sans fond sur l'élément lui-même. Le fond est
+ * celui de la pastille (`bg-muted/40`, posé par le parent, sur le panneau). L'icône est
+ * `aria-hidden` : c'est un ornement, pas un texte, et le seuil de 4,5:1 ne la concerne pas.
+ * Prouvé par ablation : l'ancien fichier remis en place, le compte retombe à 154.
  */
-const ENCRES_INVERSES = 154;
+const ENCRES_INVERSES = 155;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

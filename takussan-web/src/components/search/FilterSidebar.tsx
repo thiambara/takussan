@@ -248,7 +248,6 @@ export function FilterSidebar({
   const [cityDraft, setCityDraft] = useStateSyncedWith(filters.city ?? '');
   const [locationDraft, setLocationDraft] = useStateSyncedWith(filters.location ?? '');
   const [tagsDraft, setTagsDraft] = useStateSyncedWith(filters.tags ?? '');
-  const [qDraft, setQDraft] = useStateSyncedWith(filters.q ?? '');
   const [priceMinDraft, setPriceMinDraft] = useStateSyncedWith(filtreVersTexte(filters.price_min));
   const [priceMaxDraft, setPriceMaxDraft] = useStateSyncedWith(filtreVersTexte(filters.price_max));
   const [areaMinDraft, setAreaMinDraft] = useStateSyncedWith(filtreVersTexte(filters.area_min));
@@ -265,9 +264,6 @@ export function FilterSidebar({
   }
   if (texteVersFiltre(tagsDraft) !== filters.tags) {
     brouillonEnAttente.tags = texteVersFiltre(tagsDraft);
-  }
-  if (texteVersFiltre(qDraft) !== filters.q) {
-    brouillonEnAttente.q = texteVersFiltre(qDraft);
   }
   if (nombreVersFiltre(priceMinDraft) !== filters.price_min) {
     brouillonEnAttente.price_min = nombreVersFiltre(priceMinDraft);
@@ -621,21 +617,30 @@ export function FilterSidebar({
           <p className="text-[11px] text-muted-foreground mt-1.5">{t('amenitiesHint')}</p>
         </Section>
 
-        {/* 14. Full-text search */}
-        <Section title={t(`sections.advanced`)}>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <Input
-              type="text"
-              placeholder={t('advancedPlaceholder')}
-              value={qDraft}
-              onChange={surSaisieLibre(setQDraft)}
-              onBlur={surFinSaisieLibre}
-              onKeyDown={surToucheLibre}
-              className="rounded-xl pl-9"
-            />
-          </div>
-        </Section>
+        {/*
+          14. Mots-clés — LECTURE SEULE. Le champ de saisie de `q` est celui de la barre de
+          navigation (`Navbar` → `buildSearchUrl`) ; en avoir un second ici faisait deux entrées
+          pour le même paramètre d'URL. Le panneau ne fait que montrer le terme en vigueur et
+          permettre de le retirer, comme une puce.
+        */}
+        {filters.q && (
+          <Section title={t(`sections.keywords`)}>
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2">
+              <Search className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+              <span className="flex-1 min-w-0 truncate text-sm text-foreground" title={filters.q}>
+                {filters.q}
+              </span>
+              <button
+                type="button"
+                onClick={() => set({ q: undefined })}
+                className="w-6 h-6 shrink-0 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
+                aria-label={t('clearQuery', { q: filters.q })}
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </Section>
+        )}
 
       </div>
     </div>
