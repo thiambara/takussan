@@ -98,6 +98,67 @@ class SuggestServiceTest extends TestCase
         $this->assertCount(1, $result['property_types']);
     }
 
+    /**
+     * TCK-507 — la faute de frappe, jugée comme `/search` la juge.
+     *
+     * « apprtement » (10 caractères, budget 2) est à UNE faute de « appartement » :
+     * la recherche plein-texte le tolère, la suggestion doit le tolérer aussi.
+     */
+    public function test_a_typo_on_a_long_word_still_reaches_the_type(): void
+    {
+        $result = $this->service->resolve('apprtement', 10, 'fr');
+
+        $this->assertCount(1, $result['property_types']);
+        $this->assertSame('apartment', $result['property_types'][0]['value']);
+        $this->assertArrayNotHasKey('normalized_label', $result['property_types'][0]);
+    }
+
+    /** Sous 5 caractères, aucune tolérance — exactement le seuil du moteur (`oneTypo = 5`). */
+    public function test_no_typo_tolerance_under_five_characters(): void
+    {
+        $this->assertSame([], $this->service->resolve('aprt', 10, 'fr')['property_types']);
+        $this->assertSame([], $this->service->resolve('htel', 10, 'fr')['property_types']);
+    }
+
+    /** À 5 caractères, une faute passe ; deux ne passent pas avant 9. */
+    public function test_one_typo_from_five_characters_two_from_nine(): void
+    {
+        // « hatol » : deux substitutions → refusé à 5 caractères. (⚠ pas une transposition
+        // comme « hotle » : elle est à UNE édition du préfixe « hote », et passe — comme chez
+        // Meilisearch, qui la compte pour une faute.)
+        $this->assertSame([], $this->service->resolve('hatol', 10, 'fr')['property_types']);
+        // « hotal » : une substitution → accepté.
+        $this->assertSame('hotel', $this->service->resolve('hotal', 10, 'fr')['property_types'][0]['value']);
+        // « apparteemnt » (11) : deux éditions → accepté.
+        $this->assertSame('apartment', $this->service->resolve('apparteemnt', 10, 'fr')['property_types'][0]['value']);
+    }
+
+    /** La faute est jugée en PRÉFIXE, comme le moteur : « apprt » est à une faute de « appar ». */
+    public function test_typo_is_judged_as_a_prefix(): void
+    {
+        $this->assertSame('apartment', $this->service->resolve('apprt', 10, 'fr')['property_types'][0]['value']);
+    }
+
+    /**
+     * Le préfixe strict passe AVANT la faute, quel que soit le compte : « autre » est un préfixe
+     * exact d'« Autre » (5) et à une faute d'aucun autre libellé ; « aptre » n'est un préfixe de
+     * rien, mais à une faute d'« autre ». Le test qui compte : un préfixe exact d'un type à petit
+     * compte devance un candidat à distance d'un type à grand compte.
+     */
+    public function test_exact_prefix_ranks_before_typo_candidates(): void
+    {
+        $cache = Mockery::mock(CacheRepository::class);
+        $cache->shouldReceive('remember')->andReturn([
+            ['label' => 'Villa', 'value' => 'villa', 'count' => 50, 'normalized_label' => 'villa'],
+            ['label' => 'Ville', 'value' => 'ville', 'count' => 1, 'normalized_label' => 'ville'],
+        ]);
+        $service = new SuggestService($cache);
+
+        $values = array_column($service->resolve('ville', 10, 'fr')['property_types'], 'value');
+
+        $this->assertSame(['ville', 'villa'], $values);
+    }
+
     public function test_types_base_is_cached_per_locale(): void
     {
         $cache = Mockery::mock(CacheRepository::class);

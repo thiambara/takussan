@@ -54,6 +54,7 @@
     "57": "Contact d'un bien : brouillon pré-rempli et ouverture du chat en contexte (2026-08-31)",
     "58": "Débordements du lot de la vague 57 : la hauteur de la coque et l'agent principal choisi plutôt que déduit (2026-08-31)",
     "59": "Campagne responsive sur 135 écrans × 5 largeurs : le point de rupture 768 dans les coques à barre latérale (2026-09-02)",
-    "60": "Recherche publique : le vocabulaire immobilier dérivé des colonnes (F4, chambre salon, R+1, TF, m²) entre dans l'index (2026-09-02)"
+    "60": "Recherche publique : le vocabulaire immobilier dérivé des colonnes (F4, chambre salon, R+1, TF, m²) entre dans l'index (2026-09-02)",
+    "61": "Suggestions de la barre de recherche : un panneau qui ne promet que ce qu'il sait, et des types tolérants à la faute (2026-09-03)"
   }
 }

@@ -3080,11 +3080,7 @@
         "neighborhoods": "Quartiers",
         "property_types": "Types"
       },
-      "empty": "Aucun résultat pour « {query} »",
-      "fallback": {
-        "all_cities": "Voir toutes les villes",
-        "all_types": "Tous les types"
-      },
+      "searchAll": "Rechercher « {query} » dans les annonces",
       "loading": "Chargement…"
     },
     "saved": {
@@ -3130,7 +3126,7 @@
         "floor": "Étage",
         "availability": "Disponibilité",
         "amenities": "Équipements",
-        "advanced": "Recherche avancée",
+        "keywords": "Mots-clés",
         "aroundMe": "Autour de moi",
         "titleDeed": "Statut foncier"
       },
@@ -3156,7 +3152,7 @@
       "availableFrom": "Disponible dès le…",
       "amenitiesPlaceholder": "piscine, parking, terrasse…",
       "amenitiesHint": "Séparez par des virgules",
-      "advancedPlaceholder": "Mot-clé, référence, description…",
+      "clearQuery": "Effacer la recherche « {q} »",
       "floors": {
         "ground": "RDC",
         "first": "1er",

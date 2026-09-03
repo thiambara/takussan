@@ -3080,11 +3080,7 @@
         "neighborhoods": "Neighborhoods",
         "property_types": "Types"
       },
-      "empty": "No results for « {query} »",
-      "fallback": {
-        "all_cities": "See all cities",
-        "all_types": "All types"
-      },
+      "searchAll": "Search “{query}” in the listings",
       "loading": "Loading…"
     },
     "saved": {
@@ -3130,7 +3126,7 @@
         "floor": "Floor",
         "availability": "Availability",
         "amenities": "Amenities",
-        "advanced": "Advanced search",
+        "keywords": "Keywords",
         "aroundMe": "Around me",
         "titleDeed": "Title deed"
       },
@@ -3156,7 +3152,7 @@
       "availableFrom": "Available from…",
       "amenitiesPlaceholder": "pool, parking, terrace…",
       "amenitiesHint": "Separate with commas",
-      "advancedPlaceholder": "Keyword, reference, description…",
+      "clearQuery": "Clear the search “{q}”",
       "floors": {
         "ground": "Ground",
         "first": "1st",
