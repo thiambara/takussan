@@ -146,7 +146,7 @@ verts.
 | front, `npm run test` (02:15 → 02:40) | 3152 verts, 10 rouges sur 3162 | 56 → 101 |
 | les 7 fichiers rouges rejoués seuls (02:41) | 2 rouges : le cliquet ci-dessus (réel, corrigé) et un timeout à 20 s (`redirection-tags`) | 35 / 75 / 100 |
 | les 2 rejoués après correction (02:45) | 12 verts sur 12 | 34 / 55 / 85 |
-| back, `php artisan test` (lancée 02:06) | _en cours au moment de la PR — résultat consigné ci-dessous_ | 32 au départ |
+| back, `php artisan test` (02:06 → 03:03, 3427 s) | **3120 verts, 2 ignorés, 0 rouge** (10 345 assertions) — six fois la référence au repos, sans rien dire du dépôt | 32 / 36 / 28 au départ, 7 / 14 / 37 à l'arrivée |
 
 Les huit autres rouges du premier passage étaient tous des `Test timed out in 20000ms` ou un
 worker vitest qui ne répond plus, dans des fichiers que la branche ne touche pas ; ils sont
