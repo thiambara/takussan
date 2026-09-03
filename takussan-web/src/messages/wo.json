@@ -1834,7 +1834,7 @@
         "floor": "Etaas",
         "availability": "Jotaay",
         "amenities": "Jumtukaay yi",
-        "advanced": "Seet bu xóot",
+        "keywords": "Baat yi",
         "aroundMe": "Ci wetu ma",
         "titleDeed": "Kayitu suuf"
       },
@@ -1860,7 +1860,7 @@
       "availableFrom": "Jot ci…",
       "amenitiesPlaceholder": "pisin, parking, teras…",
       "amenitiesHint": "Xàjjeel ak wirgil",
-      "advancedPlaceholder": "Baat, nomboro, leeral…",
+      "clearQuery": "Far seet bi « {q} »",
       "floors": {
         "ground": "Suuf",
         "first": "1u",
