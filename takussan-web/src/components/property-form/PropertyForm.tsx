@@ -29,6 +29,7 @@ import {
 import { useApiForm } from '@/hooks/useApiForm';
 import { ApiError } from '@/lib/api';
 import {
+  conditionValues,
   propertyFormSchema,
   titleTypeValues,
   type PropertyFormPayload,
@@ -70,6 +71,10 @@ function toDefaults(property: PropertyDetail): PropertyFormValues {
       (property.rent_period as PropertyFormValues['rent_period']) ?? undefined,
     title_type:
       (property.title_type as PropertyFormValues['title_type']) ?? undefined,
+    // TCK-508 — `''` = « Non précisé », qui part en `null` et efface. Une clé ABSENTE de la
+    // lecture (hors `fields[properties]`) reste `undefined` : elle est alors omise du corps, et
+    // n'efface pas en base un état que l'écran n'a jamais lu.
+    condition: property.condition === undefined ? undefined : (property.condition ?? ''),
     available_from: property.available_from ?? undefined,
     city: property.location?.city ?? '',
     quarter: property.location?.quarter ?? '',
@@ -155,12 +160,17 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   const tCurrency = useTranslations(PROPERTY_ENUM_NAMESPACES.currency);
   const tRentPeriod = useTranslations(PROPERTY_ENUM_NAMESPACES.rentPeriod);
   const tTitleType = useTranslations(PROPERTY_ENUM_NAMESPACES.titleType);
+  const tCondition = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
   const router = useRouter();
   const propertyTypeOptions = fabriquePropertyTypeOptions(tType);
   const contractTypeOptions = fabriqueContractTypeOptions(tContractType);
   const currencyOptions = fabriqueCurrencyOptions(tCurrency);
   const rentPeriodOptions = fabriqueRentPeriodOptions(tRentPeriod);
   const titleTypeOptions = titleTypeValues.map((v) => ({ value: v, label: tTitleType(v) }));
+  const conditionOptions = [
+    { value: '', label: t('fields.conditionUnset') },
+    ...conditionValues.map((v) => ({ value: v, label: tCondition(v) })),
+  ];
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [tagsWarning, setTagsWarning] = useState<string | null>(null);
 
@@ -531,6 +541,14 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
             name="title_type"
             label={t('fields.titleType')}
             options={titleTypeOptions}
+          />
+        ) : null}
+        {isFieldRelevant('condition', ctx) ? (
+          <FormSelect
+            control={control}
+            name="condition"
+            label={t('fields.condition')}
+            options={conditionOptions}
           />
         ) : null}
         {isFieldRelevant('available_from', ctx) ? (

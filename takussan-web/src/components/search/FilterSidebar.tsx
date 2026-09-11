@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useDebouncedCallback } from '@/hooks/useDebouncedValue';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { AutourDeMoi } from '@/components/search/AutourDeMoi';
-import { titleTypeValues } from '@/lib/schemas/property';
+import { conditionValues, titleTypeValues } from '@/lib/schemas/property';
 import type { SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -241,6 +241,7 @@ export function FilterSidebar({
   const tContract = useTranslations('property.contractTypes');
   const tPeriods = useTranslations('property.rentPeriods');
   const tTitleTypes = useTranslations('property.titleTypes');
+  const tConditions = useTranslations('property.conditions');
 
   // ── Brouillons : la valeur AFFICHÉE est locale et immédiate ; `filters` ne fait que la
   //    resynchroniser quand l'URL change réellement (retour arrière, « Tout effacer », puce
@@ -525,6 +526,34 @@ export function FilterSidebar({
         {/* 9. État */}
         <Section title={t(`sections.condition`)}>
           <div className="space-y-2">
+            {/* TCK-508 — l'état DÉCLARÉ, en multi-sélection comme le type : `condition=new,off_plan`
+                est un OU côté serveur. Un bien qui ne le renseigne pas ne répond à aucun choix. */}
+            <div className="flex flex-wrap gap-2 pb-1">
+              {conditionValues.map((opt) => {
+                const selected = filters.condition ?? [];
+                const isActive = selected.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={() => {
+                      const next = isActive
+                        ? selected.filter((value) => value !== opt)
+                        : [...selected, opt];
+                      set({ condition: next.length > 0 ? next : undefined });
+                    }}
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 ${
+                      isActive
+                        ? 'bg-primary border-primary text-primary-foreground'
+                        : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                    }`}
+                  >
+                    {tConditions(opt)}
+                  </button>
+                );
+              })}
+            </div>
             <button
               onClick={() => set({ furnished: filters.furnished === true ? undefined : true })}
               className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 ${

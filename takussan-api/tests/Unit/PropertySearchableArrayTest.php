@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\Address;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use App\Support\Search\PropertyLabels;
@@ -236,6 +237,25 @@ class PropertySearchableArrayTest extends TestCase
         $this->assertStringContainsString('sdb', $arr['facts_label']);
         $this->assertStringContainsString('95 m2', $arr['facts_label']);
         $this->assertStringContainsString('stationnement', $arr['facts_label']);
+    }
+
+    /**
+     * TCK-508 — l'état déclaré est dans le document, TEL QUEL (la valeur d'enum,
+     * pas un libellé), et le moteur accepte de filtrer dessus.
+     */
+    public function test_l_etat_declare_est_dans_le_document_et_filtrable(): void
+    {
+        $document = fn (?PropertyCondition $etat): array => Property::factory()
+            ->make(['type' => PropertyType::Villa, 'condition' => $etat, 'user_id' => 1])
+            ->toSearchableArray();
+
+        $this->assertSame('off_plan', $document(PropertyCondition::OffPlan)['condition']);
+        $this->assertArrayHasKey('condition', $document(null));
+        $this->assertNull($document(null)['condition']);
+        $this->assertContains(
+            'condition',
+            config('scout.meilisearch.index-settings.'.Property::class.'.filterableAttributes'),
+        );
     }
 
     /**

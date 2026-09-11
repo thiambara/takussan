@@ -421,6 +421,14 @@ class PropertySearchService
         if (! empty($p['title_type'])) {
             $filter[] = 'title_type = '.self::quote((string) $p['title_type']);
         }
+        // TCK-508 — OU entre les valeurs demandees, et la regle de `title_type` juste
+        // au-dessus : un bien sans etat declare ne satisfait aucune d'elles.
+        if (! empty($p['condition'])) {
+            $etats = array_filter(array_map('trim', explode(',', (string) $p['condition'])));
+            if ($etats !== []) {
+                $filter[] = array_map(fn ($e) => 'condition = '.self::quote($e), array_values($etats));
+            }
+        }
         if (! empty($p['type'])) {
             $types = array_filter(array_map('trim', explode(',', (string) $p['type'])));
             if ($types !== []) {

@@ -217,8 +217,16 @@ const FICHIERS_HORS_JETONS = 42;
  * celui de la pastille (`bg-muted/40`, posé par le parent, sur le panneau). L'icône est
  * `aria-hidden` : c'est un ornement, pas un texte, et le seuil de 4,5:1 ne la concerne pas.
  * Prouvé par ablation : l'ancien fichier remis en place, le compte retombe à 154.
+ *
+ * **155 → 156 le 2026-09-11 (TCK-508).** Cause : les pastilles « État du bien » de
+ * `FilterSidebar.tsx`, dont l'état inactif écrit `border-border text-muted-foreground` — les MÊMES
+ * classes que les pastilles de type de bien du même panneau, déjà comptées. Même raisonnement que
+ * TCK-491 : le fond est celui du panneau, posé par un ancêtre. Mesuré en listant les encres
+ * inverses des neuf fichiers touchés : la seule entrée située dans les lignes AJOUTÉES est
+ * `FilterSidebar.tsx:536` ; le badge `NewBuildChip` (plaque `bg-card` déclarée), l'en-tête et les
+ * caractéristiques de la fiche n'en ajoutent aucune.
  */
-const ENCRES_INVERSES = 155;
+const ENCRES_INVERSES = 156;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

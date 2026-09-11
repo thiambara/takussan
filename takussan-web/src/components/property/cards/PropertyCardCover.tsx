@@ -5,6 +5,7 @@ import { LienLocalise } from '@/components/shared/LienLocalise';
 import { formatPrice } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
+import { NewBuildChip } from './NewBuildChip';
 import {
   FALLBACK_IMAGE,
   RENT_PERIOD_SHORT,
@@ -44,12 +45,10 @@ export function PropertyCardCover({
           {/* Gradient bas pour lisibilité du texte. */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-45% to-scrim/80" />
 
-          {property.contract_type && (
-            <ContractTypeChip
-              type={property.contract_type}
-              className="absolute top-3 left-3"
-            />
-          )}
+          <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+            {property.contract_type && <ContractTypeChip type={property.contract_type} />}
+            <NewBuildChip condition={property.condition} />
+          </div>
 
           <FavoriteButton
             propertyId={property.id}

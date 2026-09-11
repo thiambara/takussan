@@ -7,6 +7,7 @@ import { Clock, MapPin } from 'lucide-react';
 import { formatPrice, formatRelativeDate } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
+import { NewBuildChip } from './NewBuildChip';
 import {
   FALLBACK_IMAGE,
   RENT_PERIOD_SHORT,
@@ -51,12 +52,10 @@ export function PropertyCardStandard({
             className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
           />
 
-          {property.contract_type && (
-            <ContractTypeChip
-              type={property.contract_type}
-              className="absolute top-3 left-3"
-            />
-          )}
+          <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
+            {property.contract_type && <ContractTypeChip type={property.contract_type} />}
+            <NewBuildChip condition={property.condition} />
+          </div>
 
           <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/90 backdrop-blur-sm text-[10px] font-medium text-foreground shadow-[0_1px_4px_color-mix(in_srgb,var(--shadow-color)_10%,transparent)]">
             <Clock className="size-3 opacity-70" strokeWidth={2} />

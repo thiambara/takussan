@@ -114,6 +114,7 @@ const CARACTERISTIQUES: readonly ConditionalFieldKey[] = [
   'floor_number',
   'total_floors',
   'title_type',
+  'condition',
 ];
 
 /**
@@ -152,6 +153,7 @@ function valeursInitiales(): PropertyFormValues {
     floor_number: undefined,
     total_floors: undefined,
     title_type: undefined,
+    condition: undefined,
     available_from: undefined,
     description: '',
     tag_ids: [],

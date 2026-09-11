@@ -6,6 +6,7 @@ use App\Models\Bases\AbstractModel;
 use App\Models\Bases\Auditable;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
@@ -38,7 +39,7 @@ class Property extends AbstractModel implements HasMedia
         'type', 'contract_type', 'rent_period', 'title_type', 'status', 'visibility',
         'price', 'currency',
         'area', 'bedrooms', 'bathrooms', 'furnished',
-        'floor_number', 'total_floors', 'year_built', 'parking_spaces',
+        'floor_number', 'total_floors', 'year_built', 'condition', 'parking_spaces',
         'featured', 'lot_position', 'level', 'admin_monitored', 'is_test',
         'available_from', 'published_at', 'archived_at', 'metadata',
         'rejection_reason', 'submitted_at', 'approved_at', 'rejected_at',
@@ -50,6 +51,7 @@ class Property extends AbstractModel implements HasMedia
         'contract_type' => ContractType::class,
         'rent_period' => RentPeriod::class,
         'title_type' => TitleType::class,
+        'condition' => PropertyCondition::class,
         'status' => PropertyStatus::class,
         'visibility' => PropertyVisibility::class,
         'currency' => Currency::class,
@@ -72,7 +74,7 @@ class Property extends AbstractModel implements HasMedia
     /** @var array<int,string> */
     protected static array $requestFilterable = [
         'user_id', 'agency_id', 'type', 'contract_type', 'rent_period',
-        'status', 'visibility', 'title_type', 'price', 'bedrooms', 'bathrooms',
+        'status', 'visibility', 'title_type', 'condition', 'price', 'bedrooms', 'bathrooms',
         'area', 'currency', 'featured', 'furnished', 'published_at',
     ];
 
@@ -102,7 +104,7 @@ class Property extends AbstractModel implements HasMedia
         'id', 'user_id', 'agency_id', 'parent_id', 'reference_number',
         'title', 'slug', 'type', 'contract_type', 'rent_period', 'title_type', 'status', 'visibility',
         'price', 'currency', 'area', 'bedrooms', 'bathrooms', 'furnished',
-        'floor_number', 'total_floors', 'year_built', 'parking_spaces', 'featured',
+        'floor_number', 'total_floors', 'year_built', 'condition', 'parking_spaces', 'featured',
         'views_count', 'favorites_count', 'available_from', 'published_at', 'created_at', 'updated_at',
     ];
 
@@ -123,6 +125,17 @@ class Property extends AbstractModel implements HasMedia
         static::saving(function (self $m) {
             if ($m->contract_type === ContractType::Rent && $m->rent_period === null) {
                 $m->rent_period = RentPeriod::Monthly;
+            }
+        });
+
+        // TCK-508 — invariant : un bien de la famille foncière n'a pas d'état déclaré,
+        // y compris quand un changement de type le fait basculer (villa → terrain). La
+        // valeur héritée mentirait sur la fiche et répondrait à `q=neuf`. Posé ici et non
+        // dans les FormRequest, parce que la modification peut changer le TYPE seul.
+        // ⚠ `withoutEvents()` (les seeders) le contourne : ils portent leur propre garde.
+        static::saving(function (self $m) {
+            if ($m->condition !== null && ! PropertyCondition::appliesTo($m->type)) {
+                $m->condition = null;
             }
         });
 
@@ -387,6 +400,9 @@ class Property extends AbstractModel implements HasMedia
             // filtrable cote tableau de bord (`$requestFilterable`) et absent du document :
             // la recherche publique ne pouvait donc pas le proposer.
             'title_type' => $this->title_type?->value,
+            // TCK-508 — l'état DÉCLARÉ, filtrable (`condition=new,off_plan`). Nul pour un
+            // bien qui ne le renseigne pas : il ne répond alors à aucun filtre d'état.
+            'condition' => $this->condition?->value,
             'featured' => (bool) $this->featured,
             'is_test' => (bool) $this->is_test,
             'agency_id' => $this->agency_id,

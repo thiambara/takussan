@@ -9,6 +9,13 @@ export type RentPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export type PropertyTitleType = 'bail' | 'titre_foncier' | 'deliberation' | 'autre';
 
+/**
+ * TCK-508 — l'état DÉCLARÉ d'un bien bâti (`PropertyCondition` côté backend). Sans objet pour la
+ * famille foncière (terrain, ferme) : le modèle l'y efface. Seuls `new` et `off_plan` portent un
+ * badge public ; les trois autres ne figurent que dans les caractéristiques de la fiche.
+ */
+export type PropertyCondition = 'off_plan' | 'new' | 'renovated' | 'good' | 'to_renovate';
+
 export interface PropertyListItem {
   id: number;
   user_id?: number;
@@ -37,6 +44,12 @@ export interface PropertyListItem {
   area: number | null;
   furnished: boolean;
   featured: boolean;
+  /**
+   * TCK-508 — `whenHas('condition', …)` côté `PropertyResource` : la clé est ABSENTE du JSON quand
+   * `fields[properties]` ne la demande pas, d'où l'optionalité. La recherche publique n'honore pas
+   * `fields[]` (cf. `public-search.ts`) : les cartes publiques la reçoivent toujours.
+   */
+  condition?: PropertyCondition | null;
   main_photo_url: string | null;
   owner?: PropertyOwnerLite | null;
   collaborators?: {
@@ -143,6 +156,8 @@ export interface PropertyDetail extends PropertyListItem {
    */
   title_type?: PropertyTitleType | null;
   title_type_label: string | null;
+  /** TCK-508 — émis SANS condition par `PropertyResource`, comme `title_type_label`. */
+  condition_label: string | null;
   floor_number: number | null;
   total_floors: number | null;
   /**

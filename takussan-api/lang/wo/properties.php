@@ -46,4 +46,14 @@ return [
         'deliberation' => 'Délibération',
         'autre' => 'Yeneen',
     ],
+    // TCK-508 — en français, comme « Titre foncier » ci-dessus, en attendant la
+    // validation d'un locuteur wolophone : un faux ami affiché sur une annonce
+    // (« land » => « Dëkk », village) coûte plus qu'un mot français compris.
+    'condition' => [
+        'off_plan' => 'Sur plan',
+        'new' => 'Neuf',
+        'renovated' => 'Rénové',
+        'good' => 'Bon état',
+        'to_renovate' => 'À rénover',
+    ],
 ];

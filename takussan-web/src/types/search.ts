@@ -61,6 +61,11 @@ export type TraducteursDeFiltre = {
    * seconde table de libellés : c'est la contrainte 1 du ticket.
    */
   readonly titleTypes: Traducteur;
+  /**
+   * `useTranslations('property.conditions')` — TCK-508. Même vocabulaire que le formulaire
+   * (`PROPERTY_ENUM_NAMESPACES.condition`) et que le badge des cartes : aucune seconde table.
+   */
+  readonly conditions: Traducteur;
 };
 
 type CleCommune<V> = {
@@ -358,6 +363,22 @@ export const SEARCH_FILTER_KEYS = {
     // nomme le critère, sans quoi « Bail » seul ne dit pas de quoi il est la réponse.
     libelle: (v: string, t: TraducteursDeFiltre) =>
       t.tags('tags.titleType', { value: t.titleTypes(String(v)) }),
+  },
+  /**
+   * TCK-508 — multi-valuée comme `type` : `condition=new,off_plan` est un OU côté serveur. Une
+   * puce par valeur, retirable seule. Pas de préfixe (« Neuf », pas « État : Neuf ») : chacun des
+   * cinq mots dit seul de quoi il est la réponse, comme un type de bien.
+   */
+  condition: {
+    role: 'filtre',
+    params: ['condition'],
+    lire: (sp: URLSearchParams) => {
+      const brut = litTexte(sp, 'condition');
+      return brut ? brut.split(',').filter(Boolean) : undefined;
+    },
+    ecrire: (v: string[]) => v.join(','),
+    libelle: (v: string[], t: TraducteursDeFiltre) => v.map((x) => t.conditions(x)).join(', '),
+    eclater: (v: string[]) => v.map((x) => ({ sousCle: x, valeur: [x] })),
   },
   tags: {
     role: 'filtre',
