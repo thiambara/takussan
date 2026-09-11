@@ -225,8 +225,14 @@ const FICHIERS_HORS_JETONS = 42;
  * inverses des neuf fichiers touchés : la seule entrée située dans les lignes AJOUTÉES est
  * `FilterSidebar.tsx:536` ; le badge `NewBuildChip` (plaque `bg-card` déclarée), l'en-tête et les
  * caractéristiques de la fiche n'en ajoutent aucune.
+ *
+ * **156 → 154 le 2026-09-11.** Cause : la section « Mots-clés » de `FilterSidebar.tsx` est
+ * supprimée — `q` se lit et se modifie désormais dans le champ de recherche de la `Navbar`, qui le
+ * relit dans l'URL. Les deux encres qui partent sont celles de sa pastille : l'icône `Search`
+ * (l'entrée TCK-507 ci-dessus) et le bouton d'effacement, tous deux `text-muted-foreground` sans
+ * fond sur l'élément. Mesuré : l'arbre sans la modification compte 156 et passe.
  */
-const ENCRES_INVERSES = 156;
+const ENCRES_INVERSES = 154;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

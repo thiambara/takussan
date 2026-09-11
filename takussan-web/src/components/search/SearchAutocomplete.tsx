@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { Search } from 'lucide-react';
 import { useSuggest } from '@/hooks/useSuggest';
+import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { highlightMatch } from '@/lib/highlightMatch';
 import type { SuggestCity, SuggestNeighborhood, SuggestPropertyType } from '@/types/search';
 import { cn } from '@/lib/utils';
@@ -59,6 +60,11 @@ export interface SearchAutocompleteProps {
   variant?: 'hero' | 'navbar';
   className?: string;
   onQueryChange?: (query: string) => void;
+  /**
+   * La recherche EN VIGUEUR — le `q` de l'URL sur la liste des biens. Le champ s'y resynchronise
+   * (rechargement, retour arrière, terme retiré par le repli) et reste modifiable entre-temps.
+   */
+  value?: string;
 }
 
 export function SearchAutocomplete({
@@ -66,6 +72,7 @@ export function SearchAutocomplete({
   variant = 'hero',
   className,
   onQueryChange,
+  value,
 }: SearchAutocompleteProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,13 +80,16 @@ export function SearchAutocomplete({
   const t = useTranslations('search.suggest');
   const inputId = useId();
   const listboxId = useId();
-  const [query, setQuery] = useState('');
+  const enVigueur = value ?? '';
+  const [query, setQuery] = useStateSyncedWith(enVigueur);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading, isFetching } = useSuggest(query);
+  // Liste fermée, rien à suggérer : un champ prérempli par l'URL n'interroge pas le serveur à
+  // chaque chargement de la liste des biens.
+  const { data, isLoading, isFetching } = useSuggest(query, { enabled: open });
 
   const responseData = data?.data;
 
@@ -108,24 +118,38 @@ export function SearchAutocomplete({
   const rechercherTexteLibre = useCallback(() => {
     setOpen(false);
     const params = new URLSearchParams(searchParams.toString());
-    params.set(parametreDe('q'), query);
+    // Un champ vidé RETIRE `q` : c'est dans ce champ, et nulle part ailleurs, qu'on l'efface.
+    const terme = query.trim();
+    if (terme) params.set(parametreDe('q'), terme);
+    else params.delete(parametreDe('q'));
     params.delete(parametreDe('page'));
-    router.push(hrefLocalise(`/properties?${params.toString()}`, locale));
+    const qs = params.toString();
+    router.push(hrefLocalise(`/properties${qs ? `?${qs}` : ''}`, locale));
   }, [router, searchParams, locale, query]);
 
   const selectItem = useCallback(
     (item: SuggestItem) => {
       setOpen(false);
-      setQuery('');
+      // `buildUrl` conserve `q` : le champ revient donc à la recherche en vigueur, pas à vide —
+      // sans quoi il cesserait de montrer un terme qui filtre toujours la liste.
+      setQuery(enVigueur);
+      onQueryChange?.(enVigueur);
       router.push(buildUrl(item, searchParams, locale));
     },
-    [router, searchParams, locale],
+    [router, searchParams, locale, enVigueur, setQuery, onQueryChange],
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (!open) {
-        if (e.key === 'ArrowDown' && query) setOpen(true);
+        if (e.key === 'ArrowDown' && query) {
+          setOpen(true);
+        } else if (e.key === 'Enter' && query.trim() !== enVigueur.trim()) {
+          // Liste fermée — champ vidé, ou saisie reprise après Échap : Entrée soumet ce qui
+          // DIFFÈRE de la recherche en vigueur. Vider le champ puis Entrée retire donc `q`.
+          e.preventDefault();
+          rechercherTexteLibre();
+        }
         return;
       }
       if (e.key === 'ArrowDown') {
@@ -148,7 +172,7 @@ export function SearchAutocomplete({
         setActiveIndex(-1);
       }
     },
-    [open, query, flatItems, activeIndex, selectItem, rechercherTexteLibre],
+    [open, query, enVigueur, flatItems, activeIndex, selectItem, rechercherTexteLibre],
   );
 
   useEffect(() => {
