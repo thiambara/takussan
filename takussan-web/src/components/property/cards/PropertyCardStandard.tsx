@@ -52,21 +52,20 @@ export function PropertyCardStandard({
             className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
           />
 
-          <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
-            {property.contract_type && <ContractTypeChip type={property.contract_type} />}
-            <NewBuildChip condition={property.condition} />
+          {/* Pastilles et cœur dans un seul flux : les pastilles passent à la ligne avant le
+              cœur au lieu de passer dessous (cf. PropertyCard). */}
+          <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {property.contract_type && <ContractTypeChip type={property.contract_type} />}
+              <NewBuildChip condition={property.condition} />
+            </div>
+            <FavoriteButton propertyId={property.id} size="sm" className="shrink-0" />
           </div>
 
           <div className="absolute bottom-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/90 backdrop-blur-sm text-[10px] font-medium text-foreground shadow-[0_1px_4px_color-mix(in_srgb,var(--shadow-color)_10%,transparent)]">
             <Clock className="size-3 opacity-70" strokeWidth={2} />
             {timeAgo}
           </div>
-
-          <FavoriteButton
-            propertyId={property.id}
-            size="sm"
-            className="absolute top-3 right-3"
-          />
         </div>
 
         <div className="mt-4 space-y-1 transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover:-translate-y-0.5">

@@ -43,16 +43,14 @@ export function PropertyCardCompact({
             className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
           />
 
-          <div className="absolute top-2 left-2 flex flex-wrap items-center gap-1">
-            {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
-            <NewBuildChip condition={property.condition} compact />
+          {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
+          <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-1.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
+              <NewBuildChip condition={property.condition} compact />
+            </div>
+            <FavoriteButton propertyId={property.id} size="sm" className="shrink-0" />
           </div>
-
-          <FavoriteButton
-            propertyId={property.id}
-            size="sm"
-            className="absolute top-2 right-2"
-          />
         </div>
 
         <div className="mt-3 space-y-0.5 transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] group-hover:-translate-y-0.5">
