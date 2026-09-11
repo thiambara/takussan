@@ -155,10 +155,13 @@ Docs :
   tous les états. Elle filtre désormais par `whereIn`, forme tableau comme liste à virgules. Test
   écrit d'abord : rouge sur la forme tableau, vert après, avec un témoin sans état qui capte les
   quatre biens. `SavedSearchAlertsTest` 10 / 10, tests impactés 142 / 142.
-- ⚠ **Constaté, hors périmètre** : `type` est lui aussi enregistré en tableau, et
-  `$stringFilters` le passe à `where()`, qui ne lie que le PREMIER élément (mesuré :
-  `where "type" = ?` avec `["villa"]`). Une recherche « villa + appartement » n'alerte que sur
-  les villas. Défaut antérieur à ce ticket, à traiter à part.
+- **`type`, même défaut, corrigé dans la même PR à la demande** — il est antérieur à ce ticket.
+  Le front l'enregistre lui aussi en tableau, et `$stringFilters` le passait à `where()`, qui ne
+  lie que le PREMIER élément (mesuré : `where "type" = ?` avec `["villa"]`) : une recherche
+  « maison + appartement » n'alertait que sur les maisons. Les deux seules clés multi-valuées du
+  front (`type`, `condition`) passent désormais par le même `whereIn` ; les autres restent des
+  chaînes, où `where()` est juste. Test écrit d'abord, rouge sur la forme tableau, vert après ;
+  `SavedSearchAlertsTest` 11 / 11, tests impactés 143 / 143.
 
 **Écarts assumés**
 
