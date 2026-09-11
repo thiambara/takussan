@@ -3,6 +3,8 @@
 namespace Tests\Unit;
 
 use App\Jobs\RefreshNewBuildSearchLabel;
+use App\Models\Enums\PropertyCondition;
+use App\Models\Enums\PropertyType;
 use App\Models\Property;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Console\Scheduling\Event;
@@ -38,6 +40,26 @@ class RefreshNewBuildSearchLabelTest extends TestCase
             sort($attendu);
             $this->assertSame($attendu, $perimetre);
             $this->assertSame(2029, PropertyLabels::anneeNeufMin());
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    /**
+     * TCK-508 — un bien dont l'état est DÉCLARÉ ne dépend plus du temps : son jeton
+     * « neuf » suit la colonne, que seule une écriture change — et une écriture
+     * réindexe déjà. Le réindexer chaque nuit serait du travail pour rien.
+     */
+    public function test_le_perimetre_ignore_les_biens_dont_l_etat_est_declare(): void
+    {
+        Carbon::setTestNow('2030-06-01');
+
+        try {
+            $sansEtat = Property::factory()->create(['type' => PropertyType::Villa, 'year_built' => 2029]);
+            Property::factory()->create(['type' => PropertyType::Villa, 'year_built' => 2029, 'condition' => PropertyCondition::Good]);
+            Property::factory()->create(['type' => PropertyType::Villa, 'year_built' => 2028, 'condition' => PropertyCondition::New]);
+
+            $this->assertSame([$sansEtat->id], RefreshNewBuildSearchLabel::scope()->pluck('id')->all());
         } finally {
             Carbon::setTestNow();
         }

@@ -279,6 +279,12 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                   handleFilterChange({
                     type: next.length > 0 ? next : undefined,
                   });
+                } else if (key === 'condition' && subKey) {
+                  // TCK-508 — seconde clé multi-valuée : la puce retire SA valeur, pas la clé.
+                  const next = (filters.condition ?? []).filter((c) => c !== subKey);
+                  handleFilterChange({
+                    condition: next.length > 0 ? next : undefined,
+                  });
                 } else {
                   removeFilter(key);
                 }

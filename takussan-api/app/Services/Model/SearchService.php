@@ -22,10 +22,26 @@ class SearchService
             $query->public();
         }
 
-        $stringFilters = ['type', 'contract_type', 'status', 'currency', 'title_type'];
+        $stringFilters = ['contract_type', 'status', 'currency', 'title_type'];
         foreach ($stringFilters as $field) {
             if (! empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
+            }
+        }
+
+        // TCK-508 — les clés MULTI-VALUÉES du front (`type`, `condition`). Il les
+        // enregistre telles que sa table de filtres les lit — un TABLEAU
+        // (`['house', 'apartment']`) — et l'URL les porte en liste à virgules : les
+        // deux formes valent, OU entre les valeurs, comme
+        // `GET /api/public/properties/search`.
+        //
+        // ⚠ Jamais dans `$stringFilters` : `where($col, [...])` ne lève pas, il lie
+        // le PREMIER élément seul (mesuré : `where "type" = ?` avec `["villa"]`). Une
+        // recherche « maison + appartement » n'alertait que sur les maisons.
+        foreach (['type', 'condition'] as $field) {
+            if (! empty($filters[$field])) {
+                $valeurs = is_array($filters[$field]) ? $filters[$field] : explode(',', (string) $filters[$field]);
+                $query->whereIn($field, array_map('trim', $valeurs));
             }
         }
 

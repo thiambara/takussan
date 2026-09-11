@@ -27,6 +27,7 @@ export type ConditionalFieldKey =
   | 'floor_number'
   | 'total_floors'
   | 'title_type'
+  | 'condition'
   | 'rent_period'
   | 'available_from'
   | 'tag_ids';
@@ -36,6 +37,14 @@ const HABITABLE = ['house', 'apartment', 'villa', 'studio', 'room', 'hotel', 're
 
 /** Le bien EST le sol : rien n'y est bâti, donc rien de bâti ne se demande. */
 const NU = ['land'] as const;
+
+/**
+ * La famille FONCIÈRE : le bien est un sol, exploité ou non. Reflet de `PropertyLabels::FAMILLES`
+ * côté backend, que `PropertyCondition::appliesTo()` consulte — la parité est gardée par
+ * `field-matrix.test.ts`, qui lit le fichier PHP. Plus large que `NU` : une ferme a une année de
+ * construction (ses bâtiments), mais pas d'« état » d'annonce.
+ */
+const FONCIER = ['land', 'farm'] as const;
 
 /** Le bien est un emplacement de véhicule : demander ses places de parking serait circulaire. */
 const EMPLACEMENT = ['garage', 'parking'] as const;
@@ -85,6 +94,11 @@ export function isFieldRelevant(cle: ConditionalFieldKey, ctx: RelevanceContext)
     // entier (le foncier est celui de l'immeuble) et un EMPLACEMENT — tout le reste en a un.
     case 'title_type':
       return !dans(DANS_UN_BATIMENT, type) && !dans(EMPLACEMENT, type);
+
+    // TCK-508 — l'état (neuf, rénové…) décrit un BÂTI. Le backend l'efface de lui-même sur la
+    // famille foncière ; ne pas le demander évite une saisie que le serveur jetterait en silence.
+    case 'condition':
+      return !dans(FONCIER, type);
 
     case 'rent_period':
     case 'available_from':
@@ -169,6 +183,7 @@ const VALEUR_D_EFFACEMENT = {
   floor_number: null,
   total_floors: null,
   title_type: null,
+  condition: null,
   rent_period: null,
   available_from: null,
 } as const satisfies Partial<Record<ConditionalFieldKey, null | false>>;
@@ -201,7 +216,8 @@ export function sanitizeByType<T extends Record<string, unknown>>(
 
 const CLES_CONDITIONNELLES = new Set<string>([
   'area', 'bedrooms', 'bathrooms', 'furnished', 'year_built', 'parking_spaces',
-  'floor_number', 'total_floors', 'title_type', 'rent_period', 'available_from', 'tag_ids',
+  'floor_number', 'total_floors', 'title_type', 'condition', 'rent_period', 'available_from',
+  'tag_ids',
 ]);
 
 function estConditionnelle(cle: string): cle is ConditionalFieldKey {

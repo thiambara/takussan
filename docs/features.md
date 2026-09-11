@@ -82,6 +82,7 @@ Gestion du cycle de vie d'un bien immobilier, de sa création à sa sortie du po
 | P1 | 🧑‍💼 | Ajouter des collaborateurs au bien avec part de commission explicite et permissions granulaires |
 | P1 | 🏢🧑‍💼 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
 | P1 | 🧑‍💼🏢 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
+| P1 | 🧑‍💼🏢 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
 | P1 | 🧑‍💼 | Compteurs de vues et de favoris |
 | P2 | 🧑‍💼 | Dupliquer un bien (modèle / template) |
 | P2 | 🛡️ | Modération et validation avant publication |
@@ -101,7 +102,7 @@ Expérience de découverte pour visiteurs anonymes et clients connectés.
 | P0 | 👤🏠 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
 | P0 | 👤🏠 | Fiche bien publique (galerie, détails, formulaire de contact) |
 | P0 | 👤🏠 | Tri des résultats (prix, récence, pertinence) |
-| P1 | 👤🏠 | Filtres avancés (amenités, disponibilité, étage, meublé) |
+| P1 | 👤🏠 | Filtres avancés (amenités, disponibilité, étage, meublé, état du bien) |
 | P1 | 👤🏠 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
 | P1 | 👤🏠 | Tri des résultats par distance au point de recherche |
 | P1 | 🏠 | Recherche par carte interactive |

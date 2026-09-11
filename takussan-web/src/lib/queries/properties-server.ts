@@ -161,6 +161,7 @@ export const DASHBOARD_PROPERTY_DETAIL_FIELDS = [
   'bathrooms',
   'furnished',
   'title_type',
+  'condition',
   'floor_number',
   'total_floors',
   'available_from',

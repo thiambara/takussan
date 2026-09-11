@@ -6,13 +6,13 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**456 tickets** — 22 ouverts, 433 livrés.
+**457 tickets** — 23 ouverts, 433 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 20 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 2 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 433 |
 | 🗑️ Obsolete | 1 |
@@ -60,6 +60,7 @@
 
 ## 👀 Review
 
+- [TCK-508](tickets/TCK-508-etat-du-bien.md) — État du bien (sur plan, neuf, rénové, bon état, à rénover) : colonne déclarée, filtre public, badge, et « neuf » dérivé de la colonne `M · P1 · full`
 - [TCK-509](tickets/TCK-509-jeton-client-suit-la-session.md) — Session client — le jeton du navigateur suit la connexion et la déconnexion sans rechargement `S · P0 · bug`
 
 ## ⛔ Blocked

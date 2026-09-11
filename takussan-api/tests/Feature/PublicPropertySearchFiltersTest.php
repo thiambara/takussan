@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\TitleType;
 use App\Models\Property;
@@ -125,6 +127,53 @@ class PublicPropertySearchFiltersTest extends ApiTestCase
 
         $response->assertOk();
         $this->assertCount(0, $response->json('data'));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // condition filter (TCK-508)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Une LISTE de valeurs, OU entre elles — et un bien sans état ne satisfait aucune
+     * d'elles, même règle que `title_type` : on ne promet pas ce que la donnée ne dit pas.
+     */
+    public function test_condition_filter_returns_the_requested_conditions_only(): void
+    {
+        $etats = [
+            'Neuve' => PropertyCondition::New,
+            'Sur plan' => PropertyCondition::OffPlan,
+            'Bon etat' => PropertyCondition::Good,
+            'Sans etat' => null,
+        ];
+        foreach ($etats as $titre => $etat) {
+            Property::factory()->create([
+                'status' => PropertyStatus::Available,
+                'visibility' => PropertyVisibility::Public,
+                'type' => PropertyType::Villa,
+                'condition' => $etat,
+                'title' => $titre,
+                'published_at' => now(),
+            ]);
+        }
+        $this->indexProperties();
+
+        $titres = fn (string $requete): array => collect(
+            $this->getJson('/api/public/properties/search?'.$requete)->assertOk()->json('data'),
+        )->pluck('title')->sort()->values()->all();
+
+        $this->assertSame(['Neuve', 'Sur plan'], $titres('condition=new,off_plan'));
+        $this->assertSame(['Bon etat'], $titres('condition=good'));
+    }
+
+    /**
+     * Une valeur inconnue rend 422 au lieu d'écarter le catalogue en silence — y compris
+     * glissée derrière une valeur valide.
+     */
+    public function test_unknown_condition_is_rejected(): void
+    {
+        $this->getJson('/api/public/properties/search?condition=new,nimportequoi')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('condition');
     }
 
     // ─────────────────────────────────────────────────────────────────────

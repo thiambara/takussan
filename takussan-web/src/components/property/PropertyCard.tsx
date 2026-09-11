@@ -10,6 +10,7 @@ import type { PropertyListItem } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
+import { NewBuildChip } from '@/components/property/cards/NewBuildChip';
 import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
@@ -123,13 +124,12 @@ export function PropertyCard({
             sizes={sizes}
           />
 
-          {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide. */}
-          {property.contract_type && (
-            <ContractTypeChip
-              type={property.contract_type}
-              className="absolute top-4 left-4"
-            />
-          )}
+          {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide.
+              TCK-508 — suivi du badge « Neuf / Sur plan » quand l'état le justifie. */}
+          <div className="absolute top-4 left-4 flex flex-wrap items-center gap-1.5">
+            {property.contract_type && <ContractTypeChip type={property.contract_type} />}
+            <NewBuildChip condition={property.condition} />
+          </div>
 
           {/* Time */}
           <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-scrim/50 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full shadow-sm">

@@ -57,6 +57,8 @@ export const PROPERTY_ENUM_NAMESPACES = {
   currency: 'property.currencies',
   /** Statut foncier (`title_type`) — champ conditionnel de `StepCaracteristiques` (TCK-464). */
   titleType: 'property.titleTypes',
+  /** État déclaré du bien (`condition`) — champ conditionnel, badge public pour `new` / `off_plan` (TCK-508). */
+  condition: 'property.conditions',
   /**
    * « Vendre / Louer » — SECOND vocabulaire de `contract_type`, employé par `StepBien` (TCK-464).
    * Même motif que `visibility` / `visibilityScope` juste au-dessus : le mot varie avec l'écran

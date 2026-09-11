@@ -57,6 +57,16 @@ export const rentPeriodValues = ['daily', 'weekly', 'monthly', 'yearly'] as cons
 export const titleTypeValues = ['bail', 'titre_foncier', 'deliberation', 'autre'] as const;
 
 /**
+ * TCK-508 — `PropertyCondition` côté backend, dans l'ordre de l'enum. Le vocabulaire
+ * (`property.conditions`) est tenu aligné sur `lang/<locale>/properties.php` par
+ * `property-labels.parity.test.ts`.
+ */
+export const conditionValues = ['off_plan', 'new', 'renovated', 'good', 'to_renovate'] as const;
+
+/** Les deux états qui sont un argument de vente, et les seuls à porter un badge public. */
+export const newBuildConditionValues = ['off_plan', 'new'] as const satisfies readonly (typeof conditionValues)[number][];
+
+/**
  * Input for the create / edit property form. All fields are required by
  * UX (per TCK-041 AC) except the optional descriptors.
  * TCK-120 adds: address fields, year_built, parking_spaces, tag_ids.
@@ -79,6 +89,13 @@ export const propertyFormSchema = z.object({
   currency: z.enum(currencyValues).default('XOF'),
   rent_period: z.enum(rentPeriodValues).optional(),
   title_type: z.enum(titleTypeValues).optional(),
+  // TCK-508 — `''` est l'option « Non précisé » du formulaire d'édition : elle part en `null`, ce
+  // qui EFFACE en base. Omise, la clé laisserait l'ancien état en place sans que l'écran le montre.
+  condition: z
+    .union([z.enum(conditionValues), z.literal('')])
+    .nullable()
+    .optional()
+    .transform((v) => (v === '' ? null : v)),
   available_from: z
     .string()
     .trim()

@@ -64,6 +64,9 @@ const GROUPES: Record<string, string> = {
   // même lot : aucune entrée n'entre dans DIVERGENCES_CONNUES, la garde se resserre sans
   // acquérir de tolérance.
   title_type: 'titleTypes',
+  // TCK-508 — né aligné : `wo` porte les termes français des deux côtés, en attendant qu'un
+  // locuteur valide un vocabulaire wolof. Aucune entrée n'entre dans DIVERGENCES_CONNUES.
+  condition: 'conditions',
 };
 
 /**

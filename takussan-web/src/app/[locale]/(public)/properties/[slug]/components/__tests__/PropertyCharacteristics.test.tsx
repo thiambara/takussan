@@ -74,6 +74,17 @@ describe('date de disponibilité sur la fiche publique (TCK-489)', () => {
     expect(container.textContent).not.toMatch(/null|undefined/i);
   });
 
+  it('TCK-508 / AC6 — l’état complet figure dans les caractéristiques, y compris « À rénover »', () => {
+    rendre(bien({ condition_label: 'À rénover' }));
+    expect(screen.getByText('État du bien')).toBeInTheDocument();
+    expect(screen.getByText('À rénover')).toBeInTheDocument();
+  });
+
+  it('TCK-508 — un bien sans état déclaré ne rend pas de ligne vide', () => {
+    rendre(bien({ condition_label: null }));
+    expect(screen.queryByText('État du bien')).not.toBeInTheDocument();
+  });
+
   it('le statut foncier, lui, reste affiché — TCK-464 l’avait déjà branché', () => {
     rendre(bien({ title_type_label: 'Bail' }));
     expect(screen.getByText('Titre foncier')).toBeInTheDocument();

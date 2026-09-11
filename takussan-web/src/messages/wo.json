@@ -3760,6 +3760,7 @@
         "parking": "Palaasu parking",
         "furnished": "Ame na meebal",
         "titleDeed": "Kayitu suuf",
+        "condition": "État du bien",
         "availability": "Jotaay",
         "availabilityNow": "Léegi",
         "availabilityFrom": "Ci {date}",
@@ -4032,6 +4033,8 @@
         "floorNumber": "Etaas",
         "totalFloors": "Limu etaas",
         "titleType": "Kayitu suuf",
+        "condition": "État du bien",
+        "conditionUnset": "Non précisé",
         "furnished": "Ame na meebal",
         "description": "Leeral",
         "descriptionPlaceholder": "Leeralal kër gi, li ko wër, ak li ko gën a rafetal.",
@@ -4312,6 +4315,7 @@
         "parking": "Palaasu parking",
         "furnished": "Ame na meebal",
         "titleType": "Kayitu suuf",
+        "condition": "État du bien",
         "amenities": "Jumtukaay yi",
         "price": "Njëg",
         "currency": "Xaalis",
@@ -4351,6 +4355,7 @@
       "useMyPositionFailed": "Gisunu sa bérébu léegi. Jéemaat, walla tann bérébu bi ci kaart bi ci suuf.",
       "mapHint": "Laal kart bi ngir teg kër gi, walla toxal maarker bi.",
       "titleTypeHint": "Kayit bi wone ne suuf si sa moom la. Su nga ko xamul, bàyyil ko neen.",
+      "conditionHint": "« Neuf » et « Sur plan » s’affichent en badge sur l’annonce. Facultatif : touchez à nouveau pour effacer.",
       "titleComposedHint": "Bopp bu ñu jubbanti ci sa tontu yi — man nga koo soppi.",
       "photosCounter": "{count, plural, =0 {Amul benn nataal — ba {max}} one {# nataal ci {max}} other {# nataal ci {max}}}",
       "descriptionCounter": "{count, plural, one {# araf} other {# araf}}",
@@ -4421,6 +4426,13 @@
       "titre_foncier": "Titre foncier",
       "deliberation": "Délibération",
       "autre": "Yeneen"
+    },
+    "conditions": {
+      "off_plan": "Sur plan",
+      "new": "Neuf",
+      "renovated": "Rénové",
+      "good": "Bon état",
+      "to_renovate": "À rénover"
     }
   },
   "documents": {

@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
@@ -39,6 +40,7 @@ class UpdatePropertyRequest extends FormRequest
             'contract_type' => ['sometimes', Rule::enum(ContractType::class)],
             'rent_period' => ['sometimes', 'nullable', Rule::enum(RentPeriod::class)],
             'title_type' => ['sometimes', 'nullable', Rule::enum(TitleType::class)],
+            'condition' => ['sometimes', 'nullable', Rule::enum(PropertyCondition::class)],
             'floor_number' => ['sometimes', 'nullable', 'integer', 'min:-5', 'max:200'],
             'total_floors' => ['sometimes', 'nullable', 'integer', 'min:1', 'max:200'],
             'status' => ['sometimes', Rule::enum(PropertyStatus::class)],

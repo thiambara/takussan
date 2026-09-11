@@ -3,6 +3,8 @@
 namespace Tests\Feature\Api\Property;
 
 use App\Models\Agency;
+use App\Models\Enums\PropertyCondition;
+use App\Models\Enums\PropertyType;
 use App\Models\Enums\TitleType;
 use App\Models\Property;
 use App\Models\User;
@@ -106,6 +108,135 @@ class PropertyWritableFieldsTest extends TestCase
             ->assertOk();
 
         $this->assertSame('11000', $bien->refresh()->address->postal_code);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // TCK-508 — l'état du bien, et les bornes de `year_built` à la création
+    // ─────────────────────────────────────────────────────────────────────
+
+    /** @param array<string, mixed> $attributs @return array<string, mixed> */
+    private function payloadVilla(array $attributs = []): array
+    {
+        return $attributs + ['title' => 'Villa de test', 'type' => 'villa'] + $this->payloadMinimal();
+    }
+
+    /**
+     * `?lang=fr` et non `setLocale()` : `SetLocaleMiddleware` repose la locale à chaque
+     * requête, d'après la préférence de l'utilisateur ou `Accept-Language`.
+     */
+    public function test_condition_est_persistee_et_relue_avec_son_libelle(): void
+    {
+        $reponse = $this->actingAs($this->acteur())
+            ->postJson('/api/properties?lang=fr', $this->payloadVilla(['condition' => 'off_plan']));
+
+        $reponse->assertCreated();
+        $this->assertSame(
+            PropertyCondition::OffPlan,
+            Property::query()->findOrFail($reponse->json('data.id'))->condition,
+        );
+        $this->assertSame('off_plan', $reponse->json('data.condition'));
+        $this->assertSame('Sur plan', $reponse->json('data.condition_label'));
+    }
+
+    public function test_une_condition_inconnue_est_refusee(): void
+    {
+        $this->actingAs($this->acteur())
+            ->postJson('/api/properties', $this->payloadVilla(['condition' => 'nimportequoi']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('condition');
+    }
+
+    public function test_condition_est_modifiable_et_effacable(): void
+    {
+        $user = $this->acteur();
+        $bien = Property::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $user->agency_id,
+            'type' => PropertyType::Villa,
+            'condition' => PropertyCondition::Good,
+        ]);
+
+        $this->actingAs($user)
+            ->putJson("/api/properties/{$bien->id}", ['condition' => PropertyCondition::New->value])
+            ->assertOk();
+        $this->assertSame(PropertyCondition::New, $bien->refresh()->condition);
+
+        $this->actingAs($user)
+            ->putJson("/api/properties/{$bien->id}", ['condition' => null])
+            ->assertOk();
+        $this->assertNull($bien->refresh()->condition);
+    }
+
+    /**
+     * Contrainte 2 — un terrain n'a pas d'état, même quand on lui en envoie un. Un 201
+     * seul ne dirait rien : c'est la valeur RELUE qui compte.
+     */
+    public function test_un_terrain_est_enregistre_sans_etat(): void
+    {
+        $reponse = $this->actingAs($this->acteur())
+            ->postJson('/api/properties', $this->payloadMinimal() + ['condition' => 'new']);
+
+        $reponse->assertCreated();
+        $this->assertNull(Property::query()->findOrFail($reponse->json('data.id'))->condition);
+    }
+
+    public function test_une_villa_passee_en_terrain_perd_son_etat(): void
+    {
+        $user = $this->acteur();
+        $bien = Property::factory()->create([
+            'user_id' => $user->id,
+            'agency_id' => $user->agency_id,
+            'type' => PropertyType::Villa,
+            'condition' => PropertyCondition::New,
+        ]);
+
+        $this->actingAs($user)
+            ->putJson("/api/properties/{$bien->id}", ['type' => PropertyType::Land->value])
+            ->assertOk();
+
+        $this->assertNull($bien->refresh()->condition);
+    }
+
+    /** Les bornes de `UpdatePropertyRequest` (1800–2100) s'appliquent dès la création. */
+    public function test_year_built_est_borne_a_la_creation(): void
+    {
+        $user = $this->acteur();
+
+        foreach ([99999, 1799] as $annee) {
+            $this->actingAs($user)
+                ->postJson('/api/properties', $this->payloadVilla(['year_built' => $annee]))
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('year_built');
+        }
+
+        $this->actingAs($user)
+            ->postJson('/api/properties', $this->payloadVilla(['year_built' => 2020]))
+            ->assertCreated();
+    }
+
+    public function test_le_tableau_de_bord_filtre_par_etat(): void
+    {
+        $agence = Agency::factory()->create();
+        $agent = User::factory()->withAgentProfile($agence)->create();
+        $bien = fn (?PropertyCondition $etat): Property => Property::factory()->create([
+            'user_id' => $agent->id,
+            'agency_id' => $agence->id,
+            'type' => PropertyType::Villa,
+            'condition' => $etat,
+        ]);
+        $attendus = [$bien(PropertyCondition::New)->id, $bien(PropertyCondition::OffPlan)->id];
+        $bien(PropertyCondition::Good);
+        $bien(null);
+        sort($attendus);
+
+        $rendus = collect(
+            $this->actingAs($agent)
+                ->getJson('/api/properties?filter[condition]=new,off_plan&fields[properties]=id,condition')
+                ->assertOk()
+                ->json('data'),
+        )->pluck('id')->sort()->values()->all();
+
+        $this->assertSame($attendus, $rendus);
     }
 
     public function test_available_from_est_relu_dans_la_reponse(): void
