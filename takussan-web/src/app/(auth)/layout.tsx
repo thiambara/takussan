@@ -43,7 +43,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <IntlProvider messages={await messagesPour('(auth)')}>
-      {/* TCK-509 — arriver ici avec une session côté client, c'est qu'elle a été fermée sans lui. */}
+      {/* TCK-509 — arriver ici avec une session côté client : le serveur dit si elle est périmée. */}
       <ReinitialiserSessionClient />
       <AuthPanneau>{children}</AuthPanneau>
     </IntlProvider>

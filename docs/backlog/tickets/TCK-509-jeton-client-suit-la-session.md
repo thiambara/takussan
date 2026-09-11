@@ -128,9 +128,16 @@ qu'on corrige.
   (`src/context/__tests__/AuthContext.chemin-unique.test.ts`) casse sur tout autre appelant de
   `set-token`/`logout` et sur tout effacement de `AUTH_COOKIE_NAME` hors de `src/app/api/auth/`.
 - **L'expiration de session** (`getMeAction` → `/api/auth/session-expired` → `/auth/login`) est
-  rattrapée par `ReinitialiserSessionClient`, monté dans `(auth)/layout.tsx` : le proxy garantit
-  qu'on n'y arrive que sans cookie, donc un jeton dans le contexte à cet endroit est périmé. Il ne
-  juge que l'état **au montage** — sinon il refermerait la session que la page de connexion ouvre.
+  rattrapée par `ReinitialiserSessionClient`, monté dans `(auth)/layout.tsx`. Il ne juge que la
+  session présente **au montage** — sinon il refermerait celle que la page de connexion ouvre — et
+  **la fait juger par le serveur** (`/api/auth/me`, qui lit le cookie) avant de la fermer.
+  ⚠ « Le proxy garantit qu'on n'arrive sur `/auth/*` que sans cookie » est FAUX pour un retour
+  arrière : Next restaure la page de son cache client, sans requête, donc sans proxy. La première
+  version en déduisait « jeton au montage = session périmée » ; la revue de la PR 257 l'a
+  attrapée, et le navigateur l'a confirmée le 2026-09-11 : connexion, `/app`, bouton Retour →
+  **deux** `POST /api/auth/logout`, `/api/auth/me` 200 → 401 — déconnecté par un Retour. Après
+  correction, même relevé : **zéro** appel de déconnexion, `/api/auth/me` reste à 200 ; la
+  vérification part deux fois en `next dev` (double montage des effets) et renonce deux fois.
 - **AC5 ne demandait aucun code dédié** : l'effet d'amorçage des favoris vide déjà le store quand
   `user` repasse à `null`. Il ne se déclenchait pas parce que le contexte n'apprenait jamais la
   déconnexion. Un `clearLocalFavorites()` explicite dans `logout` s'est révélé vert sous ablation,

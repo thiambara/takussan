@@ -91,7 +91,9 @@ initialisé **une fois** par le layout racine, que la navigation douce ne remont
 - **Sortir** : `useAuth().logout()` — révoque, efface les cookies, vide cache et favoris locaux.
   Pas de server action de déconnexion : elle efface le cookie sans que le client l'apprenne.
 - **Filet** : `ReinitialiserSessionClient`, monté par `(auth)/layout.tsx`, referme la session que le
-  client croit ouverte en arrivant sur `/auth/*` (expiration via `session-expired`).
+  client croit ouverte en arrivant sur `/auth/*` (expiration via `session-expired`) — **après avoir
+  demandé au serveur** (`/api/auth/me`). ⚠ « `/auth/*` n'est servi que sans cookie » est faux pour
+  un retour arrière : Next restaure la page de son cache client, sans requête, donc sans proxy.
 
 `src/context/__tests__/AuthContext.chemin-unique.test.ts` casse sur tout autre appelant de
 `set-token`/`logout`, et sur tout effacement du cookie hors de `src/app/api/auth/`.
