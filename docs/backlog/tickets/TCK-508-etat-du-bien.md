@@ -166,6 +166,9 @@ Docs :
   2 rouges (terrain, villa → terrain) ; filtre du service retiré → 1 rouge.
 - Front : `tsc` propre, ESLint 0 erreur, `check:i18n` vert, suite entière 3183 / 3183 (380
   fichiers). Gardes racine : 40 / 41, la 41ᵉ étant l'INDEX, régénéré au passage en `review`.
+- **Suite back entière (2026-09-11)** : 3137 verts, 2 ignorés, 0 échec, 10 396 assertions, en
+  619,51 s — **sous charge**, ce n'est pas un temps de référence : `uptime` au départ
+  35,26 / 43,61 / 34,02, à l'arrivée 3,58 / 10,61 / 20,28, sur 8 cœurs.
 - AC1, AC2, AC4, AC5 sont tenus par les tests back (`PropertyWritableFieldsTest`,
   `PropertyDerivedVocabularyTest`, `PropertyResourceSparseFieldsTest`,
   `PublicPropertySearchFiltersTest`) ; AC3, AC6, AC7, AC8 ont été relevés en plus sur l'API vivante
