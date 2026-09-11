@@ -3138,7 +3138,6 @@
         "floor": "Floor",
         "availability": "Availability",
         "amenities": "Amenities",
-        "keywords": "Keywords",
         "aroundMe": "Around me",
         "titleDeed": "Title deed"
       },
@@ -3164,7 +3163,6 @@
       "availableFrom": "Available from…",
       "amenitiesPlaceholder": "pool, parking, terrace…",
       "amenitiesHint": "Separate with commas",
-      "clearQuery": "Clear the search “{q}”",
       "floors": {
         "ground": "Ground",
         "first": "1st",

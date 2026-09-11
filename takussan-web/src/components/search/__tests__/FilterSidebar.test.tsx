@@ -300,26 +300,18 @@ describe('<FilterSidebar> — la commande « Autour de moi » (TCK-346)', () => 
 });
 
 /**
- * Le panneau ne porte PLUS de champ de saisie pour `q` : la seule entrée est la barre de
- * navigation, qui écrit le paramètre d'URL. Le panneau ne fait que montrer le terme en vigueur et
- * permettre de le retirer. Un second champ pour le même paramètre était une duplication.
+ * Le panneau ne montre PAS `q` : le terme se lit et se modifie dans le champ de recherche de la
+ * barre de navigation, qui le relit dans l'URL. Une section « Mots-clés » ici en faisait une
+ * seconde copie.
  */
-describe('<FilterSidebar> — le mot-clé `q` se lit, il ne se saisit plus ici', () => {
-  it('sans `q`, aucune section « Mots-clés » et aucun champ de saisie plein-texte', () => {
-    monte({});
+describe('<FilterSidebar> — aucune section « Mots-clés »', () => {
+  it.each([
+    ['sans `q`', {}],
+    ['avec `q`', { q: 'villa piscine' }],
+  ])('%s : ni section, ni terme, ni champ plein-texte', (_cas, filtres) => {
+    monte(filtres);
     expect(screen.queryByText('Mots-clés')).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(/Mot-clé, référence/)).not.toBeInTheDocument();
-  });
-
-  it('avec `q`, affiche le terme tel quel et le retire en un clic, sans autre patch', () => {
-    const { onFilterChange } = monte({ q: 'villa piscine' });
-    expect(screen.getByText('Mots-clés')).toBeInTheDocument();
-    expect(screen.getByText('villa piscine')).toBeInTheDocument();
-    expect(screen.queryByRole('textbox', { name: /mot-clé/i })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Effacer la recherche « villa piscine »' }));
-
-    expect(onFilterChange).toHaveBeenCalledTimes(1);
-    expect(onFilterChange).toHaveBeenCalledWith({ q: undefined, page: 1 });
+    expect(screen.queryByText('villa piscine')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Effacer la recherche/ })).not.toBeInTheDocument();
   });
 });

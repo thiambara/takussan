@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
@@ -16,12 +16,20 @@ import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
 import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
 import { apiFetch } from '@/lib/api';
 import { parametreDe } from '@/types/search';
-import { hrefLocalise } from '@/i18n/navigation';
+import { hrefLocalise, localeDuChemin } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
+import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 
 type PropertyTypeCountsResponse = {
   data: Array<{ value: string; count: number }>;
 };
+
+/** `/properties` ou `/fr/properties` — la liste des biens, jamais une fiche (`/properties/<slug>`). */
+function estListeDesBiens(pathname: string): boolean {
+  const segments = pathname.split('/').filter(Boolean);
+  if (localeDuChemin(pathname)) segments.shift();
+  return segments.length === 1 && segments[0] === 'properties';
+}
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   apartment: Building2,
@@ -49,6 +57,7 @@ export interface NavbarProps {
 export function Navbar({ className }: NavbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { user, isLoading, logout } = useAuth();
   const locale = useLocale() as Locale;
   const t = useTranslations('nav');
@@ -61,7 +70,11 @@ export function Navbar({ className }: NavbarProps) {
   ] as const;
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [location, setLocation] = useState('');
+  // Le champ montre la recherche EN VIGUEUR sur la liste des biens — rechargement compris — et
+  // reste modifiable. Ailleurs, `q` appartient à un autre index (`/agents`, `/agencies`) : il n'a
+  // pas à apparaître dans la recherche de biens, ni à y être emporté.
+  const qEnVigueur = estListeDesBiens(pathname) ? (searchParams.get(parametreDe('q')) ?? '') : '';
+  const [location, setLocation] = useStateSyncedWith(qEnVigueur);
   const [transaction, setTransaction] = useState('');
   const [moreOpen, setMoreOpen] = useState(false);
   const [typeCounts, setTypeCounts] = useState<Record<string, number> | null>(null);
@@ -158,7 +171,9 @@ export function Navbar({ className }: NavbarProps) {
     if (transaction === 'Louer')   params.set(parametreDe('contract_type'), 'rent');
     // free text from the searchbox maps to full-text search; selecting a
     // city/neighborhood suggestion still writes the dedicated location params.
+    // Le champ étant prérempli par `q`, un champ VIDÉ est une demande de le retirer.
     if (location.trim()) params.set(parametreDe('q'), location.trim());
+    else params.delete(parametreDe('q'));
     // active category → type filter (only override if set)
     if (activeCategory) params.set(parametreDe('type'), activeCategory);
     // reset pagination on new search
@@ -211,6 +226,7 @@ export function Navbar({ className }: NavbarProps) {
               variant="hero"
               placeholder={t('searchPlaceholder')}
               className="flex-1 [&>div:first-child]:border-none [&>div:first-child]:shadow-none [&>div:first-child]:rounded-none [&>div:first-child]:bg-transparent"
+              value={qEnVigueur}
               onQueryChange={(v) => setLocation(v)}
             />
             <div className="w-px h-6 bg-border shrink-0" />

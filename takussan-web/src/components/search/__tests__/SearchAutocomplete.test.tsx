@@ -7,10 +7,11 @@ import { SearchAutocomplete } from '../SearchAutocomplete';
 import frMessages from '@/messages/fr.json';
 
 const mockPush = vi.fn();
+let parametresUrl = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => parametresUrl,
 }));
 
 vi.mock('@/hooks/useSuggest', () => ({
@@ -47,6 +48,7 @@ describe('SearchAutocomplete', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockPush.mockReset();
+    parametresUrl = new URLSearchParams();
   });
 
   it('renders empty state with placeholder and no dropdown', async () => {
@@ -146,5 +148,64 @@ describe('SearchAutocomplete', () => {
 
     expect(mockPush).toHaveBeenCalledTimes(1);
     expect(mockPush).toHaveBeenCalledWith('/fr/properties?q=apprtement');
+  });
+
+  describe('`value` — la recherche en vigueur', () => {
+    it('préremplit le champ, sans ouvrir la liste ni interroger les suggestions', async () => {
+      const { useSuggest } = await import('@/hooks/useSuggest');
+      const suggest = useSuggest as ReturnType<typeof vi.fn>;
+      suggest.mockReturnValue({ data: mockSuggestData, isLoading: false, isFetching: false });
+
+      render(withProviders(<SearchAutocomplete value="villa piscine" />));
+
+      expect(screen.getByRole('searchbox')).toHaveValue('villa piscine');
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      expect(suggest).toHaveBeenLastCalledWith('villa piscine', { enabled: false });
+    });
+
+    it('reste modifiable : la saisie remplace `q` et conserve les autres paramètres', async () => {
+      parametresUrl = new URLSearchParams('q=villa&contract_type=sale');
+      const { useSuggest } = await import('@/hooks/useSuggest');
+      (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: false, isFetching: false });
+
+      render(withProviders(<SearchAutocomplete value="villa" />));
+
+      const input = screen.getByRole('searchbox');
+      await userEvent.clear(input);
+      await userEvent.type(input, 'maison{Enter}');
+
+      expect(mockPush).toHaveBeenCalledWith('/fr/properties?q=maison&contract_type=sale');
+    });
+
+    it('vider le champ puis Entrée retire `q`', async () => {
+      parametresUrl = new URLSearchParams('q=villa&contract_type=sale');
+      const { useSuggest } = await import('@/hooks/useSuggest');
+      (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: false, isFetching: false });
+
+      render(withProviders(<SearchAutocomplete value="villa" />));
+
+      const input = screen.getByRole('searchbox');
+      await userEvent.clear(input);
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      expect(mockPush).toHaveBeenCalledWith('/fr/properties?contract_type=sale');
+    });
+
+    it('choisir une suggestion ramène le champ au terme en vigueur, pas à vide', async () => {
+      parametresUrl = new URLSearchParams('q=villa');
+      const { useSuggest } = await import('@/hooks/useSuggest');
+      (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockSuggestData, isLoading: false, isFetching: false });
+
+      render(withProviders(<SearchAutocomplete value="villa" />));
+
+      const input = screen.getByRole('searchbox');
+      await userEvent.clear(input);
+      await userEvent.type(input, 'da');
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/fr/properties?q=villa&city=Dakar'));
+      expect(input).toHaveValue('villa');
+    });
   });
 });
