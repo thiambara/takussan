@@ -4,6 +4,7 @@ namespace App\Http\Requests\Public;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Concerns\FiltreParPointEtRayon;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\TitleType;
 use Closure;
 use Illuminate\Support\Carbon;
@@ -146,6 +147,21 @@ class SearchPublicPropertyRequest extends BaseFormRequest
             // TCK-491 — une enum, jamais une chaine libre : un statut inconnu doit rendre 422
             // plutot que d'ecarter le catalogue entier en silence, comme `contract_type`.
             'title_type' => ['nullable', Rule::enum(TitleType::class)],
+            // TCK-508 — une LISTE (`condition=new,off_plan`), validee valeur par valeur : une
+            // valeur inconnue glissee derriere une valeur valide rend 422, au lieu d'etre
+            // transmise a Meilisearch qui rendrait 0 bien sans rien dire.
+            'condition' => [
+                'nullable', 'string', 'max:100',
+                function (string $attribut, mixed $valeur, Closure $echec): void {
+                    foreach (explode(',', (string) $valeur) as $etat) {
+                        if (PropertyCondition::tryFrom(trim($etat)) === null) {
+                            $echec(__('validation.in', ['attribute' => $attribut]));
+
+                            return;
+                        }
+                    }
+                },
+            ],
             // TCK-335 — `after_or_equal:today` faisait POURRIR toute recherche sauvegardee
             // et tout lien partage : le jour ou la date passait, l'URL rendait 422, et le
             // front affichait « 0 bien trouve ». La borne n'a de sens qu'a la SAISIE, pas a

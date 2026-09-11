@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\Address;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
@@ -178,6 +179,28 @@ class PropertyLabelsTest extends TestCase
             $this->assertStringContainsString('neuf', PropertyLabels::facts($this->bien(['year_built' => 2029])));
             $this->assertStringNotContainsString('neuf', PropertyLabels::facts($this->bien(['year_built' => 2028])));
             $this->assertStringNotContainsString('neuf', PropertyLabels::facts($this->bien(['year_built' => null])));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    /**
+     * TCK-508 — l'état DÉCLARÉ gagne sur l'année : déclaré neuf, un bien l'est quelle
+     * que soit son année ; déclaré en bon état, il ne l'est pas, même construit l'an
+     * dernier. L'année ne sert plus que de repli, quand rien n'est déclaré.
+     */
+    public function test_neuf_suit_l_etat_declare_avant_l_annee(): void
+    {
+        Carbon::setTestNow('2030-06-01');
+
+        try {
+            $villa = fn (array $a): string => PropertyLabels::facts($this->bien($a + ['type' => PropertyType::Villa]));
+
+            $this->assertStringContainsString('neuf', $villa(['condition' => PropertyCondition::New, 'year_built' => 1998]));
+            $this->assertStringContainsString('neuf', $villa(['condition' => PropertyCondition::OffPlan, 'year_built' => null]));
+            $this->assertStringNotContainsString('neuf', $villa(['condition' => PropertyCondition::Good, 'year_built' => 2030]));
+            $this->assertStringNotContainsString('neuf', $villa(['condition' => PropertyCondition::Renovated, 'year_built' => 2029]));
+            $this->assertStringContainsString('neuf', $villa(['condition' => null, 'year_built' => 2029]));
         } finally {
             Carbon::setTestNow();
         }

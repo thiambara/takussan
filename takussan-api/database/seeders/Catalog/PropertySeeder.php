@@ -5,6 +5,7 @@ namespace Database\Seeders\Catalog;
 use App\Models\Address;
 use App\Models\Agency;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
@@ -114,9 +115,30 @@ class PropertySeeder extends Seeder
                     default => $this->ctx->faker()->numberBetween(50, 500),
                 };
 
+                // TCK-508 — un état DÉCLARÉ, cohérent avec l'année, sur les biens bâtis
+                // seulement. Sans lui, `q=neuf` ne pouvait rien rendre : les années
+                // s'arrêtaient à 2024 (mesuré sur preview le 2026-09-10 : 0 bien sur 266).
+                // Un bien sur plan n'a pas encore d'année ; un bien neuf a celle de l'an
+                // dernier ou de l'année en cours. ⚠ `withoutEvents()` contourne l'invariant
+                // du modèle (un terrain n'a pas d'état) : la garde par famille est donc ici.
+                $condition = PropertyCondition::appliesTo($type)
+                    ? $this->ctx->faker()->optional(0.85)->randomElement([
+                        PropertyCondition::OffPlan,
+                        PropertyCondition::New, PropertyCondition::New,
+                        PropertyCondition::Renovated, PropertyCondition::Renovated,
+                        PropertyCondition::Good, PropertyCondition::Good, PropertyCondition::Good, PropertyCondition::Good,
+                        PropertyCondition::ToRenovate,
+                    ])
+                    : null;
+                $yearBuilt = match ($condition) {
+                    PropertyCondition::OffPlan => null,
+                    PropertyCondition::New => $this->ctx->faker()->numberBetween(now()->year - 1, now()->year),
+                    default => $this->ctx->faker()->numberBetween(1990, 2024),
+                };
+
                 $property = Property::withoutEvents(function () use (
                     $agency, $ownerId, $title, $description, $type, $contract, $status, $price, $area,
-                    $bedrooms, $createdAt
+                    $bedrooms, $createdAt, $condition, $yearBuilt
                 ) {
                     return Property::create([
                         'user_id' => $ownerId,
@@ -139,7 +161,8 @@ class PropertySeeder extends Seeder
                         'furnished' => $this->ctx->faker()->boolean(35),
                         'floor_number' => PropertyLabels::aUnEtage($type) ? $this->ctx->faker()->optional()->numberBetween(0, 8) : null,
                         'total_floors' => $this->ctx->faker()->optional()->numberBetween(1, 10),
-                        'year_built' => $this->ctx->faker()->numberBetween(1990, 2024),
+                        'year_built' => $yearBuilt,
+                        'condition' => $condition?->value,
                         'parking_spaces' => $this->ctx->faker()->numberBetween(0, 3),
                         'featured' => $this->ctx->faker()->boolean(15),
                         'available_from' => $createdAt->toDateString(),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { toCreatePayload, toUpdatePayload } from '../payload';
-import type { PropertyFormPayload } from '@/lib/schemas/property';
+import { propertyFormSchema, type PropertyFormPayload } from '@/lib/schemas/property';
 
 function valeurs(patch: Partial<PropertyFormPayload> = {}): PropertyFormPayload {
   return {
@@ -16,6 +16,34 @@ function valeurs(patch: Partial<PropertyFormPayload> = {}): PropertyFormPayload 
     ...patch,
   } as PropertyFormPayload;
 }
+
+describe('TCK-508 — l’état du bien dans le corps de requête', () => {
+  const saisie = { title: 'Villa', type: 'villa', contract_type: 'sale', price: 1000, city: 'Dakar' };
+
+  /**
+   * « Non précisé » doit EFFACER à l'édition : omise, la clé laisserait en base l'ancien état,
+   * que l'écran afficherait alors comme « Non précisé » — une contradiction invisible.
+   */
+  it('« Non précisé » (`\'\'`) part en `null` à l’édition', () => {
+    const valeursValidees = propertyFormSchema.parse({ ...saisie, condition: '' });
+    expect(valeursValidees.condition).toBeNull();
+    expect(toUpdatePayload(valeursValidees)).toHaveProperty('condition', null);
+  });
+
+  it('un état choisi traverse tel quel', () => {
+    const valeursValidees = propertyFormSchema.parse({ ...saisie, condition: 'off_plan' });
+    expect(toUpdatePayload(valeursValidees)).toHaveProperty('condition', 'off_plan');
+  });
+
+  it('une clé jamais lue reste absente du corps — rien n’est effacé à l’aveugle', () => {
+    const valeursValidees = propertyFormSchema.parse(saisie);
+    expect(toUpdatePayload(valeursValidees)).not.toHaveProperty('condition');
+  });
+
+  it('une valeur hors de l’enum est refusée dès le formulaire', () => {
+    expect(propertyFormSchema.safeParse({ ...saisie, condition: 'nimportequoi' }).success).toBe(false);
+  });
+});
 
 describe('toCreatePayload', () => {
   /**

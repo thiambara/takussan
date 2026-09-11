@@ -62,4 +62,5 @@ l'implémentation elle-même.
 - `app/Models/User.php:173-196` — l'accesseur de compatibilité `agency_id`.
 - `database/migrations/2026_05_02_000007_drop_type_and_agency_id_from_users.php` — le cutover.
 - Côté front : le header `X-Active-Profile-Hint` est posé par `src/lib/api.ts`, et le cookie
-  `active_profile_id` est effacé avec `auth_token` à chaque `set-token` et à chaque `clearToken`.
+  `active_profile_id` est effacé avec `auth_token` par les route handlers `set-token`, `logout` et
+  `session-expired` (TCK-509 : `logout` ne l'effaçait pas, `clearToken` a été retiré).

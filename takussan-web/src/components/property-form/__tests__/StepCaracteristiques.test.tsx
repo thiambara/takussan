@@ -165,6 +165,30 @@ describe('StepCaracteristiques', () => {
     expect(bail).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('TCK-508 / AC7 — ni un TERRAIN ni une FERME ne demandent l’état du bien', () => {
+    const { unmount } = monter({ type: 'land' });
+    expect(screen.queryByRole('group', { name: /état du bien/i })).not.toBeInTheDocument();
+    unmount();
+
+    monter({ type: 'farm' });
+    expect(screen.queryByRole('group', { name: /état du bien/i })).not.toBeInTheDocument();
+  });
+
+  it('TCK-508 — une VILLA demande son état, et il se désélectionne : il est facultatif', async () => {
+    // Contrepartie positive du test précédent : sans elle, un groupe supprimé ou renommé
+    // laisserait les assertions négatives vertes.
+    const user = userEvent.setup();
+    monter({ type: 'villa' });
+
+    expect(screen.getByRole('group', { name: /état du bien/i })).toBeInTheDocument();
+    const neuf = screen.getByRole('button', { name: 'Neuf' });
+    await user.click(neuf);
+    expect(neuf).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(neuf);
+    expect(neuf).toHaveAttribute('aria-pressed', 'false');
+  });
+
   it('re-revue M-12 — statut foncier ET équipements restent en `aria-pressed`, jamais en radiogroup', () => {
     // La frontière est VOULUE, pas un oubli : ces deux champs sont multi-sélection (équipements)
     // ou désélectionnables (statut foncier), et un groupe de radios ne convient à ni l'un ni

@@ -74,6 +74,7 @@ function makeProperty(overrides: Partial<PropertyDetail> = {}): PropertyDetail {
     status_label: 'Disponible',
     title_type: null,
     title_type_label: null,
+    condition_label: null,
     floor_number: null,
     total_floors: null,
     year_built: 2020,

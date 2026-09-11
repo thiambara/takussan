@@ -50,6 +50,7 @@ const TOUS_LES_FILTRES: SearchFilters = {
   floor_number: 0,
   available_from: '2026-09-01',
   title_type: 'bail',
+  condition: ['new', 'off_plan'],
   tags: 'piscine,parking',
   sort: 'price_asc',
   page: 7,
@@ -105,8 +106,20 @@ describe('<SearchToolbar> — les puces de filtre actif', () => {
       'Rez-de-chaussée',
       'Dispo dès 01 sept. 2026',
       'Titre : Bail',
+      'Neuf',
+      'Sur plan',
       'Tags : piscine,parking',
     ]);
+  });
+
+  it('TCK-508 / AC6 — une puce par état, retirée par sa sous-clé', async () => {
+    const user = userEvent.setup();
+    const { onRemoveFilter } = monte({ condition: ['new', 'off_plan'] });
+
+    expect(puces()).toEqual(['Neuf', 'Sur plan']);
+
+    await user.click(screen.getByRole('button', { name: 'Sur plan' }));
+    expect(onRemoveFilter).toHaveBeenCalledWith('condition', 'off_plan');
   });
 
   /**

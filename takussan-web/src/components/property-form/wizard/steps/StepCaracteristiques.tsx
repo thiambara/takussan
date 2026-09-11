@@ -5,7 +5,7 @@ import type { UseFormReturn } from 'react-hook-form';
 
 import { FormCheckbox, FormInput } from '@/components/forms';
 import type { PropertyFormValues } from '@/lib/schemas/property';
-import { titleTypeValues } from '@/lib/schemas/property';
+import { conditionValues, titleTypeValues } from '@/lib/schemas/property';
 import type { Tag } from '@/types/tag';
 import { areaLabelKey, isFieldRelevant, type ConditionalFieldKey } from '../../field-matrix';
 import { PROPERTY_ENUM_NAMESPACES } from '../../options';
@@ -39,11 +39,13 @@ export function StepCaracteristiques({
 }) {
   const t = useTranslations('property.wizard');
   const tTitre = useTranslations(PROPERTY_ENUM_NAMESPACES.titleType);
+  const tEtat = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
   const { control, watch, setValue } = form;
   const ctx = { type: watch('type'), contract: watch('contract_type') } as const;
   const pertinent = (cle: ConditionalFieldKey) => isFieldRelevant(cle, ctx);
   const tagIds = (watch('tag_ids') ?? []) as number[];
   const titreActuel = watch('title_type');
+  const etatActuel = watch('condition') || undefined;
 
   // Un terrain ne rend AUCUN des quatre : sans ce garde, la grille resterait montée, vide, et
   // l'espacement de l'étape s'ouvrirait sur rien.
@@ -135,6 +137,27 @@ export function StepCaracteristiques({
             options={titleTypeValues.map((v) => ({ value: v, label: tTitre(v) }))}
           />
           <p className="text-xs leading-relaxed text-muted-foreground">{t('titleTypeHint')}</p>
+        </div>
+      ) : null}
+
+      {pertinent('condition') ? (
+        <div className="wizard-field-rise space-y-2" style={{ animationDelay: '210ms' }}>
+          <ChoiceChips
+            id="wizard-condition"
+            label={t('fields.condition')}
+            value={etatActuel}
+            // TCK-508 — FACULTATIF comme le statut foncier : recliquer la pastille enfoncée
+            // l'efface, c'est l'équivalent de « Non précisé » du formulaire d'édition.
+            onChange={(v) =>
+              setValue(
+                'condition',
+                v === etatActuel ? undefined : (v as PropertyFormValues['condition']),
+                { shouldDirty: true },
+              )
+            }
+            options={conditionValues.map((v) => ({ value: v, label: tEtat(v) }))}
+          />
+          <p className="text-xs leading-relaxed text-muted-foreground">{t('conditionHint')}</p>
         </div>
       ) : null}
 

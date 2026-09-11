@@ -69,6 +69,8 @@ class PropertyResource extends BaseResource
             'visibility' => $this->whenHas('visibility', fn ($valeur) => $valeur?->value),
             'title_type' => $this->whenHas('title_type', fn ($valeur) => $valeur?->value),
             'title_type_label' => $this->enumLabel($this->title_type, 'properties.title_type'),
+            'condition' => $this->whenHas('condition', fn ($valeur) => $valeur?->value),
+            'condition_label' => $this->enumLabel($this->condition, 'properties.condition'),
             'location' => $this->buildLocation($address),
             'bedrooms' => $this->whenHas('bedrooms'),
             'bathrooms' => $this->whenHas('bathrooms'),

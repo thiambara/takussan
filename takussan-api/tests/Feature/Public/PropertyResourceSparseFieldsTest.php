@@ -76,6 +76,8 @@ class PropertyResourceSparseFieldsTest extends ApiTestCase
     private const COLONNES_NON_DEMANDEES = [
         'price', 'furnished', 'featured', 'views_count', 'favorites_count',
         'status', 'currency', 'bathrooms',
+        // TCK-508 — une colonne neuve suit la même règle : `whenHas`, jamais un accès nu.
+        'condition',
     ];
 
     /**
@@ -147,7 +149,7 @@ class PropertyResourceSparseFieldsTest extends ApiTestCase
 
         $ligne = $this->ligneDeLIndex('?fields[properties]=id,title,type&include=address', $bien->id);
 
-        foreach (['location', 'main_photo_url', 'type_label', 'status_label', 'contract_type_label'] as $derivee) {
+        foreach (['location', 'main_photo_url', 'type_label', 'status_label', 'contract_type_label', 'condition_label'] as $derivee) {
             $this->assertArrayHasKey(
                 $derivee,
                 $ligne,

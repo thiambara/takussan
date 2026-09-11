@@ -259,12 +259,19 @@ final class PropertyLabels
             }
         }
 
-        // Le SEUL fait relatif au temps de tout document indexé : figé à
-        // l'indexation, il ne se périme que si quelque chose réindexe le bien.
-        // Rien ne le faisait (revue de PR 253) — c'est le rôle du job quotidien
-        // {@see \App\Jobs\RefreshNewBuildSearchLabel}, qui réindexe les biens
-        // construits dans les trois dernières années.
-        if ($bien->year_built !== null && (int) $bien->year_built >= self::anneeNeufMin()) {
+        // TCK-508 — l'état DÉCLARÉ gagne : `new` et `off_plan` valent « neuf »
+        // quelle que soit l'année, toute autre valeur l'exclut. L'année n'est
+        // plus qu'un REPLI, quand rien n'est déclaré.
+        //
+        // Ce repli est le SEUL fait relatif au temps de tout document indexé :
+        // figé à l'indexation, il ne se périme que si quelque chose réindexe le
+        // bien. Rien ne le faisait (revue de PR 253) — c'est le rôle du job
+        // quotidien {@see \App\Jobs\RefreshNewBuildSearchLabel}, qui réindexe les
+        // biens SANS état construits dans les trois dernières années.
+        $neuf = $bien->condition !== null
+            ? $bien->condition->isNewBuild()
+            : $bien->year_built !== null && (int) $bien->year_built >= self::anneeNeufMin();
+        if ($neuf) {
             $jetons[] = 'neuf';
         }
 

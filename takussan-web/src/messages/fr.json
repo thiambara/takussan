@@ -599,6 +599,7 @@
         "parking": "Places de parking",
         "furnished": "Meublé",
         "titleDeed": "Titre foncier",
+        "condition": "État du bien",
         "availability": "Disponibilité",
         "availabilityNow": "Immédiatement",
         "availabilityFrom": "À partir du {date}",
@@ -871,6 +872,8 @@
         "floorNumber": "Étage",
         "totalFloors": "Nombre de niveaux",
         "titleType": "Statut foncier",
+        "condition": "État du bien",
+        "conditionUnset": "Non précisé",
         "furnished": "Meublé",
         "description": "Description",
         "descriptionPlaceholder": "Décrivez le bien, son environnement, ses atouts.",
@@ -1124,6 +1127,7 @@
         "parking": "Places de parking",
         "furnished": "Meublé",
         "titleType": "Statut foncier",
+        "condition": "État du bien",
         "amenities": "Équipements",
         "price": "Prix",
         "currency": "Devise",
@@ -1163,6 +1167,7 @@
       "useMyPositionFailed": "Position introuvable pour l'instant. Réessayez, ou choisissez l'emplacement sur la carte ci-dessous.",
       "mapHint": "Touchez la carte pour placer le bien, ou déplacez le repère.",
       "titleTypeHint": "Le document qui atteste de la propriété du sol. Si vous ne le connaissez pas, laissez vide.",
+      "conditionHint": "« Neuf » et « Sur plan » s’affichent en badge sur l’annonce. Facultatif : touchez à nouveau pour effacer.",
       "titleComposedHint": "Titre proposé d'après vos réponses — modifiez-le librement.",
       "photosCounter": "{count, plural, =0 {Aucune photo pour l'instant — jusqu'à {max}} one {# photo sur {max}} other {# photos sur {max}}}",
       "descriptionCounter": "{count, plural, one {# caractère} other {# caractères}}",
@@ -1233,6 +1238,13 @@
       "titre_foncier": "Titre foncier",
       "deliberation": "Délibération",
       "autre": "Autre"
+    },
+    "conditions": {
+      "off_plan": "Sur plan",
+      "new": "Neuf",
+      "renovated": "Rénové",
+      "good": "Bon état",
+      "to_renovate": "À rénover"
     }
   },
   "dashboard": {

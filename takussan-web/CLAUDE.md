@@ -79,7 +79,24 @@ Namespaces couverts : `auth/{me,logout,set-token,session-expired}`, `me/*` (17 r
 
 Le cookie httpOnly `auth_token` (`AUTH_COOKIE_NAME`, `src/lib/constants.ts:1`) est posé par
 `POST /api/auth/set-token` (sameSite lax, secure en prod, 7 jours) et effacé avec `active_profile_id`
-à chaque `set-token` et à chaque `clearToken`.
+par les route handlers `set-token`, `logout` et `session-expired`.
+
+**Le jeton vit à DEUX endroits, et ils ne se synchronisent pas seuls** (TCK-509). Le cookie est lu
+par le proxy, les layouts RSC et les route handlers ; l'état `token` d'`AuthContext` est lu par
+`useApiQuery`/`useApiMutation` et par tout composant qui appelle Laravel en direct. Ce second est
+initialisé **une fois** par le layout racine, que la navigation douce ne remonte pas. D'où la règle :
+
+- **Entrer** : `useAuth().openSession(token, user)` — pose le cookie, vide le cache React Query,
+  expose le jeton. Jamais `fetch('/api/auth/set-token')` puis `setUser` à la main.
+- **Sortir** : `useAuth().logout()` — révoque, efface les cookies, vide cache et favoris locaux.
+  Pas de server action de déconnexion : elle efface le cookie sans que le client l'apprenne.
+- **Filet** : `ReinitialiserSessionClient`, monté par `(auth)/layout.tsx`, referme la session que le
+  client croit ouverte en arrivant sur `/auth/*` (expiration via `session-expired`) — **après avoir
+  demandé au serveur** (`/api/auth/me`). ⚠ « `/auth/*` n'est servi que sans cookie » est faux pour
+  un retour arrière : Next restaure la page de son cache client, sans requête, donc sans proxy.
+
+`src/context/__tests__/AuthContext.chemin-unique.test.ts` casse sur tout autre appelant de
+`set-token`/`logout`, et sur tout effacement du cookie hors de `src/app/api/auth/`.
 
 **Le garde de route serveur est `src/proxy.ts`** — Next 16 a renommé `middleware.ts` → `proxy.ts`.
 Il redirige `/app/*` et `/admin/*` vers `/auth/login?redirect=…` sans cookie, et `/auth/*` vers `/app`
@@ -94,7 +111,7 @@ avec cookie.
 par requête via `cache()` de React et redirige vers `/api/auth/session-expired` sur 401 — **les
 cookies sont read-only en RSC**, c'est pourquoi l'effacement passe par un route handler.
 
-`useAuth()` **ne lève pas** hors provider : il rend un objet no-op (`src/context/AuthContext.tsx:272-286`).
+`useAuth()` **ne lève pas** hors provider : il rend un objet no-op (`src/context/AuthContext.tsx:301-316`).
 Un composant qui en dépend doit donc gérer `user === null` — le silence n'est pas une garantie de
 montage.
 

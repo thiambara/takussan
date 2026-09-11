@@ -282,6 +282,75 @@ class SavedSearchAlertsTest extends TestCase
     }
 
     /**
+     * **TCK-508 — l'état du bien filtre l'alerte, sous les deux formes qu'il peut prendre.**
+     *
+     * Le front enregistre `condition` en TABLEAU — sa table de filtres la lit ainsi — et
+     * une liste à virgules, la forme de l'URL, doit valoir la même chose. Avant le
+     * correctif, la clé était ignorée : une recherche « Neuf » alertait sur tous les états.
+     *
+     * ⚠ Le témoin sans `condition` capte les QUATRE biens : c'est lui qui prouve que les
+     * deux premières assertions tiennent au filtre, et non à un bien mal fabriqué.
+     */
+    public function test_l_etat_du_bien_filtre_l_alerte_en_tableau_comme_en_liste(): void
+    {
+        $this->freezeTime();
+        $user = User::factory()->create();
+        $biens = [];
+        foreach (['new', 'off_plan', 'good', null] as $etat) {
+            $biens[$etat ?? 'aucun'] = Property::factory()->published()->create([
+                'type' => 'apartment',
+                'condition' => $etat,
+                'price' => self::PLAFOND - 50_000,
+                'published_at' => now()->subDay(),
+            ])->id;
+        }
+        // ⚠ Un nom par recherche : `(user_id, name)` est unique en base.
+        $captes = fn (string $nom, array $criteria): array => app(SearchService::class)
+            ->getMatchingProperties($this->recherche($user, ['name' => $nom, 'criteria' => $criteria]))
+            ->pluck('id')->sort()->values()->all();
+
+        $attendus = [$biens['new'], $biens['off_plan']];
+        sort($attendus);
+
+        $this->assertSame($attendus, $captes('Tableau', [...self::CRITERIA, 'condition' => ['new', 'off_plan']]), 'forme tableau');
+        $this->assertSame($attendus, $captes('Liste', [...self::CRITERIA, 'condition' => 'new,off_plan']), 'forme liste');
+        $this->assertCount(4, $captes('Témoin', self::CRITERIA), 'le témoin sans état doit capter les quatre biens');
+    }
+
+    /**
+     * **Le type, même défaut que l'état : multi-valué, enregistré en TABLEAU.**
+     *
+     * Il passait par `where()`, qui ne lève pas sur un tableau : il en lie le PREMIER
+     * élément seul. Une recherche « maison + appartement » n'alertait que sur les maisons.
+     *
+     * ⚠ Le témoin sans `type` capte les TROIS biens, pour la même raison qu'au-dessus.
+     */
+    public function test_le_type_filtre_l_alerte_sur_toutes_ses_valeurs(): void
+    {
+        $this->freezeTime();
+        $user = User::factory()->create();
+        $biens = [];
+        foreach (['house', 'apartment', 'shop'] as $type) {
+            $biens[$type] = Property::factory()->published()->create([
+                'type' => $type,
+                'price' => self::PLAFOND - 50_000,
+                'published_at' => now()->subDay(),
+            ])->id;
+        }
+        $captes = fn (string $nom, array $criteria): array => app(SearchService::class)
+            ->getMatchingProperties($this->recherche($user, ['name' => $nom, 'criteria' => $criteria]))
+            ->pluck('id')->sort()->values()->all();
+
+        $attendus = [$biens['house'], $biens['apartment']];
+        sort($attendus);
+
+        $this->assertSame($attendus, $captes('Tableau', [...self::CRITERIA, 'type' => ['house', 'apartment']]), 'forme tableau');
+        $this->assertSame($attendus, $captes('Liste', [...self::CRITERIA, 'type' => 'house,apartment']), 'forme liste');
+        $this->assertSame([$biens['shop']], $captes('Seul', [...self::CRITERIA, 'type' => 'shop']), 'valeur seule');
+        $this->assertCount(3, $captes('Témoin', self::CRITERIA), 'le témoin sans type doit capter les trois biens');
+    }
+
+    /**
      * **AC5 — une exception APPLICATIVE sur une recherche ne tue pas les suivantes.**
      *
      * Le job itère par `each()` : avant TCK-350, une seule recherche fautive
