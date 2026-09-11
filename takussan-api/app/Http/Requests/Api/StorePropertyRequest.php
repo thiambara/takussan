@@ -5,6 +5,7 @@ namespace App\Http\Requests\Api;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\ContractType;
 use App\Models\Enums\Currency;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
@@ -42,6 +43,9 @@ class StorePropertyRequest extends BaseFormRequest
             'contract_type' => ['required', Rule::enum(ContractType::class)],
             'rent_period' => ['nullable', Rule::enum(RentPeriod::class)],
             'title_type' => ['nullable', Rule::enum(TitleType::class)],
+            // TCK-508 — accepté pour tout type : c'est le modèle qui l'efface sur un terrain
+            // (invariant `saving`), pour que la règle tienne aussi quand le TYPE change.
+            'condition' => ['nullable', Rule::enum(PropertyCondition::class)],
             'status' => ['nullable', Rule::enum(PropertyStatus::class)],
             'visibility' => ['nullable', Rule::enum(PropertyVisibility::class)],
             'price' => ['required', 'numeric', 'min:0'],
@@ -52,7 +56,9 @@ class StorePropertyRequest extends BaseFormRequest
             'furnished' => ['nullable', 'boolean'],
             'floor_number' => ['nullable', 'integer'],
             'total_floors' => ['nullable', 'integer'],
-            'year_built' => ['nullable', 'integer'],
+            // TCK-508 — les bornes de `UpdatePropertyRequest` : sans elles, `99999` passait à
+            // la création et rendait 422 à la première modification du même bien.
+            'year_built' => ['nullable', 'integer', 'min:1800', 'max:2100'],
             'parking_spaces' => ['nullable', 'integer'],
             'available_from' => ['nullable', 'date'],
             'agency_id' => ['nullable', 'exists:agencies,id'],

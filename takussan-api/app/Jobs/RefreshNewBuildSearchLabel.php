@@ -29,10 +29,17 @@ class RefreshNewBuildSearchLabel implements ShouldQueue
 {
     use Queueable;
 
-    /** @return Builder<Property> */
+    /**
+     * TCK-508 — les biens SANS état déclaré seulement : pour les autres, « neuf » suit
+     * la colonne, que seule une écriture change — et une écriture réindexe déjà.
+     *
+     * @return Builder<Property>
+     */
     public static function scope(): Builder
     {
-        return Property::query()->where('year_built', '>=', PropertyLabels::anneeNeufMin() - 1);
+        return Property::query()
+            ->whereNull('condition')
+            ->where('year_built', '>=', PropertyLabels::anneeNeufMin() - 1);
     }
 
     public function handle(): void

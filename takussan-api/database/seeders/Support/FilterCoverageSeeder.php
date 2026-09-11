@@ -10,6 +10,7 @@ use App\Models\Enums\CustomerStatus;
 use App\Models\Enums\LeaseStatus;
 use App\Models\Enums\LeaseType;
 use App\Models\Enums\PaymentFrequency;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
@@ -162,6 +163,15 @@ class FilterCoverageSeeder extends Seeder
             $this->createPropertyWithAttributes($agencyId, $ownerId, [
                 'year_built' => $year,
                 'parking_spaces' => ($year % 3),
+            ]);
+        }
+
+        // TCK-508 — une property par PropertyCondition (couvre le filtre condition).
+        // Appartement, donc un type qui porte un état.
+        foreach (PropertyCondition::cases() as $condition) {
+            $this->createPropertyWithAttributes($agencyId, $ownerId, [
+                'type' => PropertyType::Apartment,
+                'condition' => $condition,
             ]);
         }
     }

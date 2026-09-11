@@ -4,6 +4,7 @@ namespace Tests\Feature\Search;
 
 use App\Models\Address;
 use App\Models\Enums\ContractType;
+use App\Models\Enums\PropertyCondition;
 use App\Models\Enums\PropertyType;
 use App\Models\Enums\TitleType;
 use App\Models\Property;
@@ -290,6 +291,38 @@ class PropertyDerivedVocabularyTest extends TestCase
         $seul = $this->service()->search(['q' => 'R+1']);
         $this->assertSame('all', $seul['search']['strategy']);
         $this->assertSame($this->idsAttendus('villa_r1'), $this->idsRendus($seul));
+    }
+
+    /**
+     * TCK-508 — « neuf » suit l'état DÉCLARÉ. Déclaré neuf ou sur plan : le bien
+     * répond, quelle que soit son année. Déclaré en bon état : il ne répond pas,
+     * même construit l'an dernier. Sans état : le repli de l'année (TCK-506) tient.
+     * Aucun titre ni aucune description ne porte le mot — c'est une égalité
+     * d'ensembles que le texte seul ne peut pas produire.
+     */
+    public function test_neuf_suit_l_etat_declare_et_l_annee_ne_sert_que_de_repli(): void
+    {
+        $anneeDerniere = now()->year - 1;
+        $villa = fn (string $titre, ?PropertyCondition $etat, ?int $annee, int $surface): array => [
+            'title' => $titre,
+            'description' => 'Quartier calme.',
+            'type' => PropertyType::Villa,
+            'condition' => $etat,
+            'year_built' => $annee,
+            'area' => $surface,
+        ];
+
+        $this->biens['declaree_neuve'] = $this->publier($villa('Demeure à Mermoz', PropertyCondition::New, 1998, 210), 'Mermoz', 'Dakar');
+        $this->biens['sur_plan'] = $this->publier($villa('Demeure à Ngor', PropertyCondition::OffPlan, null, 230), 'Ngor', 'Dakar');
+        $this->biens['bon_etat_recente'] = $this->publier($villa('Demeure à Fann', PropertyCondition::Good, $anneeDerniere, 240), 'Fann', 'Dakar');
+        $this->biens['sans_etat_recente'] = $this->publier($villa('Demeure à Yoff', null, $anneeDerniere, 250), 'Yoff', 'Dakar');
+        $this->biens['sans_etat_ancienne'] = $this->publier($villa('Demeure à Ouakam', null, 1995, 260), 'Ouakam', 'Dakar');
+        $this->indexProperties();
+
+        $this->assertSame(
+            $this->idsAttendus('declaree_neuve', 'sur_plan', 'sans_etat_recente'),
+            $this->idsRendus($this->service()->search(['q' => 'neuf'])),
+        );
     }
 
     // AC5 — couvert par AC1 (le terrain à 3 chambres n'y est pas), épinglé seul.

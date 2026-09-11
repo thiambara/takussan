@@ -46,4 +46,11 @@ return [
         'deliberation' => 'Délibération',
         'autre' => 'Autre',
     ],
+    'condition' => [
+        'off_plan' => 'Sur plan',
+        'new' => 'Neuf',
+        'renovated' => 'Rénové',
+        'good' => 'Bon état',
+        'to_renovate' => 'À rénover',
+    ],
 ];
