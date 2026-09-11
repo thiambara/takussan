@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**457 tickets** — 23 ouverts, 433 livrés.
+**457 tickets** — 22 ouverts, 434 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 20 |
 | 🚧 Doing | 1 |
-| 👀 Review | 2 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 433 |
+| ✅ Done | 434 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -61,7 +61,6 @@
 ## 👀 Review
 
 - [TCK-508](tickets/TCK-508-etat-du-bien.md) — État du bien (sur plan, neuf, rénové, bon état, à rénover) : colonne déclarée, filtre public, badge, et « neuf » dérivé de la colonne `M · P1 · full`
-- [TCK-509](tickets/TCK-509-jeton-client-suit-la-session.md) — Session client — le jeton du navigateur suit la connexion et la déconnexion sans rechargement `S · P0 · bug`
 
 ## ⛔ Blocked
 
@@ -69,7 +68,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 433
+## ✅ Done — 434
+
+<details>
+<summary><strong>Vague 63 — Session client : le jeton du navigateur suit la connexion et la déconnexion sans rechargement (2026-09-10)</strong> — 1 ticket</summary>
+
+- [TCK-509](tickets/TCK-509-jeton-client-suit-la-session.md) — Session client — le jeton du navigateur suit la connexion et la déconnexion sans rechargement `S · P0 · bug`
+
+</details>
 
 <details>
 <summary><strong>Vague 61 — Suggestions de la barre de recherche : un panneau qui ne promet que ce qu'il sait, et des types tolérants à la faute (2026-09-03)</strong> — 1 ticket</summary>

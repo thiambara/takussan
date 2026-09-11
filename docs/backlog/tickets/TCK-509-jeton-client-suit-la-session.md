@@ -1,7 +1,7 @@
 ---
 id: TCK-509
 title: "Session client — le jeton du navigateur suit la connexion et la déconnexion sans rechargement"
-status: review
+status: done
 phase: P0
 family: bug
 estimate: S
