@@ -32,6 +32,10 @@ import { propertyTypeValues } from '@/lib/schemas/property';
 const FALLBACK_IMAGE =
   'https://placehold.co/800x533/e7e5e4/a8a29e?text=Photo+%C3%A0+venir';
 
+/** Format compact des pastilles quand l'image passe sous 11rem — cf. la barre du haut. */
+const PASTILLE_ETROITE =
+  '@max-[11rem]:px-2 @max-[11rem]:py-0.5 @max-[11rem]:gap-1 @max-[11rem]:text-[10px]';
+
 function useReveal(ref: React.RefObject<HTMLDivElement | null>) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -114,7 +118,9 @@ export function PropertyCard({
         } ${className || ''}`}
       >
         {/* Image */}
-        <div className="relative aspect-4/3 rounded-xl overflow-hidden mb-5">
+        {/* `@container` : la carte se règle sur SA largeur, que la grille appelante décide —
+            pas sur celle de l'écran. */}
+        <div className="@container relative aspect-4/3 rounded-xl overflow-hidden mb-5">
           <Image
             src={image}
             alt={property.title}
@@ -124,11 +130,48 @@ export function PropertyCard({
             sizes={sizes}
           />
 
-          {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide.
-              TCK-508 — suivi du badge « Neuf / Sur plan » quand l'état le justifie. */}
-          <div className="absolute top-4 left-4 flex flex-wrap items-center gap-1.5">
-            {property.contract_type && <ContractTypeChip type={property.contract_type} />}
-            <NewBuildChip condition={property.condition} />
+          {/* Barre du haut — pastilles à gauche, actions à droite, dans UN SEUL flux flex.
+              Les pastilles étaient positionnées seules, sans bord droit : sur une carte étroite,
+              « Neuf » (TCK-508) passait SOUS le cœur. Ici elles ne disposent que de la place
+              que les actions leur laissent, et passent à la ligne au lieu de chevaucher — quelle
+              que soit la longueur du libellé dans la locale.
+
+              Sous 11rem d'image, cela ne suffit plus : la grille de /properties descend à
+              128-146 px juste après chaque palier de colonnes (mesuré à 340, 768 et 1024 px),
+              et « En vente » seule y dépasse la place laissée par un cœur de 40 px. La barre
+              passe alors en format compact — marges, pastilles et cœur réduits. */}
+          <div className="absolute inset-x-4 top-4 flex items-start justify-between gap-2 @max-[11rem]:inset-x-2 @max-[11rem]:top-2 @max-[11rem]:gap-1.5">
+            {/* Transaction badge — TCK-129 : aligné sur ContractTypeChip pour cohérence site-wide.
+                TCK-508 — suivi du badge « Neuf / Sur plan » quand l'état le justifie. */}
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 @max-[11rem]:gap-1">
+              {property.contract_type && (
+                <ContractTypeChip type={property.contract_type} className={PASTILLE_ETROITE} />
+              )}
+              <NewBuildChip condition={property.condition} className={PASTILLE_ETROITE} />
+            </div>
+
+            {/* Favorite, puis compare (TCK-082) en dessous. */}
+            <div className="flex shrink-0 flex-col items-center gap-2 @max-[11rem]:gap-1.5">
+              {!hideFavorite && (
+                <FavoriteButton
+                  propertyId={property.id}
+                  className="@max-[11rem]:size-8 @max-[11rem]:[&_svg]:size-4"
+                />
+              )}
+              {!hideCompare && (
+                <CompareToggleButton
+                  propertyId={property.id}
+                  size="sm"
+                  // L'aperçu que la barre flottante affichera. La carte l'a déjà sous la main :
+                  // le lui passer coûte trois champs et évite une requête par page montée.
+                  preview={{
+                    title: property.title,
+                    slug: property.slug,
+                    photo: property.main_photo_url,
+                  }}
+                />
+              )}
+            </div>
           </div>
 
           {/* Time */}
@@ -136,30 +179,6 @@ export function PropertyCard({
             <Clock className="w-2.5 h-2.5 opacity-80" />
             {timeAgo}
           </div>
-
-          {/* Favorite */}
-          {!hideFavorite && (
-            <FavoriteButton
-              propertyId={property.id}
-              className="absolute top-4 right-4"
-            />
-          )}
-
-          {/* Compare toggle (TCK-082) — sits below the favorite button. */}
-          {!hideCompare && (
-            <CompareToggleButton
-              propertyId={property.id}
-              size="sm"
-              // L'aperçu que la barre flottante affichera. La carte l'a déjà sous la main :
-              // le lui passer coûte trois champs et évite une requête par page montée.
-              preview={{
-                title: property.title,
-                slug: property.slug,
-                photo: property.main_photo_url,
-              }}
-              className={hideFavorite ? 'absolute top-4 right-4' : 'absolute top-16 right-4'}
-            />
-          )}
         </div>
 
         {/* Body */}

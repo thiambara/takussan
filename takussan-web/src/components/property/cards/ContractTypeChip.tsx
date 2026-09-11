@@ -62,18 +62,22 @@ export function ContractTypeChip({ type, compact = false, className }: ContractT
     ? 'px-2 py-0.5 text-[10px] gap-1'
     : 'px-2.5 py-1 text-[11px] gap-1.5';
 
+  // `max-w-full` + libellé `truncate` : dernier recours quand la place manque même pour UNE
+  // pastille — elle se tronque au lieu de passer sous le cœur de la carte.
   return (
     <span
-      className={`inline-flex items-center rounded-full font-semibold backdrop-blur-md ${sizing} ${
+      className={`inline-flex max-w-full min-w-0 items-center rounded-full font-semibold backdrop-blur-md ${sizing} ${
         isSale
           ? 'bg-foreground/85 text-background'
           : 'bg-accent text-accent-foreground'
       } ${className || ''}`}
     >
-      <span className="size-1.5 rounded-full bg-current opacity-70" />
-      {compact
-        ? t(isSale ? 'sale' : 'rent')
-        : t(isSale ? 'saleLong' : 'rentLong')}
+      <span className="size-1.5 shrink-0 rounded-full bg-current opacity-70" />
+      <span className="truncate">
+        {compact
+          ? t(isSale ? 'sale' : 'rent')
+          : t(isSale ? 'saleLong' : 'rentLong')}
+      </span>
     </span>
   );
 }

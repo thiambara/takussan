@@ -45,16 +45,14 @@ export function PropertyCardCover({
           {/* Gradient bas pour lisibilité du texte. */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent via-45% to-scrim/80" />
 
-          <div className="absolute top-3 left-3 flex flex-wrap items-center gap-1.5">
-            {property.contract_type && <ContractTypeChip type={property.contract_type} />}
-            <NewBuildChip condition={property.condition} />
+          {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
+          <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {property.contract_type && <ContractTypeChip type={property.contract_type} />}
+              <NewBuildChip condition={property.condition} />
+            </div>
+            <FavoriteButton propertyId={property.id} size="sm" className="shrink-0" />
           </div>
-
-          <FavoriteButton
-            propertyId={property.id}
-            size="sm"
-            className="absolute top-3 right-3"
-          />
 
           <div className="absolute inset-x-0 bottom-0 p-4 text-white">
             {quarter && (
