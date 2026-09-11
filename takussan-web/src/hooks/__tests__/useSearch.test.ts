@@ -80,6 +80,18 @@ describe('TCK-491 — le statut foncier voyage dans l’URL', () => {
   });
 });
 
+describe('TCK-508 — l’état du bien voyage dans l’URL, en liste', () => {
+  it('`condition=new,off_plan` se relit en deux valeurs et se réécrit à l’identique', () => {
+    const filtres = filtersFromSearchParams(new URLSearchParams('condition=new,off_plan'));
+    expect(filtres.condition).toEqual(['new', 'off_plan']);
+    expect(filtersToParams(filtres).get('condition')).toBe('new,off_plan');
+  });
+
+  it('une URL sans état ne fabrique pas de filtre', () => {
+    expect(filtersFromSearchParams(new URLSearchParams('city=Dakar')).condition).toBeUndefined();
+  });
+});
+
 describe('TCK-335 — retrait du filtre texte', () => {
   /**
    * `filtersFromSearchParams` lit `q ?? search` : les deux alimentent la MÊME puce.

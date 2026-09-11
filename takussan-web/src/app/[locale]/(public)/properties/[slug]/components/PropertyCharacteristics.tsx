@@ -39,6 +39,9 @@ export function PropertyCharacteristics({ property }: { property: PropertyDetail
           ? `${property.floor_number} / ${property.total_floors}`
           : property.floor_number ?? property.total_floors ?? null,
     },
+    // TCK-508 — l'état COMPLET, les cinq valeurs : la fiche est le seul endroit où « À rénover »
+    // se lit. Le libellé est localisé par l'API, comme `title_type_label`.
+    { label: t('rows.condition'), value: property.condition_label },
     { label: t('rows.yearBuilt'), value: property.year_built },
     { label: t('rows.parking'), value: property.parking_spaces },
     { label: t('rows.furnished'), value: property.furnished ? t('rows.yes') : null },

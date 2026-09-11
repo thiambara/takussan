@@ -6,6 +6,7 @@ import { LienLocalise } from '@/components/shared/LienLocalise';
 import { formatPrice } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
+import { NewBuildChip } from './NewBuildChip';
 import {
   FALLBACK_IMAGE,
   RENT_PERIOD_SHORT,
@@ -42,13 +43,10 @@ export function PropertyCardCompact({
             className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
           />
 
-          {property.contract_type && (
-            <ContractTypeChip
-              type={property.contract_type}
-              compact
-              className="absolute top-2 left-2"
-            />
-          )}
+          <div className="absolute top-2 left-2 flex flex-wrap items-center gap-1">
+            {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
+            <NewBuildChip condition={property.condition} compact />
+          </div>
 
           <FavoriteButton
             propertyId={property.id}

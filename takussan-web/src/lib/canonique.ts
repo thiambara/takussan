@@ -13,7 +13,8 @@ import type { ContractType, PropertyType } from '@/types/property';
  * CE QUI EST TRANCHÉ, ET POURQUOI CE N'EST PAS « L'URL COURANTE »
  * ════════════════════════════════════════════════════════════════════════════════════════════════
  *
- * `/properties` porte **24 clés** (`CLES_DE_RECHERCHE`, mesuré le 2026-08-30) : 21 filtres plus
+ * `/properties` porte **25 clés** (`CLES_DE_RECHERCHE` — 24 au 2026-08-30, `condition` ajoutée par
+ * TCK-508) : 22 filtres plus
  * `sort`, `page` et `per_page`. Toutes sont sérialisées dans l'URL par `useSearch`, par
  * construction (TCK-340). Un moteur voit donc une page distincte par combinaison, servant
  * essentiellement le même catalogue.
@@ -45,12 +46,12 @@ import type { ContractType, PropertyType } from '@/types/property';
  * · **elles ont déjà un libellé traduit** (`property.types`, `property.contractTypes`), donc le
  *   `<title>` dérivé se dit dans les trois langues sans dictionnaire neuf.
  *
- * ── LES DIX-SEPT AUTRES FILTRES SE REPLIENT SUR LA PAGE NUE ─────────────────────────────────────
+ * ── LES DIX-HUIT AUTRES FILTRES SE REPLIENT SUR LA PAGE NUE ─────────────────────────────────────
  *
  * Texte libre (`q`), rayon géographique (`radius_km`/`lat`/`lng`, à valeurs continues), bornes
  * numériques (`price_min`/`price_max`, `area_min`/`area_max`, `bedrooms`, `bathrooms`,
- * `floor_number`), `furnished`, `featured`, `available_from`, `title_type`, `tags`, `rent_period`,
- * `location`.
+ * `floor_number`), `furnished`, `featured`, `available_from`, `title_type`, `condition`, `tags`,
+ * `rent_period`, `location`.
  * Chacune multiplie les URL sans changer ce que la page EST : un sous-ensemble du même catalogue.
  *
  * ── LA PAGINATION ET LE TRI SE REPLIENT AUSSI, ET C'EST LE POINT LE PLUS DISCUTABLE ─────────────
@@ -373,7 +374,7 @@ export function versParametres(
 /**
  * Les clés que la canonique ÉCARTE — dérivé, jamais recopié.
  *
- * Exporté pour le test de la règle : il vérifie que la partition couvre les 24 clés de la table,
+ * Exporté pour le test de la règle : il vérifie que la partition couvre toutes les clés de la table,
  * de sorte qu'une clé ajoutée à `SEARCH_FILTER_KEYS` sans décision de canonicité fasse rougir.
  */
 export const CLES_ECARTEES: readonly CleDeRechercheNom[] = CLES_DE_RECHERCHE.filter(

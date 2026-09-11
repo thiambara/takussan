@@ -4,6 +4,8 @@ import { Star, Eye, Heart, Share2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { CompareToggleAction } from '@/components/compare/CompareToggleAction';
+import { porteUnBadgeNeuf } from '@/components/property/cards/NewBuildChip';
+import { PROPERTY_ENUM_NAMESPACES } from '@/components/property-form/options';
 import { formatAddressShort } from '@/lib/format/address';
 import type { PropertyDetail } from '@/types/property';
 
@@ -16,6 +18,7 @@ interface PropertyHeaderProps {
 
 export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite }: PropertyHeaderProps) {
   const t = useTranslations('property.detail');
+  const tCondition = useTranslations(PROPERTY_ENUM_NAMESPACES.condition);
 
   return (
     <header className="flex flex-col gap-3">
@@ -47,6 +50,10 @@ export function PropertyHeader({ property, onToggleFavorite, onShare, isFavorite
           <div className="flex items-center gap-2">
             <Badge variant="outline">{property.status_label}</Badge>
             {property.featured && <Badge variant="default">{t('featured')}</Badge>}
+            {/* TCK-508 — « Neuf » / « Sur plan » seulement ; l'état complet est dans les caractéristiques. */}
+            {porteUnBadgeNeuf(property.condition) && (
+              <Badge variant="secondary">{tCondition(property.condition)}</Badge>
+            )}
           </div>
         </div>
 

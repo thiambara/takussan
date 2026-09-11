@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { propertyTypeValues } from '@/lib/schemas/property';
 import {
   areaLabelKey,
@@ -92,6 +95,42 @@ describe('isFieldRelevant', () => {
     for (const type of propertyTypeValues) {
       expect(isFieldRelevant('area', { type, ...vente }), `${type} sans surface`).toBe(true);
     }
+  });
+});
+
+describe('condition — l’état déclaré d’un bien bâti (TCK-508)', () => {
+  it('un terrain et une ferme n’ont pas d’état ; une villa, un bureau, un appartement en ont un', () => {
+    expect(isFieldRelevant('condition', { type: 'land', ...vente })).toBe(false);
+    expect(isFieldRelevant('condition', { type: 'farm', ...vente })).toBe(false);
+    for (const type of ['villa', 'office', 'apartment', 'warehouse'] as const) {
+      expect(isFieldRelevant('condition', { type, ...vente }), type).toBe(true);
+    }
+  });
+
+  /**
+   * Contrainte 2 du ticket : la liste des types sans état est définie UNE fois, côté back
+   * (`PropertyLabels::FAMILLES`, que `PropertyCondition::appliesTo()` consulte). Le front la
+   * reflète — et ce test le vérifie en lisant le fichier PHP, sur le gabarit des gardes de
+   * parité (`search-filters.parity.test.ts`). `web-ci.yml` déclenche sur ce fichier.
+   */
+  it('PARITÉ — les types sans état sont exactement la famille foncière du backend', () => {
+    const racine = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
+    const php = readFileSync(
+      join(racine, 'takussan-api', 'app', 'Support', 'Search', 'PropertyLabels.php'),
+      'utf8',
+    );
+    const foncier = [...php.matchAll(/'([a-z_]+)'\s*=>\s*self::FAMILLE_FONCIER/g)].map((m) => m[1]);
+    // Une garde qui ne trouve pas sa source doit le dire, pas passer au vert sur un ensemble vide.
+    expect(foncier.length, 'famille foncière introuvable dans PropertyLabels.php').toBeGreaterThan(0);
+
+    const sansEtat = propertyTypeValues.filter((type) => !isFieldRelevant('condition', { type, ...vente }));
+    expect([...sansEtat].sort()).toEqual([...foncier].sort());
+  });
+
+  it('à l’édition, une villa passée en terrain perd son état (`null`), à la création il est omis', () => {
+    const terrain = { type: 'land', contract: 'sale' } as const;
+    expect(sanitizeByType({ condition: 'new' }, terrain, 'erase')).toEqual({ condition: null });
+    expect(sanitizeByType({ condition: 'new' }, terrain)).toEqual({});
   });
 });
 

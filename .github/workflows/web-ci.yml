@@ -40,6 +40,9 @@ on:
       - 'takussan-api/lang/**'
       - 'takussan-api/app/Http/Resources/PropertyResource.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
+      # TCK-508 — `field-matrix.test.ts` lit la famille FONCIÈRE de `PropertyLabels::FAMILLES` :
+      # les types sans « état du bien » côté front doivent être exactement ceux-là.
+      - 'takussan-api/app/Support/Search/PropertyLabels.php'
   push:
     branches: [dev, master]
     paths:
@@ -61,6 +64,7 @@ on:
       - 'takussan-api/lang/**'
       - 'takussan-api/app/Http/Resources/PropertyResource.php'
       - 'takussan-api/app/Services/Search/PropertySearchService.php'
+      - 'takussan-api/app/Support/Search/PropertyLabels.php'
 
 jobs:
   quality:
