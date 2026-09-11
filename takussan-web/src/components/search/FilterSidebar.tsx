@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { X, RotateCcw, Search, Star, Tag } from 'lucide-react';
+import { X, RotateCcw, Star, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
@@ -647,29 +647,10 @@ export function FilterSidebar({
         </Section>
 
         {/*
-          14. Mots-clés — LECTURE SEULE. Le champ de saisie de `q` est celui de la barre de
-          navigation (`Navbar` → `buildSearchUrl`) ; en avoir un second ici faisait deux entrées
-          pour le même paramètre d'URL. Le panneau ne fait que montrer le terme en vigueur et
-          permettre de le retirer, comme une puce.
+          Pas de section « Mots-clés » : `q` se lit ET se modifie dans le champ de recherche de la
+          barre de navigation, qui le relit dans l'URL (rechargement compris). Le montrer ici
+          aussi en faisait une seconde copie du même paramètre.
         */}
-        {filters.q && (
-          <Section title={t(`sections.keywords`)}>
-            <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2">
-              <Search className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <span className="flex-1 min-w-0 truncate text-sm text-foreground" title={filters.q}>
-                {filters.q}
-              </span>
-              <button
-                type="button"
-                onClick={() => set({ q: undefined })}
-                className="w-6 h-6 shrink-0 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-primary transition-colors"
-                aria-label={t('clearQuery', { q: filters.q })}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </Section>
-        )}
 
       </div>
     </div>

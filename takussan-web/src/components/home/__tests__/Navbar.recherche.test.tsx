@@ -27,11 +27,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 
 const push = vi.fn();
+let parametresUrl = new URLSearchParams();
+let chemin = '/fr';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push, replace: vi.fn(), refresh: vi.fn(), back: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
-  usePathname: () => '/fr',
+  useSearchParams: () => parametresUrl,
+  usePathname: () => chemin,
 }));
 
 vi.mock('next/link', () => ({
@@ -95,6 +97,8 @@ function parametres(url: string): URLSearchParams {
 describe('Navbar — un champ, un sens (TCK-439)', () => {
   beforeEach(() => {
     push.mockReset();
+    parametresUrl = new URLSearchParams();
+    chemin = '/fr';
   });
 
   it('AC1 — loupe, Entrée et puce de catégorie produisent la MÊME clé de filtre', async () => {
@@ -190,5 +194,71 @@ describe('Navbar — un champ, un sens (TCK-439)', () => {
     expect(push).toHaveBeenCalledWith('/publish');
     // Et plus aucune entrée « Services » : la surface n'existe pas.
     expect(screen.queryByRole('link', { name: /services/i })).toBeNull();
+  });
+});
+
+/**
+ * Le champ de recherche est le SEUL endroit où `q` se lit et se modifie — le panneau de filtres ne
+ * porte plus de section « Mots-clés ». Il doit donc relire `q` dans l'URL : un rechargement de la
+ * liste ne peut pas laisser le champ vide pendant que la liste est filtrée.
+ */
+describe('Navbar — le champ montre la recherche en vigueur', () => {
+  beforeEach(() => {
+    push.mockReset();
+    parametresUrl = new URLSearchParams('q=villa piscine&contract_type=sale');
+    chemin = '/fr/properties';
+  });
+
+  it('sur la liste des biens, le champ est prérempli par `q` — bureau et menu mobile', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    expect(champ()).toHaveValue('villa piscine');
+
+    await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+    expect(screen.getByRole('textbox')).toHaveValue('villa piscine');
+  });
+
+  it('le terme se modifie dans le champ, et la loupe remplace `q` sans perdre les autres filtres', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.clear(champ());
+    await user.type(champ(), 'maison');
+    await user.click(screen.getByRole('button', { name: 'Lancer la recherche' }));
+
+    const params = parametres(derniereUrl());
+    expect(params.get('q')).toBe('maison');
+    expect(params.get('contract_type')).toBe('sale');
+  });
+
+  it('un champ vidé RETIRE `q` — à la loupe comme à la touche Entrée', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await user.clear(champ());
+    await user.click(screen.getByRole('button', { name: 'Lancer la recherche' }));
+    expect(derniereUrl()).toBe('/fr/properties?contract_type=sale');
+
+    push.mockReset();
+    await user.type(champ(), '{Enter}');
+    expect(derniereUrl()).toBe('/fr/properties?contract_type=sale');
+  });
+
+  it('hors de la liste des biens, le `q` d’un autre index n’apparaît pas et n’est pas emporté', async () => {
+    parametresUrl = new URLSearchParams('q=diallo');
+    chemin = '/fr/agencies';
+    const user = userEvent.setup();
+    monter();
+
+    expect(champ()).toHaveValue('');
+    await user.click(screen.getByRole('button', { name: 'Lancer la recherche' }));
+    expect(parametres(derniereUrl()).get('q')).toBeNull();
+  });
+
+  it('une fiche de bien (`/properties/<slug>`) n’est pas la liste', () => {
+    chemin = '/fr/properties/villa-almadies';
+    monter();
+    expect(champ()).toHaveValue('');
   });
 });
