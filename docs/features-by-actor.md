@@ -39,8 +39,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 1. [👤 Visiteur anonyme (pas encore de compte)](#visiteur-anonyme-pas-encore-de-compte) — 13 fonctionnalités
 2. [🏠 Locataire / Acheteur (Customer)](#locataire-acheteur-customer) — 45 fonctionnalités
-3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 38 fonctionnalités
-4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 68 fonctionnalités
+3. [🏢 Bailleur / Propriétaire (owner)](#bailleur-propriétaire-owner) — 39 fonctionnalités
+4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 69 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 4 fonctionnalités
 6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 63 fonctionnalités
 7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 55 fonctionnalités
@@ -58,7 +58,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
 | P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact) |
 | P0 | §1.2 | Tri des résultats (prix, récence, pertinence) |
-| P1 | §1.2 | Filtres avancés (amenités, disponibilité, étage, meublé) |
+| P1 | §1.2 | Filtres avancés (amenités, disponibilité, étage, meublé, état du bien) |
 | P1 | §1.2 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
 | P1 | §1.2 | Tri des résultats par distance au point de recherche |
 | P1 | §1.2 | Partage d'un bien (lien, réseaux sociaux) |
@@ -95,7 +95,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P0 | §1.2 | Filtres de base (ville, type, prix, chambres, surface, transaction) |
 | P0 | §1.2 | Fiche bien publique (galerie, détails, formulaire de contact) |
 | P0 | §1.2 | Tri des résultats (prix, récence, pertinence) |
-| P1 | §1.2 | Filtres avancés (amenités, disponibilité, étage, meublé) |
+| P1 | §1.2 | Filtres avancés (amenités, disponibilité, étage, meublé, état du bien) |
 | P1 | §1.2 | Recherche « autour de moi » : rayon en kilomètres autour d'un point, plafonné à 500 km, appliqué à la liste comme à la carte |
 | P1 | §1.2 | Tri des résultats par distance au point de recherche |
 | P1 | §1.2 | Recherche par carte interactive |
@@ -198,6 +198,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Historique de prix automatique à chaque changement |
 | P1 | §1.1 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
 | P1 | §1.1 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
+| P1 | §1.1 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
 | P3 | §1.1 | Marquer un bien comme nécessitant un suivi administratif particulier |
 
 ### §1.3 Réservations courte durée & visites
@@ -304,6 +305,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P1 | §1.1 | Ajouter des collaborateurs au bien avec part de commission explicite et permissions granulaires |
 | P1 | §1.1 | Gérer une hiérarchie de biens (immeuble → étages → lots) |
 | P1 | §1.1 | Renseigner le type de titre foncier (bail, titre foncier, délibération, autre) |
+| P1 | §1.1 | Renseigner l'état d'un bien bâti (sur plan, neuf, rénové, bon état, à rénover) ; « neuf » et « sur plan » sont signalés par un badge sur l'annonce publique |
 | P1 | §1.1 | Compteurs de vues et de favoris |
 | P2 | §1.1 | Dupliquer un bien (modèle / template) |
 | P2 | §1.1 | Archivage en lot |
@@ -640,8 +642,8 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **233** lignes de fonctionnalité lues,
-  réparties en **286** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **234** lignes de fonctionnalité lues,
+  réparties en **288** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

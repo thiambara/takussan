@@ -395,6 +395,7 @@ polymorphes** dédiés liés au user et scopés par agence — ou par la platefo
 | floor_number | integer | oui | null | Étage du bien (pour appartement/bureau) | ➕ |
 | total_floors | integer | oui | null | Nombre total d'étages du bâtiment | ➕ |
 | year_built | integer | oui | null | Année de construction | ➕ |
+| condition | PropertyCondition | oui | null | État du bien (sur plan, neuf, rénové, bon état, à rénover) — sans objet pour la famille foncière (`land`, `farm`), toujours `null` pour elle. Déclaré, jamais déduit de `year_built`. À ne pas confondre avec `Inventory.general_condition`, qui décrit l'état physique relevé lors d'un état des lieux | ➕ |
 | parking_spaces | integer | oui | null | Nombre de places de parking | ➕ |
 | lot_position | string | oui | null | Position du lot (angle, mitoyen) | ✏️ ancien `position` |
 | level | integer | oui | null | Niveau dans la hiérarchie (immeuble → étage) | |
@@ -2953,6 +2954,7 @@ traite `key` comme un identifiant court opaque.
 | **PropertyType** | land, house, apartment, villa, studio, room, office, shop, warehouse, factory, farm, hotel, resort, garage, parking, other | Property.type |
 | **ContractType** | sale, rent | Property.contract_type |
 | **TitleType** | bail, titre_foncier, deliberation, autre | Property.title_type |
+| **PropertyCondition** 🆕 | off_plan, new, renovated, good, to_renovate | Property.condition (TCK-508) |
 | **LeaseType** | residential_rent, commercial_rent, seasonal_rent, sale | Lease.type |
 | **LeaseStatus** | draft, pending_signature, active, expired, terminated, renewed | Lease.status |
 | **PaymentStatus** | pending, paid, late, partially_paid, failed, refunded | LeasePayment.status, BookingPayment.status |
@@ -3117,10 +3119,10 @@ Tous les modèles ont été enrichis ou remplacés. Aucun modèle n'est resté s
 - ProprietyStatus → **PropertyStatus**
 - ProprietyVisibility → **PropertyVisibility**
 
-### Nouveaux enums (45)
+### Nouveaux enums (46)
 
 - **Scalaires métier :** UserType, Currency, CancellationBy, IdType, CollaboratorRole, TagType, RelationshipType, RelationshipStatus
-- **Agence / Propriété :** AgencyStatus, PropertyType, ContractType, TitleType
+- **Agence / Propriété :** AgencyStatus, PropertyType, ContractType, TitleType, PropertyCondition 🆕 (TCK-508)
 - **Bail / Paiement :** LeaseType, LeaseStatus, PaymentFrequency, PaymentStatus, PaymentMethod, LeasePaymentType (+`deposit_refund`), BookingPaymentType
 - **Factures / Prix / Reversements :** InvoiceStatus, PriceChangeReason, PayoutStatus 🆕
 - **Visites :** VisitType, VisitStatus
