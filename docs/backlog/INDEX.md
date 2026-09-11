@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 21 |
+| 📋 Todo | 20 |
 | 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 433 |
 | 🗑️ Obsolete | 1 |
@@ -53,7 +53,6 @@
 - [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
 - [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
 - [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
-- [TCK-509](tickets/TCK-509-jeton-client-suit-la-session.md) — Session client — le jeton du navigateur suit la connexion et la déconnexion sans rechargement `S · P0 · bug`
 
 ## 🚧 Doing
 
@@ -61,7 +60,7 @@
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-509](tickets/TCK-509-jeton-client-suit-la-session.md) — Session client — le jeton du navigateur suit la connexion et la déconnexion sans rechargement `S · P0 · bug`
 
 ## ⛔ Blocked
 

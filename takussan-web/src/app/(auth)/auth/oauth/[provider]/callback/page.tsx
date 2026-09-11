@@ -14,7 +14,7 @@ const SUPPORTED_PROVIDERS: OAuthProvider[] = ['google', 'facebook', 'apple'];
 function CallbackInner({ provider }: { provider: OAuthProvider }) {
   const t = useTranslations('auth.oauthCallback');
   const router = useRouter();
-  const { refreshUser, setUser } = useAuth();
+  const { refreshUser, openSession } = useAuth();
   const params = useSearchParams();
   const code = params.get('code');
   const state = params.get('state');
@@ -38,12 +38,8 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
     (async () => {
       try {
         const { token, user } = await oauthCallback(provider, code, state);
-        await fetch('/api/auth/set-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
-        });
-        setUser(user);
+        // TCK-509 — par le contexte : poser le cookie puis `setUser` laissait le jeton d'avant.
+        await openSession(token, user);
         await refreshUser();
         router.replace(apresConnexion);
       } catch (err) {
@@ -51,7 +47,7 @@ function CallbackInner({ provider }: { provider: OAuthProvider }) {
         router.replace(`/auth/login?error=${msg}`);
       }
     })();
-  }, [provider, code, state, apresConnexion, router]);
+  }, [provider, code, state, apresConnexion, router, openSession, refreshUser]);
 
   return (
     <div className="flex flex-col items-center gap-4 py-12 text-center">

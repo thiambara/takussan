@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { logoutAction } from '@/app/actions/auth';
+import { useAuth } from '@/context/AuthContext';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
@@ -35,6 +35,7 @@ export interface UserMenuProps {
  */
 export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
   const router = useRouter();
+  const { logout } = useAuth();
   const t = useTranslations('nav');
   // Use `Array.from` so names starting with an emoji or astral character
   // (surrogate pair) don't produce a broken half-glyph in the avatar.
@@ -83,7 +84,11 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {
-            await logoutAction();
+            // TCK-509 — par le contexte, et non plus par une server action : celle-ci effaçait le
+            // cookie côté serveur sans que le client l'apprenne, et le navigateur continuait de
+            // transmettre le jeton révoqué — y compris au compte connecté ensuite.
+            await logout();
+            router.replace('/auth/login');
           }}
         >
           <LogOut className="size-4" aria-hidden="true" />

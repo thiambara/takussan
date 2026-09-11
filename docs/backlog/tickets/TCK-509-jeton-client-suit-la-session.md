@@ -1,13 +1,13 @@
 ---
 id: TCK-509
 title: "Session client — le jeton du navigateur suit la connexion et la déconnexion sans rechargement"
-status: todo
+status: review
 phase: P0
 family: bug
 estimate: S
 wave: 63
 created: 2026-09-10
-updated: 2026-09-10
+updated: 2026-09-11
 depends_on: []
 blocks: []
 spec_refs:
@@ -73,35 +73,35 @@ navigation vers la destination demandée (`?redirect=`), sans écran intermédia
 
 ## Delta à produire
 
-- [ ] Contexte d'auth : le jeton client suit la session serveur, et un changement d'identité vide
+- [x] Contexte d'auth : le jeton client suit la session serveur, et un changement d'identité vide
       le cache serveur client et le store local des favoris
-- [ ] Connexion (formulaire + étape 2FA), inscription, callback OAuth : passent par le contexte
-- [ ] Déconnexion : le menu utilisateur de `/app` et la `Navbar` publique convergent sur un chemin
+- [x] Connexion (formulaire + étape 2FA), inscription, callback OAuth : passent par le contexte
+- [x] Déconnexion : le menu utilisateur de `/app` et la `Navbar` publique convergent sur un chemin
       qui informe le client
-- [ ] `POST /api/auth/logout` efface aussi `active_profile_id`
-- [ ] Tests : le scénario A → déconnexion → B **sur un même arbre React**, le premier login à
+- [x] `POST /api/auth/logout` efface aussi `active_profile_id`
+- [x] Tests : le scénario A → déconnexion → B **sur un même arbre React**, le premier login à
       froid, et les chemins 2FA / OAuth — rouges sur `dev`, verts après
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Connexion depuis `/auth/login` chargée à froid, sans rechargement : **chaque** requête
+- [x] AC1 — Connexion depuis `/auth/login` chargée à froid, sans rechargement : **chaque** requête
       client directe à l'API porte le jeton de la session ouverte ; aucune ne part sans
       `Authorization`.
-- [ ] AC2 — A connecté, déconnexion par le menu de `/app`, connexion de B **sur le même
+- [x] AC2 — A connecté, déconnexion par le menu de `/app`, connexion de B **sur le même
       document** : après la déconnexion, aucune requête client ne porte le jeton de A ; après la
       connexion de B, chaque requête client directe à l'API porte **le jeton de B**, et aucune ne
       rend 401.
-- [ ] AC3 — Même scénario que AC2 par la déconnexion de la `Navbar` publique.
-- [ ] AC4 — Au démarrage de la session de B, le cache React Query ne contient aucune entrée
+- [x] AC3 — Même scénario que AC2 par la déconnexion de la `Navbar` publique.
+- [x] AC4 — Au démarrage de la session de B, le cache React Query ne contient aucune entrée
       obtenue sous A.
-- [ ] AC5 — Après la déconnexion, le store local des favoris est vide (les cœurs de A ne
+- [x] AC5 — Après la déconnexion, le store local des favoris est vide (les cœurs de A ne
       s'affichent pas pour B ni pour un visiteur anonyme).
-- [ ] AC6 — Après la déconnexion, par l'un ou l'autre chemin, le cookie `active_profile_id` est
+- [x] AC6 — Après la déconnexion, par l'un ou l'autre chemin, le cookie `active_profile_id` est
       absent.
-- [ ] AC7 — Le test du scénario AC2 **échoue sur `dev`** et passe avec le correctif — prouvé par
+- [x] AC7 — Le test du scénario AC2 **échoue sur `dev`** et passe avec le correctif — prouvé par
       ablation (retrait du correctif → rouge).
-- [ ] AC8 — L'étape 2FA et le callback OAuth satisfont AC1.
-- [ ] AC9 — `npm run lint` 0 erreur, `npx tsc --noEmit` propre, `npm run test` vert.
+- [x] AC8 — L'étape 2FA et le callback OAuth satisfont AC1.
+- [x] AC9 — `npm run lint` 0 erreur, `npx tsc --noEmit` propre, `npm run test` vert.
 
 ## Hors périmètre
 
@@ -115,4 +115,55 @@ navigation vers la destination demandée (`?redirect=`), sans écran intermédia
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**Forme retenue : un chemin d'entrée, un chemin de sortie, et pas de resynchronisation depuis la
+prop.** `useAuth().openSession(token, user)` pose le cookie, vide le cache React Query puis expose
+le jeton ; `useAuth().logout()` révoque, efface les cookies, vide le cache. Tous les écrans
+d'entrée (formulaire, 2FA, inscription, OAuth) et les deux sorties (menu de `/app`, `Navbar`) y
+passent. Resynchroniser l'état depuis `initialToken` n'a pas été retenu : la prop n'arrive qu'au
+prochain rendu serveur du layout racine, donc *après* les premières requêtes — c'est la course
+qu'on corrige.
+
+- **La server action `logoutAction` a été retirée, avec `clearToken`** : un effacement de cookie
+  côté serveur que le client n'apprend pas est exactement le défaut. Une garde structurelle
+  (`src/context/__tests__/AuthContext.chemin-unique.test.ts`) casse sur tout autre appelant de
+  `set-token`/`logout` et sur tout effacement de `AUTH_COOKIE_NAME` hors de `src/app/api/auth/`.
+- **L'expiration de session** (`getMeAction` → `/api/auth/session-expired` → `/auth/login`) est
+  rattrapée par `ReinitialiserSessionClient`, monté dans `(auth)/layout.tsx` : le proxy garantit
+  qu'on n'y arrive que sans cookie, donc un jeton dans le contexte à cet endroit est périmé. Il ne
+  juge que l'état **au montage** — sinon il refermerait la session que la page de connexion ouvre.
+- **AC5 ne demandait aucun code dédié** : l'effet d'amorçage des favoris vide déjà le store quand
+  `user` repasse à `null`. Il ne se déclenchait pas parce que le contexte n'apprenait jamais la
+  déconnexion. Un `clearLocalFavorites()` explicite dans `logout` s'est révélé vert sous ablation,
+  donc redondant, et a été retiré.
+- **Les tests utilisent le vrai `createQueryClient()`** (5 min de `staleTime`) : avec un client de
+  test à `staleTime: 0`, le scénario AC2 passerait sur `dev`, la requête se refaisant d'elle-même.
+  La server action est simulée par son seul effet visible côté client (une navigation).
+
+**AC7 — ablation ciblée**, chaque morceau retiré seul, le test qui le garde relancé :
+
+| Retiré | Rouge |
+|---|---|
+| `queryClient.clear()` dans `openSession` | AC1 |
+| `queryClient.clear()` dans `logout` | `ReinitialiserSessionClient` |
+| `logout()` dans le menu de `/app` / dans la `Navbar` | AC2 / AC3 |
+| effacement d'`active_profile_id` dans le route handler | AC6 |
+| `openSession` → cookie seul, pour la connexion / l'inscription / OAuth | AC1 + 2FA / inscription / AC8 |
+| `ReinitialiserSessionClient` inerte / qui juge l'état courant au lieu du montage | ses tests 1 / 3 |
+
+Sur le code de `dev`, les nouveaux tests rendaient 9 rouges sur 10 (le seul vert est le témoin de
+la garde structurelle), dont la sonde de la `Navbar` à `Bearer jeton-A` après la connexion de B :
+le défaut signalé.
+
+**Re-mesuré au navigateur le 2026-09-11**, protocole de la prémisse (un seul document,
+`performance.timeOrigin` identique de bout en bout) : connexion de A à froid → `conversations`,
+`favorites`, `property-visits` portent le jeton de A, **200** ; sur `/auth/login` après la
+déconnexion par le menu de `/app`, plus aucun appel ne porte le jeton de A ; B connecté puis
+quatre pages de `/app` → chaque appel porte le jeton de B, **200**, menu « — Ousmane Ndiaye ».
+La sortie par la `Navbar` (AC3) n'est tenue que par son test de composant. ⚠ Le front du worktree
+tournait sur `:3010`, l'API n'autorise que `:3000` : Chrome de mesure en `--disable-web-security`,
+profil jetable — sans effet sur les en-têtes relevés.
+
+**Reste hors périmètre, et c'est la suite logique** : le jeton est toujours dans le JavaScript
+(prop du contexte), le drapeau httpOnly n'y protège rien — ADR à écrire avant tout ticket.
+**Vague 63** : TCK-508, en cours sur une autre branche, a pris la 62 ; les deux ajoutent une ligne
+à `waves.json`, conflit trivial à la fusion.

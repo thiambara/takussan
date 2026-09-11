@@ -3,8 +3,8 @@
 import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { ApiError, messageErreurApi } from '@/lib/api';
-import { getMe, logout, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
-import { clearToken, getActiveProfileId, getToken } from '@/lib/session';
+import { getMe, resendVerification, updateProfile, UpdateProfilePayload } from '@/lib/auth';
+import { getActiveProfileId, getToken } from '@/lib/session';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import type { User } from '@/types/user';
@@ -29,18 +29,10 @@ export async function resendVerificationEmailAction(): Promise<{ ok: boolean; me
   }
 }
 
-export async function logoutAction(): Promise<void> {
-  const token = await getToken();
-  if (token) {
-    try {
-      await logout(token);
-    } catch {
-      // Proceed with client-side cleanup regardless
-    }
-  }
-  await clearToken();
-  redirect('/auth/login');
-}
+// TCK-509 — il n'y a PAS de server action de déconnexion, et c'est délibéré. `logoutAction`
+// effaçait le cookie côté serveur puis redirigeait : le client ne l'apprenait jamais, et le
+// navigateur continuait de transmettre le jeton révoqué, y compris au compte connecté ensuite. La
+// déconnexion passe par `useAuth().logout` — cf. `src/context/__tests__/AuthContext.chemin-unique.test.ts`.
 
 export type UpdateProfileResult =
   | { ok: true; user: User }

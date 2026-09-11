@@ -15,11 +15,13 @@ import {
 import { registerSchema, type RegisterFormValues } from '@/lib/schemas';
 import { useApiForm } from '@/hooks/useApiForm';
 import { register } from '@/lib/auth';
+import { useAuth } from '@/context/AuthContext';
 import { useTranslations } from 'next-intl';
 
 export default function RegisterPage() {
   const t = useTranslations('auth.register');
   const router = useRouter();
+  const { openSession } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
 
@@ -42,12 +44,10 @@ export default function RegisterPage() {
       void accept_cgu;
       return register(payload);
     },
-    onSuccess: async ({ token }) => {
-      await fetch('/api/auth/set-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
+    onSuccess: async ({ token, user }) => {
+      // TCK-509 — l'inscription posait le cookie sans RIEN dire au contexte, pas même `setUser` :
+      // le compte fraîchement créé lisait l'API sans jeton jusqu'au prochain rechargement.
+      await openSession(token, user);
       router.push('/auth/verify-email');
     },
   });
