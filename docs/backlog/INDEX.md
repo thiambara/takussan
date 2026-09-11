@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**456 tickets** — 22 ouverts, 433 livrés.
+**457 tickets** — 21 ouverts, 435 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 20 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 433 |
+| ✅ Done | 435 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -60,7 +60,7 @@
 
 ## 👀 Review
 
-- [TCK-508](tickets/TCK-508-etat-du-bien.md) — État du bien (sur plan, neuf, rénové, bon état, à rénover) : colonne déclarée, filtre public, badge, et « neuf » dérivé de la colonne `M · P1 · full`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -68,7 +68,21 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 433
+## ✅ Done — 435
+
+<details>
+<summary><strong>Vague 63 — Session client : le jeton du navigateur suit la connexion et la déconnexion sans rechargement (2026-09-10)</strong> — 1 ticket</summary>
+
+- [TCK-509](tickets/TCK-509-jeton-client-suit-la-session.md) — Session client — le jeton du navigateur suit la connexion et la déconnexion sans rechargement `S · P0 · bug`
+
+</details>
+
+<details>
+<summary><strong>Vague 62 — État du bien : sur plan, neuf, rénové — une colonne déclarée, un filtre public, un badge, et « neuf » dérivé de la colonne (2026-09-10)</strong> — 1 ticket</summary>
+
+- [TCK-508](tickets/TCK-508-etat-du-bien.md) — État du bien (sur plan, neuf, rénové, bon état, à rénover) : colonne déclarée, filtre public, badge, et « neuf » dérivé de la colonne `M · P1 · full`
+
+</details>
 
 <details>
 <summary><strong>Vague 61 — Suggestions de la barre de recherche : un panneau qui ne promet que ce qu'il sait, et des types tolérants à la faute (2026-09-03)</strong> — 1 ticket</summary>

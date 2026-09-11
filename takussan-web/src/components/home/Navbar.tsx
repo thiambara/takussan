@@ -49,7 +49,7 @@ export interface NavbarProps {
 export function Navbar({ className }: NavbarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isLoading, setUser } = useAuth();
+  const { user, isLoading, logout } = useAuth();
   const locale = useLocale() as Locale;
   const t = useTranslations('nav');
   const tCategories = useTranslations('property.types');
@@ -110,8 +110,9 @@ export function Navbar({ className }: NavbarProps) {
   }, []);
 
   async function handleLogout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    setUser(null);
+    // TCK-509 — `setUser(null)` seul effaçait l'utilisateur de l'écran mais laissait son JETON au
+    // contexte : le compte connecté ensuite lisait l'API avec le jeton révoqué de celui-ci.
+    await logout();
     router.push(hrefLocalise('/', locale));
   }
 

@@ -22,7 +22,9 @@ function LoginForm() {
   const t2fa = useTranslations('auth.twoFactorChallenge');
   const messageErreur = useMessageErreurApi();
   const router = useRouter();
-  const { setUser } = useAuth();
+  // TCK-509 — `openSession` et non « poser le cookie puis `setUser` » : ce second chemin
+  // laissait au contexte le jeton d'avant (celui du compte précédent, ou aucun).
+  const { openSession } = useAuth();
   const locale = useCurrentLocale();
   const searchParams = useSearchParams();
   const raw = searchParams.get('redirect') ?? '/app';
@@ -57,12 +59,7 @@ function LoginForm() {
         setChallenge({ email: values.email, password: values.password });
         return;
       }
-      await fetch('/api/auth/set-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: result.token }),
-      });
-      setUser(result.user);
+      await openSession(result.token, result.user);
       router.push(redirectTo);
     },
   });
@@ -87,12 +84,7 @@ function LoginForm() {
         setChallengeError(result.message ?? t2fa('invalidCode'));
         return;
       }
-      await fetch('/api/auth/set-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: result.token }),
-      });
-      setUser(result.user);
+      await openSession(result.token, result.user);
       router.push(redirectTo);
     } catch (err) {
       // Le test structurel `'displayMessage' in err` rendait la CLÉ i18n quand l'erreur en

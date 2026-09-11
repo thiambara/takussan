@@ -14,9 +14,10 @@ import { messagesPour } from '@/i18n/messages';
  *
  * Protects every route under `(dashboard)` — i.e. `/app/*` and `/admin/*` —
  * by calling `getMeAction()`, which reads the auth cookie and actually hits
- * `/api/users/me`. A stale or revoked token triggers `clearToken()` +
- * redirect to `/auth/login` (handled inside `getMeAction`), so children
- * never render with an invalid session. Result is cached per-request so
+ * `/api/users/me`. A stale or revoked token redirects to
+ * `/api/auth/session-expired` (handled inside `getMeAction`), which clears the
+ * cookies and lands on `/auth/login`, so children never render with an invalid
+ * session. Result is cached per-request so
  * nested layouts can call `getMeAction()` again without a duplicate fetch.
  *
  * TCK-080 — also fetches the user's pending RGPD deletion request and

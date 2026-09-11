@@ -7,6 +7,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { IntlProvider } from '@/i18n/IntlProvider';
 import { messagesPour } from '@/i18n/messages';
+import { ReinitialiserSessionClient } from '@/components/auth/ReinitialiserSessionClient';
 
 /**
  * Auth layout — centered form panel with a visual panel on desktop.
@@ -42,6 +43,8 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <IntlProvider messages={await messagesPour('(auth)')}>
+      {/* TCK-509 — arriver ici avec une session côté client : le serveur dit si elle est périmée. */}
+      <ReinitialiserSessionClient />
       <AuthPanneau>{children}</AuthPanneau>
     </IntlProvider>
   );

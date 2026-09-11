@@ -46,9 +46,23 @@ type AuthContextValue = {
    */
   register: (payload: RegisterPayload) => Promise<User>;
   /**
-   * Revoke the backend token and clear the local auth cookie. Does not
-   * navigate — callers decide where to go next (the `useRequireAuth` hook
-   * redirects automatically, while Navbar redirects to `/`).
+   * TCK-509 — ouvre la session CÔTÉ CLIENT à partir d'un jeton que l'API vient d'émettre : pose le
+   * cookie httpOnly (`/api/auth/set-token`), vide le cache serveur client, puis expose le jeton et
+   * l'utilisateur. Ne navigue pas.
+   *
+   * ⚠ **Tout chemin qui obtient un jeton passe par ici** — connexion, étape 2FA, inscription,
+   * callback OAuth. Le jeton vit à deux endroits : le cookie, et l'état de ce contexte, initialisé
+   * UNE fois par le layout racine, que la navigation douce ne remonte pas. Un écran qui poserait le
+   * cookie lui-même laisserait le navigateur transmettre le jeton de la session précédente, ou
+   * aucun — mesuré au navigateur le 2026-09-10, c'était le cas des trois écrans d'entrée. Gardé
+   * par `__tests__/AuthContext.chemin-unique.test.ts`.
+   */
+  openSession: (token: string, user: User) => Promise<void>;
+  /**
+   * Revoke the backend token, clear the auth cookies, and drop everything the session left on the
+   * client — token, user, React Query cache, local favorites store (TCK-509). Does not navigate —
+   * callers decide where to go next (the `useRequireAuth` hook redirects automatically, while
+   * Navbar redirects to `/`). **La seule sortie** : le menu de `/app` et la `Navbar` passent par ici.
    */
   logout: () => Promise<void>;
 };
@@ -205,6 +219,22 @@ export function AuthProvider({
     });
   }, []);
 
+  const openSession = useCallback(
+    async (next: string, nextUser: User) => {
+      await persistToken(next);
+      // Push anon favourites BEFORE seeding so the seed effect sees them.
+      await syncLocalFavorites(next);
+      // Rien de ce qui a été lu sous l'identité précédente — ou sans identité — ne sert la
+      // nouvelle : les clés de requête ne portent pas l'identité, et une réponse encore fraîche
+      // (5 min de `staleTime`) serait rendue telle quelle. Vidé AVANT de poser le jeton : les
+      // composants montés reconstruisent leurs requêtes au rendu qui suit, sous le nouveau jeton.
+      queryClient.clear();
+      setToken(next);
+      setUser(nextUser);
+    },
+    [persistToken, syncLocalFavorites, queryClient],
+  );
+
   const login = useCallback(
     async (payload: LoginPayload) => {
       const res = await apiLogin(payload);
@@ -213,37 +243,34 @@ export function AuthProvider({
         // will re-invoke login() with `two_factor_code` or `recovery_code`.
         return res;
       }
-      await persistToken(res.token);
-      // Push anon favourites BEFORE seeding so the seed effect sees them.
-      await syncLocalFavorites(res.token);
-      setToken(res.token);
-      setUser(res.user);
+      await openSession(res.token, res.user);
       return res;
     },
-    [persistToken, syncLocalFavorites],
+    [openSession],
   );
 
   const register = useCallback(
     async (payload: RegisterPayload) => {
       const { token: next, user: u } = await apiRegister(payload);
-      await persistToken(next);
-      await syncLocalFavorites(next);
-      setToken(next);
-      setUser(u);
+      await openSession(next, u);
       return u;
     },
-    [persistToken, syncLocalFavorites],
+    [openSession],
   );
 
   const logout = useCallback(async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch {
-      // Even if the network call fails, drop the in-memory user.
+      // Even if the network call fails, drop the in-memory session.
     }
+    // La règle d'`openSession`, dans l'autre sens : le compte suivant n'hérite d'aucune réponse
+    // mise en cache sous celui-ci. Les favoris locaux, eux, sont vidés par l'effet d'amorçage
+    // ci-dessus dès que `user` repasse à `null` — c'est apprendre la déconnexion qui manquait.
+    queryClient.clear();
     setToken(null);
     setUser(null);
-  }, []);
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider
@@ -255,6 +282,7 @@ export function AuthProvider({
         refreshUser,
         login,
         register,
+        openSession,
         logout,
       }}
     >
@@ -280,6 +308,7 @@ export function useAuth(): AuthContextValue {
       refreshUser: noopAsync,
       login: noopThrow as AuthContextValue['login'],
       register: noopThrow as AuthContextValue['register'],
+      openSession: noopThrow as AuthContextValue['openSession'],
       logout: noopAsync,
     }
   );

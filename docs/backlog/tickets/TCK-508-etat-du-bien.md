@@ -1,7 +1,7 @@
 ---
 id: TCK-508
 title: "État du bien (sur plan, neuf, rénové, bon état, à rénover) : colonne déclarée, filtre public, badge, et « neuf » dérivé de la colonne"
-status: review
+status: done
 phase: P1
 family: full
 estimate: M
