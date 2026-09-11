@@ -29,6 +29,18 @@ class SearchService
             }
         }
 
+        // TCK-508 — état du bien, multi-valeurs. Le front enregistre la clé telle
+        // que sa table de filtres la lit — un TABLEAU (`['new', 'off_plan']`) — et
+        // l'URL la porte en liste à virgules : les deux formes valent, OU entre les
+        // valeurs, comme `GET /api/public/properties/search`.
+        //
+        // ⚠ Pas dans `$stringFilters` : `where($col, [...])` ne lève pas, il lie le
+        // PREMIER élément seul (mesuré : `where "type" = ?` avec `["villa"]`).
+        if (! empty($filters['condition'])) {
+            $conditions = is_array($filters['condition']) ? $filters['condition'] : explode(',', (string) $filters['condition']);
+            $query->whereIn('condition', array_map('trim', $conditions));
+        }
+
         if (! empty($filters['min_price'])) {
             $query->where('price', '>=', $filters['min_price']);
         }

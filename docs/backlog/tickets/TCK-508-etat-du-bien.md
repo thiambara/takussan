@@ -115,7 +115,9 @@ Docs :
 - Le parcours « programme sur plan » : date de livraison, échéancier par tranches, avancement du chantier.
 - Des jetons de recherche pour `renovated` / `to_renovate` : « renove » et « renover » sont à une lettre l'un de l'autre et au-dessus du seuil `oneTypo` (5 caractères) — indexer l'un rendrait l'autre. À mesurer avant d'indexer quoi que ce soit.
 - Le filtre de la carte (`GET /api/public/properties/map`) : elle ne porte aujourd'hui ni `furnished` ni `title_type` ; l'aligner sur la liste est un ticket à part.
-- Les recherches sauvegardées et leurs alertes.
+- Les recherches sauvegardées et leurs alertes, **sauf** ce que ce ticket y fait entrer malgré
+  lui : le front enregistre toute clé de filtre, donc `condition` aussi — l'alerte doit l'honorer
+  (cf. Notes, revue de la PR #258).
 - Le passage automatique `new` → `good` après une première location ou vente.
 
 ## Notes d'implémentation
@@ -147,6 +149,16 @@ Docs :
 - **Filtre** : clé multi-valuée dans `SEARCH_FILTER_KEYS`, sur le patron de `type` (une puce par
   valeur, retrait par sous-clé), pastilles dans la section « État du bien » du panneau. La
   canonique l'écarte d'elle-même (partition dérivée). `/map` n'est pas touché (hors périmètre).
+- **Alertes de recherche sauvegardée** (revue de la PR #258) : le front enregistre toute clé de
+  filtre dans `SavedSearch.criteria`, donc `condition` — en tableau. `SearchService::search()`,
+  qu'emprunte `SendSavedSearchAlerts`, ne la lisait pas : une recherche « Neuf » alertait sur
+  tous les états. Elle filtre désormais par `whereIn`, forme tableau comme liste à virgules. Test
+  écrit d'abord : rouge sur la forme tableau, vert après, avec un témoin sans état qui capte les
+  quatre biens. `SavedSearchAlertsTest` 10 / 10, tests impactés 142 / 142.
+- ⚠ **Constaté, hors périmètre** : `type` est lui aussi enregistré en tableau, et
+  `$stringFilters` le passe à `where()`, qui ne lie que le PREMIER élément (mesuré :
+  `where "type" = ?` avec `["villa"]`). Une recherche « villa + appartement » n'alerte que sur
+  les villas. Défaut antérieur à ce ticket, à traiter à part.
 
 **Écarts assumés**
 

@@ -282,6 +282,42 @@ class SavedSearchAlertsTest extends TestCase
     }
 
     /**
+     * **TCK-508 — l'état du bien filtre l'alerte, sous les deux formes qu'il peut prendre.**
+     *
+     * Le front enregistre `condition` en TABLEAU — sa table de filtres la lit ainsi — et
+     * une liste à virgules, la forme de l'URL, doit valoir la même chose. Avant le
+     * correctif, la clé était ignorée : une recherche « Neuf » alertait sur tous les états.
+     *
+     * ⚠ Le témoin sans `condition` capte les QUATRE biens : c'est lui qui prouve que les
+     * deux premières assertions tiennent au filtre, et non à un bien mal fabriqué.
+     */
+    public function test_l_etat_du_bien_filtre_l_alerte_en_tableau_comme_en_liste(): void
+    {
+        $this->freezeTime();
+        $user = User::factory()->create();
+        $biens = [];
+        foreach (['new', 'off_plan', 'good', null] as $etat) {
+            $biens[$etat ?? 'aucun'] = Property::factory()->published()->create([
+                'type' => 'apartment',
+                'condition' => $etat,
+                'price' => self::PLAFOND - 50_000,
+                'published_at' => now()->subDay(),
+            ])->id;
+        }
+        // ⚠ Un nom par recherche : `(user_id, name)` est unique en base.
+        $captes = fn (string $nom, array $criteria): array => app(SearchService::class)
+            ->getMatchingProperties($this->recherche($user, ['name' => $nom, 'criteria' => $criteria]))
+            ->pluck('id')->sort()->values()->all();
+
+        $attendus = [$biens['new'], $biens['off_plan']];
+        sort($attendus);
+
+        $this->assertSame($attendus, $captes('Tableau', [...self::CRITERIA, 'condition' => ['new', 'off_plan']]), 'forme tableau');
+        $this->assertSame($attendus, $captes('Liste', [...self::CRITERIA, 'condition' => 'new,off_plan']), 'forme liste');
+        $this->assertCount(4, $captes('Témoin', self::CRITERIA), 'le témoin sans état doit capter les quatre biens');
+    }
+
+    /**
      * **AC5 — une exception APPLICATIVE sur une recherche ne tue pas les suivantes.**
      *
      * Le job itère par `each()` : avant TCK-350, une seule recherche fautive
