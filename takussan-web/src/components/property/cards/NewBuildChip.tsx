@@ -41,10 +41,11 @@ export function NewBuildChip({ condition, compact = false, className }: NewBuild
 
   return (
     <span
-      className={`inline-flex items-center rounded-full font-semibold bg-card text-foreground shadow-sm ${sizing} ${className || ''}`}
+      className={`inline-flex max-w-full min-w-0 items-center rounded-full font-semibold bg-card text-foreground shadow-sm ${sizing} ${className || ''}`}
     >
-      <span className="size-1.5 rounded-full bg-primary" aria-hidden />
-      {t(condition)}
+      <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+      {/* Tronqué plutôt que sous le cœur quand la place manque — cf. ContractTypeChip. */}
+      <span className="truncate">{t(condition)}</span>
     </span>
   );
 }
