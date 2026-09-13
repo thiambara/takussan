@@ -788,8 +788,9 @@ API_PID=$!
 # lui, le worker ne consomme que `default` et les jobs poussés sur `media`,
 # `notifications-urgent` et `reconciliation` restent en base sans jamais s'exécuter —
 # le développeur voit un 200, aucune erreur, et un filigrane qui n'apparaît jamais.
-# C'est le défaut corrigé en production dans `scripts/server-setup.sh` ; il vivait ici
-# aussi. `scripts/check-queues.mjs` surveille désormais les DEUX consommateurs.
+# C'est le défaut corrigé en production dans `scripts/server-setup.sh` (retiré par ADR-0028 :
+# les files vivent désormais dans `deploy/takussan/compose.api.yml`) ; il vivait ici aussi.
+# `scripts/check-queues.mjs` surveille les DEUX consommateurs.
 #
 # `--tries=3`, comme la production — et le raisonnement précédent était juste mais incomplet.
 #
@@ -805,7 +806,7 @@ API_PID=$!
 #
 # *Choisir un réglage plus prudent en local qu'en production, c'est cesser de tester la
 # production.*
-# DEUX workers, comme en production — voir le raisonnement dans `scripts/server-setup.sh`.
+# DEUX workers, comme en production — `worker` et `worker-media` de `deploy/takussan/compose.api.yml`.
 # Aucun ordre de files ne convient sur un worker unique : `media` (régénération de filigranes sur
 # tous les biens d'une agence) affame `default`, et `default` (le fourre-tout) affame `media`.
 # Les deux consommateurs ne partagent aucune file, donc aucun ne peut affamer l'autre.

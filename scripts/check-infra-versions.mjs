@@ -7,10 +7,12 @@
  *
  * Mesuré le 2026-08-16 (TCK-298) : développement et CI sont épinglés des deux côtés — `mysql:8.0`,
  * `getmeili/meilisearch:v1.16`, `redis:8-alpine`, `axllent/mailpit:v1.30.3`, PHP `8.4`, Node `24`.
- * La PRODUCTION ne l'est nulle part. `scripts/server-setup.sh` n'installe rien : il vérifie la
- * présence de PHP-FPM et de nginx et imprime la commande à lancer à la main. Le seul document qui
- * nomme une installation — `docs/infra/deploy-preview.html` §6.4, `apt install meilisearch` — est
- * un GUIDE, et un guide n'a jamais été exécuté par personne au moment où on le lit.
+ * La PRODUCTION ne l'était nulle part. `scripts/server-setup.sh` n'installait rien : il vérifiait
+ * la présence de PHP-FPM et de nginx et imprimait la commande à lancer à la main. Le seul document
+ * qui nommait une installation — `docs/infra/deploy-preview.html` §6.4, `apt install meilisearch` —
+ * était un GUIDE, et un guide n'a jamais été exécuté par personne au moment où on le lit. Les deux
+ * sont retirés par ADR-0028 : le serveur tourne sur des images épinglées. *Une image déclarée n'est
+ * pas pour autant une image servie* — la colonne « production » se relève toujours dans le conteneur.
  *
  * C'est mot pour mot la mécanique de D-43 : le compose et la CI ont tourné sur `mariadb:11.4`
  * parce qu'un commentaire affirmait ce que « `apt install mariadb-server` pose sur le serveur ».

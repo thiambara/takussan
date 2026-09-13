@@ -6,8 +6,8 @@
  * Le défaut qu'elle attrape ne vit dans aucun fichier : il vit ENTRE deux, et aucun des
  * deux ne se contredit.
  *
- *   · `scripts/deploy.sh` installe en `composer install --no-dev` — juste, pour un
- *     déploiement ;
+ *   · l'image de `takussan-api/Dockerfile` (`scripts/deploy.sh` avant ADR-0028)
+ *     installe en `composer install --no-dev` — juste, pour un déploiement ;
  *   · `App\Services\Payments\PaymentReceiptPdf` faisait `new Dompdf(…)` — du code de
  *     production parfaitement valide ;
  *   · `dompdf/dompdf` n'est déclaré NULLE PART dans `composer.json`. Il n'arrivait qu'en

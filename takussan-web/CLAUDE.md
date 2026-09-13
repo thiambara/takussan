@@ -286,6 +286,9 @@ npm run test
 ## Environnement
 
 Une seule variable applicative : **`NEXT_PUBLIC_API_URL`** (39 lectures), plus `NODE_ENV` (9).
+L'image de déploiement exige en outre **`NEXT_PUBLIC_SITE_URL`**, l'origine canonique
+(`src/lib/alternates.ts`) : sans elle, une préproduction retomberait en silence sur l'origine de
+production (ADR-0028 §3).
 `.env.example` et `.env.local` pointent sur `http://127.0.0.1:8002`.
 
 > ⚠️ Incohérence d'hôte : l'API annonce `APP_URL=http://localhost:8002` et
@@ -309,14 +312,26 @@ déclare aussi `reactCompiler: true` ([ADR-0015](../docs/adr/0015-react-compiler
 
 ## Déploiement — ce dossier EST en production, et publiquement
 
-> ⚠️ **Aucun workflow de ce dépôt ne déploie ce dossier, et pourtant il est déployé** — le
-> déclencheur est l'intégration Git du projet Vercel `thiambaras-projects/takussan`. *Une absence
-> dans le dépôt ne prouve rien sur le monde ; elle prouve seulement que le dépôt ne le fait pas.*
+> ⚠️ **[ADR-0028](../docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) (2026-09-13)
+> ramène ce déploiement DANS le dépôt, par étapes.** Le front devient une image par environnement
+> — le `Dockerfile` de ce dossier, `output: 'standalone'` dans `next.config.ts` — construite par
+> `.github/workflows/images.yml` et servie par Dokploy. `NEXT_PUBLIC_API_URL` **et**
+> `NEXT_PUBLIC_SITE_URL` sont inlinées à la compilation : le `Dockerfile` refuse de construire sans
+> l'une ou l'autre, et `scripts/check-front-env-keys.mjs` garde qu'elles figurent en `ARG` et dans
+> le workflow. La preuve d'un déploiement est l'en-tête `X-Build-Sha`, posé par `next.config.ts`.
+> Runbook : [`docs/infra/hebergement.md`](../docs/infra/hebergement.md) ; test local de l'image :
+> `deploy/takussan/smoke-web.sh`.
+>
+> Jusqu'à ADR-0028, **aucun workflow de ce dépôt ne déployait ce dossier, et pourtant il l'était** —
+> par l'intégration Git du projet Vercel `thiambaras-projects/takussan`, qui sert encore `master`.
+> *Une absence dans le dépôt ne prouve rien sur le monde ; elle prouve seulement que le dépôt ne le
+> fait pas.*
 
-| Branche | Environnement | Ce qu'on atteint | Public ? |
-|---|---|---|---|
-| `master` | **Production** | `www.takussan.com` (200 au 2026-08-20 ; `takussan.com` y redirige en 307) | **oui** |
-| `dev`, `preview`, toute PR | Preview | une URL par déploiement | non — SSO Vercel |
+| Branche | Environnement | Servi par | Ce qu'on atteint | Public ? |
+|---|---|---|---|---|
+| `master` | **Production** | Vercel, **jusqu'à la phase F** d'ADR-0028 (TCK-517) | `www.takussan.com` (200 au 2026-08-20 ; `takussan.com` y redirige en 307) | **oui** |
+| `preview` | Préproduction | Dokploy, image `takussan-web:preview`, dès TCK-515 | `preview.takussan.com` | *non mesuré* |
+| `dev`, toute PR | Preview | Vercel, jusqu'à TCK-516 | une URL par déploiement | non — SSO Vercel |
 
 **Ce que cela change concrètement pour qui travaille ici : un merge vers `master` met CE code en
 ligne, devant des utilisateurs.** Ce n'est pas un rangement de branche, c'est une action sortante.

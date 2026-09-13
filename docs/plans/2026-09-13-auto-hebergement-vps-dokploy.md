@@ -171,6 +171,24 @@ git commit -m "docs(backlog): tickets de la migration vers l'auto-hébergement (
 
 ---
 
+## Écarts constatés à l'exécution (2026-09-13)
+
+Le code des tâches ci-dessous est celui du plan **tel qu'écrit** ; ce qui a été livré s'en écarte sur
+les points suivants, chacun mesuré. Le dépôt fait foi.
+
+| Où | Le plan disait | Mesuré | Livré |
+|---|---|---|---|
+| B1, C1 — Dockerfile de l'API | « pas de HEALTHCHECK » | l'image de base porte `curl -f http://localhost:2019/metrics` ; héritée, worker et scheduler sont déclarés malades | `HEALTHCHECK NONE`, et une vérification d'image qui l'exige |
+| B1, C1 — Dockerfile de l'API | — | `artisan tinker` meurt sous `www-data` : `/config` (`$XDG_CONFIG_HOME`) appartient à root | `/config/psysh` créé et donné à `www-data` |
+| B1, B3 — Dockerfiles | `# syntax=docker/dockerfile:1.7` | une requête vers Docker Hub à chaque build ; trois builds tombés sur un délai dépassé | directive retirée côté Takussan (aucune instruction n'en dépend) |
+| B1, C1 — Caddyfile | `request_body { max_size 25MiB }` reproduit `client_max_body_size` | il ne coupe que le corps LU : un POST de 26 Mio rendait 405 ou 302, jamais 413 | matcher `@trop_gros` sur `Content-Length`, `respond 413` |
+| B2, C1 — `smoke-api.sh pile` | `up -d --wait` | Compose refuse `HEALTHCHECK NONE` sous `--wait` (« has no healthcheck configured ») ; Dokploy ne passe pas `--wait` | `up -d` puis vérifications explicites (release en 0, api saine, services en marche) |
+| B2, C1 — `smoke-api.sh pile` | `compose run --rm release` | `run` suit `pull_policy: always`, pas le `--pull never` d'`up` | `run --rm --pull never` |
+| B2 — sonde des files | `dispatch(fn () => logger(…))` dans tinker | une closure écrite dans tinker n'est pas sérialisable | `Artisan::queue('inspire')->onQueue(…)` |
+| B3, C2 — `smoke-web.sh` | tout échec du build sans origine vaut refus | un échec réseau y comptait comme refus : faux vert (piste C) | le refus exige le message de sa garde |
+| B4, C3 — actions Docker | `@v3`, `@v3`, `@v6` | majeures publiées : v4.3.0, v4.6.0, v7.3.0 | `@v4`, `@v4`, `@v7` |
+| A2 — `bootstrap.sh` | `iptables -D DOCKER-USER $(…)` | découpage de mots non quoté (shellcheck) | `read -ra` sur la règle relevée |
+
 ## Piste A — le serveur
 
 Toutes les commandes de cette piste se jouent **sur le serveur** ou dans l'interface de Dokploy, sauf
@@ -1761,7 +1779,7 @@ déjà `actions/checkout@v7` : même règle.
 
 - [ ] **Étape 2 : écrire `.github/workflows/images.yml`**
 
-Les majeures `@v3`/`@v3`/`@v6` ci-dessous sont celles du 2026-09-13 à confirmer par l'étape 1.
+Les majeures `@v4`/`@v4`/`@v7` ci-dessous sont celles relevées le 2026-09-13 par l’étape 1 (`v4.3.0`, `v4.6.0`, `v7.3.0`).
 
 ```yaml
 # Construit les images, les pousse sur GHCR, déclenche Dokploy, puis PROUVE ce qui est servi
@@ -1813,13 +1831,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: takussan-api
           target: runtime
@@ -1831,7 +1849,7 @@ jobs:
             ghcr.io/thiambara/takussan-api:${{ needs.cible.outputs.environnement }}
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: takussan-api
           target: seed
@@ -1849,13 +1867,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: takussan-web
           push: true
@@ -3224,13 +3242,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: laravel_api
           push: true
@@ -3248,13 +3266,13 @@ jobs:
     environment: ${{ needs.cible.outputs.environnement }}
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: web
           push: true

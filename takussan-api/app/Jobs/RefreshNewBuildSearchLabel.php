@@ -16,7 +16,8 @@ use Illuminate\Foundation\Queue\Queueable;
  * de tout document indexé, et il est figé à l'indexation. Rien ne le
  * périmait (revue de PR 253) : aucune réindexation planifiée, les compteurs de
  * vues passent par `increment()` que l'observateur Scout ne voit pas, et
- * `scripts/deploy.sh` n'importe que sur un diff des fichiers de forme. Un
+ * `docker/release.sh` n'importe que si l'empreinte des fichiers de forme
+ * change (`scripts/deploy.sh` le faisait sur un diff avant ADR-0028). Un
  * bien de 2025 indexé en 2026 répondait encore à `q=neuf` en 2028.
  *
  * Le périmètre est volontairement plus large que le strict nécessaire — les

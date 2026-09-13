@@ -257,21 +257,22 @@ php artisan scout:import "App\Models\User"
 ```
 
 - `scout:sync-index-settings` est exécuté **automatiquement à chaque déploiement**
-  par `scripts/deploy.sh` (Step 6b) quand `SCOUT_DRIVER=meilisearch`.
-- `scout:import` est une opération **ponctuelle** — 1er déploiement, ou après modif
-  d'un `toSearchableArray()`. À lancer manuellement sur le serveur.
+  par le service `release` (`takussan-api/docker/release.sh`, ADR-0028) quand
+  `SCOUT_DRIVER=meilisearch`.
+- `scout:import` est lancé **par le même service**, pour tous les modèles indexés, quand
+  l'empreinte `.search-shape` de l'image — la forme des documents : `config/scout.php`, les
+  modèles qui déclarent `toSearchableArray()`, `app/Support/Search/`, `lang/fr/properties.php` —
+  diffère de celle de la dernière importation RÉUSSIE, gardée dans le volume `storage`. Un
+  premier déploiement n'a pas de marqueur : il importe tout.
 
-> ⚠️ **`scripts/deploy.sh` ne lance AUCUN `scout:import`.** Un déploiement crée les
-> index et les paramètre correctement — et les laisse **VIDES**. La recherche rend
-> alors zéro résultat *sans lever la moindre exception* : rien dans les journaux, rien
-> dans le monitoring, un écran de liste qui répond « aucun résultat » à toutes les
-> requêtes. C'est la forme la plus coûteuse de panne, celle qui ne se signale pas.
-> Cette page ne suffit donc pas : la commande est **aussi** inscrite dans le runbook
-> de première mise en production (`docs/backlog/tickets/TCK-288-…`), parce que c'est
-> là qu'on la lira le jour où elle sert. *(L'automatisation dort sur la branche non
-> mergée `chore/deploy-meilisearch-reindex`.)*
-- `SCOUT_QUEUE=true` exige un worker de queue actif (`takussan-queue.service`) pour
-  traiter les jobs `Laravel\Scout\Jobs\MakeSearchable`.
+> ⚠️ **Cette page a porté « le déploiement ne lance AUCUN `scout:import` »**, du temps de
+> `scripts/deploy.sh` : un déploiement créait les index, les paramétrait — et les laissait
+> **VIDES**. La recherche rendait alors zéro résultat *sans lever la moindre exception* : rien
+> dans les journaux, un écran de liste qui répond « aucun résultat » à toutes les requêtes. C'est
+> la forme la plus coûteuse de panne, celle qui ne se signale pas. `scripts/test-release-reindex.sh`
+> (Repo CI) garde désormais la règle de `release.sh`.
+- `SCOUT_QUEUE=true` exige un worker de queue actif (le service `worker` de
+  `deploy/takussan/compose.api.yml`) pour traiter les jobs `Laravel\Scout\Jobs\MakeSearchable`.
 
 ### 3.7 Mail
 
@@ -441,9 +442,9 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
   tourne en `database`. Le relevé fait foi et vit dans
   [`infra/prod-drivers.json`](infra/prod-drivers.json) — ne pas le recopier ici (TCK-300).
 
-  **Ce que personne n'a vérifié** : que Redis écoute réellement sur le serveur. `server-setup.sh`
-  ne l'installe pas, et la production n'ayant *jamais* été déployée (D-04), le premier démarrage est
-  aussi le premier essai. À lever au tout début de TCK-288, par `redis-cli ping`, avant tout le reste.
+  **Depuis ADR-0028**, Redis est un conteneur de `deploy/server/compose.data.yml`, une instance par
+  projet. Qu'une pile d'API le joigne se vérifie au déploiement, dans le conteneur (plan d'ADR-0028,
+  tâches D et F) — jamais en lisant ce fichier ni `prod-drivers.json`, qui relèvent l'ancien serveur.
 - *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ∉ {`dompdf`, `cloudflare`}
 
 > **Le plus simple est de ne rien installer de tout cela** : `docker-compose.yml` à la racine sert

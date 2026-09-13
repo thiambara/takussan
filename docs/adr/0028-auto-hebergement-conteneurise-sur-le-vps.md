@@ -205,7 +205,7 @@ inexistant).
   autre machine — pas d'agrandir celle-ci.
 - **Une partie de l'état vit hors du dépôt** : variables d'environnement, domaines et services de
   base configurés dans l'interface de Dokploy. Même réponse qu'ADR-0017 : un relevé,
-  `docs/infra/hebergement.md`, avec les commandes qui le re-mesurent. Les **valeurs** des variables <!-- lien-mort-assumé : créé par la tâche B6 du plan, qui retire ce marqueur -->
+  `docs/infra/hebergement.md`, avec les commandes qui le re-mesurent. Les **valeurs** des variables
   n'y figurent pas ; elles se gardent dans un gestionnaire de secrets, parce que perdre le serveur,
   c'est aussi perdre l'interface qui les porte.
 - **Plus de preview par pull request.** Vercel en a produit 212. Une PR se vérifie en CI, puis sur la

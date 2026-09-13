@@ -7,12 +7,13 @@ return [
     | Cross-Origin Resource Sharing (CORS) Configuration
     |--------------------------------------------------------------------------
     |
-    | Cross-domain front (Vercel) ↔ API (Contabo) requires:
+    | Cross-domain front ↔ API (two origins, both on the VPS since ADR-0028;
+    | www.takussan.com stays on Vercel until phase F of its plan) requires:
     |  - `supports_credentials = true` so Sanctum session cookies traverse
     |  - the front origin allowed explicitly (FRONTEND_URL)
     |  - Vercel preview deploy URLs allowed via regex
     |
-    | See docs/infra/deploy-preview.html for the full deployment context.
+    | See docs/infra/hebergement.md for the full deployment context.
     |
     */
 
