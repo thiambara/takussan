@@ -4,11 +4,12 @@
  *
  * Le défaut qu'elle attrape a été réel, et il s'exécutait EN ROOT.
  *
- * `scripts/server-setup.sh` génère `/etc/sudoers.d/takussan-deploy` et
- * `/etc/logrotate.d/takussan` par `cat > … <<SUDO`. Le délimiteur n'est pas quoté — il ne PEUT
- * pas l'être, puisqu'il faut y interpoler `${DEPLOY_USER}`, `${APP_DIR}`, `${php_version}`.
- * Bash y développe donc aussi les backticks et les `$(…)`, **y compris dans ce qui ressemble à
- * un commentaire**.
+ * `scripts/server-setup.sh` (retiré par ADR-0028) générait `/etc/sudoers.d/takussan-deploy` et
+ * `/etc/logrotate.d/takussan` par `cat > … <<SUDO`. Le délimiteur n'était pas quoté — il ne
+ * POUVAIT pas l'être, puisqu'il fallait y interpoler `${DEPLOY_USER}`, `${APP_DIR}`,
+ * `${php_version}`. Bash y développait donc aussi les backticks et les `$(…)`, **y compris dans
+ * ce qui ressemble à un commentaire**. Son successeur, `deploy/server/bootstrap.sh`, écrit sous
+ * `/etc` par heredoc QUOTÉ.
  *
  * Un commentaire d'explication écrit `` `setup_queue_service` `` a ainsi réellement INVOQUÉ la
  * fonction du même nom, sous root, et supprimé le mot du fichier écrit. Elle est morte
@@ -47,13 +48,22 @@ const REPORT = process.argv.includes('--report');
  * garde ne traverse pas jusqu'à sa sœur toute seule — et la liste écrite à la main est toujours
  * celle qui vieillit.*
  */
-const FICHIERS = [
-  ...readdirSync(join(ROOT, 'scripts'))
-    .filter((f) => f.endsWith('.sh'))
-    .sort()
-    .map((f) => `scripts/${f}`),
-  'dev.sh',
-];
+/*
+ * Et ce balayage-là était encore une liste déguisée : `scripts/*.sh` et `dev.sh`. ADR-0028 a
+ * déplacé le shell qui écrit en root sous `/etc` de `scripts/server-setup.sh` vers
+ * `deploy/server/bootstrap.sh` : il lui aurait échappé. D'où TOUT le shell du dépôt, par un
+ * balayage récursif. Les répertoires cachés (`.git`, `.windsurf`…) et les dépendances sont exclus.
+ */
+function shDuDepot(dir = ROOT, acc = []) {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === 'vendor') continue;
+    const chemin = join(dir, e.name);
+    if (e.isDirectory()) shDuDepot(chemin, acc);
+    else if (e.name.endsWith('.sh')) acc.push(chemin.slice(ROOT.length + 1));
+  }
+  return acc;
+}
+const FICHIERS = shDuDepot().sort();
 
 /**
  * L'ouverture d'un heredoc — et le motif est volontairement STRICT sur ce qui la précède.
