@@ -60,6 +60,13 @@ const REPORT = process.argv.includes('--report');
 const SOURCES = [join(WEB, 'src'), join(WEB, 'next.config.ts')];
 const ENV_EXEMPLE = join(WEB, '.env.example');
 const RELEVE = join(ROOT, 'docs', 'infra', 'frontend-deploiement.json');
+/**
+ * ADR-0028 — les deux sommets qui DÉPLOIENT. Hors de Vercel, une `NEXT_PUBLIC_*` n'arrive au
+ * build que si le Dockerfile la déclare en `ARG` ET si images.yml la passe en `build-args`. Il
+ * manque l'un des deux, et la valeur inlinée est `undefined` — sans que rien ne casse au build.
+ */
+const DOCKERFILE = join(WEB, 'Dockerfile');
+const WORKFLOW = join(ROOT, '.github', 'workflows', 'images.yml');
 
 const EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs']);
 
@@ -126,7 +133,7 @@ if (lues.size === 0) {
   process.exit(1);
 }
 
-for (const chemin of [ENV_EXEMPLE, RELEVE]) {
+for (const chemin of [ENV_EXEMPLE, RELEVE, DOCKERFILE, WORKFLOW]) {
   if (!existsSync(chemin)) {
     console.error(`✗ ${relative(ROOT, chemin)} : introuvable. Le périmètre de la garde est périmé.`);
     process.exit(1);
@@ -159,6 +166,13 @@ if (relevees.size === 0) {
   process.exit(1);
 }
 
+const argsDockerfile = new Set(
+  [...readFileSync(DOCKERFILE, 'utf8').matchAll(/^\s*ARG\s+(NEXT_PUBLIC_[A-Za-z0-9_]+)/gm)].map((m) => m[1]),
+);
+const argsWorkflow = new Set(
+  [...readFileSync(WORKFLOW, 'utf8').matchAll(/^\s*(NEXT_PUBLIC_[A-Za-z0-9_]+)=/gm)].map((m) => m[1]),
+);
+
 const erreurs = [];
 for (const [cle, sites] of lues) {
   if (!declarees.has(cle)) {
@@ -173,6 +187,9 @@ for (const [cle, sites] of lues) {
         `absente de ${relative(ROOT, RELEVE)}`,
     );
   }
+  const ou = `lue par ${sites[0]}${sites.length > 1 ? ` (+${sites.length - 1})` : ''}`;
+  if (!argsDockerfile.has(cle)) erreurs.push(`${cle} : ${ou}, absente des ARG de ${relative(ROOT, DOCKERFILE)}`);
+  if (!argsWorkflow.has(cle)) erreurs.push(`${cle} : ${ou}, absente des build-args de ${relative(ROOT, WORKFLOW)}`);
 }
 
 if (REPORT) {
@@ -180,11 +197,12 @@ if (REPORT) {
   console.log(
     `${lues.size} clé(s) NEXT_PUBLIC_* lue(s) dans ${fichiers.length} fichiers balayés :\n`,
   );
-  console.log(`${'clé'.padEnd(large)}  lectures  .env.example  relevé`);
+  console.log(`${'clé'.padEnd(large)}  lectures  .env.example  relevé  Dockerfile  images.yml`);
   for (const cle of [...lues.keys()].sort()) {
     console.log(
       `${cle.padEnd(large)}  ${String(lues.get(cle).length).padEnd(8)}  ` +
-        `${(declarees.has(cle) ? '✓' : '✗').padEnd(12)}  ${relevees.has(cle) ? '✓' : '✗'}`,
+        `${(declarees.has(cle) ? '✓' : '✗').padEnd(12)}  ${(relevees.has(cle) ? '✓' : '✗').padEnd(6)}  ` +
+        `${(argsDockerfile.has(cle) ? '✓' : '✗').padEnd(10)}  ${argsWorkflow.has(cle) ? '✓' : '✗'}`,
     );
   }
   console.log('');
@@ -193,7 +211,8 @@ if (REPORT) {
 if (erreurs.length === 0) {
   console.log(
     `✓ variables de build du front : ${lues.size} clé(s) NEXT_PUBLIC_* lue(s), toutes déclarées ` +
-      `dans .env.example ET relevées dans frontend-deploiement.json.`,
+      `dans .env.example, relevées dans frontend-deploiement.json, en ARG du Dockerfile et ` +
+      `passées par images.yml.`,
   );
   process.exit(0);
 }
