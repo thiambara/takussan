@@ -1,0 +1,57 @@
+# Données partagées du serveur (ADR-0028 §6) : Meilisearch et un Redis par projet.
+#
+# PostgreSQL et MySQL n'y sont PAS : ce sont des services Database de Dokploy, pour la
+# sauvegarde vers R2 et la restauration intégrées. Ce fichier ne porte que ce qui se
+# reconstruit — l'index depuis la base, le cache par définition.
+#
+# Aucun port publié : ces services ne sont joignables que depuis `dokploy-network`.
+# Déployé par Dokploy (projet « Serveur », Compose « donnees »), jamais à la main.
+#
+# Les versions sont celles du développement et de la CI (docs/infra/versions.json) : la même
+# image partout. Ce qui tourne réellement se relève dans le conteneur, pas ici.
+
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.16
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: production
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY manquante}
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_MAX_INDEXING_MEMORY: 256Mb
+    volumes:
+      - meili:/meili_data
+    mem_limit: 768m
+    networks:
+      - dokploy-network
+
+  # volatile-lru : seules les clés À DURÉE DE VIE sont évincées. Le cache en porte une ; un
+  # verrou ou un compteur sans durée n'est jamais évincé en silence.
+  redis-takussan:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy volatile-lru --requirepass ${REDIS_TAKUSSAN_PASSWORD:?REDIS_TAKUSSAN_PASSWORD manquant}
+    volumes:
+      - redis-takussan:/data
+    mem_limit: 192m
+    networks:
+      - dokploy-network
+
+  redis-cpp:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy volatile-lru --requirepass ${REDIS_CPP_PASSWORD:?REDIS_CPP_PASSWORD manquant}
+    volumes:
+      - redis-cpp:/data
+    mem_limit: 96m
+    networks:
+      - dokploy-network
+
+volumes:
+  meili:
+  redis-takussan:
+  redis-cpp:
+
+networks:
+  dokploy-network:
+    external: true
