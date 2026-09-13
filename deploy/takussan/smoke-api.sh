@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 IMAGE=ghcr.io/thiambara/takussan-api
-TAG=local
+TAG=${TAG:-local}   # surchargé par une ablation, pour ne jamais tester l'image réelle à sa place
 
 echec() { echo "✗ $*" >&2; exit 1; }
 ok() { echo "✓ $*"; }
@@ -48,6 +48,15 @@ verifier_image() {
 
   [ "$(dans printenv BUILD_SHA)" = smoke ] || echec "BUILD_SHA n'est pas transmis à l'image"
   ok "BUILD_SHA"
+
+  # L'image de base sonde l'admin de Caddy (port 2019), coupée ici : héritée, cette sonde
+  # déclare malades worker et scheduler, qui n'écoutent rien.
+  [ "$(docker inspect -f '{{json .Config.Healthcheck.Test}}' "$IMAGE:$TAG")" = '["NONE"]' ] \
+    || echec "l'image hérite d'une sonde de santé : worker et scheduler seraient déclarés malades"
+  ok "sonde de l'image de base annulée"
+
+  dans test -w /config/psysh || echec "/config/psysh n'est pas inscriptible : artisan tinker meurt sous www-data"
+  ok "artisan tinker utilisable"
 }
 
 PROJET=takussan-smoke
@@ -80,12 +89,28 @@ verifier_pile() {
   trap nettoyer_pile EXIT
   preparer_pile
 
-  "${COMPOSE[@]}" up -d --pull never --wait || { "${COMPOSE[@]}" logs release; echec "la pile ne démarre pas"; }
+  # Pas de `--wait` : il exige une sonde sur CHAQUE service, et Compose ne tient pas
+  # `HEALTHCHECK NONE` pour une sonde (« has no healthcheck configured »). Dokploy ne le passe pas
+  # non plus. `up` attend quand même le SUCCÈS de release (depends_on) ; le reste se vérifie ici.
+  "${COMPOSE[@]}" up -d --pull never || { "${COMPOSE[@]}" logs release; echec "la pile ne démarre pas"; }
+  [ "$(docker inspect -f '{{.State.ExitCode}}' "$PROJET-release-1")" = 0 ] \
+    || { "${COMPOSE[@]}" logs release; echec "release a échoué"; }
+  for _ in $(seq 60); do
+    [ "$(docker inspect -f '{{.State.Health.Status}}' "$PROJET-api-1")" = healthy ] && break
+    sleep 2
+  done
+  [ "$(docker inspect -f '{{.State.Health.Status}}' "$PROJET-api-1")" = healthy ] \
+    || { "${COMPOSE[@]}" logs api; echec "api n'est pas saine"; }
+  for s in worker worker-media scheduler; do
+    [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
+      || { "${COMPOSE[@]}" logs "$s"; echec "$s ne tourne pas"; }
+  done
   ok "la pile démarre, release d'abord"
 
   "${COMPOSE[@]}" logs release | grep -q 'Importation de App\\Models\\Property' \
     || echec "le premier release n'a pas importé Property dans Meilisearch"
-  "${COMPOSE[@]}" run --rm release | grep -q 'forme des index inchangée' \
+  # `--pull never` ici aussi : `run` suit le `pull_policy: always` du Compose, pas le drapeau d'`up`.
+  "${COMPOSE[@]}" run --rm --pull never release | grep -q 'forme des index inchangée' \
     || echec "un second release réimporte alors que la forme des index n'a pas changé"
   ok "release idempotent (importe au premier passage, pas au second)"
 
@@ -93,9 +118,11 @@ verifier_pile() {
   sonde -D - -o /dev/null "$api/up" | tr -d '\r' | grep -qix 'x-build-sha: smoke' || echec "X-Build-Sha absent ou faux"
   ok "/up à 200, X-Build-Sha: smoke"
 
-  # Une sonde par file que la production doit consommer — les files de check-queues.mjs.
+  # Une sonde par file que la production doit consommer — les files de check-queues.mjs. Un job
+  # SÉRIALISABLE : une closure écrite dans tinker ne l'est pas (laravel/serializable-closure relit
+  # le fichier source, et du code eval() n'en a pas). `inspire` vit dans routes/console.php.
   for q in default notifications-urgent media reconciliation; do
-    tinker "dispatch(fn () => logger('sonde $q'))->onQueue('$q');" >/dev/null
+    tinker "Artisan::queue('inspire')->onQueue('$q');" >/dev/null
   done
   for _ in $(seq 30); do
     n=$(tinker 'echo DB::table("jobs")->count();' | tr -dc '0-9')
@@ -137,7 +164,7 @@ verifier_pile() {
   done
   ok "aucun service ne redémarre"
 
-  "${COMPOSE[@]}" --profile seed run --rm -e SEEDER_CLASS="${SEEDER_CLASS:-}" seed >/dev/null || echec "le seed échoue"
+  "${COMPOSE[@]}" --profile seed run --rm --pull never -e SEEDER_CLASS="${SEEDER_CLASS:-}" seed >/dev/null || echec "le seed échoue"
   ok "le seed tourne sur la cible seed"
 
   docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' | grep "$PROJET"

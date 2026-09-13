@@ -4,8 +4,9 @@
 #   runtime — api, worker, worker-media, scheduler et release : même image, commandes différentes
 #   seed    — runtime + dépendances de dev, pour `db:seed` (Faker en est une, TCK-353)
 #
-# Pas de HEALTHCHECK ici : worker et scheduler n'écoutent aucun port, une sonde HTTP d'image les
-# déclarerait tous malades. La sonde vit sur le seul service `api` (deploy/takussan/compose.api.yml).
+# Aucune sonde d'image (HEALTHCHECK NONE, plus bas) : worker et scheduler n'écoutent aucun port, une
+# sonde HTTP d'image les déclarerait tous malades. La sonde vit sur le seul service `api`
+# (deploy/takussan/compose.api.yml).
 #
 # Pas de directive `# syntax=` : le frontend intégré à BuildKit suffit à ce fichier, et la directive
 # ajoute à CHAQUE build une requête vers Docker Hub — trois builds tombés sur un délai dépassé le
@@ -56,8 +57,10 @@ COPY docker/Caddyfile /etc/frankenphp/Caddyfile
 # nommé `storage` (compose.api.yml) est initialisé depuis ce contenu au premier montage.
 # L'empreinte .search-shape couvre tout ce qui façonne un document indexé : la règle de deploy.sh
 # (config/scout.php, les modèles Searchable, app/Support/Search, lang/fr/properties.php — TCK-506).
+# /config/psysh : `artisan tinker` y écrit ($XDG_CONFIG_HOME vaut /config dans l'image de base, et
+# /config appartient à root) — sans lui, tinker meurt sous www-data.
 RUN mkdir -p storage/app/private storage/app/public storage/framework/cache/data \
-      storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
+      storage/framework/sessions storage/framework/views storage/logs bootstrap/cache /config/psysh \
  && composer dump-autoload --no-dev --optimize --no-scripts \
  && php artisan package:discover --ansi \
  && php artisan storage:link \
@@ -65,9 +68,13 @@ RUN mkdir -p storage/app/private storage/app/public storage/framework/cache/data
       $(grep -rl toSearchableArray app/Models) -type f \
       | sort | xargs sha256sum | sha256sum | cut -d' ' -f1 > .search-shape \
  && chmod 755 docker/*.sh \
- && chown -R www-data:www-data storage bootstrap/cache /data/caddy /config/caddy
+ && chown -R www-data:www-data storage bootstrap/cache /data/caddy /config/caddy /config/psysh
 USER www-data
 EXPOSE 8080
+# L'image de base porte `HEALTHCHECK curl -f http://localhost:2019/metrics` : l'API d'admin de
+# Caddy, que le Caddyfile coupe (`admin off`). Héritée, elle déclarait worker, worker-media et
+# scheduler malades (mesuré le 2026-09-13 : `container takussan-smoke-worker-media-1 is unhealthy`).
+HEALTHCHECK NONE
 ENTRYPOINT ["/app/docker/entrypoint.sh"]
 CMD ["frankenphp", "run", "--config", "/etc/frankenphp/Caddyfile"]
 
