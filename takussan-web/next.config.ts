@@ -4,6 +4,12 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // ── `output: 'standalone'` — ADR-0028 §3 ─────────────────────────────────────────────────────
+  //
+  // `next build` produit `.next/standalone/server.js` et n'y copie que les modules que le serveur
+  // importe réellement. L'image (takussan-web/Dockerfile) ne porte ni `node_modules` entier ni les
+  // dépendances de dev. Sans effet sur `next dev`.
+  output: 'standalone',
   // React Compiler — ACTIVÉ, décision ADR-0015 (TCK-318). Mesuré sur ce dépôt : 870/870
   // composants compilés sans un seul abandon, +3,6 à +6,1 % de JS gzippé par page, et un
   // re-rendu de grille de 200 cartes qui passe de ~35 ms à ~1,5 ms. Exige
@@ -89,10 +95,10 @@ const nextConfig: NextConfig = {
     // ⚠ La durée de cache VUE PAR LE NAVIGATEUR ne se règle PAS ici.
     //
     // L'optimiseur émet `max-age = max(minimumCacheTTL, max-age de l'amont)` — et
-    // l'amont, c'est nginx : `location /storage/` dans `scripts/server-setup.sh`,
-    // qui domine le défaut de 4 h de `minimumCacheTTL`. Les deux valeurs bougent
-    // ensemble ou pas du tout ; le raisonnement (et ce qui interdit `immutable`)
-    // vit dans le commentaire de ce bloc nginx.
+    // l'amont, c'est l'API : le matcher `@storage` de `takussan-api/docker/Caddyfile`
+    // (qui reprend le `location /storage/` de l'ancien vhost nginx), et qui domine le
+    // défaut de 4 h de `minimumCacheTTL`. Les deux valeurs bougent ensemble ou pas du
+    // tout ; le raisonnement (et ce qui interdit `immutable`) vit dans ce Caddyfile.
     //
     // ⚠⚠ En DÉVELOPPEMENT, rien de tout cela ne s'applique : Next force
     // `max-age=0, must-revalidate` quel que soit l'amont (`image-optimizer.js`,
@@ -111,6 +117,19 @@ const nextConfig: NextConfig = {
       { protocol: 'http', hostname: '127.0.0.1', port: '8002' },
       { protocol: 'http', hostname: 'localhost', port: '8002' },
     ],
+  },
+  // ── `X-Build-Sha` — ADR-0028 §10 : le code servi se prouve ───────────────────────────────────
+  //
+  // `BUILD_SHA` est un argument de build (takussan-web/Dockerfile) : la valeur est figée au build,
+  // ce qui est exactement ce qu'on veut prouver. `.github/workflows/images.yml` n'est vert que
+  // lorsque l'URL publique rend le commit poussé. Hors image — `next dev`, tests —, « inconnu ».
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [{ key: 'X-Build-Sha', value: process.env.BUILD_SHA ?? 'inconnu' }],
+      },
+    ];
   },
 };
 
