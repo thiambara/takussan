@@ -180,14 +180,19 @@ les points suivants, chacun mesuré. Le dépôt fait foi.
 |---|---|---|---|
 | B1, C1 — Dockerfile de l'API | « pas de HEALTHCHECK » | l'image de base porte `curl -f http://localhost:2019/metrics` ; héritée, worker et scheduler sont déclarés malades | `HEALTHCHECK NONE`, et une vérification d'image qui l'exige |
 | B1, C1 — Dockerfile de l'API | — | `artisan tinker` meurt sous `www-data` : `/config` (`$XDG_CONFIG_HOME`) appartient à root | `/config/psysh` créé et donné à `www-data` |
-| B1, B3 — Dockerfiles | `# syntax=docker/dockerfile:1.7` | une requête vers Docker Hub à chaque build ; trois builds tombés sur un délai dépassé | directive retirée côté Takussan (aucune instruction n'en dépend) |
+| B1, B3, C1, C2 — Dockerfiles | `# syntax=docker/dockerfile:1.7` | une requête vers Docker Hub à chaque build ; trois builds tombés sur un délai dépassé | directive retirée des quatre Dockerfiles. Le `RUN --mount=type=secret` de `web/` (CheckPrint Plus) passe sans elle : build avec un jeton sonde, zéro fuite dans l'historique, le système de fichiers et le journal |
 | B1, C1 — Caddyfile | `request_body { max_size 25MiB }` reproduit `client_max_body_size` | il ne coupe que le corps LU : un POST de 26 Mio rendait 405 ou 302, jamais 413 | matcher `@trop_gros` sur `Content-Length`, `respond 413` |
 | B2, C1 — `smoke-api.sh pile` | `up -d --wait` | Compose refuse `HEALTHCHECK NONE` sous `--wait` (« has no healthcheck configured ») ; Dokploy ne passe pas `--wait` | `up -d` puis vérifications explicites (release en 0, api saine, services en marche) |
 | B2, C1 — `smoke-api.sh pile` | `compose run --rm release` | `run` suit `pull_policy: always`, pas le `--pull never` d'`up` | `run --rm --pull never` |
+| B2, B3, C1, A2 — scripts | `cmd \| grep -q …` | sous `pipefail`, `grep -q` sort à la première correspondance, l'écrivain prend SIGPIPE (141) : deux ablations sur quatre ont rougi sur une vérification qu'elles ne touchaient pas | sortie capturée, puis `grep -q … <<<"$(cmd)"` |
 | B2 — sonde des files | `dispatch(fn () => logger(…))` dans tinker | une closure écrite dans tinker n'est pas sérialisable | `Artisan::queue('inspire')->onQueue(…)` |
 | B3, C2 — `smoke-web.sh` | tout échec du build sans origine vaut refus | un échec réseau y comptait comme refus : faux vert (piste C) | le refus exige le message de sa garde |
 | B4, C3 — actions Docker | `@v3`, `@v3`, `@v6` | majeures publiées : v4.3.0, v4.6.0, v7.3.0 | `@v4`, `@v4`, `@v7` |
 | A2 — `bootstrap.sh` | `iptables -D DOCKER-USER $(…)` | découpage de mots non quoté (shellcheck) | `read -ra` sur la règle relevée |
+| C2 — `web/Dockerfile` | sans `NEXT_PUBLIC_SITE_URL`, `seo.ts` « retombe sur `https://checkprintplus.com` » | `ENV NEXT_PUBLIC_SITE_URL=${…}` pose une chaîne VIDE, que `??` ne remplace pas : `robots.txt` déclare `Sitemap: /sitemap.xml`, aucune canonique absolue | la garde reste ; son commentaire dit « origine vide ». (Côté Takussan, `alternates.ts` teste la chaîne vide : le repli sur la production y joue, le commentaire est juste.) |
+| C2, étape 1 — relevé du bundle | `www.` et le motif `'/_next/static/chunks/[^"]+\.js'` | 0 chunk : Next 16 écrit les chemins sans `/` initial dans le flux RSC | motif `_next/static/chunks/[0-9a-zA-Z_-]+\.js` sur `/`, `/download`, `/auth/login` de l'apex : 16 chunks. La production ne pose **ni** DSN Sentry **ni** URL de téléchargement : ces variables restent vides |
+| C1, étape 11 — commit | `git add … deploy` | aurait embarqué `deploy/smoke-web.sh`, qui est de C2 | fichiers listés un par un |
+| C3 — retrait de `deploy.yml` | — | c'est lui qui déploie aujourd'hui l'API de CheckPrint Plus à chaque `push` sur `master` | à la fusion sur `master`, plus rien ne déploie l'API avant la phase F ; le VPS étant réinstallé en piste A, l'ancienne cible disparaît de toute façon |
 
 ## Piste A — le serveur
 
@@ -2537,7 +2542,7 @@ Faits mesurés le 2026-09-13 dont dépend la piste :
 | **`php artisan db:seed-production` n'existe pas** ; seul le docblock de `ProductionSeeder` la cite | `grep -rn seed-production app routes …` → une ligne, le docblock |
 | `ProductionSeeder` (rôles, plans, banques et modèles) n'utilise pas Faker | `grep -nE 'fake\(\)\|Faker\|::factory\(' …` → aucune occurrence |
 | `laravel_api/.env` et `web/.env.local` existent sur le poste ; `.gitignore` racine n'exclut que `.env`, `.env.backup`, `.env.production` | `ls -A`, `.gitignore` |
-| Le front lit `NEXT_PUBLIC_BACKEND_API_URL`, `NEXT_PUBLIC_BACKEND_API_HOST`, `BACKEND_API_HOST`, `NEXT_PUBLIC_SITE_URL` (repli silencieux sur `https://checkprintplus.com`, `src/lib/seo.ts:5`), `NEXT_PUBLIC_MAINTENANCE_MODE`, `NEXT_PUBLIC_DOWNLOAD_URL_MAC`/`_WIN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | `grep -rhoE 'process\.env\.[A-Z_]+' web/src web/next.config.ts` |
+| Le front lit `NEXT_PUBLIC_BACKEND_API_URL`, `NEXT_PUBLIC_BACKEND_API_HOST`, `BACKEND_API_HOST`, `NEXT_PUBLIC_SITE_URL` (repli sur `https://checkprintplus.com` par `??`, `src/lib/seo.ts:5` — qui ne joue pas dans l'image, cf. § Écarts), `NEXT_PUBLIC_MAINTENANCE_MODE`, `NEXT_PUBLIC_DOWNLOAD_URL_MAC`/`_WIN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN` | `grep -rhoE 'process\.env\.[A-Z_]+' web/src web/next.config.ts` |
 
 ### Tâche C1 : l'image et la pile de l'API
 
@@ -3065,8 +3070,9 @@ ARG NEXT_PUBLIC_SENTRY_DSN
 ARG SENTRY_ORG
 ARG SENTRY_PROJECT
 ARG BUILD_SHA=inconnu
-# src/lib/seo.ts retombe EN SILENCE sur https://checkprintplus.com sans NEXT_PUBLIC_SITE_URL : une
-# préproduction déclarerait alors ses pages canoniques en production. Même refus que Takussan.
+# Sans NEXT_PUBLIC_SITE_URL, l'ENV ci-dessous la pose VIDE, et le `??` de src/lib/seo.ts ne remplace
+# pas une chaîne vide : l'image déclarerait une origine vide (sitemap relatif, aucune canonique
+# absolue). Même refus que Takussan.
 RUN test -n "$NEXT_PUBLIC_BACKEND_API_URL" || { echo "✗ NEXT_PUBLIC_BACKEND_API_URL manquant" >&2; exit 1; }
 RUN test -n "$BACKEND_API_HOST" || { echo "✗ BACKEND_API_HOST manquant : la CSP bloquerait l'API" >&2; exit 1; }
 RUN test -n "$NEXT_PUBLIC_SITE_URL" || { echo "✗ NEXT_PUBLIC_SITE_URL manquant" >&2; exit 1; }

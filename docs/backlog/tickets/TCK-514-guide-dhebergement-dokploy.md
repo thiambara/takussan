@@ -1,7 +1,7 @@
 ---
 id: TCK-514
 title: "Documentation — le guide d'hébergement Dokploy remplace le guide de premier déploiement"
-status: todo
+status: doing
 phase: P0
 family: technique
 estimate: S
@@ -50,4 +50,23 @@ Décision : [ADR-0028](../../adr/0028-auto-hebergement-conteneurise-sur-le-vps.m
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-09-13, branche `feat/auto-hebergement-dokploy`.**
+
+- `docs/infra/hebergement.md` créé : ce qui sert quoi, ce que le dépôt porte, le relevé de Dokploy
+  (tout *non mesuré* jusqu'à TCK-515), le runbook, et la table de ce que Caddy reprend du vhost nginx.
+- `premier-deploiement.md` et `deploy-preview.html` retirés. **Aucun lien Markdown ne les visait**
+  (mesuré par `grep -rnoE '\]\([^)]*(premier-deploiement\.md|deploy-preview\.html)'`) : il ne restait
+  que des mentions en code, dans des documents datés (tickets, ardoise, plan), laissées telles quelles.
+- `versions.json` : les six lignes `prod` gardent `non_mesure`, et leur `commande` se lance désormais
+  **dans le conteneur** (`docker exec …`) ; `versions.md` suit, commandes comprises.
+- Cartouches datés en tête d'ardoise D-04 et D-10 (corps conservés) ; `CLAUDE.md` (§ Workflow git,
+  commandes des tests de fumée) ; `takussan-web/CLAUDE.md` (§ Déploiement, § Environnement) ;
+  `docs/configuration.md` (réindexation par `release.sh`, Redis).
+- Commentaires vivants réécrits au passé ou redirigés vers leur successeur : `dev.sh`, `config/cors.php`,
+  `PaymentReceiptPdf`, `RefreshNewBuildSearchLabel`, `Property`, `SearchWolofReviewSheet`,
+  `MediaRegeneratePropertyConversions`, `check-infra-versions`, `check-cache-headers-auth`,
+  `check-deps-dev-atteignables`, `repo-ci.yml`, `dependabot.yml`. Pint vert.
+- AC2 — le `grep` résiduel ne rend que du récit (« comme deploy.sh » dans les fichiers qui en
+  héritent, `check-db-engine.mjs:24`, une migration datée, les mesures datées du § Workflow git).
+- AC1, AC3 — marqueur d'ADR-0028 retiré ; toutes les gardes, `gen-index --check` et
+  `gen-features-by-actor --check` verts.

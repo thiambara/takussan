@@ -63,4 +63,16 @@ Redis, Meilisearch, six unités systemd de files. `/var/www/takussan` n'a jamais
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-09-13, branche `feat/auto-hebergement-dokploy`.**
+
+- A1 — export fait par `ssh`, chiffré (`gpg --symmetric`, AES256), rapatrié dans
+  `~/Sauvegardes/vps-2026-09-13.tar.gpg` du poste ; la phrase de passe est dans le trousseau macOS,
+  jamais en clair à côté. Contenu : dump PostgreSQL de `takussan_preview`, dumps MySQL de
+  `checkprintplus`, `checkprintplus_preview` et de l'ancienne `takussan_preview`, les répertoires
+  `shared` (`.env` et `storage/app`, 984 Mo pour la préproduction Takussan), les vhosts nginx, les
+  unités de files, la configuration de Meilisearch. `takussan_prod` (MySQL) est vide : aucune table.
+- AC1 — relu depuis l'archive chiffrée : `pg_restore --list` → **92** `TABLE DATA` ; chaque
+  archive `shared` porte son `.env`. Extraction de relecture supprimée.
+- A2 — `bootstrap.sh` : ses deux `cmd | grep` passent par une sortie capturée (sous `pipefail`, le
+  SIGPIPE d'un écrivain encore actif fait échouer le pipeline — mesuré sur les tests de fumée).
+- Réinstallation par le porteur depuis le panneau Contabo (décidé le 2026-09-13).

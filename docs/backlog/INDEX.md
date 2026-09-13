@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 26 |
-| 🚧 Doing | 3 |
+| 📋 Todo | 23 |
+| 🚧 Doing | 6 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 435 |
@@ -53,9 +53,6 @@
 - [TCK-486](tickets/TCK-486-aplat-translucide-au-survol-ne-se-compose-pas-sur-le-bouton.md) — Un aplat translucide au survol ne se compose pas sur le fond du bouton : 4,41:1 dans deux composants `S · P2 · front`
 - [TCK-487](tickets/TCK-487-text-primary-echoue-jusque-sur-card-nu-en-sombre.md) — `text-primary` échoue jusque sur `--card` NU en thème sombre : 3,39 à 4,51:1, troisième jeton du même motif `M · P1 · front`
 - [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
-- [TCK-512](tickets/TCK-512-image-du-front-standalone.md) — Front — une image Next.js standalone par environnement, qui refuse de se construire sans ses origines `S · P0 · technique`
-- [TCK-513](tickets/TCK-513-workflow-images-et-gardes-portees.md) — CI — images.yml construit, pousse, déclenche Dokploy et prouve ; les gardes quittent la chaîne bash `M · P0 · technique`
-- [TCK-514](tickets/TCK-514-guide-dhebergement-dokploy.md) — Documentation — le guide d'hébergement Dokploy remplace le guide de premier déploiement `S · P0 · technique`
 - [TCK-515](tickets/TCK-515-preproductions-sur-dokploy.md) — Préproductions — Takussan et CheckPrint Plus servis par Dokploy, mesurés, restaurés à blanc `M · P0 · technique`
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
@@ -65,6 +62,9 @@
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 - [TCK-510](tickets/TCK-510-serveur-reinstalle-sous-dokploy.md) — Serveur — le VPS est réinstallé à blanc et sert Dokploy, ses bases et leurs sauvegardes `M · P0 · technique`
 - [TCK-511](tickets/TCK-511-image-et-pile-compose-de-lapi.md) — API — une image FrankenPHP par commit et sa pile Compose, éprouvées en local `M · P0 · technique`
+- [TCK-512](tickets/TCK-512-image-du-front-standalone.md) — Front — une image Next.js standalone par environnement, qui refuse de se construire sans ses origines `S · P0 · technique`
+- [TCK-513](tickets/TCK-513-workflow-images-et-gardes-portees.md) — CI — images.yml construit, pousse, déclenche Dokploy et prouve ; les gardes quittent la chaîne bash `M · P0 · technique`
+- [TCK-514](tickets/TCK-514-guide-dhebergement-dokploy.md) — Documentation — le guide d'hébergement Dokploy remplace le guide de premier déploiement `S · P0 · technique`
 
 ## 👀 Review
 

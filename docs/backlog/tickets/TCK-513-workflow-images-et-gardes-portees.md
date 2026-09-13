@@ -1,7 +1,7 @@
 ---
 id: TCK-513
 title: "CI — images.yml construit, pousse, déclenche Dokploy et prouve ; les gardes quittent la chaîne bash"
-status: todo
+status: doing
 phase: P0
 family: technique
 estimate: M
@@ -51,4 +51,21 @@ ablations et inventaire des suppressions : [plan, tâches B4 et B5](../../plans/
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-09-13, branche `feat/auto-hebergement-dokploy`.**
+
+- Majeures des actions Docker mesurées (`gh api repos/<action>/releases/latest`) : `setup-buildx`
+  v4.3.0, `login` v4.6.0, `build-push` v7.3.0 — le plan disait `@v3`, `@v3`, `@v6`.
+- AC1 — `actionlint` vert sur `images.yml` et `repo-ci.yml`. La preuve extraite du YAML, rejouée
+  contre l'image du front sur un port local : `✓ …/up sert smoke`, `✓ …/robots.txt sert smoke`,
+  code 0 ; avec un SHA faux, `::error::… sert « smoke » au lieu de 0000…`, code 1.
+- AC2 — `scripts/test-release-reindex.sh` : dix vérifications et une ablation, vertes, code 0.
+- AC3 — ablations : `media` retirée de `worker-media` → `check-queues` rougit (« `media` — absente de :
+  serveur ») ; l'`ARG` ou le `build-arg` de `NEXT_PUBLIC_SITE_URL` retiré → `check-front-env-keys`
+  rougit. Chaque fichier restauré, `md5` contrôlé. Toutes les gardes vertes après le retrait.
+- Retirés après relecture de leur en-tête, chacun avec son successeur : `deploy.yml`,
+  `deploy-preview.yml`, `deploy.sh` (ses onze étapes ont chacune un successeur : `release.sh`,
+  l'`entrypoint`, l'image, la sonde, `X-Build-Sha`, le nettoyage de Dokploy), `server-setup.sh`,
+  `seed-environnement.sh` et `seed-remote.sh` (`seed.sh` refuse toute base hors `*_preview` et
+  `*_smoke`), `deploy-preview-vps.sh`, `deploy-prod-vps.sh`, `test-deploy-search-reindex.sh`.
+- `actionlint` sur tout le dépôt signale deux remarques de shellcheck dans `api-ci.yml`
+  (SC1003, SC2011), fichier que cette branche ne touche pas.

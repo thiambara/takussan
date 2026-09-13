@@ -42,7 +42,7 @@ Code complet et tests : [plan, tâches B1 et B2](../../plans/2026-09-13-auto-heb
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `smoke-api.sh image` rend ses huit `✓`
+- [ ] AC1 — `smoke-api.sh image` rend ses `✓` (dix depuis les deux vérifications ajoutées à l'exécution)
 - [ ] AC2 — l'ablation de `.env*` dans `.dockerignore` fait rougir `smoke-api.sh image` en nommant le fichier
 - [ ] AC3 — `smoke-api.sh pile` rend ses `✓` (release idempotent, files consommées, en-têtes, taille de corps, redémarrages, seed)
 - [ ] AC4 — chaque ablation du tableau de B2 fait rougir la vérification qu'elle vise
@@ -53,4 +53,36 @@ Code complet et tests : [plan, tâches B1 et B2](../../plans/2026-09-13-auto-heb
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+**2026-09-13, branche `feat/auto-hebergement-dokploy`.** Image FrankenPHP
+`1.12.7-php8.4-bookworm` (PHP 8.4.25), le même tag que CheckPrint Plus.
+
+- AC1 — `smoke-api.sh image` : dix `✓`, code 0. Les deux ajoutées : la sonde de l'image de base est
+  annulée (`HEALTHCHECK NONE`), et `artisan tinker` tourne sous `www-data`.
+- AC2 — ablation de `.env*` dans `.dockerignore`, jouée dans une copie `rsync` qui exclut les `.env`
+  réels du poste, avec un `.env` sonde : `✗ 1 fichier(s) .env* dans l'image`, code 1. Un premier
+  passage avait rendu un faux vert — son build avait échoué, et le test avait visé l'image
+  précédente ; le script d'ablation s'arrête désormais sur un build raté.
+- AC3 — `smoke-api.sh pile` : dix `✓`, code 0, seed compris (7 min). Mémoire au repos : api 65 Mio
+  sur 384, worker 46 sur 256, worker-media 46 sur 384, scheduler 43 sur 192.
+- Ce que la pile a révélé, corrigé dans l'image : la sonde de santé héritée de `dunglas/frankenphp`
+  (`curl localhost:2019/metrics`, admin de Caddy coupé) déclarait worker et scheduler malades ;
+  `/config/psysh` manquait à `www-data` ; `request_body { max_size 25MiB }` ne rendait jamais `413`
+  sur l'en-tête (matcher `Content-Length` ajouté ; un envoi chunked de plus de 25 Mio est borné sans
+  `413`). Et dans le test : plus de `--wait`, `run --pull never`, sonde de file sérialisable
+  (`Artisan::queue('inspire')`) — détail au § Écarts du plan.
+- AC4 — ablations, chacune jouée sur la pile, fichier restauré et `md5` contrôlé :
+  - `media` retirée de `worker-media` → `✗ 1 job(s) jamais consommé(s) : media`, code 1 ;
+  - limite abaissée à 20 Mio → `✗ un corps de 24 Mio est refusé`, code 1 ;
+  - bloc `@cache_hidden` retiré → `✗ /.htaccess n'est pas refusé`, code 1 ;
+  - écriture du marqueur retirée de `release.sh` → `✗ un second release réimporte`, code 1.
+- Défaut du test trouvé par les ablations : au premier passage, deux d'entre elles ont rougi sur
+  « le premier release n'a pas importé Property », une vérification qu'elles ne touchaient pas.
+  Cause : `compose logs release | grep -q …` sous `pipefail` — `grep -q` sort à la première
+  correspondance, l'écrivain prend SIGPIPE (141) et le pipeline échoue selon le minutage
+  (`seq 1 200000 | grep -q '^1$'` → 141). Toute sortie est désormais capturée avant d'être
+  cherchée, dans les deux tests de fumée et dans `bootstrap.sh`, ici et côté CheckPrint Plus.
+  Les deux ablations rejouées rougissent alors sur leur propre vérification.
+- Non couvert : l'ablation « `release` sans son entrypoint » du plan. Sans surcharge, `release`
+  lance le serveur et bloque `up` ; avec `command:`, elle resterait verte, puisque l'environnement de
+  fumée pose `SCOUT_QUEUE=false`. Le test ne distingue donc pas un `release` qui saute
+  `release.sh` — trou connu, à fermer si le Compose change.
