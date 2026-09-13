@@ -18,6 +18,11 @@
 La production s'ajoute à ce tableau en phase F du plan. D'ici là, `www.takussan.com` reste servi par
 Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [relevé](frontend-deploiement.md)).
 
+⚠ **Tant que Vercel construit une branche, `next.config.ts` doit rester constructible par Vercel.**
+`output: 'standalone'`, dont l'image a besoin, casse l'adaptateur de Vercel (`ENOENT …
+.next/next-server.js.nft.json`, mesuré le 2026-09-13) : il n'est donc actif que hors de Vercel
+(`VERCEL=1` au build). La condition tombe en phase F, quand plus aucune branche ne passe par Vercel.
+
 ## Ce que le dépôt porte
 
 | Fichier | Rôle |
@@ -81,7 +86,28 @@ c'est le relevé qui fait foi, et cette commande se corrige ici.
 a été jouée à blanc en D6 ; ses comptes de lignes sont dans le ticket D.
 
 **Reconstruire le serveur** : plan, tâches A2 → A5, puis D1 (déclarer les services depuis ce relevé),
-puis restaurer les bases depuis R2.
+puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans le panneau Contabo :
+
+1. *my.contabo.com → Your services →* le VPS `178.18.247.62` *→ Manage → Reinstall*.
+2. Image : *Standard images →* **Ubuntu 24.04**, nue — ni *Apps & Panels* (Docker, Dokploy, Plesk…),
+   ni image personnalisée : `bootstrap.sh` installe Docker lui-même et refuse toute autre version.
+3. Utilisateur `root` ; un mot de passe long, au gestionnaire de mots de passe (il ne sert plus qu'à
+   la console VNC : `bootstrap.sh` coupe le SSH par mot de passe) ; **deux** clés SSH publiques, celle
+   du poste (`~/.ssh/takussan_contabo.pub`) et celle de secours (`~/.ssh/takussan_secours.pub`).
+4. *Cloud-Init* et *user data* vides. Le disque est effacé.
+5. Depuis le poste : `ssh-keygen -R 178.18.247.62` (l'empreinte du serveur a changé), puis
+   `scp deploy/server/bootstrap.sh root@178.18.247.62:` et
+   `ssh root@178.18.247.62 "ADMIN_IP=$(curl -s https://api.ipify.org) bash bootstrap.sh"`, et les
+   mesures de la tâche A2, étape 4.
+
+⚠ Avant d'effacer : exporter et **relire** l'export (plan, tâche A1). Celui du 2026-09-13 est
+`~/Sauvegardes/vps-2026-09-13.tar.gpg` sur le poste du porteur, phrase de passe dans le trousseau
+macOS (`security find-generic-password -s vps-export-2026-09-13 -w`).
+
+**Les jetons de la migration** (Cloudflare, R2, GHCR, clé d'API Dokploy) transitent par
+`~/Sauvegardes/migration-secrets.env` sur le poste, en mode `600`, jamais par le chat ni le dépôt ;
+leur place définitive est dans Dokploy, les environnements GitHub et le gestionnaire de mots de passe.
+Le fichier se supprime à la fin de la migration.
 
 **Mettre Dokploy à jour** : Settings → *Update*, après avoir lu les notes de version. Relever la
 nouvelle version ici.
