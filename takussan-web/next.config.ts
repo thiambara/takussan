@@ -9,7 +9,12 @@ const nextConfig: NextConfig = {
   // `next build` produit `.next/standalone/server.js` et n'y copie que les modules que le serveur
   // importe réellement. L'image (takussan-web/Dockerfile) ne porte ni `node_modules` entier ni les
   // dépendances de dev. Sans effet sur `next dev`.
-  output: 'standalone',
+  //
+  // ⚠ PAS sous Vercel, qui construit encore la production jusqu'à la phase F du plan : son
+  // adaptateur (`onBuildComplete`) lit `.next/next-server.js.nft.json`, que le mode standalone ne
+  // produit pas — mesuré, le build Vercel de la PR #264 meurt sur `ENOENT … next-server.js.nft.json`
+  // après une compilation réussie. Vercel pose `VERCEL=1` au build ; l'image ne le pose pas.
+  output: process.env.VERCEL ? undefined : 'standalone',
   // React Compiler — ACTIVÉ, décision ADR-0015 (TCK-318). Mesuré sur ce dépôt : 870/870
   // composants compilés sans un seul abandon, +3,6 à +6,1 % de JS gzippé par page, et un
   // re-rendu de grille de 200 cartes qui passe de ~35 ms à ~1,5 ms. Exige

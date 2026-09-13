@@ -64,6 +64,11 @@ test : [plan, tâche B3](../../plans/2026-09-13-auto-hebergement-vps-dokploy.md#
   `Sitemap: https://www.takussan.com/sitemap.xml` et
   `<link rel="canonical" href="https://www.takussan.com/fr"/>` : une préproduction qui se déclarerait
   la production. Image et conteneur supprimés, `takussan-web/` intact.
+- Écart trouvé par la PR : Vercel, qui construit encore la production jusqu'à TCK-517, ne supporte
+  pas `output: 'standalone'` sur ce projet. Son adaptateur meurt après une compilation réussie sur
+  `ENOENT … .next/next-server.js.nft.json` (34 succès sur les 35 déploiements précédents : c'était
+  cette branche). Le mode n'est plus actif que hors de Vercel (`VERCEL=1` au build) ; l'image, qui ne
+  pose pas `VERCEL`, le garde — son `COPY … .next/standalone` le prouve à chaque build.
 - `scripts/check-front-env-keys.mjs` lit désormais le `Dockerfile` et `images.yml` : retirer l'`ARG`
   ou le `build-arg` de `NEXT_PUBLIC_SITE_URL` la fait rougir, en nommant le fichier et
   `src/lib/alternates.ts:129`.
