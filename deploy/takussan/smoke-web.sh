@@ -45,8 +45,9 @@ ok "conteneur sain"
 [ "$(docker exec "$NOM" sh -c 'ls -A /app | grep -c "^\.env" || true')" = 0 ] || echec "un .env est entré dans l'image"
 ok "utilisateur node, aucun .env"
 
-entetes "http://127.0.0.1:$PORT/robots.txt" | grep -qix 'x-build-sha: smoke' || echec "X-Build-Sha absent ou faux"
-curl -fsS "http://127.0.0.1:$PORT/robots.txt" | grep -qxF "Sitemap: $SITE/sitemap.xml" \
+# Capturer, puis chercher : `cmd | grep -q` sous pipefail rougit selon le minutage (SIGPIPE, 141).
+grep -qix 'x-build-sha: smoke' <<<"$(entetes "http://127.0.0.1:$PORT/robots.txt")" || echec "X-Build-Sha absent ou faux"
+grep -qxF "Sitemap: $SITE/sitemap.xml" <<<"$(curl -fsS "http://127.0.0.1:$PORT/robots.txt")" \
   || echec "robots.txt ne déclare pas l'origine $SITE : NEXT_PUBLIC_SITE_URL n'a pas été inlinée"
 ok "X-Build-Sha et origine du site"
 
@@ -55,8 +56,8 @@ for langue in fr en wo; do
 done
 ok "/fr, /en, /wo à 200"
 
-entetes -H 'Accept: image/avif' "http://127.0.0.1:$PORT/_next/image?url=https%3A%2F%2Fplacehold.co%2F600x400.png&w=640&q=75" \
-  | grep -qix 'content-type: image/avif' || echec "l'optimiseur ne sert pas d'AVIF : sharp manque à l'image standalone"
+grep -qix 'content-type: image/avif' \
+  <<<"$(entetes -H 'Accept: image/avif' "http://127.0.0.1:$PORT/_next/image?url=https%3A%2F%2Fplacehold.co%2F600x400.png&w=640&q=75")" || echec "l'optimiseur ne sert pas d'AVIF : sharp manque à l'image standalone"
 ok "optimiseur d'images en AVIF"
 
 docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' "$NOM"

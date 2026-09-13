@@ -107,15 +107,18 @@ verifier_pile() {
   done
   ok "la pile démarre, release d'abord"
 
-  "${COMPOSE[@]}" logs release | grep -q 'Importation de App\\Models\\Property' \
+  # La sortie se CAPTURE avant d'être cherchée, jamais `cmd | grep -q` : sous pipefail, grep -q sort
+  # à la première correspondance, l'écrivain encore en cours prend SIGPIPE (141) et le pipeline
+  # échoue — selon le minutage. Mesuré : deux passages sur quatre rougissaient ici à tort.
+  grep -q 'Importation de App\\Models\\Property' <<<"$("${COMPOSE[@]}" logs release 2>&1)" \
     || echec "le premier release n'a pas importé Property dans Meilisearch"
   # `--pull never` ici aussi : `run` suit le `pull_policy: always` du Compose, pas le drapeau d'`up`.
-  "${COMPOSE[@]}" run --rm --pull never release | grep -q 'forme des index inchangée' \
+  grep -q 'forme des index inchangée' <<<"$("${COMPOSE[@]}" run --rm --pull never release 2>&1)" \
     || echec "un second release réimporte alors que la forme des index n'a pas changé"
   ok "release idempotent (importe au premier passage, pas au second)"
 
   [ "$(sonde -o /dev/null -w '%{http_code}' "$api/up")" = 200 ] || echec "/up ne rend pas 200"
-  sonde -D - -o /dev/null "$api/up" | tr -d '\r' | grep -qix 'x-build-sha: smoke' || echec "X-Build-Sha absent ou faux"
+  grep -qix 'x-build-sha: smoke' <<<"$(sonde -D - -o /dev/null "$api/up" | tr -d '\r')" || echec "X-Build-Sha absent ou faux"
   ok "/up à 200, X-Build-Sha: smoke"
 
   # Une sonde par file que la production doit consommer — les files de check-queues.mjs. Un job
@@ -133,15 +136,15 @@ verifier_pile() {
   ok "les quatre files sont consommées"
 
   "${COMPOSE[@]}" exec -T api sh -c 'echo sonde > /app/storage/app/public/sonde.txt'
-  sonde -D - -o /dev/null "$api/storage/sonde.txt" | tr -d '\r' \
-    | grep -qix 'cache-control: public, max-age=604800, stale-while-revalidate=86400' \
+  grep -qix 'cache-control: public, max-age=604800, stale-while-revalidate=86400' \
+    <<<"$(sonde -D - -o /dev/null "$api/storage/sonde.txt" | tr -d '\r')" \
     || echec "Cache-Control de /storage différent de celui de nginx"
   ok "Cache-Control de /storage"
 
   # shellcheck disable=SC2016 # du PHP, évalué dans le conteneur : `$e` et `$c` n'y sont pas du shell.
   css=$("${COMPOSE[@]}" exec -T api php -r 'foreach (json_decode(file_get_contents("/app/public/build/manifest.json"), true) as $e) { foreach ($e["css"] ?? [] as $c) { echo $c; exit; } }')
-  sonde -D - -o /dev/null -H 'Accept-Encoding: gzip' "$api/build/$css" | tr -d '\r' \
-    | grep -qix 'content-encoding: gzip' || echec "le CSS n'est pas compressé"
+  grep -qix 'content-encoding: gzip' <<<"$(sonde -D - -o /dev/null -H 'Accept-Encoding: gzip' "$api/build/$css" | tr -d '\r')" \
+    || echec "le CSS n'est pas compressé"
   ok "compression gzip"
 
   for chemin in /.env /.htaccess /.git/config; do

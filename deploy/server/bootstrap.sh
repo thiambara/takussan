@@ -14,7 +14,8 @@ grep -q 'VERSION_ID="24.04"' /etc/os-release || { echo "✗ Ubuntu 24.04 attendu
 # ── 1. Swap de 4 Go ──────────────────────────────────────────────────────────────────────
 # 8 Go pour quatre environnements : sans swap, le premier pic (un `scout:import`, un seed)
 # réveille l'OOM killer, qui choisit sa victime — souvent la base.
-if ! swapon --show=NAME --noheadings | grep -qx /swapfile; then
+# Capturer, puis chercher : `cmd | grep -q` sous pipefail peut échouer sur un SIGPIPE (141).
+if ! grep -qx /swapfile <<<"$(swapon --show=NAME --noheadings)"; then
   fallocate -l 4G /swapfile
   chmod 600 /swapfile
   mkswap /swapfile
@@ -92,7 +93,8 @@ if [ -n "${ADMIN_IP:-}" ]; then
 else
   rm -f /etc/default/fermer-port-3000
   # retirer une exception posée par un passage précédent
-  while regle=$(iptables -S DOCKER-USER 2>/dev/null | grep -m1 -- '--ctorigdstport 3000.*-j RETURN'); do
+  # grep -m1 sur une sortie capturée : en pipeline, le SIGPIPE d'iptables arrêterait la boucle trop tôt
+  while regle=$(grep -m1 -- '--ctorigdstport 3000.*-j RETURN' <<<"$(iptables -S DOCKER-USER 2>/dev/null)"); do
     read -ra args <<< "${regle#-A DOCKER-USER }"
     iptables -D DOCKER-USER "${args[@]}"
   done
