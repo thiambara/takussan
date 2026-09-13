@@ -1,0 +1,43 @@
+{
+	frankenphp
+	auto_https off
+	admin off
+	# PAS de `trusted_proxies` ici, et c'est délibéré. Avec lui, Caddy retiendrait comme adresse
+	# du client l'IP la plus à GAUCHE de X-Forwarded-For : celle que le client écrit lui-même,
+	# et que Cloudflare conserve. Un `X-Forwarded-For: <IP d'un opérateur SMS>` franchirait la
+	# liste d'IP des webhooks (D-49). REMOTE_ADDR reste donc Traefik, et Laravel seul remonte la
+	# chaîne, de droite à gauche, par TRUSTED_PROXIES (ADR-0028 §8). D5 le prouve par une
+	# usurpation refusée.
+}
+
+:8080 {
+	root * /app/public
+
+	# nginx : gzip on; gzip_min_length 1024 (le JSON de l'API compris).
+	encode zstd gzip {
+		minimum_length 1024
+	}
+
+	# nginx : client_max_body_size 25M, soit 25 × 1024 × 1024 octets — d'où MiB, pas MB.
+	request_body {
+		max_size 25MiB
+	}
+
+	# nginx : location /storage/. PAS `immutable` : RegenerateAgencyWatermarksJob réécrit les
+	# conversions à la MÊME URL, et un navigateur ne reverrait jamais la nouvelle.
+	@storage path /storage/*
+	header @storage Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+
+	# nginx : location ~ /\.(?!well-known) { deny all; }. public/.htaccess existe et serait servi.
+	@cache_hidden {
+		path_regexp /\.
+		not path /.well-known/*
+	}
+	respond @cache_hidden 404
+
+	# ADR-0028 §10 : le code servi se prouve.
+	header X-Build-Sha {$BUILD_SHA}
+	header -Server
+
+	php_server
+}
