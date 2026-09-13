@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**465 tickets** — 29 ouverts, 435 livrés.
+**465 tickets** — 27 ouverts, 437 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 23 |
-| 🚧 Doing | 6 |
+| 🚧 Doing | 4 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 435 |
+| ✅ Done | 437 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -61,8 +61,6 @@
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 - [TCK-510](tickets/TCK-510-serveur-reinstalle-sous-dokploy.md) — Serveur — le VPS est réinstallé à blanc et sert Dokploy, ses bases et leurs sauvegardes `M · P0 · technique`
-- [TCK-511](tickets/TCK-511-image-et-pile-compose-de-lapi.md) — API — une image FrankenPHP par commit et sa pile Compose, éprouvées en local `M · P0 · technique`
-- [TCK-512](tickets/TCK-512-image-du-front-standalone.md) — Front — une image Next.js standalone par environnement, qui refuse de se construire sans ses origines `S · P0 · technique`
 - [TCK-513](tickets/TCK-513-workflow-images-et-gardes-portees.md) — CI — images.yml construit, pousse, déclenche Dokploy et prouve ; les gardes quittent la chaîne bash `M · P0 · technique`
 - [TCK-514](tickets/TCK-514-guide-dhebergement-dokploy.md) — Documentation — le guide d'hébergement Dokploy remplace le guide de premier déploiement `S · P0 · technique`
 
@@ -76,7 +74,15 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 435
+## ✅ Done — 437
+
+<details>
+<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 2 tickets</summary>
+
+- [TCK-511](tickets/TCK-511-image-et-pile-compose-de-lapi.md) — API — une image FrankenPHP par commit et sa pile Compose, éprouvées en local `M · P0 · technique`
+- [TCK-512](tickets/TCK-512-image-du-front-standalone.md) — Front — une image Next.js standalone par environnement, qui refuse de se construire sans ses origines `S · P0 · technique`
+
+</details>
 
 <details>
 <summary><strong>Vague 63 — Session client : le jeton du navigateur suit la connexion et la déconnexion sans rechargement (2026-09-10)</strong> — 1 ticket</summary>

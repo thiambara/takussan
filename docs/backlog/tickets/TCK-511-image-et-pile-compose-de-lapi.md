@@ -1,7 +1,7 @@
 ---
 id: TCK-511
 title: "API — une image FrankenPHP par commit et sa pile Compose, éprouvées en local"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: M
@@ -36,16 +36,16 @@ Code complet et tests : [plan, tâches B1 et B2](../../plans/2026-09-13-auto-heb
 
 ## Delta à produire
 
-- [ ] `takussan-api/Dockerfile`, `.dockerignore`, `docker/{Caddyfile,php.ini,entrypoint.sh,lib.sh,release.sh,seed.sh}`
-- [ ] `deploy/takussan/compose.api.yml`, `deploy/takussan/.env.smoke.example`
-- [ ] `deploy/takussan/smoke-api.sh image|pile`
+- [x] `takussan-api/Dockerfile`, `.dockerignore`, `docker/{Caddyfile,php.ini,entrypoint.sh,lib.sh,release.sh,seed.sh}`
+- [x] `deploy/takussan/compose.api.yml`, `deploy/takussan/.env.smoke.example`
+- [x] `deploy/takussan/smoke-api.sh image|pile`
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `smoke-api.sh image` rend ses `✓` (dix depuis les deux vérifications ajoutées à l'exécution)
-- [ ] AC2 — l'ablation de `.env*` dans `.dockerignore` fait rougir `smoke-api.sh image` en nommant le fichier
-- [ ] AC3 — `smoke-api.sh pile` rend ses `✓` (release idempotent, files consommées, en-têtes, taille de corps, redémarrages, seed)
-- [ ] AC4 — chaque ablation du tableau de B2 fait rougir la vérification qu'elle vise
+- [x] AC1 — `smoke-api.sh image` rend ses `✓` (dix depuis les deux vérifications ajoutées à l'exécution)
+- [x] AC2 — l'ablation de `.env*` dans `.dockerignore` fait rougir `smoke-api.sh image` en nommant le fichier
+- [x] AC3 — `smoke-api.sh pile` rend ses `✓` (release idempotent, files consommées, en-têtes, taille de corps, redémarrages, seed)
+- [x] AC4 — chaque ablation du tableau de B2 fait rougir la vérification qu'elle vise
 
 ## Hors périmètre
 

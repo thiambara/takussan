@@ -1,7 +1,7 @@
 ---
 id: TCK-512
 title: "Front — une image Next.js standalone par environnement, qui refuse de se construire sans ses origines"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: S
@@ -36,15 +36,15 @@ test : [plan, tâche B3](../../plans/2026-09-13-auto-hebergement-vps-dokploy.md#
 
 ## Delta à produire
 
-- [ ] `takussan-web/Dockerfile`, `takussan-web/.dockerignore`
-- [ ] `takussan-web/next.config.ts` : `output: 'standalone'`, en-tête `X-Build-Sha`
-- [ ] `deploy/takussan/smoke-web.sh`
+- [x] `takussan-web/Dockerfile`, `takussan-web/.dockerignore`
+- [x] `takussan-web/next.config.ts` : `output: 'standalone'`, en-tête `X-Build-Sha`
+- [x] `deploy/takussan/smoke-web.sh`
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `smoke-web.sh` rend ses six `✓`
-- [ ] AC2 — l'ablation de la garde d'origines fait rougir le test sur le repli de `robots.txt`
-- [ ] AC3 — lint, `tsc --noEmit`, tests et build du front restent verts
+- [x] AC1 — `smoke-web.sh` rend ses six `✓`
+- [x] AC2 — l'ablation de la garde d'origines fait rougir le test sur le repli de `robots.txt`
+- [x] AC3 — lint, `tsc --noEmit`, tests et build du front restent verts
 
 ## Hors périmètre
 
