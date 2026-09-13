@@ -42,7 +42,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0014](0014-catalogue-code-defini-materialise-et-reconcilie.md) | Un catalogue défini en code et matérialisé en base se réconcilie ; il ne se lit pas à deux endroits | Accepté |
 | [0015](0015-react-compiler-active.md) | Le React Compiler est activé, et la mémoïsation manuelle devient l'exception | Accepté |
 | [0016](0016-role-agence-du-prestataire-porte-par-la-collaboration.md) | Le rôle d'agence d'un prestataire est porté par la collaboration, pas par le profil | Accepté |
-| [0017](0017-deploiement-du-front-pilote-par-vercel.md) | Le déploiement du front reste piloté par Vercel ; le dépôt le relève et le garde | Accepté |
+| [0017](0017-deploiement-du-front-pilote-par-vercel.md) | Le déploiement du front reste piloté par Vercel ; le dépôt le relève et le garde | Remplacé par ADR-0028 — effectif à la bascule du front de production |
 | [0018](0018-format-des-dates-sur-le-fil.md) | L'API émet deux types de date : instant `…T12:34:56+00:00`, date calendaire `YYYY-MM-DD` | Accepté |
 | [0019](0019-l-erreur-d-api-porte-un-code-pas-un-libelle.md) | L'erreur d'API porte un code, la surface de rendu porte le texte | Accepté |
 | [0020](0020-postgresql-sur-tous-les-environnements.md) | PostgreSQL 17 sur tous les environnements, base de test comprise — SQLite et MySQL retirés | Accepté |
@@ -53,6 +53,7 @@ elles étaient déjà **contredites par la documentation censée les décrire**.
 | [0025](0025-repli-de-casse-par-collation-icu.md) | Le repli de casse passe par `COLLATE "und-x-icu"`, jamais par `lower()` nu | Accepté |
 | [0026](0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md) | La langue est un segment d'URL, toujours présent, et seulement sur la surface publique | Accepté |
 | [0027](0027-le-courtier-sort-de-la-surface-commutable.md) | Le courtier sort de la surface commutable, sans quitter la base | Accepté |
+| [0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) | Les deux projets s'auto-hébergent en conteneurs sur le VPS, orchestrés par Dokploy ; Vercel et la chaîne bash sont retirés | Accepté |
 
 ## Décisions recensées, pas encore rédigées
 
@@ -71,7 +72,7 @@ ouvert.
 | Feature flags maison plutôt que Laravel Pennant | le code seul |
 | Audit par `spatie/laravel-activitylog` encapsulé dans un trait à configuration figée | docblock + `models-spec.md` §13 |
 | Médias par `spatie/medialibrary` derrière un CDN pluggable avec kill switch | `models-spec.md` + `docs/infra/cdn.md` |
-| Déploiement zero-downtime par script bash sur VPS — pas de conteneur, pas d'orchestrateur | l'en-tête de `scripts/deploy.sh` |
+| ~~Déploiement zero-downtime par script bash sur VPS — pas de conteneur, pas d'orchestrateur~~ — **révoquée par [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) avant d'avoir été rédigée** | l'en-tête de `scripts/deploy.sh`, jusqu'à son retrait (plan d'ADR-0028, tâche B5) |
 | Flux de branches `dev` → `preview` → `master` | les seuls déclencheurs de workflows — cf. ardoise D-04 |
 | Trilingue fr/en/wo propagé par `Accept-Language` | `docs/configuration.md` §3, partiellement |
 | Design system : shadcn style `base-nova` sur `@base-ui/react`, **aucun Radix**, palette « Lin » | `docs/design-guidelines.md` |

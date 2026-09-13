@@ -1,0 +1,22 @@
+# ⚠ `.env*` EN TÊTE. Sur le poste, takussan-api/ porte des .env RÉELS de préproduction et de
+# production : ignorés par git, PAS par Docker. Sans cette ligne, `docker build` les copie dans
+# une image qu'on pousse ensuite sur un registre. smoke-api.sh le vérifie à chaque passage.
+.env*
+.git
+.idea
+.claude
+.cursor
+.DS_Store
+.phpunit.result.cache
+node_modules
+vendor
+public/build
+public/hot
+public/storage
+bootstrap/cache/*.php
+storage
+tests
+docs
+coverage*.txt
+Dockerfile
+.dockerignore

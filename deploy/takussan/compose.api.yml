@@ -1,0 +1,80 @@
+# Pile d'API Takussan d'UN environnement — préproduction ou production —, déployée par Dokploy
+# (ADR-0028 §5). Le même fichier sert les deux : seuls l'onglet Environment de Dokploy (écrit en
+# .env à côté de ce fichier) et IMAGE_TAG changent.
+#
+# ⚠ Les commandes `queue:work` s'écrivent en CHAÎNES, sur UNE ligne : scripts/check-queues.mjs
+# les lit ligne à ligne. Une forme en tableau, ou repliée sur plusieurs lignes, la rendrait
+# aveugle.
+#
+# Le domaine n'est pas ici : Dokploy pose les labels Traefik du service `api` (port 8080) depuis
+# son onglet Domains. `container_name` est interdit : Dokploy nomme les conteneurs.
+
+x-api: &api
+  image: ghcr.io/thiambara/takussan-api:${IMAGE_TAG:?IMAGE_TAG manquant}
+  pull_policy: always
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - storage:/app/storage/app
+  networks:
+    - dokploy-network
+
+x-apres-release: &apres-release
+  depends_on:
+    release:
+      condition: service_completed_successfully
+
+services:
+  # Migrations, réconciliation des rôles, Meilisearch. Les autres services attendent son SUCCÈS :
+  # une migration qui échoue laisse l'ancienne version servir, au lieu du nouveau code sur
+  # l'ancien schéma.
+  release:
+    <<: *api
+    restart: "no"
+    entrypoint: ["/app/docker/release.sh"]
+    mem_limit: 512m
+
+  api:
+    <<: [*api, *apres-release]
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/up') === false ? 1 : 0);"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # Deux workers, les files qu'écrivait scripts/server-setup.sh (retiré par ADR-0028) :
+  # notifications-urgent passe devant default, et le média lourd ne retarde pas une notification.
+  worker:
+    <<: [*api, *apres-release]
+    command: php artisan queue:work --queue=notifications-urgent,default --sleep=3 --tries=3 --max-time=3600
+    stop_grace_period: 60s
+    mem_limit: 256m
+
+  worker-media:
+    <<: [*api, *apres-release]
+    command: php artisan queue:work --queue=media,reconciliation --sleep=3 --tries=3 --max-time=3600
+    stop_grace_period: 120s
+    mem_limit: 384m
+
+  scheduler:
+    <<: [*api, *apres-release]
+    command: php artisan schedule:work
+    mem_limit: 192m
+
+  # Jamais démarré par `up` : `docker compose --profile seed run --rm seed`.
+  seed:
+    <<: *api
+    image: ghcr.io/thiambara/takussan-api:${IMAGE_TAG:?IMAGE_TAG manquant}-seed
+    profiles: ["seed"]
+    restart: "no"
+    entrypoint: ["/app/docker/seed.sh"]
+    mem_limit: 768m
+
+volumes:
+  storage:
+
+networks:
+  dokploy-network:
+    external: true

@@ -19,3 +19,7 @@ docs/reference-dploiement/
 
 # Maquettes de brainstorming (superpowers) — locales, non versionnées
 .superpowers/
+
+# Environnements des piles Compose (ADR-0028) : générés en local par les tests de fumée, portés
+# par Dokploy sur le serveur. Jamais versionnés — seuls les *.example le sont.
+deploy/**/.env

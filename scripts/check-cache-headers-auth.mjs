@@ -58,8 +58,8 @@
  *     un test qui compare deux corps (`tests/Feature/Public/CataloguePublicCacheTest.php`).
  *   · Qu'un `Vary` soit juste ou présent. Un `Vary` manquant se prouve par la même
  *     famille de tests, pas par une lecture de fichier de routes.
- *   · Les en-têtes posés par le serveur web (nginx). Ils ne sont pas dans le dépôt,
- *     à l'exception de `scripts/server-setup.sh` que cette garde ne lit pas.
+ *   · Les en-têtes posés par le serveur web. Depuis ADR-0028, ils vivent dans
+ *     `takussan-api/docker/Caddyfile`, que cette garde ne lit pas.
  *
  * Usage :
  *   node scripts/check-cache-headers-auth.mjs

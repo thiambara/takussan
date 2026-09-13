@@ -12,8 +12,9 @@ use App\Services\Pdf\DocumentPdfService;
  *
  * Cette classe instanciait `new Dompdf(…)` en dur. `dompdf/dompdf` n'est déclaré NULLE PART
  * dans `composer.json` — il n'arrive qu'en développement, et transitivement, par les
- * `require-dev` de `phpoffice/phpspreadsheet` et `spatie/laravel-pdf`. `deploy.sh` installant
- * en `--no-dev`, la classe était absente de toute release déployée et l'endpoint rendait 500.
+ * `require-dev` de `phpoffice/phpspreadsheet` et `spatie/laravel-pdf`. `deploy.sh` — et depuis
+ * ADR-0028 l'image de `Dockerfile` — installant en `--no-dev`, la classe était absente de toute
+ * release déployée et l'endpoint rendait 500.
  * Mesuré le 2026-08-24 sur la préproduction, qui déclarait DÉJÀ
  * `LARAVEL_PDF_DRIVER=cloudflare` :
  *

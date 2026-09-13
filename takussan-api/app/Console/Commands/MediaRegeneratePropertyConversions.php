@@ -27,10 +27,10 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  *    `Property::watermarkedConversions()` — la liste unique, jamais une copie.
  *
  * ⚠ **La régénération réécrit AU MÊME CHEMIN**, et `/storage/` sert désormais
- * `Cache-Control: max-age=604800` (`scripts/server-setup.sh`, TCK-355). Un
+ * `Cache-Control: max-age=604800` (`docker/Caddyfile`, TCK-355 et ADR-0028). Un
  * navigateur qui a déjà vu l'ancienne image peut donc afficher la version d'avant
  * pendant **jusqu'à 7 jours**. C'est la même propriété qui interdit `immutable` sur
- * ce `location` : sans jeton d'URL dérivé de `media.updated_at`, une régénération
+ * ce chemin : sans jeton d'URL dérivé de `media.updated_at`, une régénération
  * n'est pas immédiatement visible côté visiteur. Prévoir la fenêtre, ou purger le
  * cache du CDN pour les chemins concernés.
  *

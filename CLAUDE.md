@@ -146,6 +146,15 @@ npm run test          # vitest
 npm run build
 ```
 
+Images et déploiement — **le runbook complet vit dans [`docs/infra/hebergement.md`](docs/infra/hebergement.md)**
+(ADR-0028) :
+
+```bash
+deploy/takussan/smoke-api.sh image   # l'image de l'API, seule
+deploy/takussan/smoke-api.sh pile    # la pile Compose de Dokploy, contre les services de docker-compose.yml
+deploy/takussan/smoke-web.sh         # l'image du front (exige ./dev.sh api)
+```
+
 Racine — **les gardes ne s'énumèrent pas ici, elles se listent** :
 
 ```bash
@@ -260,6 +269,15 @@ déploie le front en production, via l'intégration Git Vercel — pas via un wo
 [`docs/infra/frontend-deploiement.md`](docs/infra/frontend-deploiement.md), qui portent le relevé
 mesuré et sa garde). Y pousser est donc une **action sortante** ; ce n'est pas un rangement de
 branche.
+
+> ⚠️ **Depuis le 2026-09-13, [ADR-0028](docs/adr/0028-auto-hebergement-conteneurise-sur-le-vps.md)
+> remplace ADR-0017 et la chaîne `deploy.yml` / `scripts/deploy.sh`** : l'API et le front tournent
+> en conteneurs sur le VPS, sous Dokploy. Un push sur **`preview`** construit les images, les pousse
+> sur GHCR et déploie la préproduction par `.github/workflows/images.yml` — vert seulement quand
+> l'URL publique rend le commit dans `X-Build-Sha`. **`master` reste servie par Vercel jusqu'à la
+> phase F du plan**, et cette phase se décide par une personne. Runbook et relevé :
+> [`docs/infra/hebergement.md`](docs/infra/hebergement.md). Les mesures datées ci-dessous décrivent
+> l'ancien serveur.
 
 ⚠️ **Trois chiffres de ce paragraphe étaient faux, et ils l'étaient dans le sens qui rassure.
 Re-mesurés le 2026-08-20 :**

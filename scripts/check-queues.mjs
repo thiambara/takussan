@@ -12,7 +12,8 @@
  * manifeste que par l'ABSENCE de quelque chose, et l'absence ne déclenche rien.
  *
  * La garde compare deux sources qui n'ont aucune raison de rester d'accord toutes seules :
- * les `onQueue('…')` du code, et la liste `--queue=` de `scripts/server-setup.sh`.
+ * les `onQueue('…')` du code, et les `--queue=` de ceux qui les consomment :
+ * `deploy/takussan/compose.api.yml` (préproduction ET production, ADR-0028) et `dev.sh`.
  *
  * Usage :
  *   node scripts/check-queues.mjs            # garde, sort en 1 au moindre écart
@@ -44,34 +45,21 @@ const RACINES = [
 ];
 
 /**
- * TOUS les consommateurs, pas seulement celui de production.
+ * TOUS les consommateurs, pas seulement celui du serveur.
  *
- * Une première version ne lisait que `server-setup.sh`. Le `--queue` a donc été corrigé en
- * production… et `dev.sh` a continué de lancer `queue:work` sans lui, réintroduisant en local
- * le défaut exact que la garde venait de fermer en production — au vert, puisqu'elle ne
- * regardait pas là. *Une garde qui ne couvre qu'un côté déplace le défaut au lieu de le
- * supprimer.*
+ * Une première version ne lisait que la production. Le `--queue` y a été corrigé… et `dev.sh` a
+ * continué de lancer `queue:work` sans lui, réintroduisant en local le défaut exact que la garde
+ * venait de fermer — au vert, puisqu'elle ne regardait pas là. *Une garde qui ne couvre qu'un
+ * côté déplace le défaut au lieu de le supprimer.*
+ *
+ * Depuis ADR-0028, le serveur n'a plus qu'UNE source : le fichier Compose EST le déploiement, et
+ * le même fichier sert la préproduction et la production. Les trois copies qu'on gardait ici —
+ * l'unité systemd de production, celle de préproduction, et `FILES_ATTENDUES` de `deploy.sh` —
+ * n'existent plus. *Le fichier gardé est celui qu'on exécute.*
  */
 const CONSOMMATEURS = [
-  { fichier: join(ROOT, 'scripts', 'server-setup.sh'), ou: 'production (unité systemd)', cible: 'APP_DIR' },
-  // La PRÉPRODUCTION est un consommateur à part entière. Restreindre la résolution à `APP_DIR`
-  // avait bien séparé production et préproduction — mais en laissant la seconde SANS AUCUNE
-  // vérification. Retirer `media` de son unité laissait la garde verte pendant que ses jobs
-  // s'empilaient pour toujours : la panne silencieuse exacte que ce script existe pour
-  // empêcher, sur l'environnement que personne ne regarde.
-  //
-  // *Séparer deux sources qu'on confondait ne suffit pas : il faut ensuite vérifier les deux.*
-  { fichier: join(ROOT, 'scripts', 'server-setup.sh'), ou: 'préproduction (unité systemd)', cible: 'PREVIEW_DIR' },
+  { fichier: join(ROOT, 'deploy', 'takussan', 'compose.api.yml'), ou: 'serveur — préproduction et production (Compose Dokploy)' },
   { fichier: join(ROOT, 'dev.sh'), ou: 'développement local' },
-  // `deploy.sh` porte une TROISIÈME copie de la liste, dans `FILES_ATTENDUES` — celle que son
-  // contrôle post-déploiement compare aux unités systemd RÉELLES du serveur. Elle n'était lue
-  // par personne : ajouter une file et la câbler dans les deux consommateurs faisait passer
-  // Repo CI au vert pendant que ce contrôle-là cessait silencieusement de la couvrir.
-  //
-  // C'est exactement le défaut « la garde et son sujet divergent » que cette PR corrige trois
-  // fois ailleurs, sur la garde qui existe pour l'attraper. *La troisième copie d'une liste est
-  // celle que personne ne pense à vérifier, parce qu'on a déjà vérifié les deux autres.*
-  { fichier: join(ROOT, 'scripts', 'deploy.sh'), ou: 'contrôle post-déploiement (FILES_ATTENDUES)', liste: 'FILES_ATTENDUES' },
 ];
 
 /* ── 1. les files que le CODE pousse ─────────────────────────────────────── */
@@ -197,7 +185,7 @@ for (const racine of RACINES) if (existsSync(racine)) balayer(racine);
 
 /* ── 2. les files que CHAQUE consommateur consomme ───────────────────────── */
 const lus = [];
-for (const { fichier, ou, cible, liste } of CONSOMMATEURS) {
+for (const { fichier, ou } of CONSOMMATEURS) {
   if (!existsSync(fichier)) {
     console.error(`✗ ${fichier.slice(ROOT.length + 1)} est introuvable — la garde ne peut pas vérifier « ${ou} ».`);
     process.exit(1);
@@ -227,19 +215,6 @@ for (const { fichier, ou, cible, liste } of CONSOMMATEURS) {
   // l'ensemble est un singleton.* On la ferme avant qu'elle ne se manifeste.
   const contenu = readFileSync(fichier, 'utf8');
 
-  // Un consommateur peut déclarer ses files par une LISTE nommée plutôt que par un `queue:work`.
-  // C'est le cas du contrôle post-déploiement, qui ne lance rien mais dit ce qu'il exige.
-  if (liste) {
-    const m = contenu.match(new RegExp(`^\\s*${liste}=["']([a-z0-9_ ,-]+)["']`, 'm'));
-    if (!m) {
-      console.error(`✗ ${fichier.slice(ROOT.length + 1)} : \`${liste}\` est introuvable (« ${ou} »).`);
-      console.error('  La garde le dit plutôt que de passer en silence.');
-      process.exit(1);
-    }
-    lus.push({ ou, fichier, files: new Set(m[1].split(/[\s,]+/).filter(Boolean)), workers: 1 });
-    continue;
-  }
-
   const lignes = contenu
     .split('\n')
     .filter((l) => l.includes('artisan queue:work') && !/^\s*#/.test(l));
@@ -252,43 +227,11 @@ for (const { fichier, ou, cible, liste } of CONSOMMATEURS) {
   // files couvrent le contrat ensemble, et c'est bien ainsi qu'on les déploierait.
   const files = new Set();
   lignes.forEach((ligne, i) => {
-    let m = ligne.match(/--queue=([a-z0-9_,-]+)/);
+    const m = ligne.match(/--queue=([a-z0-9_,-]+)/);
 
-    // `--queue=${var}` : on RÉSOUT la variable dans le même fichier plutôt que d'abandonner.
-    //
-    // `server-setup.sh` génère désormais deux unités systemd depuis une seule fonction, et la
-    // liste des files lui arrive en paramètre — l'`ExecStart` du script porte donc
-    // `--queue=${files_worker}`. Une garde qui ne lit que des littéraux aurait ici deux issues,
-    // toutes deux mauvaises : rendre « pas de --queue= » (faux, et elle bloque une refonte
-    // légitime), ou passer en silence (pire). On cherche donc les valeurs littérales que la
-    // variable reçoit — ici les arguments des appels en bas du fichier.
-    //
-    // *Une garde doit suivre l'indirection d'un cran quand le code en pose une ; sinon c'est
-    // elle qui dicte comment le code a le droit d'être écrit.*
-    if (!m) {
-      const varMatch = ligne.match(/--queue=\$\{?(\w+)\}?/);
-      if (varMatch) {
-        // Valeurs littérales assignées à cette variable, ou passées en argument positionnel.
-        const nom = varMatch[1];
-        //
-        // ⚠ On ne retient que les appels visant la PRODUCTION (`${APP_DIR}`). La première
-        // version unionnait les littéraux de TOUS les `setup_queue_service` du fichier, donc
-        // ceux de la préproduction aussi : retirer `notifications-urgent` de l'appel de
-        // production laissait la garde verte tant que la préproduction le gardait. Elle
-        // vérifiait alors « une unité quelque part sert cette file », pas « CE consommateur la
-        // sert » — c'est-à-dire autre chose que ce que son propre message d'erreur affirme.
-        //
-        // *Unir les sources d'un contrôle par commodité, c'est en changer le sujet.*
-        const litteraux = [
-          ...contenu.matchAll(new RegExp(`${nom}=["']?([a-z0-9_,-]+)["']?`, 'g')),
-          ...contenu.matchAll(
-            new RegExp(`^\\s*setup_queue_service\\s+\\S+\\s+["']?\\$\\{${cible ?? 'APP_DIR'}\\}["']?\\s+["']([a-z0-9_,-]+)["']`, 'gm'),
-          ),
-        ].map((x) => x[1]);
-        if (litteraux.length) m = [null, litteraux.join(',')];
-      }
-    }
-
+    // Une valeur littérale, toujours. `--queue=${VAR}` est refusé plus bas comme un worker sans
+    // `--queue=` : Compose interpole la variable depuis un .env que le dépôt ne contient pas, et
+    // une garde qui ne peut pas lire la valeur ne doit pas rendre « couvert ».
     if (!m) {
       const autres = [...poussees.keys()].filter((q) => q !== 'default');
       const quel = lignes.length > 1 ? ` (worker n°${i + 1} sur ${lignes.length})` : '';

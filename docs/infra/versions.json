@@ -28,8 +28,8 @@
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
-        "commande": "/usr/bin/meilisearch --version   # ou : apt list --installed 2>/dev/null | grep -i meilisearch",
-        "pourquoi": "Le dépôt ne contient qu'un GUIDE d'installation (`docs/infra/deploy-preview.html` §6.4 : `sudo apt update && sudo apt install meilisearch`), qui n'épingle aucune version et que personne n'a rejoué sous les yeux d'un agent. Un guide décrit ce qu'on VOUDRAIT installer ; seule la machine dit ce qui EST installé. C'est le raisonnement exact qui a fait tourner la CI sur MariaDB alors que la production servait MySQL (D-43)."
+        "commande": "docker exec <conteneur meilisearch de deploy/server/compose.data.yml> meilisearch --version",
+        "pourquoi": "Depuis ADR-0028 (2026-09-13), Meilisearch est un conteneur épinglé dans `deploy/server/compose.data.yml`. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5. Avant, le dépôt ne portait qu'un guide d'installation (`apt install meilisearch`, sans version) que personne n'avait rejoué : un guide décrit ce qu'on VOUDRAIT installer, c'est le raisonnement de D-43."
       }
     },
     "redis": {
@@ -50,8 +50,8 @@
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
-        "commande": "redis-server --version   # ou : dpkg -l | grep -E '^ii\\s+redis'",
-        "pourquoi": "Rien dans le dépôt ne provisionne ni ne mentionne Redis côté serveur : `scripts/server-setup.sh` ne l'installe pas, `docs/infra/premier-deploiement.md` ne le nomme pas. On ne sait donc même pas s'il est présent — et `.env.example` livre pourtant `CACHE_STORE=redis`."
+        "commande": "docker exec <conteneur redis de deploy/server/compose.data.yml> redis-server --version",
+        "pourquoi": "Depuis ADR-0028 (2026-09-13), Redis est un conteneur épinglé dans `deploy/server/compose.data.yml`, une instance par projet. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5. Avant, rien dans le dépôt ne provisionnait Redis côté serveur, alors que `.env.example` livrait `CACHE_STORE=redis`."
       }
     },
     "mailpit": {
@@ -72,8 +72,8 @@
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
-        "commande": "command -v mailpit; systemctl is-active mailpit 2>/dev/null",
-        "pourquoi": "Mailpit est un outil de développement, et on l'ATTEND absent en production — mais attendre n'est pas mesurer. La ligne reste ici pour que l'attente soit écrite quelque part où on puisse la démentir."
+        "commande": "docker ps --format \"{{.Image}}\" | grep -i mailpit || echo \"mailpit absent\"",
+        "pourquoi": "Sans objet en production : aucun conteneur mailpit n'est déclaré sur le serveur (ADR-0028). On l'ATTEND absent — mais attendre n'est pas mesurer, et la ligne reste ici pour que l'attente soit écrite là où on peut la démentir."
       }
     },
     "php": {
@@ -105,8 +105,8 @@
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
-        "commande": "php -v | head -1   # et : cat /etc/takussan/php-version   (écrit par scripts/server-setup.sh)",
-        "pourquoi": "L'ardoise D-01 établit une BORNE INFÉRIEURE, pas une version : le déploiement de preview du 2026-06-20 a réussi, `deploy.sh` y lance `composer install --no-dev`, et le lock d'alors exigeait `php >=8.4.1` — donc le serveur (partagé entre preview et production) est au moins en 8.4.1. C'est une inférence tirée d'un ÉVÉNEMENT observé, ce qui vaut infiniment mieux qu'un guide, mais ce n'est toujours pas un relevé : on ignore le correctif exact et si prod et preview servent le même binaire aujourd'hui. Rien dans le dépôt ne choisit cette version — `scripts/server-setup.sh` n'installe aucun PHP (il LIT `php -v` et imprime `apt install php<version>-fpm` si le binaire manque), et `deploy.yml` n'en déclare aucune. ⚠ Le tableau de l'ardoise D-09 porte encore « 8.3 » pour cette case, en contradiction avec D-01 : ne s'y fier ni dans un sens ni dans l'autre avant d'avoir lancé la commande."
+        "commande": "docker exec <conteneur api de production> php -v | head -1   # et : frankenphp version",
+        "pourquoi": "Depuis ADR-0028 (2026-09-13), PHP vient de l'image FrankenPHP épinglée par `ARG FRANKENPHP_TAG` dans `takussan-api/Dockerfile` ; construite en local le 2026-09-13, elle rend PHP 8.4.25 — une mesure d'IMAGE, pas de production. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5. L'ancienne borne de l'ardoise D-01 (≥ 8.4.1) décrivait un serveur réinstallé depuis."
       }
     },
     "node": {
@@ -128,8 +128,8 @@
       "prod": {
         "etat": "non_mesure",
         "valeur": null,
-        "commande": "node --version 2>/dev/null || echo 'node absent'",
-        "pourquoi": "Aucun workflow ne déploie de runtime Node : `deploy.yml` et `deploy-preview.yml` ne déclarent ni `setup-node` ni image, et `scripts/server-setup.sh` ne pose ni Node ni service front. Le front n'est donc pas déployé depuis ce dépôt (TCK-299) — mais l'absence de Node SUR LE SERVEUR reste une supposition tant que la commande n'a pas été lancée."
+        "commande": "docker exec <conteneur du front de production> node --version",
+        "pourquoi": "Depuis ADR-0028 (2026-09-13), le front est servi par une image `node:24-bookworm-slim` (`takussan-web/Dockerfile`) ; jusqu'à la phase F du plan, `www.takussan.com` reste servi par Vercel, dont le runtime ne se relève pas depuis le dépôt. Une image déclarée n'est pas une image servie : la valeur se relève DANS le conteneur en marche, et se date — plan d'ADR-0028, tâche F5."
       }
     },
     "postgres": {
@@ -148,11 +148,11 @@
       },
       "prod": {
         "etat": "non_mesure",
-        "pourquoi": "aucune BASE de production PostgreSQL n'existe — c'est ce que mesure cette entrée, et ce n'est plus la même chose que « le serveur n'a pas PostgreSQL ». Depuis le 2026-08-24 la machine porte PostgreSQL 17.11 (PGDG) et pgvector 0.8.6, posés pour la préproduction ; mais aucun rôle ni base `takussan_prod` PostgreSQL n'a été créé, et l'API de production n'a toujours pas été déployée (D-04, api.takussan.com/up → 404). La mesure se prendra quand la commande ci-dessous aura été lancée CONTRE LA BASE DE PRODUCTION, dans TCK-288, et pas avant.",
+        "pourquoi": "aucune BASE de production PostgreSQL n'existe — c'est ce que mesure cette entrée. Le 2026-08-24, la machine portait PostgreSQL 17.11 (PGDG) pour la préproduction, sans rôle ni base `takussan_prod` ; depuis ADR-0028 (2026-09-13), le serveur est réinstallé et chaque base est un service Database de Dokploy. La production n'existe qu'à partir de la phase F du plan d'ADR-0028 : la commande se lance alors DANS le conteneur du service de production (tâche F5), et pas avant.",
         "valeur": null,
-        "commande": "psql -tAc \"SELECT current_setting('server_version'), datcollate, pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database();\"",
+        "commande": "docker exec <conteneur du service Database de production> psql -U <rôle> -d <base> -tAc \"SELECT current_setting('server_version'), datcollate, pg_encoding_to_char(encoding) FROM pg_database WHERE datname = current_database();\"",
         "date": null,
-        "source": "ADR-0020 / TCK-288",
+        "source": "ADR-0020 / ADR-0028",
         "note": "⚠ `non_mesure`, et c'est le point important de cette entrée. Le moteur a changé le 2026-08-21 (ADR-0020 : MySQL 8.0 → PostgreSQL 17). L'entrée précédente portait `mesure` / `8.0.46-0ubuntu0.24.04.3` / `2026-08-13` : c'était vrai, et ça décrivait un moteur que le dépôt n'exécute plus. Recopier ici la cible PostgreSQL en la marquant `mesure` referait EXACTEMENT la faute de `mariadb:11.4` que ce catalogue existe pour empêcher — une configuration prise pour un relevé.\n\n**Ce que le 2026-08-24 a changé, et ce qu'il n'a PAS changé.** La bascule de la PRÉPRODUCTION a été faite et mesurée ce jour-là : PostgreSQL 17.11, base `takussan_preview` en `C|C|UTF8` lue dans `pg_database`, rôle sans CREATEDB (refus vérifié), `pgvector` 0.8.6 disponible et NON installé (ADR-0020 §2), API servant 836 biens. **Rien de cela ne remplit cette case** : elle porte la production, et une mesure prise sur un autre environnement n'est pas une mesure — c'est exactement le raccourci que ce catalogue existe pour refuser.\n\nLa cause de D-04, elle, est élucidée le 2026-08-24 : `.env.prod` déclare `DB_USERNAME=takussan_prod` (13 caractères) quand le compte MySQL créé s'appelle `takussan_pro` (12), les droits sur la base `takussan_prod` étant bien posés au nom de ce dernier. Détail et conséquences dans TCK-288.\n\nLe moteur, l'image et la collation ont par ailleurs leur garde dédiée : `scripts/check-db-engine.mjs`, dont la constante s'appelle `CIBLE` et non `PROD`, pour la même raison."
       },
       "accords_croises": [

@@ -1,0 +1,12 @@
+# ⚠ `.env*` EN TÊTE : takussan-web/.env.local existe sur le poste. `next build` le LIRAIT, et ses
+# valeurs entreraient dans le bundle d'une image poussée sur un registre.
+.env*
+.next
+node_modules
+.git
+.stitch
+.DS_Store
+coverage
+*.tsbuildinfo
+Dockerfile
+.dockerignore

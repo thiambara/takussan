@@ -88,7 +88,8 @@ updates:
   # ── Chaîne d'assets du backend (Vite/Tailwind pour `welcome.blade.php`) ─────
   # Petite mais réelle : c'est ici que vivaient les deux vulnérabilités CRITIQUES
   # (`shell-quote` via `concurrently`), dans des devDependencies que le déploiement
-  # installe pourtant, puisque `deploy.sh` lance `npm ci` puis `npm run build`.
+  # installe pourtant, puisque l'étape `assets` de `takussan-api/Dockerfile` lance
+  # `npm ci` puis `npm run build` (comme `deploy.sh` avant ADR-0028).
   - package-ecosystem: npm
     directory: /takussan-api
     schedule:

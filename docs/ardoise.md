@@ -128,6 +128,19 @@ démarrer**. Sur une installation neuve suivie à la lettre, l'application ne bo
 
 ### D-04 — La production de l'API n'a jamais SERVI — et depuis le 2026-08-15 ce n'est plus faute d'avoir essayé 🔴 → [TCK-288](backlog/tickets/TCK-288-chaine-de-deploiement-master-fige.md) · [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md)
 
+> ## 2026-09-13 — [ADR-0028](adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) REMPLACE LA CHAÎNE QUE CETTE ENTRÉE DÉCRIT
+>
+> `deploy.yml`, `deploy-preview.yml`, `scripts/deploy.sh` et `scripts/server-setup.sh` sont
+> retirés. Le serveur est réinstallé ; l'API tourne dans une image (`takussan-api/Dockerfile`)
+> déployée par Dokploy, construite et **prouvée** par `.github/workflows/images.yml`, qui n'est
+> vert que lorsque l'URL publique rend le commit poussé dans `X-Build-Sha`. Le compte MySQL
+> `takussan_pro` et son `.env` disparaissent avec la machine.
+>
+> **Ce n'est toujours pas une résolution.** L'API de production n'a jamais servi, et ne servira
+> qu'en phase F du plan d'ADR-0028 — une décision qui appartient à une personne. D-04 se ferme le
+> jour où `https://api.takussan.com/up` rend 200 **et** le commit attendu dans `X-Build-Sha`,
+> relevé et daté ici. Les cartouches qui suivent décrivent une machine qui n'existe plus.
+
 > ## ⚠️ RE-MESURÉE LE 2026-08-20 — LE DIAGNOSTIC A CHANGÉ UNE SECONDE FOIS
 >
 > **Tout le corps de cette entrée date du 2026-08-12 et six de ses affirmations ne tiennent plus.**
@@ -718,6 +731,14 @@ la moitié dev (MySQL 8.0 aligné sur la production **mesurée**, Meilisearch v1
 Redis 8) — la production, elle, reste posée par `apt` sans version épinglée dans le dépôt.
 
 ### D-10 — Le déploiement du frontend est entièrement hors dépôt ✅ *REQUALIFIÉE et partiellement soldée le 2026-08-20 — l'ignorance est levée, l'extériorité est ASSUMÉE, et deux conséquences restent ouvertes* → [TCK-299](backlog/tickets/TCK-299-deploiement-frontend-hors-depot.md) · [TCK-332](backlog/tickets/TCK-332-front-public-appelle-une-api-absente.md) · [TCK-333](backlog/tickets/TCK-333-vercel-sans-filtre-de-chemins.md)
+
+> **2026-09-13 — [ADR-0028](adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) remplace
+> [ADR-0017](adr/0017-deploiement-du-front-pilote-par-vercel.md) : le déploiement du front revient
+> DANS le dépôt.** Une image par environnement (`takussan-web/Dockerfile`), construite par
+> `.github/workflows/images.yml`, servie par Dokploy. La préproduction bascule d'abord (TCK-515),
+> Vercel quitte ensuite les préproductions (TCK-516), puis la production en phase F (TCK-517, sur
+> décision du porteur). Jusque-là, `www.takussan.com` reste servi par Vercel et le relevé ci-dessous
+> reste vrai pour `master`. TCK-333 devient sans objet le jour où l'intégration Vercel est coupée.
 
 > **Relecture du 2026-08-20 : « ✅ soldé » tout court était trop généreux, et c'est exactement le
 > défaut que ce fichier existe pour empêcher.** TCK-299 n'a pas ramené le déploiement du front dans
