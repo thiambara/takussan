@@ -18,12 +18,16 @@ entetes() { curl -sS -o /dev/null -D - "$@" | tr -d '\r'; }
 
 curl -fsS -o /dev/null http://127.0.0.1:8002/up || echec "l'API de développement ne répond pas : lancer ./dev.sh api"
 
-# 1. Le refus (ADR-0028 §3) : sans NEXT_PUBLIC_SITE_URL, l'image ne se construit pas.
-if docker build -q --build-arg NEXT_PUBLIC_API_URL="$API" -t "$IMAGE-refus" takussan-web >/dev/null 2>&1; then
+# 1. Le refus (ADR-0028 §3) : sans NEXT_PUBLIC_SITE_URL, l'image ne se construit pas — ET c'est sa
+# garde qui la refuse. Un build tombé sur autre chose (le réseau, une dépendance) ne prouve rien :
+# le compter comme un refus a donné un faux vert à la piste CheckPrint Plus.
+if sortie=$(docker build --progress=plain --build-arg NEXT_PUBLIC_API_URL="$API" -t "$IMAGE-refus" takussan-web 2>&1); then
   docker image rm -f "$IMAGE-refus" >/dev/null
   echec "l'image se construit SANS NEXT_PUBLIC_SITE_URL : elle déclarerait ses pages canoniques en production"
 fi
-ok "build refusé sans NEXT_PUBLIC_SITE_URL"
+grep -qF '✗ NEXT_PUBLIC_SITE_URL manquant' <<<"$sortie" \
+  || { tail -20 <<<"$sortie" >&2; echec "le build sans NEXT_PUBLIC_SITE_URL échoue, mais pas sur sa garde : refus non prouvé"; }
+ok "build refusé sans NEXT_PUBLIC_SITE_URL, par sa garde"
 
 # 2. L'image, construite comme images.yml la construit.
 docker build -q --build-arg NEXT_PUBLIC_API_URL="$API" --build-arg NEXT_PUBLIC_SITE_URL="$SITE" \

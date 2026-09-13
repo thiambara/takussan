@@ -1,8 +1,9 @@
-# syntax=docker/dockerfile:1.7
-#
 # Image du front Takussan (ADR-0028 §3). UNE image PAR ENVIRONNEMENT : NEXT_PUBLIC_* est inliné à
 # la compilation (docs/infra/frontend-deploiement.md), la même image ne peut pas servir deux
 # origines.
+#
+# Pas de directive `# syntax=` : le frontend intégré à BuildKit suffit, et la directive ajoute à
+# chaque build une requête vers Docker Hub (cf. takussan-api/Dockerfile).
 
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
