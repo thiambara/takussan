@@ -1,7 +1,7 @@
 ---
 id: TCK-514
 title: "Documentation — le guide d'hébergement Dokploy remplace le guide de premier déploiement"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: S
@@ -43,13 +43,6 @@ Décision : [ADR-0028](../../adr/0028-auto-hebergement-conteneurise-sur-le-vps.m
 - [x] AC1 — `check-doc-links.mjs` vert, sans le marqueur d'ADR-0028
 - [x] AC2 — le `grep` de B6 ne rend que des lignes au passé ou en récit
 - [x] AC3 — toutes les gardes et les deux générateurs verts
-
-## Reste sur dev
-
-Le delta est livré et ses trois critères tiennent (notes ci-dessous). Le ticket reste `doing` pour
-une seule raison : il dépend de TCK-513, qui ne passe `done` qu'une fois la chaîne d'images
-éprouvée sur le serveur réinstallé (plan, D3), et un ticket clos ne peut pas dépendre d'un ticket
-ouvert (règle n°2). Il passe `done` dans le même commit que TCK-513.
 
 ## Hors périmètre
 
