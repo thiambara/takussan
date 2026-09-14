@@ -18,7 +18,13 @@
 name: Repo CI
 
 on:
+  # Appelé tel quel par promotion-ci.yml sur toute PR vers `preview` ou `master` (TCK-524) : les
+  # filtres de chemins ci-dessous ne s'appliquent qu'aux PR vers `dev`. Un check REQUIS par la
+  # protection de branche doit exister sur chaque PR, sinon GitHub attend un statut qui ne
+  # viendra jamais — et une promotion qui ne touche que `docs/` ne fusionnerait plus.
+  workflow_call:
   pull_request:
+    branches-ignore: [preview, master]
     paths:
       - 'takussan-api/.env.example'
       - 'takussan-api/.env.docker'
@@ -266,6 +272,11 @@ jobs:
         # cassé ne se voyait qu'au premier push sur `preview`. Une correction faite à la main est
         # une correction qui reviendra (TCK-521).
         run: node scripts/check-shell.mjs --report
+
+      - name: Toute PR vers preview ou master rejoue les trois CI en entier (TCK-524)
+        # La protection de branche exige des checks nommés ; un check requis qui ne se déclenche
+        # pas bloque la fusion. promotion-ci.yml appelle chaque `*-ci.yml`, et cette garde le tient.
+        run: node scripts/check-promotion-ci.mjs --report
 
       - name: Aucune substitution involontaire dans un heredoc non quoté
         # `server-setup.sh` (retiré par ADR-0028) écrivait /etc/sudoers.d et /etc/logrotate.d par

@@ -1,7 +1,7 @@
 ---
 id: TCK-524
 title: "Protection des branches — `preview` et `master` n'acceptent qu'une PR verte ; `dev` reste libre à cause de la carte d'impact"
-status: todo
+status: doing
 phase: P0
 family: technique
 estimate: S

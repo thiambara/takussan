@@ -1,7 +1,13 @@
 name: API CI
 
 on:
+  # Appelé tel quel par promotion-ci.yml sur toute PR vers `preview` ou `master` (TCK-524) : les
+  # filtres de chemins ci-dessous ne s'appliquent qu'aux PR vers `dev`. Un check REQUIS par la
+  # protection de branche doit exister sur chaque PR, sinon GitHub attend un statut qui ne
+  # viendra jamais — et une promotion qui ne touche que `docs/` ne fusionnerait plus.
+  workflow_call:
   pull_request:
+    branches-ignore: [preview, master]
     paths:
       - 'takussan-api/**'
       - '.github/workflows/api-ci.yml'
