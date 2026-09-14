@@ -10,7 +10,7 @@
 | Hôte | Service Dokploy | Image | Relevé le |
 |---|---|---|---|
 | `preview.api.takussan.com` | Compose `takussan-api-preview`, service `api:8080` — A en DNS seul | `ghcr.io/thiambara/takussan-api:preview` | 2026-09-14 : `/up` → `200`, `X-Build-Sha` = `preview`, Let's Encrypt |
-| `preview.takussan.com` | Application `takussan-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/takussan-web:preview` | 2026-09-14 : `401` sans authentification, `200` avec ; `cf-ray`, aucun `x-vercel-id` |
+| `preview.takussan.com` | Application `takussan-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/takussan-web:preview` | 2026-09-14 : `401` sans authentification, `200` avec (la racine rend `307` vers `/fr`) ; `cf-ray`, aucun `x-vercel-id` ; plafond 384 Mio |
 | `preview.api.checkprintplus.com` | Compose `cpp-api-preview`, service `api:8080` | `ghcr.io/thiambara/check-print-plus-api:preview` | déclaré, **non déployé** : attend le registre `ghcr.io` (jeton `read:packages`) |
 | `preview.checkprintplus.com` | Application `cpp-web-preview` — encore un CNAME Vercel | `ghcr.io/thiambara/check-print-plus-web:preview` | déclaré, **non déployé**, DNS non basculé |
 | `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
@@ -69,9 +69,12 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Bases de préproduction | `takussan_preview` (`LOCALE C`, `CONNECT` révoqué à `PUBLIC`) ; `checkprintplus_preview` (`utf8mb4_unicode_ci` — Dokploy la crée en `utf8mb4_0900_ai_ci`, à corriger à chaque création) | 2026-09-14 | plan, tâche A4, étapes 9 et 10 |
 | Plages Cloudflare dans `traefik.yml` | 15 plages v4 et 7 v6 du 2026-09-14, sous `web` **et** `websecure` | 2026-09-14 | `curl -s https://www.cloudflare.com/ips-v4` puis comparer au fichier |
 | Sous-réseau de `dokploy-network` | `10.0.1.0/24` (overlay) — tête de `TRUSTED_PROXIES` | 2026-09-14 | `docker network inspect dokploy-network -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` |
+| IP du client jusqu'à Laravel | prouvée par ablation sur `preview.api.takussan.com` (DNS seul) : liste = `203.0.113.7` → `403 Source IP not allowed` avec **et** sans `X-Forwarded-For: 203.0.113.7` ; liste = IP du poste → le filtre laisse passer. La clé est ensuite retirée | 2026-09-14 | plan, tâche D5, étape 4 |
 | Port 3000 | fermé à tous : `000` depuis le poste, `200` depuis le serveur ; `:8080` non publié | 2026-09-14 | plan, tâche A3, étape 6 |
 | Zones Cloudflare | `takussan.com`, `checkprintplus.com` : SSL Full (strict), *Always Use HTTPS* désactivé | 2026-09-14 | `GET /zones/<id>/settings/ssl` |
 | Nettoyage Docker quotidien | actif | 2026-09-14 | `settings.getWebServerSettings` → `enableDockerCleanup` |
+| Budget au repos (préproduction Takussan seule, après seed) | 5 697 Mo disponibles sur 7 941 ; `st` 0 ; disque 24 % ; Dokploy seul : 867 Mo | 2026-09-14 | plan, tâche D6, étape 4 ; détail par conteneur au § Budget du plan |
+| Médias de la préproduction Takussan | 948 Mo dans le volume `takussan-api-preview-4iza80_storage` | 2026-09-14 | `du -sh /var/lib/docker/volumes/<projet>_storage/_data` |
 | Sauvegardes planifiées | *non mesuré* — attend le seau R2 (A5) | | onglet Backups de chaque service Database |
 | Sauvegarde de la configuration de Dokploy | *non mesuré* — la version la propose (`backup.manualBackupWebServer`) ; attend R2 | | Settings → Backups |
 

@@ -42,7 +42,7 @@ tâches D1 à D8.
 ## Critères d'acceptation
 
 - [ ] AC1 — le job `deploy` d'`images.yml` rend `✓ … sert <commit>` pour l'API et le front
-- [ ] AC2 — une IP autorisée passe la liste des webhooks ; `X-Forwarded-For: 203.0.113.7` reste en 403
+- [x] AC2 — une IP autorisée passe la liste des webhooks ; `X-Forwarded-For: 203.0.113.7` reste en 403
 - [ ] AC3 — restauration PostgreSQL à blanc : `diff` des comptes vide ; volume de médias identique (`sha256sum`)
 - [ ] AC4 — budget mesuré : mémoire disponible ≥ 1 500 Mo, `st` < 10, disque < 75 %
 
@@ -83,10 +83,37 @@ tâches D1 à D8.
   `composer.lock`**, et ne l'a jamais été (`git log -S 'resend/'` vide). L'ancien serveur installait
   le même `composer.lock` : ses courriels échouaient de la même façon. Aucun courriel ne part donc,
   et la production aurait le même défaut.
-- D5, étape 3 (en partie) — `config("scout.prefix")` commence par `preview_` ; la clé lue **dans le
-  conteneur** (`printenv MEILISEARCH_KEY`, 64 caractères) rend `403` sur `prod_properties` et `200`
-  sur `preview_properties`. L'index était vide pendant le seed, et c'est voulu : `seed.sh` seede avec
-  `SCOUT_DRIVER=null` puis importe tout d'un bloc à la fin.
+- D4, étape 2 — le seed, par la commande du runbook, détaché sur le serveur (`nohup`, une coupure SSH
+  du poste ne le tue pas) : `FIN seed : code=0 en 2536 s`. 856 biens ; 948 Mo de médias dans le
+  volume `storage` (`SEED_DOWNLOAD_MEDIA=true`) ; l'import final de `seed.sh` parcourt les sept
+  modèles indexés. ⚠ `docker compose run` avertit `The "FRONTEND_URL" variable is not set` :
+  `GOOGLE_REDIRECT_URI` (ligne 27 de l'environnement) cite `${FRONTEND_URL}`, défini ligne 46. Dans
+  les services déployés par Dokploy, la valeur est pourtant juste (relue par `printenv` et
+  `config("services.google.redirect")`).
+- D5, étape 3 — `config("scout.prefix")` commence par `preview_` ; la clé lue **dans le conteneur**
+  (`printenv MEILISEARCH_KEY`, 64 caractères) rend `403` sur `prod_properties` et `200` sur
+  `preview_properties`. Après le seed : `Property::search("maison")` → `5`, `"villa"` → `5` ;
+  `preview_properties` compte **817** documents pour 856 biens, et 817 est exactement le compte de
+  `shouldBeSearchable()` (brouillons, en attente, refusés, non publics et supprimés exclus). L'index
+  était vide pendant le seed, et c'est voulu : `seed.sh` seede avec `SCOUT_DRIVER=null` puis importe
+  tout d'un bloc à la fin. `GET /api/public/properties?filter[search]=maison` → `200`.
+- D5, étape 2, suite — à 02:00, 12 échecs de plus (`UrgentMaintenanceCreatedNotification`, file
+  `notifications-urgent`), même cause Resend : 35 au total, aucun d'une autre cause.
+- D5, étape 4, premier temps — `SMS_ORANGE_WEBHOOK_IPS` = l'IP publique du poste, posée par
+  `compose.update` puis `compose.deploy` ; relue dans `api` et `worker`, recréés à 02:06:36. Sonde →
+  `404 {"message":"Error"}` : c'est le refus du **contrôleur** (jeton faux, `abort(404)`), pas celui du
+  filtre. ⚠ Ce premier temps ne prouve rien seul : avec une liste vide, une préproduction laisse passer
+  aussi (`RestrictIpMiddleware` ne refuse une liste vide qu'en production).
+- D5, étape 4, second temps — `SMS_ORANGE_WEBHOOK_IPS=203.0.113.7`, relu dans `api` recréé à
+  02:09:27. Sans en-tête → `403 {"message":"Source IP not allowed"}` ; avec
+  `X-Forwarded-For: 203.0.113.7` → **`403` `Source IP not allowed`** (un premier essai perdu sur une
+  coupure réseau du poste, rejoué). L'IP écrite par le client est ignorée, l'IP réelle arrive jusqu'à
+  Laravel par Traefik → Caddy : **AC2 tenu**, sur l'hôte en DNS seul. La chaîne par Cloudflare se
+  prouve en F3.
+- D6, étape 4 — budget au repos, après le seed (2026-09-14, 02:04 Z) : **5 697 Mo disponibles** sur
+  7 941, `st` à `0` sur les douze relevés, disque à **24 %**. Détail par conteneur dans le plan
+  (§ Budget). ⚠ Le front `takussan-web-preview` tournait **sans plafond** (`docker stats` : la
+  mémoire de la machine), là où le plan fixe 384 Mo.
 - D5, étape 5 — `/storage/sonde.txt` → `public, max-age=604800, stale-while-revalidate=86400` ;
   `/.htaccess` et `/.env` → `404` ; un POST de 26 Mio → `413` ; `gzip` servi.
 - D7 (préparé) — projet *CheckPrint Plus* : clé SSH générée par Dokploy, *deploy key* `dokploy` en
@@ -99,9 +126,11 @@ tâches D1 à D8.
 
 ## Reste
 
-- D4, étape 2 : le seed (en cours au moment de ces notes).
-- D5, étapes 2 à 4 : files et planificateur, recherche, IP du client par ablation (AC2).
-- D6 et AC3, AC4 : attendent le seau R2 (TCK-510, A5).
+- D6, étapes 1 à 3, et AC3 : attendent le seau R2 (TCK-510, A5).
+- AC4 : tenu avec la seule préproduction Takussan ; à rejouer une fois CheckPrint Plus servi (D7).
+- Les courriels (porteur) : `resend/resend-php` à ajouter, ou Resend par SMTP ; et décider si la
+  préproduction envoie vraiment (le seed écrit des adresses `.sn` qui peuvent exister) ou passe en
+  `MAIL_MAILER=log`. Les `failed_jobs` de la préproduction se vident ensuite (`queue:flush`).
 - D7 : le registre `ghcr.io` avec un jeton `read:packages` (porteur), puis déploiement, DNS,
   environnement GitHub, `ProductionSeeder`, mesures.
 - D8, étape 1 : la surveillance externe (compte UptimeRobot ou Better Stack, porteur) ; la *deploy

@@ -72,16 +72,20 @@ Redis 8 · Meilisearch v1.16 · GHCR · Cloudflare (DNS, proxy, R2).
 ci-dessous sont des **plafonds** posés par conteneur ; la colonne « attendu » est une estimation
 **à remplacer par la mesure** de la tâche D6 (`docker stats --no-stream`).
 
-| Conteneur | Plafond | Attendu au repos | Instances à terme |
-|---|---|---|---|
-| Système, Docker, Dokploy (et sa base), Traefik | — | ~900 Mo | 1 |
-| PostgreSQL 17 (`shared_buffers=256MB`) | 1 Go | ~350 Mo | 1 |
-| MySQL 8.4 (`innodb_buffer_pool_size=256M`) | 640 Mo | ~450 Mo | 1 |
-| Meilisearch | 768 Mo | ~150 Mo | 1 |
-| Redis Takussan / Redis CheckPrint Plus | 192 Mo / 96 Mo | ~15 Mo chacun | 1 + 1 |
-| Takussan `api` / `worker` / `worker-media` / `scheduler` | 384 / 256 / 384 / 192 Mo | ~90 / 70 / 70 / 60 Mo | × 2 environnements |
-| CheckPrint Plus `api` / `worker` / `scheduler` | 256 / 192 / 128 Mo | ~80 / 60 / 50 Mo | × 2 |
-| Front Takussan / front CheckPrint Plus | 384 / 256 Mo | ~120 / 90 Mo | × 2 |
+| Conteneur | Plafond | Attendu au repos | Mesuré le 2026-09-14 (D6, repos après seed) | Instances à terme |
+|---|---|---|---|---|
+| Système, Docker, Dokploy (et sa base), Traefik | — | ~900 Mo | Dokploy 867 + sa base 36 + Traefik 27 = **930 Mo**, hors système | 1 |
+| PostgreSQL 17 (`shared_buffers=256MB`) | 1 Go | ~350 Mo | 86 Mo | 1 |
+| MySQL 8.4 (`innodb_buffer_pool_size=256M`) | 640 Mo | ~450 Mo | 197 Mo | 1 |
+| Meilisearch | 768 Mo | ~150 Mo | 118 Mo (817 biens indexés) | 1 |
+| Redis Takussan / Redis CheckPrint Plus | 192 Mo / 96 Mo | ~15 Mo chacun | 6 / 5 Mo | 1 + 1 |
+| Takussan `api` / `worker` / `worker-media` / `scheduler` | 384 / 256 / 384 / 192 Mo | ~90 / 70 / 70 / 60 Mo | 72 / 58 / 46 / 45 Mo (préproduction) | × 2 environnements |
+| CheckPrint Plus `api` / `worker` / `scheduler` | 256 / 192 / 128 Mo | ~80 / 60 / 50 Mo | *non mesuré* — non déployé (D7) | × 2 |
+| Front Takussan / front CheckPrint Plus | 384 / 256 Mo | ~120 / 90 Mo | 95 Mo / *non déployé* | × 2 |
+
+Au total, le 2026-09-14 à 02:04 Z : **5 697 Mo disponibles** sur 7 941, `st` à `0` sur les douze
+relevés de `vmstat 5 12`, disque à **24 %** (17 Go sur 72), charge `0,50 / 0,94 / 1,08` sur 4 vCPU,
+swap intact. Les trois seuils tiennent, avec un seul des quatre environnements servi.
 
 **Seuils d'alerte**, relevés en D6 puis surveillés :
 
@@ -208,6 +212,8 @@ les points suivants, chacun mesuré. Le dépôt fait foi.
 | D4 — répertoire du Compose | `find … -path "*takussan*"` | le Compose `donnees` clone **tout** le dépôt : ce motif rend deux `compose.api.yml`, dont un sans `.env` | motif `*takussan-api-preview*` (celui du runbook) |
 | D5, étape 2 — sonde des files | `dispatch(fn () => logger(…))` par `tinker --execute` | le défaut déjà relevé en B2, resté dans l'étape de D5 : `RuntimeException  Failed to serialize job … eval()'d code` (rejoué sur le serveur) — rien n'est poussé, et `jobs` → `0` ressemble à une file consommée | l'étape de D5 corrigée : `Artisan::queue('inspire')->onQueue(…)`, lu dans le journal du worker (`inspire … DONE`) |
 | D5, étape 2 — `failed_jobs` | `0` | `23`, tous `BookingExpiredNotification` : `Class "Resend" not found` — `MAIL_MAILER=resend` sans `resend/resend-php`, absent de `composer.lock` depuis toujours | défaut de l'application, pas de la pile : relevé, correction laissée au porteur (SDK ou SMTP) |
+| D6, étape 4 — plafond du front | 384 Mo (§ Budget) | aucune étape de D1 ne le pose : l'Application `takussan-web-preview` tournait **sans plafond** (`docker stats` : 7,755 GiB, la machine) | `application.update` `memoryLimit` en **octets** (unité confirmée sur PostgreSQL, `1073741824`) : 384 Mio pour le front Takussan, 256 Mio pour celui de CheckPrint Plus ; relu `51 MiB / 384 MiB` |
+| D1, étape 2 — `GOOGLE_REDIRECT_URI` | reprise de l'export | sa valeur cite `${FRONTEND_URL}`, défini **plus bas** : `docker compose run` avertit `FRONTEND_URL variable is not set` (la valeur des services déployés était juste) | écrite en clair, comme pour CheckPrint Plus ; il ne reste que deux références, à `APP_NAME`, défini avant elles |
 | D7, étape 1 — clé SSH | *Settings → SSH Keys* | `sshKey.generate` puis `sshKey.create` par l'API ; le clone est prouvé par un déploiement qui échoue ensuite au `pull` (`unauthorized`, sans registre) | la clé `github-check-print-plus`, deploy key `dokploy` en lecture seule |
 | D8, étape 2 — secrets | — | le dépôt check-print-plus porte aussi une *deploy key* `Contabo` de l'ancien serveur | laissée au porteur : le plan ne la nommait pas |
 
