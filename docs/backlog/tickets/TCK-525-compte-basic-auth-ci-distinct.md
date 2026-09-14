@@ -1,7 +1,7 @@
 ---
 id: TCK-525
 title: "La preuve du déploiement s'authentifie avec un compte `ci`, distinct de l'identifiant du porteur"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: S
