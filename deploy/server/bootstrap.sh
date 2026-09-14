@@ -11,6 +11,39 @@ set -euo pipefail
 [ "$(id -u)" -eq 0 ] || { echo "✗ à lancer en root" >&2; exit 1; }
 grep -q 'VERSION_ID="24.04"' /etc/os-release || { echo "✗ Ubuntu 24.04 attendu" >&2; exit 1; }
 
+# ── 0. Les versions de Docker, ÉPINGLÉES à ce qui a été relevé (TCK-526) ──────────────────
+# `curl get.docker.com | sh` installait « la dernière » : rejoué un autre jour, ce script
+# produisait un autre serveur. Relevé le 2026-09-14 sur 178.18.247.62 :
+#   docker --version → 29.8.0 ; dpkg -l docker-ce docker-ce-cli containerd.io docker-compose-plugin
+#   docker-buildx-plugin → 5:29.8.0-1~ubuntu.24.04~noble (×2), 2.3.5-1~ubuntu.24.04~noble,
+#   5.5.1-1~ubuntu.24.04~noble, 0.37.1-1~ubuntu.24.04~noble.
+# Monter de version est un geste séparé et relevé (runbook « Mettre Docker à jour »), jamais un
+# effet de bord de ce script : un Docker présent à une AUTRE version le fait refuser.
+# ⚠ Dokploy (install.sh) installe SON Docker (28.5.0, relu le 2026-09-14) seulement s'il n'en trouve
+# pas : ce script passe donc AVANT, et c'est l'ordre du runbook.
+DOCKER_VERSION=${DOCKER_VERSION:-29.8.0}
+CONTAINERD_VERSION=${CONTAINERD_VERSION:-2.3.5-1}
+COMPOSE_VERSION=${COMPOSE_VERSION:-5.5.1-1}
+BUILDX_VERSION=${BUILDX_VERSION:-0.37.1-1}
+SUFFIXE='~ubuntu.24.04~noble'
+PAQUETS_DOCKER=("docker-ce=5:${DOCKER_VERSION}-1${SUFFIXE}" "docker-ce-cli=5:${DOCKER_VERSION}-1${SUFFIXE}"
+  "containerd.io=${CONTAINERD_VERSION}${SUFFIXE}" "docker-compose-plugin=${COMPOSE_VERSION}${SUFFIXE}"
+  "docker-buildx-plugin=${BUILDX_VERSION}${SUFFIXE}")
+# Vérifié AVANT tout geste sur la machine, dans l'index du dépôt apt de Docker (lecture seule) : une
+# version absente arrête ici, sans swap posé ni pare-feu touché. Capturé puis cherché (pipefail).
+command -v curl >/dev/null || { echo "✗ curl absent : l'image Ubuntu attendue le fournit" >&2; exit 1; }
+index=$(curl -fsSL --connect-timeout 15 https://download.docker.com/linux/ubuntu/dists/noble/stable/binary-amd64/Packages) \
+  || { echo "✗ l'index apt de Docker ne se lit pas" >&2; exit 1; }
+for p in "${PAQUETS_DOCKER[@]}"; do
+  grep -qx "Version: ${p#*=}" <<<"$index" \
+    || { echo "✗ ${p%%=*} ${p#*=} absent du dépôt apt de Docker (noble/stable) : rien n'a été touché. Relever la version présente, la poser en tête de ce script, la relever dans versions.json." >&2; exit 1; }
+done
+if command -v docker >/dev/null; then
+  presente=$(dpkg-query -W -f='${Version}' docker-ce 2>/dev/null || echo "hors dépôt apt")
+  [ "$presente" = "5:${DOCKER_VERSION}-1${SUFFIXE}" ] \
+    || { echo "✗ Docker déjà installé en $presente, ce script épingle 5:${DOCKER_VERSION}-1${SUFFIXE} : monter ou descendre de version est un geste séparé (runbook), pas un rejeu de bootstrap." >&2; exit 1; }
+fi
+
 # ── 1. Swap de 4 Go ──────────────────────────────────────────────────────────────────────
 # 8 Go pour quatre environnements : sans swap, le premier pic (un `scout:import`, un seed)
 # réveille l'OOM killer, qui choisit sa victime — souvent la base.
@@ -28,6 +61,12 @@ sysctl -q --system
 # ── 2. Mises à jour de sécurité automatiques ──────────────────────────────────────────────
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
+# Les paquets Docker ne bougent JAMAIS par un upgrade : tenus dès ici, AVANT l'upgrade, s'ils
+# sont déjà là (le § 5 les installe et les tient sinon). Rejoué après une montée de version du
+# serveur, ce script ne doit pas en faire une seconde en passant.
+if dpkg -s docker-ce >/dev/null 2>&1; then
+  apt-mark hold docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin >/dev/null
+fi
 apt-get -y -q upgrade
 apt-get -y -q install ufw unattended-upgrades fail2ban curl ca-certificates jq
 dpkg-reconfigure -f noninteractive unattended-upgrades
@@ -53,7 +92,7 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
 
-# ── 5. Docker, journaux bornés AVANT le premier conteneur ─────────────────────────────────
+# ── 5. Docker à la version du § 0, journaux bornés AVANT le premier conteneur ─────────────
 # Sans rotation, un worker bavard remplit le disque, et un disque plein met PostgreSQL en
 # lecture seule pour les quatre environnements à la fois.
 install -d /etc/docker
@@ -63,8 +102,21 @@ cat > /etc/docker/daemon.json <<'EOF'
   "log-opts": { "max-size": "10m", "max-file": "3" }
 }
 EOF
-command -v docker >/dev/null || curl -fsSL https://get.docker.com | sh
+# Dépôt apt de Docker (le même que get.docker.com pose), puis les paquets à la version épinglée
+# du § 0, et `apt-mark hold` : `apt-get upgrade` (§ 2, unattended-upgrades) ne les bougera pas.
+install -m 0755 -d /etc/apt/keyrings
+[ -s /etc/apt/keyrings/docker.asc ] || curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" \
+  > /etc/apt/sources.list.d/docker.list
+apt-get update -q
+if ! command -v docker >/dev/null; then
+  apt-get -y -q install "${PAQUETS_DOCKER[@]}"
+fi
+apt-mark hold docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin >/dev/null
 systemctl enable --now docker
+[ "$(docker version --format '{{.Server.Version}}')" = "$DOCKER_VERSION" ] \
+  || { echo "✗ le démon Docker rend $(docker version --format '{{.Server.Version}}'), $DOCKER_VERSION attendu" >&2; exit 1; }
 
 # ── 6. Fermer le port 3000 (interface de Dokploy) sur l'interface publique ────────────────
 # Dokploy publie son interface sur 3000, par Docker, donc hors de portée d'ufw. La règle vit
@@ -116,5 +168,36 @@ EOF
 systemctl daemon-reload
 systemctl enable fermer-port-3000
 systemctl restart fermer-port-3000
+
+# ── 7. Seuils du budget, toutes les cinq minutes (TCK-519) ───────────────────────────────
+# Le plan fixe trois seuils (mémoire ≥ 1 500 Mo, disque < 75 %, st < 10) et « Server Threshold »
+# n'existe pas en Dokploy auto-hébergé. Les unités attendent /usr/local/sbin/seuils — le script
+# deploy/server/seuils.sh du dépôt, copié là par le runbook — et /etc/default/seuils (secrets
+# Telegram, mode 600). Tant que le script manque, le timer ne fait rien (ConditionPathExists).
+cat > /etc/systemd/system/seuils.service <<'UNIT'
+[Unit]
+Description=Seuils du budget de la machine (TCK-519)
+ConditionPathExists=/usr/local/sbin/seuils
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/seuils
+UNIT
+cat > /etc/systemd/system/seuils.timer <<'UNIT'
+[Unit]
+Description=Seuils du budget, toutes les cinq minutes (TCK-519)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now seuils.timer
+[ -x /usr/local/sbin/seuils ] || echo "⚠ /usr/local/sbin/seuils absent : copier deploy/server/seuils.sh (runbook), le timer attend."
 
 echo "✓ serveur préparé. Mesurer maintenant depuis le POSTE (plan, tâche A2, étape 4)."

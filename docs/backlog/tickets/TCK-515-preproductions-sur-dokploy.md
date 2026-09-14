@@ -1,7 +1,7 @@
 ---
 id: TCK-515
 title: "Préproductions — Takussan et CheckPrint Plus servis par Dokploy, mesurés, restaurés à blanc"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: M
@@ -35,16 +35,16 @@ tâches D1 à D8.
 
 ## Delta à produire
 
-- [ ] D1 à D6 — Takussan : services Dokploy, DNS, environnement GitHub, seed, mesures, restauration, budget
-- [ ] D7 — CheckPrint Plus
-- [ ] D8 — surveillance externe, secrets de l'ancienne chaîne retirés
+- [x] D1 à D6 — Takussan : services Dokploy, DNS, environnement GitHub, seed, mesures, restauration, budget
+- [x] D7 — CheckPrint Plus
+- [x] D8 — surveillance externe, secrets de l'ancienne chaîne retirés
 
 ## Critères d'acceptation
 
-- [ ] AC1 — le job `deploy` d'`images.yml` rend `✓ … sert <commit>` pour l'API et le front
+- [x] AC1 — le job `deploy` d'`images.yml` rend `✓ … sert <commit>` pour l'API et le front
 - [x] AC2 — une IP autorisée passe la liste des webhooks ; `X-Forwarded-For: 203.0.113.7` reste en 403
-- [ ] AC3 — restauration PostgreSQL à blanc : `diff` des comptes vide ; volume de médias identique (`sha256sum`)
-- [ ] AC4 — budget mesuré : mémoire disponible ≥ 1 500 Mo, `st` < 10, disque < 75 %
+- [x] AC3 — restauration PostgreSQL à blanc : `diff` des comptes vide ; volume de médias identique (`sha256sum`)
+- [x] AC4 — budget mesuré : mémoire disponible ≥ 1 500 Mo, `st` < 10, disque < 75 %
 
 ## Hors périmètre
 
@@ -124,16 +124,77 @@ tâches D1 à D8.
   `REPO_URL` supprimés des deux dépôts ; relu : aucun secret au niveau du dépôt. La *deploy key*
   `Contabo` de check-print-plus (lecture seule, dernière utilisation le 2026-06-15) retirée aussi ;
   seule la clé `dokploy` reste.
-- AC1 — tenu pour Takussan (ci-dessus) ; attend CheckPrint Plus.
+- Promotion #271 (`ad93e5e6`, SDK Resend) — `images.yml` run `34832685800`, vert de bout en bout :
+  `✓ https://preview.api.takussan.com/up sert ad93e5e6…` et
+  `✓ https://preview.takussan.com/robots.txt sert ad93e5e6…`, déploiement et preuve en 1 min 08 s,
+  **sans** `pull` manuel cette fois (l'écart de D3 ne s'est pas reproduit). Dans l'image servie :
+  `/app/vendor/resend/resend-php` présent, le transport `resend` se construit (`ResendTransport`),
+  `MAIL_MAILER=log` conservé dans `api` et `worker`, `failed_jobs` → `0`.
+- AC1 — tenu pour Takussan (ci-dessus, deux fois) et pour CheckPrint Plus. Le `workflow_dispatch`
+  de check-print-plus (run `34835883532`) est vert et Dokploy enregistre ses deux déploiements, mais
+  sa preuve **ne discrimine rien** : `f1a50473` était déjà servi, et la vérification a répondu avant
+  la fin des déploiements. La preuve qui compte est celle de la promotion #28 (`c1744692`, un commit
+  neuf) : run `34836831034`, `✓ https://preview.api.checkprintplus.com/up sert c1744692…` puis
+  `✓ https://preview.checkprintplus.com/robots.txt sert c1744692…`, relus depuis le poste.
+- D6, étape 1 — sauvegarde du volume `takussan-api-preview-4iza80_storage` (service `api`) vers R2,
+  `volumes/takussan-preview/`, `0 4 * * *`, 7 exemplaires ; une manuelle en ~2 min :
+  945 797 120 o lus dans R2.
+- D6, étape 2 — restauration PostgreSQL à blanc, en trois essais. Premier : **0 table** — la
+  sauvegarde `.sql.gz` est une archive custom (`pg_dump -Fc | gzip`), `psql` n'en charge rien et ne
+  le dit pas. Second, par `pg_restore` : 90 tables sur 92 égales, `jobs` 3 → 0 et
+  `scheduled_task_runs` 471 → 464, écrites après la sauvegarde. Troisième, préproduction arrêtée
+  (`api`, workers, planificateur) et sauvegarde neuve : **diff vide, 92 tables, 86 927 lignes**,
+  `pg_restore` sans erreur ; préproduction redémarrée.
+- D6, étape 3 — l'archive du volume lue dans R2 depuis le serveur (41 s), extraite dans un volume
+  neuf `restauration_storage` : **17 629 fichiers, même `sha256`** ; volume supprimé ensuite.
+- D7, registre — `ghcr.io` (compte `thiambara`, jeton classique `read:packages` fourni par le
+  porteur) : `registry.create`, `registry.testRegistry` réussi, rattaché à `cpp-web-preview`. ⚠ Il
+  ne suffit pas au Compose, qui n'a pas de champ de registre : `docker login ghcr.io` fait à la main
+  sur le serveur (jeton par l'entrée standard) ; `docker pull …/check-print-plus-api:preview` →
+  code `0` en 8 s.
+- D7, étape 3 — premier déploiement : `compose.deploy` et `application.deploy` → `done` ; `release`
+  sort en `0` après les migrations ; `api` saine, `worker` et `scheduler` en marche. DNS :
+  `preview.checkprintplus.com` CNAME Vercel → A `178.18.247.62` proxifié (`preview.api` était déjà
+  en A, DNS seul). Le certificat Let's Encrypt du front est émis à la bascule — Traefik échouait
+  tant que le nom pointait sur Vercel. Mesuré : `401` sans authentification et avec un mauvais mot
+  de passe, `200` avec, `server: cloudflare`. Environnement GitHub `preview` de check-print-plus :
+  trois variables, deux secrets (longueurs 64 et 42 vérifiées).
+- D7, étape 4 — `ProductionSeeder` (code `0`, 10 s) : `plans` 1 → 4, `roles` 0 → 2, `permissions`
+  0 → 3, `banks` 0 → 537, `templates` 0 → 89. Le `1` d'avant vient de la migration
+  `seed_free_plan` : le critère du plan (« plans non nul ») était coché sans le seeder ; corrigé.
+- D7, étape 5 — `/up` → `200`, `X-Build-Sha` = `f1a50473…` ; une tâche `inspire` poussée sur
+  `default` : taille 1, puis 0 après 20 s, `inspire … DONE` au journal du worker, `failed_jobs` 0 ;
+  `/storage/sonde.txt` → `cache-control: max-age=604800` ; `/.env` et `/.htaccess` → `404`. IP du
+  client, par les compteurs de débit : `poste=59 puis 58 ; serveur=59 ; poste-usurpant=57` — deux
+  clients, deux compteurs, et l'en-tête usurpé reste sur le compteur du poste. Un premier essai a
+  perdu la sonde du poste sur une coupure réseau (`poste= serveur=59 poste-usurpant=59`, qui se lit
+  comme un en-tête cru) : non conclusif, rejoué dans une fenêtre neuve.
+- D7, étape 5 — restauration à blanc de `checkprintplus_preview`, préproduction arrêtée : **diff des
+  comptes vide, 51 tables, 719 lignes** (sauvegarde de 27 683 o, après le seeder). Le premier essai
+  n'avait rien mesuré — guillemets de la requête de comptage, MySQL local interrogé avant d'être
+  prêt — et son script affichait pourtant `✓ … 0 tables identiques` : deux listes vides sont égales.
+  Le second exige une liste non vide.
+- D8, en complément de l'étape 1 — la version gratuite d'UptimeRobot ne surveille pas l'échéance
+  des certificats (réservée aux offres payantes, relevé par le porteur). `.github/workflows/certificats.yml`
+  lit chaque jour les certificats d'**origine** sur le serveur (adresse + SNI : par le nom, un hôte
+  proxifié rendrait celui de Cloudflare) et échoue sous 14 jours ; le courriel d'échec de GitHub
+  tient lieu d'alerte. Éprouvé sur `ubuntu:24.04` (OpenSSL 3.0.13, celui de l'exécuteur) : cinq noms
+  à 89 jours, code `0` ; ablation `SEUIL_JOURS=365` → les cinq en échec, code `1` ; un nom non servi
+  → `TRAEFIK DEFAULT CERT` refusé ; une origine muette → « aucun certificat lu ».
+- D8, étape 1 — surveillance externe posée par le porteur : UptimeRobot, trois sondes toutes les
+  5 minutes (`https://preview.api.takussan.com/up`, `https://preview.api.checkprintplus.com/up`,
+  `https://deploy.takussan.com/`). Mesuré sur le serveur, qui ne tient aucun journal d'accès : 380 s
+  de `tcpdump` sur les SYN de `:443`, rapprochés de la liste publique d'UptimeRobot → deux de ses
+  adresses, 6 connexions, sur les deux API en DNS seul ; `deploy.takussan.com` passe par Cloudflare
+  et ne se voit qu'au tableau de bord. La capture des adresses sources a été effacée.
+- D8, étape 3 — ce ticket est refermé ; **TCK-288 ne l'est pas**, contrairement au plan : il dépend
+  encore de TCK-332, TCK-352 et TCK-355, ouverts, et ses critères restants sont de production. Il
+  se referme avec F (TCK-517) — écart écrit dans le plan.
 
-## Reste sur dev
+## Suites, hors de ce ticket
 
-- D6, étapes 1 à 3, et AC3 : attendent le seau R2 (TCK-510, A5).
-- AC4 : tenu avec la seule préproduction Takussan ; à rejouer une fois CheckPrint Plus servi (D7).
-- Les courriels : décidé par le porteur le 2026-09-14 — le SDK `resend/resend-php` pour la
-  production (branche `fix/sdk-resend`), `MAIL_MAILER=log` pour la préproduction (posé, relu dans
-  `api` et `worker` ; `failed_jobs` 36 → 0 par `queue:flush`). Le SDK est sur `dev` (#270) ; reste
-  sa promotion vers `preview` (#271).
-- D7 : le registre `ghcr.io` avec un jeton `read:packages` (porteur), puis déploiement, DNS,
-  environnement GitHub, `ProductionSeeder`, mesures.
-- D8, étape 1 : la surveillance externe (compte UptimeRobot ou Better Stack, porteur).
+- Au porteur : copier les secrets du fichier de transit au gestionnaire de mots de passe, puis
+  supprimer `~/Sauvegardes/migration-secrets.env`.
+- Avant F (TCK-517) : Dokploy lui-même est le seul conteneur sans plafond, et le plus lourd
+  (867 → 1 013 Mo en neuf heures, § Budget du plan) ; le SDK Resend, promu sur `preview`
+  (#271, `ad93e5e6`), part en production avec F.

@@ -242,6 +242,14 @@ fait déployer en production **chaque merge de PR**.
 
 ## Notes d'implémentation
 
+**2026-09-14 — la chaîne que ce ticket visait n'existe plus, et le ticket reste pourtant ouvert.**
+ADR-0028 a retiré `deploy.yml` et `deploy.sh`, et le serveur est réinstallé sous Dokploy : les
+préproductions sont servies et prouvées (TCK-515). Le plan prévoyait de le refermer « à la fin de
+D » ; il ne l'est pas, pour deux raisons mesurées : il dépend de TCK-332, TCK-352 et TCK-355, encore
+ouverts (règle n°2 de la garde du backlog), et ses critères restants — AC1 `api.takussan.com/up`,
+AC3 la garde de divergence, AC4 D-04, AC5 les index de production — sont de production. Il se
+referme avec la phase F (TCK-517), que le porteur décide.
+
 Ardoise D-04. Seule dette P0 non soldée du chantier de reprise, précisément parce qu'un
 déploiement de production est une action sortante et difficilement réversible : elle appartient à
 une personne, pas à un agent.

@@ -243,7 +243,9 @@ absente des DEUX fichiers est en parité parfaite** (TCK-296).
 > [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), et NULLE PART AILLEURS** — il
 > était recopié dans trois documents qui se contredisaient, dont un qui se contredisait lui-même.
 > `CACHE_STORE=redis` n'est plus un écart avec la production depuis TCK-300.
-> [Détail](docs/journal-des-corrections.md#j-05).
+> [Détail](docs/journal-des-corrections.md#j-05). **Depuis le 2026-09-14, il est régénéré depuis
+> Dokploy** (ADR-0028 : l'environnement est un onglet, plus un `.env` sur un serveur — TCK-527) ;
+> les *clés* de chaque environnement sont dans `docs/infra/hebergement.md`.
 
 `./dev.sh` ne force pas docker : il détecte si le `.env` vise les conteneurs du dépôt ou des services
 natifs, **sonde ce que le `.env` déclare**, et nomme ce qui ne répond pas. Un service déclaré et
@@ -317,6 +319,14 @@ les distinguer.**
   sur l'**authentification MySQL du compte `takussan_prod`**, et **se déroule proprement en
   arrière**. D'où le 404 : `https://api.takussan.com/up` → **404** quand
   `https://preview.api.takussan.com/up` → **200**, sur le même serveur (dette D-04, TCK-288).
+
+  ⚠ **Re-mesuré le 2026-09-14, 22:42 Z (TCK-523) : ce serveur n'existe plus, et le 404 non plus.**
+  `api.takussan.com` pointe sur le nouveau VPS (ADR-0028), en DNS seul, **sans aucun service
+  derrière** : Traefik y présente `CN=TRAEFIK DEFAULT CERT`, et l'appel **échoue sur la poignée de
+  main TLS** — `curl` → `000` (`ssl_verify_result` 20), `-k` → `404`. Même effet pour l'utilisateur
+  du front public, jusqu'à la phase F (TCK-517). Relevé et commande :
+  [`docs/infra/hebergement.md`](docs/infra/hebergement.md), « Ce qui sert quoi » ; le récit du
+  changement de serveur : [J-44](docs/journal-des-corrections.md#j-44).
   ⚠ Ce journal ne disait **pas** de quel côté était l'écart — secret périmé, compte absent, *grant*
   manquant se ressemblent tous ici. **La mesure a été prise le 2026-08-24, en se connectant, et
   l'écart tient en un caractère :**
@@ -336,7 +346,8 @@ les distinguer.**
   que la bascule PostgreSQL y change, sont dans TCK-288.
 
 **Et c'est cette combinaison qui coûte, pas chacun des deux faits.** Le front de production est
-public et son bundle porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` — l'hôte qui rend 404.
+public et son bundle porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` — l'hôte qui rend 404
+(qui échoue sur TLS depuis le 2026-09-13, voir ci-dessus).
 Re-mesuré le 2026-08-20 en téléchargeant les chunks servis par `www.takussan.com` — la valeur est
 inlinée à la compilation, elle est donc lisible sans accès à Vercel :
 
@@ -355,6 +366,26 @@ et cela relève la priorité de TCK-288.
 
 Messages de commit en français, préfixés du type conventionnel, citant le ticket quand il y en a un
 (`feat(api): … (TCK-280)`). Ne jamais merger ni pousser sans demande explicite.
+
+**`preview` et `master` sont protégées depuis le 2026-09-14 (TCK-524)** — ce sont les branches qui
+déploient. Mesuré : `gh api repos/thiambara/takussan/branches/preview/protection` → PR obligatoire
+(zéro réviseur : le porteur est seul), **six checks requis**, `enforce_admins`, ni force-push ni
+suppression ; même chose sur `master`. Un `git push origin HEAD:preview` direct est **refusé**
+(`protected branch hook declined`), mesuré le jour même. Les six checks sont les jobs d'`api-ci`,
+`web-ci` et `repo-ci` **rejoués en entier par `promotion-ci.yml` sur toute PR vers ces deux
+branches** — préfixés `API /`, `Front /`, `Dépôt /`. Pourquoi un workflow de plus : un check requis
+doit exister sur chaque PR, et les trois CI ne se déclenchent que sur leurs chemins (la promotion
+#271 n'a pas joué `web-ci`) ; requis tels quels, ils auraient bloqué toute promotion qui ne les
+déclenche pas tous. La liste se relit là, jamais ici :
+
+```bash
+gh api repos/thiambara/takussan/branches/preview/protection -q .required_status_checks.contexts
+```
+
+⚠ **`dev` n'est PAS protégée, et c'est voulu** : le step « Régénérer la carte d'impact »
+d'`api-ci.yml` (TCK-479) y pousse un commit avec le `GITHUB_TOKEN`, ce qu'une protection avec
+`enforce_admins` refuserait. La protéger demande d'abord une autre voie pour ce step (jeton
+d'application, ou exception) — ticket à part si on la veut.
 
 ## Specs & backlog
 

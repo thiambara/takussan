@@ -217,6 +217,7 @@ for (const [nom, svc] of Object.entries(services)) {
 const parDepot = new Map();   // 'mysql' → nom de service
 const parCleYaml = new Map(); // 'php-version' → nom de service
 const sondesJson = [];        // { service, env, fichier, chemin }
+const sondesEpingle = [];     // { service, fichier, variable } — l'épingle du SERVEUR (TCK-526)
 
 for (const [nom, svc] of Object.entries(services)) {
   for (const sonde of svc.sondes ?? []) {
@@ -232,6 +233,8 @@ for (const [nom, svc] of Object.entries(services)) {
       parCleYaml.set(sonde.cle, nom);
     } else if (sonde.type === 'json') {
       sondesJson.push({ service: nom, ...sonde });
+    } else if (sonde.type === 'epingle') {
+      sondesEpingle.push({ service: nom, ...sonde });
     } else {
       erreurs.push(`${nom} — type de sonde inconnu : ${JSON.stringify(sonde.type)}.`);
     }
@@ -305,6 +308,44 @@ for (const sonde of sondesJson) {
   }
   trouvailles.push([sonde.service, sonde.env, sonde.fichier, null, String(valeur), sonde.chemin.join('.')]);
   comparer(sonde.service, sonde.env, sonde.fichier, null, String(valeur));
+}
+
+// ─── R6 — l'épingle du serveur égale la mesure du serveur (TCK-526) ─────────────────────────
+// Docker et Dokploy ne sont ni en dev ni en CI : ce que le dépôt en déclare, c'est la version que
+// `bootstrap.sh` INSTALLE et que le runbook POSE (`VARIABLE=valeur`, ou `${VARIABLE:-valeur}`).
+// Cette épingle n'a de sens qu'égale à ce que le serveur EXÉCUTE, mesuré et daté : une montée de
+// version sur la machine sans re-mesure ici, ou une épingle changée sans montée de version, sont
+// les deux façons de « reconstruire » un autre serveur que celui qu'on a. Une épingle sans mesure
+// (`non_mesure`) n'est pas tolérée : elle serait une supposition installée.
+for (const sonde of sondesEpingle) {
+  const chemin = join(ROOT, sonde.fichier);
+  if (!existsSync(chemin)) {
+    erreurs.push(`${sonde.fichier} est introuvable — sonde \`epingle\` de ${sonde.service} inopérante.`);
+    continue;
+  }
+  const texte = sansCommentaires(readFileSync(chemin, 'utf8'), sonde.fichier);
+  // `VAR=x`, `VAR=${VAR:-x}`, `export VAR=x`, y compris au milieu d'une ligne de runbook (`sh -c "export VAR=x && …"`).
+  const motif = new RegExp(`(?:^|[^\\w-])${sonde.variable}=(?:\\$\\{${sonde.variable}:-)?([^\\s}"'\`]+)`, 'm');
+  const m = texte.match(motif);
+  if (!m) {
+    erreurs.push(
+      `${sonde.fichier} — aucune ligne \`${sonde.variable}=…\` (hors commentaires) : l'épingle de `
+      + `${sonde.service} a disparu, le serveur se reconstruirait à « la dernière » version.`,
+    );
+    continue;
+  }
+  const ligne = numeroLigne(texte, m.index);
+  trouvailles.push([sonde.service, 'serveur', sonde.fichier, ligne, m[1], sonde.variable]);
+  const p = services[sonde.service]?.prod;
+  if (!p || p.etat !== 'mesure') {
+    erreurs.push(`${sonde.fichier}:${ligne} — ${sonde.service} est épinglé à \`${m[1]}\` sans mesure du serveur (\`prod.etat\` ≠ \`mesure\`) : une épingle sans mesure est une supposition installée.`);
+  } else if (m[1] !== p.valeur) {
+    erreurs.push(
+      `${sonde.fichier}:${ligne} — ${sonde.service} est épinglé à \`${m[1]}\`, le serveur a été mesuré à `
+      + `\`${p.valeur}\` le ${p.date}. Soit le serveur a monté de version sans re-mesure ici, soit `
+      + `l'épingle a changé sans montée de version : dans les deux cas, reconstruire donnerait un autre serveur.`,
+    );
+  }
 }
 
 function comparer(service, env, rel, ligne, trouve) {
@@ -395,7 +436,7 @@ if (REPORT) {
   );
   console.log(`\nDéclarations confrontées (${trouvailles.length}) :`);
   for (const [s, e, f, li, v, t] of trouvailles) {
-    console.log(`  ${l(e, 5)}${l(s ?? '???', 14)}${l(v, 28)}${f}${li === null ? ` (${t})` : `:${li}`}`);
+    console.log(`  ${l(e, 9)}${l(s ?? '???', 14)}${l(v, 28)}${f}${li === null ? ` (${t})` : `:${li}`}`);
   }
   console.log();
 }

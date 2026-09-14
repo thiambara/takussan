@@ -161,6 +161,58 @@
           "pgvector/pgvector:pg17"
         ]
       ]
+    },
+    "docker": {
+      "libelle": "Moteur de conteneurs du serveur (démon, CLI, containerd, Compose, buildx)",
+      "sondes": [
+        {
+          "type": "epingle",
+          "fichier": "deploy/server/bootstrap.sh",
+          "variable": "DOCKER_VERSION"
+        }
+      ],
+      "dev": {
+        "valeur": null,
+        "absence": "Docker Desktop du poste, hors dépôt : docker-compose.yml ne déclare pas de version de moteur, et aucun script du dépôt ne l'installe."
+      },
+      "ci": {
+        "valeur": null,
+        "absence": "Le Docker des exécuteurs GitHub (ubuntu-latest) n'est ni choisi ni épinglé par le dépôt ; `images.yml` construit avec buildx, sans dépendre de la version du démon."
+      },
+      "prod": {
+        "etat": "mesure",
+        "valeur": "29.8.0",
+        "date": "2026-09-14",
+        "source": "TCK-526 — relevé sur 178.18.247.62 ; paquets apt 5:29.8.0-1~ubuntu.24.04~noble (docker-ce, docker-ce-cli), containerd.io 2.3.5-1, docker-compose-plugin 5.5.1-1, docker-buildx-plugin 0.37.1-1, tenus par `apt-mark hold`",
+        "commande": "ssh root@178.18.247.62 \"docker version --format '{{.Server.Version}}' ; dpkg-query -W -f='\\${Package} \\${Version}\\n' docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin ; apt-mark showhold\"",
+        "pourquoi": "`bootstrap.sh` § 0 épingle cette version (R6) : monter de version est un geste du runbook « Mettre Docker à jour », relevé ici ensuite."
+      }
+    },
+    "dokploy": {
+      "libelle": "Panneau de déploiement du serveur (service Swarm `dokploy`)",
+      "sondes": [
+        {
+          "type": "epingle",
+          "fichier": "docs/infra/hebergement.md",
+          "variable": "DOKPLOY_VERSION"
+        }
+      ],
+      "dev": {
+        "valeur": null,
+        "absence": "Dokploy n'existe que sur le serveur : aucun conteneur, aucune image, aucun script du dépôt ne le lance ailleurs."
+      },
+      "ci": {
+        "valeur": null,
+        "absence": "La CI parle à Dokploy par son API (`images.yml`, `compose.deploy` / `application.deploy`) sans en embarquer une version."
+      },
+      "prod": {
+        "etat": "mesure",
+        "valeur": "v0.30.6",
+        "date": "2026-09-14",
+        "source": "TCK-526 — relevé sur 178.18.247.62 ; Traefik v3.6.7 à côté, conteneur `dokploy-traefik` hors Swarm",
+        "commande": "ssh root@178.18.247.62 \"docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'\"",
+        "pourquoi": "Le runbook « Reconstruire le serveur » (étape 6) pose `DOKPLOY_VERSION=v0.30.6` devant `install.sh` (R6) ; monter de version est le geste « Mettre Dokploy à jour », relevé ici ensuite."
+      }
     }
   }
 }

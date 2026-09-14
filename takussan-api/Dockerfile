@@ -47,6 +47,9 @@ RUN npm run build
 
 # ── image servie ──────────────────────────────────────────────────────────────────────────
 FROM base AS runtime
+# `sha256sum | sha256sum | cut` plus bas : sans pipefail, un `sha256sum` qui échoue laisserait une
+# empreinte vide et une image « valide » qui réimporterait la recherche à chaque déploiement.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG BUILD_SHA=inconnu
 ENV BUILD_SHA=${BUILD_SHA}
 COPY . .
@@ -59,6 +62,9 @@ COPY docker/Caddyfile /etc/frankenphp/Caddyfile
 # (config/scout.php, les modèles Searchable, app/Support/Search, lang/fr/properties.php — TCK-506).
 # /config/psysh : `artisan tinker` y écrit ($XDG_CONFIG_HOME vaut /config dans l'image de base, et
 # /config appartient à root) — sans lui, tinker meurt sous www-data.
+# SC2046 : le `$(grep -rl …)` est VOULU non quoté — c'est une liste de fichiers, un par mot, la
+# même règle que `modeles_indexes()` de docker/lib.sh ; aucun chemin du dépôt ne porte d'espace.
+# hadolint ignore=SC2046
 RUN mkdir -p storage/app/private storage/app/public storage/framework/cache/data \
       storage/framework/sessions storage/framework/views storage/logs bootstrap/cache /config/psysh \
  && composer dump-autoload --no-dev --optimize --no-scripts \

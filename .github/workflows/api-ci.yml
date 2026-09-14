@@ -1,7 +1,13 @@
 name: API CI
 
 on:
+  # Appelé tel quel par promotion-ci.yml sur toute PR vers `preview` ou `master` (TCK-524) : les
+  # filtres de chemins ci-dessous ne s'appliquent qu'aux PR vers `dev`. Un check REQUIS par la
+  # protection de branche doit exister sur chaque PR, sinon GitHub attend un statut qui ne
+  # viendra jamais — et une promotion qui ne touche que `docs/` ne fusionnerait plus.
+  workflow_call:
   pull_request:
+    branches-ignore: [preview, master]
     paths:
       - 'takussan-api/**'
       - '.github/workflows/api-ci.yml'
@@ -722,3 +728,40 @@ jobs:
           else
             echo "::warning::Aucune migration au-dessus de la borne — aucun down() n'a été éprouvé."
           fi
+
+  # ──────────────────────────────────────────────────────────────────────────────────────────
+  # L'IMAGE se construit en PR, sans être poussée (TCK-521). Avant, seul `images.yml` la
+  # construisait, sur `push` vers `preview` : un Dockerfile cassé ne rougissait qu'APRÈS la
+  # fusion, et la préproduction restait sur l'image d'avant sans que la PR l'ait dit.
+  # `push: false`, et `cache-from` SEUL : une PR lit le cache de `preview`, n'y écrit jamais —
+  # elle ne peut pas empoisonner le cache d'un déploiement. Uniquement sur pull_request : sur
+  # `push`, `images.yml` construit pour de bon.
+  # ──────────────────────────────────────────────────────────────────────────────────────────
+  image:
+    name: Image de l'API (construite, pas poussée)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: runtime
+        uses: docker/build-push-action@v7
+        with:
+          context: takussan-api
+          target: runtime
+          push: false
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=api
+      - name: seed
+        uses: docker/build-push-action@v7
+        with:
+          context: takussan-api
+          target: seed
+          push: false
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=api

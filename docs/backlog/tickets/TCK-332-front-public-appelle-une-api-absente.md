@@ -178,4 +178,10 @@ l'exposition doit donc être arrêtée *avant*.
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **2026-09-14, 22:42 Z (TCK-523)** — le mode de panne a changé, pas l'effet. Le serveur qui rendait
+  le 404 n'existe plus (ADR-0028) ; `api.takussan.com` pointe sur le nouveau VPS en DNS seul, sans
+  service : Traefik présente `CN=TRAEFIK DEFAULT CERT`, et l'appel du front public **échoue sur la
+  poignée de main TLS** (`curl` → `000`, `ssl_verify_result` 20 ; `-k` → `404`). Pour l'utilisateur,
+  un `fetch` qui échoue est un `fetch` qui échoue : le contrat et les AC de ce ticket restent
+  entiers. Relevé : `docs/infra/hebergement.md`, « Ce qui sert quoi ». Le nom sera servi en phase F
+  (TCK-517) ; il n'y aura pas de `503` explicite avant (décision dans TCK-523).

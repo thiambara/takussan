@@ -25,9 +25,13 @@ x-apres-release: &apres-release
       condition: service_completed_successfully
 
 services:
-  # Migrations, réconciliation des rôles, Meilisearch. Les autres services attendent son SUCCÈS :
-  # une migration qui échoue laisse l'ancienne version servir, au lieu du nouveau code sur
-  # l'ancien schéma.
+  # Migrations, réconciliation des rôles, Meilisearch. Les autres services attendent son SUCCÈS
+  # pour DÉMARRER — et c'est tout ce que `depends_on` garantit. ⚠ Un seul `up -d --build` ne
+  # laisse PAS l'ancienne version servir quand release échoue : Compose retire l'ancien `api` et
+  # crée le neuf AVANT de lancer release, et le neuf reste « Created » (mesuré le 2026-09-14,
+  # TCK-522 : `/up` → `000`). D'où la commande de déploiement en deux temps, posée dans le champ
+  # « Command » du service Compose de Dokploy (runbook, hebergement.md) et rejouée par
+  # smoke-api.sh : `run --rm release && up -d --build` — `up` n'est jamais lancé si release échoue.
   release:
     <<: *api
     restart: "no"
