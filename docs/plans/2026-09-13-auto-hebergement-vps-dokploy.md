@@ -206,6 +206,8 @@ les points suivants, chacun mesuré. Le dépôt fait foi.
 | D3, étape 1 — secrets | `gh secret set … ` au clavier | un `… \| gh secret set` rejoué par une boucle de nouvel essai lit une entrée **vide** au second essai : le secret existe, vide | secret relu depuis un fichier, rouvert à chaque essai ; longueur vérifiée |
 | D3, étape 2 — premier déploiement | le workflow déploie | le `compose.deploy` déclenché par le workflow a échoué au `pull` (délai dépassé vers `pkg-containers.githubusercontent.com`) ; l'image tirée à la main sur le serveur (32 s), puis `compose.deploy` relancé ; la preuve du workflow a constaté le commit servi | un échec de `pull` se relance ; il n'est pas une erreur de la pile |
 | D4 — répertoire du Compose | `find … -path "*takussan*"` | le Compose `donnees` clone **tout** le dépôt : ce motif rend deux `compose.api.yml`, dont un sans `.env` | motif `*takussan-api-preview*` (celui du runbook) |
+| D5, étape 2 — sonde des files | `dispatch(fn () => logger(…))` par `tinker --execute` | le défaut déjà relevé en B2, resté dans l'étape de D5 : `RuntimeException  Failed to serialize job … eval()'d code` (rejoué sur le serveur) — rien n'est poussé, et `jobs` → `0` ressemble à une file consommée | l'étape de D5 corrigée : `Artisan::queue('inspire')->onQueue(…)`, lu dans le journal du worker (`inspire … DONE`) |
+| D5, étape 2 — `failed_jobs` | `0` | `23`, tous `BookingExpiredNotification` : `Class "Resend" not found` — `MAIL_MAILER=resend` sans `resend/resend-php`, absent de `composer.lock` depuis toujours | défaut de l'application, pas de la pile : relevé, correction laissée au porteur (SDK ou SMTP) |
 | D7, étape 1 — clé SSH | *Settings → SSH Keys* | `sshKey.generate` puis `sshKey.create` par l'API ; le clone est prouvé par un déploiement qui échoue ensuite au `pull` (`unauthorized`, sans registre) | la clé `github-check-print-plus`, deploy key `dokploy` en lecture seule |
 | D8, étape 2 — secrets | — | le dépôt check-print-plus porte aussi une *deploy key* `Contabo` de l'ancien serveur | laissée au porteur : le plan ne la nommait pas |
 
@@ -3599,14 +3601,19 @@ Expected : `HTTP/2 200`, le commit de `preview` ; un émetteur Let's Encrypt.
 ```bash
 API=<projet relevé>-api-1
 for q in default notifications-urgent media reconciliation; do
-  docker exec "$API" php artisan tinker --execute "dispatch(fn () => logger('sonde $q'))->onQueue('$q');"
+  docker exec "$API" php artisan tinker --execute "Illuminate\Support\Facades\Artisan::queue('inspire')->onQueue('$q');"
 done
 sleep 20
 docker exec "$API" php artisan tinker --execute 'echo DB::table("jobs")->count(), " ", DB::table("failed_jobs")->count();'
-docker logs --since 3m <projet relevé>-scheduler-1 | tail -5
+docker logs --since 1m <projet relevé>-worker-1 | grep inspire; docker logs --since 1m <projet relevé>-worker-media-1 | grep inspire
+docker logs --since 6m <projet relevé>-scheduler-1 | grep -v 'No scheduled' | tail -5
 ```
 
-Expected : `0 0`, et des lignes du planificateur de moins de trois minutes.
+Expected : `0 0` ; quatre `inspire … DONE` (deux par worker) ; des lignes `Running … DONE` du
+planificateur de moins de six minutes (ses tâches les plus fréquentes sont à cinq). ⚠ Pas de
+`dispatch(fn () => …)` : une closure née d'un `tinker --execute` ne se sérialise pas
+(`Failed to serialize job … eval()'d code`), rien n'est poussé, et `jobs` → `0` fait croire à une
+file consommée.
 
 - [ ] **Étape 3 : la recherche, et l'isolation de sa clé**
 

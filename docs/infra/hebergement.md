@@ -116,6 +116,16 @@ Absentes de l'export, donc aux défauts de `config/` : `SMS_*`, `WHATSAPP_*`, `F
 `CDN_*`, `BUNNY_*`. Une fonctionnalité qui en dépend ne marche pas en préproduction tant qu'on ne les
 pose pas.
 
+⚠ **Aucun courriel ne part : `MAIL_MAILER=resend` sans le SDK.** Le transport `resend` de Laravel
+exige `resend/resend-php`, que le dépôt n'a jamais eu (`composer.lock` : 0 paquet `resend/*`, relevé
+le 2026-09-14). Chaque notification par courriel échoue dans le worker (`Class "Resend" not found`)
+et finit dans `failed_jobs`. Deux corrections possibles, à trancher avant la production : ajouter le
+SDK, ou garder Resend par SMTP (`MAIL_MAILER=smtp`, sans dépendance). CheckPrint Plus, avec la même
+configuration, n'a pas le défaut : son `composer.lock` porte `resend/resend-laravel` (v1.2.0) et
+`resend/resend-php`. ⚠ Le seed écrit aussi des
+adresses sous des domaines `.sn` qui peuvent exister : une préproduction qui envoie vraiment écrit à
+des inconnus. `MAIL_MAILER=log` est le choix sûr pour elle.
+
 **`takussan-web-preview`** (Application) : aucune variable, tout est inliné dans l'image ; une
 authentification basique, dont `utilisateur:motdepasse` est aussi le secret `PREVIEW_BASIC_AUTH` de
 l'environnement GitHub `preview`.

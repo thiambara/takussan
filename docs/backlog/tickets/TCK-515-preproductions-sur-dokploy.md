@@ -73,6 +73,20 @@ tâches D1 à D8.
   `/etc/dokploy/compose/takussan-api-preview-4iza80/code/deploy/takussan` ; la commande du runbook
   (`find … *takussan-api-preview*`) l'y trouve.
 - D5, étape 1 — `/up` → `HTTP/2 200`, `X-Build-Sha` = `preview`, certificat Let's Encrypt.
+- D5, étape 2 — une tâche réelle (`Artisan::queue('inspire')`) poussée sur chacune des quatre files :
+  `default` et `notifications-urgent` consommées par `worker`, `media` et `reconciliation` par
+  `worker-media` ; `jobs` → `0`. Le planificateur lance ses tâches toutes les cinq minutes
+  (`ExpirePendingBookingsJob`, `SendPropertyVisitReminders`, `sms:pull-mtarget-dlr` … `DONE`).
+  ⚠ `failed_jobs` → `23`, **tous** de 01:30 et tous `BookingExpiredNotification` :
+  `Class "Resend" not found`. La préproduction déclare `MAIL_MAILER=resend` (et une
+  `RESEND_API_KEY`), mais `resend/resend-php` n'est **ni dans `composer.json` ni dans
+  `composer.lock`**, et ne l'a jamais été (`git log -S 'resend/'` vide). L'ancien serveur installait
+  le même `composer.lock` : ses courriels échouaient de la même façon. Aucun courriel ne part donc,
+  et la production aurait le même défaut.
+- D5, étape 3 (en partie) — `config("scout.prefix")` commence par `preview_` ; la clé lue **dans le
+  conteneur** (`printenv MEILISEARCH_KEY`, 64 caractères) rend `403` sur `prod_properties` et `200`
+  sur `preview_properties`. L'index était vide pendant le seed, et c'est voulu : `seed.sh` seede avec
+  `SCOUT_DRIVER=null` puis importe tout d'un bloc à la fin.
 - D5, étape 5 — `/storage/sonde.txt` → `public, max-age=604800, stale-while-revalidate=86400` ;
   `/.htaccess` et `/.env` → `404` ; un POST de 26 Mio → `413` ; `gzip` servi.
 - D7 (préparé) — projet *CheckPrint Plus* : clé SSH générée par Dokploy, *deploy key* `dokploy` en
