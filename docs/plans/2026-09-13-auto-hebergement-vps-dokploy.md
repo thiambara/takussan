@@ -203,6 +203,11 @@ les points suivants, chacun mesuré. Le dépôt fait foi.
 | B4 — `images.yml`, premier passage réel | un déploiement non raccordé est « sauté » | le job *Déploiement et preuve* **tourne** et s'arrête en vert sur une notice | runbook : seule la preuve `X-Build-Sha` prouve un déploiement |
 | D1, étape 2 — valeurs relevées | reprises « du `.env` exporté en A1 » | les `.env` sont **dans** les archives `<projet>-shared.tgz` de l'export, pas à côté ; celui de la préproduction Takussan n'a aucune clé `SMS_*`, `WHATSAPP_*`, `FACEBOOK_*`, `APPLE_*`, `CDN_*`, `BUNNY_*`, et porte `SEED_DOWNLOAD_MEDIA=true` | clés absentes : défauts de `config/` ; `SEED_*` repris tels quels |
 | D1, étape 3 — registre | l'Application du front tire par le registre `ghcr.io` | les images de Takussan sont publiques (jeton GHCR anonyme → `200`) | aucun registre pour Takussan ; il ne sert qu'à CheckPrint Plus (D7) |
+| D3, étape 1 — secrets | `gh secret set … ` au clavier | un `… \| gh secret set` rejoué par une boucle de nouvel essai lit une entrée **vide** au second essai : le secret existe, vide | secret relu depuis un fichier, rouvert à chaque essai ; longueur vérifiée |
+| D3, étape 2 — premier déploiement | le workflow déploie | le `compose.deploy` déclenché par le workflow a échoué au `pull` (délai dépassé vers `pkg-containers.githubusercontent.com`) ; l'image tirée à la main sur le serveur (32 s), puis `compose.deploy` relancé ; la preuve du workflow a constaté le commit servi | un échec de `pull` se relance ; il n'est pas une erreur de la pile |
+| D4 — répertoire du Compose | `find … -path "*takussan*"` | le Compose `donnees` clone **tout** le dépôt : ce motif rend deux `compose.api.yml`, dont un sans `.env` | motif `*takussan-api-preview*` (celui du runbook) |
+| D7, étape 1 — clé SSH | *Settings → SSH Keys* | `sshKey.generate` puis `sshKey.create` par l'API ; le clone est prouvé par un déploiement qui échoue ensuite au `pull` (`unauthorized`, sans registre) | la clé `github-check-print-plus`, deploy key `dokploy` en lecture seule |
+| D8, étape 2 — secrets | — | le dépôt check-print-plus porte aussi une *deploy key* `Contabo` de l'ancien serveur | laissée au porteur : le plan ne la nommait pas |
 
 ## Piste A — le serveur
 

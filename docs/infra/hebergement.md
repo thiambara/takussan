@@ -9,10 +9,10 @@
 
 | Hôte | Service Dokploy | Image | Relevé le |
 |---|---|---|---|
-| `preview.api.takussan.com` | Compose `takussan-api-preview`, service `api:8080` | `ghcr.io/thiambara/takussan-api:preview` | *non mesuré* |
-| `preview.takussan.com` | Application `takussan-web-preview` | `ghcr.io/thiambara/takussan-web:preview` | *non mesuré* |
-| `preview.api.checkprintplus.com` | Compose `cpp-api-preview`, service `api:8080` | `ghcr.io/thiambara/check-print-plus-api:preview` | *non mesuré* |
-| `preview.checkprintplus.com` | Application `cpp-web-preview` | `ghcr.io/thiambara/check-print-plus-web:preview` | *non mesuré* |
+| `preview.api.takussan.com` | Compose `takussan-api-preview`, service `api:8080` — A en DNS seul | `ghcr.io/thiambara/takussan-api:preview` | 2026-09-14 : `/up` → `200`, `X-Build-Sha` = `preview`, Let's Encrypt |
+| `preview.takussan.com` | Application `takussan-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/takussan-web:preview` | 2026-09-14 : `401` sans authentification, `200` avec ; `cf-ray`, aucun `x-vercel-id` |
+| `preview.api.checkprintplus.com` | Compose `cpp-api-preview`, service `api:8080` | `ghcr.io/thiambara/check-print-plus-api:preview` | déclaré, **non déployé** : attend le registre `ghcr.io` (jeton `read:packages`) |
+| `preview.checkprintplus.com` | Application `cpp-web-preview` — encore un CNAME Vercel | `ghcr.io/thiambara/check-print-plus-web:preview` | déclaré, **non déployé**, DNS non basculé |
 | `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
 
 La production s'ajoute à ce tableau en phase F du plan. D'ici là, `www.takussan.com` reste servi par
@@ -75,9 +75,20 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Sauvegardes planifiées | *non mesuré* — attend le seau R2 (A5) | | onglet Backups de chaque service Database |
 | Sauvegarde de la configuration de Dokploy | *non mesuré* — la version la propose (`backup.manualBackupWebServer`) ; attend R2 | | Settings → Backups |
 
-Projets Dokploy : **Serveur** (Compose `donnees`, `postgres`, `mysql`) et **Takussan** (Compose
-`takussan-api-preview`, Application `takussan-web-preview`). Leurs identifiants sont les variables de
-l'environnement GitHub `preview` et se relisent par `project.all`, jamais recopiés.
+Projets Dokploy : **Serveur** (Compose `donnees`, `postgres`, `mysql`), **Takussan** (Compose
+`takussan-api-preview`, Application `takussan-web-preview`) et **CheckPrint Plus** (Compose
+`cpp-api-preview`, Application `cpp-web-preview`). Leurs identifiants sont les variables de
+l'environnement GitHub `preview` de chaque dépôt et se relisent par `project.all`, jamais recopiés.
+
+Le dépôt privé `thiambara/check-print-plus` est cloné par une clé SSH générée dans Dokploy
+(`github-check-print-plus`, ed25519, `SHA256:5oIiaemPIlJVC5cTwrCEqzsnkYSCQ0z5JAk7qmOn56E`), posée en
+*deploy key* **en lecture seule** sous le nom `dokploy`.
+
+Le projet Compose de l'API Takussan s'appelle `takussan-api-preview-4iza80`, et Dokploy range son
+dépôt dans `/etc/dokploy/compose/takussan-api-preview-4iza80/code/`, avec le `.env` qu'il écrit à côté
+de `deploy/takussan/compose.api.yml`. ⚠ Le Compose `donnees` clone **aussi** tout le dépôt : un `find`
+qui ne filtre pas sur `takussan-api-preview` tombe sur son `compose.api.yml`, sans `.env`. Les valeurs
+`${…}` d'un environnement Dokploy sont interpolées par Compose (relu dans le conteneur le 2026-09-14).
 
 ### Les variables d'environnement, par service — les CLÉS, jamais les valeurs
 
@@ -108,6 +119,31 @@ pose pas.
 **`takussan-web-preview`** (Application) : aucune variable, tout est inliné dans l'image ; une
 authentification basique, dont `utilisateur:motdepasse` est aussi le secret `PREVIEW_BASIC_AUTH` de
 l'environnement GitHub `preview`.
+
+**`cpp-api-preview`** (Compose ; relevé le 2026-09-14, 56 clés, aucune vide) :
+
+- fixées par le plan (tâche D7) : `IMAGE_TAG`, `APP_KEY` (neuve), `APP_DEBUG`, `APP_URL`,
+  `FRONTEND_URL`, `GOOGLE_REDIRECT_URI` (écrite en clair : l'export portait
+  `${FRONTEND_URL}/auth/google/callback`), `TRUSTED_PROXIES`, `TELESCOPE_ENABLED`, `LOG_CHANNEL`,
+  `LOG_LEVEL`, `DB_CONNECTION`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`,
+  `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_CACHE_DB`, `QUEUE_CONNECTION`,
+  `CACHE_STORE`, `SESSION_DRIVER` (`database`, là où l'ancienne préproduction disait `redis`) ;
+- relevées dans l'export A1 : `APP_NAME`, `APP_ENV`, `APP_LOCALE`, `APP_FALLBACK_LOCALE`,
+  `APP_FAKER_LOCALE`, `BCRYPT_ROUNDS`, `APP_MAINTENANCE_DRIVER`, `SANCTUM_STATEFUL_DOMAINS`,
+  `SESSION_LIFETIME`, `SESSION_ENCRYPT`, `SESSION_PATH`, `SESSION_DOMAIN`, `BROADCAST_CONNECTION`,
+  `FILESYSTEM_DISK`, `LOG_STACK`, `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`,
+  `MAIL_CONTACT_ADDRESS`, `RESEND_API_KEY`, `REDIS_CLIENT`, `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`, et les neuf `LEMON_SQUEEZY_*` de l'export.
+
+Absentes de l'export, donc aux défauts de `config/` : `LICENSE_DESKTOP_SECRET`,
+`LICENSE_SIGNATURE_TTL`, `LICENSE_RATE_LIMIT_PER_KEY`, `LICENSE_RATE_LIMIT_PER_IP`,
+`LEMON_SQUEEZY_REDIRECT_URL`, `SESSION_SECURE_COOKIE`, `AWS_*`, `REDIS_QUEUE*`,
+`REDIS_CACHE_CONNECTION`. ⚠ Sans `LICENSE_DESKTOP_SECRET`, les routes de licence de l'application
+de bureau ne vérifient rien d'utile en préproduction.
+
+**`cpp-web-preview`** (Application) : image **privée**, tirée par le registre `ghcr.io` ; une
+authentification basique (`CPP_PREVIEW_BASIC_AUTH` du fichier de transit, futur secret
+`PREVIEW_BASIC_AUTH` de l'environnement GitHub `preview` de check-print-plus).
 
 ## Runbook
 
