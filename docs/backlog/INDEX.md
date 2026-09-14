@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**475 tickets** — 25 ouverts, 449 livrés.
+**475 tickets** — 24 ouverts, 450 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 22 |
-| 🚧 Doing | 3 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 449 |
+| ✅ Done | 450 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -60,7 +60,6 @@
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 - [TCK-519](tickets/TCK-519-seuils-du-budget-surveilles.md) — Les seuils du budget de la machine déclenchent une alerte — mémoire, disque, vol de CPU `S · P0 · technique`
-- [TCK-524](tickets/TCK-524-protection-des-branches-preview-et-master.md) — Protection des branches — `preview` et `master` n'acceptent qu'une PR verte ; `dev` reste libre à cause de la carte d'impact `S · P0 · technique`
 
 ## 👀 Review
 
@@ -72,10 +71,10 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 449
+## ✅ Done — 450
 
 <details>
-<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 14 tickets</summary>
+<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 15 tickets</summary>
 
 - [TCK-510](tickets/TCK-510-serveur-reinstalle-sous-dokploy.md) — Serveur — le VPS est réinstallé à blanc et sert Dokploy, ses bases et leurs sauvegardes `M · P0 · technique`
 - [TCK-511](tickets/TCK-511-image-et-pile-compose-de-lapi.md) — API — une image FrankenPHP par commit et sa pile Compose, éprouvées en local `M · P0 · technique`
@@ -88,6 +87,7 @@ _(aucun)_
 - [TCK-521](tickets/TCK-521-images-construites-en-pr-shellcheck-hadolint.md) — CI — les images se construisent en PR, sans push ; shellcheck et hadolint gardent le shell et les Dockerfile `S · P1 · technique`
 - [TCK-522](tickets/TCK-522-release-en-echec-lancienne-version-sert.md) — Ablation — un `release` qui échoue laisse l'ancienne version servir, prouvé par la pile de fumée `S · P0 · technique`
 - [TCK-523](tickets/TCK-523-api-takussan-com-mode-de-panne-releve.md) — `api.takussan.com` — le mode de panne du nom de production est relevé et daté, jusqu'à la phase F `S · P1 · technique`
+- [TCK-524](tickets/TCK-524-protection-des-branches-preview-et-master.md) — Protection des branches — `preview` et `master` n'acceptent qu'une PR verte ; `dev` reste libre à cause de la carte d'impact `S · P0 · technique`
 - [TCK-525](tickets/TCK-525-compte-basic-auth-ci-distinct.md) — La preuve du déploiement s'authentifie avec un compte `ci`, distinct de l'identifiant du porteur `S · P1 · technique`
 - [TCK-526](tickets/TCK-526-docker-et-dokploy-epingles-a-la-reconstruction.md) — Reconstruction reproductible — `bootstrap.sh` épingle Docker, et la version de Dokploy est posée après l'installation `S · P1 · technique`
 - [TCK-527](tickets/TCK-527-ecarts-de-releve-et-garde-sans-build.md) — Écarts de relevé — courriel ACME, 2FA de Dokploy, `prod-drivers.json` périmé ; et une garde qui refuse tout `build:` dans les Compose `S · P2 · technique`

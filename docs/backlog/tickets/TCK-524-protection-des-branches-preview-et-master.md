@@ -1,7 +1,7 @@
 ---
 id: TCK-524
 title: "Protection des branches — `preview` et `master` n'acceptent qu'une PR verte ; `dev` reste libre à cause de la carte d'impact"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: S
@@ -58,9 +58,9 @@ mesuré ce même 404) : la protéger casserait ce step — hors de ce ticket.
 - [x] AC1 — `gh api …/branches/preview/protection -q .required_status_checks.contexts` liste les
   checks, même chose pour `master`
 - [x] AC2 — le push direct de l'ablation est rejeté (`protected branch hook declined`)
-- [ ] AC3 — une PR `dev → preview` fusionnée après ce ticket déploie et prouve (`images.yml` vert
+- [x] AC3 — une PR `dev → preview` fusionnée après ce ticket déploie et prouve (`images.yml` vert
   avec la ligne `X-Build-Sha`)
-- [ ] AC4 — le step de la carte d'impact sur `dev` fonctionne toujours (run cité)
+- [x] AC4 — le step de la carte d'impact sur `dev` fonctionne toujours (run cité)
 
 ## Hors périmètre
 
@@ -123,3 +123,13 @@ mesuré ce même 404) : la protéger casserait ce step — hors de ce ticket.
 - AC3 et AC4 se mesurent **après** la fusion de ce ticket sur `dev` : la première promotion
   `dev → preview` qui suit (images.yml avec la ligne `X-Build-Sha`), et le run d'`api-ci` sur `dev`
   qui rejoue le step de la carte d'impact. Ils sont cochés par le commit qui ferme le ticket.
+- **AC3, mesuré le 2026-09-14** : la promotion #287 (`dev → preview`) a attendu les six checks
+  requis (`BLOCKED` tant que `API / lint-and-test` et `Front / Web (…)` étaient `pending`, puis
+  `CLEAN`), fusionnée en `e40a0d9d` ; `images.yml` run **34909614092** (`push`, `success` à
+  23:40:40 Z) : `✓ https://preview.api.takussan.com/up sert e40a0d9d…` et
+  `✓ https://preview.takussan.com/robots.txt sert e40a0d9d…` ; `curl -sI …/up` relu → `x-build-sha:
+  e40a0d9d…`. Le déploiement de l'API est passé par la commande en deux temps de TCK-522 et la
+  preuve du front par le compte `ci` de TCK-525.
+- **AC4, mesuré le 2026-09-14** : run `api-ci` **34907182820** sur `dev` (`push`, `7ed3d26f`, la
+  fusion de ce ticket), job `lint-and-test`, step « Régénérer la carte d'impact » → `success`. Le
+  step de TCK-479 pousse toujours sur `dev`, qui n'est pas protégée.
