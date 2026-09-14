@@ -1,7 +1,7 @@
 ---
 id: TCK-515
 title: "Préproductions — Takussan et CheckPrint Plus servis par Dokploy, mesurés, restaurés à blanc"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: M
@@ -37,7 +37,7 @@ tâches D1 à D8.
 
 - [x] D1 à D6 — Takussan : services Dokploy, DNS, environnement GitHub, seed, mesures, restauration, budget
 - [x] D7 — CheckPrint Plus
-- [ ] D8 — surveillance externe, secrets de l'ancienne chaîne retirés
+- [x] D8 — surveillance externe, secrets de l'ancienne chaîne retirés
 
 ## Critères d'acceptation
 
@@ -181,19 +181,20 @@ tâches D1 à D8.
   tient lieu d'alerte. Éprouvé sur `ubuntu:24.04` (OpenSSL 3.0.13, celui de l'exécuteur) : cinq noms
   à 89 jours, code `0` ; ablation `SEUIL_JOURS=365` → les cinq en échec, code `1` ; un nom non servi
   → `TRAEFIK DEFAULT CERT` refusé ; une origine muette → « aucun certificat lu ».
+- D8, étape 1 — surveillance externe posée par le porteur : UptimeRobot, trois sondes toutes les
+  5 minutes (`https://preview.api.takussan.com/up`, `https://preview.api.checkprintplus.com/up`,
+  `https://deploy.takussan.com/`). Mesuré sur le serveur, qui ne tient aucun journal d'accès : 380 s
+  de `tcpdump` sur les SYN de `:443`, rapprochés de la liste publique d'UptimeRobot → deux de ses
+  adresses, 6 connexions, sur les deux API en DNS seul ; `deploy.takussan.com` passe par Cloudflare
+  et ne se voit qu'au tableau de bord. La capture des adresses sources a été effacée.
+- D8, étape 3 — ce ticket est refermé ; **TCK-288 ne l'est pas**, contrairement au plan : il dépend
+  encore de TCK-332, TCK-352 et TCK-355, ouverts, et ses critères restants sont de production. Il
+  se referme avec F (TCK-517) — écart écrit dans le plan.
 
-## Reste sur dev
+## Suites, hors de ce ticket
 
-- D8, étape 1 : la surveillance externe — un compte UptimeRobot ou Better Stack, à ouvrir par le
-  porteur ; trois sondes toutes les 5 minutes (`https://preview.api.takussan.com/up`,
-  `https://preview.api.checkprintplus.com/up`, `https://deploy.takussan.com/`), alerte par courriel.
-- D8, étape 3 : refermer TCK-288 (« à la fin de D », dit le plan), puis ce ticket, une fois l'étape 1
-  faite.
-- Au porteur, hors du dépôt : copier les secrets du fichier de transit au gestionnaire de mots de
-  passe, puis supprimer `~/Sauvegardes/migration-secrets.env`. (*Bot Fight Mode* désactivé dans les
-  deux zones et canal de notifications Telegram posé : faits le 2026-09-14, au relevé.)
-- À surveiller avant F : Dokploy lui-même est le seul conteneur sans plafond, et le plus lourd
-  (867 → 1 013 Mo en neuf heures, § Budget du plan).
-- Les courriels : décidé par le porteur le 2026-09-14 — le SDK `resend/resend-php` pour la
-  production, `MAIL_MAILER=log` pour la préproduction. Le SDK est sur `dev` (#270) et promu sur
-  `preview` (#271, `ad93e5e6`) ; la production le recevra avec la phase F.
+- Au porteur : copier les secrets du fichier de transit au gestionnaire de mots de passe, puis
+  supprimer `~/Sauvegardes/migration-secrets.env`.
+- Avant F (TCK-517) : Dokploy lui-même est le seul conteneur sans plafond, et le plus lourd
+  (867 → 1 013 Mo en neuf heures, § Budget du plan) ; le SDK Resend, promu sur `preview`
+  (#271, `ad93e5e6`), part en production avec F.
