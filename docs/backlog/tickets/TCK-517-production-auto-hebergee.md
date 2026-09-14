@@ -7,8 +7,8 @@ family: technique
 estimate: M
 wave: 64
 created: 2026-09-13
-updated: 2026-09-13
-depends_on: [TCK-516]
+updated: 2026-09-14
+depends_on: [TCK-516, TCK-518, TCK-519, TCK-520, TCK-522, TCK-523, TCK-524, TCK-526]
 blocks: []
 spec_refs:
   features:
