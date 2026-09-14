@@ -266,6 +266,10 @@ jobs:
           sudo chmod 755 /usr/local/bin/hadolint
           shellcheck --version | head -2; hadolint --version
 
+      - name: Aucun service Compose de deploy/ ne porte build (rien ne se construit sur le serveur)
+        # ADR-0028 §2. Dokploy joue `up -d --build` : un `build:` ferait construire sur le serveur.
+        run: node scripts/check-compose-sans-build.mjs --report
+
       - name: Le shell du serveur et les Dockerfile passent shellcheck et hadolint
         # Deux trouvailles shellcheck ont été corrigées À LA MAIN pendant la migration (plan
         # d'ADR-0028, « Écarts constatés ») parce qu'aucun workflow ne le lançait ; un Dockerfile

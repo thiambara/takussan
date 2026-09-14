@@ -66,6 +66,8 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 |---|---|---|---|
 | Version de Dokploy | `dokploy/dokploy:v0.30.6` — posée par `DOKPLOY_VERSION` à l'installation (runbook, étape 6), relevée dans `versions.json` (TCK-526) | 2026-09-14 | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
 | Version de Docker | `29.8.0` (paquets `5:29.8.0-1~ubuntu.24.04~noble`, containerd.io `2.3.5-1`, compose `5.5.1-1`, buildx `0.37.1-1`), **tenus par `apt-mark hold`** et épinglés dans `bootstrap.sh` § 0 (TCK-526). Rejoué le 2026-09-14 : `DOCKER_VERSION=99.0.0 bash bootstrap.sh` refuse avant tout geste ; `bash bootstrap.sh` sort en 0, `docker --version` inchangé | 2026-09-14 | `docker version --format '{{.Server.Version}}'` ; `apt-mark showhold` ; `dpkg-query -W docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin` |
+| Courriel ACME (Let's Encrypt) | l'adresse du compte administrateur de Dokploy, posée le 2026-09-14, 23:14 Z dans `certificatesResolvers.letsencrypt.acme.email` de `/etc/dokploy/traefik/traefik.yml` (TCK-527 ; était `test@localhost.com`, écart A3 étape 5) ; Traefik redémarré, `acme.json` **intact** (même `sha256`, même date). ⚠ Le compte Let's Encrypt déjà enregistré garde son contact d'origine : Traefik ne le met pas à jour sans ré-enregistrer, ce qui demanderait d'effacer `acme.json` et de ré-émettre les cinq certificats — non fait, `certificats.yml` porte l'alerte d'échéance | 2026-09-14 | `grep -n email: /etc/dokploy/traefik/traefik.yml` (ne rend plus `localhost`) ; `sha256sum /etc/dokploy/traefik/dynamic/acme.json` avant et après |
+| Compte et 2FA | un seul compte (le porteur, créé le 2026-09-14), **`two_factor_enabled = t`** ; l'interface est derrière Cloudflare et le port 3000 est fermé (ci-dessous) | 2026-09-14 | `docker exec $(docker ps -q -f name=dokploy-postgres) psql -U dokploy -d dokploy -tAc 'select two_factor_enabled, created_at::date from "user"'` |
 | Version de Traefik | `traefik:v3.6.7` — un conteneur hors Swarm, `dokploy-traefik` | 2026-09-14 | `docker ps --filter name=dokploy-traefik --format '{{.Image}}'` |
 | Hôte interne PostgreSQL | `serveur-postgres-egr6ii` — PostgreSQL 17.11, `pgvector/pgvector:pg17`, limite 1 Gio | 2026-09-14 | `docker service ls` (Dokploy suffixe le nom donné) |
 | Hôte interne MySQL | `serveur-mysql-vsqugl` — MySQL 8.4.11, limite 640 Mio | 2026-09-14 | `docker service ls` |
@@ -149,9 +151,10 @@ même `composer.lock`, n'en envoyait pas davantage. Décision du porteur, le mê
   écrit des adresses sous des domaines `.sn` qui peuvent exister : une préproduction qui envoie
   vraiment écrit à des inconnus. Les échecs accumulés ont été vidés (`queue:flush`, 36 → 0).
 
-⚠ `docs/infra/prod-drivers.json` décrit encore les `.env` de l'ancien serveur (relevé du
-2026-08-16, `MAIL_MAILER=resend` en préproduction) : les valeurs vivent désormais dans Dokploy, et
-ce relevé-ci fait foi pour elles.
+`docs/infra/prod-drivers.json` porte les **drivers** (`CACHE_STORE`, `SESSION_DRIVER`,
+`QUEUE_CONNECTION`, `MAIL_MAILER`, …) tels que Dokploy les déclare, **régénéré depuis ce relevé le
+2026-09-14** (TCK-527) — il décrivait jusque-là les `.env` de l'ancien serveur, `MAIL_MAILER=resend`
+en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeurs secrètes nulle part.
 
 **`takussan-web-preview`** (Application) : aucune variable, tout est inliné dans l'image ; une
 authentification basique, dont `utilisateur:motdepasse` est aussi le secret `PREVIEW_BASIC_AUTH` de
