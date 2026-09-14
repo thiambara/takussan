@@ -67,6 +67,17 @@ MARQUE='# généré par smoke-api.sh — jetable'
 sonde() { docker run --rm --network dokploy-network curlimages/curl -sS "$@"; }
 tinker() { "${COMPOSE[@]}" exec -T api php artisan tinker --execute "$1"; }
 
+# Le déploiement TEL QUE DOKPLOY LE LANCE — champ « Command » du service Compose, posé par le runbook
+# (hebergement.md), `--pull never` en plus ici : release d'abord, par `run`, puis `up` SEULEMENT s'il
+# a réussi. Un seul `up -d --build` ne suffit pas : Compose recrée api, worker et scheduler — l'ancien
+# conteneur arrêté et retiré, le neuf « Created » — AVANT de savoir si release réussit, `depends_on`
+# n'ordonnant que le DÉMARRAGE. Mesuré le 2026-09-14 (TCK-522) : release en échec, `api` recréé,
+# `/up` → `000`. Le release tourne donc deux fois par déploiement ; le second ne réimporte rien.
+deployer() {
+  "${COMPOSE[@]}" run --rm --pull never release \
+    && "${COMPOSE[@]}" up -d --build --pull never --remove-orphans
+}
+
 preparer_pile() {
   if [ -f "$ENV_LOCAL" ] && ! head -1 "$ENV_LOCAL" | grep -qxF "$MARQUE"; then
     echec "$ENV_LOCAL existe et n'a pas été généré par ce script : refus de l'écraser"
@@ -81,7 +92,47 @@ preparer_pile() {
 
 nettoyer_pile() {
   "${COMPOSE[@]}" --profile seed down -v --remove-orphans >/dev/null 2>&1 || true
-  rm -f "$ENV_LOCAL"
+  rm -f "$ENV_LOCAL" "$ENV_LOCAL.sain"
+}
+
+attendre_api_saine() {
+  for _ in $(seq 60); do
+    [ "$(docker inspect -f '{{.State.Health.Status}}' "$PROJET-api-1")" = healthy ] && return 0
+    sleep 2
+  done
+  "${COMPOSE[@]}" logs api; echec "api n'est pas saine"
+}
+
+# Un release qui ÉCHOUE laisse l'ancienne api servir (ADR-0028 §5, TCK-522) : `deployer` sur un
+# `.env` dont DB_PASSWORD est faux — `migrate --force` meurt, `run` sort en 1, `up` n'est jamais
+# lancé. C'est l'IDENTIFIANT du conteneur qui est comparé, jamais /up seul : un api recréé sur
+# l'ancienne image répondrait 200 aussi. Ablation de l'ablation, mesurée le 2026-09-14 : avec un
+# simple `up -d --build` à la place de `deployer`, cette étape rougit ici sur l'identifiant.
+verifier_release_en_echec() {
+  local api=$1 id_avant id_apres sortie
+  id_avant=$(docker inspect -f '{{.Id}}' "$PROJET-api-1")
+  sed -i.sain 's/^DB_PASSWORD=.*/DB_PASSWORD=faux-tck-522/' "$ENV_LOCAL"
+  if sortie=$(deployer 2>&1); then
+    echec "release en échec : le déploiement a RÉUSSI avec un DB_PASSWORD faux"
+  fi
+  grep -q 'SQLSTATE' <<<"$sortie" || { echo "$sortie"; echec "release en échec : release n'a pas échoué sur la base"; }
+  id_apres=$(docker inspect -f '{{.Id}}' "$PROJET-api-1")
+  [ "$id_apres" = "$id_avant" ] \
+    || echec "release en échec : api a été RECRÉÉ (${id_avant:0:12} → ${id_apres:0:12}) malgré l'échec de release"
+  [ "$(sonde -o /dev/null -w '%{http_code}' "$api/up")" = 200 ] || echec "release en échec : /up ne rend plus 200"
+  grep -qix 'x-build-sha: smoke' <<<"$(sonde -D - -o /dev/null "$api/up" | tr -d '\r')" \
+    || echec "release en échec : X-Build-Sha a changé"
+  for s in worker worker-media scheduler; do
+    [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
+      || echec "release en échec : $s ne tourne plus"
+  done
+  ok "release en échec : l'ancienne api sert toujours"
+
+  mv "$ENV_LOCAL.sain" "$ENV_LOCAL"
+  sortie=$(deployer 2>&1) || { echo "$sortie"; echec "la pile ne revient pas à l'état sain"; }
+  [ "$(docker inspect -f '{{.State.ExitCode}}' "$PROJET-release-1")" = 0 ] || echec "release échoue encore après remise en état"
+  attendre_api_saine
+  ok "remise en état : release repasse, api saine"
 }
 
 verifier_pile() {
@@ -92,15 +143,11 @@ verifier_pile() {
   # Pas de `--wait` : il exige une sonde sur CHAQUE service, et Compose ne tient pas
   # `HEALTHCHECK NONE` pour une sonde (« has no healthcheck configured »). Dokploy ne le passe pas
   # non plus. `up` attend quand même le SUCCÈS de release (depends_on) ; le reste se vérifie ici.
-  "${COMPOSE[@]}" up -d --pull never || { "${COMPOSE[@]}" logs release; echec "la pile ne démarre pas"; }
+  local premier
+  premier=$(deployer 2>&1) || { echo "$premier"; echec "la pile ne démarre pas"; }
   [ "$(docker inspect -f '{{.State.ExitCode}}' "$PROJET-release-1")" = 0 ] \
     || { "${COMPOSE[@]}" logs release; echec "release a échoué"; }
-  for _ in $(seq 60); do
-    [ "$(docker inspect -f '{{.State.Health.Status}}' "$PROJET-api-1")" = healthy ] && break
-    sleep 2
-  done
-  [ "$(docker inspect -f '{{.State.Health.Status}}' "$PROJET-api-1")" = healthy ] \
-    || { "${COMPOSE[@]}" logs api; echec "api n'est pas saine"; }
+  attendre_api_saine
   for s in worker worker-media scheduler; do
     [ "$(docker inspect -f '{{.State.Status}}' "$PROJET-$s-1")" = running ] \
       || { "${COMPOSE[@]}" logs "$s"; echec "$s ne tourne pas"; }
@@ -110,11 +157,11 @@ verifier_pile() {
   # La sortie se CAPTURE avant d'être cherchée, jamais `cmd | grep -q` : sous pipefail, grep -q sort
   # à la première correspondance, l'écrivain encore en cours prend SIGPIPE (141) et le pipeline
   # échoue — selon le minutage. Mesuré : deux passages sur quatre rougissaient ici à tort.
-  grep -q 'Importation de App\\Models\\Property' <<<"$("${COMPOSE[@]}" logs release 2>&1)" \
-    || echec "le premier release n'a pas importé Property dans Meilisearch"
-  # `--pull never` ici aussi : `run` suit le `pull_policy: always` du Compose, pas le drapeau d'`up`.
-  grep -q 'forme des index inchangée' <<<"$("${COMPOSE[@]}" run --rm --pull never release 2>&1)" \
-    || echec "un second release réimporte alors que la forme des index n'a pas changé"
+  grep -q 'Importation de App\\Models\\Property' <<<"$premier" \
+    || echec "le premier release (\`run\`) n'a pas importé Property dans Meilisearch"
+  # Le second release est celui qu'`up` rejoue, tout de suite après le premier.
+  grep -q 'forme des index inchangée' <<<"$("${COMPOSE[@]}" logs release 2>&1)" \
+    || echec "le second release (\`up\`) réimporte alors que la forme des index n'a pas changé"
   ok "release idempotent (importe au premier passage, pas au second)"
 
   [ "$(sonde -o /dev/null -w '%{http_code}' "$api/up")" = 200 ] || echec "/up ne rend pas 200"
@@ -166,6 +213,8 @@ verifier_pile() {
     [ "$(docker inspect -f '{{.RestartCount}}' "$PROJET-$s-1")" = 0 ] || echec "$s redémarre en boucle"
   done
   ok "aucun service ne redémarre"
+
+  verifier_release_en_echec "$api"
 
   "${COMPOSE[@]}" --profile seed run --rm --pull never -e SEEDER_CLASS="${SEEDER_CLASS:-}" seed >/dev/null || echec "le seed échoue"
   ok "le seed tourne sur la cible seed"
