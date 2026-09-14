@@ -317,6 +317,14 @@ les distinguer.**
   sur l'**authentification MySQL du compte `takussan_prod`**, et **se déroule proprement en
   arrière**. D'où le 404 : `https://api.takussan.com/up` → **404** quand
   `https://preview.api.takussan.com/up` → **200**, sur le même serveur (dette D-04, TCK-288).
+
+  ⚠ **Re-mesuré le 2026-09-14, 22:42 Z (TCK-523) : ce serveur n'existe plus, et le 404 non plus.**
+  `api.takussan.com` pointe sur le nouveau VPS (ADR-0028), en DNS seul, **sans aucun service
+  derrière** : Traefik y présente `CN=TRAEFIK DEFAULT CERT`, et l'appel **échoue sur la poignée de
+  main TLS** — `curl` → `000` (`ssl_verify_result` 20), `-k` → `404`. Même effet pour l'utilisateur
+  du front public, jusqu'à la phase F (TCK-517). Relevé et commande :
+  [`docs/infra/hebergement.md`](docs/infra/hebergement.md), « Ce qui sert quoi » ; le récit du
+  changement de serveur : [J-44](docs/journal-des-corrections.md#j-44).
   ⚠ Ce journal ne disait **pas** de quel côté était l'écart — secret périmé, compte absent, *grant*
   manquant se ressemblent tous ici. **La mesure a été prise le 2026-08-24, en se connectant, et
   l'écart tient en un caractère :**
@@ -336,7 +344,8 @@ les distinguer.**
   que la bascule PostgreSQL y change, sont dans TCK-288.
 
 **Et c'est cette combinaison qui coûte, pas chacun des deux faits.** Le front de production est
-public et son bundle porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` — l'hôte qui rend 404.
+public et son bundle porte `NEXT_PUBLIC_API_URL = https://api.takussan.com` — l'hôte qui rend 404
+(qui échoue sur TLS depuis le 2026-09-13, voir ci-dessus).
 Re-mesuré le 2026-08-20 en téléchargeant les chunks servis par `www.takussan.com` — la valeur est
 inlinée à la compilation, elle est donc lisible sans accès à Vercel :
 
