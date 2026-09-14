@@ -174,6 +174,13 @@ tâches D1 à D8.
   n'avait rien mesuré — guillemets de la requête de comptage, MySQL local interrogé avant d'être
   prêt — et son script affichait pourtant `✓ … 0 tables identiques` : deux listes vides sont égales.
   Le second exige une liste non vide.
+- D8, en complément de l'étape 1 — la version gratuite d'UptimeRobot ne surveille pas l'échéance
+  des certificats (réservée aux offres payantes, relevé par le porteur). `.github/workflows/certificats.yml`
+  lit chaque jour les certificats d'**origine** sur le serveur (adresse + SNI : par le nom, un hôte
+  proxifié rendrait celui de Cloudflare) et échoue sous 14 jours ; le courriel d'échec de GitHub
+  tient lieu d'alerte. Éprouvé sur `ubuntu:24.04` (OpenSSL 3.0.13, celui de l'exécuteur) : cinq noms
+  à 89 jours, code `0` ; ablation `SEUIL_JOURS=365` → les cinq en échec, code `1` ; un nom non servi
+  → `TRAEFIK DEFAULT CERT` refusé ; une origine muette → « aucun certificat lu ».
 
 ## Reste sur dev
 

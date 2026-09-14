@@ -33,6 +33,7 @@ Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [rele
 | `deploy/server/compose.data.yml` | Meilisearch et les deux Redis, partagés par les deux projets |
 | `deploy/server/bootstrap.sh` | la préparation d'un Ubuntu 24.04 vierge |
 | `.github/workflows/images.yml` | construit, pousse sur GHCR, déclenche Dokploy, **prouve** par `X-Build-Sha` |
+| `.github/workflows/certificats.yml`, `deploy/server/certificats.sh` | chaque jour, l'échéance des certificats d'**origine**, lus sur le serveur par SNI : rouge — et courriel de GitHub — sous 14 jours, sur un nom non couvert ou un certificat illisible |
 | `deploy/takussan/smoke-api.sh`, `deploy/takussan/smoke-web.sh` | les tests de fumée locaux des images |
 
 ⚠ **Les images de Takussan sont publiques**, comme le dépôt : leur manifeste se lit avec un jeton
@@ -257,6 +258,16 @@ Le fichier se supprime à la fin de la migration.
 
 **Mettre Dokploy à jour** : Settings → *Update*, après avoir lu les notes de version. Relever la
 nouvelle version ici.
+
+**L'échéance des certificats** : *Échéance des certificats* (`.github/workflows/certificats.yml`)
+lance chaque jour `deploy/server/certificats.sh`, qui lit chaque certificat **sur le serveur**, par
+son adresse et le nom en SNI — par le nom seul, un hôte proxifié rendrait celui de Cloudflare. Rouge
+sous 14 jours, sur un nom que le certificat ne couvre pas (Traefik sert alors `TRAEFIK DEFAULT
+CERT`), ou si rien ne répond ; GitHub envoie l'échec par courriel. Il remplace l'alerte d'échéance
+d'UptimeRobot, payante. À la main : `deploy/server/certificats.sh [nom…]`. Relevé le 2026-09-14 : cinq
+noms à 89 jours ; `SEUIL_JOURS=365` rougit les cinq, un nom non servi et une origine muette
+rougissent aussi. ⚠ Un nom ajouté à Dokploy s'ajoute à la liste du script ; GitHub éteint un
+workflow planifié après 60 jours sans activité sur le dépôt (un `workflow_dispatch` le rallume).
 
 ## Ce que Caddy reprend de l'ancien vhost nginx
 
