@@ -13,7 +13,7 @@
 | `preview.takussan.com` | Application `takussan-web-preview` | `ghcr.io/thiambara/takussan-web:preview` | *non mesuré* |
 | `preview.api.checkprintplus.com` | Compose `cpp-api-preview`, service `api:8080` | `ghcr.io/thiambara/check-print-plus-api:preview` | *non mesuré* |
 | `preview.checkprintplus.com` | Application `cpp-web-preview` | `ghcr.io/thiambara/check-print-plus-web:preview` | *non mesuré* |
-| `deploy.takussan.com` | l'interface de Dokploy | — | *non mesuré* |
+| `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
 
 La production s'ajoute à ce tableau en phase F du plan. D'ici là, `www.takussan.com` reste servi par
 Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [relevé](frontend-deploiement.md)).
@@ -63,16 +63,51 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 |---|---|---|---|
 | Version de Dokploy | `dokploy/dokploy:v0.30.6` | 2026-09-14 | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
 | Version de Traefik | `traefik:v3.6.7` — un conteneur hors Swarm, `dokploy-traefik` | 2026-09-14 | `docker ps --filter name=dokploy-traefik --format '{{.Image}}'` |
-| Hôte interne PostgreSQL | *non mesuré* | | page du service `postgres` dans Dokploy |
-| Hôte interne MySQL | *non mesuré* | | page du service `mysql` |
-| Plages Cloudflare dans `traefik.yml` | *non mesuré* | | `curl -s https://www.cloudflare.com/ips-v4` puis comparer au fichier |
-| Sous-réseau de `dokploy-network` | *non mesuré* | | `docker network inspect dokploy-network -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` |
-| Sauvegardes planifiées | *non mesuré* | | onglet Backups de chaque service Database |
-| Sauvegarde de la configuration de Dokploy | *non mesuré* | | Settings → Backups |
+| Hôte interne PostgreSQL | `serveur-postgres-egr6ii` — PostgreSQL 17.11, `pgvector/pgvector:pg17`, limite 1 Gio | 2026-09-14 | `docker service ls` (Dokploy suffixe le nom donné) |
+| Hôte interne MySQL | `serveur-mysql-vsqugl` — MySQL 8.4.11, limite 640 Mio | 2026-09-14 | `docker service ls` |
+| Meilisearch, Redis | `meilisearch:7700` (v1.16), `redis-takussan:6379`, `redis-cpp:6379` — Compose `donnees` du projet *Serveur*, sans port publié | 2026-09-14 | `docker ps --format '{{.Names}} {{.Image}}'` |
+| Bases de préproduction | `takussan_preview` (`LOCALE C`, `CONNECT` révoqué à `PUBLIC`) ; `checkprintplus_preview` (`utf8mb4_unicode_ci` — Dokploy la crée en `utf8mb4_0900_ai_ci`, à corriger à chaque création) | 2026-09-14 | plan, tâche A4, étapes 9 et 10 |
+| Plages Cloudflare dans `traefik.yml` | 15 plages v4 et 7 v6 du 2026-09-14, sous `web` **et** `websecure` | 2026-09-14 | `curl -s https://www.cloudflare.com/ips-v4` puis comparer au fichier |
+| Sous-réseau de `dokploy-network` | `10.0.1.0/24` (overlay) — tête de `TRUSTED_PROXIES` | 2026-09-14 | `docker network inspect dokploy-network -f '{{range .IPAM.Config}}{{.Subnet}}{{end}}'` |
+| Port 3000 | fermé à tous : `000` depuis le poste, `200` depuis le serveur ; `:8080` non publié | 2026-09-14 | plan, tâche A3, étape 6 |
+| Zones Cloudflare | `takussan.com`, `checkprintplus.com` : SSL Full (strict), *Always Use HTTPS* désactivé | 2026-09-14 | `GET /zones/<id>/settings/ssl` |
+| Nettoyage Docker quotidien | actif | 2026-09-14 | `settings.getWebServerSettings` → `enableDockerCleanup` |
+| Sauvegardes planifiées | *non mesuré* — attend le seau R2 (A5) | | onglet Backups de chaque service Database |
+| Sauvegarde de la configuration de Dokploy | *non mesuré* — la version la propose (`backup.manualBackupWebServer`) ; attend R2 | | Settings → Backups |
+
+Projets Dokploy : **Serveur** (Compose `donnees`, `postgres`, `mysql`) et **Takussan** (Compose
+`takussan-api-preview`, Application `takussan-web-preview`). Leurs identifiants sont les variables de
+l'environnement GitHub `preview` et se relisent par `project.all`, jamais recopiés.
 
 ### Les variables d'environnement, par service — les CLÉS, jamais les valeurs
 
 La table de référence est celle du plan, tâche D1. Toute clé ajoutée dans Dokploy s'ajoute ici.
+
+**`takussan-api-preview`** (Compose, onglet *Environment* ; relevé le 2026-09-14, 71 clés, aucune
+vide) :
+
+- fixées par le plan : `IMAGE_TAG`, `APP_KEY` (neuve), `APP_DEBUG`, `APP_URL`, `FRONTEND_URL`,
+  `SANCTUM_STATEFUL_DOMAINS`, `TRUSTED_PROXIES`, `DB_CONNECTION`, `DB_HOST`, `DB_PORT`,
+  `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `SESSION_DRIVER`, `CACHE_STORE`, `QUEUE_CONNECTION`,
+  `REDIS_CLIENT`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_DB`, `REDIS_CACHE_DB`,
+  `SCOUT_DRIVER`, `SCOUT_PREFIX`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY` (la clé `preview_*`, jamais
+  la maîtresse), `LOG_CHANNEL`, `LOG_LEVEL`, `FILESYSTEM_DISK`, `LARAVEL_PDF_DRIVER` ;
+- relevées dans le `.env` de l'ancienne préproduction (export A1) : `APP_NAME`, `APP_ENV`,
+  `APP_LOCALE`, `APP_FALLBACK_LOCALE`, `APP_FAKER_LOCALE`, `APP_MAINTENANCE_DRIVER`,
+  `BCRYPT_ROUNDS`, `SESSION_LIFETIME`, `SESSION_ENCRYPT`, `SESSION_SECURE_COOKIE`, `SESSION_PATH`,
+  `SESSION_DOMAIN`, `SESSION_COOKIE`, `BROADCAST_CONNECTION`, `LOG_STACK`, `SCOUT_QUEUE`,
+  `SCOUT_AFTER_COMMIT`, `MAIL_MAILER`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`,
+  `MAIL_CONTACT_ADDRESS`, `RESEND_API_KEY`, `VITE_APP_NAME`, `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, et
+  les douze `SEED_*` (dont `SEED_DOWNLOAD_MEDIA=true` : le seed télécharge des médias).
+
+Absentes de l'export, donc aux défauts de `config/` : `SMS_*`, `WHATSAPP_*`, `FACEBOOK_*`, `APPLE_*`,
+`CDN_*`, `BUNNY_*`. Une fonctionnalité qui en dépend ne marche pas en préproduction tant qu'on ne les
+pose pas.
+
+**`takussan-web-preview`** (Application) : aucune variable, tout est inliné dans l'image ; une
+authentification basique, dont `utilisateur:motdepasse` est aussi le secret `PREVIEW_BASIC_AUTH` de
+l'environnement GitHub `preview`.
 
 ## Runbook
 
