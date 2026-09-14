@@ -19,6 +19,10 @@
  *    sont ignorés par git et **absents du runner** : les exiger ferait rougir la CI sur des fichiers
  *    absents par conception. Ils sont donc comparés en local et passés en silence en CI. *Une garde
  *    ne peut pas garantir ce que le dépôt ne contient pas.*
+ *    ⚠ Depuis ADR-0028 (TCK-527, 2026-09-14), les environnements sont des onglets Dokploy, relus
+ *    par son API : `fichier` nomme la source, aucun chemin n'existe, et ce contrôle signale les
+ *    deux environnements comme hors dépôt — partout. Le catalogue se régénère par la commande de
+ *    son `_mesure`.
  * 2. **Le catalogue contre la checklist §5.7 de `docs/configuration.md`** — celle-là est dans le
  *    dépôt, donc bloquante. C'est le seul endroit du dépôt qui prescrit des drivers de production.
  *

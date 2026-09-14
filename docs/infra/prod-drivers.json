@@ -1,107 +1,125 @@
 {
-  "_lisez_moi": "Catalogue des DRIVERS effectivement déclarés par les environnements déployés. Pendant de `versions.json` (TCK-298) pour les drivers plutôt que pour les versions, et même discipline : chaque valeur porte son `etat`, `mesure` ou `non_mesure`, et une valeur `mesure` cite la commande et la date qui l'ont produite. Ce fichier dit ce que les FICHIERS `.env` DÉCLARENT — jamais ce que la machine exécute, qui est un autre fait et qui appartient à TCK-288.",
+  "_lisez_moi": "Catalogue des DRIVERS effectivement déclarés par les environnements déployés. Pendant de `versions.json` (TCK-298) pour les drivers plutôt que pour les versions, et même discipline : chaque valeur porte son `etat` — `mesure` (relevée, avec la commande et la date), `prescrit` (ce que le plan pose pour un environnement qui n'existe pas encore) — et une valeur `mesure` cite la commande et la date qui l'ont produite. ⚠ Depuis ADR-0028 (2026-09-13), les environnements ne sont plus des fichiers `.env` sur un serveur : ce sont les onglets Environment de Dokploy, relus par son API (`compose.one` → `env`). Ce fichier a été RÉGÉNÉRÉ depuis ce relevé le 2026-09-14 (TCK-527) ; les valeurs du 2026-08-16 au 2026-08-24 décrivaient l'ancien serveur, effacé. Il dit ce que Dokploy DÉCLARE — jamais ce que le conteneur exécute, qui se vérifie au déploiement (plan, tâche D).",
   "_pourquoi_ce_fichier": "`docs/configuration.md` se contredisait lui-même : sa ligne 422 affirmait « la production tourne en CACHE_STORE=database » quand sa checklist §5.7 prescrivait `CACHE_STORE=redis`, et les deux `.env` livrés déclarent `redis`. Trois réponses, un seul sujet. Le défaut n'est pas qu'une des trois soit fausse — c'est qu'il y en ait trois : une valeur recopiée dans trois documents diverge au premier changement, et rien ne le signale.",
-  "_ce_que_ce_fichier_ne_dit_pas": "Que ces drivers FONCTIONNENT — sauf pour ceux qui portent une note de vérification. L'avertissement historique portait sur Redis : `.env.prod` déclarait `CACHE_STORE=redis` sans qu'aucune mesure ne prouve qu'un Redis écoute. **C'est prouvé depuis le 2026-08-24** : `redis-server` écoute sur `127.0.0.1:6379` et `redis-cli ping` rend `PONG` (sans mot de passe — `REDIS_PASSWORD` vaut la chaîne littérale `null`, que Laravel convertit en `null` ; l'écoute est restreinte à la boucle locale). Meilisearch écoute de même sur `127.0.0.1:7700`. Ce que ce fichier ne dit toujours pas : que la PRODUCTION fonctionne — elle n'a jamais été déployée (D-04).",
+  "_ce_que_ce_fichier_ne_dit_pas": "Que ces drivers FONCTIONNENT dans le conteneur. La préproduction le prouve autrement : `smoke-api.sh pile` en local (files consommées, cache, session) et le relevé d'hebergement.md sur le serveur (Redis joint, jobs consommés, `MAIL_MAILER=log` relu dans `api` et `worker`). Ce fichier ne dit rien non plus des VALEURS secrètes : elles ne sont relevées nulle part, par décision (ADR-0028, « Ce que ça coûte »).",
   "_mesure": {
-    "commande_locale": "grep -E '^(CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION|MAIL_MAILER|SESSION_SECURE_COOKIE|SESSION_SAME_SITE)=' takussan-api/.env.preview takussan-api/.env.prod",
-    "commande_serveur": "ssh <serveur> \"grep -E '^(CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION)=' /var/www/takussan/.env; redis-cli ping; php -v\"",
-    "pourquoi_pas_en_ci": "`.env.preview` et `.env.prod` sont ignorés par git (`takussan-api/.gitignore` n'excepte que `.env.example` et `.env.docker`). Ils n'existent pas sur le runner. La garde les lit quand ils sont là et se tait quand ils n'y sont pas — elle ne peut pas garantir ce que le dépôt ne contient pas."
+    "commande": "source ~/Sauvegardes/migration-secrets.env ; curl -sS -A curl/8 -H \"x-api-key: $DOKPLOY_API_KEY\" 'https://deploy.takussan.com/api/compose.one?composeId=<id>' | jq -r .env | grep -E '^(DB_CONNECTION|CACHE_STORE|SESSION_DRIVER|QUEUE_CONNECTION|MAIL_MAILER|SESSION_SECURE_COOKIE|SESSION_SAME_SITE)='",
+    "identifiants": "Takussan préproduction : composeId `JbPrtvdkuq0aLTDrOx2Ss` (`project.all`). La production n'existe pas encore (plan, F3).",
+    "pourquoi_pas_en_ci": "L'environnement vit dans Dokploy, derrière une clé d'API : la CI ne le lit pas. `check-prod-drivers.mjs` signale les deux environnements comme hors dépôt et ne compare que la checklist §5.7 de docs/configuration.md au catalogue.",
+    "apres_mesure": "Reporter les valeurs, dater, relancer `node scripts/check-prod-drivers.mjs --report`. Les CLÉS (sans valeur) de chaque environnement sont relevées dans docs/infra/hebergement.md, § « Les variables d'environnement, par service »."
   },
   "environnements": {
     "preview": {
-      "fichier": "takussan-api/.env.preview",
+      "fichier": "Dokploy → Compose takussan-api-preview → Environment (compose.one → env, 71 clés)",
       "hors_depot": true,
       "deploye": {
         "etat": "mesure",
         "valeur": true,
-        "date": "2026-08-16",
+        "date": "2026-09-14",
         "commande": "curl -s -o /dev/null -w '%{http_code}' https://preview.api.takussan.com/up",
-        "resultat": "200"
+        "resultat": "200, X-Build-Sha = ad93e5e6…"
       },
       "drivers": {
         "DB_CONNECTION": {
           "valeur": "pgsql",
           "etat": "mesure",
-          "date": "2026-08-24",
-          "note": "Bascule ADR-0020 effectuée le 2026-08-24. Vérifié SUR le serveur, pas déduit de la configuration : `SELECT datname, datcollate, datctype, encoding FROM pg_database` rend `takussan_preview|C|C|UTF8` sur PostgreSQL 17.11, et l'API répond 200 sur `/api/public/properties/search` avec des données."
+          "date": "2026-09-14",
+          "commande": "compose.one → env (Dokploy)",
+          "note": "ADR-0020 ; la base `takussan_preview` est le service Database PostgreSQL 17 de Dokploy (hebergement.md)."
         },
         "CACHE_STORE": {
           "valeur": "redis",
           "etat": "mesure",
-          "date": "2026-08-16"
+          "date": "2026-09-14",
+          "commande": "compose.one → env (Dokploy)",
+          "note": "Redis = conteneur `redis-takussan` de deploy/server/compose.data.yml, joint par le nom sur dokploy-network."
         },
         "SESSION_DRIVER": {
           "valeur": "redis",
           "etat": "mesure",
-          "date": "2026-08-16"
+          "date": "2026-09-14",
+          "commande": "compose.one → env (Dokploy)"
         },
         "QUEUE_CONNECTION": {
           "valeur": "database",
           "etat": "mesure",
-          "date": "2026-08-16"
+          "date": "2026-09-14",
+          "commande": "compose.one → env (Dokploy)",
+          "note": "Files consommées par `worker` et `worker-media` du Compose (scripts/check-queues.mjs)."
         },
         "MAIL_MAILER": {
-          "valeur": "resend",
+          "valeur": "log",
           "etat": "mesure",
-          "date": "2026-08-16"
+          "date": "2026-09-14",
+          "commande": "compose.one → env (Dokploy)",
+          "note": "Préproduction : rien ne part, relevé et voulu (hebergement.md, § courriel). L'ancien serveur avait `resend` ici — c'est ce qui rendait ce fichier faux."
+        },
+        "SESSION_SECURE_COOKIE": {
+          "valeur": "true",
+          "etat": "mesure",
+          "date": "2026-09-14",
+          "commande": "compose.one → env (Dokploy)",
+          "note": "Présente et vraie depuis la migration — le manque relevé le 2026-08-16 est fermé."
         }
       }
     },
     "production": {
-      "fichier": "takussan-api/.env.prod",
+      "fichier": "Dokploy → Compose takussan-api-prod (n'existe pas encore : plan, tâche F3, étape 1)",
       "hors_depot": true,
       "deploye": {
         "etat": "mesure",
         "valeur": false,
-        "date": "2026-08-16",
-        "commande": "curl -s -o /dev/null -w '%{http_code}' https://api.takussan.com/up",
-        "resultat": "404",
-        "note": "D-04 / TCK-288 — la chaîne de déploiement n'a jamais tourné. Le fichier existe, l'environnement non."
+        "date": "2026-09-14",
+        "commande": "curl -sS -o /dev/null -w '%{http_code} %{ssl_verify_result}' https://api.takussan.com/up",
+        "resultat": "000 20 — poignée de main TLS refusée, `TRAEFIK DEFAULT CERT` (TCK-523)",
+        "note": "L'API de production n'a jamais servi (D-04). Le nom pointe sur le serveur sans service derrière, jusqu'à F3 (TCK-517)."
       },
       "drivers": {
         "DB_CONNECTION": {
-          "valeur": "mysql",
-          "etat": "mesure",
-          "date": "2026-08-24",
-          "note": "⚠ C'est ce que `.env.prod` DÉCLARE, et c'est un ÉCART avec ADR-0020, pas un état acceptable. La production n'est toujours pas déployée (D-04) ; corriger cette valeur est un acte de déploiement et appartient à TCK-288. Le serveur, lui, porte PostgreSQL 17.11 depuis le 2026-08-24 — mais ni rôle ni base de production n'existent encore."
+          "valeur": "pgsql",
+          "etat": "prescrit",
+          "date": "2026-09-14",
+          "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus) à ces différences près — MAIL_MAILER=resend, REDIS_DB/REDIS_CACHE_DB 2/3, SCOUT_PREFIX prod_"
         },
         "CACHE_STORE": {
           "valeur": "redis",
-          "etat": "mesure",
-          "date": "2026-08-16"
+          "etat": "prescrit",
+          "date": "2026-09-14",
+          "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus) à ces différences près — MAIL_MAILER=resend, REDIS_DB/REDIS_CACHE_DB 2/3, SCOUT_PREFIX prod_"
         },
         "SESSION_DRIVER": {
           "valeur": "redis",
-          "etat": "mesure",
-          "date": "2026-08-16"
+          "etat": "prescrit",
+          "date": "2026-09-14",
+          "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus) à ces différences près — MAIL_MAILER=resend, REDIS_DB/REDIS_CACHE_DB 2/3, SCOUT_PREFIX prod_"
         },
         "QUEUE_CONNECTION": {
           "valeur": "database",
-          "etat": "mesure",
-          "date": "2026-08-16"
+          "etat": "prescrit",
+          "date": "2026-09-14",
+          "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus) à ces différences près — MAIL_MAILER=resend, REDIS_DB/REDIS_CACHE_DB 2/3, SCOUT_PREFIX prod_"
         },
         "MAIL_MAILER": {
           "valeur": "resend",
-          "etat": "mesure",
-          "date": "2026-08-16"
+          "etat": "prescrit",
+          "date": "2026-09-14",
+          "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus) à ces différences près — MAIL_MAILER=resend, REDIS_DB/REDIS_CACHE_DB 2/3, SCOUT_PREFIX prod_"
+        },
+        "SESSION_SECURE_COOKIE": {
+          "valeur": "true",
+          "etat": "prescrit",
+          "date": "2026-09-14",
+          "source": "plan d'ADR-0028, tâche F3, étape 1 : l'environnement de D1 (la préproduction ci-dessus) à ces différences près — MAIL_MAILER=resend, REDIS_DB/REDIS_CACHE_DB 2/3, SCOUT_PREFIX prod_"
         }
       }
     }
   },
   "manques": [
     {
-      "cle": "SESSION_SECURE_COOKIE",
-      "gravite": "reelle",
-      "constat": "ABSENTE de `.env.preview` ET de `.env.prod`. `config/session.php:172` la lit SANS DÉFAUT : `env('SESSION_SECURE_COOKIE')` rend `null`, qui est faux, et le cookie de session n'est donc PAS marqué `Secure`.",
-      "consequence": "Sur un déploiement HTTPS, un repli en clair suffit à faire émettre le cookie de session en clair. `docs/configuration.md` §5.7 le prescrit depuis toujours ; aucun `.env` livré ne l'applique.",
-      "corrige_par": "TCK-288 — le fichier est hors dépôt, aucune garde ne peut l'y écrire."
-    },
-    {
       "cle": "SESSION_SAME_SITE",
-      "gravite": "aucune",
-      "constat": "Également absente des deux fichiers — mais `config/session.php:202` la lit AVEC le défaut `'lax'`, exactement la valeur que §5.7 prescrit.",
-      "consequence": "Aucune. L'ardoise D-11 mettait cette clé et la précédente dans le même sac ; mesurées, une seule est un trou. *Deux clés absentes du même fichier n'ont pas le même coût : c'est le DÉFAUT du code qui décide, pas l'absence.*",
-      "corrige_par": null
+      "gravite": "faible",
+      "constat": "Absente de l'environnement de préproduction (relevé Dokploy du 2026-09-14). `config/session.php:202` la lit avec le défaut `lax` : le cookie de session est `SameSite=Lax`, ce qui convient au front sur un autre sous-domaine du même site.",
+      "consequence": "Aucune tant que le front et l'API restent sous `takussan.com`. À poser explicitement le jour où un client tiers appelle l'API avec le cookie (plan, F3)."
     }
   ],
   "_moteur_de_base": "ADR-0020 (2026-08-21) — PostgreSQL 17 sur tous les environnements, suite de tests comprise. `DB_CONNECTION` était DÉLIBÉRÉMENT absent de ce catalogue tant qu'aucune valeur n'avait été relevée sur une machine. **Il y entre le 2026-08-24, mesuré des deux côtés** : la préproduction tourne effectivement sur PostgreSQL 17.11 (base `takussan_preview`, `C|C|UTF8`, rôle sans CREATEDB, `pgvector` 0.8.6 disponible et non installé conformément à ADR-0020 §2) ; la production, elle, déclare toujours `mysql` et n'est toujours pas déployée. **La discipline ne change pas : ce fichier enregistre ce qui a été relevé, jamais ce qui est visé.** Inscrire `pgsql` du côté production avant qu'un serveur ne le serve referait la faute de `mariadb:11.4` — une configuration prise pour une mesure."

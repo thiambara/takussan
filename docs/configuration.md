@@ -444,7 +444,8 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:8002
 
   **Depuis ADR-0028**, Redis est un conteneur de `deploy/server/compose.data.yml`, une instance par
   projet. Qu'une pile d'API le joigne se vérifie au déploiement, dans le conteneur (plan d'ADR-0028,
-  tâches D et F) — jamais en lisant ce fichier ni `prod-drivers.json`, qui relèvent l'ancien serveur.
+  tâches D et F) — jamais en lisant ce fichier. `prod-drivers.json` est régénéré depuis Dokploy
+  depuis le 2026-09-14 (TCK-527) : il dit ce que l'environnement *déclare*, pas ce qui répond.
 - *(Optionnel)* Gotenberg ou navigateur headless si `LARAVEL_PDF_DRIVER` ∉ {`dompdf`, `cloudflare`}
 
 > **Le plus simple est de ne rien installer de tout cela** : `docker-compose.yml` à la racine sert
