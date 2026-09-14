@@ -7,7 +7,7 @@ family: technique
 estimate: S
 wave: 64
 created: 2026-09-13
-updated: 2026-09-13
+updated: 2026-09-14
 depends_on: [TCK-513]
 blocks: [TCK-515]
 spec_refs:
@@ -34,15 +34,22 @@ Décision : [ADR-0028](../../adr/0028-auto-hebergement-conteneurise-sur-le-vps.m
 
 ## Delta à produire
 
-- [ ] `docs/infra/hebergement.md` ; retrait de `premier-deploiement.md` et `deploy-preview.html`, liens réparés
-- [ ] `docs/infra/versions.{json,md}`, `docs/ardoise.md` (D-04, D-10), `CLAUDE.md`
-- [ ] retrait du marqueur `lien-mort-assumé` d'ADR-0028
+- [x] `docs/infra/hebergement.md` ; retrait de `premier-deploiement.md` et `deploy-preview.html`, liens réparés
+- [x] `docs/infra/versions.{json,md}`, `docs/ardoise.md` (D-04, D-10), `CLAUDE.md`
+- [x] retrait du marqueur `lien-mort-assumé` d'ADR-0028
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `check-doc-links.mjs` vert, sans le marqueur d'ADR-0028
-- [ ] AC2 — le `grep` de B6 ne rend que des lignes au passé ou en récit
-- [ ] AC3 — toutes les gardes et les deux générateurs verts
+- [x] AC1 — `check-doc-links.mjs` vert, sans le marqueur d'ADR-0028
+- [x] AC2 — le `grep` de B6 ne rend que des lignes au passé ou en récit
+- [x] AC3 — toutes les gardes et les deux générateurs verts
+
+## Reste sur dev
+
+Le delta est livré et ses trois critères tiennent (notes ci-dessous). Le ticket reste `doing` pour
+une seule raison : il dépend de TCK-513, qui ne passe `done` qu'une fois la chaîne d'images
+éprouvée sur le serveur réinstallé (plan, D3), et un ticket clos ne peut pas dépendre d'un ticket
+ouvert (règle n°2). Il passe `done` dans le même commit que TCK-513.
 
 ## Hors périmètre
 
