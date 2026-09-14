@@ -130,9 +130,10 @@ tâches D1 à D8.
 
 - D6, étapes 1 à 3, et AC3 : attendent le seau R2 (TCK-510, A5).
 - AC4 : tenu avec la seule préproduction Takussan ; à rejouer une fois CheckPrint Plus servi (D7).
-- Les courriels (porteur) : `resend/resend-php` à ajouter, ou Resend par SMTP ; et décider si la
-  préproduction envoie vraiment (le seed écrit des adresses `.sn` qui peuvent exister) ou passe en
-  `MAIL_MAILER=log`. Les `failed_jobs` de la préproduction se vident ensuite (`queue:flush`).
+- Les courriels : décidé par le porteur le 2026-09-14 — le SDK `resend/resend-php` pour la
+  production (branche `fix/sdk-resend`), `MAIL_MAILER=log` pour la préproduction (posé, relu dans
+  `api` et `worker` ; `failed_jobs` 36 → 0 par `queue:flush`). Reste : la fusion sur `dev`, puis
+  sa promotion.
 - D7 : le registre `ghcr.io` avec un jeton `read:packages` (porteur), puis déploiement, DNS,
   environnement GitHub, `ProductionSeeder`, mesures.
 - D8, étape 1 : la surveillance externe (compte UptimeRobot ou Better Stack, porteur).
