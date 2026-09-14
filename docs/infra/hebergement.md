@@ -11,8 +11,8 @@
 |---|---|---|---|
 | `preview.api.takussan.com` | Compose `takussan-api-preview`, service `api:8080` — A en DNS seul | `ghcr.io/thiambara/takussan-api:preview` | 2026-09-14 : `/up` → `200`, `X-Build-Sha` = `preview`, Let's Encrypt |
 | `preview.takussan.com` | Application `takussan-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/takussan-web:preview` | 2026-09-14 : `401` sans authentification, `200` avec (la racine rend `307` vers `/fr`) ; `cf-ray`, aucun `x-vercel-id` ; plafond 384 Mio |
-| `preview.api.checkprintplus.com` | Compose `cpp-api-preview`, service `api:8080` | `ghcr.io/thiambara/check-print-plus-api:preview` | déclaré, **non déployé** : attend le registre `ghcr.io` (jeton `read:packages`) |
-| `preview.checkprintplus.com` | Application `cpp-web-preview` — encore un CNAME Vercel | `ghcr.io/thiambara/check-print-plus-web:preview` | déclaré, **non déployé**, DNS non basculé |
+| `preview.api.checkprintplus.com` | Compose `cpp-api-preview`, service `api:8080` — A en DNS seul | `ghcr.io/thiambara/check-print-plus-api:preview` (privée) | 2026-09-14 : `/up` → `200`, `X-Build-Sha` = `c1744692…` (promotion #28 de check-print-plus), Let's Encrypt |
+| `preview.checkprintplus.com` | Application `cpp-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/check-print-plus-web:preview` (privée) | 2026-09-14 : `401` sans authentification et avec un mauvais mot de passe, `200` avec ; `server: cloudflare`, `cf-ray` ; plafond 256 Mio |
 | `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
 
 La production s'ajoute à ce tableau en phase F du plan. D'ici là, `www.takussan.com` reste servi par
@@ -73,10 +73,14 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Port 3000 | fermé à tous : `000` depuis le poste, `200` depuis le serveur ; `:8080` non publié | 2026-09-14 | plan, tâche A3, étape 6 |
 | Zones Cloudflare | `takussan.com`, `checkprintplus.com` : SSL Full (strict), *Always Use HTTPS* désactivé | 2026-09-14 | `GET /zones/<id>/settings/ssl` |
 | Nettoyage Docker quotidien | actif | 2026-09-14 | `settings.getWebServerSettings` → `enableDockerCleanup` |
-| Budget au repos (préproduction Takussan seule, après seed) | 5 697 Mo disponibles sur 7 941 ; `st` 0 ; disque 24 % ; Dokploy seul : 867 Mo | 2026-09-14 | plan, tâche D6, étape 4 ; détail par conteneur au § Budget du plan |
+| Budget au repos | Takussan seule, après seed (02:04 Z) : 5 697 Mo disponibles sur 7 941, `st` 0, disque 24 %. Les deux préproductions servies (11:03 Z) : **5 349 Mo**, `st` 0, disque 25 %. Dokploy seul : 867 puis 1 013 Mo, **sans plafond** | 2026-09-14 | plan, tâche D6, étape 4 ; détail par conteneur au § Budget du plan |
 | Médias de la préproduction Takussan | 948 Mo dans le volume `takussan-api-preview-4iza80_storage` | 2026-09-14 | `du -sh /var/lib/docker/volumes/<projet>_storage/_data` |
-| Sauvegardes planifiées | *non mesuré* — attend le seau R2 (A5) | | onglet Backups de chaque service Database |
-| Sauvegarde de la configuration de Dokploy | *non mesuré* — la version la propose (`backup.manualBackupWebServer`) ; attend R2 | | Settings → Backups |
+| Destination des sauvegardes | seau R2 `vps-sauvegardes` (Cloudflare, région `auto`), jeton limité au seau : liste `200`, liste des seaux `403` ; *Test Connection* réussi | 2026-09-14 | `destination.testConnection` |
+| Sauvegardes planifiées | `takussan_preview` `0 3 * * *`, 14 exemplaires ; `checkprintplus_preview` `30 3 * * *`, 14 ; volume `takussan-api-preview-4iza80_storage` `0 4 * * *`, 7. Une manuelle de chaque, **lue dans R2** : 1 729 580 o, 27 683 o (après `ProductionSeeder`), 945 797 120 o | 2026-09-14 | liste du seau (ci-dessous), pas la liste de Dokploy |
+| Sauvegarde de la configuration de Dokploy | `web-server`, `30 4 * * *`, 7 exemplaires ; une manuelle lue dans R2 : `…/dokploy/webserver-backup-<date>.zip`, 94 409 314 o | 2026-09-14 | `backup.manualBackupWebServer` |
+| Clés des objets dans R2 | Dokploy fait **précéder** le préfixe déclaré du nom interne du service : `serveur-postgres-egr6ii/postgres/takussan_preview/<date>.sql.gz`, `serveur-mysql-vsqugl/mysql/checkprintplus_preview/…`, `takussan-api-preview-4iza80_api/volumes/takussan-preview/…tar`, `backup-parse-multi-byte-card-vlwhry/dokploy/…zip`. Une liste filtrée sur le seul préfixe déclaré ne trouve **rien** | 2026-09-14 | `GET …/vps-sauvegardes?list-type=2` (SigV4) |
+| Restauration à blanc | PostgreSQL : diff des comptes **vide**, 92 tables, 86 927 lignes (préproduction arrêtée) ; volume de médias : 17 629 fichiers, **même** `sha256` | 2026-09-14 | plan, tâche D6, étapes 2 et 3 ; ticket TCK-515 |
+| Registre `ghcr.io` | compte `thiambara`, jeton **classique** `read:packages` ; rattaché à `cpp-web-preview`. ⚠ `registry.create` ne fait **pas** de `docker login` sur le serveur, et un Compose n'a pas de champ de registre : `docker compose pull` de l'API privée restait `unauthorized`. `docker login ghcr.io` fait à la main sur le serveur (jeton par l'entrée standard, `/root/.docker/config.json` en `600`) — **à refaire à chaque rotation du jeton**, en plus de Dokploy | 2026-09-14 | `registry.testRegistry` ; `docker pull ghcr.io/thiambara/check-print-plus-api:preview` → code `0` |
 
 Projets Dokploy : **Serveur** (Compose `donnees`, `postgres`, `mysql`), **Takussan** (Compose
 `takussan-api-preview`, Application `takussan-web-preview`) et **CheckPrint Plus** (Compose
@@ -163,8 +167,8 @@ Absentes de l'export, donc aux défauts de `config/` : `LICENSE_DESKTOP_SECRET`,
 de bureau ne vérifient rien d'utile en préproduction.
 
 **`cpp-web-preview`** (Application) : image **privée**, tirée par le registre `ghcr.io` ; une
-authentification basique (`CPP_PREVIEW_BASIC_AUTH` du fichier de transit, futur secret
-`PREVIEW_BASIC_AUTH` de l'environnement GitHub `preview` de check-print-plus).
+authentification basique, dont `utilisateur:motdepasse` est aussi le secret `PREVIEW_BASIC_AUTH` de
+l'environnement GitHub `preview` de check-print-plus (posé le 2026-09-14, longueur vérifiée).
 
 ## Runbook
 
@@ -203,8 +207,20 @@ docker compose -p "$(basename "$(dirname "$(dirname "$(dirname "$PWD")")")")" -f
 Le chemin et le nom de projet Compose sont ceux relevés en D4 ; si Dokploy les range autrement,
 c'est le relevé qui fait foi, et cette commande se corrige ici.
 
-**Restaurer une base** : Dokploy → service Database → Backups → *Restore*, depuis R2. La procédure
-a été jouée à blanc en D6 ; ses comptes de lignes sont dans le ticket D.
+**Restaurer une base** : Dokploy → service Database → Backups → *Restore*, depuis R2. La restauration
+à blanc (plan, tâche D6, étape 2) a été jouée **hors** Dokploy, sur le poste, le 2026-09-14 ; ses
+comptes sont dans TCK-515. Deux pièges payés ce jour-là :
+
+- la sauvegarde PostgreSQL s'appelle `.sql.gz` mais contient une archive **custom**
+  (`pg_dump -Fc | gzip`) : `gunzip | psql` ne charge rien, et ne l'écrit pas. `gunzip`, puis
+  `pg_restore --no-owner --no-acl`. Celle de MySQL est bien du SQL compressé ;
+- une préproduction « au repos » écrit (`jobs`, `scheduled_task_runs`) : pour comparer, on l'arrête
+  (hors base) avant la sauvegarde, et on la redémarre après le comptage.
+
+**Restaurer le volume de médias** : l'archive (`tar` du contenu du volume, entrées `./…`) se lit dans
+R2 depuis le serveur et s'extrait dans un volume **neuf**, jamais par-dessus le volume servi ; puis
+`sha256sum` des deux côtés (plan, tâche D6, étape 3). L'API de Dokploy v0.30.6 n'expose aucune route
+de restauration.
 
 **Reconstruire le serveur** : plan, tâches A2 → A5, puis D1 (déclarer les services depuis ce relevé),
 puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans le panneau Contabo :

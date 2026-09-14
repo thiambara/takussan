@@ -1,7 +1,7 @@
 ---
 id: TCK-510
 title: "Serveur — le VPS est réinstallé à blanc et sert Dokploy, ses bases et leurs sauvegardes"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: M
@@ -46,7 +46,7 @@ Redis, Meilisearch, six unités systemd de files. `/var/www/takussan` n'a jamais
 - [x] A2 — `deploy/server/bootstrap.sh`, réinstallation, mesures
 - [x] A3 — Dokploy, 2FA, domaine `deploy.takussan.com`, Cloudflare Full (strict), port 3000 fermé
 - [x] A4 — `deploy/server/compose.data.yml` (Meilisearch, deux Redis), services PostgreSQL et MySQL
-- [ ] A5 — sauvegardes des bases vers R2, une sauvegarde manuelle relue
+- [x] A5 — sauvegardes des bases vers R2, une sauvegarde manuelle relue
 
 ## Critères d'acceptation
 
@@ -54,7 +54,7 @@ Redis, Meilisearch, six unités systemd de files. `/var/www/takussan` n'a jamais
 - [x] AC2 — `curl -m 5 http://178.18.247.62:3000` échoue depuis l'extérieur ; `https://deploy.takussan.com` répond
 - [x] AC3 — le rôle `takussan_preview` ne peut se connecter qu'à sa base (un rôle sonde est refusé), collation `C`, extension `vector` disponible
 - [x] AC4 — la clé Meilisearch de préproduction reçoit `403` hors de `preview_*`
-- [ ] AC5 — une sauvegarde de chaque base est lue dans R2
+- [x] AC5 — une sauvegarde de chaque base est lue dans R2
 
 ## Hors périmètre
 
@@ -103,7 +103,13 @@ Redis, Meilisearch, six unités systemd de files. `/var/www/takussan` n'a jamais
 - AC4 — clé `preview_*` : `prod_sonde` → `403`, `preview_sonde` → `202` (index supprimé ensuite) ;
   sans clé → `401`.
 
-## Reste
-
-- A5 et AC5 : le seau R2 et son jeton sont à créer par le porteur (Cloudflare → R2). Tant qu'ils
-  manquent, aucune base n'est sauvegardée hors du serveur.
+- A5 — seau R2 `vps-sauvegardes` et jeton limité au seau, créés par le porteur ; vérifiés depuis le
+  poste : liste du seau `200`, liste des seaux `403`, écriture puis suppression d'un objet sonde.
+  Destination Dokploy (fournisseur `Cloudflare`, région `auto`) : *Test Connection* réussi.
+  Sauvegardes planifiées : `takussan_preview` `0 3 * * *` et `checkprintplus_preview` `30 3 * * *`
+  (14 exemplaires chacune), configuration de Dokploy (`web-server`) `30 4 * * *` (7).
+- AC5 — une manuelle de chaque, **lue dans la liste du seau**, pas dans Dokploy : PostgreSQL
+  1 729 515 o, MySQL 457 o (base encore vide), Dokploy 94 409 314 o. ⚠ Dokploy fait précéder le
+  préfixe déclaré du nom interne du service (`serveur-postgres-egr6ii/postgres/takussan_preview/…`) :
+  une liste filtrée sur le seul préfixe ne trouve rien. Le **contenu** est prouvé par la
+  restauration à blanc (TCK-515, D6).

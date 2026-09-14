@@ -72,20 +72,27 @@ Redis 8 · Meilisearch v1.16 · GHCR · Cloudflare (DNS, proxy, R2).
 ci-dessous sont des **plafonds** posés par conteneur ; la colonne « attendu » est une estimation
 **à remplacer par la mesure** de la tâche D6 (`docker stats --no-stream`).
 
-| Conteneur | Plafond | Attendu au repos | Mesuré le 2026-09-14 (D6, repos après seed) | Instances à terme |
-|---|---|---|---|---|
-| Système, Docker, Dokploy (et sa base), Traefik | — | ~900 Mo | Dokploy 867 + sa base 36 + Traefik 27 = **930 Mo**, hors système | 1 |
-| PostgreSQL 17 (`shared_buffers=256MB`) | 1 Go | ~350 Mo | 86 Mo | 1 |
-| MySQL 8.4 (`innodb_buffer_pool_size=256M`) | 640 Mo | ~450 Mo | 197 Mo | 1 |
-| Meilisearch | 768 Mo | ~150 Mo | 118 Mo (817 biens indexés) | 1 |
-| Redis Takussan / Redis CheckPrint Plus | 192 Mo / 96 Mo | ~15 Mo chacun | 6 / 5 Mo | 1 + 1 |
-| Takussan `api` / `worker` / `worker-media` / `scheduler` | 384 / 256 / 384 / 192 Mo | ~90 / 70 / 70 / 60 Mo | 72 / 58 / 46 / 45 Mo (préproduction) | × 2 environnements |
-| CheckPrint Plus `api` / `worker` / `scheduler` | 256 / 192 / 128 Mo | ~80 / 60 / 50 Mo | *non mesuré* — non déployé (D7) | × 2 |
-| Front Takussan / front CheckPrint Plus | 384 / 256 Mo | ~120 / 90 Mo | 95 Mo / *non déployé* | × 2 |
+| Conteneur | Plafond | Attendu au repos | Mesuré le 2026-09-14, 02:04 Z (Takussan seule, après seed) | Mesuré le 2026-09-14, 11:03 Z (les deux préproductions, AC4) | Instances à terme |
+|---|---|---|---|---|---|
+| Système, Docker, Dokploy (et sa base), Traefik | — | ~900 Mo | Dokploy 867 + sa base 36 + Traefik 27 = **930 Mo**, hors système | Dokploy 1 013 + sa base 72 + Traefik 33 = **1 118 Mo** | 1 |
+| PostgreSQL 17 (`shared_buffers=256MB`) | 1 Go | ~350 Mo | 86 Mo | 92 Mo | 1 |
+| MySQL 8.4 (`innodb_buffer_pool_size=256M`) | 640 Mo | ~450 Mo | 197 Mo | 248 Mo | 1 |
+| Meilisearch | 768 Mo | ~150 Mo | 118 Mo (817 biens indexés) | 115 Mo | 1 |
+| Redis Takussan / Redis CheckPrint Plus | 192 Mo / 96 Mo | ~15 Mo chacun | 6 / 5 Mo | 6 / 6 Mo | 1 + 1 |
+| Takussan `api` / `worker` / `worker-media` / `scheduler` | 384 / 256 / 384 / 192 Mo | ~90 / 70 / 70 / 60 Mo | 72 / 58 / 46 / 45 Mo | 54 / 47 / 45 / 43 Mo | × 2 environnements |
+| CheckPrint Plus `api` / `worker` / `scheduler` | 256 / 192 / 128 Mo | ~80 / 60 / 50 Mo | *non déployé* | 54 / 34 / 35 Mo | × 2 |
+| Front Takussan / front CheckPrint Plus | 384 / 256 Mo | ~120 / 90 Mo | 95 Mo / *non déployé* | 57 / 57 Mo | × 2 |
 
 Au total, le 2026-09-14 à 02:04 Z : **5 697 Mo disponibles** sur 7 941, `st` à `0` sur les douze
 relevés de `vmstat 5 12`, disque à **24 %** (17 Go sur 72), charge `0,50 / 0,94 / 1,08` sur 4 vCPU,
 swap intact. Les trois seuils tiennent, avec un seul des quatre environnements servi.
+
+Avec les **deux** préproductions servies, le même jour à 11:03 Z (AC4, deux minutes après un
+déploiement) : **5 349 Mo disponibles**, `st` à `0` sur les douze relevés, disque à **25 %** (18 Go
+sur 72), charge `0,26 / 0,37 / 0,44`, swap intact. Les trois seuils tiennent avec deux environnements
+sur quatre. ⚠ Le conteneur le plus lourd de la machine est **Dokploy lui-même** (867 → 1 013 Mo en neuf
+heures), et c'est le seul sans plafond (`docker stats` : la mémoire de la machine) : à surveiller
+avant F.
 
 **Seuils d'alerte**, relevés en D6 puis surveillés :
 
@@ -216,6 +223,15 @@ les points suivants, chacun mesuré. Le dépôt fait foi.
 | D1, étape 2 — `GOOGLE_REDIRECT_URI` | reprise de l'export | sa valeur cite `${FRONTEND_URL}`, défini **plus bas** : `docker compose run` avertit `FRONTEND_URL variable is not set` (la valeur des services déployés était juste) | écrite en clair, comme pour CheckPrint Plus ; il ne reste que deux références, à `APP_NAME`, défini avant elles |
 | D7, étape 1 — clé SSH | *Settings → SSH Keys* | `sshKey.generate` puis `sshKey.create` par l'API ; le clone est prouvé par un déploiement qui échoue ensuite au `pull` (`unauthorized`, sans registre) | la clé `github-check-print-plus`, deploy key `dokploy` en lecture seule |
 | D8, étape 2 — secrets | — | le dépôt check-print-plus porte aussi une *deploy key* `Contabo` de l'ancien serveur (lecture seule, dernière utilisation le 2026-06-15) | retirée le 2026-09-14 (`gh repo deploy-key delete 145777232`), comme les secrets de la même chaîne ; relu : seule la clé `dokploy` reste |
+| A5, étape 3 — clés dans R2 | un objet « sous le préfixe » `postgres/takussan_preview/` | Dokploy fait **précéder** le préfixe déclaré du nom interne du service : `serveur-postgres-egr6ii/postgres/…`, `takussan-api-preview-4iza80_api/volumes/…`, `backup-parse-multi-byte-card-vlwhry/dokploy/…`. Une liste filtrée sur le préfixe déclaré ne rend rien | liste complète du seau ; les clés sont au relevé |
+| A5, étape 4 — configuration de Dokploy | *Settings → Backups*, si la version le propose | la v0.30.6 le propose (`backup.create`, `databaseType: web-server`) ; une manuelle : zip de 94 Mo lu dans R2 | activée : `dokploy/`, `30 4 * * *`, 7 exemplaires |
+| D6, étape 2 — format de la sauvegarde | `gzip -t` réussi → SQL en clair → `psql` | Dokploy écrit `pg_dump -Fc \| gzip` : un `.sql.gz` qui contient une archive custom (`PGDMP`). `psql` n'en charge **rien**, sans ligne `ERROR` — premier essai : `copie 0` table | le format se lit après décompression ; étape corrigée (`pg_restore --no-owner --no-acl`) |
+| D6, étape 2 — préproduction au repos | « aucune écriture n'a lieu » entre la sauvegarde et le comptage | second essai : 90 tables sur 92 égales ; `jobs` 3 → 0 et `scheduled_task_runs` 471 → 464, écrites après la sauvegarde (le planificateur tourne chaque minute) | troisième essai, préproduction arrêtée : diff **vide**, 92 tables, 86 927 lignes. L'étape dit désormais « arrêter d'abord » |
+| D6, étape 3 — restauration du volume | « depuis Dokploy » | l'OpenAPI de la v0.30.6 n'expose aucune route de restauration | l'archive lue dans R2 depuis le serveur, extraite dans un volume neuf : 17 629 fichiers, même `sha256` ; volume supprimé ensuite |
+| D7, étape 2 — registre | le registre de *Settings → Registry* suffit | `registry.create` ne fait pas de `docker login` sur le serveur, et un Compose n'a pas de champ de registre : le `pull` de l'API privée restait `unauthorized` | `docker login ghcr.io --password-stdin` sur le serveur, `config.json` en `600` ; au relevé, à refaire à chaque rotation du jeton |
+| D7, étape 5 — IP par les compteurs | un passage de `reste` par client | une sonde perdue (coupure réseau du poste) rend `poste= serveur=59 poste-usurpant=59` : la valeur vide décale la lecture, et `59` se lit comme un en-tête cru | fenêtre rejouée tant qu'une valeur manque, deux sondes du poste : `59 puis 58 ; 59 ; 57` |
+| D7, étape 5 — restauration MySQL | `diff` vide | deux comptages **vides** sont égaux : un premier essai qui n'avait rien compté (guillemets, MySQL local pas prêt) affichait `✓` | `diff` exigé sur une liste non vide : 51 tables, 719 lignes |
+| D7, étape 4 — `ProductionSeeder` | « un nombre de plans non nul » | la migration `seed_free_plan` insère déjà un plan : `plans` vaut `1` **avant** le seeder, et le critère serait coché sans lui | comptes avant et après : `plans` 1 → 4, `roles` 0 → 2, `permissions` 0 → 3, `banks` 0 → 537, `templates` 0 → 89 ; attendu corrigé |
 
 ## Piste A — le serveur
 
@@ -3688,15 +3704,18 @@ préfixe `volumes/takussan-preview/`, `0 4 * * *`, 7 exemplaires. Lancer une sau
 
 - [ ] **Étape 2 : restaurer PostgreSQL à blanc, et compter**
 
-Lancer une sauvegarde manuelle de `takussan_preview` (A5), attendre qu'elle apparaisse dans R2, la
-télécharger depuis le tableau de bord R2 sur le poste, puis :
+**Arrêter d'abord la préproduction** (hors base) : `api`, workers et planificateur écrivent
+(`jobs`, `scheduled_task_runs`) entre la sauvegarde et le comptage — mesuré le 2026-09-14, voir les
+écarts. Puis lancer une sauvegarde manuelle de `takussan_preview` (A5), attendre qu'elle apparaisse
+dans R2, la télécharger sur le poste, puis :
 
 ```bash
 docker run -d --name restauration -e POSTGRES_PASSWORD=x pgvector/pgvector:pg17 && sleep 5
-docker cp <fichier téléchargé> restauration:/tmp/sauvegarde
+docker cp <fichier téléchargé> restauration:/tmp/sauvegarde.gz
 docker exec restauration createdb -U postgres --encoding=UTF8 --locale=C -T template0 r
-# Le format se lit dans le fichier, pas dans son nom : compressé → SQL en clair, sinon archive pg_dump.
-docker exec restauration sh -c 'if gzip -t /tmp/sauvegarde 2>/dev/null; then gunzip -c /tmp/sauvegarde | psql -q -U postgres -d r; else pg_restore -U postgres -d r --no-owner /tmp/sauvegarde; fi'
+# Le format se lit APRÈS décompression : Dokploy écrit `pg_dump -Fc | gzip`, un `.sql.gz` qui contient
+# une archive custom (`PGDMP`). `gunzip | psql` n'en charge RIEN, sans ligne ERROR (mesuré : 0 table).
+docker exec restauration sh -c 'gunzip -c /tmp/sauvegarde.gz > /tmp/s; if [ "$(head -c5 /tmp/s)" = PGDMP ]; then pg_restore -U postgres -d r --no-owner --no-acl /tmp/s; else psql -q -U postgres -d r < /tmp/s; fi'
 COMPTE="SELECT table_name, (xpath('/row/c/text()', query_to_xml(format('SELECT count(*) AS c FROM %I', table_name), false, true, '')))[1]::text AS n FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY 1"
 docker exec restauration psql -U postgres -d r -At -c "$COMPTE" > /tmp/copie.txt
 ssh root@178.18.247.62 "docker exec \$(docker ps -q -f ancestor=pgvector/pgvector:pg17 | head -1) psql -U pgadmin -d takussan_preview -At -c \"$COMPTE\"" > /tmp/original.txt
@@ -3711,7 +3730,9 @@ préproduction arrêtée. **Ce diff vide est la condition de la mise en producti
 - [ ] **Étape 3 : restaurer le volume de médias à blanc**
 
 Depuis Dokploy, restaurer la dernière sauvegarde du volume vers un volume **neuf**
-`restauration_storage`, puis :
+`restauration_storage` — ou, comme le 2026-09-14 (l'API de la v0.30.6 n'a pas de route de
+restauration), lire l'archive dans R2 **depuis le serveur** et l'extraire : `docker run --rm -v
+restauration_storage:/v -v <archive>.tar:/b.tar:ro alpine tar -xf /b.tar -C /v` (entrées `./…`). Puis :
 
 ```bash
 ssh root@178.18.247.62
@@ -3776,7 +3797,9 @@ docker exec <projet>-api-1 php artisan db:seed --class=ProductionSeeder --force
 docker exec <projet>-api-1 php artisan tinker --execute 'echo DB::table("plans")->count();'
 ```
 
-Expected : un nombre de plans non nul.
+Expected : **plus** de plans qu'avant le seeder, et des `roles`, `banks` et `templates` non vides.
+⚠ « Un nombre de plans non nul » ne suffit pas : la migration `seed_free_plan` en insère déjà un, et
+ce critère serait coché sans que le seeder ait tourné (relevé le 2026-09-14 : 1 → 4).
 
 - [ ] **Étape 5 : les mesures de D5 et D6, pour CheckPrint Plus**
 
