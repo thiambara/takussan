@@ -121,7 +121,9 @@ tâches D1 à D8.
   manque le registre `ghcr.io`. Compose `cpp-api-preview` (56 clés) et Application `cpp-web-preview`
   déclarés, non déployés ; DNS non basculé.
 - D8, étape 2 — `CONTABO_HOST`, `CONTABO_SSH_KEY`, `CONTABO_USER`, `ENV_FILE`, `ENV_FILE_PREVIEW`,
-  `REPO_URL` supprimés des deux dépôts ; relu : aucun secret au niveau du dépôt.
+  `REPO_URL` supprimés des deux dépôts ; relu : aucun secret au niveau du dépôt. La *deploy key*
+  `Contabo` de check-print-plus (lecture seule, dernière utilisation le 2026-06-15) retirée aussi ;
+  seule la clé `dokploy` reste.
 - AC1 — tenu pour Takussan (ci-dessus) ; attend CheckPrint Plus.
 
 ## Reste
@@ -133,5 +135,4 @@ tâches D1 à D8.
   `MAIL_MAILER=log`. Les `failed_jobs` de la préproduction se vident ensuite (`queue:flush`).
 - D7 : le registre `ghcr.io` avec un jeton `read:packages` (porteur), puis déploiement, DNS,
   environnement GitHub, `ProductionSeeder`, mesures.
-- D8, étape 1 : la surveillance externe (compte UptimeRobot ou Better Stack, porteur) ; la *deploy
-  key* `Contabo` de l'ancien serveur, encore posée sur `thiambara/check-print-plus`.
+- D8, étape 1 : la surveillance externe (compte UptimeRobot ou Better Stack, porteur).
