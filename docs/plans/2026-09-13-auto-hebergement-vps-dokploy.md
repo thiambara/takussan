@@ -94,7 +94,7 @@ sur quatre. ⚠ Le conteneur le plus lourd de la machine est **Dokploy lui-même
 heures), et c'est le seul sans plafond (`docker stats` : la mémoire de la machine) : à surveiller
 avant F.
 
-**Seuils d'alerte**, relevés en D6 puis surveillés :
+**Seuils d'alerte**, relevés en D6 puis surveillés — par `deploy/server/seuils.sh` et `seuils.timer`, une alerte Telegram par franchissement (TCK-519) :
 
 | Mesure | Commande | Seuil |
 |---|---|---|

@@ -117,4 +117,35 @@ systemctl daemon-reload
 systemctl enable fermer-port-3000
 systemctl restart fermer-port-3000
 
+# ── 7. Seuils du budget, toutes les cinq minutes (TCK-519) ───────────────────────────────
+# Le plan fixe trois seuils (mémoire ≥ 1 500 Mo, disque < 75 %, st < 10) et « Server Threshold »
+# n'existe pas en Dokploy auto-hébergé. Les unités attendent /usr/local/sbin/seuils — le script
+# deploy/server/seuils.sh du dépôt, copié là par le runbook — et /etc/default/seuils (secrets
+# Telegram, mode 600). Tant que le script manque, le timer ne fait rien (ConditionPathExists).
+cat > /etc/systemd/system/seuils.service <<'UNIT'
+[Unit]
+Description=Seuils du budget de la machine (TCK-519)
+ConditionPathExists=/usr/local/sbin/seuils
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/seuils
+UNIT
+cat > /etc/systemd/system/seuils.timer <<'UNIT'
+[Unit]
+Description=Seuils du budget, toutes les cinq minutes (TCK-519)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now seuils.timer
+[ -x /usr/local/sbin/seuils ] || echo "⚠ /usr/local/sbin/seuils absent : copier deploy/server/seuils.sh (runbook), le timer attend."
+
 echo "✓ serveur préparé. Mesurer maintenant depuis le POSTE (plan, tâche A2, étape 4)."

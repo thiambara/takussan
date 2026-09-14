@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 31 |
-| 🚧 Doing | 1 |
+| 📋 Todo | 30 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 442 |
@@ -55,7 +55,6 @@
 - [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
-- [TCK-519](tickets/TCK-519-seuils-du-budget-surveilles.md) — Les seuils du budget de la machine déclenchent une alerte — mémoire, disque, vol de CPU `S · P0 · technique`
 - [TCK-520](tickets/TCK-520-plafond-memoire-du-front-mesure.md) — Le plafond mémoire des fronts se décide sur une mesure sous charge d'images, pas au repos `S · P1 · technique`
 - [TCK-521](tickets/TCK-521-images-construites-en-pr-shellcheck-hadolint.md) — CI — les images se construisent en PR, sans push ; shellcheck et hadolint gardent le shell et les Dockerfile `S · P1 · technique`
 - [TCK-522](tickets/TCK-522-release-en-echec-lancienne-version-sert.md) — Ablation — un `release` qui échoue laisse l'ancienne version servir, prouvé par la pile de fumée `S · P0 · technique`
@@ -68,6 +67,7 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
+- [TCK-519](tickets/TCK-519-seuils-du-budget-surveilles.md) — Les seuils du budget de la machine déclenchent une alerte — mémoire, disque, vol de CPU `S · P0 · technique`
 
 ## 👀 Review
 
