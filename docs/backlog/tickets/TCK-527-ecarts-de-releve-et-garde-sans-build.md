@@ -1,7 +1,7 @@
 ---
 id: TCK-527
 title: "Écarts de relevé — courriel ACME, 2FA de Dokploy, `prod-drivers.json` périmé ; et une garde qui refuse tout `build:` dans les Compose"
-status: todo
+status: doing
 phase: P2
 family: technique
 estimate: S

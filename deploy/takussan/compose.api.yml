@@ -40,6 +40,7 @@ services:
 
   api:
     <<: [*api, *apres-release]
+    build: .   # ABLATION TCK-527 — retirée au commit suivant
     mem_limit: 384m
     healthcheck:
       test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/up') === false ? 1 : 0);"]

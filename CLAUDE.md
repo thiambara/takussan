@@ -243,7 +243,9 @@ absente des DEUX fichiers est en parité parfaite** (TCK-296).
 > [`docs/infra/prod-drivers.json`](docs/infra/prod-drivers.json), et NULLE PART AILLEURS** — il
 > était recopié dans trois documents qui se contredisaient, dont un qui se contredisait lui-même.
 > `CACHE_STORE=redis` n'est plus un écart avec la production depuis TCK-300.
-> [Détail](docs/journal-des-corrections.md#j-05).
+> [Détail](docs/journal-des-corrections.md#j-05). **Depuis le 2026-09-14, il est régénéré depuis
+> Dokploy** (ADR-0028 : l'environnement est un onglet, plus un `.env` sur un serveur — TCK-527) ;
+> les *clés* de chaque environnement sont dans `docs/infra/hebergement.md`.
 
 `./dev.sh` ne force pas docker : il détecte si le `.env` vise les conteneurs du dépôt ou des services
 natifs, **sonde ce que le `.env` déclare**, et nomme ce qui ne répond pas. Un service déclaré et
