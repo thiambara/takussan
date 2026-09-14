@@ -215,7 +215,7 @@ les points suivants, chacun mesuré. Le dépôt fait foi.
 | D6, étape 4 — plafond du front | 384 Mo (§ Budget) | aucune étape de D1 ne le pose : l'Application `takussan-web-preview` tournait **sans plafond** (`docker stats` : 7,755 GiB, la machine) | `application.update` `memoryLimit` en **octets** (unité confirmée sur PostgreSQL, `1073741824`) : 384 Mio pour le front Takussan, 256 Mio pour celui de CheckPrint Plus ; relu `51 MiB / 384 MiB` |
 | D1, étape 2 — `GOOGLE_REDIRECT_URI` | reprise de l'export | sa valeur cite `${FRONTEND_URL}`, défini **plus bas** : `docker compose run` avertit `FRONTEND_URL variable is not set` (la valeur des services déployés était juste) | écrite en clair, comme pour CheckPrint Plus ; il ne reste que deux références, à `APP_NAME`, défini avant elles |
 | D7, étape 1 — clé SSH | *Settings → SSH Keys* | `sshKey.generate` puis `sshKey.create` par l'API ; le clone est prouvé par un déploiement qui échoue ensuite au `pull` (`unauthorized`, sans registre) | la clé `github-check-print-plus`, deploy key `dokploy` en lecture seule |
-| D8, étape 2 — secrets | — | le dépôt check-print-plus porte aussi une *deploy key* `Contabo` de l'ancien serveur | laissée au porteur : le plan ne la nommait pas |
+| D8, étape 2 — secrets | — | le dépôt check-print-plus porte aussi une *deploy key* `Contabo` de l'ancien serveur (lecture seule, dernière utilisation le 2026-06-15) | retirée le 2026-09-14 (`gh repo deploy-key delete 145777232`), comme les secrets de la même chaîne ; relu : seule la clé `dokploy` reste |
 
 ## Piste A — le serveur
 
