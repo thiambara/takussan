@@ -611,3 +611,25 @@ valeur par défaut ne contient que `localhost` et `**.localhost`. `next.config.t
   `"[::1]"`. Écrit `'::1'`, l'entrée ne matche rien — mesuré.
 - **Restreint à la boucle locale, délibérément.** Ni IP de LAN, ni joker : ces ressources n'ont pas
   à être atteignables depuis le réseau.
+
+### <a id="j-44"></a>J-44 — `api.takussan.com` : le 404 est devenu une panne TLS, et personne ne l'a réécrit
+
+Le paragraphe « Workflow git » de `CLAUDE.md` disait, mesure du 2026-08-20 à l'appui, que
+`https://api.takussan.com/up` rend **404** — l'ancien serveur, nginx + php-fpm, servait la
+préproduction et rien sous ce nom. Le 2026-09-13, ADR-0028 a **réinstallé la machine** : Dokploy,
+Traefik, plus aucun nginx. L'enregistrement DNS n'a pas bougé, et personne n'a re-mesuré le nom :
+tous les documents ont continué de dire 404.
+
+Re-mesuré le 2026-09-14, 22:42 Z (TCK-523) : Traefik, sans routeur pour ce nom, présente son
+certificat par défaut, `CN=TRAEFIK DEFAULT CERT`, auto-signé et réémis à chaque redémarrage. Un
+client qui vérifie le certificat — le navigateur de tout visiteur de `www.takussan.com` — **n'obtient
+même plus de réponse HTTP** : `curl` rend `000` avec `ssl_verify_result` 20 ; seul `-k` voit encore le
+`404`. Le mode de panne a changé, l'effet pour l'utilisateur non (TCK-332 reste entier).
+
+Ce que ça enseigne, au-delà du nom : **une mesure datée reste vraie de sa date, et devient fausse
+sans prévenir dès que la chose mesurée change de nature.** Le paragraphe portait sa date, comme
+J-06 l'exigeait ; il ne portait pas la liste de ce qui l'invaliderait. Un changement de serveur
+invalide *toute* mesure prise sur le serveur — c'est désormais écrit dans le paragraphe, et le
+relevé d'hébergement porte le nom, sa commande et sa date, pour qu'on relise *là* avant de croire
+ici. Le nom n'entre dans `certificats.sh` qu'en phase F, dès que son certificat existe : avant, la
+garde rougirait chaque jour pour un état connu, et un rouge attendu est un rouge qu'on cesse de lire.

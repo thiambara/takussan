@@ -4096,6 +4096,10 @@ bascule.**
 2. Attendre la ligne `✓ https://api.takussan.com/up sert <commit>` dans le journal.
 3. Chez Cloudflare, `www.takussan.com` : le CNAME Vercel devient **A `178.18.247.62`, proxifié**.
 4. Attendre `✓ https://www.takussan.com/robots.txt sert <commit>`.
+5. `api.takussan.com` puis `www.takussan.com` rejoignent `NOMS` de `deploy/server/certificats.sh`
+   **dès que leur certificat existe** (les deux lignes `✓` ci-dessus), jamais avant : sans routeur,
+   Traefik présente `TRAEFIK DEFAULT CERT` et le workflow rougirait chaque jour (TCK-523, relevé du
+   2026-09-14 dans hebergement.md).
 
 Expected : le job `deploy` vert. Pendant la minute où Traefik obtient le certificat, Cloudflare peut
 rendre `526`. **Retour arrière** : si la seconde ligne `✓` ne vient pas, remettre le CNAME relevé en
