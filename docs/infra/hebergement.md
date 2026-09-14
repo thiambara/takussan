@@ -157,8 +157,11 @@ même `composer.lock`, n'en envoyait pas davantage. Décision du porteur, le mê
 en préproduction compris. Les clés vivent ici, les drivers là-bas, les valeurs secrètes nulle part.
 
 **`takussan-web-preview`** (Application) : aucune variable, tout est inliné dans l'image ; une
-authentification basique, dont `utilisateur:motdepasse` est aussi le secret `PREVIEW_BASIC_AUTH` de
-l'environnement GitHub `preview`.
+authentification basique (Traefik, onglet *Security* de l'Application) à **trois comptes** depuis le
+2026-09-14 (TCK-525) : ceux du porteur, et le compte **`ci`**, dont `ci:motdepasse` est le secret
+`PREVIEW_BASIC_AUTH` de l'environnement GitHub `preview` — la preuve d'`images.yml` ne dépend plus
+d'un mot de passe humain. Le mot de passe de `ci` vit dans le secret GitHub et dans le trousseau
+macOS du poste (`security find-generic-password -s takussan-preview-ci -w`), nulle part ailleurs.
 
 **`cpp-api-preview`** (Compose ; relevé le 2026-09-14, 56 clés, aucune vide) :
 
@@ -182,8 +185,9 @@ Absentes de l'export, donc aux défauts de `config/` : `LICENSE_DESKTOP_SECRET`,
 de bureau ne vérifient rien d'utile en préproduction.
 
 **`cpp-web-preview`** (Application) : image **privée**, tirée par le registre `ghcr.io` ; une
-authentification basique, dont `utilisateur:motdepasse` est aussi le secret `PREVIEW_BASIC_AUTH` de
-l'environnement GitHub `preview` de check-print-plus (posé le 2026-09-14, longueur vérifiée).
+authentification basique à trois comptes, dont **`ci`** (TCK-525, 2026-09-14) : `ci:motdepasse` est le
+secret `PREVIEW_BASIC_AUTH` de l'environnement GitHub `preview` de check-print-plus, et le mot de
+passe est dans le trousseau du poste (`security find-generic-password -s checkprintplus-preview-ci -w`).
 
 ## Runbook
 
@@ -196,6 +200,19 @@ deploy/takussan/smoke-api.sh image      # l'image seule
 deploy/takussan/smoke-api.sh pile       # la pile Compose, contre les services de docker-compose.yml
 deploy/takussan/smoke-web.sh            # l'image du front (exige ./dev.sh api)
 ```
+
+**Donner l'accès à une préproduction à un testeur, puis le retirer** (TCK-525) : Dokploy →
+Application (`takussan-web-preview` ou `cpp-web-preview`) → *Security* → *Add Security* : un nom, un
+mot de passe généré (`openssl rand -base64 24`), jamais le compte `ci` ni celui du porteur. Le
+middleware Traefik est réécrit à l'instant (`createSecurityMiddleware`, mesuré : `200` six secondes
+après l'appel, sans redéploiement). Retirer : la corbeille sur la ligne du compte. Par l'API, le même
+geste : `security.create` `{applicationId, username, password}`, `security.delete` `{securityId}` ;
+les comptes se relisent par `application.one` → `security[].username`. Preuve, code seul et jamais
+l'URL effective : `curl -sS -o /dev/null -w '%{http_code}' -u testeur:… https://preview.takussan.com/robots.txt`
+→ `200`, puis `401` une fois retiré. Changer le mot de passe du porteur ne touche plus la CI ; changer
+celui de `ci` demande de reposer le secret : `printf '%s' 'ci:…' | gh secret set PREVIEW_BASIC_AUTH --env preview`.
+Option non décidée : Cloudflare Access à la place de l'authentification basique (le compte `ci`
+deviendrait un *service token*) — à peser avant la production, pas avant.
 
 **Redéployer** : pousser sur `preview` (ou `workflow_dispatch` de *Images et déploiement*). Le
 workflow n'est vert que lorsque `X-Build-Sha` rend le commit. Dokploy joue la commande en deux temps
