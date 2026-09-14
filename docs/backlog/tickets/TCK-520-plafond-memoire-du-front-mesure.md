@@ -1,7 +1,7 @@
 ---
 id: TCK-520
 title: "Le plafond mémoire des fronts se décide sur une mesure sous charge d'images, pas au repos"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: S
