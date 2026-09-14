@@ -182,10 +182,9 @@ tâches D1 à D8.
   `https://preview.api.checkprintplus.com/up`, `https://deploy.takussan.com/`), alerte par courriel.
 - D8, étape 3 : refermer TCK-288 (« à la fin de D », dit le plan), puis ce ticket, une fois l'étape 1
   faite.
-- Au porteur, hors du dépôt : vérifier au tableau de bord que *Bot Fight Mode* est désactivé dans
-  les deux zones (le jeton ne le lit pas, erreur `10000`) ; choisir un canal de notifications
-  Dokploy ; copier les secrets du fichier de transit au gestionnaire de mots de passe, puis
-  supprimer `~/Sauvegardes/migration-secrets.env`.
+- Au porteur, hors du dépôt : copier les secrets du fichier de transit au gestionnaire de mots de
+  passe, puis supprimer `~/Sauvegardes/migration-secrets.env`. (*Bot Fight Mode* désactivé dans les
+  deux zones et canal de notifications Telegram posé : faits le 2026-09-14, au relevé.)
 - À surveiller avant F : Dokploy lui-même est le seul conteneur sans plafond, et le plus lourd
   (867 → 1 013 Mo en neuf heures, § Budget du plan).
 - Les courriels : décidé par le porteur le 2026-09-14 — le SDK `resend/resend-php` pour la
