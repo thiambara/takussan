@@ -1,0 +1,158 @@
+# Construit les images, les pousse sur GHCR, déclenche Dokploy, puis PROUVE ce qui est servi
+# (ADR-0028 §2, §3, §10). Le serveur ne construit rien : il tire ce que ce workflow pousse.
+#
+# Une image d'API par commit (elle sert tous les environnements) ; une image de front par
+# environnement (NEXT_PUBLIC_* est inliné à la compilation).
+#
+# Le déploiement n'est vert que lorsque l'URL PUBLIQUE rend le commit poussé dans `X-Build-Sha`.
+# Un appel à Dokploy qui répond 200 ne dit rien de ce qui tourne — c'est D-04 et ADR-0017.
+name: Images et déploiement
+
+on:
+  push:
+    branches: [preview]
+  workflow_dispatch:
+
+concurrency:
+  group: images-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  cible:
+    name: Environnement visé
+    runs-on: ubuntu-latest
+    outputs:
+      environnement: ${{ steps.c.outputs.environnement }}
+      api_url: ${{ steps.c.outputs.api_url }}
+      site_url: ${{ steps.c.outputs.site_url }}
+    steps:
+      - id: c
+        run: |
+          case "$GITHUB_REF_NAME" in
+            preview)
+              { echo "environnement=preview"
+                echo "api_url=https://preview.api.takussan.com"
+                echo "site_url=https://preview.takussan.com"; } >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "::error::aucun environnement pour la branche $GITHUB_REF_NAME"; exit 1 ;;
+          esac
+
+  api:
+    name: Image de l'API
+    needs: cible
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: takussan-api
+          target: runtime
+          push: true
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+          tags: |
+            ghcr.io/thiambara/takussan-api:sha-${{ github.sha }}
+            ghcr.io/thiambara/takussan-api:${{ needs.cible.outputs.environnement }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+      - uses: docker/build-push-action@v7
+        with:
+          context: takussan-api
+          target: seed
+          push: true
+          build-args: |
+            BUILD_SHA=${{ github.sha }}
+          tags: |
+            ghcr.io/thiambara/takussan-api:sha-${{ github.sha }}-seed
+            ghcr.io/thiambara/takussan-api:${{ needs.cible.outputs.environnement }}-seed
+          cache-from: type=gha,scope=api
+
+  web:
+    name: Image du front
+    needs: cible
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: takussan-web
+          push: true
+          # Chaque NEXT_PUBLIC_* lue par le front doit figurer ici ET en ARG du Dockerfile :
+          # scripts/check-front-env-keys.mjs le vérifie.
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ needs.cible.outputs.api_url }}
+            NEXT_PUBLIC_SITE_URL=${{ needs.cible.outputs.site_url }}
+            BUILD_SHA=${{ github.sha }}
+          tags: |
+            ghcr.io/thiambara/takussan-web:${{ needs.cible.outputs.environnement }}-sha-${{ github.sha }}
+            ghcr.io/thiambara/takussan-web:${{ needs.cible.outputs.environnement }}
+          cache-from: type=gha,scope=web-${{ needs.cible.outputs.environnement }}
+          cache-to: type=gha,mode=max,scope=web-${{ needs.cible.outputs.environnement }}
+
+  deploy:
+    name: Déploiement et preuve
+    needs: [cible, api, web]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.cible.outputs.environnement }}
+    steps:
+      - name: Déclencher Dokploy
+        id: declencher
+        env:
+          DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
+          COMPOSE_ID: ${{ vars.DOKPLOY_API_COMPOSE_ID }}
+          WEB_ID: ${{ vars.DOKPLOY_WEB_APPLICATION_ID }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+        run: |
+          if [ -z "$DOKPLOY_URL" ] || [ -z "$COMPOSE_ID" ] || [ -z "$WEB_ID" ] || [ -z "$DOKPLOY_API_KEY" ]; then
+            echo "::notice::Dokploy n'est pas raccordé à « ${{ needs.cible.outputs.environnement }} » : images poussées, rien déployé."
+            echo "raccorde=non" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          appeler() {
+            curl -fsS -X POST "$DOKPLOY_URL/api/$1" -H "x-api-key: $DOKPLOY_API_KEY" \
+              -H 'Content-Type: application/json' -d "$2" >/dev/null
+          }
+          appeler compose.deploy "{\"composeId\":\"$COMPOSE_ID\"}"
+          appeler application.deploy "{\"applicationId\":\"$WEB_ID\"}"
+          echo "raccorde=oui" >> "$GITHUB_OUTPUT"
+
+      - name: Prouver ce qui est servi
+        if: steps.declencher.outputs.raccorde == 'oui'
+        env:
+          API_URL: ${{ needs.cible.outputs.api_url }}
+          SITE_URL: ${{ needs.cible.outputs.site_url }}
+          BASIC_AUTH: ${{ secrets.PREVIEW_BASIC_AUTH }}
+        run: |
+          attendre() {
+            local url=$1 sha=""
+            shift
+            for _ in $(seq "${ESSAIS:-60}"); do
+              sha=$(curl -sS -o /dev/null -D - "$@" "$url" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-build-sha"{print $2}')
+              if [ "$sha" = "$GITHUB_SHA" ]; then echo "✓ $url sert $GITHUB_SHA"; return 0; fi
+              sleep 10
+            done
+            echo "::error::$url sert « ${sha:-rien} » au lieu de $GITHUB_SHA"
+            return 1
+          }
+          attendre "$API_URL/up"
+          if [ -n "$BASIC_AUTH" ]; then
+            attendre "$SITE_URL/robots.txt" -u "$BASIC_AUTH"
+          else
+            attendre "$SITE_URL/robots.txt"
+          fi

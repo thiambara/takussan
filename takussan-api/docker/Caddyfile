@@ -1,0 +1,50 @@
+{
+	frankenphp
+	auto_https off
+	admin off
+	# PAS de `trusted_proxies` ici, et c'est délibéré. Avec lui, Caddy retiendrait comme adresse
+	# du client l'IP la plus à GAUCHE de X-Forwarded-For : celle que le client écrit lui-même,
+	# et que Cloudflare conserve. Un `X-Forwarded-For: <IP d'un opérateur SMS>` franchirait la
+	# liste d'IP des webhooks (D-49). REMOTE_ADDR reste donc Traefik, et Laravel seul remonte la
+	# chaîne, de droite à gauche, par TRUSTED_PROXIES (ADR-0028 §8). D5 le prouve par une
+	# usurpation refusée.
+}
+
+:8080 {
+	root * /app/public
+
+	# nginx : gzip on; gzip_min_length 1024 (le JSON de l'API compris).
+	encode zstd gzip {
+		minimum_length 1024
+	}
+
+	# nginx : client_max_body_size 25M, soit 25 × 1024 × 1024 octets — d'où MiB, pas MB.
+	request_body {
+		max_size 25MiB
+	}
+	# request_body ne coupe que le corps LU : une requête qui ANNONCE 26 Mio passe, et la route
+	# répond avant de lire (405, 302…). nginx refusait sur l'en-tête ; ce matcher en fait autant,
+	# à la même borne (25 × 1024 × 1024). Mesuré par la piste CheckPrint Plus : sans lui, aucun
+	# POST de 26 Mio n'était refusé en 413. ⚠ Un envoi chunked, sans Content-Length, n'est borné
+	# que par request_body, et sans 413.
+	@trop_gros expression `{http.request.header.Content-Length} != "" && int({http.request.header.Content-Length}) > 26214400`
+	respond @trop_gros 413
+
+	# nginx : location /storage/. PAS `immutable` : RegenerateAgencyWatermarksJob réécrit les
+	# conversions à la MÊME URL, et un navigateur ne reverrait jamais la nouvelle.
+	@storage path /storage/*
+	header @storage Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+
+	# nginx : location ~ /\.(?!well-known) { deny all; }. public/.htaccess existe et serait servi.
+	@cache_hidden {
+		path_regexp /\.
+		not path /.well-known/*
+	}
+	respond @cache_hidden 404
+
+	# ADR-0028 §10 : le code servi se prouve.
+	header X-Build-Sha {$BUILD_SHA}
+	header -Server
+
+	php_server
+}

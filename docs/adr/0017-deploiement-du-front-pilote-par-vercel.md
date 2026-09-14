@@ -1,6 +1,6 @@
 # ADR-0017 — Le déploiement du front reste piloté par Vercel ; le dépôt le relève et le garde, il ne le double pas
 
-- **Statut** : Accepté
+- **Statut** : Remplacé par [ADR-0028](0028-auto-hebergement-conteneurise-sur-le-vps.md) — **effectif à la bascule du front de production** (phase F du plan d'ADR-0028). D'ici là, cet ADR décrit toujours ce qui sert `www.takussan.com`.
 - **Date** : 2026-08-20
 - **Tickets** : TCK-299 (décision et mise en œuvre), TCK-288 / dette D-04 (le déploiement de l'API, hors périmètre mais convoqué par la mesure ci-dessous)
 

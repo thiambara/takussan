@@ -11,14 +11,21 @@ node scripts/check-infra-versions.mjs --report   # le tableau dev / CI / prod, e
 
 ## Ce que ce fichier existe pour corriger
 
-Mesuré le 2026-08-16 (TCK-298) : **développement et CI sont épinglés des deux côtés ; la production
-ne l'est nulle part dans le dépôt.**
+Mesuré le 2026-08-16 (TCK-298) : **développement et CI étaient épinglés des deux côtés ; la
+production ne l'était nulle part dans le dépôt.**
 
-`scripts/server-setup.sh`, le seul script de provisionnement, **n'installe rien**. Il lit `php -v`,
-vérifie que `/etc/php/<version>/fpm/pool.d` et `/etc/nginx/sites-available` existent, et si ce n'est
-pas le cas il **imprime la commande à lancer à la main** avant de passer à la suite. Le seul document
-qui nomme une installation est un guide — `deploy-preview.html` §6.4, `sudo apt install meilisearch`
-— sans version, et personne ne peut dire quand il a été joué ni ce qu'`apt` a posé ce jour-là.
+`scripts/server-setup.sh`, le seul script de provisionnement, **n'installait rien**. Il lisait
+`php -v`, vérifiait que `/etc/php/<version>/fpm/pool.d` et `/etc/nginx/sites-available` existaient,
+et sinon il **imprimait la commande à lancer à la main**. Le seul document qui nommait une
+installation était un guide — `deploy-preview.html` §6.4, `sudo apt install meilisearch` — sans
+version, et personne ne pouvait dire quand il avait été joué ni ce qu'`apt` avait posé ce jour-là.
+
+**Depuis [ADR-0028](../adr/0028-auto-hebergement-conteneurise-sur-le-vps.md) (2026-09-13), le
+script et le guide sont retirés** : le serveur est réinstallé, et chaque service y tourne dans une
+image épinglée — `takussan-api/Dockerfile`, `takussan-web/Dockerfile`,
+`deploy/server/compose.data.yml`. L'écart se réduit, il ne se ferme pas : *une image déclarée n'est
+pas une image servie*. Un service créé à la main dans Dokploy, un déploiement qui n'a pas repris, et
+la machine diverge du dépôt sans qu'un fichier change. La colonne « production » reste donc un relevé.
 
 Ce n'est pas une hypothèse sur ce qui *pourrait* mal tourner : c'est **exactement** la mécanique de
 l'ardoise **D-43**. `docker-compose.yml` et le job `migrations-mysql` ont tourné sur `mariadb:11.4`
@@ -28,7 +35,7 @@ collation. Pas un écart de version : **le mauvais moteur**, et un banc d'essai 
 que la production n'exécuterait jamais — en annonçant l'inverse à chaque exécution.
 
 > **Ne jamais déduire l'état d'un environnement de la configuration — ni de la commande
-> d'installation — qui le vise.** Un guide dit ce qu'on *voudrait* poser. `deploy.yml` dit ce qui
+> d'installation — qui le vise.** Un guide dit ce qu'on *voudrait* poser. Un workflow de déploiement dit ce qui
 > *devrait* se produire. Seule la machine dit ce qui *est*.
 
 ---
@@ -52,17 +59,18 @@ machine appartient à **TCK-288**.
 
 ## Mesurer la production
 
-Aucune de ces commandes n'écrit quoi que ce soit. Depuis un poste ayant l'accès SSH `deploy@` :
+Aucune de ces commandes n'écrit quoi que ce soit. Chaque version se lit **dans le conteneur en
+marche**, jamais dans l'image ni dans le fichier qui la déclare ([ADR-0028](../adr/0028-auto-hebergement-conteneurise-sur-le-vps.md),
+plan, tâche F5). Les noms de conteneurs sont ceux que Dokploy attribue : les relever d'abord.
 
 ```bash
-ssh deploy@<serveur> '
-  psql --version           || echo "postgresql: absent"
-  /usr/bin/meilisearch --version
-  redis-server --version   || echo "redis: absent"
-  php -v | head -1
-  cat /etc/takussan/php-version   # écrit par server-setup.sh au moment où il a lu php -v
-  node --version           || echo "node: absent"
-  command -v mailpit       || echo "mailpit: absent"
+ssh root@<serveur> '
+  docker ps --format "table {{.Names}}\t{{.Image}}"         # ce qui tourne, et depuis quelle image
+  docker exec <conteneur api de production> php -v | head -1
+  docker exec <conteneur meilisearch> meilisearch --version
+  docker exec <conteneur redis> redis-server --version
+  docker exec <conteneur du front de production> node --version
+  docker ps --format "{{.Image}}" | grep -i mailpit || echo "mailpit: absent"
 '
 ```
 

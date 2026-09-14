@@ -381,7 +381,8 @@ class Property extends AbstractModel implements HasMedia
             // « F4 » atteint tout bien à 3 chambres que personne ne l'ait écrit,
             // « R+1 », « rdc », « TF », « 300 m2 » de même. Calculés par
             // App\Support\Search\PropertyLabels — ⚠ un diff de CE fichier-là
-            // doit réimporter Property, `scripts/deploy.sh` le sait.
+            // doit réimporter Property : il entre dans l'empreinte
+            // `.search-shape` que compare `docker/release.sh`.
             'derived_title' => PropertyLabels::title($this, $address),
             'rooms_label' => PropertyLabels::rooms($this),
             'facts_label' => PropertyLabels::facts($this),

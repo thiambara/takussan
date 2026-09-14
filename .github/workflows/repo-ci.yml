@@ -11,8 +11,8 @@
 # Aucune de ces gardes ne compile. Elles tiennent la documentation au même niveau d'exigence que
 # le code, et c'est tout leur objet.
 #
-# UNE exception, et elle est assumée : `test-deploy-search-reindex.sh` est un vrai test. Il vit
-# ici parce que son sujet — la décision de réindexation de `deploy.sh` — n'a pas d'autre maison :
+# UNE exception, et elle est assumée : `test-release-reindex.sh` est un vrai test. Il vit
+# ici parce que son sujet — la décision de réindexation de `release.sh` — n'a pas d'autre maison :
 # ni PHPUnit ni vitest ne lisent du bash. Cette phrase disait « ni ne teste quoi que ce soit »
 # avant que le test n'existe ; la corriger était moins cher que de laisser l'en-tête mentir.
 name: Repo CI
@@ -24,7 +24,7 @@ on:
       - 'takussan-api/.env.docker'
       # Chaque garde doit être déclenchée par les DEUX côtés qu'elle compare, sinon elle
       # ne voit qu'une moitié de l'écart qu'elle existe pour trouver :
-      #   check-queues       → les `onQueue()` de takussan-api/app, scripts/server-setup.sh ET dev.sh
+      #   check-queues       → les `onQueue()` de takussan-api/app, deploy/takussan/compose.api.yml ET dev.sh
       #   check-pro-routes   → PRO_ROUTES et les pages, tous deux sous takussan-web/src
       #   check-backlog      → les tickets ET les specs qu'ils citent
       #   check-models-spec  → takussan-api/app/Models ET docs/models-spec.md
@@ -60,6 +60,13 @@ on:
       # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
       # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
       - 'takussan-web/next.config.ts'
+      # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
+      # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
+      # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
+      # garde doivent la déclencher.
+      - 'deploy/**'
+      - 'takussan-api/docker/**'
+      - 'takussan-web/Dockerfile'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
       # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
@@ -144,6 +151,13 @@ on:
       # est absent de la config. Même règle qu'en haut de ce bloc — sans cette ligne, activer le
       # drapeau seul n'exécuterait pas la garde qui existe pour en juger.
       - 'takussan-web/next.config.ts'
+      # ADR-0028 : `check-queues` lit `deploy/takussan/compose.api.yml`, `check-heredocs` tout le
+      # shell (dont `deploy/**` et `takussan-api/docker/**`), `check-front-env-keys` le Dockerfile
+      # du front, et `test-release-reindex` lit `takussan-api/docker/`. Les deux côtés de chaque
+      # garde doivent la déclencher.
+      - 'deploy/**'
+      - 'takussan-api/docker/**'
+      - 'takussan-web/Dockerfile'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
       # sinon la garde ne voit qu'une moitié de l'écart qu'elle existe pour trouver — la
@@ -231,23 +245,21 @@ jobs:
         run: node scripts/check-webhook-env-keys.mjs --report
 
       - name: Aucune substitution involontaire dans un heredoc non quoté
-        # `server-setup.sh` écrit /etc/sudoers.d et /etc/logrotate.d par heredoc, et ces blocs
-        # NE PEUVENT PAS être quotés : ils interpolent ${DEPLOY_USER}, ${APP_DIR}. Bash y
-        # exécute donc aussi les backticks — y compris dans une ligne qui commence par « # ».
-        # Un commentaire écrivant `setup_queue_service` a réellement invoqué la fonction, EN
-        # ROOT, et supprimé le mot du fichier écrit. Reproduit avant correction.
+        # `server-setup.sh` (retiré par ADR-0028) écrivait /etc/sudoers.d et /etc/logrotate.d par
+        # heredoc NON quoté : il interpolait ${DEPLOY_USER}, ${APP_DIR}. Bash y exécutait donc aussi
+        # les backticks — y compris dans une ligne qui commence par « # ». Un commentaire écrivant
+        # `setup_queue_service` a réellement invoqué la fonction, EN ROOT, et supprimé le mot du
+        # fichier écrit. Aujourd'hui, `deploy/server/bootstrap.sh` écrit sous /etc par heredoc
+        # QUOTÉ, et la garde balaie tout le shell du dépôt.
         run: node scripts/check-heredocs.mjs --report
 
-      - name: La décision de réindexation de `deploy.sh` fait ce qu'elle annonce
-        # Le seul VRAI test de ce workflow, et il est ici parce que son sujet n'est couvert
-        # nulle part ailleurs : ni PHPUnit ni vitest ne lisent du bash, et `deploy.sh` n'a
-        # jamais été exécuté une seule fois (D-04, TCK-288). Il décide pourtant, à chaque
-        # déploiement, quels modèles réindexer — et se tromper est muet des deux côtés :
-        # trop réindexer noie la file de jobs (3308 tâches mesurées pour une exécution, D-44),
-        # trop peu laisse la recherche répondre faux sur un index périmé, application en
-        # parfaite santé. Le harnais extrait le bloc du fichier réel, talonne `php`, et joue
-        # huit scénarios plus une ablation qui échoue exprès.
-        run: ./scripts/test-deploy-search-reindex.sh
+      - name: La décision de réindexation de `release.sh` fait ce qu'elle annonce
+        # Successeur du test de la décision de `deploy.sh`, retiré avec lui (ADR-0028). Même
+        # raison d'être : ni PHPUnit ni vitest ne lisent du shell, et se tromper est muet des deux
+        # côtés — trop réindexer noie Meilisearch (3308 tâches pour une exécution, D-44), trop peu
+        # laisse la recherche répondre sur un index périmé. Le harnais joue le VRAI release.sh
+        # dans un APP_ROOT jetable, talonne `php`, et finit par une ablation qui échoue exprès.
+        run: ./scripts/test-release-reindex.sh
 
       - name: Le banc d'essai tourne sur le moteur de base de la production
         # `docker-compose.yml` et le job `migrations-mysql` tournaient sur `mariadb:11.4`, sur la
@@ -818,12 +830,13 @@ jobs:
         # Même famille que `check-db-engine`, un cran plus haut : celle-ci garde TOUTES les versions
         # de service, et surtout la colonne « production ».
         #
-        # Mesuré le 2026-08-16 (TCK-298) : développement et CI sont épinglés des deux côtés, la
-        # PRODUCTION ne l'est nulle part dans le dépôt. `scripts/server-setup.sh` n'installe rien —
-        # il lit `php -v` et imprime la commande à lancer à la main — et le seul document qui nomme
-        # une installation est un guide (`apt install meilisearch`, sans version) que personne ne
-        # peut dater. C'est la mécanique de D-43 à l'identique : ce qu'un guide prescrit n'est pas
-        # ce qu'une machine exécute.
+        # Mesuré le 2026-08-16 (TCK-298) : développement et CI étaient épinglés des deux côtés, la
+        # PRODUCTION ne l'était nulle part dans le dépôt. `scripts/server-setup.sh` n'installait
+        # rien — il lisait `php -v` et imprimait la commande à lancer à la main — et le seul document
+        # qui nommait une installation était un guide (`apt install meilisearch`, sans version) que
+        # personne ne pouvait dater. C'est la mécanique de D-43 à l'identique : ce qu'un guide
+        # prescrit n'est pas ce qu'une machine exécute. Depuis ADR-0028, le serveur tourne sur des
+        # images épinglées — et une image déclarée n'est pas davantage une image servie.
         #
         # La garde refuse donc une valeur de production qui ne cite pas sa mesure, ET refuse de
         # laisser combler la colonne avec une version plausible. « Non mesuré + la commande qui le
@@ -901,7 +914,8 @@ jobs:
         run: node scripts/check-impact-triggers.mjs --report
 
       - name: Aucune dépendance de développement n'est atteignable depuis le code de production
-        # Le défaut ne vit dans aucun fichier : `deploy.sh` installe en `--no-dev` (juste),
+        # Le défaut ne vit dans aucun fichier : l'image (`takussan-api/Dockerfile`, `deploy.sh`
+        # avant ADR-0028) installe en `--no-dev` (juste),
         # `PaymentReceiptPdf` faisait `new Dompdf(…)` (du PHP valide), et `dompdf/dompdf` n'est
         # déclaré NULLE PART dans `composer.json` — il n'arrivait qu'en dév et TRANSITIVEMENT, par
         # les `require-dev` de `phpoffice/phpspreadsheet` et `spatie/laravel-pdf`. Le reçu de
