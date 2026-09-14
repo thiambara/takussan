@@ -126,7 +126,9 @@ même `composer.lock`, n'en envoyait pas davantage. Décision du porteur, le mê
 
 - **production** : `MAIL_MAILER=resend` avec le SDK (`tests/Feature/Mail/ResendMailerTest.php`
   construit le transport) — comme CheckPrint Plus, dont le `composer.lock` porte
-  `resend/resend-laravel` et `resend/resend-php` ;
+  `resend/resend-laravel` et `resend/resend-php`. Le SDK est dans l'image de préproduction depuis
+  `ad93e5e6` (relu dans le conteneur : `ResendTransport` se construit) ; la production le recevra
+  en phase F ;
 - **préproduction** : `MAIL_MAILER=log`, posé dans Dokploy et relu dans `api` et `worker`. Le seed
   écrit des adresses sous des domaines `.sn` qui peuvent exister : une préproduction qui envoie
   vraiment écrit à des inconnus. Les échecs accumulés ont été vidés (`queue:flush`, 36 → 0).

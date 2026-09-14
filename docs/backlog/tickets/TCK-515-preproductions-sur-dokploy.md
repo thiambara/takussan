@@ -124,7 +124,13 @@ tâches D1 à D8.
   `REPO_URL` supprimés des deux dépôts ; relu : aucun secret au niveau du dépôt. La *deploy key*
   `Contabo` de check-print-plus (lecture seule, dernière utilisation le 2026-06-15) retirée aussi ;
   seule la clé `dokploy` reste.
-- AC1 — tenu pour Takussan (ci-dessus) ; attend CheckPrint Plus.
+- Promotion #271 (`ad93e5e6`, SDK Resend) — `images.yml` run `34832685800`, vert de bout en bout :
+  `✓ https://preview.api.takussan.com/up sert ad93e5e6…` et
+  `✓ https://preview.takussan.com/robots.txt sert ad93e5e6…`, déploiement et preuve en 1 min 08 s,
+  **sans** `pull` manuel cette fois (l'écart de D3 ne s'est pas reproduit). Dans l'image servie :
+  `/app/vendor/resend/resend-php` présent, le transport `resend` se construit (`ResendTransport`),
+  `MAIL_MAILER=log` conservé dans `api` et `worker`, `failed_jobs` → `0`.
+- AC1 — tenu pour Takussan (ci-dessus, deux fois) ; attend CheckPrint Plus.
 
 ## Reste sur dev
 
@@ -132,8 +138,9 @@ tâches D1 à D8.
 - AC4 : tenu avec la seule préproduction Takussan ; à rejouer une fois CheckPrint Plus servi (D7).
 - Les courriels : décidé par le porteur le 2026-09-14 — le SDK `resend/resend-php` pour la
   production (branche `fix/sdk-resend`), `MAIL_MAILER=log` pour la préproduction (posé, relu dans
-  `api` et `worker` ; `failed_jobs` 36 → 0 par `queue:flush`). Le SDK est sur `dev` (#270) ; reste
-  sa promotion vers `preview` (#271).
+  `api` et `worker` ; `failed_jobs` 36 → 0 par `queue:flush`). Le SDK est sur `dev` (#270) et
+  promu sur `preview` (#271, `ad93e5e6`) — voir la note du 2026-09-14 ci-dessus. Reste : rien pour
+  la préproduction ; la production le recevra avec la phase F.
 - D7 : le registre `ghcr.io` avec un jeton `read:packages` (porteur), puis déploiement, DNS,
   environnement GitHub, `ProductionSeeder`, mesures.
 - D8, étape 1 : la surveillance externe (compte UptimeRobot ou Better Stack, porteur).
