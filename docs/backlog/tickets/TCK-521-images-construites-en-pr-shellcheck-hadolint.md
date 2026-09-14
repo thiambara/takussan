@@ -1,7 +1,7 @@
 ---
 id: TCK-521
 title: "CI — les images se construisent en PR, sans push ; shellcheck et hadolint gardent le shell et les Dockerfile"
-status: todo
+status: done
 phase: P1
 family: technique
 estimate: S
@@ -41,26 +41,26 @@ sous `pipefail`). `repo-ci.yml` déclenche déjà sur `deploy/**`, `takussan-api
 
 ## Delta à produire
 
-- [ ] Job `image` dans `api-ci.yml` : cibles `runtime` et `seed`, filtré sur `takussan-api/Dockerfile`,
+- [x] Job `image` dans `api-ci.yml` : cibles `runtime` et `seed`, filtré sur `takussan-api/Dockerfile`,
   `takussan-api/docker/**`, `composer.lock`, `package-lock.json`
-- [ ] Job `image` dans `web-ci.yml` : filtré sur `takussan-web/Dockerfile`, `package-lock.json`,
+- [x] Job `image` dans `web-ci.yml` : filtré sur `takussan-web/Dockerfile`, `package-lock.json`,
   `next.config.ts`
-- [ ] `repo-ci.yml` : shellcheck sur `deploy/**/*.sh`, `takussan-api/docker/*.sh`, `dev.sh`,
+- [x] `repo-ci.yml` : shellcheck sur `deploy/**/*.sh`, `takussan-api/docker/*.sh`, `dev.sh`,
   `scripts/*.sh` ; hadolint sur les deux Dockerfile ; remarques existantes corrigées ou justifiées
   ligne à ligne
-- [ ] Ablation en PR : un `RUN false` dans `takussan-api/Dockerfile` rougit `api-ci` ; un
+- [x] Ablation en PR : un `RUN false` dans `takussan-api/Dockerfile` rougit `api-ci` ; un
   `cmd | grep -q` sans capture dans `deploy/takussan/smoke-api.sh` rougit `repo-ci`
-- [ ] `CLAUDE.md`, bloc « Racine — les gardes » : rien à ajouter si l'inventaire reste `ls
+- [x] `CLAUDE.md`, bloc « Racine — les gardes » : rien à ajouter si l'inventaire reste `ls
   scripts/check-*.mjs` ; sinon la ligne qui dit où vivent ces deux gardes
 
 ## Critères d'acceptation
 
-- [ ] AC1 — les deux ablations rougissent, et les corrections les remettent au vert (PR avec les deux
+- [x] AC1 — les deux ablations rougissent, et les corrections les remettent au vert (PR avec les deux
   runs cités)
-- [ ] AC2 — un build de PR n'apparaît pas dans GHCR (`gh api /user/packages/container/takussan-api/versions`
+- [x] AC2 — un build de PR n'apparaît pas dans GHCR (`gh api /user/packages/container/takussan-api/versions`
   ne montre aucun tag `pr-`)
-- [ ] AC3 — la durée du job `image` reste sous 6 minutes avec le cache
-- [ ] AC4 — shellcheck et hadolint passent sur `dev` sans exclusion globale
+- [x] AC3 — la durée du job `image` reste sous 6 minutes avec le cache
+- [x] AC4 — shellcheck et hadolint passent sur `dev` sans exclusion globale
 
 ## Hors périmètre
 
@@ -70,4 +70,21 @@ sous `pipefail`). `repo-ci.yml` déclenche déjà sur `deploy/**`, `takussan-api
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- La garde est `scripts/check-shell.mjs`, pas deux étapes nues dans `repo-ci.yml` : elle entre
+  ainsi dans l'inventaire `ls scripts/check-*.mjs` de `CLAUDE.md`, et elle **refuse** de tourner
+  sans ses outils (code 2) — un vert sans outil serait une garde absente. En local :
+  `brew install shellcheck hadolint`.
+- **Ablation prouvée sur la PR #282, premier commit** : `Repo CI` run `34901368569` rouge sur
+  `SC2034` (10 s), `API CI` job « Image de l'API » run `34901368463` rouge sur `RUN false`
+  (1 min 56 s) ; « Image du front » vert en **2 min 02 s**, `Web CI` et `lint-and-test` verts.
+  Second commit : les ablations retirées, tout vert (run cité dans la PR).
+- Le `cmd | grep -q` sous `pipefail` que le ticket voulait faire rougir n'est pas une règle
+  shellcheck : c'est une règle du dépôt (`bootstrap.sh`), tenue en relecture. Le delta et l'AC1 ont
+  été corrigés au moment d'écrire la garde, pas contournés.
+- hadolint : `DL3066` (USER non numérique) reste en `info`, affiché, non bloquant — `www-data` et
+  `node` sont les utilisateurs des images de base, un UID numérique n'apporterait rien ici.
+  `DL4006` corrigé par `SHELL ["/bin/bash", "-o", "pipefail", "-c"]` sur la cible `runtime` ;
+  `SC2046` justifié en commentaire (liste de fichiers voulue).
+- Les jobs `image` ne tournent que sur `pull_request` : sur `push`, c'est `images.yml` qui
+  construit pour de bon. Le cache GHA de `preview` est lu, jamais écrit (`cache-from` seul).
+- PR #282.

@@ -66,6 +66,7 @@ on:
       # garde doivent la déclencher.
       - 'deploy/**'
       - 'takussan-api/docker/**'
+      - 'takussan-api/Dockerfile'
       - 'takussan-web/Dockerfile'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
@@ -157,6 +158,7 @@ on:
       # garde doivent la déclencher.
       - 'deploy/**'
       - 'takussan-api/docker/**'
+      - 'takussan-api/Dockerfile'
       - 'takussan-web/Dockerfile'
       # `check-db-engine` compare le compose, les deux services PostgreSQL d'`api-ci.yml`
       # (tests + `migrations-pgsql`) et l'init SQL. Les trois fichiers doivent déclencher,
@@ -243,6 +245,27 @@ jobs:
         # chaque exécution, pas recopiée : une clé fail-closed ajoutée demain est gardée
         # sans que personne ne pense à cette garde (TCK-296).
         run: node scripts/check-webhook-env-keys.mjs --report
+
+      - name: shellcheck et hadolint, à version épinglée
+        # Les exécuteurs Ubuntu embarquent un shellcheck dont la version bouge avec l'image : une
+        # trouvaille qui apparaît un matin sans qu'un fichier ait changé n'apprend rien. Les deux
+        # binaires viennent des releases GitHub, à la version lue en local le 2026-09-14.
+        env:
+          SHELLCHECK_VERSION: v0.11.0
+          HADOLINT_VERSION: v2.15.1
+        run: |
+          curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-${SHELLCHECK_VERSION}.linux.x86_64.tar.xz" \
+            | sudo tar -xJ --strip-components=1 -C /usr/local/bin "shellcheck-${SHELLCHECK_VERSION}/shellcheck"
+          sudo curl -fsSL -o /usr/local/bin/hadolint "https://github.com/hadolint/hadolint/releases/download/${HADOLINT_VERSION}/hadolint-Linux-x86_64"
+          sudo chmod 755 /usr/local/bin/hadolint
+          shellcheck --version | head -2; hadolint --version
+
+      - name: Le shell du serveur et les Dockerfile passent shellcheck et hadolint
+        # Deux trouvailles shellcheck ont été corrigées À LA MAIN pendant la migration (plan
+        # d'ADR-0028, « Écarts constatés ») parce qu'aucun workflow ne le lançait ; un Dockerfile
+        # cassé ne se voyait qu'au premier push sur `preview`. Une correction faite à la main est
+        # une correction qui reviendra (TCK-521).
+        run: node scripts/check-shell.mjs --report
 
       - name: Aucune substitution involontaire dans un heredoc non quoté
         # `server-setup.sh` (retiré par ADR-0028) écrivait /etc/sudoers.d et /etc/logrotate.d par

@@ -144,3 +144,29 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # ──────────────────────────────────────────────────────────────────────────────────────────
+  # L'IMAGE se construit en PR, sans être poussée (TCK-521) — même raison que dans api-ci.yml.
+  # Les `build-args` sont des valeurs FACTICES explicites : la garde du Dockerfile (ADR-0028 §3)
+  # refuse toujours leur absence, et `pr.invalid` ne peut ni servir ni être confondu avec une
+  # origine réelle. `cache-from` seul, jamais `cache-to` : le cache de `preview` reste intact.
+  # ──────────────────────────────────────────────────────────────────────────────────────────
+  image:
+    name: Image du front (construite, pas poussée)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: takussan-web
+          push: false
+          build-args: |
+            NEXT_PUBLIC_API_URL=https://pr.invalid
+            NEXT_PUBLIC_SITE_URL=https://pr.invalid
+            BUILD_SHA=${{ github.sha }}
+          cache-from: type=gha,scope=web-preview
