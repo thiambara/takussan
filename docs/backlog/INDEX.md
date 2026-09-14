@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**475 tickets** — 28 ouverts, 446 livrés.
+**475 tickets** — 27 ouverts, 447 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 24 |
+| 📋 Todo | 23 |
 | 🚧 Doing | 4 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 446 |
+| ✅ Done | 447 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -56,7 +56,6 @@
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
 - [TCK-525](tickets/TCK-525-compte-basic-auth-ci-distinct.md) — La preuve du déploiement s'authentifie avec un compte `ci`, distinct de l'identifiant du porteur `S · P1 · technique`
-- [TCK-526](tickets/TCK-526-docker-et-dokploy-epingles-a-la-reconstruction.md) — Reconstruction reproductible — `bootstrap.sh` épingle Docker, et la version de Dokploy est posée après l'installation `S · P1 · technique`
 
 ## 🚧 Doing
 
@@ -75,10 +74,10 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 446
+## ✅ Done — 447
 
 <details>
-<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 11 tickets</summary>
+<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 12 tickets</summary>
 
 - [TCK-510](tickets/TCK-510-serveur-reinstalle-sous-dokploy.md) — Serveur — le VPS est réinstallé à blanc et sert Dokploy, ses bases et leurs sauvegardes `M · P0 · technique`
 - [TCK-511](tickets/TCK-511-image-et-pile-compose-de-lapi.md) — API — une image FrankenPHP par commit et sa pile Compose, éprouvées en local `M · P0 · technique`
@@ -91,6 +90,7 @@ _(aucun)_
 - [TCK-521](tickets/TCK-521-images-construites-en-pr-shellcheck-hadolint.md) — CI — les images se construisent en PR, sans push ; shellcheck et hadolint gardent le shell et les Dockerfile `S · P1 · technique`
 - [TCK-522](tickets/TCK-522-release-en-echec-lancienne-version-sert.md) — Ablation — un `release` qui échoue laisse l'ancienne version servir, prouvé par la pile de fumée `S · P0 · technique`
 - [TCK-523](tickets/TCK-523-api-takussan-com-mode-de-panne-releve.md) — `api.takussan.com` — le mode de panne du nom de production est relevé et daté, jusqu'à la phase F `S · P1 · technique`
+- [TCK-526](tickets/TCK-526-docker-et-dokploy-epingles-a-la-reconstruction.md) — Reconstruction reproductible — `bootstrap.sh` épingle Docker, et la version de Dokploy est posée après l'installation `S · P1 · technique`
 
 </details>
 
