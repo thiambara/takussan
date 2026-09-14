@@ -11,7 +11,6 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 IMAGE=ghcr.io/thiambara/takussan-api
-ABLATION_TCK521=1 # retirée au commit suivant
 TAG=${TAG:-local}   # surchargé par une ablation, pour ne jamais tester l'image réelle à sa place
 
 echec() { echo "✗ $*" >&2; exit 1; }

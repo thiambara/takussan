@@ -75,7 +75,6 @@ RUN mkdir -p storage/app/private storage/app/public storage/framework/cache/data
       | sort | xargs sha256sum | sha256sum | cut -d' ' -f1 > .search-shape \
  && chmod 755 docker/*.sh \
  && chown -R www-data:www-data storage bootstrap/cache /data/caddy /config/caddy /config/psysh
-RUN false # ABLATION TCK-521 — retirée au commit suivant
 USER www-data
 EXPOSE 8080
 # L'image de base porte `HEALTHCHECK curl -f http://localhost:2019/metrics` : l'API d'admin de
