@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**465 tickets** — 25 ouverts, 439 livrés.
+**465 tickets** — 24 ouverts, 440 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 22 |
-| 🚧 Doing | 3 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 439 |
+| ✅ Done | 440 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -59,7 +59,6 @@
 ## 🚧 Doing
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
-- [TCK-510](tickets/TCK-510-serveur-reinstalle-sous-dokploy.md) — Serveur — le VPS est réinstallé à blanc et sert Dokploy, ses bases et leurs sauvegardes `M · P0 · technique`
 - [TCK-515](tickets/TCK-515-preproductions-sur-dokploy.md) — Préproductions — Takussan et CheckPrint Plus servis par Dokploy, mesurés, restaurés à blanc `M · P0 · technique`
 
 ## 👀 Review
@@ -72,11 +71,12 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 439
+## ✅ Done — 440
 
 <details>
-<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 4 tickets</summary>
+<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 5 tickets</summary>
 
+- [TCK-510](tickets/TCK-510-serveur-reinstalle-sous-dokploy.md) — Serveur — le VPS est réinstallé à blanc et sert Dokploy, ses bases et leurs sauvegardes `M · P0 · technique`
 - [TCK-511](tickets/TCK-511-image-et-pile-compose-de-lapi.md) — API — une image FrankenPHP par commit et sa pile Compose, éprouvées en local `M · P0 · technique`
 - [TCK-512](tickets/TCK-512-image-du-front-standalone.md) — Front — une image Next.js standalone par environnement, qui refuse de se construire sans ses origines `S · P0 · technique`
 - [TCK-513](tickets/TCK-513-workflow-images-et-gardes-portees.md) — CI — images.yml construit, pousse, déclenche Dokploy et prouve ; les gardes quittent la chaîne bash `M · P0 · technique`
