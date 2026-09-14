@@ -35,11 +35,34 @@ Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [rele
 | `.github/workflows/images.yml` | construit, pousse sur GHCR, déclenche Dokploy, **prouve** par `X-Build-Sha` |
 | `deploy/takussan/smoke-api.sh`, `deploy/takussan/smoke-web.sh` | les tests de fumée locaux des images |
 
+⚠ **Les images de Takussan sont publiques**, comme le dépôt : leur manifeste se lit avec un jeton
+GHCR anonyme (`200` sur `api:preview`, `api:preview-seed` et `web:preview`, mesuré le 2026-09-14).
+Rien de secret ne doit donc y entrer ; les valeurs vivent dans Dokploy. Celles de check-print-plus
+sont privées, parce que ce dépôt-là l'est : c'est pour elles que Dokploy déclare le registre `ghcr.io`
+avec un jeton `read:packages`.
+
+Elles ne sont construites que pour `linux/amd64` : un poste arm64 ne les tire pas. L'audit se refait
+donc sur le serveur, **en root** (sous l'utilisateur de l'image, `www-data` ou `node`, `find` ne voit
+ni `/root` ni `/etc/ssl/private`) :
+
+```bash
+ssh root@178.18.247.62 'for i in takussan-api:preview takussan-api:preview-seed takussan-web:preview; do
+  echo "== $i"; docker run --rm --pull always --user 0 --entrypoint find ghcr.io/thiambara/$i / -xdev \
+    \( -name ".env*" -o -name "*.key" -o -name "*.pem" -o -name auth.json -o -name "id_rsa*" -o -name "id_ed25519*" \) \
+    -not -path "/proc/*" -not -path "/sys/*" -not -path "/etc/ssl/certs/*" -not -path "*/vendor/*" -not -path "*/node_modules/*"
+done'
+```
+
+Attendu, et relevé le 2026-09-14 : `/usr/lib/ssl/cert.pem` (le magasin public des autorités de
+certification de Debian) pour les deux images de l'API, rien pour le front. Aucun `.env`, ni dans
+`/app` ni ailleurs, et `Config.Env` ne porte que des variables d'outillage et `BUILD_SHA`.
+
 ## Le relevé de Dokploy
 
 | Élément | Valeur | Relevé le | Commande |
 |---|---|---|---|
-| Version de Dokploy | *non mesuré* | | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
+| Version de Dokploy | `dokploy/dokploy:v0.30.6` | 2026-09-14 | `docker service inspect dokploy --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}'` |
+| Version de Traefik | `traefik:v3.6.7` — un conteneur hors Swarm, `dokploy-traefik` | 2026-09-14 | `docker ps --filter name=dokploy-traefik --format '{{.Image}}'` |
 | Hôte interne PostgreSQL | *non mesuré* | | page du service `postgres` dans Dokploy |
 | Hôte interne MySQL | *non mesuré* | | page du service `mysql` |
 | Plages Cloudflare dans `traefik.yml` | *non mesuré* | | `curl -s https://www.cloudflare.com/ips-v4` puis comparer au fichier |
@@ -65,6 +88,12 @@ deploy/takussan/smoke-web.sh            # l'image du front (exige ./dev.sh api)
 
 **Redéployer** : pousser sur `preview` (ou `workflow_dispatch` de *Images et déploiement*). Le
 workflow n'est vert que lorsque `X-Build-Sha` rend le commit.
+
+⚠ **Sauf tant que l'environnement GitHub n'est pas raccordé à Dokploy** : si une des variables
+`DOKPLOY_*` ou le secret `DOKPLOY_API_KEY` manque, le job *Déploiement et preuve* s'arrête tôt, **en
+vert**, sur la notice « Dokploy n'est pas raccordé à « preview » : images poussées, rien déployé. »
+(premier passage réel le 2026-09-14, run `34792488601`). Un vert de ce workflow ne prouve un
+déploiement que si son journal porte la preuve `X-Build-Sha`, pas cette notice.
 
 **Revenir en arrière** : Dokploy → Compose de l'API → Environment → `IMAGE_TAG=sha-<commit>` →
 *Deploy*. Front : Application → image `…:preview-sha-<commit>` → *Deploy*. ⚠ Une migration déjà
@@ -99,6 +128,13 @@ puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans l
    `scp deploy/server/bootstrap.sh root@178.18.247.62:` et
    `ssh root@178.18.247.62 "ADMIN_IP=$(curl -s https://api.ipify.org) bash bootstrap.sh"`, et les
    mesures de la tâche A2, étape 4.
+6. Dokploy (plan, tâche A3) : lancer l'installation **détachée**, jamais au premier plan d'une
+   session SSH. Le 2026-09-14, une coupure réseau du poste a tué l'installation avec la session.
+
+   ```bash
+   ssh root@178.18.247.62 'nohup sh -c "curl -sSL https://dokploy.com/install.sh | sh" > /root/dokploy-install.log 2>&1 < /dev/null &'
+   ssh root@178.18.247.62 'tail -3 /root/dokploy-install.log'   # jusqu'à « Dokploy is installed! »
+   ```
 
 ⚠ Avant d'effacer : exporter et **relire** l'export (plan, tâche A1). Celui du 2026-09-13 est
 `~/Sauvegardes/vps-2026-09-13.tar.gpg` sur le poste du porteur, phrase de passe dans le trousseau
