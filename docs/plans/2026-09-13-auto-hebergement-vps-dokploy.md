@@ -72,16 +72,16 @@ Redis 8 · Meilisearch v1.16 · GHCR · Cloudflare (DNS, proxy, R2).
 ci-dessous sont des **plafonds** posés par conteneur ; la colonne « attendu » est une estimation
 **à remplacer par la mesure** de la tâche D6 (`docker stats --no-stream`).
 
-| Conteneur | Plafond | Attendu au repos | Mesuré le 2026-09-14, 02:04 Z (Takussan seule, après seed) | Mesuré le 2026-09-14, 11:03 Z (les deux préproductions, AC4) | Instances à terme |
-|---|---|---|---|---|---|
-| Système, Docker, Dokploy (et sa base), Traefik | — | ~900 Mo | Dokploy 867 + sa base 36 + Traefik 27 = **930 Mo**, hors système | Dokploy 1 013 + sa base 72 + Traefik 33 = **1 118 Mo** | 1 |
-| PostgreSQL 17 (`shared_buffers=256MB`) | 1 Go | ~350 Mo | 86 Mo | 92 Mo | 1 |
-| MySQL 8.4 (`innodb_buffer_pool_size=256M`) | 640 Mo | ~450 Mo | 197 Mo | 248 Mo | 1 |
-| Meilisearch | 768 Mo | ~150 Mo | 118 Mo (817 biens indexés) | 115 Mo | 1 |
-| Redis Takussan / Redis CheckPrint Plus | 192 Mo / 96 Mo | ~15 Mo chacun | 6 / 5 Mo | 6 / 6 Mo | 1 + 1 |
-| Takussan `api` / `worker` / `worker-media` / `scheduler` | 384 / 256 / 384 / 192 Mo | ~90 / 70 / 70 / 60 Mo | 72 / 58 / 46 / 45 Mo | 54 / 47 / 45 / 43 Mo | × 2 environnements |
-| CheckPrint Plus `api` / `worker` / `scheduler` | 256 / 192 / 128 Mo | ~80 / 60 / 50 Mo | *non déployé* | 54 / 34 / 35 Mo | × 2 |
-| Front Takussan / front CheckPrint Plus | 384 / 256 Mo | ~120 / 90 Mo | 95 Mo / *non déployé* | 57 / 57 Mo | × 2 |
+| Conteneur | Plafond | Attendu au repos | Mesuré le 2026-09-14, 02:04 Z (Takussan seule, après seed) | Mesuré le 2026-09-14, 11:03 Z (les deux préproductions, AC4) | Mesuré sous charge d'images, 2026-09-14, 21:05 Z (TCK-520) | Instances à terme |
+|---|---|---|---|---|---|---|
+| Système, Docker, Dokploy (et sa base), Traefik | — | ~900 Mo | Dokploy 867 + sa base 36 + Traefik 27 = **930 Mo**, hors système | Dokploy 1 013 + sa base 72 + Traefik 33 = **1 118 Mo** | — | 1 |
+| PostgreSQL 17 (`shared_buffers=256MB`) | 1 Go | ~350 Mo | 86 Mo | 92 Mo | — | 1 |
+| MySQL 8.4 (`innodb_buffer_pool_size=256M`) | 640 Mo | ~450 Mo | 197 Mo | 248 Mo | — | 1 |
+| Meilisearch | 768 Mo | ~150 Mo | 118 Mo (817 biens indexés) | 115 Mo | — | 1 |
+| Redis Takussan / Redis CheckPrint Plus | 192 Mo / 96 Mo | ~15 Mo chacun | 6 / 5 Mo | 6 / 6 Mo | — | 1 + 1 |
+| Takussan `api` / `worker` / `worker-media` / `scheduler` | 384 / 256 / 384 / 192 Mo | ~90 / 70 / 70 / 60 Mo | 72 / 58 / 46 / 45 Mo | 54 / 47 / 45 / 43 Mo | — | × 2 environnements |
+| CheckPrint Plus `api` / `worker` / `scheduler` | 256 / 192 / 128 Mo | ~80 / 60 / 50 Mo | *non déployé* | 54 / 34 / 35 Mo | — | × 2 |
+| Front Takussan / front CheckPrint Plus | **512** / 256 Mo (TCK-520) | ~120 / 90 Mo | 95 Mo / *non déployé* | 57 / 57 Mo | **327 Mo** (pic, 8 clients, 50 photos en AVIF `w=1920`, depuis un conteneur froid à 51 Mo ; 219 Mo pour 4 clients `w=640`) / **140 Mo** (4 clients, 200 pages) | × 2 |
 
 Au total, le 2026-09-14 à 02:04 Z : **5 697 Mo disponibles** sur 7 941, `st` à `0` sur les douze
 relevés de `vmstat 5 12`, disque à **24 %** (17 Go sur 72), charge `0,50 / 0,94 / 1,08` sur 4 vCPU,
@@ -93,6 +93,15 @@ sur 72), charge `0,26 / 0,37 / 0,44`, swap intact. Les trois seuils tiennent ave
 sur quatre. ⚠ Le conteneur le plus lourd de la machine est **Dokploy lui-même** (867 → 1 013 Mo en neuf
 heures), et c'est le seul sans plafond (`docker stats` : la mémoire de la machine) : à surveiller
 avant F.
+
+⚠ **Le repos ne dit rien du plafond d'un front.** Le front Takussan, mesuré à 57 Mo deux minutes
+après un déploiement, était à **308 Mo** dix heures plus tard sans charge particulière (relevé du
+2026-09-14, 22:03 Z), et **327 Mo** sous une charge d'images depuis un conteneur froid — 85 % d'un
+plafond de 384 Mo. Le plafond se décide sur le pic mesuré, avec 20 % de marge : **512 Mo** pour le
+front Takussan (327 × 1,2 = 393, arrondi au palier), 256 Mo suffisent au front CheckPrint Plus
+(140 × 1,2 = 168). La charge est rejouable : `SITE=… PHOTOS=… CLIENTS=8 W=1920 charge-images.sh`
+(TCK-520, notes d'implémentation). Aucun `OOMKilled`, mémoire disponible de la machine jamais sous
+5 000 Mo pendant la charge.
 
 **Seuils d'alerte**, relevés en D6 puis surveillés — par `deploy/server/seuils.sh` et `seuils.timer`, une alerte Telegram par franchissement (TCK-519) :
 

@@ -10,9 +10,9 @@
 | Hôte | Service Dokploy | Image | Relevé le |
 |---|---|---|---|
 | `preview.api.takussan.com` | Compose `takussan-api-preview`, service `api:8080` — A en DNS seul | `ghcr.io/thiambara/takussan-api:preview` | 2026-09-14 : `/up` → `200`, `X-Build-Sha` = `preview`, Let's Encrypt |
-| `preview.takussan.com` | Application `takussan-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/takussan-web:preview` | 2026-09-14 : `401` sans authentification, `200` avec (la racine rend `307` vers `/fr`) ; `cf-ray`, aucun `x-vercel-id` ; plafond 384 Mio |
+| `preview.takussan.com` | Application `takussan-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/takussan-web:preview` | 2026-09-14 : `401` sans authentification, `200` avec (la racine rend `307` vers `/fr`) ; `cf-ray`, aucun `x-vercel-id` ; plafond **512 Mio** depuis le 2026-09-14 (TCK-520 : pic 327 Mio mesuré sous charge d'images sur l'ancien plafond de 384) |
 | `preview.api.checkprintplus.com` | Compose `cpp-api-preview`, service `api:8080` — A en DNS seul | `ghcr.io/thiambara/check-print-plus-api:preview` (privée) | 2026-09-14 : `/up` → `200`, `X-Build-Sha` = `c1744692…` (promotion #28 de check-print-plus), Let's Encrypt |
-| `preview.checkprintplus.com` | Application `cpp-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/check-print-plus-web:preview` (privée) | 2026-09-14 : `401` sans authentification et avec un mauvais mot de passe, `200` avec ; `server: cloudflare`, `cf-ray` ; plafond 256 Mio |
+| `preview.checkprintplus.com` | Application `cpp-web-preview` — A proxifié (était un CNAME Vercel) | `ghcr.io/thiambara/check-print-plus-web:preview` (privée) | 2026-09-14 : `401` sans authentification et avec un mauvais mot de passe, `200` avec ; `server: cloudflare`, `cf-ray` ; plafond 256 Mio (TCK-520 : pic 140 Mio sous 200 pages à 4 clients, le plafond tient) |
 | `deploy.takussan.com` | l'interface de Dokploy — A proxifié, certificat d'origine Let's Encrypt | — | 2026-09-14 : `200`, `http` → `301` |
 
 La production s'ajoute à ce tableau en phase F du plan. D'ici là, `www.takussan.com` reste servi par
