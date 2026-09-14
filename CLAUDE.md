@@ -365,6 +365,26 @@ et cela relève la priorité de TCK-288.
 Messages de commit en français, préfixés du type conventionnel, citant le ticket quand il y en a un
 (`feat(api): … (TCK-280)`). Ne jamais merger ni pousser sans demande explicite.
 
+**`preview` et `master` sont protégées depuis le 2026-09-14 (TCK-524)** — ce sont les branches qui
+déploient. Mesuré : `gh api repos/thiambara/takussan/branches/preview/protection` → PR obligatoire
+(zéro réviseur : le porteur est seul), **six checks requis**, `enforce_admins`, ni force-push ni
+suppression ; même chose sur `master`. Un `git push origin HEAD:preview` direct est **refusé**
+(`protected branch hook declined`), mesuré le jour même. Les six checks sont les jobs d'`api-ci`,
+`web-ci` et `repo-ci` **rejoués en entier par `promotion-ci.yml` sur toute PR vers ces deux
+branches** — préfixés `API /`, `Front /`, `Dépôt /`. Pourquoi un workflow de plus : un check requis
+doit exister sur chaque PR, et les trois CI ne se déclenchent que sur leurs chemins (la promotion
+#271 n'a pas joué `web-ci`) ; requis tels quels, ils auraient bloqué toute promotion qui ne les
+déclenche pas tous. La liste se relit là, jamais ici :
+
+```bash
+gh api repos/thiambara/takussan/branches/preview/protection -q .required_status_checks.contexts
+```
+
+⚠ **`dev` n'est PAS protégée, et c'est voulu** : le step « Régénérer la carte d'impact »
+d'`api-ci.yml` (TCK-479) y pousse un commit avec le `GITHUB_TOKEN`, ce qu'une protection avec
+`enforce_admins` refuserait. La protéger demande d'abord une autre voie pour ce step (jeton
+d'application, ou exception) — ticket à part si on la veut.
+
 ## Specs & backlog
 
 **Sources de vérité fonctionnelles** (ne jamais dupliquer dans un ticket) :

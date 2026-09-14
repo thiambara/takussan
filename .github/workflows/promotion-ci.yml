@@ -1,0 +1,36 @@
+# CI de PROMOTION — toute PR vers `preview` (préproduction) ou `master` (production) rejoue les
+# trois workflows de CI EN ENTIER, sans filtre de chemins (TCK-524).
+#
+# Pourquoi un workflow de plus : la protection de branche exige des checks NOMMÉS, et un check
+# requis doit exister sur chaque PR. Or api-ci, web-ci et repo-ci ne se déclenchent que sur leurs
+# chemins — mesuré sur la promotion #271 : web-ci n'a pas tourné. Requis tels quels, ils auraient
+# bloqué toute promotion qui ne les déclenche pas tous (« Expected — Waiting for status »). Ici,
+# les trois tournent toujours, et ce sont LEURS jobs, préfixés du nom du job appelant, que la
+# protection exige — relevés par `gh api …/check-runs`, jamais recopiés d'ici.
+#
+# Les trois workflows appelés portent `branches-ignore: [preview, master]` sur `pull_request` :
+# une promotion ne les joue qu'une fois, par ce fichier. `scripts/check-promotion-ci.mjs` garde
+# que chaque `*-ci.yml` à déclencheur `pull_request` est appelé ici, et l'inverse.
+name: CI de promotion
+
+on:
+  pull_request:
+    branches: [preview, master]
+
+jobs:
+  api:
+    name: API
+    uses: ./.github/workflows/api-ci.yml
+    secrets: inherit
+    # `lint-and-test` déclare `contents: write` (TCK-479) : un appelant ne peut pas donner moins.
+    # Sur une PR, le step qui pousse la carte d'impact ne s'exécute pas (`push` sur `dev` seulement).
+    permissions:
+      contents: write
+  web:
+    name: Front
+    uses: ./.github/workflows/web-ci.yml
+    secrets: inherit
+  repo:
+    name: Dépôt
+    uses: ./.github/workflows/repo-ci.yml
+    secrets: inherit

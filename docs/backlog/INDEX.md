@@ -10,8 +10,8 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 26 |
-| 🚧 Doing | 2 |
+| 📋 Todo | 25 |
+| 🚧 Doing | 3 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 446 |
@@ -55,7 +55,6 @@
 - [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
-- [TCK-524](tickets/TCK-524-protection-des-branches-preview-et-master.md) — Protection des branches — `preview` et `master` n'acceptent qu'une PR verte ; `dev` reste libre à cause de la carte d'impact `S · P0 · technique`
 - [TCK-525](tickets/TCK-525-compte-basic-auth-ci-distinct.md) — La preuve du déploiement s'authentifie avec un compte `ci`, distinct de l'identifiant du porteur `S · P1 · technique`
 - [TCK-526](tickets/TCK-526-docker-et-dokploy-epingles-a-la-reconstruction.md) — Reconstruction reproductible — `bootstrap.sh` épingle Docker, et la version de Dokploy est posée après l'installation `S · P1 · technique`
 - [TCK-527](tickets/TCK-527-ecarts-de-releve-et-garde-sans-build.md) — Écarts de relevé — courriel ACME, 2FA de Dokploy, `prod-drivers.json` périmé ; et une garde qui refuse tout `build:` dans les Compose `S · P2 · technique`
@@ -64,6 +63,7 @@
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 - [TCK-519](tickets/TCK-519-seuils-du-budget-surveilles.md) — Les seuils du budget de la machine déclenchent une alerte — mémoire, disque, vol de CPU `S · P0 · technique`
+- [TCK-524](tickets/TCK-524-protection-des-branches-preview-et-master.md) — Protection des branches — `preview` et `master` n'acceptent qu'une PR verte ; `dev` reste libre à cause de la carte d'impact `S · P0 · technique`
 
 ## 👀 Review
 
