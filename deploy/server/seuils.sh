@@ -59,7 +59,7 @@ envoyer() {
 # verifier <nom> <franchi 0|1> <libellé de la mesure>
 mkdir -p "$MARQUEURS"
 verifier() {
-  local nom=$1 franchi=$2 libelle=$3 marqueur="$MARQUEURS/$1"
+  local franchi=$2 libelle=$3 marqueur="$MARQUEURS/$1"
   if [ "$franchi" = 1 ] && [ ! -e "$marqueur" ]; then
     envoyer "⚠ $HOTE — $libelle"; : > "$marqueur"
   elif [ "$franchi" = 0 ] && [ -e "$marqueur" ]; then

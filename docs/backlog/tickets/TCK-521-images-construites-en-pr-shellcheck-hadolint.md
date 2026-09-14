@@ -1,7 +1,7 @@
 ---
 id: TCK-521
 title: "CI — les images se construisent en PR, sans push ; shellcheck et hadolint gardent le shell et les Dockerfile"
-status: todo
+status: doing
 phase: P1
 family: technique
 estimate: S
