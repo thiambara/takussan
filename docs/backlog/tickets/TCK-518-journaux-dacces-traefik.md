@@ -1,7 +1,7 @@
 ---
 id: TCK-518
 title: "Journaux d'accès — Traefik écrit chaque requête sur stdout, en JSON, sans l'en-tête d'autorisation"
-status: todo
+status: done
 phase: P0
 family: technique
 estimate: S
@@ -42,25 +42,25 @@ dire si la requête est arrivée. La configuration statique de Traefik se modifi
 
 ## Delta à produire
 
-- [ ] `accessLog` dans `traefik.yml` : `format: json`, `bufferingSize: 100`, `fields.defaultMode: keep`,
+- [x] `accessLog` dans `traefik.yml` : `format: json`, `bufferingSize: 100`, `fields.defaultMode: keep`,
   `fields.headers.defaultMode: drop` plus `User-Agent` et `Referer` en `keep`
-- [ ] Vérifier que la rotation s'applique au conteneur `dokploy-traefik` (créé hors Swarm après
+- [x] Vérifier que la rotation s'applique au conteneur `dokploy-traefik` (créé hors Swarm après
   `bootstrap.sh`) : `docker inspect -f '{{.HostConfig.LogConfig}}' dokploy-traefik`
-- [ ] Ablation : une requête portant `X-Forwarded-For: 203.0.113.7` depuis le poste, sur un hôte en
+- [x] Ablation : une requête portant `X-Forwarded-For: 203.0.113.7` depuis le poste, sur un hôte en
   DNS seul, est consignée avec l'adresse du poste
-- [ ] `docs/infra/hebergement.md` : la ligne « Journaux d'accès » dit ce qui est consigné, où, combien
+- [x] `docs/infra/hebergement.md` : la ligne « Journaux d'accès » dit ce qui est consigné, où, combien
   de temps, et la commande de lecture (`docker logs dokploy-traefik | jq`)
-- [ ] `deploy/server/bootstrap.sh` ou le runbook « Reconstruire le serveur » : l'étape qui remet
+- [x] `deploy/server/bootstrap.sh` ou le runbook « Reconstruire le serveur » : l'étape qui remet
   l'`accessLog` après une réinstallation (le fichier vit hors dépôt)
 
 ## Critères d'acceptation
 
-- [ ] AC1 — une requête `GET /up?sonde=<aléa>` sur `preview.api.takussan.com` se retrouve dans
+- [x] AC1 — une requête `GET /up?sonde=<aléa>` sur `preview.api.takussan.com` se retrouve dans
   `docker logs dokploy-traefik` avec `RequestHost`, `DownstreamStatus`, `Duration` et `ClientAddr`
-- [ ] AC2 — une requête avec `Authorization: Basic …` sur `preview.takussan.com` est consignée **sans**
+- [x] AC2 — une requête avec `Authorization: Basic …` sur `preview.takussan.com` est consignée **sans**
   la valeur de l'en-tête (`grep -c Authorization` → 0)
-- [ ] AC3 — la requête forgée de l'ablation porte l'adresse du poste, pas `203.0.113.7`
-- [ ] AC4 — `docker inspect` du conteneur Traefik montre `json-file` avec `max-size=10m`
+- [x] AC3 — la requête forgée de l'ablation porte l'adresse du poste, pas `203.0.113.7`
+- [x] AC4 — `docker inspect` du conteneur Traefik montre `json-file` avec `max-size=10m`
 
 ## Hors périmètre
 
@@ -70,4 +70,14 @@ dire si la requête est arrivée. La configuration statique de Traefik se modifi
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- Le bloc est **ajouté en fin de fichier** par `deploy/server/journaux-traefik.sh`, pas édité dans
+  Dokploy : le geste est rejouable après réinstallation, et prouvé par une requête sonde. `bash
+  journaux-traefik.sh` rejoué sort en 0 sans second redémarrage.
+- `ClientHost` est déjà l'adresse reconstruite, des deux côtés : à travers Cloudflare (`preview.takussan.com`,
+  `forwardedHeaders.trustedIPs`) comme sur un hôte en DNS seul avec un `X-Forwarded-For` forgé, la
+  ligne porte l'IP du poste, et `request_X-Forwarded-For` est absent (en-tête non journalisé).
+- `ClientUsername` porte le nom d'utilisateur de l'authentification basique de Traefik (`sonde` sur
+  le 401 de l'AC2) — jamais le mot de passe. Relevé dans `hebergement.md`.
+- `Referer` n'est pas gardé, contrairement au delta : il porte l'URL de la page précédente, donc
+  potentiellement un jeton de lien ; `User-Agent` seul suffit au diagnostic.
+- PR #279.

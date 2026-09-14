@@ -33,6 +33,7 @@ Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [rele
 | `deploy/server/compose.data.yml` | Meilisearch et les deux Redis, partagés par les deux projets |
 | `deploy/server/bootstrap.sh` | la préparation d'un Ubuntu 24.04 vierge |
 | `.github/workflows/images.yml` | construit, pousse sur GHCR, déclenche Dokploy, **prouve** par `X-Build-Sha` |
+| `deploy/server/journaux-traefik.sh` | ajoute l'`accessLog` JSON à `traefik.yml` (hors dépôt, réécrit par l'installation de Dokploy) et redémarre Traefik ; idempotent, se rejoue après toute réinstallation (TCK-518) |
 | `.github/workflows/certificats.yml`, `deploy/server/certificats.sh` | chaque jour, l'échéance des certificats d'**origine**, lus sur le serveur par SNI : rouge — et courriel de GitHub — sous 14 jours, sur un nom non couvert ou un certificat illisible |
 | `deploy/takussan/smoke-api.sh`, `deploy/takussan/smoke-web.sh` | les tests de fumée locaux des images |
 
@@ -76,7 +77,7 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | *Bot Fight Mode* | **désactivé** dans les deux zones ; *Browser Integrity Check* actif (il ne gêne ni la preuve `curl` d'`images.yml`, ni les API en DNS seul). Le jeton ne lit pas ce réglage (erreur `10000`) : vérifié au tableau de bord par le porteur | 2026-09-14 | Security → Settings → *Bot traffic* |
 | Notifications de Dokploy | canal Telegram ; événements : échec de build, sauvegardes (bases, volumes, Dokploy), nettoyage Docker, redémarrage de Dokploy — pas les déploiements. ⚠ *Server Threshold* n'existe pas en auto-hébergé : le formulaire ne l'affiche que sous Dokploy Cloud (`isCloud`, relu dans le source de la v0.30.6). Aucune alerte ne signale donc un seuil du budget | 2026-09-14 | `notification.all` |
 | Surveillance externe | UptimeRobot (compte du porteur, version gratuite) : `https://preview.api.takussan.com/up`, `https://preview.api.checkprintplus.com/up`, `https://deploy.takussan.com/`, toutes les 5 minutes. Mesuré sur le serveur : deux adresses de la liste publique d'UptimeRobot, 6 connexions en 380 s sur les deux API en DNS seul ; `deploy.takussan.com` passe par Cloudflare et ne se voit qu'au tableau de bord. L'échéance des certificats n'est pas dans la version gratuite : `certificats.yml` la tient | 2026-09-14 | `tcpdump` des SYN sur `:443`, rapprochés de `https://uptimerobot.com/inc/files/ips/IPv4.txt` |
-| Journaux d'accès | **aucun** : Traefik n'a pas d'`accessLog`, et les conteneurs `api` n'écrivent aucune ligne par requête (0 ligne en une heure). Une requête passée ne se retrouve donc pas après coup ; la présence d'un client se mesure en direct (`tcpdump`) | 2026-09-14 | `grep -i accesslog /etc/dokploy/traefik/traefik.yml` ; `docker logs --since 60m <api>` |
+| Journaux d'accès | **Traefik, une ligne JSON par requête sur stdout de `dokploy-traefik`** (TCK-518) : adresse cliente reconstruite (`ClientHost` — mesuré : l'IP du poste à travers Cloudflare **et** sur un hôte en DNS seul avec un `X-Forwarded-For: 203.0.113.7` forgé), hôte, méthode, chemin, statut, durée, routeur, `User-Agent`. **Aucun autre en-tête** : `Authorization` et `Cookie` sont écartés (`headers.defaultMode: drop`, mesuré sur un 401). ⚠ `ClientUsername` porte le nom d'utilisateur de l'authentification basique, jamais le mot de passe. Borné par la rotation de `daemon.json` (`10m × 3`, relu sur le conteneur). Les conteneurs `api` n'écrivent toujours rien par requête, et c'est voulu. Avant ce jour : aucun journal, la présence d'un client se mesurait en direct (`tcpdump`) | 2026-09-14 | `docker logs --since 10m dokploy-traefik \| jq -c 'select(.RequestHost=="preview.api.takussan.com") \| {ClientHost,RequestPath,DownstreamStatus,Duration}'` ; posé par `deploy/server/journaux-traefik.sh` |
 | Nettoyage Docker quotidien | actif | 2026-09-14 | `settings.getWebServerSettings` → `enableDockerCleanup` |
 | Budget au repos | Takussan seule, après seed (02:04 Z) : 5 697 Mo disponibles sur 7 941, `st` 0, disque 24 %. Les deux préproductions servies (11:03 Z) : **5 349 Mo**, `st` 0, disque 25 %. Dokploy seul : 867 puis 1 013 Mo, **sans plafond** | 2026-09-14 | plan, tâche D6, étape 4 ; détail par conteneur au § Budget du plan |
 | Médias de la préproduction Takussan | 948 Mo dans le volume `takussan-api-preview-4iza80_storage` | 2026-09-14 | `du -sh /var/lib/docker/volumes/<projet>_storage/_data` |
@@ -248,6 +249,10 @@ puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans l
    ssh root@178.18.247.62 'nohup sh -c "curl -sSL https://dokploy.com/install.sh | sh" > /root/dokploy-install.log 2>&1 < /dev/null &'
    ssh root@178.18.247.62 'tail -3 /root/dokploy-install.log'   # jusqu'à « Dokploy is installed! »
    ```
+
+7. Le journal d'accès de Traefik (TCK-518) — l'installation ne le pose pas, et le fichier est hors
+   dépôt : `scp deploy/server/journaux-traefik.sh root@178.18.247.62:` puis
+   `ssh root@178.18.247.62 'bash journaux-traefik.sh'`. Le script prouve par une requête sonde.
 
 ⚠ Avant d'effacer : exporter et **relire** l'export (plan, tâche A1). Celui du 2026-09-13 est
 `~/Sauvegardes/vps-2026-09-13.tar.gpg` sur le poste du porteur, phrase de passe dans le trousseau
