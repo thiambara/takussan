@@ -1,0 +1,33 @@
+# Échéance des certificats d'ORIGINE du serveur (Let's Encrypt, obtenus par Traefik).
+#
+# Traefik les renouvelle seul ; ce workflow ne sert qu'au jour où ce renouvellement échoue en
+# silence. Il échoue — et GitHub l'envoie par courriel à qui a écrit la ligne `cron` — dès qu'un
+# certificat expire dans moins de 14 jours, ne couvre plus son nom, ou ne se lit plus. La
+# surveillance de disponibilité (UptimeRobot, plan D8) ne verrait l'échéance qu'une fois passée :
+# sa version gratuite ne surveille pas les certificats. Le détail est dans le script.
+#
+# ⚠ Sur un dépôt public, GitHub éteint un workflow planifié après 60 jours sans activité, et le dit
+# par courriel : un `workflow_dispatch` le rallume.
+name: Échéance des certificats
+
+on:
+  schedule:
+    - cron: '17 6 * * *' # chaque jour à 06:17 UTC — à l'écart de l'heure pile, que GitHub retarde
+  workflow_dispatch:
+  # La PR qui modifie le contrôle le prouve sur l'exécuteur qui le fera tourner.
+  pull_request:
+    paths:
+      - 'deploy/server/certificats.sh'
+      - '.github/workflows/certificats.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  echeance:
+    name: Certificats d'origine
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - run: deploy/server/certificats.sh
