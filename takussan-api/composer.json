@@ -20,6 +20,7 @@
         "maatwebsite/excel": "^4.0",
         "meilisearch/meilisearch-php": "^1.16",
         "pragmarx/google2fa": "^9.0",
+        "resend/resend-php": "^1.14",
         "socialiteproviders/apple": "^5.10",
         "socialiteproviders/facebook": "^4.1",
         "spatie/laravel-activitylog": "^5.0",

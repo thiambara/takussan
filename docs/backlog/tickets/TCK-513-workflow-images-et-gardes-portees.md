@@ -1,13 +1,13 @@
 ---
 id: TCK-513
 title: "CI — images.yml construit, pousse, déclenche Dokploy et prouve ; les gardes quittent la chaîne bash"
-status: doing
+status: done
 phase: P0
 family: technique
 estimate: M
 wave: 64
 created: 2026-09-13
-updated: 2026-09-13
+updated: 2026-09-14
 depends_on: [TCK-511, TCK-512]
 blocks: [TCK-514, TCK-515]
 spec_refs:
@@ -35,15 +35,15 @@ ablations et inventaire des suppressions : [plan, tâches B4 et B5](../../plans/
 
 ## Delta à produire
 
-- [ ] `.github/workflows/images.yml` ; retrait de `deploy.yml` et `deploy-preview.yml`
-- [ ] `scripts/test-release-reindex.sh` ; `check-queues.mjs`, `check-front-env-keys.mjs`, `check-heredocs.mjs` portés
-- [ ] retrait de `scripts/deploy.sh`, `server-setup.sh`, `seed-environnement.sh`, `seed-remote.sh` et des scripts de déploiement liés, après relecture
+- [x] `.github/workflows/images.yml` ; retrait de `deploy.yml` et `deploy-preview.yml`
+- [x] `scripts/test-release-reindex.sh` ; `check-queues.mjs`, `check-front-env-keys.mjs`, `check-heredocs.mjs` portés
+- [x] retrait de `scripts/deploy.sh`, `server-setup.sh`, `seed-environnement.sh`, `seed-remote.sh` et des scripts de déploiement liés, après relecture
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `actionlint` vert ; la preuve `X-Build-Sha` extraite du YAML rejouée en local
-- [ ] AC2 — `test-release-reindex.sh` rend ses onze `✓`, et son ablation rougit
-- [ ] AC3 — chaque ablation de B5 rougit la garde visée ; toutes les gardes vertes ensuite
+- [x] AC1 — `actionlint` vert ; la preuve `X-Build-Sha` extraite du YAML rejouée en local
+- [x] AC2 — `test-release-reindex.sh` rend ses onze `✓`, et son ablation rougit
+- [x] AC3 — chaque ablation de B5 rougit la garde visée ; toutes les gardes vertes ensuite
 
 ## Hors périmètre
 
@@ -69,3 +69,14 @@ ablations et inventaire des suppressions : [plan, tâches B4 et B5](../../plans/
   `*_smoke`), `deploy-preview-vps.sh`, `deploy-prod-vps.sh`, `test-deploy-search-reindex.sh`.
 - `actionlint` sur tout le dépôt signale deux remarques de shellcheck dans `api-ci.yml`
   (SC1003, SC2011), fichier que cette branche ne touche pas.
+
+**2026-09-14 — les deux premiers passages réels** (plan, D3 : c'est lui qui clôt B4).
+
+- Non raccordé (fusion de #265 sur `preview`, run `34792488601`) : images poussées, et le job de
+  déploiement sort **en vert** sur la notice « Dokploy n'est pas raccordé à « preview » : images
+  poussées, rien déployé. » — il tourne et s'arrête tôt au lieu d'être sauté par GitHub. La
+  contrainte « jamais échoué » tient ; la nuance est écrite au runbook.
+- Raccordé (`workflow_dispatch`, run `34794945761`) : vert, avec
+  `✓ https://preview.api.takussan.com/up sert 6995a81d…` et
+  `✓ https://preview.takussan.com/robots.txt sert 6995a81d…`. La preuve a tenu son rôle : elle a
+  attendu, sans conclure, pendant que l'API n'était pas encore servie (détail dans TCK-515).
