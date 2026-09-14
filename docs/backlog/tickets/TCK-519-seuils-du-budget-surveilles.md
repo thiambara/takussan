@@ -1,7 +1,7 @@
 ---
 id: TCK-519
 title: "Les seuils du budget de la machine déclenchent une alerte — mémoire, disque, vol de CPU"
-status: todo
+status: doing
 phase: P0
 family: technique
 estimate: S
@@ -40,22 +40,22 @@ des notifications de Dokploy existe déjà (relevé, ligne « Notifications de D
 
 ## Delta à produire
 
-- [ ] `deploy/server/seuils.sh` : lit `MemAvailable`, `df /`, `vmstat 5 3` (colonne `st`), la mémoire
+- [x] `deploy/server/seuils.sh` : lit `MemAvailable`, `df /`, `vmstat 5 3` (colonne `st`), la mémoire
   du service `dokploy` ; compare aux seuils du plan, envoie sur Telegram
-- [ ] Unité `seuils.timer` (toutes les 5 minutes) et `seuils.service`, posées par `bootstrap.sh`
+- [x] Unité `seuils.timer` (toutes les 5 minutes) et `seuils.service`, posées par `bootstrap.sh`
   comme `fermer-port-3000`
 - [ ] Ablation : `SEUIL_MEM_MO=100000 deploy/server/seuils.sh` envoie un message ; relancé, n'en
   envoie pas un second ; ramené au seuil normal, envoie le retour à la normale
-- [ ] `docs/infra/hebergement.md` : ligne « Surveillance des seuils », avec la date de la première
+- [x] `docs/infra/hebergement.md` : ligne « Surveillance des seuils », avec la date de la première
   alerte de test et la commande `systemctl list-timers seuils.timer`
-- [ ] Le plan, § Budget : la phrase « relevés en D6 puis surveillés » cite ce ticket
+- [x] Le plan, § Budget : la phrase « relevés en D6 puis surveillés » cite ce ticket
 
 ## Critères d'acceptation
 
-- [ ] AC1 — `systemctl list-timers` montre `seuils.timer` actif, prochain passage sous 5 minutes
+- [x] AC1 — `systemctl list-timers` montre `seuils.timer` actif, prochain passage sous 5 minutes
 - [ ] AC2 — l'ablation ci-dessus produit exactement deux messages Telegram (franchissement, retour)
-- [ ] AC3 — un passage au repos n'écrit rien : `journalctl -u seuils.service` sans ligne d'envoi
-- [ ] AC4 — `bootstrap.sh` rejoué sur le serveur ne duplique ni l'unité ni le timer (idempotence)
+- [x] AC3 — un passage au repos n'écrit rien : `journalctl -u seuils.service` sans ligne d'envoi
+- [x] AC4 — `bootstrap.sh` rejoué sur le serveur ne duplique ni l'unité ni le timer (idempotence)
 
 ## Hors périmètre
 
@@ -65,4 +65,25 @@ des notifications de Dokploy existe déjà (relevé, ligne « Notifications de D
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+- **Le canal Telegram de Dokploy n'a jamais fonctionné.** Le *Chat ID* enregistré dans Dokploy est le
+  `@username` du bot (`my_tg_docploy_bot`) ; l'API rend `403 Forbidden: the bot can't send messages
+  to the bot`, et `getUpdates` est vide. Le script l'a attrapé parce qu'il lit `"ok":true` dans la
+  réponse au lieu du code de sortie de curl. Relevé corrigé (ligne « Notifications de Dokploy »).
+- Les unités sont dans `bootstrap.sh` (§ 7) avec `ConditionPathExists=/usr/local/sbin/seuils` :
+  rejouer bootstrap sur un serveur sans le script ne casse rien, le timer attend. Seule la section 7
+  a été rejouée sur le serveur (deux fois, idempotente) : un `bootstrap.sh` entier refait
+  `apt-get upgrade`, qui pourrait monter `docker-ce` et redémarrer tous les conteneurs — c'est
+  l'objet de TCK-526.
+- `/etc/default/seuils` a été écrit sur le serveur depuis la table `telegram` de la base de Dokploy,
+  sans transiter par le poste ; il porte donc aujourd'hui le même identifiant faux.
+- PR #280 (unités, script, relevé) ; le ticket reste `doing` pour AC2.
+
+## Reste sur dev — une action humaine
+
+1. Sur Telegram, ouvrir une conversation avec `@my_tg_docploy_bot` et lui envoyer un message (ou
+   l'ajouter à un canal privé et y écrire).
+2. Sur le serveur : `. /etc/default/seuils; curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getUpdates" | jq '.result[].message.chat.id'`
+   → l'identifiant numérique ; le poser dans `/etc/default/seuils` **et** dans Dokploy
+   (*Settings → Notifications → Telegram*, puis *Test*).
+3. Rejouer l'ablation d'AC2 : `SEUIL_MEM_MO=100000 seuils` puis `seuils` — deux messages reçus,
+   aucune ligne `✗`. Alors AC2 se coche et le ticket passe `done`.
