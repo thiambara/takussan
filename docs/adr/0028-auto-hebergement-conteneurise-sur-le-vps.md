@@ -110,6 +110,17 @@ worker demandera son propre ADR, sur une mesure de gain.
   migrations, la réconciliation des rôles et la synchronisation Meilisearch ; `api`, `worker`,
   `worker-media` et `scheduler` ne démarrent qu'**après son succès**. Tous partagent un volume nommé
   pour `storage/app`, dont les médias.
+
+  ⚠ **« Une migration qui échoue laisse l'ancienne version servir » n'est vrai que par la commande
+  de déploiement, pas par `depends_on`** — mesuré le 2026-09-14 (TCK-522), l'affirmation inverse
+  ayant vécu ici et dans le fichier Compose depuis le 2026-09-13. `depends_on:
+  service_completed_successfully` n'ordonne que le *démarrage* : sur un seul `up -d --build`,
+  Compose retire l'ancien `api` et crée le neuf **avant** de lancer `release`, et un `release` en
+  échec laisse l'API coupée (`/up` → `000`, conteneurs `Created`). Le champ *Command* du service
+  Compose de Dokploy porte donc `run --rm release && up -d --build` : `up` n'est jamais lancé si
+  `release` échoue, et l'ancienne pile continue de servir — prouvé par `smoke-api.sh pile` (étape
+  « release en échec », identifiant du conteneur `api` comparé) et rejoué sur la préproduction le
+  2026-09-14 (relevé, `docs/infra/hebergement.md`, ligne « Déploiement en échec »).
 - **Le front est une Application Dokploy** construite depuis une image, mise à jour par Swarm sans
   coupure, derrière une sonde de santé.
 - Les files consommées sont **écrites dans le fichier Compose**, et c'est lui que
@@ -212,7 +223,9 @@ inexistant).
   préproduction partagée une fois fusionnée dans `preview`.
 - **Redéployer la pile d'API la coupe quelques secondes** : Compose recrée les conteneurs. Le front,
   lui, bascule sans coupure. Acceptable avant le lancement ; à mesurer, et à reprendre si besoin,
-  avant la production.
+  avant la production. Et `release` tourne **deux fois** par déploiement depuis TCK-522 (par `run`,
+  puis rejoué par `up`) : le second passage ne migre ni ne réimporte rien, c'est son idempotence
+  que `smoke-api.sh pile` vérifie.
 - **La réindexation Meilisearch devient plus grossière.** `deploy.sh` comparait fichier par fichier
   avec la release précédente, présente sur le disque ; un conteneur n'en a pas. Désormais une
   empreinte de la « forme » des index est calculée au build et comparée à la dernière importée,

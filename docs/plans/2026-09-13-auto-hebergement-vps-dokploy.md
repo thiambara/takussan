@@ -1479,6 +1479,8 @@ services:
   # Migrations, réconciliation des rôles, Meilisearch. Les autres services attendent son SUCCÈS :
   # une migration qui échoue laisse l'ancienne version servir, au lieu du nouveau code sur
   # l'ancien schéma.
+  # ⚠ FAUX pour un simple `up -d --build`, mesuré le 2026-09-14 (TCK-522) : Compose recrée `api`
+  # avant de lancer release. Le fichier réel et hebergement.md portent la commande en deux temps.
   release:
     <<: *api
     restart: "no"

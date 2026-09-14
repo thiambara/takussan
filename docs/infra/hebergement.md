@@ -29,13 +29,13 @@ Vercel ([ADR-0017](../adr/0017-deploiement-du-front-pilote-par-vercel.md), [rele
 |---|---|
 | `takussan-api/Dockerfile`, `takussan-api/docker/` | l'image de l'API — `api`, workers, planificateur, `release` et `seed` |
 | `takussan-web/Dockerfile` | l'image du front, **une par environnement** (`NEXT_PUBLIC_*` est inliné au build) |
-| `deploy/takussan/compose.api.yml` | la pile d'API d'un environnement, déclarée dans Dokploy |
+| `deploy/takussan/compose.api.yml` | la pile d'API d'un environnement, déclarée dans Dokploy — déployée par la commande en deux temps du relevé (`run --rm release && up -d --build`, TCK-522), jamais par un simple `up` |
 | `deploy/server/compose.data.yml` | Meilisearch et les deux Redis, partagés par les deux projets |
 | `deploy/server/bootstrap.sh` | la préparation d'un Ubuntu 24.04 vierge |
 | `.github/workflows/images.yml` | construit, pousse sur GHCR, déclenche Dokploy, **prouve** par `X-Build-Sha` |
 | `deploy/server/journaux-traefik.sh` | ajoute l'`accessLog` JSON à `traefik.yml` (hors dépôt, réécrit par l'installation de Dokploy) et redémarre Traefik ; idempotent, se rejoue après toute réinstallation (TCK-518) |
 | `.github/workflows/certificats.yml`, `deploy/server/certificats.sh` | chaque jour, l'échéance des certificats d'**origine**, lus sur le serveur par SNI : rouge — et courriel de GitHub — sous 14 jours, sur un nom non couvert ou un certificat illisible |
-| `deploy/takussan/smoke-api.sh`, `deploy/takussan/smoke-web.sh` | les tests de fumée locaux des images |
+| `deploy/takussan/smoke-api.sh`, `deploy/takussan/smoke-web.sh` | les tests de fumée locaux des images ; `pile` déploie avec la commande de Dokploy et joue un `release` en échec (TCK-522) |
 
 ⚠ **Les images de Takussan sont publiques**, comme le dépôt : leur manifeste se lit avec un jeton
 GHCR anonyme (`200` sur `api:preview`, `api:preview-seed` et `web:preview`, mesuré le 2026-09-14).
@@ -76,6 +76,8 @@ certification de Debian) pour les deux images de l'API, rien pour le front. Aucu
 | Zones Cloudflare | `takussan.com`, `checkprintplus.com` : SSL Full (strict), *Always Use HTTPS* désactivé | 2026-09-14 | `GET /zones/<id>/settings/ssl` |
 | *Bot Fight Mode* | **désactivé** dans les deux zones ; *Browser Integrity Check* actif (il ne gêne ni la preuve `curl` d'`images.yml`, ni les API en DNS seul). Le jeton ne lit pas ce réglage (erreur `10000`) : vérifié au tableau de bord par le porteur | 2026-09-14 | Security → Settings → *Bot traffic* |
 | Notifications de Dokploy | canal Telegram ; événements : échec de build, sauvegardes (bases, volumes, Dokploy), nettoyage Docker, redémarrage de Dokploy — pas les déploiements. ⚠ **Jamais reçues, mesuré le 2026-09-14 (TCK-519)** : le *Chat ID* enregistré est le `@username` du bot lui-même, et l'API répond `403 Forbidden: the bot can't send messages to the bot` ; `getUpdates` est vide, le bot n'a jamais reçu un message. Correction : ouvrir une conversation avec le bot (ou l'ajouter à un canal), relire l'identifiant par `getUpdates`, le poser dans Dokploy **et** dans `/etc/default/seuils`. ⚠ *Server Threshold* n'existe pas en auto-hébergé : le formulaire ne l'affiche que sous Dokploy Cloud (`isCloud`, relu dans le source de la v0.30.6). Aucune alerte ne signale donc un seuil du budget | 2026-09-14 | `notification.all` |
+| Commande de déploiement des Compose | champ *Command* du service, posé le 2026-09-14, 22:36 Z par `compose.update` (TCK-522) — Takussan : `compose -p takussan-api-preview-4iza80 --env-file deploy/takussan/.env -f ./deploy/takussan/compose.api.yml run --rm release && docker compose -p takussan-api-preview-4iza80 --env-file deploy/takussan/.env -f ./deploy/takussan/compose.api.yml up -d --build --remove-orphans` ; CheckPrint Plus : la même avec `cpp-api-preview-tdb0ll`, `deploy/.env`, `./deploy/compose.api.yml`. Dokploy l'exécute en `docker ${command}` ; `&&` admis entre commandes `docker compose`, `;` `\|` `$` `(` `)` refusés (source v0.30.6, `builders/compose.ts`). `release` tourne deux fois par déploiement, le second ne migre ni ne réimporte rien (`Nothing to migrate`, `forme des index inchangée`, `done` en 10 s). ⚠ Hors dépôt : à reposer après toute recréation d'un service Compose (runbook, étape 9) | 2026-09-14 | `compose.one` → `command` ; journal de déploiement, encadré « Executing command » |
+| Déploiement en échec | **Prouvé le 2026-09-14, 22:36 Z (TCK-522) : un `release` qui échoue laisse l'ancienne API servir — grâce à la commande ci-dessus, PAS à `depends_on`.** `DB_PASSWORD` altéré dans *Environment*, *Deploy* : déploiement `error` en moins de 15 s, journal `SQLSTATE[08006] … password authentication failed` puis `Error: ❌ Docker command failed`, aucune ligne `Recreate` ; pendant et après, conteneur `api` `16035eee79e6…` inchangé et `healthy`, `/up` → `200`, `X-Build-Sha` = `ad93e5e6…` inchangé, `worker`, `worker-media`, `scheduler` `Up`. Environnement restauré à l'identique, déploiement suivant `done`. ⚠ Avec le `up -d --build` par défaut, mesuré en local le même jour : Compose retire l'ancien `api` et crée le neuf **avant** de lancer `release` ; `release` en échec, tout reste `Created`, `/up` → `000`. **Notification** : Dokploy appelle `sendBuildErrorNotifications` (événement « échec de build », Compose compris), mais son envoi Telegram est un `fetch` dont la réponse n'est jamais lue : le `403` du *Chat ID* faux (ligne « Notifications ») ne laisse **aucune trace** dans `docker service logs dokploy`. Un échec ne se voit donc qu'à l'interface, et dans `images.yml` | 2026-09-14 | `deploy/takussan/smoke-api.sh pile` (étape « release en échec ») ; sur la préproduction : `compose.update` (`env`), `compose.deploy`, `docker ps -a --no-trunc --filter name=takussan-api-preview-4iza80-api-1`, `curl -sSD - -o /dev/null https://preview.api.takussan.com/up` |
 | Surveillance externe | UptimeRobot (compte du porteur, version gratuite) : `https://preview.api.takussan.com/up`, `https://preview.api.checkprintplus.com/up`, `https://deploy.takussan.com/`, toutes les 5 minutes. Mesuré sur le serveur : deux adresses de la liste publique d'UptimeRobot, 6 connexions en 380 s sur les deux API en DNS seul ; `deploy.takussan.com` passe par Cloudflare et ne se voit qu'au tableau de bord. L'échéance des certificats n'est pas dans la version gratuite : `certificats.yml` la tient | 2026-09-14 | `tcpdump` des SYN sur `:443`, rapprochés de `https://uptimerobot.com/inc/files/ips/IPv4.txt` |
 | Surveillance des seuils du budget | `seuils.timer` toutes les 5 minutes → `/usr/local/sbin/seuils` (`deploy/server/seuils.sh`, TCK-519) : mémoire disponible ≥ 1 500 Mo, disque < 75 %, `st` < 10, Dokploy < 1 536 Mo ; une alerte Telegram par **franchissement**, un message de retour, silence sinon. Ablation jouée le 2026-09-14 : `SEUIL_MEM_MO=100000 seuils` alerte, rejoué se tait, `seuils` annonce le retour ; les deux envois ont rendu le `403` ci-dessus tant que le *Chat ID* est faux. Secrets dans `/etc/default/seuils` (600), unités posées par `bootstrap.sh` § 7 | 2026-09-14 | `systemctl list-timers seuils.timer` ; `seuils --etat` ; `journalctl -u seuils.service` |
 | Journaux d'accès | **Traefik, une ligne JSON par requête sur stdout de `dokploy-traefik`** (TCK-518) : adresse cliente reconstruite (`ClientHost` — mesuré : l'IP du poste à travers Cloudflare **et** sur un hôte en DNS seul avec un `X-Forwarded-For: 203.0.113.7` forgé), hôte, méthode, chemin, statut, durée, routeur, `User-Agent`. **Aucun autre en-tête** : `Authorization` et `Cookie` sont écartés (`headers.defaultMode: drop`, mesuré sur un 401). ⚠ `ClientUsername` porte le nom d'utilisateur de l'authentification basique, jamais le mot de passe. Borné par la rotation de `daemon.json` (`10m × 3`, relu sur le conteneur). Les conteneurs `api` n'écrivent toujours rien par requête, et c'est voulu. Avant ce jour : aucun journal, la présence d'un client se mesurait en direct (`tcpdump`) | 2026-09-14 | `docker logs --since 10m dokploy-traefik \| jq -c 'select(.RequestHost=="preview.api.takussan.com") \| {ClientHost,RequestPath,DownstreamStatus,Duration}'` ; posé par `deploy/server/journaux-traefik.sh` |
@@ -190,7 +192,9 @@ deploy/takussan/smoke-web.sh            # l'image du front (exige ./dev.sh api)
 ```
 
 **Redéployer** : pousser sur `preview` (ou `workflow_dispatch` de *Images et déploiement*). Le
-workflow n'est vert que lorsque `X-Build-Sha` rend le commit.
+workflow n'est vert que lorsque `X-Build-Sha` rend le commit. Dokploy joue la commande en deux temps
+du relevé : `release` par `run`, puis `up` seulement s'il a réussi — un `release` en échec laisse
+l'ancienne pile servir et le déploiement passe `error` (relevé, ligne « Déploiement en échec »).
 
 ⚠ **Sauf tant que l'environnement GitHub n'est pas raccordé à Dokploy** : si une des variables
 `DOKPLOY_*` ou le secret `DOKPLOY_API_KEY` manque, le job *Déploiement et preuve* s'arrête tôt, **en
@@ -260,6 +264,22 @@ puis restaurer les bases depuis R2. La réinstallation elle-même se fait dans l
    `/etc/default/seuils` (mode `600`) avec `TELEGRAM_BOT_TOKEN` et `TELEGRAM_CHAT_ID` — les mêmes que
    les notifications de Dokploy, l'identifiant lu par `getUpdates`, jamais le `@username` du bot.
    Preuve : `SEUIL_MEM_MO=100000 seuils` doit envoyer un message, sans ligne `✗`.
+
+9. La commande de déploiement de chaque service Compose (TCK-522) — Dokploy la remplace par un
+   simple `up -d --build` tant que le champ *Command* est vide, et un `release` en échec couperait
+   alors l'API. Poser la commande du relevé (ligne « Commande de déploiement des Compose »), au
+   nom du projet Compose que Dokploy vient d'attribuer :
+
+   ```bash
+   curl -sS -X POST "https://deploy.takussan.com/api/compose.update" -H "x-api-key: $DOKPLOY_API_KEY" \
+     -H 'content-type: application/json' -A curl/8 \
+     -d '{"composeId":"<id>","command":"compose -p <projet> --env-file deploy/takussan/.env -f ./deploy/takussan/compose.api.yml run --rm release && docker compose -p <projet> --env-file deploy/takussan/.env -f ./deploy/takussan/compose.api.yml up -d --build --remove-orphans"}'
+   ```
+
+   Preuve : un déploiement normal `done` dont le journal porte `run --rm release` dans l'encadré
+   « Executing command », puis `smoke-api.sh pile` en local, qui joue la même commande. ⚠ Sans
+   `-A curl/8`, le *Browser Integrity Check* de Cloudflare refuse l'appel (`403`, code `1010`) ;
+   mesuré depuis `urllib` de Python.
 
 ⚠ Avant d'effacer : exporter et **relire** l'export (plan, tâche A1). Celui du 2026-09-13 est
 `~/Sauvegardes/vps-2026-09-13.tar.gpg` sur le poste du porteur, phrase de passe dans le trousseau
