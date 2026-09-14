@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**475 tickets** — 32 ouverts, 442 livrés.
+**475 tickets** — 31 ouverts, 443 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 29 |
-| 🚧 Doing | 3 |
+| 🚧 Doing | 2 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 442 |
+| ✅ Done | 443 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -67,7 +67,6 @@
 
 - [TCK-339](tickets/TCK-339-vocabulaire-wolof-de-recherche.md) — Vocabulaire wolof de recherche — revue lexicale requise `M · P3 · applicatif`
 - [TCK-519](tickets/TCK-519-seuils-du-budget-surveilles.md) — Les seuils du budget de la machine déclenchent une alerte — mémoire, disque, vol de CPU `S · P0 · technique`
-- [TCK-520](tickets/TCK-520-plafond-memoire-du-front-mesure.md) — Le plafond mémoire des fronts se décide sur une mesure sous charge d'images, pas au repos `S · P1 · technique`
 
 ## 👀 Review
 
@@ -79,10 +78,10 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 442
+## ✅ Done — 443
 
 <details>
-<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 7 tickets</summary>
+<summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 8 tickets</summary>
 
 - [TCK-510](tickets/TCK-510-serveur-reinstalle-sous-dokploy.md) — Serveur — le VPS est réinstallé à blanc et sert Dokploy, ses bases et leurs sauvegardes `M · P0 · technique`
 - [TCK-511](tickets/TCK-511-image-et-pile-compose-de-lapi.md) — API — une image FrankenPHP par commit et sa pile Compose, éprouvées en local `M · P0 · technique`
@@ -91,6 +90,7 @@ _(aucun)_
 - [TCK-514](tickets/TCK-514-guide-dhebergement-dokploy.md) — Documentation — le guide d'hébergement Dokploy remplace le guide de premier déploiement `S · P0 · technique`
 - [TCK-515](tickets/TCK-515-preproductions-sur-dokploy.md) — Préproductions — Takussan et CheckPrint Plus servis par Dokploy, mesurés, restaurés à blanc `M · P0 · technique`
 - [TCK-518](tickets/TCK-518-journaux-dacces-traefik.md) — Journaux d'accès — Traefik écrit chaque requête sur stdout, en JSON, sans l'en-tête d'autorisation `S · P0 · technique`
+- [TCK-520](tickets/TCK-520-plafond-memoire-du-front-mesure.md) — Le plafond mémoire des fronts se décide sur une mesure sous charge d'images, pas au repos `S · P1 · technique`
 
 </details>
 

@@ -15,16 +15,17 @@
 # les identifiants (`%{url_effective}` avec `-u`).
 set -uo pipefail
 SITE=${SITE:?SITE manquant}
-PHOTOS=${PHOTOS:?PHOTOS manquant (un fichier, une URL d'image par ligne)}
+PHOTOS=${PHOTOS:?PHOTOS manquant : un fichier, une URL par ligne}
 CLIENTS=${CLIENTS:-4}
 W=${W:-640}
 AUTH=${PREVIEW_BASIC_AUTH:-}
 export SITE W AUTH
 
 une() {
-  local enc
+  local enc auth=()
   enc=$(python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1")
-  curl -4 -sS -m 60 -o /dev/null ${AUTH:+-u "$AUTH"} -H 'Accept: image/avif,image/webp,*/*' \
+  [ -n "$AUTH" ] && auth=(-u "$AUTH")
+  curl -4 -sS -m 60 -o /dev/null "${auth[@]}" -H 'Accept: image/avif,image/webp,*/*' \
     -w '%{http_code} %{content_type} %{time_total}\n' "$SITE/_next/image?url=$enc&w=$W&q=75"
 }
 export -f une
