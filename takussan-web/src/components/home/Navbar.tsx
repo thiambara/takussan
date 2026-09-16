@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
@@ -13,6 +13,7 @@ import { navLinks, categories, moreCategories } from '@/data/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
+import { BarreDeChargement } from '@/components/shared/BarreDeChargement';
 import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
 import { apiFetch } from '@/lib/api';
 import { parametreDe } from '@/types/search';
@@ -89,7 +90,16 @@ export function Navbar({ className }: NavbarProps) {
     const raw = searchParams.get('type');
     return raw ? raw.split(',').map((t) => t.trim()).filter(Boolean) : [];
   }, [searchParams]);
-  const activeCategory = selectedTypes.length === 1 ? selectedTypes[0] : null;
+  const categorieDeLUrl = selectedTypes.length === 1 ? selectedTypes[0] : null;
+
+  // Retour d'administration du 2026-09-16 : un clic sur une catégorie ne changeait RIEN à l'écran
+  // tant que la page suivante n'était pas servie — la puce ne s'allumait qu'avec la nouvelle URL,
+  // et le seul indicateur était en bas de page. La navigation passe donc par une transition : la
+  // puce demandée s'allume au clic, et la barre de chargement court sous la navbar tant que la
+  // page n'est pas là. `typeDemande` vaut '' pour « retirer le filtre ».
+  const [enNavigation, demarrerNavigation] = useTransition();
+  const [typeDemande, setTypeDemande] = useState<string | null>(null);
+  const activeCategory = enNavigation && typeDemande !== null ? typeDemande || null : categorieDeLUrl;
   const moreHasActive = activeCategory !== null && moreCategories.some((c) => c.type === activeCategory);
 
   // Fetch real property counts for the "+ More" dropdown.
@@ -191,7 +201,8 @@ export function Navbar({ className }: NavbarProps) {
   }, [searchParams, transaction, location, activeCategory, locale]);
 
   const handleSearch = useCallback(() => {
-    router.push(buildSearchUrl());
+    setTypeDemande(null);
+    demarrerNavigation(() => router.push(buildSearchUrl()));
   }, [router, buildSearchUrl]);
 
   const handleCategoryClick = useCallback((type: string | null) => {
@@ -203,7 +214,9 @@ export function Navbar({ className }: NavbarProps) {
     // Une puce AJOUTE un critère, elle ne réinterprète pas la saisie : tout le reste de l'URL
     // — `q` compris — vient de `buildSearchUrl`, qui est désormais le seul à l'écrire.
     const isOnlyActive = selectedTypes.length === 1 && selectedTypes[0] === type;
-    router.push(buildSearchUrl({ [parametreDe('type')]: isOnlyActive ? '' : type }));
+    const prochain = isOnlyActive ? '' : type;
+    setTypeDemande(prochain);
+    demarrerNavigation(() => router.push(buildSearchUrl({ [parametreDe('type')]: prochain })));
   }, [router, buildSearchUrl, selectedTypes]);
 
   return (
@@ -260,9 +273,10 @@ export function Navbar({ className }: NavbarProps) {
                 <button
                   key={cat.id}
                   onClick={() => handleCategoryClick(cat.type)}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 transition-all duration-150 ${isActive
-                    ? 'border-foreground text-foreground'
-                    : 'border-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground'
+                  aria-pressed={isActive}
+                  className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${isActive
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                 >
                   <Icon className="w-[18px] h-[18px]" />
@@ -275,9 +289,9 @@ export function Navbar({ className }: NavbarProps) {
             <div className="relative" ref={moreRef}>
               <button
                 onClick={() => setMoreOpen((o) => !o)}
-                className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 transition-all duration-150 ${moreHasActive
-                  ? 'border-foreground text-foreground'
-                  : 'border-transparent text-muted-foreground hover:border-muted-foreground hover:text-foreground'
+                className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${moreHasActive
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 aria-label={t('moreTypes')}
               >
@@ -555,6 +569,7 @@ export function Navbar({ className }: NavbarProps) {
           </div>
         </div>
       )}
+      {enNavigation && <BarreDeChargement libelle={t('loading')} />}
     </nav>
   );
 }

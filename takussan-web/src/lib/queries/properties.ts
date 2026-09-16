@@ -21,6 +21,7 @@
 
 'use client';
 
+import { keepPreviousData } from '@tanstack/react-query';
 import { apiRequest, buildQueryString } from '@/lib/api';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type {
@@ -193,6 +194,12 @@ export function usePropertyMapQuery(
       enabled: options.enabled !== false && Boolean(bounds),
       params: { extra: { bounds: boundsStr, ...filters } },
       staleTime: 30 * 1000,
+      // ⚠️ **Sans cette ligne, un popup de la carte se referme tout seul** (retour du 2026-09-16,
+      // reproduit : ouvert à 250 ms, fermé à 500 ms). Ouvrir un popup déplace la vue (`autoPan`
+      // de Leaflet) → `moveend` → nouvelles bornes → nouvelle clé → `data` repasse à `undefined`
+      // le temps de la requête → tous les `<Marker>` se démontent, et Leaflet ferme le popup d'un
+      // marqueur retiré. Garder les marqueurs précédents pendant le rechargement le laisse ouvert.
+      placeholderData: keepPreviousData,
     },
   );
 }

@@ -71,6 +71,9 @@ vi.mock('@/lib/queries/public-agent', () => ({ getAgent: () => getAgentMock() })
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav data-testid="navbar" /> }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));
+vi.mock('@/components/shared/BoutonRetour', () => ({
+  BoutonRetour: ({ repli, libelle }: { repli: string; libelle: string }) => <a href={repli}>{libelle}</a>,
+}));
 vi.mock('@/components/public/profile/PortfolioTabs', () => ({
   PortfolioTabs: () => <div data-testid="portefeuille" />,
 }));
@@ -160,6 +163,8 @@ describe("fiche d'agent — l'introuvable et l'indisponible", () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Awa Ndiaye' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // Retour d'administration du 2026-09-16 : la fiche n'avait aucun retour.
+    expect(screen.getByRole('link', { name: 'Retour' })).toHaveAttribute('href', '/agents');
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 

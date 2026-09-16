@@ -231,8 +231,14 @@ const FICHIERS_HORS_JETONS = 42;
  * relit dans l'URL. Les deux encres qui partent sont celles de sa pastille : l'icône `Search`
  * (l'entrée TCK-507 ci-dessus) et le bouton d'effacement, tous deux `text-muted-foreground` sans
  * fond sur l'élément. Mesuré : l'arbre sans la modification compte 156 et passe.
+ *
+ * **154 → 155 le 2026-09-16 (retours d'administration).** Cause : `BoutonRetour.tsx`, le lien
+ * « Retour » ajouté aux fiches d'agent et d'agence, écrit `text-muted-foreground` au repos et ne
+ * pose un fond (`hover:bg-muted`) qu'au survol. Au repos, le fond est celui de la fiche (la carte
+ * du héros, posée par un ancêtre). Mesuré en relevant les encres inverses de la surface avec et
+ * sans la modification : l'unique entrée ajoutée est `components/shared/BoutonRetour.tsx`.
  */
-const ENCRES_INVERSES = 154;
+const ENCRES_INVERSES = 155;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
