@@ -373,7 +373,12 @@
       "showPassword": "Show password",
       "hidePassword": "Hide password",
       "submitting": "Signing in…",
-      "registerCta": "Sign up"
+      "registerCta": "Sign up",
+      "oauthError": {
+        "oauth_invalid": "Signing in with the provider didn't complete: the return link was incomplete. Try again, or sign in with your email.",
+        "oauth_failed": "The provider declined the sign-in, or it expired. Try again, or sign in with your email.",
+        "oauth_unknown": "Sign-in couldn't be completed. Check your internet connection and try again."
+      }
     },
     "register": {
       "title": "Create your account",
@@ -580,7 +585,8 @@
     "cards": {
       "bedroomsShort": "{count} bd",
       "bedroomsAbbrev": "{count} bd",
-      "bathroomsShort": "{count} ba"
+      "bathroomsShort": "{count} ba",
+      "photoPending": "Photo coming soon"
     },
     "row": {
       "viewAll": "See all",
@@ -658,7 +664,9 @@
         "independent": "Independent agent",
         "private": "Private owner",
         "message": "Message",
-        "callAria": "Call"
+        "callAria": "Call",
+        "call": "Call",
+        "calling": "Connecting…"
       },
       "breadcrumb": {
         "home": "Home",
@@ -703,7 +711,9 @@
         "apply": "Apply"
       },
       "unavailableTitle": "Listing temporarily unavailable",
-      "unavailableBody": "We can't reach the catalogue right now. The listing may still exist — please try again in a moment."
+      "unavailableBody": "We can't reach the catalogue right now. The listing may still exist — please try again in a moment.",
+      "favoriteAddShort": "Save",
+      "favoriteSavedShort": "Saved"
     },
     "reviews": {
       "title": "Reviews",
@@ -1271,6 +1281,14 @@
       "renovated": "Renovated",
       "good": "Good condition",
       "to_renovate": "Needs renovation"
+    },
+    "priceChangeReasons": {
+      "market_adjustment": "Market adjustment",
+      "negotiation": "Negotiation",
+      "renovation": "Renovation",
+      "urgent_sale": "Urgent sale",
+      "seasonal": "Seasonal",
+      "correction": "Correction"
     }
   },
   "dashboard": {
@@ -1394,7 +1412,7 @@
       "bookingsToHandle": "Bookings to handle",
       "maintenanceQuotes": "Maintenance and quotes",
       "nextPayouts": "Upcoming payouts",
-      "noPayouts": "No upcoming payout returned by the API.",
+      "noPayouts": "No payouts scheduled yet.",
       "chartTitle": "Cash flow and occupancy over 12 months",
       "emptyBodyFull": "Add your first property to enable bookings, leases, documents and maintenance requests.",
       "propertiesHint": "{rented} rented · {available} available",
@@ -1413,11 +1431,25 @@
       "operator": "Operator",
       "threshold": "Threshold",
       "severity": "Severity",
-      "cooldown": "Cooldown (h)",
+      "cooldown": "Delay between alerts (h)",
       "create": "Create the alert",
       "activeTitle": "Active alerts",
       "empty": "No alert configured.",
-      "delete": "Delete"
+      "delete": "Delete",
+      "severities": {
+        "info": "Info",
+        "warning": "Warning",
+        "critical": "Critical"
+      },
+      "operators": {
+        "gt": "> greater than",
+        "gte": "≥ greater than or equal to",
+        "lt": "< less than",
+        "lte": "≤ less than or equal to"
+      },
+      "emptyDescription": "Create an alert above: the team will be notified when the indicator crosses the threshold.",
+      "deleteAria": "Delete alert {label}",
+      "cooldownHint": "Minimum delay between two notifications, in hours."
     },
     "kpis": {
       "validation": "Choose a metric and a label.",
@@ -1430,7 +1462,30 @@
       "add": "Add",
       "configured": "Configured KPIs",
       "empty": "No KPI configured.",
-      "delete": "Delete"
+      "delete": "Delete",
+      "metrics": {
+        "properties_total": "Properties (total)",
+        "properties_rented": "Rented properties",
+        "properties_available": "Available properties",
+        "leases_active": "Active leases",
+        "customers_count": "Customers",
+        "members_count": "Team members",
+        "bookings_pending": "Pending bookings",
+        "maintenance_open": "Open maintenance",
+        "revenue_month": "Revenue this month",
+        "commission_month": "Commissions this month",
+        "overdue_count": "Overdue (count)",
+        "overdue_amount": "Overdue (amount)",
+        "unpaid_rate_percent": "Unpaid rate",
+        "occupancy_rate_percent": "Occupancy rate"
+      },
+      "formats": {
+        "number": "Number",
+        "percent": "Percentage",
+        "currency": "Currency"
+      },
+      "emptyDescription": "Add a first indicator above: it will appear on the agency dashboard.",
+      "deleteAria": "Delete KPI {label}"
     },
     "exports": {
       "dataType": "Data type",
@@ -1440,7 +1495,18 @@
       "downloading": "Downloading…",
       "download": "Download",
       "scopeNotice": "Exports respect your role (agency, landlord or agent).",
-      "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included."
+      "scopeNoticeFull": "Exports respect your role (agency, landlord, tenant) — no data outside your scope is included.",
+      "entities": {
+        "payments": "Payments",
+        "leases": "Leases",
+        "customers": "Customers",
+        "properties": "Properties"
+      },
+      "formats": {
+        "csv": "CSV",
+        "xlsx": "Excel (xlsx)",
+        "pdf": "PDF"
+      }
     },
     "properties": {
       "metaTitle": "My properties",
@@ -1563,7 +1629,7 @@
       "customerNew": {
         "metaTitle": "Add a customer",
         "title": "Add a customer",
-        "subtitle": "Give at least a first and last name. A contact can exist without a user account."
+        "subtitle": "Give at least a first name, a last name and an email or phone number. A contact can exist without a user account."
       },
       "leaseNew": {
         "metaTitle": "New lease",
@@ -1861,7 +1927,7 @@
     "tenantOnboardingPending": {
       "error": "Couldn't load the list right now.",
       "emptyTitle": "No overdue onboarding",
-      "emptyDescription": "Onboardings under 7 days are not listed here.",
+      "emptyDescription": "Onboardings opened less than 7 days ago are not listed here.",
       "leaseReference": "Lease {reference}",
       "signedAt": "Signed on {date}",
       "missing": "Still missing: {items}",
@@ -2042,7 +2108,8 @@
       "ariaLabel": "Property comparison table",
       "header": "Criterion",
       "unavailable": "Property unavailable",
-      "divergentTooltip": "This value differs across the selected properties"
+      "divergentTooltip": "This value differs across the selected properties",
+      "divergentShort": "Differs"
     },
     "carousel": {
       "ariaLabel": "Mobile comparison — swipe horizontally across each property"
@@ -2105,7 +2172,8 @@
       "actions": {
         "cancel": "Cancel",
         "confirm": "Confirm",
-        "close": "Close"
+        "close": "Close",
+        "retry": "Try again"
       },
       "reasonDialog": {
         "title": "Move to {stage} — give a reason",
@@ -2128,12 +2196,14 @@
         "toggle": "Mark complete"
       },
       "errors": {
-        "moveFailed": "Could not move the card. Please retry."
+        "moveFailed": "Could not move the card. Please retry.",
+        "loadFailed": "This column couldn't be loaded."
       },
       "card": {
         "addedBy": "by",
         "openTasks": "Open tasks"
-      }
+      },
+      "loadingColumn": "Loading customers…"
     },
     "list": {
       "empty_title": "Your CRM is empty",
@@ -2225,13 +2295,17 @@
       "tags": "Tags",
       "filterByTags": "Filter by tags",
       "customerTags": "Customer tags",
-      "clearAll": "Clear all"
+      "clearAll": "Clear all",
+      "allStages": "All stages",
+      "allStatuses": "All statuses"
     },
     "tags": {
       "sectionTitle": "Tags",
       "addPlaceholder": "Add a tag…",
       "maxReachedPlaceholder": "Max 10 tags",
-      "removeAria": "Remove the tag {tag}"
+      "removeAria": "Remove the tag {tag}",
+      "inputLabel": "Add a tag to the customer",
+      "filterAria": "See customers tagged {tag}"
     }
   },
   "account": {
@@ -2313,7 +2387,7 @@
         "yesterday": "Yesterday"
       },
       "attachmentRejected": "File rejected.",
-      "uploadFailed": "Upload failed.",
+      "uploadFailed": "The file couldn't be uploaded. Try again.",
       "participants": "{count} participants",
       "viewProperty": "View property",
       "groupInfoAria": "Group info",
@@ -2378,7 +2452,7 @@
       "loadError": "Conversations could not be loaded.",
       "empty": "No conversation yet.",
       "groupBadge": "Group",
-      "muted": "muted"
+      "muted": "Muted conversation"
     },
     "propertyDraft": {
       "message": "Hello, I'm interested in “{title}” (ref. {reference}). Is it still available?",
@@ -2928,7 +3002,9 @@
       "urgent_heading": "Priority emergencies",
       "other_heading": "Other requests",
       "scheduled": "Scheduled {date}",
-      "pagination": "Page {current} / {last} — {total} requests"
+      "pagination": "Page {current} / {last} — {total} requests",
+      "previous": "Previous",
+      "next": "Next"
     },
     "launcher": {
       "error": "Your leases could not be loaded. Try again or contact support.",
@@ -3179,7 +3255,8 @@
       "resultCount": "{count, plural, =1 {# property found} other {# properties found}}",
       "perPageAria": "Results per page",
       "perPageOption": "{count} / page",
-      "filters": "Filters"
+      "filters": "Filters",
+      "sortAria": "Sort results"
     },
     "sort": {
       "relevance": "Relevance",
@@ -3778,7 +3855,9 @@
     "page": {
       "title": "Service providers",
       "subtitle": "Plumbers, electricians, painters: your maintenance contacts.",
-      "add": "Add a provider"
+      "add": "Add a provider",
+      "forbidden_title": "Directory limited to managers",
+      "forbidden_description": "The service provider directory is open to agency administrators and to agents allowed to invite providers. Ask your administrator for access."
     },
     "list": {
       "empty_title": "No provider yet",
@@ -4214,7 +4293,8 @@
       "dispute": "Dispute",
       "disputeReason": "Reason for the dispute",
       "disputeReasonPlaceholder": "Explain the disputed point",
-      "sendDispute": "Send the dispute"
+      "sendDispute": "Send the dispute",
+      "disputeFailed": "The dispute could not be sent. Please try again in a moment."
     },
     "roomEditor": {
       "empty_title": "No room",
@@ -4577,7 +4657,8 @@
           "invite": "Invite a member",
           "assign_role": "Assign a role",
           "remove": "Remove a member from the agency",
-          "suspend": "Suspend a member"
+          "suspend": "Suspend a member",
+          "delegate_role": "Delegate a role"
         },
         "properties": {
           "create": "Create a property",
@@ -5002,7 +5083,10 @@
       "versions": "Versions",
       "download": "Download",
       "share": "Share",
-      "delete_aria": "Delete"
+      "delete_aria": "Delete",
+      "delete_confirm_title": "Delete this document?",
+      "delete_confirm_body": "“{name}” will be removed from the document library.",
+      "deleting": "Deleting…"
     },
     "versions": {
       "error": "Versions could not be loaded.",
@@ -5233,7 +5317,8 @@
           "placeholder": "E.g. Exceptional unavailability of the property.",
           "submit": "Cancel the booking"
         }
-      }
+      },
+      "forbidden": "This booking belongs to another agency: you don't have access to it."
     },
     "public": {
       "no_property_title": "No property selected",
@@ -5386,9 +5471,6 @@
       "cancellationReason": "Cancellation reason",
       "support": "Accompanied by",
       "assignedAgent": "Assigned agent",
-      "prompts": {
-        "newSlot": "New slot (format YYYY-MM-DD HH:mm)"
-      },
       "toasts": {
         "confirmed": {
           "title": "Visit confirmed",
@@ -5428,6 +5510,25 @@
         "title": "Post-visit feedback",
         "window": "You have {hours}h after the visit to leave your feedback.",
         "restricted": "Only the visitor and the agent can leave feedback on this visit."
+      },
+      "forbidden": "This visit belongs to another agency: you don't have access to it.",
+      "dialogs": {
+        "dismiss": "Go back",
+        "processing": "Saving…",
+        "cancel": {
+          "title": "Cancel the visit",
+          "description": "The reason is recorded on the request. This action cannot be undone.",
+          "placeholder": "E.g. The visitor is no longer available on this date.",
+          "required": "Enter the cancellation reason.",
+          "submit": "Cancel the visit"
+        },
+        "reschedule": {
+          "title": "Reschedule the visit",
+          "description": "Choose the new time slot for the visit.",
+          "label": "New time slot",
+          "required": "Choose a date and a time.",
+          "submit": "Save the time slot"
+        }
       }
     },
     "minutesUnit": "min",
@@ -5625,7 +5726,9 @@
       "previous": "Previous",
       "next": "Next",
       "pagination": "Page {current} of {last} · {total} entries",
-      "tableCaption": "Cross-tenant audit log"
+      "tableCaption": "Cross-tenant audit log",
+      "eventAria": "Filter by event",
+      "causerAria": "Filter by causer ID"
     },
     "announcements": {
       "empty_title": "No announcement yet",
@@ -5708,7 +5811,8 @@
         "failed": "Failed",
         "skipped": "Skipped",
         "running": "Running"
-      }
+      },
+      "durationMs": "{ms} ms"
     },
     "failedJobs": {
       "empty_title": "No failed job",
@@ -5779,7 +5883,20 @@
       "testFailure": "Failed",
       "editIntegration": "Edit {label}",
       "editGeneric": "Edit an integration",
-      "maskedHint": "Existing values stay masked. Fill in only the fields you want to replace."
+      "maskedHint": "Existing values stay masked. Fill in only the fields you want to replace.",
+      "categories": {
+        "payments": "Payments",
+        "messaging": "Messaging",
+        "email": "Email",
+        "storage": "Storage",
+        "other": "Other"
+      },
+      "statuses": {
+        "healthy": "Healthy",
+        "failed": "Failing",
+        "disabled": "Disabled",
+        "unknown": "Unknown"
+      }
     },
     "metrics": {
       "error": "The platform KPIs could not be loaded.",
@@ -5894,7 +6011,8 @@
         "count30d": "Transactions 30 days",
         "revenue30d": "Revenue 30 days",
         "lastPayment": "Last payment"
-      }
+      },
+      "backToList": "Back to agencies"
     },
     "pages": {
       "shared": {
@@ -6241,7 +6359,11 @@
           "createdOn": "Created on",
           "publishedProperties": "Published properties",
           "otherRequests": "Other requests",
-          "openAgency": "Open the agency record"
+          "openAgency": "Open the agency record",
+          "kinds": {
+            "individual": "Individual account",
+            "standard": "Standard agency"
+          }
         },
         "decision": {
           "title": "Decision",
@@ -6291,7 +6413,11 @@
       "webhooks": "Webhooks",
       "test": "Test",
       "testSent": "Test sent",
-      "tableCaption": "Platform alert rules"
+      "tableCaption": "Platform alert rules",
+      "emptyTitle": "No alert rules",
+      "emptyDescription": "Create a rule to be notified by email or webhook when a critical action happens on the platform.",
+      "deleteTitle": "Delete the alert rule",
+      "deleteDescription": "Future occurrences of this event will no longer trigger an alert."
     },
     "inviteModal": {
       "title": "Coopt a super-admin",
@@ -7026,7 +7152,8 @@
         "inapp": "In-app",
         "email": "Email",
         "push": "Push",
-        "sms": "SMS"
+        "sms": "SMS",
+        "whatsapp": "WhatsApp"
       },
       "groups": {
         "messages": "Messages",
@@ -7071,7 +7198,15 @@
       "activeListings": "Active listings",
       "agents": "Agents",
       "unlimited": "Unlimited",
-      "loadFailed": "Could not load the subscription."
+      "loadFailed": "Could not load the subscription.",
+      "status": {
+        "trialing": "Trial",
+        "active": "Active",
+        "past_due": "Payment overdue",
+        "suspended": "Suspended",
+        "ended": "Ended"
+      },
+      "noneDescription": "Your plan's limits and commission will appear here as soon as a subscription is active."
     },
     "agencySubscription": {
       "changePlan": "Change plan",
@@ -7103,6 +7238,12 @@
         "updateFailed": "Update failed",
         "deleted": "Plan deleted",
         "deleteFailed": "Deletion failed"
+      },
+      "fields": {
+        "code": "Plan code",
+        "label": "Plan name",
+        "price": "Monthly price (XOF)",
+        "fee": "Platform fee (%)"
       }
     },
     "platformPayouts": {
@@ -7560,7 +7701,7 @@
       "rejected": "Rejected"
     },
     "timeline": {
-      "title": "KYC timeline",
+      "title": "KYC file progress",
       "reasonAvailable": "Reason available",
       "steps": {
         "created": "Creation",
@@ -7580,7 +7721,11 @@
         "uploadFailed": "Upload failed",
         "submitted": "File submitted",
         "submitFailed": "Submission failed"
-      }
+      },
+      "choose": "Choose a file",
+      "replace": "Replace the file",
+      "accepted": "PDF, JPG, PNG or WEBP",
+      "chooseAria": "Choose the file: {document}"
     },
     "review": {
       "title": "Super-admin review",

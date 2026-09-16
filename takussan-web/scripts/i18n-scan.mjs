@@ -78,7 +78,11 @@ export function ressembleATailwind(s) {
     // Tailwind, jamais de la prose.
     /[:[\]&]/.test(j)
     || /^(?:group|peer)\//.test(j)
-    || /^-?(?:flex|grid|block|inline|hidden|absolute|relative|fixed|sticky|static|rounded|border|shadow|transition|duration|ease|cursor|gap|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|w|h|min|max|size|text|bg|font|items|justify|self|content|place|space|divide|overflow|z|opacity|ring|outline|leading|tracking|truncate|whitespace|select|pointer|animate|scale|rotate|translate|origin|object|aspect|col|row|order|basis|shrink|grow|list|underline|uppercase|lowercase|capitalize|antialiased|backdrop|blur|fill|stroke|inset|top|bottom|left|right|line)(?:-|$)/.test(j),
+    || /^-?(?:flex|grid|block|inline|hidden|absolute|relative|fixed|sticky|static|rounded|border|shadow|transition|duration|ease|cursor|gap|p|px|py|pt|pb|pl|pr|m|mx|my|mt|mb|ml|mr|w|h|min|max|size|text|bg|font|items|justify|self|content|place|space|divide|overflow|z|opacity|ring|outline|leading|tracking|truncate|whitespace|select|pointer|animate|scale|rotate|translate|origin|object|aspect|col|row|order|basis|shrink|grow|list|underline|uppercase|lowercase|capitalize|antialiased|backdrop|blur|fill|stroke|inset|top|bottom|left|right|line)(?:-|$)/.test(j)
+    // Préfixes ajoutés le 2026-09-16 (revue design : `className: 'whitespace-nowrap tabular-nums'`
+    // d'une définition de colonne comptée comme libellé). TIRET EXIGÉ : `align`, `table`… nus
+    // sont des mots anglais, et une phrase ne doit pas s'y faire prendre.
+    || /^(?:align|tabular|break|sr|decoration|accent|hyphens|table)-[a-z0-9]/.test(j),
   );
   return tailwind.length >= Math.max(1, Math.ceil(jetons.length * 0.6));
 }

@@ -1757,8 +1757,12 @@ const ESPACES = [
      * d'un espace n'est pas descendu que par les tickets de cet espace* — et c'est le
      * `resteBilateral` qui l'a rendu visible, en refusant un reste PLUS BAS que son plafond.
      * Un cliquet unidirectionnel aurait encaissé la baisse en silence et gardé six unités de mou.
+     *
+     * ⚠ **25 → 18, le 2026-09-16, re-mesuré sur l'arbre fusionné de la revue design des huit
+     * groupes** (`docs/qa/revue-design-2026-09-16/`) : `NotificationBell` et les primitives du
+     * socle ont quitté la palette brute. Mesuré par la garde, pas additionné depuis les rapports.
      */
-    plafondReste: 25,
+    plafondReste: 18,
     resteBilateral: true,
     ticketReste: 'TCK-384',
     natureDuReste: 'primitives partagées avec le site public',
@@ -1794,8 +1798,11 @@ const ESPACES = [
      *
      * ⚠ Bilatéral, comme les deux autres : la garde échoue s'il MONTE (récidive) ET s'il descend
      * sans que ce chiffre suive. *Un cliquet qui ne descend pas est une tolérance.*
+     *
+     * ✅ **24 → 0, le 2026-09-16** (revue design, groupe C) : les assistants restants sont passés
+     * en jetons. Un zéro bilatéral : toute palette brute réintroduite sous `/onboarding` rougit.
      */
-    plafondReste: 24,
+    plafondReste: 0,
     resteBilateral: true,
     ticketReste: 'TCK-385',
     natureDuReste: "assistants d'onboarding non encore portés, plus le module TOTP",

@@ -141,11 +141,18 @@ const fichiersRouteur = fichiersDe(APP).filter(
  * dictionnaire plus pauvre que ce que son sous-arbre adresse ».
  */
 const RENDU_TRANSPARENT = /return\s*<>\s*\{\s*children\s*\}\s*<\/>\s*;/;
+/**
+ * 2026-09-16 (revue design) — le second cas transparent : un layout qui NE REND JAMAIS, parce que
+ * son corps entier est `notFound()` (`(dashboard)/app/[...introuvable]/layout.tsx`). Même
+ * étroitesse que ci-dessus : typé `never`, et le corps ne contient RIEN d'autre que cet appel.
+ */
+const RENDU_IMPOSSIBLE = /\)\s*:\s*never\s*\{\s*notFound\(\);\s*\}/;
 const API_DE_TRADUCTION = /getTranslations|useTranslations|messagesPour|IntlProvider|getMessages/;
 
 function estTransparentPourI18n(layout) {
   const source = retireCommentairesPleineLigne(readFileSync(layout, 'utf8'));
-  return RENDU_TRANSPARENT.test(source) && !API_DE_TRADUCTION.test(source);
+  return (RENDU_TRANSPARENT.test(source) || RENDU_IMPOSSIBLE.test(source))
+    && !API_DE_TRADUCTION.test(source);
 }
 
 const frontieres = fichiersRouteur
