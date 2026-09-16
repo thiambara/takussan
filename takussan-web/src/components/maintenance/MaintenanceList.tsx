@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Wrench } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Wrench } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -45,30 +45,36 @@ export function MaintenanceList() {
   const tCategory = useTranslations('maintenance.category');
   const [status, setStatus] = useState<'' | MaintenanceStatus>('');
   const [priority, setPriority] = useState<'' | MaintenancePriority>('');
+  // La liste annonçait « Page 1 / N » sans aucun moyen d'atteindre la page 2.
+  const [page, setPage] = useState(1);
 
   const params = useMemo<MaintenanceListParams>(() => ({
     ...(status ? { status } : {}),
     ...(priority ? { priority } : {}),
-  }), [status, priority]);
+    page,
+  }), [status, priority, page]);
 
   const query = useMaintenanceRequests(params);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex w-56 flex-col">
+        <div className="flex min-w-0 flex-1 basis-36 flex-col sm:w-56 sm:flex-none">
           <label htmlFor="maintenance-filter-status" className="mb-1.5 text-sm font-medium">
             {t('status_label')}
           </label>
           <Select
             value={status || '__all__'}
-            onValueChange={(value) => setStatus(value === '__all__' ? '' : ((value ?? '') as '' | MaintenanceStatus))}
+            onValueChange={(value) => {
+              setStatus(value === '__all__' ? '' : ((value ?? '') as '' | MaintenanceStatus));
+              setPage(1);
+            }}
             items={[
               { value: '__all__', label: t('all_statuses') },
               ...MAINTENANCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),
             ]}
           >
-            <SelectTrigger id="maintenance-filter-status" className="h-9">
+            <SelectTrigger id="maintenance-filter-status" className="h-9 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -79,19 +85,22 @@ export function MaintenanceList() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-56 flex-col">
+        <div className="flex min-w-0 flex-1 basis-36 flex-col sm:w-56 sm:flex-none">
           <label htmlFor="maintenance-filter-priority" className="mb-1.5 text-sm font-medium">
             {t('priority_label')}
           </label>
           <Select
             value={priority || '__all__'}
-            onValueChange={(value) => setPriority(value === '__all__' ? '' : ((value ?? '') as '' | MaintenancePriority))}
+            onValueChange={(value) => {
+              setPriority(value === '__all__' ? '' : ((value ?? '') as '' | MaintenancePriority));
+              setPage(1);
+            }}
             items={[
               { value: '__all__', label: t('all_priorities') },
               ...MAINTENANCE_PRIORITIES.map((p) => ({ value: p, label: tPriority(p) })),
             ]}
           >
-            <SelectTrigger id="maintenance-filter-priority" className="h-9">
+            <SelectTrigger id="maintenance-filter-priority" className="h-9 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -102,10 +111,10 @@ export function MaintenanceList() {
             </SelectContent>
           </Select>
         </div>
-        <div className="ml-auto">
+        <div className="w-full sm:ml-auto sm:w-auto">
           <Link
             href="/app/maintenance/new"
-            className={buttonVariants({ variant: 'default' })}
+            className={buttonVariants({ variant: 'default', className: 'h-9 w-full sm:w-auto' })}
           >
             {t('new_request')}
           </Link>
@@ -135,31 +144,28 @@ export function MaintenanceList() {
           const renderList = (requests: typeof data.data) => (
             <ul className="space-y-2">
               {requests.map((request) => (
-                <li
-                  key={request.id}
-                  className="rounded-xl bg-card shadow-sm transition-colors hover:bg-muted"
-                >
+                <li key={request.id}>
                   <Link
                     href={`/app/maintenance/${request.id}`}
-                    className="flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between"
+                    className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 transition-[box-shadow,border-color] hover:border-foreground/15 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {request.title}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground tabular-nums">
                         {tCategory(request.category)} ·{' '}
                         {formatDate(request.created_at, locale, { dateStyle: 'medium' })}
                         {request.scheduled_at
                           ? ` · ${t('scheduled', {
                               date: formatDate(request.scheduled_at, locale, {
-                                dateStyle: 'short',
+                                dateStyle: 'medium',
                               }),
                             })}`
                           : null}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                       <MaintenancePriorityBadge priority={request.priority} />
                       <MaintenanceStatusBadge status={request.status} />
                     </div>
@@ -173,17 +179,17 @@ export function MaintenanceList() {
             <div className="space-y-6">
               {urgentRequests.length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-destructive dark:text-destructive">
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-destructive">
                     {t('urgent_heading')}
                   </h2>
                   {renderList(urgentRequests)}
                 </div>
               )}
-              
+
               {otherRequests.length > 0 && (
                 <div className="space-y-3">
                   {urgentRequests.length > 0 && (
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+                    <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                       {t('other_heading')}
                     </h2>
                   )}
@@ -192,12 +198,34 @@ export function MaintenanceList() {
               )}
 
               {data.meta.last_page > 1 ? (
-                <div className="pt-3 text-center text-xs text-muted-foreground">
-                  {t('pagination', {
-                    current: data.meta.current_page,
-                    last: data.meta.last_page,
-                    total: data.meta.total,
-                  })}
+                <div className="flex items-center justify-between gap-3 pt-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={data.meta.current_page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft aria-hidden="true" />
+                    {t('previous')}
+                  </Button>
+                  <span className="text-center text-xs text-muted-foreground tabular-nums">
+                    {t('pagination', {
+                      current: data.meta.current_page,
+                      last: data.meta.last_page,
+                      total: data.meta.total,
+                    })}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={data.meta.current_page >= data.meta.last_page}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    {t('next')}
+                    <ChevronRight aria-hidden="true" />
+                  </Button>
                 </div>
               ) : null}
             </div>

@@ -8,15 +8,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Gauge, Loader2, Plus, Trash2 } from 'lucide-react';
+
+import { EmptyState } from '@/components/feedback';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import type { KpiConfig } from '@/lib/queries/kpis';
 import { createKpiConfigAction, deleteKpiConfigAction } from '@/app/actions/kpis';
 import { useTranslations } from 'next-intl';
 
-const FORMAT_OPTIONS = [
-  { value: 'number', label: 'Nombre' },
-  { value: 'percent', label: 'Pourcentage' },
-  { value: 'currency', label: 'Devise' },
-] as const;
+const FORMAT_VALUES = ['number', 'percent', 'currency'] as const;
+type KpiFormat = (typeof FORMAT_VALUES)[number];
+
+/** Les métriques du catalogue de l'API (`KpiConfig::METRICS`) qui ont un libellé. */
+const METRIQUES_NOMMEES = new Set([
+  'properties_total', 'properties_rented', 'properties_available', 'leases_active',
+  'customers_count', 'members_count', 'bookings_pending', 'maintenance_open', 'revenue_month',
+  'commission_month', 'overdue_count', 'overdue_amount', 'unpaid_rate_percent',
+  'occupancy_rate_percent',
+]);
 
 type Props = {
   initialConfigs: KpiConfig[];
@@ -28,7 +39,7 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
   const [configs, setConfigs] = useState(initialConfigs);
   const [metric, setMetric] = useState(catalog[0] ?? '');
   const [label, setLabel] = useState('');
-  const [format, setFormat] = useState<'number' | 'percent' | 'currency'>('number');
+  const [format, setFormat] = useState<KpiFormat>('number');
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -56,85 +67,110 @@ export function KpiConfigList({ initialConfigs, catalog }: Props) {
     });
   }
 
+  // Le catalogue arrive en CODES (`properties_total`) : le front les traduit, et garde le code
+  // pour une métrique que ce fichier ne connaît pas encore plutôt que de l'effacer.
+  const libelleMetrique = (code: string) =>
+    METRIQUES_NOMMEES.has(code) ? t(`metrics.${code}`) : code;
+  const metricItems = catalog.map((m) => ({ value: m, label: libelleMetrique(m) }));
+  const formatItems = FORMAT_VALUES.map((v) => ({ value: v, label: t(`formats.${v}`) }));
+
   return (
     <div className="space-y-6">
-      <section className="max-w-xl space-y-3 rounded-2xl bg-card p-6">
-        <h2 className="text-sm font-semibold text-foreground">{t('addTitle')}</h2>
-        <div className="grid gap-3 md:grid-cols-3">
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">{t('metric')}</span>
+      {/* Même largeur que la liste en dessous : la carte de saisie bornée à `max-w-xl` flottait
+          à gauche d'une liste pleine largeur. Les colonnes se posent dès `lg` (TCK-505). */}
+      <section className="space-y-4 rounded-2xl bg-card p-6">
+        <h2 className="text-base font-semibold text-foreground">{t('addTitle')}</h2>
+        <form
+          className="grid gap-3 lg:grid-cols-[1fr_1fr_12rem_auto] lg:items-end"
+          onSubmit={(e) => {
+            e.preventDefault();
+            addKpi();
+          }}
+        >
+          <div className="space-y-1.5">
+            <Label htmlFor="kpi-metric">{t('metric')}</Label>
             <Select
               value={metric}
               onValueChange={(value) => setMetric(value ?? '')}
-              items={catalog.map((m) => ({ value: m, label: m }))}
+              items={metricItems}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="kpi-metric" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {catalog.map((m) => (
-                  <SelectItem key={m} value={m}>{m}</SelectItem>
+                {metricItems.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">{t('label')}</span>
-            <input
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="kpi-label">{t('label')}</Label>
+            <Input
+              id="kpi-label"
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              className="w-full rounded-md border border-border bg-card px-3 py-2"
               placeholder={t('labelPlaceholder')}
+              aria-invalid={error !== null && !label ? true : undefined}
             />
-          </label>
-          <label className="text-sm">
-            <span className="mb-1 block font-medium text-foreground">{t('format')}</span>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="kpi-format">{t('format')}</Label>
             <Select
               value={format}
-              onValueChange={(value) => setFormat((value ?? format) as 'number' | 'percent' | 'currency')}
-              items={FORMAT_OPTIONS as unknown as Array<{ value: string; label: string }>}
+              onValueChange={(value) => setFormat((value ?? format) as KpiFormat)}
+              items={formatItems}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="kpi-format" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {FORMAT_OPTIONS.map((opt) => (
+                {formatItems.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </label>
-        </div>
-        <button
-          type="button"
-          onClick={addKpi}
-          disabled={isPending}
-          className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
-        >
-          {t('add')}
-        </button>
-        {error && <p className="text-xs text-destructive">{error}</p>}
+          </div>
+          <Button type="submit" disabled={isPending} className="justify-self-start">
+            {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Plus aria-hidden="true" />}
+            {t('add')}
+          </Button>
+        </form>
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
       </section>
 
       <section className="rounded-2xl bg-card p-6">
-        <h2 className="mb-3 text-sm font-semibold text-foreground">{t('configured')}</h2>
+        <h2 className="mb-3 text-base font-semibold text-foreground">{t('configured')}</h2>
         {configs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('empty')}</p>
+          <EmptyState
+            icon={<Gauge className="size-8" aria-hidden="true" />}
+            title={t('empty')}
+            description={t('emptyDescription')}
+          />
         ) : (
           <ul className="divide-y divide-border">
             {configs.map((c) => (
-              <li key={c.id} className="flex items-center justify-between py-2 text-sm">
-                <span>
+              <li key={c.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span className="min-w-0">
                   <span className="font-medium text-foreground">{c.label}</span>{' '}
-                  <span className="text-muted-foreground">({c.metric})</span>
+                  <span className="text-muted-foreground">({libelleMetrique(c.metric)})</span>
                 </span>
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="sm"
                   onClick={() => removeKpi(c.id)}
-                  className="text-xs text-destructive hover:underline"
+                  disabled={isPending}
+                  aria-label={t('deleteAria', { label: c.label })}
+                  className="shrink-0 text-destructive hover:text-destructive"
                 >
+                  <Trash2 aria-hidden="true" />
                   {t('delete')}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

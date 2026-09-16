@@ -69,7 +69,7 @@ export function CustomerNotesTimeline({
       <form onSubmit={submit} className="space-y-2 rounded-xl bg-card p-4">
         <label
           htmlFor="customer-note-body"
-          className="text-sm font-medium text-foreground"
+          className="block text-sm font-medium text-foreground"
         >
           {t('add')}
         </label>
@@ -116,15 +116,15 @@ export function CustomerNotesTimeline({
               )}
             >
               <div className="mb-1 flex items-center justify-between gap-2">
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs tabular-nums text-muted-foreground">
                   {note.author_name ? `${note.author_name} · ` : ''}
                   {formatDateTime(note.created_at, locale)}
                 </p>
                 {note.pinned ? (
-                  <Pin className="size-3 text-primary" aria-label={t('pinnedAria')} />
+                  <Pin className="size-3.5 shrink-0 text-primary" role="img" aria-label={t('pinnedAria')} />
                 ) : null}
               </div>
-              <p className="whitespace-pre-line text-sm text-foreground">{note.body}</p>
+              <p className="whitespace-pre-line text-pretty text-sm leading-relaxed text-foreground">{note.body}</p>
             </li>
           ))}
         </ol>

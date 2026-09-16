@@ -151,6 +151,7 @@ export function TwoFactorSection({ enabled: initialEnabled }: TwoFactorSectionPr
         <form onSubmit={handleConfirm} className="mt-4 space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             {qrImageSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element -- SVG inline (data URI) rendu par l'API : aucun chargeur distant à optimiser (même choix que TotpEnrollment).
               <img
                 src={qrImageSrc}
                 alt={t('qrAlt')}

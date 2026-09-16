@@ -110,6 +110,18 @@ const TYPE_COLOR: Record<ProfileType, string> = {
  */
 const FALLBACK_COLOR = 'bg-muted text-foreground';
 
+/**
+ * La pastille `dot` ne porte aucun texte : l'aplat à 20 % de `TYPE_COLOR` (réglé pour une encre
+ * posée dessus) la rendait quasi invisible sur la barre haute sombre. Même teinte de série, pleine.
+ * Table séparée : `check-profile-badge-contrast.mjs` relit `TYPE_COLOR`, qu'il ne faut pas toucher.
+ */
+const DOT_COLOR: Record<ProfileType, string> = {
+  agency_admin: 'bg-chart-1/100',
+  owner: 'bg-chart-2/100',
+  agent: 'bg-chart-3/100',
+  service_provider: 'bg-chart-5/100',
+};
+
 export function profileTypeLabel(type: ProfileType, t: TraducteurTypeProfil): string {
   const cle = TYPE_LABEL_KEY[type];
   return cle ? t(cle) : String(type);
@@ -139,7 +151,7 @@ export function ProfileBadge({ profile, variant = 'pill', className }: ProfileBa
     return (
       <span
         aria-hidden="true"
-        className={cn('inline-block size-2 rounded-full', profileTypeColor(profile.type), className)}
+        className={cn('inline-block size-2 rounded-full', DOT_COLOR[profile.type] ?? 'bg-muted', className)}
       />
     );
   }

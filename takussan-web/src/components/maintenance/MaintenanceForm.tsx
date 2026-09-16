@@ -114,7 +114,7 @@ export function MaintenanceForm({
       />
 
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <FormSelect
             name="category"
             control={form.control}
@@ -157,7 +157,7 @@ export function MaintenanceForm({
           accept="image/jpeg,image/png,image/webp"
           multiple
           onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
-          className="block w-full text-sm text-muted-foreground"
+          className="block w-full text-sm text-muted-foreground file:mr-3 file:h-8 file:cursor-pointer file:rounded-lg file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted"
         />
         {photos.length > 0 ? (
           <p className="mt-1 text-xs text-muted-foreground">

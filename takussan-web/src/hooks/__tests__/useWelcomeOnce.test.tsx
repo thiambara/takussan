@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import type { ReactNode } from 'react';
 
 import { useWelcomeOnce } from '../useWelcomeOnce';
 import * as AuthContext from '@/context/AuthContext';

@@ -7,7 +7,7 @@ import { fetchAgencyDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
 import { PageHeader } from '@/components/console';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatCurrency, formatDate, formatNumber } from '@/lib/format';
 import { NoAgencyState } from '@/components/shared/NoAgencyState';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -49,12 +49,13 @@ export default async function AgencyDashboardPage() {
       <PageHeader
         title={t('title')}
         description={t('period', {
-          start: data.period.start.slice(0, 10),
-          end: data.period.end.slice(0, 10),
+          // Dates lisibles (« 1 sept. 2026 »), comme la vue agent — plus l'ISO brut.
+          start: formatDate(data.period.start, 'fr'),
+          end: formatDate(data.period.end, 'fr'),
         })}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('activeProperties')}
           value={formatNumber(data.properties?.total ?? 0, 'fr')}
@@ -78,13 +79,16 @@ export default async function AgencyDashboardPage() {
           value={formatNumber(data.finance?.overdue_count ?? 0, 'fr')}
           hint={t('overdueHint', {
             amount: formatCurrency(data.finance?.overdue_amount ?? 0, 'fr'),
-            rate: data.finance?.unpaid_rate_percent ?? 0,
+            // « 61,12 » et non « 61.12 » : le séparateur décimal de la locale.
+            rate: formatNumber(data.finance?.unpaid_rate_percent ?? 0, 'fr', {
+              maximumFractionDigits: 2,
+            }),
           })}
           accent={data.finance && data.finance.unpaid_rate_percent > 15 ? 'danger' : 'warning'}
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('customers')}
           value={formatNumber(data.customers_count ?? 0, 'fr')}

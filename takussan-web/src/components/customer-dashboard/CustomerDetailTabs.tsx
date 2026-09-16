@@ -41,14 +41,20 @@ export function CustomerDetailTabs({
 
   return (
     <Tabs defaultValue="overview" className="space-y-4">
-      <TabsList>
-        <TabsTrigger value="overview">{tTabs('overview')}</TabsTrigger>
-        <TabsTrigger value="notes">{tTabs('notes', { count: notes.length })}</TabsTrigger>
-        <TabsTrigger value="documents">{tTabs('documents', { count: documents.length })}</TabsTrigger>
-        <TabsTrigger value="relationships">{tTabs('relationships', { count: relationships.length })}</TabsTrigger>
-      </TabsList>
+      {/*
+        Revue design 2026-09-16 — à 360, « Relations (1) » débordait de 21 px hors de l'écran, coupé.
+        La barre défile dans son conteneur, jusqu'aux bords de l'écran sous `sm`.
+      */}
+      <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <TabsList className="w-max">
+          <TabsTrigger value="overview">{tTabs('overview')}</TabsTrigger>
+          <TabsTrigger value="notes">{tTabs('notes', { count: notes.length })}</TabsTrigger>
+          <TabsTrigger value="documents">{tTabs('documents', { count: documents.length })}</TabsTrigger>
+          <TabsTrigger value="relationships">{tTabs('relationships', { count: relationships.length })}</TabsTrigger>
+        </TabsList>
+      </div>
 
-      <TabsContent value="overview" className="rounded-xl bg-card p-6">
+      <TabsContent value="overview" className="rounded-xl bg-card p-4 sm:p-6">
         <CustomerForm mode="edit" customer={customer} compact />
       </TabsContent>
 
@@ -77,14 +83,14 @@ export function CustomerDetailTabs({
                 <p className="font-semibold text-foreground">
                   {rel.relationship_type.replace('_', ' / ')}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs tabular-nums text-muted-foreground">
                   {t('since', { date: formatDateTime(rel.start_date, locale) })}
                   {rel.end_date ? t('until', { date: formatDateTime(rel.end_date, locale) }) : ''}
                   {rel.is_primary ? t('primaryContact') : ''}
                   {t('statusSuffix', { status: rel.status })}
                 </p>
                 {rel.notes ? (
-                  <p className="mt-2 whitespace-pre-line text-foreground">{rel.notes}</p>
+                  <p className="mt-2 whitespace-pre-line text-pretty text-foreground">{rel.notes}</p>
                 ) : null}
               </li>
             ))}

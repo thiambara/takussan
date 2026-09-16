@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import type { ZodType } from 'zod';
 import { useResolveurValidation } from '@/hooks/useApiForm';
 import { useLocale, useTranslations } from 'next-intl';
-import { ArrowLeft, Info, Paperclip, Settings, Users } from 'lucide-react';
+import { ArrowLeft, BellOff, Building2, Info, Paperclip, Settings, Users } from 'lucide-react';
 import {
   useConversation,
   useMessagesInfinite,
@@ -19,6 +19,8 @@ import { apiRequest } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ErrorState } from '@/components/feedback';
 import { formatDateTime } from '@/lib/format';
 import { isAllowedAttachment, sendMessageSchema, type SendMessageFormValues } from '@/lib/schemas/message';
 import { traduireMessageValidation } from '@/lib/schemas/messages';
@@ -280,6 +282,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
             type="button"
             variant="ghost"
             size="icon"
+            className="-ml-2 size-11 shrink-0 sm:size-9"
             onClick={onBack}
             aria-label={tWidget('chatBack')}
             data-testid="chat-back-button"
@@ -288,40 +291,46 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           </Button>
         )}
         {isGroup ? (
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
             <Users className="size-5 text-muted-foreground" aria-hidden />
           </div>
         ) : conversation?.property ? (
-          <div className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
-            {conversation.property.main_photo_url && (
+          // `rounded-full` : le même rond que dans la liste — la vignette changeait de forme en
+          // ouvrant la conversation.
+          <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
+            {conversation.property.main_photo_url ? (
               <Image
                 src={conversation.property.main_photo_url}
                 alt=""
                 fill
                 sizes="40px"
-                className="object-cover"
+                className="object-cover outline -outline-offset-1 outline-foreground/10"
               />
+            ) : (
+              <Building2 className="size-5" aria-hidden />
             )}
           </div>
         ) : null}
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-semibold text-foreground">
+          <h2 className="truncate font-display text-base font-semibold tracking-tight text-foreground">
             {conversation?.subject ??
               conversation?.property?.title ??
               t('conversationTitleFallback', { id: String(conversationId) })}
           </h2>
           {isGroup && conversation?.participants && (
-            <p className="text-xs text-muted-foreground">
+            <p className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
               {t('chat.participants', {
                 count: String(conversation.participants.filter((p) => !p.left_at).length),
               })}
-              {isMuted && ' · 🔕'}
+              {isMuted && (
+                <BellOff className="size-3.5" role="img" aria-label={t('list.muted')} />
+              )}
             </p>
           )}
           {!isGroup && conversation?.property && (
             <Link
               href={`/properties/${conversation.property.slug}`}
-              className="text-xs text-muted-foreground hover:underline"
+              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
               {t('chat.viewProperty')}
             </Link>
@@ -342,7 +351,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
         {isGroup && isWidget && (
           <Link
             href={`/app/messages?conversation=${conversationId}`}
-            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+            className="inline-flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={tWidget('manageGroup')}
             data-testid="chat-manage-group-link"
           >
@@ -364,14 +373,14 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
         className="flex-1 overflow-y-auto bg-muted/50 px-4 py-4"
       >
         {isLoading ? (
-          <div className="space-y-3">
-            <div className="h-10 w-2/3 animate-pulse rounded-lg bg-muted" />
-            <div className="ml-auto h-10 w-1/2 animate-pulse rounded-lg bg-muted" />
+          <div className="space-y-3" aria-busy="true">
+            <Skeleton className="h-10 w-2/3 rounded-2xl bg-card" />
+            <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl bg-card" />
           </div>
         ) : isError ? (
-          <p className="text-sm text-destructive">{t('chat.loadError')}</p>
+          <ErrorState message={t('chat.loadError')} />
         ) : messages.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-pretty text-muted-foreground">
             {t('chat.empty')}
           </p>
         ) : (
@@ -385,7 +394,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
               )}
             >
               {isFetchingNextPage ? (
-                <span className="text-[11px] text-muted-foreground">{t('chat.loadingMore')}</span>
+                <span className="text-xs text-muted-foreground">{t('chat.loadingMore')}</span>
               ) : null}
             </li>
             {renderItems.map((item) => {
@@ -420,7 +429,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
         leading={
           <label
             htmlFor="chat-file"
-            className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
+            className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted focus-within:ring-2 focus-within:ring-ring sm:size-9"
             aria-label={t('chat.attachAria')}
           >
             <Paperclip className="size-4" aria-hidden />
@@ -439,7 +448,7 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
           {...form.register('content')}
           rows={1}
           placeholder={t('chat.placeholder')}
-          className="min-h-9 resize-none"
+          className="min-h-11 resize-none sm:min-h-9"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -465,18 +474,18 @@ function MessageBubble({
     <li className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'max-w-[75%] rounded-2xl px-3 py-2 text-sm shadow-sm',
+          'max-w-[75%] rounded-2xl px-3.5 py-2 text-sm shadow-sm',
           isOwn
             ? 'rounded-br-sm bg-foreground text-primary-foreground'
             : 'rounded-bl-sm bg-card text-foreground',
         )}
       >
         {!isOwn && message.sender && (
-          <p className="mb-0.5 text-[10px] font-semibold text-muted-foreground">
+          <p className="mb-0.5 text-xs font-semibold text-muted-foreground">
             {message.sender.full_name}
           </p>
         )}
-        <p className="whitespace-pre-line break-words">{message.content}</p>
+        <p className="whitespace-pre-line text-pretty break-words">{message.content}</p>
         {message.attachments && message.attachments.length > 0 && (
           <ul className="mt-2 space-y-1">
             {message.attachments.map((a) => (
@@ -499,7 +508,7 @@ function MessageBubble({
         )}
         <p
           className={cn(
-            'mt-1 text-[10px]',
+            'mt-1 text-[11px] tabular-nums',
             isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground',
           )}
         >

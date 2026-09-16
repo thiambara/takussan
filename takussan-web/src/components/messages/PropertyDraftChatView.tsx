@@ -116,6 +116,7 @@ export function PropertyDraftChatView({
             type="button"
             variant="ghost"
             size="icon"
+            className="-ml-2 size-11 shrink-0 sm:size-9"
             onClick={onBack}
             aria-label={tWidget('chatBack')}
             data-testid="chat-back-button"
@@ -123,18 +124,18 @@ export function PropertyDraftChatView({
             <ArrowLeft className="size-4" aria-hidden />
           </Button>
         )}
-        <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+        <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted">
           {property.main_photo_url ? (
-            <Image src={property.main_photo_url} alt="" fill sizes="40px" className="object-cover" />
+            <Image src={property.main_photo_url} alt="" fill sizes="40px" className="object-cover outline -outline-offset-1 outline-foreground/10" />
           ) : (
             <Home className="size-5 text-muted-foreground" aria-hidden />
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-semibold text-foreground">{property.title}</h2>
+          <h2 className="truncate font-display text-base font-semibold tracking-tight text-foreground">{property.title}</h2>
           <Link
             href={`/properties/${property.slug}`}
-            className="text-xs text-muted-foreground hover:underline"
+            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
           >
             {t('chat.viewProperty')}
           </Link>
@@ -150,7 +151,7 @@ export function PropertyDraftChatView({
         className="flex flex-1 items-center justify-center bg-muted/50 px-6 py-8"
         data-testid="chat-draft-empty-thread"
       >
-        <p className="max-w-xs text-center text-sm text-muted-foreground">
+        <p className="max-w-xs text-center text-sm text-pretty text-muted-foreground">
           {recipientName
             ? tBrouillon('newThreadHint', { name: recipientName })
             : tBrouillon('newThreadHintNoName')}
@@ -168,7 +169,7 @@ export function PropertyDraftChatView({
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder={t('chat.placeholder')}
-          className="min-h-9 resize-none"
+          className="min-h-11 resize-none sm:min-h-9"
           data-testid="chat-draft-textarea"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {

@@ -32,7 +32,9 @@ function displayCurrency(value: unknown): string {
 
 export function DashboardMeKpis({ role, metrics }: Props) {
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    // `tabular-nums` est HÉRITÉ (font-variant-numeric) : posé sur la grille, il atteint la valeur
+    // de chaque tuile sans toucher à `charts/StatCard`, que d'autres tableaux de bord partagent.
+    <div className="grid grid-cols-2 gap-4 tabular-nums lg:grid-cols-4">
       {role === 'agency_admin' && <AgencyTiles metrics={metrics} />}
       {role === 'owner' && <OwnerTiles metrics={metrics} />}
       {role === 'agent' && <AgentTiles metrics={metrics} />}

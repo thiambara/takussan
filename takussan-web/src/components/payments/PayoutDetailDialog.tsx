@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { StatusBadge } from '@/components/console';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +25,7 @@ import {
 import type { Locale } from '@/i18n/config';
 import type { PayoutStatus } from '@/types/invoice';
 
-import { PAYOUT_STATUS_VARIANT } from './constants';
+import { PAYOUT_STATUS_TONE } from './constants';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 interface PayoutDetailDialogProps {
@@ -76,9 +76,7 @@ export function PayoutDetailDialog({ payoutId, onClose }: PayoutDetailDialogProp
         ) : payout ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Badge variant={PAYOUT_STATUS_VARIANT[status] ?? 'outline'}>
-                {tStatus(status)}
-              </Badge>
+              <StatusBadge tone={PAYOUT_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />
               <span className="text-xs text-muted-foreground">
                 {t('createdOn', {
                   date: payout.created_at ? formatDate(payout.created_at, locale) : '—',

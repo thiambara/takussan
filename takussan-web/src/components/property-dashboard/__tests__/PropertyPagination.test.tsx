@@ -71,8 +71,15 @@ describe('<PropertyPagination>', () => {
    * une seule page. Ici, le compte et le sélecteur de densité doivent rester à l'écran.
    */
   it('affiche encore le résumé quand tout tient en une page', () => {
-    render(withIntl(<PropertyPagination meta={meta({ current_page: 1, last_page: 1, total: 3 })} />));
-    expect(screen.getByText(/3 résultats/)).toBeInTheDocument();
+    render(withIntl(<PropertyPagination meta={meta({ current_page: 1, last_page: 1, total: 15 })} />));
+    expect(screen.getByText(/15 résultats/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /suivant/i })).toBeDisabled();
+  });
+
+  it('ne rend rien sur une page unique qui tient dans la plus petite densité', () => {
+    const { container } = render(
+      withIntl(<PropertyPagination meta={meta({ current_page: 1, last_page: 1, total: 5 })} />),
+    );
+    expect(container).toBeEmptyDOMElement();
   });
 });

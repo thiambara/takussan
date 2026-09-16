@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 import { cn } from '@/lib/utils';
 
@@ -32,7 +32,8 @@ import { cn } from '@/lib/utils';
 export type ChoiceOption = {
   readonly value: string;
   readonly label: string;
-  readonly icon?: string;
+  /** Une icône Lucide (types de bien) ou l'emoji d'une étiquette servie par l'API (équipements). */
+  readonly icon?: ReactNode;
 };
 
 type ChoiceChipsCommun = {
@@ -155,19 +156,25 @@ export function ChoiceChips({
               className={cn(
                 // `min-h-11` = 44 px : la cible tactile minimale. En dessous, le doigt rate.
                 'inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm',
-                'transition-[background-color,border-color,color,transform] duration-150',
-                'active:scale-[0.95] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
+                // `scale`, pas `transform` : sous Tailwind 4, `active:scale-*` écrit la propriété
+                // `scale`, que la liste précédente ne faisait pas transitionner.
+                'transition-[background-color,border-color,color,scale] duration-150 ease-out',
+                'active:scale-[0.96] focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none',
                 actif
                   ? 'border-primary bg-primary font-semibold text-primary-foreground'
                   : 'border-border bg-card text-foreground hover:bg-muted',
               )}
             >
               {/*
-                L'emoji est un repère de FORME, pas un décor : il accélère le balayage d'une
-                grille de seize types. `aria-hidden` le retire du nom accessible du bouton, qui
+                L'icône est un repère de FORME, pas un décor : elle accélère le balayage d'une
+                grille de seize types. `aria-hidden` la retire du nom accessible du bouton, qui
                 doit rester le libellé seul.
               */}
-              {o.icon ? <span aria-hidden="true">{o.icon}</span> : null}
+              {o.icon ? (
+                <span aria-hidden="true" className="inline-flex shrink-0">
+                  {o.icon}
+                </span>
+              ) : null}
               {o.label}
             </button>
           );

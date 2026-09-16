@@ -7,6 +7,11 @@ import { fetchServiceProviders } from '@/lib/queries/service-providers';
 import { ServiceProvidersList } from '@/components/service-providers/ServiceProvidersList';
 import { isAdmin } from '@/lib/roles';
 import { getTranslations } from 'next-intl/server';
+import { ShieldOff } from 'lucide-react';
+
+import { ApiError } from '@/lib/api';
+import { EmptyState } from '@/components/feedback';
+import { PageHeader } from '@/components/console';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.providers');
@@ -37,10 +42,31 @@ export default async function Page() {
   const agencyId = user.agency_id;
   if (!token || !agencyId) return null;
 
+  // Le layout laisse entrer tout agent de l'agence, mais l'API ne liste le carnet qu'à qui peut
+  // y inviter (`ServiceProviderProfilePolicy::viewAny` avec agence). Un agent sans cette
+  // délégation recevait un 403 NON rattrapé : la page tombait dans la frontière d'erreur
+  // (« Une erreur est survenue »), c'est-à-dire qu'un refus attendu se lisait comme une panne.
   const [agency, providers] = await Promise.all([
     resolveAgencyOrNull(token, agencyId, 'maintenance/providers'),
-    fetchServiceProviders(token, { agencyId }),
+    fetchServiceProviders(token, { agencyId }).catch((error: unknown) => {
+      if (error instanceof ApiError && error.status === 403) return null;
+      throw error;
+    }),
   ]);
+
+  if (providers === null) {
+    const t = await getTranslations('serviceProviders.page');
+    return (
+      <div className="space-y-6">
+        <PageHeader title={t('title')} description={t('subtitle')} />
+        <EmptyState
+          icon={<ShieldOff className="size-8" aria-hidden="true" />}
+          title={t('forbidden_title')}
+          description={t('forbidden_description')}
+        />
+      </div>
+    );
+  }
 
   // `affichage`, et AUCUNE redirection sur `null` — parce qu'ici `kind` ne garde rien.
   //

@@ -14,32 +14,27 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { ApiError } from '@/lib/api';
+import { StatusBadge } from '@/components/console';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { isAdmin, isAgent as hasAgentRole, isOwner } from '@/lib/roles';
 import { VisitFeedbackForm } from './VisitFeedbackForm';
-import type { PropertyVisit, VisitStatus, VisitType } from '@/types/visit';
+import type { PropertyVisit } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
-
-/**
- * TCK-292 — tables hors composant : elles transportent la CLÉ (relative au namespace `visits`),
- * le rendu la résout. Mêmes clés que `VisitsList.tsx` : un seul vocabulaire de statut.
- */
-const STATUS_LABEL_KEY: Record<VisitStatus, string> = {
-  scheduled: 'status.scheduled',
-  confirmed: 'status.confirmed',
-  completed: 'status.completed',
-  cancelled: 'status.cancelled',
-  no_show: 'status.no_show',
-};
-
-const TYPE_LABEL_KEY: Record<VisitType, string> = {
-  in_person: 'type.in_person',
-  virtual: 'type.virtual',
-  self_guided: 'type.self_guided',
-  hybrid: 'type.hybrid',
-};
+import { cn } from '@/lib/utils';
+import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from './visit-status';
 
 const FEEDBACK_WINDOW_HOURS = 24;
 
@@ -53,6 +48,7 @@ export function VisitDetail({ id }: { id: number }) {
   const { user } = useAuth();
   const router = useRouter();
   const [renderedAt] = useState(() => Date.now());
+  const [dialog, setDialog] = useState<VisitDialogKind | null>(null);
 
   const confirm = useConfirmVisit(id);
   const complete = useCompleteVisit(id);
@@ -61,16 +57,27 @@ export function VisitDetail({ id }: { id: number }) {
   const toast = useToast();
 
   if (isLoading) {
-    return <div className="h-48 animate-pulse rounded-xl bg-card" />;
+    return <Skeleton className="h-48 rounded-xl" />;
   }
 
   if (isError || !data) {
+    // Un 403 n'est pas une panne : « réessayer » n'y changerait rien.
+    const forbidden = visitQuery.error instanceof ApiError && visitQuery.error.status === 403;
+    // La page n'a pas d'autre titre que celui de la visite : sans lui, l'écran d'erreur n'a
+    // aucun h1 (mesuré sur une visite d'une autre agence, 403).
     return (
-      <ErrorState
-        message={t('error')}
-        onRetry={() => void visitQuery.refetch()}
-        retryLabel={tCommon('actions.retry')}
-      />
+      <>
+        <h1 className="sr-only">{tVisits('fallbackTitle', { id: String(id) })}</h1>
+        {forbidden ? (
+          <ErrorState message={t('forbidden')} />
+        ) : (
+          <ErrorState
+            message={t('error')}
+            onRetry={() => void visitQuery.refetch()}
+            retryLabel={tCommon('actions.retry')}
+          />
+        )}
+      </>
     );
   }
 
@@ -111,54 +118,62 @@ export function VisitDetail({ id }: { id: number }) {
     });
   }
 
-  async function handleCancel() {
-    const reason = window.prompt(t('cancellationReason'))?.trim();
-    if (!reason) return;
+  // Revue design 2026-09-16 — l'annulation et la replanification passaient par
+  // prompt natif du navigateur : un motif sans libellé et une date à taper au format « YYYY-MM-DD HH:mm ».
+  // Elles passent par un `Dialog` (patron de `BookingDetail`) ; appels, paramètres et format
+  // envoyé sont inchangés.
+  async function submitCancel(reason: string) {
     await cancel.mutateAsync({ reason });
     toast.add({
       title: t('toasts.cancelled.title'),
       description: t('toasts.cancelled.description'),
       type: 'success',
     });
+    setDialog(null);
     router.push('/app/visits');
   }
 
-  async function handleReschedule() {
-    const nextSlot = window.prompt(
-      t('prompts.newSlot'),
-      visit.scheduled_at?.slice(0, 16).replace('T', ' ') ?? '',
-    )?.trim();
-    if (!nextSlot) return;
-    const iso = new Date(nextSlot.replace(' ', 'T')).toISOString();
+  async function submitReschedule(nextSlot: string) {
+    const iso = new Date(nextSlot).toISOString();
     await updateVisit.mutateAsync({ scheduled_at: iso });
     toast.add({
       title: t('toasts.rescheduled.title'),
       description: t('toasts.rescheduled.description'),
       type: 'success',
     });
+    setDialog(null);
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <Link href="/app/visits" className="text-xs text-muted-foreground hover:underline">
+        <Link
+          href="/app/visits"
+          className="-ml-1 inline-flex min-h-10 items-center rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8"
+        >
           {t('back')}
         </Link>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-lg font-semibold text-foreground">
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6">
+        <div className="space-y-2">
+          <h1 className="text-balance font-display text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             {visit.property?.title ?? tVisits('fallbackTitle', { id: String(visit.id) })}
           </h1>
-          <Badge variant="outline">{tVisits(STATUS_LABEL_KEY[status])}</Badge>
-          <Badge variant="outline">{tVisits(TYPE_LABEL_KEY[type])}</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge
+              tone={VISIT_STATUS_TONE[status]}
+              label={tVisits(VISIT_STATUS_LABEL_KEY[status])}
+              data-testid="visit-status"
+            />
+            <StatusBadge label={tVisits(VISIT_TYPE_LABEL_KEY[type])} />
+          </div>
         </div>
 
         <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">{t('slot')}</dt>
-            <dd className="font-medium text-foreground">
+            <dd className="font-medium tabular-nums text-foreground">
               {formatDateTime(visit.scheduled_at, locale)}
               {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
                 <> · {visit.duration_minutes} {tVisits('minutesUnit')}</>
@@ -168,13 +183,13 @@ export function VisitDetail({ id }: { id: number }) {
           {visit.notes && (
             <div className="sm:col-span-2">
               <dt className="text-muted-foreground">{t('notes')}</dt>
-              <dd className="text-foreground">{visit.notes}</dd>
+              <dd className="whitespace-pre-line text-pretty text-foreground">{visit.notes}</dd>
             </div>
           )}
           {visit.cancellation_reason && (
             <div className="sm:col-span-2">
               <dt className="text-muted-foreground">{t('cancellationReason')}</dt>
-              <dd className="text-foreground">{visit.cancellation_reason}</dd>
+              <dd className="text-pretty text-foreground">{visit.cancellation_reason}</dd>
             </div>
           )}
           <div>
@@ -193,28 +208,29 @@ export function VisitDetail({ id }: { id: number }) {
           ) : null}
         </dl>
 
-        <div className="flex flex-wrap gap-2 pt-2">
+        {/* Sous `sm`, les actions s'empilent en pleine largeur : cibles de 40 px, aucune coupée. */}
+        <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:flex-wrap">
           {canConfirm && (
-            <Button onClick={handleConfirm} disabled={confirm.isPending}>
+            <Button onClick={handleConfirm} disabled={confirm.isPending} className="h-10 sm:h-8">
               {t('actions.confirm')}
             </Button>
           )}
           {canComplete && (
-            <Button onClick={handleComplete} disabled={complete.isPending} variant="outline">
+            <Button onClick={handleComplete} disabled={complete.isPending} variant="outline" className="h-10 sm:h-8">
               {t('actions.complete')}
             </Button>
           )}
           {canReschedule && (
-            <Button onClick={handleReschedule} disabled={updateVisit.isPending} variant="outline">
+            <Button onClick={() => setDialog('reschedule')} disabled={updateVisit.isPending} variant="outline" className="h-10 sm:h-8">
               {t('actions.reschedule')}
             </Button>
           )}
           {canCancel && (
             <Button
-              onClick={handleCancel}
+              onClick={() => setDialog('cancel')}
               disabled={cancel.isPending}
               variant="ghost"
-              className="text-destructive hover:text-destructive"
+              className="h-10 text-destructive hover:text-destructive sm:h-8"
             >
               {tCommon('actions.cancel')}
             </Button>
@@ -222,7 +238,7 @@ export function VisitDetail({ id }: { id: number }) {
           {visit.property?.slug && (
             <Link
               href={`/properties/${visit.property.slug}`}
-              className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-muted/50"
+              className={cn(buttonVariants({ variant: 'outline' }), 'h-10 sm:h-8')}
             >
               {t('actions.viewProperty')}
             </Link>
@@ -238,7 +254,149 @@ export function VisitDetail({ id }: { id: number }) {
           canAgent={isAssignedAgent || isManager}
         />
       )}
+
+      <VisitActionDialog
+        kind={dialog}
+        // `datetime-local` n'accepte que « AAAA-MM-JJTHH:MM » : la valeur par défaut est celle
+        // que le prompt proposait, normalisée.
+        defaultSlot={visit.scheduled_at?.slice(0, 16).replace(' ', 'T') ?? ''}
+        pending={cancel.isPending || updateVisit.isPending}
+        onOpenChange={(open) => {
+          if (!open) setDialog(null);
+        }}
+        onCancel={submitCancel}
+        onReschedule={submitReschedule}
+      />
     </div>
+  );
+}
+
+type VisitDialogKind = 'cancel' | 'reschedule';
+
+function VisitActionDialog({
+  kind,
+  defaultSlot,
+  pending,
+  onOpenChange,
+  onCancel,
+  onReschedule,
+}: {
+  kind: VisitDialogKind | null;
+  defaultSlot: string;
+  pending: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCancel: (reason: string) => Promise<void>;
+  onReschedule: (slot: string) => Promise<void>;
+}) {
+  return (
+    <Dialog open={kind !== null} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        {/* Une clé par ouverture : le champ repart vide (ou du créneau courant) à chaque fois. */}
+        {kind ? (
+          <VisitActionForm
+            key={kind}
+            kind={kind}
+            defaultSlot={defaultSlot}
+            pending={pending}
+            onDismiss={() => onOpenChange(false)}
+            onCancel={onCancel}
+            onReschedule={onReschedule}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function VisitActionForm({
+  kind,
+  defaultSlot,
+  pending,
+  onDismiss,
+  onCancel,
+  onReschedule,
+}: {
+  kind: VisitDialogKind;
+  defaultSlot: string;
+  pending: boolean;
+  onDismiss: () => void;
+  onCancel: (reason: string) => Promise<void>;
+  onReschedule: (slot: string) => Promise<void>;
+}) {
+  const t = useTranslations('visits.detail');
+  const [value, setValue] = useState(kind === 'reschedule' ? defaultSlot : '');
+  const [touched, setTouched] = useState(false);
+  const fieldId = `visit-${kind}-field`;
+  const errorId = `${fieldId}-error`;
+  const trimmed = value.trim();
+  const valid =
+    kind === 'cancel'
+      ? trimmed.length > 0
+      : trimmed.length > 0 && !Number.isNaN(new Date(trimmed).getTime());
+  const showError = touched && !valid;
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setTouched(true);
+    if (!valid) return;
+    if (kind === 'cancel') await onCancel(trimmed);
+    else await onReschedule(trimmed);
+  }
+
+  return (
+    <form onSubmit={(event) => void handleSubmit(event)} noValidate className="space-y-4">
+      <DialogHeader>
+        <DialogTitle>{t(`dialogs.${kind}.title`)}</DialogTitle>
+        <DialogDescription>{t(`dialogs.${kind}.description`)}</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-2">
+        <label htmlFor={fieldId} className="block text-sm font-medium text-foreground">
+          {kind === 'cancel' ? t('cancellationReason') : t('dialogs.reschedule.label')}
+        </label>
+        {kind === 'cancel' ? (
+          <Textarea
+            id={fieldId}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            onBlur={() => setTouched(true)}
+            rows={4}
+            placeholder={t('dialogs.cancel.placeholder')}
+            required
+            aria-invalid={showError || undefined}
+            aria-describedby={showError ? errorId : undefined}
+          />
+        ) : (
+          <Input
+            id={fieldId}
+            type="datetime-local"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            onBlur={() => setTouched(true)}
+            required
+            className="h-10 tabular-nums sm:h-9"
+            aria-invalid={showError || undefined}
+            aria-describedby={showError ? errorId : undefined}
+          />
+        )}
+        {showError ? (
+          <p id={errorId} role="alert" className="text-sm text-destructive">
+            {t(`dialogs.${kind}.required`)}
+          </p>
+        ) : null}
+      </div>
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onDismiss}>
+          {t('dialogs.dismiss')}
+        </Button>
+        <Button
+          type="submit"
+          variant={kind === 'cancel' ? 'destructive' : 'default'}
+          disabled={pending}
+        >
+          {pending ? t('dialogs.processing') : t(`dialogs.${kind}.submit`)}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
@@ -270,12 +428,12 @@ function RequesterSummary({ visit }: { visit: PropertyVisit }) {
       {requester.email || requester.phone ? (
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {requester.phone ? (
-            <a href={`tel:${requester.phone}`} className="hover:text-foreground">
+            <a href={`tel:${requester.phone}`} className="tabular-nums hover:text-foreground hover:underline">
               {requester.phone}
             </a>
           ) : null}
           {requester.email ? (
-            <a href={`mailto:${requester.email}`} className="hover:text-foreground">
+            <a href={`mailto:${requester.email}`} className="break-all hover:text-foreground hover:underline">
               {requester.email}
             </a>
           ) : null}
@@ -345,16 +503,18 @@ function FeedbackSection({
 
   if (locked) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
+      <div className="rounded-xl border border-border bg-card p-4 text-sm text-pretty text-muted-foreground sm:p-6">
         {t('feedback.locked')}
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+    <div className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-6">
       <div>
-        <h3 className="text-base font-semibold text-foreground">{t('feedback.title')}</h3>
+        <h2 className="font-display text-base font-semibold tracking-tight text-foreground">
+          {t('feedback.title')}
+        </h2>
         <p className="text-xs text-muted-foreground">
           {t('feedback.window', { hours: String(FEEDBACK_WINDOW_HOURS) })}
         </p>

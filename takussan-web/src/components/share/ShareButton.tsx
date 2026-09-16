@@ -70,11 +70,11 @@ export function ShareButton({
       onClick={handleShare}
       disabled={busy}
       aria-label={libelle}
-      className={`inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white ${sizeClasses} font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition ${className}`}
+      className={`inline-flex items-center gap-2 rounded-full border border-border bg-card ${sizeClasses} font-semibold text-foreground shadow-sm hover:bg-muted/60 transition ${className}`}
     >
       {copied ? (
         <>
-          <Check className="w-4 h-4 text-emerald-600" />
+          <Check className="w-4 h-4 text-success" />
           <span>{t('linkCopied')}</span>
         </>
       ) : (

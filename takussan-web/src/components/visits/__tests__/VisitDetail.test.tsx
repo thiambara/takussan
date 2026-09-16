@@ -1,19 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { withIntl } from '@/test/intl';
 
 import { VisitDetail } from '../VisitDetail';
 import type { PropertyVisit } from '@/types/visit';
+import { ApiError } from '@/lib/api';
 
 const visitState = vi.hoisted(() => ({
   visit: null as PropertyVisit | null,
+  error: null as unknown,
 }));
 
 const mutation = {
   mutateAsync: vi.fn(),
   isPending: false,
 };
+const cancelMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+const updateMutation = { mutateAsync: vi.fn().mockResolvedValue({}), isPending: false };
+const push = vi.fn();
 
 vi.mock('@/context/AuthContext', () => ({
   useAuth: () => ({
@@ -22,7 +28,7 @@ vi.mock('@/context/AuthContext', () => ({
 }));
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
 }));
 
 vi.mock('@/components/ui/toast', () => ({
@@ -34,11 +40,13 @@ vi.mock('@/lib/queries/visits', () => ({
     data: visitState.visit ? { data: visitState.visit } : undefined,
     isLoading: false,
     isError: !visitState.visit,
+    error: visitState.error,
+    refetch: vi.fn(),
   }),
-  useCancelVisit: () => mutation,
+  useCancelVisit: () => cancelMutation,
   useCompleteVisit: () => mutation,
   useConfirmVisit: () => mutation,
-  useUpdateVisit: () => mutation,
+  useUpdateVisit: () => updateMutation,
 }));
 
 function renderDetail() {
@@ -77,6 +85,26 @@ describe('<VisitDetail>', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     visitState.visit = makeVisit();
+    visitState.error = null;
+  });
+
+  it('dit « autre agence » sur un 403, sans proposer de réessayer', () => {
+    visitState.visit = null;
+    visitState.error = new ApiError(403, {});
+    renderDetail();
+
+    expect(screen.getByText(/relève d'une autre agence/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /réessayer/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
+  });
+
+  it('propose de réessayer sur une panne', () => {
+    visitState.visit = null;
+    visitState.error = new ApiError(500, {});
+    renderDetail();
+
+    expect(screen.getByText(/impossible de charger cette visite/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /réessayer/i })).toBeInTheDocument();
   });
 
   it('shows a CRM customer name, contact details, and customer detail link', () => {
@@ -143,5 +171,49 @@ describe('<VisitDetail>', () => {
     expect(screen.getByRole('button', { name: /confirmer la visite/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /replanifier/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /annuler/i })).toBeInTheDocument();
+  });
+  it("annule par un dialogue : motif exigé, puis le même payload qu'avant", async () => {
+    const user = userEvent.setup();
+    const prompt = vi.spyOn(window, 'prompt');
+    renderDetail();
+
+    await user.click(screen.getByRole('button', { name: /^annuler$/i }));
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent(/annuler la visite/i);
+
+    await user.click(screen.getByRole('button', { name: /annuler la visite/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/indiquez le motif/i);
+    expect(cancelMutation.mutateAsync).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText(/motif d.annulation/i), '  Visiteur indisponible  ');
+    await user.click(screen.getByRole('button', { name: /annuler la visite/i }));
+
+    expect(cancelMutation.mutateAsync).toHaveBeenCalledWith({ reason: 'Visiteur indisponible' });
+    expect(push).toHaveBeenCalledWith('/app/visits');
+    expect(prompt).not.toHaveBeenCalled();
+  });
+
+  it('replanifie par un champ date/heure : même conversion ISO que le prompt', async () => {
+    const user = userEvent.setup();
+    renderDetail();
+
+    await user.click(screen.getByRole('button', { name: /replanifier/i }));
+    await screen.findByRole('dialog');
+    const field = screen.getByLabelText(/nouveau créneau/i);
+    expect(field).toHaveAttribute('type', 'datetime-local');
+    // Le créneau courant est proposé, comme le faisait le prompt.
+    expect(field).toHaveValue('2026-05-10T10:00');
+
+    await user.clear(field);
+    await user.click(screen.getByRole('button', { name: /enregistrer le créneau/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/choisissez une date/i);
+    expect(updateMutation.mutateAsync).not.toHaveBeenCalled();
+
+    await user.type(field, '2026-06-01T14:30');
+    await user.click(screen.getByRole('button', { name: /enregistrer le créneau/i }));
+
+    expect(updateMutation.mutateAsync).toHaveBeenCalledWith({
+      scheduled_at: new Date('2026-06-01T14:30').toISOString(),
+    });
   });
 });

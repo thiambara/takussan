@@ -14,6 +14,8 @@ import { PropertyHeaderActions } from '@/components/property-dashboard/PropertyH
 import { PropertyStatusBadge } from '@/components/property-dashboard/PropertyStatusBadge';
 import { PropertyVisibilityBadge } from '@/components/property-dashboard/PropertyVisibilityBadge';
 import { PropertyModerationBanner } from '@/components/property-form/PropertyModerationBanner';
+import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
+import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
 import { getTranslations } from 'next-intl/server';
 import { PageHeader } from '@/components/console';
 
@@ -72,6 +74,18 @@ export default async function Page({ params }: { params: Params }) {
     throw e;
   }
 
+  // Le front possède le texte affiché (principe n° 5) : `type_label`, `contract_type_label` et
+  // `status_label` arrivent de l'API en anglais sous une interface française (« Rented ·
+  // Studio · For Rent », mesuré le 2026-09-16). Les codes se traduisent ici, comme dans la liste.
+  const tType = await getTranslations(PROPERTY_ENUM_NAMESPACES.type);
+  const tContract = await getTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
+  const typeLabel = property.type
+    ? enumLabel(tType, propertyTypeValues, property.type)
+    : property.type_label;
+  const contractLabel = property.contract_type
+    ? enumLabel(tContract, contractTypeValues, property.contract_type)
+    : property.contract_type_label;
+
   const tagsResult = await fetchTagsAction({ filters: { type: 'amenity' }, perPage: 200 });
   const tags = tagsResult.ok ? (tagsResult.data?.data ?? []) : [];
 
@@ -82,16 +96,11 @@ export default async function Page({ params }: { params: Params }) {
         title={property.title}
         description={
           <span className="flex flex-wrap items-center gap-2">
-            <PropertyStatusBadge
-              status={property.status}
-              statusLabel={property.status_label}
-            />
+            <PropertyStatusBadge status={property.status} />
             <PropertyVisibilityBadge visibility={property.visibility} />
             <span className="text-xs text-muted-foreground">
-              {property.type_label}
-              {property.contract_type_label
-                ? ` · ${property.contract_type_label}`
-                : ''}
+              {typeLabel}
+              {contractLabel ? ` · ${contractLabel}` : ''}
               {property.location?.city ? ` · ${property.location.city}` : ''}
             </span>
           </span>

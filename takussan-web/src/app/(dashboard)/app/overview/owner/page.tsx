@@ -4,7 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import { fetchOwnerDashboard } from '@/lib/queries/dashboard';
 import { StatCard } from '@/components/charts/StatCard';
 import { LineChart } from '@/components/charts/LineChart';
-import { formatCurrency, formatNumber } from '@/lib/format';
+import { formatCurrency, formatDate, formatNumber, formatPercent } from '@/lib/format';
+import { buttonVariants } from '@/components/ui/button';
 import Link from 'next/link';
 import { apiRequest, buildQueryString } from '@/lib/api';
 import { getToken } from '@/lib/session';
@@ -35,25 +36,23 @@ export default async function OwnerDashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Dates lisibles (« 1 sept. 2026 »), comme la vue agent — plus l'ISO brut. */}
       <PageHeader title={t('title')} description={t('subtitle', {
-            start: data.period.start.slice(0, 10),
-            end: data.period.end.slice(0, 10),
+            start: formatDate(data.period.start, 'fr'),
+            end: formatDate(data.period.end, 'fr'),
           })} />
 
       {(data.portfolio?.total ?? 0) === 0 && (
         <section className="rounded-2xl border border-dashed border-border bg-card p-6">
           <h2 className="text-base font-semibold text-foreground">{t('emptyTitle')}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t('emptyBodyFull')}</p>
-          <Link
-            href="/app/properties/new"
-            className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-          >
+          <p className="mt-1 text-sm text-pretty text-muted-foreground">{t('emptyBodyFull')}</p>
+          <Link href="/app/properties/new" className={buttonVariants({ className: 'mt-4' })}>
             {t('emptyCta')}
           </Link>
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('properties')}
           value={formatNumber(data.portfolio?.total ?? 0, 'fr')}
@@ -82,10 +81,11 @@ export default async function OwnerDashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 tabular-nums sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label={t('occupancy')}
-          value={`${data.occupancy?.rate_percent ?? 0}%`}
+          // « 22,67 % » et non « 22.67% » : séparateur décimal et espace de la locale.
+          value={formatPercent((data.occupancy?.rate_percent ?? 0) / 100, 'fr')}
         />
         <StatCard
           label={t('pendingBookings')}
@@ -95,7 +95,7 @@ export default async function OwnerDashboardPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-2xl bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">{t('portfolio')}</h2>
+          <h2 className="text-base font-semibold text-foreground">{t('portfolio')}</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <DashboardLine label={t('available')} value={formatNumber(data.portfolio?.available ?? 0, 'fr')} />
             <DashboardLine label={t('rented')} value={formatNumber(data.portfolio?.rented ?? 0, 'fr')} />
@@ -110,8 +110,8 @@ export default async function OwnerDashboardPage() {
         </section>
 
         <section className="rounded-2xl bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">{t('pendingRequests')}</h2>
-          <div className="mt-4 space-y-3 text-sm">
+          <h2 className="text-base font-semibold text-foreground">{t('pendingRequests')}</h2>
+          <div className="mt-4 space-y-2 text-sm">
             <DashboardLinkLine
               href="/app/bookings?status=pending"
               label={t('bookingsToHandle')}
@@ -126,25 +126,25 @@ export default async function OwnerDashboardPage() {
         </section>
 
         <section className="rounded-2xl bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">{t('nextPayouts')}</h2>
+          <h2 className="text-base font-semibold text-foreground">{t('nextPayouts')}</h2>
           {pendingPayouts.length > 0 ? (
             <ul className="mt-4 space-y-2 text-sm">
               {pendingPayouts.map((payout) => (
-                <li key={payout.id} className="rounded-lg bg-card/70 p-3">
-                  <p className="font-medium text-foreground">
+                <li key={payout.id} className="rounded-lg bg-muted/60 p-3">
+                  <p className="font-medium text-foreground tabular-nums">
                     {formatCurrency(payout.net_amount, 'fr', { currency: payout.currency ?? 'XOF' })}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {payout.reference_number ?? t('payoutFallback', { id: payout.id })}
                     {payout.scheduled_at
-                      ? t('payoutScheduled', { date: payout.scheduled_at.slice(0, 10) })
+                      ? t('payoutScheduled', { date: formatDate(payout.scheduled_at, 'fr') })
                       : ''}
                   </p>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-sm text-muted-foreground">{t('noPayouts')}</p>
+            <p className="mt-4 text-sm text-pretty text-muted-foreground">{t('noPayouts')}</p>
           )}
         </section>
       </div>
@@ -179,7 +179,7 @@ function DashboardLine({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="font-semibold text-foreground">{value}</dd>
+      <dd className="font-semibold text-foreground tabular-nums">{value}</dd>
     </div>
   );
 }
@@ -196,10 +196,12 @@ function DashboardLinkLine({
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-3 rounded-lg bg-card/70 p-3 hover:bg-card"
+      // `bg-card/70` sur une carte `bg-card` ne se voyait pas : la ligne n'avait ni fond ni
+      // survol visibles. Même surface que les lignes de la vue agent.
+      className="flex min-h-11 items-center justify-between gap-3 rounded-lg bg-muted/60 px-3 py-2 outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50"
     >
       <span className="text-muted-foreground">{label}</span>
-      <span className="font-semibold text-foreground">{value}</span>
+      <span className="font-semibold text-foreground tabular-nums">{value}</span>
     </Link>
   );
 }

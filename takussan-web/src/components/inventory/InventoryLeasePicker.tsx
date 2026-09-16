@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { FileSearch } from 'lucide-react';
+import { ChevronRight, FileSearch } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { EmptyState } from '@/components/feedback';
@@ -52,25 +52,31 @@ export function InventoryLeasePicker() {
         return (
           <ul className="space-y-2">
             {baux.map((lease) => (
-              <li
-                key={lease.id}
-                className="rounded-xl bg-card shadow-sm transition-colors hover:bg-muted"
-              >
+              <li key={lease.id}>
                 <Link
                   href={`/app/inventories/new?lease=${lease.id}`}
-                  className="flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between"
+                  className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-[box-shadow,border-color] hover:border-foreground/15 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground">
                       {lease.property?.title
                         ?? tLease('fallbackReference', { id: String(lease.id) })}
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground tabular-nums">
                       {lease.reference_number}
                     </p>
                   </div>
-                  <span className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+                  {/* Toute la ligne est le lien : le « bouton » n'en est que l'affordance visible,
+                      en surface `muted` pour ne pas se fondre dans la carte blanche. */}
+                  <span
+                    className={buttonVariants({
+                      variant: 'secondary',
+                      size: 'sm',
+                      className: 'shrink-0 bg-muted group-hover:bg-border',
+                    })}
+                  >
                     {t('select')}
+                    <ChevronRight aria-hidden="true" />
                   </span>
                 </Link>
               </li>

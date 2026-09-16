@@ -70,11 +70,11 @@ export function MaintenanceCompleteForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-4 rounded-2xl bg-card p-5"
+      className="space-y-4 rounded-xl bg-card p-4 sm:p-5"
       noValidate
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
+        <h2 className="font-display text-base font-semibold text-foreground">{t('title')}</h2>
         <Button type="button" variant="ghost" size="sm" onClick={onClose}>
           {tCommon('actions.cancel')}
         </Button>
@@ -113,7 +113,7 @@ export function MaintenanceCompleteForm({
           accept="image/jpeg,image/png,image/webp"
           multiple
           onChange={(e) => setPhotos(Array.from(e.target.files ?? []))}
-          className="block w-full text-sm text-muted-foreground"
+          className="block w-full text-sm text-muted-foreground file:mr-3 file:h-8 file:cursor-pointer file:rounded-lg file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted"
         />
         {photos.length > 0 ? (
           <p className="mt-1 text-xs text-muted-foreground">

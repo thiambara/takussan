@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   useActivateLease,
@@ -13,7 +14,8 @@ import {
 import { formatCurrency, formatDate } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/components/ui/toast';
 import type { Locale } from '@/i18n/config';
 import { LeaseSchedule } from './LeaseSchedule';
@@ -102,7 +104,12 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
   }, [paymentsData]);
 
   if (isLoading) {
-    return <div className="h-60 animate-pulse rounded-xl bg-card" />;
+    return (
+      <div className="space-y-6" aria-busy="true">
+        <Skeleton className="h-16 w-64 rounded-xl" />
+        <Skeleton className="h-60 rounded-xl" />
+      </div>
+    );
   }
   if (isError || !data) {
     return (
@@ -145,13 +152,17 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/app/leases" className="text-xs text-muted-foreground hover:text-muted-foreground">
-            ← {t('backToList')}
+          <Link
+            href="/app/leases"
+            className="-my-1 inline-flex min-h-8 items-center gap-1 rounded-md text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            {t('backToList')}
           </Link>
-          <h1 className="mt-1 text-2xl font-bold text-foreground">
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-balance text-foreground">
             {lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
           </h1>
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <Badge>{tStatus(lease.status)}</Badge>
             {lease.type && (
               <span>{KNOWN_LEASE_TYPES.has(lease.type) ? tTypes(lease.type) : lease.type}</span>
@@ -169,6 +180,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               <AddDocumentButton
                 documentableType="lease"
                 documentableId={leaseId}
+                size="default"
                 displayLabel={lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
               />
               <Button
@@ -206,7 +218,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
           {!isAgentSurface && (
             <Link
               href={`/api/leases/${leaseId}/contract/pdf`}
-              className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-card px-4 text-sm font-medium text-foreground hover:bg-muted/50"
+              className={buttonVariants({ variant: 'outline' })}
             >
               {t('downloadContract')}
             </Link>
@@ -240,8 +252,8 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       <DepositRefundBanner lease={lease} canRefund={canRefundDeposit} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <dl className="rounded-xl border border-border bg-card p-4 text-sm sm:p-5">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('duration')}</dt>
           <dd className="mt-1 text-foreground">
             {formatDate(lease.start_date, locale)}
@@ -250,11 +262,11 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               : ` → ${t('openEnded')}`}
           </dd>
         </dl>
-        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+        <dl className="rounded-xl border border-border bg-card p-4 text-sm sm:p-5">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">
             {lease.type === 'sale' ? t('price') : t('rent')}
           </dt>
-          <dd className="mt-1 text-lg font-semibold text-foreground">
+          <dd className="mt-1 text-lg font-semibold whitespace-nowrap text-foreground tabular-nums">
             {typeof rentOrPrice === 'number'
               ? formatCurrency(rentOrPrice, locale)
               : '—'}
@@ -263,9 +275,9 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
             )}
           </dd>
         </dl>
-        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+        <dl className="rounded-xl border border-border bg-card p-4 text-sm sm:col-span-2 sm:p-5 lg:col-span-1">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('deposit')}</dt>
-          <dd className="mt-1 text-foreground">
+          <dd className="mt-1 whitespace-nowrap text-foreground tabular-nums">
             {typeof lease.deposit_amount === 'number'
               ? formatCurrency(lease.deposit_amount, locale)
               : '—'}
@@ -274,7 +286,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       </div>
 
       <section>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">{t('schedule')}</h2>
+        <h2 className="mb-3 font-display text-base font-semibold text-foreground">{t('schedule')}</h2>
         {lease.status === 'draft' ? (
           <p className="mb-3 rounded-lg border border-dashed border-border bg-card p-3 text-sm text-muted-foreground">
             {t('activateBeforeSchedule')}
@@ -284,10 +296,10 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
       </section>
 
       <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">{t('deposit')}</h2>
+        <h2 className="font-display text-base font-semibold text-foreground">{t('deposit')}</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {t('depositInitialAmount')}{' '}
-          <span className="font-medium text-foreground">
+          <span className="font-medium whitespace-nowrap text-foreground tabular-nums">
             {typeof lease.deposit_amount === 'number'
               ? formatCurrency(lease.deposit_amount, locale)
               : '—'}
@@ -309,13 +321,13 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
 
       {(lease.terms || lease.special_conditions) && (
         <section className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">{t('clauses')}</h2>
+          <h2 className="font-display text-base font-semibold text-foreground">{t('clauses')}</h2>
           {lease.terms && (
             <div className="mt-3">
               <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
                 {tLease('terms')}
               </h3>
-              <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+              <p className="mt-1 max-w-prose whitespace-pre-line text-sm leading-relaxed text-pretty text-muted-foreground">
                 {lease.terms}
               </p>
             </div>
@@ -325,7 +337,7 @@ export function LeaseDetail({ leaseId }: LeaseDetailProps) {
               <h3 className="text-xs uppercase tracking-wide text-muted-foreground">
                 {tLease('specialConditions')}
               </h3>
-              <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+              <p className="mt-1 max-w-prose whitespace-pre-line text-sm leading-relaxed text-pretty text-muted-foreground">
                 {lease.special_conditions}
               </p>
             </div>

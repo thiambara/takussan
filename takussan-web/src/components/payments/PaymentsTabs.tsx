@@ -7,6 +7,7 @@ import { FileText, Send } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { useMyCapabilities } from '@/hooks/useCan';
 
 import { CreateInvoiceDialog } from './CreateInvoiceDialog';
 import { CreatePayoutDialog } from './CreatePayoutDialog';
@@ -35,6 +36,14 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
   const tab: TabValue = isTabValue(searchParams.get('tab'))
     ? (searchParams.get('tab') as TabValue)
     : 'history';
+
+  // Le locataire voyait « Générer une facture » et « Créer un reversement » : deux gestes que
+  // l'API lui refuse. On ne les propose qu'à un membre d'agence (au moins une capacité).
+  // ⚠ PAS `useCan('invoices.create' | 'payouts.create')` : l'API ne juge encore aucune des deux
+  // (TCK-528), et `payouts.create` n'est accordée à AUCUN profil — la lire ici retirerait à
+  // l'agent et au propriétaire des gestes que le serveur accepte. À resserrer avec TCK-528.
+  const { data: capacites } = useMyCapabilities();
+  const estMembreAgence = (capacites?.data.capabilities.length ?? 0) > 0;
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
@@ -65,16 +74,18 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
             <TabsTrigger value="invoices">{t('tabs.invoices')}</TabsTrigger>
             <TabsTrigger value="payouts">{t('tabs.payouts')}</TabsTrigger>
           </TabsList>
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
-              <FileText className="mr-1 size-4" aria-hidden="true" />
-              {t('actions.createInvoice')}
-            </Button>
-            <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
-              <Send className="mr-1 size-4" aria-hidden="true" />
-              {t('actions.createPayout')}
-            </Button>
-          </div>
+          {estMembreAgence ? (
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
+                <FileText className="mr-1 size-4" aria-hidden="true" />
+                {t('actions.createInvoice')}
+              </Button>
+              <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
+                <Send className="mr-1 size-4" aria-hidden="true" />
+                {t('actions.createPayout')}
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         <TabsContent value="history" className="space-y-4">

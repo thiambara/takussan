@@ -114,6 +114,8 @@ export function CustomerForm({
     });
 
   const { control } = form;
+  // `lg` et non `md` : sous la barre latérale, 768 laisse ~416 px à la carte du formulaire, soit
+  // deux champs de 200 px (revue design 2026-09-16, règle TCK-505).
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
@@ -121,7 +123,11 @@ export function CustomerForm({
         {globalError ? (
           <span className="flex items-center justify-between gap-4">
             <span>{globalError}</span>
-            <button type="button" onClick={clearGlobalError} className="text-xs underline">
+            <button
+              type="button"
+              onClick={clearGlobalError}
+              className="shrink-0 rounded-sm px-1 py-1 text-xs underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {tCommon('close')}
             </button>
           </span>
@@ -129,11 +135,11 @@ export function CustomerForm({
       </FormGlobalError>
 
       <div className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <FormInput control={control} name="first_name" label={t('firstName')} required />
           <FormInput control={control} name="last_name" label={t('lastName')} required />
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <FormInput
             control={control}
             name="email"
@@ -160,9 +166,9 @@ export function CustomerForm({
 
       <div className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
         {!compact ? (
-          <h2 className="text-base font-semibold text-foreground">{t('crmSection')}</h2>
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">{t('crmSection')}</h2>
         ) : null}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <FormSelect
             control={control}
             name="pipeline_stage"
@@ -180,9 +186,9 @@ export function CustomerForm({
 
       <div className={compact ? 'space-y-4' : 'rounded-xl bg-card p-6 space-y-4'}>
         {!compact ? (
-          <h2 className="text-base font-semibold text-foreground">{t('idSection')}</h2>
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">{t('idSection')}</h2>
         ) : null}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <FormSelect
             control={control}
             name="id_type"

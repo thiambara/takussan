@@ -155,7 +155,10 @@ describe('<TenantOnboardingChecklistWidget>', () => {
      *    volait leur statut HTTP. Sans cette traversée, `existe('/app/leases')` chercherait
      *    `leases/page.tsx` là où il vit désormais dans `leases/(liste)/page.tsx`, et ce test
      *    déclarerait morte une route parfaitement servie ;
-     *  · un segment exact l'emporte sur un segment dynamique.
+     *  · un segment exact l'emporte sur un segment dynamique ;
+     *  · un attrape-tout `[...x]` n'est PAS une route servie : `app/[...introuvable]` (revue
+     *    design, 2026-09-16) n'existe que pour rendre le 404 dans la coque. Le suivre ferait
+     *    déclarer vivant n'importe quel lien mort.
      *
      * *Un test qui traduit une URL en chemin de fichier doit connaître les conventions du
      * routeur, sinon il mesure une arborescence et prétend mesurer un produit.*
@@ -173,7 +176,7 @@ describe('<TenantOnboardingChecklistWidget>', () => {
         if (reste.length === 0) return false;
         const [tete, ...queue] = reste;
         const exact = entrees.find((e) => e.name === tete);
-        const dynamique = entrees.find((e) => /^\[.+\]$/.test(e.name));
+        const dynamique = entrees.find((e) => /^\[(?!\.\.\.).+\]$/.test(e.name));
         const suivant = exact ?? dynamique;
         return suivant !== undefined && descendre(path.join(dossier, suivant.name), queue);
       };

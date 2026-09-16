@@ -1,3 +1,4 @@
+import type { StatusTone } from '@/components/console';
 import type { InvoiceStatus, PayoutStatus } from '@/types/invoice';
 
 /**
@@ -15,11 +16,9 @@ import type { InvoiceStatus, PayoutStatus } from '@/types/invoice';
  * `payments.methods.*` — la clé étant la valeur d'enum elle-même, un composant écrit
  * `t(`status.${status}`)`.
  *
- * Ce qui reste ici est ce qui n'est PAS du texte : la variante de badge associée à chaque valeur
+ * Ce qui reste ici est ce qui n'est PAS du texte : le ton de `StatusBadge` associé à chaque valeur
  * d'enum, l'ordre d'affichage des valeurs, et deux calculs purs.
  */
-
-type BadgeVariant = 'default' | 'secondary' | 'outline' | 'destructive';
 
 /**
  * Must stay aligned with `App\Models\Enums\PaymentStatus` (pending, paid,
@@ -52,31 +51,35 @@ export const PAYMENT_STATUS_VALUES: readonly PaymentStatus[] = [
  * `payments.status.*` dans les trois dictionnaires.
  */
 
-export const PAYMENT_STATUS_VARIANT: Record<PaymentStatus, BadgeVariant> = {
-  pending: 'outline',
-  paid: 'default',
-  late: 'destructive',
-  partially_paid: 'secondary',
-  failed: 'destructive',
-  refunded: 'secondary',
+/*
+ * Tons de `StatusBadge` (vocabulaire unique, TCK-358) et non plus variantes de `Badge` : « Payé »
+ * était un aplat PRIMAIRE plein — la couleur de l'action — là où il fallait dire « réussi ».
+ */
+export const PAYMENT_STATUS_TONE: Record<PaymentStatus, StatusTone> = {
+  pending: 'attention',
+  paid: 'success',
+  late: 'danger',
+  partially_paid: 'info',
+  failed: 'danger',
+  refunded: 'neutral',
 };
 
-export const INVOICE_STATUS_VARIANT: Record<InvoiceStatus, BadgeVariant> = {
-  draft: 'outline',
-  sent: 'secondary',
-  paid: 'default',
-  overdue: 'destructive',
-  cancelled: 'outline',
-  void: 'outline',
+export const INVOICE_STATUS_TONE: Record<InvoiceStatus, StatusTone> = {
+  draft: 'neutral',
+  sent: 'info',
+  paid: 'success',
+  overdue: 'danger',
+  cancelled: 'neutral',
+  void: 'neutral',
 };
 
-export const PAYOUT_STATUS_VARIANT: Record<PayoutStatus, BadgeVariant> = {
-  pending: 'outline',
-  scheduled: 'secondary',
-  processing: 'secondary',
-  completed: 'default',
-  failed: 'destructive',
-  cancelled: 'outline',
+export const PAYOUT_STATUS_TONE: Record<PayoutStatus, StatusTone> = {
+  pending: 'attention',
+  scheduled: 'info',
+  processing: 'info',
+  completed: 'success',
+  failed: 'danger',
+  cancelled: 'neutral',
 };
 
 // TCK-084 — labels derived from the central currency metadata so the picker

@@ -91,7 +91,7 @@ export function MonthView({
               // `overflow-hidden` retient ce qui dépasserait malgré tout. Aucun enfant en
               // position absolue n'en dépend : le détail d'un événement s'ouvre dans un
               // panneau hors de la grille.
-              'min-h-24 min-w-0 overflow-hidden border-t border-l border-border p-1.5 text-left align-top',
+              'min-h-16 min-w-0 overflow-hidden border-t border-l border-border p-1 text-left align-top sm:min-h-24 sm:p-1.5',
               !inMonth && 'bg-muted/60 text-muted-foreground',
               selected && 'bg-warning/10 ring-1 ring-inset ring-warning/30',
             )}
@@ -101,11 +101,13 @@ export function MonthView({
                 type="button"
                 onClick={() => onDaySelect?.(day)}
                 className={cn(
-                  'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium transition-colors hover:bg-muted',
+                  'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-xs font-medium tabular-nums transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  // Les jours du mois en encre pleine, ceux des mois voisins en encre atténuée : le
+                  // ternaire portait deux branches identiques, et le mois ne se lisait pas.
                   todayBadge
-                    ? 'bg-foreground text-primary-foreground'
+                    ? 'bg-foreground text-background'
                     : inMonth
-                      ? 'text-muted-foreground'
+                      ? 'text-foreground'
                       : 'text-muted-foreground',
                   selected && !todayBadge && 'bg-warning/20 text-warning hover:bg-warning/20',
                 )}
@@ -124,7 +126,36 @@ export function MonthView({
               </button>
             </div>
 
-            <ul className="space-y-1">
+            {/*
+              Revue design 2026-09-16 — sous `sm`, une cellule mesure ~47 px : la puce y rendait
+              « Lo… », « Ma… », illisible. On y montre des POINTS de la couleur du type (trois au
+              plus), et toucher la rangée ouvre le détail du jour, comme « +N autres ». Les puces
+              restent dans le DOM, masquées, pour le bureau et pour les tests.
+            */}
+            {dayEvents.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onDaySelect?.(day)}
+                className="flex min-h-8 w-full flex-wrap items-center gap-1 rounded-md px-0.5 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:hidden"
+                aria-label={t('eventCount', { count: dayEvents.length })}
+                data-testid={`calendar-day-dots-${day.toISOString().slice(0, 10)}`}
+              >
+                {dayEvents.slice(0, 3).map((event) => (
+                  <span
+                    key={`${event.type}-${event.id}`}
+                    aria-hidden="true"
+                    className={cn('size-2 rounded-full', paletteFor(event).accent)}
+                  />
+                ))}
+                {dayEvents.length > 3 && (
+                  <span aria-hidden="true" className="text-[11px] font-medium tabular-nums text-muted-foreground">
+                    +{dayEvents.length - 3}
+                  </span>
+                )}
+              </button>
+            )}
+
+            <ul className="hidden space-y-1 sm:block">
               {visible.map((event) => {
                 const palette = paletteFor(event);
                 return (
@@ -133,7 +164,7 @@ export function MonthView({
                       type="button"
                       onClick={() => onSelect(event)}
                       className={cn(
-                        'w-full truncate rounded border px-1.5 py-0.5 text-left text-xs leading-tight transition-colors hover:opacity-90',
+                        'w-full truncate rounded-md border px-1.5 py-0.5 text-left text-xs leading-tight transition-opacity hover:opacity-90',
                         palette.pill,
                       )}
                       data-testid={`calendar-event-pill-${event.type}-${event.id}`}

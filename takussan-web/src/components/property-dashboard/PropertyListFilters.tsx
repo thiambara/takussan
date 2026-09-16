@@ -190,7 +190,7 @@ export function PropertyListFilters({
     <div className="space-y-3 rounded-xl bg-card p-4">
       {/* Row 1 — primary controls */}
       <div className="flex flex-wrap items-center gap-2">
-        <form onSubmit={onSearchSubmit} className="relative min-w-[240px] flex-1">
+        <form onSubmit={onSearchSubmit} className="relative basis-full sm:min-w-[240px] sm:flex-1 sm:basis-auto">
           <label htmlFor="property-search" className="sr-only">
             {t('searchLabel')}
           </label>
@@ -208,14 +208,13 @@ export function PropertyListFilters({
           />
         </form>
 
-        <div className="min-w-[180px]">
-          <label className="sr-only">{t('sortLabel')}</label>
+        <div className="min-w-[180px] flex-1 sm:flex-none">
           <Select
             value={currentSort}
             onValueChange={(v) => updateParam('sort', (v ?? '-created_at') as string)}
             items={sortOptions}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full" aria-label={t('sortLabel')}>
               <SelectValue placeholder={t('sortPlaceholder')} />
             </SelectTrigger>
             <SelectContent>
@@ -248,7 +247,6 @@ export function PropertyListFilters({
         <Button
           type="button"
           variant="outline"
-          size="sm"
           className="gap-2"
           aria-expanded={advancedOpen}
           onClick={() => setAdvancedOpen((v) => !v)}
@@ -275,7 +273,7 @@ export function PropertyListFilters({
               key={chip.key}
               type="button"
               onClick={() => updateParam(chip.key, null)}
-              className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground hover:bg-border"
+              className="inline-flex min-h-7 items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs text-foreground outline-none transition-colors hover:bg-border focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <span className="text-muted-foreground">{chip.label}:</span>
               <span className="font-medium">{chip.value}</span>
@@ -288,7 +286,7 @@ export function PropertyListFilters({
           <button
             type="button"
             onClick={resetAll}
-            className="text-xs font-medium text-primary hover:underline"
+            className="rounded-sm text-xs font-medium text-primary underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {t('resetAll')}
           </button>
@@ -435,7 +433,7 @@ function Toggle({
   return (
     <label
       className={cn(
-        'inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm transition-colors',
+        'inline-flex h-8 cursor-pointer items-center gap-2 rounded-lg px-3 text-sm transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
         checked
           ? 'bg-primary/15 text-foreground'
           : 'bg-muted/50 text-muted-foreground hover:bg-muted',
@@ -473,7 +471,7 @@ function FilterSelect({
         onValueChange={(v) => onChange((v ?? '') as string)}
         items={options}
       >
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full" aria-label={label}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

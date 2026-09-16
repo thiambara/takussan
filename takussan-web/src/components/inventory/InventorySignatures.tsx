@@ -44,15 +44,15 @@ export function InventorySignatures({
   return (
     <section
       aria-labelledby="inventory-signatures-heading"
-      className="rounded-2xl bg-card p-5"
+      className="rounded-xl bg-card p-4 sm:p-5"
     >
       <header className="mb-4">
-        <h3
+        <h2
           id="inventory-signatures-heading"
-          className="text-sm font-semibold text-foreground"
+          className="font-display text-base font-semibold text-foreground"
         >
           {t('title')}
-        </h3>
+        </h2>
         <p className="mt-1 text-xs text-muted-foreground">
           {t.rich('immutableNotice', {
             strong: (chunks) => <strong>{chunks}</strong>,
@@ -60,7 +60,7 @@ export function InventorySignatures({
         </p>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <SignatureCard
           inventory={inventory}
           role="tenant"
@@ -113,9 +113,9 @@ function SignatureCard({
         data-testid={`signature-card-${role}`}
         className="rounded-xl border border-success/30 bg-success/10 p-4"
       >
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-success">{title}</h4>
-          <span className="rounded-full bg-success/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-success">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-success">{title}</h3>
+          <span className="shrink-0 rounded-full border border-success/30 bg-card px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-success">
             {t('signed')}
           </span>
         </div>
@@ -125,7 +125,7 @@ function SignatureCard({
             : t('signed')}
         </p>
         {hash ? (
-          <p className="mt-2 font-mono text-[10px] break-all text-success/80">
+          <p className="mt-2 font-mono text-xs break-all text-success">
             {t('fingerprint')}
             {'\u00a0: '}
             {hash.slice(0, 32)}
@@ -142,9 +142,9 @@ function SignatureCard({
         data-testid={`signature-card-${role}`}
         className="rounded-xl border border-border bg-muted/50 p-4"
       >
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-muted-foreground">{title}</h4>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-muted-foreground">{title}</h3>
+          <span className="shrink-0 rounded-full border border-border bg-card px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             {t('notSigned')}
           </span>
         </div>
@@ -160,9 +160,9 @@ function SignatureCard({
       data-testid={`signature-card-${role}`}
       className="rounded-xl border border-warning/30 bg-warning/10 p-4"
     >
-      <div className="mb-3 flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-warning">{title}</h4>
-        <span className="rounded-full bg-warning/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-warning">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-warning">{title}</h3>
+        <span className="shrink-0 rounded-full border border-warning/30 bg-card px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-warning">
           {t('toSign')}
         </span>
       </div>

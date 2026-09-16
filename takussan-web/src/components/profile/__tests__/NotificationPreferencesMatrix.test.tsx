@@ -98,6 +98,35 @@ describe('<NotificationPreferencesMatrix>', () => {
   });
 
   /**
+   * Revue design 2026-09-16 — l'API a ajouté `whatsapp` avant le dictionnaire : `MISSING_MESSAGE`
+   * renvoyait toute la page `/app/profile/notifications` vers la frontière d'erreur. Un canal
+   * inconnu du dictionnaire s'affiche désormais sous sa valeur brute, sans casser l'écran.
+   * (Sous le provider de test, la clé manquante ne lève pas : elle rend son chemin complet — c'est
+   * ce chemin que l'assertion exclut.)
+   */
+  it("affiche un canal absent du dictionnaire sous sa valeur brute", async () => {
+    const grid = buildGrid();
+    getMock.mockResolvedValue({
+      ok: true,
+      data: {
+        ...grid,
+        channels: [...grid.channels, 'canal_futur'],
+        preferences: [
+          ...grid.preferences,
+          { event_type: 'message_received', channel: 'canal_futur', enabled: false, locked: false },
+        ],
+      },
+    });
+    const erreur = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(wrap(<NotificationPreferencesMatrix />));
+
+    await waitFor(() => expect(screen.getByText('Nouveau message')).toBeInTheDocument());
+    expect(screen.getAllByRole('columnheader', { name: 'canal_futur' }).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/channels\.canal_futur/)).not.toBeInTheDocument();
+    erreur.mockRestore();
+  });
+
+  /**
    * TCK-380 · AC3 — la matrice convertie garde ses colonnes, dans l'ordre : l'événement d'abord,
    * puis UN canal par colonne, dans l'ordre rendu par l'API. Relevé sur les `<th>` de la table
    * faite main à la révision `73ca883b`.

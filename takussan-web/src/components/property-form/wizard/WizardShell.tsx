@@ -3,8 +3,9 @@
 import type React from 'react';
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, Loader2 } from 'lucide-react';
 
+import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -61,6 +62,16 @@ export function WizardShell({
   const derniere = index === steps.length - 1;
   const peutAvancer = etape.canAdvance !== false;
 
+  // Le pied tient le bas de l'écran pendant tout le parcours : il revendique le bord bas auprès
+  // du dock, sans quoi la bulle de messagerie se posait sur « Continuer » à 390 px (mesuré le
+  // 2026-09-16). Hauteur : bordure + `pt-4` + bouton `lg` (40) + `pb-4`.
+  const pied = useFloatingDockSlot({
+    id: 'property-wizard-footer',
+    corner: 'bottom-full',
+    height: 73,
+    safeAreaInset: 'calc(1rem + env(safe-area-inset-bottom))',
+  });
+
   const titreRef = useRef<HTMLHeadingElement>(null);
   // Premier rendu excepté : le focus ne se déplace que sur un CHANGEMENT d'étape, jamais au
   // montage — sans quoi on arracherait l'utilisateur de là où il vient d'arriver sur la page.
@@ -111,9 +122,9 @@ export function WizardShell({
                       !franchie && i !== index && 'border-border',
                     )}
                   >
-                    {franchie ? '✓' : i + 1}
+                    {franchie ? <Check className="size-3.5" strokeWidth={2.5} /> : i + 1}
                   </span>
-                  {s.title}
+                  <span className="text-pretty">{s.title}</span>
                 </button>
               </li>
             );
@@ -135,7 +146,7 @@ export function WizardShell({
             >
               <ArrowLeft aria-hidden="true" />
             </Button>
-            <span className="text-xs font-semibold text-muted-foreground">
+            <span className="text-xs font-semibold text-muted-foreground tabular-nums">
               {t('position', { current: index + 1, total: steps.length })}
             </span>
             {footerExtra}
@@ -179,11 +190,11 @@ export function WizardShell({
               // focus est allé. `--ring` (#a85332) mesure ≈5,07:1 sur `--background` (#fcf9f3),
               // au-dessus du seuil non-texte de 3:1 : pas de `ring-offset` nécessaire, comme pour
               // `FOCUS_RING` d'`AppSidebar` sur la même palette claire.
-              className="font-display text-2xl font-bold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="font-display text-2xl font-bold tracking-tight text-balance text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {etape.title}
             </h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{etape.subtitle}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-pretty text-muted-foreground">{etape.subtitle}</p>
             <div className="mt-6 space-y-5">{etape.body}</div>
           </div>
         </div>
@@ -191,7 +202,8 @@ export function WizardShell({
         {/* ── Pied : HORS de la zone défilante. Le moyen d'avancer ne sort jamais de l'écran. ── */}
         <div
           data-wizard-footer
-          className="shrink-0 border-t border-border bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+          style={{ paddingBottom: pied.paddingBottom }}
+          className="shrink-0 border-t border-border bg-background/95 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
         >
           <div className="mx-auto flex max-w-xl items-center gap-3">
             {etape.skippable && !derniere ? (

@@ -331,4 +331,21 @@ describe('<MessagesPage> sous le point de rupture lg (TCK-501, TCK-505)', () => 
     expect(grille.className).toContain('h-[calc(100dvh-12rem)]');
     expect(grille.className).not.toContain('100vh');
   });
+
+  /**
+   * Revue design 2026-09-16 — la rangée implicite d'une grille prend la hauteur de son contenu :
+   * mesuré à 1366 avec 22 conversations, la liste ne défilait plus (scrollHeight = clientHeight)
+   * et le composeur tombait sous le `overflow-hidden`. La rangée est bornée, et les deux
+   * panneaux acceptent de rétrécir sous leur contenu. jsdom ne calcule aucune hauteur : c'est la
+   * déclaration qui est gardée, la mesure est dans `docs/qa/revue-design-2026-09-16/`.
+   */
+  it('borne la rangée de la grille pour que la liste et le fil défilent', () => {
+    largeurDeFenetre(1440);
+    searchParamsGet.mockImplementation((key) => (key === 'conversation' ? '42' : null));
+    render(wrap(<MessagesPage />));
+
+    expect(screen.getByTestId('messagerie-grille')).toHaveClass('grid-rows-[minmax(0,1fr)]');
+    expect(screen.getByRole('complementary')).toHaveClass('min-h-0');
+    expect(screen.getByTestId('chat-view').closest('section')).toHaveClass('min-h-0');
+  });
 });

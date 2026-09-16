@@ -1,3 +1,4 @@
+import type { StatusTone } from '@/components/console';
 import type { FormSelectOption } from '@/components/forms/FormSelect';
 import {
   customerStatusValues,
@@ -90,3 +91,61 @@ export function enumLabel(
 ): string {
   return valeurs.includes(valeur) ? t(valeur) : valeur;
 }
+
+/**
+ * `étape du pipeline → ton du DS`, et `statut du client → ton du DS` (TCK-472).
+ *
+ * Déplacées ICI depuis `customer-dashboard/CustomerList.tsx` (revue design 2026-09-16) : la fiche
+ * client — un server component — les lit aussi, et un module `'use client'` n'exporte vers le
+ * serveur que des références, pas des valeurs. Ce module-ci n'a pas de directive.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * CE QUE CES DEUX TABLES REMPLACENT
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `CustomerList.tsx` définissait son propre `StatusBadge` — un HOMONYME du composant de `console/`, monté
+ * juste sous un `DataTable` importé de ce même barrel. `<StatusBadge …>` y résolvait vers le
+ * local, et rien, ni au typage ni au lint, ne le signalait. Il coloriait quatre étapes et deux
+ * statuts à la main, en quatre familles de jetons, sans lire la table des tons.
+ *
+ * L'écart n'était pas seulement structurel : `qualified` portait `bg-primary/5 text-primary`, qui
+ * mesure **4,24:1 en clair** sur `bg-muted` plein — la surface de la carte mobile survolée de
+ * `CustomerList.tsx` (`hover:bg-muted`) — et **3,73:1 en sombre**, sous le seuil AA de 4,5:1 des
+ * deux côtés. Personne ne l'avait mesuré : la couleur avait été choisie ici, pas dans la table.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LE CRITÈRE D'ARBITRAGE — repris tel quel de `kyc/kyc-components.tsx`
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ *   `attention` = une décision est attendue d'un opérateur.
+ *   `info`      = c'est décidé, ça suit son cours, il n'y a rien à faire.
+ *   `neutral`   = la fiche existe, rien n'est attendu.
+ *
+ * D'où `negotiating` → `attention` (il faut relancer), `qualified` → `info` (c'est engagé, ça
+ * avance), `lead` et `prospect` → `neutral`.
+ *
+ * ⚠ **`deleted` va à `neutral` et NON à `danger`**, alors que `blocked` va à `danger`. Un client
+ * supprimé est un état terminal dont plus rien n'est attendu ; un client bloqué est une décision
+ * active qu'un opérateur a prise et qu'il peut lever. Les peindre pareil aurait effacé la seule
+ * différence qui compte à l'écran. C'est aussi le choix qui expose le moins de surface au trou
+ * mesuré du ton `danger` (cf. le docblock de `TONE_CLASSES`).
+ *
+ * ⚠ `active` passe de gris à `success` — il était `bg-muted text-foreground`, exactement comme
+ * `deleted` et `lead`. Un statut nominal qui se peint comme l'absence de statut ne dit rien ; et
+ * `available` chez le bien porte déjà `success` pour la même idée.
+ */
+export const PIPELINE_STAGE_TONE: Readonly<Record<string, StatusTone>> = {
+  lead: 'neutral',
+  prospect: 'neutral',
+  qualified: 'info',
+  negotiating: 'attention',
+  converted: 'success',
+  lost: 'danger',
+};
+
+export const CUSTOMER_STATUS_TONE: Readonly<Record<string, StatusTone>> = {
+  active: 'success',
+  inactive: 'neutral',
+  blocked: 'danger',
+  deleted: 'neutral',
+};
