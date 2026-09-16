@@ -7,6 +7,7 @@ import { Navbar } from '@/components/home/Navbar';
 import { Footer } from '@/components/home/Footer';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { ContactSheet } from '@/components/public/profile/ContactSheet';
+import { BoutonRetour } from '@/components/shared/BoutonRetour';
 import { StatsBar } from '@/components/public/profile/StatsBar';
 import { PortfolioTabs } from '@/components/public/profile/PortfolioTabs';
 import { ReviewsSection } from '@/components/public/profile/ReviewsSection';
@@ -168,6 +169,8 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
               <BogolanPattern className="w-full h-full" color="currentColor" />
             </div>
           </div>
+
+          <BoutonRetour repli="/agencies" libelle={t('back')} className="mb-6" />
 
           <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-12 md:items-start">
             {/* Colonne identité */}

@@ -102,6 +102,31 @@ export const SEGMENTS_NON_LOCALISES: readonly string[] = [
  */
 const MOTIF_METADONNEES_NEXT = /^(?:icon|apple-icon|opengraph-image|twitter-image)\d*$/;
 
+/**
+ * Les extensions des fichiers servis tels quels — une LISTE FERMÉE, et c'est tout le correctif.
+ *
+ * ⚠️ La règle s'écrivait « le dernier segment finit par `\.[a-z0-9]+` ». Elle prenait donc
+ * `owner.agency4` pour un fichier d'extension `agency4` : `/agents/owner.agency4` n'était ni vu par
+ * le proxy ni redirigé, et rendait **404** en préproduction alors que l'API servait l'agent
+ * (retour d'administration du 2026-09-16). `villa-2.5-pieces` ne passait que grâce au tiret. Un
+ * slug d'agent dérive d'un identifiant d'utilisateur, et `amadou.diallo` en est un ordinaire.
+ *
+ * Une forme ne sépare pas un slug d'un fichier ; une liste le fait. Celle-ci couvre ce que
+ * `public/`, les conventions de métadonnées (`robots.txt`, `sitemap.xml`, `manifest.webmanifest`)
+ * et les ressources courantes peuvent servir. Une extension manquante coûte une redirection vers
+ * `/fr/…` — un 404 sur ce fichier, visible dès qu'on l'ajoute à `public/` — là où l'ancienne forme
+ * coûtait silencieusement des pages publiques.
+ *
+ * ⚠ Le `matcher` de `src/proxy.ts` recopie cette liste (Next n'y accepte qu'un littéral) ;
+ * `src/__tests__/proxy.test.ts` exige que les deux soient identiques.
+ */
+export const EXTENSIONS_DE_FICHIERS: readonly string[] = [
+  'avif', 'css', 'gif', 'ico', 'jpeg', 'jpg', 'js', 'json', 'map', 'mjs', 'mp4', 'otf', 'pdf',
+  'png', 'svg', 'ttf', 'txt', 'wasm', 'webm', 'webmanifest', 'webp', 'woff', 'woff2', 'xml',
+];
+
+const MOTIF_EXTENSION = new RegExp(`\\.(?:${EXTENSIONS_DE_FICHIERS.join('|')})$`, 'i');
+
 /** Le premier segment d'un chemin, sans son slash. `'/'` rend `''`. */
 function premierSegment(pathname: string): string {
   return pathname.replace(/^\/+/, '').split('/')[0] ?? '';
@@ -129,8 +154,10 @@ export function estCheminLocalisable(pathname: string): boolean {
   // était donc jugé localisable ici et jamais vu par le proxy là-bas — un commentaire qui promet
   // une tolérance que le système n'offre pas. Les deux sont accordés depuis (TCK-434, revue) ;
   // `src/__tests__/proxy.test.ts` les compare sur les mêmes chemins.
+  //
+  // Et une extension CONNUE seulement — cf. EXTENSIONS_DE_FICHIERS : `owner.agency4` n'en porte pas.
   const dernier = pathname.split('/').pop() ?? '';
-  if (/\.[a-z0-9]+$/i.test(dernier)) return false;
+  if (MOTIF_EXTENSION.test(dernier)) return false;
   return true;
 }
 

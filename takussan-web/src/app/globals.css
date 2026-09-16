@@ -442,6 +442,22 @@
 }
 
 /*
+ * LA BARRE DE CHARGEMENT D'UNE NAVIGATION (`BarreDeChargement`).
+ *
+ * Retour d'administration du 2026-09-16 : un clic sur une catégorie ou une ville ne montrait rien
+ * tant que la page suivante n'était pas arrivée — « on a l'impression de ne pas avoir cliqué ».
+ * Le site public n'a délibérément aucun `loading.tsx` (le 404 en dépend) : le retour visuel vient
+ * donc de `useTransition`, et cette barre indéterminée le rend visible là où l'œil se trouve.
+ */
+@keyframes barreChargement {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(250%); }
+}
+.animate-barre-chargement {
+  animation: barreChargement 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/*
  * ⚠ Garde de MOUVEMENT RÉDUIT pour les trois animations du SITE (TCK-467).
  *
  * Elle est ici, collée à ce qu'elle garde, et non fondue dans le bloc du parcours de publication
@@ -477,6 +493,14 @@
     opacity: 1;
     transform: none;
     transition: opacity 120ms linear;
+  }
+
+  /* La barre de chargement ne glisse plus : elle occupe toute la largeur et reste le signal. */
+  .animate-barre-chargement {
+    animation: none;
+    transform: none;
+    width: 100%;
+    opacity: 0.7;
   }
 }
 

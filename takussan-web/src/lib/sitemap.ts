@@ -196,7 +196,18 @@ export function entreesLocalisees(page: PageIndexable): MetadataRoute.Sitemap {
  * mise en forme. *Une isolation qui s'arrête avant l'étape qui lève n'isole rien.*
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
- * POURQUOI ÉCARTER PLUTÔT QUE CORRIGER LE PRÉDICAT
+ * LE PRÉDICAT A ÉTÉ CORRIGÉ DEPUIS (2026-09-16) — LE FILET RESTE
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * `estCheminLocalisable` ne refuse plus qu'une liste FERMÉE d'extensions
+ * (`EXTENSIONS_DE_FICHIERS`) : `owner.agency1` est localisable, sa fiche rend 200 avec titre et
+ * canonique, et il entre au sitemap. Le déclencheur a été un retour d'administration —
+ * `/agents/owner.agency4` rendait **404** en préproduction, le proxy ne voyant pas le chemin.
+ * Les paragraphes qui suivent décrivent l'état d'avant ; la partition reste, parce qu'une source
+ * peut encore rendre un chemin réellement non localisable (`/…/x.pdf`, `/app/…`).
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * POURQUOI ÉCARTER PLUTÔT QUE CORRIGER LE PRÉDICAT (état au 2026-08-28)
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  *
  * `estCheminLocalisable` refuse une extension finale pour une raison qui tient : c'est ce qui

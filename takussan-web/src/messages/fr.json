@@ -231,7 +231,8 @@
       "pendingBody": "Validation par notre équipe sous 48h.",
       "cta": "En savoir plus",
       "pendingCta": "Voir le détail"
-    }
+    },
+    "loading": "Chargement…"
   },
   "footer": {
     "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",
@@ -1977,7 +1978,8 @@
       "notFoundHome": "Retour à l'accueil",
       "unavailableTitle": "Agence momentanément indisponible",
       "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Cette agence existe peut-être toujours — réessayez dans quelques instants.",
-      "unavailableMetaDescription": "Cette agence ne peut pas être affichée pour le moment. Réessayez dans quelques instants."
+      "unavailableMetaDescription": "Cette agence ne peut pas être affichée pour le moment. Réessayez dans quelques instants.",
+      "back": "Retour"
     }
   },
   "compare": {
@@ -3677,7 +3679,8 @@
       "notFoundHome": "Retour à l'accueil",
       "unavailableTitle": "Agent momentanément indisponible",
       "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Cet agent existe peut-être toujours — réessayez dans quelques instants.",
-      "unavailableMetaDescription": "Cet agent ne peut pas être affiché pour le moment. Réessayez dans quelques instants."
+      "unavailableMetaDescription": "Cet agent ne peut pas être affiché pour le moment. Réessayez dans quelques instants.",
+      "back": "Retour"
     }
   },
   "agentWelcome": {
@@ -7690,7 +7693,8 @@
       "submit": "Rechercher",
       "allCities": "Toutes les villes",
       "cityGroupAria": "Filtrer par ville",
-      "clear": "Effacer les filtres"
+      "clear": "Effacer les filtres",
+      "loading": "Chargement…"
     },
     "pagination": {
       "navAria": "Pagination",

@@ -120,51 +120,55 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
             <p className="mt-2 text-sm text-muted-foreground">{tCommun('error.body')}</p>
           </div>
         ) : (
-          <div className="space-y-8">
+          <div className="group/index space-y-8">
             <ProfileFilters
               base={base}
               villes={resultat.villes}
               placeholderRecherche={t('searchPlaceholder')}
             />
 
-            {resultat.profils.length === 0 ? (
-              <div className="rounded-2xl border border-border bg-card p-10 text-center">
-                <SearchX className="mx-auto size-6 text-muted-foreground" aria-hidden />
-                <p className="mt-3 font-display text-xl text-foreground">{t('emptyTitle')}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{tCommun('empty.body')}</p>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  {t('count', { count: resultat.total })}
-                </p>
+            {/* Estompés pendant qu'une navigation de `ProfileFilters` est en cours : ce qu'on voit
+                n'est plus le résultat du critère affiché. */}
+            <div className="space-y-8 transition-opacity duration-200 group-has-[[data-en-cours]]/index:opacity-50">
+              {resultat.profils.length === 0 ? (
+                <div className="rounded-2xl border border-border bg-card p-10 text-center">
+                  <SearchX className="mx-auto size-6 text-muted-foreground" aria-hidden />
+                  <p className="mt-3 font-display text-xl text-foreground">{t('emptyTitle')}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{tCommun('empty.body')}</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    {t('count', { count: resultat.total })}
+                  </p>
 
-                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {resultat.profils.map((profil) => (
-                    <ProfileCard
-                      key={profil.id}
-                      profil={profil}
-                      base={base}
-                      libelles={libellesDeCarte}
-                      forme={forme}
-                    />
-                  ))}
-                </ul>
-              </>
-            )}
+                  <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {resultat.profils.map((profil) => (
+                      <ProfileCard
+                        key={profil.id}
+                        profil={profil}
+                        base={base}
+                        libelles={libellesDeCarte}
+                        forme={forme}
+                      />
+                    ))}
+                  </ul>
+                </>
+              )}
 
-            <ProfilePagination
-              base={base}
-              params={params}
-              page={resultat.page}
-              dernierePage={resultat.dernierePage}
-              libelles={{
-                navAria: tCommun('pagination.navAria'),
-                precedent: tCommun('pagination.previous'),
-                suivant: tCommun('pagination.next'),
-                position: (p, total) => tCommun('pagination.position', { page: p, total }),
-              }}
-            />
+              <ProfilePagination
+                base={base}
+                params={params}
+                page={resultat.page}
+                dernierePage={resultat.dernierePage}
+                libelles={{
+                  navAria: tCommun('pagination.navAria'),
+                  precedent: tCommun('pagination.previous'),
+                  suivant: tCommun('pagination.next'),
+                  position: (p, total) => tCommun('pagination.position', { page: p, total }),
+                }}
+              />
+            </div>
           </div>
         )}
       </main>

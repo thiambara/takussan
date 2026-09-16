@@ -19,6 +19,9 @@
 #
 # Usage :  seuils                         # un passage (ce que fait le timer)
 #          SEUIL_MEM_MO=100000 seuils     # ablation : doit alerter, puis se taire au second passage
+#                                        # ⚠ `systemctl stop seuils.timer` avant, `start` après :
+#                                        # le timer peut passer entre deux commandes et annoncer
+#                                        # le retour (mesuré le 2026-09-15 : quatre messages)
 #          seuils --etat                  # les mesures, sans alerte ni marqueur
 set -uo pipefail
 

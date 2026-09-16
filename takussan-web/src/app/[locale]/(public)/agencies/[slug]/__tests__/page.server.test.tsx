@@ -69,6 +69,9 @@ vi.mock('@/lib/queries/public-agency', () => ({ getAgency: () => getAgencyMock()
 
 vi.mock('@/components/home/Navbar', () => ({ Navbar: () => <nav data-testid="navbar" /> }));
 vi.mock('@/components/home/Footer', () => ({ Footer: () => <footer data-testid="footer" /> }));
+vi.mock('@/components/shared/BoutonRetour', () => ({
+  BoutonRetour: ({ repli, libelle }: { repli: string; libelle: string }) => <a href={repli}>{libelle}</a>,
+}));
 vi.mock('@/components/public/profile/PortfolioTabs', () => ({
   PortfolioTabs: () => <div data-testid="portefeuille" />,
 }));
@@ -158,6 +161,8 @@ describe("fiche d'agence — l'introuvable et l'indisponible", () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Dakar Immo' })).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // Retour d'administration du 2026-09-16 : la fiche n'avait aucun retour.
+    expect(screen.getByRole('link', { name: 'Retour' })).toHaveAttribute('href', '/agencies');
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 

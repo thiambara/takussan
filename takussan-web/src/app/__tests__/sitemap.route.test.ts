@@ -220,15 +220,30 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
   /**
    * TCK-436 passe 2 — **le slug qui a tué le sitemap entier.**
    *
-   * ⚠ Ces quatre valeurs ne sont pas inventées : ce sont les `username` de quatre agents
-   * ÉLIGIBLES réels de la base de développement, relevés en SQL avec le prédicat exact de
-   * l'index. La doublure de la passe 1 ne rendait que des slugs propres — c'est exactement ce
-   * qui a laissé passer un `/sitemap.xml` à 500 et zéro octet avec 14 tests verts.
+   * ⚠ Les valeurs d'origine étaient les `username` de quatre agents ÉLIGIBLES réels
+   * (`owner.agency1` à `owner.agency4`). Elles ne cassent PLUS rien depuis le 2026-09-16 : le
+   * prédicat les prenait à tort pour des fichiers (`.agency1`), et c'est ce qui rendait leur fiche
+   * 404 — retour d'administration. Elles sont désormais au sitemap (test suivant), et le filet
+   * reste éprouvé sur ce qui est réellement non localisable : une extension de fichier connue.
    *
    * *Une doublure qui ne produit que des entrées bien formées éprouve la mise en forme, pas la
    * robustesse.*
    */
-  const SLUGS_QUI_CASSENT = ['owner.agency1', 'owner.agency2', 'owner.agency3', 'owner.agency4'];
+  const SLUGS_QUI_CASSENT = ['fiche.pdf', 'logo.png', 'export.json', 'notes.txt'];
+
+  it('un username à point (`owner.agency1`) ENTRE au sitemap — ce n’est pas un fichier', async () => {
+    const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
+    profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
+      ressource === 'agents' ? ['owner.agency1', 'amadou.diallo'] : [],
+    );
+
+    const urls = (await jouerSitemap()).map((e) => e.url);
+
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/agents/owner.agency1`);
+    expect(urls).toContain(`${ORIGINE_SITE}/fr/agents/amadou.diallo`);
+    expect(journal).not.toHaveBeenCalled();
+    journal.mockRestore();
+  });
 
   it('un slug non localisable n’emporte PLUS le sitemap entier', async () => {
     const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -280,7 +295,7 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
     catalogue.listerBiensDuSitemap.mockResolvedValue([]);
     profils.listerSlugsDeProfils.mockImplementation(async (ressource: string) =>
       ressource === 'agents'
-        ? Array.from({ length: 25 }, (_, i) => `casse.${i}`)
+        ? Array.from({ length: 25 }, (_, i) => `casse-${i}.pdf`)
         : [],
     );
 
@@ -294,11 +309,11 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
 
   it('un slug fautif dans le CATALOGUE de biens n’emporte pas non plus le reste', async () => {
     // La correction est écrite sur la FORME (toute page non localisable, quelle que soit sa
-    // source) et non sur le cas des profils : une fiche de bien dont le slug porte un point
-    // subirait exactement le même sort, et le sitemap survit aussi.
+    // source) et non sur le cas des profils : une fiche de bien dont le slug finit par une
+    // extension connue subirait exactement le même sort, et le sitemap survit aussi.
     const journal = vi.spyOn(console, 'error').mockImplementation(() => {});
     catalogue.listerBiensDuSitemap.mockResolvedValue([
-      { slug: 'villa.dakar', updated_at: null },
+      { slug: 'villa-dakar.png', updated_at: null },
       BIEN,
     ]);
     profils.listerSlugsDeProfils.mockResolvedValue([]);
@@ -306,7 +321,7 @@ describe('TCK-436 · AC6 — les profils éligibles entrent au sitemap', () => {
     const urls = (await jouerSitemap()).map((e) => e.url);
 
     expect(urls).toContain(`${ORIGINE_SITE}/fr/properties/${BIEN.slug}`);
-    expect(urls.some((u) => u.includes('villa.dakar'))).toBe(false);
+    expect(urls.some((u) => u.includes('villa-dakar.png'))).toBe(false);
     expect(String(journal.mock.calls[0]![0])).toContain('catalogue');
     journal.mockRestore();
   });

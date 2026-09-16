@@ -231,7 +231,8 @@
       "pendingBody": "Reviewed by our team within 48h.",
       "cta": "Learn more",
       "pendingCta": "View details"
-    }
+    },
+    "loading": "Loading…"
   },
   "footer": {
     "tagline": "Your trusted partner to find the perfect property in Senegal.",
@@ -2002,7 +2003,8 @@
       "notFoundHome": "Back to home",
       "unavailableTitle": "Agency temporarily unavailable",
       "unavailableBody": "We can't reach the catalogue right now. This agency may still exist — please try again in a moment.",
-      "unavailableMetaDescription": "This agency cannot be displayed right now. Please try again in a moment."
+      "unavailableMetaDescription": "This agency cannot be displayed right now. Please try again in a moment.",
+      "back": "Back"
     }
   },
   "compare": {
@@ -3677,7 +3679,8 @@
       "notFoundHome": "Back to home",
       "unavailableTitle": "Agent temporarily unavailable",
       "unavailableBody": "We can't reach the catalogue right now. This agent may still exist — please try again in a moment.",
-      "unavailableMetaDescription": "This agent cannot be displayed right now. Please try again in a moment."
+      "unavailableMetaDescription": "This agent cannot be displayed right now. Please try again in a moment.",
+      "back": "Back"
     }
   },
   "agentWelcome": {
@@ -7690,7 +7693,8 @@
       "submit": "Search",
       "allCities": "All cities",
       "cityGroupAria": "Filter by city",
-      "clear": "Clear filters"
+      "clear": "Clear filters",
+      "loading": "Loading…"
     },
     "pagination": {
       "navAria": "Pagination",
