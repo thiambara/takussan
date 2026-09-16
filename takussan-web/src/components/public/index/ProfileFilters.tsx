@@ -1,10 +1,11 @@
 'use client';
 
-import { Search, X } from 'lucide-react';
+import { Loader2, Search, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState, type FormEvent } from 'react';
+import { useState, useTransition, type FormEvent } from 'react';
 
+import { BarreDeChargement } from '@/components/shared/BarreDeChargement';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { hrefLocalise } from '@/i18n/navigation';
@@ -38,6 +39,16 @@ type Props = {
  * ⚠ Le champ de recherche est dans un `<form>` réel, avec un bouton de soumission : sans lui,
  * `Entrée` ne fait rien et le visiteur croit avoir cherché. C'est le motif du formulaire de
  * newsletter inerte que TCK-437 vient de retirer du pied de page.
+ *
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ * LE CLIC SE VOIT AVANT LA PAGE SUIVANTE
+ * ────────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * La page est rendue côté serveur, sans `loading.tsx` (le 404 du site public en dépend) : entre le
+ * clic et la réponse, rien ne bougeait — « on a l'impression de ne pas avoir cliqué » (retour
+ * d'administration du 2026-09-16). La navigation passe par `useTransition` : la ville demandée
+ * s'allume au clic avec un indicateur, une barre court en haut de l'écran, et la racine porte
+ * `data-en-cours`, que `IndexDeProfils` lit pour estomper les résultats périmés.
  */
 export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
   const t = useTranslations('publicProfileIndex.filters');
@@ -45,8 +56,11 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
   const locale = useLocale() as Locale;
   const params = useSearchParams();
 
-  const villeCourante = params.get('city') ?? '';
+  const villeDeLUrl = params.get('city') ?? '';
   const [recherche, setRecherche] = useState(params.get('q') ?? '');
+  const [enCours, demarrer] = useTransition();
+  const [villeDemandee, setVilleDemandee] = useState<string | null>(null);
+  const villeCourante = enCours && villeDemandee !== null ? villeDemandee : villeDeLUrl;
 
   function naviguer(modifications: Record<string, string>) {
     const prochains = new URLSearchParams(params.toString());
@@ -56,7 +70,8 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
     }
     prochains.delete('page');
     const chaine = prochains.toString();
-    router.push(hrefLocalise(chaine === '' ? base : `${base}?${chaine}`, locale));
+    setVilleDemandee('city' in modifications ? modifications.city! : null);
+    demarrer(() => router.push(hrefLocalise(chaine === '' ? base : `${base}?${chaine}`, locale)));
   }
 
   function soumettre(evenement: FormEvent<HTMLFormElement>) {
@@ -65,7 +80,8 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-en-cours={enCours || undefined} aria-busy={enCours}>
+      {enCours && <BarreDeChargement libelle={t('loading')} position="ecran" />}
       <form onSubmit={soumettre} role="search" className="flex gap-2">
         <div className="relative flex-1">
           <Search
@@ -82,13 +98,17 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             className="pl-9"
           />
         </div>
-        <Button type="submit">{t('submit')}</Button>
+        <Button type="submit" disabled={enCours && villeDemandee === null}>
+          {enCours && villeDemandee === null && <Loader2 className="size-4 animate-spin" aria-hidden />}
+          {t('submit')}
+        </Button>
       </form>
 
       {villes.length > 0 && (
         <div className="flex flex-wrap gap-2" role="group" aria-label={t('cityGroupAria')}>
           <CityChip
             actif={villeCourante === ''}
+            enAttente={enCours && villeDemandee === ''}
             libelle={t('allCities')}
             onClick={() => naviguer({ city: '' })}
           />
@@ -96,6 +116,7 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             <CityChip
               key={ville}
               actif={villeCourante === ville}
+              enAttente={enCours && villeDemandee === ville}
               libelle={ville}
               onClick={() => naviguer({ city: villeCourante === ville ? '' : ville })}
             />
@@ -122,10 +143,12 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
 
 function CityChip({
   actif,
+  enAttente,
   libelle,
   onClick,
 }: {
   readonly actif: boolean;
+  readonly enAttente: boolean;
   readonly libelle: string;
   readonly onClick: () => void;
 }) {
@@ -135,12 +158,13 @@ function CityChip({
       onClick={onClick}
       aria-pressed={actif}
       className={
-        'rounded-full border px-3 py-1.5 text-sm transition-colors ' +
+        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ' +
         (actif
           ? 'border-primary bg-primary text-primary-foreground'
           : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground')
       }
     >
+      {enAttente && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
       {libelle}
     </button>
   );

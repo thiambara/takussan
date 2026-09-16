@@ -159,8 +159,10 @@ export function proxy(request: NextRequest): NextResponse {
  * Ce qui est exclu, et pourquoi :
  * · `api(?:/|$)`       — un route handler BFF ne porte pas de langue et ne doit jamais en recevoir ;
  * · `_next(?:/|$)`     — les ressources du framework ;
- * · `.*\.[a-z0-9]+$`   — un chemin dont le DERNIER segment porte une extension (`robots.txt`,
- *                        `sitemap.xml`, `favicon.ico`).
+ * · `.*\.(?:…)$`       — un chemin dont le DERNIER segment porte une extension CONNUE (`robots.txt`,
+ *                        `sitemap.xml`, `favicon.ico`). La liste est celle d'`EXTENSIONS_DE_FICHIERS`
+ *                        (`src/i18n/routing.ts`), recopiée parce que Next n'accepte ici qu'un
+ *                        littéral ; le test exige l'égalité des deux.
  *
  * ────────────────────────────────────────────────────────────────────────────────────────────────
  * ⚠️ CE `matcher` A DIVERGÉ DEUX FOIS D'`estCheminLocalisable`, ET LES DEUX FOIS EN 404
@@ -178,7 +180,11 @@ export function proxy(request: NextRequest): NextResponse {
  *    exclus du `matcher` alors qu'`estCheminLocalisable` les juge localisables — il ne confond pas
  *    un préfixe avec un segment, et il a raison de ne pas les confondre.
  *
- * Aucune des deux n'était atteignable par une URL existante. C'est précisément ce qui les rendait
+ * 3. Ancrée, elle restait une FORME : `\.[a-z0-9]+$` prenait `owner.agency4` pour un fichier.
+ *    `/agents/owner.agency4` rendait 404 en préproduction (retour du 2026-09-16) — la seule des
+ *    trois atteinte par une URL réelle. Remplacée par une liste fermée d'extensions.
+ *
+ * Les deux premières n'étaient atteignables par aucune URL existante. C'est précisément ce qui les rendait
  * durables : *une divergence non atteignable ne se signale jamais ; elle attend la route qui la
  * rendra atteignable.* Les deux sont ancrées, et `src/__tests__/proxy.test.ts` ne les compare plus
  * sur une poignée de chemins écrits à la main : il éprouve l'invariant sur un balayage ENGENDRÉ,
@@ -186,5 +192,7 @@ export function proxy(request: NextRequest): NextResponse {
  * `publish`…) — la famille qui a attrapé le point 2.
  */
 export const config = {
-  matcher: ['/((?!api(?:/|$)|_next(?:/|$)|.*\\.[a-z0-9]+$).*)'],
+  matcher: [
+    '/((?!api(?:/|$)|_next(?:/|$)|.*\\.(?:avif|css|gif|ico|jpeg|jpg|js|json|map|mjs|mp4|otf|pdf|png|svg|ttf|txt|wasm|webm|webmanifest|webp|woff|woff2|xml)$).*)',
+  ],
 };

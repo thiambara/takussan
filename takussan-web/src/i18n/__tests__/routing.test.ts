@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+  EXTENSIONS_DE_FICHIERS,
   SEGMENTS_NON_LOCALISES,
   analyserAcceptLanguage,
   cheminLocalise,
@@ -41,6 +42,23 @@ describe('estCheminLocalisable', () => {
   it('refuse les fichiers servis tels quels — sitemap et robots ne se déclinent pas', () => {
     for (const chemin of ['/robots.txt', '/sitemap.xml', '/favicon.ico', '/og.png']) {
       expect(estCheminLocalisable(chemin), chemin).toBe(false);
+    }
+  });
+
+  it('accepte un slug dont le point ressemble à une extension — /agents/owner.agency4', () => {
+    // Retour d'administration du 2026-09-16 : `/agents/owner.agency4` rendait 404 sur la
+    // préproduction alors que l'API servait l'agent. La règle « le dernier segment porte une
+    // extension » s'écrivait `\.[a-z0-9]+$` : `.agency4` y passait. Un identifiant d'utilisateur
+    // à point (`amadou.diallo`) est un slug d'agent ordinaire, pas un fichier.
+    for (const chemin of ['/agents/owner.agency4', '/agents/amadou.diallo', '/agencies/immo.sn', '/properties/villa-2.5-pieces']) {
+      expect(estCheminLocalisable(chemin), chemin).toBe(true);
+    }
+  });
+
+  it('refuse chaque extension de la liste fermée, quelle que soit la casse', () => {
+    for (const ext of EXTENSIONS_DE_FICHIERS) {
+      expect(estCheminLocalisable(`/fichier.${ext}`), ext).toBe(false);
+      expect(estCheminLocalisable(`/dossier/fichier.${ext.toUpperCase()}`), ext).toBe(false);
     }
   });
 

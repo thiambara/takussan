@@ -231,7 +231,8 @@
     "searchAria": "Tàmbali seet bi",
     "moreTypes": "Yeneen xeet yi",
     "more": "Yeneen",
-    "propertiesCount": "{count} kër"
+    "propertiesCount": "{count} kër",
+    "loading": "Mu ngi yeb…"
   },
   "footer": {
     "tagline": "Sa nawle bu wér ngir gis kër bi nga bëgg ci Senegaal.",
@@ -694,7 +695,8 @@
       "notFoundHome": "Dellu ci tàggat bi",
       "unavailableTitle": "Ajaas bi amul ba tey",
       "unavailableBody": "Mënunu jot katalog bi ci saa si. Ajaas bii mën na am ba tey — jéemaatal ci ay saa.",
-      "unavailableMetaDescription": "Ajaas bi mënul a wone ci saa si. Jéemaatal ci ay saa."
+      "unavailableMetaDescription": "Ajaas bi mënul a wone ci saa si. Jéemaatal ci ay saa.",
+      "back": "Dellu"
     }
   },
   "compare": {
@@ -2369,7 +2371,8 @@
       "notFoundHome": "Dellu ci tàggat bi",
       "unavailableTitle": "Ajaŋ bi amul ba tey",
       "unavailableBody": "Mënunu jot katalog bi ci saa si. Ajaŋ bii mën na am ba tey — jéemaatal ci ay saa.",
-      "unavailableMetaDescription": "Ajaŋ bi mënul a wone ci saa si. Jéemaatal ci ay saa."
+      "unavailableMetaDescription": "Ajaŋ bi mënul a wone ci saa si. Jéemaatal ci ay saa.",
+      "back": "Dellu"
     }
   },
   "agentWelcome": {
@@ -7690,7 +7693,8 @@
       "submit": "Seet",
       "allCities": "Dëkk yépp",
       "cityGroupAria": "Tànn dëkk",
-      "clear": "Far tànneef yi"
+      "clear": "Far tànneef yi",
+      "loading": "Mu ngi yeb…"
     },
     "pagination": {
       "navAria": "Xët yi",

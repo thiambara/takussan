@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { AUTH_COOKIE_NAME } from '@/lib/constants';
 import { LOCALE_COOKIE_NAME, LOCALES } from '@/i18n/config';
-import { SEGMENTS_NON_LOCALISES, estCheminLocalisable } from '@/i18n/routing';
+import { EXTENSIONS_DE_FICHIERS, SEGMENTS_NON_LOCALISES, estCheminLocalisable } from '@/i18n/routing';
 import { ENTETE_LOCALE_NEXT_INTL, config, proxy } from '../proxy';
 
 /**
@@ -203,6 +203,9 @@ describe('les surfaces non localisées gardent leurs URL — ADR-0026 §2', () =
     const chemins = [
       '/', '/properties', '/properties/mon-slug', '/agencies/x', '/agents/y', '/compare',
       '/properties/villa-2.5-pieces',                  // point DANS le slug
+      // Un point suivi de lettres et de chiffres seulement : la forme d'une extension, sans en
+      // être une. `/agents/owner.agency4` rendait 404 en préproduction (retour du 2026-09-16).
+      '/agents/owner.agency4', '/agents/amadou.diallo', '/agencies/immo.sn', '/fr/agents/owner.agency4',
       '/properties/mon-slug?filter[city]=Dakar',
       ...LOCALES.flatMap((l) => [`/${l}`, `/${l}/properties`, `/${l}/properties/mon-slug`]),
       // ── Les SOSIES DE PRÉFIXE : pour chaque surface réservée, un segment qui COMMENCE par elle
@@ -234,6 +237,23 @@ describe('les surfaces non localisées gardent leurs URL — ADR-0026 §2', () =
       expect(motif.test(chemin), `${chemin} devrait être exclu du matcher`).toBe(false);
       expect(estCheminLocalisable(chemin), `${chemin} ne devrait pas être localisable`).toBe(false);
     }
+  });
+
+  it('le `matcher` écrit EXACTEMENT la liste d’extensions de `routing.ts`', () => {
+    // Next exige un littéral dans `config` : la liste y est donc recopiée, et c'est ici qu'on
+    // s'assure que la copie ne diverge pas. Une extension présente d'un seul côté rouvre l'écart
+    // qui a produit le 404 de `/agents/owner.agency4`.
+    const groupe = /\.\(\?:([a-z0-9|]+)\)\$/.exec(config.matcher[0]!);
+    expect(groupe, 'le matcher n’énumère plus ses extensions').not.toBeNull();
+    expect(groupe![1]!.split('|').sort()).toEqual([...EXTENSIONS_DE_FICHIERS].sort());
+  });
+
+  it('/agents/owner.agency4 est redirigé vers sa langue, pas laissé en 404', () => {
+    const motif = new RegExp(`^${config.matcher[0]!}$`);
+    expect(motif.test('/agents/owner.agency4')).toBe(true);
+    const r = proxy(requete('/agents/owner.agency4', { cookies: { [LOCALE_COOKIE_NAME]: 'fr' } }));
+    expect(r.status).toBe(307);
+    expect(cheminDe(r.headers.get('location')!)).toBe('/fr/agents/owner.agency4');
   });
 
   it('l’export de configuration s’appelle `config` — Next ne lit rien d’autre', () => {
