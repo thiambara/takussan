@@ -272,7 +272,7 @@ export default function SuperAdminUsersPage() {
       cell: (u) => {
         const label = getUserDisplayName(u);
         return (
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-56 items-center gap-3">
             <Avatar size="sm" className="shrink-0">
               <AvatarFallback>{getInitials(label)}</AvatarFallback>
             </Avatar>
@@ -295,7 +295,9 @@ export default function SuperAdminUsersPage() {
         return roles.length ? (
           <div className="flex flex-wrap gap-1">
             {roles.map((roleName) => (
-              <Badge key={roleName} variant="outline">{roleName}</Badge>
+              <Badge key={roleName} variant="outline">
+                {tPage.has(`roles.${roleName}`) ? tPage(`roles.${roleName}`) : roleName}
+              </Badge>
             ))}
           </div>
         ) : (
@@ -306,7 +308,7 @@ export default function SuperAdminUsersPage() {
     {
       id: 'agencies',
       header: tPage('columns.agencies'),
-      className: 'max-w-48 text-muted-foreground',
+      className: 'min-w-32 max-w-48 text-muted-foreground',
       cell: (u) =>
         u.agencies?.length ? u.agencies.map((agency) => agency.name).join(', ') : '—',
     },
@@ -315,7 +317,12 @@ export default function SuperAdminUsersPage() {
       header: tPage('columns.status'),
       cell: (u) =>
         u.status ? (
-          <StatusBadge tone={USER_STATUS_TONES[u.status] ?? 'neutral'} label={u.status} />
+          <StatusBadge
+            tone={USER_STATUS_TONES[u.status] ?? 'neutral'}
+            // Repli sur le jeton brut pour un statut que l'écran ne connaît pas encore : l'avouer
+            // vaut mieux que l'effacer.
+            label={tPage.has(`statuses.${u.status}`) ? tPage(`statuses.${u.status}`) : u.status}
+          />
         ) : (
           '—'
         ),
@@ -323,7 +330,7 @@ export default function SuperAdminUsersPage() {
     {
       id: 'security',
       header: tPage('columns.security'),
-      className: 'text-xs text-muted-foreground',
+      className: 'whitespace-nowrap text-xs text-muted-foreground',
       // Les deux valeurs sont PRÉFIXÉES de ce qu'elles qualifient : seules, « vérifié » et
       // « activée » (en anglais « verified » et « on ») ne disent pas laquelle porte l'email et
       // laquelle le 2FA. C'est ce que la phrase `summary` — supprimée avec les cartes — portait.
@@ -345,7 +352,7 @@ export default function SuperAdminUsersPage() {
     {
       id: 'lastLogin',
       header: tPage('columns.lastLogin'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
       cell: (u) => fmt.date(u.last_login_at, DATE_COURTE),
     },
     {
@@ -354,7 +361,7 @@ export default function SuperAdminUsersPage() {
       headerSrOnly: true,
       align: 'end',
       cell: (u) => (
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex justify-end gap-2">
           <Link
             className={buttonVariants({ size: 'sm', variant: 'outline' })}
             href={`/super-admin/users/${u.id}`}
@@ -378,14 +385,14 @@ export default function SuperAdminUsersPage() {
         c'est répondre avant d'avoir demandé.
       */}
       <FilterBar
-        controlsClassName="md:grid-cols-3 xl:grid-cols-6"
+        controlsClassName="sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
         resultCount={data ? tFiltres('results', { count: data.meta?.total ?? 0 }) : undefined}
         onReset={reinitialiser}
         resetLabel={tFiltres('reset')}
         resetDisabled={!filtresPoses && !surPageInterieure}
       >
         <DebouncedSearchInput
-          className="md:col-span-2"
+          className="sm:col-span-2"
           value={search}
           onCommit={(next) => updateParam('search', next)}
           placeholder={tPage('searchPlaceholder')}
@@ -397,7 +404,7 @@ export default function SuperAdminUsersPage() {
           onValueChange={(next) => updateParam('role', (next ?? ALL) as string)}
           items={roleOptions}
         >
-          <SelectTrigger aria-label={tPage('roleAria')} className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('roleAria')} className="data-[size=default]:h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -418,7 +425,7 @@ export default function SuperAdminUsersPage() {
           onValueChange={(next) => updateParam('status', (next ?? ALL) as string)}
           items={statusOptions}
         >
-          <SelectTrigger aria-label={tPage('statusAria')} className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('statusAria')} className="data-[size=default]:h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -434,7 +441,7 @@ export default function SuperAdminUsersPage() {
           onValueChange={(next) => updateParam('email', (next ?? ALL) as string)}
           items={emailOptions}
         >
-          <SelectTrigger aria-label={tPage('emailAria')} className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('emailAria')} className="data-[size=default]:h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -450,7 +457,7 @@ export default function SuperAdminUsersPage() {
           onValueChange={(next) => updateParam('twoFactor', (next ?? ALL) as string)}
           items={twoFactorOptions}
         >
-          <SelectTrigger aria-label={tPage('twoFactorAria')} className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('twoFactorAria')} className="data-[size=default]:h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

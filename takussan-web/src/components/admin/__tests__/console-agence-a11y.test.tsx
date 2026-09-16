@@ -468,8 +468,11 @@ describe('AC4 — anneau de focus : mesuré sur chaque écran de la console agen
     const { container } = render(
       withIntl(<CapabilityMatrix catalogue={CATALOGUE} value={[]} onChange={vi.fn()} />),
     );
-    // 2 boutons de masse + 1 repli par domaine (2 domaines) = 4.
-    mesureLesAnneaux(container, 4);
+    // 1 repli par domaine (2 domaines) = 2. Les deux boutons de masse (« tout cocher »,
+    // « vider ») sont passés sur la primitive `Button` (revue design 2026-09-16) : ils portent
+    // un `data-slot` (exclus de cette mesure) et reprennent l'anneau plein à la main.
+    mesureLesAnneaux(container, 2);
+    expect(container.querySelectorAll('[data-slot="button"]').length).toBeGreaterThanOrEqual(2);
   });
 
   it('/admin/roles — liste des rôles : le bouton de sélection de chaque rôle', () => {

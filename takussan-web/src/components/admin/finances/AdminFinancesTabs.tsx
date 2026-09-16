@@ -86,20 +86,24 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
     <div className="space-y-5">
       <Tabs value={tab} onValueChange={setTab}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <TabsList>
-            <TabsTrigger value="encaissements">{t('tabs.payments')}</TabsTrigger>
-            <TabsTrigger value="factures">{t('tabs.invoices')}</TabsTrigger>
-            <TabsTrigger value="reversements">{t('tabs.payouts')}</TabsTrigger>
-            <TabsTrigger value="impayes">{t('tabs.overdue')}</TabsTrigger>
-          </TabsList>
+          {/* Quatre onglets mesurent ~340 px : à 360 ils touchaient le bord. Le ruban défile dans
+              son conteneur plutôt que de pousser la page. */}
+          <div className="-mx-1 max-w-full overflow-x-auto px-1">
+            <TabsList>
+              <TabsTrigger value="encaissements">{t('tabs.payments')}</TabsTrigger>
+              <TabsTrigger value="factures">{t('tabs.invoices')}</TabsTrigger>
+              <TabsTrigger value="reversements">{t('tabs.payouts')}</TabsTrigger>
+              <TabsTrigger value="impayes">{t('tabs.overdue')}</TabsTrigger>
+            </TabsList>
+          </div>
           {canEmit ? (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
-                <FileText className="mr-1 size-4" aria-hidden="true" />
+                <FileText className="size-4" aria-hidden="true" />
                 {t('tabs.newInvoice')}
               </Button>
               <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
-                <Send className="mr-1 size-4" aria-hidden="true" />
+                <Send className="size-4" aria-hidden="true" />
                 {t('tabs.newPayout')}
               </Button>
             </div>

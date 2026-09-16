@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, CalendarClock, Users, Wrench, UserCog } from 'lucide-react';
+import { ArrowRight, CalendarClock, ChevronRight, Users, Wrench, UserCog } from 'lucide-react';
 import type { ComponentType } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
@@ -46,24 +46,30 @@ export function AgencyActivityFeed({ summary }: Props) {
           {t('heading')}
         </h2>
       </header>
+      {/* Même grammaire que le bloc « À traiter » (`AgencyQueues`) : la ligne entière est le
+          lien, et le libellé d'action cède la place à un chevron sous `sm`. À 390 px, le
+          libellé à droite se cassait sur deux lignes et écrasait le titre sur deux autres. */}
       <ul className="divide-y divide-border">
         {items.map(({ href, id, count, icon: Icon }) => (
-          <li key={href} className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0">
-            <div className="flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-full bg-muted text-primary">
-                <Icon className="size-4" />
-              </span>
-              <div>
-                <p className="text-sm font-medium text-foreground">{t(`items.${id}.label`)}</p>
-                <p className="text-xs text-muted-foreground">{formatNumber(count, locale)}</p>
-              </div>
-            </div>
+          <li key={href} className="py-3 first:pt-0 last:pb-0">
             <Link
               href={href}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              className="group flex min-h-11 items-center gap-4 rounded-lg px-2 py-1 transition-colors hover:bg-muted/60"
             >
-              {t(`items.${id}.cta`)}
-              <ArrowRight className="size-3" aria-hidden />
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-primary">
+                <Icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-foreground">{t(`items.${id}.label`)}</span>
+                <span className="block text-xs tabular-nums text-muted-foreground">
+                  {formatNumber(count, locale)}
+                </span>
+              </span>
+              <span className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-primary group-hover:underline sm:inline-flex">
+                {t(`items.${id}.cta`)}
+                <ArrowRight className="size-3" aria-hidden />
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground sm:hidden" aria-hidden />
             </Link>
           </li>
         ))}

@@ -44,13 +44,14 @@ export function NotificationEventList({
         <Button
           key={item.event}
           type="button"
-          variant={selected === item.event ? 'default' : 'ghost'}
+          variant={selected === item.event ? 'secondary' : 'ghost'}
+          aria-current={selected === item.event ? 'true' : undefined}
           className="mb-1 h-auto w-full justify-start whitespace-normal px-3 py-2 text-left"
           onClick={() => onSelect(item.event)}
         >
           <span>
             <span className="block">{item.name}</span>
-            <span className="block text-xs opacity-75">{item.domain}</span>
+            <span className="block text-xs font-normal text-muted-foreground">{item.domain}</span>
           </span>
         </Button>
       ))}
@@ -95,18 +96,25 @@ export function TemplateEditor({
 
   return (
     <section className="rounded-xl bg-card ring-1 ring-border">
-      <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-3 border-b border-border p-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <h2 className="font-display text-xl font-semibold text-foreground">{detail.name}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{detail.event}</p>
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="mt-2 flex flex-wrap gap-1 font-mono">
             {detail.placeholders.map((placeholder) => (
               <Badge key={placeholder} variant="outline">{`{{ ${placeholder} }}`}</Badge>
             ))}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant={isActive ? 'default' : 'outline'} onClick={() => setIsActive((v) => !v)}>
+          {/* Une bascule d'état, pas un appel à l'action : le terracotta plein reste à « Enregistrer ». */}
+          <Button
+            type="button"
+            variant={isActive ? 'secondary' : 'outline'}
+            aria-pressed={isActive}
+            className={cn(isActive && 'ring-1 ring-foreground/20')}
+            onClick={() => setIsActive((v) => !v)}
+          >
             {isActive ? t('active') : t('inactive')}
           </Button>
           <Button type="button" variant="outline" onClick={() => previewMutation.mutate()}>
@@ -126,8 +134,9 @@ export function TemplateEditor({
             <Button
               key={value}
               type="button"
-              size="sm"
-              variant={value === detail.channel ? 'default' : 'outline'}
+              variant={value === detail.channel ? 'secondary' : 'outline'}
+              aria-pressed={value === detail.channel}
+              className={cn('min-w-14', value === detail.channel && 'ring-1 ring-foreground/20')}
               onClick={() => onChannelSelect(value)}
             >
               {value.toUpperCase()}
@@ -139,8 +148,9 @@ export function TemplateEditor({
             <Button
               key={value}
               type="button"
-              size="sm"
-              variant={locale === value ? 'default' : 'outline'}
+              variant={locale === value ? 'secondary' : 'outline'}
+              aria-pressed={locale === value}
+              className={cn('min-w-12', locale === value && 'ring-1 ring-foreground/20')}
               onClick={() => setLocale(value)}
             >
               {value.toUpperCase()}
@@ -173,7 +183,7 @@ export function TemplateEditor({
             }))}
           />
         </label>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       </div>
       <TemplatePreviewDialog preview={preview} onOpenChange={(open) => !open && setPreview(null)} />
     </section>

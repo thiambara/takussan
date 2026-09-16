@@ -82,7 +82,7 @@ export function EnumValueTable({
       id: 'usage',
       header: t('usage'),
       cell: (value) => (
-        <Badge variant={value.usage_count > 0 ? 'secondary' : 'outline'}>{value.usage_count}</Badge>
+        <Badge variant={value.usage_count > 0 ? 'secondary' : 'outline'} className="tabular-nums">{value.usage_count}</Badge>
       ),
     },
     {
@@ -115,7 +115,7 @@ export function EnumValueTable({
       <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-start md:justify-between">
         <div>
           <h2 className="font-display text-xl font-semibold text-foreground">{item.name}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+          <p className="mt-1 text-pretty text-sm text-muted-foreground">{item.description}</p>
         </div>
         <Button type="button" onClick={onAdd}>
           <Plus className="size-4" aria-hidden="true" />
@@ -223,7 +223,7 @@ function EnumValueDialogForm({
           </label>
         </div>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           {tCommon('actions.cancel')}

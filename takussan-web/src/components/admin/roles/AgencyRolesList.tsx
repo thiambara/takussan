@@ -122,7 +122,7 @@ export function AgencyRolesList({
                           onClick={() => onClone(role)}
                           className="h-7 px-2 text-xs"
                         >
-                          <Copy className="mr-1 size-3.5" aria-hidden="true" />
+                          <Copy className="size-3.5" aria-hidden="true" />
                           {t('actions.clone')}
                         </Button>
                       ) : null}
@@ -133,7 +133,7 @@ export function AgencyRolesList({
                           onClick={() => onDelete(role)}
                           className="h-7 px-2 text-xs text-destructive"
                         >
-                          <Trash2 className="mr-1 size-3.5" aria-hidden="true" />
+                          <Trash2 className="size-3.5" aria-hidden="true" />
                           {t('actions.delete')}
                         </Button>
                       ) : null}

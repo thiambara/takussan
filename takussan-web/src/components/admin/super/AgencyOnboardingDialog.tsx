@@ -177,7 +177,7 @@ export function AgencyOnboardingDialog() {
                   onValueChange={(value) => setAgency({ ...agency, currency: value ?? 'XOF' })}
                   items={currencyOptions}
                 >
-                  <SelectTrigger className="h-9 w-full" aria-label={t('currencyAria')}>
+                  <SelectTrigger className="data-[size=default]:h-9 w-full" aria-label={t('currencyAria')}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

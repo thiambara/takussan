@@ -2,10 +2,23 @@
 
 import { useTranslations } from 'next-intl';
 import { CreditCard, Gauge, ShieldCheck } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
+import { EmptyState } from '@/components/feedback';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { AgencySubscription } from '@/types/super-admin';
+
+/**
+ * Le ton de chaque statut d'abonnement. Le libellé vit sous `billing.subscription.status.*` :
+ * l'écran affichait jusqu'ici la valeur d'enum brute (`past_due`) dans une pastille primaire.
+ */
+const STATUS_TONE: Record<AgencySubscription['status'], StatusTone> = {
+  trialing: 'info',
+  active: 'success',
+  past_due: 'attention',
+  suspended: 'danger',
+  ended: 'neutral',
+};
 
 export function SubscriptionSummary({ subscription }: { subscription: AgencySubscription | null }) {
   // Le hook se place AVANT la sortie anticipée : un `useTranslations` posé après serait un hook
@@ -15,9 +28,11 @@ export function SubscriptionSummary({ subscription }: { subscription: AgencySubs
 
   if (!subscription) {
     return (
-      <Card>
-        <CardContent className="p-6 text-sm text-muted-foreground">{t('none')}</CardContent>
-      </Card>
+      <EmptyState
+        icon={<CreditCard className="size-8" aria-hidden="true" />}
+        title={t('none')}
+        description={t('noneDescription')}
+      />
     );
   }
 
@@ -31,12 +46,15 @@ export function SubscriptionSummary({ subscription }: { subscription: AgencySubs
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={subscription.status === 'active' ? 'default' : 'secondary'}>{subscription.status}</Badge>
-          <span className="text-sm text-muted-foreground">
+          <StatusBadge
+            label={t.has(`status.${subscription.status}`) ? t(`status.${subscription.status}`) : subscription.status}
+            tone={STATUS_TONE[subscription.status] ?? 'neutral'}
+          />
+          <span className="text-sm tabular-nums text-muted-foreground">
             {fmt.date(subscription.current_period_start)} → {fmt.date(subscription.current_period_end)}
           </span>
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-3 md:grid-cols-1 lg:grid-cols-3">
           <Metric icon={ShieldCheck} label={t('platformFee')} value={`${subscription.effective_platform_fee_pct}%`} />
           <Metric
             icon={Gauge}
@@ -61,7 +79,7 @@ function Metric({ icon: Icon, label, value }: { icon: typeof Gauge; label: strin
         <p className="text-sm text-muted-foreground">{label}</p>
         <Icon className="size-4 text-primary" aria-hidden="true" />
       </div>
-      <p className="mt-2 text-xl font-semibold text-foreground">{value}</p>
+      <p className="mt-2 text-xl font-semibold tabular-nums text-foreground">{value}</p>
     </div>
   );
 }

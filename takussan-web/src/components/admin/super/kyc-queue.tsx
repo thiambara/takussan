@@ -236,11 +236,6 @@ export function KycDecisionPanel({
 }) {
   const t = useTranslations('superAdmin.pages.kyc');
   const tStatus = useTranslations('kyc.status');
-  // TCK-364 — la locale ACTIVE, pas 'fr-FR'. Ce fichier est né APRÈS le relevé de TCK-364 et
-  // portait donc à nouveau le helper module-level que ce ticket existe pour supprimer : un
-  // fichier neuf n'entre en conflit avec rien, et l'AC « le grep 'fr-FR' ne renvoie rien » avait
-  // été mesuré sur une base où celui-ci n'existait pas encore. Gardé par check-locale-figee.mjs.
-  const fmt = useFormatteurs();
   const tDocuments = useTranslations('kyc.documents');
   const messageErreur = useMessageErreurApi();
   const queryClient = useQueryClient();

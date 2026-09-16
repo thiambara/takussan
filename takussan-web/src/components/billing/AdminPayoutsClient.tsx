@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -12,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
 import { fetchAdminPlatformPayouts } from '@/lib/queries/super-admin';
 import type { PlatformPayoutStatus } from '@/types/super-admin';
 import { PayoutCloseDialog } from './PayoutCloseDialog';
@@ -60,20 +60,20 @@ export function AdminPayoutsClient() {
       <PayoutCloseDialog defaultAgencyId={agencyFilter ? Number(agencyFilter) : null} />
 
       <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-[180px_180px_1fr]">
-          <Input
-            type="number"
-            placeholder={tFilters('agencyPlaceholder')}
+        {/* Colonnes dès `lg` seulement : à 768 le compteur tombait dans une piste de ~60 px (TCK-505).
+            L'agence se choisit par son nom, plus par un identifiant tapé de mémoire (TCK-363). */}
+        <CardContent className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[260px_200px_1fr]">
+          <AgencyCombobox
             value={agencyFilter}
-            onChange={(event) => setAgencyFilter(event.target.value)}
-            aria-label={tFilters('agencyAria')}
+            onChange={setAgencyFilter}
+            label={tFilters('agencyAria')}
           />
           <Select
             value={status || ALL_STATUS}
             onValueChange={(value) => setStatus(value === ALL_STATUS ? '' : ((value ?? '') as PlatformPayoutStatus | ''))}
             items={statuses}
           >
-            <SelectTrigger className="h-9" aria-label={tFilters('statusAria')}>
+            <SelectTrigger className="w-full h-10" aria-label={tFilters('statusAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -82,7 +82,7 @@ export function AdminPayoutsClient() {
               ))}
             </SelectContent>
           </Select>
-          <p className="self-center text-xs text-muted-foreground">
+          <p className="self-center text-xs text-pretty tabular-nums text-muted-foreground sm:col-span-2 lg:col-span-1">
             {/* `total` part en CHAÎNE : ICU formaterait 1234 en « 1 234 », là où le JSX d'origine
                 rendait le nombre brut. `count` reste un nombre — il ne sert qu'au pluriel. */}
             {t('count', { total: String(total), count: total })}

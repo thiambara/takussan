@@ -210,6 +210,9 @@ export function AuditTrail() {
   return (
     <div className="space-y-4">
       {/* ─── Sticky filter bar ─────────────────────────────────────────── */}
+      {/* Les cinq contrôles portent la MÊME hauteur (40 px) : alignés par le bas avec des
+          hauteurs de 36, 32, 40 et 28 px, leurs libellés tombaient sur quatre lignes différentes.
+          L'export passe en `outline` : c'est une action secondaire de l'écran, pas son CTA. */}
       <div className="sticky top-0 z-10 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-background/95 p-4 shadow-sm backdrop-blur">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground">{t('filters.from')}</label>
@@ -217,7 +220,7 @@ export function AuditTrail() {
             value={dateFrom}
             max={dateTo || today()}
             onValueChange={(value) => { setDateFrom(value); setPage(1); }}
-            buttonClassName="h-9"
+            buttonClassName="h-10"
           />
         </div>
 
@@ -228,7 +231,7 @@ export function AuditTrail() {
             min={dateFrom}
             max={today()}
             onValueChange={(value) => { setDateTo(value); setPage(1); }}
-            buttonClassName="h-9"
+            buttonClassName="h-10"
           />
         </div>
 
@@ -239,7 +242,7 @@ export function AuditTrail() {
             onValueChange={(next) => { setEvent(next === ANY ? '' : (next ?? '')); setPage(1); }}
             items={eventOptions}
           >
-            <SelectTrigger className="h-9" aria-label={t('filters.actionAria')}>
+            <SelectTrigger className="h-10" aria-label={t('filters.actionAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -257,7 +260,7 @@ export function AuditTrail() {
             onValueChange={(next) => { setSubjectType(next === ANY ? '' : (next ?? '')); setPage(1); }}
             items={subjectTypeOptions}
           >
-            <SelectTrigger className="h-9" aria-label={t('filters.subjectAria')}>
+            <SelectTrigger className="h-10" aria-label={t('filters.subjectAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -268,7 +271,7 @@ export function AuditTrail() {
           </Select>
         </div>
 
-        <div className="flex flex-col gap-1">
+        <div className="flex w-full flex-col gap-1 sm:w-auto">
           <label className="text-xs font-medium text-muted-foreground" htmlFor="audit-search">
             {t('filters.search')}
           </label>
@@ -280,7 +283,7 @@ export function AuditTrail() {
           */}
           <DebouncedSearchInput
             id="audit-search"
-            className="w-56"
+            className="w-full sm:w-56"
             value={search}
             onCommit={(next) => { setSearch(next); setPage(1); }}
             placeholder={t('filters.searchPlaceholder')}
@@ -298,7 +301,7 @@ export function AuditTrail() {
         <div className="ml-auto flex items-end">
           <DropdownMenu>
             <DropdownMenuTrigger
-              render={<Button variant="default" size="sm" disabled={exportLoading} className="gap-1.5" />}
+              render={<Button variant="outline" disabled={exportLoading} className="h-10 gap-1.5" />}
             >
               {exportLoading
                 ? <Loader2 className="h-4 w-4 animate-spin" />

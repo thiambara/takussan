@@ -56,13 +56,15 @@ export function InviteMemberButton({ agencyId }: { readonly agencyId: number }) 
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
+      {/* `lg:flex-nowrap` : à côté du titre (coque `lg:flex-row`), les deux boutons passaient
+          l'un SOUS l'autre, « Inviter » décroché au-dessus de son voisin. */}
+      <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap">
         <Button size="sm" onClick={() => setInviteOpen(true)}>
-          <UserPlus className="mr-1 size-4" aria-hidden="true" />
+          <UserPlus className="size-4" aria-hidden="true" />
           {t('inviteAgent')}
         </Button>
         <Button size="sm" variant="outline" onClick={() => setAddExistingOpen(true)}>
-          <UserCheck className="mr-1 size-4" aria-hidden="true" />
+          <UserCheck className="size-4" aria-hidden="true" />
           {t('addExisting')}
         </Button>
       </div>

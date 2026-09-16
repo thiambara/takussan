@@ -35,14 +35,24 @@ import { cn } from '@/lib/utils';
  * deux séries de même poids visuel ne se comparent pas, elles se concurrencent.
  */
 
-const VIEW_W = 720;
+/**
+ * Largeur du repère, en unités SVG. **Elle suit la largeur RENDUE du conteneur** (revue design du
+ * 2026-09-16) : le repère était figé à 720 dans un `<svg>` de hauteur fixe, que le navigateur
+ * réduisait à l'échelle sur mobile — à 360 px, les graduations de 10 px tombaient à 5 px et le
+ * tracé flottait au milieu d'un cadre vide ; à 1366, le graphique ne remplissait pas sa carte.
+ * Une unité vaut désormais un pixel à toutes les largeurs. 720 reste la valeur avant mesure
+ * (rendu serveur, jsdom).
+ */
+const VIEW_W_AVANT_MESURE = 720;
+const VIEW_W_MIN = 280;
 const VIEW_H = 280;
 const PADDING = { top: 16, right: 16, bottom: 34, left: 56 };
-const INNER_W = VIEW_W - PADDING.left - PADDING.right;
 const INNER_H = VIEW_H - PADDING.top - PADDING.bottom;
 
 /** Nombre maximal d'étiquettes d'abscisse. Au-delà, une sur N — lisible à 12 points comme à 3. */
 const MAX_X_LABELS = 6;
+/** Place qu'occupe une étiquette d'abscisse partielle (« 2026-09 · 16 j ») — on n'en pose pas plus. */
+const LARGEUR_ETIQUETTE_X = 96;
 const Y_TICKS = 4;
 
 /**
@@ -87,7 +97,20 @@ export function TimeSeriesChart({
   // Les hooks se placent AVANT toute sortie anticipée (React Compiler, ADR-0015).
   const t = useTranslations('reporting.chart');
   const [actif, setActif] = useState<number | null>(null);
+  const [largeurMesuree, setLargeurMesuree] = useState<number | null>(null);
   const clipId = useId();
+
+  // Réf de rappel avec nettoyage (React 19) : le conteneur n'existe qu'une fois des points
+  // arrivés, un effet monté sur l'état vide n'aurait jamais rien observé.
+  const mesurer = (element: HTMLDivElement | null) => {
+    if (!element || typeof ResizeObserver === 'undefined') return;
+    const observateur = new ResizeObserver(([entree]) => {
+      const largeur = Math.round(entree.contentRect.width);
+      if (largeur > 0) setLargeurMesuree(largeur);
+    });
+    observateur.observe(element);
+    return () => observateur.disconnect();
+  };
 
   // TCK-364 — la locale ACTIVE, jamais 'fr-FR' : ce composant est né après le relevé de
   // TCK-364, dans un répertoire que son grep ne couvrait pas. Gardé par check-locale-figee.mjs.
@@ -120,6 +143,8 @@ export function TimeSeriesChart({
    * positionnel, deux longueurs différentes le décalent d'un cran, en silence.
    */
   const comparaison = comparison && comparison.points.length >= points.length ? comparison : null;
+  const VIEW_W = Math.max(VIEW_W_MIN, largeurMesuree ?? VIEW_W_AVANT_MESURE);
+  const INNER_W = VIEW_W - PADDING.left - PADDING.right;
   const echelle = echelleDomaine([
     ...points.map((p) => p.value),
     ...(comparaison?.points.map((p) => p.value) ?? []),
@@ -155,7 +180,8 @@ export function TimeSeriesChart({
     return { valeur, y: yPour(valeur) };
   });
 
-  const pasEtiquettes = Math.ceil(points.length / MAX_X_LABELS);
+  const maxEtiquettes = Math.max(2, Math.min(MAX_X_LABELS, Math.floor(INNER_W / LARGEUR_ETIQUETTE_X)));
+  const pasEtiquettes = Math.ceil(points.length / maxEtiquettes);
   const pointActif = actif === null ? null : points[actif];
   const comparaisonActive = actif === null ? null : comparaison?.points[actif] ?? null;
 
@@ -187,10 +213,10 @@ export function TimeSeriesChart({
 
   return (
     <figure className={cn('space-y-2', className)} data-testid="timeseries-chart">
-      <div className="relative">
+      <div ref={mesurer} className="relative">
         <svg
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-          className="h-72 w-full"
+          className="block h-70 w-full"
           role="img"
           aria-label={description}
         >
@@ -215,7 +241,7 @@ export function TimeSeriesChart({
                 x={PADDING.left - 8}
                 y={g.y + 3.5}
                 textAnchor="end"
-                className="fill-muted-foreground text-[10px] tabular-nums"
+                className="fill-muted-foreground text-[11px] tabular-nums"
               >
                 {format(g.valeur)}
               </text>
@@ -238,7 +264,7 @@ export function TimeSeriesChart({
                 x={xPour(i)}
                 y={VIEW_H - 12}
                 textAnchor="middle"
-                className="fill-muted-foreground text-[10px] tabular-nums"
+                className="fill-muted-foreground text-[11px] tabular-nums"
               >
                 {etiquette(p)}
               </text>

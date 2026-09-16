@@ -65,11 +65,14 @@ import type { AdminAgencyDetail } from '@/types/super-admin';
 
 import { AgencyModerationActionsMenu } from '../agency-detail';
 
+// `inactive` + vérifiée : le seul état où le bandeau propose ses TROIS transitions (une agence
+// active et vérifiée n'offre plus « Vérifier », revue design du 2026-09-16) — et ce test doit
+// mesurer les trois variantes de bouton.
 const AGENCE = {
   id: 5,
   name: 'Dakar Immo',
   slug: 'dakar-immo',
-  status: 'active',
+  status: 'inactive',
   is_verified: true,
   verified_at: '2026-05-01T10:00:00+00:00',
   primary_admin_id: 4,
@@ -260,8 +263,8 @@ describe('bandeau « Actions de modération » — encre héritée sur fond repe
     expect(deverifier, "le bouton `outline` n'est plus dans le bandeau : le détecteur mesure du vide")
       .toBeDefined();
     // Et c'est bien CELUI que TCK-471 a trouvé invisible — pas un autre `outline` qui aurait pris
-    // sa place. Le libellé s'écrit sans accent sur le premier « e » ; il vient de `fr.json`.
-    expect(deverifier!.textContent).toContain('Déverifier');
+    // sa place. Le libellé vient de `fr.json` (accent corrigé le 2026-09-16).
+    expect(deverifier!.textContent).toContain('Dévérifier');
     expect(couples.some((c) => c.balise === 'button'), 'aucun bouton apparié').toBe(true);
 
     // `--destructive` est un trou DÉCLARÉ, pas un oubli : il doit rester le seul.

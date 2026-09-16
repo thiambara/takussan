@@ -28,7 +28,6 @@ import {
 } from '@/lib/queries/super-admin';
 import type { AdminPropertyRow } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
-import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
 // TCK-472 (intégration) — cette table était recopiée ici, et il lui manquait SIX clés :
 // `published`, `pending`, `pending_review` et `rejected` retombaient sur `neutral`. Un bien
 // rejeté s'affichait donc en gris dans la table super-admin, quand le reste du produit le
@@ -53,6 +52,11 @@ interface SuperAdminPropertiesTableProps {
 export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminPropertiesTableProps) {
   const t = useTranslations('superAdmin.properties.table');
   const tCommon = useTranslations('common');
+  // Le type et le statut s'affichaient en code brut (« apartment », « Rented ») : on passe par les
+  // dictionnaires du bien, avec repli sur le code pour une valeur que le front ne connaît pas.
+  const tTypes = useTranslations('property.types');
+  const tStatuts = useTranslations('property.status');
+  const tPeriodes = useTranslations('property.rentPeriodsShort');
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const router = useRouter();
@@ -155,6 +159,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
           <input
             id="select-all"
             type="checkbox"
+            className="size-4 accent-primary"
             checked={allSelected}
             ref={(el) => {
               if (el) el.indeterminate = someSelected;
@@ -167,6 +172,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       cell: (row) => (
         <input
           type="checkbox"
+          className="size-4 accent-primary"
           checked={selected.has(row.id)}
           onChange={() => toggleOne(row.id)}
           aria-label={t('selectRowAria', { title: row.title })}
@@ -180,7 +186,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
         <>
           <Link
             href={`/properties/${row.slug}`}
-            className="block max-w-xs truncate font-semibold text-foreground hover:text-primary"
+            className="block max-w-xs truncate rounded-sm font-semibold text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {row.title}
           </Link>
@@ -188,21 +194,26 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
         </>
       ),
     },
-    { id: 'agency', header: t('colAgency'), cell: (row) => row.agency?.name ?? '—' },
-    { id: 'city', header: t('colCity'), cell: (row) => row.location.city ?? '—' },
-    { id: 'type', header: t('colType'), cell: (row) => row.type ?? '—' },
+    { id: 'agency', header: t('colAgency'), className: 'min-w-32', cell: (row) => row.agency?.name ?? '—' },
+    { id: 'city', header: t('colCity'), className: 'whitespace-nowrap', cell: (row) => row.location.city ?? '—' },
+    {
+      id: 'type',
+      header: t('colType'),
+      className: 'whitespace-nowrap',
+      cell: (row) => (row.type ? (tTypes.has(row.type) ? tTypes(row.type) : row.type) : '—'),
+    },
     {
       id: 'price',
       header: t('colPrice'),
       sortKey: 'price',
       sortLabel: t('sortByAria', { label: t('colPrice') }),
-      className: 'tabular-nums',
+      className: 'whitespace-nowrap tabular-nums',
       cell: (row) => (
         <>
           {fmt.montant(row.price, row.currency)}
           {row.contract_type === 'rent' && row.rent_period ? (
             <span className="ml-0.5 text-xs font-medium text-muted-foreground">
-              /{RENT_PERIOD_SHORT[row.rent_period]}
+              /{tPeriodes(row.rent_period)}
             </span>
           ) : null}
         </>
@@ -213,7 +224,10 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       header: t('colStatus'),
       cell: (row) =>
         row.status ? (
-          <StatusBadge tone={PROPERTY_STATUS_TONE[row.status] ?? 'neutral'} label={row.status_label ?? row.status} />
+          <StatusBadge
+            tone={PROPERTY_STATUS_TONE[row.status] ?? 'neutral'}
+            label={tStatuts.has(row.status) ? tStatuts(row.status) : (row.status_label ?? row.status)}
+          />
         ) : (
           <span className="text-muted-foreground">—</span>
         ),
@@ -223,7 +237,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       header: t('colPublication'),
       sortKey: 'published_at',
       sortLabel: t('sortByAria', { label: t('colPublication') }),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (row) => fmt.date(row.published_at, DATE_COURTE),
     },
     {
@@ -231,7 +245,7 @@ export function SuperAdminPropertiesTable({ rows, total, onChange }: SuperAdminP
       header: t('colUpdated'),
       sortKey: 'created_at',
       sortLabel: t('sortByAria', { label: t('colUpdated') }),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (row) => fmt.date(row.created_at, DATE_COURTE),
     },
     {

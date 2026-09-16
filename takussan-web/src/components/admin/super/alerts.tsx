@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Send, Settings2, Trash2 } from 'lucide-react';
+import { ConfirmActionDialog } from './ConfirmActionDialog';
 import { DataTable, type DataTableColumn } from '@/components/console';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -33,10 +34,16 @@ export function AlertRuleTable({ rules, catalogue }: { rules: AlertRule[]; catal
   const t = useTranslations('superAdmin.alerts');
   const tCommon = useTranslations('common');
   const [editing, setEditing] = useState<AlertRule | null>(null);
+  // La suppression partait au premier clic : une règle d'alerte perdue ne se voit que le jour où
+  // l'alerte aurait dû partir. Même double confirmation que les autres actions de la console.
+  const [deleting, setDeleting] = useState<AlertRule | null>(null);
   const queryClient = useQueryClient();
   const remove = useMutation({
     mutationFn: deleteAlertRule,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['super-admin', 'alert-rules'] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['super-admin', 'alert-rules'] });
+      setDeleting(null);
+    },
   });
 
   const columns: DataTableColumn<AlertRule>[] = [
@@ -59,20 +66,20 @@ export function AlertRuleTable({ rules, catalogue }: { rules: AlertRule[]; catal
         </div>
       ),
     },
-    { id: 'failures', header: t('colFailures'), cell: (rule) => rule.failure_count },
+    { id: 'failures', header: t('colFailures'), className: 'tabular-nums', cell: (rule) => rule.failure_count },
     {
       id: 'actions',
       header: t('colActions'),
       headerSrOnly: true,
       align: 'end',
       cell: (rule) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <AlertTestButton ruleId={rule.id} />
           <Button type="button" variant="outline" onClick={() => setEditing(rule)}>
             <Settings2 className="size-4" aria-hidden="true" />
             {t('edit')}
           </Button>
-          <Button type="button" variant="ghost" onClick={() => remove.mutate(rule.id)}>
+          <Button type="button" variant="ghost" onClick={() => setDeleting(rule)} disabled={remove.isPending}>
             <Trash2 className="size-4" aria-hidden="true" />
             {tCommon('actions.delete')}
           </Button>
@@ -88,6 +95,17 @@ export function AlertRuleTable({ rules, catalogue }: { rules: AlertRule[]; catal
         columns={columns}
         rows={rules}
         rowKey={(rule) => rule.id}
+      />
+      <ConfirmActionDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={t('deleteTitle')}
+        description={deleting ? `${deleting.label} — ${t('deleteDescription')}` : t('deleteDescription')}
+        confirmPhrase="SUPPRIMER"
+        confirmLabel={tCommon('actions.delete')}
+        destructive
+        pending={remove.isPending}
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
       />
       <AlertRuleDialog key={editing?.id ?? 'none'} rule={editing} catalogue={catalogue} open={editing !== null} onOpenChange={(open) => !open && setEditing(null)} />
     </section>
@@ -163,7 +181,7 @@ export function AlertRuleDialog({
             <Input id="alert-webhooks" value={webhooks} onChange={(e) => setWebhooks(e.target.value)} placeholder={WEBHOOK_PLACEHOLDER} />
           </label>
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>{tCommon('actions.cancel')}</Button>
           <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}>

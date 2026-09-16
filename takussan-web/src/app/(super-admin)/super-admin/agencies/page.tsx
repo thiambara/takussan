@@ -131,7 +131,7 @@ export default function SuperAdminAgenciesPage() {
         data-testid="super-admin-agencies-filters"
         // TCK-390 — six contrôles depuis l'ajout du filtre de vérification : deux rangées de
         // trois lisent mieux qu'une rangée de six écrasée.
-        controlsClassName="md:grid-cols-2 xl:grid-cols-3"
+        controlsClassName="md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
         resultCount={data ? tFiltres('results', { count: data.meta.total }) : undefined}
         onReset={reinitialiser}
         resetLabel={tFiltres('reset')}
@@ -145,7 +145,7 @@ export default function SuperAdminAgenciesPage() {
           }}
           items={statusOptions}
         >
-          <SelectTrigger aria-label={tPage('statusAria')} className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('statusAria')} className="data-[size=default]:h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -165,7 +165,7 @@ export default function SuperAdminAgenciesPage() {
           }}
           items={verificationOptions}
         >
-          <SelectTrigger aria-label={tPage('verificationAria')} className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('verificationAria')} className="data-[size=default]:h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -195,6 +195,8 @@ export default function SuperAdminAgenciesPage() {
             setPage(1);
           }}
           aria-label={tPage('createdFromAria')}
+          // Deux champs « Choisir une date » côte à côte ne se distinguaient qu'au lecteur d'écran.
+          placeholder={tPage('createdFromAria')}
           buttonClassName="h-10 w-full"
         />
         <DatePicker
@@ -204,6 +206,7 @@ export default function SuperAdminAgenciesPage() {
             setPage(1);
           }}
           aria-label={tPage('createdToAria')}
+          placeholder={tPage('createdToAria')}
           buttonClassName="h-10 w-full"
         />
 
@@ -215,7 +218,7 @@ export default function SuperAdminAgenciesPage() {
           }}
           items={sortOptions}
         >
-          <SelectTrigger aria-label={tPage('sortAria')} className="h-10 w-full">
+          <SelectTrigger aria-label={tPage('sortAria')} className="data-[size=default]:h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -229,7 +232,7 @@ export default function SuperAdminAgenciesPage() {
       </FilterBar>
 
       {isLoading ? (
-        <div className="grid gap-3 sm:grid-cols-2" data-testid="agencies-loading">
+        <div className="grid gap-3 lg:grid-cols-2" data-testid="agencies-loading">
           {Array.from({ length: 4 }).map((_, i) => (
             <div
               key={i}
@@ -248,7 +251,9 @@ export default function SuperAdminAgenciesPage() {
         />
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2">
+          {/* Deux colonnes dès `lg` : à 768 la barre latérale laisse 464 px, deux cartes de 226 px
+              tronquaient nom, email et dates (TCK-505). */}
+          <div className="grid gap-3 lg:grid-cols-2">
             {data.data.map((agency) => (
               <AgencyModerationCard key={agency.id} agency={agency} />
             ))}

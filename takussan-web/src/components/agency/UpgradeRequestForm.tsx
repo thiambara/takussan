@@ -199,7 +199,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-6 rounded-2xl border border-border bg-card p-6 shadow-sm"
+      className="space-y-6 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
       aria-label={t('aria_label')}
       noValidate
     >
@@ -212,9 +212,10 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
             value={form.rc ?? ''}
             onChange={(e) => update('rc', e.target.value)}
             aria-invalid={!!fieldError('rc')}
+            aria-describedby={fieldError('rc') ? 'upgrade-rc-error' : undefined}
           />
           {fieldError('rc') ? (
-            <p className="text-xs text-destructive">{fieldError('rc')}</p>
+            <p id="upgrade-rc-error" className="text-xs text-destructive">{fieldError('rc')}</p>
           ) : null}
         </div>
 
@@ -226,9 +227,10 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
             value={form.ninea ?? ''}
             onChange={(e) => update('ninea', e.target.value)}
             aria-invalid={!!fieldError('ninea')}
+            aria-describedby={fieldError('ninea') ? 'upgrade-ninea-error' : undefined}
           />
           {fieldError('ninea') ? (
-            <p className="text-xs text-destructive">{fieldError('ninea')}</p>
+            <p id="upgrade-ninea-error" className="text-xs text-destructive">{fieldError('ninea')}</p>
           ) : null}
         </div>
       </div>
@@ -241,9 +243,10 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
           value={form.rib_pro ?? ''}
           onChange={(e) => update('rib_pro', e.target.value)}
           aria-invalid={!!fieldError('rib_pro')}
+          aria-describedby={fieldError('rib_pro') ? 'upgrade-rib_pro-error' : undefined}
         />
         {fieldError('rib_pro') ? (
-          <p className="text-xs text-destructive">{fieldError('rib_pro')}</p>
+          <p id="upgrade-rib_pro-error" className="text-xs text-destructive">{fieldError('rib_pro')}</p>
         ) : null}
       </div>
 
@@ -257,9 +260,10 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
           value={form.company_legal_name ?? ''}
           onChange={(e) => update('company_legal_name', e.target.value)}
           aria-invalid={!!fieldError('company_legal_name')}
+          aria-describedby={fieldError('company_legal_name') ? 'upgrade-company_legal_name-error' : undefined}
         />
         {fieldError('company_legal_name') ? (
-          <p className="text-xs text-destructive">{fieldError('company_legal_name')}</p>
+          <p id="upgrade-company_legal_name-error" className="text-xs text-destructive">{fieldError('company_legal_name')}</p>
         ) : null}
       </div>
 
@@ -271,9 +275,10 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
           value={form.address_fiscale ?? ''}
           onChange={(e) => update('address_fiscale', e.target.value)}
           aria-invalid={!!fieldError('address_fiscale')}
+          aria-describedby={fieldError('address_fiscale') ? 'upgrade-address_fiscale-error' : undefined}
         />
         {fieldError('address_fiscale') ? (
-          <p className="text-xs text-destructive">{fieldError('address_fiscale')}</p>
+          <p id="upgrade-address_fiscale-error" className="text-xs text-destructive">{fieldError('address_fiscale')}</p>
         ) : null}
       </div>
 
@@ -294,12 +299,13 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
             )
           }
           aria-invalid={!!fieldError('planned_agents_count')}
+          aria-describedby={fieldError('planned_agents_count') ? 'upgrade-planned_agents_count-error' : undefined}
         />
         <p className="text-xs text-muted-foreground">
           {t('hints.planned_agents_count')}
         </p>
         {fieldError('planned_agents_count') ? (
-          <p className="text-xs text-destructive">
+          <p id="upgrade-planned_agents_count-error" className="text-xs text-destructive">
             {fieldError('planned_agents_count')}
           </p>
         ) : null}
@@ -315,6 +321,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
           accept={ACCEPT_MIME}
           onChange={handleFileChange}
           aria-invalid={!!fieldError('statuts_doc')}
+          aria-describedby={fieldError('statuts_doc') ? 'upgrade-statuts_doc-error' : undefined}
         />
         <p className="text-xs text-muted-foreground">{t('hints.statuts_doc')}</p>
         {statutsDoc ? (
@@ -323,7 +330,7 @@ export function UpgradeRequestForm({ agencyId }: UpgradeRequestFormProps) {
           </p>
         ) : null}
         {fieldError('statuts_doc') ? (
-          <p className="text-xs text-destructive">{fieldError('statuts_doc')}</p>
+          <p id="upgrade-statuts_doc-error" className="text-xs text-destructive">{fieldError('statuts_doc')}</p>
         ) : null}
       </div>
 

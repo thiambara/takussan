@@ -128,6 +128,11 @@ export function AdminUsersTable({
       header: t('table.member'),
       sortKey: 'first_name',
       sortLabel: t('table.member'),
+      // `align-middle` sur TOUTES les colonnes : l'avatar fixe la hauteur de ligne, et les
+      // cellules alignées en haut (défaut de `DataTable`) plaçaient l'e-mail, le statut et les
+      // dates 6 px au-dessus du nom. `whitespace-nowrap` : à 390 la table défile déjà dans son
+      // cadre, et les noms s'y cassaient sur trois lignes.
+      className: 'align-middle whitespace-nowrap',
       cell: (row) => (
         <button
           type="button"
@@ -151,7 +156,7 @@ export function AdminUsersTable({
     {
       id: 'email',
       header: t('table.email'),
-      className: 'text-muted-foreground',
+      className: 'align-middle whitespace-nowrap text-muted-foreground',
       cell: (row) => (
         <a
           href={`mailto:${row.email}`}
@@ -164,6 +169,7 @@ export function AdminUsersTable({
     {
       id: 'role',
       header: t('table.role'),
+      className: 'align-middle',
       cell: (row) => {
         // TCK-279 (AC11) — le nom de l'`AgencyRole` prime sur le TYPE de profil : deux agents
         // de la même agence peuvent porter « Agent » et « Agent senior », et c'est exactement
@@ -201,6 +207,7 @@ export function AdminUsersTable({
     {
       id: 'status',
       header: t('table.status'),
+      className: 'align-middle',
       cell: (row) => (
         <StatusBadge
           tone={STATUS_TONES[row.status] ?? 'neutral'}
@@ -213,7 +220,7 @@ export function AdminUsersTable({
       header: t('table.lastLogin'),
       sortKey: 'last_login_at',
       sortLabel: t('table.lastLogin'),
-      className: 'text-muted-foreground',
+      className: 'align-middle whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (row) => formatDate(row.last_login_at, locale),
     },
     {
@@ -221,7 +228,7 @@ export function AdminUsersTable({
       header: t('table.createdAt'),
       sortKey: 'created_at',
       sortLabel: t('table.createdAt'),
-      className: 'text-muted-foreground',
+      className: 'align-middle whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (row) => formatDate(row.created_at, locale),
     },
     {
@@ -229,6 +236,7 @@ export function AdminUsersTable({
       header: t('table.actions'),
       headerSrOnly: true,
       align: 'end',
+      className: 'align-middle',
       cell: (row) => {
         const isSelf = row.id === currentUserId;
         const isBlocked = row.status === 'banned';
@@ -296,7 +304,7 @@ export function AdminUsersTable({
         data-testid="admin-users-table"
         className="rounded-none ring-0"
       />
-      <p className="border-t border-muted px-4 py-2 text-xs text-muted-foreground">
+      <p className="border-t border-border px-4 py-2 text-xs tabular-nums text-muted-foreground">
         {t('table.count', { count: total, total: String(total) })}
       </p>
     </div>

@@ -8,10 +8,13 @@ import type { MaintenanceStatusResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader } from '@/components/console';
+import { ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SuperAdminMaintenancePage() {
   const t = useTranslations('superAdmin.pages.maintenance');
   const tShared = useTranslations('superAdmin.pages.shared');
+  const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
   const query = useQuery<MaintenanceStatusResponse, ApiError>({
     queryKey: ['super-admin', 'maintenance'],
@@ -27,11 +30,13 @@ export default function SuperAdminMaintenancePage() {
       />
 
       {query.isLoading ? (
-        <div className="h-64 animate-pulse rounded-xl bg-muted" />
+        <Skeleton className="h-64 rounded-xl" />
       ) : query.isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
-          {tShared('loadError')} {messageErreur(query.error)}
-        </div>
+        <ErrorState
+          message={`${tShared('loadError')} ${messageErreur(query.error)}`}
+          onRetry={() => void query.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : (
         <MaintenanceScheduler status={query.data!.data} />
       )}

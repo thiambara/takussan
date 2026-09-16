@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { FormError, FormGlobalError, FormSuccess } from '@/components/forms';
 import { renderSettingValue } from '@/lib/queries/settings';
+import { cn } from '@/lib/utils';
 import {
   parseSettingRawValue,
   settingScopeValues,
@@ -158,12 +159,13 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
     {
       id: 'key',
       header: t('columns.key'),
+      className: 'whitespace-nowrap',
       cell: (setting) => <span className="font-mono text-xs">{setting.key}</span>,
     },
     {
       id: 'scope',
       header: t('columns.scope'),
-      className: 'text-xs',
+      className: 'whitespace-nowrap text-xs',
       cell: (setting) => (
         <span className="rounded-full bg-muted px-2 py-0.5">{t(`scopes.${setting.scope}`)}</span>
       ),
@@ -171,7 +173,9 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
     {
       id: 'value',
       header: t('columns.value'),
-      className: 'text-xs',
+      // Un plancher de largeur : sans lui, à 390 la colonne tombait à ~40 px et le JSON s'y
+      // écrivait à raison de quatre caractères par ligne. La table défile dans son cadre.
+      className: 'min-w-64 text-xs',
       cell: (setting) => (
         <>
           {editingId === setting.id ? (
@@ -261,11 +265,15 @@ export function SettingsManager({ initialSettings, canManageGlobal }: SettingsMa
                 role="tab"
                 aria-selected={active}
                 onClick={() => setScopeFilter(opt)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                // Sélection en aplat DOUX : le filtre de portée portait le même terracotta plein
+                // que la navigation « Général / Intégrations » juste au-dessus et que le CTA à
+                // droite — trois pastilles pleines, trois rôles différents.
+                className={cn(
+                  'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
                   active
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-input text-muted-foreground hover:bg-muted'
-                }`}
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-input text-muted-foreground hover:bg-muted',
+                )}
               >
                 {t(`scopes.${opt}`)}
               </button>

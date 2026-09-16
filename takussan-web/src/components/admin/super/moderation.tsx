@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { WarningBanner } from '@/components/ui/warning-banner';
 import { postModerationDecision } from '@/lib/queries/super-admin';
 import type {
   AdminModerationItem,
@@ -106,7 +107,7 @@ export function ModerationFilters({ total }: { total?: number }) {
   return (
     <FilterBar
       data-testid="super-admin-moderation-filters"
-      controlsClassName="md:grid-cols-2 xl:grid-cols-4"
+      controlsClassName="md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4"
       resultCount={total === undefined ? undefined : tFiltres('results', { count: total })}
       onReset={reinitialiser}
       resetLabel={tFiltres('reset')}
@@ -135,11 +136,16 @@ export function ModerationFilters({ total }: { total?: number }) {
         options={STATUS_VALUES.map(({ value, key }) => ({ value, label: t(key) }))}
         onChange={(value) => updateParam('filter[status]', value)}
       />
-      <AgencyCombobox
-        value={currentAgency === ALL ? '' : currentAgency}
-        onChange={(next) => updateParam('filter[agency_id]', next || ALL)}
-        label={t('agency')}
-      />
+      {/* Même intitulé visible que les deux sélecteurs voisins : sans lui, le champ se posait
+          20 px plus haut qu'eux sur la même rangée. Le nom accessible reste l'`aria-label`. */}
+      <div className="min-w-40 text-xs font-medium text-muted-foreground">
+        <span className="mb-1 block" aria-hidden="true">{t('agency')}</span>
+        <AgencyCombobox
+          value={currentAgency === ALL ? '' : currentAgency}
+          onChange={(next) => updateParam('filter[agency_id]', next || ALL)}
+          label={t('agency')}
+        />
+      </div>
       <FilterSelect
         label={t('age')}
         value={currentSort}
@@ -165,10 +171,11 @@ export function ModerationQueueTable({
     {
       id: 'subject',
       header: t('colSubject'),
+      className: 'min-w-48',
       cell: (item) => (
         <>
           {item.subject ? (
-            <Link href={item.subject.href} className="font-medium text-foreground hover:text-primary">
+            <Link href={item.subject.href} className="rounded-sm font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               {item.subject.title}
             </Link>
           ) : (
@@ -192,7 +199,7 @@ export function ModerationQueueTable({
         </div>
       ),
     },
-    { id: 'agency', header: t('colAgency'), cell: (item) => item.agency?.name ?? t('noAgency') },
+    { id: 'agency', header: t('colAgency'), className: 'min-w-32', cell: (item) => item.agency?.name ?? t('noAgency') },
     {
       id: 'reporter',
       header: t('colReporter'),
@@ -214,7 +221,7 @@ export function ModerationQueueTable({
     {
       id: 'age',
       header: t('colAge'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (item) => formatAge(item.reported_at, t),
     },
     {
@@ -359,7 +366,7 @@ function FilterSelect({
     <label className="min-w-40 text-xs font-medium text-muted-foreground">
       <span className="mb-1 block">{label}</span>
       <Select value={value} onValueChange={(next) => onChange((next ?? ALL) as string)} items={options}>
-        <SelectTrigger className="w-full bg-card">
+        <SelectTrigger className="data-[size=default]:h-10 w-full bg-card">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -384,15 +391,19 @@ export function ModerationStats({ items, total }: { items: AdminModerationItem[]
   }, [items]);
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    // Trois tuiles sur une rangée dès le mobile : empilées, elles repoussaient la file de 300 px.
+    <div className="grid grid-cols-3 gap-3">
       <StatCard label={t('statTotalPage')} value={total} />
       <StatCard label={t('statProperties')} value={stats.properties} />
       <StatCard label={t('statReviews')} value={stats.reviews} />
       {stats.old > 0 ? (
-        <div className="rounded-xl bg-primary/10 px-4 py-3 text-sm text-primary ring-1 ring-primary/20 sm:col-span-3">
-          <AlertTriangle className="mr-2 inline size-4" aria-hidden="true" />
+        // Un retard est un AVERTISSEMENT : il portait la teinte terracotta de la marque.
+        <WarningBanner
+          className="col-span-3"
+          icon={<AlertTriangle className="size-4" aria-hidden="true" />}
+        >
           {t('staleWarning', { count: stats.old })}
-        </div>
+        </WarningBanner>
       ) : null}
     </div>
   );

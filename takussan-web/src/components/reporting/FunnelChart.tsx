@@ -14,6 +14,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { fetchAdminReportFunnel } from '@/lib/queries/super-admin';
 import type { ReportPeriod } from '@/types/super-admin';
+import { useFormatteurs } from '@/lib/format/useFormatteurs';
+
 import { ReportExportButton } from './ReportExportButton';
 
 /**
@@ -33,6 +35,7 @@ const PERIODS: readonly ReportPeriod[] = ['30d', '90d', '3m'];
 
 export function FunnelChart() {
   const t = useTranslations('reporting');
+  const fmt = useFormatteurs();
   const [period, setPeriod] = useState<ReportPeriod>('30d');
   const periodes = PERIODS.map((value) => ({ value, label: t(`periods.${value}`) }));
 
@@ -56,7 +59,7 @@ export function FunnelChart() {
             onValueChange={(value) => setPeriod((value ?? period) as ReportPeriod)}
             items={periodes as unknown as Array<{ value: string; label: string }>}
           >
-            <SelectTrigger className="h-9" aria-label={t('filters.periodAria')}>
+            <SelectTrigger className="data-[size=default]:h-9" aria-label={t('filters.periodAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -66,7 +69,7 @@ export function FunnelChart() {
             </SelectContent>
           </Select>
           <span className="text-xs text-muted-foreground">
-            {t('funnel.conversion')} <span className="font-semibold text-foreground">{conversion !== null && conversion !== undefined ? `${(Number(conversion) * 100).toFixed(1)}%` : '—'}</span>
+            {t('funnel.conversion')} <span className="font-semibold text-foreground tabular-nums">{conversion !== null && conversion !== undefined ? fmt.nombre(Number(conversion), { style: 'percent', maximumFractionDigits: 1 }) : '—'}</span>
           </span>
           <div className="ml-auto">
             <ReportExportButton report="funnel" params={{ period }} />

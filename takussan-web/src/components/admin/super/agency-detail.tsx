@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowUpRight,
   BadgeCheck,
   Ban,
@@ -19,7 +20,8 @@ import {
   ShieldOff,
   Users,
 } from 'lucide-react';
-import { StatCard, StatusBadge } from '@/components/console';
+import { StatCard, StatusBadge, type StatusTone } from '@/components/console';
+import { ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -96,6 +98,12 @@ const STATUS_KEY: Record<string, string> = {
   suspended: 'suspended',
 };
 
+const STATUS_TONES: Record<string, StatusTone> = {
+  active: 'success',
+  inactive: 'neutral',
+  suspended: 'danger',
+};
+
 export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
   const t = useTranslations('superAdmin.agencyDetail');
   const [activeTab, setActiveTab] = useState<Tab>('kyc');
@@ -128,7 +136,7 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-36 rounded-xl" />
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="h-24 rounded-xl" />
           ))}
@@ -139,11 +147,10 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
 
   if (detailQuery.isError || !detailQuery.data) {
     return (
-      <Card>
-        <CardContent className="p-6 text-sm text-destructive">
-          {t('loadError')}
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <BackToAgencies />
+        <ErrorState message={t('loadError')} />
+      </div>
     );
   }
 
@@ -152,16 +159,25 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
 
   return (
     <div className="space-y-6">
+      <BackToAgencies />
       <AgencyDetailHeader agency={agency} />
       <AgencyModerationActionsMenu agency={agency} />
       <AgencyHealthStrip health={health} loading={healthQuery.isLoading} />
 
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as Tab)} className="gap-6">
-        <TabsList variant="line" className="h-auto flex-wrap">
+        {/*
+          Ruban défilant plutôt que retour à la ligne : à 390, « Transactions » partait seul sur une
+          deuxième rangée. `flex-none` sur les onglets (le primitif les met en `flex-1`, qui les
+          écraserait au lieu de faire défiler) ; `pb-2` garde le soulignement actif hors de la coupe.
+        */}
+        <TabsList
+          variant="line"
+          className="w-full max-w-full flex-nowrap justify-start overflow-x-auto pb-2 group-data-horizontal/tabs:h-auto sm:w-fit"
+        >
           {TABS.map((entry) => {
             const Icon = entry.icon;
             return (
-              <TabsTrigger key={entry.id} value={entry.id}>
+              <TabsTrigger key={entry.id} value={entry.id} className="flex-none">
                 <Icon className="size-4" aria-hidden="true" />
                 {t(`tabs.${entry.id}`)}
               </TabsTrigger>
@@ -202,6 +218,20 @@ export function AgencyDetailPage({ agencyId }: { agencyId: number }) {
   );
 }
 
+/** Seul écran de profondeur 2 de la console sans chemin de retour (critique du 2026-08-26). */
+function BackToAgencies() {
+  const t = useTranslations('superAdmin.agencyDetail');
+  return (
+    <Link
+      href="/super-admin/agencies"
+      className="-my-2 inline-flex min-h-10 items-center gap-1 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <ArrowLeft className="size-4" aria-hidden="true" />
+      {t('backToList')}
+    </Link>
+  );
+}
+
 export function AgencyKycTab({ dossier, loading, agencyId }: { dossier?: KycDossier; loading: boolean; agencyId: number }) {
   const t = useTranslations('superAdmin.agencyDetail');
   if (loading) {
@@ -209,13 +239,7 @@ export function AgencyKycTab({ dossier, loading, agencyId }: { dossier?: KycDoss
   }
 
   if (!dossier) {
-    return (
-      <Card>
-        <CardContent className="p-6 text-sm text-destructive">
-          {t('kycLoadError')}
-        </CardContent>
-      </Card>
-    );
+    return <ErrorState message={t('kycLoadError')} />;
   }
 
   return (
@@ -252,28 +276,32 @@ export function AgencyDetailHeader({ agency }: { agency: AdminAgencyDetail }) {
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
               {t('crossTenant')}
             </p>
-            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="mt-1 text-balance font-display text-2xl font-bold tracking-tight text-foreground">
               {agency.name}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Badge variant="secondary">{statusKey ? tStatus(statusKey) : status}</Badge>
+              {/* Mêmes tons que la carte de la liste : l'agence active est verte ici ET là-bas. */}
+              <StatusBadge
+                tone={STATUS_TONES[status] ?? 'neutral'}
+                label={statusKey ? tStatus(statusKey) : status}
+              />
               {agency.is_verified ? (
                 <StatusBadge
-                  tone="success"
+                  tone="info"
                   icon={<BadgeCheck className="size-3" aria-hidden="true" />}
                   label={t('verified')}
                 />
               ) : (
                 <Badge variant="outline">{t('notVerified')}</Badge>
               )}
-              <span>{t('registeredOn', { date: fmt.date(agency.created_at) })}</span>
+              <span className="tabular-nums">{t('registeredOn', { date: fmt.date(agency.created_at) })}</span>
               {address ? <span>{address}</span> : null}
             </div>
           </div>
         </div>
         <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={agency.public_url}>
           {t('publicProfile')}
-          <ExternalLink className="ml-2 size-4" aria-hidden="true" />
+          <ExternalLink className="size-4" aria-hidden="true" />
         </Link>
       </div>
     </header>
@@ -295,6 +323,14 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
     },
   });
   const meta = pending ? actionMeta(t)[pending] : null;
+  // Mêmes règles que `AgencyModerationCard` : on ne propose que les transitions qui changent
+  // quelque chose. `verify` reste la voie de réactivation d'une agence vérifiée suspendue.
+  const status = agency.status ?? 'inactive';
+  const canVerify = !(agency.is_verified && status === 'active');
+  const canSuspend = status !== 'suspended';
+  // `unverify` passe AUSSI le statut à `inactive` (API) : il change quelque chose tant que
+  // l'agence est vérifiée OU pas encore inactive — c'est la seule voie vers `inactive`.
+  const canUnverify = agency.is_verified || status !== 'inactive';
 
   return (
     /*
@@ -327,21 +363,27 @@ export function AgencyModerationActionsMenu({ agency }: { agency: AdminAgencyDet
     <section className="dark flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background p-4 text-foreground">
       <div>
         <h2 className="font-display text-base font-semibold">{t('moderationTitle')}</h2>
-        <p className="text-sm text-foreground/70">{t('moderationSubtitle')}</p>
+        <p className="text-pretty text-sm text-foreground/70">{t('moderationSubtitle')}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => setPending('verify')} disabled={mutation.isPending}>
-          <CheckCircle2 className="mr-2 size-4" aria-hidden="true" />
-          {t('actions.verify.label')}
-        </Button>
-        <Button size="sm" variant="destructive" onClick={() => setPending('suspend')} disabled={mutation.isPending}>
-          <Ban className="mr-2 size-4" aria-hidden="true" />
-          {t('actions.suspend.label')}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setPending('unverify')} disabled={mutation.isPending}>
-          <ShieldOff className="mr-2 size-4" aria-hidden="true" />
-          {t('actions.unverify.label')}
-        </Button>
+        {canVerify ? (
+          <Button size="sm" onClick={() => setPending('verify')} disabled={mutation.isPending}>
+            <CheckCircle2 className="size-4" aria-hidden="true" />
+            {t('actions.verify.label')}
+          </Button>
+        ) : null}
+        {canSuspend ? (
+          <Button size="sm" variant="destructive" onClick={() => setPending('suspend')} disabled={mutation.isPending}>
+            <Ban className="size-4" aria-hidden="true" />
+            {t('actions.suspend.label')}
+          </Button>
+        ) : null}
+        {canUnverify ? (
+          <Button size="sm" variant="outline" onClick={() => setPending('unverify')} disabled={mutation.isPending}>
+            <ShieldOff className="size-4" aria-hidden="true" />
+            {t('actions.unverify.label')}
+          </Button>
+        ) : null}
       </div>
       {meta ? (
         <ConfirmActionDialog
@@ -373,7 +415,9 @@ export function AgencyHealthStrip({ health, loading }: { health?: AdminAgencyHea
   ];
 
   return (
-    <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+    // Trois colonnes au plus : à six, la tuile du revenu (« 181 623 872 F CFA ») se cassait
+    // même à 1366, et `md:` n'offre que 464 px dans la coque à barre latérale (TCK-505).
+    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => {
         const Icon = item.icon;
         return (
@@ -402,9 +446,9 @@ export function AgencyTeamTab({ members, loading }: { members: AdminAgencyTeamMe
         {!loading && members.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {members.map((member) => (
           <div key={member.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
-            <div>
-              <p className="font-medium text-foreground">{member.full_name || member.email}</p>
-              <p className="text-sm text-muted-foreground">{member.email}</p>
+            <div className="min-w-0">
+              <p className="truncate font-medium text-foreground">{member.full_name || member.email}</p>
+              <p className="truncate text-sm text-muted-foreground">{member.email}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {member.roles.map((role) => (
@@ -431,13 +475,13 @@ export function AgencyPropertiesTab({ properties, loading }: { properties: Admin
         {!loading && properties.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {properties.map((property) => (
           <div key={property.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
-            <div>
+            <div className="min-w-0">
               <p className="font-medium text-foreground">{property.title}</p>
               <p className="text-sm text-muted-foreground">
                 {property.reference_number} · {property.status_label ?? property.status ?? '—'}
               </p>
             </div>
-            <p className="font-semibold text-foreground">{fmt.montant(property.price, property.currency)}</p>
+            <p className="font-semibold tabular-nums text-foreground">{fmt.montant(property.price, property.currency)}</p>
           </div>
         ))}
       </CardContent>
@@ -453,9 +497,9 @@ export function AgencyTransactionsTab({ health, loading }: { health?: AdminAgenc
       <CardHeader>
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-3">
+      <CardContent className="grid gap-3 lg:grid-cols-3">
         {loading ? (
-          <Skeleton className="h-24 md:col-span-3" />
+          <Skeleton className="h-24 lg:col-span-3" />
         ) : (
           <>
             <StatCard label={t('count30d')} value={String(health?.transactions_30d ?? 0)} />
