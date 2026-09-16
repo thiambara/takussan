@@ -7,7 +7,8 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { OAuthButtons, OAuthSeparator } from '@/components/auth/OAuthButtons';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
+import { BASCULE_MOT_DE_PASSE, CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
 import { FormInput, FormGlobalError } from '@/components/forms';
 import { loginSchema, type LoginFormValues } from '@/lib/schemas';
 import { useApiForm } from '@/hooks/useApiForm';
@@ -16,6 +17,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useCurrentLocale } from '@/i18n/hooks';
 import { useTranslations } from 'next-intl';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+
+const OAUTH_ERRORS = ['oauth_invalid', 'oauth_failed', 'oauth_unknown'] as const;
 
 function LoginForm() {
   const t = useTranslations('auth.login');
@@ -30,6 +33,9 @@ function LoginForm() {
   const raw = searchParams.get('redirect') ?? '/app';
   const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/app';
   const passwordWasReset = searchParams.get('reset') === '1';
+  // Le callback OAuth renvoie ici sur `?error=…` : ce retour n'était LU par personne, et un
+  // échec Google ramenait sur un formulaire muet, comme si rien ne s'était passé.
+  const oauthError = OAUTH_ERRORS.find((code) => code === searchParams.get('error')) ?? null;
   const [showPassword, setShowPassword] = useState(false);
 
   // TCK-069 — 2FA challenge. When the first POST returns `requires_2fa`,
@@ -98,10 +104,10 @@ function LoginForm() {
   if (challenge) {
     return (
       <div>
-        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
           {t2fa('title')}
         </h1>
-        <p className="text-muted-foreground text-sm mb-8">
+        <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">
           {useRecovery ? t2fa('recoveryIntro') : t2fa('appIntro')}
         </p>
 
@@ -110,10 +116,10 @@ function LoginForm() {
         ) : null}
 
         <form onSubmit={handleChallengeSubmit} className="space-y-5">
-          <div className="space-y-1">
+          <div>
             <label
               htmlFor="two-factor-code"
-              className="block text-sm font-medium"
+              className="mb-1.5 block text-sm font-medium"
             >
               {useRecovery ? t2fa('recoveryLabel') : t2fa('codeLabel')}
             </label>
@@ -131,7 +137,7 @@ function LoginForm() {
               pattern={useRecovery ? undefined : '\\d{6}'}
               autoComplete="one-time-code"
               placeholder={useRecovery ? t2fa('recoveryPlaceholder') : t2fa('codePlaceholder')}
-              className="h-11"
+              className="h-11 tabular-nums tracking-widest"
               required
             />
           </div>
@@ -152,10 +158,10 @@ function LoginForm() {
           </Button>
         </form>
 
-        <div className="mt-6 flex items-center justify-between text-sm">
+        <div className="mt-4 flex items-center justify-between gap-2 text-sm">
           <button
             type="button"
-            className="text-primary hover:underline"
+            className="-ml-2 min-h-11 rounded-lg px-2 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             onClick={() => {
               setUseRecovery((v) => !v);
               setTwoFactorCode('');
@@ -166,7 +172,7 @@ function LoginForm() {
           </button>
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground"
+            className="-mr-2 min-h-11 rounded-lg px-2 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             onClick={() => {
               setChallenge(null);
               setTwoFactorCode('');
@@ -183,22 +189,23 @@ function LoginForm() {
 
   return (
     <div>
-      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
         {t('title')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">{t('subtitle')}</p>
+      <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('subtitle')}</p>
 
       {passwordWasReset ? (
         <div
           role="status"
-          className="mb-6 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700"
+          className="mb-6 rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
         >
           {t('resetSuccess')}
         </div>
       ) : null}
 
-      <OAuthButtons />
-      <OAuthSeparator />
+      {oauthError ? <FormGlobalError className="mb-6">{t(`oauthError.${oauthError}`)}</FormGlobalError> : null}
+
+      <OAuthButtons separator="after" />
 
       <FormGlobalError>{globalError}</FormGlobalError>
 
@@ -222,7 +229,7 @@ function LoginForm() {
             </label>
             <Link
               href="/auth/forgot-password"
-              className="text-xs text-primary hover:underline font-medium"
+              className={`${CIBLE_LIEN_EN_LIGNE} text-sm font-medium text-primary underline-offset-4 hover:underline`}
             >
               {t('forgotPassword')}
             </Link>
@@ -233,14 +240,13 @@ function LoginForm() {
             id="field-password"
             type={showPassword ? 'text' : 'password'}
             autoComplete="current-password"
-            placeholder="........"
-            className="h-11 pr-10"
+            className="h-11 pr-12"
             required
             trailing={
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="pr-1 text-muted-foreground hover:text-foreground"
+                className={BASCULE_MOT_DE_PASSE}
                 aria-label={showPassword ? t('hidePassword') : t('showPassword')}
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -267,7 +273,10 @@ function LoginForm() {
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         {t('noAccount')}{' '}
-        <Link href="/auth/register" className="text-primary font-semibold hover:underline">
+        <Link
+          href="/auth/register"
+          className={`${CIBLE_LIEN_EN_LIGNE} font-semibold text-primary underline-offset-4 hover:underline`}
+        >
           {t('registerCta')}
         </Link>
       </p>

@@ -128,7 +128,7 @@ export function AnonymousLeadDialog({
         <form onSubmit={handleSubmit} className="space-y-3" noValidate>
           <div>
             <label
-              className="mb-1 block text-xs font-semibold text-stone-700"
+              className="mb-1 block text-xs font-semibold text-foreground"
               htmlFor={`${idPrefix}-name`}
             >
               {t('name')}
@@ -140,11 +140,11 @@ export function AnonymousLeadDialog({
               autoComplete="name"
               required
             />
-            {errors.name && <p className="mt-1 text-xs text-red-600">{errors.name}</p>}
+            {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
           </div>
           <div>
             <label
-              className="mb-1 block text-xs font-semibold text-stone-700"
+              className="mb-1 block text-xs font-semibold text-foreground"
               htmlFor={`${idPrefix}-email`}
             >
               {t('email')}
@@ -157,11 +157,11 @@ export function AnonymousLeadDialog({
               autoComplete="email"
               required
             />
-            {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
+            {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
           </div>
           <div>
             <label
-              className="mb-1 block text-xs font-semibold text-stone-700"
+              className="mb-1 block text-xs font-semibold text-foreground"
               htmlFor={`${idPrefix}-phone`}
             >
               {t('phone')}
@@ -176,7 +176,7 @@ export function AnonymousLeadDialog({
           </div>
           <div>
             <label
-              className="mb-1 block text-xs font-semibold text-stone-700"
+              className="mb-1 block text-xs font-semibold text-foreground"
               htmlFor={`${idPrefix}-message`}
             >
               {t('message')}
@@ -189,7 +189,7 @@ export function AnonymousLeadDialog({
               placeholder={t('messagePlaceholder')}
               required
             />
-            {errors.message && <p className="mt-1 text-xs text-red-600">{errors.message}</p>}
+            {errors.message && <p className="mt-1 text-xs text-destructive">{errors.message}</p>}
           </div>
           {/* Pot de miel — hors écran et `aria-hidden`, jamais `display:none` : un robot évite ce
               que le CSS cache complètement. */}

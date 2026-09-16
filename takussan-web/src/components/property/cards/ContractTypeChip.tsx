@@ -59,8 +59,8 @@ export function ContractTypeChip({ type, compact = false, className }: ContractT
   const t = useTranslations('property.contractTypes');
   const isSale = type === 'sale';
   const sizing = compact
-    ? 'px-2 py-0.5 text-[10px] gap-1'
-    : 'px-2.5 py-1 text-[11px] gap-1.5';
+    ? 'px-1.5 py-0.5 text-xs gap-1'
+    : 'px-2.5 py-1 text-xs gap-1.5';
 
   // `max-w-full` + libellé `truncate` : dernier recours quand la place manque même pour UNE
   // pastille — elle se tronque au lieu de passer sous le cœur de la carte.

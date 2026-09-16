@@ -51,8 +51,12 @@ export function FormCheckbox<TFieldValues extends FieldValues>({
           <div className={cn('w-full', containerClassName)}>
             <label
               htmlFor={inputId}
+              // Revue design 2026-09-16 — la case mesure 16 px, et c'était la cible entière. Le
+              // LIBELLÉ est la cible (`htmlFor`) : `py-3` lui donne au moins 44 px de haut, et
+              // les marges négatives rendent ce gain à la mise en page — la case garde sa taille
+              // et les formulaires ne bougent pas. L'anneau suit le focus clavier de la case.
               className={cn(
-                'flex cursor-pointer items-start gap-3 text-sm',
+                '-mx-2 -my-3 flex cursor-pointer items-start gap-3 rounded-lg px-2 py-3 text-sm has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50',
                 disabled && 'cursor-not-allowed opacity-60',
               )}
             >
@@ -68,9 +72,9 @@ export function FormCheckbox<TFieldValues extends FieldValues>({
                 aria-invalid={hasError || undefined}
                 aria-describedby={hasError ? errorId : undefined}
                 aria-required={required || undefined}
-                className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary"
+                className="mt-0.5 size-4 shrink-0 rounded border-border accent-primary focus-visible:outline-none"
               />
-              <span className="text-muted-foreground">{label}</span>
+              <span className="text-pretty text-muted-foreground">{label}</span>
             </label>
             <FormError id={errorId}>{fieldState.error?.message}</FormError>
           </div>

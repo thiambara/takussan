@@ -8,6 +8,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Download, Loader2 } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { buildExportUrl, type ExportEntity, type ExportFormat } from '@/lib/queries/exports';
 import { useTranslations } from 'next-intl';
@@ -16,18 +19,7 @@ type Props = {
   canExportCustomers: boolean;
 };
 
-const ENTITY_LABELS: Record<ExportEntity, string> = {
-  payments: 'Paiements',
-  leases: 'Baux',
-  customers: 'Clients',
-  properties: 'Biens',
-};
-
-const FORMAT_OPTIONS: ReadonlyArray<{ value: ExportFormat; label: string }> = [
-  { value: 'csv', label: 'CSV' },
-  { value: 'xlsx', label: 'Excel (xlsx)' },
-  { value: 'pdf', label: 'PDF' },
-];
+const FORMATS: readonly ExportFormat[] = ['csv', 'xlsx', 'pdf'];
 
 export function ExportForm({ canExportCustomers }: Props) {
   const t = useTranslations('dashboard.exports');
@@ -56,6 +48,9 @@ export function ExportForm({ canExportCustomers }: Props) {
   const entities: ExportEntity[] = canExportCustomers
     ? ['payments', 'leases', 'customers', 'properties']
     : ['payments', 'leases', 'properties'];
+  // Libellés du dictionnaire : la table française en dur s'affichait telle quelle en anglais.
+  const entityItems = entities.map((e) => ({ value: e, label: t(`entities.${e}`) }));
+  const formatItems = FORMATS.map((f) => ({ value: f, label: t(`formats.${f}`) }));
 
   return (
     <section className="max-w-xl space-y-4 rounded-2xl bg-card p-6">
@@ -65,15 +60,15 @@ export function ExportForm({ canExportCustomers }: Props) {
           <Select
             value={entity}
             onValueChange={(value) => setEntity((value ?? 'payments') as ExportEntity)}
-            items={entities.map((e) => ({ value: e, label: ENTITY_LABELS[e] }))}
+            items={entityItems}
           >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {entities.map((e) => (
-                <SelectItem key={e} value={e}>
-                  {ENTITY_LABELS[e]}
+              {entityItems.map((e) => (
+                <SelectItem key={e.value} value={e.value}>
+                  {e.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -84,13 +79,13 @@ export function ExportForm({ canExportCustomers }: Props) {
           <Select
             value={format}
             onValueChange={(value) => setFormat((value ?? 'csv') as ExportFormat)}
-            items={FORMAT_OPTIONS}
+            items={formatItems}
           >
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {FORMAT_OPTIONS.map((opt) => (
+              {formatItems.map((opt) => (
                 <SelectItem key={opt.value} value={opt.value}>
                   {opt.label}
                 </SelectItem>
@@ -107,15 +102,14 @@ export function ExportForm({ canExportCustomers }: Props) {
           <DatePicker value={to} onValueChange={setTo} />
         </label>
       </div>
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={isPending}
-        className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-foreground/90 disabled:opacity-60"
-      >
+      {/* Le bouton principal du produit (`bg-primary`), plus un aplat sombre fait main. */}
+      <Button type="button" onClick={handleDownload} disabled={isPending}>
+        {isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Download aria-hidden="true" />}
         {isPending ? t('downloading') : t('download')}
-      </button>
-      <p className="text-xs text-muted-foreground">{t('scopeNoticeFull')}</p>
+      </Button>
+      {/* `scopeNotice` et non `scopeNoticeFull` : cette page est ouverte à l'agence, au bailleur
+          et à l'AGENT (`layout.tsx`), jamais au locataire que la version longue nommait. */}
+      <p className="text-xs text-pretty text-muted-foreground">{t('scopeNotice')}</p>
     </section>
   );
 }

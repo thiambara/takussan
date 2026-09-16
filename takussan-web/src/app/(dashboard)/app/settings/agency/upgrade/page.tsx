@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
+import { Check } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { getToken } from '@/lib/session';
@@ -7,6 +8,7 @@ import { resolveAgencyOrNull } from '@/lib/access/server-guards';
 import { fetchAgencyUpgradeRequests } from '@/lib/queries/agency-upgrade';
 import { UpgradeRequestForm } from '@/components/agency/UpgradeRequestForm';
 import { UpgradeRequestStatus } from '@/components/agency/UpgradeRequestStatus';
+import { PageHeader } from '@/components/console';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('dashboard.pages.upgrade');
@@ -66,21 +68,18 @@ export default async function Page() {
 
   // Already standard — surface a calm confirmation message instead of
   // redirecting (the link still works from notifications / banners).
+  // ⚠ Un `<div>`, pas un `<main>` : `AppShell` rend déjà le repère principal, et son
+  // rembourrage aussi — le `p-6 mx-auto` d'ici décalait le titre de 171 px à 1366 et rognait
+  // 48 px de plus à 360.
   if (agency.kind === 'standard') {
     return (
-      <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-        <header className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            {t('eyebrow')}
-          </p>
-          <h1 className="font-display text-3xl tracking-tight text-foreground">
-            {t('already_standard.title')}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {t('already_standard.body')}
-          </p>
-        </header>
-      </main>
+      <div className="max-w-3xl">
+        <PageHeader
+          eyebrow={t('eyebrow')}
+          title={t('already_standard.title')}
+          description={<span className="text-pretty">{t('already_standard.body')}</span>}
+        />
+      </div>
     );
   }
 
@@ -90,30 +89,29 @@ export default async function Page() {
   const latest = pending ?? listing.data[0] ?? null;
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          {t('eyebrow')}
-        </p>
-        <h1 className="font-display text-3xl tracking-tight text-foreground">
-          {t('title')}
-        </h1>
-        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-      </header>
+    <div className="max-w-3xl space-y-6">
+      <PageHeader
+        eyebrow={t('eyebrow')}
+        title={t('title')}
+        description={<span className="text-pretty">{t('subtitle')}</span>}
+      />
 
       <section
         aria-label={t('benefits.aria_label')}
-        className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+        className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
       >
         <h2 className="text-base font-semibold text-foreground">
           {t('benefits.title')}
         </h2>
         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li>• {t('benefits.items.team')}</li>
-          <li>• {t('benefits.items.multi_admin')}</li>
-          <li>• {t('benefits.items.custom_roles')}</li>
+          {(['team', 'multi_admin', 'custom_roles'] as const).map((cle) => (
+            <li key={cle} className="flex gap-2">
+              <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+              <span className="text-pretty">{t(`benefits.items.${cle}`)}</span>
+            </li>
+          ))}
         </ul>
-        <p className="mt-4 text-xs uppercase tracking-wider text-muted-foreground">
+        <p className="mt-4 text-xs text-pretty text-muted-foreground">
           {t('benefits.sla')}
         </p>
       </section>
@@ -126,6 +124,6 @@ export default async function Page() {
           must revoke the current one first (also enforced server-side
           with a 422). */}
       {!pending ? <UpgradeRequestForm agencyId={agencyId} /> : null}
-    </main>
+    </div>
   );
 }

@@ -179,8 +179,14 @@ export function DataTable<Row>({
           ))}
           {rows.length === 0 && emptyState ? (
             <TableRow className="hover:bg-transparent">
-              {/* `p-0` est délibéré : l'état vide apporte son propre cadre et son propre padding. */}
-              <TableCell colSpan={columns.length} className="p-0">
+              {/* `p-0` est délibéré : l'état vide apporte son propre padding. Son CADRE, lui, est
+                  retiré (`*:border-0 *:rounded-none *:bg-transparent`) : la table est déjà une
+                  carte, et l'`EmptyState` pointillé dessinait une carte dans la carte (revue
+                  design 2026-09-16). Les en-têtes restent, cf. la prop `emptyState`. */}
+              <TableCell
+                colSpan={columns.length}
+                className="p-0 whitespace-normal *:rounded-none *:border-0 *:bg-transparent"
+              >
                 {emptyState}
               </TableCell>
             </TableRow>
@@ -233,7 +239,7 @@ function DataTableHeaderCell<Row>({
           //            `bg-muted/60` sur `--card` (#f7f4ec, le fond RÉEL de cet en-tête) 4,82:1
           //   sombre — `--card` #2a2018 4,83:1 · `--background` #1f1812 5,31:1
           //            `bg-muted/60` sur `--card` (#34281f) 4,32:1
-          className="inline-flex items-center gap-1 uppercase transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="-mx-1 -my-1 inline-flex items-center gap-1 rounded-sm px-1 py-1 uppercase transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           aria-label={column.sortLabel}
         >
           {column.header}

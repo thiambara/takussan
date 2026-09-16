@@ -42,7 +42,17 @@ import type { PropertyListItem } from '@/types/property';
  * to invalidate the RSC tree server-side without a full navigation.
  */
 
-export function PropertyRowActions({ property }: { property: PropertyListItem }) {
+interface PropertyRowActionsProps {
+  readonly property: PropertyListItem;
+  /**
+   * `row` : cellule de table (bureau). `card` : pied de carte (mobile et tablette) — les messages
+   * de retour y restent VISIBLES, sur leur propre ligne. En `row`, ils sont masqués sous `md`
+   * parce que la cellule n'a pas la place ; la carte, elle, n'a pas d'autre endroit où les dire.
+   */
+  readonly layout?: 'row' | 'card';
+}
+
+export function PropertyRowActions({ property, layout = 'row' }: PropertyRowActionsProps) {
   const t = useTranslations('property.dashboard.actions');
   const tStatus = useTranslations(PROPERTY_ENUM_NAMESPACES.status);
   const router = useRouter();
@@ -138,11 +148,21 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
   );
 
   return (
-    <div className="flex items-center gap-1">
+    <div
+      className={cn(
+        'flex items-center gap-1',
+        layout === 'card' && 'flex-wrap justify-end',
+      )}
+    >
       {error ? (
         <span
           role="alert"
-          className="mr-2 hidden truncate text-xs text-destructive md:inline"
+          className={cn(
+            'text-xs text-destructive',
+            layout === 'card'
+              ? 'order-last w-full text-right text-pretty'
+              : 'mr-2 hidden truncate md:inline',
+          )}
         >
           {error}
         </span>
@@ -150,7 +170,12 @@ export function PropertyRowActions({ property }: { property: PropertyListItem })
       {success ? (
         <span
           role="status"
-          className="mr-2 hidden truncate text-xs text-success md:inline"
+          className={cn(
+            'text-xs text-success',
+            layout === 'card'
+              ? 'order-last w-full text-right text-pretty'
+              : 'mr-2 hidden truncate md:inline',
+          )}
         >
           {success}
         </span>

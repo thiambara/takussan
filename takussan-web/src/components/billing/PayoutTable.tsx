@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import { StatusBadge, type StatusTone } from '@/components/console/StatusBadge';
+import { Banknote } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DATE_COURTE, type Formatteurs, useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -72,11 +74,14 @@ export function PayoutTable({
   isLoading,
   onSelect,
   emptyHint,
+  hideAgency = false,
 }: {
   payouts: PlatformPayout[];
   isLoading?: boolean;
   onSelect?: (payout: PlatformPayout) => void;
   emptyHint?: string;
+  /** La console agence ne lit que SES reversements : la colonne « Agence #n » n'y dit rien. */
+  hideAgency?: boolean;
 }) {
   // Hooks AVANT toute sortie anticipée (React Compiler, ADR-0015).
   const t = useTranslations('billing.platformPayouts.table');
@@ -87,11 +92,10 @@ export function PayoutTable({
 
   if (payouts.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-6 text-sm text-muted-foreground">
-          {emptyHint ?? t('empty')}
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={<Banknote className="size-8" aria-hidden="true" />}
+        title={emptyHint ?? t('empty')}
+      />
     );
   }
 
@@ -103,7 +107,7 @@ export function PayoutTable({
             <thead className="border-b border-border/60 bg-muted/30 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="px-4 py-2 text-left font-medium">{t('period')}</th>
-                <th className="px-4 py-2 text-left font-medium">{t('agency')}</th>
+                {hideAgency ? null : <th className="px-4 py-2 text-left font-medium">{t('agency')}</th>}
                 <th className="px-4 py-2 text-right font-medium">{t('gross')}</th>
                 <th className="px-4 py-2 text-right font-medium">{t('commission')}</th>
                 <th className="px-4 py-2 text-right font-medium">{t('net')}</th>
@@ -119,18 +123,18 @@ export function PayoutTable({
                   className={`border-b border-border/40 last:border-b-0 ${onSelect ? 'cursor-pointer hover:bg-muted/30' : ''}`}
                 >
                   <td className="px-4 py-2">
-                    <span className="font-medium text-foreground">{formatPeriod(payout, fmt)}</span>
+                    <span className="whitespace-nowrap font-medium tabular-nums text-foreground">{formatPeriod(payout, fmt)}</span>
                   </td>
-                  <td className="px-4 py-2 text-muted-foreground">#{payout.agency_id}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">{xof(payout.gross_amount, payout.currency)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
+                  {hideAgency ? null : <td className="px-4 py-2 text-muted-foreground">#{payout.agency_id}</td>}
+                  <td className="px-4 py-2 whitespace-nowrap text-right tabular-nums">{xof(payout.gross_amount, payout.currency)}</td>
+                  <td className="px-4 py-2 whitespace-nowrap text-right tabular-nums text-muted-foreground">
                     -{xof(payout.platform_fee_amount, payout.currency)}
                   </td>
-                  <td className="px-4 py-2 text-right font-semibold tabular-nums">
+                  <td className="px-4 py-2 whitespace-nowrap text-right font-semibold tabular-nums">
                     {xof(payout.net_amount, payout.currency)}
                   </td>
                   <td className="px-4 py-2"><PayoutStatusPill status={payout.status} /></td>
-                  <td className="px-4 py-2 text-muted-foreground">
+                  <td className="whitespace-nowrap px-4 py-2 tabular-nums text-muted-foreground">
                     {fmt.date(payout.processed_at, DATE_COURTE)}
                   </td>
                 </tr>

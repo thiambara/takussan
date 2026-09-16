@@ -48,8 +48,8 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
   }
 
   return (
-    <div className="rounded-2xl bg-card p-5">
-      <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
+    <div className="rounded-xl bg-card p-4 sm:p-5">
+      <h2 className="font-display text-base font-semibold text-foreground">{t('title')}</h2>
       <p className="mb-4 mt-1 text-xs text-muted-foreground">{t('intro')}</p>
 
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -73,14 +73,15 @@ export function QuoteSubmitForm({ request }: { readonly request: MaintenanceRequ
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium">
+          <label htmlFor="quote-attachments" className="mb-1.5 block text-sm font-medium">
             {t('attachments_label')}
           </label>
           <input
+            id="quote-attachments"
             type="file"
             multiple
             onChange={(e) => setAttachments(Array.from(e.target.files ?? []))}
-            className="block w-full text-sm text-muted-foreground"
+            className="block w-full text-sm text-muted-foreground file:mr-3 file:h-8 file:cursor-pointer file:rounded-lg file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-medium file:text-foreground hover:file:bg-muted"
           />
           {attachments.length > 0 && (
             <p className="mt-1 text-xs text-muted-foreground">

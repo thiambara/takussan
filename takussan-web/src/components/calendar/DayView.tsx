@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/feedback';
 import { cn } from '@/lib/utils';
 import { eventTouchesDay, parseServerDate } from '@/lib/calendar-date';
 import { paletteFor, typeLabelKey } from './event-colors';
+import { useDatesCalendrier } from './dates';
 import type { CalendarEvent } from '@/types/calendar';
 
 export interface DayViewProps {
@@ -18,6 +19,7 @@ export interface DayViewProps {
 export function DayView({ focus, events, onSelect }: DayViewProps) {
   const t = useTranslations('calendar.day');
   const tCal = useTranslations('calendar');
+  const dates = useDatesCalendrier();
   const parsed = events
     .map((e) => ({
       event: e,
@@ -27,7 +29,7 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
     .filter((p) => eventTouchesDay({ start: p.start, end: p.end }, focus))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-  const dayLabel = focus.toLocaleDateString('fr-FR', {
+  const dayLabel = dates.date(focus, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -36,9 +38,9 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
 
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <div className="border-b border-border bg-muted/50 px-4 py-3 text-sm font-semibold capitalize text-foreground">
+      <h3 className="border-b border-border bg-muted/50 px-4 py-3 font-display text-sm font-semibold tracking-tight first-letter:uppercase text-foreground">
         {dayLabel}
-      </div>
+      </h3>
       {parsed.length === 0 ? (
         <EmptyState
           className="border-0"
@@ -52,10 +54,7 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
             const palette = paletteFor(event);
             const timeLabel = event.all_day
               ? tCal('allDay')
-              : start.toLocaleTimeString('fr-FR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
+              : dates.heure(start);
             return (
               <li key={`${event.type}-${event.id}`}>
                 <button
@@ -73,7 +72,7 @@ export function DayView({ focus, events, onSelect }: DayViewProps) {
                       <span className="text-xs font-semibold uppercase text-muted-foreground">
                         {tCal(typeLabelKey(event.type))}
                       </span>
-                      <span className="text-xs font-medium text-muted-foreground">{timeLabel}</span>
+                      <span className="text-xs font-medium tabular-nums text-muted-foreground">{timeLabel}</span>
                     </div>
                     <div className="truncate text-sm font-medium text-foreground">{event.title}</div>
                   </div>

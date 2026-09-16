@@ -24,10 +24,10 @@ import { MaintenanceStepper } from './MaintenanceStepper';
 import { QuoteCard } from './QuoteCard';
 import { QuoteSubmitForm } from './QuoteSubmitForm';
 import { QuoteRejectionModal } from './QuoteRejectionModal';
-import { 
-  useApproveMaintenanceQuote, 
-  useRequestMaintenanceQuote, 
-  useStartMaintenance 
+import {
+  useApproveMaintenanceQuote,
+  useRequestMaintenanceQuote,
+  useStartMaintenance,
 } from '@/lib/queries/maintenance';
 
 /**
@@ -53,24 +53,28 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
 
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl bg-card p-5">
+      <header className="rounded-xl bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-semibold text-foreground">{request.title}</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
+          <div className="min-w-0 flex-1 basis-60">
+            <h2 className="font-display text-lg font-semibold tracking-tight break-words text-balance text-foreground">
+              {request.title}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground tabular-nums">
               {tCategory(request.category)} ·{' '}
               {t('created_at', { date: formatDateTime(request.created_at, locale) })}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <MaintenancePriorityBadge priority={request.priority} />
             <MaintenanceStatusBadge status={request.status} />
           </div>
         </div>
 
-        <p className="mt-4 whitespace-pre-wrap text-sm text-foreground">{request.description}</p>
+        <p className="mt-4 max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+          {request.description}
+        </p>
 
-        <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-muted-foreground md:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-xs text-muted-foreground tabular-nums lg:grid-cols-4">
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('property')}</dt>
             <dd className="mt-0.5 text-foreground">
@@ -97,7 +101,7 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
           </div>
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('actual_cost')}</dt>
-            <dd className="mt-0.5 text-foreground">
+            <dd className="mt-0.5 whitespace-nowrap text-foreground">
               {request.actual_cost !== null
                 ? formatCurrency(request.actual_cost, locale)
                 : '—'}
@@ -110,9 +114,9 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
       <QuoteCard request={request} />
       <QuoteSubmitForm request={request} />
 
-      <StatusActions 
-        request={request} 
-        onComplete={() => setCompleteOpen(true)} 
+      <StatusActions
+        request={request}
+        onComplete={() => setCompleteOpen(true)}
         onReject={() => setRejectOpen(true)}
       />
 
@@ -130,9 +134,9 @@ function MaintenanceDetailBody({ request }: { readonly request: MaintenanceReque
       ) : null}
 
       {request.resolution_notes ? (
-        <section className="rounded-2xl bg-card p-5">
-          <h3 className="text-sm font-semibold text-foreground">{t('resolution_notes')}</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">
+        <section className="rounded-xl bg-card p-4 sm:p-5">
+          <h2 className="font-display text-base font-semibold text-foreground">{t('resolution_notes')}</h2>
+          <p className="mt-2 max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-foreground">
             {request.resolution_notes}
           </p>
           {request.completed_at ? (
@@ -164,7 +168,10 @@ function PropertyValue({ request }: { readonly request: MaintenanceRequest }) {
 
   if (property.slug) {
     return (
-      <Link href={`/app/properties/${property.id}`} className="hover:underline">
+      <Link
+        href={`/app/properties/${property.id}`}
+        className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
         {content}
       </Link>
     );
@@ -198,7 +205,7 @@ function StatusActions({
 
   if (allowed.length === 0) {
     return (
-      <div className="rounded-2xl bg-card p-5 text-sm text-muted-foreground">
+      <div className="rounded-xl bg-card p-4 text-sm text-muted-foreground sm:p-5">
         {t('terminal', { status: tStatus(request.status) })}
       </div>
     );
@@ -209,7 +216,7 @@ function StatusActions({
       onComplete();
       return;
     }
-    
+
     // Quote flow handles special transitions via their own endpoints
     if (next === 'quote_requested') {
       requestQuoteMutation.mutate();
@@ -232,15 +239,22 @@ function StatusActions({
     transition.mutate({ status: next });
   };
 
-  const isPending = 
-    transition.isPending || 
-    requestQuoteMutation.isPending || 
-    approveQuoteMutation.isPending || 
+  const isPending =
+    transition.isPending ||
+    requestQuoteMutation.isPending ||
+    approveQuoteMutation.isPending ||
     startWorkMutation.isPending;
+  // Seule la transition générique affichait son échec : une demande de devis, une approbation ou
+  // un démarrage refusés ne laissaient aucune trace à l'écran.
+  const hasError =
+    transition.isError ||
+    requestQuoteMutation.isError ||
+    approveQuoteMutation.isError ||
+    startWorkMutation.isError;
 
   return (
-    <div className="rounded-2xl bg-card p-5">
-      <h3 className="text-sm font-semibold text-foreground">{t('change_status')}</h3>
+    <div className="rounded-xl bg-card p-4 sm:p-5">
+      <h2 className="font-display text-base font-semibold text-foreground">{t('change_status')}</h2>
       <div className="mt-3 flex flex-wrap gap-2">
         {allowed.map((next) => (
           <Button
@@ -249,14 +263,14 @@ function StatusActions({
             variant={next === 'cancelled' || next === 'rejected' ? 'outline' : 'default'}
             disabled={isPending}
             onClick={() => trigger(next)}
-            className={next === 'rejected' ? 'text-destructive border-destructive hover:bg-destructive/10' : ''}
+            className={next === 'rejected' ? 'border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive' : ''}
           >
             {tStatus(next)}
           </Button>
         ))}
       </div>
-      {transition.isError ? (
-        <p className="mt-2 text-xs text-destructive">
+      {hasError ? (
+        <p role="alert" className="mt-2 text-xs text-destructive">
           {t('transition_error')}
         </p>
       ) : null}

@@ -22,11 +22,9 @@
 'use client';
 
 import { keepPreviousData } from '@tanstack/react-query';
-import { apiRequest, buildQueryString } from '@/lib/api';
 import { useApiQuery } from '@/hooks/useApiQuery';
 import type {
   PaginatedResponse,
-  ApiResponse,
   SpatieQueryParams,
 } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';

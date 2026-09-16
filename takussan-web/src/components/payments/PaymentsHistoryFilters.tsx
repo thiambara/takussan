@@ -54,7 +54,7 @@ export function PaymentsHistoryFilters() {
   );
 
   return (
-    <div className="grid gap-3 sm:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
       <div>
         <Label htmlFor="payments-status" className="mb-1.5 block text-xs font-medium">
           {t('status')}

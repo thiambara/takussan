@@ -6,6 +6,7 @@ import { useRef, useState, useTransition } from 'react';
 import { Loader2, Upload } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   FormGlobalError,
   FormInput,
@@ -183,7 +184,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           <h2 className="text-base font-semibold text-foreground">{t('identity.title')}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t('identity.description')}</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <FormInput control={control} name="name" label={t('fields.name')} required />
           <div>
             <label
@@ -192,13 +193,9 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
             >
               {t('fields.slug')}
             </label>
-            <input
-              id="agency-slug"
-              value={agency.slug}
-              disabled
-              readOnly
-              className="h-9 w-full rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground"
-            />
+            {/* La primitive, et non un `<input>` natif : celui-ci portait `h-9 rounded-md` à côté
+                de champs `h-8 rounded-lg` — deux hauteurs et deux rayons sur la même ligne. */}
+            <Input id="agency-slug" value={agency.slug} disabled readOnly />
           </div>
         </div>
         <FormInput
@@ -222,7 +219,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           <h2 className="text-base font-semibold text-foreground">{t('contact.title')}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t('contact.description')}</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           <FormInput control={control} name="email" label={t('fields.email')} type="email" />
           <FormInput
             control={control}
@@ -305,7 +302,7 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
           <h2 className="text-base font-semibold text-foreground">{t('business.title')}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t('business.description')}</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-3">
           <FormInput
             control={control}
             name="commission_rate"
@@ -342,21 +339,26 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
         </div>
 
         {/* TCK-098 — moderation toggle */}
-        <div className="flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3">
+        {/* Tout l'encadré est cliquable : le `::after` du libellé le recouvre, sans que le texte
+            d'aide n'entre dans le nom accessible de la case. La case seule faisait 13 × 16 px. */}
+        <div className="relative flex items-start gap-4 rounded-lg border border-input bg-background px-4 py-3 transition-colors hover:bg-muted/40">
           <input
             id="moderation_required"
             type="checkbox"
+            aria-describedby="moderation_required-hint"
             {...form.register('moderation_required')}
-            className="mt-0.5 size-4 cursor-pointer rounded border-input accent-primary"
+            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
           />
           <div>
             <label
               htmlFor="moderation_required"
-              className="cursor-pointer text-sm font-medium text-foreground"
+              className="cursor-pointer text-sm font-medium text-foreground after:absolute after:inset-0 after:rounded-lg"
             >
               {t('moderation.label')}
             </label>
-            <p className="mt-0.5 text-xs text-muted-foreground">{t('moderation.hint')}</p>
+            <p id="moderation_required-hint" className="mt-0.5 text-pretty text-xs text-muted-foreground">
+              {t('moderation.hint')}
+            </p>
           </div>
         </div>
       </section>

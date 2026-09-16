@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Timer } from 'lucide-react';
 import { DataTable, StatusBadge, type DataTableColumn, type StatusTone } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import { fetchScheduler } from '@/lib/queries/super-admin';
 import type { ScheduledTask } from '@/types/super-admin';
@@ -24,6 +25,17 @@ const TONS: Record<string, StatusTone> = {
   running: 'info',
 };
 
+/**
+ * Le scheduler Laravel nomme une commande par sa ligne de shell complète
+ * (`'/opt/homebrew/…/php' 'artisan' invitations:expire`) : le chemin du binaire PHP est un
+ * détail de la machine qui écrasait la colonne sur mobile. Seule la commande artisan est
+ * rendue ; toute autre forme (classe de job, closure) reste affichée telle quelle.
+ */
+function libelleTache(tache: string): string {
+  const artisan = /^'[^']*php[^']*' 'artisan' (.+)$/.exec(tache);
+  return artisan ? `artisan ${artisan[1]}` : tache;
+}
+
 export function ScheduledTaskTable() {
   const t = useTranslations('superAdmin.scheduler');
   const fmt = useFormatteurs();
@@ -35,11 +47,16 @@ export function ScheduledTaskTable() {
 
   const tasks = query.data?.data ?? [];
   const columns: DataTableColumn<ScheduledTask>[] = [
-    { id: 'task', header: t('colTask'), className: 'font-medium text-foreground', cell: (task) => task.task },
+    {
+      id: 'task',
+      header: t('colTask'),
+      className: 'min-w-56 font-mono text-xs break-all text-foreground',
+      cell: (task) => libelleTache(task.task),
+    },
     {
       id: 'lastRun',
       header: t('colLastRun'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
       cell: (task) => fmt.dateTime(task.last_run_at),
     },
     {
@@ -59,10 +76,10 @@ export function ScheduledTaskTable() {
     {
       id: 'avgDuration',
       header: t('colAvgDuration'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap text-muted-foreground tabular-nums',
       // `!== null` et non la véracité : une tâche mesurée à 0 ms rendait « — », c'est-à-dire
       // « jamais mesurée ». Le tiret dit l'ABSENCE de mesure, et rien d'autre.
-      cell: (task) => (task.average_duration_ms !== null ? `${task.average_duration_ms}ms` : '—'),
+      cell: (task) => (task.average_duration_ms !== null ? t('durationMs', { ms: fmt.nombre(task.average_duration_ms) }) : '—'),
     },
   ];
 
@@ -78,7 +95,13 @@ export function ScheduledTaskTable() {
         rows={tasks}
         rowKey={(task) => task.task}
         emptyState={
-          query.isLoading ? null : (
+          query.isLoading ? (
+            <div className="space-y-2 p-4" aria-busy="true">
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-full" />
+              <Skeleton className="h-6 w-2/3" />
+            </div>
+          ) : (
             <EmptyState
               className="border-0"
               icon={<Timer className="size-8" aria-hidden="true" />}

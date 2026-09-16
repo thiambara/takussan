@@ -2,8 +2,13 @@ import { getToken } from '@/lib/session';
 import { apiRequest } from '@/lib/api';
 import Link from 'next/link';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { getTranslations } from 'next-intl/server';
+
+// Un lien stylé en bouton, et non un `<button>` DANS un `<a>` : deux éléments interactifs
+// imbriqués, c'est deux arrêts de tabulation pour une seule action, et un HTML invalide.
+const CTA = cn(buttonVariants(), 'w-full rounded-full h-11 text-base font-semibold');
 
 type Props = {
   params: Promise<{ id: string; hash: string }>;
@@ -32,17 +37,15 @@ export default async function VerifyEmailHashPage({ params, searchParams }: Prop
   if (success) {
     return (
       <div>
-        <div className="flex items-center justify-center size-14 rounded-full bg-green-50 text-green-600 mb-6">
-          <CheckCircle2 className="size-7" />
+        <div className="flex items-center justify-center size-14 rounded-full bg-success/10 text-success mb-6">
+          <CheckCircle2 className="size-7" aria-hidden="true" />
         </div>
-        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
           {t('successTitle')}
         </h1>
-        <p className="text-muted-foreground text-sm mb-8">{t('successBody')}</p>
-        <Link href="/onboarding/intention">
-          <Button className="w-full rounded-full h-11 text-base font-semibold">
-            {t('successCta')}
-          </Button>
+        <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('successBody')}</p>
+        <Link href="/onboarding/intention" className={CTA}>
+          {t('successCta')}
         </Link>
       </div>
     );
@@ -51,16 +54,14 @@ export default async function VerifyEmailHashPage({ params, searchParams }: Prop
   return (
     <div>
       <div className="flex items-center justify-center size-14 rounded-full bg-destructive/10 text-destructive mb-6">
-        <AlertTriangle className="size-7" />
+        <AlertTriangle className="size-7" aria-hidden="true" />
       </div>
-      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
         {t('failureTitle')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">{t('failureBody')}</p>
-      <Link href="/auth/verify-email">
-        <Button className="w-full rounded-full h-11 text-base font-semibold">
-          {t('failureCta')}
-        </Button>
+      <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('failureBody')}</p>
+      <Link href="/auth/verify-email" className={CTA}>
+        {t('failureCta')}
       </Link>
     </div>
   );

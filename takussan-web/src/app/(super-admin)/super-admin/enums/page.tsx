@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ListTree } from 'lucide-react';
-import { EmptyState } from '@/components/feedback';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { useQuery } from '@tanstack/react-query';
 import {
   EnumList,
@@ -15,12 +15,14 @@ import type { BusinessEnumsResponse, BusinessEnumValue } from '@/types/super-adm
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader } from '@/components/console';
+import { Skeleton } from '@/components/ui/skeleton';
 import { WarningBanner } from '@/components/ui/warning-banner';
 
 export default function SuperAdminEnumsPage() {
   const t = useTranslations('superAdmin.enums');
   const tPage = useTranslations('superAdmin.pages.enums');
   const tShared = useTranslations('superAdmin.pages.shared');
+  const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [editing, setEditing] = useState<BusinessEnumValue | null>(null);
@@ -49,13 +51,18 @@ export default function SuperAdminEnumsPage() {
       <WarningBanner>{tPage('lockedNotice')}</WarningBanner>
 
       {query.isLoading ? (
-        <div className="h-48 animate-pulse rounded-xl bg-muted" />
+        <Skeleton className="h-48 rounded-xl" />
       ) : query.isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
-          {tShared('loadError')} {messageErreur(query.error)}
-        </div>
+        <ErrorState
+          message={`${tShared('loadError')} ${messageErreur(query.error)}`}
+          onRetry={() => void query.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : selected ? (
-        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+        <div className="grid items-start gap-4 xl:grid-cols-[280px_minmax(0,1fr)]">
+          {/* Liste + panneau dès `xl` : à 1024 la coque laisse 720 px, 280 px de liste ne laissaient
+            que 424 px à une table de six colonnes. `items-start` : la liste ne s'étire plus
+            sur toute la hauteur de la table. */}
           <EnumList enums={enums} selectedKey={selected.key} onSelect={setSelectedKey} />
           <EnumValueTable
             item={selected}

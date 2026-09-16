@@ -80,7 +80,7 @@ export function AgencyRolesConsole({ agencyId }: AgencyRolesConsoleProps) {
 
   if (rolesQuery.isLoading) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]" data-testid="agency-roles-loading">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]" data-testid="agency-roles-loading">
         <Skeleton className="h-64 rounded-xl" aria-hidden="true" />
         <Skeleton className="h-96 rounded-xl" aria-hidden="true" />
       </div>
@@ -108,7 +108,7 @@ export function AgencyRolesConsole({ agencyId }: AgencyRolesConsoleProps) {
               setCreateOpen(true);
             }}
           >
-            <Plus className="mr-1 size-4" aria-hidden="true" />
+            <Plus className="size-4" aria-hidden="true" />
             {t('actions.create')}
           </Button>
         </div>
@@ -121,7 +121,7 @@ export function AgencyRolesConsole({ agencyId }: AgencyRolesConsoleProps) {
           description={t('editor.empty_description')}
         />
       ) : (
-        <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
           <AgencyRolesList
             roles={roles}
             selectedId={selected?.id ?? null}

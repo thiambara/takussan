@@ -59,7 +59,7 @@ export function ReportWindowControls({
         }
         items={options as unknown as Array<{ value: string; label: string }>}
       >
-        <SelectTrigger className="h-9 w-36" aria-label={t('filters.periodAria')}>
+        <SelectTrigger className="data-[size=default]:h-9 w-36" aria-label={t('filters.periodAria')}>
           <SelectValue placeholder={t('periods.custom')} />
         </SelectTrigger>
         <SelectContent>
@@ -75,6 +75,7 @@ export function ReportWindowControls({
           onValueChange={setDebut}
           max={fin || undefined}
           aria-label={t('filters.rangeStart')}
+          placeholder={t('filters.rangeStart')}
           buttonClassName="h-9"
           data-testid="plage-debut"
         />
@@ -84,6 +85,7 @@ export function ReportWindowControls({
           onValueChange={setFin}
           min={debut || undefined}
           aria-label={t('filters.rangeEnd')}
+          placeholder={t('filters.rangeEnd')}
           buttonClassName="h-9"
           data-testid="plage-fin"
         />

@@ -18,13 +18,22 @@ vi.mock('@/lib/auth', () => ({
 }));
 
 vi.mock('@/components/auth/OAuthButtons', () => ({
-  OAuthButtons: () => (
-    <div>
-      <button type="button">Continuer avec Google</button>
-    </div>
-  ),
-  OAuthSeparator: ({ label = 'ou continuer avec email' }: { label?: string }) => (
-    <p>{label}</p>
+  // Le séparateur est désormais posé PAR `OAuthButtons` (revue design 2026-09-16) : le double
+  // le rend là où la page le demande, pour que l'ordre du document reste éprouvé.
+  OAuthButtons: ({
+    separator,
+    separatorLabel = 'ou continuer avec email',
+  }: {
+    separator?: 'before' | 'after';
+    separatorLabel?: string;
+  }) => (
+    <>
+      {separator === 'before' ? <p>{separatorLabel}</p> : null}
+      <div>
+        <button type="button">Continuer avec Google</button>
+      </div>
+      {separator === 'after' ? <p>{separatorLabel}</p> : null}
+    </>
   ),
 }));
 

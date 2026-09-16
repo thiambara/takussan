@@ -15,6 +15,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
+import { useFloatingDockSlot } from '@/components/floating-dock';
 import { Button } from '@/components/ui/button';
 import { fieldDensityScope } from '@/components/ui/field-density';
 import { LocationPickerMapLoader } from '@/components/map/LocationPickerMapLoader';
@@ -27,6 +28,7 @@ import {
   FormTextarea,
 } from '@/components/forms';
 import { useApiForm } from '@/hooks/useApiForm';
+import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { ApiError } from '@/lib/api';
 import {
   conditionValues,
@@ -151,6 +153,11 @@ function withAddressErasures(
   return bloc;
 }
 
+const SM_BREAKPOINT_PX = 640;
+/** Hauteur de la barre d'enregistrement (bordure + `pt-4` + bouton `lg` + `pb-4`), mesurée. */
+const SAVE_BAR_HEIGHT_PX = 73;
+const SAVE_BAR_HEIGHT_TWO_ROWS_PX = 105;
+
 export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   const t = useTranslations('property.form');
   // TCK-292 — les six vocabulaires d'enum viennent du dictionnaire ; `./options` ne porte plus que
@@ -173,6 +180,16 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
   ];
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [tagsWarning, setTagsWarning] = useState<string | null>(null);
+  // La barre d'enregistrement colle au bas de l'écran : elle revendique le bord bas auprès du
+  // dock, sans quoi la bulle de messagerie recouvrait « Enregistrer les modifications » à 390
+  // comme à 1366 px (mesuré le 2026-09-16). Sous `sm`, la barre tient sur deux lignes.
+  const barreSurDeuxLignes = useMatchesMaxWidth(SM_BREAKPOINT_PX - 1);
+  const saveBar = useFloatingDockSlot({
+    id: 'property-form-save-bar',
+    corner: 'bottom-full',
+    height: barreSurDeuxLignes ? SAVE_BAR_HEIGHT_TWO_ROWS_PX : SAVE_BAR_HEIGHT_PX,
+    safeAreaInset: 'calc(1rem + env(safe-area-inset-bottom))',
+  });
 
   const { form, isSubmitting, globalError, handleSubmit, clearGlobalError } =
     useApiForm<PropertyFormValues, PropertyDetail>({
@@ -616,7 +633,10 @@ export function PropertyForm({ property, tags = [] }: PropertyFormProps) {
         </section>
       )}
 
-      <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div
+        style={{ paddingBottom: saveBar.paddingBottom }}
+        className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-background/95 pt-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+      >
         <p className="text-xs text-muted-foreground" aria-live="polite">
           {dirtyCount > 0 ? t('footer.dirty', { count: dirtyCount }) : t('footer.noChanges')}
         </p>

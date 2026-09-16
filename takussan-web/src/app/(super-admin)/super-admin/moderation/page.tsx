@@ -12,7 +12,6 @@ import {
   ModerationQueueTable,
   ModerationStats,
 } from '@/components/admin/super/moderation';
-import { Button } from '@/components/ui/button';
 import { fetchModerationQueue } from '@/lib/queries/super-admin';
 import type {
   AdminModerationItem,
@@ -22,12 +21,12 @@ import type {
 } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { PageHeader } from '@/components/console';
+import { PageHeader, Pagination } from '@/components/console';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SuperAdminModerationPage() {
   const t = useTranslations('superAdmin.moderation');
   const tPage = useTranslations('superAdmin.pages.moderation');
-  const tPagination = useTranslations('console.pagination');
   const messageErreur = useMessageErreurApi();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -78,7 +77,7 @@ export default function SuperAdminModerationPage() {
       {queueQuery.isLoading ? (
         <div className="space-y-2" data-testid="moderation-loading">
           {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="h-12 animate-pulse rounded-md bg-muted" aria-hidden="true" />
+            <Skeleton key={index} className="h-12 rounded-md" aria-hidden="true" />
           ))}
         </div>
       ) : queueQuery.isError ? (
@@ -90,38 +89,17 @@ export default function SuperAdminModerationPage() {
           description={t('empty_description')}
         />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-4">
+        // `grid-cols-1` sous `xl` : sans piste explicite, la colonne prenait la largeur minimale de
+        // la table, qui sortait de l'écran à 768 sans défiler.
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-4">
             <ModerationQueueTable
               items={items}
               selectedId={selected?.id ?? null}
               onSelect={setSelected}
             />
-            {meta && meta.last_page > 1 ? (
-              <nav className="flex items-center justify-between text-sm text-muted-foreground" aria-label={tPagination('aria')}>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => goTo(Math.max(1, meta.current_page - 1))}
-                  disabled={meta.current_page <= 1}
-                >
-                  {tPagination('previous')}
-                </Button>
-                <span>
-                  {tPagination('position', {
-                    page: String(meta.current_page),
-                    lastPage: String(meta.last_page),
-                  })}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => goTo(Math.min(meta.last_page, meta.current_page + 1))}
-                  disabled={meta.current_page >= meta.last_page}
-                >
-                  {tPagination('next')}
-                </Button>
-              </nav>
+            {meta ? (
+              <Pagination page={meta.current_page} lastPage={meta.last_page} onChange={goTo} />
             ) : null}
           </div>
           <ModerationDecisionPanel

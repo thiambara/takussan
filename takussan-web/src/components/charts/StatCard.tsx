@@ -70,9 +70,12 @@ const trendMarks: Record<NonNullable<Props['trend']>, string> = {
  */
 export function StatCard({ label, value, hint, trend, accent = 'default', className }: Props) {
   return (
-    <div className={cn('rounded-2xl p-6', accents[accent], className)}>
+    <div className={cn('min-w-0 rounded-2xl p-6', accents[accent], className)}>
       <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-      <p className="mt-2 flex items-baseline gap-2 text-2xl font-bold text-foreground">
+      {/* `text-xl` sous `sm` : une tuile de `grid-cols-2` à 360 px n'a que ~110 px de texte, et un
+          montant « 132 693 386 F CFA » y frôlait le débordement. `break-words` en dernier
+          recours. */}
+      <p className="mt-2 flex flex-wrap items-baseline gap-x-2 text-xl font-bold tabular-nums break-words text-foreground sm:text-2xl">
         {value}
         {trend && (
           <span aria-hidden className="text-sm text-muted-foreground">

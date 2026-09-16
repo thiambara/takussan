@@ -90,7 +90,7 @@ export function SuperAdminShell({ user, children }: SuperAdminShellProps) {
           <SuperAdminSidebar />
         </div>
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="dark bg-sidebar p-0">
+          <SheetContent side="left" className="dark bg-sidebar p-0" aria-label={t('ariaNav')}>
             <SuperAdminSidebar onNavigate={() => setSidebarOpen(false)} />
           </SheetContent>
         </Sheet>

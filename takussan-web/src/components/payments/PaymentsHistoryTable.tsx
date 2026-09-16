@@ -6,9 +6,10 @@ import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Wallet } from 'lucide-react';
 
+import { StatusBadge } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { formatCurrency, formatDate } from '@/lib/format';
 import {
@@ -19,7 +20,7 @@ import {
 import type { Locale } from '@/i18n/config';
 
 import {
-  PAYMENT_STATUS_VARIANT,
+  PAYMENT_STATUS_TONE,
   type PaymentStatus,
 } from './constants';
 
@@ -28,6 +29,7 @@ export function PaymentsHistoryTable() {
   const t = useTranslations('payments.history');
   const tTable = useTranslations('payments.history.table');
   const tStatus = useTranslations('payments.status');
+  const tMethods = useTranslations('payments.methods');
   const searchParams = useSearchParams();
 
   const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
@@ -59,7 +61,7 @@ export function PaymentsHistoryTable() {
     <QueryBoundary
       query={query}
       loadingFallback={[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg bg-card" />
+        <Skeleton key={i} className="h-12 rounded-lg" />
       ))}
     >
       {(data) => {
@@ -79,16 +81,16 @@ export function PaymentsHistoryTable() {
         return (
           <div className="space-y-4">
           <div className="overflow-x-auto rounded-xl border border-border bg-card">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
+            <table className="w-full text-left text-sm tabular-nums">
+              <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2">{tTable('reference')}</th>
-                  <th className="px-3 py-2">{tTable('source')}</th>
-                  <th className="px-3 py-2 whitespace-nowrap">{tTable('date')}</th>
-                  <th className="px-3 py-2 whitespace-nowrap">{tTable('amount')}</th>
-                  <th className="px-3 py-2 whitespace-nowrap">{tTable('status')}</th>
-                  <th className="px-3 py-2">{tTable('method')}</th>
-                  <th className="px-3 py-2">{tTable('entity')}</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('reference')}</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('source')}</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('date')}</th>
+                  <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{tTable('amount')}</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('status')}</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('method')}</th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('entity')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -107,14 +109,14 @@ export function PaymentsHistoryTable() {
 
                   return (
                     <tr key={`${row.source}-${row.id}`} className="text-foreground">
-                      <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                      <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground tabular-nums">
                         {row.reference_number ?? `#${row.id}`}
                       </td>
-                      <td className="px-3 py-2 text-xs">{tTable(`sources.${row.source}`)}</td>
-                      <td className="px-3 py-2 text-xs whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">{tTable(`sources.${row.source}`)}</td>
+                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                         {row.date ? formatDate(row.date, locale) : '—'}
                       </td>
-                      <td className="px-3 py-2 font-semibold whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
                         {formatCurrency(row.amount, locale, {
                           currency: row.currency || 'XOF',
                         })}
@@ -128,15 +130,18 @@ export function PaymentsHistoryTable() {
                           </span>
                         ) : null}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <Badge variant={PAYMENT_STATUS_VARIANT[status] ?? 'outline'}>
-                          {tStatus(status)}
-                        </Badge>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <StatusBadge tone={PAYMENT_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />
                       </td>
-                      <td className="px-3 py-2 text-xs capitalize">
-                        {row.payment_method?.replace(/_/g, ' ') ?? '—'}
+                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">
+                        {/* « Bank Transfer » s'affichait en anglais : l'enum brut, capitalisé. */}
+                        {row.payment_method
+                          ? tMethods.has(row.payment_method)
+                            ? tMethods(row.payment_method)
+                            : row.payment_method.replace(/_/g, ' ')
+                          : '—'}
                       </td>
-                      <td className="px-3 py-2 text-xs">
+                      <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                         {entityHref ? (
                           <Link href={entityHref} className="underline-offset-2 hover:underline">
                             {entityLabel}
@@ -153,7 +158,7 @@ export function PaymentsHistoryTable() {
           </div>
 
           {totals ? (
-            <dl className="grid gap-2 rounded-xl bg-card p-3 text-xs text-muted-foreground sm:grid-cols-4">
+            <dl className="grid grid-cols-2 gap-3 rounded-xl bg-card p-3 text-xs text-muted-foreground tabular-nums lg:grid-cols-4">
               <div>
                 <dt>{tTable('total')}</dt>
                 <dd className="text-sm font-semibold text-foreground">
@@ -177,7 +182,7 @@ export function PaymentsHistoryTable() {
                 <dd className="text-sm font-semibold text-foreground">
                   {totals.count}
                   {data.meta.truncated ? (
-                    <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">
                       {tTable('cap', { limit: String(data.meta.limit) })}
                     </span>
                   ) : null}
@@ -187,7 +192,7 @@ export function PaymentsHistoryTable() {
           ) : null}
 
           {data.meta ? <PropertyPagination meta={data.meta} /> : null}
-        </div>
+          </div>
         );
       }}
     </QueryBoundary>

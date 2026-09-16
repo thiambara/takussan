@@ -7,11 +7,12 @@ import { ScrollText } from 'lucide-react';
 import {
   DataState,
   DataTable,
+  DebouncedSearchInput,
   FilterBar,
+  Pagination,
   type DataTableColumn,
 } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
-import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { fetchAuditLog } from '@/lib/queries/super-admin';
@@ -22,6 +23,7 @@ import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
 export function CrossTenantAuditTable() {
   const t = useTranslations('superAdmin.audit');
+  const tFiltres = useTranslations('console.filterBar');
   const fmt = useFormatteurs();
   const messageErreur = useMessageErreurApi();
   const [event, setEvent] = useState('');
@@ -39,7 +41,16 @@ export function CrossTenantAuditTable() {
     perPage: 25,
   };
 
-  const { data, isLoading, isError, error } = useQuery<AuditLogResponse, ApiError>({
+  const filtresPoses = event !== '' || causerId !== '' || dateFrom !== '' || dateTo !== '';
+  const reinitialiser = () => {
+    setEvent('');
+    setCauserId('');
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  };
+
+  const { data, isLoading, isFetching, isError, error } = useQuery<AuditLogResponse, ApiError>({
     queryKey: ['super-admin', 'audit', params],
     queryFn: () => fetchAuditLog(params),
     staleTime: 10_000,
@@ -49,7 +60,7 @@ export function CrossTenantAuditTable() {
     {
       id: 'date',
       header: t('colDate'),
-      className: 'whitespace-nowrap text-muted-foreground',
+      className: 'whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (entry) => fmt.dateTime(entry.created_at),
     },
     {
@@ -61,14 +72,14 @@ export function CrossTenantAuditTable() {
     {
       id: 'causer',
       header: t('colCauser'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap text-muted-foreground',
       cell: (entry) =>
         entry.causer_type ? `${entry.causer_type.split('\\').pop()} #${entry.causer_id}` : '—',
     },
     {
       id: 'subject',
       header: t('colSubject'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap text-muted-foreground',
       cell: (entry) =>
         entry.subject_type ? `${entry.subject_type.split('\\').pop()} #${entry.subject_id}` : '—',
     },
@@ -76,24 +87,38 @@ export function CrossTenantAuditTable() {
 
   return (
     <div className="space-y-4">
-      <FilterBar controlsClassName="sm:grid-cols-2 lg:grid-cols-4">
-        <Input
-          type="text"
+      {/* `xl` pour quatre colonnes : à 1024 la coque laisse 720 px, et le placeholder de
+          l'événement se coupait. Les champs n'avaient que leur placeholder pour nom. */}
+      <FilterBar
+        controlsClassName="sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4"
+        resultCount={data ? tFiltres('results', { count: data.meta.total }) : undefined}
+        onReset={reinitialiser}
+        resetLabel={tFiltres('reset')}
+        resetDisabled={!filtresPoses}
+      >
+        {/* Une requête par frappe partait sur le journal entier : la saisie est différée. */}
+        <DebouncedSearchInput
           value={event}
-          onChange={(e) => {
-            setEvent(e.target.value);
+          onCommit={(next) => {
+            setEvent(next);
             setPage(1);
           }}
           placeholder={t('eventPlaceholder')}
+          aria-label={t('eventAria')}
+          busy={isFetching}
         />
         <Input
           type="number"
+          inputMode="numeric"
+          min={1}
           value={causerId}
           onChange={(e) => {
             setCauserId(e.target.value);
             setPage(1);
           }}
           placeholder={t('causerPlaceholder')}
+          aria-label={t('causerAria')}
+          className="h-10"
         />
         <DatePicker
           value={dateFrom}
@@ -102,6 +127,8 @@ export function CrossTenantAuditTable() {
             setPage(1);
           }}
           aria-label={t('dateFromAria')}
+          placeholder={t('dateFromAria')}
+          buttonClassName="h-10 w-full"
         />
         <DatePicker
           value={dateTo}
@@ -110,6 +137,8 @@ export function CrossTenantAuditTable() {
             setPage(1);
           }}
           aria-label={t('dateToAria')}
+          placeholder={t('dateToAria')}
+          buttonClassName="h-10 w-full"
         />
       </FilterBar>
 
@@ -137,34 +166,9 @@ export function CrossTenantAuditTable() {
         />
       </DataState>
 
-      {data && data.meta.last_page > 1 ? (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(Math.max(1, page - 1))}
-            disabled={page <= 1}
-          >
-            {t('previous')}
-          </Button>
-          <span>
-            {t('pagination', {
-              current: data.meta.current_page,
-              last: data.meta.last_page,
-              total: data.meta.total,
-            })}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setPage(Math.min(data.meta.last_page, page + 1))}
-            disabled={page >= data.meta.last_page}
-          >
-            {t('next')}
-          </Button>
-        </div>
+      {data ? (
+        // Le total vit désormais dans la barre de filtres ; la pagination est celle des consoles.
+        <Pagination page={data.meta.current_page} lastPage={data.meta.last_page} onChange={setPage} />
       ) : null}
     </div>
   );

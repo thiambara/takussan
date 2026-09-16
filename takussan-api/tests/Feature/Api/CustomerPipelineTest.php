@@ -144,6 +144,49 @@ class CustomerPipelineTest extends TestCase
         $this->assertSame(2, $stats->json('data.stage_counts.qualified'));
     }
 
+    /**
+     * Reproduit la requête EXACTE de `fetchPipelineColumn` (takussan-web/src/lib/queries/pipeline.ts),
+     * tri compris. Le kanban envoie `sort=-updated_at` depuis TCK-083 alors que le modèle ne
+     * l'autorisait pas : les six colonnes rendaient 400 et s'affichaient « Aucun client »
+     * (relevé 2026-09-16). Le test voisin copiait la requête SANS son tri, et restait vert.
+     */
+    public function test_pipeline_column_request_sorts_by_last_update(): void
+    {
+        $agent = User::factory()->create();
+        // L'ordre de mise à jour est l'INVERSE de l'ordre de création et de l'ordre des ids :
+        // un tri ignoré (défaut `-created_at`, ou l'ordre d'insertion) rendrait l'ordre opposé.
+        $newer = Customer::factory()->create([
+            'added_by_id' => $agent->id,
+            'pipeline_stage' => CustomerPipelineStage::Lead,
+            'status' => CustomerStatus::Active,
+            'created_at' => now()->subDays(5),
+            'updated_at' => now()->subDay(),
+        ]);
+        $older = Customer::factory()->create([
+            'added_by_id' => $agent->id,
+            'pipeline_stage' => CustomerPipelineStage::Lead,
+            'status' => CustomerStatus::Active,
+            'created_at' => now()->subDays(2),
+            'updated_at' => now()->subDays(3),
+        ]);
+
+        Sanctum::actingAs($agent);
+
+        $response = $this->getJson('/api/customers?'.http_build_query([
+            'filter' => ['pipeline_stage' => 'lead', 'status' => 'active'],
+            'include' => 'addedBy,tasksCount',
+            'fields' => [
+                'customers' => 'id,first_name,last_name,pipeline_stage,updated_at,created_at,added_by_id',
+                'users' => 'id,first_name,last_name',
+            ],
+            'sort' => '-updated_at',
+            'per_page' => 50,
+        ]));
+
+        $response->assertOk();
+        $this->assertSame([$newer->id, $older->id], array_column($response->json('data'), 'id'));
+    }
+
     public function test_pipeline_column_payload_exposes_added_by_and_tasks_count(): void
     {
         $agency = Agency::factory()->create();

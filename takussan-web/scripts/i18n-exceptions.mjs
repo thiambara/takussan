@@ -314,16 +314,6 @@ export const EXCEPTIONS_JUSTIFIEES = [
 
   // ── BALISAGE ──────────────────────────────────────────────────────────────────────────────────
   {
-    fichier: 'src/app/[locale]/(public)/properties/[slug]/components/PropertyLocationMapInner.tsx',
-    motif: /^<\?xml version/,
-    famille: 'BALISAGE',
-    raison:
-      "Un SVG complet, `encodeURIComponent`é puis servi en `data:` URI comme icône de marqueur "
-      + "Leaflet. Le littéral ne contient aucun mot de prose : `version`, `encoding` et `xmlns` "
-      + "sont des noms d'attribut XML. L'inliner évite les chemins d'asset par défaut de Leaflet, "
-      + "que le bundler Next ne résout pas.",
-  },
-  {
     fichier: 'src/components/map/LocationPickerMap.tsx',
     motif: /^<div style="width:16px/,
     famille: 'BALISAGE',

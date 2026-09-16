@@ -38,11 +38,22 @@ export function ChatComposerShell({
 }: ChatComposerShellProps) {
   return (
     <form onSubmit={onSubmit} className="border-t border-border bg-card p-3">
-      {error && <p className="mb-2 text-xs text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-2 text-xs text-destructive">
+          {error}
+        </p>
+      )}
       <div className="flex items-end gap-2">
         {leading}
         {children}
-        <Button type="submit" size="icon" disabled={sendDisabled} aria-label={sendAriaLabel}>
+        {/* 44 px sous `sm` (cible tactile), 36 px au-dessus — la hauteur du champ à côté. */}
+        <Button
+          type="submit"
+          size="icon"
+          className="size-11 shrink-0 sm:size-9"
+          disabled={sendDisabled}
+          aria-label={sendAriaLabel}
+        >
           <Send className="size-4" aria-hidden />
         </Button>
       </div>

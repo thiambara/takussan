@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from 'react';
+import { useMemo, useState, useSyncExternalStore, useTransition } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Archive,
@@ -31,7 +31,6 @@ import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { PaginatedResponse } from '@/types/api';
 import type { PropertyListItem } from '@/types/property';
-import { RENT_PERIOD_SHORT } from '@/components/property/cards/types';
 import {
   PROPERTY_ENUM_NAMESPACES,
   enumLabel,
@@ -70,6 +69,7 @@ export function PropertyList({
   const t = useTranslations('property.dashboard.list');
   const tType = useTranslations(PROPERTY_ENUM_NAMESPACES.type);
   const tContract = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
+  const tPeriodes = useTranslations('property.rentPeriodsShort');
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: properties } = page;
@@ -196,9 +196,11 @@ export function PropertyList({
 
   return (
     <div className="space-y-4">
-      {/* Table du bureau — 6 colonnes. La liste de cartes sous `md` reste des CARTES. */}
+      {/* Table du bureau — 6 colonnes, dès `lg` seulement : à `md` la barre latérale laisse
+          ~464 px, où la table défilait de côté avec des prix cassés sur deux lignes (TCK-505).
+          En dessous de `lg`, la liste reste des CARTES. */}
       <DataTable
-        className="hidden md:block"
+        className="hidden lg:block"
         caption={t('caption')}
         columns={colonnes}
         rows={properties}
@@ -213,14 +215,14 @@ export function PropertyList({
       />
 
       {/* Mobile cards — compact horizontal layout */}
-      <ul className="space-y-3 md:hidden">
+      <ul className="grid gap-3 lg:hidden">
         {properties.map((property) => {
           const isSelected = selectedIds.includes(property.id);
           return (
             <li
               key={property.id}
               className={cn(
-                'relative flex gap-3 rounded-xl bg-card p-3 transition-colors',
+                'flex gap-3 rounded-xl bg-card p-3 transition-colors',
                 isSelected && 'ring-1 ring-inset ring-primary/30',
               )}
             >
@@ -234,10 +236,10 @@ export function PropertyList({
                   className="absolute left-1 top-1 size-4 rounded border-card/80 bg-card/80"
                 />
               </div>
-              <div className="min-w-0 flex-1 pr-8">
+              <div className="flex min-w-0 flex-1 flex-col">
                 <Link
                   href={`/app/properties/${property.id}`}
-                  className="block truncate text-sm font-semibold text-foreground"
+                  className="block truncate text-sm font-semibold text-foreground hover:text-primary"
                 >
                   {property.title}
                 </Link>
@@ -246,8 +248,8 @@ export function PropertyList({
                   {property.location?.city ? ` · ${property.location.city}` : ''}
                   {property.reference_number ? ` · ${property.reference_number}` : ''}
                 </p>
-                <div className="mt-1.5 flex items-baseline gap-2">
-                  <span className="text-base font-semibold text-foreground tabular-nums">
+                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2">
+                  <span className="whitespace-nowrap text-base font-semibold text-foreground tabular-nums">
                     {typeof property.price === 'number'
                       ? formatCurrency(property.price, 'fr', {
                           currency: property.currency ?? 'XOF',
@@ -256,7 +258,7 @@ export function PropertyList({
                     {property.contract_type === 'rent' &&
                     property.rent_period ? (
                       <span className="ml-0.5 text-xs font-medium text-muted-foreground">
-                        /{RENT_PERIOD_SHORT[property.rent_period]}
+                        /{tPeriodes(property.rent_period)}
                       </span>
                     ) : null}
                   </span>
@@ -270,7 +272,7 @@ export function PropertyList({
                   <PropertyStatusBadge status={property.status} />
                   <VisibilityBadge visibility={property.visibility} />
                 </div>
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-xs text-muted-foreground tabular-nums">
                   <RelativeDate value={property.created_at} /> ·{' '}
                   <span className="inline-flex items-center gap-1">
                     <EyeIcon className="size-3" aria-hidden="true" />
@@ -287,9 +289,11 @@ export function PropertyList({
                     ? ` · ${property.owner.name}`
                     : ''}
                 </p>
-              </div>
-              <div className="absolute right-2 top-2">
-                <PropertyRowActions property={property} />
+                {/* Les actions en PIED de carte, dans le flux : posées en absolu en haut à
+                    droite, « Modifier » recouvrait le titre à 360-390 px. */}
+                <div className="mt-auto pt-2">
+                  <PropertyRowActions property={property} layout="card" />
+                </div>
               </div>
             </li>
           );
@@ -378,10 +382,11 @@ function BienCell({
 
 function PriceCell({ property }: { readonly property: PropertyListItem }) {
   const tContract = useTranslations(PROPERTY_ENUM_NAMESPACES.contractType);
+  const tPeriodes = useTranslations('property.rentPeriodsShort');
   const isRent = property.contract_type === 'rent';
   return (
     <div className="space-y-0.5">
-      <div className="text-base font-semibold text-foreground tabular-nums">
+      <div className="whitespace-nowrap text-base font-semibold text-foreground tabular-nums">
         {typeof property.price === 'number'
           ? formatCurrency(property.price, 'fr', {
               currency: property.currency ?? 'XOF',
@@ -389,7 +394,7 @@ function PriceCell({ property }: { readonly property: PropertyListItem }) {
           : '—'}
         {isRent && property.rent_period ? (
           <span className="ml-0.5 text-xs font-medium text-muted-foreground">
-            /{RENT_PERIOD_SHORT[property.rent_period]}
+            /{tPeriodes(property.rent_period)}
           </span>
         ) : null}
       </div>
@@ -405,8 +410,8 @@ function PriceCell({ property }: { readonly property: PropertyListItem }) {
 function ActivityCell({ property }: { readonly property: PropertyListItem }) {
   const t = useTranslations('property.dashboard.list');
   return (
-    <div className="space-y-0.5 text-xs text-muted-foreground">
-      <div className="text-foreground">
+    <div className="space-y-0.5 text-xs text-muted-foreground tabular-nums">
+      <div className="whitespace-nowrap text-foreground">
         <RelativeDate value={property.created_at} />
       </div>
       <div className="flex items-center gap-3">

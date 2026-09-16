@@ -95,7 +95,7 @@ export function SuperAdminPropertiesFilters({ total, busy }: SuperAdminPropertie
   return (
     <FilterBar
       data-testid="super-admin-properties-filters"
-      controlsClassName="md:grid-cols-2 xl:grid-cols-5"
+      controlsClassName="md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-5"
       resultCount={total === undefined ? undefined : tFiltres('results', { count: total })}
       onReset={reinitialiser}
       resetLabel={tFiltres('reset')}
@@ -151,7 +151,7 @@ function FilterSelect({
 }) {
   return (
     <Select value={value} onValueChange={(next) => onChange((next ?? ALL) as string)} items={options}>
-      <SelectTrigger aria-label={label} className="h-10 w-full">
+      <SelectTrigger aria-label={label} className="data-[size=default]:h-10 w-full">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

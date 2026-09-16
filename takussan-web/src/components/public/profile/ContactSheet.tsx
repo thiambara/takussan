@@ -46,15 +46,15 @@ export function ContactSheet({ name, email, phone, subject, agentSlug }: Contact
   return (
     <>
       {/* Desktop : boutons inline */}
-      <div className="hidden md:flex md:flex-wrap md:gap-2">
+      <div className="hidden md:flex md:flex-wrap md:gap-3">
         {agentSlug ? (
-          <Button size="lg" onClick={() => setLeadOpen(true)}>
+          <Button size="lg" className="h-11 px-4" onClick={() => setLeadOpen(true)}>
             <Mail aria-hidden />
             {t('email')}
           </Button>
         ) : (
           mailHref && (
-            <Button size="lg" nativeButton={false} render={<a href={mailHref} />}>
+            <Button size="lg" className="h-11 px-4" nativeButton={false} render={<a href={mailHref} />}>
               <Mail aria-hidden />
               {t('email')}
             </Button>
@@ -64,6 +64,7 @@ export function ContactSheet({ name, email, phone, subject, agentSlug }: Contact
           <Button
             size="lg"
             variant="outline"
+            className="h-11 px-4"
             nativeButton={false}
             render={<a href={telHref} />}
           >
@@ -78,7 +79,7 @@ export function ContactSheet({ name, email, phone, subject, agentSlug }: Contact
         <Sheet>
           <SheetTrigger
             render={
-              <Button size="lg" className="w-full">
+              <Button size="lg" className="h-12 w-full">
                 <MessageSquareText aria-hidden />
                 {t('contact')}
               </Button>

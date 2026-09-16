@@ -28,7 +28,7 @@ export function LocationPickerMap({ lat, lng, onChange }: LocationPickerMapProps
     () =>
       L.divIcon({
         className: '',
-        html: '<div style="width:16px;height:16px;background:#1d4ed8;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+        html: '<div style="width:16px;height:16px;background:var(--primary);border:2px solid var(--card);border-radius:50%;box-shadow:0 1px 4px color-mix(in srgb,var(--shadow-color) 40%,transparent)"></div>',
         iconSize: [16, 16],
         iconAnchor: [8, 8],
       }),

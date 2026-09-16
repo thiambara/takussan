@@ -52,6 +52,8 @@ export function OverduePaymentsTable() {
     {
       id: 'reference',
       header: tTable('reference'),
+      // `nowrap` : « LPY-QOWGDC » se cassait au tiret à 768, une référence par deux lignes.
+      className: 'whitespace-nowrap',
       // La typographie de la CELLULE se pose dans la cellule : `className` va aussi sur le `<th>`,
       // et un en-tête en chasse fixe n'est pas ce qu'on demandait.
       cell: (row) => (
@@ -69,7 +71,7 @@ export function OverduePaymentsTable() {
     {
       id: 'dueDate',
       header: tTable('dueDate'),
-      className: 'text-xs',
+      className: 'whitespace-nowrap text-xs tabular-nums',
       cell: (row) => {
         const dueDate = row.due_date ?? row.period_start ?? row.date ?? null;
         return dueDate ? formatDate(dueDate, locale) : '—';
@@ -78,12 +80,13 @@ export function OverduePaymentsTable() {
     {
       id: 'amount',
       header: tTable('amount'),
-      className: 'font-semibold',
+      className: 'whitespace-nowrap font-semibold tabular-nums',
       cell: (row) => formatCurrency(row.amount, locale, { currency: row.currency || 'XOF' }),
     },
     {
       id: 'remaining',
       header: tTable('remaining'),
+      className: 'whitespace-nowrap tabular-nums',
       cell: (row) => (
         <span className="font-semibold text-destructive">
           {formatCurrency(row.remaining_amount, locale, { currency: row.currency || 'XOF' })}
@@ -99,7 +102,7 @@ export function OverduePaymentsTable() {
     {
       id: 'entity',
       header: tTable('entity'),
-      className: 'text-xs',
+      className: 'whitespace-nowrap text-xs',
       cell: (row) => {
         const entityLabel = row.lease_id
           ? tTable('leaseEntity', { id: String(row.lease_id) })

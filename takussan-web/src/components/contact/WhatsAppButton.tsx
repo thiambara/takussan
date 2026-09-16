@@ -37,7 +37,7 @@ export function WhatsAppButton({ slug, title }: Props) {
       onClick={handleContact}
       disabled={loading}
       aria-label={t('aria', { title })}
-      className="w-full flex items-center justify-center gap-3 bg-[#25D366] hover:bg-[#20bb5a] disabled:opacity-60 text-white font-semibold py-4 px-6 rounded-lg transition-colors duration-150 cursor-pointer disabled:cursor-not-allowed"
+      className="w-full flex items-center justify-center gap-3 bg-success hover:bg-success/90 disabled:opacity-60 text-success-foreground font-semibold min-h-11 py-3 px-6 rounded-lg transition-[background-color,scale] active:scale-[0.96] duration-150 cursor-pointer disabled:cursor-not-allowed"
     >
       <svg
         className="w-5 h-5 flex-none"

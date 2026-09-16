@@ -76,7 +76,7 @@ export function WizardDraftsBanner({ className, initialDrafts }: Props) {
           <Sparkles className="size-4" />
         </span>
         <div className="flex flex-col gap-1">
-          <p className="font-display text-base text-foreground">{t('title')}</p>
+          <p className="font-display text-base font-semibold text-foreground">{t('title')}</p>
           <p className="text-sm text-muted-foreground">
             {t('description', { count: entries.length })}
           </p>
@@ -92,7 +92,7 @@ export function WizardDraftsBanner({ className, initialDrafts }: Props) {
             <li key={entry.key}>
               <Link
                 href={entry.resumeHref ?? '#'}
-                className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-[var(--primary-deep)]"
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-[background-color,scale] duration-150 ease-out hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96]"
               >
                 {label}
                 <ArrowRight className="size-3.5" aria-hidden />

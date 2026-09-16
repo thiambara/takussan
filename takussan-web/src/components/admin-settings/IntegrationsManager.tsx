@@ -231,22 +231,22 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
           description={t('empty_description')}
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {integrations.map((integration) => {
             const testState = testResults[integration.id];
             return (
               <article
                 key={integration.id}
-                className="rounded-xl border border-input bg-card p-5 space-y-3"
+                className="space-y-3 rounded-xl border border-border bg-card p-5"
               >
                 <header className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Plug className="size-5 text-primary" aria-hidden="true" />
+                  <div className="flex min-w-0 items-center gap-2">
+                    <Plug className="size-5 shrink-0 text-primary" aria-hidden="true" />
                     <div>
                       <h3 className="text-sm font-semibold capitalize text-foreground">
                         {integration.provider.replace(/_/g, ' ')}
                       </h3>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-pretty tabular-nums text-muted-foreground">
                         {integration.is_active ? t('statusActive') : t('statusInactive')}
                         {integration.last_used_at
                           ? t('lastTest', {
@@ -288,7 +288,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                   <div
                     role="status"
                     className={`flex items-center gap-2 text-xs ${
-                      testState.kind === 'success' ? 'text-accent' : 'text-destructive'
+                      testState.kind === 'success' ? 'text-success' : 'text-destructive'
                     }`}
                   >
                     {testState.kind === 'success' ? (
@@ -328,6 +328,7 @@ export function IntegrationsManager({ initialIntegrations }: IntegrationsManager
                     size="sm"
                     variant="ghost"
                     aria-label={t('deleteAria', { provider: integration.provider })}
+                    className="text-muted-foreground hover:text-destructive"
                     onClick={() => handleDelete(integration)}
                     disabled={isPending}
                   >

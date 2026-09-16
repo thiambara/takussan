@@ -1,5 +1,24 @@
 'use client';
 
+import {
+  BedSingle,
+  Briefcase,
+  Building2,
+  DoorOpen,
+  Factory,
+  Hotel,
+  House,
+  HousePlus,
+  LandPlot,
+  type LucideIcon,
+  MapPin,
+  SquareParking,
+  Store,
+  TreePalm,
+  Warehouse,
+  Wheat,
+  Wrench,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { UseFormReturn } from 'react-hook-form';
 
@@ -8,12 +27,25 @@ import { contractTypeValues, propertyTypeValues } from '@/lib/schemas/property';
 import { PROPERTY_ENUM_NAMESPACES } from '../../options';
 import { ChoiceChips } from '../ChoiceChips';
 
-/** Les emojis servent de repère de forme, pas de décor : ils accélèrent le balayage d'une grille de 16. */
-const ICONES: Partial<Record<(typeof propertyTypeValues)[number], string>> = {
-  land: '🌍', house: '🏠', apartment: '🏢', villa: '🏡', studio: '🛏', room: '🚪',
-  office: '💼', shop: '🏪', warehouse: '📦', factory: '🏭', farm: '🌾', hotel: '🏨',
-  resort: '🌴', garage: '🔧', parking: '🅿️', other: '📍',
+/**
+ * Un repère de FORME par type : il accélère le balayage d'une grille de 16.
+ *
+ * Des icônes Lucide et non plus des emojis (design-guidelines : « Lucide React uniquement ») —
+ * l'emoji se dessinait différemment sur chaque système (Android, iOS, Windows), en couleurs
+ * étrangères à la palette, et ne suivait pas l'état actif de la pastille. Une icône en
+ * `currentColor` passe au clair sur la pastille retenue avec son libellé.
+ */
+const ICONES: Partial<Record<(typeof propertyTypeValues)[number], LucideIcon>> = {
+  land: LandPlot, house: House, apartment: Building2, villa: HousePlus, studio: BedSingle,
+  room: DoorOpen, office: Briefcase, shop: Store, warehouse: Warehouse, factory: Factory,
+  farm: Wheat, hotel: Hotel, resort: TreePalm, garage: Wrench, parking: SquareParking,
+  other: MapPin,
 };
+
+function iconeDe(type: (typeof propertyTypeValues)[number]) {
+  const Icone = ICONES[type];
+  return Icone ? <Icone className="size-4" strokeWidth={1.75} /> : undefined;
+}
 
 /**
  * TCK-464 — la première étape : le type de bien et le contrat, tous deux en pastilles.
@@ -47,7 +79,7 @@ export function StepBien({ form }: { readonly form: UseFormReturn<PropertyFormVa
         radioGroup
         value={watch('type')}
         onChange={(v) => setValue('type', v as PropertyFormValues['type'], { shouldDirty: true })}
-        options={propertyTypeValues.map((v) => ({ value: v, label: tType(v), icon: ICONES[v] }))}
+        options={propertyTypeValues.map((v) => ({ value: v, label: tType(v), icon: iconeDe(v) }))}
       />
       <ChoiceChips
         id="wizard-contract"

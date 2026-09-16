@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, X } from 'lucide-react';
 
 import { useAuth } from '@/context/AuthContext';
@@ -24,6 +24,8 @@ import {
   fetchDashboardCustomer,
 } from '@/lib/queries/customers';
 import { PIPELINE_QUERY_KEY } from '@/hooks/pipelineKeys';
+import type { Locale } from '@/i18n/config';
+import { formatDate, formatDateTime } from '@/lib/format';
 import type { Task } from '@/types/pipeline';
 
 interface CustomerDetailSheetProps {
@@ -138,7 +140,7 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
       >
         <header className="flex items-start justify-between gap-3 border-b border-muted p-4">
           <div className="min-w-0">
-            <p className="truncate text-lg font-bold text-foreground">
+            <p className="truncate font-display text-lg font-semibold tracking-tight text-foreground">
               {customer ? `${customer.first_name} ${customer.last_name}` : '…'}
             </p>
             {customer?.email ? (
@@ -152,7 +154,7 @@ export function CustomerDetailSheet({ customerId, onOpenChange }: CustomerDetail
             onClick={() => onOpenChange(false)}
             aria-label={t('actions.close')}
           >
-            <X className="size-4" />
+            <X className="size-4" aria-hidden="true" />
           </Button>
         </header>
 
@@ -249,6 +251,7 @@ interface NotesTabProps {
 
 function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
   const t = useTranslations('crm.pipeline');
+  const locale = useLocale() as Locale;
   const [body, setBody] = useState('');
 
   return (
@@ -282,16 +285,16 @@ function NotesTab({ notes, isLoading, onAdd, isAdding }: NotesTabProps) {
           {notes.map((n) => (
             <li
               key={n.id}
-              className="rounded-md border border-muted bg-card p-3 text-sm"
+              className="rounded-lg border border-muted bg-card p-3 text-sm"
             >
               {n.pinned ? (
-                <span className="mb-1 inline-block rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning dark:text-warning">
+                <span className="mb-1 inline-block rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
                   {t('notes.pinned')}
                 </span>
               ) : null}
               <p className="whitespace-pre-wrap text-foreground">{n.body}</p>
-              <time className="mt-1 block text-xs text-muted-foreground">
-                {new Date(n.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              <time className="mt-1 block text-xs tabular-nums text-muted-foreground">
+                {formatDateTime(n.created_at, locale)}
               </time>
             </li>
           ))}
@@ -311,6 +314,7 @@ interface TasksTabProps {
 
 function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTabProps) {
   const t = useTranslations('crm.pipeline');
+  const locale = useLocale() as Locale;
   const [title, setTitle] = useState('');
   const [due, setDue] = useState('');
 
@@ -352,11 +356,11 @@ function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTa
           {tasks.map((task) => (
             <li
               key={task.id}
-              className="flex items-start gap-3 rounded-md border border-muted bg-card p-3 text-sm"
+              className="flex items-start gap-3 rounded-lg border border-muted bg-card p-3 text-sm"
             >
               <input
                 type="checkbox"
-                className="mt-1 size-4 cursor-pointer accent-primary"
+                className="mt-0.5 size-5 shrink-0 cursor-pointer accent-primary"
                 checked={task.status === 'done'}
                 onChange={() => onToggleStatus(task)}
                 aria-label={t('tasks.toggle')}
@@ -372,8 +376,8 @@ function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTa
                   {task.title}
                 </p>
                 {task.due_at ? (
-                  <time className="block text-xs text-muted-foreground">
-                    {new Date(task.due_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  <time className="block text-xs tabular-nums text-muted-foreground">
+                    {formatDate(task.due_at, locale, { dateStyle: 'long' })}
                   </time>
                 ) : null}
               </div>
@@ -386,6 +390,7 @@ function TasksTab({ tasks, isLoading, onAdd, isAdding, onToggleStatus }: TasksTa
 }
 
 function ActivityTab({ rows, isLoading }: { rows: ActivityRow[]; isLoading: boolean }) {
+  const locale = useLocale() as Locale;
   if (isLoading) return <Loading />;
   if (rows.length === 0) return <Empty />;
   return (
@@ -393,11 +398,11 @@ function ActivityTab({ rows, isLoading }: { rows: ActivityRow[]; isLoading: bool
       {rows.map((r) => (
         <li
           key={r.id}
-          className="rounded-md border border-muted bg-card p-3 text-sm"
+          className="rounded-lg border border-muted bg-card p-3 text-sm"
         >
           <p className="text-foreground">{r.description}</p>
-          <time className="block text-xs text-muted-foreground">
-            {new Date(r.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          <time className="block text-xs tabular-nums text-muted-foreground">
+            {formatDateTime(r.created_at, locale)}
           </time>
         </li>
       ))}

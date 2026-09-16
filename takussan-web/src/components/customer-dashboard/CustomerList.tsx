@@ -1,8 +1,18 @@
+'use client';
+
+/**
+ * ⚠ `'use client'` est PORTANT (revue design 2026-09-16) : ce composant est rendu depuis
+ * `app/customers/(liste)/page.tsx`, un server component, et passe à `DataTable` (client) des
+ * FONCTIONS — `cell`, `rowKey`. Sans la directive, React refuse de les sérialiser à la frontière
+ * (« Functions cannot be passed directly to Client Components ») et `/app/customers` rendait
+ * l'écran de panne du dashboard depuis TCK-380 (2026-08-27). Les tests jsdom ne franchissent
+ * aucune frontière RSC : ils étaient verts.
+ */
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { UserPlus } from 'lucide-react';
 
-import { DataTable, type DataTableColumn, StatusBadge, type StatusTone } from '@/components/console';
+import { DataTable, type DataTableColumn, StatusBadge } from '@/components/console';
 import { CustomerTagChips } from '@/components/customer-dashboard/CustomerTagPicker';
 import { EmptyState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
@@ -12,6 +22,7 @@ import {
   customerStatusValues,
   pipelineStageValues,
 } from '@/lib/schemas/customer';
+import { CUSTOMER_STATUS_TONE, PIPELINE_STAGE_TONE } from '@/components/customer-form/options';
 
 interface CustomerListProps {
   readonly page: PaginatedResponse<CustomerListItem>;
@@ -27,9 +38,10 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
    * Les colonnes, dans l'ORDRE EXACT de la table faite main qu'elles remplacent
    * (client · contact · étiquettes · pipeline · statut), éprouvé par test.
    *
-   * ⚠ La liste de CARTES sous `md` reste une liste de cartes : `DataTable` remplace la table du
+   * ⚠ La liste de CARTES sous `lg` reste une liste de cartes : `DataTable` remplace la table du
    * bureau, pas la forme mobile — cf. la Direction UX de TCK-380, « ne pas convertir en table ce
-   * qui se lit mieux en cartes ».
+   * qui se lit mieux en cartes ». Le seuil est `lg` et non `md` : sous la barre latérale, 768 ne
+   * laisse que 464 px, et la table y coupait les colonnes pipeline et statut (TCK-505).
    */
   const colonnes: readonly DataTableColumn<CustomerListItem>[] = [
     {
@@ -39,7 +51,7 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
         <>
           <Link
             href={`/app/customers/${customer.id}`}
-            className="block font-semibold text-foreground hover:text-foreground"
+            className="block font-semibold text-foreground underline-offset-4 hover:underline"
           >
             {customer.first_name} {customer.last_name}
           </Link>
@@ -62,7 +74,7 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
           ) : null}
           {customer.email && customer.phone ? <br /> : null}
           {customer.phone ? (
-            <a href={`tel:${customer.phone}`} className="hover:underline">
+            <a href={`tel:${customer.phone}`} className="tabular-nums hover:underline">
               {customer.phone}
             </a>
           ) : null}
@@ -95,14 +107,14 @@ export function CustomerList({ page, onTagClick }: CustomerListProps) {
   return (
     <div className="space-y-4">
       <DataTable
-        className="hidden md:block"
+        className="hidden lg:block"
         caption={t('caption')}
         columns={colonnes}
         rows={customers}
         rowKey={(customer) => customer.id}
       />
 
-      <ul className="space-y-3 md:hidden">
+      <ul className="space-y-3 lg:hidden">
         {customers.map((customer) => (
           <li key={customer.id}>
             <Link
@@ -153,71 +165,12 @@ function PipelineBadge({
   return <StatusBadge label={label} tone={PIPELINE_STAGE_TONE[stage] ?? 'neutral'} />;
 }
 
-/**
- * `étape du pipeline → ton du DS`, et `statut du client → ton du DS` (TCK-472).
- *
- * ────────────────────────────────────────────────────────────────────────────────────────────────
- * CE QUE CES DEUX TABLES REMPLACENT
- * ────────────────────────────────────────────────────────────────────────────────────────────────
- *
- * Ce fichier définissait son propre `StatusBadge` — un HOMONYME du composant de `console/`, monté
- * juste sous un `DataTable` importé de ce même barrel. `<StatusBadge …>` y résolvait vers le
- * local, et rien, ni au typage ni au lint, ne le signalait. Il coloriait quatre étapes et deux
- * statuts à la main, en quatre familles de jetons, sans lire la table des tons.
- *
- * L'écart n'était pas seulement structurel : `qualified` portait `bg-primary/5 text-primary`, qui
- * mesure **4,24:1 en clair** sur `bg-muted` plein — la surface de la carte mobile survolée de ce
- * fichier même (l. 112, `hover:bg-muted`) — et **3,73:1 en sombre**, sous le seuil AA de 4,5:1 des
- * deux côtés. Personne ne l'avait mesuré : la couleur avait été choisie ici, pas dans la table.
- *
- * ────────────────────────────────────────────────────────────────────────────────────────────────
- * LE CRITÈRE D'ARBITRAGE — repris tel quel de `kyc/kyc-components.tsx`
- * ────────────────────────────────────────────────────────────────────────────────────────────────
- *
- *   `attention` = une décision est attendue d'un opérateur.
- *   `info`      = c'est décidé, ça suit son cours, il n'y a rien à faire.
- *   `neutral`   = la fiche existe, rien n'est attendu.
- *
- * D'où `negotiating` → `attention` (il faut relancer), `qualified` → `info` (c'est engagé, ça
- * avance), `lead` et `prospect` → `neutral`.
- *
- * ⚠ **`deleted` va à `neutral` et NON à `danger`**, alors que `blocked` va à `danger`. Un client
- * supprimé est un état terminal dont plus rien n'est attendu ; un client bloqué est une décision
- * active qu'un opérateur a prise et qu'il peut lever. Les peindre pareil aurait effacé la seule
- * différence qui compte à l'écran. C'est aussi le choix qui expose le moins de surface au trou
- * mesuré du ton `danger` (cf. le docblock de `TONE_CLASSES`).
- *
- * ⚠ `active` passe de gris à `success` — il était `bg-muted text-foreground`, exactement comme
- * `deleted` et `lead`. Un statut nominal qui se peint comme l'absence de statut ne dit rien ; et
- * `available` chez le bien porte déjà `success` pour la même idée.
- */
-const PIPELINE_STAGE_TONE: Readonly<Record<string, StatusTone>> = {
-  lead: 'neutral',
-  prospect: 'neutral',
-  qualified: 'info',
-  negotiating: 'attention',
-  converted: 'success',
-  lost: 'danger',
-};
-
-const CUSTOMER_STATUS_TONE: Readonly<Record<string, StatusTone>> = {
-  active: 'success',
-  inactive: 'neutral',
-  blocked: 'danger',
-  deleted: 'neutral',
-};
-
 function CustomerStatusBadge({ status }: { status: CustomerListItem['status'] }) {
   const t = useTranslations('crm.customerStatus');
   const label = (customerStatusValues as readonly string[]).includes(status) ? t(status) : status;
   return <StatusBadge label={label} tone={CUSTOMER_STATUS_TONE[status] ?? 'neutral'} />;
 }
 
-/**
- * `useTranslations` (et non `getTranslations`) : ce fichier n'a pas de `'use client'` et il est
- * rendu depuis `app/customers/page.tsx`, un server component. next-intl expose le hook dans les
- * deux mondes tant que le composant n'est pas `async` — ce qui est le cas ici.
- */
 function CustomersEmpty() {
   const t = useTranslations('crm.list');
   return (

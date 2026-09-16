@@ -40,12 +40,12 @@ export function ConsoleQueues() {
   const t = useTranslations('superAdmin.queues');
 
   return (
-    <section aria-labelledby="super-admin-queues" className="rounded-xl bg-card ring-1 ring-border">
+    <section aria-labelledby="super-admin-queues" className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
       <div className="border-b border-border px-5 py-4">
         <h2 id="super-admin-queues" className="font-display text-base font-semibold text-foreground">
           {t('title')}
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
+        <p className="mt-1 text-pretty text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
       <ul className="divide-y divide-border" data-testid="super-admin-queues">
         {SUPER_ADMIN_QUEUE_ORDER.map((queue) => (
@@ -67,12 +67,13 @@ function QueueRow({ queue }: { queue: SuperAdminQueueKey }) {
       <Link
         href={SUPER_ADMIN_QUEUES[queue].href}
         data-testid={`queue-row-${queue}`}
-        className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/40"
+        className="flex items-center gap-3 px-4 py-4 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:gap-4 sm:px-5"
       >
         <Icon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-medium text-foreground">{t(`items.${queue}.label`)}</span>
-          <span className="block truncate text-sm text-muted-foreground">
+          {/* Sous `sm`, la description s'enroule : tronquée à 390 px, elle ne disait plus rien. */}
+          <span className="block text-pretty text-sm text-muted-foreground sm:truncate">
             {t(`items.${queue}.description`)}
           </span>
         </span>
@@ -136,7 +137,8 @@ function QueueCount({
       <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-primary px-2 py-0.5 text-xs tabular-nums text-primary-foreground">
         {count}
       </span>
-      {t(`items.${queue}.unit`, { count })}
+      {/* Sous `sm`, la pastille parle seule à l'œil : le libellé écrasait le nom de la file. */}
+      <span className="sr-only sm:not-sr-only">{t(`items.${queue}.unit`, { count })}</span>
     </span>
   );
 }

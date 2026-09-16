@@ -6,11 +6,13 @@ import { Heart } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { buttonVariants } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import {
   useFavorites,
   remove as storeRemove,
@@ -60,12 +62,15 @@ export function PublicFavoritesPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
+      {/* Sans cale, le titre passait SOUS la barre fixe à toutes les largeurs (revue design du
+          2026-09-16 : « Mes favoris » invisible à 390 comme à 1366). */}
+      <NavbarSpacer />
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <header className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-foreground text-balance">
             {t('title')}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground tabular-nums">
             {isHydrated ? t('subtitle', { count }) : t('subtitleLoading')}
           </p>
         </header>
@@ -110,7 +115,7 @@ function PublicFavoritesEmpty() {
       title={t('empty')}
       description={t('emptyHint')}
       action={
-        <LienLocalise href="/properties" className={buttonVariants()}>
+        <LienLocalise href="/properties" className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-4')}>
           {t('discoverCta')}
         </LienLocalise>
       }

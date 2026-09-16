@@ -122,6 +122,16 @@ describe('ressembleATailwind', () => {
     expect(ressembleATailwind('Add a property')).toBe(false);
   });
 
+  it('reconnaît les classes de cellule de tableau (revue design 2026-09-16)', () => {
+    expect(ressembleATailwind('whitespace-nowrap tabular-nums')).toBe(true);
+    expect(ressembleATailwind('align-middle whitespace-nowrap')).toBe(true);
+  });
+
+  it('exige le tiret sur ces préfixes : les mots anglais nus restent de la prose', () => {
+    expect(ressembleATailwind('align the table')).toBe(false);
+    expect(ressembleATailwind('table of contents')).toBe(false);
+  });
+
   it('ne classe jamais en Tailwind une chaîne accentuée', () => {
     expect(ressembleATailwind('text-center rounded-md à gauche')).toBe(false);
   });

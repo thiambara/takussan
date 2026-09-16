@@ -22,7 +22,9 @@ export default async function Page() {
   // `loading.tsx`, son `redirect()` rendait 200 + le squelette de la route interdite.
 
   return (
-    <div className="space-y-6">
+    // `max-w-3xl` : sur 1366, des champs de 500 px chacun étiraient la saisie d'un nom sur toute
+    // la largeur de l'écran.
+    <div className="max-w-3xl space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />
       <CustomerForm mode="create" />
     </div>

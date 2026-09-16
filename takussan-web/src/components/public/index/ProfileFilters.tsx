@@ -95,10 +95,10 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             onChange={(e) => setRecherche(e.target.value)}
             placeholder={placeholderRecherche}
             aria-label={placeholderRecherche}
-            className="pl-9"
+            className="h-11 pl-9 md:h-10"
           />
         </div>
-        <Button type="submit" disabled={enCours && villeDemandee === null}>
+        <Button type="submit" className="h-11 px-4 md:h-10" disabled={enCours && villeDemandee === null}>
           {enCours && villeDemandee === null && <Loader2 className="size-4 animate-spin" aria-hidden />}
           {t('submit')}
         </Button>
@@ -131,7 +131,7 @@ export function ProfileFilters({ base, villes, placeholderRecherche }: Props) {
             setRecherche('');
             naviguer({ city: '', q: '' });
           }}
-          className="inline-flex w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          className="inline-flex min-h-9 w-fit items-center gap-1 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
         >
           <X className="size-3.5" aria-hidden />
           {t('clear')}
@@ -158,7 +158,7 @@ function CityChip({
       onClick={onClick}
       aria-pressed={actif}
       className={
-        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors ' +
+        'inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition-[color,background-color,border-color,scale] active:scale-[0.96] ' +
         (actif
           ? 'border-primary bg-primary text-primary-foreground'
           : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground')

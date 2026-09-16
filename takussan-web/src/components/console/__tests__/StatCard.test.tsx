@@ -31,12 +31,15 @@ describe('<StatCard>', () => {
   /**
    * `direction` porte le SENS, pas le signe : une baisse d'impayés est une bonne nouvelle, et ce
    * composant n'a aucun moyen de le savoir. La couleur suit donc la direction déclarée.
+   *
+   * Une hausse se dit `--success`, pas `--accent` (revue design 2026-09-16) : depuis TCK-450,
+   * l'accent sage est réservé aux mises en avant, et « ça va bien » a son propre jeton.
    */
   it('colore le delta selon la direction déclarée, jamais selon le signe de la valeur', () => {
     const { rerender } = render(
       <StatCard label="Impayés" value={12} delta={{ label: '−8 %', direction: 'up' }} />,
     );
-    expect(screen.getByText('−8 %')).toHaveClass('text-accent');
+    expect(screen.getByText('−8 %')).toHaveClass('text-success');
 
     rerender(<StatCard label="Impayés" value={12} delta={{ label: '−8 %', direction: 'down' }} />);
     expect(screen.getByText('−8 %')).toHaveClass('text-destructive');

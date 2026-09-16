@@ -1,6 +1,8 @@
 'use client';
 
 import { LienLocalise } from '@/components/shared/LienLocalise';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -60,7 +62,7 @@ export function LeaveReviewCta({ slug, context, propertyTitle }: LeaveReviewCtaP
         </div>
         <LienLocalise
           href={`/properties/${slug}#avis`}
-          className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-2 text-sm font-semibold text-primary-foreground hover:bg-foreground"
+          className={cn(buttonVariants({ size: 'lg' }), 'h-11 shrink-0 px-4')}
           data-testid="leave-review-cta"
         >
           {t('action')}

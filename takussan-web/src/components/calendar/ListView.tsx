@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/feedback';
 import { cn } from '@/lib/utils';
 import { parseServerDate, startOfDay } from '@/lib/calendar-date';
 import { paletteFor, typeLabelKey } from './event-colors';
+import { useDatesCalendrier } from './dates';
 import type { CalendarEvent } from '@/types/calendar';
 
 export interface ListViewProps {
@@ -19,6 +20,7 @@ type Group = { key: string; label: string; items: { event: CalendarEvent; start:
 export function ListView({ events, onSelect }: ListViewProps) {
   const t = useTranslations('calendar.list');
   const tCal = useTranslations('calendar');
+  const dates = useDatesCalendrier();
   const groups: Group[] = (() => {
     const byDay = new Map<string, Group>();
     for (const e of events) {
@@ -28,7 +30,7 @@ export function ListView({ events, onSelect }: ListViewProps) {
       if (!byDay.has(key)) {
         byDay.set(key, {
           key,
-          label: start.toLocaleDateString('fr-FR', {
+          label: dates.date(start, {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
@@ -55,7 +57,7 @@ export function ListView({ events, onSelect }: ListViewProps) {
     <div className="space-y-6">
       {groups.map((group) => (
         <section key={group.key}>
-          <h3 className="mb-2 text-sm font-semibold capitalize text-muted-foreground">{group.label}</h3>
+          <h3 className="mb-2 font-display text-sm font-semibold tracking-tight first-letter:uppercase text-muted-foreground">{group.label}</h3>
           <ul className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border">
             {group.items
               .sort((a, b) => a.start.getTime() - b.start.getTime())
@@ -63,10 +65,7 @@ export function ListView({ events, onSelect }: ListViewProps) {
                 const palette = paletteFor(event);
                 const timeLabel = event.all_day
                   ? tCal('allDay')
-                  : start.toLocaleTimeString('fr-FR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    });
+                  : dates.heure(start);
                 return (
                   <li key={`${event.type}-${event.id}`}>
                     <button
@@ -84,7 +83,7 @@ export function ListView({ events, onSelect }: ListViewProps) {
                           <span className="text-xs font-semibold uppercase text-muted-foreground">
                             {tCal(typeLabelKey(event.type))}
                           </span>
-                          <span className="text-xs font-medium text-muted-foreground">{timeLabel}</span>
+                          <span className="text-xs font-medium tabular-nums text-muted-foreground">{timeLabel}</span>
                         </div>
                         <div className="truncate text-sm font-medium text-foreground">
                           {event.title}

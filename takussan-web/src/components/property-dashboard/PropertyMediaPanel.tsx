@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MediaManager, type MediaItem } from '@/components/media';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslations } from 'next-intl';
 import {
   deletePropertyMediaAction,
@@ -107,9 +108,13 @@ export function PropertyMediaPanel({ propertyId }: PropertyMediaPanelProps) {
 
   if (loading) {
     return (
-      <section className="rounded-xl bg-card p-6">
+      // Un squelette à la forme du gestionnaire (titre, consigne, zone de dépôt), plus une
+      // ligne « Chargement… » : l'onglet ne saute plus de 60 px quand la liste arrive.
+      <section className="rounded-xl bg-card p-6" aria-busy="true">
         <h2 className="text-base font-semibold text-foreground">{t('photos')}</h2>
-        <p className="mt-2 text-xs text-muted-foreground">{t('loading')}</p>
+        <span className="sr-only">{t('loading')}</span>
+        <Skeleton className="mt-2 h-3 w-2/3 max-w-sm" />
+        <Skeleton className="mt-4 h-40 w-full rounded-xl" />
       </section>
     );
   }

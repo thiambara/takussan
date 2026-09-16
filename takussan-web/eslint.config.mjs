@@ -41,6 +41,20 @@ const eslintConfig = defineConfig([
     name: "takussan/react-version-pin",
     settings: { react: { version: reactVersion } },
   },
+  // Le préfixe `_` DIT « inutilisé, et c'est voulu » (signature imposée par un mock, un rappel,
+  // une déstructuration qui retire une clé). Le dépôt l'écrit ainsi partout ; sans cette règle,
+  // la convention produisait quatorze avertissements qui noyaient les vrais (2026-09-16).
+  {
+    name: "takussan/unused-underscore",
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+      }],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

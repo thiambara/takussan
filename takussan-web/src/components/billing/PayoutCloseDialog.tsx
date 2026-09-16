@@ -5,10 +5,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/toast';
+import { AgencyCombobox } from '@/components/admin/super/AgencyCombobox';
 
 import { closeAdminPlatformPayoutPeriod } from '@/lib/queries/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -54,25 +54,28 @@ export function PayoutCloseDialog({ defaultAgencyId }: { defaultAgencyId?: numbe
       <CardHeader>
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-[160px_180px_auto]">
+      {/* Empilé sous `lg` : à 768 la carte n'a que ~420 px et la date se tronquait (TCK-505).
+          Au-dessus, le bouton garde sa largeur au lieu de s'étirer sur la piste restante. */}
+      <CardContent className="grid gap-3 lg:grid-cols-[200px_260px_auto] lg:justify-start">
         <DatePicker
           value={periodEnd}
           onValueChange={setPeriodEnd}
           aria-label={t('periodEndAria')}
+          buttonClassName="h-10"
         />
-        <Input
-          type="number"
-          placeholder={t('agencyPlaceholder')}
+        <AgencyCombobox
           value={agencyId}
-          onChange={(event) => setAgencyId(event.target.value)}
-          aria-label={t('agencyAria')}
+          onChange={setAgencyId}
+          label={t('agencyAria')}
+          placeholder={t('agencyPlaceholder')}
         />
         <Button
           type="button"
+          className="h-10"
           disabled={!periodEnd || mutation.isPending}
           onClick={() => mutation.mutate()}
         >
-          {mutation.isPending ? <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" /> : null}
+          {mutation.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
           {t('submit')}
         </Button>
       </CardContent>

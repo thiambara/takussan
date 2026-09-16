@@ -208,7 +208,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
                   }
                 >
                   <CalendarIcon className="size-4 text-muted-foreground" />
-                  <span className="capitalize">{formatDateLabel(date, t('pickDate'))}</span>
+                  <span className="inline-block first-letter:uppercase">{formatDateLabel(date, t('pickDate'))}</span>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto p-0">
                   <Calendar
@@ -269,7 +269,7 @@ export function PropertyVisitDialog({ slug, open, onOpenChange, onSuccess }: Pro
                     onClick={() => setType(value)}
                     aria-pressed={selected}
                     className={cn(
-                      'group flex items-start gap-2.5 rounded-lg p-3 text-left text-sm transition-all',
+                      'group flex items-start gap-2.5 rounded-lg p-3 text-left text-sm transition-[background-color,border-color,color,box-shadow]',
                       'ring-1 ring-foreground/10 hover:bg-muted/60',
                       selected
                         ? 'bg-primary/10 ring-primary/40 shadow-sm'

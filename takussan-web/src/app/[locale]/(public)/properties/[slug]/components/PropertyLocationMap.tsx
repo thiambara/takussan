@@ -22,9 +22,9 @@ export function PropertyLocationMap({ latitude, longitude, address }: PropertyLo
   if (latitude == null || longitude == null) {
     return (
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-stone-900">{t('location')}</h2>
-        <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-6 text-sm text-stone-600 flex items-center gap-2">
-          <MapPin className="size-4 text-stone-400" aria-hidden />
+        <h2 className="text-xl font-semibold text-foreground">{t('location')}</h2>
+        <div className="rounded-xl border border-border bg-muted px-4 py-6 text-sm text-muted-foreground flex items-center gap-2">
+          <MapPin className="size-4 text-muted-foreground" aria-hidden />
           <span>{address || t('addressHidden')}</span>
         </div>
       </section>
@@ -33,10 +33,10 @@ export function PropertyLocationMap({ latitude, longitude, address }: PropertyLo
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-stone-900">{t('location')}</h2>
+      <h2 className="text-xl font-semibold text-foreground">{t('location')}</h2>
       {address && (
-        <p className="text-sm text-stone-600 flex items-center gap-2">
-          <MapPin className="size-4 text-stone-400" aria-hidden />
+        <p className="text-sm text-muted-foreground flex items-center gap-2">
+          <MapPin className="size-4 text-muted-foreground" aria-hidden />
           {address}
         </p>
       )}

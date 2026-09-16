@@ -360,7 +360,7 @@ export function AnnouncementsConsole() {
       cell: (announcement) => (
         <>
           <p className="font-medium text-foreground">{announcement.title.fr}</p>
-          <p className="text-xs text-muted-foreground">{announcement.body.fr}</p>
+          <p className="line-clamp-2 text-pretty text-xs text-muted-foreground">{announcement.body.fr}</p>
         </>
       ),
     },
@@ -391,7 +391,7 @@ export function AnnouncementsConsole() {
     {
       id: 'window',
       header: t('colWindow'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (announcement) => fmt.dateTime(announcement.starts_at),
     },
     {
@@ -410,12 +410,15 @@ export function AnnouncementsConsole() {
   ];
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(380px,0.9fr)]">
-      <section className="rounded-xl bg-card p-4 ring-1 ring-border">
-        <div className="flex items-center justify-between gap-3">
+    // `grid-cols-1` sous `xl` : sans piste explicite, la colonne implicite prenait la largeur
+    // minimale de la table et des champs, et les deux cartes sortaient de l'écran à 390 et 768
+    // (coupées par la coque, donc invisibles au défilement).
+    <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(380px,0.9fr)]">
+      <section className="min-w-0 rounded-xl bg-card p-4 ring-1 ring-border">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-display text-lg font-semibold text-foreground">{t('title')}</h2>
-            <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
+            <p className="text-pretty text-sm text-muted-foreground">{t('subtitle')}</p>
           </div>
           <Badge variant="outline">{t('countBadge', { count: query.data?.meta?.total ?? 0 })}</Badge>
         </div>
@@ -439,8 +442,8 @@ export function AnnouncementsConsole() {
         />
       </section>
 
-      <section className="rounded-xl bg-card p-4 ring-1 ring-border">
-        <div className="flex items-center justify-between gap-2">
+      <section className="min-w-0 rounded-xl bg-card p-4 ring-1 ring-border">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Megaphone className="size-5 text-primary" aria-hidden="true" />
             <h2 className="font-display text-lg font-semibold text-foreground">
@@ -662,7 +665,7 @@ function RoleTargeting({ form, setForm }: { form: FormState; setForm: (value: Fo
           return (
             <label
               key={slug}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground has-checked:border-primary has-checked:bg-primary/10"
+              className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 has-checked:border-primary has-checked:bg-primary/10 has-focus-visible:ring-2 has-focus-visible:ring-ring"
             >
               <input
                 type="checkbox"
@@ -747,7 +750,7 @@ function AgencyTargeting({
           <p className="text-xs text-muted-foreground">{t('agenciesNoMatch')}</p>
         ) : (
           agencies.map((agency) => (
-            <label key={agency.id} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm text-foreground hover:bg-muted">
+            <label key={agency.id} className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted has-focus-visible:ring-2 has-focus-visible:ring-ring">
               <input
                 type="checkbox"
                 className="size-4 accent-primary"

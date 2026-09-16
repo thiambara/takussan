@@ -57,9 +57,9 @@ const VARIANTS: Record<CardVariant, VariantSpec> = {
 function VariantSkeleton({ kind, width }: { kind: VariantSpec['skeleton']; width: number }) {
   if (kind === 'horizontal') {
     return (
-      <div className="w-[440px] shrink-0 animate-pulse">
-        <div className="flex gap-4 p-3 rounded-2xl bg-card border border-border">
-          <div className="aspect-square w-[170px] rounded-xl bg-muted" />
+      <div className="w-[340px] sm:w-[440px] shrink-0 animate-pulse">
+        <div className="flex gap-3 sm:gap-4 p-3 rounded-2xl bg-card border border-border">
+          <div className="aspect-square w-[128px] sm:w-[170px] rounded-lg bg-muted" />
           <div className="flex-1 py-1 space-y-2">
             <div className="h-4 w-3/4 rounded bg-muted" />
             <div className="h-3 w-1/2 rounded bg-muted" />
@@ -132,10 +132,12 @@ export function PropertyRow({
   }, [properties.length, loading]);
 
   function scrollBy(direction: 1 | -1) {
-    scrollerRef.current?.scrollBy({
-      left: spec.step * direction * 2,
-      behavior: 'smooth',
-    });
+    // La largeur de la carte Listing dépend du viewport (340 / 440 px) : le pas se lit sur la
+    // première carte rendue, la table ne sert que de repli.
+    const el = scrollerRef.current;
+    const first = el?.firstElementChild as HTMLElement | null;
+    const step = first ? first.offsetWidth + 24 : spec.step;
+    el?.scrollBy({ left: step * direction * 2, behavior: 'smooth' });
   }
 
   const Card = spec.Card;
@@ -143,23 +145,23 @@ export function PropertyRow({
   return (
     <section className="relative">
       <div className="mb-6 flex items-end justify-between gap-4 px-1">
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-1.5">
           {eyebrow && (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
               {eyebrow}
             </p>
           )}
-          <h2 className="font-display text-[26px] md:text-[30px] leading-[1.1] font-semibold text-foreground">
+          <h2 className="font-display text-[24px] sm:text-[26px] md:text-[30px] leading-[1.1] font-semibold tracking-tight text-foreground text-balance">
             {title}
           </h2>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0 pb-1">
+        <div className="flex items-center gap-3 shrink-0">
           {action ? (
             <button
               type="button"
               onClick={action.onClick}
-              className={`hidden md:inline-flex items-center gap-1 text-[14px] font-semibold transition-colors ${
+              className={`inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold transition-colors ${
                 action.variant === 'destructive-link'
                   ? 'text-destructive hover:opacity-80'
                   : 'text-foreground hover:text-primary'
@@ -171,10 +173,10 @@ export function PropertyRow({
             viewAllHref && (
               <LienLocalise
                 href={viewAllHref}
-                className="hidden md:inline-flex items-center gap-1 text-[14px] font-semibold text-foreground hover:text-primary transition-colors"
+                className="inline-flex min-h-11 items-center gap-0.5 whitespace-nowrap text-[14px] font-semibold text-foreground hover:text-primary transition-colors"
               >
                 {viewAllLabel ?? t('viewAll')}
-                <span aria-hidden="true" className="text-primary">▸</span>
+                <ChevronRight aria-hidden="true" className="size-4 text-primary" strokeWidth={2} />
               </LienLocalise>
             )
           )}
@@ -186,7 +188,7 @@ export function PropertyRow({
                 onClick={() => scrollBy(-1)}
                 disabled={!canLeft}
                 aria-label={t('previous')}
-                className="size-11 rounded-full bg-card border border-border text-primary flex items-center justify-center transition-all hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                className="size-11 rounded-full bg-card border border-border text-primary flex items-center justify-center transition-[border-color,opacity,scale] hover:border-primary active:scale-[0.96] disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 <ChevronLeft className="size-5" strokeWidth={2} />
               </button>
@@ -195,7 +197,7 @@ export function PropertyRow({
                 onClick={() => scrollBy(1)}
                 disabled={!canRight}
                 aria-label={t('next')}
-                className="size-11 rounded-full bg-card border border-border text-primary flex items-center justify-center transition-all hover:border-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                className="size-11 rounded-full bg-card border border-border text-primary flex items-center justify-center transition-[border-color,opacity,scale] hover:border-primary active:scale-[0.96] disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 <ChevronRight className="size-5" strokeWidth={2} />
               </button>

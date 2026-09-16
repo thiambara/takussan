@@ -87,6 +87,17 @@ export function PipelineKanban() {
       {} as Record<CustomerPipelineStage, PipelineCustomerCard[]>,
     );
 
+  const columnState = (idx: number) => {
+    const q = columns[idx];
+    return {
+      // `isPending` seul, et non `fetchStatus` : le serveur rend `idle` là où le premier rendu
+      // client rend `fetching`, et l'écart casse l'hydratation. Sans jeton, rien ne chargera.
+      isLoading: !!token && q?.isPending,
+      isError: q?.isError,
+      onRetry: () => void q?.refetch(),
+    };
+  };
+
   const draggedCard =
     activeId === null
       ? null
@@ -149,31 +160,40 @@ export function PipelineKanban() {
 
       {/* Mobile: tab switcher — one stage at a time */}
       <div className="md:hidden">
-        <div className="flex gap-1 overflow-x-auto rounded-lg bg-card p-1 text-xs">
-          {PIPELINE_STAGES.map((stage) => (
+        {/*
+          Revue design 2026-09-16 — onglets à 28 px de haut en `text-xs` : sous le plancher tactile
+          de 44 px. Rayons concentriques : conteneur `rounded-xl` = onglet `rounded-lg` + `p-1`.
+        */}
+        <div className="flex gap-1 overflow-x-auto rounded-xl bg-card p-1 text-sm">
+          {PIPELINE_STAGES.map((stage, idx) => (
             <button
               key={stage}
               type="button"
+              aria-pressed={mobileStage === stage}
               onClick={() => setMobileStage(stage)}
               className={cn(
-                'whitespace-nowrap rounded-md px-3 py-1.5 font-medium transition',
+                'min-h-11 whitespace-nowrap rounded-lg px-3 font-medium transition-colors duration-150',
                 mobileStage === stage
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
               {t(`stage.${stage}`)}
-              <span className="ml-1.5 opacity-70">
-                ({allCards[stage].length})
-              </span>
+              {columns[idx]?.isSuccess ? (
+                <span className="ml-1.5 tabular-nums opacity-70">
+                  ({allCards[stage].length})
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
         <div className="mt-3 h-[60vh]">
           <PipelineColumn
+            className="w-full"
             stage={mobileStage}
             customers={allCards[mobileStage]}
             onSelect={setSelectedCustomer}
+            {...columnState(PIPELINE_STAGES.indexOf(mobileStage))}
           />
         </div>
       </div>
@@ -181,17 +201,18 @@ export function PipelineKanban() {
       {/* Desktop: horizontal scroll kanban */}
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <div
-          className="hidden overflow-x-auto md:block"
+          className="hidden snap-x overflow-x-auto overscroll-x-contain md:block"
           data-testid="pipeline-kanban"
         >
           <div className="flex h-[70vh] min-w-max gap-3 pb-2">
-            {PIPELINE_STAGES.map((stage) => (
+            {PIPELINE_STAGES.map((stage, idx) => (
               <PipelineColumn
                 key={stage}
                 stage={stage}
                 customers={allCards[stage]}
                 onSelect={setSelectedCustomer}
                 isDropTarget={activeId !== null && draggedCard?.pipeline_stage !== stage}
+                {...columnState(idx)}
               />
             ))}
           </div>
@@ -211,7 +232,7 @@ export function PipelineKanban() {
       {errorMessage ? (
         <div
           role="alert"
-          className="fixed bottom-4 right-4 z-50 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive shadow-lg"
+          className="fixed inset-x-4 bottom-24 z-50 rounded-lg border border-destructive/30 bg-card px-4 py-3 text-sm text-destructive shadow-lg sm:bottom-4 sm:left-auto sm:right-24 sm:max-w-sm"
         >
           {errorMessage}
         </div>

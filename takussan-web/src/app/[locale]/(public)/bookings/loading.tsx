@@ -1,3 +1,5 @@
+import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
@@ -19,37 +21,42 @@ import { Skeleton } from '@/components/ui/skeleton';
  * ce qu'il fait.
  *
  * ⚠️ Sa géométrie recopie celle de la page — en-tête `h1` + sous-titre, puis le bloc du tunnel —
- * pour ne pas déplacer la mise en page à l'arrivée des données.
+ * pour ne pas déplacer la mise en page à l'arrivée des données — barre et cale comprises depuis
+ * que la page porte la coque du site public (revue design du 2026-09-16).
  */
 export default function Loading() {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8" aria-hidden="true">
-      <header className="mb-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="mt-2 h-4 w-96 max-w-full" />
-      </header>
+    <div className="flex min-h-screen flex-col bg-background">
+      <Navbar />
+      <NavbarSpacer />
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8" aria-hidden="true">
+        <header className="mb-6">
+          <Skeleton className="h-8 w-64 sm:h-9" />
+          <Skeleton className="mt-2 h-4 w-96 max-w-full" />
+        </header>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
-          <Skeleton className="h-11 w-full rounded-full" />
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="space-y-3 rounded-2xl border border-border p-6">
-              <Skeleton className="h-5 w-1/3" />
-              <Skeleton className="h-10 w-full rounded-lg" />
-              <Skeleton className="h-10 w-2/3 rounded-lg" />
-            </div>
-          ))}
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-6">
+            <Skeleton className="h-11 w-full rounded-full" />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="space-y-3 rounded-2xl border border-border p-6">
+                <Skeleton className="h-5 w-1/3" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+                <Skeleton className="h-10 w-2/3 rounded-lg" />
+              </div>
+            ))}
+          </div>
+
+          <aside className="space-y-4 rounded-2xl border border-border p-6">
+            <Skeleton className="aspect-4/3 w-full rounded-xl" />
+            <Skeleton className="h-5 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-px w-full" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-11 w-full rounded-lg" />
+          </aside>
         </div>
-
-        <aside className="space-y-4 rounded-2xl border border-border p-6">
-          <Skeleton className="aspect-4/3 w-full rounded-xl" />
-          <Skeleton className="h-5 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-px w-full" />
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-11 w-full rounded-lg" />
-        </aside>
       </div>
     </div>
   );

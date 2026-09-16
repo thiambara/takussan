@@ -6,6 +6,14 @@ import { pastilleLegende, traitSerie } from './palette';
 import type { ChartData } from './types';
 
 const PADDING = { top: 16, right: 16, bottom: 28, left: 40 };
+/**
+ * Largeur moyenne d'un caractère d'étiquette (`text-[10px]`, chiffres tabulaires de DM Sans ≈
+ * 0,56 em), en unités du `viewBox`. Sert à RÉSERVER la marge gauche : écrite à 40 fixes, elle
+ * rognait toute étiquette de plus de six caractères — mesuré « ¦00 342 » à 1366 sur
+ * `/app/overview/agency` (revue design 2026-09-16).
+ */
+const LARGEUR_CARACTERE = 6;
+const MARGE_ETIQUETTE = 6;
 const VIEW_W = 640;
 const VIEW_H = 260;
 
@@ -45,15 +53,12 @@ export function LineChart({ data, title, unit, className }: Props) {
   // jusqu'aux étiquettes, cf. `gridLines`.
   const range = Math.max(max - min, 1);
 
-  const innerW = VIEW_W - PADDING.left - PADDING.right;
   const innerH = VIEW_H - PADDING.top - PADDING.bottom;
-
-  const xStep = labels.length > 1 ? innerW / (labels.length - 1) : 0;
 
   const toPath = (values: number[]) =>
     values
       .map((v, i) => {
-        const x = PADDING.left + xStep * i;
+        const x = left + xStep * i;
         const y = PADDING.top + innerH - ((v - min) / range) * innerH;
         return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
       })
@@ -78,6 +83,15 @@ export function LineChart({ data, title, unit, className }: Props) {
     return [...acc, { y, label }];
   }, []);
 
+  // La marge gauche suit l'étiquette la plus longue (unité comprise), jamais moins que les 40
+  // d'origine : un axe court garde exactement sa géométrie.
+  const plusLongue = Math.max(
+    ...gridLines.map((g) => g.label.length + (unit ? unit.length + 1 : 0)),
+  );
+  const left = Math.max(PADDING.left, plusLongue * LARGEUR_CARACTERE + MARGE_ETIQUETTE + 4);
+  const innerW = VIEW_W - left - PADDING.right;
+  const xStep = labels.length > 1 ? innerW / (labels.length - 1) : 0;
+
   return (
     <figure className={className} data-testid="line-chart">
       {title && <figcaption className="mb-2 text-sm font-semibold text-foreground">{title}</figcaption>}
@@ -91,7 +105,7 @@ export function LineChart({ data, title, unit, className }: Props) {
         {gridLines.map((g, i) => (
           <g key={i}>
             <line
-              x1={PADDING.left}
+              x1={left}
               x2={VIEW_W - PADDING.right}
               y1={g.y}
               y2={g.y}
@@ -99,9 +113,9 @@ export function LineChart({ data, title, unit, className }: Props) {
               strokeDasharray="2 3"
             />
             <text
-              x={PADDING.left - 6}
+              x={left - MARGE_ETIQUETTE}
               y={g.y + 4}
-              className="fill-muted-foreground text-[10px]"
+              className="fill-muted-foreground text-[10px] tabular-nums"
               textAnchor="end"
             >
               {g.label}
@@ -112,7 +126,7 @@ export function LineChart({ data, title, unit, className }: Props) {
         {/* X-axis labels (every other if >8) */}
         {labels.map((l, i) => {
           if (labels.length > 8 && i % Math.ceil(labels.length / 8) !== 0) return null;
-          const x = PADDING.left + xStep * i;
+          const x = left + xStep * i;
           return (
             <text
               key={l + i}

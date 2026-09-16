@@ -120,87 +120,96 @@ export function PropertyDetailContent({ property }: { readonly property: Propert
   }
 
   return (
-    <div className="pb-24 lg:pb-12 animate-fade-in-up">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 lg:pt-8">
-        <PropertyBreadcrumb property={property} />
-      </div>
+    <div className="pb-24 lg:pb-12">
+      {/*
+        ⚠ L'animation d'entrée n'enveloppe QUE le contenu, jamais la barre fixe du bas.
+        `animate-fade-in-up` est déclarée `both` : le `transform` de fin reste posé, et un
+        ancêtre transformé devient le bloc conteneur de tout descendant `position: fixed`.
+        La barre mobile (le CTA principal sous `lg`) se rangeait alors au pied du contenu,
+        à 1 988 px du haut d'un viewport de 844 — invisible. Mesuré le 2026-09-16.
+      */}
+      <div className="animate-fade-in-up">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 lg:pt-8">
+          <PropertyBreadcrumb property={property} />
+        </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 lg:mt-6">
-        <PropertyHeader
-          property={property}
-          onShare={() => setShareOpen(true)}
-          onToggleFavorite={favorite.toggle}
-          isFavorite={favorite.isFavorite}
-        />
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 lg:mt-6">
-        <div className="hidden md:block">
-          <PropertyGalleryMosaic
-            photos={photos}
-            title={property.title}
-            onOpenLightbox={handleOpenLightbox}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 lg:mt-6">
+          <PropertyHeader
+            property={property}
+            onShare={() => setShareOpen(true)}
+            onToggleFavorite={favorite.toggle}
+            isFavorite={favorite.isFavorite}
           />
         </div>
-        <div className="md:hidden -mx-4">
-          <PropertyMobileGallery
-            photos={photos}
-            title={property.title}
-            onOpenLightbox={handleOpenLightbox}
-          />
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 lg:mt-10 grid lg:grid-cols-[1fr_380px] gap-6 lg:gap-10">
-        <div className="space-y-8 min-w-0">
-          <PropertySpecsStrip property={property} />
-          <PropertyDescription description={property.description} />
-          <PropertyCharacteristics property={property} />
-          <PropertyAmenities tags={property.tags} />
-          <PropertyLocationMap
-            latitude={property.location.latitude}
-            longitude={property.location.longitude}
-            address={formatAddressShort(property.location, { fallback: property.location.full })}
-          />
-          <PropertyPriceHistory history={property.price_history} />
-          <PropertyDocuments documents={property.documents} />
-          <PropertyReviews
-            slug={property.slug}
-            propertyId={property.id}
-            averageRating={property.average_rating}
-            reviewsCount={property.reviews_count}
-            ownerId={property.owner?.id ?? null}
-            agencyId={property.agency?.id ?? null}
-          />
-          <div className="pt-2">
-            <PropertyReportButton slug={property.slug} />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 lg:mt-6">
+          <div className="hidden md:block">
+            <PropertyGalleryMosaic
+              photos={photos}
+              title={property.title}
+              onOpenLightbox={handleOpenLightbox}
+            />
+          </div>
+          <div className="md:hidden -mx-4">
+            <PropertyMobileGallery
+              photos={photos}
+              title={property.title}
+              onOpenLightbox={handleOpenLightbox}
+            />
           </div>
         </div>
 
-        {/* TCK-505 (#12) — `min-w-0`, comme la colonne principale : sans lui, un enfant de grille
-            garde `min-width: auto` et tout contenu plus large que la colonne élargit la page. */}
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 self-start">
-          <PropertyBookingCard
-            property={property}
-            onRequestVisit={() => setVisitOpen(true)}
-            onRequestBooking={() => setReservationOpen(true)}
-            onMessage={ouvrirContact}
-            canMessage={peutContacter}
-          />
-          <PropertyAgentCard
-            contact={destinataire}
-            agency={property.agency}
-            propertySlug={property.slug}
-            propertyTitle={property.title}
-            onMessage={ouvrirContact}
-            canMessage={peutContacter}
-          />
-        </aside>
-      </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 lg:mt-10 grid lg:grid-cols-[1fr_380px] gap-6 lg:gap-10">
+          <div className="space-y-8 min-w-0">
+            <PropertySpecsStrip property={property} />
+            <PropertyDescription description={property.description} />
+            <PropertyCharacteristics property={property} />
+            <PropertyAmenities tags={property.tags} />
+            <PropertyLocationMap
+              latitude={property.location.latitude}
+              longitude={property.location.longitude}
+              address={formatAddressShort(property.location, { fallback: property.location.full })}
+            />
+            <PropertyPriceHistory history={property.price_history} />
+            <PropertyDocuments documents={property.documents} />
+            <PropertyReviews
+              slug={property.slug}
+              propertyId={property.id}
+              averageRating={property.average_rating}
+              reviewsCount={property.reviews_count}
+              ownerId={property.owner?.id ?? null}
+              agencyId={property.agency?.id ?? null}
+            />
+            <div className="pt-2">
+              <PropertyReportButton slug={property.slug} />
+            </div>
+          </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 space-y-12">
-        <PropertySimilar slug={property.slug} />
-        <PropertyRecentlyViewed excludeId={property.id} />
+          {/* TCK-505 (#12) — `min-w-0`, comme la colonne principale : sans lui, un enfant de grille
+              garde `min-width: auto` et tout contenu plus large que la colonne élargit la page. */}
+          <aside className="min-w-0 space-y-4 lg:sticky lg:top-40 self-start">
+            <PropertyBookingCard
+              property={property}
+              onRequestVisit={() => setVisitOpen(true)}
+              onRequestBooking={() => setReservationOpen(true)}
+              onMessage={ouvrirContact}
+              canMessage={peutContacter}
+            />
+            <PropertyAgentCard
+              contact={destinataire}
+              agency={property.agency}
+              propertySlug={property.slug}
+              propertyTitle={property.title}
+              onMessage={ouvrirContact}
+              canMessage={peutContacter}
+            />
+          </aside>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 space-y-12">
+          <PropertySimilar slug={property.slug} />
+          <PropertyRecentlyViewed excludeId={property.id} />
+        </div>
       </div>
 
       <div className="lg:hidden">

@@ -112,10 +112,7 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['app/[locale]/(public)/properties/[slug]/components/PropertyLightbox.tsx · text-white sur hover:bg-white/20 sur un sous-jacent inconnu (pire pixel 255)', 1.00, 'idem, état survolé'],
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur bg-card/10 sur un sous-jacent inconnu (pire pixel 249)', 1.00, 'variante `navbar`, posée sur la barre `bg-foreground` de `AppTopbar` — un ancêtre d’un autre fichier'],
   ['components/search/SearchAutocomplete.tsx · text-primary-foreground/80 sur hover:bg-card/20 sur un sous-jacent inconnu (pire pixel 248)', 1.00, 'idem, état survolé'],
-  ['components/compare/CompareToggleButton.tsx · text-primary-foreground sur bg-card/20 sur un sous-jacent inconnu (pire pixel 248)', 1.00, 'bouton posé SUR la photo du bien : risque réel sur une photo claire'],
-  ['components/favorites/FavoriteButton.tsx · text-primary-foreground sur bg-card/20 sur un sous-jacent inconnu (pire pixel 248)', 1.00, 'idem — même motif que la pastille que ce ticket corrige, sur un autre composant'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-muted-foreground sur group-hover:bg-foreground/10 sur un sous-jacent inconnu (pire pixel 111)', 1.00, 'voile de survol à 10 % sur un fond que le fichier ne pose pas'],
-  ['components/property/PropertyCard.tsx · text-white sur bg-scrim/50 sur un sous-jacent inconnu (pire pixel 255)', 3.98, 'voile à 50 % sur la photo : sur un pixel blanc, le blanc du texte ne tient pas'],
   // ── 2. Boutons primaires au survol ────────────────────────────────────────────────────────────
   ['app/[locale]/(public)/properties/[slug]/components/PropertyReportButton.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'l’alpha du survol mange la marge du bouton primaire'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyReservationDialog.tsx · text-primary-foreground sur hover:bg-primary/80 sur un sous-jacent inconnu (pire pixel 255)', 3.45, 'idem'],
@@ -126,12 +123,9 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['app/[locale]/(public)/agencies/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fcf9f3', 4.21, 'idem'],
   ['app/[locale]/(public)/agents/[slug]/not-found.tsx · text-primary-foreground sur hover:bg-primary/90 sur #fcf9f3', 4.21, 'idem'],
   // ── 3. `text-border` non textuel ──────────────────────────────────────────────────────────────
-  ['components/property/cards/PropertyCardCompact.tsx · text-border sur --card', 1.26, 'séparateur « • » ; seuil non textuel 3:1'],
-  ['components/property/cards/PropertyCardCompact.tsx · text-border sur --background', 1.20, 'idem'],
-  ['components/property/cards/PropertyCardStandard.tsx · text-border sur --card', 1.26, 'idem'],
-  ['components/property/cards/PropertyCardStandard.tsx · text-border sur --background', 1.20, 'idem'],
-  ['components/property/cards/PropertyCardListing.tsx · text-border sur #ffffff (ancêtre) sur --card', 1.26, 'idem'],
-  ['components/property/cards/PropertyCardListing.tsx · text-border sur #ffffff (ancêtre) sur --background', 1.26, 'idem'],
+  // Les six entrées des cartes (`PropertyCard{Compact,Standard,Listing}`) sont sorties le
+  // 2026-09-16 : leur séparateur « • » est désormais posé par `cards/CardMeta.tsx`, en
+  // `text-muted-foreground/50` (revue design).
   ['components/public/profile/ReviewsSection.tsx · text-border sur #ffffff (ancêtre) sur --card', 1.26, 'étoile VIDE d’une note ; seuil non textuel 3:1'],
   ['components/public/profile/ReviewsSection.tsx · text-border sur #ffffff (ancêtre) sur --background', 1.26, 'idem'],
   // ── 4. Aplats de --primary sous encre --primary ───────────────────────────────────────────────
@@ -158,6 +152,7 @@ const DETTES: readonly (readonly [string, number, string])[] = [
   ['components/forms/FormError.tsx · text-destructive sur bg-destructive/5 sur un sous-jacent inconnu (pire pixel 92)', 1.00, 'aplat de sa propre couleur, sous-jacent invisible au lecteur statique — mesuré 6,05:1 sur `--background` réel'],
   ['app/[locale]/(public)/properties/[slug]/components/PropertyVisitDialog.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem — 5,48:1 sur `--background` réel'],
   ['components/search/SearchToolbar.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé'],
+  ['components/favorites/FavoritesPopover.tsx · hover:text-destructive sur hover:bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem, état survolé de la croix « retirer » (2026-09-16, conversion `red` → `destructive`) — le fond réel est le `--card` du popover, que `check-destructive-contrast.mjs` mesure ≥ 4,55:1'],
   ['components/ui/destructive-banner.tsx · text-destructive sur bg-destructive/10 sur un sous-jacent inconnu (pire pixel 95)', 1.01, 'idem'],
 ];
 
@@ -186,7 +181,13 @@ const DETTES: readonly (readonly [string, number, string])[] = [
  * jetons (`bg-card`, `border-border`, `text-foreground`, `text-muted-foreground`, `bg-muted`),
  * et ses couples sont désormais MESURÉS au lieu d'être comptés.
  */
-const FICHIERS_HORS_JETONS = 42;
+/*
+ * ⚠ **42 → 5 le 2026-09-16, par conversion de fichiers (revue design des interfaces).** Le groupe
+ * du site public a passé aux jetons l'échelle `stone` et les teintes brutes (`red`, `emerald`,
+ * `amber`, `sky`, `bg-white`) de la fiche du bien, des cartes, du comparateur, des favoris, de la
+ * carte et de la réservation : leurs couples sont désormais MESURÉS au lieu d'être comptés.
+ */
+const FICHIERS_HORS_JETONS = 5;
 
 /**
  * Idem pour les encres inverses laissées de côté (cf. `couples-de-contraste.ts`).
@@ -237,8 +238,22 @@ const FICHIERS_HORS_JETONS = 42;
  * pose un fond (`hover:bg-muted`) qu'au survol. Au repos, le fond est celui de la fiche (la carte
  * du héros, posée par un ancêtre). Mesuré en relevant les encres inverses de la surface avec et
  * sans la modification : l'unique entrée ajoutée est `components/shared/BoutonRetour.tsx`.
+ *
+ * **155 → 235 le 2026-09-16 (revue design des interfaces), par conversion aux jetons.**
+ * Le mécanisme est celui de 151 → 154 (`CompareFloatingBar`), à l'échelle de la surface : une
+ * encre `text-stone-*` était irrésolvable et donc comptée dans {@link FICHIERS_HORS_JETONS}, qui
+ * passe de 42 à 5. Devenue `text-foreground` ou `text-muted-foreground` sans fond sur l'élément
+ * même (le fond est celui de la carte ou de la page, posé par un ancêtre), elle est comptée ici.
+ * Relevé fichier par fichier, en comparant chaque fichier de la surface à sa version de `HEAD`
+ * (somme 155 → 235, exacte) :
+ *  · +62 du site public (groupe B) : fiche du bien (`PropertyReviews` +13, `PropertyAgentCard` et
+ *    `PropertyHeader` +4 chacun, …), `compare/*` +12, `FavoritesPopover` +5, `bookings/page` +1,
+ *    `PropertiesDiscoveryPage` +2, `cards/CardMeta` +1 (le séparateur des cartes) ; à l'inverse
+ *    `PropertyCard` −2, `IndexDeProfils` −2, `PortfolioTabs` −1, `WhatsAppButton` −1 ;
+ *  · +18 de `components/bookings/` (`BookingSummary` +9, `BookingTunnel` +8, `BookingStepper` +1),
+ *    convertis par un autre groupe de la même revue et entrés dans la surface par `/bookings`.
  */
-const ENCRES_INVERSES = 155;
+const ENCRES_INVERSES = 235;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

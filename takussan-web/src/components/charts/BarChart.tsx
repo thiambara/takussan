@@ -6,6 +6,15 @@ import { pastilleLegende, remplissageSerie } from './palette';
 import type { ChartData } from './types';
 
 const PADDING = { top: 16, right: 16, bottom: 28, left: 40 };
+/**
+ * Étiquettes en 12 unités de `viewBox` (`text-xs`), et largeur moyenne d'un de leurs caractères
+ * (chiffres tabulaires de DM Sans ≈ 0,56 em). La marge gauche se RÉSERVE sur l'étiquette la plus
+ * longue : fixée à 40, elle rognait « 1 030 342 F » en « 0342 F » sur `/admin` (revue design
+ * 2026-09-16), comme `LineChart`. `PADDING.left` reste le plancher — les étiquettes courtes
+ * rendent donc les coordonnées d'avant, au chiffre près (AC3 de TCK-405).
+ */
+const LARGEUR_CARACTERE = 6.8;
+const MARGE_ETIQUETTE = 6;
 const VIEW_W = 640;
 const VIEW_H = 260;
 
@@ -62,12 +71,8 @@ export function BarChart({ data, title, unit, className }: Props) {
   // pour ça seulement — il ne doit PAS remonter jusqu'aux étiquettes, cf. `graduations`.
   const range = Math.max(max - min, 1);
 
-  const innerW = VIEW_W - PADDING.left - PADDING.right;
   const innerH = VIEW_H - PADDING.top - PADDING.bottom;
 
-  const groupW = innerW / labels.length;
-  const seriesCount = series.length;
-  const barW = Math.max(4, (groupW * 0.7) / seriesCount);
 
   /**
    * Les graduations de l'axe des ordonnées.
@@ -117,6 +122,13 @@ export function BarChart({ data, title, unit, className }: Props) {
     [],
   );
 
+  const plusLongue = Math.max(...gridLines.map((g) => g.label.length + (unit ? unit.length + 1 : 0)));
+  const left = Math.max(PADDING.left, plusLongue * LARGEUR_CARACTERE + MARGE_ETIQUETTE);
+  const innerW = VIEW_W - left - PADDING.right;
+  const groupW = innerW / labels.length;
+  const seriesCount = series.length;
+  const barW = Math.max(4, (groupW * 0.7) / seriesCount);
+
   return (
     <figure className={className} data-testid="bar-chart">
       {title && <figcaption className="mb-2 text-sm font-semibold text-foreground">{title}</figcaption>}
@@ -129,7 +141,7 @@ export function BarChart({ data, title, unit, className }: Props) {
         {gridLines.map((g, i) => (
           <g key={i}>
             <line
-              x1={PADDING.left}
+              x1={left}
               x2={VIEW_W - PADDING.right}
               y1={g.y}
               y2={g.y}
@@ -137,9 +149,9 @@ export function BarChart({ data, title, unit, className }: Props) {
               strokeDasharray="2 3"
             />
             <text
-              x={PADDING.left - 6}
+              x={left - MARGE_ETIQUETTE}
               y={g.y + 4}
-              className="fill-muted-foreground text-[10px]"
+              className="fill-muted-foreground text-xs tabular-nums"
               textAnchor="end"
             >
               {g.label}
@@ -159,7 +171,7 @@ export function BarChart({ data, title, unit, className }: Props) {
         {min < 0 && (
           <line
             data-testid="bar-zero-line"
-            x1={PADDING.left}
+            x1={left}
             x2={VIEW_W - PADDING.right}
             y1={yZero}
             y2={yZero}
@@ -167,7 +179,7 @@ export function BarChart({ data, title, unit, className }: Props) {
           />
         )}
         {labels.map((label, groupIdx) => {
-          const groupX = PADDING.left + groupW * groupIdx;
+          const groupX = left + groupW * groupIdx;
           return (
             <g key={label + groupIdx}>
               {series.map((s, seriesIdx) => {
@@ -197,7 +209,7 @@ export function BarChart({ data, title, unit, className }: Props) {
                 <text
                   x={groupX + groupW / 2}
                   y={VIEW_H - 8}
-                  className="fill-muted-foreground text-[10px]"
+                  className="fill-muted-foreground text-xs"
                   textAnchor="middle"
                 >
                   {label}

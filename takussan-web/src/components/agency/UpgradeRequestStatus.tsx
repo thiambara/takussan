@@ -12,6 +12,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { StatusBadge, type StatusTone } from '@/components/console';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
@@ -23,6 +24,14 @@ import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 export type UpgradeRequestStatusProps = {
   readonly agencyId: number;
   readonly request: AgencyUpgradeRequest;
+};
+
+/** Le sens de chaque statut ; la couleur reste décidée par `StatusBadge`. */
+const STATUS_TONE: Record<AgencyUpgradeRequest['status'], StatusTone> = {
+  pending: 'attention',
+  approved: 'success',
+  rejected: 'danger',
+  revoked: 'neutral',
 };
 
 function formatDate(iso: string | null, locale: string): string {
@@ -76,23 +85,22 @@ export function UpgradeRequestStatus({
   return (
     <section
       aria-label={t('aria_label')}
-      className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+      className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
     >
       <header className="mb-3 flex items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold text-balance text-foreground">
             {t(`headings.${request.status}`)}
           </h2>
           <p className="text-sm text-muted-foreground">
             {t('submitted_at', { date: dateLabel })}
           </p>
         </div>
-        <span
-          data-status={request.status}
-          className="inline-flex items-center rounded-full border border-border bg-background px-3 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground"
-        >
-          {t(`badges.${request.status}`)}
-        </span>
+        <StatusBadge
+          tone={STATUS_TONE[request.status]}
+          label={t(`badges.${request.status}`)}
+          className="shrink-0 whitespace-nowrap"
+        />
       </header>
 
       {request.status === 'pending' ? (

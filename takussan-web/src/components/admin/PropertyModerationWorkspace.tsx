@@ -2,9 +2,10 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
-import { EmptyState } from '@/components/feedback';
+import { EmptyState, ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { useAuth } from '@/context/AuthContext';
 import { DebouncedSearchInput, FilterBar, Pagination } from '@/components/console';
@@ -23,6 +24,7 @@ const PAR_PAGE = 20;
 
 export function PropertyModerationWorkspace() {
   const t = useTranslations('admin.propertyModeration');
+  const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const queryClient = useQueryClient();
@@ -36,7 +38,7 @@ export function PropertyModerationWorkspace() {
 
   const queryKey = ['property-moderation', 'queue', { search, page }];
 
-  const { data, isLoading, isFetching, isError, error } = useQuery({
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey,
     queryFn: () =>
       fetchPropertyModerationQueue(token ?? '', {
@@ -70,7 +72,7 @@ export function PropertyModerationWorkspace() {
           deux bouts.
         */}
         <DebouncedSearchInput
-          className="w-72"
+          className="w-full sm:w-72"
           value={search}
           onCommit={(next) => url.poserFiltres({ [P_RECHERCHE]: next || null })}
           placeholder={t('searchPlaceholder')}
@@ -80,14 +82,23 @@ export function PropertyModerationWorkspace() {
       </FilterBar>
 
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 rounded-xl bg-card p-12 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          {t('loading')}
+        // Squelette à la forme de l'écran (file + détail) plutôt qu'un spinner centré : la
+        // charte réserve le spinner à la première charge d'une page entière.
+        <div role="status" className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
+          <span className="sr-only">{t('loading')}</span>
+          <div className="space-y-2">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-20 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="hidden h-96 rounded-xl lg:block" />
         </div>
       ) : isError ? (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-sm text-destructive">
-          {messageErreur(error, t('loadError'))}
-        </div>
+        <ErrorState
+          message={messageErreur(error, t('loadError'))}
+          onRetry={() => void refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : (
         <>
           {properties.length === 0 ? (

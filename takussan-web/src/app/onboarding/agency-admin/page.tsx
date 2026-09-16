@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { getMeAction } from '@/app/actions/auth';
 import { fetchAgencyAction } from '@/app/actions/admin-agency';
 import { AgencyAdminOnboardingWizard } from '@/components/onboarding/AgencyAdminOnboardingWizard';
+import { OnboardingShell } from '@/components/onboarding/OnboardingShell';
 import { isAgencyAdmin } from '@/lib/roles';
 
 /**
@@ -28,10 +29,15 @@ export default async function AgencyAdminOnboardingPage() {
   const agencyName =
     agencyResult.ok && agencyResult.data ? agencyResult.data.name : '—';
 
+  // La coque commune donne à cet écran ce qu'il n'avait pas : la marque et une issue vers le
+  // site. Sans titre (l'assistant porte le sien, qui change d'étape en étape) et sans pied —
+  // rien n'y est enregistré au fil de la saisie, la mention d'autosauvegarde serait fausse.
   return (
-    <AgencyAdminOnboardingWizard
-      firstName={user.first_name}
-      agencyName={agencyName}
-    />
+    <OnboardingShell note={null}>
+      <AgencyAdminOnboardingWizard
+        firstName={user.first_name}
+        agencyName={agencyName}
+      />
+    </OnboardingShell>
   );
 }

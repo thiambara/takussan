@@ -66,19 +66,19 @@ function AuthPanneau({ children }: { children: ReactNode }) {
           className="object-cover"
           sizes="45vw"
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/70 via-primary/40 to-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/70 via-primary/40 to-scrim/60" />
         <div className="relative z-10 h-full flex flex-col justify-between p-12 text-white">
           <Link
             href="/"
-            className="font-headline font-bold text-2xl tracking-tight hover:opacity-90 transition-opacity"
+            className="self-start rounded-md font-headline font-bold text-2xl tracking-tight transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/70"
           >
             {tCommon('appName')}
           </Link>
           <div>
-            <h2 className="font-headline text-4xl font-bold mb-3 leading-tight">
+            <h2 className="font-headline text-4xl font-bold tracking-tight text-balance mb-3 leading-tight">
               {t('headline')}
             </h2>
-            <p className="text-white/85 max-w-md text-base">{t('subheadline')}</p>
+            <p className="text-white/85 max-w-md text-base leading-relaxed text-pretty">{t('subheadline')}</p>
           </div>
         </div>
       </div>
@@ -97,7 +97,7 @@ function AuthPanneau({ children }: { children: ReactNode }) {
           <div className="absolute inset-0 bg-gradient-to-b from-primary/60 via-primary/30 to-background" />
           <Link
             href="/"
-            className="absolute top-6 left-6 font-headline font-bold text-xl tracking-tight text-white"
+            className="absolute top-3 left-3 inline-flex min-h-11 items-center rounded-md px-3 font-headline font-bold text-xl tracking-tight text-white focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-primary-foreground/70"
           >
             {tCommon('appName')}
           </Link>

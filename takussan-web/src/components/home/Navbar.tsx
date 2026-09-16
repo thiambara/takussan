@@ -32,6 +32,20 @@ function estListeDesBiens(pathname: string): boolean {
   return segments.length === 1 && segments[0] === 'properties';
 }
 
+/**
+ * Le lien du menu mobile qui correspond à la page affichée. `navLinks` porte un `active` FIGÉ
+ * (« Acheter » à `true`) : le lien s'allumait sur l'accueil, une fiche ou « Louer » même (revue
+ * design du 2026-09-16). L'état se lit désormais dans l'URL.
+ */
+function lienActif(href: string, pathname: string, searchParams: URLSearchParams): boolean {
+  const [chemin, requete] = href.split('?');
+  if (chemin === '/properties') {
+    const transaction = new URLSearchParams(requete).get('contract_type');
+    return estListeDesBiens(pathname) && searchParams.get('contract_type') === transaction;
+  }
+  return pathname === chemin || pathname.startsWith(`${chemin}/`);
+}
+
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   apartment: Building2,
   villa: Home,
@@ -128,8 +142,20 @@ export function Navbar({ className }: NavbarProps) {
         setUserMenuOpen(false);
       }
     }
+    // Échap referme ce qui est ouvert — les trois menus sont faits main, sans primitive qui le
+    // porte (revue design du 2026-09-16).
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      setMoreOpen(false);
+      setUserMenuOpen(false);
+      setMenuOpen(false);
+    }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, []);
 
   async function handleLogout() {
@@ -246,7 +272,7 @@ export function Navbar({ className }: NavbarProps) {
             <div className="flex items-center gap-1.5 px-4 py-2.5 shrink-0">
               <Home className="w-4 h-4 text-primary" />
               <Select value={transaction} onValueChange={(v) => setTransaction(v ?? '')} items={TRANSACTION_OPTIONS}>
-                <SelectTrigger className="border-none shadow-none bg-transparent p-0 h-auto text-sm text-foreground font-medium focus-visible:ring-0 focus-visible:border-transparent gap-1">
+                <SelectTrigger className="border-none shadow-none bg-transparent p-0 h-8 text-sm text-foreground font-medium focus-visible:ring-0 focus-visible:border-transparent gap-1">
                   <SelectValue placeholder={t('transactionPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -256,8 +282,9 @@ export function Navbar({ className }: NavbarProps) {
               </Select>
             </div>
             <button
+              type="button"
               onClick={handleSearch}
-              className="m-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full p-2.5 transition-colors active:scale-95 shrink-0"
+              className="m-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full p-2.5 transition-[background-color,scale] active:scale-[0.96] shrink-0"
               aria-label={t('searchAria')}
             >
               <Search className="w-4 h-4" />
@@ -280,7 +307,7 @@ export function Navbar({ className }: NavbarProps) {
                     }`}
                 >
                   <Icon className="w-[18px] h-[18px]" />
-                  <span className="text-[11px] font-semibold whitespace-nowrap">{tCategories(cat.nameKey)}</span>
+                  <span className="text-xs font-semibold whitespace-nowrap">{tCategories(cat.nameKey)}</span>
                 </button>
               );
             })}
@@ -288,7 +315,9 @@ export function Navbar({ className }: NavbarProps) {
             {/* More dropdown button */}
             <div className="relative" ref={moreRef}>
               <button
+                type="button"
                 onClick={() => setMoreOpen((o) => !o)}
+                aria-expanded={moreOpen}
                 className={`flex flex-col items-center gap-1 px-3 py-2 border-b-2 rounded-t-lg transition-colors duration-150 ${moreHasActive
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -296,11 +325,11 @@ export function Navbar({ className }: NavbarProps) {
                 aria-label={t('moreTypes')}
               >
                 {moreOpen ? <ChevronUp className="w-[18px] h-[18px]" /> : <PlusCircle className="w-[18px] h-[18px]" />}
-                <span className="text-[11px] font-semibold whitespace-nowrap">{t('more')}</span>
+                <span className="text-xs font-semibold whitespace-nowrap">{t('more')}</span>
               </button>
 
               {moreOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-popover rounded-2xl shadow-xl border border-border p-3 z-50 grid grid-cols-2 gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute top-full left-0 mt-2 w-64 bg-popover rounded-2xl shadow-lg border border-border p-2 z-50 grid grid-cols-2 gap-1 animate-in fade-in slide-in-from-top-2 duration-150">
                   {moreCategories.map((cat) => {
                     const Icon = iconMap[cat.icon] || HelpCircle;
                     const isActive = activeCategory === cat.type;
@@ -312,7 +341,7 @@ export function Navbar({ className }: NavbarProps) {
                           setMoreOpen(false);
                           handleCategoryClick(cat.type);
                         }}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-colors ${isActive
+                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${isActive
                           ? 'bg-primary/10 text-primary font-semibold'
                           : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                           }`}
@@ -321,7 +350,7 @@ export function Navbar({ className }: NavbarProps) {
                         <div className="min-w-0">
                           <p className="text-[12px] font-semibold leading-none truncate">{tCategories(cat.nameKey)}</p>
                           {count !== undefined && (
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{t('propertiesCount', { count })}</p>
+                            <p className="text-xs text-muted-foreground tabular-nums mt-0.5">{t('propertiesCount', { count })}</p>
                           )}
                         </div>
                       </button>
@@ -344,14 +373,16 @@ export function Navbar({ className }: NavbarProps) {
               <LienLocalise
                 href="/publish"
                 onClick={armPublishIntent}
-                className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
+                className="inline-flex min-h-10 items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-[background-color,scale] active:scale-[0.96] whitespace-nowrap"
               >
                 {t('publish')}
               </LienLocalise>
               <div ref={userMenuRef} className="relative">
                 <button
+                  type="button"
                   onClick={() => setUserMenuOpen((v) => !v)}
                   aria-label={t('userMenu')}
+                  aria-expanded={userMenuOpen}
                   className="flex items-center gap-2 rounded-full px-2 py-1 hover:bg-muted transition-colors"
                 >
                   <Avatar size="default" className="bg-primary">
@@ -392,14 +423,14 @@ export function Navbar({ className }: NavbarProps) {
             <>
               <LienLocalise
                 href="/auth/login"
-                className="inline-flex items-center text-sm font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap"
+                className="inline-flex min-h-10 items-center text-sm font-medium text-foreground hover:text-primary transition-colors whitespace-nowrap"
               >
                 {t('login')}
               </LienLocalise>
               <LienLocalise
                 href="/publish"
                 onClick={armPublishIntent}
-                className="inline-flex items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-colors whitespace-nowrap"
+                className="inline-flex min-h-10 items-center px-5 py-2 rounded-full bg-foreground text-background text-sm font-semibold hover:bg-primary transition-[background-color,scale] active:scale-[0.96] whitespace-nowrap"
               >
                 {t('publish')}
               </LienLocalise>
@@ -416,17 +447,20 @@ export function Navbar({ className }: NavbarProps) {
               non visible, donc son minimum flex tombe à 0 sans autre classe. */}
           <div className="flex lg:hidden min-w-0 flex-1 items-center gap-2">
             <button
+              type="button"
               onClick={handleSearch}
-              className="flex-1 min-w-0 flex items-center gap-2 bg-card border border-border rounded-full px-4 py-2.5 shadow-sm text-left"
+              className="flex-1 min-w-0 flex min-h-11 items-center gap-2 bg-card border border-border rounded-full px-4 py-2.5 shadow-sm text-left transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md"
             >
               <Search className="w-4 h-4 text-muted-foreground shrink-0" />
               <span className="text-sm text-muted-foreground truncate">{t('searchPlaceholder')}</span>
             </button>
           <FavoritesPopover variant="compact" />
           <button
-            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+            type="button"
+            className="size-11 shrink-0 grid place-items-center rounded-full text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
             onClick={() => setMenuOpen((o) => !o)}
             aria-label={menuOpen ? t('closeMenu') : t('openMenu')}
+            aria-expanded={menuOpen}
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -435,7 +469,7 @@ export function Navbar({ className }: NavbarProps) {
 
       {/* Mobile menu panel */}
       {menuOpen && (
-        <div className="lg:hidden absolute top-full left-0 w-full bg-popover border-t border-border shadow-lg">
+        <div className="lg:hidden absolute top-full left-0 w-full max-h-[calc(100dvh-69px)] overflow-y-auto overscroll-contain bg-popover border-t border-border shadow-lg">
             {/* Mobile search */}
             <div className="px-6 pt-5 pb-3">
               <div className="flex items-center gap-2 border border-border rounded-xl px-4 py-3 mb-2">
@@ -456,8 +490,10 @@ export function Navbar({ className }: NavbarProps) {
                 ].map((opt) => (
                   <button
                     key={opt.value}
+                    type="button"
+                    aria-pressed={transaction === opt.value}
                     onClick={() => setTransaction(opt.value)}
-                    className={`flex-1 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === opt.value
+                    className={`flex-1 min-h-11 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === opt.value
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-foreground hover:bg-secondary'
                       }`}
@@ -468,7 +504,7 @@ export function Navbar({ className }: NavbarProps) {
               </div>
               <Button
                 onClick={() => { setMenuOpen(false); handleSearch(); }}
-                className="mt-3 w-full rounded-full h-auto py-2.5 text-sm font-semibold"
+                className="mt-3 w-full rounded-full h-11 text-sm font-semibold"
               >
                 {t('search')}
               </Button>
@@ -501,18 +537,22 @@ export function Navbar({ className }: NavbarProps) {
             </div>
 
           {/* Mobile nav links */}
-          <div className="flex flex-col px-6 py-3 gap-4 border-t border-border">
-            {navLinks.map((link) => (
-              <LienLocalise
-                key={link.labelKey}
-                href={link.href}
-                onClick={() => setMenuOpen(false)}
-                className={`font-semibold text-base transition-colors ${link.active ? 'text-primary' : 'text-foreground hover:text-primary'
-                  }`}
-              >
-                {tLinks(link.labelKey)}
-              </LienLocalise>
-            ))}
+          <div className="flex flex-col px-6 py-2 border-t border-border">
+            {navLinks.map((link) => {
+              const actif = lienActif(link.href, pathname, searchParams);
+              return (
+                <LienLocalise
+                  key={link.labelKey}
+                  href={link.href}
+                  onClick={() => setMenuOpen(false)}
+                  aria-current={actif ? 'page' : undefined}
+                  className={`flex min-h-11 items-center font-semibold text-base transition-colors ${actif ? 'text-primary' : 'text-foreground hover:text-primary'
+                    }`}
+                >
+                  {tLinks(link.labelKey)}
+                </LienLocalise>
+              );
+            })}
           </div>
 
           <div className="px-6 py-4 border-t border-border flex flex-col gap-3">
@@ -532,7 +572,7 @@ export function Navbar({ className }: NavbarProps) {
                 <LienLocalise
                   href="/app/profile"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 text-sm text-foreground py-1"
+                  className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
                 >
                   <UserCircle className="size-4 text-muted-foreground" />
                   {t('myProfile')}
@@ -546,7 +586,7 @@ export function Navbar({ className }: NavbarProps) {
                 </LienLocalise>
                 <button
                   onClick={() => { setMenuOpen(false); void handleLogout(); }}
-                  className="flex items-center gap-2.5 text-sm text-foreground py-1"
+                  className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
                 >
                   <LogOut className="size-4 text-muted-foreground" />
                   {t('logout')}
@@ -554,7 +594,7 @@ export function Navbar({ className }: NavbarProps) {
               </>
             ) : (
               <>
-                <LienLocalise href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-muted-foreground font-medium text-sm h-auto py-1 justify-start' })}>
+                <LienLocalise href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-foreground font-medium text-sm h-11 justify-start px-0 hover:bg-transparent hover:text-primary' })}>
                   {t('login')}
                 </LienLocalise>
                 <LienLocalise

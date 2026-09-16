@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { Building2, ShieldCheck } from 'lucide-react';
 import { ErrorState } from '@/components/feedback';
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { ContactSheet } from '@/components/public/profile/ContactSheet';
@@ -110,8 +111,7 @@ async function agenceIndisponible() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      {/* Spacer : navbar fixed (~65px) + ligne catégories (~68px) */}
-      <div className="h-[133px]" />
+      <NavbarSpacer />
       <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
         <h1 className="mb-6 font-display text-2xl font-semibold text-foreground sm:text-3xl">
           {t('unavailableTitle')}
@@ -159,7 +159,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       */}
       <DonneesStructurees donnees={jsonLdAgence(agency, locale)} />
       <Navbar />
-      <div className="h-[133px]" />
+      <NavbarSpacer />
 
       <main className="max-w-[1200px] mx-auto px-6 md:px-12 pt-10 pb-24 space-y-16">
         {/* Hero asymétrique avec watermark bogolan */}
@@ -172,10 +172,14 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
           <BoutonRetour repli="/agencies" libelle={t('back')} className="mb-6" />
 
-          <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-12 md:items-start">
+          {/* `md:items-end` : la colonne de contenu (description, contact) s'aligne sur le NOM, en
+              bas de la colonne d'identité — alignée en haut, elle flottait à hauteur du logo, et
+              sans description les boutons de contact restaient seuls en haut à droite (revue
+              design du 2026-09-16). */}
+          <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-12 md:items-end">
             {/* Colonne identité */}
             <div className="flex flex-col gap-6">
-              <div className="relative size-32 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
+              <div className="relative size-24 md:size-32 shrink-0 overflow-hidden rounded-2xl border border-border bg-muted">
                 {agency.logo_url ? (
                   <Image
                     src={agency.logo_url}
@@ -198,7 +202,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                     {eyebrowParts.join(' · ')}
                   </p>
                 )}
-                <h1 className="mt-2 font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground">
+                <h1 className="mt-2 font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground text-balance">
                   {agency.name}
                 </h1>
                 {agency.license_number && (
@@ -211,7 +215,8 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
             </div>
 
             {/* Colonne contenu */}
-            <div className="flex flex-col gap-6">
+            {/* Sans description, les boutons se rangent à droite (même règle que le profil d'agent). */}
+            <div className={agency.description ? 'flex flex-col gap-6' : 'flex flex-col gap-6 md:items-end'}>
               {agency.description && (
                 <p className="text-base md:text-lg leading-relaxed text-muted-foreground max-w-prose">
                   {agency.description}

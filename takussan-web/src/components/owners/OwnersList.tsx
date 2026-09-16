@@ -14,11 +14,17 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Mail, Ban } from 'lucide-react';
+import { Plus, Mail, Ban, UserRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { DataTable, PageHeader, type DataTableColumn } from '@/components/console';
-import { Badge } from '@/components/ui/badge';
+import {
+  DataTable,
+  PageHeader,
+  StatusBadge,
+  type DataTableColumn,
+  type StatusTone,
+} from '@/components/console';
+import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
@@ -40,11 +46,15 @@ type Props = {
   readonly initialData: PaginatedResponse<OwnerProfileSummary>;
 };
 
-const STATUS_VARIANT: Record<OwnerProfileStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  draft: 'secondary',
-  active: 'default',
-  inactive: 'outline',
-  blocked: 'destructive',
+/**
+ * Le SENS de chaque statut, la couleur restant décidée par `StatusBadge`. Les variantes de `Badge`
+ * rendaient « Actif » en terracotta primaire — la couleur de l'action, pas celle d'un état sain.
+ */
+const STATUS_TONE: Record<OwnerProfileStatus, StatusTone> = {
+  draft: 'attention',
+  active: 'success',
+  inactive: 'neutral',
+  blocked: 'danger',
 };
 
 export function OwnersList({ agencyId, canInvite, initialData }: Props) {
@@ -131,12 +141,18 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
       id: 'status',
       header: t('page.columns.status'),
       cell: (owner) => (
-        <Badge variant={STATUS_VARIANT[owner.status]}>{tPage(`status.${owner.status}`)}</Badge>
+        <StatusBadge
+          tone={STATUS_TONE[owner.status]}
+          label={tPage(`status.${owner.status}`)}
+          className="whitespace-nowrap"
+        />
       ),
     },
     {
       id: 'actions',
       header: t('page.columns.actions'),
+      // Seul un brouillon porte des actions : un en-tête visible coiffait une colonne vide.
+      headerSrOnly: true,
       align: 'end',
       cell: (owner) =>
         owner.status === 'draft' ? (
@@ -180,20 +196,19 @@ export function OwnersList({ agencyId, canInvite, initialData }: Props) {
       />
 
       {owners.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-muted bg-card p-10 text-center">
-          <h2 className="text-base font-semibold text-foreground">
-            {t('page.empty_title')}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('page.empty_description')}
-          </p>
-          {canInvite ? (
-            <Button onClick={() => setSheetOpen(true)} className="mt-4">
-              <Plus className="size-4" aria-hidden="true" />
-              {t('page.add')}
-            </Button>
-          ) : null}
-        </div>
+        <EmptyState
+          icon={<UserRound className="size-8" aria-hidden="true" />}
+          title={t('page.empty_title')}
+          description={<span className="text-pretty">{t('page.empty_description')}</span>}
+          action={
+            canInvite ? (
+              <Button onClick={() => setSheetOpen(true)}>
+                <Plus className="size-4" aria-hidden="true" />
+                {t('page.add')}
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
         <DataTable
           caption={t('page.title')}

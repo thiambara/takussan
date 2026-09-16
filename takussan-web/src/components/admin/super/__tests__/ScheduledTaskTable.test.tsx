@@ -51,13 +51,23 @@ describe('ScheduledTaskTable — TCK-383', () => {
     expect(await screen.findByText('quelque-chose-de-neuf')).toBeInTheDocument();
   });
 
-  it("affiche « — » quand aucune exécution n'a été mesurée, et « 0ms » quand elle l'a été à zéro", async () => {
+  it("affiche « — » quand aucune exécution n'a été mesurée, et « 0 ms » quand elle l'a été à zéro", async () => {
     rendre([
       tache({ task: 'jamais-mesuree', average_duration_ms: null }),
       tache({ task: 'mesuree-a-zero', average_duration_ms: 0 }),
     ]);
 
-    expect(await screen.findByText('0ms')).toBeInTheDocument();
+    expect(await screen.findByText('0 ms')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('rend la commande artisan sans le chemin du binaire PHP, et une classe de job telle quelle', async () => {
+    rendre([
+      tache({ task: "'/opt/homebrew/Cellar/php/8.4.6/bin/php' 'artisan' invitations:expire" }),
+      tache({ task: 'App\\Jobs\\ExpireBookings' }),
+    ]);
+
+    expect(await screen.findByText('artisan invitations:expire')).toBeInTheDocument();
+    expect(screen.getByText('App\\Jobs\\ExpireBookings')).toBeInTheDocument();
   });
 });

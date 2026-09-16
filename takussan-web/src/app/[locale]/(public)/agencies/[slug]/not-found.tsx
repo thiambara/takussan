@@ -2,6 +2,7 @@ import { useTranslations } from 'next-intl';
 
 import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 
 /**
@@ -21,8 +22,7 @@ export default function NotFound() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      {/* Spacer : navbar fixed (~65px) + ligne catégories (~68px) */}
-      <div className="h-[133px]" />
+      <NavbarSpacer />
       <main className="mx-auto max-w-3xl px-4 py-24 text-center sm:px-6 lg:px-8">
         <h1 className="mb-3 font-display text-3xl font-semibold text-foreground">
           {t('notFoundTitle')}

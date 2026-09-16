@@ -178,6 +178,13 @@ export function NotificationPreferencesMatrix() {
   }
 
   const channels = data.channels;
+  // Un canal que l'API ajoute avant le dictionnaire (`whatsapp`, relevé le 2026-09-16) faisait
+  // lever `MISSING_MESSAGE` et renvoyait TOUTE la page vers la frontière d'erreur du tableau de
+  // bord. Le libellé retombe désormais sur la valeur brute plutôt que de casser l'écran.
+  const channelLabel = (channel: string): string => {
+    const key = `channels.${channel}`;
+    return t.has(key) ? t(key) : channel;
+  };
   const displayError = localError ?? (query.error ? messageErreur(query.error) : null);
 
   /**
@@ -195,7 +202,7 @@ export function NotificationPreferencesMatrix() {
     },
     ...channels.map<DataTableColumn<string>>((channel) => ({
       id: channel,
-      header: t(`channels.${channel}`),
+      header: channelLabel(channel),
       className: 'text-center',
       cell: (event) => {
         const cell = cellMap.get(cellKey(event, channel));
@@ -209,19 +216,21 @@ export function NotificationPreferencesMatrix() {
         return (
           <label
             className={
-              'inline-flex cursor-pointer items-center ' +
-              (cell.locked ? 'cursor-not-allowed opacity-60' : '')
+              // Zone de clic de 40 px autour d'une case de 16 px (bureau dense).
+              'inline-flex size-10 cursor-pointer items-center justify-center rounded-md hover:bg-muted ' +
+              (cell.locked ? 'cursor-not-allowed opacity-60 hover:bg-transparent' : '')
             }
             title={title}
           >
             <input
               type="checkbox"
+              className="size-4 accent-primary"
               disabled={cell.locked || mutation.isPending}
               checked={cell.enabled}
               onChange={(e) => toggle(event, channel, e.target.checked)}
               aria-label={t('toggleAria', {
                 event: labelEvenement(event),
-                channel: t(`channels.${channel}`),
+                channel: channelLabel(channel),
               })}
             />
           </label>
@@ -239,7 +248,7 @@ export function NotificationPreferencesMatrix() {
       ) : null}
 
       {!data.phone_verified ? (
-        <p className="rounded-md border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+        <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
           {t('smsDisabled')}{' '}
           <Link href="/app/profile" className="font-semibold underline">
             {t('verifyPhone')}
@@ -254,9 +263,9 @@ export function NotificationPreferencesMatrix() {
       ) : null}
 
       {GROUPS.map((group) => (
-        <section key={group.key} className="rounded-2xl border border-border bg-card">
+        <section key={group.key} className="overflow-hidden rounded-xl border border-border bg-card">
           <header className="border-b border-border px-4 py-3">
-            <h3 className="text-sm font-bold text-foreground">{t(`groups.${group.key}`)}</h3>
+            <h2 className="font-display text-sm font-semibold text-foreground">{t(`groups.${group.key}`)}</h2>
           </header>
 
           <DataTable

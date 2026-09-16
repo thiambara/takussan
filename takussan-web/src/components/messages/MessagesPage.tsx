@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { MessagesSquare, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePropertyConversation } from '@/lib/queries/conversations';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
@@ -103,15 +103,21 @@ export function MessagesPage() {
         dernière ligne de l'écran — passait donc sous le pli tant que la barre était déployée.
         `dvh` suit le viewport réellement visible ; `min-h` garde un fil lisible en paysage, où
         la soustraction de 12rem ne laisserait presque rien.
+
+        `grid-rows-[minmax(0,1fr)]` + `min-h-0` (revue design 2026-09-16) : sans eux, la rangée
+        implicite prenait la hauteur de son CONTENU. Mesuré à 1366 avec 22 conversations : la liste
+        mesurait 1429 px pour une grille de 707 px, sans défilement possible (scrollHeight =
+        clientHeight) — les conversations 11 à 22 étaient inatteignables — et le composeur d'une
+        conversation ouverte tombait à y = 1631, sous le `overflow-hidden` de la grille.
       */}
       <div
         data-testid="messagerie-grille"
-        className="grid h-[calc(100dvh-12rem)] min-h-[24rem] grid-cols-1 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[320px_1fr]"
+        className="grid h-[calc(100dvh-12rem)] min-h-[24rem] grid-cols-1 grid-rows-[minmax(0,1fr)] overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-[320px_1fr]"
       >
         {afficheListe && (
-          <aside className="flex min-w-0 flex-col lg:border-r lg:border-border">
-            <div className="flex items-center justify-between border-b border-border p-2">
-              <h2 className="text-sm font-semibold text-muted-foreground">{t('listHeading')}</h2>
+          <aside className="flex min-h-0 min-w-0 flex-col lg:border-r lg:border-border">
+            <div className="flex items-center justify-between gap-2 border-b border-border py-2 pl-4 pr-2">
+              <h2 className="text-sm font-semibold text-foreground">{t('listHeading')}</h2>
               <Button
                 type="button"
                 size="sm"
@@ -129,7 +135,7 @@ export function MessagesPage() {
           </aside>
         )}
         {affichePanneau && (
-          <section className="flex min-w-0 flex-col overflow-hidden">
+          <section className="flex min-h-0 min-w-0 flex-col overflow-hidden">
             {brouillon ? (
               <PropertyDraftChatView
                 property={brouillon.property}
@@ -141,7 +147,8 @@ export function MessagesPage() {
             ) : conversationAffichee ? (
               <ChatView conversationId={conversationAffichee} onBack={retourALaListe} />
             ) : (
-              <div className="flex flex-1 items-center justify-center bg-muted/50 p-8 text-center text-sm text-muted-foreground">
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 bg-muted/50 p-8 text-center text-sm text-pretty text-muted-foreground">
+                <MessagesSquare className="size-8 text-muted-foreground/70" aria-hidden />
                 {t('emptyState')}
               </div>
             )}

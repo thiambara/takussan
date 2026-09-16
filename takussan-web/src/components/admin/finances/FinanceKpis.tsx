@@ -15,6 +15,7 @@ import type {
 } from '@/lib/queries/dashboard-agency';
 import { formatCurrency } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
+import { cn } from '@/lib/utils';
 
 /**
  * TCK-134 — 4-up KPI strip for `/admin/finances`. The 4 spec-mandated
@@ -61,6 +62,9 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
   return (
     <div
       data-testid="finance-kpis"
+      // À `md` (464 px utiles, TCK-505) deux tuiles de 224 px coupaient « 132 693 386 F CFA » :
+      // les deux MONTANTS y prennent la ligne, les deux compteurs restent côte à côte — même
+      // arrangement que les tuiles de `/admin`.
       className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
     >
       <KpiTile
@@ -72,6 +76,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
             : null
         }
         loading={dashboardQuery.isLoading}
+        className="md:col-span-2 lg:col-span-1"
       />
       <KpiTile
         icon={<AlertCircle className="size-5" aria-hidden="true" />}
@@ -88,6 +93,7 @@ export function FinanceKpis({ activeProfileId }: FinanceKpisProps) {
         }
         tone={summary && summary.finance.overdue_amount > 0 ? 'danger' : 'default'}
         loading={dashboardQuery.isLoading}
+        className="md:col-span-2 lg:col-span-1"
       />
       <KpiTile
         icon={<Send className="size-5" aria-hidden="true" />}
@@ -120,9 +126,10 @@ interface KpiTileProps {
   readonly hint?: string | null;
   readonly loading?: boolean;
   readonly tone?: 'default' | 'danger';
+  readonly className?: string;
 }
 
-function KpiTile({ icon, label, value, hint, loading, tone = 'default' }: KpiTileProps) {
+function KpiTile({ icon, label, value, hint, loading, tone = 'default', className }: KpiTileProps) {
   const ringClass =
     tone === 'danger'
       ? 'border-destructive/30 bg-destructive/5'
@@ -130,14 +137,14 @@ function KpiTile({ icon, label, value, hint, loading, tone = 'default' }: KpiTil
 
   return (
     <div
-      className={`rounded-2xl border ${ringClass} p-4`}
+      className={cn('rounded-2xl border p-4', ringClass, className)}
       data-testid={`finance-kpi-${label.toLowerCase().replace(/\s+/g, '-').replace(/[()]/g, '')}`}
     >
-      <div className="flex items-center justify-between text-muted-foreground">
+      <div className="flex items-start justify-between gap-3 text-muted-foreground">
         <p className="text-xs font-medium uppercase tracking-wide">{label}</p>
-        {icon}
+        <span className="shrink-0">{icon}</span>
       </div>
-      <p className="mt-3 text-2xl font-bold text-foreground">
+      <p className="mt-3 text-2xl font-bold tabular-nums text-foreground">
         {loading ? <span aria-hidden="true">—</span> : (value ?? '—')}
       </p>
       {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}

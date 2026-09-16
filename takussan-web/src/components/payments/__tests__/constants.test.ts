@@ -5,9 +5,9 @@ import fr from '@/messages/fr.json';
 import {
   commissionFromRate,
   computePayoutNet,
-  INVOICE_STATUS_VARIANT,
-  PAYMENT_STATUS_VARIANT,
-  PAYOUT_STATUS_VARIANT,
+  INVOICE_STATUS_TONE,
+  PAYMENT_STATUS_TONE,
+  PAYOUT_STATUS_TONE,
 } from '../constants';
 
 /**
@@ -63,12 +63,19 @@ describe('computePayoutNet', () => {
 
 describe('status dictionaries', () => {
   it('maps every enum value of every status family to a French label', () => {
-    for (const key of Object.keys(PAYMENT_STATUS_VARIANT)) {
+    for (const key of Object.keys(PAYMENT_STATUS_TONE)) {
       expect(PAYMENT_STATUS_LABEL[key as keyof typeof PAYMENT_STATUS_LABEL]).toBeTruthy();
     }
-    for (const key of Object.keys(PAYOUT_STATUS_VARIANT)) {
+    for (const key of Object.keys(PAYOUT_STATUS_TONE)) {
       expect(PAYOUT_STATUS_LABEL[key as keyof typeof PAYOUT_STATUS_LABEL]).toBeTruthy();
     }
+  });
+
+  it('dit « réussi » pour un paiement, une facture et un reversement aboutis (TCK-358)', () => {
+    // « Payé » était un `Badge` primaire plein : la couleur de l'action, pas celle du succès.
+    expect(PAYMENT_STATUS_TONE.paid).toBe('success');
+    expect(INVOICE_STATUS_TONE.paid).toBe('success');
+    expect(PAYOUT_STATUS_TONE.completed).toBe('success');
   });
 
   it('covers all payment statuses', () => {
@@ -77,12 +84,12 @@ describe('status dictionaries', () => {
     expect(PAYMENT_STATUS_LABEL.failed).toBeDefined();
   });
 
-  it('maps every invoice status to a label and a badge variant', () => {
-    for (const key of Object.keys(INVOICE_STATUS_VARIANT) as Array<
-      keyof typeof INVOICE_STATUS_VARIANT
+  it('maps every invoice status to a label and a status tone', () => {
+    for (const key of Object.keys(INVOICE_STATUS_TONE) as Array<
+      keyof typeof INVOICE_STATUS_TONE
     >) {
       expect(INVOICE_STATUS_LABEL[key]).toBeTruthy();
-      expect(INVOICE_STATUS_VARIANT[key]).toBeDefined();
+      expect(INVOICE_STATUS_TONE[key]).toBeDefined();
     }
   });
 

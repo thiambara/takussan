@@ -20,6 +20,15 @@ import {
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { useAuth } from '@/hooks/useAuth';
 import { isOwner } from '@/lib/roles';
@@ -62,6 +71,9 @@ export function DocumentsLibrary() {
   const [shareDoc, setShareDoc] = useState<Document | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Une suppression se confirme (design-guidelines, « Confirmations destructives ») : le clic sur
+  // la corbeille ne supprimait rien d'autre que le document, sans retour possible.
+  const [pendingDelete, setPendingDelete] = useState<Document | null>(null);
   const dropZoneRef = useRef<HTMLDivElement | null>(null);
 
   const page = Number.parseInt(searchParams.get('page') ?? '1', 10) || 1;
@@ -158,9 +170,9 @@ export function DocumentsLibrary() {
         ].join(' ')}
       >
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-3" aria-busy="true">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-16 animate-pulse rounded-xl bg-card" />
+              <Skeleton key={i} className="h-16 rounded-xl" />
             ))}
           </div>
         ) : isError ? (
@@ -180,7 +192,7 @@ export function DocumentsLibrary() {
             {grouped.map(([category, docs]) => (
               <section key={category}>
                 <header className="mb-2 flex items-center gap-2">
-                  <h2 className="text-sm font-semibold text-foreground">
+                  <h2 className="font-display text-sm font-semibold text-foreground">
                     {tTypes(category)}
                   </h2>
                   <Badge variant="secondary">{docs.length}</Badge>
@@ -192,8 +204,8 @@ export function DocumentsLibrary() {
                       doc={doc}
                       locale={locale}
                       onShare={() => setShareDoc(doc)}
-                      onDelete={() => void onDelete(doc.id)}
-                      deleting={deleteDocument.isPending}
+                      onDelete={() => setPendingDelete(doc)}
+                      deleting={deleteDocument.isPending && pendingDelete?.id === doc.id}
                     />
                   ))}
                 </ul>
@@ -203,11 +215,50 @@ export function DocumentsLibrary() {
         )}
       </div>
 
-      {data?.meta ? (
+      {/* Une seule page : « Page 1 sur 1 » et deux boutons inertes n'apprennent rien — le compte
+          est déjà affiché en tête. */}
+      {data?.meta && data.meta.last_page > 1 ? (
         <PropertyPagination meta={data.meta} />
       ) : null}
 
       <DocumentUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
+      <Dialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteDocument.isPending) setPendingDelete(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('delete_confirm_title')}</DialogTitle>
+            <DialogDescription className="text-pretty">
+              {t('delete_confirm_body', { name: pendingDelete?.name ?? '' })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPendingDelete(null)}
+              disabled={deleteDocument.isPending}
+            >
+              {tCommon('actions.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deleteDocument.isPending}
+              onClick={async () => {
+                if (!pendingDelete) return;
+                await onDelete(pendingDelete.id);
+                setPendingDelete(null);
+              }}
+            >
+              {deleteDocument.isPending ? t('deleting') : tCommon('actions.delete')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <DocumentShareDialog
         open={shareDoc !== null}
         onOpenChange={(open) => {
@@ -354,36 +405,44 @@ function DocumentRow({ doc, locale, onShare, onDelete, deleting }: DocumentRowPr
   const tEntities = useTranslations('documents.entities');
   const alias = resolveDocumentableAlias(doc.documentable_type);
   const href = alias ? resolveDocumentableHref(alias, doc.documentable_id) : null;
+  // Une taille inconnue rendait « — · … » en tête de ligne : on n'affiche que ce qui est connu.
+  const metaParts = [
+    doc.file_size != null ? formatFileSize(doc.file_size) : null,
+    doc.mime_type,
+    doc.created_at ? formatDateTime(doc.created_at, locale) : null,
+  ].filter((part): part is string => Boolean(part));
 
   return (
-    <li className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 text-sm">
-      <FileText className="size-5 shrink-0 text-primary" aria-hidden="true" />
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="truncate font-medium text-foreground">{doc.name}</span>
-          {doc.is_verified ? <Badge variant="secondary">{t('verified')}</Badge> : null}
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-card p-3 text-sm">
+      <div className="flex min-w-0 flex-1 basis-60 items-start gap-3">
+        <FileText className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="min-w-0 truncate font-medium text-foreground" title={doc.name}>
+              {doc.name}
+            </span>
+            {doc.is_verified ? <Badge variant="secondary">{t('verified')}</Badge> : null}
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+            {metaParts.join(' · ')}
+            {alias ? (
+              <>
+                {metaParts.length > 0 ? ' · ' : null}
+                {href ? (
+                  <Link href={href} className="underline-offset-2 hover:underline">
+                    {tEntities(alias)} #{doc.documentable_id}
+                  </Link>
+                ) : (
+                  <span>
+                    {tEntities(alias)} #{doc.documentable_id}
+                  </span>
+                )}
+              </>
+            ) : null}
+          </p>
         </div>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {formatFileSize(doc.file_size)}
-          {doc.mime_type ? <> · {doc.mime_type}</> : null}
-          {doc.created_at ? <> · {formatDateTime(doc.created_at, locale)}</> : null}
-          {alias ? (
-            <>
-              {' · '}
-              {href ? (
-                <Link href={href} className="underline-offset-2 hover:underline">
-                  {tEntities(alias)} #{doc.documentable_id}
-                </Link>
-              ) : (
-                <span>
-                  {tEntities(alias)} #{doc.documentable_id}
-                </span>
-              )}
-            </>
-          ) : null}
-        </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         {/* Versions link — TCK-097 */}
         <Button
           type="button"

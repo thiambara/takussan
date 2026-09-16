@@ -290,7 +290,8 @@ function PhoneStep({ data, setData }: StepProps) {
             id="sp-phone"
             type="tel"
             inputMode="tel"
-            placeholder="+221..."
+            autoComplete="tel"
+            placeholder="+221…"
             value={data.phone.number}
             disabled={data.phone.verified}
             onChange={(e) =>
@@ -305,6 +306,7 @@ function PhoneStep({ data, setData }: StepProps) {
           <Button
             type="button"
             variant="outline"
+            className="h-11 w-full px-4 sm:w-auto"
             onClick={handleSend}
             disabled={sendPending || data.phone.verified || data.phone.number.trim() === ''}
           >
@@ -322,6 +324,7 @@ function PhoneStep({ data, setData }: StepProps) {
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
+              className="tabular-nums tracking-widest"
               value={data.phone.code}
               onChange={(e) =>
                 setData({
@@ -342,6 +345,7 @@ function PhoneStep({ data, setData }: StepProps) {
           <div className="flex items-end">
             <Button
               type="button"
+              className="h-11 w-full px-4 sm:w-auto"
               onClick={handleVerify}
               disabled={verifyPending || data.phone.code.length !== 6}
             >
@@ -352,7 +356,7 @@ function PhoneStep({ data, setData }: StepProps) {
       ) : null}
 
       {data.phone.verified ? (
-        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+        <p role="status" className="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
           {t('verified.banner')}
         </p>
       ) : null}

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { PropertyRow } from '@/components/property/cards/PropertyRow';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
@@ -101,8 +102,8 @@ export function HomepageDiscovery({
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      {/* Spacer : 1ère ligne navbar (~65px) + ligne catégories (~68px). */}
-      <div className="h-[133px]" />
+      {/* Cale à la hauteur réelle de la navbar fixe, palier par palier. */}
+      <NavbarSpacer />
 
       <main className="max-w-[1440px] mx-auto px-6 md:px-12 pt-12 pb-24 space-y-20">
         {/*

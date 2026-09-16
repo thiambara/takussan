@@ -1,7 +1,7 @@
 'use client';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Grid3x3 } from 'lucide-react';
+import { Grid3x3, ImageOff } from 'lucide-react';
 import type { PropertyPhoto } from '@/types/property';
 
 interface PropertyGalleryMosaicProps {
@@ -94,7 +94,10 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
 
   if (photos.length === 0) {
     return (
-      <div className="aspect-[16/7] rounded-xl bg-stone-100 flex items-center justify-center text-stone-400">
+      // Un repli de 16:7 mesurait 532 px de haut à 1366 px — un écran entier de vide avant le
+      // prix. Une bande basse suffit à dire qu'il n'y a pas de photo (revue design du 2026-09-16).
+      <div className="h-48 lg:h-56 rounded-xl bg-muted flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <ImageOff className="size-6" strokeWidth={1.5} aria-hidden="true" />
         {t('gallery.noPhotoAvailable')}
       </div>
     );
@@ -209,7 +212,7 @@ export function PropertyGalleryMosaic({ photos, title, onOpenLightbox }: Propert
       <button
         type="button"
         onClick={() => onOpenLightbox(0)}
-        className="absolute bottom-4 right-4 hidden md:inline-flex items-center gap-2 rounded-md bg-white/95 px-4 py-2 text-sm font-medium text-stone-900 shadow-md backdrop-blur hover:bg-white transition-colors"
+        className="absolute bottom-4 right-4 hidden md:inline-flex items-center gap-2 rounded-md bg-card/95 px-4 py-2 text-sm font-medium text-foreground shadow-md backdrop-blur hover:bg-card transition-colors"
       >
         <Grid3x3 className="size-4" aria-hidden />
         {t('gallery.viewAll', { count: photos.length })}

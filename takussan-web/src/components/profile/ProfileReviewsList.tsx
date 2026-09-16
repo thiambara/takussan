@@ -17,7 +17,8 @@ import {
   useReportReview,
 } from '@/lib/queries/reviews';
 import { useToast } from '@/components/ui/toast';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { isOwner } from '@/lib/roles';
@@ -25,6 +26,7 @@ import { formatDate } from '@/lib/format';
 import type { Booking } from '@/types/booking';
 import type { Lease } from '@/types/lease';
 import type { UserRole } from '@/types/user';
+import type { Locale } from '@/i18n/config';
 
 /** Traducteur du sous-arbre `profile.reviews`, tel que le rend `useTranslations`. */
 type Traducteur = (cle: string) => string;
@@ -107,7 +109,7 @@ function AuthoredReviewsList({ locale }: { readonly locale: string }) {
     return (
       <div className="space-y-3" role="status" aria-label={t('loadingAria')}>
         {[0, 1].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
+          <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
       </div>
     );
@@ -138,6 +140,7 @@ function AuthoredReviewsList({ locale }: { readonly locale: string }) {
 }
 
 function ReviewOpportunitiesList() {
+  const locale = useLocale() as Locale;
   const t = useTranslations('profile.reviews');
   const tReviewCta = useTranslations('reviews.cta');
   const bookingsQuery = useBookings({ status: 'completed', per_page: 20 });
@@ -161,7 +164,7 @@ function ReviewOpportunitiesList() {
     return (
       <div className="space-y-3" role="status" aria-label={t('loadingAria')}>
         {[0, 1].map((i) => (
-          <div key={i} className="h-20 animate-pulse rounded-xl bg-card" />
+          <Skeleton key={i} className="h-20 rounded-xl" />
         ))}
       </div>
     );
@@ -189,21 +192,21 @@ function ReviewOpportunitiesList() {
               <p className="truncate text-sm font-semibold text-foreground">{entry.title}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {t(entry.contextKey)}
-                {entry.date && <> · {new Date(entry.date).toLocaleDateString('fr-FR')}</>}
+                {entry.date && <> · {formatDate(entry.date, locale)}</>}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <Link
                 href={entry.href}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'text-muted-foreground' })}
               >
                 {t('details')}
               </Link>
               <Link
                 href={`/properties/${entry.slug}#avis`}
-                className="inline-flex items-center gap-1.5 rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-foreground"
+                className={buttonVariants({ size: 'sm' })}
               >
-                <Star className="size-3" aria-hidden />
+                <Star aria-hidden="true" />
                 {tReviewCta('action')}
               </Link>
             </div>
@@ -222,7 +225,7 @@ function AuthoredReviewCard({
   readonly locale: string;
 }) {
   const t = useTranslations('profile.reviews');
-  const date = review.created_at ? formatDate(review.created_at, locale as 'fr' | 'en' | 'wo') : '';
+  const date = review.created_at ? formatDate(review.created_at, locale as Locale) : '';
   const targetTitle = review.target?.title ?? t('targetFallback');
   const targetHref = review.target?.type === 'property' && review.target.slug
     ? `/properties/${review.target.slug}#avis`
@@ -231,9 +234,12 @@ function AuthoredReviewCard({
   return (
     <article className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1 basis-48">
           {targetHref ? (
-            <Link href={targetHref} className="truncate text-sm font-semibold text-foreground hover:underline">
+            <Link
+              href={targetHref}
+              className="block truncate rounded-sm text-sm font-semibold text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {targetTitle}
             </Link>
           ) : (
@@ -244,15 +250,15 @@ function AuthoredReviewCard({
             {review.target?.subtitle ? <> · {review.target.subtitle}</> : null}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">{review.rating}/5</Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant="outline" className="tabular-nums">{review.rating}/5</Badge>
           {review.status ? <Badge variant="secondary">{statusLabel(review.status, t)}</Badge> : null}
         </div>
       </div>
       {review.title ? (
         <p className="mt-3 text-sm font-medium text-foreground">{review.title}</p>
       ) : null}
-      <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+      <p className="mt-1 max-w-prose whitespace-pre-line text-sm text-pretty text-muted-foreground">
         {review.content ?? t('noComment')}
       </p>
     </article>
@@ -286,7 +292,7 @@ function OwnerReviewsInbox() {
     return (
       <div className="space-y-3" role="status" aria-label={t('loadingAria')}>
         {[0, 1].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
+          <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
       </div>
     );
@@ -298,9 +304,9 @@ function OwnerReviewsInbox() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-2">
         <Select value={propertyFilter} onValueChange={(value) => setPropertyFilter(value ?? 'all')}>
-          <SelectTrigger aria-label={t('filterByProperty')}>
+          <SelectTrigger aria-label={t('filterByProperty')} className="w-full min-w-0">
             <SelectValue placeholder={t('allProperties')} />
           </SelectTrigger>
           <SelectContent>
@@ -314,7 +320,7 @@ function OwnerReviewsInbox() {
           </SelectContent>
         </Select>
         <Select value={replyFilter} onValueChange={(value) => setReplyFilter(value ?? 'all')}>
-          <SelectTrigger aria-label={t('filterByReply')}>
+          <SelectTrigger aria-label={t('filterByReply')} className="w-full">
             <SelectValue placeholder={t('replyFilterPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
@@ -343,6 +349,7 @@ function OwnerReviewsInbox() {
 }
 
 function OwnerReviewCard({ review }: { review: ReviewWithProperty }) {
+  const locale = useLocale() as Locale;
   const t = useTranslations('profile.reviews');
   const replyReview = useReplyReview();
   const reportReview = useReportReview();
@@ -373,21 +380,21 @@ function OwnerReviewCard({ review }: { review: ReviewWithProperty }) {
   return (
     <li className="rounded-xl border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1 basis-48">
           <p className="truncate text-sm font-semibold text-foreground">{review.property.title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {review.author.name} · {review.created_at ? formatDate(review.created_at, 'fr') : t('unknownDate')}
+            {review.author.name} · {review.created_at ? formatDate(review.created_at, locale) : t('unknownDate')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">{review.rating}/5</Badge>
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant="outline" className="tabular-nums">{review.rating}/5</Badge>
           {review.status ? <Badge variant="secondary">{statusLabel(review.status, t)}</Badge> : null}
         </div>
       </div>
       {review.title ? (
         <p className="mt-3 text-sm font-medium text-foreground">{review.title}</p>
       ) : null}
-      <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">
+      <p className="mt-1 max-w-prose whitespace-pre-line text-sm text-pretty text-muted-foreground">
         {review.content ?? t('noComment')}
       </p>
       {review.reply_content ? (

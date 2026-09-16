@@ -2,7 +2,9 @@ import { AlertTriangle, SearchX } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
+import { EmptyState } from '@/components/feedback';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import type { Locale } from '@/i18n/config';
 import {
@@ -87,7 +89,7 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="h-[133px]" />
+      <NavbarSpacer />
 
       <main className="mx-auto max-w-[1200px] px-6 pb-24 pt-10 md:px-12">
         <header className="relative mb-10">
@@ -102,10 +104,10 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
           <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {t('eyebrow')}
           </p>
-          <h1 className="mt-2 font-display text-4xl font-semibold leading-tight tracking-tight text-foreground md:text-5xl">
+          <h1 className="mt-2 font-display text-4xl font-semibold leading-tight tracking-tight text-foreground text-balance md:text-5xl">
             {t('heading')}
           </h1>
-          <p className="mt-3 max-w-prose text-base leading-relaxed text-muted-foreground md:text-lg">
+          <p className="mt-3 max-w-prose text-base leading-relaxed text-muted-foreground text-pretty md:text-lg">
             {t('intro')}
           </p>
         </header>
@@ -131,11 +133,12 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
                 n'est plus le résultat du critère affiché. */}
             <div className="space-y-8 transition-opacity duration-200 group-has-[[data-en-cours]]/index:opacity-50">
               {resultat.profils.length === 0 ? (
-                <div className="rounded-2xl border border-border bg-card p-10 text-center">
-                  <SearchX className="mx-auto size-6 text-muted-foreground" aria-hidden />
-                  <p className="mt-3 font-display text-xl text-foreground">{t('emptyTitle')}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">{tCommun('empty.body')}</p>
-                </div>
+                // L'état vide du produit, et pas un bloc local (design-guidelines § États vides).
+                <EmptyState
+                  icon={<SearchX className="size-8" aria-hidden />}
+                  title={t('emptyTitle')}
+                  description={tCommun('empty.body')}
+                />
               ) : (
                 <>
                   <p className="text-sm text-muted-foreground">

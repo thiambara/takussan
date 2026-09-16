@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface ConfirmActionDialogProps {
   open: boolean;
@@ -44,6 +45,7 @@ export function ConfirmActionDialog({
   const t = useTranslations('superAdmin.confirmDialog');
   const tCommon = useTranslations('common');
   const [typed, setTyped] = useState('');
+  const inputId = useId();
   const enabled = typed.trim() === confirmPhrase;
 
   return (
@@ -60,16 +62,20 @@ export function ConfirmActionDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-muted-foreground">
-            {t('typePrompt')} <code className="rounded bg-muted px-1">{confirmPhrase}</code>
+          {/* Le libellé est RELIÉ au champ (il ne l'était pas), et le champ est la primitive du DS :
+              l'`<input>` nu n'avait ni fond de jeton ni anneau de focus visible. */}
+          <label htmlFor={inputId} className="block text-xs font-semibold text-muted-foreground">
+            {t('typePrompt')} <code className="rounded bg-muted px-1 font-mono text-foreground">{confirmPhrase}</code>
           </label>
-          <input
+          <Input
+            id={inputId}
             type="text"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             data-testid="confirm-action-input"
-            className="w-full rounded-md border border-border px-3 py-2 text-sm outline-none focus:border-ring"
             autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
           />
         </div>
         <DialogFooter>

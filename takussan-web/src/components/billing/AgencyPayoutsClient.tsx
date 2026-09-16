@@ -20,6 +20,7 @@ export function AgencyPayoutsClient() {
       payouts={query.data?.data ?? []}
       isLoading={query.isLoading}
       emptyHint={t('emptyForAgency')}
+      hideAgency
     />
   );
 }

@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/select';
 import { FormError, FormGlobalError } from '@/components/forms';
 import { traduireChampsErreurs } from '@/lib/schemas/messages';
+import { cn } from '@/lib/utils';
 import { useTraducteurValidation } from '@/hooks/useApiForm';
 import type { Tag, TagType } from '@/types/tag';
 import {
@@ -182,7 +183,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
         </FormGlobalError>
       ) : null}
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label={t('filterByType')}>
           {(['all', ...tagTypeValues] as const).map((opt) => {
             const active = activeType === opt;
@@ -193,9 +194,10 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                 aria-selected={active}
                 type="button"
                 onClick={() => setActiveType(opt)}
-                variant={active ? 'default' : 'outline'}
-                size="sm"
-                className="rounded-full"
+                // Le terracotta plein reste à « Nouveau tag » : le filtre actif se lit par l'aplat
+                // neutre et l'anneau, comme les autres choix de la console.
+                variant={active ? 'secondary' : 'outline'}
+                className={cn('h-9 rounded-full px-3.5', active && 'ring-1 ring-foreground/20')}
               >
                 {t(`types.${opt}`)}
               </Button>
@@ -203,7 +205,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
           })}
         </div>
         <div className="flex items-center gap-2">
-          <div className="relative">
+          <div className="relative min-w-0 flex-1 xl:w-64 xl:flex-none">
             <Search
               className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden="true"
@@ -213,7 +215,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
               placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8"
+              className="h-9 pl-8"
             />
           </div>
           <Button type="button" onClick={() => setCreateOpen(true)}>
@@ -251,7 +253,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                 const isEditing = editingId === tag.id;
                 return (
                   <tr key={tag.id} className="bg-card">
-                    <td className="px-4 py-3 font-medium text-foreground">
+                    <td className="min-w-40 px-4 py-3 font-medium text-foreground">
                       {isEditing ? (
                         <Input
                           autoFocus
@@ -270,8 +272,8 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                         <FormError>{rowError.message}</FormError>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">{tag.slug}</td>
-                    <td className="px-4 py-3 text-xs">{t(`types.${tag.type}`)}</td>
+                    <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-muted-foreground">{tag.slug}</td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap">{t(`types.${tag.type}`)}</td>
                     <td className="px-4 py-3 text-xs">
                       {tag.color ? (
                         <span className="inline-flex items-center gap-1.5">
@@ -312,7 +314,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                           <Button
                             type="button"
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             aria-label={t('actions.edit', { name: tag.name })}
                             onClick={() => beginEdit(tag)}
                             disabled={isPending}
@@ -322,7 +324,7 @@ export function TagsManager({ initialTags }: TagsManagerProps) {
                           <Button
                             type="button"
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             aria-label={t('actions.delete', { name: tag.name })}
                             onClick={() => handleDelete(tag)}
                             disabled={isPending}

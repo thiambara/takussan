@@ -14,8 +14,8 @@ export function PropertyDescription({ description }: { description: string | nul
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-stone-900">{t('description')}</h2>
-      <p className="text-stone-700 leading-relaxed whitespace-pre-line">{visible}</p>
+      <h2 className="text-xl font-semibold text-foreground">{t('description')}</h2>
+      <p className="text-foreground leading-relaxed whitespace-pre-line">{visible}</p>
       {needsToggle && (
         <button
           type="button"

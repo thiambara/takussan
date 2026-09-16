@@ -60,7 +60,7 @@ class Customer extends AbstractModel
 
     protected static array $requestFilterable = ['user_id', 'agency_id', 'added_by_id', 'status', 'pipeline_stage'];
 
-    protected static array $requestSortable = ['id', 'created_at', 'first_name', 'last_name', 'status'];
+    protected static array $requestSortable = ['id', 'created_at', 'updated_at', 'first_name', 'last_name', 'status'];
 
     protected static array $requestLoadable = ['user', 'agency', 'addresses', 'tags', 'addedBy', 'notes', 'documents', 'tasks'];
 

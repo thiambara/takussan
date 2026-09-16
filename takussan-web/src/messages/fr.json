@@ -348,7 +348,12 @@
       "showPassword": "Afficher le mot de passe",
       "hidePassword": "Masquer le mot de passe",
       "submitting": "Connexion…",
-      "registerCta": "S'inscrire"
+      "registerCta": "S'inscrire",
+      "oauthError": {
+        "oauth_invalid": "La connexion avec le fournisseur n'a pas abouti : le lien de retour était incomplet. Réessayez, ou connectez-vous avec votre email.",
+        "oauth_failed": "Le fournisseur a refusé la connexion ou elle a expiré. Réessayez, ou connectez-vous avec votre email.",
+        "oauth_unknown": "La connexion n'a pas pu être finalisée. Vérifiez votre connexion internet et réessayez."
+      }
     },
     "register": {
       "title": "Créez votre compte",
@@ -555,7 +560,8 @@
     "cards": {
       "bedroomsShort": "{count} ch",
       "bedroomsAbbrev": "{count} Ch.",
-      "bathroomsShort": "{count} sdb"
+      "bathroomsShort": "{count} sdb",
+      "photoPending": "Photo à venir"
     },
     "row": {
       "viewAll": "Tout voir",
@@ -633,7 +639,9 @@
         "independent": "Agent indépendant",
         "private": "Particulier",
         "message": "Message",
-        "callAria": "Appeler"
+        "callAria": "Appeler",
+        "call": "Appeler",
+        "calling": "Connexion…"
       },
       "breadcrumb": {
         "home": "Accueil",
@@ -678,7 +686,9 @@
         "apply": "Postuler"
       },
       "unavailableTitle": "Bien momentanément indisponible",
-      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants."
+      "unavailableBody": "Nous n'arrivons pas à joindre le catalogue pour l'instant. Le bien existe peut-être toujours — réessayez dans quelques instants.",
+      "favoriteAddShort": "Ajouter",
+      "favoriteSavedShort": "Favori"
     },
     "reviews": {
       "title": "Avis",
@@ -1246,6 +1256,14 @@
       "renovated": "Rénové",
       "good": "Bon état",
       "to_renovate": "À rénover"
+    },
+    "priceChangeReasons": {
+      "market_adjustment": "Ajustement au marché",
+      "negotiation": "Négociation",
+      "renovation": "Rénovation",
+      "urgent_sale": "Vente urgente",
+      "seasonal": "Saisonnier",
+      "correction": "Correction"
     }
   },
   "dashboard": {
@@ -1369,7 +1387,7 @@
       "bookingsToHandle": "Réservations à traiter",
       "maintenanceQuotes": "Maintenance et devis",
       "nextPayouts": "Prochains reversements",
-      "noPayouts": "Aucun reversement à venir retourné par l'API.",
+      "noPayouts": "Aucun reversement programmé pour l'instant.",
       "chartTitle": "Cashflow et occupation sur 12 mois",
       "emptyBodyFull": "Ajoutez votre premier bien pour activer les réservations, baux, documents et demandes de maintenance.",
       "propertiesHint": "{rented} loués · {available} dispo.",
@@ -1388,11 +1406,25 @@
       "operator": "Opérateur",
       "threshold": "Seuil",
       "severity": "Sévérité",
-      "cooldown": "Cooldown (h)",
+      "cooldown": "Délai entre deux alertes (h)",
       "create": "Créer l'alerte",
       "activeTitle": "Alertes actives",
       "empty": "Aucune alerte configurée.",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "severities": {
+        "info": "Info",
+        "warning": "Attention",
+        "critical": "Critique"
+      },
+      "operators": {
+        "gt": "> supérieur à",
+        "gte": "≥ supérieur ou égal à",
+        "lt": "< inférieur à",
+        "lte": "≤ inférieur ou égal à"
+      },
+      "emptyDescription": "Créez une alerte ci-dessus : l'équipe sera prévenue quand l'indicateur franchit le seuil.",
+      "deleteAria": "Supprimer l'alerte {label}",
+      "cooldownHint": "Délai minimal entre deux notifications, en heures."
     },
     "kpis": {
       "validation": "Choisissez une métrique et un libellé.",
@@ -1405,7 +1437,30 @@
       "add": "Ajouter",
       "configured": "KPIs configurés",
       "empty": "Aucun KPI configuré.",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "metrics": {
+        "properties_total": "Biens (total)",
+        "properties_rented": "Biens loués",
+        "properties_available": "Biens disponibles",
+        "leases_active": "Baux actifs",
+        "customers_count": "Clients",
+        "members_count": "Membres de l'équipe",
+        "bookings_pending": "Réservations en attente",
+        "maintenance_open": "Maintenance ouverte",
+        "revenue_month": "Revenus du mois",
+        "commission_month": "Commissions du mois",
+        "overdue_count": "Impayés (nombre)",
+        "overdue_amount": "Impayés (montant)",
+        "unpaid_rate_percent": "Taux d'impayés",
+        "occupancy_rate_percent": "Taux d'occupation"
+      },
+      "formats": {
+        "number": "Nombre",
+        "percent": "Pourcentage",
+        "currency": "Devise"
+      },
+      "emptyDescription": "Ajoutez un premier indicateur ci-dessus : il apparaîtra sur le tableau de bord de l'agence.",
+      "deleteAria": "Supprimer le KPI {label}"
     },
     "exports": {
       "dataType": "Type de données",
@@ -1415,7 +1470,18 @@
       "downloading": "Téléchargement…",
       "download": "Télécharger",
       "scopeNotice": "Les exports respectent votre rôle (agence, bailleur ou agent).",
-      "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse."
+      "scopeNoticeFull": "Les exports respectent votre rôle (agence, bailleur, locataire) — aucune donnée hors de votre périmètre n'est incluse.",
+      "entities": {
+        "payments": "Paiements",
+        "leases": "Baux",
+        "customers": "Clients",
+        "properties": "Biens"
+      },
+      "formats": {
+        "csv": "CSV",
+        "xlsx": "Excel (xlsx)",
+        "pdf": "PDF"
+      }
     },
     "properties": {
       "metaTitle": "Mes biens",
@@ -1538,7 +1604,7 @@
       "customerNew": {
         "metaTitle": "Ajouter un client",
         "title": "Ajouter un client",
-        "subtitle": "Indiquez au minimum un prénom et un nom. Un contact peut exister sans compte utilisateur."
+        "subtitle": "Indiquez au minimum un prénom, un nom et un e-mail ou un téléphone. Un contact peut exister sans compte utilisateur."
       },
       "leaseNew": {
         "metaTitle": "Nouveau bail",
@@ -1836,7 +1902,7 @@
     "tenantOnboardingPending": {
       "error": "Impossible de charger la liste pour le moment.",
       "emptyTitle": "Aucun onboarding en retard",
-      "emptyDescription": "Tous les onboardings de moins de 7 jours ne sont pas listés ici.",
+      "emptyDescription": "Les onboardings ouverts depuis moins de 7 jours n'apparaissent pas ici.",
       "leaseReference": "Bail {reference}",
       "signedAt": "Signé le {date}",
       "missing": "Il reste : {items}",
@@ -2017,7 +2083,8 @@
       "ariaLabel": "Tableau comparatif des biens",
       "header": "Critère",
       "unavailable": "Bien indisponible",
-      "divergentTooltip": "Cette valeur diverge entre les biens"
+      "divergentTooltip": "Cette valeur diverge entre les biens",
+      "divergentShort": "Diffère"
     },
     "carousel": {
       "ariaLabel": "Comparaison mobile — balayez pour voir chaque bien"
@@ -2080,7 +2147,8 @@
       "actions": {
         "cancel": "Annuler",
         "confirm": "Confirmer",
-        "close": "Fermer"
+        "close": "Fermer",
+        "retry": "Réessayer"
       },
       "reasonDialog": {
         "title": "Passer en {stage} — préciser la raison",
@@ -2103,12 +2171,14 @@
         "toggle": "Marquer terminée"
       },
       "errors": {
-        "moveFailed": "Impossible de déplacer la carte. Réessayez."
+        "moveFailed": "Impossible de déplacer la carte. Réessayez.",
+        "loadFailed": "Cette colonne n'a pas pu être chargée."
       },
       "card": {
         "addedBy": "par",
         "openTasks": "Tâches en cours"
-      }
+      },
+      "loadingColumn": "Chargement des clients…"
     },
     "list": {
       "empty_title": "Votre CRM est vide",
@@ -2200,13 +2270,17 @@
       "tags": "Tags",
       "filterByTags": "Filtrer par tags",
       "customerTags": "Tags clients",
-      "clearAll": "Tout effacer"
+      "clearAll": "Tout effacer",
+      "allStages": "Toutes les étapes",
+      "allStatuses": "Tous les statuts"
     },
     "tags": {
       "sectionTitle": "Tags",
       "addPlaceholder": "Ajouter un tag…",
       "maxReachedPlaceholder": "Max 10 tags",
-      "removeAria": "Retirer le tag {tag}"
+      "removeAria": "Retirer le tag {tag}",
+      "inputLabel": "Ajouter un tag au client",
+      "filterAria": "Voir les clients tagués {tag}"
     }
   },
   "account": {
@@ -2288,10 +2362,10 @@
         "yesterday": "Hier"
       },
       "attachmentRejected": "Fichier refusé.",
-      "uploadFailed": "Upload échoué.",
+      "uploadFailed": "L'envoi du fichier a échoué. Réessayez.",
       "participants": "{count} participants",
       "viewProperty": "Voir le bien",
-      "groupInfoAria": "Group info",
+      "groupInfoAria": "Infos du groupe",
       "loadError": "Impossible de charger les messages.",
       "empty": "Pas encore de messages. Envoyez le premier !",
       "loadingMore": "Chargement…",
@@ -2353,7 +2427,7 @@
       "loadError": "Impossible de charger les conversations.",
       "empty": "Pas encore de conversation.",
       "groupBadge": "Groupe",
-      "muted": "muted"
+      "muted": "Conversation en sourdine"
     },
     "propertyDraft": {
       "message": "Bonjour, je suis intéressé(e) par « {title} » (réf. {reference}). Est-il toujours disponible ?",
@@ -2518,7 +2592,7 @@
     "tabs": {
       "history": "Historique",
       "invoices": "Factures",
-      "payouts": "Payouts"
+      "payouts": "Reversements"
     },
     "actions": {
       "createInvoice": "Générer une facture",
@@ -2903,7 +2977,9 @@
       "urgent_heading": "Urgences prioritaires",
       "other_heading": "Autres demandes",
       "scheduled": "Prévu {date}",
-      "pagination": "Page {current} / {last} — {total} demandes"
+      "pagination": "Page {current} / {last} — {total} demandes",
+      "previous": "Précédent",
+      "next": "Suivant"
     },
     "launcher": {
       "error": "Impossible de charger vos baux. Réessayez ou contactez le support.",
@@ -3179,7 +3255,8 @@
       "resultCount": "{count, plural, =1 {# bien trouvé} other {# biens trouvés}}",
       "perPageAria": "Résultats par page",
       "perPageOption": "{count} / page",
-      "filters": "Filtres"
+      "filters": "Filtres",
+      "sortAria": "Trier les résultats"
     },
     "sort": {
       "relevance": "Pertinence",
@@ -3778,7 +3855,9 @@
     "page": {
       "title": "Carnet prestataires",
       "subtitle": "Plombiers, électriciens, peintres : votre carnet d'intervenants pour la maintenance.",
-      "add": "Ajouter un prestataire"
+      "add": "Ajouter un prestataire",
+      "forbidden_title": "Carnet réservé aux gestionnaires",
+      "forbidden_description": "Le carnet de prestataires est ouvert aux administrateurs de l'agence et aux agents autorisés à inviter des prestataires. Demandez cet accès à votre administrateur."
     },
     "list": {
       "empty_title": "Aucun prestataire pour le moment",
@@ -4214,7 +4293,8 @@
       "dispute": "Contester",
       "disputeReason": "Motif du litige",
       "disputeReasonPlaceholder": "Expliquez le point contesté",
-      "sendDispute": "Envoyer le litige"
+      "sendDispute": "Envoyer le litige",
+      "disputeFailed": "La contestation n'a pas pu être envoyée. Réessayez dans un instant."
     },
     "roomEditor": {
       "empty_title": "Aucune pièce",
@@ -4577,7 +4657,8 @@
           "invite": "Inviter un membre",
           "assign_role": "Attribuer un rôle",
           "remove": "Retirer un membre de l'agence",
-          "suspend": "Suspendre un membre"
+          "suspend": "Suspendre un membre",
+          "delegate_role": "Déléguer un rôle"
         },
         "properties": {
           "create": "Créer un bien",
@@ -5002,7 +5083,10 @@
       "versions": "Versions",
       "download": "Télécharger",
       "share": "Partager",
-      "delete_aria": "Supprimer"
+      "delete_aria": "Supprimer",
+      "delete_confirm_title": "Supprimer ce document ?",
+      "delete_confirm_body": "« {name} » sera retiré de la bibliothèque documentaire.",
+      "deleting": "Suppression…"
     },
     "versions": {
       "error": "Impossible de charger les versions.",
@@ -5233,7 +5317,8 @@
           "placeholder": "Ex. Indisponibilité exceptionnelle du logement.",
           "submit": "Annuler la réservation"
         }
-      }
+      },
+      "forbidden": "Cette réservation relève d'une autre agence : vous n'y avez pas accès."
     },
     "public": {
       "no_property_title": "Aucun bien sélectionné",
@@ -5386,9 +5471,6 @@
       "cancellationReason": "Motif d’annulation",
       "support": "Accompagnement",
       "assignedAgent": "Agent assigné",
-      "prompts": {
-        "newSlot": "Nouveau créneau (format YYYY-MM-DD HH:mm)"
-      },
       "toasts": {
         "confirmed": {
           "title": "Visite confirmée",
@@ -5428,6 +5510,25 @@
         "title": "Feedback post-visite",
         "window": "Vous avez {hours}h après la visite pour laisser votre retour.",
         "restricted": "Seuls le visiteur et l’agent peuvent laisser un retour sur cette visite."
+      },
+      "forbidden": "Cette visite relève d'une autre agence : vous n'y avez pas accès.",
+      "dialogs": {
+        "dismiss": "Revenir",
+        "processing": "Enregistrement…",
+        "cancel": {
+          "title": "Annuler la visite",
+          "description": "Le motif est enregistré sur la demande. Cette action ne se défait pas.",
+          "placeholder": "Ex. Le visiteur n'est plus disponible à cette date.",
+          "required": "Indiquez le motif d'annulation.",
+          "submit": "Annuler la visite"
+        },
+        "reschedule": {
+          "title": "Replanifier la visite",
+          "description": "Choisissez le nouveau créneau de la visite.",
+          "label": "Nouveau créneau",
+          "required": "Choisissez une date et une heure.",
+          "submit": "Enregistrer le créneau"
+        }
       }
     },
     "minutesUnit": "min",
@@ -5615,17 +5716,19 @@
       "empty_description": "Aucune action ne correspond à ces filtres. Élargissez la période.",
       "error": "Erreur de chargement du journal d'audit.",
       "eventPlaceholder": "Événement (ex. super_admin_agency_verified)",
-      "causerPlaceholder": "ID du causer",
+      "causerPlaceholder": "ID de l'auteur",
       "dateFromAria": "Date depuis",
       "dateToAria": "Date jusqu'à",
       "colDate": "Date",
       "colEvent": "Événement",
-      "colCauser": "Causer",
+      "colCauser": "Auteur",
       "colSubject": "Sujet",
       "previous": "Précédent",
       "next": "Suivant",
       "pagination": "Page {current} sur {last} · {total} entrées",
-      "tableCaption": "Journal d'audit cross-tenant"
+      "tableCaption": "Journal d'audit cross-tenant",
+      "eventAria": "Filtrer par événement",
+      "causerAria": "Filtrer par identifiant d'auteur"
     },
     "announcements": {
       "empty_title": "Aucune annonce pour le moment",
@@ -5708,7 +5811,8 @@
         "failed": "En échec",
         "skipped": "Écartée",
         "running": "En cours"
-      }
+      },
+      "durationMs": "{ms} ms"
     },
     "failedJobs": {
       "empty_title": "Aucun job échoué",
@@ -5779,7 +5883,20 @@
       "testFailure": "Échec",
       "editIntegration": "Éditer {label}",
       "editGeneric": "Éditer une intégration",
-      "maskedHint": "Les valeurs existantes restent masquées. Remplissez uniquement les champs à remplacer."
+      "maskedHint": "Les valeurs existantes restent masquées. Remplissez uniquement les champs à remplacer.",
+      "categories": {
+        "payments": "Paiements",
+        "messaging": "Messagerie",
+        "email": "Email",
+        "storage": "Stockage",
+        "other": "Autres"
+      },
+      "statuses": {
+        "healthy": "Opérationnelle",
+        "failed": "En échec",
+        "disabled": "Désactivée",
+        "unknown": "État inconnu"
+      }
     },
     "metrics": {
       "error": "Impossible de charger les KPIs plateforme.",
@@ -5815,7 +5932,7 @@
     "agencyCard": {
       "verified": "Vérifiée",
       "email": "Email",
-      "license": "License",
+      "license": "Licence",
       "members": "Membres",
       "properties": "Biens",
       "createdAt": "Créée le",
@@ -5835,7 +5952,7 @@
         "unverify": {
           "title": "Retirer la vérification",
           "description": "L’agence reviendra en statut Inactive et perdra son badge vérifié.",
-          "label": "Déverifier"
+          "label": "Dévérifier"
         }
       }
     },
@@ -5870,7 +5987,7 @@
         "unverify": {
           "title": "Retirer la vérification",
           "description": "L’agence perdra son badge vérifié et repassera inactive.",
-          "label": "Déverifier"
+          "label": "Dévérifier"
         }
       },
       "health": {
@@ -5894,7 +6011,8 @@
         "count30d": "Transactions 30 jours",
         "revenue30d": "Revenu 30 jours",
         "lastPayment": "Dernier paiement"
-      }
+      },
+      "backToList": "Retour aux agences"
     },
     "pages": {
       "shared": {
@@ -6241,7 +6359,11 @@
           "createdOn": "Créée le",
           "publishedProperties": "Biens publiés",
           "otherRequests": "Autres demandes",
-          "openAgency": "Ouvrir la fiche agence"
+          "openAgency": "Ouvrir la fiche agence",
+          "kinds": {
+            "individual": "Compte individuel",
+            "standard": "Agence standard"
+          }
         },
         "decision": {
           "title": "Décision",
@@ -6291,7 +6413,11 @@
       "webhooks": "Webhooks",
       "test": "Tester",
       "testSent": "Test envoyé",
-      "tableCaption": "Règles d'alerte de la plateforme"
+      "tableCaption": "Règles d'alerte de la plateforme",
+      "emptyTitle": "Aucune règle d'alerte",
+      "emptyDescription": "Créez une règle pour être prévenu par email ou webhook quand une action critique a lieu sur la plateforme.",
+      "deleteTitle": "Supprimer la règle d'alerte",
+      "deleteDescription": "Les prochaines occurrences de cet événement ne déclencheront plus d'alerte."
     },
     "inviteModal": {
       "title": "Coopter un super-admin",
@@ -7026,7 +7152,8 @@
         "inapp": "In-app",
         "email": "Email",
         "push": "Push",
-        "sms": "SMS"
+        "sms": "SMS",
+        "whatsapp": "WhatsApp"
       },
       "groups": {
         "messages": "Messages",
@@ -7071,7 +7198,15 @@
       "activeListings": "Biens actifs",
       "agents": "Agents",
       "unlimited": "Illimité",
-      "loadFailed": "Impossible de charger l'abonnement."
+      "loadFailed": "Impossible de charger l'abonnement.",
+      "status": {
+        "trialing": "Période d'essai",
+        "active": "Actif",
+        "past_due": "Paiement en retard",
+        "suspended": "Suspendu",
+        "ended": "Terminé"
+      },
+      "noneDescription": "Les limites et la commission de votre offre s'afficheront ici dès qu'un abonnement sera actif."
     },
     "agencySubscription": {
       "changePlan": "Changer de plan",
@@ -7092,7 +7227,7 @@
       "codePlaceholder": "code",
       "labelPlaceholder": "libellé",
       "pricePlaceholder": "prix XOF",
-      "feePlaceholder": "fee %",
+      "feePlaceholder": "commission %",
       "create": "Créer",
       "save": "Enregistrer",
       "delete": "Supprimer",
@@ -7103,6 +7238,12 @@
         "updateFailed": "Mise à jour impossible",
         "deleted": "Plan supprimé",
         "deleteFailed": "Suppression impossible"
+      },
+      "fields": {
+        "code": "Code du plan",
+        "label": "Libellé du plan",
+        "price": "Prix mensuel (XOF)",
+        "fee": "Commission plateforme (%)"
       }
     },
     "platformPayouts": {
@@ -7492,7 +7633,7 @@
       "chartAria": "Évolution mensuelle — {metric}, {count} points."
     },
     "funnel": {
-      "conversion": "Conversion globale:",
+      "conversion": "Conversion globale :",
       "stages": {
         "listings_published": "Annonces publiées",
         "bookings_requested": "Réservations demandées",
@@ -7560,7 +7701,7 @@
       "rejected": "Rejeté"
     },
     "timeline": {
-      "title": "Timeline KYC",
+      "title": "Suivi du dossier KYC",
       "reasonAvailable": "Motif disponible",
       "steps": {
         "created": "Création",
@@ -7580,7 +7721,11 @@
         "uploadFailed": "Upload impossible",
         "submitted": "Dossier soumis",
         "submitFailed": "Soumission impossible"
-      }
+      },
+      "choose": "Choisir un fichier",
+      "replace": "Remplacer le fichier",
+      "accepted": "PDF, JPG, PNG ou WEBP",
+      "chooseAria": "Choisir le fichier : {document}"
     },
     "review": {
       "title": "Instruction super-admin",

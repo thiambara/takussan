@@ -100,7 +100,9 @@ describe('AC1 — le fil balisé ⇔ le fil affiché', () => {
     const p = bien();
     render(withIntl(<PropertyBreadcrumb property={p} />));
 
-    const affiches = [...screen.getByRole('navigation').querySelectorAll('a, span.text-stone-700')]
+    // Le dernier maillon se lit par `aria-current`, et non plus par sa couleur : la classe
+    // `text-stone-700` est passée aux jetons à la revue design du 2026-09-16.
+    const affiches = [...screen.getByRole('navigation').querySelectorAll('a, [aria-current="page"]')]
       .map((n) => n.textContent?.trim())
       .filter(Boolean);
 

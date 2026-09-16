@@ -8,9 +8,9 @@ import type { PropertyDetail } from '@/types/property';
 function Row({ label, value }: { label: string; value: string | number | null | undefined }) {
   if (value === null || value === undefined || value === '') return null;
   return (
-    <div className="flex justify-between py-3 border-b border-stone-100">
-      <span className="text-stone-500">{label}</span>
-      <span className="font-medium text-stone-900">{value}</span>
+    <div className="flex justify-between py-3 border-b border-border">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-medium text-foreground">{value}</span>
     </div>
   );
 }
@@ -61,7 +61,7 @@ export function PropertyCharacteristics({ property }: { property: PropertyDetail
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold text-stone-900">{t('characteristics')}</h2>
+      <h2 className="text-xl font-semibold text-foreground">{t('characteristics')}</h2>
       <div className="grid sm:grid-cols-2 gap-x-8 text-sm">
         {visible.map((r) => (
           <Row key={r.label} label={r.label} value={r.value} />

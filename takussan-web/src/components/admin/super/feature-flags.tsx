@@ -31,8 +31,17 @@ export function FeatureFlagTable({ flags }: { flags: AdminFeatureFlag[] }) {
       header: t('colFlag'),
       cell: (flag) => (
         <>
-          <p className="font-medium text-foreground">{flag.label}</p>
-          <p className="text-xs text-muted-foreground">{flag.key}</p>
+          {/* Le libellé ouvre aussi la configuration : sur mobile, « Configurer » vit au bout
+              d'une table qui défile. */}
+          <Button
+            type="button"
+            variant="link"
+            className="h-auto min-h-9 p-0 text-left font-medium text-foreground hover:text-primary"
+            onClick={() => setEditing(flag)}
+          >
+            {flag.label}
+          </Button>
+          <p className="font-mono text-xs text-muted-foreground">{flag.key}</p>
         </>
       ),
     },
@@ -49,7 +58,7 @@ export function FeatureFlagTable({ flags }: { flags: AdminFeatureFlag[] }) {
     {
       id: 'segments',
       header: t('colSegments'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (flag) =>
         flag.segments.rollout_percentage ? `${flag.segments.rollout_percentage}%` : t('global'),
     },
@@ -59,7 +68,7 @@ export function FeatureFlagTable({ flags }: { flags: AdminFeatureFlag[] }) {
       headerSrOnly: true,
       align: 'end',
       cell: (flag) => (
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <SessionOverrideToggle flag={flag} />
           <Button type="button" variant="outline" onClick={() => setEditing(flag)}>
             <Settings2 className="size-4" aria-hidden="true" />
@@ -123,7 +132,12 @@ export function FeatureFlagSegmentDialog({
           <DialogTitle>{flag ? t('configureFlag', { label: flag.label }) : t('configureGeneric')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Button type="button" variant={enabled ? 'default' : 'outline'} onClick={() => setEnabled((value) => !value)}>
+          <Button
+            type="button"
+            variant={enabled ? 'default' : 'outline'}
+            aria-pressed={enabled}
+            onClick={() => setEnabled((value) => !value)}
+          >
             {enabled ? t('enabledGlobally') : t('disabledGlobally')}
           </Button>
           <label className="block space-y-1.5">
@@ -135,7 +149,7 @@ export function FeatureFlagSegmentDialog({
             <Input id="flag-rollout" type="number" min={0} max={100} value={rollout} onChange={(event) => setRollout(event.target.value)} />
           </label>
         </div>
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             {tCommon('actions.cancel')}
@@ -159,7 +173,13 @@ export function SessionOverrideToggle({ flag }: { flag: AdminFeatureFlag }) {
   });
 
   return (
-    <Button type="button" variant={enabled ? 'default' : 'ghost'} onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+    <Button
+      type="button"
+      variant={enabled ? 'default' : 'ghost'}
+      aria-pressed={enabled}
+      onClick={() => mutation.mutate()}
+      disabled={mutation.isPending}
+    >
       <FlaskConical className="size-4" aria-hidden="true" />
       {enabled ? t('testing') : t('test')}
     </Button>

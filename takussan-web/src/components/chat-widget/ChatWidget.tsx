@@ -164,7 +164,10 @@ export function ChatWidget() {
       <div
         style={{ bottom: desktopSlot.bottom }}
         className={cn(
-          'pointer-events-none fixed right-4 hidden md:block',
+          // `md:flex … items-end` : le lanceur reste au BORD DROIT quand le panneau s'ouvre. En
+          // bloc, il s'alignait à gauche du panneau (mesuré à 1366 : x = 991 au lieu de 1294) —
+          // le bouton qui ferme le panneau n'était plus là où l'on venait de cliquer.
+          'pointer-events-none fixed right-4 hidden md:flex md:flex-col md:items-end',
           // While the panel is open we lift the whole container above other
           // floating UI (compare pill at z-40, Leaflet's internal panes that
           // reach z-700 on the publish location picker). When closed we stay
@@ -176,7 +179,7 @@ export function ChatWidget() {
           <div
             role="dialog"
             aria-label={t('panelAriaLabel')}
-            className="pointer-events-auto mb-3 flex h-[520px] w-[360px] flex-col overflow-hidden rounded-2xl bg-background shadow-2xl ring-1 ring-black/5"
+            className="pointer-events-auto mb-3 flex h-[min(520px,calc(100dvh-7rem))] w-[360px] flex-col overflow-hidden rounded-2xl bg-background shadow-xl ring-1 ring-foreground/10"
             data-testid="chat-widget-panel"
           >
             <header className="flex items-center justify-between border-b border-border/60 bg-background px-4 py-3">
@@ -185,7 +188,7 @@ export function ChatWidget() {
                   {t('panelTitle')}
                 </h2>
                 {unread > 0 && (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-xs tabular-nums text-muted-foreground">
                     {t('unreadInline', { count: unread })}
                   </p>
                 )}
@@ -194,7 +197,7 @@ export function ChatWidget() {
                 type="button"
                 onClick={fermerPanneau}
                 aria-label={t('closePanel')}
-                className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="-mr-1 inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 data-testid="chat-widget-close"
               >
                 <X className="size-4" aria-hidden />
@@ -266,7 +269,7 @@ export function ChatWidget() {
           aria-label={launcherAria}
           data-testid="chat-widget-launcher"
           className={cn(
-            'pointer-events-auto relative inline-flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:hover:scale-100',
+            'pointer-events-auto relative inline-flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-[1.03] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:hover:scale-100 motion-reduce:active:scale-100',
             open && 'scale-95',
           )}
         >
@@ -292,7 +295,7 @@ export function ChatWidget() {
         aria-label={launcherAria}
         data-testid="chat-widget-mobile-fab"
         style={{ bottom: mobileSlot.bottom }}
-        className="fixed right-4 z-40 inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        className="fixed right-4 z-40 inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform active:scale-[0.96] md:hidden focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:active:scale-100"
       >
         <MessageSquare className="size-5" aria-hidden />
         {unread > 0 && (

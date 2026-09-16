@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { Activity, Database, HardDrive, Mail, Wifi } from 'lucide-react';
 import { StatCard, StatusBadge } from '@/components/console';
+import { ErrorState } from '@/components/feedback';
 import { fetchPlatformHealth } from '@/lib/queries/super-admin';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 import type { HealthcheckStatus } from '@/types/super-admin';
@@ -27,28 +28,56 @@ const CHECKS: Array<{ key: 'db' | 'cache' | 'storage' | 'mail' | 'sms'; icon: ty
 
 export function HealthDashboard() {
   const t = useTranslations('superAdmin.systemHealth');
+  const tCommon = useTranslations('common');
+  const tShared = useTranslations('superAdmin.pages.shared');
   const health = useQuery({
     queryKey: ['super-admin', 'health'],
     queryFn: fetchPlatformHealth,
     refetchInterval: 30_000,
   });
+  const queue = health.data?.data.queue;
+  const echecs = queue?.failed_24h ?? 0;
+
+  if (health.isError && !health.data) {
+    return (
+      <ErrorState
+        message={tShared('loadError')}
+        onRetry={() => void health.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-3 md:grid-cols-5">
+      {/*
+        Cinq tuiles : la rangée unique n'a sa place qu'en `xl` — à 768 la coque laisse ~460 px,
+        soit 80 px par tuile, où « Base de données » cassait sur deux lignes (TCK-505).
+      */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
         {CHECKS.map((check) => {
           const status = health.data?.data[check.key];
-          return <HealthTile key={check.key} label={t(`checks.${check.key}`)} icon={check.icon} status={status} />;
+          return (
+            <HealthTile
+              key={check.key}
+              label={t(`checks.${check.key}`)}
+              icon={check.icon}
+              status={status}
+              loading={health.isLoading}
+            />
+          );
         })}
       </section>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <QueueMetric label={t('queuePending')} value={health.data?.data.queue.pending ?? 0} />
-        <QueueMetric label={t('queueProcessing')} value={health.data?.data.queue.processing ?? 0} />
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <QueueMetric label={t('queuePending')} value={queue?.pending ?? 0} loading={health.isLoading} />
+        <QueueMetric label={t('queueProcessing')} value={queue?.processing ?? 0} loading={health.isLoading} />
         <QueueMetric
           label={t('queueFailed24h')}
-          value={health.data?.data.queue.failed_24h ?? 0}
-          tone="danger"
+          value={echecs}
+          loading={health.isLoading}
+          // Le rouge signale un échec, pas la présence de la tuile : zéro échec reste neutre.
+          tone={echecs > 0 ? 'danger' : 'default'}
           href="/super-admin/system/jobs"
         />
       </section>
@@ -56,20 +85,31 @@ export function HealthDashboard() {
   );
 }
 
-function HealthTile({ label, icon: Icon, status }: { label: string; icon: typeof Database; status?: HealthcheckStatus }) {
+function HealthTile({
+  label,
+  icon: Icon,
+  status,
+  loading,
+}: {
+  label: string;
+  icon: typeof Database;
+  status?: HealthcheckStatus;
+  loading: boolean;
+}) {
   const t = useTranslations('superAdmin.systemHealth');
   const fmt = useFormatteurs();
-  const ok = status?.status === 'ok';
   // ⚠️ L'API émet `ok` | `failed` (`HealthcheckService::check()`), PAS `ok` | `error` : `error`
-  //    est le CHAMP voisin qui porte le message. La sonde en attente n'a pas de statut du tout —
-  //    d'où `status.loading`, qui garde l'ellipsis comme libellé au lieu de l'écrire en dur.
+  //    est le CHAMP voisin qui porte le message. Une sonde sans statut n'est pas une panne : elle
+  //    reste neutre — la teinter `danger` annonçait cinq pannes pendant chaque chargement.
+  const tone = !status ? 'neutral' : status.status === 'ok' ? 'success' : 'danger';
   const libelleStatut = status ? t(`status.${status.status}`) : t('status.loading');
   return (
     <StatCard
       label={label}
       icon={<Icon className="size-4" aria-hidden="true" />}
-      value={<StatusBadge tone={ok ? 'success' : 'danger'} label={libelleStatut} />}
-      hint={indice(status, t, fmt.nombre)}
+      loading={loading}
+      value={<StatusBadge tone={tone} label={libelleStatut} />}
+      hint={loading ? undefined : indice(status, t, fmt.nombre)}
     />
   );
 }
@@ -111,11 +151,14 @@ function QueueMetric({
   value,
   tone = 'default',
   href,
+  loading,
 }: {
   label: string;
   value: number;
   tone?: 'default' | 'danger';
   href?: string;
+  loading: boolean;
 }) {
-  return <StatCard label={label} value={value} tone={tone} href={href} />;
+  const fmt = useFormatteurs();
+  return <StatCard label={label} value={fmt.nombre(value)} tone={tone} href={href} loading={loading} />;
 }

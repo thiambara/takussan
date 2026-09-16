@@ -111,26 +111,26 @@ export function Footer({ className }: FooterProps) {
 
   return (
     <footer className={`bg-muted text-foreground border-t border-border ${className || ''}`}>
-      <div className="max-w-[1440px] mx-auto px-8 md:px-16 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
-          <div className="lg:col-span-1">
-            <h3 className="text-2xl font-bold tracking-tighter mb-4">{tCommon('appName')}</h3>
-            <p className="text-muted-foreground max-w-sm">{t('tagline')}</p>
+      <div className="max-w-[1440px] mx-auto px-6 md:px-16 py-12 md:py-16">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10 md:gap-12 mb-12">
+          <div className="col-span-2 lg:col-span-1">
+            <h3 className="font-display text-2xl font-semibold tracking-tight mb-4">{tCommon('appName')}</h3>
+            <p className="text-muted-foreground max-w-sm text-pretty">{t('tagline')}</p>
           </div>
 
           {colonnes
             .filter((colonne) => colonne.liens.length > 0)
             .map((colonne) => (
               <nav key={colonne.cle} aria-labelledby={`pied-${colonne.cle}`}>
-                <h4 id={`pied-${colonne.cle}`} className="font-bold text-lg mb-4">
+                <h4 id={`pied-${colonne.cle}`} className="font-display font-semibold text-lg mb-2 md:mb-4">
                   {colonne.titre}
                 </h4>
-                <ul className="space-y-3">
+                <ul className="md:space-y-3">
                   {colonne.liens.map((lien) => (
                     <li key={lien.labelKey}>
                       <LienLocalise
                         href={lien.href}
-                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground transition-colors md:min-h-0"
                       >
                         {t(`${colonne.cle}.${lien.labelKey}`)}
                       </LienLocalise>

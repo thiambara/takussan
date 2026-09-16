@@ -3,8 +3,10 @@
 import { CSSProperties } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { Calendar, ListTodo } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
+import type { Locale } from '@/i18n/config';
+import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { PipelineCustomerCard } from '@/types/pipeline';
 
@@ -21,16 +23,6 @@ function initialsOf(card: PipelineCustomerCard): string {
   return (first + last).toUpperCase() || '?';
 }
 
-function formatDate(iso: string | undefined | null): string {
-  if (!iso) return '';
-  try {
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(
-      new Date(iso),
-    );
-  } catch {
-    return '';
-  }
-}
 
 export function PipelineCard({
   customer,
@@ -38,6 +30,9 @@ export function PipelineCard({
   isDragging,
 }: PipelineCardProps) {
   const t = useTranslations('crm.pipeline.card');
+  // La locale de l'APP, pas celle du navigateur : `Intl.DateTimeFormat(undefined)` rendait
+  // « Sep 2, 2026 » dans une interface française.
+  const locale = useLocale() as Locale;
   const { attributes, listeners, setNodeRef, transform, isDragging: localDragging } =
     useDraggable({ id: customer.id, data: { customer } });
 
@@ -66,7 +61,9 @@ export function PipelineCard({
       }}
       style={style}
       className={cn(
-        'group cursor-grab rounded-lg border border-muted bg-card p-3 text-left shadow-sm transition hover:border-primary/40 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-primary/30 active:cursor-grabbing',
+        // `transition-[…]` et non `transition` : ce dernier anime aussi `transform`, que dnd-kit écrit
+        // à chaque mouvement du pointeur — la carte suivait le doigt avec retard.
+        'group cursor-grab rounded-lg border border-muted bg-card p-3 text-left shadow-sm transition-[border-color,box-shadow] duration-150 hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing',
         (isDragging || localDragging) && 'opacity-60',
       )}
       data-testid="pipeline-card"
@@ -89,13 +86,13 @@ export function PipelineCard({
             </p>
           ) : null}
           <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 tabular-nums">
               <Calendar className="size-3.5" aria-hidden />
-              {formatDate(customer.updated_at ?? customer.created_at)}
+              {formatDate(customer.updated_at ?? customer.created_at, locale)}
             </span>
             {(customer.tasks_count ?? 0) > 0 ? (
               <span
-                className="flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-warning dark:text-warning"
+                className="flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 tabular-nums text-warning"
                 title={t('openTasks')}
               >
                 <ListTodo className="size-3.5" aria-hidden />

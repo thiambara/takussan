@@ -61,10 +61,10 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-xl border border-stone-200 bg-white p-4 space-y-3"
+      className="rounded-xl border border-border bg-card p-4 space-y-3"
       aria-label={t('aria')}
     >
-      <p className="font-medium text-stone-900">{t('title')}</p>
+      <p className="font-medium text-foreground">{t('title')}</p>
       <div
         role="radiogroup"
         aria-label={t('ratingAria')}
@@ -85,7 +85,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
               className="p-0.5"
             >
               <Star
-                className={`size-6 ${active ? 'fill-amber-400 text-amber-400' : 'text-stone-300'}`}
+                className={`size-6 ${active ? 'fill-primary text-primary' : 'text-muted-foreground/40'}`}
               />
             </button>
           );
@@ -109,7 +109,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
         />
         <p
           id="review-content-hint"
-          className="text-xs text-stone-500 flex justify-between"
+          className="text-xs text-muted-foreground flex justify-between"
         >
           <span>
             {contentLength < REVIEW_CONTENT_MIN
@@ -122,7 +122,7 @@ export function PropertyReviewForm({ onSubmit, submitting }: PropertyReviewFormP
         </p>
       </div>
       {error && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-destructive">
           {error}
         </p>
       )}

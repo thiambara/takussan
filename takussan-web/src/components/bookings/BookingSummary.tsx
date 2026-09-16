@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { Building2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -45,74 +46,80 @@ export function BookingSummary({
   const periodLabel = property.rent_period_label ?? (isRent ? tPeriods('monthly') : null);
 
   return (
-    <aside className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm space-y-4 lg:sticky lg:top-24">
+    // `lg:top-40` (160 px) : `/bookings` porte la barre fixe du site public (136 px dès `lg`),
+    // sous laquelle `top-24` faisait passer le récapitulatif. Même valeur que la fiche du bien.
+    <aside className="space-y-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5 lg:sticky lg:top-40">
       <div className="flex items-start gap-3">
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-stone-100">
+        <div className="relative grid size-16 shrink-0 place-items-center overflow-hidden rounded-lg bg-muted">
           {property.main_photo_url ? (
             <Image
               src={property.main_photo_url}
               alt=""
               fill
               sizes="64px"
-              className="object-cover"
+              className="object-cover outline -outline-offset-1 outline-foreground/10"
             />
-          ) : null}
+          ) : (
+            <Building2 className="size-6 text-muted-foreground" aria-hidden="true" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-stone-900 line-clamp-2">
+          <h3 className="line-clamp-2 text-pretty font-display text-sm font-semibold tracking-tight text-foreground">
             {property.title}
           </h3>
           {property.location?.city && (
-            <p className="mt-0.5 text-xs text-stone-500">{property.location.city}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{property.location.city}</p>
           )}
         </div>
       </div>
 
-      <div className="space-y-2 border-t border-stone-100 pt-4 text-sm">
-        <div className="flex justify-between">
-          <span className="text-stone-500">{t('price')}</span>
-          <span className="font-medium text-stone-900">
-            {formatCurrency(property.price, locale)}
-            {periodLabel && <span className="ml-1 text-xs text-stone-500">/ {periodLabel}</span>}
+      <div className="space-y-2 border-t border-border pt-4 text-sm tabular-nums">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-muted-foreground">{t('price')}</span>
+          <span className="text-right font-medium text-foreground">
+            <span className="whitespace-nowrap">{formatCurrency(property.price, locale)}</span>
+            {periodLabel && (
+              <span className="ml-1 whitespace-nowrap text-xs text-muted-foreground">/ {periodLabel}</span>
+            )}
           </span>
         </div>
 
         {startDate && (
-          <div className="flex justify-between">
-            <span className="text-stone-500">{t('checkIn')}</span>
-            <span className="text-stone-900">{formatDate(startDate, locale)}</span>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-muted-foreground">{t('checkIn')}</span>
+            <span className="text-foreground">{formatDate(startDate, locale)}</span>
           </div>
         )}
         {endDate && (
-          <div className="flex justify-between">
-            <span className="text-stone-500">{t('checkOut')}</span>
-            <span className="text-stone-900">{formatDate(endDate, locale)}</span>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-muted-foreground">{t('checkOut')}</span>
+            <span className="text-foreground">{formatDate(endDate, locale)}</span>
           </div>
         )}
 
         {typeof nights === 'number' && nights > 0 && (
-          <div className="flex justify-between text-xs text-stone-500">
+          <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
             <span>{t('duration')}</span>
             <span>{t('nights', { count: nights })}</span>
           </div>
         )}
 
         {typeof totalAmount === 'number' && totalAmount > 0 && (
-          <div className="flex justify-between border-t border-stone-100 pt-2 text-base font-semibold text-stone-900">
+          <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2 text-base font-semibold text-foreground">
             <span>{t('total')}</span>
             <span>{formatCurrency(totalAmount, locale)}</span>
           </div>
         )}
 
         {typeof depositAmount === 'number' && depositAmount > 0 && (
-          <div className="flex justify-between text-xs text-stone-500">
+          <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
             <span>{t('deposit')}</span>
             <span>{formatCurrency(depositAmount, locale)}</span>
           </div>
         )}
       </div>
 
-      <p className="text-xs text-stone-500">{t('noChargeNotice')}</p>
+      <p className="text-pretty text-xs text-muted-foreground">{t('noChargeNotice')}</p>
     </aside>
   );
 }
