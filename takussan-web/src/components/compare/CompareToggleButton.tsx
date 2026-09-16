@@ -82,7 +82,7 @@ export function CompareToggleButton({
         'transition-[background-color,color,box-shadow,scale] duration-200 active:scale-[0.96]',
         isSelected
           ? 'bg-card text-primary shadow-md'
-          : 'bg-card/20 text-primary-foreground hover:bg-card hover:text-primary',
+          : 'bg-scrim/50 text-primary-foreground hover:bg-card hover:text-primary',
         className,
       )}
     >

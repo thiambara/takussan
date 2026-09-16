@@ -8,6 +8,8 @@ import { Suspense, useState } from 'react';
 import { Eye, EyeOff, Loader2, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { FormError, FormGlobalError } from '@/components/forms';
+import { BASCULE_MOT_DE_PASSE, CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
 import { useTranslations } from 'next-intl';
 
 function ResetPasswordForm() {
@@ -58,13 +60,13 @@ function ResetPasswordForm() {
     return (
       <div>
         <div className="flex items-center justify-center size-14 rounded-full bg-destructive/10 text-destructive mb-6">
-          <AlertTriangle className="size-7" />
+          <AlertTriangle className="size-7" aria-hidden="true" />
         </div>
-        <h1 className="font-headline text-3xl font-bold tracking-tight mb-2">{t('invalidTitle')}</h1>
-        <p className="text-muted-foreground text-sm mb-6">{t('invalidBody')}</p>
+        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">{t('invalidTitle')}</h1>
+        <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-6">{t('invalidBody')}</p>
         <Link
           href="/auth/forgot-password"
-          className="inline-block text-sm text-primary font-semibold hover:underline"
+          className={`${CIBLE_LIEN_EN_LIGNE} inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline`}
         >
           {t('requestNewLink')}
         </Link>
@@ -74,24 +76,17 @@ function ResetPasswordForm() {
 
   return (
     <div>
-      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
         {t('title')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">
+      <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">
         {t.rich('subtitle', {
           email,
           b: (chunks) => <strong className="text-foreground">{chunks}</strong>,
         })}
       </p>
 
-      {globalError && (
-        <div
-          role="alert"
-          className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3"
-        >
-          {globalError}
-        </div>
-      )}
+      <FormGlobalError>{globalError}</FormGlobalError>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -106,22 +101,22 @@ function ResetPasswordForm() {
               required
               minLength={8}
               value={password}
+              aria-invalid={errors.password ? true : undefined}
+              aria-describedby={errors.password ? 'password-error' : undefined}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t('passwordPlaceholder')}
-              className="h-11 pr-10"
+              className="h-11 pr-12"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+              className={`absolute inset-y-0 right-0 my-auto mr-1 ${BASCULE_MOT_DE_PASSE}`}
               aria-label={showPassword ? t('hidePassword') : t('showPassword')}
             >
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
-          {errors.password?.map((msg) => (
-            <p key={msg} className="text-xs text-destructive mt-1">{msg}</p>
-          ))}
+          <FormError id="password-error">{errors.password?.join(' ')}</FormError>
         </div>
 
         <div>
@@ -136,14 +131,18 @@ function ResetPasswordForm() {
               required
               minLength={8}
               value={passwordConfirmation}
+              aria-invalid={errors.password_confirmation ? true : undefined}
+              aria-describedby={
+                errors.password_confirmation ? 'password_confirmation-error' : undefined
+              }
               onChange={(e) => setPasswordConfirmation(e.target.value)}
               placeholder={t('confirmationPlaceholder')}
-              className="h-11 pr-10"
+              className="h-11 pr-12"
             />
             <button
               type="button"
               onClick={() => setShowPasswordConfirmation((v) => !v)}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground"
+              className={`absolute inset-y-0 right-0 my-auto mr-1 ${BASCULE_MOT_DE_PASSE}`}
               aria-label={
                 showPasswordConfirmation ? t('hideConfirmation') : t('showConfirmation')
               }
@@ -151,9 +150,9 @@ function ResetPasswordForm() {
               {showPasswordConfirmation ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
-          {errors.password_confirmation?.map((msg) => (
-            <p key={msg} className="text-xs text-destructive mt-1">{msg}</p>
-          ))}
+          <FormError id="password_confirmation-error">
+            {errors.password_confirmation?.join(' ')}
+          </FormError>
         </div>
 
         <Button
@@ -173,7 +172,10 @@ function ResetPasswordForm() {
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        <Link href="/auth/login" className="text-primary font-semibold hover:underline">
+        <Link
+          href="/auth/login"
+          className={`${CIBLE_LIEN_EN_LIGNE} font-semibold text-primary underline-offset-4 hover:underline`}
+        >
           {t('backToLogin')}
         </Link>
       </p>

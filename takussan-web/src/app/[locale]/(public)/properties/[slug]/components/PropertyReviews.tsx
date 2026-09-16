@@ -47,9 +47,9 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
   const hasReply = Boolean(review.reply_content);
 
   return (
-    <li className="border-b border-stone-200 pb-4 last:border-b-0">
+    <li className="border-b border-border pb-4 last:border-b-0">
       <div className="flex items-start gap-3">
-        <div className="relative size-10 rounded-full overflow-hidden bg-stone-100 shrink-0">
+        <div className="relative size-10 rounded-full overflow-hidden bg-muted shrink-0">
           {review.author.avatar_url ? (
             <Image
               src={review.author.avatar_url}
@@ -59,39 +59,39 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-sm font-semibold text-stone-500">
+            <div className="flex h-full items-center justify-center text-sm font-semibold text-muted-foreground">
               {review.author.name.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2 flex-wrap">
-            <p className="font-medium text-stone-900">{review.author.name}</p>
-            <time className="text-xs text-stone-500">{formatDate(review.created_at)}</time>
+            <p className="font-medium text-foreground">{review.author.name}</p>
+            <time className="text-xs text-muted-foreground">{formatDate(review.created_at)}</time>
           </div>
           <div className="flex items-center gap-0.5 mt-0.5">
             {[1, 2, 3, 4, 5].map((n) => (
               <Star
                 key={n}
                 className={`size-3.5 ${
-                  n <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-stone-300'
+                  n <= review.rating ? 'fill-primary text-primary' : 'text-muted-foreground/40'
                 }`}
               />
             ))}
           </div>
-          {review.title && <p className="font-medium text-stone-900 mt-2">{review.title}</p>}
-          {review.content && <p className="text-sm text-stone-700 mt-1">{review.content}</p>}
+          {review.title && <p className="font-medium text-foreground mt-2">{review.title}</p>}
+          {review.content && <p className="text-sm text-foreground mt-1">{review.content}</p>}
 
           {hasReply && !editing && (
             <div
-              className="mt-3 ml-2 pl-3 border-l-2 border-stone-200 text-sm text-stone-600"
+              className="mt-3 ml-2 pl-3 border-l-2 border-border text-sm text-muted-foreground"
               data-testid="review-reply"
             >
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <p className="text-xs font-medium text-stone-500">
+                <p className="text-xs font-medium text-muted-foreground">
                   {t('agentReply')}
                   {review.replied_at && (
-                    <span className="ml-2 text-stone-400 font-normal">
+                    <span className="ml-2 text-muted-foreground font-normal">
                       · {formatDate(review.replied_at)}
                     </span>
                   )}
@@ -100,7 +100,7 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
                   <button
                     type="button"
                     onClick={() => setEditing(true)}
-                    className="inline-flex items-center gap-1 text-xs text-stone-600 hover:text-stone-900"
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                   >
                     <Pencil className="size-3" aria-hidden /> {t('edit')}
                   </button>
@@ -114,7 +114,7 @@ function ReviewItem({ review, canReply, onReply }: ReviewItemProps) {
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60"
               data-testid="review-reply-trigger"
             >
               <MessageSquareReply className="size-3.5" aria-hidden />
@@ -154,16 +154,16 @@ function RatingDistribution({
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
         return (
           <div key={k} className="flex items-center gap-2 text-sm">
-            <span className="w-4 text-stone-600">{k}</span>
-            <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden />
-            <div className="flex-1 h-2 rounded-full bg-stone-100 overflow-hidden">
+            <span className="w-4 text-muted-foreground">{k}</span>
+            <Star className="size-3.5 fill-primary text-primary" aria-hidden />
+            <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
               <div
-                className="h-full bg-amber-400"
+                className="h-full bg-primary"
                 style={{ width: `${pct}%` }}
                 aria-hidden
               />
             </div>
-            <span className="w-8 text-right text-xs text-stone-500">{count}</span>
+            <span className="w-8 text-right text-xs text-muted-foreground">{count}</span>
           </div>
         );
       })}
@@ -250,31 +250,31 @@ export function PropertyReviews({
   return (
     <section id="avis" className="space-y-4 scroll-mt-24">
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
-        <h2 className="text-xl font-semibold text-stone-900">
-          {t('title')} {reviewsCount > 0 && <span className="text-stone-500 text-base">({reviewsCount})</span>}
+        <h2 className="text-xl font-semibold text-foreground">
+          {t('title')} {reviewsCount > 0 && <span className="text-muted-foreground text-base">({reviewsCount})</span>}
         </h2>
         {averageRating != null && (
           <div className="flex items-center gap-1 text-sm">
-            <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden />
+            <Star className="size-4 fill-primary text-primary" aria-hidden />
             <span className="font-semibold">{averageRating.toFixed(1)}</span>
           </div>
         )}
       </div>
 
       {data && data.meta.total > 0 && (
-        <div className="grid sm:grid-cols-[180px_1fr] gap-4 rounded-xl border border-stone-200 p-4">
+        <div className="grid sm:grid-cols-[180px_1fr] gap-4 rounded-xl border border-border p-4">
           <div>
-            <p className="text-3xl font-bold text-stone-900">
+            <p className="text-3xl font-bold text-foreground">
               {(data.meta.average ?? 0).toFixed(1)}
             </p>
-            <p className="text-xs text-stone-500">{t('countSuffix', { count: data.meta.total })}</p>
+            <p className="text-xs text-muted-foreground">{t('countSuffix', { count: data.meta.total })}</p>
           </div>
           <RatingDistribution distribution={data.meta.distribution} total={data.meta.total} />
         </div>
       )}
 
-      {loading && <p className="text-sm text-stone-500">{t('loading')}</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {loading && <p className="text-sm text-muted-foreground">{t('loading')}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {data && data.data.length > 0 && (
         <ul className="space-y-4">
           {data.data.map((r) => (
@@ -283,7 +283,7 @@ export function PropertyReviews({
         </ul>
       )}
       {data && data.data.length === 0 && !loading && (
-        <p className="text-sm text-stone-500">{t('empty')}</p>
+        <p className="text-sm text-muted-foreground">{t('empty')}</p>
       )}
 
       {showReviewForm && <PropertyReviewForm onSubmit={submit} />}

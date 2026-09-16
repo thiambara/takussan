@@ -2,15 +2,17 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
-import Image from 'next/image';
 import { MapPin, Clock } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { formatPrice, formatRelativeDate } from '@/lib/utils';
+import { formatPrice } from '@/lib/utils';
+import { useDateRelative } from '@/components/property/cards/useDateRelative';
 import type { PropertyListItem } from '@/types/property';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { CompareToggleButton } from '@/components/compare/CompareToggleButton';
 import { ContractTypeChip } from '@/components/property/cards/ContractTypeChip';
 import { NewBuildChip } from '@/components/property/cards/NewBuildChip';
+import { CardMeta } from '@/components/property/cards/CardMeta';
+import { PropertyPhoto } from '@/components/property/cards/PropertyPhoto';
 import { staggerDelay } from '@/components/property/card-stagger';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 import { PROPERTY_ENUM_NAMESPACES, enumLabel } from '@/components/property-form/options';
@@ -29,12 +31,10 @@ import { propertyTypeValues } from '@/lib/schemas/property';
  */
 
 
-const FALLBACK_IMAGE =
-  'https://placehold.co/800x533/e7e5e4/a8a29e?text=Photo+%C3%A0+venir';
 
 /** Format compact des pastilles quand l'image passe sous 11rem — cf. la barre du haut. */
 const PASTILLE_ETROITE =
-  '@max-[11rem]:px-2 @max-[11rem]:py-0.5 @max-[11rem]:gap-1 @max-[11rem]:text-[10px]';
+  '@max-[11rem]:px-1.5 @max-[11rem]:py-0.5 @max-[11rem]:gap-1 @max-[11rem]:text-xs';
 
 function useReveal(ref: React.RefObject<HTMLDivElement | null>) {
   const [visible, setVisible] = useState(false);
@@ -99,14 +99,10 @@ export function PropertyCard({
   // browser can count their image as the LCP candidate immediately.
   const visible = useReveal(ref) || priority;
 
-  const image = property.main_photo_url ?? FALLBACK_IMAGE;
   const location = [property.location.quarter, property.location.city]
     .filter(Boolean)
     .join(', ');
-  const surface = property.area ? `${property.area} m²` : property.type;
-  const timeAgo = formatRelativeDate(
-    property.published_at ?? property.created_at,
-  );
+  const timeAgo = useDateRelative(property.published_at ?? property.created_at);
 
   return (
     <LienLocalise href={`/properties/${property.slug}`} className="block">
@@ -120,13 +116,12 @@ export function PropertyCard({
         {/* Image */}
         {/* `@container` : la carte se règle sur SA largeur, que la grille appelante décide —
             pas sur celle de l'écran. */}
-        <div className="@container relative aspect-4/3 rounded-xl overflow-hidden mb-5">
-          <Image
-            src={image}
+        <div className="@container relative aspect-4/3 rounded-xl overflow-hidden bg-muted">
+          <PropertyPhoto
+            src={property.main_photo_url}
             alt={property.title}
-            fill
             priority={priority}
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            className="group-hover:scale-105 transition-transform duration-500"
             sizes={sizes}
           />
 
@@ -175,27 +170,29 @@ export function PropertyCard({
           </div>
 
           {/* Time */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-scrim/50 backdrop-blur-md text-white text-[10px] font-medium px-2 py-1 rounded-full shadow-sm">
-            <Clock className="w-2.5 h-2.5 opacity-80" />
+          <div className="absolute bottom-3 left-3 flex items-center gap-1 bg-scrim/60 backdrop-blur-md text-primary-foreground text-xs font-medium px-2 py-1 rounded-full shadow-sm">
+            <Clock className="size-3 opacity-80" aria-hidden="true" />
             {timeAgo}
           </div>
         </div>
 
         {/* Body */}
-        <div className="space-y-1 mt-3">
+        <div className="space-y-1 mt-3.5">
+          {/* `flex-wrap` et non `truncate` : à 360 px, « 2 090 000 F CFA /mois » perdait sa
+              période (« /m… »), l'information qui distingue un loyer d'un prix. */}
           <p
-            className="text-primary font-bold text-[15px] truncate"
+            className="flex flex-wrap items-baseline gap-x-0.5 text-primary font-bold text-[15px] tabular-nums"
             title={formatPrice(property.price, property.currency ?? 'XOF')}
           >
-            {formatPrice(property.price, property.currency ?? 'XOF')}
+            <span className="whitespace-nowrap">{formatPrice(property.price, property.currency ?? 'XOF')}</span>
             {property.contract_type === 'rent' && property.rent_period && (
-              <span className="text-sm font-semibold text-muted-foreground ml-0.5">
+              <span className="whitespace-nowrap text-sm font-semibold text-muted-foreground">
                 /{t(`rentPeriodsShort.${property.rent_period}`)}
               </span>
             )}
           </p>
           <h3
-            className="font-semibold text-[14px] leading-snug text-foreground line-clamp-2 h-10"
+            className="font-display font-semibold text-[14px] leading-snug text-foreground line-clamp-2 h-10 text-pretty"
             title={property.title}
           >
             {property.title}
@@ -207,23 +204,14 @@ export function PropertyCard({
             <MapPin className="w-4 h-4 shrink-0" />
             <span className="truncate">{location}</span>
           </p>
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs font-semibold text-muted-foreground">
-            {property.bedrooms != null && property.bedrooms > 0 && (
-              <>
-                <span>{tCards('bedroomsAbbrev', { count: property.bedrooms })}</span>
-                <span className="text-muted-foreground/60">•</span>
-              </>
-            )}
-            <span className="truncate">{surface}</span>
-            {property.type && (
-              <>
-                <span className="text-muted-foreground/60">•</span>
-                <span className="truncate capitalize">
-                  {enumLabel(tTypes, propertyTypeValues, property.type)}
-                </span>
-              </>
-            )}
-          </div>
+          <CardMeta
+            className="pt-1 text-xs font-semibold text-muted-foreground"
+            items={[
+              property.bedrooms != null && property.bedrooms > 0 && tCards('bedroomsAbbrev', { count: property.bedrooms }),
+              property.area ? `${property.area} m²` : null,
+              property.type && enumLabel(tTypes, propertyTypeValues, property.type),
+            ]}
+          />
         </div>
       </div>
     </LienLocalise>

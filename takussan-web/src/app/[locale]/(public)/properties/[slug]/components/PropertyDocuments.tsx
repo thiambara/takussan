@@ -28,26 +28,26 @@ export function PropertyDocuments({ documents }: PropertyDocumentsProps) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xl font-semibold text-stone-900">{t('documents')}</h2>
+      <h2 className="text-xl font-semibold text-foreground">{t('documents')}</h2>
       <ul className="space-y-2">
         {publicDocs.map((doc) => {
           const Icon = getIcon(doc.type);
           return (
             <li
               key={doc.id}
-              className="flex items-center gap-3 rounded-lg border border-stone-200 px-3 py-2.5"
+              className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5"
             >
-              <Icon className="size-5 text-stone-500 shrink-0" aria-hidden />
+              <Icon className="size-5 text-muted-foreground shrink-0" aria-hidden />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-stone-900 truncate">{doc.name}</p>
-                <p className="text-xs text-stone-500">{formatSize(doc.size)}</p>
+                <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                <p className="text-xs text-muted-foreground">{formatSize(doc.size)}</p>
               </div>
               <a
                 href={doc.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 download
-                className="inline-flex items-center gap-1.5 rounded-md border border-stone-300 px-2.5 h-8 text-xs font-medium text-stone-700 hover:bg-stone-50 transition-colors shrink-0"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 h-8 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors shrink-0"
                 aria-label={t('downloadAria', { name: doc.name })}
               >
                 <Download className="size-3.5" aria-hidden />

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 
 import { buttonVariants } from '@/components/ui/button';
+import { StatusBadge } from '@/components/console/StatusBadge';
+import { cn } from '@/lib/utils';
 import type { ServiceProviderAgencyEntry } from '@/lib/service-provider-onboarding';
 
 /**
@@ -34,15 +36,16 @@ export function ServiceProviderMultiAgencyWelcome({
   return (
     <section
       data-testid="sp-multi-agency-welcome"
-      className="rounded-2xl border border-border bg-card p-8 shadow-sm"
+      className="rounded-2xl border border-border bg-card p-5 sm:p-8"
     >
-      <header className="mb-6 text-center">
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+      {/* `h2` : la coque porte déjà le `h1` de la page — deux `h1` se disputaient le titre. */}
+      <header className="mb-6">
+        <h2 className="font-display text-2xl font-semibold tracking-tight text-balance text-foreground sm:text-3xl">
           {newest
             ? t('welcomeAgency', { agency: newest.agency.name })
             : t('welcomeGeneric')}
-        </h1>
-        <p className="mt-3 text-sm text-muted-foreground">
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-pretty text-muted-foreground">
           {t('subtitle', { count: collaborations.length })}
         </p>
       </header>
@@ -54,29 +57,25 @@ export function ServiceProviderMultiAgencyWelcome({
             className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
             data-testid={`sp-multi-agency-row-${c.collaboration_id}`}
           >
-            <span className="flex flex-col">
-              <span className="font-medium text-foreground">
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate font-medium text-foreground">
                 {c.agency.name}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="truncate text-xs text-muted-foreground">
                 {c.agency.slug}
               </span>
             </span>
-            <span
-              className={
-                c.status === 'active'
-                  ? 'rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-900'
-                  : 'rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900'
-              }
-            >
-              {t(`status.${c.status ?? 'unknown'}`)}
-            </span>
+            <StatusBadge
+              className="shrink-0"
+              tone={c.status === 'active' ? 'success' : 'attention'}
+              label={t(`status.${c.status ?? 'unknown'}`)}
+            />
           </li>
         ))}
       </ul>
 
-      <div className="flex justify-center">
-        <Link href="/app" className={buttonVariants()}>
+      <div className="flex">
+        <Link href="/app" className={cn(buttonVariants(), 'h-11 w-full px-5 sm:w-auto')}>
           {t('cta.dashboard')}
         </Link>
       </div>

@@ -77,7 +77,7 @@ export function ProfileCard({ profil, base, libelles, forme }: Props) {
           <div className="min-w-0 flex-1">
             {/* L'eyebrow porte la VILLE — la première des priorités du ticket. */}
             {profil.city && (
-              <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 <MapPin className="size-3" aria-hidden />
                 <span className="truncate">{profil.cities.join(' · ')}</span>
               </p>
@@ -100,7 +100,7 @@ export function ProfileCard({ profil, base, libelles, forme }: Props) {
         <div className="mt-auto flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <p className="font-display text-2xl font-semibold tabular-nums text-primary">
             {profil.portfolio_count}
-            <span className="ml-1.5 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="ml-1.5 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               {libelles.portefeuille(profil.portfolio_count)}
             </span>
           </p>

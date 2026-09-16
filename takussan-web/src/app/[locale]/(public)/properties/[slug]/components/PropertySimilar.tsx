@@ -40,10 +40,10 @@ export function PropertySimilar({ slug }: PropertySimilarProps) {
   if (loading) {
     return (
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold text-stone-900">{t('similar')}</h2>
+        <h2 className="text-xl font-semibold text-foreground">{t('similar')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="aspect-[4/5] rounded-xl bg-stone-100 animate-pulse" />
+            <div key={i} className="aspect-[4/5] rounded-xl bg-muted animate-pulse" />
           ))}
         </div>
       </section>
@@ -55,14 +55,14 @@ export function PropertySimilar({ slug }: PropertySimilarProps) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xl font-semibold text-stone-900">{t('similar')}</h2>
+        <h2 className="text-xl font-semibold text-foreground">{t('similar')}</h2>
         <div className="hidden sm:flex gap-2">
           <button
             type="button"
             onClick={() => emblaApi?.scrollPrev()}
             disabled={!canPrev}
             aria-label={t('previous')}
-            className="rounded-full border border-stone-300 bg-white size-9 inline-flex items-center justify-center hover:bg-stone-50 disabled:opacity-40 transition-colors"
+            className="rounded-full border border-border bg-card size-9 inline-flex items-center justify-center hover:bg-muted/60 disabled:opacity-40 transition-colors"
           >
             <ChevronLeft className="size-4" aria-hidden />
           </button>
@@ -71,7 +71,7 @@ export function PropertySimilar({ slug }: PropertySimilarProps) {
             onClick={() => emblaApi?.scrollNext()}
             disabled={!canNext}
             aria-label={t('next')}
-            className="rounded-full border border-stone-300 bg-white size-9 inline-flex items-center justify-center hover:bg-stone-50 disabled:opacity-40 transition-colors"
+            className="rounded-full border border-border bg-card size-9 inline-flex items-center justify-center hover:bg-muted/60 disabled:opacity-40 transition-colors"
           >
             <ChevronRight className="size-4" aria-hidden />
           </button>

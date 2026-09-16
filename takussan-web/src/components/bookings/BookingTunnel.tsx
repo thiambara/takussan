@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import type { ZodType } from 'zod';
 import { CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,12 @@ import type { PropertyDetail } from '@/types/property';
 import type { Booking } from '@/types/booking';
 import { BookingStepper, type BookingStep } from './BookingStepper';
 import { BookingSummary } from './BookingSummary';
+
+/**
+ * Cibles d'au moins 44 px sur tout le tunnel : c'est une page publique, lue au doigt
+ * (revue design 2026-09-16, même réglage que les états vides publics du groupe B).
+ */
+const CTA = 'h-11 px-4';
 
 /** Fraction du total proposée en acompte dans le tunnel public (cf. features.md §1.3). */
 const BOOKING_DEPOSIT_RATE = 0.3;
@@ -95,7 +101,9 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
     label: t(`steps.${key}`),
   }));
 
-  const watched = form.watch();
+  // `useWatch` et non `form.watch()` : le React Compiler ne sait pas mémoïser `watch` et
+  // renonçait à compiler tout le tunnel (`react-hooks/incompatible-library`).
+  const watched = useWatch({ control: form.control });
   const startDate = watched.start_date;
   const endDate = watched.end_date;
   const guests = watched.guests;
@@ -175,20 +183,27 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
   if (!authLoading && !user) {
     const redirect = `/bookings?property=${property.slug}`;
     return (
-      <div className="rounded-xl border border-stone-200 bg-white p-8 text-center">
-        <h2 className="text-lg font-semibold text-stone-900">
+      <div className="rounded-xl border border-border bg-card p-6 text-center sm:p-8">
+        <h2 className="text-balance font-display text-xl font-semibold tracking-tight text-foreground">
           {t('auth.title')}
         </h2>
-        <p className="mt-2 text-sm text-stone-600">{t('auth.description')}</p>
-        <div className="mt-6 flex justify-center gap-2">
+        <p className="mx-auto mt-2 max-w-md text-pretty text-sm text-muted-foreground">
+          {t('auth.description')}
+        </p>
+        {/* Sous `sm`, l'action principale passe en tête et les deux boutons prennent la largeur. */}
+        <div className="mt-6 flex flex-col-reverse justify-center gap-2 sm:flex-row">
           <Button
             variant="outline"
+            size="lg"
+            className={CTA}
             nativeButton={false}
             render={<Link href={`/properties/${property.slug}`} />}
           >
             {t('backToProperty')}
           </Button>
           <Button
+            size="lg"
+            className={CTA}
             nativeButton={false}
             render={<Link href={`/auth/login?redirect=${encodeURIComponent(redirect)}`} />}
           >
@@ -202,38 +217,44 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
   // Success screen
   if (stepIndex === STEP_COUNT - 1 && createdBooking) {
     return (
-      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-8 text-center">
-        <CheckCircle2 className="mx-auto size-12 text-emerald-600" aria-hidden />
-        <h2 className="mt-4 text-xl font-semibold text-emerald-900">
+      <div className="rounded-xl border border-border bg-card p-6 text-center sm:p-8">
+        <span className="mx-auto grid size-14 place-items-center rounded-full bg-success/10">
+          <CheckCircle2 className="size-8 text-success" aria-hidden />
+        </span>
+        <h2 className="mt-4 text-balance font-display text-xl font-semibold tracking-tight text-foreground">
           {t('success.title')}
         </h2>
-        <p className="mt-2 text-sm text-emerald-800">
+        <p className="mx-auto mt-2 max-w-md text-pretty text-sm text-muted-foreground">
           {t.rich('success.body', {
             title: property.title,
             strong: (chunks) => <strong>{chunks}</strong>,
           })}
         </p>
-        <dl className="mx-auto mt-4 max-w-sm space-y-1 text-sm text-emerald-900">
+        <dl className="mx-auto mt-4 max-w-sm space-y-1 rounded-lg bg-muted p-4 text-sm text-foreground">
           {createdBooking.reference_number && (
-            <div className="flex justify-between">
-              <dt className="text-emerald-700">{t('success.reference')}</dt>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">{t('success.reference')}</dt>
               <dd className="font-mono">{createdBooking.reference_number}</dd>
             </div>
           )}
-          <div className="flex justify-between">
-            <dt className="text-emerald-700">{t('success.total')}</dt>
-            <dd className="font-semibold">{formatCurrency(totalAmount, locale)}</dd>
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted-foreground">{t('success.total')}</dt>
+            <dd className="font-semibold tabular-nums">{formatCurrency(totalAmount, locale)}</dd>
           </div>
         </dl>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <div className="mt-6 flex flex-col-reverse justify-center gap-2 sm:flex-row">
           <Button
             variant="outline"
+            size="lg"
+            className={CTA}
             nativeButton={false}
             render={<Link href={`/properties/${property.slug}`} />}
           >
             {t('backToProperty')}
           </Button>
           <Button
+            size="lg"
+            className={CTA}
             nativeButton={false}
             render={<Link href={`/app/bookings/${createdBooking.id}`} />}
           >
@@ -248,13 +269,13 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div>
         <BookingStepper steps={steps} currentIndex={stepIndex} />
-        <div className="mt-6 rounded-xl border border-stone-200 bg-white p-6">
+        <div className="mt-6 rounded-xl border border-border bg-card p-4 sm:p-6">
           <FormGlobalError>{globalError}</FormGlobalError>
 
           {stepIndex === 0 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-stone-900">{t('step1.title')}</h2>
-              <p className="text-sm text-stone-600">{t('step1.description')}</p>
+              <h2 className="text-balance font-display text-lg font-semibold tracking-tight text-foreground">{t('step1.title')}</h2>
+              <p className="text-pretty text-sm text-muted-foreground">{t('step1.description')}</p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormDatePicker<BookingRequestFormValues>
                   control={form.control}
@@ -287,23 +308,27 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
 
           {stepIndex === 1 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-stone-900">{t('steps.review')}</h2>
-              <p className="text-sm text-stone-600">{t('step2.description')}</p>
-              <div className="rounded-lg bg-stone-50 p-4 text-sm space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-stone-600">
+              <h2 className="text-balance font-display text-lg font-semibold tracking-tight text-foreground">{t('steps.review')}</h2>
+              <p className="text-pretty text-sm text-muted-foreground">{t('step2.description')}</p>
+              {/* Libellé en `min-w-0`, montant insécable : à 360, « 41 280 000 F CFA » passait
+                  sur deux lignes à côté d'un libellé qui en prenait deux aussi. */}
+              <div className="space-y-2 rounded-lg bg-muted p-4 text-sm tabular-nums">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="min-w-0 text-muted-foreground">
                     {formatCurrency(property.price, locale)}
                     {isRent && nights > 0 && ` × ${tBookings('summary.nights', { count: nights })}`}
                   </span>
-                  <span className="text-stone-900">{formatCurrency(totalAmount, locale)}</span>
+                  <span className="shrink-0 whitespace-nowrap text-foreground">
+                    {formatCurrency(totalAmount, locale)}
+                  </span>
                 </div>
-                <div className="flex justify-between text-xs text-stone-600">
+                <div className="flex justify-between gap-3 text-xs text-muted-foreground">
                   <span>{t('guestsLabel')}</span>
                   <span>{guests}</span>
                 </div>
-                <div className="flex justify-between border-t border-stone-200 pt-2 font-semibold">
-                  <span>{t('depositLabel')}</span>
-                  <span>{formatCurrency(depositAmount, locale)}</span>
+                <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2 font-semibold text-foreground">
+                  <span className="min-w-0">{t('depositLabel')}</span>
+                  <span className="shrink-0 whitespace-nowrap">{formatCurrency(depositAmount, locale)}</span>
                 </div>
               </div>
               <FormTextarea<BookingRequestFormValues>
@@ -318,13 +343,13 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
 
           {stepIndex === 2 && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-stone-900">{t('steps.terms')}</h2>
-              <div className="rounded-lg border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700 space-y-2">
+              <h2 className="text-balance font-display text-lg font-semibold tracking-tight text-foreground">{t('steps.terms')}</h2>
+              <div className="space-y-2 rounded-lg border border-border bg-muted p-4 text-pretty text-sm text-foreground">
                 <p>{t('terms.body')}</p>
                 <p>
                   {t.rich('terms.deposit', {
                     amount: formatCurrency(depositAmount, locale),
-                    strong: (chunks) => <strong>{chunks}</strong>,
+                    strong: (chunks) => <strong className="tabular-nums">{chunks}</strong>,
                   })}
                 </p>
               </div>
@@ -337,10 +362,12 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
             </div>
           )}
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex items-center justify-between gap-2">
             <Button
               type="button"
               variant="ghost"
+              size="lg"
+              className={CTA}
               onClick={handleBack}
               disabled={stepIndex === 0 || createBooking.isPending}
             >
@@ -348,6 +375,8 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
             </Button>
             <Button
               type="button"
+              size="lg"
+              className={CTA}
               onClick={handleNext}
               disabled={createBooking.isPending}
             >

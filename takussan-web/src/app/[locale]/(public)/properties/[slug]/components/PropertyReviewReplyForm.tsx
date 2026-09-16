@@ -58,10 +58,10 @@ export function PropertyReviewReplyForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-3 ml-2 pl-3 border-l-2 border-stone-300 space-y-2"
+      className="mt-3 ml-2 pl-3 border-l-2 border-border space-y-2"
       aria-label={t(initialContent ? 'editTitle' : 'newTitle')}
     >
-      <p className="text-xs font-medium text-stone-500">
+      <p className="text-xs font-medium text-muted-foreground">
         {t(initialContent ? 'editSubmit' : 'newSubmit')}
       </p>
       <Textarea
@@ -72,12 +72,12 @@ export function PropertyReviewReplyForm({
         placeholder={t('placeholder')}
         aria-label={t('contentAria')}
       />
-      <div className="flex justify-between items-center gap-2 text-xs text-stone-500">
+      <div className="flex justify-between items-center gap-2 text-xs text-muted-foreground">
         <span>
           {trimmed.length}/{REPLY_MAX}
         </span>
         {error && (
-          <span role="alert" className="text-red-600">
+          <span role="alert" className="text-destructive">
             {error}
           </span>
         )}

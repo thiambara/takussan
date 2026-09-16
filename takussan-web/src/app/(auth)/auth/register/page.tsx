@@ -6,7 +6,8 @@ import { useState } from 'react';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { OAuthButtons, OAuthSeparator } from '@/components/auth/OAuthButtons';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
+import { BASCULE_MOT_DE_PASSE, CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
 import {
   FormInput,
   FormCheckbox,
@@ -54,10 +55,10 @@ export default function RegisterPage() {
 
   return (
     <div>
-      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
         {t('title')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">{t('subtitle')}</p>
+      <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('subtitle')}</p>
 
       <FormGlobalError>{globalError}</FormGlobalError>
 
@@ -99,13 +100,13 @@ export default function RegisterPage() {
           type={showPassword ? 'text' : 'password'}
           autoComplete="new-password"
           placeholder={t('passwordPlaceholder')}
-          className="h-11 pr-10"
+          className="h-11 pr-12"
           required
           trailing={
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="pr-1 text-muted-foreground hover:text-foreground"
+              className={BASCULE_MOT_DE_PASSE}
               aria-label={showPassword ? t('hidePassword') : t('showPassword')}
             >
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -120,13 +121,13 @@ export default function RegisterPage() {
           type={showPasswordConfirmation ? 'text' : 'password'}
           autoComplete="new-password"
           placeholder={t('passwordConfirmationPlaceholder')}
-          className="h-11 pr-10"
+          className="h-11 pr-12"
           required
           trailing={
             <button
               type="button"
               onClick={() => setShowPasswordConfirmation((v) => !v)}
-              className="pr-1 text-muted-foreground hover:text-foreground"
+              className={BASCULE_MOT_DE_PASSE}
               aria-label={
                 showPasswordConfirmation ? t('hideConfirmation') : t('showConfirmation')
               }
@@ -142,12 +143,12 @@ export default function RegisterPage() {
           required
           label={t.rich('acceptTerms', {
             terms: (chunks) => (
-              <Link href="/terms" className="text-primary hover:underline">
+              <Link href="/terms" className="font-medium text-primary underline-offset-4 hover:underline">
                 {chunks}
               </Link>
             ),
             privacy: (chunks) => (
-              <Link href="/privacy" className="text-primary hover:underline">
+              <Link href="/privacy" className="font-medium text-primary underline-offset-4 hover:underline">
                 {chunks}
               </Link>
             ),
@@ -170,12 +171,14 @@ export default function RegisterPage() {
         </Button>
       </form>
 
-      <OAuthSeparator label={t('oauthSeparator')} />
-      <OAuthButtons />
+      <OAuthButtons separator="before" separatorLabel={t('oauthSeparator')} />
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         {t('hasAccount')}{' '}
-        <Link href="/auth/login" className="text-primary font-semibold hover:underline">
+        <Link
+          href="/auth/login"
+          className={`${CIBLE_LIEN_EN_LIGNE} font-semibold text-primary underline-offset-4 hover:underline`}
+        >
           {t('loginCta')}
         </Link>
       </p>

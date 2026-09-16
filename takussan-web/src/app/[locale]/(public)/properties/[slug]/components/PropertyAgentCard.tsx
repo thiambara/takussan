@@ -57,9 +57,9 @@ export function PropertyAgentCard({
   }
 
   return (
-    <div className="rounded-xl border border-stone-200 bg-white p-5 space-y-4">
+    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
       <div className="flex items-center gap-3">
-        <div className="relative size-12 shrink-0 rounded-full overflow-hidden bg-stone-100">
+        <div className="relative size-12 shrink-0 rounded-full overflow-hidden bg-muted">
           {contact.avatar_url ? (
             <Image
               src={contact.avatar_url}
@@ -69,13 +69,13 @@ export function PropertyAgentCard({
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-stone-500 font-semibold">
+            <div className="flex h-full items-center justify-center text-muted-foreground font-semibold">
               {contact.name.charAt(0).toUpperCase()}
             </div>
           )}
         </div>
         <div className="min-w-0">
-          <p className="font-semibold text-stone-900 truncate">
+          <p className="font-display font-semibold text-foreground truncate">
             {contact.slug ? (
               <LienLocalise href={`/agents/${contact.slug}`} className="hover:underline">
                 {contact.name}
@@ -88,7 +88,7 @@ export function PropertyAgentCard({
               sur le `<p>` posait `nowrap` sur le lien, enfant flex dont la largeur minimale reste
               celle de son texte : à 360 px, la page entière s'élargissait à 369 (viewport mesuré). */}
           {agency ? (
-            <p className="text-sm text-stone-600 flex items-center gap-1 min-w-0">
+            <p className="text-sm text-muted-foreground flex items-center gap-1 min-w-0">
               <LienLocalise
                 href={`/agencies/${agency.slug}`}
                 className="min-w-0 truncate hover:underline"
@@ -96,20 +96,20 @@ export function PropertyAgentCard({
                 {agency.name}
               </LienLocalise>
               {agency.verified && (
-                <BadgeCheck className="size-4 text-sky-500 shrink-0" aria-label={t('verifiedAria')} />
+                <BadgeCheck className="size-4 text-primary shrink-0" aria-label={t('verifiedAria')} />
               )}
             </p>
           ) : contact.is_agent ? (
-            <p className="text-sm text-stone-500">{t('independent')}</p>
+            <p className="text-sm text-muted-foreground">{t('independent')}</p>
           ) : (
-            <p className="text-sm text-stone-500">{t('private')}</p>
+            <p className="text-sm text-muted-foreground">{t('private')}</p>
           )}
         </div>
       </div>
 
       <div className={canMessage ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-1 gap-2'}>
         {canMessage && (
-          <Button type="button" variant="outline" onClick={onMessage} className="gap-2">
+          <Button type="button" variant="outline" onClick={onMessage} className="h-10 gap-2">
             <MessageCircle className="size-4" aria-hidden />
             {t('message')}
           </Button>
@@ -119,11 +119,11 @@ export function PropertyAgentCard({
           variant="outline"
           onClick={handleCall}
           disabled={calling}
-          className="gap-2"
+          className="h-10 gap-2"
           aria-label={t('callAria')}
         >
           <Phone className="size-4" aria-hidden />
-          {calling ? 'Connexion…' : 'Appeler'}
+          {calling ? t('calling') : t('call')}
         </Button>
       </div>
 

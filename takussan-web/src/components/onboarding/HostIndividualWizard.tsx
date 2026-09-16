@@ -11,6 +11,7 @@ import { Building2, Mail, User } from 'lucide-react';
 // property-creation form (`/app/properties/new`) inside the dashboard.
 
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/console/StatusBadge';
 import { ChoiceCard, ChoiceCardGroup } from '@/components/ui/choice-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -104,6 +105,7 @@ function matchSupportedCurrency(raw: string | undefined): Currency | null {
  */
 export function HostIndividualWizard() {
   const t = useTranslations('onboarding.host');
+  const tWizard = useTranslations('wizardDrafts.component');
   const router = useRouter();
   const toast = useToast();
   const { user, refreshUser } = useAuth();
@@ -245,10 +247,13 @@ export function HostIndividualWizard() {
       <div
         role="status"
         aria-live="polite"
-        className="mx-auto flex w-full max-w-2xl flex-col gap-4"
+        className="mx-auto flex w-full max-w-4xl flex-col gap-4"
       >
-        <div className="h-2 w-full rounded-full bg-muted" />
-        <div className="h-40 rounded-2xl border border-border bg-card" />
+        <span className="sr-only">{tWizard('loading')}</span>
+        <div className="h-1 w-full rounded-full bg-muted" />
+        <div className="h-8 w-2/3 rounded-lg bg-muted motion-safe:animate-pulse" />
+        <div className="h-28 rounded-xl bg-muted motion-safe:animate-pulse" />
+        <div className="h-28 rounded-xl bg-muted motion-safe:animate-pulse" />
       </div>
     );
   }
@@ -303,10 +308,10 @@ function IntentStep({ data, setData }: StepProps) {
           <p className="mt-1 leading-relaxed text-muted-foreground">
             {t('professionalNotice.body')}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3">
             <a
               href={`mailto:${SUPER_ADMIN_EMAIL}?subject=${encodeURIComponent(t('professionalNotice.mailSubject'))}`}
-              className="inline-flex items-center gap-2 font-medium text-primary underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 items-center gap-2 rounded-md font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <Mail className="size-4" aria-hidden />
               {t('professionalNotice.contactCta')}
@@ -316,7 +321,7 @@ function IntentStep({ data, setData }: StepProps) {
             </span>
             <button
               type="button"
-              className="font-medium text-primary underline-offset-4 hover:underline"
+              className="min-h-11 rounded-md font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               onClick={() => setIntent('individual')}
             >
               {t('professionalNotice.continueIndividual')}
@@ -488,20 +493,17 @@ function PhoneOtpField({ data, setData }: StepProps) {
 
   return (
     <div className="rounded-xl border border-border bg-muted/30 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1">
           <p className="font-medium text-foreground">{t('otp.heading')}</p>
-          <p className="text-sm text-muted-foreground">{t('otp.body')}</p>
+          <p className="mt-0.5 text-sm leading-relaxed text-pretty text-muted-foreground">
+            {t('otp.body')}
+          </p>
         </div>
-        {data.phone_otp.verified ? (
-          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800">
-            {t('otp.statusVerified')}
-          </span>
-        ) : (
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800">
-            {t('otp.statusPending')}
-          </span>
-        )}
+        <StatusBadge
+          tone={data.phone_otp.verified ? 'success' : 'attention'}
+          label={data.phone_otp.verified ? t('otp.statusVerified') : t('otp.statusPending')}
+        />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
@@ -511,7 +513,8 @@ function PhoneOtpField({ data, setData }: StepProps) {
             id="phone-otp-phone"
             type="tel"
             inputMode="tel"
-            placeholder="+221..."
+            autoComplete="tel"
+            placeholder="+221…"
             value={data.phone_otp.phone}
             onChange={(e) =>
               setData({
@@ -532,6 +535,7 @@ function PhoneOtpField({ data, setData }: StepProps) {
           <Button
             type="button"
             variant="outline"
+            className="h-11 w-full px-4 sm:w-auto"
             onClick={handleSend}
             disabled={
               sendPending ||
@@ -553,6 +557,7 @@ function PhoneOtpField({ data, setData }: StepProps) {
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
+              className="tabular-nums tracking-widest"
               value={data.phone_otp.code}
               onChange={(e) =>
                 setData({
@@ -573,6 +578,7 @@ function PhoneOtpField({ data, setData }: StepProps) {
           <div className="flex items-end">
             <Button
               type="button"
+              className="h-11 w-full px-4 sm:w-auto"
               onClick={handleVerify}
               disabled={verifyPending || data.phone_otp.code.length !== 6}
             >
@@ -608,30 +614,30 @@ function RecapStep({ data, setData }: StepProps) {
         {rows.map((row) => (
           <div
             key={row.label}
-            className="flex items-center justify-between gap-3 px-4 py-2 text-sm"
+            className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm"
           >
-            <dt className="text-muted-foreground">{row.label}</dt>
-            <dd className="font-medium text-foreground">{row.value}</dd>
+            <dt className="shrink-0 text-muted-foreground">{row.label}</dt>
+            <dd className="min-w-0 text-right font-medium break-words text-foreground">{row.value}</dd>
           </div>
         ))}
       </dl>
 
       {!data.phone_otp.verified ? (
-        <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">
+        <p className="rounded-lg border border-warning/20 bg-warning/10 px-4 py-3 text-sm text-warning">
           {t('warnings.otpRequired')}
         </p>
       ) : null}
 
-      <label className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3 text-sm">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-muted/30 p-4 text-sm transition-colors has-[:checked]:border-primary/40 has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50">
         <input
           type="checkbox"
           checked={data.cgu_accepted}
           onChange={(e) =>
             setData({ ...data, cgu_accepted: e.target.checked })
           }
-          className="mt-1"
+          className="mt-0.5 size-4 shrink-0 cursor-pointer accent-primary focus-visible:outline-none"
         />
-        <span className="text-foreground">
+        <span className="leading-relaxed text-foreground">
           {t.rich('cgu.label', {
             link: (chunks) => (
               <a

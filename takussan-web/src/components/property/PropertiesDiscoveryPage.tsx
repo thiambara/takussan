@@ -7,6 +7,7 @@ import { ApiError } from '@/lib/api';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { FilterSidebar } from '@/components/search/FilterSidebar';
 import { SearchToolbar } from '@/components/search/SearchToolbar';
@@ -97,7 +98,7 @@ function ViewToggle({
     <div
       role="tablist"
       aria-label={t('viewSwitchAria')}
-      className={`inline-flex items-center rounded-full border border-stone-200 bg-white p-1 shadow-sm ${className}`}
+      className={`inline-flex items-center rounded-full border border-border bg-card p-1 shadow-sm ${className}`}
     >
       <button
         role="tab"
@@ -106,7 +107,7 @@ function ViewToggle({
         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
           view === 'list'
             ? 'bg-primary text-white'
-            : 'text-stone-600 hover:text-primary'
+            : 'text-muted-foreground hover:text-primary'
         }`}
       >
         <List className="w-3.5 h-3.5" />
@@ -119,7 +120,7 @@ function ViewToggle({
         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition ${
           view === 'map'
             ? 'bg-primary text-white'
-            : 'text-stone-600 hover:text-primary'
+            : 'text-muted-foreground hover:text-primary'
         }`}
       >
         <MapIcon className="w-3.5 h-3.5" />
@@ -233,7 +234,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
     <div className="min-h-screen bg-surface">
       <Navbar />
 
-      <div className="h-[133px]" />
+      <NavbarSpacer />
 
       <div className="max-w-[1440px] mx-auto px-4 md:px-8 lg:px-16 py-8">
         <div className="flex gap-6 items-start">
@@ -345,7 +346,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                 )}
 
                 <div
-                  className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-12 transition-opacity duration-200 ${
+                  className={`grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10 transition-opacity duration-200 ${
                     loading
                       ? 'opacity-50 pointer-events-none'
                       : 'opacity-100'

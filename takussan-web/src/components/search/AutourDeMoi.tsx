@@ -145,7 +145,7 @@ export function AutourDeMoi({
           type="button"
           onClick={demanderPosition}
           disabled={etat === 'attente'}
-          className="flex w-full items-center gap-3 rounded-xl border border-border px-4 py-3 text-left text-muted-foreground transition-all duration-150 hover:border-primary hover:text-primary disabled:cursor-progress disabled:opacity-60"
+          className="flex w-full items-center gap-3 rounded-xl border border-border px-4 py-3 text-left text-muted-foreground transition-colors duration-150 hover:border-primary hover:text-primary disabled:cursor-progress disabled:opacity-60"
         >
           {etat === 'attente' ? (
             <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden="true" />
@@ -167,7 +167,7 @@ export function AutourDeMoi({
               type="button"
               onClick={demanderPosition}
               disabled={etat === 'attente'}
-              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary disabled:cursor-progress"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-primary disabled:cursor-progress"
             >
               <RefreshCw
                 className={`size-3 ${etat === 'attente' ? 'animate-spin' : ''}`}
@@ -186,7 +186,7 @@ export function AutourDeMoi({
                   type="button"
                   aria-pressed={actif}
                   onClick={() => choisirRayon(km)}
-                  className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-all duration-150 ${
+                  className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors duration-150 ${
                     actif
                       ? 'border-primary bg-primary text-primary-foreground'
                       : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
@@ -201,7 +201,7 @@ export function AutourDeMoi({
       )}
 
       {message && (
-        <p role="status" className="text-[11px] leading-relaxed text-muted-foreground">
+        <p role="status" className="text-xs leading-relaxed text-muted-foreground">
           {message}
         </p>
       )}

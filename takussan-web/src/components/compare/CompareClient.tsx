@@ -7,9 +7,11 @@ import { Search, Scale } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCompare as useCompareStore } from '@/context/CompareContext';
 import { useCompare as useCompareFetch } from '@/hooks/useCompare';
@@ -98,7 +100,7 @@ export function CompareClient() {
   return (
     <div className="min-h-screen bg-surface">
       <Navbar />
-      <div className="h-[133px]" aria-hidden="true" />
+      <NavbarSpacer />
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-6 md:px-8">
         <header className="mb-6 flex flex-col gap-2">
@@ -106,9 +108,9 @@ export function CompareClient() {
             <Scale className="h-4 w-4" aria-hidden="true" />
             {t('eyebrow')}
           </div>
-          <h1 className="text-2xl font-bold text-stone-900 md:text-3xl">{t('title')}</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-foreground text-balance md:text-3xl">{t('title')}</h1>
           {!showEmpty && (
-            <p className="text-sm text-stone-500">
+            <p className="text-sm text-muted-foreground tabular-nums">
               {t('subtitle', { count: effectiveIds.length })}
             </p>
           )}
@@ -125,7 +127,7 @@ export function CompareClient() {
             {showUnavailableNotice && (
               <div
                 role="status"
-                className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
+                className="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm text-warning"
               >
                 {t('unavailableNotice', {
                   missing: (requestedIds?.length ?? 0) - (returnedIds?.length ?? 0),
@@ -167,7 +169,7 @@ function CompareEmpty() {
       title={t('title')}
       description={t('description')}
       action={
-        <LienLocalise href="/properties" className={buttonVariants()}>
+        <LienLocalise href="/properties" className={cn(buttonVariants({ size: 'lg' }), 'h-11 px-4')}>
           <Search className="size-4" aria-hidden="true" />
           {t('cta')}
         </LienLocalise>

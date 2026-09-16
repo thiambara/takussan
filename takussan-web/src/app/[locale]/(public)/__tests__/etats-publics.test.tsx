@@ -45,9 +45,13 @@ describe("AC3 — l'état d'attente de /bookings", () => {
 
   it("se retire de l'arbre d'accessibilité", () => {
     // Un squelette est du bruit pour un lecteur d'écran : il annonce des dizaines de boîtes vides.
+    // Depuis que la page porte la barre du site (revue design du 2026-09-16), le squelette n'est
+    // plus le premier enfant : c'est SON bloc qui se retire, pas la navigation, qui reste utile.
     const { container } = render(<LoadingBookings />);
 
-    expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true');
+    const bloc = container.querySelector('[data-slot="skeleton"]')?.closest('[aria-hidden="true"]');
+    expect(bloc).not.toBeNull();
+    expect(bloc?.contains(screen.getByTestId('navbar'))).toBe(false);
   });
 });
 

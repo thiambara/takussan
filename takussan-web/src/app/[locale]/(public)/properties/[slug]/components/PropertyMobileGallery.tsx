@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import useEmblaCarousel from 'embla-carousel-react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react';
 import type { PropertyPhoto } from '@/types/property';
 
 interface PropertyMobileGalleryProps {
@@ -35,7 +35,8 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
 
   if (photos.length === 0) {
     return (
-      <div className="aspect-[4/3] bg-stone-100 flex items-center justify-center text-stone-400">
+      <div className="h-40 bg-muted flex flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+        <ImageOff className="size-6" strokeWidth={1.5} aria-hidden="true" />
         {t('gallery.noPhoto')}
       </div>
     );
@@ -78,7 +79,7 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
             type="button"
             onClick={() => emblaApi?.scrollPrev()}
             aria-label={t('gallery.previousPhoto')}
-            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-md disabled:opacity-50"
+            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-card/90 p-2 shadow-md disabled:opacity-50"
             disabled={selected === 0}
           >
             <ChevronLeft className="size-4" aria-hidden />
@@ -87,7 +88,7 @@ export function PropertyMobileGallery({ photos, title, onOpenLightbox }: Propert
             type="button"
             onClick={() => emblaApi?.scrollNext()}
             aria-label={t('gallery.nextPhoto')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 p-2 shadow-md disabled:opacity-50"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-card/90 p-2 shadow-md disabled:opacity-50"
             disabled={selected === photos.length - 1}
           >
             <ChevronRight className="size-4" aria-hidden />

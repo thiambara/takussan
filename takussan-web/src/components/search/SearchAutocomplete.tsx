@@ -269,7 +269,7 @@ export function SearchAutocomplete({
             <ul className="py-2 max-h-80 overflow-y-auto">
               {cities.length > 0 && (
                 <>
-                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <li className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {t('groups.cities')}
                   </li>
                   {cities.map((city, i) => {
@@ -297,7 +297,7 @@ export function SearchAutocomplete({
 
               {neighborhoods.length > 0 && (
                 <>
-                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <li className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {t('groups.neighborhoods')}
                   </li>
                   {neighborhoods.map((nb, i) => {
@@ -328,7 +328,7 @@ export function SearchAutocomplete({
 
               {propertyTypes.length > 0 && (
                 <>
-                  <li className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <li className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {t('groups.property_types')}
                   </li>
                   {propertyTypes.map((pt, i) => {

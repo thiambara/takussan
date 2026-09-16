@@ -12,8 +12,10 @@ import {
 } from '@/lib/queries/bookings';
 import { formatCurrency, formatDate, formatDateTime } from '@/lib/format';
 import { ErrorState } from '@/components/feedback';
-import { Badge } from '@/components/ui/badge';
+import { ApiError } from '@/lib/api';
+import { StatusBadge } from '@/components/console';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -28,7 +30,12 @@ import { useAuth } from '@/context/AuthContext';
 import { useCanAll } from '@/hooks/useCan';
 import { isAgent, isAdmin, isOwner } from '@/lib/roles';
 import type { Locale } from '@/i18n/config';
-import type { Booking, BookingStatus } from '@/types/booking';
+import type { Booking } from '@/types/booking';
+import {
+  BOOKING_PAYMENT_STATUS_TONE,
+  BOOKING_STATUS_LABEL_KEY,
+  BOOKING_STATUS_TONE,
+} from './booking-status';
 import { BookingPaymentDialog } from './BookingPaymentDialog';
 import { PayOnlineButton } from '@/components/payments/PayOnlineButton';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
@@ -46,27 +53,9 @@ const CAPABILITY_CANCEL = ['bookings.cancel'] as const;
 const CAPABILITY_RECORD_PAYMENT = ['payments.record'] as const;
 
 /**
- * TCK-292 — les quatre tables ci-dessous transportent la CLÉ (relative au namespace
- * `bookings`), le rendu la résout. `status.*` est le MÊME vocabulaire que `BookingsList.tsx`.
+ * TCK-292 — les tables ci-dessous transportent la CLÉ (relative au namespace `bookings`), le
+ * rendu la résout. Le statut de réservation vit dans `booking-status.ts`, partagé avec la liste.
  */
-const STATUS_LABEL_KEY: Record<BookingStatus, string> = {
-  pending: 'status.pending',
-  confirmed: 'status.confirmed',
-  rejected: 'status.rejected',
-  cancelled: 'status.cancelled',
-  expired: 'status.expired',
-  completed: 'status.completed',
-};
-
-const STATUS_VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  pending: 'outline',
-  confirmed: 'default',
-  rejected: 'destructive',
-  cancelled: 'secondary',
-  expired: 'secondary',
-  completed: 'default',
-};
-
 const PAYMENT_TYPE_LABEL_KEY: Record<string, string> = {
   deposit: 'paymentType.deposit',
   advance: 'paymentType.advance',
@@ -155,16 +144,26 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
   const toast = useToast();
 
   if (isLoading) {
-    return <div className="h-48 animate-pulse rounded-xl bg-card" />;
+    return <Skeleton className="h-48 rounded-xl" />;
   }
 
   if (isError || !data) {
+    // Un 403 n'est pas une panne : « réessayer » n'y changerait rien.
+    const forbidden = bookingQuery.error instanceof ApiError && bookingQuery.error.status === 403;
+    // Le seul titre de la page est celui de la réservation : l'écran d'erreur garde un h1.
     return (
-      <ErrorState
-        message={t('error')}
-        onRetry={() => void bookingQuery.refetch()}
-        retryLabel={tCommon('actions.retry')}
-      />
+      <>
+        <h1 className="sr-only">{tBookings('fallbackTitle', { id: String(bookingId) })}</h1>
+        {forbidden ? (
+          <ErrorState message={t('forbidden')} />
+        ) : (
+          <ErrorState
+            message={t('error')}
+            onRetry={() => void bookingQuery.refetch()}
+            retryLabel={tCommon('actions.retry')}
+          />
+        )}
+      </>
     );
   }
 
@@ -188,37 +187,49 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      {/* Les actions passent sous le titre avant `lg` : à 768, la colonne utile fait 464 px. */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
           <Link
             href="/app/bookings"
-            className="text-xs text-muted-foreground hover:text-muted-foreground"
+            className="-ml-1 inline-flex min-h-10 items-center rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:min-h-8"
           >
             {t('back')}
           </Link>
-          <h1 className="mt-1 text-2xl font-bold text-foreground">
+          <h1 className="mt-1 text-balance font-display text-2xl font-bold tracking-tight text-foreground">
             {booking.property?.title ?? tBookings('fallbackTitle', { id: String(booking.id) })}
           </h1>
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Badge variant={STATUS_VARIANT[booking.status]}>
-              {tBookings(STATUS_LABEL_KEY[booking.status])}
-            </Badge>
-            {booking.reference_number && <span>{tBookings('reference')} {booking.reference_number}</span>}
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <StatusBadge
+              tone={BOOKING_STATUS_TONE[booking.status]}
+              label={tBookings(BOOKING_STATUS_LABEL_KEY[booking.status])}
+              data-testid="booking-status"
+            />
+            {booking.reference_number && (
+              <span className="tabular-nums">
+                {tBookings('reference')} {booking.reference_number}
+              </span>
+            )}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:shrink-0 lg:justify-end">
           {canConfirm && (
-            <Button type="button" onClick={() => setAction('confirm')}>
+            <Button type="button" className="h-10 sm:h-8" onClick={() => setAction('confirm')}>
               {t('actions.accept')}
             </Button>
           )}
           {canReject && (
-            <Button type="button" variant="outline" onClick={() => setAction('reject')}>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 sm:h-8"
+              onClick={() => setAction('reject')}
+            >
               {t('actions.reject')}
             </Button>
           )}
           {canRegisterPayment && (
-            <Button variant="outline" onClick={() => setPaymentOpen(true)}>
+            <Button variant="outline" className="h-10 sm:h-8" onClick={() => setPaymentOpen(true)}>
               {tBookings('paymentDialog.title')}
             </Button>
           )}
@@ -227,7 +238,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
               variant="ghost"
               onClick={() => setAction('cancel')}
               disabled={cancelBooking.isPending}
-              className="text-destructive hover:text-destructive"
+              className="h-10 text-destructive hover:text-destructive sm:h-8"
             >
               {t('actions.cancel')}
             </Button>
@@ -235,10 +246,10 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <dl className="rounded-xl border border-border bg-card p-4 sm:p-5 text-sm">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('dates')}</dt>
-          <dd className="mt-1 text-foreground">
+          <dd className="mt-1 tabular-nums text-foreground">
             {booking.start_date && booking.end_date ? (
               <>
                 {formatDate(booking.start_date, locale)} → {formatDate(booking.end_date, locale)}
@@ -249,46 +260,46 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
           </dd>
 
           <dt className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">{t('createdAt')}</dt>
-          <dd className="mt-1 text-foreground">{formatDateTime(booking.created_at ?? booking.booking_date, locale) || '—'}</dd>
+          <dd className="mt-1 tabular-nums text-foreground">
+            {formatDateTime(booking.created_at ?? booking.booking_date, locale) || '—'}
+          </dd>
 
           {booking.expiration_date && (
             <>
               <dt className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">
                 {t('expiresAt')}
               </dt>
-              <dd className="mt-1 text-foreground">
+              <dd className="mt-1 tabular-nums text-foreground">
                 {formatDateTime(booking.expiration_date, locale)}
               </dd>
             </>
           )}
         </dl>
 
-        <dl className="rounded-xl border border-border bg-card p-5 text-sm">
+        <dl className="rounded-xl border border-border bg-card p-4 sm:p-5 text-sm">
           <dt className="text-xs uppercase tracking-wide text-muted-foreground">{t('total')}</dt>
-          <dd className="mt-1 text-lg font-semibold text-foreground">
+          <dd className="mt-1 text-lg font-semibold tabular-nums text-foreground">
             {typeof booking.total_amount === 'number'
               ? formatCurrency(booking.total_amount, locale)
               : '—'}
           </dd>
 
           <dt className="mt-4 text-xs uppercase tracking-wide text-muted-foreground">{t('deposit')}</dt>
-          <dd className="mt-1 text-foreground">
+          <dd className="mt-1 flex flex-wrap items-center gap-2 tabular-nums text-foreground">
             {typeof booking.deposit_amount === 'number'
               ? formatCurrency(booking.deposit_amount, locale)
               : '—'}
             {booking.deposit_paid && (
-              <Badge variant="default" className="ml-2">
-                {tBookings('paymentStatus.paid')}
-              </Badge>
+              <StatusBadge tone="success" label={tBookings('paymentStatus.paid')} />
             )}
           </dd>
         </dl>
       </div>
 
       {booking.notes && (
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold text-foreground">{t('message')}</h2>
-          <p className="mt-2 whitespace-pre-line text-sm text-muted-foreground">{booking.notes}</p>
+        <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">{t('message')}</h2>
+          <p className="mt-2 whitespace-pre-line text-pretty text-sm text-muted-foreground">{booking.notes}</p>
         </div>
       )}
 
@@ -308,13 +319,13 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
         />
       )}
 
-      <section className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold text-foreground">{t('payments')}</h2>
+      <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+        <h2 className="font-display text-base font-semibold tracking-tight text-foreground">{t('payments')}</h2>
         {booking.booking_payments && booking.booking_payments.length > 0 ? (
           <ul className="mt-3 divide-y divide-border text-sm">
             {booking.booking_payments.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                <span className="text-muted-foreground">
+                <span className="min-w-0 text-pretty tabular-nums text-muted-foreground">
                   {formatDateTime(p.payment_date ?? p.created_at, locale)} ·{' '}
                   {PAYMENT_TYPE_LABEL_KEY[p.payment_type]
                     ? tBookings(PAYMENT_TYPE_LABEL_KEY[p.payment_type])
@@ -329,15 +340,18 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                   ) : null}
                   {p.transaction_id ? <> · {tBookings('reference')} {p.transaction_id}</> : null}
                 </span>
-                <span className="flex items-center gap-2 text-foreground">
-                  <span className="font-medium">
+                <span className="flex flex-wrap items-center gap-2 text-foreground">
+                  <span className="font-medium tabular-nums">
                     {formatCurrency(p.amount, locale)}
                   </span>
-                  <Badge variant={p.status === 'paid' ? 'default' : 'outline'}>
-                    {PAYMENT_STATUS_LABEL_KEY[p.status]
-                      ? tBookings(PAYMENT_STATUS_LABEL_KEY[p.status])
-                      : p.status}
-                  </Badge>
+                  <StatusBadge
+                    tone={BOOKING_PAYMENT_STATUS_TONE[p.status] ?? 'neutral'}
+                    label={
+                      PAYMENT_STATUS_LABEL_KEY[p.status]
+                        ? tBookings(PAYMENT_STATUS_LABEL_KEY[p.status])
+                        : p.status
+                    }
+                  />
                   {p.status === 'pending' && (
                     <PayOnlineButton
                       paymentType="booking-payments"
@@ -349,7 +363,7 @@ export function BookingDetail({ bookingId }: BookingDetailProps) {
                   {p.status === 'paid' && (
                     <a
                       href={`/api/booking-payments/${p.id}/receipt`}
-                      className="text-xs text-primary hover:underline"
+                      className="inline-flex min-h-10 items-center text-xs font-medium text-primary underline-offset-4 hover:underline sm:min-h-0"
                     >
                       {t('receipt')}
                     </a>
@@ -444,7 +458,7 @@ function BookingDecisionDialog({
           <DialogDescription>{copyKey ? t(`${copyKey}.description`) : null}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
-          <label htmlFor="booking-action-reason" className="text-xs font-medium text-muted-foreground">
+          <label htmlFor="booking-action-reason" className="text-sm font-medium text-foreground">
             {copyKey ? t(`${copyKey}.label`) : null}
           </label>
           <Textarea
@@ -519,13 +533,17 @@ function CustomerPayCta({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">{label}</h2>
+          <h2 className="font-display text-base font-semibold tracking-tight text-foreground">{label}</h2>
           <p className="mt-1 text-xs text-muted-foreground">{t('payCta.notice')}</p>
         </div>
-        <Button onClick={handleClick} disabled={createPayment.isPending}>
+        <Button
+          onClick={handleClick}
+          disabled={createPayment.isPending}
+          className="h-10 w-full sm:h-8 sm:w-auto"
+        >
           {label}
         </Button>
       </div>
@@ -558,14 +576,14 @@ function BookingTimeline({ booking, locale }: { booking: Booking; locale: Locale
   if (events.length === 0) return null;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <h2 className="text-sm font-semibold text-foreground">{t('timeline.title')}</h2>
+    <section className="rounded-xl border border-border bg-card p-4 sm:p-5">
+      <h2 className="font-display text-base font-semibold tracking-tight text-foreground">{t('timeline.title')}</h2>
       <ol className="mt-3 space-y-2 text-sm">
         {events.map((e) => (
-          <li key={`${e.label}-${e.at}`} className="flex items-baseline gap-3">
+          <li key={`${e.label}-${e.at}`} className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
             <span className="size-1.5 shrink-0 rounded-full bg-muted-foreground" aria-hidden="true" />
-            <span className="text-foreground font-medium">{e.label}</span>
-            <span className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{e.label}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">
               {formatDateTime(e.at, locale)}
             </span>
           </li>

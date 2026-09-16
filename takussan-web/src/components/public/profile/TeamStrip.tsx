@@ -77,7 +77,7 @@ export function TeamStrip({ agents, eyebrow, heading, headingId }: TeamStripProp
    * section, à droite du titre, dans le flux — le motif des rangées de l'accueil (`PropertyRow`).
    */
   const classeFleche =
-    'hidden md:inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-all duration-150 ease-in-out hover:bg-muted hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-30';
+    'hidden md:inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm transition-[background-color,border-color,color,box-shadow,opacity] duration-150 ease-in-out hover:bg-muted hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-30';
 
   return (
     <div>
@@ -126,7 +126,7 @@ export function TeamStrip({ agents, eyebrow, heading, headingId }: TeamStripProp
         >
           {agents.map((a) => {
             const Inner = (
-              <article className="flex h-full items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-all duration-150 ease-in-out hover:shadow-md hover:border-primary/30">
+              <article className="flex h-full items-center gap-3 rounded-2xl border border-border bg-card p-4 transition-[box-shadow,border-color] duration-150 ease-in-out hover:shadow-md hover:border-primary/30">
                 <Avatar size="lg">
                   {a.avatar_url && <AvatarImage src={a.avatar_url} alt={a.full_name} />}
                   <AvatarFallback>{getInitials(a.full_name)}</AvatarFallback>
@@ -134,7 +134,7 @@ export function TeamStrip({ agents, eyebrow, heading, headingId }: TeamStripProp
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-foreground">{a.full_name}</p>
                   {a.specialty && (
-                    <p className="truncate text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    <p className="truncate text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
                       {a.specialty}
                     </p>
                   )}

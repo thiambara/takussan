@@ -50,7 +50,7 @@ export function PropertyShareDialog({ open, onOpenChange, title, url }: Property
           <input
             readOnly
             value={url}
-            className="flex-1 rounded-md border border-stone-300 bg-stone-50 px-3 py-2 text-sm text-stone-700"
+            className="flex-1 rounded-md border border-border bg-muted/60 px-3 py-2 text-sm text-foreground"
             aria-label={t('shareDialog.linkAria')}
           />
           <Button type="button" variant="outline" onClick={handleCopy} className="gap-2 shrink-0">
@@ -65,7 +65,7 @@ export function PropertyShareDialog({ open, onOpenChange, title, url }: Property
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-col items-center gap-1.5 rounded-md border border-stone-200 py-3 text-xs text-stone-700 hover:bg-stone-50 transition-colors"
+              className="flex flex-col items-center gap-1.5 rounded-md border border-border py-3 text-xs text-foreground hover:bg-muted/60 transition-colors"
             >
               <Icon className="size-5" aria-hidden />
               {label}

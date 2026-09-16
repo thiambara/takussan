@@ -27,31 +27,31 @@ export function PropertyPriceHistory({ history }: PropertyPriceHistoryProps) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xl font-semibold text-stone-900">{t('priceHistory')}</h2>
-      <ol className="relative border-l border-stone-200 ml-2 space-y-4 pl-6">
+      <h2 className="text-xl font-semibold text-foreground">{t('priceHistory')}</h2>
+      <ol className="relative border-l border-border ml-2 space-y-4 pl-6">
         {history.map((item) => {
           const diff = item.new_price - item.old_price;
           const Trend = diff < 0 ? TrendingDown : diff > 0 ? TrendingUp : Minus;
           const trendClass =
-            diff < 0 ? 'text-emerald-600' : diff > 0 ? 'text-red-600' : 'text-stone-500';
+            diff < 0 ? 'text-success' : diff > 0 ? 'text-destructive' : 'text-muted-foreground';
 
           return (
             <li key={item.id} className="relative">
-              <span className="absolute -left-[29px] top-1 size-3 rounded-full bg-white border-2 border-stone-300" />
+              <span className="absolute -left-[29px] top-1 size-3 rounded-full bg-card border-2 border-border" />
               <div className="flex items-baseline justify-between gap-2 flex-wrap">
-                <time className="text-sm text-stone-500">{formatDate(item.changed_at)}</time>
+                <time className="text-sm text-muted-foreground">{formatDate(item.changed_at)}</time>
                 <div className={`flex items-center gap-1 text-sm font-medium ${trendClass}`}>
                   <Trend className="size-4" aria-hidden />
                   {formatPrice(Math.abs(diff), item.currency)}
                 </div>
               </div>
-              <p className="text-sm text-stone-700">
-                <span className="line-through text-stone-400">
+              <p className="text-sm text-foreground">
+                <span className="line-through text-muted-foreground">
                   {formatPrice(item.old_price, item.currency)}
                 </span>{' '}
                 → <span className="font-semibold">{formatPrice(item.new_price, item.currency)}</span>
               </p>
-              {item.reason && <p className="text-xs text-stone-500 mt-0.5">{item.reason}</p>}
+              {item.reason && <p className="text-xs text-muted-foreground mt-0.5">{item.reason}</p>}
             </li>
           );
         })}

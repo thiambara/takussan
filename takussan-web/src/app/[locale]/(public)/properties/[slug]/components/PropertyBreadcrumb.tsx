@@ -17,7 +17,7 @@ export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
   const crumbs = maillonsDeFiche(property, t);
 
   return (
-    <nav aria-label={t('breadcrumbAria')} className="flex items-center gap-1 text-sm text-stone-500">
+    <nav aria-label={t('breadcrumbAria')} className="flex items-center gap-1 text-sm text-muted-foreground">
       {crumbs.map((c, i) => (
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <ChevronRight className="size-3.5" aria-hidden />}
@@ -26,7 +26,7 @@ export function PropertyBreadcrumb({ property }: { property: PropertyDetail }) {
               {c.libelle}
             </LienLocalise>
           ) : (
-            <span className="text-stone-700">{c.libelle}</span>
+            <span aria-current="page" className="text-foreground">{c.libelle}</span>
           )}
         </span>
       ))}

@@ -3,7 +3,8 @@
 import React from 'react';
 import Image from 'next/image';
 import { LienLocalise } from '@/components/shared/LienLocalise';
-import { ArrowRight, Plus, Scale, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { ArrowRight, ImageOff, Plus, Scale, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useCompare } from '@/context/CompareContext';
@@ -53,11 +54,15 @@ const VIGNETTE_PX = 56;
 export function CompareFloatingBar({ className }: { className?: string }) {
   const { ids, previews, isHydrated, remove, clear } = useCompare();
   const t = useTranslations('compare.floatingBar');
+  // Sur `/compare` même, la barre ne fait que répéter la page — son appel à l'action y pointe
+  // sur elle-même — et, sur téléphone, elle recouvrait le bas du comparatif (revue design du
+  // 2026-09-16). Chaque colonne y porte déjà son « Retirer ».
+  const surLeComparatif = /\/compare\/?$/.test(usePathname() ?? '');
 
   // Register with the FloatingDock orchestrator (TCK-275). The slot is only
   // “active” once we actually render content — otherwise the dock would
   // reserve vertical space for an invisible bar.
-  const isVisible = isHydrated && ids.length > 0;
+  const isVisible = isHydrated && ids.length > 0 && !surLeComparatif;
   const { bottom } = useFloatingDockSlot({
     id: 'compare-floating-bar',
     corner: 'bottom-right',
@@ -108,7 +113,7 @@ export function CompareFloatingBar({ className }: { className?: string }) {
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-semibold leading-tight text-foreground">{t('title')}</p>
-            <p className="text-[11px] leading-tight text-muted-foreground tabular-nums">
+            <p className="text-xs leading-tight text-muted-foreground tabular-nums">
               {t('count', { count: ids.length, max: COMPARE_MAX_IDS })}
             </p>
           </div>
@@ -244,7 +249,8 @@ function Vignette({
         />
       ) : (
         <span className="grid size-full place-items-center bg-muted text-sm font-semibold text-muted-foreground">
-          {initiale(titre)}
+          {/* Sans aperçu (sélection venue d'une URL partagée), l'initiale serait « # ». */}
+          {preview?.title ? initiale(preview.title) : <ImageOff className="size-4" strokeWidth={1.5} aria-hidden />}
         </span>
       )}
 

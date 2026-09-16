@@ -113,14 +113,19 @@ export function FavoriteButton({
       aria-label={t(isFavorite ? 'remove' : 'add')}
       aria-pressed={isFavorite}
       data-favorite={isFavorite ? 'true' : 'false'}
-      className={`${SIZE_CLASSES[size]} rounded-full backdrop-blur-md flex items-center justify-center transition-all duration-200 cursor-pointer disabled:cursor-wait ${
+      // Au repos, un voile `bg-scrim/50` et non `bg-card/20` : un cœur crème sur un aplat crème à
+      // 20 % disparaissait sur toute photo claire et sur le repli « Photo à venir » (revue design
+      // du 2026-09-16). Le voile assombrit quel que soit le thème. À 30 %, un pixel blanc dessous
+      // laissait l'icône à 2,01:1 ; à 50 %, le pire cas tient le seuil non textuel de 3:1.
+      className={`${SIZE_CLASSES[size]} rounded-full backdrop-blur-md flex items-center justify-center transition-[background-color,color,box-shadow,scale] duration-200 active:scale-[0.96] cursor-pointer disabled:cursor-wait ${
         isFavorite
           ? 'bg-card text-destructive shadow-md'
-          : 'bg-card/20 text-primary-foreground hover:bg-card hover:text-primary'
+          : 'bg-scrim/50 text-primary-foreground hover:bg-card hover:text-primary'
       } ${className}`}
     >
       <Heart
-        className={`${ICON_CLASSES[size]} transition-all ${isFavorite ? 'fill-current scale-110' : ''}`}
+        aria-hidden="true"
+        className={`${ICON_CLASSES[size]} transition-transform ${isFavorite ? 'fill-current scale-110' : ''}`}
       />
     </button>
   );

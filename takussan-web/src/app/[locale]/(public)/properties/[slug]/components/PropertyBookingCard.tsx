@@ -32,42 +32,43 @@ export function PropertyBookingCard({
   canMessage = true,
 }: PropertyBookingCardProps) {
   const t = useTranslations('property.detail');
+  const tPeriods = useTranslations('property.rentPeriodsShort');
   const isRent = property.contract_type === 'rent';
-  const periodLabel = property.rent_period_label ?? (isRent ? 'mois' : null);
+  const periodLabel = isRent ? tPeriods(property.rent_period ?? 'monthly') : null;
   const primaryCta = getPrimaryCtaForProperty(property);
 
   return (
-    <aside className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm space-y-4 lg:sticky lg:top-40">
+    <aside className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4">
       <div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-stone-900">
+          <span className="text-2xl font-bold text-foreground tabular-nums">
             {formatPrice(property.price, property.currency)}
           </span>
-          {periodLabel && <span className="text-sm text-stone-500">/ {periodLabel}</span>}
+          {periodLabel && <span className="text-sm text-muted-foreground">/{periodLabel}</span>}
         </div>
         {property.contract_type_label && (
-          <p className="text-sm text-stone-500 mt-0.5">{property.contract_type_label}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{property.contract_type_label}</p>
         )}
       </div>
 
       <div className="space-y-2">
-        <Button type="button" className="w-full gap-2" onClick={onRequestBooking}>
+        <Button type="button" className="w-full h-11 gap-2" onClick={onRequestBooking}>
           <KeyRound className="size-4" aria-hidden />
           {t(`primaryCta.${primaryCta.action}`)}
         </Button>
-        <Button type="button" variant="outline" className="w-full gap-2" onClick={onRequestVisit}>
+        <Button type="button" variant="outline" className="w-full h-11 gap-2" onClick={onRequestVisit}>
           <Calendar className="size-4" aria-hidden />
           {t('requestVisit')}
         </Button>
         {canMessage && (
-          <Button type="button" variant="ghost" className="w-full gap-2" onClick={onMessage}>
+          <Button type="button" variant="ghost" className="w-full h-11 gap-2" onClick={onMessage}>
             <MessageCircle className="size-4" aria-hidden />
             {t('sendMessage')}
           </Button>
         )}
       </div>
 
-      <p className="text-xs text-stone-500 text-center">
+      <p className="text-xs text-muted-foreground text-center text-pretty">
         {t('noChargeNotice')}
       </p>
     </aside>

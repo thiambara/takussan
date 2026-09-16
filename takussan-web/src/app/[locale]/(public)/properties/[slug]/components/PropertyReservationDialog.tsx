@@ -146,7 +146,7 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <label className="space-y-1 text-sm">
-            <span className="text-stone-700">{t('booking.checkIn')}</span>
+            <span className="text-foreground">{t('booking.checkIn')}</span>
             <DatePicker
               required
               value={startDate}
@@ -156,7 +156,7 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
             />
           </label>
           <label className="space-y-1 text-sm">
-            <span className="text-stone-700">{t('booking.checkOut')}</span>
+            <span className="text-foreground">{t('booking.checkOut')}</span>
             <DatePicker
               required
               value={endDate}
@@ -167,7 +167,7 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
           </label>
         </div>
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">{t('booking.guests')}</span>
+          <span className="text-foreground">{t('booking.guests')}</span>
           <Input
             type="number"
             required
@@ -178,7 +178,7 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
           />
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">{t('booking.message')}</span>
+          <span className="text-foreground">{t('booking.message')}</span>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -187,23 +187,23 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
           />
         </label>
         {nights > 0 && (
-          <div className="rounded-md bg-stone-50 p-3 text-sm space-y-1">
+          <div className="rounded-md bg-muted/60 p-3 text-sm space-y-1">
             <div className="flex justify-between">
-              <span className="text-stone-600">
+              <span className="text-muted-foreground">
                 {t('booking.nightsLine', {
                   price: formatPrice(property.price, property.currency),
                   count: nights,
                 })}
               </span>
-              <span className="text-stone-900">{formatPrice(total, property.currency)}</span>
+              <span className="text-foreground">{formatPrice(total, property.currency)}</span>
             </div>
-            <div className="flex justify-between font-semibold pt-1 border-t border-stone-200">
+            <div className="flex justify-between font-semibold pt-1 border-t border-border">
               <span>{t('booking.estimatedTotal')}</span>
               <span>{formatPrice(total, property.currency)}</span>
             </div>
           </div>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             {t('cancel')}
@@ -272,7 +272,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">
+          <span className="text-foreground">
             {t('offerForm.amount', { currency: property.currency ?? 'XOF' })}
           </span>
           <Input
@@ -286,7 +286,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
           />
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">{t('offerForm.validity')}</span>
+          <span className="text-foreground">{t('offerForm.validity')}</span>
           <DatePicker
             required
             value={offerExpiresAt}
@@ -296,7 +296,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
           />
         </label>
         <label className="block space-y-1 text-sm">
-          <span className="text-stone-700">{t('offerForm.message')}</span>
+          <span className="text-foreground">{t('offerForm.message')}</span>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -304,7 +304,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
             rows={3}
           />
         </label>
-        <label className="flex items-start gap-2 text-sm text-stone-700">
+        <label className="flex items-start gap-2 text-sm text-foreground">
           <input
             type="checkbox"
             required
@@ -320,7 +320,7 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
             {' '}{t('offerForm.termsAfter')}
           </span>
         </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
             {t('cancel')}
