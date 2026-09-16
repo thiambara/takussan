@@ -7,6 +7,7 @@ import { useLeasePayments } from '@/lib/queries/leases';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Locale } from '@/i18n/config';
 import type { LeasePayment } from '@/types/lease';
 import { cn } from '@/lib/utils';
@@ -46,7 +47,7 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
   const payments = useMemo(() => data?.data ?? [], [data]);
 
   if (isLoading) {
-    return <div className="h-40 animate-pulse rounded-xl bg-card" />;
+    return <Skeleton className="h-40 rounded-xl" />;
   }
   if (isError) {
     return (
@@ -69,12 +70,12 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm tabular-nums">
         <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
           <tr>
             <th className="px-4 py-2 font-medium whitespace-nowrap">{t('colPeriod')}</th>
             <th className="px-4 py-2 font-medium whitespace-nowrap">{t('colDueDate')}</th>
-            <th className="px-4 py-2 font-medium whitespace-nowrap">{t('colAmount')}</th>
+            <th className="px-4 py-2 text-right font-medium whitespace-nowrap">{t('colAmount')}</th>
             <th className="px-4 py-2 font-medium whitespace-nowrap">{t('colStatus')}</th>
             <th className="px-4 py-2 font-medium" aria-label={t('colActions')} />
           </tr>
@@ -90,14 +91,14 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
                   st === 'late' && 'bg-destructive/10',
                 )}
               >
-                <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
+                <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                   {formatDate(p.period_start, locale)} →{' '}
                   {formatDate(p.period_end, locale)}
                 </td>
-                <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">
+                <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
                   {p.due_date ? formatDate(p.due_date, locale) : '—'}
                 </td>
-                <td className="px-4 py-2 font-medium text-foreground whitespace-nowrap">
+                <td className="px-4 py-2 text-right font-medium text-foreground whitespace-nowrap">
                   {formatCurrency(p.amount, locale)}
                   {typeof p.late_fee === 'number' && p.late_fee > 0 && (
                     <span className="ml-1 text-xs text-destructive">
@@ -118,7 +119,7 @@ export function LeaseSchedule({ leaseId, agencyId }: LeaseScheduleProps) {
                     {tScheduleStatus(st)}
                   </Badge>
                 </td>
-                <td className="px-4 py-2 text-right">
+                <td className="px-4 py-2 text-right whitespace-nowrap">
                   {st !== 'paid' && (
                     <PayOnlineButton
                       paymentType="lease-payments"

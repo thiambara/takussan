@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Search, Tag, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -49,45 +49,40 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
   // peignait l'ancienne valeur, puis re-rendait. Cf. `useStateSyncedWith`.
   const [searchInput, setSearchInput] = useStateSyncedWith(currentSearch);
 
-  const updateParam = useCallback(
-    (key: string, value: string | null) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (value && value !== ALL_VALUE) {
-        params.set(key, value);
-      } else {
-        params.delete(key);
-      }
-      params.delete('page');
-      router.replace(`?${params.toString()}`);
-    },
-    [router, searchParams],
-  );
+  // Fonctions nues : le React Compiler mémoïse (ADR-0015). Les `useCallback` manuels portaient
+  // un `activeTags` recalculé à chaque rendu, ce qui les invalidait de toute façon.
+  const updateParam = (key: string, value: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value && value !== ALL_VALUE) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    params.delete('page');
+    router.replace(`?${params.toString()}`);
+  };
 
-  const onSearchSubmit = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      updateParam('search', searchInput.trim() || null);
-    },
-    [searchInput, updateParam],
-  );
+  const onSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    updateParam('search', searchInput.trim() || null);
+  };
 
-  const toggleTag = useCallback(
-    (name: string) => {
-      const next = activeTags.includes(name)
-        ? activeTags.filter((t) => t !== name)
-        : [...activeTags, name];
-      updateParam('tags', next.length > 0 ? next.join(',') : null);
-    },
-    [activeTags, updateParam],
-  );
+  const toggleTag = (name: string) => {
+    const next = activeTags.includes(name)
+      ? activeTags.filter((t) => t !== name)
+      : [...activeTags, name];
+    updateParam('tags', next.length > 0 ? next.join(',') : null);
+  };
 
-  const clearTags = useCallback(() => {
+  const clearTags = () => {
     updateParam('tags', null);
-  }, [updateParam]);
+  };
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl bg-card p-4 md:flex-row md:items-center">
-      <form onSubmit={onSearchSubmit} className="flex-1">
+    // `lg` et non `md` : sous la barre latérale, 768 ne laisse que 464 px — la recherche y
+    // tombait à « Nom, p » (revue design 2026-09-16, TCK-505).
+    <div className="flex flex-col gap-3 rounded-xl bg-card p-4 lg:flex-row lg:items-center">
+      <form onSubmit={onSearchSubmit} className="min-w-0 flex-1">
         <label htmlFor="customer-search" className="sr-only">
           {t('searchLabel')}
         </label>
@@ -105,7 +100,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
           />
         </div>
       </form>
-      <div className="flex flex-wrap gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
         {crmTags.length > 0 && (
           <TagFilter
             tags={crmTags}
@@ -119,7 +114,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
           onChange={(v) => updateParam('pipeline_stage', v === ALL_VALUE ? null : v)}
           placeholder={t('pipelinePlaceholder')}
           options={[
-            { value: ALL_VALUE, label: t('all') },
+            { value: ALL_VALUE, label: t('allStages') },
             ...pipelineStageValues.map((v) => ({ value: v, label: tStage(v) })),
           ]}
         />
@@ -128,7 +123,7 @@ export function CustomerListFilters({ crmTags = [] }: Props) {
           onChange={(v) => updateParam('status', v === ALL_VALUE ? null : v)}
           placeholder={t('statusPlaceholder')}
           options={[
-            { value: ALL_VALUE, label: t('all') },
+            { value: ALL_VALUE, label: t('allStatuses') },
             ...customerStatusValues.map((v) => ({ value: v, label: tStatus(v) })),
           ]}
         />
@@ -161,22 +156,22 @@ function TagFilter({
   }, []);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative col-span-2 sm:col-span-1">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors ${
+        className={`inline-flex h-9 w-full items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors sm:w-auto ${
           activeTags.length > 0
             ? 'border-primary/40 bg-primary/5 text-primary'
-            : 'border-border bg-card text-foreground hover:bg-card'
+            : 'border-border bg-card text-foreground hover:bg-muted'
         }`}
       >
         <Tag className="size-3.5" aria-hidden="true" />
         {activeTags.length > 0 ? (
           <span>
             {t('tags')}
-            <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground">
+            <span className="ml-1 rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold tabular-nums text-primary-foreground">
               {activeTags.length}
             </span>
           </span>
@@ -200,7 +195,7 @@ function TagFilter({
                   <button
                     type="button"
                     onClick={() => onToggle(tag.name)}
-                    className="flex w-full items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-card"
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-muted"
                   >
                     <span
                       className={`flex size-4 shrink-0 items-center justify-center rounded border ${
@@ -231,9 +226,9 @@ function TagFilter({
                   onClear();
                   setOpen(false);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10"
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
               >
-                <X className="size-3.5" />
+                <X className="size-3.5" aria-hidden="true" />
                 {t('clearAll')}
               </button>
             </>
@@ -256,13 +251,17 @@ function FilterSelect({
   options: readonly { value: string; label: string }[];
 }) {
   return (
-    <div className="min-w-[160px]">
+    <div className="min-w-0 sm:min-w-[160px]">
       <Select
         value={value}
         onValueChange={(v) => onChange((v ?? '') as string)}
         items={options}
       >
-        <SelectTrigger className="w-full">
+        {/* Le nom accessible porte le CRITÈRE et sa valeur : « Actif » seul ne dit pas quel filtre il règle. */}
+        <SelectTrigger
+          className="w-full"
+          aria-label={`${placeholder} : ${options.find((o) => o.value === value)?.label ?? value}`}
+        >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>

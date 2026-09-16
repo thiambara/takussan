@@ -1,13 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PropertyForm } from '@/components/property-form';
 import { PropertyMediaPanel } from '@/components/property-dashboard/PropertyMediaPanel';
 import { PropertyOverviewPanel } from '@/components/property-dashboard/PropertyOverviewPanel';
-import { formatCurrency } from '@/lib/format';
+import { PropertyPriceHistoryList } from '@/components/property-dashboard/PropertyPriceHistoryList';
 import type { PropertyDetail } from '@/types/property';
 import type { Tag } from '@/types/tag';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
@@ -38,18 +37,16 @@ export function PropertyDetailTabs({ property, tags }: Props) {
   const urlTab = searchParams.get('tab');
   const [tab, setTab] = useStateSyncedWith<TabKey>(isTabKey(urlTab) ? urlTab : 'overview');
 
-  const handleChange = useCallback(
-    (value: TabKey) => {
-      setTab(value);
-      const params = new URLSearchParams(window.location.search);
-      if (value === 'overview') params.delete('tab');
-      else params.set('tab', value);
-      const qs = params.toString();
-      const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-      window.history.replaceState(null, '', url);
-    },
-    [],
-  );
+  // Pas de `useCallback` : le React Compiler mémoïse (ADR-0015).
+  const handleChange = (value: TabKey) => {
+    setTab(value);
+    const params = new URLSearchParams(window.location.search);
+    if (value === 'overview') params.delete('tab');
+    else params.set('tab', value);
+    const qs = params.toString();
+    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState(null, '', url);
+  };
 
   const priceHistory = property.price_history ?? [];
 
@@ -95,28 +92,10 @@ export function PropertyDetailTabs({ property, tags }: Props) {
           {priceHistory.length === 0 ? (
             <p className="mt-4 text-sm text-muted-foreground">{t('noPriceHistory')}</p>
           ) : (
-            <ol className="mt-4 divide-y divide-muted text-sm">
-              {priceHistory.map((entry) => (
-                <li
-                  key={entry.id}
-                  className="flex flex-wrap items-center justify-between gap-2 py-3"
-                >
-                  <span className="text-muted-foreground">
-                    {entry.changed_at?.slice(0, 10) ?? t('unknownDate')}
-                  </span>
-                  <span className="font-medium text-foreground">
-                    {formatCurrency(entry.old_price, 'fr', { currency: entry.currency })}{' '}
-                    →{' '}
-                    {formatCurrency(entry.new_price, 'fr', { currency: entry.currency })}
-                  </span>
-                  {entry.reason ? (
-                    <span className="basis-full text-xs text-muted-foreground">
-                      {entry.reason}
-                    </span>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
+            <PropertyPriceHistoryList
+              entries={priceHistory}
+              unknownDateLabel={t('unknownDate')}
+            />
           )}
         </section>
       </TabsContent>

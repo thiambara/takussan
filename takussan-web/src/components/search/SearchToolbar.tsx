@@ -99,7 +99,7 @@ export function SearchToolbar({
     <div className="mb-6 space-y-3">
       {/* Top row : count + sort + mobile filter button */}
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="shrink-0 whitespace-nowrap text-sm font-semibold text-foreground">
+        <p className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-foreground" aria-live="polite">
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <span className="w-3 h-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
@@ -120,7 +120,7 @@ export function SearchToolbar({
             items={perPageOptions}
           >
             <SelectTrigger
-              className="h-auto rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer"
+              className="h-8 rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer"
               aria-label={t('perPageAria')}
             >
               <SelectValue />
@@ -138,7 +138,10 @@ export function SearchToolbar({
             onValueChange={(v) => onSortChange(v as SearchFilters['sort'])}
             items={sortOptions}
           >
-            <SelectTrigger className="h-auto rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer">
+            <SelectTrigger
+              className="h-8 rounded-full py-1.5 px-3 border-border bg-card text-foreground cursor-pointer"
+              aria-label={t('sortAria')}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -150,13 +153,14 @@ export function SearchToolbar({
 
           {/* Filters button (mobile) */}
           <button
+            type="button"
             onClick={onOpenSidebar}
-            className="md:hidden relative flex items-center gap-2 text-sm font-semibold border border-border rounded-full px-4 py-1.5 hover:border-primary hover:text-primary transition-colors"
+            className="lg:hidden relative flex min-h-9 items-center gap-2 text-sm font-semibold bg-card border border-border rounded-full px-4 py-1.5 hover:border-primary hover:text-primary transition-[color,border-color,scale] active:scale-[0.96]"
           >
             <SlidersHorizontal className="w-4 h-4" />
             {t('filters')}
             {activeCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-1.5 -right-1.5 size-5 bg-primary text-primary-foreground text-[11px] font-bold tabular-nums rounded-full flex items-center justify-center">
                 {activeCount}
               </span>
             )}
@@ -170,8 +174,9 @@ export function SearchToolbar({
           {activeTags.map(({ cle, sousCle, libelle }) => (
             <button
               key={sousCle ? `${cle}-${sousCle}` : cle}
+              type="button"
               onClick={() => onRemoveFilter(cle, sousCle)}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors group"
+              className="flex min-h-8 items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors group"
             >
               {libelle}
               <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />

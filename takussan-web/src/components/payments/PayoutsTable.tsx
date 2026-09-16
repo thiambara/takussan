@@ -5,16 +5,17 @@ import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Banknote } from 'lucide-react';
 
+import { StatusBadge } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { usePayouts, type UsePayoutsParams } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
 import type { PayoutStatus } from '@/types/invoice';
 
-import { PAYOUT_STATUS_VARIANT } from './constants';
+import { PAYOUT_STATUS_TONE } from './constants';
 
 interface PayoutsTableProps {
   readonly onSelect: (payoutId: number) => void;
@@ -43,7 +44,7 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
     <QueryBoundary
       query={query}
       loadingFallback={[0, 1, 2].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg bg-card" />
+        <Skeleton key={i} className="h-12 rounded-lg" />
       ))}
     >
       {(data) => {
@@ -61,15 +62,15 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
         return (
           <div className="space-y-3">
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
+              <table className="w-full text-left text-sm tabular-nums">
+                <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2">{tTable('reference')}</th>
-                    <th className="px-3 py-2">{tTable('landlord')}</th>
-                    <th className="px-3 py-2 whitespace-nowrap">{tTable('period')}</th>
-                    <th className="px-3 py-2 whitespace-nowrap">{tTable('gross')}</th>
-                    <th className="px-3 py-2 whitespace-nowrap">{tTable('net')}</th>
-                    <th className="px-3 py-2 whitespace-nowrap">{tTable('status')}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('reference')}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('landlord')}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('period')}</th>
+                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{tTable('gross')}</th>
+                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{tTable('net')}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('status')}</th>
                     <th className="px-3 py-2" aria-label={tTable('actions')} />
                   </tr>
                 </thead>
@@ -78,11 +79,11 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
                     const status = payout.status as PayoutStatus;
                     return (
                       <tr key={payout.id} className="text-foreground">
-                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                        <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground">
                           {payout.reference_number ?? `#${payout.id}`}
                         </td>
-                        <td className="px-3 py-2 text-xs">#{payout.landlord_id}</td>
-                        <td className="px-3 py-2 text-xs whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">#{payout.landlord_id}</td>
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                           {payout.period_start ? formatDate(payout.period_start, locale) : '—'}
                           {payout.period_end ? (
                             <>
@@ -91,25 +92,23 @@ export function PayoutsTable({ onSelect }: PayoutsTableProps) {
                             </>
                           ) : null}
                         </td>
-                        <td className="px-3 py-2 text-xs whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                           {formatCurrency(payout.gross_amount, locale, {
                             currency: payout.currency || 'XOF',
                           })}
                         </td>
-                        <td className="px-3 py-2 font-semibold whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
                           {formatCurrency(payout.net_amount, locale, {
                             currency: payout.currency || 'XOF',
                           })}
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <Badge variant={PAYOUT_STATUS_VARIANT[status] ?? 'outline'}>
-                            {tStatus(status)}
-                          </Badge>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <StatusBadge tone={PAYOUT_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />
                         </td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2.5 text-right">
                           <button
                             type="button"
-                            className="text-xs font-medium text-primary hover:underline"
+                            className="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-medium whitespace-nowrap text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             onClick={() => onSelect(payout.id)}
                           >
                             {tTable('open')}

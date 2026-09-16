@@ -39,7 +39,7 @@ export function ReportingShell() {
 
   return (
     <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="gap-4">
-      <TabsList variant="line" className="h-auto flex-wrap">
+      <TabsList variant="line" className="grid w-full grid-cols-2 gap-y-2 group-data-horizontal/tabs:h-auto sm:inline-flex sm:w-fit">
         {TABS.map((entry) => {
           const Icon = entry.icon;
           return (

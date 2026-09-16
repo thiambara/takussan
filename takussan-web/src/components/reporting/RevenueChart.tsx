@@ -82,7 +82,9 @@ export function RevenueChart() {
           <KpiPill label={t('revenue.arrCurrent')} value={formatXof(totals.latest_arr)} />
           <KpiPill label={t('revenue.activeSubscriptions')} value={String(totals.latest_active_subscriptions ?? 0)} />
           {/* L'export porte EXACTEMENT la fenêtre affichée (AC5) — même source que la requête. */}
-          <ReportExportButton report="revenue" params={{ granularity: GRANULARITE, ...parametres }} />
+          <div className="ml-auto">
+            <ReportExportButton report="revenue" params={{ granularity: GRANULARITE, ...parametres }} />
+          </div>
         </CardContent>
       </Card>
 

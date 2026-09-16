@@ -63,7 +63,7 @@
  *     **2,16:1** (`dark:bg-foreground dark:text-muted-foreground` : crème sur crème). Ses quatre
  *     priorités tombent sur quatre des cinq tons ; il traduit et délègue désormais.
  *
- * *Les trois qui restent portent chacune, dans leur propre fichier, la phrase qui dit ce que
+ * *Celles qui restent (trois, puis quatre le 2026-09-16) portent chacune la phrase qui dit ce que
  * `StatusBadge` ne sait pas faire pour elles* — la raison abrégée ci-dessous en est le résumé,
  * pas la source.
  *
@@ -128,6 +128,11 @@ const TABLES_DE_TONS_CONNUES = new Map([
   ['takussan-web/src/components/calendar/event-colors.ts',
     "une couleur par TYPE d'événement, jamais par statut — dans la grille du mois la bulle tronque "
     + 'son titre, la teinte y est le seul canal d’information'],
+  // 2026-09-16 (revue design) : la table existait en palette brute (`stone-900`, `red-900`…),
+  // que ce contrôle ne voyait pas ; passée en jetons, il la voit. Ce n'est pas une rechute.
+  ['takussan-web/src/components/announcements/GlobalAnnouncementBanner.tsx',
+    "bandeau d'annonce PLEIN, quatre sévérités sur toute la largeur : un message qui remplit "
+    + 'sa surface, pas une pastille — `StatusBadge` ne rend que des fonds teintés (`bg-success/10`…)'],
 ]);
 
 /** Les lignes de MESSAGE qui tombent dans la forme du contrôle B sans être des statuts. */

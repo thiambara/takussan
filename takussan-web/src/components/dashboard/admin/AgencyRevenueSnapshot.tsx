@@ -67,12 +67,12 @@ export function AgencyRevenueSnapshot({ timeseries }: Props) {
       aria-labelledby="agency-revenue-heading"
       className="rounded-2xl bg-card p-6"
     >
-      <header className="mb-4 flex items-baseline justify-between">
+      <header className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 id="agency-revenue-heading" className="text-sm font-semibold text-foreground">
           {t('heading')}
         </h2>
         <p className="text-xs text-muted-foreground">
-          {t('total')} <span className="font-semibold text-foreground">{formatCurrency(total, locale)}</span>
+          {t('total')} <span className="font-semibold tabular-nums whitespace-nowrap text-foreground">{formatCurrency(total, locale)}</span>
         </p>
       </header>
       <BarChart

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { CIBLE_LIEN_EN_LIGNE } from '@/components/auth/cibles';
 import { useTranslations } from 'next-intl';
 
 export default function ForgotPasswordPage() {
@@ -31,13 +32,13 @@ export default function ForgotPasswordPage() {
   if (submitted) {
     return (
       <div>
-        <div className="flex items-center justify-center size-14 rounded-full bg-green-50 text-green-600 mb-6">
-          <CheckCircle2 className="size-7" />
+        <div className="flex items-center justify-center size-14 rounded-full bg-success/10 text-success mb-6">
+          <CheckCircle2 className="size-7" aria-hidden="true" />
         </div>
-        <h1 className="font-headline text-3xl font-bold tracking-tight mb-2">
+        <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
           {t('sentTitle')}
         </h1>
-        <p className="text-muted-foreground text-sm mb-6">
+        <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-6">
           {t.rich('sentBody', {
             email,
             b: (chunks) => <strong className="text-foreground">{chunks}</strong>,
@@ -45,7 +46,7 @@ export default function ForgotPasswordPage() {
         </p>
         <Link
           href="/auth/login"
-          className="inline-block text-sm text-primary font-semibold hover:underline"
+          className={`${CIBLE_LIEN_EN_LIGNE} inline-block text-sm font-semibold text-primary underline-offset-4 hover:underline`}
         >
           {t('backToLogin')}
         </Link>
@@ -55,10 +56,10 @@ export default function ForgotPasswordPage() {
 
   return (
     <div>
-      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
         {t('title')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">{t('subtitle')}</p>
+      <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('subtitle')}</p>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
@@ -69,6 +70,8 @@ export default function ForgotPasswordPage() {
             id="email"
             type="email"
             autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -94,7 +97,10 @@ export default function ForgotPasswordPage() {
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        <Link href="/auth/login" className="text-primary font-semibold hover:underline">
+        <Link
+          href="/auth/login"
+          className={`${CIBLE_LIEN_EN_LIGNE} font-semibold text-primary underline-offset-4 hover:underline`}
+        >
           {t('backToLogin')}
         </Link>
       </p>

@@ -248,6 +248,8 @@ export const JETONS_SOMBRE: Readonly<Record<string, string>> = {
   'popover-foreground': '#fcf9f3',
   primary: '#c87a52',
   'primary-foreground': '#1f1812',
+  // Survol du bouton plein : plus CLAIR que `primary` ici, l'encre étant sombre (revue 2026-09-16).
+  'primary-deep': '#d6916b',
   secondary: '#3a2e23',
   'secondary-foreground': '#fcf9f3',
   muted: '#3a2e23',

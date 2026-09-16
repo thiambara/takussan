@@ -29,7 +29,7 @@ export function NoAgencyState({ title }: NoAgencyStateProps) {
     <div className="space-y-6">
       {title && (
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-balance text-foreground">{title}</h1>
         </div>
       )}
       <EmptyState

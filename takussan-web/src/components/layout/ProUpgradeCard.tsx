@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Sparkles, Clock3 } from 'lucide-react';
+import { ArrowRight, Sparkles, Clock3 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
@@ -46,21 +46,22 @@ export function ProUpgradeCard({ pending = false, onNavigate }: ProUpgradeCardPr
           <p className="text-[0.8rem] font-semibold leading-tight text-foreground">
             {title}
           </p>
-          <p className="mt-0.5 text-[0.7rem] leading-snug text-muted-foreground">
+          <p className="mt-0.5 text-xs leading-snug text-pretty text-muted-foreground">
             {body}
           </p>
           <p
             className={cn(
-              'mt-2 inline-flex items-center text-[0.7rem] font-semibold uppercase tracking-wide',
+              'mt-2 inline-flex items-center text-[11px] font-semibold uppercase tracking-wide',
               pending
                 ? 'text-muted-foreground group-hover/upgrade:text-foreground'
                 : 'text-primary group-hover/upgrade:text-foreground',
             )}
           >
             {cta}
-            <span aria-hidden className="ml-1 transition-transform group-hover/upgrade:translate-x-0.5">
-              →
-            </span>
+            <ArrowRight
+              aria-hidden
+              className="ml-1 size-3 transition-transform group-hover/upgrade:translate-x-0.5"
+            />
           </p>
         </div>
       </div>

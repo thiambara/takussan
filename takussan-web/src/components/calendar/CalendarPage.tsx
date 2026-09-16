@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { ErrorState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ import { useCalendar } from '@/lib/queries/calendar';
 import type { CalendarEvent, CalendarEventType, CalendarView } from '@/types/calendar';
 import { paletteEnAttente, paletteFor, paletteForType } from './event-colors';
 import { MonthView } from './MonthView';
+import { useDatesCalendrier } from './dates';
 import { WeekView } from './WeekView';
 import { DayView } from './DayView';
 import { ListView } from './ListView';
@@ -148,49 +150,65 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
     });
   };
 
-  const focusLabel = useMemo(() => {
+  const dates = useDatesCalendrier();
+  // Sans `useMemo` : le compilateur React mémoïse, et la dépendance à `dates` (neuve) n'avait pas
+  // à être recopiée dans une liste à la main.
+  const focusLabel = (() => {
     if (view === 'month') {
-      return focus.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      return dates.date(focus, { month: 'long', year: 'numeric' });
     }
     if (view === 'week') {
       return t('focus.week', {
-        date: range.start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+        date: dates.date(range.start, { day: 'numeric', month: 'short' }),
       });
     }
     if (view === 'day') {
-      return focus.toLocaleDateString('fr-FR', {
+      return dates.date(focus, {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
       });
     }
     return t('focus.list');
-  }, [view, focus, range.start, t]);
+  })();
 
   return (
     <div className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate(-1)} aria-label={t('nav.previous')}>
-            <ChevronLeft className="size-4" />
+        {/* Cibles de 40 px sous `sm` (32 px au-dessus, barre d'outils dense de bureau). */}
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-10 sm:size-8"
+            onClick={() => navigate(-1)}
+            aria-label={t('nav.previous')}
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(0)}>
+          <Button variant="outline" className="h-10 sm:h-8" onClick={() => navigate(0)}>
             {t('nav.today')}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(1)} aria-label={t('nav.next')}>
-            <ChevronRight className="size-4" />
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-10 sm:size-8"
+            onClick={() => navigate(1)}
+            aria-label={t('nav.next')}
+          >
+            <ChevronRight className="size-4" aria-hidden="true" />
           </Button>
-          <h2 className="ml-2 text-lg font-semibold capitalize text-foreground" data-testid="calendar-focus-label">
+          <h2 className="order-first w-full min-w-0 text-balance font-display sm:order-none sm:ml-2 sm:w-auto sm:truncate text-lg font-semibold tracking-tight first-letter:uppercase text-foreground" data-testid="calendar-focus-label">
             {focusLabel}
           </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Segmented control vues */}
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          {/* Segmented control vues — pleine largeur et à parts égales sous `sm`. */}
           <div
             role="radiogroup"
             aria-label={t('viewSwitcherAria')}
-            className="inline-flex overflow-hidden rounded-lg border border-border bg-card"
+            className="grid w-full grid-cols-4 overflow-hidden rounded-lg border border-border bg-card sm:inline-flex sm:w-auto"
           >
             {VIEWS.map((v) => (
               <button
@@ -201,9 +219,9 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                 data-testid={`calendar-view-${v}`}
                 onClick={() => setView(v)}
                 className={cn(
-                  'px-3 py-1.5 text-sm transition-colors',
+                  'min-h-10 px-3 text-sm transition-colors focus-visible:relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-8',
                   view === v
-                    ? 'bg-foreground text-primary-foreground'
+                    ? 'bg-foreground text-background'
                     : 'text-muted-foreground hover:bg-muted/50',
                 )}
               >
@@ -214,6 +232,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
 
           {/* Segmented control types */}
           <div
+            role="group"
             aria-label={t('typeFilterAria')}
             className="inline-flex overflow-hidden rounded-lg border border-border bg-card"
           >
@@ -227,7 +246,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
                   data-testid={`calendar-type-toggle-${opt.value}`}
                   onClick={() => toggleType(opt.value)}
                   className={cn(
-                    'px-3 py-1.5 text-sm transition-colors',
+                    'min-h-10 px-3 text-sm transition-colors focus-visible:relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:min-h-8',
                     // TCK-484 — ce ternaire portait DEUX branches identiques
                     // (`booking ? 'bg-info/15 …' : 'bg-info/15 …'`) : une distinction écrite,
                     // jamais rendue. Le bouton reprend la teinte du TYPE qu'il filtre, d'où
@@ -250,7 +269,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
               onValueChange={(value) => setPropertyId(value === '__all__' || !value ? null : Number(value))}
               items={[{ value: '__all__', label: t('allProperties') }, ...propertyOptions.map((p) => ({ value: String(p.id), label: p.label }))]}
             >
-              <SelectTrigger data-testid="calendar-property-filter" className="min-w-44">
+              <SelectTrigger data-testid="calendar-property-filter" aria-label={t('allProperties')} className="min-w-44 flex-1 sm:flex-none">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -276,7 +295,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
             <button
               type="button"
               onClick={() => setPropertyId(null)}
-              className="rounded-md bg-card px-2 py-1 text-warning shadow-sm hover:bg-warning/15"
+              className="rounded-md bg-card px-2 py-1 text-warning shadow-sm transition-colors hover:bg-warning/10"
             >
               {t('activeFilters.property', {
                 label: selectedPropertyLabel ?? `#${propertyId}`,
@@ -296,7 +315,7 @@ export function CalendarPage({ initialFocus }: CalendarPageProps) {
       )}
 
       {query.isLoading ? (
-        <div className="h-96 animate-pulse rounded-xl bg-muted" />
+        <Skeleton className="h-96 rounded-xl" aria-busy="true" />
       ) : query.isError ? (
         <ErrorState
           message={t('error')}
@@ -353,24 +372,30 @@ function CalendarLegend() {
   return (
     <section
       aria-label={t('legend.aria')}
-      className="grid gap-2 rounded-xl border border-border bg-card p-3 sm:grid-cols-3"
+      // Sous `sm`, la légende passe en une ligne de trois repères, sans leurs aides : elle
+      // occupait 190 px à 390, avant même la grille du mois.
+      className="flex flex-wrap gap-x-4 gap-y-2 rounded-xl border border-border bg-card p-3 sm:grid sm:grid-cols-3"
       data-testid="calendar-legend"
     >
       {LEGEND_ITEMS.map((item) => (
         <div key={item.type} className="flex items-start gap-2">
+          {/*
+            L'ACCENT plein, et non l'aplat de la puce : à 10 % d'opacité, le point de légende ne
+            se distinguait pas du fond de la carte, et les trois types se ressemblaient.
+          */}
           <span
-            className={cn('mt-0.5 h-3 w-3 shrink-0 rounded-full border', paletteForType(item.type).pill)}
+            className={cn('mt-1.5 size-2.5 shrink-0 rounded-full', paletteForType(item.type).accent)}
             aria-hidden="true"
           />
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">{t(item.labelKey)}</p>
-            <p className="text-xs text-muted-foreground">{t(item.helperKey)}</p>
+            <p className="hidden text-xs text-muted-foreground sm:block">{t(item.helperKey)}</p>
           </div>
         </div>
       ))}
-      <div className="flex items-start gap-2 sm:col-span-3">
+      <div className="flex basis-full items-start gap-2 sm:col-span-3">
         <span
-          className={cn('mt-0.5 h-3 w-3 shrink-0 rounded-full border', paletteEnAttente().pill)}
+          className={cn('mt-1 size-2.5 shrink-0 rounded-full', paletteEnAttente().accent)}
           aria-hidden="true"
         />
         <p className="text-xs text-muted-foreground">{t('legend.pendingNote')}</p>
@@ -391,7 +416,8 @@ function SelectedDayPanel({
   onOpenDay: () => void;
 }) {
   const t = useTranslations('calendar');
-  const label = day.toLocaleDateString('fr-FR', {
+  const dates = useDatesCalendrier();
+  const label = dates.date(day, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -401,16 +427,12 @@ function SelectedDayPanel({
     <aside className="rounded-xl border border-border bg-card" data-testid="calendar-selected-day">
       <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
-          <h3 className="text-sm font-semibold capitalize text-foreground">{label}</h3>
-          <p className="text-xs text-muted-foreground">{t('eventCount', { count: events.length })}</p>
+          <h3 className="font-display text-sm font-semibold tracking-tight first-letter:uppercase text-foreground">{label}</h3>
+          <p className="text-xs tabular-nums text-muted-foreground">{t('eventCount', { count: events.length })}</p>
         </div>
-        <button
-          type="button"
-          onClick={onOpenDay}
-          className="rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50"
-        >
+        <Button type="button" variant="outline" size="sm" className="h-9 sm:h-7" onClick={onOpenDay}>
           {t('dayViewCta')}
-        </button>
+        </Button>
       </header>
       {events.length === 0 ? (
         <p className="p-4 text-sm text-muted-foreground">{t('selectedDayEmpty')}</p>
@@ -419,10 +441,7 @@ function SelectedDayPanel({
           {events.map(({ event, start }) => {
             const timeLabel = event.all_day
               ? t('allDay')
-              : start.toLocaleTimeString('fr-FR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
+              : dates.heure(start);
             // TCK-484 — la pastille se demandait à `LEGEND_ITEMS`, qui ne connaît que le TYPE :
             // un événement `pending` y prenait la couleur d'un événement confirmé, alors que la
             // grille du mois, deux colonnes à gauche, le peignait en gris. `paletteFor()` lit le
@@ -433,15 +452,15 @@ function SelectedDayPanel({
                 <button
                   type="button"
                   onClick={() => onSelect(event)}
-                  className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/50"
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50"
                   data-testid={`calendar-selected-day-row-${event.type}-${event.id}`}
                 >
                   <span
-                    className={cn('mt-1 h-2.5 w-2.5 shrink-0 rounded-full border', palette.pill)}
+                    className={cn('mt-1 size-2.5 shrink-0 rounded-full', palette.accent)}
                     aria-hidden="true"
                   />
                   <span className="min-w-0">
-                    <span className="block text-xs font-medium text-muted-foreground">{timeLabel}</span>
+                    <span className="block text-xs font-medium tabular-nums text-muted-foreground">{timeLabel}</span>
                     <span className="block truncate text-sm font-medium text-foreground">{event.title}</span>
                   </span>
                 </button>

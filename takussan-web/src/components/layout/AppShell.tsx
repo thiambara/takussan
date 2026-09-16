@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import { AppTopbar } from './AppTopbar';
 import { AppSidebar } from './AppSidebar';
@@ -32,6 +33,7 @@ export function AppShell({
   hasPendingUpgrade,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const t = useTranslations('nav.sidebar');
   // TCK-253 — Customer-only onboarding surfaces. Gated server-side via the
   // SSR-resolved roles so we never paint the welcome modale (or arm the
   // deferred profile sheet) for agents / owners / admins.
@@ -84,7 +86,7 @@ export function AppShell({
             />
           </div>
           <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetContent side="left" className="p-0">
+            <SheetContent side="left" className="p-0" aria-label={t('navLabel')}>
               <AppSidebar
               user={user}
               onNavigate={() => setSidebarOpen(false)}

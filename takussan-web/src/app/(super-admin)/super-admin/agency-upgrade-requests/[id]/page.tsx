@@ -126,7 +126,7 @@ function BackLink() {
   return (
     <Link
       href="/super-admin/agency-upgrade-requests"
-      className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      className="-my-2 inline-flex min-h-10 items-center gap-1 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <ArrowLeft className="size-4" aria-hidden="true" />
       {t('back')}
@@ -194,11 +194,14 @@ function HistorySection({ detail }: { readonly detail: AdminAgencyUpgradeRequest
           {t('history.title')}
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {/* Quatre tuiles : 2 × 2 puis une rangée de quatre — à trois colonnes, la quatrième restait
+          seule sur sa ligne. */}
+      <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat
           icon={<UserIcon className="size-4" aria-hidden="true" />}
           label={t('history.currentKind')}
-          value={agency?.kind ?? '—'}
+          // Le type brut (`individual`) s'affichait tel quel ; un type inconnu reste lisible.
+          value={agency?.kind ? (KNOWN_KINDS.has(agency.kind) ? t(`history.kinds.${agency.kind}`) : agency.kind) : '—'}
         />
         <Stat
           icon={<CalendarDays className="size-4" aria-hidden="true" />}
@@ -216,7 +219,7 @@ function HistorySection({ detail }: { readonly detail: AdminAgencyUpgradeRequest
           value={String(detail.counts?.other_requests ?? 0)}
         />
         {agency ? (
-          <div className="sm:col-span-3">
+          <div className="sm:col-span-2 xl:col-span-4">
             <Link
               className={buttonVariants({ variant: 'outline', size: 'sm' })}
               href={`/super-admin/agencies/${agency.id}`}
@@ -229,6 +232,8 @@ function HistorySection({ detail }: { readonly detail: AdminAgencyUpgradeRequest
     </Card>
   );
 }
+
+const KNOWN_KINDS = new Set(['individual', 'standard']);
 
 function DecisionSection({
   detail,
@@ -347,7 +352,7 @@ function Stat({
         {icon}
         <span>{label}</span>
       </div>
-      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
+      <p className="mt-1 text-lg font-semibold tabular-nums text-foreground">{value}</p>
     </div>
   );
 }

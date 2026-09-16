@@ -24,13 +24,13 @@ export function PropertySpecsStrip({ property }: { property: PropertyDetail }) {
   if (specs.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 py-4 border-y border-stone-200">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 py-4 border-y border-border">
       {specs.map(({ icon: Icon, value, label }) => (
         <div key={label} className="flex items-center gap-3 text-sm">
-          <Icon className="size-5 text-stone-500 shrink-0" aria-hidden />
+          <Icon className="size-5 text-muted-foreground shrink-0" aria-hidden />
           <div className="min-w-0">
-            <div className="font-semibold text-stone-900">{value}</div>
-            <div className="text-stone-500 text-xs">{label}</div>
+            <div className="font-semibold text-foreground">{value}</div>
+            <div className="text-muted-foreground text-xs">{label}</div>
           </div>
         </div>
       ))}

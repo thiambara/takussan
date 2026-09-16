@@ -172,71 +172,79 @@ export function PropertyHeaderActions({ property }: Props) {
           {t('viewPublic')}
         </Link>
       ) : null}
-      <AddDocumentButton
-        documentableType="property"
-        documentableId={property.id}
-        displayLabel={property.title}
-      />
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t('more')}
-              disabled={pending}
-            >
-              {pending ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
-              ) : (
-                <MoreHorizontal aria-hidden="true" />
-              )}
-            </Button>
-          }
+      {/* Le bouton et le menu ne se séparent pas : à 768 px, l'en-tête passait « ⋯ » seul sur
+          une seconde ligne, loin de l'action qu'il prolonge. */}
+      <div className="flex shrink-0 items-center gap-2">
+        <AddDocumentButton
+          documentableType="property"
+          documentableId={property.id}
+          displayLabel={property.title}
         />
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>{t('quickActions')}</DropdownMenuLabel>
-          {isPublic ? (
-            <DropdownMenuItem onSelect={unpublish} disabled={pending}>
-              {t('unpublish')}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t('more')}
+                disabled={pending}
+              >
+                {pending ? (
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <MoreHorizontal aria-hidden="true" />
+                )}
+              </Button>
+            }
+          />
+          {/* `onClick`, jamais `onSelect` : `Menu.Item` de base-ui n'a pas de `onSelect` (c'est un
+              vocabulaire Radix). La prop tombait sur l'événement DOM `select` — celui d'une
+              sélection de texte — et les six actions de ce menu ne faisaient RIEN, mesuré au
+              navigateur le 2026-09-16 (le même clic sur le menu de ligne ouvrait bien le dialogue). */}
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>{t('quickActions')}</DropdownMenuLabel>
+            {isPublic ? (
+              <DropdownMenuItem onClick={unpublish} disabled={pending}>
+                {t('unpublish')}
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={publish} disabled={pending}>
+                {t('publish')}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={duplicate} disabled={pending}>
+              <Copy className="size-4" aria-hidden="true" />
+              {t('duplicate')}
             </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem onSelect={publish} disabled={pending}>
-              {t('publish')}
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onSelect={duplicate} disabled={pending}>
-            <Copy className="size-4" aria-hidden="true" />
-            {t('duplicate')}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>{t('statusHeading')}</DropdownMenuLabel>
-          {statusActions.map((status) => (
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>{t('statusHeading')}</DropdownMenuLabel>
+            {statusActions.map((status) => (
+              <DropdownMenuItem
+                key={status}
+                disabled={pending}
+                onClick={() => changeStatus(status)}
+              >
+                {tStatus(status)}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            {property.status !== 'archived' ? (
+              <DropdownMenuItem onClick={archive} disabled={pending}>
+                <Archive className="size-4" aria-hidden="true" />
+                {t('archive')}
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
-              key={status}
+              onClick={() => setConfirmDelete(true)}
               disabled={pending}
-              onSelect={() => changeStatus(status)}
+              className="text-destructive focus:text-destructive"
             >
-              {tStatus(status)}
+              <Trash2 className="size-4" aria-hidden="true" />
+              {t('delete')}
             </DropdownMenuItem>
-          ))}
-          <DropdownMenuSeparator />
-          {property.status !== 'archived' ? (
-            <DropdownMenuItem onSelect={archive} disabled={pending}>
-              <Archive className="size-4" aria-hidden="true" />
-              {t('archive')}
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem
-            onSelect={() => setConfirmDelete(true)}
-            disabled={pending}
-            className="text-destructive focus:text-destructive"
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-            {t('delete')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
           <DialogHeader>

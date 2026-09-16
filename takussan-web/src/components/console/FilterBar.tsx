@@ -49,7 +49,8 @@ export function FilterBar({
       className={cn('rounded-xl bg-card p-4 ring-1 ring-border', className)}
       data-testid={dataTestId}
     >
-      <div className={cn('grid gap-2 md:grid-cols-3 xl:grid-cols-4', controlsClassName)}>
+      {/* `lg` et non `md` : dans la coque, `md` ne laisse que 464 px au contenu (TCK-505). */}
+      <div className={cn('grid gap-2 lg:grid-cols-3 xl:grid-cols-4', controlsClassName)}>
         {children}
       </div>
       {/*

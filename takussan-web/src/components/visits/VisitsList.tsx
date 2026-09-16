@@ -3,42 +3,17 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, ChevronRight } from 'lucide-react';
 import { useVisits } from '@/lib/queries/visits';
 import { formatDateTime } from '@/lib/format';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/console';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { PropertyVisit, VisitStatus, VisitType } from '@/types/visit';
+import type { PropertyVisit } from '@/types/visit';
 import type { Locale } from '@/i18n/config';
-
-/**
- * TCK-292 — tables hors composant : elles transportent la CLÉ (relative au namespace `visits`),
- * le rendu la résout. Patron posé par TCK-286 dans `data/navigation.ts`.
- */
-const STATUS_LABEL_KEY: Record<VisitStatus, string> = {
-  scheduled: 'status.scheduled',
-  confirmed: 'status.confirmed',
-  completed: 'status.completed',
-  cancelled: 'status.cancelled',
-  no_show: 'status.no_show',
-};
-
-const STATUS_VARIANT: Record<VisitStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  scheduled: 'outline',
-  confirmed: 'default',
-  completed: 'default',
-  cancelled: 'secondary',
-  no_show: 'destructive',
-};
-
-const TYPE_LABEL_KEY: Record<VisitType, string> = {
-  in_person: 'type.in_person',
-  virtual: 'type.virtual',
-  self_guided: 'type.self_guided',
-  hybrid: 'type.hybrid',
-};
+import { VISIT_STATUS_LABEL_KEY, VISIT_STATUS_TONE, VISIT_TYPE_LABEL_KEY } from './visit-status';
 
 type TabKey = 'requested' | 'confirmed' | 'past' | 'cancelled';
 
@@ -88,16 +63,21 @@ export function VisitsList() {
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab((v as TabKey) ?? 'requested')}>
-      <TabsList>
-        {tabs.map((t) => (
-          <TabsTrigger key={t.value} value={t.value}>
-            {t.label}
-            {typeof t.query.data?.meta?.total === 'number' && (
-              <span className="ml-1.5 text-xs text-muted-foreground">({t.query.data.meta.total})</span>
-            )}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      {/* Quatre onglets ne tiennent pas à 360 : la rangée défile au lieu de couper « Annulées ». */}
+      <div className="-mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
+        <TabsList className="w-max">
+          {tabs.map((t) => (
+            <TabsTrigger key={t.value} value={t.value}>
+              {t.label}
+              {typeof t.query.data?.meta?.total === 'number' && (
+                <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">
+                  {t.query.data.meta.total}
+                </span>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
 
       {tabs.map((t) => (
         <TabsContent key={t.value} value={t.value} className="mt-4">
@@ -124,9 +104,13 @@ function VisitsListBody({
   return (
     <QueryBoundary
       query={query}
-      loadingFallback={[0, 1, 2].map((i) => (
-        <div key={i} className="h-20 animate-pulse rounded-xl bg-card" />
-      ))}
+      loadingFallback={
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-20 rounded-xl" />
+          ))}
+        </div>
+      }
     >
       {(data) => {
         const visits = data.data ?? [];
@@ -160,25 +144,27 @@ function VisitRow({ visit, locale }: { visit: PropertyVisit; locale: Locale }) {
     <li>
       <Link
         href={`/app/visits/${visit.id}`}
-        className="block rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
+        className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] duration-150 hover:border-foreground/15 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-sm font-semibold text-foreground">
-                {visit.property?.title ?? t('fallbackTitle', { id: String(visit.id) })}
-              </h3>
-              <Badge variant={STATUS_VARIANT[status]}>{t(STATUS_LABEL_KEY[status])}</Badge>
-              <Badge variant="outline">{t(TYPE_LABEL_KEY[type])}</Badge>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formatDateTime(visit.scheduled_at, locale)}
-              {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
-                <> · {visit.duration_minutes} {t('minutesUnit')}</>
-              )}
-            </p>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+            <h3 className="min-w-0 truncate text-sm font-semibold text-foreground">
+              {visit.property?.title ?? t('fallbackTitle', { id: String(visit.id) })}
+            </h3>
+            <StatusBadge tone={VISIT_STATUS_TONE[status]} label={t(VISIT_STATUS_LABEL_KEY[status])} />
+            <StatusBadge label={t(VISIT_TYPE_LABEL_KEY[type])} />
           </div>
+          <p className="mt-1 text-xs tabular-nums text-muted-foreground">
+            {formatDateTime(visit.scheduled_at, locale)}
+            {typeof visit.duration_minutes === 'number' && visit.duration_minutes > 0 && (
+              <> · {visit.duration_minutes} {t('minutesUnit')}</>
+            )}
+          </p>
         </div>
+        <ChevronRight
+          className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
       </Link>
     </li>
   );

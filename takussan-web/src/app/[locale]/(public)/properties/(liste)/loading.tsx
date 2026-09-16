@@ -1,4 +1,5 @@
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
@@ -31,8 +32,8 @@ import { Skeleton } from '@/components/ui/skeleton';
  * emplacements couvrent deux instants différents (la navigation, puis la suspension du sous-arbre
  * client) et se lisent ensemble ; c'est pourquoi le squelette est exporté plutôt que dupliqué.
  *
- * ⚠️ Sa géométrie recopie celle de `PropertiesDiscoveryPage` — spacer `h-[133px]` sous la navbar
- * fixe, rail de filtres de 280 px, grille 2/3/4/5 colonnes. Un squelette qui ne fait pas la
+ * ⚠️ Sa géométrie recopie celle de `PropertiesDiscoveryPage` — `NavbarSpacer` sous la navbar
+ * fixe, rail de filtres dès `lg`, grille 2/3/4/5 colonnes (`md`/`xl`/`2xl`). Un squelette qui ne fait pas la
  * hauteur du contenu déplace la page à l'arrivée des données, ce qui coûte plus cher que pas de
  * squelette du tout.
  */
@@ -40,8 +41,8 @@ export function PropertiesSkeleton() {
   return (
     <div className="min-h-screen bg-surface">
       <Navbar />
-      {/* Spacer : navbar fixed (~65px) + ligne catégories (~68px) */}
-      <div className="h-[133px]" />
+      {/* Cale à la hauteur réelle de la navbar fixe, palier par palier. */}
+      <NavbarSpacer />
 
       <div className="max-w-[1440px] mx-auto px-4 md:px-8 lg:px-16 py-8">
         <div className="flex gap-6 items-start">
@@ -60,7 +61,7 @@ export function PropertiesSkeleton() {
               <Skeleton className="h-6 w-40" />
               <Skeleton className="h-9 w-48 rounded-full" />
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-x-4 gap-y-12">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10">
               {Array.from({ length: 10 }).map((_, i) => (
                 <div key={i} className="space-y-3">
                   <Skeleton className="aspect-4/3 w-full rounded-xl" />

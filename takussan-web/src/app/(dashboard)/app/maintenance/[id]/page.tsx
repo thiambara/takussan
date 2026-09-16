@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 import { getMeAction } from '@/app/actions/auth';
 import { MaintenanceDetail } from '@/components/maintenance';
@@ -30,12 +31,16 @@ export default async function Page({ params }: PageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <PageHeader title={t('title', { id: numericId })} description={t('subtitle')} />
-        <Link href="/app/maintenance" className={buttonVariants({ variant: 'outline' })}>
-          {t('back')}
-        </Link>
-      </div>
+      <PageHeader
+        title={t('title', { id: numericId })}
+        description={t('subtitle')}
+        actions={
+          <Link href="/app/maintenance" className={buttonVariants({ variant: 'outline' })}>
+            <ArrowLeft aria-hidden="true" />
+            {t('back')}
+          </Link>
+        }
+      />
       <MaintenanceDetail id={numericId} />
     </div>
   );

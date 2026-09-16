@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import Image from 'next/image';
+import { PropertyPhoto } from '@/components/property/cards/PropertyPhoto';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Heart, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -22,9 +22,6 @@ import type { PropertyListItem } from '@/types/property';
 const POPOVER_MAX_ITEMS = 5;
 // Backend cap on /public/properties/by-ids — see PublicPropertyController.
 const BY_IDS_LOOKUP_CAP = 20;
-const FALLBACK_IMAGE =
-  'https://placehold.co/96x96/e7e5e4/a8a29e?text=…';
-
 export interface FavoritesPopoverProps {
   /** Compact variant for the mobile slot (square button, no label). */
   variant?: 'default' | 'compact';
@@ -85,7 +82,7 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
             : 'size-9 text-foreground hover:text-primary hover:bg-muted',
         )}
       >
-        <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-red-500 text-red-500')} />
+        <Heart className={cn(isCompact ? 'w-5 h-5' : 'w-[18px] h-[18px]', showBadge && 'fill-destructive text-destructive')} />
         {showBadge && (
           <span
             aria-hidden="true"
@@ -100,11 +97,11 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
         <div
           role="dialog"
           aria-label={t('popover.title')}
-          className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-popover rounded-2xl shadow-xl border border-stone-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+          className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-popover rounded-2xl shadow-xl border border-border z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
         >
-          <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between">
-            <p className="text-sm font-semibold text-stone-900">{t('popover.title')}</p>
-            <p className="text-xs text-stone-500">{t('popover.count', { count })}</p>
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">{t('popover.title')}</p>
+            <p className="text-xs text-muted-foreground">{t('popover.count', { count })}</p>
           </div>
 
           <PopoverBody
@@ -115,7 +112,7 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
           />
 
           {count > 0 && (
-            <div className="px-4 py-2.5 border-t border-stone-100">
+            <div className="px-4 py-2.5 border-t border-border">
               <LienLocalise
                 href={user ? '/app/favorites' : '/favorites'}
                 onClick={handleItemClick}
@@ -160,7 +157,7 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
     return (
       <div className="p-3 space-y-2">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-14 animate-pulse rounded-lg bg-stone-100" />
+          <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />
         ))}
       </div>
     );
@@ -171,9 +168,9 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
   if (isEmpty) {
     return (
       <div className="px-4 py-6 text-center">
-        <Heart className="mx-auto w-8 h-8 text-stone-300" />
-        <p className="mt-2 text-sm font-semibold text-stone-700">{t('empty')}</p>
-        <p className="mt-1 text-xs text-stone-500">{t('emptyHint')}</p>
+        <Heart className="mx-auto w-8 h-8 text-muted-foreground/40" />
+        <p className="mt-2 text-sm font-semibold text-foreground">{t('empty')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('emptyHint')}</p>
         <LienLocalise
           href="/properties"
           onClick={onItemClick}
@@ -188,26 +185,20 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
   return (
     <ul className="max-h-96 overflow-y-auto py-1">
       {(items ?? []).slice(0, POPOVER_MAX_ITEMS).map((property) => (
-        <li key={property.id} className="group flex items-center gap-3 px-3 py-2 hover:bg-stone-50 transition-colors">
+        <li key={property.id} className="group flex items-center gap-3 px-3 py-2 hover:bg-muted/60 transition-colors">
           <LienLocalise
             href={`/properties/${property.slug}`}
             onClick={onItemClick}
             className="flex flex-1 items-center gap-3 min-w-0"
           >
-            <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-stone-100">
-              <Image
-                src={property.main_photo_url ?? FALLBACK_IMAGE}
-                alt=""
-                fill
-                sizes="48px"
-                className="object-cover"
-              />
+            <div className="relative w-12 h-12 shrink-0 rounded-lg overflow-hidden bg-muted">
+              <PropertyPhoto src={property.main_photo_url} alt="" sizes="48px" compact />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-stone-900 truncate">
+              <p className="text-xs font-semibold text-foreground truncate">
                 {property.title}
               </p>
-              <p className="text-[11px] text-stone-500 truncate">
+              <p className="text-xs text-muted-foreground truncate">
                 {[property.location.quarter, property.location.city].filter(Boolean).join(', ')}
               </p>
               <p className="text-xs font-semibold text-primary mt-0.5">
@@ -219,7 +210,7 @@ function PopoverBody({ count, items, isLoading, onItemClick }: PopoverBodyProps)
             type="button"
             onClick={() => removeOne(property.id)}
             aria-label={t('removeAria')}
-            className="shrink-0 p-1.5 rounded-full text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+            className="shrink-0 p-1.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

@@ -307,13 +307,13 @@ export function MediaManager({
           void handleFiles(e.dataTransfer.files);
         }}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60 has-focus-visible:border-primary has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
           isDragOverDropzone && 'border-primary bg-muted',
         )}
       >
         <UploadCloud className="size-6 text-primary" aria-hidden="true" />
         <p className="text-sm font-medium text-foreground">{t('dropzone_title')}</p>
-        <p className="text-xs">
+        <p className="text-xs text-pretty">
           {t('dropzone_hint', { size: formatMo(maxSize), max: maxFiles })}
         </p>
         <input
@@ -340,20 +340,22 @@ export function MediaManager({
             <li
               key={`${p.name}-${p.size}`}
               className={cn(
-                'flex items-center gap-3 rounded-md bg-muted px-3 py-2 text-xs',
+                'flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-md bg-muted px-3 py-2 text-xs',
                 p.status === 'error' && 'bg-destructive/10 text-destructive',
               )}
             >
-              <span className="w-40 flex-none truncate text-foreground">{p.name}</span>
-              <span className="w-20 flex-none text-muted-foreground">
+              {/* Nom souple, taille à sa mesure, barre sur sa propre ligne sous `sm` : les
+                  largeurs fixes (160 + 80 px) dépassaient la carte à 360 px. */}
+              <span className="min-w-0 flex-1 truncate text-foreground">{p.name}</span>
+              <span className="shrink-0 text-muted-foreground tabular-nums">
                 {formatMo(p.size)}
               </span>
               {p.status === 'error' ? (
-                <span className="flex-1" role="alert">
+                <span className="basis-full sm:w-40 sm:basis-auto" role="alert">
                   {p.error}
                 </span>
               ) : (
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-border">
+                <div className="h-1.5 basis-full overflow-hidden rounded-full bg-border sm:w-40 sm:basis-auto">
                   <div
                     className={cn(
                       'h-full bg-primary transition-[width]',
@@ -463,6 +465,7 @@ function MediaTile({
       )}
     >
       {/* biome-ignore lint/a11y/useAltText: thumbnails have decorative role; grid announces count */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- vignette d'un média en cours de gestion (URL d'aperçu locale ou CDN non déclaré) : `next/image` exigerait un hôte connu. */}
       <img
         src={item.thumbnail}
         alt=""
@@ -475,19 +478,21 @@ function MediaTile({
         {index + 1}
       </span>
       {isCover ? (
-        <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-background">
+        <span className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
           <Star className="size-3" aria-hidden="true" />
           {t('cover')}
         </span>
       ) : null}
-      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-foreground/70 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+      {/* Révélées au survol pour une souris SEULEMENT : sur écran tactile il n'y a pas de
+          survol, et « Couverture » / « Supprimer » étaient introuvables. */}
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-foreground/70 to-transparent p-2 transition-opacity pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-within:opacity-100">
         {!isCover ? (
           <Button
             type="button"
             variant="secondary"
             size="sm"
             onClick={onMakeCover}
-            className="h-7 px-2 text-xs"
+            className="h-8 px-2.5 text-xs"
           >
             <Star className="size-3" aria-hidden="true" />
             <span className="ml-1">{t('cover')}</span>
@@ -501,7 +506,7 @@ function MediaTile({
           size="sm"
           onClick={onDelete}
           aria-label={t('delete_photo_aria')}
-          className="h-7 px-2 text-xs"
+          className="h-8 px-2.5 text-xs"
         >
           {isBusy ? (
             <Loader2 className="size-3 animate-spin" aria-hidden="true" />
@@ -579,13 +584,13 @@ export function MediaDropzone({
           validateAndEmit(e.dataTransfer.files);
         }}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60',
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 px-6 py-10 text-center text-sm text-muted-foreground transition-colors hover:border-primary/60 has-focus-visible:border-primary has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
           isDragOver && 'border-primary bg-muted',
         )}
       >
         <UploadCloud className="size-6 text-primary" aria-hidden="true" />
         <p className="text-sm font-medium text-foreground">{t('dropzone_title')}</p>
-        <p className="text-xs">
+        <p className="text-xs text-pretty">
           {t('dropzone_hint_short', { size: formatMo(maxSize), max: maxFiles })}
         </p>
         <input
@@ -617,7 +622,7 @@ export function MediaDropzone({
               <button
                 type="button"
                 onClick={() => onRemove(index)}
-                className="absolute right-1 top-1 rounded-full bg-background/70 p-1 text-foreground transition-opacity hover:bg-background"
+                className="absolute right-1 top-1 rounded-full bg-background/70 p-1.5 text-foreground transition-colors hover:bg-background focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
                 aria-label={t('remove_file_aria', { name: file.name })}
               >
                 <X className="size-3" aria-hidden="true" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowRight, MapPin, Pencil } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Circle, MapPin, Pencil } from 'lucide-react';
 
 import { StatCard } from '@/components/charts/StatCard';
 import { Button } from '@/components/ui/button';
@@ -8,12 +8,14 @@ import {
   isFieldRelevant,
   relevanceContextOf,
 } from '@/components/property-form/field-matrix';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import { disponibiliteDe } from '@/lib/property-availability';
 import type { PropertyDetail } from '@/types/property';
 import { useLocale, useTranslations } from 'next-intl';
 
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
+
+import { PropertyPriceHistoryList } from './PropertyPriceHistoryList';
 
 type TabKey = 'overview' | 'edit' | 'media' | 'history';
 
@@ -101,18 +103,23 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* `tabular-nums` est hérité par la valeur de chaque tuile ; `p-4` sous `sm` : trois
+          tuiles empilées à 360 px ne demandent pas le rembourrage du bureau. */}
+      <div className="grid gap-3 tabular-nums sm:grid-cols-3 sm:gap-4">
         <StatCard
+          className="p-4 sm:p-6"
           label={t('views')}
           value={property.views_count ?? 0}
           hint={t('viewsHint')}
         />
         <StatCard
+          className="p-4 sm:p-6"
           label={t('favorites')}
           value={property.favorites_count ?? 0}
           hint={t('favoritesHint')}
         />
         <StatCard
+          className="p-4 sm:p-6"
           label={t('rating')}
           value={
             property.average_rating != null
@@ -156,9 +163,9 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
               className="mt-0.5 size-4 shrink-0 text-muted-foreground"
               aria-hidden="true"
             />
-            <span>{fullAddress || t('addressMissing')}</span>
+            <span className="text-pretty">{fullAddress || t('addressMissing')}</span>
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-muted-foreground tabular-nums">
             {property.location?.latitude != null &&
             property.location?.longitude != null
               ? `${property.location.latitude.toFixed(5)}, ${property.location.longitude.toFixed(5)}`
@@ -181,21 +188,30 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
             {checklist.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-3 text-sm"
+                className="flex min-h-8 items-center justify-between gap-3 text-sm"
               >
+                {/* Une icône du système (lucide), plus les glyphes « ✓ » / « ○ » : la coche
+                    portait l'état, et le glyphe se rendait dans la fonte du texte. */}
                 <span
                   className={
-                    item.done ? 'text-muted-foreground line-through' : 'text-foreground'
+                    item.done
+                      ? 'flex min-w-0 items-start gap-2 text-muted-foreground line-through'
+                      : 'flex min-w-0 items-start gap-2 text-foreground'
                   }
                 >
-                  {item.done ? '✓ ' : '○ '}
-                  {t(item.labelKey)}
+                  {item.done ? (
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
+                  ) : (
+                    <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  )}
+                  <span className="text-pretty">{t(item.labelKey)}</span>
                 </span>
                 {!item.done ? (
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
+                    className="shrink-0"
                     onClick={() => onJumpTo(item.target)}
                   >
                     {t('complete')}
@@ -231,28 +247,7 @@ export function PropertyOverviewPanel({ property, onJumpTo }: Props) {
         {recentPrices.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">{t('noPriceHistory')}</p>
         ) : (
-          <ul className="mt-4 divide-y divide-muted text-sm">
-            {recentPrices.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-3"
-              >
-                <span className="text-muted-foreground">
-                  {entry.changed_at?.slice(0, 10) ?? t('unknownDate')}
-                </span>
-                <span className="font-medium text-foreground">
-                  {formatCurrency(entry.old_price, 'fr', { currency: entry.currency })}{' '}
-                  →{' '}
-                  {formatCurrency(entry.new_price, 'fr', { currency: entry.currency })}
-                </span>
-                {entry.reason ? (
-                  <span className="basis-full text-xs text-muted-foreground">
-                    {entry.reason}
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+          <PropertyPriceHistoryList entries={recentPrices} unknownDateLabel={t('unknownDate')} />
         )}
       </section>
     </div>

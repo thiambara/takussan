@@ -117,7 +117,9 @@ export default function SuperAdminKycPage() {
     <div className="space-y-6">
       <PageHeader title={t('title')} description={t('subtitle')} />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Deux tuiles côte à côte dès le mobile : empilées, elles poussaient la file sous la ligne
+          de flottaison à 390. */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <StatCard
           label={t('statPending')}
           value={countQuery.data ?? 0}
@@ -131,13 +133,13 @@ export default function SuperAdminKycPage() {
         />
       </div>
 
-      <div className="grid gap-2 md:grid-cols-3">
+      <div className="max-w-sm">
         <Select
           value={statut}
           onValueChange={(valeur) => changeStatut((valeur ?? STATUT_PAR_DEFAUT) as KycDossierStatus)}
           items={optionsStatut}
         >
-          <SelectTrigger aria-label={t('statusAria')} className="h-10 w-full">
+          <SelectTrigger aria-label={t('statusAria')} className="data-[size=default]:h-10 w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -166,8 +168,10 @@ export default function SuperAdminKycPage() {
           />
         }
       >
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-4">
+        {/* `grid-cols-1` sous `xl` : la piste implicite prenait la largeur minimale de la table, et
+            le panneau de décision sortait de l'écran à 390 (« Manquante » coupé). */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-4">
             <KycQueueTable
               dossiers={dossiers}
               selectedId={selected?.id ?? null}

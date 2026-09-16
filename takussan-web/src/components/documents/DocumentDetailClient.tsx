@@ -2,7 +2,15 @@
 
 import { ArrowLeft, FileText, Shield, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+
+import { ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { Locale } from '@/i18n/config';
+import { formatDate } from '@/lib/format';
+import type { DocumentType } from '@/types/document';
+
+import { DOCUMENT_TYPE_ORDER } from './constants';
 
 import { DocumentVersionsList } from '@/components/documents/DocumentVersionsList';
 import { useDocumentWithVersions } from '@/lib/queries/documents';
@@ -24,7 +32,11 @@ export function DocumentDetailClient({
   currentUserRoles,
 }: DocumentDetailClientProps) {
   const t = useTranslations('documents.detail');
-  const { data, isLoading, isError } = useDocumentWithVersions(documentId);
+  const tTypes = useTranslations('documents.types');
+  const tCommon = useTranslations('common');
+  const locale = useLocale() as Locale;
+  const documentQuery = useDocumentWithVersions(documentId);
+  const { data, isLoading, isError } = documentQuery;
   const document = data?.data;
 
   const isAdmin = currentUserRoles.includes('super_admin');
@@ -33,16 +45,22 @@ export function DocumentDetailClient({
 
   if (isLoading) {
     return (
-      <div className="py-16 text-center text-sm text-muted-foreground">
-        {t('loading')}
+      <div className="mx-auto max-w-2xl space-y-6" aria-busy="true">
+        <span className="sr-only">{t('loading')}</span>
+        <Skeleton className="h-5 w-28" />
+        <Skeleton className="h-56 rounded-xl" />
       </div>
     );
   }
 
   if (isError || !document) {
     return (
-      <div className="py-16 text-center text-sm text-destructive">
-        {t('not_found')}
+      <div className="mx-auto max-w-2xl">
+        <ErrorState
+          message={t('not_found')}
+          onRetry={() => void documentQuery.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       </div>
     );
   }
@@ -52,36 +70,46 @@ export function DocumentDetailClient({
       {/* Back link */}
       <Link
         href="/app/documents"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="-my-1 inline-flex min-h-8 items-center gap-1 rounded-md text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         {t('back')}
       </Link>
 
       {/* Document card */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         {/* Header */}
-        <div className="flex items-start gap-4 px-5 py-4">
+        <div className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-4 sm:px-5">
           <FileText className="mt-0.5 size-8 shrink-0 text-primary" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <h1 className="text-lg font-semibold text-foreground">{document.name}</h1>
+          <div className="min-w-0 flex-1 basis-48">
+            <h1 className="font-display text-xl font-semibold tracking-tight break-words text-balance text-foreground">
+              {document.name}
+            </h1>
             <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {document.type ? <span className="capitalize">{document.type.replace(/_/g, ' ')}</span> : null}
+              {document.type ? (
+                <span>
+                  {DOCUMENT_TYPE_ORDER.includes(document.type as DocumentType)
+                    ? tTypes(document.type)
+                    : document.type}
+                </span>
+              ) : null}
               {document.expiry_date ? (
                 <span>
                   {t('expiry', {
-                    date: new Date(document.expiry_date).toLocaleDateString('fr-FR'),
+                    date: formatDate(document.expiry_date, locale),
                   })}
                 </span>
               ) : null}
             </div>
             {document.description ? (
-              <p className="mt-2 text-sm text-muted-foreground">{document.description}</p>
+              <p className="mt-2 text-sm leading-relaxed text-pretty text-muted-foreground">
+                {document.description}
+              </p>
             ) : null}
           </div>
           {/* Verification badge */}
           <span
-            className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+            className={`flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${
               document.is_verified
                 ? 'bg-success/10 text-success'
                 : 'bg-border text-muted-foreground'
@@ -98,11 +126,11 @@ export function DocumentDetailClient({
 
         {/* Active version info */}
         {document.active_version ? (
-          <div className="border-t border-border bg-muted px-5 py-3">
+          <div className="border-t border-border bg-muted px-4 py-3 sm:px-5">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {t('active_version')}
             </p>
-            <p className="mt-1 text-sm font-medium text-foreground">
+            <p className="mt-1 text-sm font-medium break-words text-foreground">
               v{document.active_version.version_number} — {document.active_version.file_name}
             </p>
             {document.active_version.comment ? (

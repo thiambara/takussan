@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowUpRight, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpRight, Building2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import {
@@ -12,12 +12,13 @@ import {
   DataTable,
   FilterBar,
   PageHeader,
+  Pagination,
   StatusBadge,
   type DataTableColumn,
   type StatusTone,
 } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import {
   Select,
@@ -80,6 +81,7 @@ function seedStatusFilter(value: string | null | undefined): AgencyUpgradeReques
 
 export default function AgencyUpgradeRequestsListPage() {
   const t = useTranslations('superAdmin.pages.upgradeRequests');
+  const tFiltres = useTranslations('console.filterBar');
   const fmt = useFormatteurs();
   const searchParams = useSearchParams();
   // TCK-360 — la file « demandes d'upgrade » de l'accueil compte les `pending` ; le lien porte
@@ -128,13 +130,17 @@ export default function AgencyUpgradeRequestsListPage() {
       header: t('columns.agency'),
       cell: (row) => (
         <div className="flex items-center gap-2">
-          <Building2 className="size-4 text-muted-foreground" aria-hidden="true" />
-          <div>
-            <p className="font-medium text-foreground">
+          <Building2 className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          {/* Le nom mène à la fiche : sur mobile, « Examiner » vit au bout d'une table qui défile. */}
+          <div className="min-w-40">
+            <Link
+              href={`/super-admin/agency-upgrade-requests/${row.id}`}
+              className="rounded-sm font-medium text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {row.agency?.name
                 ?? row.company_legal_name
                 ?? t('agencyFallback', { id: String(row.agency_id) })}
-            </p>
+            </Link>
             <p className="text-xs text-muted-foreground">
               {t('agencyRef', { id: String(row.agency_id) })}
               {row.planned_agents_count
@@ -168,7 +174,7 @@ export default function AgencyUpgradeRequestsListPage() {
     {
       id: 'date',
       header: t('columns.date'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (row) => fmt.dateTime(row.submitted_at),
     },
     {
@@ -181,7 +187,7 @@ export default function AgencyUpgradeRequestsListPage() {
     {
       id: 'delay',
       header: t('columns.delay'),
-      className: 'text-muted-foreground',
+      className: 'whitespace-nowrap tabular-nums text-muted-foreground',
       cell: (row) => formatElapsed(elapsedDaysSince(row.submitted_at, now), t),
     },
     {
@@ -195,7 +201,7 @@ export default function AgencyUpgradeRequestsListPage() {
           href={`/super-admin/agency-upgrade-requests/${row.id}`}
         >
           {t('review')}
-          <ArrowUpRight className="ml-1 size-3.5" aria-hidden="true" />
+          <ArrowUpRight className="size-3.5" aria-hidden="true" />
         </Link>
       ),
     },
@@ -209,8 +215,10 @@ export default function AgencyUpgradeRequestsListPage() {
       />
 
       <FilterBar
-        controlsClassName="grid-cols-1 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3"
-        resultCount={t('totalRequests', { total: String(meta?.total ?? '—') })}
+        // Trois colonnes dès `lg` : `md` n'offre que 464 px dans la coque (TCK-505).
+        controlsClassName="md:grid-cols-1 lg:grid-cols-3"
+        // Le compte passe par le pluriel ICU de la barre : « 1 demandes » n'accordait pas.
+        resultCount={meta ? tFiltres('results', { count: meta.total }) : undefined}
       >
         <div className="space-y-1">
           <label htmlFor="status-filter" className="text-xs font-medium text-muted-foreground">
@@ -287,34 +295,9 @@ export default function AgencyUpgradeRequestsListPage() {
           />
         </DataState>
 
-        <div className="flex items-center justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-            >
-              <ChevronLeft className="mr-1 size-4" aria-hidden="true" />
-              {t('pagination.previous')}
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              {t('pagination.position', {
-                page: String(meta?.current_page ?? page),
-                lastPage: String(meta?.last_page ?? 1),
-              })}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!meta || page >= meta.last_page}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              {t('pagination.next')}
-              <ChevronRight className="ml-1 size-4" aria-hidden="true" />
-            </Button>
-        </div>
+        {meta ? (
+          <Pagination page={meta.current_page} lastPage={meta.last_page} onChange={setPage} />
+        ) : null}
       </section>
     </div>
   );

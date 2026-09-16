@@ -61,7 +61,19 @@ const PROVIDERS: Provider[] = [
   { id: 'facebook', name: 'Facebook', Icon: FacebookIcon },
 ];
 
-export function OAuthButtons() {
+interface OAuthButtonsProps {
+  /**
+   * Où poser le séparateur « ou continuer avec email », quand il y en a un.
+   *
+   * Le séparateur vit ICI et non plus chez l'appelant : lui seul sait si des boutons existent.
+   * Posé à côté, il restait affiché sur un environnement sans aucun fournisseur — une phrase
+   * « ou continuer avec email » qui ne répondait à rien.
+   */
+  readonly separator?: 'before' | 'after';
+  readonly separatorLabel?: string;
+}
+
+export function OAuthButtons({ separator, separatorLabel }: OAuthButtonsProps = {}) {
   const t = useTranslations('auth.oauth');
   const [pending, setPending] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState('');
@@ -105,37 +117,47 @@ export function OAuthButtons() {
     }
   }
 
+  // Rien à proposer, et rien à expliquer : le formulaire email suffit, sans séparateur orphelin.
+  const aucunFournisseur = availableProviders?.size === 0 && !error;
+  const separateur =
+    separator && !aucunFournisseur ? <OAuthSeparator label={separatorLabel} /> : null;
+
   return (
-    <div className="space-y-3">
-      {availableProviders === null ? (
-        <p className="text-center text-xs text-muted-foreground">{t('loading')}</p>
-      ) : null}
-      {PROVIDERS.filter(({ id }) => availableProviders?.has(id)).map(({ id, name, Icon }) => (
-        <Button
-          key={id}
-          type="button"
-          variant="outline"
-          onClick={() => handleClick(id)}
-          disabled={pending !== null}
-          className="w-full h-11 rounded-full gap-3 text-sm font-medium hover:shadow-sm transition-shadow"
-        >
-          {pending === id ? (
-            <Loader2 className="size-5 animate-spin" />
-          ) : (
-            <Icon />
-          )}
-          <span>{t('continueWith', { provider: name })}</span>
-        </Button>
-      ))}
-      {availableProviders?.size === 0 && !error ? (
-        <p className="text-center text-xs text-muted-foreground">{t('noneConfigured')}</p>
-      ) : null}
-      {error && (
-        <p className="text-xs text-destructive text-center" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
+    <>
+      {separator === 'before' ? separateur : null}
+      <div className="space-y-3">
+        {availableProviders === null ? (
+          // Une silhouette de la hauteur d'un bouton : le formulaire ne saute plus quand la liste
+          // arrive. Le texte reste là pour les lecteurs d'écran.
+          <div role="status" className="h-11 w-full rounded-full bg-muted motion-safe:animate-pulse">
+            <span className="sr-only">{t('loading')}</span>
+          </div>
+        ) : null}
+        {PROVIDERS.filter(({ id }) => availableProviders?.has(id)).map(({ id, name, Icon }) => (
+          <Button
+            key={id}
+            type="button"
+            variant="outline"
+            onClick={() => handleClick(id)}
+            disabled={pending !== null}
+            className="w-full h-11 rounded-full gap-3 text-sm font-medium"
+          >
+            {pending === id ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : (
+              <Icon />
+            )}
+            <span>{t('continueWith', { provider: name })}</span>
+          </Button>
+        ))}
+        {error && (
+          <p className="text-sm text-destructive text-center text-pretty" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+      {separator === 'after' ? separateur : null}
+    </>
   );
 }
 
@@ -150,7 +172,7 @@ export function OAuthSeparator({ label }: { readonly label?: string }) {
         <div className="w-full border-t border-border" />
       </div>
       <div className="relative flex justify-center text-xs">
-        <span className="bg-background px-3 text-muted-foreground uppercase tracking-wider">
+        <span className="bg-background px-3 font-medium text-muted-foreground uppercase tracking-[0.12em]">
           {texte}
         </span>
       </div>

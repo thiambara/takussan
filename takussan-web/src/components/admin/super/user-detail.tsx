@@ -7,7 +7,7 @@ import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import { Activity, Clock, FileArchive, KeyRound, RotateCcwKey, ShieldCheck, ShieldOff, Unlock, UserRound, XCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -32,11 +32,20 @@ import {
 
 import type { AdminUserDetail, AdminUserSession, AuditLogEntry } from '@/types/super-admin';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
-import { StatusBadge } from '@/components/console';
+import { StatusBadge, type StatusTone } from '@/components/console';
+import { ErrorState } from '@/components/feedback';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
+
+const STATUS_TONES: Record<string, StatusTone> = {
+  active: 'success',
+  inactive: 'neutral',
+  blocked: 'danger',
+  banned: 'danger',
+};
 
 export function UserDetailPage({ userId }: { userId: number }) {
   const t = useTranslations('superAdmin.userDetail');
+  const tCommon = useTranslations('common');
   const [detailQuery, sessionsQuery, activityQuery] = useQueries({
     queries: [
       {
@@ -65,11 +74,11 @@ export function UserDetailPage({ userId }: { userId: number }) {
 
   if (detailQuery.isError || !detailQuery.data) {
     return (
-      <Card>
-        <CardContent className="p-6 text-sm text-destructive">
-          {t('loadError')}
-        </CardContent>
-      </Card>
+      <ErrorState
+        message={t('loadError')}
+        onRetry={() => void detailQuery.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 
@@ -78,8 +87,9 @@ export function UserDetailPage({ userId }: { userId: number }) {
   return (
     <div className="space-y-6">
       <UserDetailHeader user={user} />
-      <div className="grid gap-4 xl:grid-cols-[1fr_420px]">
-        <div className="space-y-4">
+      {/* `grid-cols-1` explicite : sans piste sous `xl`, la colonne prenait la largeur de son contenu. */}
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 space-y-4">
           <UserProfilesSection user={user} />
           <UserActivityTimeline
             entries={activityQuery.data?.data ?? []}
@@ -99,26 +109,33 @@ export function UserDetailPage({ userId }: { userId: number }) {
 
 export function UserDetailHeader({ user }: { user: AdminUserDetail }) {
   const t = useTranslations('superAdmin.userDetail');
+  // Statut et rôle sont des jetons d'API : leurs libellés vivent déjà avec la liste des utilisateurs.
+  const tUsers = useTranslations('superAdmin.pages.users');
   return (
     <header className="rounded-xl bg-card p-5 ring-1 ring-border">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <div className="flex min-w-0 items-start gap-4">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <UserRound className="size-6" aria-hidden="true" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
               {t('crossTenant')}
             </p>
-            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-foreground">
+            <h1 className="mt-1 font-display text-2xl font-bold tracking-tight text-balance break-words text-foreground">
               {user.full_name || user.email}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
+            <p className="mt-1 truncate text-sm text-muted-foreground">{user.email}</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <Badge variant="secondary">{user.status ?? '—'}</Badge>
+              {user.status ? (
+                <StatusBadge
+                  tone={STATUS_TONES[user.status] ?? 'neutral'}
+                  label={tUsers.has(`statuses.${user.status}`) ? tUsers(`statuses.${user.status}`) : user.status}
+                />
+              ) : null}
               {user.roles.map((role) => (
                 <Badge key={`${role.name}-${role.team_id ?? 'global'}`} variant="outline">
-                  {role.name}{role.team_id ? ` ${t('roleTeam', { id: role.team_id })}` : ''}
+                  {tUsers.has(`roles.${role.name}`) ? tUsers(`roles.${role.name}`) : role.name}{role.team_id ? ` ${t('roleTeam', { id: role.team_id })}` : ''}
                 </Badge>
               ))}
               {user.mfa_enabled ? (
@@ -224,13 +241,13 @@ export function UserSupportActionsMenu({ userId }: { userId: number }) {
             size="sm"
             onClick={() => setPendingAction(item.action)}
           >
-            <Icon className="mr-2 size-4" aria-hidden="true" />
+            <Icon className="size-4" aria-hidden="true" />
             {item.label}
           </Button>
         );
       })}
       <Button type="button" variant="outline" size="sm" onClick={() => setDataExportOpen(true)}>
-        <FileArchive className="mr-2 size-4" aria-hidden="true" />
+        <FileArchive className="size-4" aria-hidden="true" />
         {t('gdprExport')}
       </Button>
       <DataExportReasonDialog
@@ -315,9 +332,11 @@ function DataExportReasonDialog({
 
 export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
   const t = useTranslations('superAdmin.userDetail.profiles');
+  const tUsers = useTranslations('superAdmin.pages.users');
+  // Le type porte la CLÉ de rôle (TCK-286) : « Agent » / « Owner » étaient écrits en anglais en dur.
   const profileRows = [
-    ...user.profiles.agent.map((profile) => ({ type: 'Agent', ...profile })),
-    ...user.profiles.owner.map((profile) => ({ type: 'Owner', ...profile, license_number: null })),
+    ...user.profiles.agent.map((profile) => ({ type: 'agent' as const, ...profile })),
+    ...user.profiles.owner.map((profile) => ({ type: 'owner' as const, ...profile, license_number: null })),
   ];
 
   return (
@@ -329,12 +348,17 @@ export function UserProfilesSection({ user }: { user: AdminUserDetail }) {
         {profileRows.length === 0 ? <p className="text-sm text-muted-foreground">{t('empty')}</p> : null}
         {profileRows.map((profile) => (
           <div key={`${profile.type}-${profile.id}`} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
-            <div>
-              <p className="font-medium text-foreground">{profile.type}</p>
+            <div className="min-w-0">
+              <p className="font-medium text-foreground">{tUsers(`roles.${profile.type}`)}</p>
               <p className="text-sm text-muted-foreground">{profile.agency_name ?? t('agencyFallback', { id: profile.agency_id })}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary">{profile.status ?? '—'}</Badge>
+              {profile.status ? (
+                <StatusBadge
+                  tone={STATUS_TONES[profile.status] ?? 'neutral'}
+                  label={tUsers.has(`statuses.${profile.status}`) ? tUsers(`statuses.${profile.status}`) : profile.status}
+                />
+              ) : null}
               <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/agencies/${profile.agency_id}`}>
                 {t('agencyLink')}
               </Link>
@@ -418,11 +442,14 @@ export function UserActivityTimeline({
   const fmt = useFormatteurs();
   return (
     <Card>
-      <CardHeader className="flex-row items-center justify-between">
+      {/* `CardHeader` est une grille : l'action se range à droite par `CardAction`, pas par `flex-row`. */}
+      <CardHeader>
         <CardTitle>{t('title')}</CardTitle>
-        <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/audit?filter[causer_id]=${userId}`}>
-          {t('viewInAudit')}
-        </Link>
+        <CardAction>
+          <Link className={buttonVariants({ variant: 'outline', size: 'sm' })} href={`/super-admin/audit?filter[causer_id]=${userId}`}>
+            {t('viewInAudit')}
+          </Link>
+        </CardAction>
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? <Skeleton className="h-24" /> : null}
@@ -434,7 +461,10 @@ export function UserActivityTimeline({
             </div>
             <div>
               <p className="font-medium text-foreground">{entry.event ?? entry.description ?? t('fallbackLabel')}</p>
-              <p className="text-sm text-muted-foreground">{entry.description}</p>
+              {/* Le journal répète souvent l'événement dans la description (« created / created ») : une seule fois suffit. */}
+              {entry.description && entry.description !== entry.event ? (
+                <p className="text-sm text-pretty text-muted-foreground">{entry.description}</p>
+              ) : null}
               <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="size-3" aria-hidden="true" />
                 {fmt.dateTime(entry.created_at)}

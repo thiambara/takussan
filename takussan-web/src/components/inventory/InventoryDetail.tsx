@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/feedback';
 import { MediaDropzone } from '@/components/media';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
 import { formatDateTime } from '@/lib/format';
 import type { Locale } from '@/i18n/config';
@@ -48,17 +49,17 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
 
   return (
     <div className="space-y-6">
-      <header className="rounded-2xl bg-card p-5">
+      <header className="rounded-xl bg-card p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-lg font-semibold text-foreground">
+          <div className="min-w-0">
+            <h2 className="font-display text-lg font-semibold tracking-tight text-balance text-foreground">
               {inventory.property?.title ?? tRoot('fallbackReference', { id: String(inventory.id) })}
-            </p>
+            </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {inventory.property?.slug ? (
                 <Link
                   href={`/properties/${inventory.property.slug}`}
-                  className="hover:underline"
+                  className="underline-offset-2 hover:text-foreground hover:underline"
                 >
                   {t('viewProperty')}
                 </Link>
@@ -68,19 +69,19 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
               {' · '}
               <Link
                 href={`/app/leases/${inventory.lease_id}`}
-                className="hover:underline"
+                className="underline-offset-2 hover:text-foreground hover:underline"
               >
                 {inventory.lease?.reference_number ?? tLease('fallbackReference', { id: String(inventory.lease_id) })}
               </Link>
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <InventoryTypeBadge type={inventory.type} />
             <InventoryStatusBadge status={inventory.status} />
           </div>
         </div>
 
-        <dl className="mt-5 grid grid-cols-2 gap-3 text-xs text-muted-foreground md:grid-cols-4">
+        <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-xs text-muted-foreground tabular-nums lg:grid-cols-4">
           <div>
             <dt className="font-semibold uppercase tracking-wide">{t('generalCondition')}</dt>
             <dd className="mt-0.5 text-foreground">
@@ -112,7 +113,7 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
         </dl>
 
         {inventory.notes ? (
-          <p className="mt-4 whitespace-pre-wrap rounded-md bg-muted p-3 text-sm text-foreground">
+          <p className="mt-4 max-w-prose whitespace-pre-wrap rounded-lg bg-muted p-3 text-sm leading-relaxed text-foreground">
             {inventory.notes}
           </p>
         ) : null}
@@ -123,9 +124,9 @@ function InventoryBody({ inventory }: { readonly inventory: Inventory }) {
       <SignatureSection inventory={inventory} />
 
       <section className="space-y-3">
-        <h3 className="text-sm font-semibold text-foreground">
+        <h2 className="font-display text-base font-semibold text-foreground tabular-nums">
           {t('rooms', { count: String(inventory.rooms.length) })}
-        </h3>
+        </h2>
         {inventory.rooms.length === 0 ? (
           <EmptyState
             icon={<DoorOpen className="size-8" aria-hidden="true" />}
@@ -166,8 +167,8 @@ function RoomCard({
   return (
     <article className="rounded-xl bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-foreground">{room.name}</p>
+        <div className="min-w-0">
+          <h3 className="font-display text-sm font-semibold text-foreground">{room.name}</h3>
           <p className="text-xs text-muted-foreground">
             {t('roomCondition', { condition: tConditions(room.condition) })}
           </p>
@@ -175,7 +176,7 @@ function RoomCard({
       </div>
 
       {room.notes ? (
-        <p className="mt-2 whitespace-pre-wrap text-sm text-foreground">{room.notes}</p>
+        <p className="mt-2 max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-foreground">{room.notes}</p>
       ) : null}
 
       {room.elements && room.elements.length > 0 ? (
@@ -186,7 +187,7 @@ function RoomCard({
               className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted px-3 py-2 text-sm"
             >
               <span className="font-medium text-foreground">{el.label}</span>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <InventoryElementStateBadge state={el.state} />
                 {el.notes ? (
                   <span className="text-xs text-muted-foreground">{el.notes}</span>
@@ -198,7 +199,7 @@ function RoomCard({
       ) : null}
 
       {canUpload ? (
-        <div className="mt-3 space-y-3 rounded-md border border-dashed border-border p-3">
+        <div className="mt-3 space-y-3 rounded-lg border border-dashed border-border p-3">
           <MediaDropzone
             onChange={(next) => setPhotos((prev) => [...prev, ...next])}
             files={photos}
@@ -224,7 +225,7 @@ function RoomCard({
               {upload.isPending ? t('sending') : t('sendPhotos')}
             </Button>
             {upload.isError ? (
-              <span className="text-xs text-destructive">
+              <span role="alert" className="text-xs text-destructive">
                 {t('uploadFailed')}
               </span>
             ) : null}
@@ -251,14 +252,14 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
 
   if (!canSubmit && !canDispute && !showPdfAction) {
     return (
-      <div className="rounded-2xl bg-card p-5 text-sm text-muted-foreground">
+      <div className="rounded-xl bg-card p-4 text-sm text-muted-foreground sm:p-5">
         {t('terminalState', { status: tStatus(inventory.status) })}
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 rounded-2xl bg-card p-5">
+    <div className="space-y-3 rounded-xl bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
         {canSubmit ? (
           <Button
@@ -287,21 +288,26 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
       </div>
 
       {showDispute ? (
-        <div className="space-y-2 rounded-md bg-muted p-3">
+        <div className="space-y-2 rounded-lg bg-muted p-3">
           <label
             htmlFor="dispute-reason"
             className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground"
           >
             {t('disputeReason')}
           </label>
-          <textarea
+          <Textarea
             id="dispute-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             rows={3}
-            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+            className="bg-card"
             placeholder={t('disputeReasonPlaceholder')}
           />
+          {dispute.isError ? (
+            <p role="alert" className="text-xs text-destructive">
+              {t('disputeFailed')}
+            </p>
+          ) : null}
           <Button
             type="button"
             variant="destructive"
@@ -313,7 +319,7 @@ function ActionBar({ inventory }: { readonly inventory: Inventory }) {
                 setReason('');
                 setShowDispute(false);
               } catch {
-                /* error surfaced via react-query state if needed */
+                /* surfaced via `dispute.isError` above */
               }
             }}
           >

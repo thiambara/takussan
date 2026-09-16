@@ -41,6 +41,7 @@ import type { Locale } from '@/i18n/config';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader, StatusBadge } from '@/components/console';
 import { ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 
 /**
  * TCK-264 — Cooptation surface for super-admins.
@@ -58,11 +59,12 @@ import { ErrorState } from '@/components/feedback';
  */
 export default function SuperAdminsCooptationPage() {
   const t = useTranslations('superAdmin.pages.superAdmins');
+  const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError, error } = useQuery<SuperAdminCooptationListing, ApiError>({
+  const { data, isLoading, isError, error, refetch } = useQuery<SuperAdminCooptationListing, ApiError>({
     queryKey: ['super-admins', 'cooptation'],
     queryFn: fetchSuperAdminListing,
   });
@@ -85,13 +87,19 @@ export default function SuperAdminsCooptationPage() {
       />
 
       {isLoading ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted-foreground">{t('loading')}</CardContent>
-        </Card>
+        <div className="space-y-2" aria-busy="true">
+          <span className="sr-only" role="status">{t('loading')}</span>
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+        </div>
       ) : null}
 
       {isError ? (
-        <ErrorState message={`${t('loadError')} ${messageErreur(error, t('unknownError'))}`} />
+        <ErrorState
+          message={`${t('loadError')} ${messageErreur(error, t('unknownError'))}`}
+          onRetry={() => void refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : null}
 
       {data ? (
@@ -117,11 +125,11 @@ export default function SuperAdminsCooptationPage() {
                           {(admin.last_name?.[0] ?? '').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-foreground">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-foreground">
                           {admin.first_name} {admin.last_name}
                         </p>
-                        <p className="text-xs text-muted-foreground">{admin.email}</p>
+                        <p className="truncate text-xs text-muted-foreground">{admin.email}</p>
                         <LastLogin lastLoginAt={admin.last_login_at} />
                       </div>
                       <TwoFactorBadge admin={admin} />
@@ -225,13 +233,13 @@ function InvitationRow({
     <Card data-testid={`invitation-${invitation.id}`}>
       <CardContent className="flex flex-wrap items-center gap-3 p-4">
         {invitation.is_expired ? (
-          <MailWarning className="size-5 text-destructive" aria-hidden="true" />
+          <MailWarning className="size-5 shrink-0 text-destructive" aria-hidden="true" />
         ) : (
-          <Mail className="size-5 text-muted-foreground" aria-hidden="true" />
+          <Mail className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
         )}
 
-        <div className="min-w-48 flex-1">
-          <p className="text-sm font-semibold text-foreground">{invitation.email}</p>
+        <div className="min-w-0 flex-1 basis-48">
+          <p className="truncate text-sm font-semibold text-foreground">{invitation.email}</p>
           <p className="text-xs text-muted-foreground">
             {t('invitedOn', {
               date: invitation.created_at ? formatDate(invitation.created_at, locale) : '—',
@@ -260,14 +268,13 @@ function InvitationRow({
         )}
 
         <div
-          className="flex items-center gap-1"
+          className="flex flex-wrap items-center gap-1"
           role="group"
           aria-label={t('invitationActions', { email: invitation.email })}
         >
           <Button
             type="button"
             variant="ghost"
-            size="sm"
             disabled={busy}
             onClick={() => resend.mutate()}
           >
@@ -281,7 +288,6 @@ function InvitationRow({
           <Button
             type="button"
             variant="ghost"
-            size="sm"
             disabled={busy}
             onClick={() => setConfirmOpen(true)}
           >

@@ -121,7 +121,7 @@ export function DatePicker({
               className={cn(
                 // TCK-468 — 44 px sous une portée `data-field-density="comfortable"`.
                 FIELD_DENSITY_HEIGHT,
-                "flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[invalid=true]:border-destructive data-[invalid=true]:ring-3 data-[invalid=true]:ring-destructive/20 dark:bg-input/30 dark:hover:bg-input/50",
+                "flex h-8 w-full items-center justify-between gap-2 rounded-lg plancher-tactile-10 border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[invalid=true]:border-destructive data-[invalid=true]:ring-3 data-[invalid=true]:ring-destructive/20 dark:bg-input/30 dark:hover:bg-input/50",
                 !selected && "text-muted-foreground",
                 className,
                 buttonClassName,

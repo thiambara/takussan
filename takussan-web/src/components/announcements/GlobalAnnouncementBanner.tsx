@@ -9,11 +9,13 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { Announcement, AnnouncementsResponse } from '@/types/super-admin';
 
+// Pas `StatusBadge` : le bandeau est un message plein qui remplit sa surface, et `StatusBadge` ne
+// rend que des fonds teintés. Table déclarée dans `scripts/check-status-badge-unique.mjs`.
 const SEVERITY_CLASS: Record<Announcement['severity'], string> = {
-  info: 'border-stone-300 bg-stone-900 text-stone-50',
-  success: 'border-emerald-300 bg-emerald-900 text-emerald-50',
-  warning: 'border-amber-300 bg-amber-800 text-amber-50',
-  critical: 'border-red-300 bg-red-900 text-red-50',
+  info: 'border-background/15 bg-foreground text-background',
+  success: 'border-background/15 bg-success text-success-foreground',
+  warning: 'border-background/15 bg-warning text-warning-foreground',
+  critical: 'border-background/15 bg-destructive text-background',
 };
 
 const ICONS = {
@@ -62,7 +64,7 @@ export function GlobalAnnouncementBanner() {
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 shrink-0 text-current hover:bg-white/10"
+            className="size-8 shrink-0 text-current hover:bg-background/15 hover:text-current"
             aria-label={t('dismissAria')}
             onClick={() => mutation.mutate(announcement.id)}
             disabled={mutation.isPending}

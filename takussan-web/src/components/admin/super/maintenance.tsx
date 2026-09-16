@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, RotateCcw, Save } from 'lucide-react';
@@ -66,33 +66,36 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
   const invalid = startsAt === '' || endsAt === '' || fr.trim() === '' || new Date(endsAt) <= new Date(startsAt);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
       <section className="rounded-xl bg-card p-5 ring-1 ring-border">
         <h2 className="font-display text-xl font-semibold text-foreground">{t('currentState')}</h2>
         <div className="mt-4 rounded-lg bg-muted p-4 text-sm text-muted-foreground ring-1 ring-border">
           {status.window ? (
             <div className="space-y-2">
-              <p className="font-semibold">{status.active ? t('active') : t('scheduled')}</p>
-              <p>{status.window.messages.fr}</p>
-              <p>{t('windowRange', {
+              <p className="font-semibold text-foreground">{status.active ? t('active') : t('scheduled')}</p>
+              <p className="text-pretty">{status.window.messages.fr}</p>
+              <p className="tabular-nums">{t('windowRange', {
                 start: fmt.dateTime(status.window.starts_at),
                 end: fmt.dateTime(status.window.ends_at),
               })}</p>
-              <p>{t('modeValue', { mode: status.window.mode })}</p>
+              <p>{t('modeValue', { mode: t.has(`modes.${status.window.mode}`) ? t(`modes.${status.window.mode}`) : status.window.mode })}</p>
             </div>
           ) : (
             <p>{t('noWindow')}</p>
           )}
         </div>
-        <Button type="button" variant="destructive" className="mt-4" onClick={() => cancel.mutate()} disabled={!status.window || cancel.isPending}>
-          <RotateCcw className="size-4" aria-hidden="true" />
-          {t('cancelWindow')}
-        </Button>
+        {/* Sans fenêtre, il n'y a rien à annuler : un bouton destructif désactivé n'était que du bruit rouge. */}
+        {status.window ? (
+          <Button type="button" variant="destructive" className="mt-4" onClick={() => cancel.mutate()} disabled={cancel.isPending}>
+            <RotateCcw className="size-4" aria-hidden="true" />
+            {t('cancelWindow')}
+          </Button>
+        ) : null}
       </section>
 
       <section className="rounded-xl bg-card p-5 ring-1 ring-border">
         <h2 className="font-display text-xl font-semibold text-foreground">{t('scheduleWindow')}</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-start">{t('start')}</Label>
             <DateTimePicker id="maintenance-start" value={startsAt} onValueChange={setStartsAt} />
@@ -114,7 +117,7 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
           options={SEVERITIES.map((value) => ({ value, label: t(`severities.${value}`) }))}
           onChange={setSeverity}
         />
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3">
           <label className="space-y-1.5">
             <Label htmlFor="maintenance-fr">{t('messageFr')}</Label>
             <Textarea id="maintenance-fr" value={fr} onChange={(event) => setFr(event.target.value)} />
@@ -134,7 +137,7 @@ export function MaintenanceScheduler({ status }: { status: MaintenanceStatus }) 
         >
           {fr}
         </WarningBanner>
-        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+        {error ? <p role="alert" className="mt-3 text-sm text-destructive">{error}</p> : null}
         <Button type="button" className="mt-4" onClick={() => schedule.mutate()} disabled={invalid || schedule.isPending}>
           <Save className="size-4" aria-hidden="true" />
           {t('schedule')}
@@ -155,16 +158,20 @@ function Segmented<T extends string>({
   options: Array<{ value: T; label: string }>;
   onChange: (value: T) => void;
 }) {
+  const labelId = useId();
   return (
     <div className="mt-4">
-      <p className="mb-2 text-sm font-medium text-muted-foreground">{label}</p>
-      <div className="flex flex-wrap gap-2">
+      <p id={labelId} className="mb-2 text-sm font-medium text-muted-foreground">{label}</p>
+      <div role="group" aria-labelledby={labelId} className="flex flex-wrap gap-2">
         {options.map((option) => (
           <Button
             key={option.value}
             type="button"
-            variant={value === option.value ? 'default' : 'outline'}
-            className={cn('min-w-28')}
+            // Un choix n'est pas un appel à l'action : le terracotta plein reste au seul
+            // « Programmer », la sélection se lit par l'aplat neutre, l'anneau et `aria-pressed`.
+            variant={value === option.value ? 'secondary' : 'outline'}
+            aria-pressed={value === option.value}
+            className={cn('min-w-28', value === option.value && 'ring-1 ring-foreground/20')}
             onClick={() => onChange(option.value)}
           >
             {option.label}

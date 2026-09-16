@@ -187,10 +187,10 @@ export function SearchPreferencesForm({
                 <label
                   key={type}
                   className={
-                    'flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm ' +
+                    'flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring ' +
                     (checked
                       ? 'border-primary bg-primary/10 text-foreground'
-                      : 'border-border bg-card text-muted-foreground')
+                      : 'border-border bg-card text-muted-foreground hover:bg-muted')
                   }
                 >
                   <input
@@ -271,7 +271,7 @@ export function SearchPreferencesForm({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
             <input
               type="checkbox"
               role="switch"
@@ -328,7 +328,7 @@ export function SearchPreferencesForm({
       <div className="flex items-center justify-between gap-3">
         <Link
           href="/app/saved-searches"
-          className="text-xs font-semibold text-muted-foreground underline-offset-2 hover:underline"
+          className="inline-flex min-h-8 items-center rounded-sm text-xs font-semibold text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {t('manageSavedSearches')}
         </Link>

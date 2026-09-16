@@ -64,8 +64,8 @@ export function DocumentsFilters() {
   );
 
   return (
-    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px_180px]">
-      <div>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
+      <div className="sm:col-span-2 lg:col-span-1">
         <label htmlFor="documents-search" className="sr-only">
           {t('search_label')}
         </label>

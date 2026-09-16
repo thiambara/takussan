@@ -1,17 +1,14 @@
 'use client';
 
-import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { formatPrice } from '@/lib/utils';
 import { FavoriteButton } from '@/components/favorites/FavoriteButton';
 import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
-import {
-  FALLBACK_IMAGE,
-  RENT_PERIOD_SHORT,
-  type PropertyCardCommonProps,
-} from './types';
+import { CardMeta } from './CardMeta';
+import { PropertyPhoto } from './PropertyPhoto';
+import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
 
 /**
@@ -24,7 +21,7 @@ export function PropertyCardCompact({
   priority = false,
 }: PropertyCardCommonProps) {
   const t = useTranslations('property.cards');
-  const photo = property.main_photo_url ?? FALLBACK_IMAGE;
+  const tPeriods = useTranslations('property.rentPeriodsShort');
   const quarter = property.location.quarter || property.location.city || null;
 
   return (
@@ -34,13 +31,12 @@ export function PropertyCardCompact({
     >
       <LienLocalise href={`/properties/${property.slug}`} className="block">
         <div className="relative aspect-square rounded-xl overflow-hidden bg-muted">
-          <Image
-            src={photo}
+          <PropertyPhoto
+            src={property.main_photo_url}
             alt={property.title}
-            fill
             sizes="210px"
             priority={priority}
-            className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
+            className="transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.05]"
           />
 
           {/* Pastilles et cœur dans un seul flux (cf. PropertyCard). */}
@@ -57,8 +53,8 @@ export function PropertyCardCompact({
           <p className="text-[14px] font-bold text-primary tabular-nums truncate">
             {formatPrice(property.price, property.currency ?? 'XOF')}
             {property.contract_type === 'rent' && property.rent_period && (
-              <span className="ml-1 text-[10px] font-semibold text-muted-foreground">
-                /{RENT_PERIOD_SHORT[property.rent_period]}
+              <span className="ml-1 text-xs font-semibold text-muted-foreground">
+                /{tPeriods(property.rent_period)}
               </span>
             )}
           </p>
@@ -66,19 +62,17 @@ export function PropertyCardCompact({
             {property.title}
           </h3>
           {quarter && (
-            <p className="text-[11px] text-muted-foreground truncate pt-0.5">
+            <p className="text-xs text-muted-foreground truncate pt-0.5">
               {quarter}
             </p>
           )}
-          <div className="flex items-center gap-1.5 pt-0.5 text-[10px] font-medium text-muted-foreground">
-            {property.bedrooms != null && property.bedrooms > 0 && (
-              <>
-                <span>{t('bedroomsShort', { count: property.bedrooms })}</span>
-                <span className="text-border">•</span>
-              </>
-            )}
-            {property.area != null && <span>{property.area} m²</span>}
-          </div>
+          <CardMeta
+            className="pt-0.5 text-xs font-medium text-muted-foreground"
+            items={[
+              property.bedrooms != null && property.bedrooms > 0 && t('bedroomsShort', { count: property.bedrooms }),
+              property.area != null && `${property.area} m²`,
+            ]}
+          />
         </div>
       </LienLocalise>
     </article>

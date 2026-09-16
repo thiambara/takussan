@@ -34,7 +34,7 @@ const PRIORITIES: readonly PriorityOption[] = [
     value: 'normal',
     icon: Circle,
     colorClass: 'text-muted-foreground dark:text-muted-foreground',
-    activeClass: 'border-border bg-muted/50 dark:bg-foreground ring-1 ring-border',
+    activeClass: 'border-foreground/40 bg-muted ring-1 ring-foreground/20',
   },
   {
     value: 'low',
@@ -53,7 +53,7 @@ export function MaintenancePrioritySelector({
   const t = useTranslations('maintenance.priority');
 
   return (
-    <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-4', className)}>
+    <div className={cn('grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-2 lg:grid-cols-4', className)}>
       {PRIORITIES.map((priority) => {
         const Icon = priority.icon;
         const isActive = value === priority.value;
@@ -62,8 +62,10 @@ export function MaintenancePrioritySelector({
           <label
             key={priority.value}
             className={cn(
-              'relative flex cursor-pointer flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground',
-              isActive ? priority.activeClass : 'border-border',
+              // `hover:bg-accent` peignait la carte en sauge PLEIN au survol — l'accent est réservé
+              // aux mises en avant (TCK-450) et les icônes colorées s'y noyaient.
+              'relative flex min-h-11 cursor-pointer flex-col items-center justify-between rounded-lg border-2 bg-popover p-4 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+              isActive ? priority.activeClass : 'border-border hover:bg-muted',
               disabled && 'cursor-not-allowed opacity-50'
             )}
           >
@@ -76,8 +78,10 @@ export function MaintenancePrioritySelector({
               onChange={() => !disabled && onChange(priority.value)}
               disabled={disabled}
             />
-            <Icon className={cn('mb-3 h-6 w-6', priority.colorClass)} />
-            <span className="text-sm font-medium">{t(priority.value)}</span>
+            <Icon className={cn('mb-3 size-6', priority.colorClass)} aria-hidden="true" />
+            <span className={cn('text-sm', isActive ? 'font-semibold' : 'font-medium')}>
+              {t(priority.value)}
+            </span>
           </label>
         );
       })}

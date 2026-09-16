@@ -8,10 +8,13 @@ import type { AdminFeatureFlagsResponse } from '@/types/super-admin';
 import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { PageHeader } from '@/components/console';
+import { ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function SuperAdminFeatureFlagsPage() {
   const t = useTranslations('superAdmin.pages.featureFlags');
   const tShared = useTranslations('superAdmin.pages.shared');
+  const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
   const query = useQuery<AdminFeatureFlagsResponse, ApiError>({
     queryKey: ['super-admin', 'feature-flags'],
@@ -27,11 +30,13 @@ export default function SuperAdminFeatureFlagsPage() {
       />
 
       {query.isLoading ? (
-        <div className="h-64 animate-pulse rounded-xl bg-muted" />
+        <Skeleton className="h-64 rounded-xl" />
       ) : query.isError ? (
-        <div className="rounded-xl bg-destructive/10 p-4 text-sm text-destructive ring-1 ring-destructive/20">
-          {tShared('loadError')} {messageErreur(query.error)}
-        </div>
+        <ErrorState
+          message={`${tShared('loadError')} ${messageErreur(query.error)}`}
+          onRetry={() => void query.refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : (
         <FeatureFlagTable flags={query.data?.data ?? []} />
       )}

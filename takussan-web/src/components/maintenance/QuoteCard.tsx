@@ -17,21 +17,21 @@ export function QuoteCard({ request }: { readonly request: MaintenanceRequest })
 
   if (request.status === 'quote_requested') {
     return (
-      <div className="rounded-2xl bg-card p-5 border border-primary/20 bg-primary/5">
-        <h3 className="text-sm font-semibold text-primary">{t('requested_title')}</h3>
+      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+        <h2 className="font-display text-base font-semibold text-primary">{t('requested_title')}</h2>
         <p className="mt-1 text-xs text-muted-foreground">{t('requested_body')}</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl bg-card p-5">
-      <h3 className="text-sm font-semibold text-foreground">{t('title')}</h3>
+    <div className="rounded-xl bg-card p-4 sm:p-5">
+      <h2 className="font-display text-base font-semibold text-foreground">{t('title')}</h2>
       
-      <dl className="mt-4 grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
+      <dl className="mt-4 grid grid-cols-2 gap-4 text-sm tabular-nums lg:grid-cols-4">
         <div>
           <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t('amount')}</dt>
-          <dd className="mt-1 font-medium text-foreground">
+          <dd className="mt-1 font-medium whitespace-nowrap text-foreground">
             {request.quote_amount !== null
               ? formatCurrency(request.quote_amount, locale, {
                   currency: request.quote_currency ?? 'XOF',

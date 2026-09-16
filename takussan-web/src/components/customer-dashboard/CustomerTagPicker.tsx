@@ -8,24 +8,27 @@ import {
   attachCustomerTagsAction,
   detachCustomerTagAction,
 } from '@/app/actions/dashboard-customers';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import type { CustomerListItem } from '@/types/customer';
 import type { Tag } from '@/types/tag';
 
 /**
  * Deterministic color from tag name hash — cycles through a CRM-friendly palette.
  * The backend stores `color` only when manually overridden; for new tags we derive
  * it client-side so the same name always renders the same hue.
+ *
+ * Aplat à `/10` et non `/15` : c'est le plafond mesuré d'une pastille sémantique dont l'encre est
+ * du texte (`docs/design-guidelines.md`, « L'aplat d'une pastille sémantique »).
  */
 const PALETTE = [
-  { bg: 'bg-info/15', text: 'text-info', border: 'border-info/30' },
-  { bg: 'bg-info/15', text: 'text-info', border: 'border-info/30' },
-  { bg: 'bg-success/15', text: 'text-success', border: 'border-success/30' },
-  { bg: 'bg-warning/15', text: 'text-warning', border: 'border-warning/30' },
+  { bg: 'bg-info/10', text: 'text-info', border: 'border-info/30' },
+  { bg: 'bg-info/10', text: 'text-info', border: 'border-info/30' },
+  { bg: 'bg-success/10', text: 'text-success', border: 'border-success/30' },
+  { bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/30' },
   { bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/30' },
-  { bg: 'bg-info/15', text: 'text-info', border: 'border-info/30' },
-  { bg: 'bg-success/15', text: 'text-success', border: 'border-success/30' },
-  { bg: 'bg-warning/15', text: 'text-warning', border: 'border-warning/30' },
+  { bg: 'bg-info/10', text: 'text-info', border: 'border-info/30' },
+  { bg: 'bg-success/10', text: 'text-success', border: 'border-success/30' },
+  { bg: 'bg-warning/10', text: 'text-warning', border: 'border-warning/30' },
 ];
 
 function tagColor(name: string) {
@@ -128,30 +131,39 @@ export function CustomerTagPicker({
         {tags.map((tag) => {
           const c = tagColor(tag.name);
           return (
+            // Deux commandes SŒURS et non imbriquées : un `role="button"` qui contient un
+            // `<button>` n'est ni atteignable au clavier ni annonçable proprement.
             <span
               key={tag.id}
               className={cn(
-                'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium',
+                'inline-flex items-center gap-0.5 rounded-full border py-0.5 pl-2.5 pr-1 text-xs font-medium',
                 c.bg,
                 c.text,
                 c.border,
-                onTagClick && 'cursor-pointer hover:opacity-80',
               )}
-              onClick={onTagClick ? () => onTagClick(tag.name) : undefined}
-              role={onTagClick ? 'button' : undefined}
             >
-              {tag.name}
+              {onTagClick ? (
+                <button
+                  type="button"
+                  aria-label={t('filterAria', { tag: tag.name })}
+                  className="rounded-sm underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => onTagClick(tag.name)}
+                >
+                  {tag.name}
+                </button>
+              ) : (
+                tag.name
+              )}
+              {/* Cible visible de 20 px, étendue à 24 × 36 px par le pseudo-élément, sans empiéter sur le
+                  nom (écart de 2 px) ni sur la pastille voisine (écart de 6 px). */}
               <button
                 type="button"
                 aria-label={t('removeAria', { tag: tag.name })}
-                className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  detach(tag.id);
-                }}
+                className="relative grid size-5 place-items-center rounded-full transition-colors hover:bg-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 after:absolute after:-inset-x-0.5 after:-inset-y-2"
+                onClick={() => detach(tag.id)}
                 disabled={isPending}
               >
-                <X className="size-2.5" />
+                <X className="size-3" aria-hidden="true" />
               </button>
             </span>
           );
@@ -159,8 +171,9 @@ export function CustomerTagPicker({
       </div>
 
       <div className="relative">
-        <input
+        <Input
           type="text"
+          aria-label={t('inputLabel')}
           placeholder={tags.length >= 10 ? t('maxReachedPlaceholder') : t('addPlaceholder')}
           disabled={tags.length >= 10 || isPending}
           value={input}
@@ -170,7 +183,6 @@ export function CustomerTagPicker({
           }}
           onKeyDown={onKeyDown}
           onFocus={() => setShowSuggestions(true)}
-          className="w-full rounded-lg border border-border bg-card px-3 py-1.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:opacity-50"
         />
 
         {showSuggestions && filteredSuggestions.length > 0 && (
@@ -181,7 +193,7 @@ export function CustomerTagPicker({
                 <li key={s.id}>
                   <button
                     type="button"
-                    className="w-full px-3 py-1.5 text-left text-sm hover:bg-card"
+                    className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
                     onMouseDown={(e) => {
                       e.preventDefault();
                       attach(s.name);
@@ -206,7 +218,11 @@ export function CustomerTagPicker({
         )}
       </div>
 
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -220,25 +236,27 @@ export function CustomerTagChips({
   onTagClick?: (name: string) => void;
 }) {
   if (!tags || tags.length === 0) return null;
+  // Cliquable = un vrai `<button>` (clavier, annonce), sinon un simple libellé.
+  const Chip = onTagClick ? 'button' : 'span';
   return (
     <div className="flex flex-wrap gap-1">
       {tags.map((tag) => {
         const c = tagColor(tag.name);
         return (
-          <span
+          <Chip
             key={tag.id}
+            {...(onTagClick ? { type: 'button' as const, onClick: () => onTagClick(tag.name) } : {})}
             className={cn(
               'inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium',
               c.bg,
               c.text,
               c.border,
-              onTagClick && 'cursor-pointer hover:opacity-80',
+              onTagClick &&
+                'cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             )}
-            onClick={onTagClick ? () => onTagClick(tag.name) : undefined}
-            role={onTagClick ? 'button' : undefined}
           >
             {tag.name}
-          </span>
+          </Chip>
         );
       })}
     </div>

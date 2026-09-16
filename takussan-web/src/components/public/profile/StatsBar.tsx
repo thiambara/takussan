@@ -19,7 +19,7 @@ export function StatsBar({ items }: StatsBarProps) {
           <dd className="font-display text-3xl font-semibold text-primary tabular-nums">
             {stat.value}
           </dd>
-          <dt className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <dt className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
             {stat.label}
           </dt>
         </div>

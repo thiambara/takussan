@@ -159,7 +159,7 @@ export function SaveSearchButton({
         type="button"
         onClick={handleOpen}
         disabled={activeCount === 0}
-        className={`inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
+        className={`inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       >
         <BookmarkPlus className="w-4 h-4" />
         <span>{t('trigger')}</span>
@@ -174,10 +174,10 @@ export function SaveSearchButton({
 
           {savedId ? (
             <div className="flex flex-col items-center text-center py-4">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
-                <Check className="w-5 h-5 text-emerald-600" />
+              <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center mb-3">
+                <Check className="w-5 h-5 text-success" />
               </div>
-              <p className="text-sm text-stone-700 mb-4">{t('savedFull')}</p>
+              <p className="text-sm text-foreground mb-4">{t('savedFull')}</p>
               <Button
                 variant="outline"
                 onClick={() => {
@@ -201,7 +201,7 @@ export function SaveSearchButton({
                   required
                 />
                 {nameError && (
-                  <p className="text-xs text-red-600">{nameError}</p>
+                  <p className="text-xs text-destructive">{nameError}</p>
                 )}
               </div>
 

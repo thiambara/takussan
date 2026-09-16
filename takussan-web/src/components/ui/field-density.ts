@@ -32,9 +32,11 @@
  * utilitaires nus. C'est vérifié, pas supposé.
  *
  * ⚠ Corollaire : une hauteur de base posée sous une variante plus spécifique n'est PAS battue par
- * la forme simple. `SelectTrigger` écrit `data-[size=default]:h-8` (0,2,0) — d'où
+ * la forme simple. `SelectTrigger` écrivait `data-[size=default]:h-8` (0,2,0) — d'où
  * `FIELD_DENSITY_HEIGHT_SIZED`, qui empile les deux variantes pour retrouver (0,2,0) plus tard
  * dans la feuille. Ajouter un champ dont la hauteur de base est conditionnée demande le même soin.
+ * (Depuis la revue du 2026-09-16, sa base est nue — `h-8` — pour que la hauteur d'un appelant
+ * gagne ; la forme empilée reste, et bat aussi un `data-[size=default]:h-*` d'appelant.)
  */
 
 /** Le seul régime déclaré à ce jour. Le régime par défaut est l'ABSENCE d'attribut. */

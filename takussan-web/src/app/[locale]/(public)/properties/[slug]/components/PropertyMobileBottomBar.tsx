@@ -44,8 +44,9 @@ export function PropertyMobileBottomBar({
   onRequestBooking,
 }: PropertyMobileBottomBarProps) {
   const t = useTranslations('property.detail');
+  const tPeriods = useTranslations('property.rentPeriodsShort');
   const isRent = property.contract_type === 'rent';
-  const periodLabel = property.rent_period_label ?? (isRent ? 'mois' : null);
+  const periodLabel = isRent ? tPeriods(property.rent_period ?? 'monthly') : null;
   const primaryCta = getPrimaryCtaForProperty(property);
 
   // Register with the FloatingDock orchestrator (TCK-275) so the chat FAB and
@@ -77,20 +78,20 @@ export function PropertyMobileBottomBar({
   return (
     <div
       style={{ bottom, paddingBottom }}
-      className="lg:hidden fixed inset-x-0 z-40 border-t border-stone-200 bg-white/95 backdrop-blur px-4 py-3 flex items-center gap-3"
+      className="lg:hidden fixed inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur px-4 py-3 flex items-center gap-3"
     >
       <div className="min-w-0">
-        <p className="text-lg font-bold text-stone-900 truncate">
+        <p className="text-lg font-bold text-foreground truncate tabular-nums">
           {formatPrice(property.price, property.currency)}
-          {periodLabel && <span className="text-xs font-normal text-stone-500">/{periodLabel}</span>}
+          {periodLabel && <span className="text-xs font-normal text-muted-foreground">/{periodLabel}</span>}
         </p>
       </div>
       <div className="ml-auto flex gap-2">
-        <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={onRequestVisit}>
+        <Button type="button" variant="outline" size="sm" className="h-10 gap-1.5 px-3.5" onClick={onRequestVisit}>
           <Calendar className="size-4" aria-hidden />
           {t('bottomBar.visit')}
         </Button>
-        <Button type="button" size="sm" className="gap-1.5" onClick={onRequestBooking}>
+        <Button type="button" size="sm" className="h-10 gap-1.5 px-3.5" onClick={onRequestBooking}>
           <KeyRound className="size-4" aria-hidden />
           {t(SHORT_LABEL_KEY[primaryCta.action])}
         </Button>

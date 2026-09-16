@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, ExternalLink, FileText, Send, ShieldCheck, Upload, XCircle } from 'lucide-react';
+import { CheckCircle2, ExternalLink, FileText, Paperclip, Send, ShieldCheck, Upload, XCircle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { postKycReview } from '@/lib/queries/super-admin';
@@ -11,7 +11,6 @@ import { StatusBadge as ConsoleStatusBadge, type StatusTone } from '@/components
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/toast';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
@@ -44,7 +43,9 @@ export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
           {t('timeline.title')}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      {/* `@container` : ce suivi vit en pleine largeur dans `/admin/agency/kyc` et dans un panneau
+          de ~550 px sur `/super-admin/agencies/[id]` — la grille se règle sur la carte, pas sur l'écran. */}
+      <CardContent className="@container space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={dossier.status} />
           {dossier.rejection_reason ? (
@@ -53,11 +54,11 @@ export function KycDossierTimeline({ dossier }: { dossier: KycDossier }) {
             </Badge>
           ) : null}
         </div>
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 @md:grid-cols-3">
           {steps.map((step) => (
-            <div key={step.id} className="rounded-lg border border-border p-3">
+            <div key={step.id} className="rounded-lg bg-muted/40 p-3">
               <p className="text-sm font-medium text-foreground">{step.label}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{fmt.dateTime(step.date)}</p>
+              <p className="mt-1 text-sm tabular-nums text-muted-foreground">{fmt.dateTime(step.date)}</p>
             </div>
           ))}
         </div>
@@ -77,6 +78,7 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
   const toast = useToast();
   const queryClient = useQueryClient();
   const [files, setFiles] = useState<Partial<Record<DocumentType, File>>>({});
+  const inputs = useRef<Partial<Record<DocumentType, HTMLInputElement | null>>>({});
   const locked = dossier.status === 'verified';
   const documentsByType = useMemo(
     () => new Map(dossier.documents.map((doc) => [doc.document_type, doc])),
@@ -110,38 +112,66 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
         {DOCUMENTS.map((type) => {
           const uploaded = documentsByType.get(type);
           return (
-            <div key={type} className="grid gap-3 rounded-lg border border-border p-3 md:grid-cols-[1fr_auto] md:items-center">
-              <div>
+            // Grille à deux colonnes dès `lg` seulement : à 768 la carte n'a que ~400 px (TCK-505).
+            <div key={type} className="grid gap-3 rounded-lg bg-muted/40 p-4 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium text-foreground">{t(`documents.${type}`)}</p>
-                  {uploaded ? <Badge variant="secondary">{t('uploader.provided')}</Badge> : <Badge variant="outline">{t('uploader.missing')}</Badge>}
+                  <ConsoleStatusBadge
+                    label={uploaded ? t('uploader.provided') : t('uploader.missing')}
+                    tone={uploaded ? 'success' : 'attention'}
+                  />
                 </div>
                 {uploaded ? (
-                  <a className="mt-1 inline-flex items-center text-sm text-primary hover:underline" href={uploaded.signed_url} target="_blank" rel="noreferrer">
-                    <FileText className="mr-1 size-4" aria-hidden="true" />
-                    {uploaded.file_name}
-                    <ExternalLink className="ml-1 size-3" aria-hidden="true" />
+                  <a className="mt-1 inline-flex max-w-full items-center text-sm text-primary hover:underline" href={uploaded.signed_url} target="_blank" rel="noreferrer">
+                    <FileText className="mr-1 size-4 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{uploaded.file_name}</span>
+                    <ExternalLink className="ml-1 size-3 shrink-0" aria-hidden="true" />
                   </a>
-                ) : null}
+                ) : (
+                  <p className="mt-1 text-xs text-muted-foreground">{t('uploader.accepted')}</p>
+                )}
               </div>
+              {/* Le champ fichier natif affichait « Choose File · No file chosen » — le texte du
+                  navigateur, en anglais, dans une interface en français. Il reste le vrai
+                  contrôle (clavier, lecteur d'écran), masqué ; un bouton le déclenche et le nom
+                  choisi s'affiche à sa place. */}
               <div className="flex flex-wrap items-center gap-2">
-                <Input
+                <input
+                  ref={(node) => {
+                    inputs.current[type] = node;
+                  }}
+                  id={`kyc-file-${type}`}
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.webp"
+                  className="sr-only"
+                  tabIndex={-1}
                   disabled={locked || uploadMutation.isPending}
                   onChange={(event) => setFiles((current) => ({ ...current, [type]: event.target.files?.[0] }))}
-                  className="md:w-64"
                 />
                 <Button
                   type="button"
                   variant="outline"
+                  className="min-w-0 max-w-full justify-start sm:max-w-64"
+                  disabled={locked || uploadMutation.isPending}
+                  aria-label={t('uploader.chooseAria', { document: t(`documents.${type}`) })}
+                  onClick={() => inputs.current[type]?.click()}
+                >
+                  <Paperclip className="size-4 shrink-0" aria-hidden="true" />
+                  <span className="truncate">
+                    {files[type]?.name ?? (uploaded ? t('uploader.replace') : t('uploader.choose'))}
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
                   disabled={locked || !files[type] || uploadMutation.isPending}
                   onClick={() => {
                     const file = files[type];
                     if (file) uploadMutation.mutate({ type, file });
                   }}
                 >
-                  <Upload className="mr-2 size-4" aria-hidden="true" />
+                  <Upload className="size-4" aria-hidden="true" />
                   {t('uploader.add')}
                 </Button>
               </div>
@@ -154,7 +184,7 @@ export function KycDocumentUploader({ agencyId, dossier }: { agencyId: number; d
             disabled={locked || dossier.status === 'submitted' || submitMutation.isPending}
             onClick={() => submitMutation.mutate()}
           >
-            <Send className="mr-2 size-4" aria-hidden="true" />
+            <Send className="size-4" aria-hidden="true" />
             {t('uploader.submit')}
           </Button>
         </div>
@@ -190,14 +220,16 @@ export function KycReviewPanel({ dossier, agencyId }: { dossier: KycDossier; age
       <CardHeader>
         <CardTitle>{t('review.title')}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-3">
+      {/* Panneau de 360-420 px à côté du suivi : trois colonnes y cassaient « Pièce dirigeant », deux laissaient une pièce orpheline — liste empilée tant que la carte fait moins de 36rem. */}
+      <CardContent className="@container space-y-4">
+        <div className="grid gap-2 @xl:grid-cols-3">
           {DOCUMENTS.map((type) => {
             const present = dossier.documents.some((doc) => doc.document_type === type);
             return (
-              <div key={type} className="flex items-center justify-between rounded-lg border border-border p-3">
-                <span className="text-sm font-medium">{t(`documents.${type}`)}</span>
-                {present ? <CheckCircle2 className="size-5 text-accent" aria-hidden="true" /> : <XCircle className="size-5 text-destructive" aria-hidden="true" />}
+              <div key={type} className="flex items-center justify-between gap-3 rounded-lg bg-muted/40 p-3">
+                <span className="min-w-0 text-sm font-medium">{t(`documents.${type}`)}</span>
+                {present ? <CheckCircle2 className="size-5 shrink-0 text-success" aria-hidden="true" /> : <XCircle className="size-5 shrink-0 text-destructive" aria-hidden="true" />}
+                <span className="sr-only">{present ? t('uploader.provided') : t('uploader.missing')}</span>
               </div>
             );
           })}
@@ -206,15 +238,16 @@ export function KycReviewPanel({ dossier, agencyId }: { dossier: KycDossier; age
           value={reason}
           onChange={(event) => setReason(event.target.value)}
           placeholder={t('review.reasonPlaceholder')}
+          aria-label={t('review.reasonPlaceholder')}
           disabled={!canReview || mutation.isPending}
         />
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" disabled={!canReview || mutation.isPending} onClick={() => mutation.mutate('verify')}>
-            <ShieldCheck className="mr-2 size-4" aria-hidden="true" />
+            <ShieldCheck className="size-4" aria-hidden="true" />
             {t('review.verify')}
           </Button>
           <Button type="button" variant="destructive" disabled={!canReview || reason.trim().length < 5 || mutation.isPending} onClick={() => mutation.mutate('reject')}>
-            <XCircle className="mr-2 size-4" aria-hidden="true" />
+            <XCircle className="size-4" aria-hidden="true" />
             {t('review.reject')}
           </Button>
         </div>

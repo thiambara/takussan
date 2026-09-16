@@ -40,8 +40,10 @@ function ChipGroup<T extends string | number>({
         return (
           <button
             key={String(opt.value)}
+            type="button"
+            aria-pressed={isActive}
             onClick={() => onChange(isActive ? undefined : opt.value)}
-            className={`px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-all duration-150 ${
+            className={`min-h-9 px-3.5 py-1.5 rounded-full text-[13px] font-semibold border transition-colors duration-150 active:scale-[0.96] ${
               isActive
                 ? 'bg-primary border-primary text-primary-foreground'
                 : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
@@ -125,7 +127,7 @@ function RangeInputs({
           className="rounded-xl"
         />
       </div>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -357,7 +359,7 @@ export function FilterSidebar({
     <div className="flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
-        <h2 className="text-base font-bold text-foreground flex items-center">
+        <h2 className="font-display text-base font-semibold text-foreground flex items-center">
           {t('title')}
           {activeCount > 0 && (
             <Badge className="ml-2">{activeCount}</Badge>
@@ -370,15 +372,17 @@ export function FilterSidebar({
                 differe.cancel();
                 onReset();
               }}
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+              type="button"
+              className="flex min-h-9 items-center gap-1 px-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               {t('clearAll')}
             </button>
           )}
           <button
+            type="button"
             onClick={onClose}
-            className="md:hidden w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
+            className="lg:hidden size-10 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
             aria-label={t('close')}
           >
             <X className="w-4 h-4" />
@@ -407,13 +411,15 @@ export function FilterSidebar({
               return (
                 <button
                   key={opt}
+                  type="button"
+                  aria-pressed={isActive}
                   onClick={() => {
                     const next = isActive
                       ? selected.filter((value) => value !== opt)
                       : [...selected, opt];
                     set({ type: next.length > 0 ? next : undefined });
                   }}
-                  className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 ${
+                  className={`min-h-9 px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-colors duration-150 active:scale-[0.96] ${
                     isActive
                       ? 'bg-primary border-primary text-primary-foreground'
                       : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
@@ -543,7 +549,7 @@ export function FilterSidebar({
                         : [...selected, opt];
                       set({ condition: next.length > 0 ? next : undefined });
                     }}
-                    className={`px-3 py-1.5 rounded-full text-[12px] font-semibold border transition-all duration-150 ${
+                    className={`min-h-9 px-3 py-1.5 rounded-full text-[13px] font-semibold border transition-colors duration-150 active:scale-[0.96] ${
                       isActive
                         ? 'bg-primary border-primary text-primary-foreground'
                         : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
@@ -555,8 +561,10 @@ export function FilterSidebar({
               })}
             </div>
             <button
+              type="button"
+              aria-pressed={filters.furnished === true}
               onClick={() => set({ furnished: filters.furnished === true ? undefined : true })}
-              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 ${
+              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-colors duration-150 ${
                 filters.furnished === true
                   ? 'bg-primary/5 border-primary text-primary'
                   : 'border-border text-muted-foreground hover:border-muted-foreground'
@@ -576,17 +584,22 @@ export function FilterSidebar({
               <span className="text-sm font-semibold">{t('furnishedOnly')}</span>
             </button>
 
+            {/* « En vedette » parle la couleur des badges featured — `--accent`, et rien d'autre
+                (design-guidelines § Couleurs sémantiques). L'échelle ambre brute de Tailwind
+                n'appartenait pas à la palette Lin. */}
             <button
+              type="button"
+              aria-pressed={filters.featured === true}
               onClick={() => set({ featured: filters.featured === true ? undefined : true })}
-              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-all duration-150 ${
+              className={`flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border transition-colors duration-150 ${
                 filters.featured === true
-                  ? 'bg-amber-50 border-amber-400 text-amber-700'
+                  ? 'bg-accent border-accent text-accent-foreground'
                   : 'border-border text-muted-foreground hover:border-muted-foreground'
               }`}
             >
               <Star
                 className={`w-4 h-4 shrink-0 ${
-                  filters.featured === true ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'
+                  filters.featured === true ? 'fill-accent-foreground text-accent-foreground' : 'text-muted-foreground'
                 }`}
               />
               <span className="text-sm font-semibold">{t('featuredOnly')}</span>
@@ -613,7 +626,7 @@ export function FilterSidebar({
           {/* Le statut foncier est sans objet pour un lot dans un immeuble (`field-matrix.ts`) :
               sans ce rappel, un filtre actif sur un appartement se lit comme un catalogue vide
               plutôt que comme un critère hors sujet. */}
-          <p className="text-[11px] text-muted-foreground mt-1.5">{t('titleDeedHint')}</p>
+          <p className="text-xs text-muted-foreground mt-1.5">{t('titleDeedHint')}</p>
         </Section>
 
         {/* 12. Disponibilité */}
@@ -643,7 +656,7 @@ export function FilterSidebar({
               className="rounded-xl pl-9"
             />
           </div>
-          <p className="text-[11px] text-muted-foreground mt-1.5">{t('amenitiesHint')}</p>
+          <p className="text-xs text-muted-foreground mt-1.5">{t('amenitiesHint')}</p>
         </Section>
 
         {/*
@@ -658,36 +671,113 @@ export function FilterSidebar({
 
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className="hidden md:block w-[264px] shrink-0 bg-card rounded-2xl border border-border shadow-sm self-start sticky top-[145px]">
+      {/* Desktop sidebar — dès `lg` et non `md` (revue design du 2026-09-16) : à 768 px, le rail
+          de 264 px laissait 3 colonnes de 128 px à la grille, prix tronqués (« 28 000 000 F C… »).
+          Entre 768 et 1023, c'est le tiroir, comme sur mobile. */}
+      <aside className="hidden lg:block w-[264px] shrink-0 bg-card rounded-2xl border border-border shadow-sm self-start sticky top-[145px]">
         {content}
       </aside>
 
       {/* Mobile drawer */}
       {open && (
-        <div className="md:hidden fixed inset-0 z-50 flex flex-col justify-end">
-          <div
-            className="absolute inset-0 bg-scrim/40 backdrop-blur-sm"
-            onClick={onClose}
-          />
-          <div className="relative bg-popover rounded-t-3xl max-h-[90vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom duration-300">
-            <div className="flex-1 overflow-y-auto">
-              {content}
-            </div>
-            <div className="px-5 py-4 border-t border-border bg-popover shrink-0">
-              <Button
-                onClick={() => {
-                  commitImmediat();
-                  onClose();
-                }}
-                className="w-full rounded-full h-12 text-sm font-semibold"
-              >
-                {t('showResults')}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <TiroirMobile
+          label={t('title')}
+          onClose={onClose}
+          pied={
+            <Button
+              onClick={() => {
+                commitImmediat();
+                onClose();
+              }}
+              className="w-full rounded-full h-12 text-sm font-semibold"
+            >
+              {t('showResults')}
+            </Button>
+          }
+        >
+          {content}
+        </TiroirMobile>
       )}
     </>
+  );
+}
+
+const FOCALISABLES =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Le tiroir des filtres sous `lg` — une vraie modale.
+ *
+ * Il se déclarait `role="dialog" aria-modal` et écoutait Échap sur lui-même, mais le focus
+ * restait sur `body` à l'ouverture : Échap ne fermait rien, et un lecteur d'écran se retrouvait
+ * dans une modale sans rien de focalisé (relecture adverse de la revue design du 2026-09-16,
+ * reproduit à 390 px). Désormais : le panneau prend le focus à l'ouverture, Échap est écouté sur
+ * `document`, Tab tourne dans le tiroir, et le focus revient au déclencheur à la fermeture.
+ */
+function TiroirMobile({
+  label,
+  onClose,
+  pied,
+  children,
+}: {
+  readonly label: string;
+  readonly onClose: () => void;
+  readonly pied: React.ReactNode;
+  readonly children: React.ReactNode;
+}) {
+  const panneau = React.useRef<HTMLDivElement>(null);
+
+  // Montage seul : le focus entre, puis revient au déclencheur quand le tiroir se démonte.
+  React.useEffect(() => {
+    const precedent = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    panneau.current?.focus();
+    return () => precedent?.focus();
+  }, []);
+
+  React.useEffect(() => {
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab' || !panneau.current) return;
+      const cibles = [...panneau.current.querySelectorAll<HTMLElement>(FOCALISABLES)];
+      if (cibles.length === 0) return;
+      const premier = cibles[0];
+      const dernier = cibles[cibles.length - 1];
+      const actif = document.activeElement;
+      if (e.shiftKey && (actif === premier || actif === panneau.current)) {
+        e.preventDefault();
+        dernier.focus();
+      } else if (!e.shiftKey && actif === dernier) {
+        e.preventDefault();
+        premier.focus();
+      } else if (!panneau.current.contains(actif)) {
+        e.preventDefault();
+        premier.focus();
+      }
+    };
+    document.addEventListener('keydown', surTouche);
+    return () => document.removeEventListener('keydown', surTouche);
+  }, [onClose]);
+
+  return (
+    <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+      <div className="absolute inset-0 bg-scrim/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={panneau}
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        tabIndex={-1}
+        className="relative w-full md:mx-auto md:max-w-2xl bg-popover rounded-t-3xl max-h-[90dvh] flex flex-col shadow-lg outline-none animate-in slide-in-from-bottom duration-300"
+      >
+        <div className="flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        <div className="px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border bg-popover shrink-0">
+          {pied}
+        </div>
+      </div>
+    </div>
   );
 }

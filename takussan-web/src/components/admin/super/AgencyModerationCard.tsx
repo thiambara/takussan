@@ -83,6 +83,14 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
   const status = agency.status ?? 'inactive';
   const statusKey = STATUS_KEY[status];
   const meta = pending ? actionMeta(t)[pending] : null;
+  // Seules les transitions qui changent quelque chose sont proposées : la carte d'une agence
+  // vérifiée et active offrait « Vérifier » à côté de « Déverifier ». `verify` reste proposé à
+  // une agence vérifiée mais suspendue ou inactive — c'est aussi la voie de réactivation.
+  const canVerify = !(agency.is_verified && status === 'active');
+  const canSuspend = status !== 'suspended';
+  // `unverify` passe AUSSI le statut à `inactive` (API) : il change quelque chose tant que
+  // l'agence est vérifiée OU pas encore inactive — c'est la seule voie vers `inactive`.
+  const canUnverify = agency.is_verified || status !== 'inactive';
 
   return (
     <article
@@ -106,8 +114,8 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
             </div>
           )}
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold text-foreground">
-              <Link className="hover:text-primary" href={`/super-admin/agencies/${agency.id}`}>
+            <h3 className="truncate font-display text-base font-semibold text-foreground">
+              <Link className="rounded-sm transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" href={`/super-admin/agencies/${agency.id}`}>
                 {agency.name}
               </Link>
             </h3>
@@ -119,18 +127,19 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
             tone={STATUS_TONES[status] ?? 'neutral'}
             label={statusKey ? tStatus(statusKey) : status}
           />
-          {agency.is_verified ? <StatusBadge tone="attention" label={t('verified')} /> : null}
+          {/* `attention` est l'ocre de l'avertissement : une agence vérifiée n'est pas une alerte. */}
+          {agency.is_verified ? <StatusBadge tone="info" label={t('verified')} /> : null}
         </div>
       </header>
 
-      <dl className="grid grid-cols-2 gap-2 text-xs text-muted-foreground lg:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs text-muted-foreground xl:grid-cols-3">
         <div>
           <dt className="font-semibold text-muted-foreground">{t('email')}</dt>
           <dd className="truncate">{agency.email ?? '—'}</dd>
         </div>
         <div>
           <dt className="font-semibold text-muted-foreground">{t('license')}</dt>
-          <dd>{agency.license_number ?? '—'}</dd>
+          <dd className="truncate">{agency.license_number ?? '—'}</dd>
         </div>
         <div>
           <dt className="font-semibold text-muted-foreground">{t('members')}</dt>
@@ -142,11 +151,11 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
         </div>
         <div>
           <dt className="font-semibold text-muted-foreground">{t('createdAt')}</dt>
-          <dd>{fmt.date(agency.created_at, DATE_COURTE)}</dd>
+          <dd className="tabular-nums">{fmt.date(agency.created_at, DATE_COURTE)}</dd>
         </div>
         <div>
           <dt className="font-semibold text-muted-foreground">{t('lastActivity')}</dt>
-          <dd>{fmt.date(agency.last_activity_at, DATE_COURTE)}</dd>
+          <dd className="tabular-nums">{fmt.date(agency.last_activity_at, DATE_COURTE)}</dd>
         </div>
       </dl>
 
@@ -154,15 +163,21 @@ export function AgencyModerationCard({ agency }: AgencyModerationCardProps) {
         <Link className={buttonVariants({ size: 'sm', variant: 'outline' })} href={`/super-admin/agencies/${agency.id}`}>
           {t('open')}
         </Link>
-        <Button size="sm" variant="default" onClick={() => setPending('verify')} disabled={mutation.isPending}>
-          {t('actions.verify.label')}
-        </Button>
-        <Button size="sm" variant="destructive" onClick={() => setPending('suspend')} disabled={mutation.isPending}>
-          {t('actions.suspend.label')}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setPending('unverify')} disabled={mutation.isPending}>
-          {t('actions.unverify.label')}
-        </Button>
+        {canVerify ? (
+          <Button size="sm" variant="default" onClick={() => setPending('verify')} disabled={mutation.isPending}>
+            {t('actions.verify.label')}
+          </Button>
+        ) : null}
+        {canSuspend ? (
+          <Button size="sm" variant="destructive" onClick={() => setPending('suspend')} disabled={mutation.isPending}>
+            {t('actions.suspend.label')}
+          </Button>
+        ) : null}
+        {canUnverify ? (
+          <Button size="sm" variant="outline" onClick={() => setPending('unverify')} disabled={mutation.isPending}>
+            {t('actions.unverify.label')}
+          </Button>
+        ) : null}
       </div>
 
       {meta ? (

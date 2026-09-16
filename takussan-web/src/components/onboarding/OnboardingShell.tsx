@@ -30,7 +30,11 @@ export async function OnboardingShell({
   note,
   children,
 }: {
-  readonly title: string;
+  /**
+   * Absent quand l'écran porte lui-même son `h1` (l'accueil de l'admin d'agence, dont le titre
+   * change d'une étape à l'autre) : la coque ne fournit alors que la barre et le pied.
+   */
+  readonly title?: string;
   readonly subtitle?: string;
   /**
    * Remplace la mention de sauvegarde automatique en pied de page.
@@ -39,9 +43,10 @@ export async function OnboardingShell({
    * question d'orientation posée après l'inscription n'enregistre rien au fil de
    * la saisie. Lui laisser la promesse « vos réponses sont enregistrées
    * automatiquement » serait une affirmation fausse, sur le premier écran que
-   * voit un compte neuf.
+   * voit un compte neuf. `null` retire le pied de page : un écran qui n'a rien à
+   * promettre ne promet rien.
    */
-  readonly note?: string;
+  readonly note?: string | null;
   readonly children: React.ReactNode;
 }) {
   const t = await getTranslations('onboarding.shell');
@@ -62,7 +67,7 @@ export async function OnboardingShell({
           </Link>
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            className="-mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
           >
             <ArrowLeft className="size-4" aria-hidden />
             {t('exit')}
@@ -71,26 +76,30 @@ export async function OnboardingShell({
       </header>
 
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6 lg:py-14">
-        <div className="mb-10 flex flex-col gap-3">
-          <h1 className="font-display text-3xl font-bold tracking-tight text-balance text-foreground sm:text-4xl">
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="max-w-[62ch] text-[0.9375rem] leading-relaxed text-muted-foreground">
-              {subtitle}
-            </p>
-          ) : null}
-        </div>
+        {title ? (
+          <div className="mb-8 flex flex-col gap-3 sm:mb-10">
+            <h1 className="font-display text-3xl font-bold tracking-tight text-balance text-foreground sm:text-4xl">
+              {title}
+            </h1>
+            {subtitle ? (
+              <p className="max-w-[62ch] text-[0.9375rem] leading-relaxed text-pretty text-muted-foreground">
+                {subtitle}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {children}
       </main>
 
-      <footer className="mx-auto w-full max-w-4xl px-4 pb-10 sm:px-6">
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <ShieldCheck className="size-3.5 shrink-0" aria-hidden />
-          {note ?? t('autosave')}
-        </p>
-      </footer>
+      {note === null ? null : (
+        <footer className="mx-auto w-full max-w-4xl px-4 pb-10 sm:px-6">
+          <p className="flex items-start gap-2 text-xs leading-relaxed text-pretty text-muted-foreground">
+            <ShieldCheck className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            {note ?? t('autosave')}
+          </p>
+        </footer>
+      )}
     </div>
   );
 }

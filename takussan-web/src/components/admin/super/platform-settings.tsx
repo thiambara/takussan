@@ -78,13 +78,13 @@ export function SettingsSection({
         <div>
           <h2 className="font-display text-xl font-semibold text-foreground">{title}</h2>
           {requiresRestart ? (
-            <p className="mt-1 flex items-center gap-2 text-sm text-primary">
-              <TriangleAlert className="size-4" aria-hidden="true" />
+            <p className="mt-1 flex items-center gap-2 text-sm text-pretty text-warning">
+              <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
               {t('restartWarning')}
             </p>
           ) : null}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"
@@ -120,7 +120,7 @@ export function SettingsSection({
         <ErrorState className="m-4" message={clientError ?? error ?? ''} />
       ) : mutation.isSuccess ? (
         <div className="m-4 flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground ring-1 ring-border">
-          <Check className="size-4 text-accent" aria-hidden="true" />
+          <Check className="size-4 text-success" aria-hidden="true" />
           {t('saved')}
         </div>
       ) : null}
@@ -140,12 +140,12 @@ export function SettingField({
   const t = useTranslations('superAdmin.platformSettings');
   const fmt = useFormatteurs();
   return (
-    <div className="grid gap-3 p-4 md:grid-cols-[minmax(220px,0.8fr)_minmax(0,1.2fr)_minmax(180px,0.7fr)] md:items-center">
-      <div>
+    <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-[minmax(200px,0.8fr)_minmax(0,1.2fr)_minmax(160px,0.7fr)] lg:items-center">
+      <div className="min-w-0">
         <Label htmlFor={setting.key}>{setting.label}</Label>
-        <p className="mt-1 text-sm text-muted-foreground">{setting.description}</p>
+        <p className="mt-1 text-sm text-pretty text-muted-foreground">{setting.description}</p>
       </div>
-      <div>
+      <div className="min-w-0">
         {setting.type === 'select' ? (
           <Select
             value={String(value)}
@@ -175,14 +175,16 @@ export function SettingField({
                 <Button
                   key={option}
                   type="button"
-                  variant={selected ? 'default' : 'outline'}
-                  className={cn('min-w-16', option === 'XOF' && selected && 'cursor-not-allowed')}
+                  variant={selected ? 'secondary' : 'outline'}
+                  aria-pressed={selected}
+                  className={cn('min-w-16', selected && 'ring-1 ring-foreground/20', option === 'XOF' && selected && 'cursor-not-allowed')}
                   onClick={() => {
                     if (option === 'XOF' && selected) return;
                     const current = Array.isArray(value) ? value : [];
                     onChange(selected ? current.filter((item) => item !== option) : [...current, option]);
                   }}
                 >
+                  {selected ? <Check aria-hidden="true" /> : null}
                   {option}
                 </Button>
               );

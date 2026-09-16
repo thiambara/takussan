@@ -6,6 +6,7 @@ import { Wrench } from 'lucide-react';
 import { useLeases, type LeaseWithRelations } from '@/lib/queries/leases';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { MaintenanceForm } from './MaintenanceForm';
 
 interface MaintenanceNewLauncherProps {
@@ -62,7 +63,7 @@ export function MaintenanceNewLauncher({
   }, [options, manualPropertyId, initialPropertyId]);
 
   if (isLoading) {
-    return <div className="h-32 animate-pulse rounded-xl bg-card" />;
+    return <Skeleton className="h-32 rounded-xl" />;
   }
 
   if (isError) {
@@ -87,7 +88,7 @@ export function MaintenanceNewLauncher({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-border bg-card p-5">
+      <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
         <label htmlFor="maintenance-property" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t('property_label')}
         </label>

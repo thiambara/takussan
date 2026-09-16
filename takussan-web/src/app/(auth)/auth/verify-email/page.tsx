@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Mail, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FormGlobalError } from '@/components/forms';
 import { useTranslations } from 'next-intl';
 
 export default function VerifyEmailPage() {
@@ -24,28 +25,23 @@ export default function VerifyEmailPage() {
   return (
     <div>
       <div className="flex items-center justify-center size-14 rounded-full bg-primary/10 text-primary mb-6">
-        <Mail className="size-7" />
+        <Mail className="size-7" aria-hidden="true" />
       </div>
-      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight mb-2">
+      <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight text-balance mb-2">
         {t('title')}
       </h1>
-      <p className="text-muted-foreground text-sm mb-8">{t('body')}</p>
+      <p className="text-muted-foreground text-sm leading-relaxed text-pretty mb-8">{t('body')}</p>
 
       {status === 'sent' && (
         <div
           role="status"
-          className="mb-6 text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-4 py-3"
+          className="mb-6 rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
         >
           {t('resent')}
         </div>
       )}
       {status === 'error' && (
-        <div
-          role="alert"
-          className="mb-6 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3"
-        >
-          {t('resendFailed')}
-        </div>
+        <FormGlobalError className="mb-6">{t('resendFailed')}</FormGlobalError>
       )}
 
       <div className="space-y-3">
@@ -71,7 +67,7 @@ export default function VerifyEmailPage() {
             entier sur l'autre. */}
         <Link
           href="/onboarding/intention"
-          className="block text-center text-sm text-muted-foreground hover:text-foreground"
+          className="flex min-h-11 items-center justify-center rounded-full text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           {t('continue')}
         </Link>

@@ -2,8 +2,10 @@
 
 import Image from 'next/image';
 import { useLocale, useTranslations } from 'next-intl';
-import { Users } from 'lucide-react';
+import { BellOff, Building2, MessagesSquare, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { EmptyState, ErrorState } from '@/components/feedback';
 import { formatDate } from '@/lib/format';
 import { useConversations } from '@/lib/queries/conversations';
 import { useAuth } from '@/context/AuthContext';
@@ -25,18 +27,18 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
 
   if (isLoading) {
     return (
-      <div className="space-y-2 p-3">
+      <div className="space-y-2 p-3" aria-busy="true">
         {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-14 animate-pulse rounded-lg bg-muted" />
+          <Skeleton key={i} className="h-14 rounded-lg" />
         ))}
       </div>
     );
   }
   if (isError) {
     return (
-      <p className="p-4 text-sm text-destructive">
-        {t('list.loadError')}
-      </p>
+      <div className="p-3">
+        <ErrorState message={t('list.loadError')} />
+      </div>
     );
   }
 
@@ -44,9 +46,11 @@ export function ConversationList({ selectedId, onSelect }: ConversationListProps
 
   if (conversations.length === 0) {
     return (
-      <div className="p-6 text-center text-sm text-muted-foreground">
-        {t('list.empty')}
-      </div>
+      <EmptyState
+        className="m-3"
+        icon={<MessagesSquare className="size-8" aria-hidden="true" />}
+        title={t('list.empty')}
+      />
     );
   }
 
@@ -94,9 +98,10 @@ function ConversationRow({
       <button
         type="button"
         onClick={() => onSelect(conversation.id)}
+        aria-current={selected ? 'true' : undefined}
         className={cn(
-          'flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50',
-          selected && 'bg-muted',
+          'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+          selected && 'bg-muted hover:bg-muted',
         )}
       >
         {isGroup ? (
@@ -106,22 +111,25 @@ function ConversationRow({
           >
             <Users className="size-5" aria-hidden />
             {groupParticipants.length > 0 && (
-              <span className="absolute -bottom-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[9px] font-bold text-primary-foreground">
+              <span className="absolute -bottom-1 -right-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[11px] font-semibold tabular-nums text-background ring-2 ring-card">
                 +{groupParticipants.length}
               </span>
             )}
           </div>
         ) : (
-          <div className="relative size-10 shrink-0 overflow-hidden rounded-full bg-muted">
+          <div className="relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted text-muted-foreground">
             {conversation.property?.main_photo_url ? (
               <Image
                 src={conversation.property.main_photo_url}
                 alt=""
                 fill
                 sizes="40px"
-                className="object-cover"
+                className="object-cover outline -outline-offset-1 outline-foreground/10"
               />
-            ) : null}
+            ) : (
+              // Sans photo, le rond restait VIDE : 22 disques beiges identiques (mesuré).
+              <Building2 className="size-5" aria-hidden />
+            )}
           </div>
         )}
         <div className="min-w-0 flex-1">
@@ -137,26 +145,28 @@ function ConversationRow({
                 t('conversationTitleFallback', { id: String(conversation.id) })}
             </p>
             {conversation.last_message_at && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                 {formatDate(conversation.last_message_at, locale, { dateStyle: 'short' })}
               </span>
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-1.5">
             {isGroup && (
-              <Badge variant="secondary" className="h-4 px-1.5 text-[9px] uppercase">
+              <Badge variant="secondary" className="h-4 px-1.5 text-[11px]">
                 {t('list.groupBadge')}
               </Badge>
             )}
             {isMuted && (
-              <span className="text-[10px]" aria-label={t('list.muted')} title={t('list.muted')}>
-                🔕
-              </span>
+              <BellOff
+                className="size-3.5 shrink-0 text-muted-foreground"
+                role="img"
+                aria-label={t('list.muted')}
+              />
             )}
             <p
               className={cn(
                 'truncate text-xs',
-                unread > 0 ? 'text-muted-foreground' : 'text-muted-foreground',
+                unread > 0 ? 'font-medium text-foreground' : 'text-muted-foreground',
               )}
             >
               {conversation.last_message_preview ?? '—'}
@@ -164,7 +174,7 @@ function ConversationRow({
           </div>
         </div>
         {unread > 0 && (
-          <span className="ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-foreground text-[10px] font-bold text-primary-foreground">
+          <span className="ml-1 inline-flex size-5 shrink-0 items-center justify-center self-center rounded-full bg-primary text-[11px] font-semibold tabular-nums text-primary-foreground">
             {unread > 9 ? '9+' : unread}
           </span>
         )}

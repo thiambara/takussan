@@ -12,7 +12,7 @@ interface KpiTile {
 
 const TONE_CLASSES: Record<NonNullable<KpiTile['tone']>, string> = {
   neutral: 'bg-card hover:bg-muted/70',
-  success: 'bg-success/10 hover:bg-success/10',
+  success: 'bg-success/10 hover:bg-success/15',
   accent: 'bg-primary/5 hover:bg-primary/10',
   muted: 'bg-muted/40 hover:bg-muted/70',
 };
@@ -24,8 +24,9 @@ export function PropertyKpiStrip({ tiles }: { readonly tiles: readonly KpiTile[]
         <Link
           key={tile.label}
           href={tile.href}
+          aria-current={tile.active ? 'true' : undefined}
           className={cn(
-            'group flex flex-col gap-1 rounded-xl px-4 py-4 transition-colors',
+            'group flex flex-col gap-1 rounded-xl px-4 py-4 outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50',
             TONE_CLASSES[tile.tone ?? 'neutral'],
             tile.active && 'ring-1 ring-inset ring-primary/30',
           )}

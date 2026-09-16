@@ -5,8 +5,11 @@ import { useTranslations } from 'next-intl';
 import { ChevronDown, Lock } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { CapabilityCatalogue, CapabilityValue } from '@/types/agency-role';
+
+const ANNEAU = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
 interface CapabilityMatrixProps {
   readonly catalogue: CapabilityCatalogue;
@@ -103,20 +106,14 @@ export function CapabilityMatrix({
         </p>
         {readOnly ? null : (
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => onChange([...grantable])}
-              className="rounded-md border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
+            {/* Primitive `Button` : les deux boutons faits main mesuraient 24 px de haut. L'anneau
+                PLEIN est repris (TCK-371) : celui de la primitive est à 50 %, mesuré à 2,12:1. */}
+            <Button type="button" variant="outline" size="sm" className={ANNEAU} onClick={() => onChange([...grantable])}>
               {t('matrix.select_all')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onChange([])}
-              className="rounded-md border border-input px-2.5 py-1 text-xs text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
+            </Button>
+            <Button type="button" variant="outline" size="sm" className={ANNEAU} onClick={() => onChange([])}>
               {t('matrix.clear')}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -160,23 +157,38 @@ export function CapabilityMatrix({
                     return (
                       <li key={capability} className="border-b border-border/50 last:border-b-0">
                         <label
+                          // ⚠ Plus d'`opacity-60` sur la ligne : en lecture seule (rôle système),
+                          // c'est TOUTE la matrice qui passait à 60 %, et le code de capacité
+                          // (`text-muted-foreground`) tombait sous 4,5:1. La case désactivée dit
+                          // déjà l'état ; le texte d'une capacité réservée passe en encre atténuée.
+                          // `flex-wrap` : à 360 px la pastille « Réservé à la plateforme » sortait
+                          // de la carte.
                           className={cn(
-                            'flex items-start gap-3 px-4 py-2.5 text-sm',
-                            isReserved || readOnly
-                              ? 'cursor-not-allowed opacity-60'
-                              : 'cursor-pointer hover:bg-muted/40',
+                            'flex flex-wrap items-start gap-x-3 gap-y-1 px-4 py-2.5 text-sm',
+                            isReserved
+                              ? 'cursor-not-allowed'
+                              : readOnly
+                                ? 'cursor-default'
+                                : 'cursor-pointer transition-colors hover:bg-muted/40',
                           )}
                         >
                           <input
                             type="checkbox"
-                            className="mt-0.5 size-4 accent-primary"
+                            className="mt-0.5 size-4 shrink-0 accent-primary"
                             checked={isChecked}
                             disabled={isReserved || readOnly}
                             onChange={() => toggle(capability)}
                           />
-                          <span className="flex-1">
-                            <span className="block text-foreground">{label(capability)}</span>
-                            <code className="block text-xs text-muted-foreground">{capability}</code>
+                          <span className="min-w-0 flex-1 basis-40">
+                            <span
+                              className={cn(
+                                'block',
+                                isReserved ? 'text-muted-foreground' : 'text-foreground',
+                              )}
+                            >
+                              {label(capability)}
+                            </span>
+                            <code className="block break-all text-xs text-muted-foreground">{capability}</code>
                           </span>
                           {isReserved ? (
                             <Badge

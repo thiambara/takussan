@@ -5,16 +5,17 @@ import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { ReceiptText } from 'lucide-react';
 
+import { StatusBadge } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { PropertyPagination } from '@/components/property-dashboard/PropertyPagination';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { useInvoices, type UseInvoicesParams } from '@/lib/queries/payments';
 import type { Locale } from '@/i18n/config';
 import type { InvoiceStatus } from '@/types/invoice';
 
-import { INVOICE_STATUS_VARIANT } from './constants';
+import { INVOICE_STATUS_TONE } from './constants';
 
 interface InvoicesTableProps {
   readonly onSelect: (invoiceId: number) => void;
@@ -44,7 +45,7 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
     <QueryBoundary
       query={query}
       loadingFallback={[0, 1, 2].map((i) => (
-        <div key={i} className="h-12 animate-pulse rounded-lg bg-card" />
+        <Skeleton key={i} className="h-12 rounded-lg" />
       ))}
     >
       {(data) => {
@@ -62,14 +63,14 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
         return (
           <div className="space-y-3">
             <div className="overflow-x-auto rounded-xl border border-border bg-card">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-card text-xs uppercase tracking-wide text-muted-foreground">
+              <table className="w-full text-left text-sm tabular-nums">
+                <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="px-3 py-2">{tTable('reference')}</th>
-                    <th className="px-3 py-2 whitespace-nowrap">{tTable('issuedOn')}</th>
-                    <th className="px-3 py-2 whitespace-nowrap">{tTable('dueDate')}</th>
-                    <th className="px-3 py-2 whitespace-nowrap">{tTable('amount')}</th>
-                    <th className="px-3 py-2 whitespace-nowrap">{tTable('status')}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('reference')}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('issuedOn')}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('dueDate')}</th>
+                    <th className="px-3 py-2 text-right font-medium whitespace-nowrap">{tTable('amount')}</th>
+                    <th className="px-3 py-2 font-medium whitespace-nowrap">{tTable('status')}</th>
                     <th className="px-3 py-2" aria-label={tTable('actions')} />
                   </tr>
                 </thead>
@@ -78,29 +79,27 @@ export function InvoicesTable({ onSelect }: InvoicesTableProps) {
                     const status = invoice.status as InvoiceStatus;
                     return (
                       <tr key={invoice.id} className="text-foreground">
-                        <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                        <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap text-muted-foreground">
                           {invoice.reference_number ?? `#${invoice.id}`}
                         </td>
-                        <td className="px-3 py-2 text-xs whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                           {invoice.issue_date ? formatDate(invoice.issue_date, locale) : '—'}
                         </td>
-                        <td className="px-3 py-2 text-xs whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-xs whitespace-nowrap">
                           {invoice.due_date ? formatDate(invoice.due_date, locale) : '—'}
                         </td>
-                        <td className="px-3 py-2 font-semibold whitespace-nowrap">
+                        <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
                           {formatCurrency(invoice.total_amount, locale, {
                             currency: invoice.currency || 'XOF',
                           })}
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
-                          <Badge variant={INVOICE_STATUS_VARIANT[status] ?? 'outline'}>
-                            {tStatus(status)}
-                          </Badge>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <StatusBadge tone={INVOICE_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />
                         </td>
-                        <td className="px-3 py-2 text-right">
+                        <td className="px-3 py-2.5 text-right">
                           <button
                             type="button"
-                            className="text-xs font-medium text-primary hover:underline"
+                            className="inline-flex min-h-9 items-center rounded-md px-2 text-xs font-medium whitespace-nowrap text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             onClick={() => onSelect(invoice.id)}
                           >
                             {tTable('open')}

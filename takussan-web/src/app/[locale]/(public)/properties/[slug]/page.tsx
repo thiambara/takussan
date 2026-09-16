@@ -7,6 +7,7 @@ import { isLocale } from '@/i18n/config';
 import { ErrorState } from '@/components/feedback';
 import { Footer } from '@/components/home/Footer';
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { alternatesPubliques } from '@/lib/alternates';
 import { DonneesStructurees } from '@/lib/jsonld';
 import { jsonLdFilDAriane, maillonsDeFiche } from '@/lib/fil-d-ariane';
@@ -129,7 +130,7 @@ async function bienIndisponible() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-      <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 mb-6">{t('unavailableTitle')}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-6">{t('unavailableTitle')}</h1>
       <ErrorState message={t('unavailableBody')} />
     </div>
   );
@@ -169,8 +170,7 @@ export default async function PropertyDetailPage({ params }: Props) {
   return (
     <>
       <Navbar />
-      {/* Spacer : navbar fixed (~65px) + ligne catégories (~68px) */}
-      <div className="h-[133px]" />
+      <NavbarSpacer />
       {corps}
       <Footer />
     </>

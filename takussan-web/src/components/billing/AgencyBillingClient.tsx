@@ -3,21 +3,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { fetchMeSubscription } from '@/lib/queries/billing';
-import { Card, CardContent } from '@/components/ui/card';
+import { ErrorState } from '@/components/feedback';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SubscriptionSummary } from './SubscriptionSummary';
 
 export function AgencyBillingClient() {
   const t = useTranslations('billing.subscription');
+  const tCommon = useTranslations('common');
   const query = useQuery({ queryKey: ['me', 'subscription'], queryFn: fetchMeSubscription });
 
   if (query.isLoading) return <Skeleton className="h-60 rounded-xl" />;
 
   if (query.isError) {
     return (
-      <Card>
-        <CardContent className="p-6 text-sm text-destructive">{t('loadFailed')}</CardContent>
-      </Card>
+      <ErrorState
+        message={t('loadFailed')}
+        onRetry={() => void query.refetch()}
+        retryLabel={tCommon('actions.retry')}
+      />
     );
   }
 

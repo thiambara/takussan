@@ -14,13 +14,14 @@ import {
   fetchDashboardCustomer,
 } from '@/lib/queries/customers';
 import { EmptyState } from '@/components/feedback';
-import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
 import { CustomerDetailTabs } from '@/components/customer-dashboard/CustomerDetailTabs';
 import { CustomerTagPickerSection } from '@/components/customer-dashboard/CustomerTagPickerSection';
 import { AddDocumentButton } from '@/components/documents/AddDocumentButton';
 import {
   CUSTOMER_ENUM_NAMESPACES,
+  CUSTOMER_STATUS_TONE,
+  PIPELINE_STAGE_TONE,
   enumLabel,
 } from '@/components/customer-form/options';
 import {
@@ -28,7 +29,7 @@ import {
   pipelineStageValues,
 } from '@/lib/schemas/customer';
 import type { CustomerDocument } from '@/types/customer';
-import { PageHeader } from '@/components/console';
+import { PageHeader, StatusBadge } from '@/components/console';
 
 /**
  * TCK-042 — fiche client avec onglets (aperçu / notes / documents /
@@ -113,10 +114,17 @@ export default async function Page({ params }: { params: Params }) {
         title={`${customer.first_name} ${customer.last_name}`}
         description={
           <span className="flex flex-wrap items-center gap-2">
-            {customer.email ? <span>{customer.email}</span> : null}
-            {customer.phone ? <span>{customer.phone}</span> : null}
-            {pipelineLabel ? <Badge variant="outline">{pipelineLabel}</Badge> : null}
-            <Badge variant="outline">{statusLabel}</Badge>
+            {customer.email ? <span className="min-w-0 break-all">{customer.email}</span> : null}
+            {customer.phone ? <span className="tabular-nums">{customer.phone}</span> : null}
+            {/* Mêmes tons que la liste (revue design 2026-09-16) : la fiche peignait ces deux
+                statuts en contour neutre, la liste en couleur — deux vocabulaires pour un fait. */}
+            {pipelineLabel && customer.pipeline_stage ? (
+              <StatusBadge
+                label={pipelineLabel}
+                tone={PIPELINE_STAGE_TONE[customer.pipeline_stage] ?? 'neutral'}
+              />
+            ) : null}
+            <StatusBadge label={statusLabel} tone={CUSTOMER_STATUS_TONE[customer.status] ?? 'neutral'} />
           </span>
         }
         actions={
@@ -160,15 +168,19 @@ function CustomerDetailUnavailable({
   readonly backLabel: string;
 }) {
   return (
-    <EmptyState
-      icon={<AlertTriangle className="size-8" aria-hidden="true" />}
-      title={title}
-      description={message}
-      action={
-        <Link href="/app/customers" className={buttonVariants()}>
-          {backLabel}
-        </Link>
-      }
-    />
+    <>
+      {/* Cet état n'avait AUCUN `h1` : son titre en tient lieu, pour les lecteurs d'écran. */}
+      <h1 className="sr-only">{title}</h1>
+      <EmptyState
+        icon={<AlertTriangle className="size-8" aria-hidden="true" />}
+        title={title}
+        description={message}
+        action={
+          <Link href="/app/customers" className={buttonVariants()}>
+            {backLabel}
+          </Link>
+        }
+      />
+    </>
   );
 }

@@ -7,7 +7,9 @@ import { Activity, KeyRound, PlugZap, Save, TestTube2, Webhook, X } from 'lucide
 import {
   DataState,
   DataTable,
+  StatusBadge,
   type DataTableColumn,
+  type StatusTone,
 } from '@/components/console';
 import { EmptyState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
@@ -29,22 +31,21 @@ import type { ApiError } from '@/lib/api';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 import { useFormatteurs } from '@/lib/format/useFormatteurs';
 
-export const categoryLabels: Record<string, string> = {
-  payments: 'Paiements',
-  messaging: 'Messagerie',
-  email: 'Email',
-  storage: 'Stockage',
-  other: 'Autres',
-};
+/**
+ * Les catégories connues ; leur libellé vit dans `superAdmin.integrations.categories.*`. Il était
+ * écrit ici en français, et l'écran restait français en `en` et en `wo`.
+ */
+export const INTEGRATION_CATEGORIES = new Set(['payments', 'messaging', 'email', 'storage', 'other']);
 
 /** Le type d'événement que l'API n'a pas renseigné — jeton technique, pas du texte affiché. */
 const WEBHOOK_EVENT_FALLBACK = 'webhook';
 
-const statusTone: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  healthy: 'secondary',
-  failed: 'destructive',
-  disabled: 'outline',
-  unknown: 'outline',
+/** Le statut → le ton du DS ; l'API émet le code, le libellé est traduit ici (`statuses.*`). */
+const STATUS_TONES: Record<string, StatusTone> = {
+  healthy: 'success',
+  failed: 'danger',
+  disabled: 'neutral',
+  unknown: 'neutral',
 };
 
 export function IntegrationCard({
@@ -60,17 +61,21 @@ export function IntegrationCard({
   return (
     <article className="rounded-xl bg-card p-4 ring-1 ring-border">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-display text-lg font-semibold text-foreground">{integration.label}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">{integration.provider}</p>
+        <div className="min-w-0">
+          <h3 className="truncate font-display text-lg font-semibold text-foreground">{integration.label}</h3>
+          <p className="mt-1 font-mono text-xs text-muted-foreground">{integration.provider}</p>
         </div>
-        <Badge variant={statusTone[integration.status] ?? 'outline'}>{integration.status}</Badge>
+        <StatusBadge
+          tone={STATUS_TONES[integration.status] ?? 'neutral'}
+          label={integration.status in STATUS_TONES ? t(`statuses.${integration.status}`) : integration.status}
+          className="shrink-0"
+        />
       </div>
       <dl className="mt-4 space-y-2 text-sm">
         {Object.entries(integration.masked_credentials).slice(0, 2).map(([key, value]) => (
           <div key={key} className="flex items-center justify-between gap-3">
-            <dt className="flex items-center gap-2 text-muted-foreground">
-              <KeyRound className="size-4" aria-hidden="true" />
+            <dt className="flex min-w-0 items-center gap-2 text-muted-foreground">
+              <KeyRound className="size-4 shrink-0" aria-hidden="true" />
               {key}
             </dt>
             <dd className="font-mono text-xs text-muted-foreground">{value}</dd>
@@ -106,11 +111,12 @@ export function IntegrationTestButton({ integrationId }: { integrationId: number
 
   return (
     <div className="flex items-center gap-2">
-      <Button type="button" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+      {/* `outline` : huit cartes portaient chacune un bouton plein — huit « actions principales ». */}
+      <Button type="button" variant="outline" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
         <TestTube2 className="size-4" aria-hidden="true" />
         {t('test')}
       </Button>
-      {message ? <span className="text-xs text-muted-foreground">{message}</span> : null}
+      <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">{message}</span>
     </div>
   );
 }

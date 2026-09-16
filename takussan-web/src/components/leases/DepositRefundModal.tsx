@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import {
   Dialog,
   DialogContent,
@@ -66,7 +66,7 @@ export function DepositRefundModal({
   const {
     register,
     handleSubmit,
-    watch,
+    control,
     reset,
     setError,
     formState: { errors },
@@ -78,7 +78,8 @@ export function DepositRefundModal({
     },
   });
 
-  const amount = Number(watch('amount') ?? 0);
+  // `useWatch` et non `watch()` : cf. `react-hooks/incompatible-library` (React Compiler).
+  const amount = Number(useWatch({ control, name: 'amount' }) ?? 0);
   const retained = Math.max(depositRemaining - amount, 0);
   const isPartial = amount + 0.001 < depositRemaining;
 

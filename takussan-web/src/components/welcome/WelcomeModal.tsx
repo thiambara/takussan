@@ -131,7 +131,7 @@ export function WelcomeModal({ open, slides, onComplete, onSkip }: WelcomeModalP
               data-active={i === index || undefined}
               aria-current={i === index ? 'step' : undefined}
               className={cn(
-                'h-1.5 rounded-full transition-all',
+                'h-1.5 rounded-full transition-[width,background-color]',
                 i === index ? 'w-6 bg-foreground' : 'w-1.5 bg-foreground/25',
               )}
             />

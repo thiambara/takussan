@@ -254,7 +254,8 @@ function PhoneStep({ data, setData }: StepProps) {
             id="agent-phone"
             type="tel"
             inputMode="tel"
-            placeholder="+221..."
+            autoComplete="tel"
+            placeholder="+221…"
             value={data.phone.number}
             disabled={data.phone.verified}
             onChange={(e) =>
@@ -269,6 +270,7 @@ function PhoneStep({ data, setData }: StepProps) {
           <Button
             type="button"
             variant="outline"
+            className="h-11 w-full px-4 sm:w-auto"
             onClick={handleSend}
             disabled={sendPending || data.phone.verified || data.phone.number.trim() === ''}
           >
@@ -286,6 +288,7 @@ function PhoneStep({ data, setData }: StepProps) {
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
+              className="tabular-nums tracking-widest"
               value={data.phone.code}
               onChange={(e) =>
                 setData({
@@ -306,6 +309,7 @@ function PhoneStep({ data, setData }: StepProps) {
           <div className="flex items-end">
             <Button
               type="button"
+              className="h-11 w-full px-4 sm:w-auto"
               onClick={handleVerify}
               disabled={verifyPending || data.phone.code.length !== 6}
             >
@@ -316,7 +320,7 @@ function PhoneStep({ data, setData }: StepProps) {
       ) : null}
 
       {data.phone.verified ? (
-        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+        <p role="status" className="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
           {t('verified.banner')}
         </p>
       ) : null}
@@ -405,6 +409,7 @@ function KycStep({
       <div>
         <Button
           type="button"
+          className="h-11 px-5"
           onClick={handleSubmit}
           disabled={submitPending || !allUploaded || data.kyc.submitted}
         >
@@ -608,9 +613,9 @@ function WelcomeStep({
           <a
             href={`/app/customers/${lead.id}`}
             data-testid={`agent-first-lead-${lead.id}`}
-            className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-4 text-sm hover:border-primary"
+            className="mt-2 flex items-center justify-between gap-3 rounded-xl border border-border bg-background p-4 text-sm transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <div className="flex flex-col">
+            <div className="flex min-w-0 flex-col">
               <span className="font-medium text-foreground">{lead.full_name}</span>
               {lead.pipeline_stage ? (
                 <span className="text-xs text-muted-foreground">
@@ -618,7 +623,7 @@ function WelcomeStep({
                 </span>
               ) : null}
             </div>
-            <span className="text-xs font-medium text-primary">{t('viewLead')}</span>
+            <span className="shrink-0 text-sm font-medium text-primary">{t('viewLead')}</span>
           </a>
         )}
       </div>

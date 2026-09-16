@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import { useWizardDraft } from '@/hooks/useWizardDraft';
+import { fieldDensityScope } from '@/components/ui/field-density';
 
 /**
  * TCK-250 — Generic resumable wizard.
@@ -107,7 +108,10 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   // La DIRECTION du dernier déplacement — elle porte le sens de l'animation
   // d'entrée (`.wizard-step-in-forward` / `-back`, TCK-464) : on avance,
   // l'étape entre par la droite ; on revient, par la gauche.
-  const [direction, setDirection] = useState<'forward' | 'back'>('forward');
+  // `null` au montage : l'étape affichée à l'arrivée (ou à la reprise) ne s'anime pas — une
+  // entrée jouée au chargement ne signale aucun changement d'état, et ses 26 px de translation
+  // élargissaient le viewport mobile (mesuré à 360 px : 10 px de défilement horizontal).
+  const [direction, setDirection] = useState<'forward' | 'back' | null>(null);
   const [data, setData] = useState<TData>(initialData);
   const [hydrated, setHydrated] = useState(false);
   const [completing, setCompleting] = useState(false);
@@ -260,6 +264,10 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
   return (
     <section
       aria-label={t('ariaLabel')}
+      // Champs à 44 px dans TOUS les assistants (revue design 2026-09-16) : ils en faisaient 32,
+      // sous le pouce, sur des écrans qu'on remplit d'abord au téléphone. La portée est posée
+      // une fois ici, et chaque `Input` / `SelectTrigger` d'étape en hérite (TCK-468).
+      {...fieldDensityScope()}
       className={cn(
         'mx-auto grid w-full max-w-4xl gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-14',
         className,
@@ -360,19 +368,29 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
             raison d'être. La clé de rendu porte l'étape, ce qui rejoue la
             transition d'entrée à chaque changement — un signal d'état, pas une
             décoration : 200 ms, et rien du tout en mouvement réduit. */}
-        <div
-          key={current.id}
-          className={direction === 'forward' ? 'wizard-step-in-forward' : 'wizard-step-in-back'}
-        >
-          {!hydrated ? (
-            <div role="status" aria-live="polite" className="flex flex-col gap-3">
-              <span className="sr-only">{t('loading')}</span>
-              <div className="h-11 w-full rounded-xl bg-muted motion-safe:animate-pulse" />
-              <div className="h-11 w-full rounded-xl bg-muted motion-safe:animate-pulse" />
-            </div>
-          ) : (
-            current.render({ data, setData })
-          )}
+        {/* La translation d'entrée ne doit jamais faire défiler la page : on la rogne à
+            l'horizontale, avec 4 px de marge pour que les anneaux de focus restent entiers. */}
+        <div className="-mx-1 overflow-x-clip px-1">
+          <div
+            key={current.id}
+            className={
+              direction === 'forward'
+                ? 'wizard-step-in-forward'
+                : direction === 'back'
+                  ? 'wizard-step-in-back'
+                  : undefined
+            }
+          >
+            {!hydrated ? (
+              <div role="status" aria-live="polite" className="flex flex-col gap-3">
+                <span className="sr-only">{t('loading')}</span>
+                <div className="h-11 w-full rounded-xl bg-muted motion-safe:animate-pulse" />
+                <div className="h-11 w-full rounded-xl bg-muted motion-safe:animate-pulse" />
+              </div>
+            ) : (
+              current.render({ data, setData })
+            )}
+          </div>
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-border pt-6">
@@ -382,7 +400,7 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
             size="lg"
             onClick={handlePrevious}
             disabled={stepIndex === 0 || completing}
-            className={cn(stepIndex === 0 && 'invisible')}
+            className={cn('-ml-2.5 h-11 px-3', stepIndex === 0 && 'invisible')}
           >
             <ChevronLeft className="size-4" aria-hidden />
             {t('previous')}
@@ -393,6 +411,7 @@ export function WizardReprenable<TData extends Record<string, unknown>>({
             size="lg"
             onClick={handleNext}
             disabled={!canAdvance || completing}
+            className="h-11 min-w-32 px-5"
           >
             {isLast ? t('complete') : t('next')}
             {!isLast ? <ChevronRight className="size-4" aria-hidden /> : null}

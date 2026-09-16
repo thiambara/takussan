@@ -37,7 +37,7 @@ describe('les primitives de champ portent la variante de densité', () => {
     expect(champ.className).toContain(FIELD_DENSITY_HEIGHT);
   });
 
-  it('SelectTrigger — sous sa forme EMPILÉE, la seule qui batte `data-[size=default]:h-8`', () => {
+  it('SelectTrigger — hauteur de base NUE, et forme EMPILÉE pour la portée', () => {
     render(
       <Select>
         <SelectTrigger aria-label="devise">
@@ -46,7 +46,10 @@ describe('les primitives de champ portent la variante de densité', () => {
       </Select>,
     );
     const declencheur = screen.getByLabelText('devise');
-    expect(declencheur.className).toContain('data-[size=default]:h-8');
+    // Revue 2026-09-16 : la base est `h-8` nue, pour qu'un `className="h-9"` d'appelant la
+    // remplace (twMerge) au lieu de perdre contre `data-[size=default]:h-8`.
+    expect(declencheur.className.split(' ')).toContain('h-8');
+    expect(declencheur.className).not.toContain('data-[size=default]:h-8');
     expect(declencheur.className).toContain(FIELD_DENSITY_HEIGHT_SIZED);
   });
 
@@ -150,6 +153,8 @@ describe('la variante l’emporte réellement sur la hauteur de base', () => {
   });
 
   it('la forme EMPILÉE du Select retrouve la spécificité de sa hauteur de base', async () => {
+    // La base est nue depuis la revue du 2026-09-16 ; la forme empilée (0,2,0) la bat a fortiori,
+    // et bat aussi un `data-[size=default]:h-*` d'appelant posé plus tôt dans la feuille.
     const css = await feuille(['data-[size=default]:h-8', FIELD_DENSITY_HEIGHT_SIZED]);
 
     const base = css.indexOf('.data-\\[size\\=default\\]\\:h-8');

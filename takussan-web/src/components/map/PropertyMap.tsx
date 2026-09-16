@@ -13,7 +13,7 @@ import {
 } from 'react-leaflet';
 import Image from 'next/image';
 import { LienLocalise } from '@/components/shared/LienLocalise';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { formatPrice } from '@/lib/utils';
 import { formatPriceShort } from '@/lib/format/currency';
@@ -160,7 +160,7 @@ export function PropertyMap({
 
   return (
     <div className={`relative ${className}`}>
-      <div className={`${height} w-full overflow-hidden rounded-xl border border-stone-200`}>
+      <div className={`${height} w-full overflow-hidden rounded-xl border border-border`}>
         <MapContainer
           center={DEFAULT_CENTER}
           zoom={DEFAULT_ZOOM}
@@ -203,12 +203,12 @@ export function PropertyMap({
       </div>
 
       {query.isFetching && (
-        <div className="pointer-events-none absolute top-3 right-3 z-[400] rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-stone-600 shadow">
+        <div className="pointer-events-none absolute top-3 right-3 z-[400] rounded-full bg-card/90 px-3 py-1 text-xs font-semibold text-muted-foreground shadow">
           {t('loading')}
         </div>
       )}
       {query.data?.meta.truncated && (
-        <div className="pointer-events-none absolute bottom-3 left-3 z-[400] rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 shadow">
+        <div className="pointer-events-none absolute bottom-3 left-3 z-[400] rounded-full bg-card px-3 py-1 text-xs font-semibold text-warning shadow">
           {t('truncated', { count: query.data.meta.returned })}
         </div>
       )}
@@ -223,9 +223,9 @@ function MapPopupCard({ feature }: { feature: PropertyMapFeature }) {
   return (
     <LienLocalise
       href={`/properties/${p.slug}`}
-      className="block w-[220px] no-underline text-stone-900"
+      className="block w-[220px] no-underline text-foreground"
     >
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-md bg-stone-200">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-md bg-muted">
         {p.thumbnail && (
           <Image
             src={p.thumbnail}
@@ -237,7 +237,7 @@ function MapPopupCard({ feature }: { feature: PropertyMapFeature }) {
         )}
       </div>
       <div className="p-2">
-        <p className="text-xs text-stone-500 mb-0.5">
+        <p className="text-xs text-muted-foreground mb-0.5">
           {t(isSale ? 'saleLong' : 'rentLong')}
         </p>
         <p className="font-semibold text-sm line-clamp-2 leading-snug mb-1">

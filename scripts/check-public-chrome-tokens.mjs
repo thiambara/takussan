@@ -37,6 +37,8 @@
  *          servi pour approcher Lin à la main. Le convertir demande le même travail que
  *          celui-ci, sur un volume deux fois plus grand ; l'inclure ici aurait fait naître la
  *          garde à 260 exceptions, c'est-à-dire pas de garde du tout.
+ *          ✅ **`stone` sort de ce trou le 2026-09-16** : zéro occurrence vivante dans le périmètre
+ *          (tunnel `/bookings` compris) après la revue design ; la famille est désormais gardée.
  *     T2 · les couleurs NOMMÉES ........................................... 50 occurrences
  *          `bg-white` 36 · `text-white` 14. Celles de la navbar et du pied de page SONT
  *          converties par TCK-440 ; les autres restent, et resteront : le blanc sur photo est un
@@ -242,6 +244,9 @@ const PERIMETRES = [
   join(WEB_SRC, 'components', 'search'),
   join(WEB_SRC, 'components', 'compare'),
   join(WEB_SRC, 'components', 'favorites'),
+  // 2026-09-16 (revue design, groupe E) : le tunnel `/bookings` était entièrement en `stone-*`
+  // sous une garde verte — ni son répertoire ni sa famille n'étaient comptés.
+  join(WEB_SRC, 'components', 'bookings'),
 ];
 
 /**
@@ -259,6 +264,7 @@ const TEMOINS = [
   join(WEB_SRC, 'components', 'search', 'FilterSidebar.tsx'),
   join(WEB_SRC, 'components', 'compare', 'CompareTable.tsx'),
   join(WEB_SRC, 'components', 'favorites', 'FavoritesPopover.tsx'),
+  join(WEB_SRC, 'components', 'bookings', 'BookingTunnel.tsx'),
 ];
 
 /** Plancher de fichiers analysés — 76 le 2026-08-27. Vider un répertoire ne doit pas être muet. */
@@ -278,7 +284,9 @@ const PREFIXES = [
   'from', 'via', 'to', 'divide', 'outline', 'placeholder',
   'fill', 'stroke', 'shadow', 'caret', 'accent', 'decoration',
 ];
-const FAMILLES = ['slate', 'gray', 'zinc', 'neutral'];
+// `stone` ajoutée le 2026-09-16 : c'est la famille du tunnel de réservation qui passait (zéro
+// occurrence vivante au moment de l'ajout, dans tout le périmètre).
+const FAMILLES = ['slate', 'gray', 'zinc', 'neutral', 'stone'];
 
 /**
  * TROIS contrôles — A, C, D. Chacun ferme un défaut que les deux autres laissent passer.
@@ -580,8 +588,8 @@ const EPREUVE = [
   ['text-blackish', false],
   ['bg-scrimshaw', false],
   ['text-description', false],   // contient « scri »… mais pas `-scrim`
+  ['bg-stone-100', true],        // gardée depuis le 2026-09-16
   // familles hors du périmètre DÉCLARÉ (trou T1) et couleurs nommées (trou T2)
-  ['bg-stone-100', false],
   ['text-amber-400', false],
   ['text-white', false],
   ['bg-white', false],

@@ -82,9 +82,9 @@ export const moreCategories: readonly Category[] = [
  *   prochaine personne qui le trouvera et croira la surface livrée.
  */
 export const navLinks = [
-  { labelKey: 'buy',  href: '/properties?contract_type=sale', active: true },
-  { labelKey: 'rent', href: '/properties?contract_type=rent', active: false },
-  { labelKey: 'sell', href: '/publish',                       active: false },
+  { labelKey: 'buy',  href: '/properties?contract_type=sale' },
+  { labelKey: 'rent', href: '/properties?contract_type=rent' },
+  { labelKey: 'sell', href: '/publish' },
 ] as const;
 
 /** Une entrée de colonne du pied de page : une clé de libellé, un chemin qui doit exister. */

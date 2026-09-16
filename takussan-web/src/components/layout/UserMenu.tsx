@@ -49,7 +49,7 @@ export function UserMenu({ user, className, variant = 'dark' }: UserMenuProps) {
       <DropdownMenuTrigger
         aria-label={t('userMenuFor', { name: user.full_name })}
         className={cn(
-          'inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50',
+          'relative inline-flex items-center gap-2 rounded-md px-2 py-1 text-sm outline-none transition-colors after:absolute after:inset-x-0 after:-inset-y-0.5 focus-visible:ring-2 focus-visible:ring-ring/50',
           isDark ? 'text-white hover:bg-white/10' : 'text-foreground hover:bg-muted',
           className,
         )}

@@ -3,9 +3,10 @@
 import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { Loader2, ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from 'lucide-react';
 
-import { EmptyState } from '@/components/feedback';
+import { EmptyState, ErrorState } from '@/components/feedback';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { useAuth } from '@/context/AuthContext';
 import { FilterBar, Pagination } from '@/components/console';
@@ -55,6 +56,7 @@ const PAR_PAGE = 20;
 
 export function ModerationWorkspace() {
   const t = useTranslations('admin.moderation.workspace');
+  const tCommon = useTranslations('common');
   const messageErreur = useMessageErreurApi();
   const { token } = useAuth();
   const statusOptions = STATUS_KEYS.map((k) => ({ value: k, label: t(`status.${k}`) }));
@@ -78,7 +80,7 @@ export function ModerationWorkspace() {
     [status, reported, subjectType, page],
   );
 
-  const { data, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey,
     queryFn: () =>
       fetchModerationQueue(token ?? '', {
@@ -150,14 +152,23 @@ export function ModerationWorkspace() {
       </FilterBar>
 
       {isLoading ? (
-        <div className="flex items-center justify-center gap-2 rounded-xl bg-card p-12 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          {t('loading')}
+        // Squelette à la forme de l'écran (file + détail) plutôt qu'un spinner centré : la
+        // charte réserve le spinner à la première charge d'une page entière.
+        <div role="status" className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr]">
+          <span className="sr-only">{t('loading')}</span>
+          <div className="space-y-2">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-20 rounded-xl" />
+            ))}
+          </div>
+          <Skeleton className="hidden h-96 rounded-xl lg:block" />
         </div>
       ) : isError ? (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-8 text-sm text-destructive">
-          {messageErreur(error, t('loadError'))}
-        </div>
+        <ErrorState
+          message={messageErreur(error, t('loadError'))}
+          onRetry={() => void refetch()}
+          retryLabel={tCommon('actions.retry')}
+        />
       ) : reviews.length === 0 ? (
         <ModerationEmpty />
       ) : (

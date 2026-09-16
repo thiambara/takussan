@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 
+import { StatusBadge } from '@/components/console';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -23,7 +23,7 @@ import {
 import type { Locale } from '@/i18n/config';
 import type { InvoiceStatus } from '@/types/invoice';
 
-import { INVOICE_STATUS_VARIANT } from './constants';
+import { INVOICE_STATUS_TONE } from './constants';
 import { PayOnlineButton } from './PayOnlineButton';
 import { usePaymentProviders } from '@/hooks/usePaymentProviders';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
@@ -77,9 +77,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: InvoiceDetailDialogP
         ) : invoice ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <Badge variant={INVOICE_STATUS_VARIANT[status] ?? 'outline'}>
-                {tStatus(status)}
-              </Badge>
+              <StatusBadge tone={INVOICE_STATUS_TONE[status] ?? 'neutral'} label={tStatus(status)} />
               <span className="text-xs text-muted-foreground">
                 {t('issuedOn', {
                   date: invoice.issue_date ? formatDate(invoice.issue_date, locale) : '—',

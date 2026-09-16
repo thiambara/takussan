@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   ChevronDown,
   ChevronUp,
@@ -32,6 +32,8 @@ import {
   DOCUMENT_MIME_ACCEPT,
 } from '@/lib/queries/documents';
 import type { DocumentVersion } from '@/types/document';
+import type { Locale } from '@/i18n/config';
+import { formatDateTime } from '@/lib/format';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -44,15 +46,9 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`;
 }
 
-function formatDate(iso: string | null): string {
+function formatDate(iso: string | null, locale: Locale): string {
   if (!iso) return '—';
-  return new Date(iso).toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDateTime(iso, locale);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -287,28 +283,31 @@ interface VersionRowProps {
 
 function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
   const t = useTranslations('documents.versions');
+  const locale = useLocale() as Locale;
 
   return (
     <li className="flex items-start gap-3 rounded-lg border border-border bg-muted px-4 py-3">
       {/* Version badge */}
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary tabular-nums">
         v{version.version_number}
       </span>
 
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium text-foreground">{version.file_name}</span>
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="min-w-0 truncate text-sm font-medium text-foreground" title={version.file_name}>
+            {version.file_name}
+          </span>
           {version.is_active ? (
-            <span className="flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+            <span className="flex shrink-0 items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
               <CheckCircle2 className="size-3" aria-hidden="true" />
               {t('active')}
             </span>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+        <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
           <span className="flex items-center gap-1">
             <Clock className="size-3" aria-hidden="true" />
-            {formatDate(version.created_at)}
+            {formatDate(version.created_at, locale)}
           </span>
           <span>{formatBytes(version.size)}</span>
           {version.comment ? (
@@ -326,7 +325,7 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
             href={version.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
+            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={t('download_aria')}
           >
             <Download className="size-4" aria-hidden="true" />
@@ -336,7 +335,7 @@ function VersionRow({ version, canManage, onRestoreClick }: VersionRowProps) {
           <button
             type="button"
             onClick={() => onRestoreClick(version)}
-            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-border hover:text-foreground"
+            className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={t('restore_aria', { version: version.version_number })}
           >
             <RotateCcw className="size-4" aria-hidden="true" />
@@ -387,43 +386,43 @@ export function DocumentVersionsList({
 
   return (
     <>
-      {/* Accordion trigger */}
-      <div className="border-t border-border">
+      {/* Accordion trigger — le bouton « Nouvelle version » vivait DANS le bouton d'accordéon :
+          un <button> dans un <button> est du HTML invalide, React le signale en erreur
+          d'hydratation et la page de détail tombait dans la frontière d'erreur. */}
+      <div className="flex items-center gap-2 border-t border-border pr-4">
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          className="flex min-h-11 min-w-0 flex-1 items-center gap-2 px-4 py-3 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           aria-expanded={expanded}
         >
-          <History className="size-4 text-primary" aria-hidden="true" />
-          <span className="flex-1 text-left">
+          <History className="size-4 shrink-0 text-primary" aria-hidden="true" />
+          <span className="flex-1">
             {t('heading')}
             {count > 0 ? (
-              <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary">
+              <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-semibold text-primary tabular-nums">
                 {count}
               </span>
             ) : null}
           </span>
-          {canManage ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setUploadOpen(true);
-              }}
-              className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
-              aria-label={t('add_title')}
-            >
-              <UploadCloud className="size-3" aria-hidden="true" />
-              {t('new_version')}
-            </button>
-          ) : null}
           {expanded ? (
-            <ChevronUp className="size-4 text-muted-foreground" aria-hidden="true" />
+            <ChevronUp className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           ) : (
-            <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           )}
         </button>
+        {canManage ? (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setUploadOpen(true)}
+            aria-label={t('add_title')}
+            className="shrink-0"
+          >
+            <UploadCloud aria-hidden="true" />
+            {t('new_version')}
+          </Button>
+        ) : null}
       </div>
 
       {/* Expanded content */}

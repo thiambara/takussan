@@ -22,7 +22,13 @@ export function AgencyKpis({ summary }: Props) {
   const unpaidRate = summary.finance.unpaid_rate_percent;
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+    // Les deux MONTANTS prennent la ligne entière tant que la grille n'a que deux colonnes : un
+    // montant en F CFA à neuf chiffres ne tient pas dans une demi-largeur et se coupait entre
+    // « F » et « CFA ». `grid-flow-row-dense` remonte « Taux d'impayés » à côté du taux
+    // d'occupation au lieu de laisser un trou. Trois colonnes dès `lg` seulement (TCK-505 : à
+    // `md`, la coque n'offre que 464 px), six à `2xl` — à 1366 px, six tuiles de 160 px coupaient
+    // encore le montant des impayés.
+    <div className="grid grid-flow-row-dense grid-cols-2 gap-4 lg:grid-cols-3 2xl:grid-cols-6">
       <AgencyKpiTile
         label={t('properties')}
         value={formatNumber(summary.properties.total, locale)}
@@ -45,12 +51,14 @@ export function AgencyKpis({ summary }: Props) {
         label={t('revenueMonth')}
         value={formatCurrency(summary.finance.revenue_month, locale)}
         accent="success"
+        className="col-span-2 lg:col-span-1"
       />
       <AgencyKpiTile
         label={t('overdue')}
         value={formatCurrency(summary.finance.overdue_amount, locale)}
         hint={overdueCount > 0 ? t('overdueHint', { count: formatNumber(overdueCount, locale) }) : undefined}
         accent={overdueCount > 0 ? 'danger' : 'default'}
+        className="col-span-2 lg:col-span-1"
       />
       <AgencyKpiTile
         label={t('unpaidRate')}

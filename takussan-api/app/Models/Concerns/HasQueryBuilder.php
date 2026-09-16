@@ -42,6 +42,36 @@ trait HasQueryBuilder
     protected static array $searchRelevanceIds = [];
 
     /**
+     * Plafond de `per_page` — le même que `PropertySearchService`.
+     */
+    public const PER_PAGE_MAX = 100;
+
+    /**
+     * La taille de page d'un `->paginate()` sans argument : le `per_page` de la requête HTTP,
+     * borné à [1, PER_PAGE_MAX], sinon le défaut du modèle.
+     *
+     * Relevé le 2026-09-16 : `docs/spatie-query-builder.md` promet `?per_page=50`, le front
+     * l'envoie partout, et vingt-deux contrôleurs appellent `->paginate()` nu — l'API rendait
+     * 15 lignes à tous (kanban plafonné à 15 par colonne, sélecteur de densité sans effet,
+     * listes « des 100 premiers » tronquées). Le poser ici le corrige pour toutes les listes
+     * construites sur ce trait, sans toucher les contrôleurs ; un `paginate($n)` explicite
+     * n'appelle pas cette méthode et garde la main.
+     *
+     * Une valeur absente, non numérique ou < 1 rend le défaut : c'est une requête mal formée,
+     * pas une demande de page d'une ligne.
+     */
+    public function getPerPage()
+    {
+        $demande = app()->bound('request') ? request()->query('per_page') : null;
+
+        if (is_numeric($demande) && (int) $demande >= 1) {
+            return min((int) $demande, self::PER_PAGE_MAX);
+        }
+
+        return parent::getPerPage();
+    }
+
+    /**
      * Returns a spatie QueryBuilder pre-configured with the model's allowed
      * filters, sorts, includes and fields. Accepts an optional base query so
      * callers can apply access-control constraints before handing off to spatie.

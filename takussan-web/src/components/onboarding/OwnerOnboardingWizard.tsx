@@ -223,7 +223,8 @@ function PhoneStep({ data, setData }: StepProps) {
             id="owner-phone"
             type="tel"
             inputMode="tel"
-            placeholder="+221..."
+            autoComplete="tel"
+            placeholder="+221…"
             value={data.phone.number}
             disabled={data.phone.verified}
             onChange={(e) =>
@@ -238,6 +239,7 @@ function PhoneStep({ data, setData }: StepProps) {
           <Button
             type="button"
             variant="outline"
+            className="h-11 w-full px-4 sm:w-auto"
             onClick={handleSend}
             disabled={sendPending || data.phone.verified || data.phone.number.trim() === ''}
           >
@@ -255,6 +257,7 @@ function PhoneStep({ data, setData }: StepProps) {
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
+              className="tabular-nums tracking-widest"
               value={data.phone.code}
               onChange={(e) =>
                 setData({
@@ -275,6 +278,7 @@ function PhoneStep({ data, setData }: StepProps) {
           <div className="flex items-end">
             <Button
               type="button"
+              className="h-11 w-full px-4 sm:w-auto"
               onClick={handleVerify}
               disabled={verifyPending || data.phone.code.length !== 6}
             >
@@ -285,7 +289,7 @@ function PhoneStep({ data, setData }: StepProps) {
       ) : null}
 
       {data.phone.verified ? (
-        <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+        <p role="status" className="rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
           {t('verified.banner')}
         </p>
       ) : null}
@@ -363,6 +367,7 @@ function KycStep({
       <div>
         <Button
           type="button"
+          className="h-11 px-5"
           onClick={handleSubmit}
           disabled={submitPending || !allUploaded || data.kyc.submitted}
         >
@@ -403,22 +408,23 @@ function TourStep({ data, setData }: StepProps) {
     <div className="flex flex-col gap-4">
       <div className="rounded-xl border border-border bg-muted/30 p-6">
         <p className="font-medium text-foreground">{slide.title}</p>
-        <p className="mt-2 text-sm text-muted-foreground">{slide.body}</p>
+        <p className="mt-2 text-sm leading-relaxed text-pretty text-muted-foreground">{slide.body}</p>
       </div>
 
-      <div
-        role="tablist"
-        aria-label={t('subtitle')}
-        className="flex items-center justify-center gap-1.5 py-1"
-      >
+      {/* Des points DÉCORATIFS : ils se déclaraient `tablist` sans un seul `tab`, et un lecteur
+          d'écran annonçait une liste d'onglets vide. La position se dit en chiffres, une fois. */}
+      <p className="sr-only" aria-live="polite">
+        {index + 1} / {slides.length}
+      </p>
+      <div aria-hidden className="flex items-center justify-center gap-1.5 py-1">
         {slides.map((_, i) => (
           <span
             key={i}
             data-active={i === index || undefined}
             className={
               i === index
-                ? 'h-1.5 w-6 rounded-full bg-foreground transition-all'
-                : 'h-1.5 w-1.5 rounded-full bg-foreground/25 transition-all'
+                ? 'h-1.5 w-6 rounded-full bg-foreground transition-[width,background-color] duration-200 ease-out'
+                : 'h-1.5 w-1.5 rounded-full bg-foreground/25 transition-[width,background-color] duration-200 ease-out'
             }
           />
         ))}
@@ -429,11 +435,11 @@ function TourStep({ data, setData }: StepProps) {
           type="button"
           variant="link"
           onClick={handleSkip}
-          className="text-muted-foreground"
+          className="h-11 text-muted-foreground"
         >
           {t('skip')}
         </Button>
-        <Button type="button" onClick={handleNext}>
+        <Button type="button" onClick={handleNext} className="h-11 px-5">
           {isLast ? t('finish') : t('next')}
         </Button>
       </div>
@@ -497,8 +503,8 @@ function RecapStep({ ownerProfileId }: { ownerProfileId: number }) {
             data-testid={`owner-property-${property.id}`}
             className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
           >
-            <div className="flex flex-col">
-              <span className="font-medium text-foreground">
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate font-medium text-foreground">
                 {property.title ?? `#${property.id}`}
               </span>
               {property.city ? (
@@ -507,7 +513,7 @@ function RecapStep({ ownerProfileId }: { ownerProfileId: number }) {
             </div>
             <a
               href={`/app/properties/${property.id}`}
-              className="text-xs font-medium text-primary hover:underline"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               {t('viewAll')}
             </a>

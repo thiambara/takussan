@@ -1,9 +1,7 @@
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
-import { formatDate } from '@/lib/format';
-import type { Locale } from '@/i18n/config';
 import {
   eventTouchesDay,
   isSameDay,
@@ -12,6 +10,7 @@ import {
   weekDays,
 } from '@/lib/calendar-date';
 import { paletteFor } from './event-colors';
+import { useDatesCalendrier } from './dates';
 import type { CalendarEvent } from '@/types/calendar';
 
 export interface WeekViewProps {
@@ -22,7 +21,7 @@ export interface WeekViewProps {
 
 export function WeekView({ focus, events, onSelect }: WeekViewProps) {
   const t = useTranslations('calendar');
-  const locale = useLocale() as Locale;
+  const dates = useDatesCalendrier();
   const days = weekDays(focus);
   const today = new Date();
 
@@ -36,9 +35,12 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
     <div
       role="grid"
       aria-label={t('gridAria.week')}
-      className="overflow-hidden rounded-xl border border-border bg-card"
+      // Revue design 2026-09-16 — sept colonnes dans 328 px faisaient des puces de 47 px où
+      // l'heure elle-même était coupée. Sous `lg`, la semaine DÉFILE dans son conteneur, à
+      // 6,5 rem par jour ; au-dessus, elle tient.
+      className="overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-card"
     >
-      <div className="grid grid-cols-7 border-b border-border bg-muted/50">
+      <div className="grid min-w-[45.5rem] grid-cols-7 border-b border-border bg-muted/50 lg:min-w-0">
         {days.map((day, idx) => {
           const isToday = isSameDay(day, today);
           return (
@@ -53,7 +55,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
               <div
                 className={cn(
                   'mt-0.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full text-sm font-semibold',
-                  isToday ? 'bg-foreground text-primary-foreground px-1.5' : 'text-foreground',
+                  isToday ? 'bg-foreground px-1.5 text-background' : 'text-foreground',
                 )}
               >
                 {day.getDate()}
@@ -62,7 +64,7 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
           );
         })}
       </div>
-      <div className="grid grid-cols-7">
+      <div className="grid min-w-[45.5rem] grid-cols-7 lg:min-w-0">
         {days.map((day) => {
           const dayEvents = parsed
             .filter((p) => eventTouchesDay({ start: p.start, end: p.end }, day))
@@ -79,24 +81,21 @@ export function WeekView({ focus, events, onSelect }: WeekViewProps) {
                   const palette = paletteFor(event);
                   const timeLabel = event.all_day
                     ? t('allDay')
-                    // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur.
-                    : formatDate(start, locale, {
-                        dateStyle: undefined,
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      });
+                    // TCK-292 — la locale ACTIVE, plus `fr-FR` en dur. Horloge du navigateur :
+                    // cf. `./dates` (le fuseau de Dakar décalait l'heure hors du Sénégal).
+                    : dates.heure(start);
                   return (
                     <li key={`${event.type}-${event.id}`}>
                       <button
                         type="button"
                         onClick={() => onSelect(event)}
                         className={cn(
-                          'w-full rounded border px-2 py-1 text-left text-xs transition-colors hover:opacity-90',
+                          'w-full rounded-md border px-2 py-1 text-left text-xs transition-opacity hover:opacity-90',
                           palette.pill,
                         )}
                         data-testid={`calendar-event-pill-${event.type}-${event.id}`}
                       >
-                        <div className="font-medium">{timeLabel}</div>
+                        <div className="font-medium tabular-nums">{timeLabel}</div>
                         <div className="truncate">{event.title}</div>
                       </button>
                     </li>

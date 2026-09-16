@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, ClipboardList, Plus } from 'lucide-react';
 
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { buttonVariants } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -67,7 +67,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="flex w-56 flex-col">
+        <div className="flex min-w-0 flex-1 basis-36 flex-col sm:w-56 sm:flex-none">
           <label htmlFor="inventory-filter-type" className="mb-1.5 text-sm font-medium">
             {t('type')}
           </label>
@@ -76,7 +76,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
             onValueChange={(value) => setType(value === '__all__' ? '' : ((value ?? '') as '' | InventoryType))}
             items={[{ value: '__all__', label: t('allTypes') }, ...INVENTORY_TYPES.map((value) => ({ value, label: tTypes(value) }))]}
           >
-            <SelectTrigger id="inventory-filter-type" className="h-9">
+            <SelectTrigger id="inventory-filter-type" className="h-9 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -87,7 +87,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex w-56 flex-col">
+        <div className="flex min-w-0 flex-1 basis-36 flex-col sm:w-56 sm:flex-none">
           <label htmlFor="inventory-filter-status" className="mb-1.5 text-sm font-medium">
             {t('statusLabel')}
           </label>
@@ -96,7 +96,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
             onValueChange={(value) => setStatus(value === '__all__' ? '' : ((value ?? '') as '' | InventoryStatus))}
             items={[{ value: '__all__', label: t('allStatuses') }, ...INVENTORY_STATUSES.map((value) => ({ value, label: tStatus(value) }))]}
           >
-            <SelectTrigger id="inventory-filter-status" className="h-9">
+            <SelectTrigger id="inventory-filter-status" className="h-9 w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -110,7 +110,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
         {canCreate ? (
           <Link
             href="/app/inventories/new"
-            className={buttonVariants({ className: 'ml-auto h-9' })}
+            className={buttonVariants({ className: 'h-9 w-full sm:ml-auto sm:w-auto' })}
           >
             <Plus className="size-4" aria-hidden="true" />
             {t('create')}
@@ -143,15 +143,20 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
           return (
             <ul className="space-y-2">
               {data.data.map((inv) => (
-                <li key={inv.id} className="rounded-xl bg-card shadow-sm transition-colors hover:bg-muted">
+                <li key={inv.id}>
                   <Link
                     href={`/app/inventories/${inv.id}`}
-                    className="flex flex-col gap-2 p-4 md:flex-row md:items-center md:justify-between"
+                    className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 transition-[box-shadow,border-color] hover:border-foreground/15 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-foreground">
                         {inv.property?.title ?? tRoot('fallbackReference', { id: String(inv.id) })}
-                        {inv.lease?.reference_number ? ` · ${inv.lease.reference_number}` : ''}
+                        {inv.lease?.reference_number ? (
+                          <span className="font-normal text-muted-foreground">
+                            {' · '}
+                            {inv.lease.reference_number}
+                          </span>
+                        ) : null}
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         {inv.conducted_at
@@ -159,7 +164,7 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
                           : t('createdOn', { date: formatDate(inv.created_at, locale) })}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <InventoryTypeBadge type={inv.type} />
                       <InventoryStatusBadge status={inv.status} />
                     </div>
@@ -167,32 +172,34 @@ export function InventoryList({ canCreate = false }: InventoryListProps) {
                 </li>
               ))}
               {data.meta.last_page > 1 ? (
-                <li className="flex items-center justify-between pt-3">
-                  <button
+                <li className="flex items-center justify-between gap-3 pt-3">
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     disabled={data.meta.current_page <= 1}
                     onClick={prevPage}
-                    className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    <ChevronLeft className="size-3.5" />
+                    <ChevronLeft aria-hidden="true" />
                     {t('previous')}
-                  </button>
-                  <span className="text-xs text-muted-foreground">
+                  </Button>
+                  <span className="text-center text-xs text-muted-foreground tabular-nums">
                     {t('pagination', {
                       current: String(data.meta.current_page),
                       last: String(data.meta.last_page),
                       total: String(data.meta.total),
                     })}
                   </span>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     disabled={data.meta.current_page >= data.meta.last_page}
                     onClick={nextPage}
-                    className="inline-flex items-center gap-1 rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     {t('next')}
-                    <ChevronRight className="size-3.5" />
-                  </button>
+                    <ChevronRight aria-hidden="true" />
+                  </Button>
                 </li>
               ) : null}
             </ul>

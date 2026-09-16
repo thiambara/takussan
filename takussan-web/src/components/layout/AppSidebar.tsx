@@ -394,7 +394,7 @@ function SidebarItem({
         role="link"
         aria-disabled="true"
         title={t('proLocked')}
-        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground"
+        className="flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground max-md:py-2.5"
       >
         <Icon className="size-4 shrink-0" aria-hidden />
         <span className="truncate">{label}</span>
@@ -408,7 +408,9 @@ function SidebarItem({
       onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+        // `max-md:` = le tiroir seul (la barre fixe n'existe qu'à partir de `md`) : 40 px par
+        // entrée au doigt, 36 px inchangés au pointeur.
+        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors max-md:py-2.5',
         FOCUS_RING,
         active
           ? 'bg-border text-foreground font-semibold'
@@ -563,16 +565,20 @@ export function AppSidebar({
 
   return (
     <aside className={cn('flex h-full w-64 flex-col bg-card', className)}>
-      <div className="px-6 py-5">
+      {/* Revue design 2026-09-16 — à partir de `md`, la barre haute porte déjà la marque, 60 px
+          au-dessus : le second logo ne se lisait que comme un doublon. Il reste dans le tiroir,
+          où la barre haute est recouverte. `-mx-1 px-1` : l'anneau de focus — posé sur ce lien
+          à l'ouverture du tiroir — ne rase plus les glyphes. */}
+      <div className="px-5 py-5 md:hidden">
         <Link
           href="/"
           onClick={onNavigate}
-          className={cn('rounded-md text-xl font-bold tracking-tighter text-foreground', FOCUS_RING)}
+          className={cn('rounded-md px-1 text-xl font-bold tracking-tighter text-foreground', FOCUS_RING)}
         >
           {tCommon('appName')}
         </Link>
       </div>
-      <nav aria-label={t('navLabel')} className="flex-1 overflow-y-auto px-3 pb-2">
+      <nav aria-label={t('navLabel')} className="flex-1 overflow-y-auto px-3 pb-2 md:pt-5">
         {groups.map((group, index) => {
           const labelKey = SECTION_LABEL_KEYS[group.section];
           return (

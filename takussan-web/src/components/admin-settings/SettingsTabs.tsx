@@ -49,10 +49,12 @@ export async function SettingsTabs({
           // ne le dit qu'à qui voit.
           aria-current={onglet.cle === active ? 'page' : undefined}
           className={cn(
-            'rounded-full px-3 py-1.5 text-xs font-medium',
+            // La bordure est posée sur les DEUX états : l'onglet actif, sans elle, mesurait 2 px
+            // de moins que ses voisins et la rangée sautait d'un onglet à l'autre.
+            'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
             onglet.cle === active
-              ? 'bg-primary text-primary-foreground'
-              : 'border border-input text-muted-foreground hover:bg-muted',
+              ? 'border-primary bg-primary text-primary-foreground'
+              : 'border-input text-muted-foreground hover:bg-muted',
           )}
         >
           {onglet.label}

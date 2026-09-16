@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**475 tickets** — 23 ouverts, 451 livrés.
+**480 tickets** — 27 ouverts, 452 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 22 |
+| 📋 Todo | 26 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 451 |
+| ✅ Done | 452 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -55,6 +55,10 @@
 - [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
+- [TCK-528](tickets/TCK-528-creation-facture-et-reversement-sans-capacite.md) — Créer une facture ou un reversement ne juge aucune capacité : `invoices.create` et `payouts.create` sont déclarées et jamais lues `S · P1 · bug`
+- [TCK-530](tickets/TCK-530-total-de-reservation-ignore-la-periode-de-loyer.md) — Le tunnel de réservation multiplie le loyer par le nombre de nuits, quelle que soit la période du loyer `S · P1 · bug`
+- [TCK-531](tickets/TCK-531-consentements-vers-des-pages-legales-absentes.md) — Trois cases de consentement obligatoires renvoient à des pages légales qui n'existent pas (404) `M · P1 · bug`
+- [TCK-532](tickets/TCK-532-etiquettes-du-graphique-en-barres-illisibles.md) — Les étiquettes de `BarChart` sont rendues sous 9 px : elles vivent dans un SVG mis à l'échelle `S · P2 · front`
 
 ## 🚧 Doing
 
@@ -70,7 +74,14 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 451
+## ✅ Done — 452
+
+<details>
+<summary><strong>Vague 65 — Revue design et responsive de toutes les interfaces web — impeccable + make-interfaces-feel-better (2026-09-16)</strong> — 1 ticket</summary>
+
+- [TCK-529](tickets/TCK-529-revue-design-et-responsive-de-toutes-les-interfaces.md) — Revue design et responsive de toutes les interfaces web — 126 écrans passés au crible par huit groupes, défauts corrigés `L · P1 · front`
+
+</details>
 
 <details>
 <summary><strong>Vague 64 — Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)</strong> — 16 tickets</summary>

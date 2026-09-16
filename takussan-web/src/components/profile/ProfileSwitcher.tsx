@@ -115,7 +115,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
           className,
         )}
       >
-        <ProfileBadge profile={only} variant="dot" />
+        <ProfileBadge profile={only} variant="dot" className="ring-1 ring-primary-foreground/70" />
         <span className="truncate max-w-[14rem]">{profileShortLabel(only, tTypes)}</span>
       </span>
     );
@@ -134,7 +134,7 @@ export function ProfileSwitcher({ user, className }: ProfileSwitcherProps) {
       >
         {active ? (
           <>
-            <ProfileBadge profile={active} variant="dot" />
+            <ProfileBadge profile={active} variant="dot" className="ring-1 ring-primary-foreground/70" />
             <span className="hidden lg:inline truncate max-w-[14rem]">{profileShortLabel(active, tTypes)}</span>
           </>
         ) : (

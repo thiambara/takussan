@@ -1,10 +1,11 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Home, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/feedback';
 import { PropertyCardStandard } from '@/components/property/cards/PropertyCardStandard';
 import type { PropertyListItem } from '@/types/property';
 import {
@@ -81,33 +82,28 @@ export function PortfolioTabs({ portfolio, emptyHint, totals, source }: Portfoli
       <TabsList aria-label={t('filterAria')}>
         <TabsTrigger value="all">
           {t('tabs.all')}
-          <span className="ml-2 text-xs text-muted-foreground">{displayedTotals.all}</span>
+          <span className="ml-2 text-xs tabular-nums text-muted-foreground">{displayedTotals.all}</span>
         </TabsTrigger>
         <TabsTrigger value="rent">
           {t('tabs.rent')}
-          <span className="ml-2 text-xs text-muted-foreground">{displayedTotals.rent}</span>
+          <span className="ml-2 text-xs tabular-nums text-muted-foreground">{displayedTotals.rent}</span>
         </TabsTrigger>
         <TabsTrigger value="sale">
           {t('tabs.sale')}
-          <span className="ml-2 text-xs text-muted-foreground">{displayedTotals.sale}</span>
+          <span className="ml-2 text-xs tabular-nums text-muted-foreground">{displayedTotals.sale}</span>
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value={tab} className="mt-6">
         {current.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-10 text-center">
-            <p className="font-display text-xl text-foreground">
-              {tab === 'rent' && t('empty.rent')}
-              {tab === 'sale' && t('empty.sale')}
-              {tab === 'all' && t('empty.all')}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {emptyHint ?? t('emptyHint')}
-            </p>
-          </div>
+          <EmptyState
+            icon={<Home className="size-8" aria-hidden />}
+            title={tab === 'rent' ? t('empty.rent') : tab === 'sale' ? t('empty.sale') : t('empty.all')}
+            description={emptyHint ?? t('emptyHint')}
+          />
         ) : (
           <>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
               {current.map((p, index) => (
                 <div key={p.id} className="w-full [&>article]:w-full">
                   <PropertyCardStandard

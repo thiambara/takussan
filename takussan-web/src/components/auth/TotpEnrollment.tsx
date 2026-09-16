@@ -117,19 +117,19 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
     return (
       <div className="space-y-4">
         <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-0.5 size-5 text-primary" aria-hidden="true" />
+          <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
           <div>
-            <h3 className="text-base font-semibold text-foreground">{t('intro.title')}</h3>
+            <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">{t('intro.title')}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{t('intro.description')}</p>
           </div>
         </div>
         {error ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <Button onClick={handleStart} disabled={pending}>
+          <Button className="h-11 px-4" onClick={handleStart} disabled={pending}>
             {pending ? (
               <>
                 <Loader2 className="size-4 animate-spin" aria-hidden="true" />
@@ -140,7 +140,7 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
             )}
           </Button>
           {mode === 'recommended' && onSkip ? (
-            <Button type="button" variant="ghost" onClick={onSkip} disabled={pending}>
+            <Button className="h-11 px-4" type="button" variant="ghost" onClick={onSkip} disabled={pending}>
               {t('intro.skip')}
             </Button>
           ) : null}
@@ -153,7 +153,7 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
     return (
       <form onSubmit={handleConfirm} className="space-y-4">
         <div>
-          <h3 className="text-base font-semibold text-foreground">{t('scan.title')}</h3>
+          <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">{t('scan.title')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{t('scan.description')}</p>
         </div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
@@ -164,18 +164,18 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
               alt={t('scan.qrAlt')}
               width={180}
               height={180}
-              className="rounded-md border border-border bg-white"
+              className="qr-surface rounded-lg border border-border p-2"
             />
           ) : null}
           <div className="space-y-2 text-sm">
             <p className="text-muted-foreground">{t('scan.manualHint')}</p>
-            <code className="block break-all rounded-md bg-card px-2 py-1 font-mono text-xs">
+            <code className="block break-all rounded-md bg-muted px-2 py-1.5 font-mono text-xs text-foreground">
               {setup.secret}
             </code>
           </div>
         </div>
         <div className="space-y-1">
-          <label htmlFor="totp-enrollment-code" className="text-xs font-semibold text-muted-foreground">
+          <label htmlFor="totp-enrollment-code" className="block text-sm font-medium text-foreground">
             {t('scan.codeLabel')}
           </label>
           <Input
@@ -188,21 +188,22 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
               setCode(event.target.value.replace(/\D/g, '').slice(0, 6))
             }
             placeholder="123456"
+            className="h-11 max-w-48 tabular-nums tracking-widest"
             autoComplete="one-time-code"
             required
           />
         </div>
         {error ? (
-          <p role="alert" className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={pending || code.length !== 6}>
+          <Button className="h-11 px-4" type="submit" disabled={pending || code.length !== 6}>
             {pending ? t('scan.verifying') : t('scan.cta')}
           </Button>
           {mode === 'recommended' && onSkip ? (
-            <Button type="button" variant="ghost" onClick={onSkip} disabled={pending}>
+            <Button className="h-11 px-4" type="button" variant="ghost" onClick={onSkip} disabled={pending}>
               {t('intro.skip')}
             </Button>
           ) : null}
@@ -215,38 +216,38 @@ export function TotpEnrollment({ mode, onComplete, onSkip }: TotpEnrollmentProps
     return (
       <div className="space-y-4">
         <div>
-          <h3 className="text-base font-semibold text-foreground">{t('success.title')}</h3>
+          <h2 className="font-display text-lg font-semibold tracking-tight text-foreground">{t('success.title')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{t('success.description')}</p>
         </div>
         <div
           role="status"
-          className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900"
+          className="rounded-xl border border-warning/25 bg-warning/10 p-4 text-sm text-warning"
         >
           <p className="font-semibold">{t('recovery.title')}</p>
           <p className="mt-1 text-xs">{t('recovery.warning')}</p>
-          <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 font-mono text-sm">
+          <ul className="mt-3 grid grid-cols-1 gap-x-4 gap-y-1 font-mono text-sm tabular-nums text-foreground min-[400px]:grid-cols-2">
             {recoveryCodes.map((codeValue) => (
               <li key={codeValue}>{codeValue}</li>
             ))}
           </ul>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={handleDownloadCodes}>
+            <Button className="h-11 bg-card px-4" type="button" variant="outline" onClick={handleDownloadCodes}>
               <Download className="size-4" aria-hidden="true" />
               <span>{t('recovery.download')}</span>
             </Button>
           </div>
         </div>
-        <label className="flex items-start gap-2 text-sm text-foreground">
+        <label className="flex min-h-11 cursor-pointer items-start gap-3 py-1 text-sm text-foreground">
           <input
             type="checkbox"
             checked={acknowledged}
             onChange={(event) => setAcknowledged(event.target.checked)}
-            className="mt-0.5 size-4 cursor-pointer rounded border-input accent-primary"
+            className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-input accent-primary"
           />
           <span>{t('recovery.ack')}</span>
         </label>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={onComplete} disabled={!acknowledged}>
+          <Button className="h-11 px-5" type="button" onClick={onComplete} disabled={!acknowledged}>
             {t('success.cta')}
           </Button>
         </div>

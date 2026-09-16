@@ -53,7 +53,7 @@ export function SuperAdminTopbar({ user, onMenuToggle }: SuperAdminTopbarProps) 
         type="button"
         onClick={onMenuToggle}
         aria-label={t('openMenu')}
-        className="inline-flex size-9 items-center justify-center rounded-md text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+        className="relative inline-flex size-9 items-center justify-center rounded-md text-foreground after:absolute after:-inset-1 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
       >
         <Menu className="size-5" />
       </button>
@@ -66,7 +66,7 @@ export function SuperAdminTopbar({ user, onMenuToggle }: SuperAdminTopbarProps) 
       <div className="ml-auto flex items-center gap-2">
         <LanguageSwitcher
           variant="compact"
-          className="bg-muted text-foreground ring-border hover:bg-foreground/15"
+          className="relative bg-muted text-foreground ring-border after:absolute after:inset-x-0 after:-inset-y-2 hover:bg-foreground/15"
         />
         <UserMenu user={user} variant="dark" />
       </div>

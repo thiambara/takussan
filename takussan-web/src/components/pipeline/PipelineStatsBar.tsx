@@ -75,6 +75,7 @@ export function PipelineStatsBar({
   onClickWidget,
 }: PipelineStatsBarProps) {
   const t = useTranslations('crm.pipeline');
+  const Tile = onClickWidget ? 'button' : 'div';
 
   return (
     <div
@@ -84,32 +85,35 @@ export function PipelineStatsBar({
       {WIDGETS.map((w) => {
         const Icon = w.icon;
         return (
-          <button
+          // Sans gestionnaire, la tuile n'est pas une commande : un `<button disabled>` était annoncé
+          // « estompé » et sautait au clavier, alors qu'il porte une donnée à lire.
+          <Tile
             key={w.id}
-            type="button"
-            onClick={() => onClickWidget?.(w.id)}
-            disabled={!stats || !onClickWidget}
+            {...(onClickWidget
+              ? { type: 'button' as const, onClick: () => onClickWidget(w.id), disabled: !stats }
+              : {})}
             className={cn(
-              'flex items-center gap-3 rounded-lg border border-muted bg-card p-4 text-left transition',
-              onClickWidget && 'hover:border-primary/40 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/30',
+              'flex items-center gap-3 rounded-xl border border-muted bg-card p-3 text-left transition-[border-color,box-shadow] duration-150 sm:p-4',
+              onClickWidget && 'hover:border-primary/40 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               !onClickWidget && 'cursor-default',
             )}
           >
+            {/* Masquée sous `sm` : à 360, la pastille de 40 px écrasait le libellé sur trois lignes. */}
             <span
               aria-hidden
-              className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary"
+              className="hidden size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary sm:grid"
             >
               <Icon className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-muted-foreground">
+              <p className="text-xs font-medium text-pretty text-muted-foreground">
                 {t(w.labelKey)}
               </p>
-              <p className="mt-0.5 text-xl font-bold text-foreground">
+              <p className="mt-0.5 text-xl font-semibold tabular-nums text-foreground">
                 {isLoading || !stats ? '—' : w.value(stats)}
               </p>
             </div>
-          </button>
+          </Tile>
         );
       })}
     </div>

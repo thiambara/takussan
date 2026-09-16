@@ -48,6 +48,11 @@ export function StatCard({
   tone = 'default',
   className,
 }: StatCardProps) {
+  // Un montant long (« 6 176 568 203 F CFA ») ne tient pas en `text-2xl` dans une tuile de
+  // 226-257 px — mesuré sur `/super-admin` à 768 et 1366, où il débordait. La taille se règle
+  // alors sur la largeur de la TUILE (requête de conteneur), pas du viewport : la même tuile vit
+  // dans des grilles de 1 à 4 colonnes. Les valeurs courtes gardent `text-2xl` partout.
+  const longue = (typeof value === 'string' || typeof value === 'number') && String(value).length > 12;
   const body = (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -61,7 +66,10 @@ export function StatCard({
       ) : (
         <p
           className={cn(
-            'mt-2 font-display text-2xl font-semibold tabular-nums',
+            'mt-2 font-display font-semibold tabular-nums',
+            longue
+              ? 'text-lg @min-[14rem]/stat:text-xl @min-[16rem]/stat:text-2xl'
+              : 'text-2xl',
             tone === 'danger' ? 'text-destructive' : 'text-foreground',
           )}
         >
@@ -73,7 +81,7 @@ export function StatCard({
         <p
           className={cn(
             'mt-1 text-xs font-medium',
-            delta.direction === 'up' && 'text-accent',
+            delta.direction === 'up' && 'text-success',
             delta.direction === 'down' && 'text-destructive',
             delta.direction === 'flat' && 'text-muted-foreground',
           )}
@@ -85,7 +93,7 @@ export function StatCard({
   );
 
   const shell = cn(
-    'block rounded-xl bg-card p-4 ring-1 ring-border',
+    '@container/stat block rounded-xl bg-card p-4 ring-1 ring-border',
     href && 'transition-colors hover:bg-muted/40',
     className,
   );

@@ -112,9 +112,11 @@ describe('super-admin users page', () => {
     ).toEqual(['Utilisateur', 'Rôles', 'Agences', 'Statut', 'Sécurité', 'Dernière connexion', 'Actions']);
 
     const ligne = within(table).getAllByRole('row')[1];
-    expect(within(ligne).getByText('agent')).toBeInTheDocument();
+    // Rôle et statut sont des JETONS d'API : l'écran rend leur libellé (TCK-286), pas le jeton.
+    expect(within(ligne).getByText('Agent')).toBeInTheDocument();
     expect(within(ligne).getByText('Dakar Immo')).toBeInTheDocument();
-    expect(within(ligne).getByText('active')).toBeInTheDocument();
+    expect(within(ligne).getByText('Actif')).toBeInTheDocument();
+    expect(within(ligne).queryByText('active')).not.toBeInTheDocument();
     // Les deux valeurs de sécurité portent leur PRÉFIXE : « vérifié » et « activée » nus ne
     // disent pas laquelle est l'email et laquelle le 2FA.
     expect(within(ligne).getByText('Email : vérifié')).toBeInTheDocument();

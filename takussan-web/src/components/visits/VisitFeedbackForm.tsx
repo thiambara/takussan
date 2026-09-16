@@ -6,6 +6,7 @@ import { useSubmitVisitFeedback } from '@/lib/queries/visits';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { cn } from '@/lib/utils';
 
 interface Props {
   visitId: number;
@@ -59,26 +60,30 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
       <p className="text-sm font-medium text-foreground">
         {role === 'customer' ? t('titleCustomer') : t('titleAgent')}
       </p>
-      <label className="block space-y-1 text-sm">
-        <span className="text-muted-foreground">{t('ratingLabel')}</span>
-        <div className="flex gap-1">
+      {/* Un `fieldset` et non un `label` : un label qui enveloppe cinq boutons renvoie tout clic
+          sur son texte vers le premier d'entre eux (revue design 2026-09-16). */}
+      <fieldset className="space-y-1 text-sm">
+        <legend className="mb-1 text-muted-foreground">{t('ratingLabel')}</legend>
+        <div className="flex gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
               onClick={() => setRating(n)}
-              className={`size-8 rounded-full border text-sm font-semibold ${
+              aria-pressed={n === rating}
+              className={cn(
+                'size-11 rounded-full border text-sm font-semibold tabular-nums transition-[color,background-color,border-color,scale] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96] sm:size-9',
                 n <= rating
-                  ? 'border-warning/30 bg-warning/15 text-warning'
-                  : 'border-border bg-card text-muted-foreground'
-              }`}
+                  ? 'border-warning/30 bg-warning/10 text-warning'
+                  : 'border-border bg-card text-muted-foreground hover:bg-muted',
+              )}
               aria-label={t('starsAria', { count: String(n) })}
             >
               {n}
             </button>
           ))}
         </div>
-      </label>
+      </fieldset>
       <label className="block space-y-1 text-sm">
         <span className="text-muted-foreground">{t('commentLabel')}</span>
         <Textarea
@@ -90,7 +95,11 @@ export function VisitFeedbackForm({ visitId, role, onSubmitted }: Props) {
           }
         />
       </label>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
       <Button type="submit" disabled={mutation.isPending}>
         {mutation.isPending ? t('submitting') : t('submit')}
       </Button>

@@ -84,6 +84,12 @@ export function PropertyPagination({ meta }: { meta: PaginationMeta }) {
 
   const items = PER_PAGE_OPTIONS.map((v) => ({ value: v, label: `${v} / page` }));
 
+  // Une seule page ET pas plus de lignes que la plus petite densité : aucune commande n'a d'effet
+  // (« Page 1 sur 1 », deux boutons grisés et un sélecteur inutile sous 5 lignes — relevé par la
+  // revue du 2026-09-16 sur /app/payments). Au-delà de 10 lignes, le résumé reste : réduire la
+  // densité y ouvre une seconde page.
+  if (meta.last_page <= 1 && meta.total <= Number(PER_PAGE_OPTIONS[0])) return null;
+
   return (
     <Pagination
       page={meta.current_page}

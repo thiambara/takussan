@@ -89,7 +89,7 @@ export function GrowthChart() {
             onValueChange={(value) => setMetric((value ?? metric) as GrowthMetric)}
             items={metriques as unknown as Array<{ value: string; label: string }>}
           >
-            <SelectTrigger className="h-9" aria-label={t('filters.metricAria')}>
+            <SelectTrigger className="data-[size=default]:h-9" aria-label={t('filters.metricAria')}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -105,17 +105,19 @@ export function GrowthChart() {
             comparaison={comparaison}
             onComparaisonChange={setComparaison}
           />
-          <span className="ml-auto text-xs text-muted-foreground">
-            {t('growth.total')} <span className="font-semibold text-foreground tabular-nums">{query.data?.data.totals.total ?? 0}</span>
-          </span>
-          {/*
-            L'export porte EXACTEMENT la fenêtre affichée (AC5) : `parametresFenetre` est la même
-            source pour la requête et pour le téléchargement, donc les deux ne peuvent pas diverger.
-          */}
-          <ReportExportButton
-            report="growth"
-            params={{ metric, granularity: GRANULARITE, ...parametres }}
-          />
+          <div className="ml-auto flex items-center gap-3">
+            <span className="text-xs whitespace-nowrap text-muted-foreground">
+              {t('growth.total')} <span className="font-semibold text-foreground tabular-nums">{query.data?.data.totals.total ?? 0}</span>
+            </span>
+            {/*
+              L'export porte EXACTEMENT la fenêtre affichée (AC5) : `parametresFenetre` est la même
+              source pour la requête et pour le téléchargement, donc les deux ne peuvent pas diverger.
+            */}
+            <ReportExportButton
+              report="growth"
+              params={{ metric, granularity: GRANULARITE, ...parametres }}
+            />
+          </div>
         </CardContent>
       </Card>
 

@@ -5,6 +5,7 @@ import { LienLocalise } from '@/components/shared/LienLocalise';
 import { Building2 } from 'lucide-react';
 import { ErrorState } from '@/components/feedback';
 import { Navbar } from '@/components/home/Navbar';
+import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
 import { BogolanPattern } from '@/components/property/cards/BogolanPattern';
 import { ContactSheet } from '@/components/public/profile/ContactSheet';
@@ -80,8 +81,7 @@ async function agentIndisponible() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      {/* Spacer : navbar fixed (~65px) + ligne catégories (~68px) */}
-      <div className="h-[133px]" />
+      <NavbarSpacer />
       <main className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8">
         <h1 className="mb-6 font-display text-2xl font-semibold text-foreground sm:text-3xl">
           {t('unavailableTitle')}
@@ -124,7 +124,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       */}
       <DonneesStructurees donnees={jsonLdAgent(agent, locale)} />
       <Navbar />
-      <div className="h-[133px]" />
+      <NavbarSpacer />
 
       <main className="max-w-[1200px] mx-auto px-6 md:px-12 pt-10 pb-24 space-y-16">
         {/* Hero asymétrique */}
@@ -137,9 +137,13 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
           <BoutonRetour repli="/agents" libelle={t('back')} className="mb-6" />
 
-          <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-12 md:items-start">
+          {/* `md:items-end` : la colonne de contenu (description, contact) s'aligne sur le NOM, en
+              bas de la colonne d'identité — alignée en haut, elle flottait à hauteur du logo, et
+              sans description les boutons de contact restaient seuls en haut à droite (revue
+              design du 2026-09-16). */}
+          <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:gap-12 md:items-end">
             <div className="flex flex-col gap-6">
-              <div className="relative size-36 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
+              <div className="relative size-24 md:size-36 shrink-0 overflow-hidden rounded-full border border-border bg-muted">
                 {agent.avatar_url ? (
                   <Image
                     src={agent.avatar_url}
@@ -162,7 +166,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
                     {eyebrowParts.join(' · ')}
                   </p>
                 )}
-                <h1 className="mt-2 font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground">
+                <h1 className="mt-2 font-display text-4xl md:text-5xl font-semibold leading-tight tracking-tight text-foreground text-balance">
                   {agent.full_name}
                 </h1>
                 {agent.agency && (
@@ -209,7 +213,9 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
               </div>
             </div>
 
-            <div className="flex flex-col gap-6">
+            {/* Sans biographie, les boutons se rangent à droite : calés à gauche de la colonne,
+                ils flottaient au milieu de la page à 1366 (revue design du 2026-09-16). */}
+            <div className={agent.bio ? 'flex flex-col gap-6' : 'flex flex-col gap-6 md:items-end'}>
               {agent.bio && (
                 <p className="text-base md:text-lg leading-relaxed text-muted-foreground max-w-prose">
                   {agent.bio}

@@ -191,7 +191,7 @@ function AdminItem({
         // **6,04:1**, et l'entrée reste plus sourde que l'item inactif (`text-white/70`,
         // 9,04:1) qu'elle doit continuer de se distinguer.
         className={cn(
-          'flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/55',
+          'flex cursor-not-allowed items-center gap-3 rounded-md px-3 py-2 text-sm text-white/55 max-md:py-2.5',
           ANNEAU_FOCUS,
         )}
       >
@@ -208,7 +208,7 @@ function AdminItem({
       onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+        'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors max-md:py-2.5',
         ANNEAU_FOCUS,
         active
           ? 'bg-white/10 font-semibold text-white'
@@ -219,7 +219,7 @@ function AdminItem({
       <span className="truncate flex-1">{label}</span>
       {badge ? (
         <span
-          className="inline-flex min-w-5 items-center justify-center rounded-full bg-red-500/80 px-1.5 text-[10px] font-bold text-white"
+          className="inline-flex min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-white"
           aria-label={t('pendingBadge', { count: badge })}
         >
           {badge}
@@ -274,15 +274,16 @@ export function AdminSidebar({ user, className, onNavigate, agencyIsStandard }: 
 
   return (
     <aside className={cn('flex h-full w-64 flex-col bg-foreground text-white', className)}>
-      <div className="px-6 py-5">
+      <div className="px-5 py-5">
+        {/* `px-1` : l'anneau posé à l'ouverture du tiroir ne rase plus les glyphes. */}
         <Link
           href="/"
           onClick={onNavigate}
-          className={`text-xl font-bold tracking-tighter text-white rounded-sm ${ANNEAU_FOCUS_SORTANT}`}
+          className={`rounded-sm px-1 text-xl font-bold tracking-tighter text-white ${ANNEAU_FOCUS_SORTANT}`}
         >
           {tCommon('appName')}
         </Link>
-        <p className="mt-1 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
+        <p className="mt-1 px-1 text-xs uppercase tracking-wider text-white/60">{t('sectionLabel')}</p>
       </div>
       <nav aria-label={t('sectionLabel')} className="flex-1 overflow-y-auto space-y-1 px-3">
         {items.map((item) => (

@@ -11,7 +11,7 @@ export function StubPlaceholder({ label, description }: StubPlaceholderProps) {
 
   return (
     <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-card p-12 text-center">
-      <Construction className="size-10 text-primary" />
+      <Construction className="size-10 text-primary" aria-hidden="true" />
       <p className="text-sm font-semibold text-foreground">{t('title')}</p>
       <p className="text-xs text-muted-foreground">{description ?? label}</p>
     </div>

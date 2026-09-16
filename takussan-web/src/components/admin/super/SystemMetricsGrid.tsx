@@ -78,10 +78,12 @@ export function SystemMetricsGrid() {
       error={isError ? messageErreur(error, t('error')) : null}
       skeletonRows={8}
       skeletonRowClassName="h-24 rounded-xl"
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
       data-testid="system-metrics-loading"
     >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="system-metrics-grid">
+      {/* Quatre colonnes dès `xl` seulement : à 1024, la barre latérale laisse ~170 px par tuile et
+          le revenu plateforme se cassait sur deux lignes (TCK-505). */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="system-metrics-grid">
         {(data ? tilesOf(data.data, t, fmt) : []).map((tile) => (
           <StatCard
             key={tile.key}
@@ -149,7 +151,10 @@ function tilesOf(
       key: 'verified',
       label: t('verified'),
       value: fmt.nombre(m.agencies.verified),
-      hint: t('verificationRate', { rate: (m.agencies.verification_rate * 100).toFixed(1) }),
+      // Le taux passe par le formatteur de la locale : `toFixed` écrivait « 100.0 % » en français.
+      hint: t('verificationRate', {
+        rate: fmt.nombre(m.agencies.verification_rate * 100, { maximumFractionDigits: 1 }),
+      }),
       // TCK-390 — cette tuile portait `/super-admin/agencies`, le MÊME href au caractère près
       // que « Agences (total) » juste au-dessus : on lisait un sous-ensemble et on atterrissait
       // sur le tout. Le lien n'était pas constructible avant que l'API n'honore le filtre.
@@ -195,7 +200,9 @@ function tilesOf(
     {
       key: 'platformRevenue',
       label: t('platformRevenue'),
-      value: fmt.montant(m.revenue.platform_total_paid, m.revenue.currency),
+      // Le symbole « F CFA » ne se coupe jamais en deux (« F / CFA ») : l'espace qu'il porte devient
+      // insécable. Le retour à la ligne, s'il reste nécessaire, tombe avant le symbole (collision C6).
+      value: fmt.montant(m.revenue.platform_total_paid, m.revenue.currency).replace(/F CFA/g, 'F\u00a0CFA'),
       hint: t('cumulativeRents'),
       href: '/super-admin/reports',
       current: m.revenue.platform_total_paid,

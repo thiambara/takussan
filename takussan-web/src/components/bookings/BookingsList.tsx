@@ -3,37 +3,17 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, ChevronRight } from 'lucide-react';
 import { useBookings } from '@/lib/queries/bookings';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { EmptyState } from '@/components/feedback';
 import { QueryBoundary } from '@/components/shared/QueryBoundary';
-import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/console';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { Booking, BookingStatus } from '@/types/booking';
+import type { Booking } from '@/types/booking';
 import type { Locale } from '@/i18n/config';
-
-/**
- * TCK-292 — table hors composant : elle transporte la CLÉ (relative au namespace `bookings`),
- * le rendu la résout. Mêmes clés que `BookingDetail.tsx` : un seul vocabulaire de statut.
- */
-const STATUS_LABEL_KEY: Record<BookingStatus, string> = {
-  pending: 'status.pending',
-  confirmed: 'status.confirmed',
-  rejected: 'status.rejected',
-  cancelled: 'status.cancelled',
-  expired: 'status.expired',
-  completed: 'status.completed',
-};
-
-const STATUS_VARIANT: Record<BookingStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  pending: 'outline',
-  confirmed: 'default',
-  rejected: 'destructive',
-  cancelled: 'secondary',
-  expired: 'secondary',
-  completed: 'default',
-};
+import { BOOKING_STATUS_LABEL_KEY, BOOKING_STATUS_TONE } from './booking-status';
 
 type TabKey = 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'expired';
 
@@ -56,13 +36,16 @@ export function BookingsList() {
 
   return (
     <Tabs value={tab} onValueChange={(v) => setTab((v as TabKey) ?? 'pending')}>
-      <TabsList>
-        {TABS.map((tab) => (
-          <TabsTrigger key={tab.value} value={tab.value}>
-            {t(tab.labelKey)}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      {/* Cinq onglets ne tiennent pas à 390 : la rangée défile au lieu de couper « Expirées ». */}
+      <div className="-mx-4 overflow-x-auto overscroll-x-contain px-4 sm:mx-0 sm:px-0">
+        <TabsList className="w-max">
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {t(tab.labelKey)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
 
       {TABS.map((tab) => (
         <TabsContent key={tab.value} value={tab.value} className="mt-4">
@@ -88,9 +71,13 @@ function BookingsListBody({
   return (
     <QueryBoundary
       query={query}
-      loadingFallback={[0, 1, 2].map((i) => (
-        <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
-      ))}
+      loadingFallback={
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+      }
     >
       {(data) => {
         const bookings = data.data ?? [];
@@ -122,19 +109,20 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
     <li>
       <Link
         href={`/app/bookings/${booking.id}`}
-        className="block rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
+        className="group flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] duration-150 hover:border-foreground/15 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <div className="flex items-center justify-between gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="truncate text-sm font-semibold text-foreground">
+        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+              <h3 className="min-w-0 truncate text-sm font-semibold text-foreground">
                 {booking.property?.title ?? t('fallbackTitle', { id: String(booking.id) })}
               </h3>
-              <Badge variant={STATUS_VARIANT[booking.status]}>
-                {t(STATUS_LABEL_KEY[booking.status])}
-              </Badge>
+              <StatusBadge
+                tone={BOOKING_STATUS_TONE[booking.status]}
+                label={t(BOOKING_STATUS_LABEL_KEY[booking.status])}
+              />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs tabular-nums text-muted-foreground">
               {booking.start_date && booking.end_date ? (
                 <>
                   {formatDate(booking.start_date, locale)} → {formatDate(booking.end_date, locale)}
@@ -146,8 +134,8 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
             </p>
           </div>
           {typeof booking.total_amount === 'number' && (
-            <div className="text-right">
-              <p className="text-sm font-semibold text-foreground">
+            <div className="flex items-baseline gap-2 sm:block sm:shrink-0 sm:text-right">
+              <p className="text-sm font-semibold tabular-nums text-foreground">
                 {formatCurrency(booking.total_amount, locale)}
               </p>
               {booking.deposit_paid && (
@@ -156,6 +144,10 @@ function BookingRow({ booking, locale }: { booking: Booking; locale: Locale }) {
             </div>
           )}
         </div>
+        <ChevronRight
+          className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
       </Link>
     </li>
   );

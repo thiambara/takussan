@@ -48,7 +48,7 @@ export function ConsoleRecentActivity() {
         </h2>
         <Link
           href="/super-admin/audit"
-          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          className="-my-2 inline-flex min-h-10 items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
         >
           {t('seeAll')}
           <ArrowRight className="size-4" aria-hidden="true" />

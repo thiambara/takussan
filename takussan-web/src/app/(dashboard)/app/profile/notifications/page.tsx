@@ -22,7 +22,10 @@ export default async function ProfileNotificationsPage() {
       <PageHeader
         eyebrow={
           <span className="normal-case tracking-normal">
-            <Link href="/app/profile" className="hover:underline">
+            <Link
+              href="/app/profile"
+              className="-my-1 inline-flex min-h-6 items-center rounded-sm underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
               {t('breadcrumbProfile')}
             </Link>
             <span aria-hidden="true" className="mx-1">

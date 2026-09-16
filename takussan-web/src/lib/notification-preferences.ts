@@ -7,7 +7,7 @@
 
 import { apiRequest } from './api';
 
-export type NotificationChannel = 'inapp' | 'email' | 'push' | 'sms';
+export type NotificationChannel = 'inapp' | 'email' | 'push' | 'sms' | 'whatsapp';
 
 export type NotificationPreferenceCell = {
   event_type: string;

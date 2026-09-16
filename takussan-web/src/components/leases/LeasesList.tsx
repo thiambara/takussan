@@ -8,6 +8,7 @@ import { useLeasePropertyOptions, useLeases } from '@/lib/queries/leases';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { EmptyState, ErrorState } from '@/components/feedback';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { buttonVariants } from '@/components/ui/button';
 import {
   Select,
@@ -76,9 +77,9 @@ export function LeasesList() {
 
   if (isLoading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-3" aria-busy="true">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-card" />
+          <Skeleton key={i} className="h-20 rounded-xl" />
         ))}
       </div>
     );
@@ -102,9 +103,9 @@ export function LeasesList() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 rounded-xl border border-border bg-card p-4 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-xl border border-border bg-card p-3 sm:grid-cols-2">
         <Select value={status} onValueChange={(value) => setStatus(value ?? 'all')}>
-          <SelectTrigger aria-label={t('filterByStatus')}>
+          <SelectTrigger aria-label={t('filterByStatus')} className="w-full">
             <SelectValue>{statusFilterLabel(status, tStatus, t('allStatuses'))}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -117,7 +118,7 @@ export function LeasesList() {
           </SelectContent>
         </Select>
         <Select value={propertyId} onValueChange={(value) => setPropertyId(value ?? 'all')}>
-          <SelectTrigger aria-label={t('filterByProperty')}>
+          <SelectTrigger aria-label={t('filterByProperty')} className="w-full min-w-0">
             <SelectValue>
               {propertyId === 'all'
                 ? t('allProperties')
@@ -166,7 +167,10 @@ export function LeasesList() {
   );
 }
 
-function LeaseRow({ lease, locale }: { lease: Lease; locale: Locale }) {
+/** `useLeases` inclut `property` (titre, slug) sans que `Lease` le déclare. */
+type LeaseListItem = Lease & { readonly property?: { readonly title?: string | null } | null };
+
+function LeaseRow({ lease, locale }: { lease: LeaseListItem; locale: Locale }) {
   const tLease = useTranslations('lease');
   const tStatus = useTranslations('lease.status');
   const rentOrPrice = lease.type === 'sale' ? lease.sale_price : lease.monthly_rent;
@@ -174,11 +178,11 @@ function LeaseRow({ lease, locale }: { lease: Lease; locale: Locale }) {
     <li>
       <Link
         href={`/app/leases/${lease.id}`}
-        className="block rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
+        className="block rounded-xl border border-border bg-card p-4 transition-[box-shadow,border-color] hover:border-foreground/15 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <h3 className="truncate text-sm font-semibold text-foreground">
                 {lease.reference_number || tLease('fallbackReference', { id: String(lease.id) })}
               </h3>
@@ -186,14 +190,17 @@ function LeaseRow({ lease, locale }: { lease: Lease; locale: Locale }) {
                 {tStatus(lease.status)}
               </Badge>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
+            {lease.property?.title ? (
+              <p className="mt-1 truncate text-sm text-foreground/80">{lease.property.title}</p>
+            ) : null}
+            <p className="mt-1 text-xs text-muted-foreground tabular-nums">
               {formatDate(lease.start_date, locale)}
               {lease.end_date && <> → {formatDate(lease.end_date, locale)}</>}
             </p>
           </div>
           {typeof rentOrPrice === 'number' && (
-            <div className="text-right">
-              <p className="text-sm font-semibold text-foreground">
+            <div className="shrink-0 text-right">
+              <p className="text-sm font-semibold whitespace-nowrap text-foreground tabular-nums">
                 {formatCurrency(rentOrPrice, locale)}
               </p>
               <p className="text-xs text-muted-foreground">

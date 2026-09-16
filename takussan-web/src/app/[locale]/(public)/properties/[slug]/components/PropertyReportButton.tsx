@@ -75,7 +75,7 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
       <button
         type="button"
         onClick={handleClick}
-        className="inline-flex items-center gap-1.5 text-sm text-stone-500 hover:text-stone-700 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <Flag className="size-3.5" aria-hidden />
         {t('trigger')}
@@ -110,13 +110,13 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
             <DialogDescription>{t('dialogBodyFull')}</DialogDescription>
           </DialogHeader>
           {sent ? (
-            <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+            <p className="text-sm text-success bg-card border border-success/30 rounded-md px-3 py-2">
               {t('sent')}
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <label className="block space-y-1 text-sm">
-                <span className="text-stone-700">{t('reasonLabel')}</span>
+                <span className="text-foreground">{t('reasonLabel')}</span>
                 <Select
                   value={reason}
                   onValueChange={(v) => setReason((v as ReportPayload['reason']) ?? 'spam')}
@@ -135,7 +135,7 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
                 </Select>
               </label>
               <label className="block space-y-1 text-sm">
-                <span className="text-stone-700">{t('detailsLabel')}</span>
+                <span className="text-foreground">{t('detailsLabel')}</span>
                 <Textarea
                   value={details}
                   onChange={(e) => setDetails(e.target.value)}
@@ -144,7 +144,7 @@ export function PropertyReportButton({ slug }: PropertyReportButtonProps) {
                   maxLength={1000}
                 />
               </label>
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-destructive">{error}</p>}
               <div className="flex justify-end gap-2">
                 <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
                   {t('cancel')}

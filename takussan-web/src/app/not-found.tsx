@@ -95,20 +95,20 @@ export default function NotFound() {
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
           {t('eyebrow')}
         </p>
-        <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+        <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-balance text-foreground sm:text-4xl">
           {t('title')}
         </h1>
-        <p className="mx-auto mt-4 max-w-prose text-muted-foreground">{t('body')}</p>
+        <p className="mx-auto mt-4 max-w-prose text-pretty text-muted-foreground">{t('body')}</p>
         <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
           <LienLocalise
             href="/properties"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96] motion-reduce:active:scale-100"
           >
             {t('browseListings')}
           </LienLocalise>
           <LienLocalise
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-border px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+            className="inline-flex items-center justify-center rounded-lg border border-border px-6 py-3 text-sm font-medium text-foreground transition-[background-color,scale] hover:bg-muted focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96] motion-reduce:active:scale-100"
           >
             {t('backHome')}
           </LienLocalise>
