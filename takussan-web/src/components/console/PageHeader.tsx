@@ -32,7 +32,10 @@ interface PageHeaderProps {
  * plus cher à voir. `eyebrow` vient de l'autre implémentation ; `subtitle` a été porté sur
  * `description`, qui comptait 25 appelants contre 7.
  *
- * La mise en page est celle de la console — **empilée en dessous de `md`**, côte à côte au-dessus.
+ * La mise en page est celle de la console — **empilée en dessous de `lg`**, côte à côte au-dessus.
+ * Pas `md` : dans une coque à barre latérale, 768 px n'en laissent que 464 au contenu (TCK-505),
+ * et le bloc d'actions y séparait un bouton de son menu « ⋯ » en passant à la ligne. Côte à côte,
+ * les actions sont `shrink-0` : c'est le titre, `min-w-0`, qui cède et passe à la ligne.
  * L'autre était en `flex-wrap` sur une seule ligne : sur un écran étroit, un bouton d'action long
  * passait à la ligne mais gardait son alignement à droite, à mi-hauteur du titre.
  *
@@ -43,7 +46,7 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
   return (
     <header
       className={cn(
-        'flex flex-col gap-3 md:flex-row md:items-start md:justify-between',
+        'flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between',
         className,
       )}
     >
@@ -53,12 +56,12 @@ export function PageHeader({ title, description, eyebrow, actions, className }: 
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-balance text-foreground">{title}</h1>
         {description ? (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          <p className="mt-1 text-sm text-pretty text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
   );
 }

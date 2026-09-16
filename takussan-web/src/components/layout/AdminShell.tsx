@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { User } from '@/types/user';
 import { AppTopbar } from './AppTopbar';
 import { AdminSidebar } from './AdminSidebar';
@@ -16,6 +17,7 @@ interface AdminShellProps {
 
 export function AdminShell({ user, children, agencyIsStandard }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const t = useTranslations('nav.admin');
 
   /**
    * TCK-503 — `h-dvh`, jamais `h-screen`. Relevé au navigateur le 2026-08-31, à 390 px : le
@@ -38,7 +40,7 @@ export function AdminShell({ user, children, agencyIsStandard }: AdminShellProps
           <AdminSidebar user={user} agencyIsStandard={agencyIsStandard} />
         </div>
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetContent side="left" className="bg-foreground p-0">
+          <SheetContent side="left" className="bg-foreground p-0" aria-label={t('sectionLabel')}>
             <AdminSidebar
               user={user}
               agencyIsStandard={agencyIsStandard}

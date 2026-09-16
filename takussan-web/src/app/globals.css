@@ -402,8 +402,12 @@
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* `backwards` et non `both` (revue design 2026-09-16) : `both` laissait le `transform` FINAL
+ * posé sur l'élément, qui devenait alors le bloc conteneur de tout descendant `position: fixed` —
+ * la barre d'action mobile de la fiche bien restait invisible sous cette classe. `backwards`
+ * garde l'état initial pendant un éventuel délai et rend l'élément nu une fois l'entrée jouée. */
 .animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out both;
+  animation: fadeInUp 0.5s ease-out backwards;
 }
 
 @keyframes cardEnter {
@@ -411,7 +415,7 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-card-enter {
-  animation: cardEnter 540ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: cardEnter 540ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 @keyframes sectionEnter {
@@ -419,7 +423,7 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-section-enter {
-  animation: sectionEnter 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: sectionEnter 640ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 /*
@@ -578,6 +582,9 @@
   --popover-foreground: #fcf9f3;
   --primary: #c87a52;
   --primary-foreground: #1f1812;
+  /* Survol du bouton plein. L'encre est SOMBRE ici : le survol s'éclaircit (6,78:1 avec
+     #1f1812), là où la valeur claire #823c20 tombait à 2,18:1 (relecture 2026-09-16). */
+  --primary-deep: #d6916b;
   --secondary: #3a2e23;
   --secondary-foreground: #fcf9f3;
   --muted: #3a2e23;
@@ -617,12 +624,49 @@
   --sidebar-ring: #c87a52;
 }
 
+/* plancher-tactile:début
+ * Revue design 2026-09-16 — PLANCHERS TACTILES des primitives sous `sm` (Button, Input, Select,
+ * DatePicker, Tabs horizontaux). En `@layer components`, SOUS les utilitaires : un `min-h-*`
+ * d'appelant gagne toujours, par l'ordre des couches et non par la spécificité ni l'ordre
+ * source. Le plancher relève les cibles de 28-32 px, il ne rabote jamais un appelant plus grand.
+ * Les onglets ne sont visés qu'en orientation horizontale (`data-orientation`, posé par base-ui
+ * sur la liste ET sur chaque onglet) ; 34 px = 40 − les 3 px de padding de la liste, deux fois.
+ * `field-density.test.tsx` compile ce bloc et garde la propriété.
+ */
+@layer components {
+  @media (width < 40rem) {
+    .plancher-tactile-10 { min-height: 2.5rem; }
+    .plancher-tactile-9 { min-height: 2.25rem; }
+    .plancher-tactile-carre-10 { min-height: 2.5rem; min-width: 2.5rem; }
+    .plancher-tactile-carre-9 { min-height: 2.25rem; min-width: 2.25rem; }
+    .plancher-onglets-liste[data-orientation="horizontal"] { min-height: 2.5rem; }
+    .plancher-onglets-declencheur[data-orientation="horizontal"] { min-height: 2.125rem; }
+  }
+}
+/* plancher-tactile:fin */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /*
+   * Revue design 2026-09-16 — deux surfaces que le navigateur dessinait sans la charte.
+   *
+   * - Les titres s'équilibrent (`text-wrap: balance`) : un h1 de console sur deux lignes laissait
+   *   un mot seul. Posé en `base`, un `text-*` d'utilitaire le remplace toujours.
+   * - La sélection de texte prend le terracotta à 20 % au lieu du bleu du système — la même encre
+   *   reste lisible dessus (le fond est éclairci, jamais assombri).
+   */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  ::selection {
+    background-color: color-mix(in srgb, var(--primary) 20%, transparent);
   }
   html {
     @apply font-sans;

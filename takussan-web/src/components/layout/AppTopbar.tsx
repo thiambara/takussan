@@ -43,13 +43,14 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
   const tCommon = useTranslations('common');
 
   return (
-    <header className={cn('flex h-14 shrink-0 items-center gap-3 bg-foreground px-4')}>
+    <header className={cn('relative flex h-14 shrink-0 items-center gap-3 bg-foreground px-4')}>
       <button
         type="button"
         onClick={onMenuToggle}
         aria-label={t('openMenu')}
         className={cn(
-          'inline-flex size-9 items-center justify-center rounded-md text-white/80 hover:bg-white/10 md:hidden',
+          // `after:-inset-1` : 36 px visibles, 44 px touchables — la seule commande du tiroir.
+          'relative inline-flex size-9 items-center justify-center rounded-md text-white/80 after:absolute after:-inset-1 hover:bg-white/10 md:hidden',
           ANNEAU_FOCUS,
         )}
       >
@@ -79,7 +80,7 @@ export function AppTopbar({ user, onMenuToggle }: AppTopbarProps) {
             PATCH /api/users/me by the client inside the switcher. */}
         <LanguageSwitcher
           variant="compact"
-          className="bg-white/10 text-white ring-white/10 hover:bg-white/20"
+          className="relative bg-white/10 text-white ring-white/10 after:absolute after:inset-x-0 after:-inset-y-2 hover:bg-white/20"
         />
         <NotificationBell />
         <UserMenu user={user} variant="dark" />
