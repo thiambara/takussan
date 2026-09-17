@@ -58,6 +58,7 @@
 2.7 [Médias & fichiers](#27-médias--fichiers)
 2.8 [Internationalisation & préférences](#28-internationalisation--préférences)
 2.9 [Administration & configuration](#29-administration--configuration)
+2.10 [Pages légales publiques](#210-pages-légales-publiques)
 
 ---
 
@@ -509,6 +510,11 @@ hors spec*. Ouvrir un ticket avant d'en construire un.
 | P3 | Tous | Conversion multi-devises avec taux de change |
 | P3 | Tous | Traduction automatique des contenus utilisateurs |
 
+**Langue d'une réponse de l'API** (TCK-536) : paramètre `?lang` > en-tête `Accept-Language` >
+`preferred_language` de l'utilisateur authentifié (session ou jeton Bearer) > langue par défaut.
+L'en-tête passe avant la préférence parce que le front envoie la langue qu'il **affiche** (URL puis
+cookie, ADR-0026 §5), y compris depuis ses appels serveur.
+
 ### 2.9 Administration & configuration
 
 | Prio | Acteurs | Fonctionnalité |
@@ -523,6 +529,34 @@ hors spec*. Ouvrir un ticket avant d'en construire un.
 | P2 | 🛡️ | Healthcheck plateforme et supervision des jobs en arrière-plan (file de queue, échecs, rejouer) |
 | P3 | 🛡️ | Mode maintenance programmé |
 | P3 | 🛡️ | Feature flags |
+
+### 2.10 Pages légales publiques
+
+Trois documents juridiques lisibles sans compte, sur la surface publique. **Leur texte est fourni par
+le porteur du produit** : ni le code ni un agent ne le rédige. Tant qu'il n'est pas livré, la page
+existe et le dit.
+
+| Prio | Acteurs | Fonctionnalité |
+|------|---------|----------------|
+| P1 | Tous | Conditions générales d'utilisation — `/[locale]/legal/terms` |
+| P1 | Tous | Politique de confidentialité — `/[locale]/legal/privacy` |
+| P1 | Tous | Mentions légales — `/[locale]/legal/notice` |
+| P1 | Tous | Toute case de consentement (inscription, assistant hôte, demande de réservation) renvoie à ces mêmes URL, et le pied de page public les porte |
+| P1 | Tous | État « texte à fournir » : la page répond, titre du document compris, et annonce que le texte est en cours de rédaction — jamais un texte provisoire |
+
+**Règles de gestion.**
+
+- **Une URL canonique par document**, préfixée de la langue comme toute la surface publique
+  (ADR-0026) ; `/legal/terms` sans langue est redirigé vers la langue du visiteur.
+- **Le français fait foi ; l'anglais et le wolof sont des traductions de courtoisie.** ⚠ *Hypothèse
+  à confirmer par le porteur* (TCK-531) : il peut décider qu'une traduction fait foi elle aussi.
+  Une traduction absente fait afficher le texte français, avec la mention qu'il n'existe qu'en
+  français ; un texte français absent fait afficher l'état « texte à fournir » dans les trois
+  langues, même si une traduction existe.
+- **Non indexées** (`noindex, follow`) et absentes du sitemap : ce ne sont pas des pages d'entrée
+  de recherche.
+- **Hors périmètre** : la conservation de la preuve de consentement (version acceptée,
+  horodatage) — à spécifier séparément si elle est exigée.
 
 ---
 

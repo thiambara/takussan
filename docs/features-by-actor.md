@@ -43,7 +43,7 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 4. [🧑‍💼 Agent immobilier](#agent-immobilier) — 69 fonctionnalités
 5. [🔧 Prestataire de service (service provider)](#prestataire-de-service-service-provider) — 4 fonctionnalités
 6. [🛡️ Admin d'agence / Super-admin](#admin-dagence-super-admin) — 63 fonctionnalités
-7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 55 fonctionnalités
+7. [👥 Tous les utilisateurs authentifiés](#tous-les-utilisateurs-authentifiés) — 60 fonctionnalités
 
 ---
 
@@ -638,12 +638,22 @@ de chacun d'eux — le dédoublement est voulu, la source de vérité ne l'est p
 | P3 | §2.8 | Conversion multi-devises avec taux de change |
 | P3 | §2.8 | Traduction automatique des contenus utilisateurs |
 
+### §2.10 Pages légales publiques
+
+| Prio | Domaine | Fonctionnalité |
+|------|---------|----------------|
+| P1 | §2.10 | Conditions générales d'utilisation — `/[locale]/legal/terms` |
+| P1 | §2.10 | Politique de confidentialité — `/[locale]/legal/privacy` |
+| P1 | §2.10 | Mentions légales — `/[locale]/legal/notice` |
+| P1 | §2.10 | Toute case de consentement (inscription, assistant hôte, demande de réservation) renvoie à ces mêmes URL, et le pied de page public les porte |
+| P1 | §2.10 | État « texte à fournir » : la page répond, titre du document compris, et annonce que le texte est en cours de rédaction — jamais un texte provisoire |
+
 ---
 
 ## Provenance
 
-- Source : [`features.md`](./features.md) — **234** lignes de fonctionnalité lues,
-  réparties en **288** placements (une ligne multi-acteurs compte une fois par acteur).
+- Source : [`features.md`](./features.md) — **239** lignes de fonctionnalité lues,
+  réparties en **293** placements (une ligne multi-acteurs compte une fois par acteur).
 - Générateur : `docs/gen-features-by-actor.mjs`.
 - Fraîcheur vérifiée en CI par `node docs/gen-features-by-actor.mjs --check`, qui échoue si
   cette sortie ne correspond plus à sa source.

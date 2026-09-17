@@ -10,11 +10,18 @@ use App\Models\Enums\NotificationType;
 use App\Models\Enums\PropertyStatus;
 use App\Models\Property;
 use App\Models\User;
+use App\Services\Booking\BookingQuote;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class BookingService
 {
-    public function __construct(protected NotificationService $notifications) {}
+    public function __construct(
+        protected NotificationService $notifications,
+        protected BookingQuote $quotes,
+        protected CustomerService $customers,
+    ) {}
 
     /** @var array<int,PropertyStatus> */
     protected const UNBOOKABLE_STATUSES = [
@@ -71,16 +78,29 @@ class BookingService
         if (! empty($data['customer_id'])) {
             $customer = Customer::find($data['customer_id']);
             $isBookingForSelf = $customer && $customer->user_id === $user->id;
+            // Vérification adverse de TCK-530 — `$isStaff` laissait un membre de l'agence du bien
+            // réserver au nom de N'IMPORTE QUEL client, y compris celui d'une autre agence. Le
+            // client doit être dans le périmètre de l'émetteur (`CustomerPolicy::view` : agence
+            // active, client qu'il a ajouté, super-admin), ou être l'émetteur lui-même.
+            abort_unless($isBookingForSelf || ($customer && $user->can('view', $customer)), 403);
+        } elseif (! $isStaff) {
+            // TCK-530 — le tunnel public n'envoie pas de `customer_id` : sans cette résolution,
+            // un client ne pouvait JAMAIS réserver par lui (403). Même geste que
+            // `PublicPropertyController::bookingRequest()`.
+            $data['customer_id'] = $this->customers->findOrCreateFromUser($user)->id;
+            $isBookingForSelf = true;
         }
 
         abort_unless($isStaff || $isBookingForSelf, 403);
+
+        // Montants ET devise viennent du bien : la devise n'est plus le défaut XOF (TCK-530).
+        $data = array_merge($data, $this->pricedAmounts($property, $data));
 
         $booking = Booking::create(array_merge($data, [
             'reference_number' => ReferenceNumberGenerator::booking(),
             'created_by_id' => $user->id,
             'agency_id' => $property->agency_id,
             'status' => BookingStatus::Pending->value,
-            'currency' => $data['currency'] ?? 'XOF',
             'expires_at' => $data['expires_at'] ?? now()->addDays(7),
         ]));
 
@@ -102,6 +122,42 @@ class BookingService
         );
 
         return $booking;
+    }
+
+    /**
+     * TCK-530 — le montant est celui du SERVEUR ; un montant client qui en diffère est refusé
+     * (422), jamais remplacé en silence : celui qui l'envoie croit réserver à ce prix-là, et
+     * l'enregistrer à un autre serait un engagement qu'il n'a pas vu. Le tunnel n'envoie aucun
+     * montant — il n'est donc jamais concerné par ce refus.
+     *
+     * Même règle pour `currency` : les montants sont calculés dans la devise du bien, une autre
+     * devise envoyée est refusée.
+     *
+     * @param  array<string,mixed>  $data
+     * @return array{total_amount: string, deposit_amount: string, currency: string}
+     */
+    protected function pricedAmounts(Property $property, array $data): array
+    {
+        $quote = $this->quotes->for(
+            $property,
+            isset($data['start_date']) ? Carbon::parse($data['start_date']) : null,
+            isset($data['end_date']) ? Carbon::parse($data['end_date']) : null,
+        );
+
+        $mismatched = [];
+        foreach (['total_amount', 'deposit_amount'] as $field) {
+            if (isset($data[$field]) && ! BookingQuote::sameAmount((string) $data[$field], $quote[$field])) {
+                $mismatched[$field] = [__('bookings.'.BookingQuote::CODE_AMOUNT_MISMATCH)];
+            }
+        }
+        if (isset($data['currency']) && $data['currency'] !== $quote['currency']->value) {
+            $mismatched['currency'] = [__('bookings.'.BookingQuote::CODE_CURRENCY_MISMATCH)];
+        }
+        if ($mismatched !== []) {
+            throw ValidationException::withMessages($mismatched);
+        }
+
+        return ['currency' => $quote['currency']->value] + $quote;
     }
 
     public function confirm(Booking $booking): Booking

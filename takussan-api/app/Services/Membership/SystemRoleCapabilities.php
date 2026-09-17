@@ -75,6 +75,10 @@ class SystemRoleCapabilities
             Capability::PaymentsRecord,
             Capability::InvoicesCreate,
             Capability::InvoicesSend,
+            // TCK-528 — l'agent émettait des reversements avant que la capacité ne soit jugée ; la
+            // juger sans la lui accorder lui aurait retiré le geste. Les agences existantes la
+            // reçoivent par `membership:reconcile-system-roles` (docker/release.sh).
+            Capability::PayoutsCreate,
             Capability::CrmViewAll,
             Capability::CrmAssign,
             Capability::MaintenanceAssign,

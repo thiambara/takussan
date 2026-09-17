@@ -6,6 +6,7 @@ import { FileText, Send } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { CreateInvoiceDialog } from '@/components/payments/CreateInvoiceDialog';
 import { CreatePayoutDialog } from '@/components/payments/CreatePayoutDialog';
 import { InvoiceDetailDialog } from '@/components/payments/InvoiceDetailDialog';
@@ -14,6 +15,8 @@ import { PaymentsHistoryFilters } from '@/components/payments/PaymentsHistoryFil
 import { PaymentsHistoryTable } from '@/components/payments/PaymentsHistoryTable';
 import { PayoutDetailDialog } from '@/components/payments/PayoutDetailDialog';
 import { PayoutsTable } from '@/components/payments/PayoutsTable';
+
+import { useCan } from '@/hooks/useCan';
 
 import { OverduePaymentsTable } from './OverduePaymentsTable';
 import { useTranslations } from 'next-intl';
@@ -42,6 +45,9 @@ interface AdminFinancesTabsProps {
   /**
    * `true` if the current actor can issue invoices and payouts. Falsy
    * disables the action buttons (the views remain readable).
+   *
+   * TCK-528 — nécessaire, plus suffisant : chaque bouton suit aussi SA capacité
+   * (`invoices.create`, `payouts.create`), que l'API juge sur le profil actif.
    */
   readonly canEmit?: boolean;
 }
@@ -61,6 +67,14 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
   const tab: TabValue = isTabValue(searchParams.get('tab'))
     ? (searchParams.get('tab') as TabValue)
     : 'encaissements';
+
+  // TCK-528 — même règle que `PaymentsTabs` : un admin d'agence au rôle personnalisé peut ne porter
+  // qu'une des deux capacités, et le serveur refuserait l'autre.
+  const { can: peutFacturer, isLoading: facturationEnCours } = useCan('invoices.create');
+  const { can: peutReverser, isLoading: reversementEnCours } = useCan('payouts.create');
+  const capacitesEnCours = facturationEnCours || reversementEnCours;
+  const emetFacture = !!canEmit && peutFacturer;
+  const emetReversement = !!canEmit && peutReverser;
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
@@ -96,16 +110,22 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
               <TabsTrigger value="impayes">{t('tabs.overdue')}</TabsTrigger>
             </TabsList>
           </div>
-          {canEmit ? (
+          {canEmit && capacitesEnCours ? (
+            <Skeleton className="h-8 w-72 max-w-full" aria-hidden="true" data-testid="finances-actions-loading" />
+          ) : emetFacture || emetReversement ? (
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
-                <FileText className="size-4" aria-hidden="true" />
-                {t('tabs.newInvoice')}
-              </Button>
-              <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
-                <Send className="size-4" aria-hidden="true" />
-                {t('tabs.newPayout')}
-              </Button>
+              {emetFacture ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
+                  <FileText className="size-4" aria-hidden="true" />
+                  {t('tabs.newInvoice')}
+                </Button>
+              ) : null}
+              {emetReversement ? (
+                <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
+                  <Send className="size-4" aria-hidden="true" />
+                  {t('tabs.newPayout')}
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -128,20 +148,20 @@ export function AdminFinancesTabs({ defaultCommissionRate, canEmit }: AdminFinan
         </TabsContent>
       </Tabs>
 
-      {canEmit ? (
-        <>
-          <CreateInvoiceDialog
-            open={invoiceOpen}
-            onOpenChange={setInvoiceOpen}
-            onCreated={(id) => setInvoiceId(id)}
-          />
-          <CreatePayoutDialog
-            open={payoutOpen}
-            onOpenChange={setPayoutOpen}
-            onCreated={(id) => setPayoutId(id)}
-            defaultCommissionRate={defaultCommissionRate}
-          />
-        </>
+      {emetFacture ? (
+        <CreateInvoiceDialog
+          open={invoiceOpen}
+          onOpenChange={setInvoiceOpen}
+          onCreated={(id) => setInvoiceId(id)}
+        />
+      ) : null}
+      {emetReversement ? (
+        <CreatePayoutDialog
+          open={payoutOpen}
+          onOpenChange={setPayoutOpen}
+          onCreated={(id) => setPayoutId(id)}
+          defaultCommissionRate={defaultCommissionRate}
+        />
       ) : null}
       <InvoiceDetailDialog invoiceId={invoiceId} onClose={() => setInvoiceId(null)} />
       <PayoutDetailDialog payoutId={payoutId} onClose={() => setPayoutId(null)} />

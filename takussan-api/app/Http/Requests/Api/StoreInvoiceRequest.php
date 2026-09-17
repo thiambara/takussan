@@ -4,6 +4,7 @@ namespace App\Http\Requests\Api;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Models\Enums\Currency;
+use App\Models\Invoice;
 use Illuminate\Validation\Rule;
 
 /**
@@ -17,13 +18,16 @@ use Illuminate\Validation\Rule;
 class StoreInvoiceRequest extends BaseFormRequest
 {
     /**
-     * L'autorisation NE migre PAS ici : elle appartient au contrôleur puis aux policies
-     * (principes non négociables 1 et 2, et TCK-306). `BaseFormRequest` refuse par défaut —
-     * *fail-closed* — donc sans cette surcharge l'endpoint rendrait 403 pour tout le monde.
+     * TCK-528 — l'autorisation court ICI, avant la validation, comme pour les autres FormRequest
+     * de TCK-305 : placée dans le contrôleur, un appelant sans la capacité recevrait 422 et le
+     * détail des règles pour un corps mal formé, au lieu de 403.
+     *
+     * **Simple DÉLÉGATION** à `InvoicePolicy::create()` — la règle vit dans la policy. Cette
+     * méthode rendait `true` : la capacité `invoices.create` n'était jugée nulle part.
      */
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('create', Invoice::class) === true;
     }
 
     /** @return array<string, mixed> */

@@ -252,6 +252,12 @@
     "professionals": {
       "agencies": "Les agences",
       "agents": "Les agents"
+    },
+    "legalHeading": "Informations légales",
+    "legal": {
+      "terms": "Conditions générales d'utilisation",
+      "privacy": "Politique de confidentialité",
+      "notice": "Mentions légales"
     }
   },
   "map": {
@@ -820,7 +826,11 @@
         "message": "Message (optionnel)",
         "messagePlaceholder": "Présentez-vous, expliquez votre projet…",
         "nightsLine": "{price} × {count, plural, =1 {# nuit} other {# nuits}}",
-        "estimatedTotal": "Total estimé"
+        "estimatedTotal": "Total estimé",
+        "weeklyLine": "{price} / semaine, au prorata de {count, plural, =1 {# nuit} other {# nuits}}",
+        "deposit": "Acompte (30 %)",
+        "rentLine": "Loyer",
+        "rentNotice": "Votre candidature porte sur un loyer ; le bail fixera le montant définitif."
       },
       "offerForm": {
         "invalidAmount": "Montant invalide.",
@@ -5444,7 +5454,13 @@
         "submitting": "Envoi…",
         "submit": "Soumettre la demande",
         "continue": "Continuer"
-      }
+      },
+      "longTerm": {
+        "title": "Ce bien se loue au mois ou à l'année",
+        "description": "La réservation en ligne concerne les séjours courts. Pour une location longue durée, contactez l'agent : il vous proposera un bail.",
+        "contact": "Contacter l'agent"
+      },
+      "weeklyLine": "{price} / semaine, au prorata de {nights}"
     }
   },
   "visits": {
@@ -7870,5 +7886,31 @@
       "count": "{count, plural, one {# profil} other {# profils}}",
       "emptyTitle": "Aucun profil ne correspond"
     }
+  },
+  "legal": {
+    "eyebrow": "Informations légales",
+    "documents": {
+      "terms": {
+        "title": "Conditions générales d'utilisation",
+        "description": "Les conditions générales d'utilisation de la plateforme Takussan."
+      },
+      "privacy": {
+        "title": "Politique de confidentialité",
+        "description": "Comment Takussan traite vos données personnelles."
+      },
+      "notice": {
+        "title": "Mentions légales",
+        "description": "L'éditeur et l'hébergeur de la plateforme Takussan."
+      }
+    },
+    "pending": {
+      "heading": "Document en cours de rédaction",
+      "body": "Ce document est en cours de rédaction et sera publié prochainement."
+    },
+    "notices": {
+      "translation": "Traduction fournie pour information : seule la version française fait foi.",
+      "frenchOnly": "Ce document n'est disponible qu'en français pour le moment."
+    },
+    "otherDocuments": "Autres documents"
   }
 }

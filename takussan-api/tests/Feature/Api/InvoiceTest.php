@@ -19,7 +19,8 @@ class InvoiceTest extends TestCase
     public function test_agency_user_can_issue_invoice(): void
     {
         $agency = Agency::factory()->create();
-        $agent = User::factory()->create(['agency_id' => $agency->id]);
+        // TCK-528 — `agency_id` seul matérialise un profil OWNER, qui ne porte pas `invoices.create`.
+        $agent = User::factory()->withAgentProfile($agency)->create();
         $customer = Customer::factory()->create(['agency_id' => $agency->id]);
 
         Sanctum::actingAs($agent);
@@ -41,7 +42,9 @@ class InvoiceTest extends TestCase
 
     public function test_creator_can_issue_invoice_for_customer_they_added(): void
     {
-        $agent = User::factory()->create();
+        // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
+        // que le client, qui n'en a pas), et c'est la règle « client ajouté par lui » qui l'admet.
+        $agent = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
 
         Sanctum::actingAs($agent);
@@ -153,7 +156,9 @@ class InvoiceTest extends TestCase
 
     public function test_reference_number_auto_generated(): void
     {
-        $agent = User::factory()->create();
+        // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
+        // que le client, qui n'en a pas), et c'est la règle « client ajouté par lui » qui l'admet.
+        $agent = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
 
         Sanctum::actingAs($agent);
@@ -171,7 +176,9 @@ class InvoiceTest extends TestCase
 
     public function test_invalid_currency_returns_422(): void
     {
-        $agent = User::factory()->create();
+        // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
+        // que le client, qui n'en a pas), et c'est la règle « client ajouté par lui » qui l'admet.
+        $agent = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
 
         Sanctum::actingAs($agent);
@@ -186,7 +193,9 @@ class InvoiceTest extends TestCase
 
     public function test_can_issue_invoice_for_booking(): void
     {
-        $agent = User::factory()->create();
+        // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
+        // que le client, qui n'en a pas), et c'est la règle « client ajouté par lui » qui l'admet.
+        $agent = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
         $booking = Booking::factory()->create();
 
@@ -205,7 +214,9 @@ class InvoiceTest extends TestCase
 
     public function test_cannot_issue_invoice_for_invalid_type(): void
     {
-        $agent = User::factory()->create();
+        // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
+        // que le client, qui n'en a pas), et c'est la règle « client ajouté par lui » qui l'admet.
+        $agent = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
 
         Sanctum::actingAs($agent);
@@ -249,7 +260,9 @@ class InvoiceTest extends TestCase
 
     public function test_negative_subtotal_returns_422(): void
     {
-        $agent = User::factory()->create();
+        // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
+        // que le client, qui n'en a pas), et c'est la règle « client ajouté par lui » qui l'admet.
+        $agent = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
 
         Sanctum::actingAs($agent);
@@ -264,7 +277,9 @@ class InvoiceTest extends TestCase
 
     public function test_tax_rate_above_100_returns_422(): void
     {
-        $agent = User::factory()->create();
+        // TCK-528 — émettre exige `invoices.create` : l'émetteur est un agent (d'une autre agence
+        // que le client, qui n'en a pas), et c'est la règle « client ajouté par lui » qui l'admet.
+        $agent = User::factory()->withAgentProfile(Agency::factory()->create())->create();
         $customer = Customer::factory()->create(['added_by_id' => $agent->id]);
 
         Sanctum::actingAs($agent);

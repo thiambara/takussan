@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useForm, useWatch } from 'react-hook-form';
 import type { ZodType } from 'zod';
-import { CheckCircle2 } from 'lucide-react';
+import { CalendarRange, CheckCircle2 } from 'lucide-react';
+import { EmptyState } from '@/components/feedback';
 import { Button } from '@/components/ui/button';
 import { FormInput, FormTextarea, FormCheckbox, FormGlobalError, FormDatePicker } from '@/components/forms';
 import { useAuth } from '@/context/AuthContext';
@@ -19,6 +20,7 @@ import {
 } from '@/hooks/useApiForm';
 import { bookingRequestSchema, type BookingRequestFormValues } from '@/lib/schemas/booking';
 import { formatCurrency } from '@/lib/format';
+import { quoteBooking } from '@/lib/booking-quote';
 import type { Locale } from '@/i18n/config';
 import type { PropertyDetail } from '@/types/property';
 import type { Booking } from '@/types/booking';
@@ -30,9 +32,6 @@ import { BookingSummary } from './BookingSummary';
  * (revue design 2026-09-16, même réglage que les états vides publics du groupe B).
  */
 const CTA = 'h-11 px-4';
-
-/** Fraction du total proposée en acompte dans le tunnel public (cf. features.md §1.3). */
-const BOOKING_DEPOSIT_RATE = 0.3;
 
 interface BookingTunnelProps {
   readonly property: PropertyDetail;
@@ -115,12 +114,13 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
     return Math.max(0, diff);
   }, [startDate, endDate]);
 
-  const isRent = property.contract_type === 'rent';
-  const totalAmount = isRent && nights > 0 ? property.price * nights : property.price;
-  // 30 % of total — règle stable documentée dans docs/features.md §1.3.
-  // Si la règle devient variable (par bien / contrat), migrer vers un endpoint
-  // backend `GET /api/bookings/quote` qui renverra `deposit_amount`.
-  const depositAmount = Math.round(totalAmount * BOOKING_DEPOSIT_RATE);
+  // TCK-530 — le total dépend de `rent_period` : il multipliait le loyer par les nuits quelle que
+  // soit sa période (250 000 F / mois × 10 nuits = 2 500 000 F). Estimation d'affichage : le
+  // serveur recalcule, et rien de ce qui suit ne lui est envoyé.
+  const quote = quoteBooking(property, nights);
+  const totalAmount = quote.kind === 'long_term' ? 0 : quote.total;
+  const depositAmount = quote.kind === 'long_term' ? 0 : quote.deposit;
+  const money = (value: number) => formatCurrency(value, locale, { currency: property.currency ?? 'XOF' });
 
   async function handleNext() {
     setGlobalError(null);
@@ -153,21 +153,19 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
       setStepIndex(STEP_COUNT - 1);
     } catch (err) {
       if (err instanceof ApiError && err.status === 422 && err.validationErrors) {
-        const known = Object.keys(form.getValues()) as (keyof BookingRequestFormValues)[];
-        const unknown = mapValidationErrorsToForm(
-          err.validationErrors,
-          form,
-          known as string[],
-        );
+        // Seuls les champs qu'une étape AFFICHE reçoivent leur erreur. `property_id` est une valeur
+        // du formulaire sans saisie : le refus de l'API sur lui (bien passé au mois entre-temps,
+        // TCK-530) s'y posait sans que rien ne le montre, et le bouton restait sans effet.
+        const known = Object.values(FIELDS_PER_STEP).flat();
+        const unknown = mapValidationErrorsToForm(err.validationErrors, form, known);
         if (unknown.length > 0) setGlobalError(unknown.join(' '));
-        // Jump back to first invalid step.
-        const firstInvalid = Object.keys(form.formState.errors)[0];
-        if (firstInvalid) {
-          const owner = Object.entries(FIELDS_PER_STEP).find(([, fs]) =>
-            (fs as string[]).includes(firstInvalid),
-          );
-          if (owner) setStepIndex(Number(owner[0]));
-        }
+        // Retour à la première étape fautive. Lue sur la RÉPONSE, pas sur `form.formState.errors` :
+        // ce proxy n'est pas abonné hors rendu et rendait `{}` ici — un refus sur `end_date`
+        // laissait l'utilisateur sur l'étape des conditions, sans rien afficher (TCK-530).
+        const owner = Object.entries(FIELDS_PER_STEP).find(([, fs]) =>
+          fs.some((field) => field in (err.validationErrors ?? {})),
+        );
+        if (owner) setStepIndex(Number(owner[0]));
       } else {
         setGlobalError(messageErreur(err, t('error')));
       }
@@ -177,6 +175,45 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
   function handleBack() {
     setGlobalError(null);
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
+  }
+
+  // TCK-530 — un bien au mois ou à l'année relève du bail (features §1.4) : ni dates, ni montant,
+  // ni invitation à se connecter pour une demande que l'API refuserait.
+  if (quote.kind === 'long_term') {
+    const agentSlug = property.owner?.is_agent ? property.owner.slug : null;
+    return (
+      <EmptyState
+        data-testid="booking-long-term"
+        icon={<CalendarRange className="size-8" aria-hidden="true" />}
+        title={t('longTerm.title')}
+        description={t('longTerm.description')}
+        action={
+          <div className="flex flex-col-reverse justify-center gap-2 sm:flex-row">
+            {/* Sans profil d'agent public, le contact vit sur la fiche : un second bouton vers la
+                même adresse ne ferait que dédoubler le premier. */}
+            {agentSlug && (
+              <Button
+                variant="outline"
+                size="lg"
+                className={CTA}
+                nativeButton={false}
+                render={<Link href={`/properties/${property.slug}`} />}
+              >
+                {t('backToProperty')}
+              </Button>
+            )}
+            <Button
+              size="lg"
+              className={CTA}
+              nativeButton={false}
+              render={<Link href={agentSlug ? `/agents/${agentSlug}` : `/properties/${property.slug}`} />}
+            >
+              {t('longTerm.contact')}
+            </Button>
+          </div>
+        }
+      />
+    );
   }
 
   // Auth redirect prompt — login first, come back to the tunnel.
@@ -237,10 +274,18 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
               <dd className="font-mono">{createdBooking.reference_number}</dd>
             </div>
           )}
-          <div className="flex justify-between gap-3">
-            <dt className="text-muted-foreground">{t('success.total')}</dt>
-            <dd className="font-semibold tabular-nums">{formatCurrency(totalAmount, locale)}</dd>
-          </div>
+          {/* Le montant ENREGISTRÉ, tel que l'API le rend — pas l'estimation du front, qui ne lui
+              est jamais envoyée (vérification adverse de TCK-530). */}
+          {createdBooking.total_amount !== null && (
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">{t('success.total')}</dt>
+              <dd className="font-semibold tabular-nums" data-testid="booking-success-total">
+                {formatCurrency(createdBooking.total_amount, locale, {
+                  currency: createdBooking.currency ?? property.currency ?? 'XOF',
+                })}
+              </dd>
+            </div>
+          )}
         </dl>
         <div className="mt-6 flex flex-col-reverse justify-center gap-2 sm:flex-row">
           <Button
@@ -314,12 +359,18 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
                   sur deux lignes à côté d'un libellé qui en prenait deux aussi. */}
               <div className="space-y-2 rounded-lg bg-muted p-4 text-sm tabular-nums">
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="min-w-0 text-muted-foreground">
-                    {formatCurrency(property.price, locale)}
-                    {isRent && nights > 0 && ` × ${tBookings('summary.nights', { count: nights })}`}
+                  <span className="min-w-0 text-muted-foreground" data-testid="booking-price-line">
+                    {quote.kind === 'stay' && quote.period === 'weekly' && quote.nights > 0
+                      ? t('weeklyLine', {
+                          price: money(property.price),
+                          nights: tBookings('summary.nights', { count: quote.nights }),
+                        })
+                      : money(property.price)}
+                    {quote.kind === 'stay' && quote.period === 'daily' && quote.nights > 0 &&
+                      ` × ${tBookings('summary.nights', { count: quote.nights })}`}
                   </span>
-                  <span className="shrink-0 whitespace-nowrap text-foreground">
-                    {formatCurrency(totalAmount, locale)}
+                  <span className="shrink-0 whitespace-nowrap text-foreground" data-testid="booking-total">
+                    {money(totalAmount)}
                   </span>
                 </div>
                 <div className="flex justify-between gap-3 text-xs text-muted-foreground">
@@ -328,7 +379,7 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
                 </div>
                 <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2 font-semibold text-foreground">
                   <span className="min-w-0">{t('depositLabel')}</span>
-                  <span className="shrink-0 whitespace-nowrap">{formatCurrency(depositAmount, locale)}</span>
+                  <span className="shrink-0 whitespace-nowrap" data-testid="booking-deposit">{money(depositAmount)}</span>
                 </div>
               </div>
               <FormTextarea<BookingRequestFormValues>
@@ -348,7 +399,7 @@ export function BookingTunnel({ property }: BookingTunnelProps) {
                 <p>{t('terms.body')}</p>
                 <p>
                   {t.rich('terms.deposit', {
-                    amount: formatCurrency(depositAmount, locale),
+                    amount: money(depositAmount),
                     strong: (chunks) => <strong className="tabular-nums">{chunks}</strong>,
                   })}
                 </p>

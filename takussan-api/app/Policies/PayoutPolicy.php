@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Enums\Capability;
 use App\Models\Payout;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,17 @@ use Illuminate\Database\Eloquent\Model;
  */
 class PayoutPolicy extends BasePolicy
 {
+    /**
+     * TCK-528 — émettre un reversement exige `payouts.create` sur l'agence du profil actif.
+     *
+     * La capacité n'était accordée qu'à `agency_admin` (par `Capability::agencyAssignable()`) et
+     * lue nulle part : `PayoutService::create()` acceptait tout utilisateur ayant une agence.
+     */
+    protected function createCapability(): ?Capability
+    {
+        return Capability::PayoutsCreate;
+    }
+
     /** Lire un versement : super-admin, BÉNÉFICIAIRE, émetteur, ou périmètre d'agence. */
     public function view(User $user, Model $model): bool
     {

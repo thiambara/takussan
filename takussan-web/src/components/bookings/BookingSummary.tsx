@@ -44,6 +44,8 @@ export function BookingSummary({
   const tPeriods = useTranslations('property.rentPeriodsShort');
   const isRent = property.contract_type === 'rent';
   const periodLabel = property.rent_period_label ?? (isRent ? tPeriods('monthly') : null);
+  // TCK-530 — la devise du bien : sans elle, un loyer en EUR s'affichait en F CFA.
+  const money = (value: number) => formatCurrency(value, locale, { currency: property.currency ?? 'XOF' });
 
   return (
     // `lg:top-40` (160 px) : `/bookings` porte la barre fixe du site public (136 px dès `lg`),
@@ -77,7 +79,7 @@ export function BookingSummary({
         <div className="flex items-baseline justify-between gap-3">
           <span className="text-muted-foreground">{t('price')}</span>
           <span className="text-right font-medium text-foreground">
-            <span className="whitespace-nowrap">{formatCurrency(property.price, locale)}</span>
+            <span className="whitespace-nowrap">{money(property.price)}</span>
             {periodLabel && (
               <span className="ml-1 whitespace-nowrap text-xs text-muted-foreground">/ {periodLabel}</span>
             )}
@@ -107,14 +109,14 @@ export function BookingSummary({
         {typeof totalAmount === 'number' && totalAmount > 0 && (
           <div className="flex items-baseline justify-between gap-3 border-t border-border pt-2 text-base font-semibold text-foreground">
             <span>{t('total')}</span>
-            <span>{formatCurrency(totalAmount, locale)}</span>
+            <span>{money(totalAmount)}</span>
           </div>
         )}
 
         {typeof depositAmount === 'number' && depositAmount > 0 && (
           <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
             <span>{t('deposit')}</span>
-            <span>{formatCurrency(depositAmount, locale)}</span>
+            <span>{money(depositAmount)}</span>
           </div>
         )}
       </div>

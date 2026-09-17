@@ -252,6 +252,12 @@
     "professionals": {
       "agencies": "Agencies",
       "agents": "Agents"
+    },
+    "legalHeading": "Legal",
+    "legal": {
+      "terms": "Terms of use",
+      "privacy": "Privacy policy",
+      "notice": "Legal notice"
     }
   },
   "map": {
@@ -845,7 +851,11 @@
         "message": "Message (optional)",
         "messagePlaceholder": "Introduce yourself, explain your plans…",
         "nightsLine": "{price} × {count, plural, =1 {# night} other {# nights}}",
-        "estimatedTotal": "Estimated total"
+        "estimatedTotal": "Estimated total",
+        "weeklyLine": "{price} / week, prorated over {count, plural, =1 {# night} other {# nights}}",
+        "deposit": "Deposit (30%)",
+        "rentLine": "Rent",
+        "rentNotice": "Your application is for one rent; the lease will set the final amount."
       },
       "offerForm": {
         "invalidAmount": "Invalid amount.",
@@ -5444,7 +5454,13 @@
         "submitting": "Sending…",
         "submit": "Submit the request",
         "continue": "Continue"
-      }
+      },
+      "longTerm": {
+        "title": "This property is rented by the month or year",
+        "description": "Online booking is for short stays. For a long-term rental, contact the agent, who will offer you a lease.",
+        "contact": "Contact the agent"
+      },
+      "weeklyLine": "{price} / week, prorated over {nights}"
     }
   },
   "visits": {
@@ -7870,5 +7886,31 @@
       "count": "{count, plural, one {# profile} other {# profiles}}",
       "emptyTitle": "No profile matches"
     }
+  },
+  "legal": {
+    "eyebrow": "Legal",
+    "documents": {
+      "terms": {
+        "title": "Terms of use",
+        "description": "The terms of use of the Takussan platform."
+      },
+      "privacy": {
+        "title": "Privacy policy",
+        "description": "How Takussan handles your personal data."
+      },
+      "notice": {
+        "title": "Legal notice",
+        "description": "The publisher and host of the Takussan platform."
+      }
+    },
+    "pending": {
+      "heading": "Document being drafted",
+      "body": "This document is being drafted and will be published soon."
+    },
+    "notices": {
+      "translation": "Translation provided for information: only the French version is authoritative.",
+      "frenchOnly": "This document is only available in French for now."
+    },
+    "otherDocuments": "Other documents"
   }
 }

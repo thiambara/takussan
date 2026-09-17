@@ -36,7 +36,8 @@ normalisation `.replace(/\/api$/, '')`.
 **Fichier exemplaire : `src/lib/api.ts`.**
 
 `apiRequest` gère : Bearer token, `Content-Type` JSON ou FormData, `Accept-Language` dérivé du cookie
-`NEXT_LOCALE`, header `X-Active-Profile-Hint` pour le scope multi-profil, et `X-Forwarded-For`
+`NEXT_LOCALE` — puis, côté serveur (server actions, SSR), de la locale next-intl de la requête
+(TCK-536 : sans ce repli, toute action serveur recevait les erreurs de l'API en anglais) —, header `X-Active-Profile-Hint` pour le scope multi-profil, et `X-Forwarded-For`
 reconstitué depuis `next/headers` en SSR — **sans quoi le rate-limit Laravel verrait toutes les
 requêtes serveur venir d'une seule IP** (`src/lib/api.ts:103-120`).
 

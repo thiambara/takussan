@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**480 tickets** — 27 ouverts, 452 livrés.
+**482 tickets** — 24 ouverts, 457 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 26 |
+| 📋 Todo | 22 |
 | 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 452 |
+| ✅ Done | 457 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -55,10 +55,6 @@
 - [TCK-504](tickets/TCK-504-agent-principal-choisi-plutot-que-deduit.md) — Agent principal — une agence le CHOISIT, au lieu qu'un ordre le déduise `M · P2 · full`
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
-- [TCK-528](tickets/TCK-528-creation-facture-et-reversement-sans-capacite.md) — Créer une facture ou un reversement ne juge aucune capacité : `invoices.create` et `payouts.create` sont déclarées et jamais lues `S · P1 · bug`
-- [TCK-530](tickets/TCK-530-total-de-reservation-ignore-la-periode-de-loyer.md) — Le tunnel de réservation multiplie le loyer par le nombre de nuits, quelle que soit la période du loyer `S · P1 · bug`
-- [TCK-531](tickets/TCK-531-consentements-vers-des-pages-legales-absentes.md) — Trois cases de consentement obligatoires renvoient à des pages légales qui n'existent pas (404) `M · P1 · bug`
-- [TCK-532](tickets/TCK-532-etiquettes-du-graphique-en-barres-illisibles.md) — Les étiquettes de `BarChart` sont rendues sous 9 px : elles vivent dans un SVG mis à l'échelle `S · P2 · front`
 
 ## 🚧 Doing
 
@@ -66,7 +62,7 @@
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-531](tickets/TCK-531-consentements-vers-des-pages-legales-absentes.md) — Trois cases de consentement obligatoires renvoient à des pages légales qui n'existent pas (404) `M · P1 · bug`
 
 ## ⛔ Blocked
 
@@ -74,12 +70,17 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 452
+## ✅ Done — 457
 
 <details>
-<summary><strong>Vague 65 — Revue design et responsive de toutes les interfaces web — impeccable + make-interfaces-feel-better (2026-09-16)</strong> — 1 ticket</summary>
+<summary><strong>Vague 65 — Revue design et responsive de toutes les interfaces web — impeccable + make-interfaces-feel-better (2026-09-16)</strong> — 6 tickets</summary>
 
+- [TCK-528](tickets/TCK-528-creation-facture-et-reversement-sans-capacite.md) — Créer une facture ou un reversement ne juge aucune capacité : `invoices.create` et `payouts.create` sont déclarées et jamais lues `S · P1 · bug`
 - [TCK-529](tickets/TCK-529-revue-design-et-responsive-de-toutes-les-interfaces.md) — Revue design et responsive de toutes les interfaces web — 126 écrans passés au crible par huit groupes, défauts corrigés `L · P1 · front`
+- [TCK-530](tickets/TCK-530-total-de-reservation-ignore-la-periode-de-loyer.md) — Le tunnel de réservation multiplie le loyer par le nombre de nuits, quelle que soit la période du loyer `S · P1 · bug`
+- [TCK-532](tickets/TCK-532-etiquettes-du-graphique-en-barres-illisibles.md) — Les étiquettes de `BarChart` sont rendues sous 9 px : elles vivent dans un SVG mis à l'échelle `S · P2 · front`
+- [TCK-535](tickets/TCK-535-demande-de-reservation-publique-calcul-divergent.md) — La demande de réservation de la fiche du bien calcule son total autrement que le tunnel `S · P1 · bug`
+- [TCK-536](tickets/TCK-536-langue-des-appels-serveur-et-des-jetons.md) — Les réponses de l'API ignorent la langue des actions serveur, la préférence des comptes à jeton, et sont à moitié traduites `S · P0 · bug`
 
 </details>
 

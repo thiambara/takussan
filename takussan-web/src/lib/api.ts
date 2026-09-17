@@ -461,6 +461,32 @@ async function resolveVisitorIp(): Promise<string | undefined> {
   }
 }
 
+/**
+ * TCK-536 — côté serveur (server actions, RSC, route handlers), la langue de la requête next-intl.
+ *
+ * `clientLocaleCookie()` rend `undefined` hors navigateur : sans ce repli, un appelant serveur qui
+ * ne passait pas `locale` n'envoyait aucun `Accept-Language`, et Laravel répondait dans
+ * `APP_LOCALE` — « The end date field is required. » sur une fiche en français. C'était le cas des
+ * modules de `src/app/actions/`, qui passent tous par ici via `src/lib/*`.
+ *
+ * `getLocale()` applique la préséance de `src/i18n/request.ts` (segment d'URL, puis cookie, puis
+ * en-tête du visiteur). Hors d'une requête (build, script), elle lève : on n'envoie alors rien,
+ * comme avant. Même garde que {@link resolveVisitorIp}.
+ *
+ * ⚠ `apiFetch` n'a PAS ce repli, délibérément : ses appelants passent la langue en argument parce
+ * qu'elle entre dans leur clé de mémoïsation (`src/lib/queries/public-*.ts`).
+ */
+async function resolveServerLocale(): Promise<string | undefined> {
+  if (typeof window !== 'undefined') return undefined;
+  try {
+    const { getLocale } = await import('next-intl/server');
+    const locale = await getLocale();
+    return SUPPORTED_LOCALES.has(locale) ? locale : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function apiRequest<T>(
   path: string,
   { method = 'GET', body, token, headers = {}, formData = false, locale, signal, activeProfileId }: RequestOptions = {},
@@ -478,7 +504,7 @@ export async function apiRequest<T>(
     requestHeaders['Authorization'] = `Bearer ${token}`;
   }
 
-  const requestLocale = clientLocaleCookie() ?? locale;
+  const requestLocale = clientLocaleCookie() ?? locale ?? (await resolveServerLocale());
   if (requestLocale && !requestHeaders['Accept-Language']) {
     requestHeaders['Accept-Language'] = requestLocale;
   }

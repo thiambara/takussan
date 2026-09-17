@@ -19,8 +19,16 @@ class PayoutService
             'Only agency members or admins can issue payouts.'
         );
 
+        // TCK-528 — le bailleur doit tenir un profil DANS l'agence de l'émetteur. La règle comparait
+        // `$landlord->agency_id`, qui vaut `null` pour un bailleur sans agence comme pour un bailleur
+        // présent dans plusieurs agences : les deux passaient, vers n'importe quelle agence.
+        $agencyId = $user->agency_id;
         abort_if(
-            $user->agency_id && $landlord->agency_id && $landlord->agency_id !== $user->agency_id,
+            $agencyId && ! (
+                $landlord->isOwnerAt($agencyId)
+                || $landlord->isAgentAt($agencyId)
+                || $landlord->isAgencyAdminAt($agencyId)
+            ),
             403,
             'Landlord does not belong to your agency.'
         );
