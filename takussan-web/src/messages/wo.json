@@ -252,6 +252,12 @@
     "professionals": {
       "agencies": "Ajaas yi",
       "agents": "Jaayekat yi"
+    },
+    "legalHeading": "Xibaar yu yoon",
+    "legal": {
+      "terms": "Sart yi",
+      "privacy": "Politigu sutura",
+      "notice": "Xibaar yu yoon yi"
     }
   },
   "map": {
@@ -3996,7 +4002,11 @@
         "message": "Bataaxal (soo ko bëggee)",
         "messagePlaceholder": "Xamlel sa bopp, leeral sa mébét…",
         "nightsLine": "{price} × {count, plural, other {# guddi}}",
-        "estimatedTotal": "Waññi bu ñu tëral"
+        "estimatedTotal": "Waññi bu ñu tëral",
+        "weeklyLine": "{price} ci ayu-bés, ci limu {count, plural, other {# guddi}}",
+        "deposit": "Waar (30 %)",
+        "rentLine": "Njëgu luwe",
+        "rentNotice": "Sa candidature mi ngi aju ci benn njëgu luwe ; bail bi mooy taxawal xaalis bi."
       },
       "offerForm": {
         "invalidAmount": "Waññi bu baaxul.",
@@ -4844,7 +4854,13 @@
         "submitting": "Ñu ngi yónnee…",
         "submit": "Yónnee ñaan bi",
         "continue": "Kontine"
-      }
+      },
+      "longTerm": {
+        "title": "Kër gii dañu koy luwe ci weer walla ci at",
+        "description": "Reservation ci internet, ngir dal yu gàtt la. Ngir luwe lu yàgg, jokkoo ak agent bi : dina la jox ab bail.",
+        "contact": "Jokkoo ak agent bi"
+      },
+      "weeklyLine": "{price} ci ayu-bés, ci limu {nights}"
     }
   },
   "visits": {
@@ -7870,5 +7886,31 @@
       "count": "{count, plural, one {# profil} other {# profil}}",
       "emptyTitle": "Amul benn profil bu ànd"
     }
+  },
+  "legal": {
+    "eyebrow": "Xibaar yu yoon",
+    "documents": {
+      "terms": {
+        "title": "Sart yi",
+        "description": "Sarti jëfandikoo platfórmu Takussan."
+      },
+      "privacy": {
+        "title": "Politigu sutura",
+        "description": "Naka la Takussan di toppatoo say xibaar yu bopp."
+      },
+      "notice": {
+        "title": "Xibaar yu yoon yi",
+        "description": "Ki yóbbu ak ki denc platfórmu Takussan."
+      }
+    },
+    "pending": {
+      "heading": "Téere bi dañu koy bind",
+      "body": "Téere bii dañu koy bind, dinañu ko génne ci kanam tuuti."
+    },
+    "notices": {
+      "translation": "Tekki bii ngir xibaar rekk la : sumb bu farañse bi rekk mooy dëgg.",
+      "frenchOnly": "Téere bii ci farañse rekk la am léegi."
+    },
+    "otherDocuments": "Yeneen téere"
   }
 }

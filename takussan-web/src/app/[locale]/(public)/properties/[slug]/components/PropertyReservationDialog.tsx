@@ -17,6 +17,8 @@ import { useBookingRequest } from '@/hooks/useBookingRequest';
 import { submitPurchaseOffer } from '@/app/actions/property';
 import { formatCurrency } from '@/lib/format/currency';
 import { getPrimaryCtaForProperty } from '@/lib/property-cta';
+import { quoteBooking } from '@/lib/booking-quote';
+import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { useTranslations } from 'next-intl';
 
 import type { PropertyDetail } from '@/types/property';
@@ -118,8 +120,13 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
     return Math.max(0, diff);
   }, [startDate, endDate]);
 
-  const isRent = property.contract_type === 'rent';
-  const total = isRent && nights > 0 ? property.price * nights : property.price;
+  // TCK-535 — même règle que le tunnel (TCK-530) et que l'API : `daily` × nuits, `weekly` ÷ 7.
+  // Cette boîte multipliait le loyer par les nuits quelle que soit sa période.
+  const quote = quoteBooking(property, nights);
+  // Un loyer au mois ou à l'année n'est pas un séjour : c'est la candidature de « Postuler »
+  // (TCK-165), enregistrée au montant d'UN loyer par l'API. La période s'affiche, jamais des nuits.
+  const tPeriods = useTranslations('property.rentPeriodsShort');
+  const longTermPeriod = property.rent_period === 'yearly' ? 'yearly' : 'monthly';
 
   async function handleSubmit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -186,21 +193,38 @@ function ReservationForm({ property, onClose, onSuccess, submitLabel, title }: I
             rows={3}
           />
         </label>
-        {nights > 0 && (
-          <div className="rounded-md bg-muted/60 p-3 text-sm space-y-1">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">
-                {t('booking.nightsLine', {
+        {quote.kind === 'stay' && quote.nights > 0 && (
+          <div className="rounded-md bg-muted/60 p-3 text-sm space-y-1" data-testid="reservation-quote">
+            <div className="flex justify-between gap-3">
+              <span className="min-w-0 text-muted-foreground">
+                {t(quote.period === 'weekly' ? 'booking.weeklyLine' : 'booking.nightsLine', {
                   price: formatPrice(property.price, property.currency),
-                  count: nights,
+                  count: quote.nights,
                 })}
               </span>
-              <span className="text-foreground">{formatPrice(total, property.currency)}</span>
+              <span className="shrink-0 whitespace-nowrap text-foreground">
+                {formatPrice(quote.total, property.currency)}
+              </span>
             </div>
-            <div className="flex justify-between font-semibold pt-1 border-t border-border">
+            <div className="flex justify-between gap-3 font-semibold pt-1 border-t border-border">
               <span>{t('booking.estimatedTotal')}</span>
-              <span>{formatPrice(total, property.currency)}</span>
+              <span className="shrink-0 whitespace-nowrap">{formatPrice(quote.total, property.currency)}</span>
             </div>
+            <div className="flex justify-between gap-3 text-xs text-muted-foreground">
+              <span>{t('booking.deposit')}</span>
+              <span className="shrink-0 whitespace-nowrap">{formatPrice(quote.deposit, property.currency)}</span>
+            </div>
+          </div>
+        )}
+        {quote.kind === 'long_term' && (
+          <div className="rounded-md bg-muted/60 p-3 text-sm space-y-1" data-testid="reservation-rent">
+            <div className="flex justify-between gap-3 font-semibold">
+              <span>{t('booking.rentLine')}</span>
+              <span className="shrink-0 whitespace-nowrap">
+                {formatPrice(property.price, property.currency)} / {tPeriods(longTermPeriod)}
+              </span>
+            </div>
+            <p className="text-pretty text-xs text-muted-foreground">{t('booking.rentNotice')}</p>
           </div>
         )}
         {error && <p className="text-sm text-destructive">{error}</p>}
@@ -314,7 +338,12 @@ function OfferForm({ property, onClose, onSuccess, submitLabel, title }: InnerFo
           />
           <span>
             {t('offerForm.termsBefore')}{' '}
-            <LienLocalise href="/legal/cgu" className="text-primary underline">
+            <LienLocalise
+              href={ROUTES_LEGALES.terms}
+              target="_blank"
+              rel="noopener"
+              className="text-primary underline"
+            >
               {t('offerForm.termsLink')}
             </LienLocalise>
             {' '}{t('offerForm.termsAfter')}

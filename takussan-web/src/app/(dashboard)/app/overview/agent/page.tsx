@@ -181,6 +181,7 @@ export default async function AgentDashboardPage() {
         <section className="rounded-2xl bg-card p-6">
           <BarChart
             title={t('pipelineChart')}
+            orientation="horizontal"
             data={{
               labels: pipelineEntries.map(([k]) => (ETAPES_PIPELINE_CONNUES.has(k) ? tStages(k) : k)),
               series: [
@@ -199,6 +200,7 @@ export default async function AgentDashboardPage() {
         <section className="rounded-2xl bg-card p-6">
           <LineChart
             title={t('chartTitle')}
+            abscisses="mois"
             data={{
               labels: ts.months,
               series: [

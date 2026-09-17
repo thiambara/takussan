@@ -2,39 +2,59 @@ import { useLocale, useTranslations } from 'next-intl';
 
 import { DEFAULT_LOCALE, isLocale } from '@/i18n/config';
 import { formatNumber } from '@/lib/format';
-import { pastilleLegende, traitSerie } from './palette';
+import { cn } from '@/lib/utils';
+import { etiquetteMois } from './abscisses';
+import { pastilleSerie, traitSerie } from './palette';
+import { pourcent } from './repere';
 import type { ChartData } from './types';
 
 const PADDING = { top: 16, right: 16, bottom: 28, left: 40 };
-/**
- * Largeur moyenne d'un caractère d'étiquette (`text-[10px]`, chiffres tabulaires de DM Sans ≈
- * 0,56 em), en unités du `viewBox`. Sert à RÉSERVER la marge gauche : écrite à 40 fixes, elle
- * rognait toute étiquette de plus de six caractères — mesuré « ¦00 342 » à 1366 sur
- * `/app/overview/agency` (revue design 2026-09-16).
- */
-const LARGEUR_CARACTERE = 6;
-const MARGE_ETIQUETTE = 6;
 const VIEW_W = 640;
 const VIEW_H = 260;
+/**
+ * Le repère de tracé — même construction que `BarChart`, dont l'en-tête porte le raisonnement
+ * (TCK-532) : les étiquettes étaient des `<text>` en `text-[10px]` DANS un SVG mis à l'échelle,
+ * donc sous 5 px sur téléphone. Elles sont désormais du HTML en `text-xs` placé en pourcentages ;
+ * le tracé seul reste en SVG, étiré sur sa cellule, trait en `non-scaling-stroke`.
+ */
+const TRACE = {
+  x: PADDING.left,
+  y: PADDING.top,
+  largeur: VIEW_W - PADDING.left - PADDING.right,
+  hauteur: VIEW_H - PADDING.top - PADDING.bottom,
+};
+
+/**
+ * La hauteur de la figure quand l'appelant n'en donne pas. Le SVG suivait le ratio 640/260 de sa
+ * largeur ; étiré sur sa cellule (TCK-532), il n'a plus de hauteur propre, et le plancher
+ * `min-h-40` seul rendait un tracé de 132 px sur 939 de large à 1366 px (mesuré 2026-09-16).
+ */
+const HAUTEUR_PAR_DEFAUT = 'h-64 lg:h-80';
 
 type Props = {
   data: ChartData;
   title?: string;
   unit?: string;
   className?: string;
+  /**
+   * `'mois'` : les étiquettes sont des mois `AAAA-MM` (séries temporelles de l'API), rendus en mois
+   * abrégé + année dans la locale active — cf. `etiquetteMois`. Sans valeur, rendues telles quelles.
+   */
+  abscisses?: 'mois';
 };
 
 /**
  * Lightweight responsive line chart (server-rendered). See
  * `components/charts/README.md` for the library-choice rationale.
  */
-export function LineChart({ data, title, unit, className }: Props) {
+export function LineChart({ data, title, unit, className, abscisses }: Props) {
   // Le hook se place AVANT la sortie anticipée (React Compiler, ADR-0015).
   const t = useTranslations('charts');
   // L'axe suit la locale ACTIVE, jamais une locale écrite dans le code (TCK-374).
   const brute = useLocale();
   const locale = isLocale(brute) ? brute : DEFAULT_LOCALE;
-  const { labels, series } = data;
+  const { series } = data;
+  const labels = abscisses === 'mois' ? data.labels.map((l) => etiquetteMois(l, locale)) : data.labels;
   if (labels.length === 0 || series.length === 0) {
     return (
       <div
@@ -53,7 +73,7 @@ export function LineChart({ data, title, unit, className }: Props) {
   // jusqu'aux étiquettes, cf. `gridLines`.
   const range = Math.max(max - min, 1);
 
-  const innerH = VIEW_H - PADDING.top - PADDING.bottom;
+  const innerH = TRACE.hauteur;
 
   const toPath = (values: number[]) =>
     values
@@ -83,78 +103,94 @@ export function LineChart({ data, title, unit, className }: Props) {
     return [...acc, { y, label }];
   }, []);
 
-  // La marge gauche suit l'étiquette la plus longue (unité comprise), jamais moins que les 40
-  // d'origine : un axe court garde exactement sa géométrie.
-  const plusLongue = Math.max(
-    ...gridLines.map((g) => g.label.length + (unit ? unit.length + 1 : 0)),
-  );
-  const left = Math.max(PADDING.left, plusLongue * LARGEUR_CARACTERE + MARGE_ETIQUETTE + 4);
-  const innerW = VIEW_W - left - PADDING.right;
+  const left = TRACE.x;
+  const innerW = TRACE.largeur;
   const xStep = labels.length > 1 ? innerW / (labels.length - 1) : 0;
+  // Au plus huit abscisses, une sur deux de celles-là dans un cadre étroit (< 36rem), une sur
+  // quatre sous 16.5rem. Vérification adverse de TCK-532 : à 320 px (tracé de 165 px), la première
+  // abscisse (alignée à gauche) et la troisième (centrée à 4/11) se chevauchaient déjà avec
+  // `2025-10` ; formatées (`sept. 2026`, ~62 px), il faut 4/11 × L ≥ 1,5 × 62, soit L ≥ 256 px.
+  const pas = labels.length > 8 ? Math.ceil(labels.length / 8) : 1;
+  const affichees = labels.flatMap((l, i) => (i % pas === 0 ? [{ l, i }] : []));
+  const eclaircir = affichees.length > 4;
 
   return (
-    <figure className={className} data-testid="line-chart">
+    <figure className={cn('flex flex-col', className ?? HAUTEUR_PAR_DEFAUT)} data-testid="line-chart">
       {title && <figcaption className="mb-2 text-sm font-semibold text-foreground">{title}</figcaption>}
-      <svg
-        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-        className="h-full w-full"
-        role="img"
-        aria-label={title ?? t('lineAria')}
-      >
-        {/* Gridlines + y-axis labels */}
-        {gridLines.map((g, i) => (
-          <g key={i}>
-            <line
-              x1={left}
-              x2={VIEW_W - PADDING.right}
-              y1={g.y}
-              y2={g.y}
-              className="stroke-border"
-              strokeDasharray="2 3"
-            />
-            <text
-              x={left - MARGE_ETIQUETTE}
-              y={g.y + 4}
-              className="fill-muted-foreground text-[10px] tabular-nums"
-              textAnchor="end"
+      <div className="grid min-h-40 flex-1 grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto] gap-x-2 gap-y-1 pt-2">
+        {/* Axe des ordonnées : étiquettes empilées dans une seule cellule, cf. `BarChart`. */}
+        <div className="col-start-1 row-start-1 grid" aria-hidden>
+          {gridLines.map((g, i) => (
+            <span
+              key={i}
+              data-chart-axis="y"
+              className="relative col-start-1 row-start-1 -translate-y-1/2 self-start justify-self-end whitespace-nowrap text-xs leading-4 tabular-nums text-muted-foreground"
+              style={{ top: pourcent((g.y - TRACE.y) / TRACE.hauteur) }}
             >
               {g.label}
               {unit ? ` ${unit}` : ''}
-            </text>
-          </g>
-        ))}
-        {/* X-axis labels (every other if >8) */}
-        {labels.map((l, i) => {
-          if (labels.length > 8 && i % Math.ceil(labels.length / 8) !== 0) return null;
-          const x = left + xStep * i;
-          return (
-            <text
-              key={l + i}
-              x={x}
-              y={VIEW_H - 8}
-              className="fill-muted-foreground text-[10px]"
-              textAnchor="middle"
-            >
-              {l}
-            </text>
-          );
-        })}
-        {/* Series */}
-        {series.map((s, idx) => (
-          <path
-            key={s.name}
-            d={toPath(s.values)}
-            className={s.color ?? traitSerie(idx)}
-            fill="none"
-            strokeWidth={2}
-          />
-        ))}
-      </svg>
+            </span>
+          ))}
+        </div>
+        <div className="relative col-start-2 row-start-1">
+          {gridLines.map((g, i) => (
+            <div
+              key={i}
+              aria-hidden
+              className="absolute inset-x-0 border-t border-dashed border-border"
+              style={{ top: pourcent((g.y - TRACE.y) / TRACE.hauteur) }}
+            />
+          ))}
+          <svg
+            viewBox={`${TRACE.x} ${TRACE.y} ${TRACE.largeur} ${TRACE.hauteur}`}
+            preserveAspectRatio="none"
+            className="absolute inset-0 size-full overflow-visible"
+            role="img"
+            aria-label={title ?? t('lineAria')}
+          >
+            {series.map((s, idx) => (
+              <path
+                key={s.name}
+                d={toPath(s.values)}
+                className={s.color ?? traitSerie(idx)}
+                fill="none"
+                strokeWidth={2}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+        </div>
+        {/*
+          Abscisses : le premier point est au bord gauche du tracé, le dernier au bord droit. Une
+          étiquette CENTRÉE sur eux déborderait du cadre de moitié — elles s'alignent donc sur leur
+          bord, et seules les intermédiaires se centrent.
+        */}
+        <div className="@container relative col-start-2 row-start-2 h-4" aria-hidden>
+          {affichees.map(({ l, i }, rang) => {
+            const fraction = labels.length > 1 ? (xStep * i) / innerW : 0;
+            return (
+              <span
+                key={l + i}
+                data-chart-axis="x"
+                className={cn(
+                  'absolute top-0 whitespace-nowrap text-xs leading-4 text-muted-foreground',
+                  i === 0 ? '' : i === labels.length - 1 ? '-translate-x-full' : '-translate-x-1/2',
+                  eclaircir && rang % 2 === 1 && '@max-[36rem]:hidden',
+                  eclaircir && rang % 4 === 2 && '@max-[16.5rem]:hidden',
+                )}
+                style={{ left: pourcent(fraction) }}
+              >
+                {l}
+              </span>
+            );
+          })}
+        </div>
+      </div>
       {/* Legend */}
       <ul className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
         {series.map((s, idx) => (
           <li key={s.name} className="flex items-center gap-1.5">
-            <span className={`inline-block h-2 w-2 rounded-full ${pastilleLegende(idx)}`} aria-hidden />
+            <span className={`inline-block h-2 w-2 rounded-full ${pastilleSerie(s.color, idx)}`} aria-hidden />
             <span>{s.name}</span>
           </li>
         ))}

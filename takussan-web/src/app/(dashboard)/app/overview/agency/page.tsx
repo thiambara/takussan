@@ -114,6 +114,7 @@ export default async function AgencyDashboardPage() {
           <LineChart
             title={t('chartTitle')}
             unit=""
+            abscisses="mois"
             data={{
               labels: ts.months,
               series: [

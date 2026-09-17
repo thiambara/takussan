@@ -16,7 +16,8 @@ class PayoutTest extends TestCase
     public function test_agency_user_can_create_payout(): void
     {
         $agency = Agency::factory()->create();
-        $agent = User::factory()->create(['agency_id' => $agency->id]);
+        // TCK-528 — `agency_id` seul matérialise un profil OWNER, qui ne porte pas `payouts.create`.
+        $agent = User::factory()->withAgentProfile($agency)->create();
         $landlord = User::factory()->create(['agency_id' => $agency->id]);
 
         Sanctum::actingAs($agent);
@@ -36,7 +37,8 @@ class PayoutTest extends TestCase
     public function test_scheduled_payout_gets_scheduled_status(): void
     {
         $agency = Agency::factory()->create();
-        $agent = User::factory()->create(['agency_id' => $agency->id]);
+        // TCK-528 — `agency_id` seul matérialise un profil OWNER, qui ne porte pas `payouts.create`.
+        $agent = User::factory()->withAgentProfile($agency)->create();
         $landlord = User::factory()->create(['agency_id' => $agency->id]);
 
         Sanctum::actingAs($agent);
@@ -66,7 +68,7 @@ class PayoutTest extends TestCase
     {
         $agency1 = Agency::factory()->create();
         $agency2 = Agency::factory()->create();
-        $agent = User::factory()->create(['agency_id' => $agency1->id]);
+        $agent = User::factory()->withAgentProfile($agency1)->create();
         $landlord = User::factory()->create(['agency_id' => $agency2->id]);
 
         Sanctum::actingAs($agent);
@@ -80,7 +82,8 @@ class PayoutTest extends TestCase
     public function test_negative_net_amount_returns_422(): void
     {
         $agency = Agency::factory()->create();
-        $agent = User::factory()->create(['agency_id' => $agency->id]);
+        // TCK-528 — `agency_id` seul matérialise un profil OWNER, qui ne porte pas `payouts.create`.
+        $agent = User::factory()->withAgentProfile($agency)->create();
         $landlord = User::factory()->create(['agency_id' => $agency->id]);
 
         Sanctum::actingAs($agent);

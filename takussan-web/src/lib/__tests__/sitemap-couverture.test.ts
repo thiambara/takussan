@@ -354,13 +354,14 @@ describe('l’arborescence publique est bien celle qu’on croit', () => {
     ).toBe('jamais');
   });
 
-  it('les ONZE pages publiques déclarent leur métadonnée sur place', () => {
+  it('les QUATORZE pages publiques déclarent leur métadonnée sur place', () => {
     // Le contrôle qui rend la règle positive tenable : si une page cessait de le faire, elle
     // deviendrait `'inconnu'` et le test de classement complet la nommerait. On le fige ici pour
     // que la raison soit lisible plutôt que déduite d'un rouge ailleurs.
     // 9 → 11 à la fusion du lot : TCK-436 ajoute `/agencies` et `/agents`, toutes deux
     // `conditionnel` (indexables nues, `noindex` sous une facette inventée).
-    expect(ROUTES.length).toBe(11);
+    // 11 → 14 : TCK-531 ajoute `/legal/{terms,privacy,notice}`, toutes trois `jamais`.
+    expect(ROUTES.length).toBe(14);
     for (const route of ROUTES) {
       expect(route.indexabilite, `${route.chemin} (${route.fichier})`).not.toBe('inconnu');
     }

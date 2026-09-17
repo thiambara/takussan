@@ -141,7 +141,26 @@ export function Footer({ className }: FooterProps) {
             ))}
         </div>
 
-        <div className="border-t border-border pt-8 flex justify-center">
+        {/*
+          TCK-531 — les trois documents juridiques, dans la barre du bas plutôt qu'en cinquième
+          colonne : c'est là qu'on les cherche, et la grille garde ses quatre pistes.
+        */}
+        <div className="border-t border-border pt-8 flex flex-col items-center gap-3 md:flex-row md:justify-between">
+          <nav aria-labelledby="pied-legal">
+            <h4 id="pied-legal" className="sr-only">{t('legalHeading')}</h4>
+            <ul className="flex flex-wrap justify-center gap-x-6">
+              {footerLinks.legal.map((lien) => (
+                <li key={lien.labelKey}>
+                  <LienLocalise
+                    href={lien.href}
+                    className="inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground transition-colors md:min-h-0"
+                  >
+                    {t(`legal.${lien.labelKey}`)}
+                  </LienLocalise>
+                </li>
+              ))}
+            </ul>
+          </nav>
           <p className="text-muted-foreground text-sm">{t('copyright', { year })}</p>
         </div>
       </div>
