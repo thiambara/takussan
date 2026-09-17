@@ -252,8 +252,19 @@ const FICHIERS_HORS_JETONS = 5;
  *    `PropertyCard` −2, `IndexDeProfils` −2, `PortfolioTabs` −1, `WhatsAppButton` −1 ;
  *  · +18 de `components/bookings/` (`BookingSummary` +9, `BookingTunnel` +8, `BookingStepper` +1),
  *    convertis par un autre groupe de la même revue et entrés dans la surface par `/bookings`.
+ *
+ * **235 → 242 le 2026-09-17 (vague 65).** Sept `text-muted-foreground` sans fond sur l'élément,
+ * posés sur la page ou la carte par un ancêtre. Relevé en listant les encres inverses de la surface
+ * et en comparant chaque fichier touché à `origin/dev` :
+ *  · +4 des pages légales (TCK-531), entrées dans la surface par `/legal/*` : `PageLegale` +3
+ *    (chapeau, mention de traduction, état « en cours de rédaction »), `TexteJuridique` +1
+ *    (`marker:` des listes) ;
+ *  · +1 de `Footer` (TCK-531) : les liens légaux de la barre du bas, comme le copyright voisin ;
+ *  · +2 de `PropertyReservationDialog` (TCK-535) : les lignes « loyer » et « acompte » du
+ *    récapitulatif, comme la ligne de nuits qui y était déjà.
+ *  `BookingTunnel` et `BookingSummary`, aussi touchés, restent à 8 et 9.
  */
-const ENCRES_INVERSES = 235;
+const ENCRES_INVERSES = 242;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
