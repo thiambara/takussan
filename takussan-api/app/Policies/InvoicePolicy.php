@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Enums\Capability;
 use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,18 @@ use Illuminate\Database\Eloquent\Model;
  */
 class InvoicePolicy extends BasePolicy
 {
+    /**
+     * TCK-528 — émettre une facture exige `invoices.create` sur l'agence du profil actif.
+     *
+     * Jusqu'ici la capacité était déclarée et lue nulle part : `InvoiceService::create()` acceptait
+     * tout membre de l'agence du client, capacité ou non. Les règles d'appartenance du service
+     * restent, en plus de celle-ci.
+     */
+    protected function createCapability(): ?Capability
+    {
+        return Capability::InvoicesCreate;
+    }
+
     /** Lire une facture : super-admin, émetteur, périmètre d'agence, ou le CLIENT facturé. */
     public function view(User $user, Model $model): bool
     {

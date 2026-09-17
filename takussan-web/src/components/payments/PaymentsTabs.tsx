@@ -7,7 +7,8 @@ import { FileText, Send } from 'lucide-react';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { useMyCapabilities } from '@/hooks/useCan';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useCan } from '@/hooks/useCan';
 
 import { CreateInvoiceDialog } from './CreateInvoiceDialog';
 import { CreatePayoutDialog } from './CreatePayoutDialog';
@@ -37,13 +38,16 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
     ? (searchParams.get('tab') as TabValue)
     : 'history';
 
-  // Le locataire voyait « Générer une facture » et « Créer un reversement » : deux gestes que
-  // l'API lui refuse. On ne les propose qu'à un membre d'agence (au moins une capacité).
-  // ⚠ PAS `useCan('invoices.create' | 'payouts.create')` : l'API ne juge encore aucune des deux
-  // (TCK-528), et `payouts.create` n'est accordée à AUCUN profil — la lire ici retirerait à
-  // l'agent et au propriétaire des gestes que le serveur accepte. À resserrer avec TCK-528.
-  const { data: capacites } = useMyCapabilities();
-  const estMembreAgence = (capacites?.data.capabilities.length ?? 0) > 0;
+  // TCK-528 — chaque bouton suit la capacité que l'API juge désormais sur le profil actif
+  // (`InvoicePolicy::create`, `PayoutPolicy::create`). Un propriétaire membre d'agence ne porte ni
+  // l'une ni l'autre ; un rôle personnalisé peut porter l'une sans l'autre. Cacher un bouton
+  // n'autorise rien : c'est le serveur qui refuse.
+  // Les deux appels partagent la même requête (`['me','capabilities','active']`).
+  const { can: peutFacturer, isLoading: facturationEnCours } = useCan('invoices.create');
+  const { can: peutReverser, isLoading: reversementEnCours } = useCan('payouts.create');
+  // Tant que le catalogue n'est pas arrivé, on réserve la place sans rien proposer : un bouton
+  // rendu puis retiré (le locataire) ou absent puis apparu (l'agent) se verrait.
+  const capacitesEnCours = facturationEnCours || reversementEnCours;
 
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [payoutOpen, setPayoutOpen] = useState(false);
@@ -74,16 +78,22 @@ export function PaymentsTabs({ defaultCommissionRate }: PaymentsTabsProps) {
             <TabsTrigger value="invoices">{t('tabs.invoices')}</TabsTrigger>
             <TabsTrigger value="payouts">{t('tabs.payouts')}</TabsTrigger>
           </TabsList>
-          {estMembreAgence ? (
+          {capacitesEnCours ? (
+            <Skeleton className="h-8 w-72 max-w-full" aria-hidden="true" data-testid="payments-actions-loading" />
+          ) : peutFacturer || peutReverser ? (
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
-                <FileText className="mr-1 size-4" aria-hidden="true" />
-                {t('actions.createInvoice')}
-              </Button>
-              <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
-                <Send className="mr-1 size-4" aria-hidden="true" />
-                {t('actions.createPayout')}
-              </Button>
+              {peutFacturer ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => setInvoiceOpen(true)}>
+                  <FileText className="mr-1 size-4" aria-hidden="true" />
+                  {t('actions.createInvoice')}
+                </Button>
+              ) : null}
+              {peutReverser ? (
+                <Button type="button" size="sm" onClick={() => setPayoutOpen(true)}>
+                  <Send className="mr-1 size-4" aria-hidden="true" />
+                  {t('actions.createPayout')}
+                </Button>
+              ) : null}
             </div>
           ) : null}
         </div>
