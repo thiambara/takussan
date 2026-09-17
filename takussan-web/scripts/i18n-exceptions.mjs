@@ -277,6 +277,17 @@ export const EXCEPTIONS_JUSTIFIEES = [
 
   // ── NOM-PROPRE ────────────────────────────────────────────────────────────────────────────────
   {
+    fichier: 'src/content/legal/editeur.ts',
+    motif: /^(Contabo GmbH|Vercel Inc\.|Aschauer Straße 32a, 81549 München|440 N Barranca Avenue #4133, Covina, CA 91723|101 Townsend Street, San Francisco, CA 94107)$/,
+    famille: 'NOM-PROPRE',
+    raison:
+      "Dénominations sociales et adresses postales des hébergeurs, interpolées dans les mentions "
+      + "légales et la politique de confidentialité (TCK-531). Une raison sociale et une adresse ne "
+      + "se traduisent pas ; le pays et le rôle de chaque hébergeur, eux, sont écrits dans le "
+      + "gabarit de chaque langue. `Cloudflare, Inc.` et `www.takussan.com` ne sont pas vus par le "
+      + "scanner.",
+  },
+  {
     fichier: 'src/components/admin-settings/IntegrationsManager.tsx',
     motif: /^(Orange Money|SMS — Orange Sénégal)$/,
     famille: 'NOM-PROPRE',
