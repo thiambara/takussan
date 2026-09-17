@@ -12,6 +12,8 @@
  * `src/types/`, pas ici.
  */
 
+import { DOCUMENTS_LEGAUX, ROUTES_LEGALES } from '@/lib/legal-routes';
+
 /**
  * Une catégorie porte une CLÉ de libellé (`property.types.*`), pas un libellé.
  *
@@ -106,9 +108,8 @@ export interface LienDePiedDePage {
  * · `/bookings` existe, mais ce n'est pas une page à parcourir — c'est l'entrée du tunnel de
  *   réservation, qui exige `?property=<slug>`. Un lien nu depuis le pied de page y mènerait à un
  *   écran sans objet. Une route qui existe ne fait pas un lien qui a un sens.
- * · Mentions légales, CGU, confidentialité, à propos, contact : aucune n'est décrite dans
- *   `docs/features.md`. TCK-437 les met explicitement hors périmètre — c'est une surface produit
- *   à spécifier, pas un lien à poser.
+ * · À propos, contact : aucune n'est décrite dans `docs/features.md`. TCK-437 les met
+ *   explicitement hors périmètre — c'est une surface produit à spécifier, pas un lien à poser.
  * · Réseaux sociaux : aucun compte n'est connu de ce dépôt. Une icône vers un profil inventé est
  *   le défaut même que ce ticket corrige.
  *
@@ -122,6 +123,11 @@ export interface LienDePiedDePage {
  * *Une colonne vide était le bon état tant que la destination n'existait pas ; c'est le mauvais
  * état une fois qu'elle existe.* Les libellés vivent dans `footer.professionals.*`, le titre dans
  * `footer.professionalsHeading` — les trois langues, comme le reste du pied de page.
+ *
+ * ✅ **`legal` est BRANCHÉE depuis TCK-531** (`docs/features.md` §2.10) : les trois documents
+ * juridiques, que les cases de consentement citent aussi. Les chemins viennent de
+ * `ROUTES_LEGALES` et ne s'écrivent nulle part ailleurs (`src/lib/__tests__/legal-routes.test.ts`).
+ * `Footer` rend cette colonne dans sa barre du bas, pas dans la grille.
  */
 export const footerLinks = {
   discover: [
@@ -137,4 +143,5 @@ export const footerLinks = {
     { labelKey: 'favorites', href: '/favorites' },
     { labelKey: 'compare',   href: '/compare' },
   ],
+  legal: DOCUMENTS_LEGAUX.map((document) => ({ labelKey: document, href: ROUTES_LEGALES[document] })),
 } as const satisfies Record<string, readonly LienDePiedDePage[]>;

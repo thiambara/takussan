@@ -24,6 +24,8 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/toast';
 import { useAuth } from '@/context/AuthContext';
+import { LienLocalise } from '@/components/shared/LienLocalise';
+import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { useUserLocation } from '@/components/providers/UserLocationProvider';
 import {
   WizardReprenable,
@@ -640,14 +642,14 @@ function RecapStep({ data, setData }: StepProps) {
         <span className="leading-relaxed text-foreground">
           {t.rich('cgu.label', {
             link: (chunks) => (
-              <a
-                href="/legal/cgu"
+              <LienLocalise
+                href={ROUTES_LEGALES.terms}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener"
                 className="text-primary underline-offset-4 hover:underline"
               >
                 {chunks}
-              </a>
+              </LienLocalise>
             ),
           })}
         </span>

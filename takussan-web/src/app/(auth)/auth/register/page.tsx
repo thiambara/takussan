@@ -17,6 +17,8 @@ import { registerSchema, type RegisterFormValues } from '@/lib/schemas';
 import { useApiForm } from '@/hooks/useApiForm';
 import { register } from '@/lib/auth';
 import { useAuth } from '@/context/AuthContext';
+import { LienLocalise } from '@/components/shared/LienLocalise';
+import { ROUTES_LEGALES } from '@/lib/legal-routes';
 import { useTranslations } from 'next-intl';
 
 export default function RegisterPage() {
@@ -143,14 +145,24 @@ export default function RegisterPage() {
           required
           label={t.rich('acceptTerms', {
             terms: (chunks) => (
-              <Link href="/terms" className="font-medium text-primary underline-offset-4 hover:underline">
+              <LienLocalise
+                href={ROUTES_LEGALES.terms}
+                target="_blank"
+                rel="noopener"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
                 {chunks}
-              </Link>
+              </LienLocalise>
             ),
             privacy: (chunks) => (
-              <Link href="/privacy" className="font-medium text-primary underline-offset-4 hover:underline">
+              <LienLocalise
+                href={ROUTES_LEGALES.privacy}
+                target="_blank"
+                rel="noopener"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
                 {chunks}
-              </Link>
+              </LienLocalise>
             ),
           })}
         />
