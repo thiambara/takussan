@@ -39,9 +39,8 @@ describe('contenuLegal', () => {
     });
   });
 
-  it('lit les vraies sources sans lever — et elles sont vides tant que le porteur n’a rien livré', () => {
-    // Ce test ne FIGE pas l'état « à fournir » : il vérifie seulement la forme du résultat, pour
-    // qu'un dépôt de texte par le porteur ne fasse rougir aucune suite.
+  it('lit les vraies sources sans lever', () => {
+    // Forme seulement : le contenu réel est gardé par `src/content/legal/__tests__/textes.test.ts`.
     for (const document of ['terms', 'privacy', 'notice'] as const) {
       expect(['a-fournir', 'publie']).toContain(contenuLegal(document, 'fr').etat);
     }
