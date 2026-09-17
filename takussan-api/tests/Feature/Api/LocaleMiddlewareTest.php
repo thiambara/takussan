@@ -64,24 +64,27 @@ class LocaleMiddlewareTest extends TestCase
 
     public function test_user_preferred_language_is_applied(): void
     {
-        $user = User::factory()->create(['preferred_language' => 'en']);
+        // `de` neutralise l'`en-us` que le harnais injecte toujours : avec une préférence `en`,
+        // ce test était vert par coïncidence, préférence lue ou non.
+        $user = User::factory()->create(['preferred_language' => 'wo']);
         Sanctum::actingAs($user);
 
-        $this->getJson('/api/dashboard/stats')
+        $this->getJson('/api/dashboard/stats', ['Accept-Language' => 'de'])
             ->assertOk();
 
-        $this->assertEquals('en', app()->getLocale());
+        $this->assertEquals('wo', app()->getLocale());
     }
 
-    public function test_user_preferred_language_wins_over_header(): void
+    public function test_header_wins_over_user_preferred_language(): void
     {
+        // TCK-536 — l'ordre s'est inversé : le front transmet en en-tête la langue qu'il affiche.
         $user = User::factory()->create(['preferred_language' => 'wo']);
         Sanctum::actingAs($user);
 
         $this->getJson('/api/dashboard/stats', ['Accept-Language' => 'en'])
             ->assertOk();
 
-        $this->assertEquals('wo', app()->getLocale());
+        $this->assertEquals('en', app()->getLocale());
     }
 
     public function test_query_param_overrides_user_preference(): void

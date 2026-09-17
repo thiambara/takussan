@@ -269,17 +269,15 @@ class AgencyIndividualCustomRolesTest extends ApiTestCase
                 "La clé manque au catalogue `{$locale}` : Laravel rend son propre nom.",
             );
 
-            // ⚠ `Accept-Language` ne suffit PAS : `SetLocaleMiddleware` fait
-            // primer `preferred_language` de l'utilisateur authentifié sur la
-            // négociation d'en-tête. Un test qui n'aurait posé que l'en-tête
-            // aurait comparé trois fois le libellé français à lui-même et
-            // serait resté vert sans rien éprouver.
-            $admin->forceFill(['preferred_language' => $locale])->save();
-
+            // ⚠ La langue part en `Accept-Language` — c'est elle qui prime sur
+            // `preferred_language` depuis TCK-536. Sans en-tête explicite, le
+            // harnais injecte `en-us` à chaque requête : le test comparerait
+            // trois fois le libellé anglais à lui-même et resterait vert sans
+            // rien éprouver (l'unicité, plus bas, le rattraperait).
             $this->apiPost("/api/agencies/{$agency->id}/roles", [
                 'name' => "Rôle {$locale}",
                 'base_profile_type' => AgencyRoleBaseType::Agent->value,
-            ])
+            ], ['Accept-Language' => $locale])
                 ->assertStatus(403)
                 ->assertJsonPath('message', $attendu);
         }

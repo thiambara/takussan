@@ -510,6 +510,11 @@ hors spec*. Ouvrir un ticket avant d'en construire un.
 | P3 | Tous | Conversion multi-devises avec taux de change |
 | P3 | Tous | Traduction automatique des contenus utilisateurs |
 
+**Langue d'une réponse de l'API** (TCK-536) : paramètre `?lang` > en-tête `Accept-Language` >
+`preferred_language` de l'utilisateur authentifié (session ou jeton Bearer) > langue par défaut.
+L'en-tête passe avant la préférence parce que le front envoie la langue qu'il **affiche** (URL puis
+cookie, ADR-0026 §5), y compris depuis ses appels serveur.
+
 ### 2.9 Administration & configuration
 
 | Prio | Acteurs | Fonctionnalité |
