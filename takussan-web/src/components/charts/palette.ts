@@ -158,6 +158,23 @@ export function pastilleLegende(idx: number): PastilleLegende {
 }
 
 /**
+ * La pastille de légende d'une série — accordée à la couleur que l'appelant a IMPOSÉE, sinon à
+ * son indice.
+ *
+ * ⚠ Trouvé en mesurant TCK-532 (2026-09-16) : la légende prenait `pastilleLegende(idx)` même quand
+ * la série portait sa `color`. `/app/overview/agent` rend son pipeline en `fill-chart-2` (vert) et
+ * sa pastille sortait en `bg-chart-1` (terracotta) — une légende qui désigne une autre couleur que
+ * la barre. Le numéro du jeton se lit dans la classe, la pastille se prend dans la table littérale
+ * (jamais assemblée : Tailwind ne la compilerait pas, cf. en-tête).
+ */
+export function pastilleSerie(color: ChartSeriesColor | undefined, idx: number): PastilleLegende {
+  const numero = color ? Number(color.slice(color.lastIndexOf('-') + 1)) : Number.NaN;
+  return Number.isInteger(numero) && numero >= 1 && numero <= PASTILLES_LEGENDE.length
+    ? PASTILLES_LEGENDE[numero - 1]
+    : pastilleLegende(idx);
+}
+
+/**
  * Le modulo, mais qui rend toujours un indice VALIDE.
  *
  * `(-1) % 5` vaut `-1` en JavaScript, et `tableau[-1]` est `undefined` : une pastille sans classe,

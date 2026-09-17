@@ -153,6 +153,7 @@ export default async function OwnerDashboardPage() {
         <section className="rounded-2xl bg-card p-6">
           <LineChart
             title={t('chartTitle')}
+            abscisses="mois"
             data={{
               labels: ts.months,
               series: [

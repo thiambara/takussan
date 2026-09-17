@@ -35,9 +35,15 @@ import {
 
 const SERIE_LONGUE = { labels: ['A', 'B'], series: [{ name: 'Revenus', values: [0, 2_000_000] }] };
 
-/** Les étiquettes de l'axe des ordonnées — les `<text>` ancrés à droite de la grille. */
+/**
+ * Les étiquettes de l'axe des ordonnées, dans l'ordre des lignes de grille (bas → haut).
+ *
+ * ⚠ Elles étaient les `<text text-anchor="end">` du SVG jusqu'à TCK-532 : elles sont désormais du
+ * HTML hors du SVG, marqué `data-chart-axis="y"`. L'intention des cas qui les lisent est
+ * inchangée — la CHAÎNE rendue, dans la locale active.
+ */
 function etiquettesAxe(conteneur: HTMLElement): string[] {
-  return [...conteneur.querySelectorAll('text[text-anchor="end"]')].map(
+  return [...conteneur.querySelectorAll('[data-chart-axis="y"]')].map(
     (n) => n.textContent?.trim() ?? '',
   );
 }
@@ -175,6 +181,29 @@ describe('palette de séries (AC2 / AC3)', () => {
     expect(pastilles).toHaveLength(3);
     expect(pastilles).toEqual(barres);
   });
+});
+
+it('accorde la pastille à la couleur IMPOSÉE par l’appelant, pas à l’indice (TCK-532)', () => {
+  // `/app/overview/agent` rend son pipeline en `fill-chart-2` : la pastille sortait `bg-chart-1`.
+  const { container: barres } = render(withIntl(<BarChart
+      data={{ labels: ['A'], series: [{ name: 'Pipeline', values: [1], color: 'fill-chart-2' }] }}
+    />));
+  expect(barres.querySelector('rect')?.getAttribute('class')).toBe('fill-chart-2');
+  expect(barres.querySelector('li span[aria-hidden]')?.className).toContain('bg-chart-2');
+
+  const { container: traits } = render(withIntl(<LineChart
+      data={{
+        labels: ['A', 'B'],
+        series: [
+          { name: 'Un', values: [1, 2], color: 'stroke-chart-4' },
+          { name: 'Deux', values: [2, 1] },
+        ],
+      }}
+    />));
+  const pastilles = [...traits.querySelectorAll('li span[aria-hidden]')].map((n) => n.className);
+  expect(pastilles[0]).toContain('bg-chart-4');
+  // Sans couleur imposée, l'indice décide toujours.
+  expect(pastilles[1]).toContain('bg-chart-2');
 });
 
 describe("axe des graphiques — locale active (AC1 / AC4)", () => {
@@ -518,5 +547,192 @@ describe('domaine de `BarChart` — les valeurs négatives (TCK-405)', () => {
       expect(v).toBeGreaterThanOrEqual(CADRE.haut);
       expect(v).toBeLessThanOrEqual(CADRE.bas);
     }
+  });
+});
+
+/**
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-532 — les étiquettes ont une taille CSS, jamais une taille en unités de `viewBox`
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Le SVG est étiré sur son conteneur : tout `<text>` qu'il porte est mis à l'échelle avec lui.
+ * `text-xs` sur un `<text>` rendait 5,7 px à 390 px de large — la classe était juste, l'unité
+ * fausse. jsdom ne calcule aucune mise en page, donc ces cas affirment la STRUCTURE qui rend la
+ * taille indépendante de l'échelle ; la taille elle-même est mesurée au navigateur (cf. ticket).
+ */
+describe('étiquettes hors du SVG mis à l’échelle (TCK-532)', () => {
+  const DONNEES = {
+    labels: ['Jan', 'Fév', 'Mar', 'Avr'],
+    series: [{ name: 'Revenus', values: [0, 500, 1_000_000, 20] }],
+  };
+
+  it.each([
+    ['BarChart', BarChart, ['0 F', '500,000 F', '1,000,000 F']],
+    ['LineChart', LineChart, ['0 F', '250,000 F', '500,000 F', '750,000 F', '1,000,000 F']],
+  ] as const)('%s — aucun `<text>` dans le SVG, toutes les étiquettes en HTML `text-xs`', (_, Graphique, axe) => {
+    const { container } = render(withIntl(<Graphique data={DONNEES} unit="F" />, 'en'));
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+    // Le défaut exact : une étiquette dessinée par le SVG suit son échelle, quelle que soit sa classe.
+    expect(svg?.querySelectorAll('text, foreignObject')).toHaveLength(0);
+
+    const y = [...container.querySelectorAll<HTMLElement>('[data-chart-axis="y"]')];
+    const x = [...container.querySelectorAll<HTMLElement>('[data-chart-axis="x"]')];
+    expect(y.map((n) => n.textContent)).toEqual(axe);
+    expect(x.map((n) => n.textContent)).toEqual(DONNEES.labels);
+    for (const n of [...y, ...x]) {
+      expect(n.closest('svg'), n.textContent ?? '').toBeNull();
+      expect(n.classList.contains('text-xs'), n.className).toBe(true);
+      // Aucune taille arbitraire (`text-[10px]` était celle de `LineChart`).
+      expect(n.className).not.toMatch(/\btext-\[/);
+      // Ni une taille posée en `style` : `fontSize: 9` passait tous les cas ci-dessus
+      // (vérification adverse, 2026-09-16).
+      expect(n.style.fontSize, n.textContent ?? '').toBe('');
+    }
+    for (const n of y) expect(n.classList.contains('tabular-nums')).toBe(true);
+  });
+
+  it('BarChart — le tracé garde le repère de TCK-405, étiré sans marge ni letterbox', () => {
+    const { container } = render(withIntl(<BarChart data={DONNEES} />));
+    const svg = container.querySelector('svg');
+    // Le `viewBox` recadre sur le cadre utile (16 → 232) : les coordonnées de l'AC3 restent vraies,
+    // et les pourcentages des étiquettes se lisent sur ce même cadre.
+    expect(svg?.getAttribute('viewBox')).toBe('40 16 584 216');
+    expect(svg?.getAttribute('preserveAspectRatio')).toBe('none');
+  });
+
+  it('BarChart — place ordonnées et abscisses en POURCENTAGES du cadre', () => {
+    const { container } = render(withIntl(<BarChart data={DONNEES} />));
+    const tops = [...container.querySelectorAll<HTMLElement>('[data-chart-axis="y"]')].map(
+      (n) => n.style.top,
+    );
+    // Graduations 0, ½, 1 → du bas vers le haut du cadre.
+    expect(tops).toEqual(['100%', '50%', '0%']);
+    const lefts = [...container.querySelectorAll<HTMLElement>('[data-chart-axis="x"]')].map(
+      (n) => n.style.left,
+    );
+    // Centre de chacun des quatre groupes.
+    expect(lefts).toEqual(['12.5%', '37.5%', '62.5%', '87.5%']);
+  });
+
+  it('LineChart — la première abscisse s’aligne à gauche, la dernière à droite, jamais hors cadre', () => {
+    const { container } = render(withIntl(<LineChart data={DONNEES} />));
+    const x = [...container.querySelectorAll<HTMLElement>('[data-chart-axis="x"]')];
+    expect(x.map((n) => n.style.left)).toEqual(['0%', '33.3333%', '66.6667%', '100%']);
+    expect(x[0].className).not.toMatch(/translate-x/);
+    expect(x[3].className).toContain('-translate-x-full');
+    expect(x[1].className).toContain('-translate-x-1/2');
+  });
+
+  it('LineChart — douze mois : une abscisse sur deux sous 36rem, une sur quatre sous 16.5rem', () => {
+    // Mesuré à 320 px (tracé de 165 px) : « 2025-10 » et « 2026-02 » se chevauchaient de 13 px
+    // tant que seul l'éclaircissement à 36rem existait.
+    const mois = Array.from({ length: 12 }, (_, i) => `2025-${String(i + 1).padStart(2, '0')}`);
+    const { container } = render(withIntl(<LineChart
+        data={{ labels: mois, series: [{ name: 'Revenus', values: mois.map((_, i) => i) }] }}
+      />));
+    const x = [...container.querySelectorAll<HTMLElement>('[data-chart-axis="x"]')];
+    expect(x.map((n) => n.textContent)).toEqual(['2025-01', '2025-03', '2025-05', '2025-07', '2025-09', '2025-11']);
+    const masquees = (seuil: string) =>
+      x.filter((n) => n.classList.contains(`@max-[${seuil}]:hidden`)).map((n) => n.textContent);
+    expect(masquees('36rem')).toEqual(['2025-03', '2025-07', '2025-11']);
+    expect(masquees('16.5rem')).toEqual(['2025-05']);
+  });
+});
+
+/**
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ * TCK-532, vérification adverse — libellés longs et mois ISO
+ * ────────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * Deux défauts mesurés au navigateur le 2026-09-16 : les étapes du pipeline tronquées (en wolof,
+ * les 6 à 320 px) et les abscisses de `LineChart` rendues `2025-10` dans toutes les locales.
+ */
+describe('BarChart horizontal — le libellé entier, jamais tronqué', () => {
+  const ETAPES = {
+    labels: ['Lead yi', 'Yu ñu jëfandikoo', 'Ci waxtaan'],
+    series: [{ name: 'Pipeline', values: [6, 3, 0], color: 'fill-chart-2' as const }],
+  };
+
+  it('rend chaque libellé en entier, sur une ligne à lui, sans troncature ni `title`', () => {
+    const { container } = render(withIntl(<BarChart data={ETAPES} orientation="horizontal" />, 'wo'));
+    const figure = container.querySelector('figure');
+    expect(figure?.dataset.orientation).toBe('horizontal');
+    expect(container.querySelector('svg')).toBeNull();
+    const libelles = [...container.querySelectorAll<HTMLElement>('[data-chart-axis="y"]')];
+    expect(libelles.map((n) => n.textContent)).toEqual(ETAPES.labels);
+    libelles.forEach((n, i) => {
+      // Le défaut exact : `truncate` (ou un `line-clamp`) cache la fin, `title` ne se lit qu'au survol.
+      expect(n.className).not.toMatch(/\b(truncate|line-clamp-\d|whitespace-nowrap|max-w-)/);
+      expect(n.hasAttribute('title')).toBe(false);
+      expect(n.classList.contains('text-xs')).toBe(true);
+      expect(n.classList.contains('break-words')).toBe(true);
+      expect(n.style.fontSize).toBe('');
+      expect(n.style.gridRow).toBe(String(i + 1));
+    });
+    // La colonne des libellés ne descend jamais sous le plus long MOT (`fit-content`, pas un %).
+    const grille = container.querySelector<HTMLElement>('[role="img"]');
+    expect(grille?.className).toContain('grid-cols-[fit-content(40%)_minmax(0,1fr)]');
+    expect(grille?.getAttribute('aria-label')).toBe('Nataalu bar');
+  });
+
+  it('dimensionne les barres en pourcentage du domaine, couleur de la série', () => {
+    const { container } = render(withIntl(<BarChart data={ETAPES} orientation="horizontal" />, 'en'));
+    const barres = [...container.querySelectorAll<HTMLElement>('[data-chart-bar]')];
+    expect(barres.map((b) => [b.style.left, b.style.width])).toEqual([
+      ['0%', '100%'],
+      ['0%', '50%'],
+      ['0%', '0%'],
+    ]);
+    for (const b of barres) expect(b.className).toContain('bg-chart-2');
+    expect([...container.querySelectorAll('[data-chart-axis="x"]')].map((n) => n.textContent)).toEqual([
+      '0',
+      '3',
+      '6',
+    ]);
+  });
+
+  it('descend une valeur négative depuis la ligne de base, sans l’avaler', () => {
+    const { container } = render(withIntl(<BarChart
+        data={{ labels: ['A', 'B'], series: [{ name: 'S', values: [-500, 1000] }] }}
+        orientation="horizontal"
+      />, 'en'));
+    const barres = [...container.querySelectorAll<HTMLElement>('[data-chart-bar]')];
+    expect(barres.map((b) => [b.style.left, b.style.width])).toEqual([
+      ['0%', '33.3333%'],
+      ['33.3333%', '66.6667%'],
+    ]);
+    expect(container.querySelector<HTMLElement>('[data-testid="bar-zero-line"]')?.style.left).toBe('33.3333%');
+  });
+
+  it('rend le vertical par défaut, inchangé', () => {
+    const { container } = render(withIntl(<BarChart data={ETAPES} />));
+    expect(container.querySelector('figure')?.dataset.orientation).toBeUndefined();
+    expect(container.querySelectorAll('svg rect')).toHaveLength(3);
+  });
+});
+
+describe('LineChart — abscisses mensuelles formatées dans la locale active', () => {
+  const SERIE = {
+    labels: ['2025-10', '2025-12', '2026-09', 'hors-format'],
+    series: [{ name: 'Revenus', values: [1, 2, 3, 4] }],
+  };
+  const abscisses = (locale: 'fr' | 'en' | 'wo') => {
+    const { container } = render(withIntl(<LineChart data={SERIE} abscisses="mois" />, locale));
+    return [...container.querySelectorAll('[data-chart-axis="x"]')].map((n) => n.textContent);
+  };
+
+  it.each([
+    ['fr', ['oct. 2025', 'déc. 2025', 'sept. 2026', 'hors-format']],
+    ['en', ['Oct 2025', 'Dec 2025', 'Sept 2026', 'hors-format']],
+    // `wo` emprunte l'étiquette Intl `fr-SN` (cf. `@/lib/format`, dette TCK-347).
+    ['wo', ['oct. 2025', 'déc. 2025', 'sept. 2026', 'hors-format']],
+  ] as const)('%s', (locale, attendu) => {
+    expect(abscisses(locale)).toEqual(attendu);
+  });
+
+  it('laisse les étiquettes telles quelles sans `abscisses`', () => {
+    const { container } = render(withIntl(<LineChart data={SERIE} />, 'fr'));
+    expect([...container.querySelectorAll('[data-chart-axis="x"]')].map((n) => n.textContent)).toEqual(SERIE.labels);
   });
 });
