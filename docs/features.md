@@ -532,9 +532,12 @@ cookie, ADR-0026 §5), y compris depuis ses appels serveur.
 
 ### 2.10 Pages légales publiques
 
-Trois documents juridiques lisibles sans compte, sur la surface publique. **Leur texte est fourni par
-le porteur du produit** : ni le code ni un agent ne le rédige. Tant qu'il n'est pas livré, la page
-existe et le dit.
+Trois documents juridiques lisibles sans compte, sur la surface publique. **Leur texte a été rédigé
+le 2026-09-17 à la demande du porteur du produit** (droit sénégalais, OHADA, UEMOA), à partir de ce
+que la plateforme fait réellement ; il vit dans `takussan-web/src/content/legal/`, et l'identité de
+l'éditeur dans `editeur.ts`, en un seul point. Il reste à compléter (RCCM, NINEA, siège, directeur
+de la publication, récépissé CDP) et à faire relire par un avocat avant la production. Un texte
+français absent fait toujours afficher l'état « texte à fournir ».
 
 | Prio | Acteurs | Fonctionnalité |
 |------|---------|----------------|
@@ -548,15 +551,20 @@ existe et le dit.
 
 - **Une URL canonique par document**, préfixée de la langue comme toute la surface publique
   (ADR-0026) ; `/legal/terms` sans langue est redirigé vers la langue du visiteur.
-- **Le français fait foi ; l'anglais et le wolof sont des traductions de courtoisie.** ⚠ *Hypothèse
-  à confirmer par le porteur* (TCK-531) : il peut décider qu'une traduction fait foi elle aussi.
+- **Le français fait foi ; l'anglais et le wolof sont des traductions de courtoisie** — stipulé à
+  l'article 3 des CGU. L'anglais est fourni ; le wolof ne l'est pas, à dessein (une traduction
+  juridique demande un traducteur qui en réponde).
   Une traduction absente fait afficher le texte français, avec la mention qu'il n'existe qu'en
   français ; un texte français absent fait afficher l'état « texte à fournir » dans les trois
   langues, même si une traduction existe.
 - **Non indexées** (`noindex, follow`) et absentes du sitemap : ce ne sont pas des pages d'entrée
   de recherche.
-- **Hors périmètre** : la conservation de la preuve de consentement (version acceptée,
-  horodatage) — à spécifier séparément si elle est exigée.
+- **Un texte juridique ne promet que ce que le code fait.** Un engagement que la loi impose et que
+  le code ne tient pas encore est suivi par un ticket : TCK-537 porte la preuve du consentement
+  (version acceptée, horodatage), l'effacement des profils à la suppression du compte, les purges
+  annoncées par la politique de confidentialité et la minimisation de l'auteur d'un avis public.
+- **Tout nouveau prestataire, traceur, purge ou changement de commission** se reporte dans le texte
+  concerné dans le même changement, et la date de version (`VERSION_DOCUMENTS`) avance.
 
 ---
 

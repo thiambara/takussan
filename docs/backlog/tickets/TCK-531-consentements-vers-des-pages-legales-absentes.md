@@ -1,15 +1,15 @@
 ---
 id: TCK-531
 title: "Trois cases de consentement obligatoires renvoient à des pages légales qui n'existent pas (404)"
-status: review
+status: done
 phase: P1
 family: bug
 estimate: M
 wave: 65
 created: 2026-09-16
-updated: 2026-09-16
+updated: 2026-09-17
 depends_on: []
-blocks: []
+blocks: [TCK-537]
 spec_refs:
   features:
     - docs/features.md#210-pages-légales-publiques
@@ -45,9 +45,10 @@ ticketée ») ; elles ne sont toujours pas décrites dans `docs/features.md`.
 
 ## Contraintes strictes (métier)
 
-1. **Aucun texte juridique n'est rédigé par un agent.** Les textes (CGU, politique de
-   confidentialité, mentions légales) sont fournis par le porteur du produit, en fr — et en
-   décidant si en/wo sont des traductions faisant foi ou de courtoisie.
+1. ~~**Aucun texte juridique n'est rédigé par un agent.**~~ **Levée par le porteur le 2026-09-17** :
+   il a demandé que les trois textes soient rédigés « en juriste, adaptés au contexte sénégalais et
+   UEMOA », directement dans le code. Ils restent à compléter (identité de l'éditeur, récépissé CDP)
+   et à faire relire par un avocat — cf. § Reste sur dev.
 2. Une seule URL canonique par document, localisée (`/[locale]/…`), citée par les trois cases.
 3. Retirer un lien ou décocher l'obligation n'est pas une correction : cela change la nature du
    consentement.
@@ -63,26 +64,25 @@ ticketée ») ; elles ne sont toujours pas décrites dans `docs/features.md`.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — Chacune des trois cases mène à une page **200** qui rend le texte fourni, dans les
-      trois locales. ⚠ **Partiel, ne peut pas être vert** : les neuf pages répondent 200 (relevé
-      ci-dessous), mais **aucun texte n'est fourni** — elles rendent l'état « document en cours de
-      rédaction ». Se coche quand le porteur a déposé les textes.
+- [x] AC1 — Chacune des trois cases mène à une page **200** qui rend le texte fourni, dans les
+      trois locales — `fr` et `en` rédigés, `wo` affiche le français avec sa mention (choix écrit
+      au README des textes). Vérifié par `src/content/legal/__tests__/textes.test.ts` et au rendu
+      (§ Notes, 2026-09-17).
 - [x] AC2 — Les trois cases citent les **mêmes** URL canoniques (`ROUTES_LEGALES`).
 - [x] AC3 — Le test ou la garde de fraîcheur rougit si l'on remet `/terms` (ablation notée).
 
 ## Reste sur dev
 
-**Rien à coder.** Le porteur du produit :
+**Clôturé le 2026-09-17 : rien à coder dans ce ticket.** Les textes sont publiés ; ce qui reste
+est un geste du porteur du produit, hors code :
 
-1. dépose les trois textes **français** dans `takussan-web/src/content/legal/` — `terms.ts`
-   (CGU), `privacy.ts` (confidentialité), `notice.ts` (mentions légales), dans l'export `fr`, entre
-   les accents graves (mode d'emploi : `takussan-web/src/content/legal/README.md`) ;
-2. décide du statut de l'anglais et du wolof — traductions de courtoisie (hypothèse retenue,
-   `docs/features.md` §2.10) ou faisant foi — et remplit `en` / `wo` s'il en fournit ;
-3. vérifie AC1 : `/{fr,en,wo}/legal/{terms,privacy,notice}` rendent le texte, puis coche.
+1. remplit les marqueurs `[⚠ à compléter : …]` de `takussan-web/src/content/legal/editeur.ts`
+   (dénomination, forme et capital, RCCM, NINEA, siège, téléphone, directeur de la publication) ;
+2. déclare les traitements à la CDP et reporte le récépissé dans `privacy.ts` et `notice.ts` ;
+3. crée les boîtes `contact@`, `privacy@` et `legal@takussan.com` ;
+4. fait relire les trois textes par un avocat inscrit au barreau du Sénégal.
 
-S'il décide qu'une traduction fait foi, la mention « seule la version française fait foi »
-(`legal.notices.translation`) est à revoir — c'est la seule ligne de code que ce choix touche.
+Les engagements de la politique que le code ne tient pas encore sont dans **TCK-537**.
 
 ## Hors périmètre
 
@@ -173,3 +173,23 @@ Ajouts : un test `javascript:` / `<script>` / `<iframe>` sur `TexteJuridique` (a
 `src/components/legal/__tests__/PageLegale.test.tsx`, qui rend la page avec un texte **simulé dans
 un mock** — branche « publié », mention de traduction, repli en → fr, `lang` de l'article
 (ablation : `lang={locale}` → rouge). Les fichiers de `src/content/legal/` restent vides.
+
+**Rédaction des textes (2026-09-17), à la demande du porteur.** `terms.ts` (21 articles),
+`privacy.ts` (12), `notice.ts` (8), en `fr` et `en` ; l'identité de l'éditeur et des hébergeurs
+dans `editeur.ts`, interpolée — un seul point à remplir. Les faits décrits ont été relevés dans le
+code le même jour (paiements Wave / Orange Money / Lemon Squeezy, encaissement pour compte des
+agences et commission `platform_fee_pct`, SMS Orange / LAfricaMobile / Mtarget, WhatsApp Cloud,
+Resend, Contabo / Cloudflare / Vercel, OpenStreetMap, ipapi.co, Vercel Analytics, cookies
+`auth_token` / `takussan-session` / `active_profile_id` / `NEXT_LOCALE`, suppression à 30 jours,
+export à 7 jours, accès d'assistance de 60 min journalisé). Vérifié au passage et corrigé dans le
+texte : un avis public affiche le nom complet et la photo de l'auteur, pas le prénom seul.
+
+- **Garde** : `src/content/legal/__tests__/textes.test.ts` — publication par langue, aucune
+  interpolation ratée, aucune syntaxe que `TexteJuridique` n'afficherait pas (liste imbriquée,
+  tableau, lien), marqueurs « à compléter » uniquement de la forme d'`editeur.ts`, autant
+  d'articles en `en` qu'en `fr`. Ablations (copie au scratchpad, md5
+  `7f541871fc6fa8753fe5cd5150ba0440` avant et après) : un élément de liste indenté → **rouge** ;
+  `${EDITEUR.telephone}` → `${(EDITEUR as any).fax}` → **rouge** (`undefined`).
+- **i18n** : le marqueur « à compléter » est réduit à `[⚠` (le libellé est dans les gabarits,
+  comme tout le texte juridique) ; les raisons sociales et adresses des hébergeurs sont des
+  exceptions `NOM-PROPRE` écrites dans `scripts/i18n-exceptions.mjs`. La baseline reste à zéro.
