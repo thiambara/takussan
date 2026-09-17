@@ -32,13 +32,33 @@ class StoreBookingRequest extends BaseFormRequest
         return [
             'property_id' => ['required', 'exists:properties,id'],
             'customer_id' => ['nullable', 'exists:customers,id'],
-            'total_amount' => ['required', 'numeric', 'min:0'],
-            'deposit_amount' => ['nullable', 'numeric', 'min:0'],
+            // TCK-530 — facultatifs : le serveur calcule les deux (App\Services\Booking\BookingQuote)
+            // et refuse un montant envoyé qui en diffère. `decimal:0,2` borne la forme que le
+            // comparateur découpe sans flottant.
+            'total_amount' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
+            'deposit_amount' => ['nullable', 'numeric', 'decimal:0,2', 'min:0'],
             'currency' => ['nullable', Rule::enum(Currency::class)],
-            'start_date' => ['nullable', 'date'],
+            // Vérification adverse de TCK-530 — une arrivée passée était acceptée. Même règle que
+            // `BookingRequestPublicPropertyRequest` ; `today` se juge dans le fuseau de l'appli (UTC,
+            // l'heure de Dakar).
+            'start_date' => ['nullable', 'date', 'after_or_equal:today'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],
             'expires_at' => ['nullable', 'date'],
+        ];
+    }
+
+    /**
+     * Les deux refus de dates dans la langue de l'appelant : `validation.php` ne porte ni
+     * `after` ni `after_or_equal`, qui retombaient sur l'anglais de Laravel.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'start_date.after_or_equal' => __('bookings.start_in_past'),
+            'end_date.after_or_equal' => __('bookings.end_before_start'),
         ];
     }
 }

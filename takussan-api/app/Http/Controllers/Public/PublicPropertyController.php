@@ -35,6 +35,7 @@ use App\Models\PropertyReport;
 use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
+use App\Services\Booking\BookingQuote;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
@@ -675,7 +676,7 @@ class PublicPropertyController extends Controller
         ]);
     }
 
-    public function bookingRequest(BookingRequestPublicPropertyRequest $request, CustomerService $customers, string $slug): JsonResponse
+    public function bookingRequest(BookingRequestPublicPropertyRequest $request, CustomerService $customers, BookingQuote $quotes, string $slug): JsonResponse
     {
         $property = $request->property();
 
@@ -690,6 +691,31 @@ class PublicPropertyController extends Controller
 
         $user = $request->user();
         abort_if($user === null, 401);
+
+        // Vérification adverse de TCK-535 — même règle que `BookingService::create()` : le
+        // propriétaire ne réserve pas (et ne fait pas d'offre sur) son propre bien. Avant tout
+        // calcul et toute écriture, pour ne pas lui créer de fiche client.
+        abort_if(
+            $property->user_id === $user->id && ! $user->isSuperAdmin(),
+            403,
+            'You cannot book your own property.'
+        );
+
+        // TCK-535 — un séjour court (`daily`, `weekly`) suit la règle du tunnel (TCK-530) : total
+        // et acompte de `BookingQuote`, calculés AVANT toute écriture. Toute autre location est la
+        // CANDIDATURE du bouton « Postuler » (TCK-165, `getPrimaryCtaForProperty()` → `apply`),
+        // qui poste ici : elle reste possible, au montant d'UN loyer — jamais prix × nuits — et
+        // sans l'acompte qu'elle n'a jamais porté. Le prix `decimal:2` est recopié tel quel, sans
+        // passer par un flottant.
+        $amounts = match (true) {
+            $isSale => null,
+            in_array($property->rent_period, [RentPeriod::Daily, RentPeriod::Weekly], true) => $quotes->for(
+                $property,
+                Carbon::parse($data['start_date']),
+                Carbon::parse($data['end_date']),
+            ),
+            default => ['total_amount' => (string) $property->price, 'deposit_amount' => null],
+        };
 
         $customer = $customers->findOrCreateFromUser($user);
 
@@ -719,13 +745,6 @@ class PublicPropertyController extends Controller
             ], 201);
         }
 
-        $start = Carbon::parse($data['start_date']);
-        $end = Carbon::parse($data['end_date']);
-        $nights = max(1, (int) $start->diffInDays($end));
-        $totalAmount = $property->rent_period === RentPeriod::Daily
-            ? (float) $property->price * $nights
-            : (float) $property->price;
-
         $booking = Booking::create([
             'property_id' => $property->id,
             'customer_id' => $customer->id,
@@ -733,7 +752,10 @@ class PublicPropertyController extends Controller
             'agency_id' => $property->agency_id,
             'start_date' => $data['start_date'],
             'end_date' => $data['end_date'],
-            'total_amount' => $totalAmount,
+            // TCK-535 — ce calcul-ci donnait `prix × nuits` au seul `daily`, et le prix SEUL à
+            // toute autre période : dix nuits dans un bien hebdomadaire valaient une semaine.
+            'total_amount' => $amounts['total_amount'],
+            'deposit_amount' => $amounts['deposit_amount'],
             'currency' => $property->currency,
             'status' => BookingStatus::Pending->value,
             'notes' => $data['message'] ?? null,

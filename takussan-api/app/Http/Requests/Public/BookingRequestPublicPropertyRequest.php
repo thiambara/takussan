@@ -32,4 +32,18 @@ class BookingRequestPublicPropertyRequest extends PublicPropertySlugRequest
                 'message' => ['nullable', 'string', 'max:1000'],
             ];
     }
+
+    /**
+     * Vérification adverse de TCK-535 — les refus de dates dans la langue de l'appelant :
+     * `validation.php` ne porte ni `after` ni `after_or_equal`, qui retombaient sur l'anglais.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'start_date.after_or_equal' => __('bookings.start_in_past'),
+            'end_date.after' => __('bookings.end_before_start'),
+        ];
+    }
 }

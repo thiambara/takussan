@@ -1,0 +1,237 @@
+{
+    "_": "TCK-530 — cas de concordance entre App\\Services\\Booking\\BookingQuote (API) et takussan-web/src/lib/booking-quote.ts (front). Les DEUX suites lisent ce fichier : le montant vu est le montant enregistré. period 'sale' = vente ; total null = refus (bail). 19.99 et 0.29 : prix dont le flottant JS est juste SOUS la valeur (19.99 × 100 = 1998.9999…) — un Math.trunc à la conversion en centimes rougit ici. Ventes : le total s’arrondit à l’unité mineure comme l’acompte (12345.67 XOF → 12346).",
+    "cases": [
+        {
+            "price": "33333.33",
+            "currency": "XOF",
+            "period": "weekly",
+            "nights": 3,
+            "total": "14286.00",
+            "deposit": "4286.00"
+        },
+        {
+            "price": "33333.33",
+            "currency": "EUR",
+            "period": "weekly",
+            "nights": 3,
+            "total": "14285.71",
+            "deposit": "4285.71"
+        },
+        {
+            "price": "33333.33",
+            "currency": "XAF",
+            "period": "daily",
+            "nights": 3,
+            "total": "100000.00",
+            "deposit": "30000.00"
+        },
+        {
+            "price": "0.5",
+            "currency": "XOF",
+            "period": "daily",
+            "nights": 1,
+            "total": "1.00",
+            "deposit": "0.00"
+        },
+        {
+            "price": "1.49",
+            "currency": "XOF",
+            "period": "daily",
+            "nights": 1,
+            "total": "1.00",
+            "deposit": "0.00"
+        },
+        {
+            "price": "2.5",
+            "currency": "XOF",
+            "period": "weekly",
+            "nights": 5,
+            "total": "2.00",
+            "deposit": "1.00"
+        },
+        {
+            "price": "3.5",
+            "currency": "XOF",
+            "period": "weekly",
+            "nights": 1,
+            "total": "1.00",
+            "deposit": "0.00"
+        },
+        {
+            "price": "7",
+            "currency": "XOF",
+            "period": "weekly",
+            "nights": 1,
+            "total": "1.00",
+            "deposit": "0.00"
+        },
+        {
+            "price": "0.01",
+            "currency": "EUR",
+            "period": "weekly",
+            "nights": 6,
+            "total": "0.01",
+            "deposit": "0.00"
+        },
+        {
+            "price": "0.01",
+            "currency": "USD",
+            "period": "daily",
+            "nights": 13,
+            "total": "0.13",
+            "deposit": "0.04"
+        },
+        {
+            "price": "99.99",
+            "currency": "EUR",
+            "period": "weekly",
+            "nights": 10,
+            "total": "142.84",
+            "deposit": "42.85"
+        },
+        {
+            "price": "12345.67",
+            "currency": "USD",
+            "period": "weekly",
+            "nights": 13,
+            "total": "22927.67",
+            "deposit": "6878.30"
+        },
+        {
+            "price": "12345.67",
+            "currency": "XOF",
+            "period": "daily",
+            "nights": 29,
+            "total": "358024.00",
+            "deposit": "107407.00"
+        },
+        {
+            "price": "50000",
+            "currency": "XOF",
+            "period": "weekly",
+            "nights": 3,
+            "total": "21429.00",
+            "deposit": "6429.00"
+        },
+        {
+            "price": "20000",
+            "currency": "XOF",
+            "period": "daily",
+            "nights": 3,
+            "total": "60000.00",
+            "deposit": "18000.00"
+        },
+        {
+            "price": "20000",
+            "currency": "EUR",
+            "period": "weekly",
+            "nights": 6,
+            "total": "17142.86",
+            "deposit": "5142.86"
+        },
+        {
+            "price": "999999999.99",
+            "currency": "XOF",
+            "period": "daily",
+            "nights": 365,
+            "total": "364999999996.00",
+            "deposit": "109499999999.00"
+        },
+        {
+            "price": "999999999.99",
+            "currency": "EUR",
+            "period": "weekly",
+            "nights": 365,
+            "total": "52142857142.34",
+            "deposit": "15642857142.70"
+        },
+        {
+            "price": "1",
+            "currency": "XOF",
+            "period": "weekly",
+            "nights": 5,
+            "total": "1.00",
+            "deposit": "0.00"
+        },
+        {
+            "price": "2.5",
+            "currency": "EUR",
+            "period": "daily",
+            "nights": 1,
+            "total": "2.50",
+            "deposit": "0.75"
+        },
+        {
+            "price": "19.99",
+            "currency": "EUR",
+            "period": "daily",
+            "nights": 3,
+            "total": "59.97",
+            "deposit": "17.99"
+        },
+        {
+            "price": "0.29",
+            "currency": "USD",
+            "period": "weekly",
+            "nights": 2,
+            "total": "0.08",
+            "deposit": "0.02"
+        },
+        {
+            "price": "12345.67",
+            "currency": "XOF",
+            "period": "sale",
+            "nights": 0,
+            "total": "12346.00",
+            "deposit": "3704.00"
+        },
+        {
+            "price": "0.01",
+            "currency": "EUR",
+            "period": "sale",
+            "nights": 0,
+            "total": "0.01",
+            "deposit": "0.00"
+        },
+        {
+            "price": "33333.33",
+            "currency": "XOF",
+            "period": "sale",
+            "nights": 0,
+            "total": "33333.00",
+            "deposit": "10000.00"
+        },
+        {
+            "price": "2.5",
+            "currency": "XOF",
+            "period": "sale",
+            "nights": 0,
+            "total": "3.00",
+            "deposit": "1.00"
+        },
+        {
+            "price": "250000",
+            "currency": "XOF",
+            "period": "monthly",
+            "nights": 10,
+            "total": null,
+            "deposit": null
+        },
+        {
+            "price": "250000",
+            "currency": "XOF",
+            "period": "yearly",
+            "nights": 10,
+            "total": null,
+            "deposit": null
+        },
+        {
+            "price": "250000",
+            "currency": "XOF",
+            "period": null,
+            "nights": 10,
+            "total": null,
+            "deposit": null
+        }
+    ]
+}

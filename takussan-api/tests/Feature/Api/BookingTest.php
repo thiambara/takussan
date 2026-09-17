@@ -5,7 +5,9 @@ namespace Tests\Feature\Api;
 use App\Models\Booking;
 use App\Models\Customer;
 use App\Models\Enums\BookingStatus;
+use App\Models\Enums\ContractType;
 use App\Models\Enums\PropertyStatus;
+use App\Models\Enums\RentPeriod;
 use App\Models\Property;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,15 +22,18 @@ class BookingTest extends TestCase
     {
         $user = User::factory()->create();
         $customer = Customer::factory()->create(['user_id' => $user->id]);
-        $property = Property::factory()->create();
+        // TCK-530 — période FIXÉE : le montant est calculé par le serveur, et un bien mensuel ou
+        // annuel tiré au hasard par la factory serait refusé (BookingPricingTest).
+        $property = Property::factory()->create([
+            'contract_type' => ContractType::Rent,
+            'rent_period' => RentPeriod::Daily,
+        ]);
 
         Sanctum::actingAs($user);
 
         $this->postJson('/api/bookings', [
             'property_id' => $property->id,
             'customer_id' => $customer->id,
-            'total_amount' => 500000,
-            'deposit_amount' => 100000,
             'start_date' => now()->addDay()->toDateString(),
             'end_date' => now()->addMonth()->toDateString(),
         ])->assertCreated()
