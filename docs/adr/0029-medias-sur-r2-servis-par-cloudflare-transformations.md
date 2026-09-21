@@ -66,9 +66,15 @@ par Cloudflare Transformations depuis le domaine du seau public.**
    1 000, et `format=auto` ne compte qu'une fois quel que soit le format servi. Au-delà du quota
    gratuit, une transformation neuve rend l'erreur `9422` ; `onerror=redirect` renvoie alors
    l'image source (même zone), ce qui dégrade le poids sans rien casser.
-5. **La source d'une transformation est toujours une conversion filigranée**, jamais l'original :
-   la règle de TCK-356 (`full` est le plafond public, l'original est réservé à `viewRaw`) tient
-   parce que le loader ne voit que les URL que l'API expose.
+5. **L'original d'une photo de bien vit sur le seau PRIVÉ, ses conversions sur le seau public**
+   (`useDisk(privé)->storeConversionsOnDisk(public)`). La règle de TCK-356 (`full` est le plafond
+   public, l'original est réservé à `viewRaw`) ne peut pas tenir par la seule discrétion de l'API :
+   ⚠ **la première rédaction de ce point l'affirmait, et c'était faux** — mesuré par la
+   vérification adverse du 2026-09-21, l'original était à une clé qui se déduit de `full` (retirer
+   `conversions/` et `-full`), sur le même domaine public, et Transformations l'aurait servi
+   redimensionné. *Une URL qu'on ne publie pas n'est pas une URL privée.* Une conversion n'est
+   servie publiquement qu'une fois filigranée (ou quand l'agence n'exige pas de filigrane) : l'API ne
+   rend jamais l'URL d'une conversion nue.
 6. **Les URL de médias sont versionnées** (`media-library.version_urls`) : une conversion
    régénérée — filigrane d'agence modifié — change d'URL, et le cache de Cloudflare n'a rien à
    purger.
