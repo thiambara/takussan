@@ -45,7 +45,7 @@ class BankStatement extends AbstractModel implements HasMedia
 
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('statement')->singleFile()->useDisk('local');
+        $this->addMediaCollection('statement')->singleFile()->useDisk(config('media-library.disk_name'));
     }
 
     public function agency(): BelongsTo

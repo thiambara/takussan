@@ -1,5 +1,14 @@
 # CDN Integration — TCK-105
 
+> ⚠️ **HORS DU CHEMIN depuis le 2026-09-21 — [ADR-0029](../adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md).**
+> Les médias vivent dans deux seaux R2 par environnement ; les images publiques sont servies par le
+> domaine du seau public (`media-preview.takussan.com`, `media.takussan.com`) et transformées par
+> Cloudflare (`/cdn-cgi/image/…`, loader de `takussan-web/src/lib/image-loader.ts`) ; les fichiers
+> privés ne sortent que par l'API (`App\Services\Media\PrivateMediaAccess`). Rien de ce qui suit
+> n'a jamais été activé (`CDN_ENABLED=false` partout), et `cdn.secure_collections` est vide : il
+> nommait trois collections qui n'existaient pas. Le retrait de cette intégration est un ticket à
+> part. Ce document est conservé pour son historique.
+
 ## Provider choice
 
 **Default: Bunny CDN** (`CDN_PROVIDER=bunny`).

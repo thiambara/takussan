@@ -338,8 +338,10 @@ class User extends Authenticatable implements HasLocalePreference, HasMedia, Mus
 
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('avatar')->singleFile();
-        $this->addMediaCollection('avatars')->singleFile();
+        // ADR-0029 §3 : seuls les avatars sont publics. `photos` (défaut de `POST /api/media/upload`,
+        // lu par aucune ressource ni aucun écran) et `documents` restent sur le disque privé.
+        $this->addMediaCollection('avatar')->singleFile()->useDisk(config('media-library.public_disk_name'));
+        $this->addMediaCollection('avatars')->singleFile()->useDisk(config('media-library.public_disk_name'));
         $this->addMediaCollection('photos');
         $this->addMediaCollection('documents');
     }

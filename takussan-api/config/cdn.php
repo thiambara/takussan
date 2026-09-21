@@ -68,12 +68,18 @@ return [
     | Media belonging to these Spatie collection names will always receive
     | a signed URL regardless of auth state.  For publicly accessible
     | collections no signing is applied.
+    |
+    | VIDE depuis TCK-538 (ADR-0029 §3), et délibérément. La liste nommait
+    | `lease_documents`, `contract_documents` et `property_archived_photos` :
+    | trois collections qu'aucun modèle ne déclare — elle ne protégeait rien.
+    | La protection d'un fichier privé est désormais son DISQUE : toute
+    | collection non déclarée publique vit sur `media-library.disk_name`,
+    | que le CDN ne sert pas. Ne restent sur le disque public que des
+    | collections publiques par nature (photos, vidéos et plans de biens,
+    | avatars, logo) : aucune n'a à être signée. Le retrait de l'intégration
+    | CDN de TCK-105 est un ticket à part (ADR-0029, Conséquences).
     */
-    'secure_collections' => [
-        'lease_documents',
-        'contract_documents',
-        'property_archived_photos',
-    ],
+    'secure_collections' => [],
 
     /*
     |--------------------------------------------------------------------------

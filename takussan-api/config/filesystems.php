@@ -47,6 +47,43 @@ return [
             'report' => false,
         ],
 
+        // ── Les deux seaux R2 d'un environnement — ADR-0029 ─────────────────────────────────
+        //
+        // `r2-media` est PUBLIC : servi par son domaine proxifié (`media-preview.takussan.com`,
+        // `media.takussan.com`) et transformé par Cloudflare (`/cdn-cgi/image/…`). `r2-private` n'a
+        // ni domaine ni `url` : un fichier privé ne sort que par l'API, après autorisation, en URL
+        // présignée courte ou en flux. Mêmes identifiants pour les deux, limités à ces deux seaux —
+        // jamais ceux de `vps-sauvegardes` (ADR-0029 §9).
+        //
+        // Region `auto` et endpoint `https://<compte>.r2.cloudflarestorage.com` : R2 ne connaît pas
+        // de région AWS. Le style de chemin est exigé par R2 pour les URL présignées.
+        'r2-media' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_MEDIA_BUCKET'),
+            'url' => env('R2_MEDIA_URL'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'visibility' => 'public',
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'r2-private' => [
+            'driver' => 's3',
+            'key' => env('R2_ACCESS_KEY_ID'),
+            'secret' => env('R2_SECRET_ACCESS_KEY'),
+            'region' => 'auto',
+            'bucket' => env('R2_PRIVATE_BUCKET'),
+            'endpoint' => env('R2_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

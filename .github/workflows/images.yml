@@ -29,6 +29,7 @@ jobs:
       environnement: ${{ steps.c.outputs.environnement }}
       api_url: ${{ steps.c.outputs.api_url }}
       site_url: ${{ steps.c.outputs.site_url }}
+      media_url: ${{ steps.c.outputs.media_url }}
     steps:
       - id: c
         run: |
@@ -36,7 +37,8 @@ jobs:
             preview)
               { echo "environnement=preview"
                 echo "api_url=https://preview.api.takussan.com"
-                echo "site_url=https://preview.takussan.com"; } >> "$GITHUB_OUTPUT" ;;
+                echo "site_url=https://preview.takussan.com"
+                echo "media_url=https://media-preview.takussan.com"; } >> "$GITHUB_OUTPUT" ;;
             *)
               echo "::error::aucun environnement pour la branche $GITHUB_REF_NAME"; exit 1 ;;
           esac
@@ -98,6 +100,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_URL=${{ needs.cible.outputs.api_url }}
             NEXT_PUBLIC_SITE_URL=${{ needs.cible.outputs.site_url }}
+            NEXT_PUBLIC_MEDIA_URL=${{ needs.cible.outputs.media_url }}
             BUILD_SHA=${{ github.sha }}
           tags: |
             ghcr.io/thiambara/takussan-web:${{ needs.cible.outputs.environnement }}-sha-${{ github.sha }}

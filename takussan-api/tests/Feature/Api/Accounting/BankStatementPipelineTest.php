@@ -18,8 +18,8 @@ use App\Models\User;
 use App\Services\Accounting\ReconciliationMatcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Tests\ApiTestCase;
+use Tests\Support\RemoteDiskFake;
 
 /**
  * TCK-285 — Le pipeline de rapprochement bancaire, DÉROULÉ POUR DE VRAI.
@@ -37,6 +37,10 @@ use Tests\ApiTestCase;
  *
  * `QUEUE_CONNECTION=sync` est forcé par `phpunit.xml` : ne pas faker la file
  * suffit à exécuter le job en ligne, et le chaînage `Parse → Match` avec.
+ *
+ * TCK-539 — le relevé vit sur un disque DISTANT simulé nommé comme en production
+ * (`r2-private`, {@see RemoteDiskFake}) : le parseur ne reçoit plus `$media->getPath()`, qui y
+ * rend un chemin inexistant, mais une copie temporaire supprimée après lecture.
  */
 class BankStatementPipelineTest extends ApiTestCase
 {
@@ -50,7 +54,7 @@ class BankStatementPipelineTest extends ApiTestCase
     {
         parent::setUp();
 
-        Storage::fake('local');
+        RemoteDiskFake::install('r2-private');
 
         $this->agency = Agency::factory()->create(['currency' => Currency::XOF]);
         $this->admin = User::factory()->create(['agency_id' => $this->agency->id]);

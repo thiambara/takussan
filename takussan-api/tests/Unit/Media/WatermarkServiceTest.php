@@ -63,7 +63,7 @@ class WatermarkServiceTest extends TestCase
         return new AgencyWatermarkContext(
             agencyName: 'Agence Takussan',
             agencyUrl: 'www.takussan.com',
-            logoPath: null,
+            logo: null,
             position: $position,
             opacity: $opacity,
         );
@@ -219,6 +219,36 @@ class WatermarkServiceTest extends TestCase
             );
             $previous = $delta[$opacity];
         }
+    }
+
+    /**
+     * TCK-539 — le logo arrive en OCTETS, lus par son disque, et non plus en chemin : le
+     * service doit l'incruster. Sans ce test, un service qui l'ignorerait resterait vert.
+     * Mesuré le 2026-09-21 : écart 0,627 avec le logo, 0 quand le service l'ignore.
+     */
+    public function test_logo_bytes_are_drawn_into_the_watermark(): void
+    {
+        $logoPath = $this->fixtureDir.'/logo.png';
+        $logo = imagecreatetruecolor(120, 40);
+        imagefill($logo, 0, 0, imagecolorallocate($logo, 250, 20, 20));
+        imagepng($logo, $logoPath);
+        imagedestroy($logo);
+
+        $sans = $this->fixtureDir.'/sans-logo.jpg';
+        $avec = $this->fixtureDir.'/avec-logo.jpg';
+        $this->createJpeg($sans);
+        $this->createJpeg($avec);
+
+        $this->service->apply($sans, $this->makeContext());
+        $this->service->apply($avec, new AgencyWatermarkContext(
+            agencyName: 'Agence Takussan',
+            agencyUrl: 'www.takussan.com',
+            logo: file_get_contents($logoPath),
+            position: WatermarkPosition::BottomRight,
+            opacity: 60,
+        ));
+
+        $this->assertGreaterThan(0.1, $this->meanPixelDelta($sans, $avec), 'Le logo doit marquer l\'image. Écart : '.$this->meanPixelDelta($sans, $avec));
     }
 
     public function test_idempotent_when_called_twice_with_same_context(): void

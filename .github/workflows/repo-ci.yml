@@ -811,6 +811,20 @@ jobs:
         # première tentative — le docblock d'`iso()` cite `->utc()` et satisfaisait le motif. Elle
         # dénude désormais les commentaires avant de lire.
         run: node scripts/check-resource-date-format.mjs --report
+      - name: Aucun média n'est lu par son chemin local (TCK-539)
+        # ADR-0029 range les médias dans R2, où `$media->getPath()` rend la CLÉ de l'objet
+        # (`12/cni.pdf`), pas un fichier. Relevé le 2026-09-21 : cinq chemins en dépendaient (KYC,
+        # liens de partage, versions de documents, relevés bancaires, filigrane), et aucun ne
+        # rougissait — le disque de développement et de test était local.
+        #
+        # ⚠ Un test sur `Storage::fake('r2-private')` ne l'aurait pas attrapé non plus : ce faux est
+        # un disque local, où `getPath()` marche. Mesuré : le contrôleur KYC d'origine y reste vert
+        # sur ses 11 cas. D'où la garde, et `Tests\Support\RemoteDiskFake` pour les tests.
+        #
+        # Prouvée par ablation : `getPath()` rétabli dans le contrôleur KYC → sortie 1 ; exception
+        # permanente rendue morte → sortie 1. Elle cherche une forme, pas un type : son angle mort
+        # (`$disk->path(…)`, URL directes par `getFullUrl()`) est dans son en-tête.
+        run: node scripts/check-media-getpath.mjs --report
       - name: Aucun document normatif ne cite un chemin markdown mort
         # `models-spec.md` a cité `docs/claude-code-prompt-notifications.md` — JAMAIS ÉCRIT — assez
         # longtemps pour qu'on finisse par annoter la citation « *(jamais écrit — pointeur mort)* »

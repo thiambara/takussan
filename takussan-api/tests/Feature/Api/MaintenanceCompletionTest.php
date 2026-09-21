@@ -18,7 +18,9 @@ class MaintenanceCompletionTest extends TestCase
 
     public function test_manager_can_complete_with_notes_cost_and_photos(): void
     {
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
 
         $owner = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);
@@ -98,7 +100,9 @@ class MaintenanceCompletionTest extends TestCase
 
     public function test_cannot_upload_photos_on_cancelled_request(): void
     {
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
 
         $owner = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);
@@ -117,7 +121,9 @@ class MaintenanceCompletionTest extends TestCase
 
     public function test_cannot_upload_photos_on_closed_request(): void
     {
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
 
         $owner = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);
@@ -136,7 +142,9 @@ class MaintenanceCompletionTest extends TestCase
 
     public function test_completion_photos_and_initial_photos_stored_in_separate_collections(): void
     {
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
 
         $owner = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);

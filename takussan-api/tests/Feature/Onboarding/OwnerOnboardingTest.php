@@ -37,7 +37,7 @@ class OwnerOnboardingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Storage::fake(config('media-library.disk_name', 'public'));
+        Storage::fake(config('media-library.disk_name'));
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Http\Controllers\Base\Controller;
 use App\Http\Requests\Api\StoreDocumentShareLinkRequest;
 use App\Models\Document;
 use App\Models\DocumentShareLink;
+use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\DocumentShareLinkService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -82,7 +83,7 @@ class DocumentShareLinkController extends Controller
         ]);
     }
 
-    public function download(Request $request, string $token): StreamedResponse|JsonResponse
+    public function download(Request $request, string $token, PrivateMediaAccess $access): StreamedResponse|JsonResponse
     {
         $password = $request->input('password');
         $link = $this->shareLinks->validate($token, $password);
@@ -92,11 +93,10 @@ class DocumentShareLinkController extends Controller
 
         $this->shareLinks->recordDownload($link);
 
-        return response()->streamDownload(function () use ($media) {
-            echo file_get_contents($media->getPath());
-        }, $media->file_name, [
-            'Content-Type' => $media->mime_type,
-        ]);
+        // TCK-539 — EN FLUX, jamais par redirection présignée : chaque téléchargement doit
+        // repasser par `recordDownload`, sinon l'URL présignée se rejouerait 5 minutes hors du
+        // plafond `max_downloads`.
+        return $access->stream($media, 'attachment');
     }
 
     public function destroy(Request $request, Document $document, DocumentShareLink $link): JsonResponse

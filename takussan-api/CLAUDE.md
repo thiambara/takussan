@@ -292,6 +292,35 @@ violée par malveillance, elle était **invisible** au moment d'écrire le fichi
 
 Pour du code neuf : `BaseResource`, et employer ses helpers plutôt que refaire la conversion.
 
+## Médias — deux disques, et le défaut est le PRIVÉ (ADR-0029)
+
+`config('media-library.disk_name')` est le disque **privé** (`MEDIA_PRIVATE_DISK` : `local` en dev
+et en test, `r2-private` en préproduction et production). Une collection **publique** le déclare :
+`->useDisk(config('media-library.public_disk_name'))` (`MEDIA_PUBLIC_DISK` : `public`, puis
+`r2-media`). `tests/Feature/Media/MediaDiskCollectionsTest.php` énumère les collections publiques
+attendues et rougit si l'une change de disque ou si une nouvelle apparaît sans y être listée.
+**Fichier exemplaire : `app/Models/Property.php::registerMediaCollections()`.**
+
+Trois règles, toutes payées pendant TCK-538/539/545 :
+
+1. **Jamais `$media->getPath()`** : sur R2, il n'y a pas de fichier local. Lire par
+   `Storage::disk($media->disk)` ; une bibliothèque qui exige un chemin passe par
+   `PrivateMediaAccess::withLocalCopy()`. `scripts/check-media-getpath.mjs` (Repo CI) le garde.
+2. **Un fichier privé ne sort que par `App\Services\Media\PrivateMediaAccess`**, après
+   l'autorisation : `stream()`, `redirect()` (URL présignée 5 min), `signedUrl()` (route signée
+   `media.private.show`). Jamais `getUrl()` sur un média privé.
+3. **`Storage::fake('r2-…')` ne prouve RIEN sur R2** : c'est un disque local, où `getPath()`
+   fonctionne. Un test d'indépendance au disque passe par `Tests\Support\RemoteDiskFake::install()`,
+   dont `path()` est relatif comme sur S3 (mesuré : le code d'origine restait vert sous
+   `Storage::fake`, 3 rouges sur 11 sous `RemoteDiskFake`). Son en-tête dit ce qu'il ne simule pas.
+
+`Tests\TestCase::setUp()` fake les deux disques de médias par défaut : sans cela, une vingtaine de
+classes déposaient leurs pièces de test dans le vrai `storage/app/private`.
+
+Les URL publiques sont **versionnées** (`version_urls`) et les conversions `preview`/`full` sont **en
+file `media`** : l'API retombe `full → preview → thumbnail → null` par
+`App\Services\Media\PublicPhotoUrl::upTo()`, jamais sur l'original sans `viewRaw` (TCK-356).
+
 ## Routes
 
 `routes/api.php` fait un `glob(__DIR__.'/api/*.php')` — **43 fichiers, 1510 lignes, 535 routes**. Un

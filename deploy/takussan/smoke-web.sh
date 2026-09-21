@@ -31,6 +31,7 @@ ok "build refusé sans NEXT_PUBLIC_SITE_URL, par sa garde"
 
 # 2. L'image, construite comme images.yml la construit.
 docker build -q --build-arg NEXT_PUBLIC_API_URL="$API" --build-arg NEXT_PUBLIC_SITE_URL="$SITE" \
+  --build-arg NEXT_PUBLIC_MEDIA_URL="${MEDIA:-https://media.smoke.invalid}" \
   --build-arg BUILD_SHA=smoke -t "$IMAGE" takussan-web >/dev/null
 docker rm -f "$NOM" >/dev/null 2>&1 || true
 trap 'docker rm -f "$NOM" >/dev/null 2>&1 || true' EXIT

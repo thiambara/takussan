@@ -80,7 +80,8 @@ class Agency extends AbstractModel implements HasMedia
 
     public function registerMediaCollections(): void
     {
-        $this->addMediaCollection('logo')->singleFile();
+        // ADR-0029 §3 : public — affiché sur la vitrine de l'agence et lu par le filigrane.
+        $this->addMediaCollection('logo')->singleFile()->useDisk(config('media-library.public_disk_name'));
     }
 
     /**

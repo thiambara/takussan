@@ -12,6 +12,8 @@ use App\Models\Enums\PropertyType;
 use App\Models\Enums\PropertyVisibility;
 use App\Models\Enums\RentPeriod;
 use App\Models\Enums\TitleType;
+use App\Services\Media\AgencyWatermarkContext;
+use App\Services\Media\WatermarkRequirement;
 use App\Support\Search\PropertyLabels;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,6 +34,9 @@ use Spatie\QueryBuilder\AllowedFilter;
 class Property extends AbstractModel implements HasMedia
 {
     use Auditable, HasFactory, InteractsWithMedia, Searchable, SoftDeletes;
+
+    /** Le lot qui décide du filigrane sans charger `agency` — cf. `requiresWatermark()`. */
+    private ?WatermarkRequirement $watermarkRequirement = null;
 
     protected $fillable = [
         'user_id', 'agency_id', 'parent_id', 'reference_number',
@@ -563,14 +568,83 @@ class Property extends AbstractModel implements HasMedia
 
     public function registerMediaCollections(): void
     {
+        // ADR-0029 §3 : les collections d'un bien sont servies au public, et le déclarent — le
+        // défaut de `media-library.disk_name` est le disque privé. `MediaDiskCollectionsTest`
+        // énumère cette liste.
+        $public = config('media-library.public_disk_name');
+
+        // TCK-539 (D2) — `photos` est COUPÉE en deux : l'ORIGINAL sur le disque PRIVÉ, les
+        // CONVERSIONS (filigranées) sur le public. Quand les deux vivaient sur `r2-media`,
+        // l'original non filigrané se lisait à une clé déduite de `full` — retirer
+        // `conversions/` et `-full` de l'URL —, et Cloudflare Transformations le servait
+        // même redimensionné : le filigrane se contournait en éditant une chaîne. L'original
+        // ne sort plus que par `PrivateMediaAccess::signedUrl()`, à qui détient `viewRaw`.
+        //
+        // `videos` et `plans` restent ENTIÈREMENT publics : ils n'ont ni conversion ni
+        // filigrane, le fichier servi EST le fichier publié — il n'y a pas d'original à protéger.
         $this->addMediaCollection('photos')
+            ->useDisk(config('media-library.disk_name'))
+            ->storeConversionsOnDisk($public)
             ->acceptsMimeTypes(['image/jpeg', 'image/png', 'image/webp']);
 
         $this->addMediaCollection('videos')
+            ->useDisk($public)
             ->acceptsMimeTypes(['video/mp4', 'video/webm', 'video/quicktime']);
 
         $this->addMediaCollection('plans')
+            ->useDisk($public)
             ->acceptsMimeTypes(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
+    }
+
+    /**
+     * TCK-539 (D3) — les photos de ce bien doivent-elles porter un filigrane avant d'être
+     * servies au public ? La règle vit dans `AgencyWatermarkContext::isEnabledFor()` : c'est
+     * elle qu'appliquent `ApplyWatermarkJob` et son listener, et `PublicPhotoUrl` s'y aligne.
+     *
+     * Ne CHARGE PAS la relation `agency` (seconde passe adverse, R2) : chargée, elle ajoutait un
+     * bloc `agency` à chaque élément des listes (`PropertyResource` teste `relationLoaded`), et
+     * coûtait une requête par bien. Si elle est déjà là ET digne de foi, elle est lue ; sinon,
+     * par `WatermarkRequirement` — un lot commun à toute la liste quand
+     * `PropertyResource::collection()` l'a rattaché, une requête pour ce seul bien sinon.
+     */
+    public function requiresWatermark(): bool
+    {
+        if ($this->agencyRelationIsReliable()) {
+            return AgencyWatermarkContext::isEnabledFor($this->agency);
+        }
+
+        return ($this->watermarkRequirement ??= WatermarkRequirement::single($this))->for($this);
+    }
+
+    /**
+     * La relation `agency` chargée dit-elle vraiment l'agence de ce bien ? (troisième passe
+     * adverse, F1)
+     *
+     * Pas quand `agency_id` n'a pas été SÉLECTIONNÉ : `fields[properties]=id,title,slug&include=agency`
+     * fait charger la relation par spatie à partir d'une clé absente, donc à `null`. La croire,
+     * c'était conclure « pas d'agence, pas de filigrane », et servir la conversion nue.
+     * `relationLoaded()` dit qu'une valeur est là, jamais qu'elle est juste.
+     *
+     * Pas non plus quand la relation ne correspond pas à la clé (agence supprimée en douceur,
+     * relation posée à la main) : le lot, qui lit par `properties.id`, tranche alors.
+     */
+    public function agencyRelationIsReliable(): bool
+    {
+        if (! $this->relationLoaded('agency') || ! array_key_exists('agency_id', $this->getAttributes())) {
+            return false;
+        }
+
+        $agency = $this->getRelation('agency');
+
+        return $agency === null
+            ? $this->getAttributes()['agency_id'] === null
+            : (int) $agency->getKey() === (int) $this->getAttributes()['agency_id'];
+    }
+
+    /** Rattache le lot de la liste dont ce bien fait partie (`WatermarkRequirement::attach()`). */
+    public function useWatermarkRequirement(WatermarkRequirement $requirement): void
+    {
+        $this->watermarkRequirement = $requirement;
     }
 
     /**
@@ -595,8 +669,19 @@ class Property extends AbstractModel implements HasMedia
 
     public function registerMediaConversions(?Media $media = null): void
     {
+        // TCK-539 — QUI est synchrone. Sur R2, chaque conversion synchrone coûte dans la
+        // requête d'upload un encodage et une écriture distante, par photo envoyée.
+        //
+        // · `thumbnail` reste SYNCHRONE : la console l'affiche dès le retour de l'upload
+        //   (`MediaManager.tsx`, relu par `PropertyMediaPanel` juste après l'envoi).
+        // · `preview` et `full` partent en file `media` (`worker-media`) : ce sont les
+        //   deux encodages lourds, et rien ne les lit dans la seconde qui suit l'upload.
+        //
+        // Le filigrane n'en dépend pas : il suit `ConversionHasBeenCompletedEvent`, émis
+        // après l'écriture de chaque conversion, synchrone ou en file. Tant que `preview`
+        // n'est pas produite, son URL rend 404 — jamais l'original (TCK-106).
         $this->addMediaConversion('thumbnail')->width(300)->height(300)->nonQueued();
-        $this->addMediaConversion('preview')->width(800)->height(600)->nonQueued();
+        $this->addMediaConversion('preview')->width(800)->height(600)->queued();
 
         // TCK-356 — `full` est le PLAFOND PUBLIC, pas un confort : le fichier source
         // n'est servi qu'au détenteur de `viewRaw`. 800 px ne couvraient que 33 % de
@@ -611,7 +696,7 @@ class Property extends AbstractModel implements HasMedia
         // recadré — les photos de biens n'ont pas un ratio unique.
         //
         // Le plafond public vaut donc `min(1600, largeur de la source)`.
-        $this->addMediaConversion('full')->fit(Fit::Max, 1600)->nonQueued();
+        $this->addMediaConversion('full')->fit(Fit::Max, 1600)->queued();
     }
 
     public function owner(): BelongsTo

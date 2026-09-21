@@ -14,6 +14,7 @@ FROM node:24-bookworm-slim AS build
 WORKDIR /app
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_SITE_URL
+ARG NEXT_PUBLIC_MEDIA_URL
 ARG BUILD_SHA=inconnu
 # Le refus d'ADR-0028 §3. `resoudreOrigineSite()` (src/lib/alternates.ts) reconnaît une
 # prévisualisation à VERCEL_ENV, qui n'existe pas ici : sans NEXT_PUBLIC_SITE_URL, une
@@ -21,8 +22,13 @@ ARG BUILD_SHA=inconnu
 # canoniques. On refuse avant le premier octet compilé.
 RUN test -n "$NEXT_PUBLIC_API_URL" || { echo "✗ NEXT_PUBLIC_API_URL manquant (ADR-0028 §3)" >&2; exit 1; }
 RUN test -n "$NEXT_PUBLIC_SITE_URL" || { echo "✗ NEXT_PUBLIC_SITE_URL manquant (ADR-0028 §3)" >&2; exit 1; }
+# ADR-0029 §4. Sans elle, le build réussit et next.config.ts garde l'optimiseur de Next : chaque
+# image repasserait par le conteneur (512 Mio), encodée en AVIF sur le CPU du VPS, cache perdu à
+# chaque déploiement — exactement ce que TCK-540 retire, et rien ne le signalerait.
+RUN test -n "$NEXT_PUBLIC_MEDIA_URL" || { echo "✗ NEXT_PUBLIC_MEDIA_URL manquant (ADR-0029 §4)" >&2; exit 1; }
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL} \
     NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL} \
+    NEXT_PUBLIC_MEDIA_URL=${NEXT_PUBLIC_MEDIA_URL} \
     BUILD_SHA=${BUILD_SHA} \
     NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules

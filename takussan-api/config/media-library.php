@@ -29,10 +29,24 @@ use Spatie\MediaLibraryPro\Models\TemporaryUpload;
 return [
 
     /*
-     * The disk on which to store added files and derived images by default. Choose
-     * one or more of the disks you've configured in config/filesystems.php.
+     * ── Le disque par défaut EST le disque PRIVÉ — ADR-0029 §3 ─────────────────────────
+     *
+     * Toute collection qui ne déclare pas de disque atterrit ici. Jusqu'au 2026-09-21, le
+     * défaut était `public` (servi sans authentification sous `/storage/{id}/…`) : pièces KYC,
+     * documents, pièces jointes y tombaient faute d'avoir écrit `useDisk()`. Oublier de
+     * déclarer une collection publique casse désormais un affichage, bruyamment ; oublier de
+     * déclarer une collection privée ne l'expose plus.
+     *
+     * Dev et tests : `local`. Préproduction et production : `r2-private`.
      */
-    'disk_name' => env('MEDIA_DISK', 'public'),
+    'disk_name' => env('MEDIA_PRIVATE_DISK', 'local'),
+
+    /*
+     * Le disque des collections PUBLIQUES, que chacune nomme par
+     * `useDisk(config('media-library.public_disk_name'))`. Dev et tests : `public`.
+     * Préproduction et production : `r2-media`, servi par Cloudflare Transformations.
+     */
+    'public_disk_name' => env('MEDIA_PUBLIC_DISK', 'public'),
 
     /*
      * The maximum file size of an item in bytes.
@@ -50,7 +64,9 @@ return [
      * This queue will be used to generate derived and responsive images.
      * Leave empty to use the default queue.
      */
-    'queue_name' => env('MEDIA_QUEUE', ''),
+    // `media` : la file de `worker-media` (deploy/takussan/compose.api.yml) et de `./dev.sh`,
+    // celle du filigrane. Vide, les conversions partaient sur `default`, derrière les notifications.
+    'queue_name' => env('MEDIA_QUEUE', 'media'),
 
     /*
      * By default all conversions will be performed on a queue.
@@ -139,7 +155,9 @@ return [
      * Whether to activate versioning when urls to files get generated.
      * When activated, this attaches a ?v=xx query string to the URL.
      */
-    'version_urls' => false,
+    // ADR-0029 §6 : une conversion régénérée (filigrane d'agence modifié) change d'URL, et le
+    // cache de Cloudflare n'a rien à purger — `?v=<updated_at>`.
+    'version_urls' => true,
 
     /*
      * The media library will try to optimize all converted images by removing

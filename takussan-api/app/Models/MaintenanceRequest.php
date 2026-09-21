@@ -97,6 +97,8 @@ class MaintenanceRequest extends AbstractModel implements HasMedia
 
     public function registerMediaCollections(): void
     {
+        // Privées (ADR-0029 §3, décision TCK-538) : l'intérieur d'un logement occupé, vu du seul
+        // locataire et de l'agence. Aucun écran public ne les affiche.
         $this->addMediaCollection('photos');
         $this->addMediaCollection('completion_photos');
         $this->addMediaCollection('quotes');

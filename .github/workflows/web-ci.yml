@@ -174,5 +174,6 @@ jobs:
           build-args: |
             NEXT_PUBLIC_API_URL=https://pr.invalid
             NEXT_PUBLIC_SITE_URL=https://pr.invalid
+            NEXT_PUBLIC_MEDIA_URL=https://media.pr.invalid
             BUILD_SHA=${{ github.sha }}
           cache-from: type=gha,scope=web-preview

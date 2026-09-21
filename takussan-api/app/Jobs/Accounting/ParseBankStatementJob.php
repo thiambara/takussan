@@ -8,6 +8,7 @@ use App\Models\BankStatementLine;
 use App\Models\Enums\BankStatementStatus;
 use App\Services\Accounting\StatementParser\ParserContext;
 use App\Services\Accounting\StatementParser\StatementParserFactory;
+use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ class ParseBankStatementJob implements ShouldQueue
         $this->onQueue('reconciliation');
     }
 
-    public function handle(StatementParserFactory $factory): void
+    public function handle(StatementParserFactory $factory, PrivateMediaAccess $access): void
     {
         $statement = BankStatement::find($this->statementId);
 
@@ -49,7 +50,6 @@ class ParseBankStatementJob implements ShouldQueue
         }
 
         try {
-            $path = $media->getPath();
             $context = new ParserContext(
                 agency: $statement->agency,
                 format: $statement->source_format,
@@ -61,24 +61,29 @@ class ParseBankStatementJob implements ShouldQueue
             $lines = [];
             $dates = [];
 
-            foreach ($parser->parse($path, $context) as $parsed) {
-                $lines[] = [
-                    'bank_statement_id' => $statement->id,
-                    'posted_at' => $parsed->postedAt->toDateString(),
-                    'amount' => $parsed->amount,
-                    'direction' => $parsed->direction->value,
-                    'currency' => $parsed->currency,
-                    'label' => $parsed->label,
-                    'reference' => $parsed->reference,
-                    'counterparty' => $parsed->counterparty,
-                    'raw_payload' => json_encode($parsed->raw),
-                    'match_status' => 'unmatched',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ];
+            // TCK-539 — les lecteurs (League\Csv, `file_get_contents`) exigent un chemin LOCAL, et
+            // le relevé vit sur le disque privé, distant en production. Copie temporaire, lue EN
+            // ENTIER dans le rappel (le parseur est un générateur), supprimée quoi qu'il arrive.
+            $access->withLocalCopy($media, function (string $path) use ($parser, $context, $statement, &$lines, &$dates): void {
+                foreach ($parser->parse($path, $context) as $parsed) {
+                    $lines[] = [
+                        'bank_statement_id' => $statement->id,
+                        'posted_at' => $parsed->postedAt->toDateString(),
+                        'amount' => $parsed->amount,
+                        'direction' => $parsed->direction->value,
+                        'currency' => $parsed->currency,
+                        'label' => $parsed->label,
+                        'reference' => $parsed->reference,
+                        'counterparty' => $parsed->counterparty,
+                        'raw_payload' => json_encode($parsed->raw),
+                        'match_status' => 'unmatched',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
 
-                $dates[] = $parsed->postedAt;
-            }
+                    $dates[] = $parsed->postedAt;
+                }
+            });
 
             // Line inserts + status flip must commit together: a crash between
             // them previously left lines present but status stuck on Processing,

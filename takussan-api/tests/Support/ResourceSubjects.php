@@ -329,8 +329,9 @@ final class ResourceSubjects
             'name' => 'contrat',
             'file_name' => 'contrat.pdf',
             'mime_type' => 'application/pdf',
-            'disk' => 'public',
-            'conversions_disk' => 'public',
+            // `versions` est privée (TCK-538, ADR-0029 §3) : le disque privé, pas `public`.
+            'disk' => config('media-library.disk_name'),
+            'conversions_disk' => config('media-library.disk_name'),
             'size' => 1024,
             'manipulations' => '[]',
             'custom_properties' => json_encode([
