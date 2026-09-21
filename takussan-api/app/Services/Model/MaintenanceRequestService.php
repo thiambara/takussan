@@ -4,10 +4,15 @@ namespace App\Services\Model;
 
 use App\Models\Enums\MaintenanceStatus;
 use App\Models\MaintenanceRequest;
+use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\UploadedFile;
 
 class MaintenanceRequestService
 {
+    public function __construct(
+        protected PrivateMediaAccess $privateMedia,
+    ) {}
+
     /**
      * Valid status transitions. `new`/`open` is the entry state; `acknowledged`
      * and `assigned` are intermediate states handled via the generic update
@@ -108,7 +113,9 @@ class MaintenanceRequestService
             $media = $mr->addMedia($photo)->toMediaCollection($collection);
             $added[] = [
                 'id' => $media->id,
-                'url' => $media->getUrl(),
+                // URL d'API signée (TCK-538) : `photos` et `completion_photos` sont privées,
+                // `getUrl()` ne serait servie par personne. Émise dans une réponse autorisée.
+                'url' => $this->privateMedia->signedUrl($media),
                 'collection' => $collection,
             ];
         }

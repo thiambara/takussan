@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Bases\BaseResource;
+use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\Request;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -14,7 +15,7 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  *   id, file_name, size, mime_type,
  *   uploaded_by_id, created_at, comment,
  *   is_active, version_number,
- *   url (temporary signed URL via getTemporaryUrl or getFullUrl as fallback)
+ *   url (URL d'API signée — `PrivateMediaAccess::signedUrl()`, TCK-539 ; jamais l'URL du fichier)
  */
 class DocumentVersionResource extends BaseResource
 {
@@ -26,12 +27,9 @@ class DocumentVersionResource extends BaseResource
         $comment = $this->getCustomProperty('comment');
         $uploadedById = $this->getCustomProperty('uploaded_by_id');
 
-        // Attempt a temporary signed URL (local disk will fall back to getFullUrl).
-        try {
-            $url = $this->getTemporaryUrl(now()->addMinutes(15));
-        } catch (\Exception) {
-            $url = $this->getFullUrl();
-        }
+        // TCK-539 — l'ancien repli sur `getFullUrl()` exposait l'URL directe du fichier dès que
+        // le disque ne savait pas présigner (`public`, le défaut d'alors).
+        $url = app(PrivateMediaAccess::class)->signedUrl($this->resource);
 
         return [
             'id' => $this->id,

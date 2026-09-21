@@ -13,6 +13,7 @@ use App\Models\Lease;
 use App\Models\LeasePayment;
 use App\Models\Payout;
 use App\Models\User;
+use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\ReferenceNumberGenerator;
 use Illuminate\Support\Facades\DB;
 
@@ -207,7 +208,8 @@ class DepositRefundService
             ->map(fn ($media) => [
                 'id' => $media->id,
                 'name' => $media->name,
-                'url' => $media->getFullUrl(),
+                // TCK-539 — URL d'API signée, jamais l'URL directe du fichier.
+                'url' => app(PrivateMediaAccess::class)->signedUrl($media),
             ])
             ->values()
             ->all();

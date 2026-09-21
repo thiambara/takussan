@@ -13,8 +13,11 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * and register their own collections via `registerMediaCollections()`.
  * Only image media will generate conversions (Spatie skips non-images).
  *
- * Conversions are generated non-queued to match the ticket requirement
- * "Conversions générées à l'upload (pas deferred)".
+ * `thumbnail` est synchrone, `preview` et `full` partent en file `media` (TCK-539) :
+ * sur R2, chaque conversion synchrone ajoute un encodage et une écriture distante à la
+ * requête d'upload. Aucun écran ne lit `preview` ni `full` à la sortie de l'upload —
+ * `MediaResource` rend `null` pour une conversion pas encore produite, et les avatars
+ * sont servis en original (`getFirstMediaUrl('avatar')`).
  */
 trait HasMediaConversions
 {
@@ -26,10 +29,10 @@ trait HasMediaConversions
 
         $this->addMediaConversion('preview')
             ->fit(Fit::Contain, 400, 400)
-            ->nonQueued();
+            ->queued();
 
         $this->addMediaConversion('full')
             ->width(1200)
-            ->nonQueued();
+            ->queued();
     }
 }

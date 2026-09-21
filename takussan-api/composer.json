@@ -16,6 +16,7 @@
         "laravel/socialite": "^5.26",
         "laravel/tinker": "^3.0",
         "league/csv": "^9.16",
+        "league/flysystem-aws-s3-v3": "^3.35",
         "lemonsqueezy/laravel": "^1.9",
         "maatwebsite/excel": "^4.0",
         "meilisearch/meilisearch-php": "^1.16",

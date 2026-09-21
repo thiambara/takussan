@@ -32,6 +32,12 @@ class WatermarkService
         return $opacity / 100;
     }
 
+    /**
+     * Filigrane un fichier LOCAL, sur place. Le disque n'est pas l'affaire de ce service :
+     * `ApplyWatermarkJob` rapatrie la conversion depuis son disque vers un fichier temporaire,
+     * appelle cette méthode, puis la réécrit (TCK-539). Le chemin garde l'extension de la
+     * conversion : `save()` choisit l'encodeur d'après elle.
+     */
     public function apply(string $sourcePath, AgencyWatermarkContext $context): void
     {
         $manager = new ImageManager(new GdDriver);
@@ -49,8 +55,8 @@ class WatermarkService
 
         $textY = 5;
 
-        if ($context->logoPath !== null && file_exists($context->logoPath)) {
-            $logo = $manager->decodePath($context->logoPath);
+        if ($context->logo !== null && $context->logo !== '') {
+            $logo = $manager->decodeBinary($context->logo);
             $maxLogoWidth = (int) ($imageWidth * 0.20);
             $logo->scaleDown(width: $maxLogoWidth);
             $overlayCanvas->insert($logo, 0, 0, Alignment::TOP_LEFT, $opacityFactor);

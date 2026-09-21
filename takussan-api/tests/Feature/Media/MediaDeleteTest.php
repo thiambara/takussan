@@ -17,7 +17,9 @@ class MediaDeleteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
     }
 
     protected function uploadFor(User $user): int
@@ -78,12 +80,12 @@ class MediaDeleteTest extends TestCase
         /** @var Media $media */
         $media = Media::findOrFail($id);
         $path = $media->getPathRelativeToRoot();
-        Storage::disk('public')->assertExists($path);
+        Storage::disk(config('media-library.disk_name'))->assertExists($path);
 
         Sanctum::actingAs($owner);
         $this->deleteJson("/api/media/{$id}")->assertNoContent();
 
-        Storage::disk('public')->assertMissing($path);
+        Storage::disk(config('media-library.disk_name'))->assertMissing($path);
     }
 
     public function test_guest_cannot_delete(): void

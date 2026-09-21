@@ -14,6 +14,8 @@ use App\Models\Inventory;
 use App\Models\Lease;
 use App\Models\Property;
 use App\Services\Inventory\InventorySignatureService;
+use App\Services\Media\PdfImageEmbedder;
+use App\Services\Media\PrivateMediaAccess;
 use App\Services\Model\InventoryService;
 use App\Services\Pdf\DocumentPdfService;
 use Illuminate\Http\JsonResponse;
@@ -26,6 +28,8 @@ class InventoryController extends Controller
         protected InventoryService $inventories,
         protected InventorySignatureService $signatures,
         protected DocumentPdfService $pdf,
+        protected PdfImageEmbedder $embedder,
+        protected PrivateMediaAccess $privateMedia,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -216,15 +220,24 @@ class InventoryController extends Controller
     }
 
     /**
+     * Les photos par pièce, en URI `data:` — jamais par URL : `room_photos` est une collection
+     * PRIVÉE (TCK-538), que rien ne sert à dompdf. Une photo illisible est omise plutôt que de
+     * faire échouer le PDF signé.
+     *
      * @return array<string, array<int, string>>
      */
     protected function groupRoomPhotos(Inventory $inventory): array
     {
         $grouped = [];
         foreach ($inventory->getMedia('room_photos') as $media) {
+            $dataUri = $this->embedder->dataUri($media);
+            if ($dataUri === null) {
+                continue;
+            }
+
             $room = (string) ($media->getCustomProperty('room_name') ?? 'Autres');
             $grouped[$room] ??= [];
-            $grouped[$room][] = $media->getUrl();
+            $grouped[$room][] = $dataUri;
         }
 
         return $grouped;
@@ -254,7 +267,9 @@ class InventoryController extends Controller
         return $this->json([
             'data' => $inventory->getMedia('room_photos')->map(fn ($m) => [
                 'id' => $m->id,
-                'url' => $m->getUrl(),
+                // URL d'API signée (TCK-538) : la collection est privée, `getUrl()` ne serait
+                // servie par personne. La réponse est déjà autorisée (`update` sur l'inventaire).
+                'url' => $this->privateMedia->signedUrl($m),
                 'room_name' => $m->getCustomProperty('room_name'),
             ]),
         ]);

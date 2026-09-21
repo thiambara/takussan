@@ -10,6 +10,9 @@ use App\Models\PropertyPriceHistory;
 use App\Models\Review;
 use App\Models\Tag;
 use App\Models\User;
+use App\Services\Media\PrivateMediaAccess;
+use App\Services\Media\PublicPhotoUrl;
+use App\Services\Media\WatermarkRequirement;
 use App\Services\Property\PrimaryPropertyContact;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,6 +20,20 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PropertyResource extends BaseResource
 {
+    private ?bool $watermarkRequired = null;
+
+    /**
+     * TCK-539 (R2) — toute liste de biens décide du filigrane en UNE requête au plus, sans
+     * charger `agency` : un bloc `agency` n'apparaît jamais dans un élément de liste pour cette
+     * raison-là (`WatermarkRequirement`). Les quinze listes passent par ici.
+     */
+    public static function collection($resource)
+    {
+        WatermarkRequirement::attach($resource);
+
+        return parent::collection($resource);
+    }
+
     public function toArray(Request $request): array
     {
         $isDetail = $request->routeIs('public.properties.show')
@@ -95,14 +112,25 @@ class PropertyResource extends BaseResource
             'description' => $this->when($isDetail, fn () => $this->whenHas('description')),
             'photos' => $this->when(
                 $isDetail,
-                fn () => $this->getMedia('photos')->values()->map(fn (Media $media, int $index) => [
-                    'id' => $media->id,
-                    'thumbnail' => $this->urlFor($media, 'thumbnail'),
-                    'preview' => $this->urlFor($media, 'preview'),
-                    'full' => $this->urlFor($media, $this->largestPublicConversion($media)),
-                    'original' => $this->originalUrlFor($media),
-                    'order' => $media->order_column ?? ($index + 1),
-                ])->all()
+                // TCK-539 — une photo sans AUCUNE conversion produite n'a rien à montrer : elle
+                // sort de la liste plutôt que d'y entrer avec `full: null`. La galerie publique
+                // passe `photo.full` tel quel à `next/image` (`PropertyGalleryMosaic`,
+                // `PropertyMobileGallery`), qui refuse un `src` nul. Elle y revient dès que
+                // `thumbnail` existe ET, si le bien l'exige, est filigranée (D3) — donc au
+                // passage de `worker-media`.
+                //
+                // `setRelation('model')` : `viewRaw` lit `$media->model`, on le lui donne plutôt
+                // qu'une requête par photo.
+                fn () => $this->getMedia('photos')->values()
+                    ->each(fn (Media $media) => $media->setRelation('model', $this->resource))
+                    ->map(fn (Media $media, int $index) => [
+                        'id' => $media->id,
+                        'thumbnail' => $this->urlFor($media, 'thumbnail'),
+                        'preview' => $this->urlFor($media, 'preview'),
+                        'full' => $this->urlFor($media, 'full'),
+                        'original' => $this->originalUrlFor($media),
+                        'order' => $media->order_column ?? ($index + 1),
+                    ])->filter(fn (array $photo) => $photo['full'] !== null)->values()->all()
             ),
             'media_extra' => $this->when($isDetail, fn () => [
                 'videos' => $this->getMedia('videos')->map(fn (Media $m) => $m->getUrl())->values()->all(),
@@ -343,19 +371,30 @@ class PropertyResource extends BaseResource
                     'name' => $doc->name,
                     'type' => $doc->type?->value,
                     'size' => $media?->size,
-                    'url' => $media?->getUrl(),
+                    // TCK-545 — URL STABLE, autorisée par l'état : `Document.file` est privée
+                    // (TCK-538), `getUrl()` n'y est servie par personne. Voir
+                    // `PublicPropertyDocumentController`.
+                    'url' => $media === null ? null : route('public.properties.documents.file', [
+                        'property' => $this->resource->getKey(),
+                        'document' => $doc->getKey(),
+                    ]),
                     'public' => true,
                 ];
             })->all();
     }
 
-    private function urlFor(Media $media, string $conversion): string
+    /**
+     * TCK-539 — la conversion demandée si elle est produite, sinon la plus grande plus petite,
+     * sinon `null` : `PublicPhotoUrl`. `preview` et `full` sont en file, et `getUrl()` rendait
+     * une URL en 404 entre l'upload et le passage de `worker-media`.
+     */
+    private function urlFor(Media $media, string $conversion): ?string
     {
         if (request()->boolean('raw') && Gate::allows('viewRaw', $media)) {
-            return $media->getUrl();
+            return app(PrivateMediaAccess::class)->signedUrl($media);
         }
 
-        return $media->getUrl($conversion);
+        return PublicPhotoUrl::upTo($media, $conversion, fn () => $this->watermarkRequired());
     }
 
     /**
@@ -363,28 +402,29 @@ class PropertyResource extends BaseResource
      * Only return it when the caller is authorized to view raw media,
      * otherwise fall back to the largest watermarked conversion
      * so public consumers cannot bypass the watermark.
+     *
+     * TCK-356 — cette plus grande conversion est `full` (1600 px) ; TCK-539 — avec repli
+     * sur `preview` puis `thumbnail` tant qu'elle n'est pas produite, jamais sur l'original.
      */
-    private function originalUrlFor(Media $media): string
+    private function originalUrlFor(Media $media): ?string
     {
         if (Gate::allows('viewRaw', $media)) {
-            return $media->getUrl();
+            // TCK-539 (D2) — l'original est sur le disque PRIVÉ : `getUrl()` n'y est servie par
+            // personne. Il sort par l'URL d'API signée, émise ici après la décision `viewRaw`.
+            return app(PrivateMediaAccess::class)->signedUrl($media);
         }
 
-        return $media->getUrl($this->largestPublicConversion($media));
+        return PublicPhotoUrl::upTo($media, 'full', fn () => $this->watermarkRequired());
     }
 
     /**
-     * TCK-356 — `full` (1600 px) est la plus grande conversion servie au public.
-     *
-     * Le repli sur `preview` n'est pas décoratif : `getUrl('full')` construit une
-     * URL à partir du NOM de la conversion sans vérifier qu'elle a été produite.
-     * Tant que le parc existant n'est pas régénéré, un média d'avant TCK-356 rendrait
-     * donc une URL en 404. Ce repli tient la fenêtre entre le déploiement et la
-     * régénération ; il devient inutile quand AC5 est vert (0 média sans `full`).
+     * `Property::requiresWatermark()`, lu une fois par bien et non une fois par photo — et
+     * seulement si une conversion produite n'est pas encore filigranée (`PublicPhotoUrl`).
+     * Sans charger `agency` : dans une liste, le lot rattaché par `collection()` (une requête).
      */
-    private function largestPublicConversion(Media $media): string
+    private function watermarkRequired(): bool
     {
-        return $media->hasGeneratedConversion('full') ? 'full' : 'preview';
+        return $this->watermarkRequired ??= $this->resource->requiresWatermark();
     }
 
     /**

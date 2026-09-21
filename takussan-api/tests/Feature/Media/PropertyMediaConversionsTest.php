@@ -16,7 +16,9 @@ use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Spatie\MediaLibrary\Conversions\Conversion;
 use Spatie\MediaLibrary\Conversions\Events\ConversionHasBeenCompletedEvent;
+use Spatie\MediaLibrary\Conversions\Jobs\PerformConversionsJob;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Tests\Support\RemoteDiskFake;
 use Tests\TestCase;
 
 /**
@@ -37,6 +39,9 @@ class PropertyMediaConversionsTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        // TCK-539 (D2) — l'original des photos est sur le disque PRIVÉ : le simuler aussi,
+        // sinon il s'écrit dans le vrai `storage/app/private`.
+        RemoteDiskFake::install('r2-private');
     }
 
     /** Une source de 2400 × 1800 — au-dessus de `full`, donc la conversion RÉDUIT. */
@@ -60,7 +65,10 @@ class PropertyMediaConversionsTest extends TestCase
             ->usingFileName('villa.jpg')
             ->toMediaCollection('photos');
 
-        return [$user, $property, $media];
+        // TCK-539 — `refresh()` : `preview` et `full` sont en file. Le job de conversion
+        // travaille sur sa propre copie du média ; l'instance rendue par `addMedia()` ne voit
+        // pas ce qu'il a produit, et la sauvegarder écraserait `generated_conversions`.
+        return [$user, $property, $media->refresh()];
     }
 
     private function agenceFiligranee(bool $enabled = true): Agency
@@ -88,6 +96,28 @@ class PropertyMediaConversionsTest extends TestCase
         $this->assertSame(1600, $taille[0], 'TCK-356 : `full` doit faire 1600 px de large.');
         // Largeur seule : le ratio de la source (4:3) est conservé, pas recadré.
         $this->assertSame(1200, $taille[1], '`full` ne doit pas recadrer — hauteur libre.');
+    }
+
+    /**
+     * TCK-539 — seule `thumbnail` est produite dans la requête d'upload ; `preview` et `full`
+     * partent en file `media`. Sur R2, chaque conversion synchrone coûte un encodage et une
+     * écriture distante par photo envoyée ; la console n'affiche que `thumbnail` au retour.
+     */
+    public function test_only_the_thumbnail_is_generated_during_the_upload_request(): void
+    {
+        Queue::fake();
+
+        [, , $media] = $this->bienAvecPhoto();
+
+        $this->assertTrue($media->hasGeneratedConversion('thumbnail'));
+        $this->assertFalse($media->hasGeneratedConversion('preview'));
+        $this->assertFalse($media->hasGeneratedConversion('full'));
+
+        Queue::assertPushedOn('media', PerformConversionsJob::class, function (PerformConversionsJob $job) {
+            $noms = (fn () => $this->conversions)->call($job)->map(fn ($c) => $c->getName())->values()->all();
+
+            return $noms === ['preview', 'full'];
+        });
     }
 
     /**
@@ -232,7 +262,18 @@ class PropertyMediaConversionsTest extends TestCase
             ->getJson('/api/public/properties/'.$property->slug)
             ->assertOk();
 
-        $this->assertSame($media->getUrl(), $reponse->json('data.photos.0.original'));
+        // TCK-539 (D2) — l'original vit sur le disque PRIVÉ : il sort par l'URL d'API signée,
+        // qui doit rendre ses octets.
+        $original = $reponse->json('data.photos.0.original');
+        $this->assertStringContainsString('/api/media/'.$media->id.'/file', $original);
+        $this->assertStringContainsString('signature=', $original);
+
+        // La route redirige vers une URL présignée du disque de l'ORIGINAL.
+        $this->assertSame(config('media-library.disk_name'), $media->disk);
+        $this->assertStringContainsString(
+            $media->getPathRelativeToRoot(),
+            (string) $this->get($original)->assertRedirect()->headers->get('Location'),
+        );
     }
 
     /**
@@ -274,31 +315,50 @@ class PropertyMediaConversionsTest extends TestCase
     }
 
     /**
-     * La régénération purge `watermarked_conversions` AVANT de réécrire les fichiers.
+     * TCK-539 (mission 5) — la régénération ne purge PLUS la trace en bloc : seule la conversion
+     * dont le fichier a été réécrit en sort. `thumbnail` est synchrone, donc réécrite pendant la
+     * commande ; `preview` et `full` attendent leur `PerformConversionsJob`, leurs fichiers
+     * publics sont encore les filigranés, et ils restent servables.
      *
-     * Sans cette purge, `ApplyWatermarkJob` sortirait sans rien faire sur un fichier que
-     * `media-library:regenerate` vient de réécrire depuis la source — donc nu.
+     * Et la commande ne dépose PAS le filigrane elle-même : seul l'événement de fin de
+     * conversion le fait, donc pour `thumbnail` seulement à ce stade.
      */
-    public function test_regeneration_resets_the_watermark_trace_before_rewriting(): void
+    public function test_regeneration_retracts_only_the_rewritten_conversions(): void
     {
-        Queue::fake();
-
         $agency = $this->agenceFiligranee();
         [, , $media] = $this->bienAvecPhoto($agency);
+
+        Queue::fake();
 
         $media->setCustomProperty('watermarked_conversions', ['thumbnail', 'preview', 'full']);
         $media->save();
 
         $this->artisan('media:regenerate-property-conversions')->assertSuccessful();
 
-        $this->assertSame([], $media->fresh()->getCustomProperty('watermarked_conversions', []));
+        $this->assertSame(['preview', 'full'], $media->fresh()->getCustomProperty('watermarked_conversions', []));
 
-        foreach (Property::watermarkedConversions() as $conversion) {
-            Queue::assertPushed(
-                ApplyWatermarkJob::class,
-                fn (ApplyWatermarkJob $job) => $job->mediaId === $media->id && $job->conversionName === $conversion
-            );
-        }
+        Queue::assertPushed(PerformConversionsJob::class);
+        $this->assertSame(
+            ['thumbnail'],
+            Queue::pushed(ApplyWatermarkJob::class)->map(fn (ApplyWatermarkJob $job) => $job->conversionName)->values()->all(),
+        );
+    }
+
+    /**
+     * L'effet, de bout en bout (`QUEUE_CONNECTION=sync`) : après la commande, chaque
+     * conversion de la liste unique est de nouveau filigranée.
+     */
+    public function test_regeneration_watermarks_every_conversion_again(): void
+    {
+        $agency = $this->agenceFiligranee();
+        [, , $media] = $this->bienAvecPhoto($agency);
+
+        $this->artisan('media:regenerate-property-conversions')->assertSuccessful();
+
+        $this->assertEqualsCanonicalizing(
+            Property::watermarkedConversions(),
+            $media->fresh()->getCustomProperty('watermarked_conversions', []),
+        );
     }
 
     private function mediaSansFull(): int

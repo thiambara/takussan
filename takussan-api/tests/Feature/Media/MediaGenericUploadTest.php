@@ -21,7 +21,9 @@ class MediaGenericUploadTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
     }
 
     public function test_authenticated_user_can_upload_generic_photo(): void

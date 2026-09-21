@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\ApiTestCase;
+use Tests\Support\RemoteDiskFake;
 
 /**
  * TCK-285 — `GET /api/kyc/documents/{media}` sert des PIÈCES D'IDENTITÉ.
@@ -37,6 +38,10 @@ use Tests\ApiTestCase;
  * l'utilisateur a des profils dans deux agences : hors requête, l'accesseur
  * `User::agency_id` rend null par sécurité (TCK-142) et le test mesurerait
  * autre chose que ce qu'il croit.
+ *
+ * TCK-539 — les pièces vivent sur un disque DISTANT simulé nommé comme en production
+ * (`r2-private`, {@see RemoteDiskFake}) : `$media->getPath()` y rend un chemin qui n'existe pas,
+ * comme sur R2. Sur `Storage::fake('local')`, le `response()->file(getPath())` d'origine passait.
  */
 class KycDocumentAccessTest extends ApiTestCase
 {
@@ -49,7 +54,7 @@ class KycDocumentAccessTest extends ApiTestCase
         parent::setUp();
 
         Storage::fake('public');
-        Storage::fake('local');
+        RemoteDiskFake::install('r2-private');
 
         $this->agency = Agency::factory()->create();
     }
@@ -129,6 +134,10 @@ class KycDocumentAccessTest extends ApiTestCase
 
         $response->assertOk();
         $this->assertSame('piece-identite', $response->streamedContent());
+        // Servi EN FLUX par l'API, affichable dans l'onglet — jamais une redirection vers une
+        // URL présignée, qui survivrait à la déconnexion.
+        $this->assertStringStartsWith('inline;', (string) $response->headers->get('Content-Disposition'));
+        $this->assertSame('r2-private', $media->disk);
     }
 
     public function test_a_super_admin_gets_the_file(): void

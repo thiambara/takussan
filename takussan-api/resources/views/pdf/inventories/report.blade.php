@@ -6,7 +6,8 @@
      *   - $inventory (Inventory)
      *   - $lease, $property, $tenant, $agency
      *   - $landlord (User|null)  — owner of the property
-     *   - $room_photos (array<string, array<string>>)  — room_name ⇒ [url, ...]
+     *   - $room_photos (array<string, array<string>>)  — room_name ⇒ [data URL, ...]
+     *     (jamais une URL : la collection est privée, TCK-538 — cf. PdfImageEmbedder)
      *   - $tenant_signature (?string) — data URL
      *   - $owner_signature (?string)  — data URL
      *   - $traceability_hash (string) — short fingerprint, rendered in the footer area
@@ -142,8 +143,8 @@
 
             @if (! empty($photos))
                 <div style="margin-top: 8px;">
-                    @foreach ($photos as $photoUrl)
-                        <img src="{{ $photoUrl }}" alt="{{ $roomName }}"
+                    @foreach ($photos as $photoDataUri)
+                        <img src="{{ $photoDataUri }}" alt="{{ $roomName }}"
                              style="max-width: 48%; max-height: 120px; margin: 4px 2px; border: 1px solid #e5e7eb; border-radius: 4px;">
                     @endforeach
                 </div>

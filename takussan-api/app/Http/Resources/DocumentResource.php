@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use App\Http\Resources\Bases\BaseResource;
 use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
+use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\Request;
 
 class DocumentResource extends BaseResource
@@ -32,8 +33,9 @@ class DocumentResource extends BaseResource
             'verified_by' => $this->verified_by,
             'verified_at' => $this->iso($this->verified_at),
             'expiry_date' => $this->calendarDate($this->expiry_date),
-            // Legacy single-file collection.
-            'file_url' => $file?->getFullUrl(),
+            // Legacy single-file collection. TCK-539 — URL d'API signée, plus l'URL du fichier :
+            // elle expire (30 min), elle ne se garde pas.
+            'file_url' => $file ? app(PrivateMediaAccess::class)->signedUrl($file) : null,
             'file_name' => $file?->file_name,
             'file_size' => $file?->size,
             'mime_type' => $file?->mime_type,

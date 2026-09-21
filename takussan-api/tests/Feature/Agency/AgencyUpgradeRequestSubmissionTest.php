@@ -37,7 +37,9 @@ class AgencyUpgradeRequestSubmissionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Storage::fake('media');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
     }
 
     /**
