@@ -10,6 +10,7 @@ use App\Models\Profiles\OwnerProfile;
 use App\Models\Profiles\PlatformProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as LaravelTestCase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Assert;
 use Tests\Support\SearchableModels;
@@ -72,6 +73,16 @@ abstract class TestCase extends LaravelTestCase
         }
 
         parent::setUp();
+
+        // Les deux disques de médias sont FACTICES PAR DÉFAUT (ADR-0029, TCK-538). Mesuré le
+        // 2026-09-21 : une vingtaine de classes téléversaient sans `Storage::fake`, et chaque
+        // exécution déposait ses pièces de test (`cni.pdf`, `v1.pdf`, `pic.jpg`…) dans le VRAI
+        // `storage/app/private` — 148 fichiers en un seul passage. Avant le passage au privé par
+        // défaut, elles atterrissaient dans le vrai `storage/app/public`, servi sous `/storage`.
+        // Un test qui a besoin d'un autre disque, ou d'un disque distant simulé
+        // (`RemoteDiskFake`), le repose simplement : le dernier `fake()` gagne.
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Http\Requests\UploadDocumentVersionRequest;
 use App\Http\Resources\DocumentVersionResource;
 use App\Models\Document;
 use App\Services\Document\DocumentVersionService;
+use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -58,9 +59,11 @@ class DocumentVersionController extends Controller
     }
 
     /**
-     * Download a specific version — returns a redirect to a signed / direct URL.
+     * Download a specific version — redirige vers une URL présignée de 5 minutes, sur le disque
+     * du média quel qu'il soit (TCK-539). Un document peut être lourd : les octets ne traversent
+     * pas le VPS, et l'autorisation vient d'être jugée.
      */
-    public function download(Request $request, Document $document, int $versionId): Response
+    public function download(Request $request, Document $document, int $versionId, PrivateMediaAccess $access): Response
     {
         $this->authorize('view', $document);
 
@@ -69,14 +72,7 @@ class DocumentVersionController extends Controller
 
         abort_if($media === null, 404, 'Version not found.');
 
-        try {
-            $url = $media->getTemporaryUrl(now()->addMinutes(15));
-
-            return redirect()->away($url);
-        } catch (\Exception) {
-            // Local disk — stream directly.
-            return response()->download($media->getPath(), $media->file_name);
-        }
+        return $access->redirect($media, 'attachment');
     }
 
     /**

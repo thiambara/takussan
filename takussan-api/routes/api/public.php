@@ -3,6 +3,7 @@
 use App\Http\Controllers\Public\PublicAgencyController;
 use App\Http\Controllers\Public\PublicAgentController;
 use App\Http\Controllers\Public\PublicPropertyController;
+use App\Http\Controllers\Public\PublicPropertyDocumentController;
 use App\Http\Controllers\Public\PublicPropertyTypeController;
 use Illuminate\Support\Facades\Route;
 
@@ -104,6 +105,13 @@ Route::prefix('public')->name('public.')->middleware('throttle:public-read')->gr
     //      navigateur.
     Route::get('properties/{slug}', [PublicPropertyController::class, 'show'])
         ->name('properties.show');
+
+    // TCK-545 — le fichier d'un document PUBLIÉ d'un bien. URL STABLE (elle vit dans la fiche
+    // publique) : l'autorisation est l'état relu à chaque appel — bien public, document du bien,
+    // `metadata.public` — puis une URL présignée de 5 min. Voir l'en-tête du contrôleur.
+    Route::get('properties/{property}/documents/{document}/file', PublicPropertyDocumentController::class)
+        ->whereNumber(['property', 'document'])
+        ->name('properties.documents.file');
 
     // Reveals the owner's phone number — tighter limit than the group default
     // to curb bulk phone-number harvesting across enumerable slugs.

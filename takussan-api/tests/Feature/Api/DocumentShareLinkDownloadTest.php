@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\ApiTestCase;
+use Tests\Support\RemoteDiskFake;
 
 /**
  * TCK-285 — `GET /api/share/{token}/download`.
@@ -51,6 +52,10 @@ use Tests\ApiTestCase;
  * échouent, ce qui est exactement ce qu'on attend d'eux. *Une garde
  * anti-régression qui se désarme sur la régression qu'elle garde est pire que
  * son absence : elle occupe la place.*
+ *
+ * TCK-539 — le fichier vit sur un disque DISTANT simulé nommé comme en production
+ * (`r2-private`, {@see RemoteDiskFake}). Le `file_get_contents($media->getPath())` d'origine y
+ * échoue comme sur R2 ; il passait sur `Storage::fake('local')`.
  */
 class DocumentShareLinkDownloadTest extends ApiTestCase
 {
@@ -61,7 +66,7 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
         parent::setUp();
 
         Storage::fake('public');
-        Storage::fake('local');
+        RemoteDiskFake::install('r2-private');
     }
 
     // ─── Cas nominal ─────────────────────────────────────────────
@@ -74,6 +79,9 @@ class DocumentShareLinkDownloadTest extends ApiTestCase
 
         $response->assertOk();
         $this->assertSame('contenu-du-bail', $response->streamedContent());
+        // EN FLUX, jamais une redirection présignée : une URL présignée se rejouerait hors du
+        // compteur, donc hors du plafond `max_downloads`.
+        $this->assertStringStartsWith('attachment;', (string) $response->headers->get('Content-Disposition'));
 
         // Le compteur est la seule trace qu'un fichier est sorti — et la
         // seule chose qui rend le plafond opposable.

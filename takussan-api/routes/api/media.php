@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Media\PrivateMediaController;
 use App\Http\Controllers\Api\Media\SignMediaController;
 use App\Http\Controllers\Api\MediaController;
 use Illuminate\Support\Facades\Route;
@@ -18,3 +19,9 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('throttle:60,1')
         ->name('media.sign');
 });
+
+// TCK-539 — un fichier privé, derrière une URL signée émise par une réponse déjà autorisée
+// (`PrivateMediaAccess::signedUrl()`). Hors `auth:sanctum` : voir l'en-tête du contrôleur.
+Route::get('media/{media}/file', PrivateMediaController::class)
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('media.private.show');

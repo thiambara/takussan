@@ -65,6 +65,8 @@ class Inventory extends AbstractModel implements HasMedia
 
     public function registerMediaCollections(): void
     {
+        // Privées (ADR-0029 §3, décision TCK-538) : l'intérieur d'un logement occupé, pièce d'un
+        // état des lieux contractuel. Aucun écran public ne les affiche.
         $this->addMediaCollection('photos');
         $this->addMediaCollection('room_photos');
     }

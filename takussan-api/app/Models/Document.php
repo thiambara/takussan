@@ -72,8 +72,9 @@ class Document extends AbstractModel implements HasMedia
 
         // Versioning collection — multiple files, ordered by order_column
         // (= version number set in custom_properties.version_number).
-        $this->addMediaCollection('versions')
-            ->useDisk(config('media-library.disk_name', 'public'));
+        // Privée, comme `file` : le défaut de `media-library.disk_name` EST le disque privé
+        // (ADR-0029 §3). Le repli `'public'` qui figurait ici l'aurait exposée si la clé manquait.
+        $this->addMediaCollection('versions');
     }
 
     /**

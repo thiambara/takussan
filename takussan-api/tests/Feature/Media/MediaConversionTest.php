@@ -17,7 +17,9 @@ class MediaConversionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
     }
 
     public function test_has_media_conversions_trait_registers_three_conversions(): void
@@ -39,7 +41,10 @@ class MediaConversionTest extends TestCase
 
         $response = $this->postJson('/api/media', [
             'file' => UploadedFile::fake()->image('hero.jpg', 1600, 1200),
-            'collection' => 'photos',
+            // `avatars` et non `photos` : `User.photos` est privée (TCK-538), et une conversion
+            // privée n'a pas d'URL à exposer (TCK-545). Les URL de conversion se mesurent sur
+            // une collection PUBLIQUE.
+            'collection' => 'avatars',
             'model_type' => User::class,
             'model_id' => $user->id,
         ])->assertCreated();

@@ -2,12 +2,12 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\Media\ApplyWatermarkJob;
 use App\Models\Property;
-use App\Services\Media\AgencyWatermarkContext;
+use App\Services\Media\WatermarkTrace;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
+use Spatie\MediaLibrary\Conversions\FileManipulator;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Throwable;
 
 /**
  * TCK-356 — régénère les conversions de la collection `photos` des biens.
@@ -16,23 +16,35 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
  * TCK-356 : `PropertyResource` et `PropertyMediaController` replient sur `preview`
  * tant que la conversion manque, et ce repli n'a pas vocation à durer.
  *
- * L'ORDRE compte, et c'est la seule chose non évidente ici :
+ Ce qui n'est pas évident ici :
  *
- * 1. `watermarked_conversions` est remis à zéro AVANT la régénération. Sinon
- *    `ApplyWatermarkJob` voit la conversion comme déjà filigranée et sort sans
- *    rien faire — sur un fichier que `media-library:regenerate` vient pourtant de
- *    réécrire depuis la source, donc sans filigrane. Le média repartirait nu.
- * 2. `media-library:regenerate --force` réécrit les trois conversions.
- * 3. `ApplyWatermarkJob` est redéposé pour chaque conversion de
- *    `Property::watermarkedConversions()` — la liste unique, jamais une copie.
+ * 1. La trace `watermarked_conversions` n'est PAS purgée en bloc (TCK-539, mission 5).
+ *    `ApplyWatermarkOnConversionListener` retire chaque conversion de la trace au moment
+ *    où SON fichier va être réécrit (`ConversionWillStartEvent`) — sans quoi
+ *    `ApplyWatermarkJob` la croirait déjà filigranée et la laisserait nue. Une purge en
+ *    bloc, avant, cachait TOUTES les photos du site public pendant toute la commande.
+ * 2. `FileManipulator::createDerivedFiles()` réécrit les trois conversions : `thumbnail` en
+ *    ligne, `preview` et `full` en file `media`. Un média en échec est journalisé, perd ses
+ *    exemptions (`WatermarkTrace::failClosed()`), et la commande sort en erreur.
+ * 3. Le filigrane n'est PAS redéposé ici (TCK-539). Il suit
+ *    `ConversionHasBeenCompletedEvent`, émis après l'écriture de chaque conversion :
+ *    `ApplyWatermarkOnConversionListener` vérifie l'activation et envoie le job.
+ *    Le déposer ici ne tenait que tant que toutes les conversions étaient synchrones.
+ *    `preview` et `full` sont en file : un job déposé ici pouvait tourner AVANT leur
+ *    `PerformConversionsJob`, filigraner l'ANCIEN fichier (deux fois, donc) et le
+ *    marquer — puis la conversion réécrivait un fichier nu que plus rien ne filigranait.
  *
- * ⚠ **La régénération réécrit AU MÊME CHEMIN**, et `/storage/` sert désormais
- * `Cache-Control: max-age=604800` (`docker/Caddyfile`, TCK-355 et ADR-0028). Un
- * navigateur qui a déjà vu l'ancienne image peut donc afficher la version d'avant
- * pendant **jusqu'à 7 jours**. C'est la même propriété qui interdit `immutable` sur
- * ce chemin : sans jeton d'URL dérivé de `media.updated_at`, une régénération
- * n'est pas immédiatement visible côté visiteur. Prévoir la fenêtre, ou purger le
- * cache du CDN pour les chemins concernés.
+ * L'URL change à chaque passage : `media-library.version_urls` suffixe `?v=<updated_at>`,
+ * et la réécriture (`markAsConversionGenerated`) comme le filigrane touchent `updated_at`
+ * (ADR-0029 §6). Un
+ * navigateur ou un CDN qui a gardé l'ancienne image ne la ressert donc pas.
+ *
+ * `--untraced` (TCK-539, R1 de la seconde passe adverse) : ne traite que les photos dont une
+ * conversion PRODUITE n'est ni filigranée ni exemptée (`WatermarkTrace::hasUncovered()`) —
+ * celles qu'un bien sous filigrane cache au public. Ce sont les photos antérieures à la trace,
+ * ou dont le filigrane a échoué. Le compte se prend avec `--dry-run`, séparé entre biens qui
+ * EXIGENT le filigrane (photos cachées aujourd'hui) et les autres (servies, mais qui le seraient
+ * cachées le jour où l'agence l'active). Étape de TCK-541, avant la bascule.
  *
  * Opération manuelle : rien ne la planifie (cf. « Hors périmètre » de TCK-356).
  */
@@ -42,6 +54,7 @@ class MediaRegeneratePropertyConversions extends Command
         {--property= : Ne traiter qu\'un bien (id)}
         {--agency= : Ne traiter que les biens d\'une agence (id)}
         {--missing-only : Ne traiter que le média dépourvu de la conversion `full`}
+        {--untraced : Ne traiter que le média dont une conversion produite n\'est ni filigranée ni exemptée}
         {--dry-run : Compter sans rien réécrire}';
 
     protected $description = 'Régénère les conversions `photos` des biens (TCK-356) et réapplique les filigranes.';
@@ -50,6 +63,13 @@ class MediaRegeneratePropertyConversions extends Command
     {
         $dryRun = (bool) $this->option('dry-run');
         $missingOnly = (bool) $this->option('missing-only');
+        $untraced = (bool) $this->option('untraced');
+
+        if ($missingOnly && $untraced) {
+            $this->error('--missing-only et --untraced ne se combinent pas.');
+
+            return self::INVALID;
+        }
 
         $query = Property::query()->with('agency');
 
@@ -64,12 +84,12 @@ class MediaRegeneratePropertyConversions extends Command
         $traites = 0;
         $ignores = 0;
         $filigranes = 0;
+        $caches = 0;
+        $echecs = 0;
+        $fileManipulator = app(FileManipulator::class);
 
-        $query->cursor()->each(function (Property $property) use ($dryRun, $missingOnly, &$traites, &$ignores, &$filigranes): void {
-            $agency = $property->agency;
-
-            $watermarkEnabled = $agency !== null
-                && ($agency->settings['watermark_enabled'] ?? AgencyWatermarkContext::defaults()['watermark_enabled']);
+        $query->cursor()->each(function (Property $property) use ($dryRun, $missingOnly, $untraced, $fileManipulator, &$traites, &$ignores, &$filigranes, &$caches, &$echecs): void {
+            $watermarkEnabled = $property->requiresWatermark();
 
             foreach ($property->getMedia('photos') as $media) {
                 /** @var Media $media */
@@ -79,37 +99,55 @@ class MediaRegeneratePropertyConversions extends Command
                     continue;
                 }
 
+                if ($untraced && ! WatermarkTrace::hasUncovered($media)) {
+                    $ignores++;
+
+                    continue;
+                }
+
                 $traites++;
+
+                if ($untraced && $watermarkEnabled) {
+                    $caches++;
+                }
 
                 if ($dryRun) {
                     continue;
                 }
 
-                // 1. Purger la trace AVANT de réécrire les fichiers (cf. docblock).
-                $media->setCustomProperty('watermarked_conversions', []);
-                $media->save();
+                // Réécrire les conversions depuis la source ; la trace suit, conversion par
+                // conversion (cf. docblock, point 1). PAS par `media-library:regenerate`, qui
+                // avale l'exception d'une source illisible et rend 0 (quatrième passe adverse,
+                // R1a) : l'échec est journalisé ici, le média perd ses exemptions, et la
+                // commande sort en erreur.
+                try {
+                    $fileManipulator->createDerivedFiles($media);
+                } catch (Throwable $exception) {
+                    WatermarkTrace::failClosed($media, Property::watermarkedConversions(), $exception, 'media:regenerate-property-conversions');
+                    $this->error("Media {$media->id} (bien {$property->id}) non régénéré : {$exception->getMessage()}");
+                    $echecs++;
 
-                // 2. Réécrire les conversions depuis la source.
-                Artisan::call('media-library:regenerate', [
-                    '--ids' => (string) $media->id,
-                    '--force' => true,
-                ]);
+                    continue;
+                }
 
-                // 3. Refiligraner ce qui doit l'être.
+                // Le filigrane suit l'événement de fin de conversion (cf. docblock, point 3).
                 if ($watermarkEnabled) {
-                    foreach (Property::watermarkedConversions() as $conversion) {
-                        ApplyWatermarkJob::dispatch($media->id, $conversion);
-                        $filigranes++;
-                    }
+                    $filigranes++;
                 }
             }
         });
 
         $verbe = $dryRun ? 'à régénérer' : 'régénérés';
-        $this->info("media:regenerate-property-conversions — {$traites} média {$verbe}, {$ignores} ignorés, {$filigranes} filigranes redéposés.");
+        $this->info("media:regenerate-property-conversions — {$traites} média {$verbe}, {$ignores} ignorés, {$filigranes} à refiligraner à la fin de leurs conversions.");
 
-        if (! $dryRun) {
-            $this->warn('⚠ Les fichiers sont réécrits au même chemin ; /storage/ sert max-age=604800. Compter jusqu\'à 7 jours de cache navigateur, ou purger le CDN.');
+        if ($untraced) {
+            $this->info("--untraced — {$caches} photo(s) cachée(s) du public aujourd'hui (bien sous filigrane), ".($traites - $caches).' servie(s) sans trace (bien sans filigrane).');
+        }
+
+        if ($echecs > 0) {
+            $this->error("{$echecs} média(s) en échec : voir le journal. Relancer avec --untraced une fois la cause levée.");
+
+            return self::FAILURE;
         }
 
         return self::SUCCESS;

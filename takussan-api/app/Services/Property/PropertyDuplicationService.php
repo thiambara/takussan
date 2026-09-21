@@ -103,6 +103,13 @@ class PropertyDuplicationService
         // don't want a slow copy to hold a transaction open.
         if ($copyMedia) {
             foreach ($source->getMedia('photos') as $media) {
+                // TCK-539 (D4) — `copy()` recopie les `custom_properties`, donc la trace de
+                // filigrane de la source, alors que les conversions du clone sont régénérées NUES.
+                // Rien à faire ICI, et c'est délibéré : chaque conversion du clone passe par
+                // `ConversionWillStartEvent`, où `ApplyWatermarkOnConversionListener` la retire de
+                // la trace AVANT de l'écrire ; et d'ici là elle n'est pas servable, `copy()` ne
+                // recopiant pas `generated_conversions`. Un `Arr::except` ici doublait ce retrait
+                // sans qu'aucun test puisse le rendre nécessaire (passe adverse 2, C4).
                 $media->copy($clone, 'photos');
             }
         }

@@ -292,6 +292,17 @@ L'image de déploiement exige en outre **`NEXT_PUBLIC_SITE_URL`**, l'origine can
 production (ADR-0028 §3).
 `.env.example` et `.env.local` pointent sur `http://127.0.0.1:8002`.
 
+**`NEXT_PUBLIC_MEDIA_URL`** — l'origine du seau public de médias (`https://media-preview.takussan.com`,
+puis `https://media.takussan.com`), [ADR-0029](../docs/adr/0029-medias-sur-r2-servis-par-cloudflare-transformations.md).
+Posée au build, elle branche `src/lib/image-loader.ts` comme `loaderFile` de `next/image` : toute
+image de ce domaine est servie par Cloudflare Transformations (`/cdn-cgi/image/…`), et
+**l'optimiseur de Next ne tourne plus**. Vide — développement, et production Vercel jusqu'à la
+phase F —, le loader n'est pas branché et l'optimiseur reste. L'image Docker refuse de se construire
+sans elle. ⚠ **Ne la poser sur un environnement qu'avec la bascule de ses médias sur R2** : sinon
+les photos de l'API sortent en pleine taille, sans optimiseur. ⚠ Le loader arrondit les largeurs à
+six paliers (`LARGEURS_MEDIA`) et ignore la `quality` d'un composant : Transformations facture la
+transformation unique, 5 000 par mois gratuites.
+
 > ⚠️ Incohérence d'hôte : l'API annonce `APP_URL=http://localhost:8002` et
 > `SANCTUM_STATEFUL_DOMAINS=localhost:3000`, le front pointe sur `127.0.0.1:8002`. **Du point de vue
 > des cookies, `localhost` et `127.0.0.1` sont deux origines distinctes.**
@@ -307,7 +318,7 @@ production (ADR-0028 §3).
 
 `next.config.ts` branche le plugin next-intl sur `./src/i18n/request.ts` et autorise en
 `remotePatterns` picsum/placehold/unsplash + `api.takussan.com` + `preview.api.takussan.com` +
-`127.0.0.1:8002` + `localhost:8002`, avec `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP`. Il
+`media.takussan.com` + `media-preview.takussan.com` + `127.0.0.1:8002` + `localhost:8002`, avec `dangerouslyAllowSVG` et `dangerouslyAllowLocalIP`. Il
 déclare aussi `reactCompiler: true` ([ADR-0015](../docs/adr/0015-react-compiler-active.md)) et
 `allowedDevOrigins` (ci-dessus).
 

@@ -9,6 +9,7 @@ use App\Http\Resources\AgencyUpgradeRequestResource;
 use App\Models\AgencyUpgradeRequest;
 use App\Models\Enums\AgencyUpgradeRequestStatus;
 use App\Services\Agency\AgencyUpgradeReviewService;
+use App\Services\Media\PrivateMediaAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -108,7 +109,10 @@ class AgencyUpgradeRequestController extends Controller
                         'id' => $doc->id,
                         'name' => $doc->name,
                         'type' => $doc->type?->value ?? (string) $doc->type,
-                        'media_url' => optional($doc->getFirstMedia('file'))->getFullUrl(),
+                        // TCK-539 — URL d'API signée, jamais l'URL directe du fichier.
+                        'media_url' => ($file = $doc->getFirstMedia('file'))
+                            ? app(PrivateMediaAccess::class)->signedUrl($file)
+                            : null,
                     ])->all(),
                     'counts' => [
                         'properties' => $propertiesCount,

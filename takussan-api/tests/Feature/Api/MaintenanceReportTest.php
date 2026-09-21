@@ -20,7 +20,9 @@ class MaintenanceReportTest extends TestCase
 
     public function test_tenant_can_report_problem_with_photos(): void
     {
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
 
         $tenantUser = User::factory()->create();
         $property = Property::factory()->create();
@@ -74,7 +76,9 @@ class MaintenanceReportTest extends TestCase
 
     public function test_reporter_can_upload_initial_photos_after_creation(): void
     {
-        Storage::fake('public');
+        // TCK-538 : les deux disques de médias — le privé est le défaut (ADR-0029 §3).
+        Storage::fake(config('media-library.disk_name'));
+        Storage::fake(config('media-library.public_disk_name'));
 
         $owner = User::factory()->create();
         $property = Property::factory()->create(['user_id' => $owner->id]);

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Lease;
+use App\Services\Media\PrivateMediaAccess;
 use App\Services\Notifications\PreferenceResolver;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,15 +15,22 @@ use Illuminate\Notifications\Notification;
  * TCK-088 — Sent to the tenant when their lease deposit has been refunded.
  * Channel selection respects each user's preferences via PreferenceResolver.
  *
- * Refund attachments (photos, repair invoices) are exposed as direct media
+ * Refund attachments (photos, repair invoices) are exposed as signed API
  * URLs on the in-app payload and as inline links in the mail body so the
  * tenant can review the retention justification without logging in.
+ *
+ * TCK-539 — ces URL étaient l'URL DIRECTE du fichier (`getFullUrl()`), adressable
+ * par quiconque devinait l'identifiant. Elles sont désormais signées, et valent
+ * {@see self::ATTACHMENT_LINK_TTL_DAYS} jours : un courriel se lit plus tard
+ * qu'une page, mais un lien vers une pièce privée ne doit pas être éternel.
  */
 class LeaseDepositRefundNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public const EVENT_TYPE = 'lease_deposit_refunded';
+
+    public const ATTACHMENT_LINK_TTL_DAYS = 7;
 
     public function __construct(
         public Lease $lease,
@@ -119,7 +127,10 @@ class LeaseDepositRefundNotification extends Notification implements ShouldQueue
             ->map(fn ($media) => [
                 'id' => $media->id,
                 'name' => $media->name,
-                'url' => $media->getFullUrl(),
+                'url' => app(PrivateMediaAccess::class)->signedUrl(
+                    $media,
+                    now()->addDays(self::ATTACHMENT_LINK_TTL_DAYS),
+                ),
             ])
             ->values()
             ->all();

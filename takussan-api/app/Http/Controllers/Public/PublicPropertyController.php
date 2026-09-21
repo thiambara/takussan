@@ -36,6 +36,7 @@ use App\Models\PropertyVisit;
 use App\Models\Review;
 use App\Models\User;
 use App\Services\Booking\BookingQuote;
+use App\Services\Media\PublicPhotoUrl;
 use App\Services\Messaging\PropertyConversationResolver;
 use App\Services\Model\CustomerService;
 use App\Services\Model\NotificationService;
@@ -804,8 +805,12 @@ class PublicPropertyController extends Controller
                     'title' => $property->title,
                     'reference_number' => $property->reference_number,
                     // La vignette de l'en-tête du fil. `preview`, jamais l'original : ce chemin
-                    // est public et l'original est la source non filigranée (TCK-106).
-                    'main_photo_url' => $property->getFirstMedia('photos')?->getUrl('preview'),
+                    // est public et l'original est la source non filigranée (TCK-106). Repli sur
+                    // `thumbnail` tant que `preview` (en file) n'est pas produite, `null` plutôt
+                    // qu'une URL en 404 (TCK-539).
+                    'main_photo_url' => ($photo = $property->getFirstMedia('photos')) !== null
+                        ? PublicPhotoUrl::upTo($photo, 'preview', fn () => $property->requiresWatermark())
+                        : null,
                 ],
                 'recipient' => $recipient === null ? null : [
                     'id' => $recipient->id,
