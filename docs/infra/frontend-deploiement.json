@@ -65,6 +65,16 @@
       "valeur_production_mesuree": "NON MESURÉE — la clé est lue par le code depuis TCK-434 (2026-08-27) et n'existait dans aucun build de production au moment du relevé. Vide, le code replie sur l'origine mesurée https://www.takussan.com.",
       "preuve": "src/lib/alternates.ts : `resoudreOrigineSite({ siteUrl: process.env.NEXT_PUBLIC_SITE_URL, … })` — unique site de lecture, mesuré le 2026-08-27 par `grep -rhoE 'process\\.env\\.NEXT_PUBLIC_[A-Za-z0-9_]+' takussan-web/src`",
       "alerte": "Facultative en Production ET en Preview, mais pour des raisons opposées. En Production le défaut EST la bonne valeur. En Preview, le code déduit l'hôte de VERCEL_URL / NEXT_PUBLIC_VERCEL_URL : si le projet Vercel n'expose pas ses variables système ET que la valeur nue est absente, la génération ÉCHOUE bruyamment plutôt que de faire pointer les hreflang, le canonical et le sitemap d'une prévisualisation vers la production. Ce réglage-là fait partie de ce que le dépôt ne peut pas mesurer (cf. non_mesure)."
+    },
+    {
+      "cle": "NEXT_PUBLIC_MEDIA_URL",
+      "obligatoire": false,
+      "usages_dans_src": 2,
+      "declaree_dans": "takussan-web/.env.example",
+      "valeur_dev": "(vide)",
+      "valeur_production_mesuree": "NON POSÉE — introduite par TCK-540 (2026-09-21), absente du projet Vercel qui construit master. Vide, next.config.ts ne branche pas le loader et l'optimiseur de Next reste en place : c'est l'état voulu jusqu'à la phase F (ADR-0028).",
+      "preuve": "src/lib/image-loader.ts (le loader) et next.config.ts (validation de la forme + branchement conditionnel de `loaderFile`). Image Docker : `ARG` + `RUN test -n` du Dockerfile, `https://media-preview.takussan.com` pour `preview` dans images.yml.",
+      "alerte": "La poser sur Vercel sans que l'API de production serve ses médias depuis ce domaine ne casse rien de visible mais retire l'optimiseur : les photos de l'API ressortiraient en pleine taille, sans AVIF. Ne la poser qu'avec la bascule des médias de l'environnement (ADR-0029)."
     }
   ],
 
