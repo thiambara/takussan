@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**487 tickets** — 28 ouverts, 458 livrés.
+**488 tickets** — 29 ouverts, 458 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 27 |
+| 📋 Todo | 28 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -60,6 +60,7 @@
 - [TCK-539](tickets/TCK-539-medias-independants-du-disque.md) — Aucun code ne suppose plus qu'un média est un fichier local : KYC, versions de documents, liens de partage, relevés bancaires, filigrane `L · P1 · back`
 - [TCK-540](tickets/TCK-540-loader-cloudflare-transformations.md) — Le front sert les images par Cloudflare Transformations — l'optimiseur de Next ne tourne plus sur le VPS `M · P1 · front`
 - [TCK-541](tickets/TCK-541-bascule-preproduction-medias-r2.md) — Bascule de la préproduction sur R2 : copie des médias, clés Dokploy, fin de la sauvegarde du volume, sauvegarde du seau privé `M · P1 · technique`
+- [TCK-542](tickets/TCK-542-reduction-des-photos-avant-envoi.md) — Réduire les photos dans le navigateur avant l'envoi — dimensions plafonnées, format conservé `M · P2 · front`
 
 ## 🚧 Doing
 
