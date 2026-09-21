@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**483 tickets** — 24 ouverts, 458 livrés.
+**487 tickets** — 28 ouverts, 458 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 23 |
+| 📋 Todo | 27 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -56,6 +56,10 @@
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
 - [TCK-537](tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md) — La politique de confidentialité promet quatre choses que le code ne fait pas encore (preuve du consentement, effacement des profils, purges, auteur des avis) `L · P1 · bug`
+- [TCK-538](tickets/TCK-538-disques-r2-et-collections-privees.md) — Médias sur R2 : pilote S3, disques public et privé, et la règle « privé par défaut » — les pièces KYC ne sont plus sur le disque public `L · P1 · back`
+- [TCK-539](tickets/TCK-539-medias-independants-du-disque.md) — Aucun code ne suppose plus qu'un média est un fichier local : KYC, versions de documents, liens de partage, relevés bancaires, filigrane `L · P1 · back`
+- [TCK-540](tickets/TCK-540-loader-cloudflare-transformations.md) — Le front sert les images par Cloudflare Transformations — l'optimiseur de Next ne tourne plus sur le VPS `M · P1 · front`
+- [TCK-541](tickets/TCK-541-bascule-preproduction-medias-r2.md) — Bascule de la préproduction sur R2 : copie des médias, clés Dokploy, fin de la sauvegarde du volume, sauvegarde du seau privé `M · P1 · technique`
 
 ## 🚧 Doing
 

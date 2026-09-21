@@ -60,6 +60,7 @@
     "63": "Session client : le jeton du navigateur suit la connexion et la déconnexion sans rechargement (2026-09-10)",
     "64": "Auto-hébergement conteneurisé sur le VPS, orchestré par Dokploy — ADR-0028 (2026-09-13)",
     "65": "Revue design et responsive de toutes les interfaces web — impeccable + make-interfaces-feel-better (2026-09-16)",
-    "66": "Conformité des données personnelles aux textes juridiques — TCK-531 (2026-09-17)"
+    "66": "Conformité des données personnelles aux textes juridiques — TCK-531 (2026-09-17)",
+    "67": "Médias sur R2 servis par Cloudflare Transformations — ADR-0029 (2026-09-21)"
   }
 }
