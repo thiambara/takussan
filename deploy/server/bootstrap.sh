@@ -200,4 +200,36 @@ systemctl daemon-reload
 systemctl enable --now seuils.timer
 [ -x /usr/local/sbin/seuils ] || echo "⚠ /usr/local/sbin/seuils absent : copier deploy/server/seuils.sh (runbook), le timer attend."
 
+# ── 8. Copie nocturne du seau privé des médias (TCK-541) ─────────────────────────────────
+# ADR-0029 : les originaux et les pièces privées vivent dans R2, plus sur le volume archivé par
+# Dokploy. Les unités attendent /usr/local/sbin/sauvegarde-seau-prive — deploy/server/
+# sauvegarde-seau-prive.sh, copié là par le runbook — et /etc/default/sauvegarde-seau-prive (le
+# jeton `takussan-preview-backup`, mode 600). Tant que le script manque, le timer ne fait rien.
+cat > /etc/systemd/system/sauvegarde-seau-prive.service <<'UNIT'
+[Unit]
+Description=Copie du seau privé des médias vers vps-sauvegardes (TCK-541)
+ConditionPathExists=/usr/local/sbin/sauvegarde-seau-prive
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/sauvegarde-seau-prive
+UNIT
+cat > /etc/systemd/system/sauvegarde-seau-prive.timer <<'UNIT'
+[Unit]
+Description=Copie du seau privé des médias, chaque nuit (TCK-541)
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now sauvegarde-seau-prive.timer
+[ -x /usr/local/sbin/sauvegarde-seau-prive ] || echo "⚠ /usr/local/sbin/sauvegarde-seau-prive absent : copier deploy/server/sauvegarde-seau-prive.sh (runbook), le timer attend."
+
 echo "✓ serveur préparé. Mesurer maintenant depuis le POSTE (plan, tâche A2, étape 4)."
