@@ -21,6 +21,18 @@ import {
  *    the first id after a move becomes the cover.
  */
 
+// TCK-542 : la réduction des photos, doublée pour que l'envoi se voie. Par défaut elle rend
+// l'original ; un test la fait rendre un fichier marqué pour prouver que c'est LUI qui part.
+const reduction = vi.hoisted(() => ({
+  reduirePhoto: vi.fn(async (f: File) => f),
+  reduirePhotos: vi.fn(async (fs: readonly File[]) => [...fs]),
+}));
+vi.mock('@/lib/reduire-photo', () => reduction);
+
+function reduite(f: File): File {
+  return new File(['r'], `reduite-${f.name}`, { type: f.type });
+}
+
 function makeFile(name: string, type: string, size = 1024): File {
   const blob = new Blob(['x'.repeat(size)], { type });
   return new File([blob], name, { type });
@@ -110,6 +122,30 @@ describe('<MediaManager>', () => {
     expect(tiles[1]).toHaveAttribute('data-cover', 'false');
   });
 
+  it('TCK-542 — uploads the REDUCED photos, and validates their reduced size', async () => {
+    reduction.reduirePhotos.mockImplementationOnce(async (fs) => fs.map(reduite));
+    const onUpload = vi
+      .fn<(files: File[]) => Promise<MediaItem[]>>()
+      .mockResolvedValue([{ id: 99, thumbnail: 'new' }]);
+
+    render(withIntl(<MediaManager
+        items={[]}
+        onUpload={onUpload}
+        onReorder={vi.fn()}
+        onDelete={vi.fn()}
+        maxSize={2048}
+      />),
+    );
+
+    // 12 Ko choisis, au-dessus du plafond de 2 Ko : c'est la taille RÉDUITE qui se juge.
+    fireEvent.change(screen.getByTestId('media-manager-input'), {
+      target: { files: [makeFile('salon.jpg', 'image/jpeg', 12 * 1024)] },
+    });
+
+    await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+    expect((onUpload.mock.calls[0][0] as File[]).map((f) => f.name)).toEqual(['reduite-salon.jpg']);
+  });
+
   it('reports a per-file error on unsupported MIME without blocking valid uploads', async () => {
     const onUpload = vi
       .fn<(files: File[]) => Promise<MediaItem[]>>()
@@ -137,7 +173,9 @@ describe('<MediaManager>', () => {
     const progressList = await screen.findByTestId('media-manager-progress');
     const entries = within(progressList).getAllByRole('listitem');
     expect(entries).toHaveLength(2);
-    expect(within(progressList).getByRole('alert')).toHaveTextContent(
+    // `findBy` : les lignes s'affichent d'abord en attente, pendant la réduction des photos
+    // (TCK-542) ; la validation — et donc l'erreur — vient juste après.
+    expect(await within(progressList).findByRole('alert')).toHaveTextContent(
       /non supporté/i,
     );
 

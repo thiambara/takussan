@@ -18,6 +18,7 @@ import {
   useCompleteMaintenanceRequest,
   useUploadMaintenancePhotos,
 } from '@/lib/queries/maintenance';
+import { reduirePhotos } from '@/lib/reduire-photo';
 
 /**
  * Completion workflow — captures the resolution notes, optional actual
@@ -53,7 +54,8 @@ export function MaintenanceCompleteForm({
         try {
           await uploadPhotos.mutateAsync({
             id,
-            files: photos,
+            // Réduites dans le navigateur avant l'envoi (TCK-542).
+            files: await reduirePhotos(photos),
             collection: 'completion_photos',
           });
         } catch {

@@ -57,6 +57,18 @@ const brouillon = vi.hoisted(() => ({
 }));
 vi.mock('@/hooks/useWizardDraft', () => ({ useWizardDraft: () => brouillon.etat }));
 
+// TCK-542 : la réduction des photos, doublée pour que l'envoi se voie. Par défaut elle rend
+// l'original ; un test la fait rendre un fichier marqué pour prouver que c'est LUI qui part.
+const reduction = vi.hoisted(() => ({
+  reduirePhoto: vi.fn(async (f: File) => f),
+  reduirePhotos: vi.fn(async (fs: readonly File[]) => [...fs]),
+}));
+vi.mock('@/lib/reduire-photo', () => reduction);
+
+function reduite(f: File): File {
+  return new File(['r'], `reduite-${f.name}`, { type: f.type });
+}
+
 vi.mock('@/app/actions/dashboard-properties', () => ({
   createPropertyAction: vi.fn(),
   setPropertyTagsAction: vi.fn(),
@@ -365,6 +377,18 @@ async function allerJusquAuBout(
 }
 
 describe('PropertyWizard — la soumission', () => {
+  it('TCK-542 AC1 — les photos partent RÉDUITES dans le navigateur, pas telles que choisies', async () => {
+    reduction.reduirePhotos.mockImplementationOnce(async (fs) => fs.map(reduite));
+    const user = userEvent.setup();
+    monter();
+    await allerJusquAuBout(user, { photo: true });
+    await user.click(screen.getByRole('button', { name: /publier/i }));
+
+    await waitFor(() => expect(uploadPropertyPhotosAction).toHaveBeenCalledTimes(1));
+    const envoi = vi.mocked(uploadPropertyPhotosAction).mock.calls[0][1] as FormData;
+    expect((envoi.getAll('photos') as File[]).map((f) => f.name)).toEqual(['reduite-salon.jpg']);
+  });
+
   it('envoie l’adresse IMBRIQUÉE et une intention de publication, puis ouvre le bien', async () => {
     const user = userEvent.setup();
     monter();

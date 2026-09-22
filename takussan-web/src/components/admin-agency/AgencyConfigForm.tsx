@@ -32,6 +32,7 @@ import {
   uploadAgencyLogoAction,
 } from '@/app/actions/admin-agency';
 import type { Agency } from '@/types/agency';
+import { reduirePhoto } from '@/lib/reduire-photo';
 
 /**
  * Agency admin configuration form — TCK-064.
@@ -134,10 +135,10 @@ export function AgencyConfigForm({ agency }: AgencyConfigFormProps) {
     const objectUrl = URL.createObjectURL(file);
     setLogoPreview(objectUrl);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     startLogoTransition(async () => {
+      const formData = new FormData();
+      // Réduit dans le navigateur avant l'envoi (TCK-542).
+      formData.append('file', await reduirePhoto(file));
       const result = await uploadAgencyLogoAction(agency.id, formData);
       if (!result.ok) {
         setLogoError(result.message);

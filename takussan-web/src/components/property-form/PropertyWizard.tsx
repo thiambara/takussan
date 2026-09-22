@@ -35,6 +35,7 @@ import { StepCaracteristiques } from './wizard/steps/StepCaracteristiques';
 import { StepPrix } from './wizard/steps/StepPrix';
 import { StepPhotos } from './wizard/steps/StepPhotos';
 import { StepFinition } from './wizard/steps/StepFinition';
+import { reduirePhotos } from '@/lib/reduire-photo';
 
 /**
  * TCK-464 — l'assemblage du parcours de publication : les six étapes, la validation par étape, le
@@ -241,7 +242,8 @@ export function PropertyWizard({ tags = [] }: { readonly tags?: Tag[] }) {
 
       if (photos.length > 0 && !photosEnvoyees) {
         const formData = new FormData();
-        for (const fichier of photos) formData.append('photos', fichier);
+        // Réduites dans le navigateur avant l'envoi : grand côté plafonné, format gardé (TCK-542).
+        for (const fichier of await reduirePhotos(photos)) formData.append('photos', fichier);
         const r = await uploadPropertyPhotosAction(bien.id, formData);
         if (r.ok) {
           setPhotosEnvoyees(true);

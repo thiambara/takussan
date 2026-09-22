@@ -34,6 +34,7 @@ import { groupMessagesByDay } from '@/lib/messages/groupByDay';
 import type { Locale } from '@/i18n/config';
 import type { Message } from '@/types/message';
 import { useMessageErreurApi } from '@/hooks/useMessageErreurApi';
+import { reduirePhoto } from '@/lib/reduire-photo';
 
 interface ChatViewProps {
   readonly conversationId: number;
@@ -216,7 +217,8 @@ export function ChatView({ conversationId, variant = 'page', onBack }: ChatViewP
 
   async function uploadAttachment(messageId: number, file: File) {
     const fd = new FormData();
-    fd.append('file', file);
+    // Une image jointe est réduite avant l'envoi ; un PDF ou un .docx passe tel quel (TCK-542).
+    fd.append('file', await reduirePhoto(file));
     await apiRequest(
       `/api/conversations/${conversationId}/messages/${messageId}/attachments`,
       {
