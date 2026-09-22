@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { updateProfileAction } from '@/app/actions/auth';
+import { reduirePhoto } from '@/lib/reduire-photo';
 
 /** La donnée porte la CLÉ de `profile.roles.*` ; le libellé est résolu au rendu. */
 const ROLE_KEYS: Record<UserRole, string> = {
@@ -102,7 +103,8 @@ export function ProfileHeader({ user }: ProfileHeaderProps) {
     fd.append('first_name', firstName);
     fd.append('last_name', lastName);
     fd.append('bio', bio);
-    if (avatar) fd.append('avatar', avatar);
+    // Réduit dans le navigateur avant l'envoi (TCK-542).
+    if (avatar) fd.append('avatar', await reduirePhoto(avatar));
     if (removeAvatar) fd.append('avatar_remove', '1');
     const result = await updateProfileAction(fd);
     setLoading(false);

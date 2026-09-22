@@ -10,9 +10,9 @@
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 27 |
+| 📋 Todo | 26 |
 | 🚧 Doing | 1 |
-| 👀 Review | 0 |
+| 👀 Review | 1 |
 | ⛔ Blocked | 0 |
 | ✅ Done | 463 |
 | 🗑️ Obsolete | 1 |
@@ -56,7 +56,6 @@
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
 - [TCK-537](tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md) — La politique de confidentialité promet quatre choses que le code ne fait pas encore (preuve du consentement, effacement des profils, purges, auteur des avis) `L · P1 · bug`
-- [TCK-542](tickets/TCK-542-reduction-des-photos-avant-envoi.md) — Réduire les photos dans le navigateur avant l'envoi — dimensions plafonnées, format conservé `M · P2 · front`
 - [TCK-546](tickets/TCK-546-lien-kyc-signe-rend-401-dans-le-navigateur.md) — Ouvrir une pièce KYC depuis la console rend 401 : le lien signé exige un jeton Bearer qu'un lien de navigateur n'envoie pas `S · P1 · full`
 - [TCK-547](tickets/TCK-547-conversion-nue-lisible-avant-filigrane.md) — Une conversion de photo n'est jamais lisible sans filigrane dans le seau public, même avant le passage du worker `M · P1 · back`
 - [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
@@ -67,7 +66,7 @@
 
 ## 👀 Review
 
-_(aucun)_
+- [TCK-542](tickets/TCK-542-reduction-des-photos-avant-envoi.md) — Réduire les photos dans le navigateur avant l'envoi — dimensions plafonnées, format conservé `M · P2 · front`
 
 ## ⛔ Blocked
 
