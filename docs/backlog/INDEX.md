@@ -6,11 +6,11 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**491 tickets** — 27 ouverts, 463 livrés.
+**492 tickets** — 28 ouverts, 463 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 26 |
+| 📋 Todo | 27 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
@@ -59,6 +59,7 @@
 - [TCK-542](tickets/TCK-542-reduction-des-photos-avant-envoi.md) — Réduire les photos dans le navigateur avant l'envoi — dimensions plafonnées, format conservé `M · P2 · front`
 - [TCK-546](tickets/TCK-546-lien-kyc-signe-rend-401-dans-le-navigateur.md) — Ouvrir une pièce KYC depuis la console rend 401 : le lien signé exige un jeton Bearer qu'un lien de navigateur n'envoie pas `S · P1 · full`
 - [TCK-547](tickets/TCK-547-conversion-nue-lisible-avant-filigrane.md) — Une conversion de photo n'est jamais lisible sans filigrane dans le seau public, même avant le passage du worker `M · P1 · back`
+- [TCK-548](tickets/TCK-548-retention-verrouillee-vps-sauvegardes.md) — Une règle de rétention sur vps-sauvegardes : aucun jeton, même celui du VPS, ne peut effacer une sauvegarde récente `S · P2 · technique`
 
 ## 🚧 Doing
 
