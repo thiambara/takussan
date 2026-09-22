@@ -6,15 +6,15 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**491 tickets** — 28 ouverts, 462 livrés.
+**491 tickets** — 27 ouverts, 463 livrés.
 
 | Statut | Nombre |
 |---|---:|
-| 📋 Todo | 27 |
+| 📋 Todo | 26 |
 | 🚧 Doing | 1 |
 | 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 462 |
+| ✅ Done | 463 |
 | 🗑️ Obsolete | 1 |
 
 ## Légende
@@ -56,7 +56,6 @@
 - [TCK-516](tickets/TCK-516-vercel-hors-des-preproductions.md) — Vercel ne construit plus que master : les préproductions ne passent plus par lui `S · P3 · technique`
 - [TCK-517](tickets/TCK-517-production-auto-hebergee.md) — Production — les deux projets passent en auto-hébergement, puis Vercel est retiré `M · P0 · technique`
 - [TCK-537](tickets/TCK-537-ecarts-entre-la-politique-de-confidentialite-et-le-code.md) — La politique de confidentialité promet quatre choses que le code ne fait pas encore (preuve du consentement, effacement des profils, purges, auteur des avis) `L · P1 · bug`
-- [TCK-541](tickets/TCK-541-bascule-preproduction-medias-r2.md) — Bascule de la préproduction sur R2 : copie des médias, clés Dokploy, fin de la sauvegarde du volume, sauvegarde du seau privé `M · P1 · technique`
 - [TCK-542](tickets/TCK-542-reduction-des-photos-avant-envoi.md) — Réduire les photos dans le navigateur avant l'envoi — dimensions plafonnées, format conservé `M · P2 · front`
 - [TCK-546](tickets/TCK-546-lien-kyc-signe-rend-401-dans-le-navigateur.md) — Ouvrir une pièce KYC depuis la console rend 401 : le lien signé exige un jeton Bearer qu'un lien de navigateur n'envoie pas `S · P1 · full`
 - [TCK-547](tickets/TCK-547-conversion-nue-lisible-avant-filigrane.md) — Une conversion de photo n'est jamais lisible sans filigrane dans le seau public, même avant le passage du worker `M · P1 · back`
@@ -75,14 +74,15 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 462
+## ✅ Done — 463
 
 <details>
-<summary><strong>Vague 67 — Médias sur R2 servis par Cloudflare Transformations — ADR-0029 (2026-09-21)</strong> — 4 tickets</summary>
+<summary><strong>Vague 67 — Médias sur R2 servis par Cloudflare Transformations — ADR-0029 (2026-09-21)</strong> — 5 tickets</summary>
 
 - [TCK-538](tickets/TCK-538-disques-r2-et-collections-privees.md) — Médias sur R2 : pilote S3, disques public et privé, et la règle « privé par défaut » — les pièces KYC ne sont plus sur le disque public `L · P1 · back`
 - [TCK-539](tickets/TCK-539-medias-independants-du-disque.md) — Aucun code ne suppose plus qu'un média est un fichier local : KYC, versions de documents, liens de partage, relevés bancaires, filigrane `L · P1 · back`
 - [TCK-540](tickets/TCK-540-loader-cloudflare-transformations.md) — Le front sert les images par Cloudflare Transformations — l'optimiseur de Next ne tourne plus sur le VPS `M · P1 · front`
+- [TCK-541](tickets/TCK-541-bascule-preproduction-medias-r2.md) — Bascule de la préproduction sur R2 : copie des médias, clés Dokploy, fin de la sauvegarde du volume, sauvegarde du seau privé `M · P1 · technique`
 - [TCK-545](tickets/TCK-545-urls-directes-des-collections-privees-restantes.md) — Les photos d'état des lieux, de maintenance et le téléversement générique n'exposent plus l'URL directe d'un fichier privé `S · P1 · back`
 
 </details>
