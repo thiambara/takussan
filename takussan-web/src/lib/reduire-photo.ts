@@ -67,8 +67,8 @@ export function dimensionsPlafonnees(
 
 export const outilsNavigateur: OutilsImage = {
   async decoder(fichier) {
-    if (typeof createImageBitmap !== 'function')
-      throw new Error('createImageBitmap absent');
+    // Pas de garde sur l'existence de `createImageBitmap` : l'appeler quand il manque lève, et le
+    // repli sur l'original attrape — une garde explicite ne ferait que dupliquer ce chemin.
     const bitmap = await createImageBitmap(fichier, {
       imageOrientation: 'from-image',
     });
