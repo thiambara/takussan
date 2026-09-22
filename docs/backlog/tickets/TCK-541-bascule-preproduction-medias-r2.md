@@ -92,8 +92,8 @@ n'a pas le droit d'en créer : `9109`), les clés de TCK-538 dans Dokploy, la co
 
 - **Jetons.** `takussan-preview-app` (*Object Read & Write*) lit et écrit les deux seaux de
   préproduction, refusé (`AccessDenied`) sur `vps-sauvegardes`. `takussan-preview-backup` lit et écrit
-  `takussan-preview-private` et `vps-sauvegardes`, refusé sur le seau public. ⚠ L'écriture sur le seau
-  privé n'était pas demandée : à restreindre à la lecture. Relevé par un script qui liste, écrit puis
+  `takussan-preview-private` et `vps-sauvegardes`, refusé sur le seau public. Il garde l'écriture sur le seau
+  privé, limité à l'IP du VPS (`178.18.247.62`, *Client IP Address Filtering*) le 2026-09-22 : refusé (`AccessDenied`) depuis le poste, accepté depuis le serveur. Il garde l'écriture sur le seau privé — un jeton de compte R2 n'a qu'UN type de permission pour tous ses seaux, « lecture ici, écriture là » est impossible (relevé par le porteur) — et c'est sans effet : le jeton de l'application, sur le même VPS, a déjà cette écriture, et `rclone copy` ne l'utilise pas. Le risque qui reste est l'inverse : un VPS compromis peut effacer `vps-sauvegardes` ; la parade est une règle de rétention (*Bucket Lock*) sur ce seau, non posée. Relevé par un script qui liste, écrit puis
   efface une sonde — n'imprime que `OK` / `refus`.
 - **Clés.** Neuf clés posées par `compose.update` (71 → 80), l'API redéployée (`done` en 46 s), relue
   dans le conteneur : `r2-private` / `r2-media`, écriture sur le seau privé depuis `api`.
