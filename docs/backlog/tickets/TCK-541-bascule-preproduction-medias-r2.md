@@ -120,7 +120,7 @@ n'a pas le droit d'en créer : `9109`), les clés de TCK-538 dans Dokploy, la co
   aucun job en échec ; supprimée ensuite, fichiers absents des deux seaux, ligne absente.
 - **Sauvegarde.** Volume désactivé dans Dokploy (`enabled: false`). Copie nocturne
   (`deploy/server/sauvegarde-seau-prive.sh`, `bootstrap.sh` § 8, 02:30) : 3 444 objets au premier
-  passage, rien au second ; restauration à blanc d'un objet, même md5 ; échec forcé → code 1 et alerte.
+  passage, rien au second ; restauration à blanc d'un objet, même md5 ; échec forcé → code 1 et alerte, **reçue sur Telegram** (confirmé par le porteur).
 - **Sonde** `_sonde/test.jpg` supprimée, son URL publique → `404`.
 - **« Déployés ensemble » : NON tenu.** Le front construit avec `NEXT_PUBLIC_MEDIA_URL` est parti
   avec la promotion #302 (2026-09-21, 23:30 Z) ; la bascule de l'API a suivi le 2026-09-22 vers 15:00
