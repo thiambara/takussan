@@ -3305,7 +3305,8 @@
     "pagination": {
       "aria": "Pagination",
       "previous": "Page précédente",
-      "next": "Page suivante"
+      "next": "Page suivante",
+      "position": "Page {page} sur {lastPage}"
     },
     "saveSearch": {
       "defaultName": "Ma recherche",

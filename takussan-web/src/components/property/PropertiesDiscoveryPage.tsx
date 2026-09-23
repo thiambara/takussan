@@ -37,6 +37,9 @@ import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
 
 type View = 'list' | 'map';
 
+/** Le début des résultats — là où la pagination ramène la vue (TCK-557). */
+const ID_DES_RESULTATS = 'resultats';
+
 /**
  * Les clés que l'utilisateur peut retirer depuis cet écran. Sert uniquement à décider si un 422
  * désigne un filtre RÉPARABLE.
@@ -159,7 +162,6 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
     filters,
     activeCount,
     search,
-    setPage,
     resetFilters,
     removeFilter,
     repli,
@@ -345,8 +347,10 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                   />
                 )}
 
+                {/* TCK-557 — la pagination ramène la vue ICI, sous la `nav` fixe (cf. `NavbarSpacer`). */}
                 <div
-                  className={`grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10 transition-opacity duration-200 ${
+                  id={ID_DES_RESULTATS}
+                  className={`scroll-mt-[85px] lg:scroll-mt-[152px] grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10 transition-opacity duration-200 ${
                     loading
                       ? 'opacity-50 pointer-events-none'
                       : 'opacity-100'
@@ -379,7 +383,8 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                   <Pagination
                     currentPage={meta.current_page}
                     lastPage={meta.last_page}
-                    onPageChange={setPage}
+                    filters={filters}
+                    cibleDuDefilement={ID_DES_RESULTATS}
                   />
                 )}
               </>
