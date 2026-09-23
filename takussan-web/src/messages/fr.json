@@ -3211,7 +3211,9 @@
       "error": "Une erreur est survenue. Veuillez réessayer.",
       "error_invalid_filter": "Un des filtres de cette recherche n'est pas valide.",
       "error_invalid_filter_named": "Le filtre « {filter} » n'est pas valide.",
-      "error_retry": "Réessayer"
+      "error_retry": "Réessayer",
+      "vide_titre_hors_pages": "Rien sur cette page",
+      "vide_description_hors_pages": "Cette recherche compte moins de pages : revenez à l'une des précédentes."
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Aucun bien ne correspond à « {terms} ».} other {Aucun bien ne correspond à ces mots : {terms}.}}",

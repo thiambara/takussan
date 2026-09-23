@@ -1837,7 +1837,9 @@
       "error": "Am na njuumte. Jéemaatal su la neexee.",
       "error_invalid_filter": "Benn ci filtar yi ci seet bii baaxul.",
       "error_invalid_filter_named": "Filtar bu « {filter} » baaxul.",
-      "error_retry": "Jéemaat"
+      "error_retry": "Jéemaat",
+      "vide_titre_hors_pages": "Dara amul ci xët wii",
+      "vide_description_hors_pages": "Seet bii amul ay xët yu bare noonu : dellul ci benn ci yi jiitu."
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Gisunu benn kër ci « {terms} ».} other {Gisunu benn kër ci baat yii : {terms}.}}",

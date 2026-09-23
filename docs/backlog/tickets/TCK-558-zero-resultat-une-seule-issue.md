@@ -161,3 +161,55 @@ le `monte()` de `PropertiesDiscoveryPage.outils.test.tsx` (attendait `^\d+ biens
 publique : `ENCRES_INVERSES` inchangé), `tsc --noEmit`, ESLint sur les fichiers touchés,
 `check:i18n`, `check:i18n-namespaces`, `check:classes-emises`, et toutes les `scripts/check-*.mjs`
 de la racine : vertes.
+
+### Tour 2 — après le refus du vérificateur (2026-09-23)
+
+Chaque défaut a été **reproduit au navigateur avant d'être corrigé** : les fichiers du commit
+`b8bf5763` remis en place dans l'arbre (`git show HEAD:…`), mesuré, puis le correctif restauré par
+`cp` (md5 identiques). Charge de la machine pendant ce tour : `load average` 83-90 sur 8 cœurs —
+aucune durée n'est donnée pour cette raison.
+
+**Défaut majeur — reproduit.** Au bureau, 1280 × 900 fr, `?q=zzzqqq&contract_type=rent`, clic sur
+l'onglet « Carte » : puces `[]`, sauvegarde `[]` (avant le clic : deux puces et la sauvegarde, dans
+l'état vide). Cause : le tour 1 masquait puces et sauvegarde de la barre d'outils sur
+`aucunResultat`, alors que l'état vide ne vit que dans la LISTE, et qu'à partir de `lg` la vue
+carte reste atteignable à zéro résultat. **Correctif** : `etatVideRendu = aucunResultat && vue ===
+'list'` gouverne `afficherPuces` et la sauvegarde de la rangée du bureau. Mesuré après : en carte,
+puces `zzzqqq`, `En location` dans la barre d'outils et sauvegarde visible, active, une fois ; de
+retour sur « Liste », elles repartent dans l'état vide, une fois chacune.
+
+**Mineur — la page au-delà de la dernière : reproduit, et le tour 1 l'avait mal décrit.** Il
+écrivait que l'état vide n'y proposait que « Effacer tous les filtres » : c'était faux, le test
+`page=3` mockant `total: 0`. Mesuré sur `?contract_type=rent&page=50` (compteur `180 biens
+trouvés`), à 360 comme à 1280 : deux rangées de puces et deux « Sauvegarder la recherche », sous
+« Élargissez votre recherche » alors que 180 biens existent. **Correctif** : `SearchEmpty` reçoit
+`criteresEnCause` (= le TOTAL est nul). Faux ici : ni puce ni sauvegarde dans l'état vide (la barre
+d'outils les porte), et un titre qui n'invite pas à élargir — « Rien sur cette page » / « Nothing
+on this page » / « Dara amul ci xët wii », avec une description qui renvoie aux pages
+précédentes (deux clés `vide_*_hors_pages`, dans les trois langues). Mesuré après, fr 360 et 1280,
+wo 360 : une rangée de puces, une sauvegarde, `innerWidth` = `scrollWidth` = largeur demandée.
+
+**Mineur — trou de test : fermé.** Un test monte l'état vide avec un SEUL critère (`q=zzzqqq`) et
+exige la sauvegarde.
+
+**Ablation du tour 2** (chaque altération seule, puis restaurée ; md5 vérifiés) :
+
+| altération | test rouge |
+|---|---|
+| `etatVideRendu = aucunResultat` (le défaut du tour 1) | « au bureau, en vue CARTE à zéro résultat… » |
+| `criteresEnCause={true}` | « page au-delà de la dernière… » |
+| `aDesCriteres = … activeCount > 1` (la mutation du vérificateur) | « un SEUL critère suffit… » |
+
+**Re-vérifié au navigateur après correctif** (360 × 740 `mobile: true`, fr/en/wo,
+`?q=zzzqqq&contract_type=rent`) : AC1 « aucun bien » ×1, « 0 » isolé ×0 ; AC2/AC4 deux puces et
+la sauvegarde (active) dans l'état vide, une fois chacune ; `innerWidth` = `scrollWidth` = 360.
+
+**Non traité, laissé en l'état** : les puces font 32 px de haut (sous 44 px). C'est le gabarit
+partagé de `PucesDeFiltres`, le même que celui de la barre d'outils posé par TCK-552 ; le changer
+pour l'état vide seul ferait deux tailles de la même puce.
+
+**Commandes du tour 2, vertes** : `npx vitest run` sur `etat-vide` (13), les autres
+`PropertiesDiscoveryPage.*`, `cablage-de-la-page`, `rendu-serveur`, `EmptyState`,
+`src/components/search/__tests__/` et `src/test` — 25 fichiers, 227 tests ; ESLint sur les
+fichiers touchés ; `tsc --noEmit` ; `check:i18n` (en 0/0, wo 0/0) ; `check:i18n-namespaces` ;
+`check:classes-emises` ; toutes les `scripts/check-*.mjs` de la racine.

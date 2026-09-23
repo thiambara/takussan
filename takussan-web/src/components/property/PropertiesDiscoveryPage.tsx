@@ -226,6 +226,10 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   const sousLg = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
   const aucunResultat = !loading && !error && meta?.total === 0;
   const vue: View = aucunResultat && sousLg ? 'list' : view;
+  // TCK-558 — l'état vide ne vit QUE dans la liste. Les puces et la sauvegarde ne quittent la barre
+  // d'outils que là où il les rend : au bureau, la vue carte reste atteignable à zéro résultat,
+  // et elle les perdait toutes les deux.
+  const etatVideRendu = aucunResultat && vue === 'list';
 
   // TCK-552 — Filtres et Carte à portée du pouce pendant le défilement (P4, AC3).
   const rangeeOutilsRef = useRef<HTMLDivElement>(null);
@@ -364,7 +368,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               activeCount={activeCount}
               onRemoveFilter={retirerFiltre}
               // TCK-558 — à zéro résultat, les puces vivent dans l'état vide, où elles sont l'issue.
-              afficherPuces={!aucunResultat}
+              afficherPuces={!etatVideRendu}
               onSortChange={(sort) => handleFilterChange({ sort })}
               onPerPageChange={(per_page) => handleFilterChange({ per_page })}
               onOpenSidebar={() => setSidebarOpen(true)}
@@ -398,7 +402,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
             <div data-rangee="vue-bureau" className="mb-5 hidden flex-wrap items-center gap-3 lg:flex">
               <ViewToggle view={vue} onChange={setView} />
               {/* TCK-558 — à zéro résultat, la sauvegarde est dans l'état vide : une seule fois. */}
-              {aucunResultat ? null : (
+              {etatVideRendu ? null : (
                 <SaveSearchButton
                   filters={filters}
                   activeCount={activeCount}
@@ -482,6 +486,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                     <SearchEmpty
                       filters={filters}
                       activeCount={activeCount}
+                      criteresEnCause={aucunResultat}
                       onRemoveFilter={retirerFiltre}
                       onReset={resetFilters}
                     />

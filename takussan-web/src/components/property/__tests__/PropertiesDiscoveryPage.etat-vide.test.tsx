@@ -162,3 +162,47 @@ describe('TCK-558 — « Tout effacer » en second, la sauvegarde proposée (AC4
     expect(within(vide).getByRole('button', { name: /effacer tous les filtres/i })).toBeInTheDocument();
   });
 });
+
+/**
+ * Tour 1 de la réfutation — les puces et la sauvegarde ne quittent la barre d'outils QUE là où
+ * l'état vide les rend, c'est-à-dire dans la liste, à zéro résultat. Ailleurs, elles restent.
+ */
+describe('TCK-558 — les issues ne disparaissent nulle part où l’état vide n’est pas rendu', () => {
+  it('au bureau, en vue CARTE à zéro résultat, les puces et la sauvegarde restent à l’écran', async () => {
+    // `matchMedia` du setup rend `false` : la page se croit au bureau, onglets rendus.
+    await monteAZero('q=zzzqqq&contract_type=rent');
+    await userEvent.click(screen.getByRole('tab', { name: /^carte$/i }));
+    await waitFor(() => expect(screen.getByTestId('carte')).toBeInTheDocument());
+
+    expect(document.querySelector('[data-etat="vide-recherche"]')).toBeNull();
+    const rangees = [...document.querySelectorAll('[data-rangee="puces"]')];
+    expect(rangees).toHaveLength(1);
+    expect(within(rangees[0] as HTMLElement).getByRole('button', { name: /zzzqqq/ })).toBeInTheDocument();
+    // Une sauvegarde par largeur : celle du bout des puces (`lg:hidden`) et celle de la rangée
+    // du bureau — jsdom ne lit pas le CSS, d'où le compte par rangée.
+    const bureau = document.querySelector('[data-rangee="vue-bureau"]') as HTMLElement;
+    expect(within(bureau).getByRole('button', { name: /sauvegarder la recherche/i })).not.toBeDisabled();
+  });
+
+  it('page au-delà de la dernière (le total n’est pas nul) : une seule rangée de puces, une seule sauvegarde par rangée', async () => {
+    mockApiFetch.mockResolvedValue({
+      data: [],
+      facets: {},
+      meta: { total: 180, per_page: 30, current_page: 50, last_page: 6 },
+    });
+    const vide = await monteAZero('contract_type=rent&page=50');
+    // Le total n'est pas nul : les critères ne sont pas en cause, l'état vide ne les propose pas.
+    expect(vide.querySelector('[data-rangee="puces"]')).toBeNull();
+    expect(within(vide).queryByRole('button', { name: /sauvegarder la recherche/i })).toBeNull();
+    expect(within(vide).getByRole('button', { name: /effacer tous les filtres/i })).toBeInTheDocument();
+    // La barre d'outils, elle, garde les siennes.
+    expect(document.querySelectorAll('[data-rangee="puces"]')).toHaveLength(1);
+    expect(within(vide).getByRole('heading', { level: 2 }).textContent).not.toMatch(/élargissez/i);
+  });
+
+  it('un SEUL critère suffit à proposer la sauvegarde dans l’état vide', async () => {
+    const vide = await monteAZero('q=zzzqqq');
+    expect(within(vide).getAllByRole('button').filter((b) => b.closest('[data-rangee="puces"]'))).toHaveLength(1);
+    expect(within(vide).getByRole('button', { name: /sauvegarder la recherche/i })).not.toBeDisabled();
+  });
+});

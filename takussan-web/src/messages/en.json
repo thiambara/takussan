@@ -3211,7 +3211,9 @@
       "error": "Something went wrong. Please try again.",
       "error_invalid_filter": "One of the filters in this search is not valid.",
       "error_invalid_filter_named": "The “{filter}” filter is not valid.",
-      "error_retry": "Try again"
+      "error_retry": "Try again",
+      "vide_titre_hors_pages": "Nothing on this page",
+      "vide_description_hors_pages": "This search has fewer pages — go back to one of the previous ones."
     },
     "widened": {
       "unmatched": "{count, plural, =1 {No property matches “{terms}”.} other {No property matches these words: {terms}.}}",
