@@ -269,8 +269,15 @@ const FICHIERS_HORS_JETONS = 5;
  * ajoutée (`text-muted-foreground` sur la page), et la flèche désactivée qui n'est plus le même
  * élément que la flèche active (un `<span>` sans lien au lieu d'un `<button disabled>`). L'ellipse
  * et la flèche active étaient déjà comptées. Le fond est celui de la page, posé par un ancêtre.
+ *
+ * **243 → 244 le 2026-09-23 (TCK-550).** `shared/ChoixDeLangue.tsx`, entré dans la surface par
+ * `Navbar` et `Footer`, porte 1 entrée : les choix de langue NON courants
+ * (`text-muted-foreground`), sans fond propre — le fond est le panneau du menu ou le pied de page.
+ * Relevé par `couplesDuFichier` fichier par fichier : `Footer` reste à 4, `Navbar` à 14,
+ * `LanguageSwitcher` à 1. Le choix courant (`bg-primary text-primary-foreground`) déclare son
+ * fond et est donc MESURÉ, pas compté ici.
  */
-const ENCRES_INVERSES = 243;
+const ENCRES_INVERSES = 244;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

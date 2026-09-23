@@ -14,6 +14,7 @@ import { navLinks, categories, moreCategories } from '@/data/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { setPublishIntent } from '@/lib/publish-intent';
 import { LanguageSwitcher } from '@/components/shared/LanguageSwitcher';
+import { ChoixDeLangue } from '@/components/shared/ChoixDeLangue';
 import { BarreDeChargement } from '@/components/shared/BarreDeChargement';
 import { FavoritesPopover } from '@/components/favorites/FavoritesPopover';
 import { apiFetch } from '@/lib/api';
@@ -587,6 +588,9 @@ export function Navbar({ className }: NavbarProps) {
               );
             })}
           </div>
+
+          {/* TCK-550 — sous `lg`, le seul choix de langue atteignable : celui de bureau est `hidden lg:flex`. */}
+          <ChoixDeLangue className="px-6 py-2 border-t border-border justify-between" />
 
           <div className="px-6 py-4 border-t border-border flex flex-col gap-3">
             {user ? (
