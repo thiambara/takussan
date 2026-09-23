@@ -1829,13 +1829,17 @@
       "deleteAria": "Far {name}"
     },
     "results": {
-      "empty_title": "Gisunu benn kër",
-      "empty_description": "Yaatal say coobare walla dindil ay filtre — am na kër bu la war.",
+      "vide_titre": "Yaatal sa seet",
+      "vide_description": "Dindil benn filtar rekk : yeneen yi dinañu des.",
+      "vide_description_sans_critere": "Am na kër bu la war : tàmbaliwaatal ak seet bu bees.",
+      "vide_criteres_aria": "Dindi benn filtar",
       "empty_cta": "Faral filtre yépp",
       "error": "Am na njuumte. Jéemaatal su la neexee.",
       "error_invalid_filter": "Benn ci filtar yi ci seet bii baaxul.",
       "error_invalid_filter_named": "Filtar bu « {filter} » baaxul.",
-      "error_retry": "Jéemaat"
+      "error_retry": "Jéemaat",
+      "vide_titre_hors_pages": "Dara amul ci xët wii",
+      "vide_description_hors_pages": "Seet bii amul ay xët yu bare noonu : dellul ci benn ci yi jiitu."
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Gisunu benn kër ci « {terms} ».} other {Gisunu benn kër ci baat yii : {terms}.}}",
@@ -1901,7 +1905,7 @@
     },
     "toolbar": {
       "loading": "Mu ngi yeb…",
-      "resultCount": "{count, plural, =1 {# kër la ñu gis} other {# kër la ñu gis}}",
+      "resultCount": "{count, plural, =0 {Gisunu benn kër} =1 {# kër la ñu gis} other {# kër la ñu gis}}",
       "perPageAria": "Njeexital ci xët bu nekk",
       "perPageOption": "{count} / xët",
       "filters": "Tànneef",

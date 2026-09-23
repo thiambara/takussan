@@ -2,10 +2,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { List, Map as MapIcon, SearchX } from 'lucide-react';
+import { List, Map as MapIcon } from 'lucide-react';
 import { ApiError } from '@/lib/api';
-import { EmptyState, ErrorState } from '@/components/feedback';
-import { Button } from '@/components/ui/button';
+import { ErrorState } from '@/components/feedback';
 import { Navbar } from '@/components/home/Navbar';
 import { NavbarSpacer } from '@/components/home/NavbarSpacer';
 import { Footer } from '@/components/home/Footer';
@@ -13,6 +12,7 @@ import { FilterSidebar } from '@/components/search/FilterSidebar';
 import { SearchToolbar } from '@/components/search/SearchToolbar';
 import { OutilsFlottantsDeListe } from '@/components/search/OutilsFlottantsDeListe';
 import { WidenedSearchNotice } from '@/components/search/WidenedSearchNotice';
+import { SearchEmpty } from '@/components/search/SearchEmpty';
 import { Pagination } from '@/components/search/Pagination';
 import { PropertyCard } from '@/components/property/PropertyCard';
 import { PropertyMap } from '@/components/map';
@@ -66,25 +66,6 @@ function CardSkeleton() {
       <Skeleton className="h-4 w-2/3" />
       <Skeleton className="h-4 w-2/3" />
     </div>
-  );
-}
-
-function SearchEmpty({ onReset }: { onReset: () => void }) {
-  const t = useTranslations('search.results');
-  return (
-    // `col-span-full` : ce bloc vit DANS la grille de résultats. C'est la raison pour laquelle
-    // `EmptyState` spread ses props résiduelles et accepte `className`.
-    <EmptyState
-      className="col-span-full"
-      icon={<SearchX className="size-8" aria-hidden="true" />}
-      title={t('empty_title')}
-      description={t('empty_description')}
-      action={
-        <Button type="button" variant="outline" onClick={onReset}>
-          {t('empty_cta')}
-        </Button>
-      }
-    />
   );
 }
 
@@ -245,6 +226,10 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   const sousLg = useMatchesMaxWidth(LG_BREAKPOINT_PX - 1);
   const aucunResultat = !loading && !error && meta?.total === 0;
   const vue: View = aucunResultat && sousLg ? 'list' : view;
+  // TCK-558 — l'état vide ne vit QUE dans la liste. Les puces et la sauvegarde ne quittent la barre
+  // d'outils que là où il les rend : au bureau, la vue carte reste atteignable à zéro résultat,
+  // et elle les perdait toutes les deux.
+  const etatVideRendu = aucunResultat && vue === 'list';
 
   // TCK-552 — Filtres et Carte à portée du pouce pendant le défilement (P4, AC3).
   const rangeeOutilsRef = useRef<HTMLDivElement>(null);
@@ -283,6 +268,25 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
     // reste l'empile. Voir le docblock de `search()` : `push` partout serait pire que le
     // `replace` d'origine tant que l'anti-rebond de l'étape 3 n'est pas en place.
     search({ ...filters, ...patch }, { historique: options?.continu ? 'replace' : 'push' });
+  };
+
+  // Le retrait d'UNE puce — celle de la barre d'outils comme celle de l'état vide (TCK-558) : un
+  // seul chemin, valeurs multiples comprises.
+  const retirerFiltre = (key: keyof SearchFilters, subKey?: string) => {
+    if (key === 'type' && subKey) {
+      const next = (filters.type ?? []).filter((t) => t !== subKey);
+      handleFilterChange({
+        type: next.length > 0 ? next : undefined,
+      });
+    } else if (key === 'condition' && subKey) {
+      // TCK-508 — seconde clé multi-valuée : la puce retire SA valeur, pas la clé.
+      const next = (filters.condition ?? []).filter((c) => c !== subKey);
+      handleFilterChange({
+        condition: next.length > 0 ? next : undefined,
+      });
+    } else {
+      removeFilter(key);
+    }
   };
 
   // Derive the map filters from the active search filters. We only forward
@@ -362,22 +366,9 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               loading={loading}
               filters={filters}
               activeCount={activeCount}
-              onRemoveFilter={(key, subKey) => {
-                if (key === 'type' && subKey) {
-                  const next = (filters.type ?? []).filter((t) => t !== subKey);
-                  handleFilterChange({
-                    type: next.length > 0 ? next : undefined,
-                  });
-                } else if (key === 'condition' && subKey) {
-                  // TCK-508 — seconde clé multi-valuée : la puce retire SA valeur, pas la clé.
-                  const next = (filters.condition ?? []).filter((c) => c !== subKey);
-                  handleFilterChange({
-                    condition: next.length > 0 ? next : undefined,
-                  });
-                } else {
-                  removeFilter(key);
-                }
-              }}
+              onRemoveFilter={retirerFiltre}
+              // TCK-558 — à zéro résultat, les puces vivent dans l'état vide, où elles sont l'issue.
+              afficherPuces={!etatVideRendu}
               onSortChange={(sort) => handleFilterChange({ sort })}
               onPerPageChange={(per_page) => handleFilterChange({ per_page })}
               onOpenSidebar={() => setSidebarOpen(true)}
@@ -410,11 +401,14 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
             */}
             <div data-rangee="vue-bureau" className="mb-5 hidden flex-wrap items-center gap-3 lg:flex">
               <ViewToggle view={vue} onChange={setView} />
-              <SaveSearchButton
-                filters={filters}
-                activeCount={activeCount}
-                className="ml-auto"
-              />
+              {/* TCK-558 — à zéro résultat, la sauvegarde est dans l'état vide : une seule fois. */}
+              {etatVideRendu ? null : (
+                <SaveSearchButton
+                  filters={filters}
+                  activeCount={activeCount}
+                  className="ml-auto"
+                />
+              )}
             </div>
 
             <OutilsFlottantsDeListe
@@ -489,7 +483,13 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                     // Ils s'affichaient ensemble, si bien qu'un filtre invalide produisait
                     // « 0 biens trouvés » ET « Aucun bien trouvé » ET « Une erreur est
                     // survenue » sur le même écran — trois affirmations concurrentes.
-                    <SearchEmpty onReset={resetFilters} />
+                    <SearchEmpty
+                      filters={filters}
+                      activeCount={activeCount}
+                      criteresEnCause={aucunResultat}
+                      onRemoveFilter={retirerFiltre}
+                      onReset={resetFilters}
+                    />
                   ) : (
                     properties.map((property, i) => (
                       <PropertyCard

@@ -79,6 +79,12 @@ export interface SearchToolbarProps {
    * et c'est ce qui rendait le bouton désactivé « sans aucune explication » (P7).
    */
   finDesPuces?: ReactNode;
+  /**
+   * TCK-558 — `false` à zéro résultat CONFIRMÉ : les puces vivent alors dans l'état vide, où
+   * chacune est l'issue proposée. Les rendre aussi ici afficherait deux fois la même rangée — et,
+   * avec elle, deux fois la sauvegarde. Défaut : `true`.
+   */
+  afficherPuces?: boolean;
 }
 
 export function SearchToolbar({
@@ -93,17 +99,10 @@ export function SearchToolbar({
   afficherTri = true,
   basculeDeVue,
   finDesPuces,
+  afficherPuces = true,
 }: SearchToolbarProps) {
   const t = useTranslations('search.toolbar');
   const tSort = useTranslations('search.sort');
-  const trads: TraducteursDeFiltre = {
-    tags: useTranslations('search'),
-    types: useTranslations('property.types'),
-    contract: useTranslations('property.contractTypes'),
-    periods: useTranslations('property.rentPeriods'),
-    titleTypes: useTranslations('property.titleTypes'),
-    conditions: useTranslations('property.conditions'),
-  };
 
   const perPageOptions = [30, 40, 60, 70].map((n) => ({
     value: String(n),
@@ -112,8 +111,6 @@ export function SearchToolbar({
   const aUnPointGeo = filters.lat !== undefined && filters.lng !== undefined;
   const valeursDeTri = aUnPointGeo ? [...SORT_VALUES, TRI_DISTANCE] : [...SORT_VALUES];
   const sortOptions = valeursDeTri.map((v) => ({ value: v, label: tSort(v) }));
-
-  const activeTags = puceDeChaqueFiltreActif(filters, trads);
 
   return (
     <div className="mb-4 space-y-3 md:mb-6">
@@ -215,35 +212,87 @@ export function SearchToolbar({
         </div>
       </div>
 
-      {/* Active filter tags */}
-      {activeTags.length > 0 && (
-        <div data-rangee="puces" className="flex flex-wrap items-center gap-2">
-          {activeTags.map(({ cle, sousCle, libelle }) => (
-            <button
-              key={sousCle ? `${cle}-${sousCle}` : cle}
-              type="button"
-              onClick={() => onRemoveFilter(cle, sousCle)}
-              className="flex min-h-8 items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors group"
-            >
-              {/* TCK-552 — la recherche libre se signale par une ICÔNE, plus par des guillemets
-                  bruts (`"Dakar"`, P8). Le libellé de `q` dans `SEARCH_FILTER_KEYS` garde ses
-                  guillemets : il sert aussi le RÉSUMÉ d'une recherche sauvegardée
-                  (`SavedSearchesList`), une chaîne jointe par « · » où rien d'autre ne distingue
-                  le texte libre d'une ville. Ici, l'icône le fait. */}
-              {cle === 'q' ? (
-                <>
-                  <Search data-icone="recherche" className="size-3.5 shrink-0" aria-hidden />
-                  {filters.q}
-                </>
-              ) : (
-                libelle
-              )}
-              <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />
-            </button>
-          ))}
-          {finDesPuces}
-        </div>
-      )}
+      {/* Active filter tags — TCK-558 : à zéro résultat, c'est l'état vide qui les porte. */}
+      {afficherPuces ? (
+        <PucesDeFiltres filters={filters} onRemoveFilter={onRemoveFilter} fin={finDesPuces} />
+      ) : null}
+    </div>
+  );
+}
+
+export interface PucesDeFiltresProps {
+  readonly filters: SearchFilters;
+  readonly onRemoveFilter: (key: keyof SearchFilters, subKey?: string) => void;
+  /** Ce qui vient au bout des puces, dans la même rangée — rendu seulement s'il y a une puce. */
+  readonly fin?: ReactNode;
+  /** Classes AJOUTÉES à la rangée (alignement, marges) — la rangée reste `flex flex-wrap`. */
+  readonly className?: string;
+  /** Nom du groupe, quand la rangée n'est pas déjà nommée par ce qui l'entoure. */
+  readonly 'aria-label'?: string;
+}
+
+/**
+ * Les puces des filtres actifs, chacune retirable — **un seul rendu** pour la barre d'outils et
+ * pour l'état vide de la recherche (TCK-558).
+ *
+ * Les libellés viennent de {@link puceDeChaqueFiltreActif} (TCK-340), et le retrait passe par
+ * `onRemoveFilter(cle, sousCle)` : une clé multi-valuée (`type`, `condition`) donne une puce par
+ * valeur, et c'est à l'appelant de ne retirer que celle-là. L'état vide reçoit le MÊME
+ * `onRemoveFilter` que la barre : un retrait n'a qu'un chemin.
+ *
+ * Il vit dans ce fichier plutôt que dans le sien : ses couples de contraste sont consignés par la
+ * garde de la surface publique sous `components/search/SearchToolbar.tsx`, et le déplacer ne
+ * changerait rien à l'écran pour tout changer à l'ardoise.
+ */
+export function PucesDeFiltres({
+  filters,
+  onRemoveFilter,
+  fin,
+  className = '',
+  'aria-label': ariaLabel,
+}: PucesDeFiltresProps) {
+  const trads: TraducteursDeFiltre = {
+    tags: useTranslations('search'),
+    types: useTranslations('property.types'),
+    contract: useTranslations('property.contractTypes'),
+    periods: useTranslations('property.rentPeriods'),
+    titleTypes: useTranslations('property.titleTypes'),
+    conditions: useTranslations('property.conditions'),
+  };
+  const activeTags = puceDeChaqueFiltreActif(filters, trads);
+  if (activeTags.length === 0) return null;
+
+  return (
+    <div
+      data-rangee="puces"
+      role={ariaLabel ? 'group' : undefined}
+      aria-label={ariaLabel}
+      className={`flex flex-wrap items-center gap-2 ${className}`}
+    >
+      {activeTags.map(({ cle, sousCle, libelle }) => (
+        <button
+          key={sousCle ? `${cle}-${sousCle}` : cle}
+          type="button"
+          onClick={() => onRemoveFilter(cle, sousCle)}
+          className="flex min-h-8 items-center gap-1.5 text-xs font-semibold bg-primary/8 text-primary border border-primary/20 rounded-full px-3 py-1 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors group"
+        >
+          {/* TCK-552 — la recherche libre se signale par une ICÔNE, plus par des guillemets
+              bruts (`"Dakar"`, P8). Le libellé de `q` dans `SEARCH_FILTER_KEYS` garde ses
+              guillemets : il sert aussi le RÉSUMÉ d'une recherche sauvegardée
+              (`SavedSearchesList`), une chaîne jointe par « · » où rien d'autre ne distingue
+              le texte libre d'une ville. Ici, l'icône le fait. */}
+          {cle === 'q' ? (
+            <>
+              <Search data-icone="recherche" className="size-3.5 shrink-0" aria-hidden />
+              {filters.q}
+            </>
+          ) : (
+            libelle
+          )}
+          <X className="w-3 h-3 opacity-60 group-hover:opacity-100" />
+        </button>
+      ))}
+      {fin}
     </div>
   );
 }

@@ -51,7 +51,8 @@ async function monte() {
   render(withIntl(<PropertiesDiscoveryPage />));
   await waitFor(() => expect(mockApiFetch).toHaveBeenCalled());
   // Le compteur est rendu quand la recherche est retombée : la barre est alors dans son état final.
-  await screen.findByText(/^\d+ biens? trouvés?$/);
+  // TCK-558 — à zéro, il dit « Aucun bien trouvé », plus « 0 biens trouvés ».
+  await screen.findByText(/^(\d+ biens? trouvés?|Aucun bien trouvé)$/);
 }
 
 const classes = (el: Element) => el.className.split(/\s+/);

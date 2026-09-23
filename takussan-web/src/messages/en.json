@@ -3203,13 +3203,17 @@
       "deleteAria": "Delete {name}"
     },
     "results": {
-      "empty_title": "No property found",
-      "empty_description": "Widen your criteria or remove a few filters — there is surely a home for you.",
+      "vide_titre": "Broaden your search",
+      "vide_description": "Remove just one filter — the others stay in place.",
+      "vide_description_sans_critere": "There is surely a home for you — start again from a blank search.",
+      "vide_criteres_aria": "Remove a filter",
       "empty_cta": "Clear all filters",
       "error": "Something went wrong. Please try again.",
       "error_invalid_filter": "One of the filters in this search is not valid.",
       "error_invalid_filter_named": "The “{filter}” filter is not valid.",
-      "error_retry": "Try again"
+      "error_retry": "Try again",
+      "vide_titre_hors_pages": "Nothing on this page",
+      "vide_description_hors_pages": "This search has fewer pages — go back to one of the previous ones."
     },
     "widened": {
       "unmatched": "{count, plural, =1 {No property matches “{terms}”.} other {No property matches these words: {terms}.}}",
@@ -3275,7 +3279,7 @@
     },
     "toolbar": {
       "loading": "Loading…",
-      "resultCount": "{count, plural, =1 {# property found} other {# properties found}}",
+      "resultCount": "{count, plural, =0 {No properties found} =1 {# property found} other {# properties found}}",
       "perPageAria": "Results per page",
       "perPageOption": "{count} / page",
       "filters": "Filters",

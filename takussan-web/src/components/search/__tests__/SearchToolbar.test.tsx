@@ -297,3 +297,41 @@ describe('<SearchToolbar> — le compteur tient sur une ligne, les contrôles pa
     expect(tri.className.split(/\s+/)).toEqual(expect.arrayContaining(['min-w-0', 'flex-1']));
   });
 });
+
+describe('<SearchToolbar> — le compteur et le résultat nul (TCK-558)', () => {
+  function monteAvec(total: number | null, afficherPuces?: boolean) {
+    render(withIntl(
+      <SearchToolbar
+        total={total}
+        loading={false}
+        filters={{ city: 'Dakar', type: ['villa', 'house'] }}
+        activeCount={2}
+        onRemoveFilter={vi.fn()}
+        onSortChange={vi.fn()}
+        onPerPageChange={vi.fn()}
+        onOpenSidebar={vi.fn()}
+        afficherPuces={afficherPuces}
+      />,
+    ));
+    return document.querySelector('p[aria-live]');
+  }
+
+  it('à zéro, le compteur dit « Aucun bien trouvé » — pas « 0 biens trouvés »', () => {
+    expect(monteAvec(0)).toHaveTextContent(/^Aucun bien trouvé$/);
+  });
+
+  it('à un, il reste au singulier ; au-delà, au pluriel', () => {
+    expect(monteAvec(1)).toHaveTextContent(/^1 bien trouvé$/);
+  });
+
+  it('`afficherPuces={false}` retire la rangée des puces, et elle seule', () => {
+    monteAvec(0, false);
+    expect(document.querySelector('[data-rangee="puces"]')).toBeNull();
+    expect(screen.getByRole('button', { name: /filtres/i })).toBeInTheDocument();
+  });
+
+  it('par défaut, la rangée des puces est rendue', () => {
+    monteAvec(3);
+    expect(document.querySelector('[data-rangee="puces"]')).not.toBeNull();
+  });
+});
