@@ -72,6 +72,7 @@
     "userMenu": "User menu",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
+    "menuTitle": "Menu",
     "searchPlaceholder": "Where are you looking?",
     "transactionPlaceholder": "Buy / Rent",
     "buy": "Buy",

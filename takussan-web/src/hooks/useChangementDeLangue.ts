@@ -26,11 +26,15 @@ import type { Locale } from '@/i18n/config';
  *    C'est ce qui rend le choix partageable, et ce qui fait que le retour arrière ramène à la
  *    langue précédente.
  *
+ * `remplacer` (TCK-551) : la navigation REMPLACE l'entrée courante au lieu d'en empiler une. Le
+ * menu mobile s'en sert : ouvert, il a posé une entrée sentinelle (le geste retour le ferme), et un
+ * `push` par-dessus la laissait derrière la page d'arrivée — un retour qui ne faisait rien.
+ *
  * ⚠ Hors de la surface publique, `usePathname()` rend un chemin non localisable (`/app/overview`) :
  * il n'y a alors rien à naviguer, et seul le cookie change. Ne pas « corriger » ce cas en préfixant
  * quand même — la console n'a pas de route `[locale]`, ce serait un 404.
  */
-export function useChangementDeLangue() {
+export function useChangementDeLangue({ remplacer = false }: { readonly remplacer?: boolean } = {}) {
   const locale = useLocale() as Locale;
   const [enCours, startTransition] = useTransition();
   const router = useRouter();
@@ -47,7 +51,9 @@ export function useChangementDeLangue() {
         // pied de page — donc sur toute la surface publique. Ici la lecture n'a lieu que dans le
         // gestionnaire de clic, où le navigateur existe par construction.
         const requete = window.location.search;
-        router.push(cheminLocalise(pathname, suivante) + requete);
+        const cible = cheminLocalise(pathname, suivante) + requete;
+        if (remplacer) router.replace(cible);
+        else router.push(cible);
         // ⚠ TCK-550 — le layout RACINE (`<html lang>`, et la locale dont hérite le provider de
         // `[locale]/(public)`) est partagé entre `/fr/…` et `/wo/…` : la navigation douce ne le
         // re-rend pas. Sans ce rafraîchissement, il ne suivait le changement que si le

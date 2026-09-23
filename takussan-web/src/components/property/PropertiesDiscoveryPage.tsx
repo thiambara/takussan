@@ -20,6 +20,7 @@ import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { filtersToParams, useSearch, type GraineDeRecherche } from '@/hooks/useSearch';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import { positionVerticale } from '@/hooks/useVerrouDeDefilement';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 import { CARD_SIZES_SEARCH_GRID } from '@/components/property/card-image-sizes';
@@ -286,7 +287,8 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   const changerDeVue = (prochaine: View) => {
     if (prochaine === vue) return;
     if (vue === 'list') {
-      listeQuittee.current = { y: window.scrollY, recherche: signatureDeLaRecherche };
+      // TCK-551 — `positionVerticale()` et non `scrollY`, qui vaut 0 sous le verrou du menu mobile.
+      listeQuittee.current = { y: positionVerticale(), recherche: signatureDeLaRecherche };
     } else {
       const quittee = listeQuittee.current;
       retourARestaurer.current =

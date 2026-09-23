@@ -83,14 +83,16 @@ describe('Navbar publique — la mise en page de bureau attend `lg` (TCK-505 #2)
     expect(classesDe(rangee)).not.toContain('md:hidden');
   });
 
-  it('le panneau du menu mobile suit le même seuil (`lg:hidden`)', async () => {
+  it('le panneau du menu mobile suit le même seuil (`lg:hidden`), son voile aussi', async () => {
     const user = userEvent.setup();
-    const { container } = monter();
+    monter();
     await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    const panneau = container.querySelector('nav > div.absolute');
-    expect(panneau, 'le panneau est le <div class="… absolute top-full …"> enfant du <nav>').not.toBeNull();
+    // TCK-551 — le panneau est la boîte de dialogue du `Sheet`, rendue en portail hors du <nav>.
+    const panneau = await screen.findByRole('dialog', { name: 'Menu' });
     expect(classesDe(panneau)).toContain('lg:hidden');
     expect(classesDe(panneau)).not.toContain('md:hidden');
+    const voile = document.querySelector('[data-slot="sheet-overlay"]');
+    expect(classesDe(voile)).toContain('lg:hidden');
   });
 });
 

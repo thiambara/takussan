@@ -91,7 +91,7 @@ export async function IndexDeProfils({ ressource, locale, params, page, forme }:
       <Navbar />
       <NavbarSpacer />
 
-      <main className="mx-auto max-w-[1200px] px-6 pb-24 pt-10 md:px-12">
+      <main className="mx-auto max-w-[1200px] px-4 pb-24 pt-10 sm:px-6 md:px-12">
         <header className="relative mb-10">
           {/* Le même watermark bogolan que les fiches de TCK-276 : l'index et la fiche
               appartiennent au même monde visuel. */}

@@ -22,6 +22,8 @@ import { parametreDe } from '@/types/search';
 import { hrefLocalise, localeDuChemin } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
+import { useVerrouDeDefilement } from '@/hooks/useVerrouDeDefilement';
+import { useEntreeSentinelle } from '@/hooks/useEntreeSentinelle';
 import { cn } from '@/lib/utils';
 
 type PropertyTypeCountsResponse = {
@@ -87,6 +89,59 @@ export function Navbar({ className }: NavbarProps) {
     { value: 'Louer', label: t('rent') },
   ] as const;
   const [menuOpen, setMenuOpen] = useState(false);
+  // TCK-551 — fermer le menu rend le focus au bouton menu, y compris par un appui sur le voile.
+  // base-ui ne le fait PAS dans ce cas-là quand le navigateur ignore `focus({ preventScroll })`
+  // (`FloatingFocusManager`, `onOpenChangeLocal` : Chrome Android, Samsung Internet), pour ne pas
+  // faire sauter la page. Le bouton est dans une barre `fixed` : le focaliser ne fait rien défiler.
+  const boutonMenuRef = useRef<HTMLButtonElement>(null);
+  const fermeParLeVoile = useRef(false);
+  const basculerMenu = useCallback((ouvert: boolean, details: { reason: string }) => {
+    fermeParLeVoile.current = !ouvert && details.reason === 'outside-press';
+    setMenuOpen(ouvert);
+  }, []);
+  // Le panneau est `lg:hidden`, la MODALE non : menu ouvert à 800 px puis fenêtre passée à 1280
+  // (tablette qu'on fait pivoter), `body` restait verrouillé et cinq enfants de `body` en
+  // `aria-hidden`, sous une mise en page de bureau (mesuré). Le franchissement de `lg` le ferme.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const bureau = window.matchMedia('(min-width: 64rem)');
+    const surChangement = (e: { matches: boolean }) => { if (e.matches) setMenuOpen(false); };
+    bureau.addEventListener('change', surChangement);
+    return () => bureau.removeEventListener('change', surChangement);
+  }, [menuOpen]);
+  // Tour 4 — le geste retour ferme le menu : une entrée sentinelle à l'ouverture. ⚠ AVANT le
+  // verrou : le navigateur enregistre au `pushState` la position de l'entrée qu'on quitte, et elle
+  // doit être la vraie, pas le 0 du verrou (cf. `useEntreeSentinelle`).
+  const { remplaceeParUneNavigation } = useEntreeSentinelle(menuOpen, () => setMenuOpen(false));
+  // Le verrou de défilement du menu (tour 2) : `body` sorti du flux, et non l'`overflow: hidden`
+  // de base-ui, qu'un `scrollBy` et Safari iOS traversent. Cf. `useVerrouDeDefilement`.
+  useVerrouDeDefilement(menuOpen);
+  /**
+   * Un lien du menu : il ferme le menu et navigue en REMPLAÇANT la sentinelle (`replace` sur le
+   * lien) — un `back()` ne doit ni défaire la navigation ni la laisser derrière la page d'arrivée.
+   * Deux cas où il ne navigue pas, et où la sentinelle se rend donc par `back()` comme à la croix :
+   * - la cible est la page courante — le lien ne fait que fermer, comme avant ce ticket (mesuré :
+   *   logo sur `/fr`, « Acheter » sur la liste des achats → même URL, même position) ;
+   * - un clic modifié (nouvel onglet) : la page ne change pas.
+   */
+  const quitterParUnLien = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const cible = new URL(e.currentTarget.href, window.location.href);
+    const modifie = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+    if (cible.pathname + cible.search === window.location.pathname + window.location.search) {
+      e.preventDefault();
+    } else if (!modifie) {
+      remplaceeParUneNavigation();
+    }
+    setMenuOpen(false);
+  };
+  const menuBascule = useCallback((ouvert: boolean) => {
+    // Après l'animation de sortie, et seulement si le focus est resté nulle part : la primitive a
+    // pu le rendre elle-même, ou le visiteur l'avoir posé ailleurs.
+    if (ouvert || !fermeParLeVoile.current) return;
+    fermeParLeVoile.current = false;
+    const actif = document.activeElement;
+    if (!actif || actif === document.body) boutonMenuRef.current?.focus({ preventScroll: true });
+  }, []);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   // Le champ montre la recherche EN VIGUEUR sur la liste des biens — rechargement compris — et
   // reste modifiable. Ailleurs, `q` appartient à un autre index (`/agents`, `/agencies`) : il n'a
@@ -114,9 +169,10 @@ export function Navbar({ className }: NavbarProps) {
     // `location` repart de la recherche EN VIGUEUR à l'ouverture ET à la fermeture sans
     // validation (Échap, « Retour », clic dehors — la validation, elle, ferme par
     // `setRechercheOuverte` et ne passe pas ici). `location` est un état caché une fois la saisie
-    // refermée, et `buildSearchUrl` le lit : sans cette remise, la puce de catégorie du menu
-    // écrivait en `q` un texte que le visiteur avait abandonné (refus du tour 1, mesuré au
-    // navigateur : `?q=Ngor+Plateau&type=apartment`).
+    // refermée, et `buildSearchUrl` le lit : sans cette remise, une puce de catégorie (celle de
+    // la barre de bureau ; le menu mobile n'en porte plus depuis TCK-551) écrivait en `q` un texte
+    // que le visiteur avait abandonné (refus du tour 1 de TCK-549, mesuré au navigateur :
+    // `?q=Ngor+Plateau&type=apartment`).
     setLocation(qEnVigueur);
     setRechercheOuverte(ouverte);
   }, [qEnVigueur, setLocation]);
@@ -172,13 +228,13 @@ export function Navbar({ className }: NavbarProps) {
         setUserMenuOpen(false);
       }
     }
-    // Échap referme ce qui est ouvert — les trois menus sont faits main, sans primitive qui le
-    // porte (revue design du 2026-09-16).
+    // Échap referme ce qui est ouvert — les deux menus de bureau sont faits main, sans primitive
+    // qui le porte (revue design du 2026-09-16). Le menu mobile, lui, est un `Sheet` depuis
+    // TCK-551 : Échap, l'appui dehors et le retour du focus sont ceux de la primitive.
     function handleEscape(e: KeyboardEvent) {
       if (e.key !== 'Escape') return;
       setMoreOpen(false);
       setUserMenuOpen(false);
-      setMenuOpen(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
@@ -188,11 +244,12 @@ export function Navbar({ className }: NavbarProps) {
     };
   }, []);
 
-  async function handleLogout() {
+  async function handleLogout({ remplacer = false }: { readonly remplacer?: boolean } = {}) {
     // TCK-509 — `setUser(null)` seul effaçait l'utilisateur de l'écran mais laissait son JETON au
     // contexte : le compte connecté ensuite lisait l'API avec le jeton révoqué de celui-ci.
     await logout();
-    router.push(hrefLocalise('/', locale));
+    if (remplacer) router.replace(hrefLocalise('/', locale));
+    else router.push(hrefLocalise('/', locale));
   }
 
   const initials = user
@@ -279,7 +336,11 @@ export function Navbar({ className }: NavbarProps) {
     <nav
       className={`fixed top-0 w-full z-50 bg-background border-b border-border ${className || ''}`}
     >
-      <div className="flex items-start gap-4 px-6 py-3 max-w-[1440px] mx-auto">
+      {/* TCK-551 (N7) — `px-4` sous `sm`, la gouttière du contenu des pages sur téléphone (logo à
+          x = 24 contre 16 pour le `<h1>` de `/properties`, mesuré à 360 et 390) ; `px-6` dès `sm`,
+          comme avant. Les pages qui montent la barre sont en `px-4` sous `sm` elles aussi :
+          `Navbar.gouttiere.test.tsx` le garde. */}
+      <div className="flex items-start gap-4 px-4 sm:px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
         <LienLocalise href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
           {tCommon('appName')}
@@ -439,7 +500,7 @@ export function Navbar({ className }: NavbarProps) {
                       {t('myProfile')}
                     </LienLocalise>
                     <button
-                      onClick={handleLogout}
+                      onClick={() => { void handleLogout(); }}
                       className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <LogOut className="size-4 text-muted-foreground" />
@@ -529,123 +590,153 @@ export function Navbar({ className }: NavbarProps) {
               </SheetContent>
             </Sheet>
           <FavoritesPopover variant="compact" />
-          <button
-            type="button"
-            className="size-11 shrink-0 grid place-items-center rounded-full text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-            onClick={() => setMenuOpen((o) => !o)}
-            aria-label={menuOpen ? t('closeMenu') : t('openMenu')}
-            aria-expanded={menuOpen}
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          {/* TCK-551 (N5) — le menu est une MODALE, sur la primitive de la saisie ci-dessus :
+              voile, verrou de défilement, fermeture par un appui dehors / Échap / la croix, focus
+              tenu dans le panneau et rendu à ce bouton. Mesuré avant : aucun voile, la page
+              défilait dessous (`scrollY` 0 → 500), et un tap « à côté » tombait sur le lien d'une
+              carte de résultat — il OUVRAIT une fiche au lieu de fermer le menu.
+              Le voile couvre aussi la barre : menu ouvert, la pastille n'est pas atteignable, et
+              deux modales ne peuvent pas s'empiler.
+              Le menu est un menu de NAVIGATION : la rangée de catégories en est retirée (521 px
+              dans 342 visibles, « Commerce » et « Bureau » hors champ) — le tiroir de filtres
+              les porte toutes. */}
+          {/* `modal="trap-focus"` : la primitive garde le piège du focus, le voile, l'appui dehors,
+              Échap et l'`aria-hidden` du reste de la page — mais PAS son verrou de défilement, qui
+              sur mobile se réduit à `overflow: hidden` et laissait la page défiler menu ouvert
+              (tour 2, mesuré : `scrollBy(0, 500)`, 700 → 1200). Le verrou est
+              `useVerrouDeDefilement`, et les deux ne s'empilent pas (cf. son en-tête). */}
+          <Sheet modal="trap-focus" open={menuOpen} onOpenChange={basculerMenu} onOpenChangeComplete={menuBascule}>
+            <SheetTrigger
+              ref={boutonMenuRef}
+              aria-label={t('openMenu')}
+              className="size-11 shrink-0 grid place-items-center rounded-full text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+            >
+              <Menu className="w-5 h-5" aria-hidden="true" />
+            </SheetTrigger>
+            <SheetContent
+              side="top"
+              // `touch-none` : un glissé qui part du voile n'a rien à faire défiler — pas même le
+              // voile, sur un Safari qui ignorerait la sortie du flux de `body`.
+              overlayClassName="lg:hidden touch-none"
+              // `max-h-5/6` et non `max-h-dvh` : en paysage connecté (740 × 360), le panneau
+              // couvrait tout l'écran et aucun voile ne restait à toucher pour le fermer (mesuré).
+              className="lg:hidden max-h-5/6 rounded-b-xl bg-popover"
+            >
+              {/* L'en-tête redessine la barre à l'identique — logo à gauche, croix à la place
+                  exacte du bouton menu : le panneau recouvre la barre sans rien déplacer. */}
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 sm:px-6 py-3">
+                <LienLocalise
+                  href="/"
+                  replace
+                  onClick={quitterParUnLien}
+                  className="mt-2.5 text-xl font-bold tracking-tighter text-primary hover:opacity-80 transition-opacity"
+                >
+                  {tCommon('appName')}
+                </LienLocalise>
+                <SheetTitle className="sr-only">{t('menuTitle')}</SheetTitle>
+                <SheetClose
+                  aria-label={t('closeMenu')}
+                  className="size-11 shrink-0 grid place-items-center rounded-full text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                >
+                  <X className="w-5 h-5" aria-hidden="true" />
+                </SheetClose>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                {/* Mobile nav links */}
+                <div className="flex flex-col px-4 sm:px-6 py-2">
+                  {navLinks.map((link) => {
+                    const actif = lienActif(link.href, pathname, searchParams);
+                    return (
+                      <LienLocalise
+                        key={link.labelKey}
+                        href={link.href}
+                        replace
+                        onClick={quitterParUnLien}
+                        aria-current={actif ? 'page' : undefined}
+                        className={`flex min-h-11 items-center font-semibold text-base transition-colors ${actif ? 'text-primary' : 'text-foreground hover:text-primary'
+                          }`}
+                      >
+                        {tLinks(link.labelKey)}
+                      </LienLocalise>
+                    );
+                  })}
+                </div>
+
+                {/* TCK-550 — sous `lg`, le seul choix de langue atteignable : celui de bureau est `hidden lg:flex`. */}
+                <ChoixDeLangue remplacerLEntree className="px-4 sm:px-6 py-2 border-t border-border justify-between" />
+
+                <div className="px-4 sm:px-6 py-4 border-t border-border flex flex-col gap-3">
+                  {user ? (
+                    <>
+                      <div className="flex items-center gap-3 mb-1">
+                        <Avatar size="default" className="bg-primary">
+                          <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                            {initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{user.first_name} {user.last_name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                        </div>
+                      </div>
+                      <LienLocalise
+                        href="/app/profile"
+                        replace
+                        onClick={quitterParUnLien}
+                        className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
+                      >
+                        <UserCircle className="size-4 text-muted-foreground" />
+                        {t('myProfile')}
+                      </LienLocalise>
+                      <LienLocalise
+                        href="/publish"
+                        replace
+                        onClick={(e) => { armPublishIntent(); quitterParUnLien(e); }}
+                        className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
+                      >
+                        {t('publishListing')}
+                      </LienLocalise>
+                      <button
+                        onClick={() => {
+                          // Comme un lien : la redirection vers l'accueil remplace la sentinelle,
+                          // sauf si on y est déjà (la sentinelle se rend alors par `back()`).
+                          const remplacer = pathname !== hrefLocalise('/', locale);
+                          if (remplacer) remplaceeParUneNavigation();
+                          setMenuOpen(false);
+                          void handleLogout({ remplacer });
+                        }}
+                        className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
+                      >
+                        <LogOut className="size-4 text-muted-foreground" />
+                        {t('logout')}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {/* TCK-551 (N7) — `cn()` et non `buttonVariants({ className })` : `cva` CONCATÈNE,
+                          il ne fusionne pas. `px-2.5` de la variante et `px-0` d'ici étaient présents
+                          tous les deux, et `px-2.5` gagnait (texte à x = 35 contre 24, mesuré). */}
+                      <LienLocalise href="/auth/login" replace onClick={quitterParUnLien} className={cn(buttonVariants({ variant: 'ghost' }), 'text-foreground font-medium text-sm h-11 justify-start px-0 hover:bg-transparent hover:text-primary')}>
+                        {t('login')}
+                      </LienLocalise>
+                      <LienLocalise
+                        href="/publish"
+                        replace
+                        onClick={(e) => { armPublishIntent(); quitterParUnLien(e); }}
+                        className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
+                      >
+                        {t('publishListing')}
+                      </LienLocalise>
+                    </>
+                  )}
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
 
-      {/* Mobile menu panel */}
-      {menuOpen && (
-        <div className="lg:hidden absolute top-full left-0 w-full max-h-[calc(100dvh-69px)] overflow-y-auto overscroll-contain bg-popover border-t border-border shadow-lg">
-            {/* Mobile categories */}
-            <div className="px-6 pb-3 border-t border-border pt-3">
-              <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {categories.map((cat) => {
-                  const Icon = iconMap[cat.icon] || Building2;
-                  const isActive = activeCategory === cat.type;
-                  return (
-                    <button
-                      key={cat.id}
-                      onClick={() => {
-                        setMenuOpen(false);
-                        handleCategoryClick(cat.type);
-                      }}
-                      className={`flex flex-col items-center gap-1 shrink-0 px-4 py-2.5 rounded-xl transition-colors ${isActive
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-muted'
-                        }`}
-                    >
-                      <Icon className="w-5 h-5" />
-                      <span className="text-xs font-semibold whitespace-nowrap">{tCategories(cat.nameKey)}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-          {/* Mobile nav links */}
-          <div className="flex flex-col px-6 py-2 border-t border-border">
-            {navLinks.map((link) => {
-              const actif = lienActif(link.href, pathname, searchParams);
-              return (
-                <LienLocalise
-                  key={link.labelKey}
-                  href={link.href}
-                  onClick={() => setMenuOpen(false)}
-                  aria-current={actif ? 'page' : undefined}
-                  className={`flex min-h-11 items-center font-semibold text-base transition-colors ${actif ? 'text-primary' : 'text-foreground hover:text-primary'
-                    }`}
-                >
-                  {tLinks(link.labelKey)}
-                </LienLocalise>
-              );
-            })}
-          </div>
-
-          {/* TCK-550 — sous `lg`, le seul choix de langue atteignable : celui de bureau est `hidden lg:flex`. */}
-          <ChoixDeLangue className="px-6 py-2 border-t border-border justify-between" />
-
-          <div className="px-6 py-4 border-t border-border flex flex-col gap-3">
-            {user ? (
-              <>
-                <div className="flex items-center gap-3 mb-1">
-                  <Avatar size="default" className="bg-primary">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">{user.first_name} {user.last_name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-                  </div>
-                </div>
-                <LienLocalise
-                  href="/app/profile"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
-                >
-                  <UserCircle className="size-4 text-muted-foreground" />
-                  {t('myProfile')}
-                </LienLocalise>
-                <LienLocalise
-                  href="/publish"
-                  onClick={() => { armPublishIntent(); setMenuOpen(false); }}
-                  className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
-                >
-                  {t('publishListing')}
-                </LienLocalise>
-                <button
-                  onClick={() => { setMenuOpen(false); void handleLogout(); }}
-                  className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
-                >
-                  <LogOut className="size-4 text-muted-foreground" />
-                  {t('logout')}
-                </button>
-              </>
-            ) : (
-              <>
-                <LienLocalise href="/auth/login" onClick={() => setMenuOpen(false)} className={buttonVariants({ variant: 'ghost', className: 'text-foreground font-medium text-sm h-11 justify-start px-0 hover:bg-transparent hover:text-primary' })}>
-                  {t('login')}
-                </LienLocalise>
-                <LienLocalise
-                  href="/publish"
-                  onClick={() => { armPublishIntent(); setMenuOpen(false); }}
-                  className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
-                >
-                  {t('publishListing')}
-                </LienLocalise>
-              </>
-            )}
-          </div>
-        </div>
-      )}
       {enNavigation && <BarreDeChargement libelle={t('loading')} />}
     </nav>
   );

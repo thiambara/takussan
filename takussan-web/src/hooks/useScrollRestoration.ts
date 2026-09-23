@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 
+import { positionVerticale } from '@/hooks/useVerrouDeDefilement';
+
 /**
  * Restauration du défilement au retour arrière — TCK-335, étape 4.
  *
@@ -163,7 +165,10 @@ export function useScrollRestoration(pret: boolean): void {
       // (navigation poussée, pas encore décidée) : ce défilement ne lui appartient pas encore.
       const courante = cleRef.current;
       if (!courante || lireCle() !== courante) return;
-      memoriser(courante, { y: window.scrollY, url: urlCourante() });
+      // TCK-551 — pas `window.scrollY` : sous le verrou du menu mobile (`body` en `position: fixed`),
+      // il vaut 0, et le `scroll` que la pose émet écrivait ce 0 ici. Une sortie menu ouvert (geste
+      // retour d'Android, rechargement) perdait alors la position de la liste — mesuré.
+      memoriser(courante, { y: positionVerticale(), url: urlCourante() });
     };
     const surDefilement = () => {
       if (planifie) return;

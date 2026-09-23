@@ -276,8 +276,15 @@ const FICHIERS_HORS_JETONS = 5;
  * Relevé par `couplesDuFichier` fichier par fichier : `Footer` reste à 4, `Navbar` à 14,
  * `LanguageSwitcher` à 1. Le choix courant (`bg-primary text-primary-foreground`) déclare son
  * fond et est donc MESURÉ, pas compté ici.
+ *
+ * **244 → 245 le 2026-09-23 (TCK-551).** `home/Navbar.tsx` passe de 14 à 15 entrées, relevé par
+ * `couplesDesFichiers` sur la version de `HEAD` puis sur la nouvelle : la CROIX de l'en-tête du
+ * menu mobile, devenu modale (`text-muted-foreground`, comme le bouton menu dont elle prend la
+ * place exacte), sans fond propre — le fond est le `bg-popover` du panneau. Les puces de
+ * catégorie retirées du menu n'étaient pas comptées (classes dans un gabarit conditionnel).
+ * `FavoritesPopover` reste à 6, `ui/sheet` à 2.
  */
-const ENCRES_INVERSES = 244;
+const ENCRES_INVERSES = 245;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);
