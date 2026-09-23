@@ -1,3 +1,5 @@
+import { formatPrice } from '@/lib/utils';
+
 export type SuggestCity = {
   label: string;
   slug?: string;
@@ -250,7 +252,10 @@ export const SEARCH_FILTER_KEYS = {
     params: ['contract_type'],
     lire: (sp: URLSearchParams) => litTexte(sp, 'contract_type') as ContractType | undefined,
     ecrire: (v: ContractType) => v,
-    libelle: (v: ContractType, t: TraducteursDeFiltre) => t.contract(v === 'sale' ? 'sale' : 'rent'),
+    // TCK-552 — le mot de la pastille des CARTES (`ContractTypeChip` : « En location »), et non plus
+    // « Location » : la même page écrivait les deux pour la même notion (P8). La pastille est posée
+    // sur toutes les cartes du site, la puce n'existe qu'ici — c'est la puce qui s'aligne.
+    libelle: (v: ContractType, t: TraducteursDeFiltre) => t.contract(v === 'sale' ? 'saleLong' : 'rentLong'),
   },
   type: {
     role: 'filtre',
@@ -275,14 +280,17 @@ export const SEARCH_FILTER_KEYS = {
     params: ['price_min'],
     lire: (sp: URLSearchParams) => litNombre(sp, 'price_min'),
     ecrire: (v: number | boolean) => String(v),
-    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMin', { value: Number(v).toLocaleString('fr-SN') }),
+    // TCK-552 — le montant passe par `formatPrice`, la fonction des CARTES : la puce écrivait
+    // « 2 000 000 FCFA » quand chaque carte de la même page écrit « 2 000 000 F CFA ». La devise
+    // n'est plus dans le gabarit (`≥ {value}`) : une seule fonction l'écrit, partout.
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMin', { value: formatPrice(Number(v), 'XOF') }),
   },
   price_max: {
     role: 'filtre',
     params: ['price_max'],
     lire: (sp: URLSearchParams) => litNombre(sp, 'price_max'),
     ecrire: (v: number | boolean) => String(v),
-    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMax', { value: Number(v).toLocaleString('fr-SN') }),
+    libelle: (v: number, t: TraducteursDeFiltre) => t.tags('tags.priceMax', { value: formatPrice(Number(v), 'XOF') }),
   },
   bedrooms: {
     role: 'filtre',

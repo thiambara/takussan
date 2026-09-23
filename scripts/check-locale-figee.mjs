@@ -608,10 +608,12 @@ const PLAFOND_CONSOLE = 1; // mesuré le 2026-08-27
  *
  * Même plancher/plafond que ci-dessus.
  */
-const PLAFOND_RESTE = 28; // mesuré le 2026-08-27, resserré de 50 à 48 à la fusion de la vague 3
+const PLAFOND_RESTE = 26; // mesuré le 2026-08-27, resserré de 50 à 48 à la fusion de la vague 3
 //                          (TCK-374 a porté deux graphiques de `/app` sur la locale active).
 //                          48 → 28 le 2026-09-16, re-mesuré sur l'arbre fusionné de la revue
 //                          design (dates et montants portés sur la locale active par les groupes).
+//                          28 → 26 le 2026-09-23 : les deux puces de prix de `types/search.ts`
+//                          passent par `formatPrice`, la fonction des cartes (TCK-552).
 
 const consoleCompte = compter(consoleHorsPerimetre);
 const resteCompte = compter(reste);

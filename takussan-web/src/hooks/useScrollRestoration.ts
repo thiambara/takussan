@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from 'react';
 
+import { positionVerticale } from '@/hooks/useVerrouDeDefilement';
+
 /**
  * Restauration du défilement au retour arrière — TCK-335, étape 4.
  *
@@ -35,10 +37,15 @@ import { useEffect, useRef } from 'react';
  * dans `node_modules/next/dist/client/components/app-router.js` : il n'y pose que
  * `__NA` et `__PRIVATE_NEXTJS_INTERNALS_TREE`. Le `history.state.key` du routeur
  * Pages n'existe plus ici. On le lit d'abord s'il est présent (au cas où), puis on
- * retombe sur une clé à nous, posée par `replaceState`. Elle survit aux navigations :
- * le même fichier compose son état d'historique avec `...window.history.state` tant
- * que `pushRef.preserveCustomHistoryState` vaut `true`, ce qui est sa seule valeur
- * assignée dans `create-initial-router-state.js`.
+ * retombe sur une clé à nous, posée par `replaceState`.
+ *
+ * ⚠️ **Elle NE survit PAS à un `router.push`** — mesuré au navigateur le 2026-09-23
+ * (TCK-557). Ce paragraphe affirmait le contraire : `preserveCustomHistoryState` vaut
+ * `true` à l'état initial, mais une navigation le remet à `false`
+ * (`segment-cache/navigation.js`, deux affectations sur trois), et l'entrée poussée
+ * arrive avec un état neuf, sans notre clé. Conséquence mesurée : une page 2 atteinte par
+ * la pagination n'enregistrait rien, et le retour depuis une fiche repartait de 0. La clé
+ * se relit donc à chaque décision (`pret`), et se pose sur l'entrée qui n'en a pas.
  *
  * La position mémorise **aussi son URL**, et n'est restaurée que si l'URL courante
  * lui correspond. C'est ce qui distingue un vrai retour arrière (même entrée, même
@@ -138,8 +145,7 @@ export function useScrollRestoration(pret: boolean): void {
   const enregistrementOuvert = useRef(false);
 
   useEffect(() => {
-    const cle = lireOuPoserCle();
-    cleRef.current = cle;
+    cleRef.current = lireOuPoserCle();
 
     // On prend la main sur la restauration native : c'est elle qui écrête à 0 (cf. l'en-tête).
     // La valeur précédente est rendue au démontage — le réglage est global au document.
@@ -155,10 +161,14 @@ export function useScrollRestoration(pret: boolean): void {
     const enregistrer = () => {
       planifie = false;
       if (!enregistrementOuvert.current) return;
-      // La navigation suivante hérite de l'état d'historique de Next : si la clé courante
-      // n'est plus la nôtre, l'entrée a changé et ce défilement ne nous appartient pas.
-      if (lireCle() !== cle) return;
-      memoriser(cle, { y: window.scrollY, url: urlCourante() });
+      // Si la clé courante n'est plus celle que la dernière décision a retenue, l'entrée a changé
+      // (navigation poussée, pas encore décidée) : ce défilement ne lui appartient pas encore.
+      const courante = cleRef.current;
+      if (!courante || lireCle() !== courante) return;
+      // TCK-551 — pas `window.scrollY` : sous le verrou du menu mobile (`body` en `position: fixed`),
+      // il vaut 0, et le `scroll` que la pose émet écrivait ce 0 ici. Une sortie menu ouvert (geste
+      // retour d'Android, rechargement) perdait alors la position de la liste — mesuré.
+      memoriser(courante, { y: positionVerticale(), url: urlCourante() });
     };
     const surDefilement = () => {
       if (planifie) return;
@@ -179,8 +189,11 @@ export function useScrollRestoration(pret: boolean): void {
 
   useEffect(() => {
     if (!pret) return;
-    const cle = cleRef.current;
-    if (!cle) return;
+    // TCK-557 — la clé se relit (et se pose) sur l'entrée COURANTE à chaque décision, pas une
+    // fois au montage : une entrée poussée par `router.push` arrive sans clé (cf. l'en-tête), et
+    // garder celle du montage attribuait la page 2 à l'entrée de la page 1.
+    const cle = lireOuPoserCle();
+    cleRef.current = cle;
 
     const url = urlCourante();
     const jeton = `${cle}|${url}`;

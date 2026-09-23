@@ -1,16 +1,12 @@
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
-import { usePathname, useRouter } from 'next/navigation';
-import { useTransition } from 'react';
+import { useTranslations } from 'next-intl';
 import { Globe } from 'lucide-react';
-import { setLocaleAction } from '@/app/actions/locale';
-import { cheminLocalise, estCheminLocalisable } from '@/i18n/routing';
+import { useChangementDeLangue } from '@/hooks/useChangementDeLangue';
 import {
   LOCALES,
   LOCALE_SHORT,
   localeDisplayLabel,
-  type Locale,
 } from '@/i18n/config';
 import {
   DropdownMenu,
@@ -26,44 +22,20 @@ type LanguageSwitcherProps = {
 };
 
 /**
- * Le commutateur de langue — [ADR-0026](../../../docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md) §5.
+ * Le commutateur de langue de BUREAU — [ADR-0026](../../../docs/adr/0026-la-langue-est-un-segment-d-url-sur-la-surface-publique.md) §5.
  *
- * Il fait DEUX choses, et l'ordre compte peu mais l'union est nécessaire :
+ * Un menu déroulant, monté dans la barre publique de bureau (`Navbar`, bloc `hidden lg:flex`) et
+ * dans les barres de la console. Sa mécanique — cookie, préférence de compte, puis navigation vers
+ * le même chemin et la même requête sous l'autre préfixe — vit dans `useChangementDeLangue`, qu'il
+ * partage avec `ChoixDeLangue`, le contrôle segmenté du menu mobile et du pied de page (TCK-550).
  *
- * 1. **Il navigue.** Sur une page publique, changer de langue change l'URL
- *    (`/fr/properties/x` → `/en/properties/x`). C'est ce qui rend le choix partageable, et ce qui
- *    fait que le retour arrière du navigateur ramène à la langue précédente : un changement de
- *    langue est une navigation, pas un réglage invisible.
- * 2. **Il écrit le cookie** (`setLocaleAction`), pour que les surfaces qui ne portent pas la langue
- *    dans leur URL — la console, `/auth`, `/onboarding` — et les entrées ultérieures sans préfixe
- *    suivent le même choix.
- *
- * ⚠ Hors de la surface publique, `usePathname()` rend un chemin non localisable (`/app/overview`) :
- * il n'y a alors rien à naviguer, et seul le cookie change. Ne pas « corriger » ce cas en préfixant
- * quand même — la console n'a pas de route `[locale]`, ce serait un 404.
+ * ⚠ Ce docblock affirmait jusqu'à TCK-550 que ce composant était monté « dans la Navbar et le pied
+ * de page » : le pied de page n'en montait aucun, et sous `lg` aucun choix de langue n'était
+ * atteignable (relevé du 2026-09-23).
  */
 export function LanguageSwitcher({ className, variant = 'compact' }: LanguageSwitcherProps) {
-  const locale = useLocale() as Locale;
+  const { locale, enCours: isPending, choisir: handleSelect } = useChangementDeLangue();
   const t = useTranslations('common.languageSwitcher');
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  const handleSelect = (next: Locale) => {
-    if (next === locale) return;
-    startTransition(async () => {
-      await setLocaleAction(next);
-      if (estCheminLocalisable(pathname)) {
-        // ⚠ `window.location.search` et non `useSearchParams()` : ce hook force la page qui monte
-        // ce composant sous une frontière de suspension au build (« useSearchParams() should be
-        // wrapped in a suspense boundary »), et le commutateur est monté dans la Navbar et le
-        // pied de page — donc sur toute la surface publique. Ici la lecture n'a lieu que dans le
-        // gestionnaire de clic, où le navigateur existe par construction.
-        const requete = window.location.search;
-        router.push(cheminLocalise(pathname, next) + requete);
-      }
-    });
-  };
 
   return (
     <DropdownMenu>

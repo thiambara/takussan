@@ -1,7 +1,7 @@
 'use client';
 
+import { useId } from 'react';
 import { useTranslations } from 'next-intl';
-import { LienLocalise } from '@/components/shared/LienLocalise';
 import { MapPin } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import { useDateRelative } from '@/components/property/cards/useDateRelative';
@@ -10,6 +10,7 @@ import { ContractTypeChip } from './ContractTypeChip';
 import { NewBuildChip } from './NewBuildChip';
 import { CardMeta } from './CardMeta';
 import { PropertyPhoto } from './PropertyPhoto';
+import { LienDeCarte, AU_DESSUS_DU_LIEN } from './LienDeCarte';
 import type { PropertyCardCommonProps } from './types';
 import { staggerDelay } from '@/components/property/card-stagger';
 
@@ -28,14 +29,20 @@ export function PropertyCardListing({
     .filter(Boolean)
     .join(', ');
   const timeAgo = useDateRelative(property.published_at ?? property.created_at);
+  const idTitre = useId();
 
+  // TCK-554 — la carte portait DEUX liens vers la même fiche (la photo, le titre) et le cœur
+  // vivait dans le premier. Un seul lien désormais, vide, qui couvre la carte (`LienDeCarte`) ;
+  // le cœur est son frère, posé au-dessus.
   return (
     <article
       className="group w-[340px] sm:w-[440px] shrink-0 animate-card-enter"
       style={{ animationDelay: staggerDelay(index) }}
     >
-      <div className="flex gap-3 sm:gap-4 items-stretch p-3 rounded-2xl bg-card border border-border hover:shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)] transition-shadow">
-        <LienLocalise href={`/properties/${property.slug}`} className="block shrink-0">
+      <div className="relative flex gap-3 sm:gap-4 items-stretch p-3 rounded-2xl bg-card border border-border hover:shadow-[0_8px_24px_color-mix(in_srgb,var(--shadow-color)_8%,transparent)] transition-shadow">
+        <LienDeCarte slug={property.slug} idTitre={idTitre} className="focus-visible:rounded-2xl" />
+
+        <div className="shrink-0">
           <div className="relative aspect-square w-[128px] sm:w-[170px] rounded-lg overflow-hidden bg-muted">
             <PropertyPhoto
               src={property.main_photo_url}
@@ -51,18 +58,18 @@ export function PropertyCardListing({
                 {property.contract_type && <ContractTypeChip type={property.contract_type} compact />}
                 <NewBuildChip condition={property.condition} compact />
               </div>
-              <FavoriteButton propertyId={property.id} size="sm" className="shrink-0" />
+              <FavoriteButton propertyId={property.id} size="sm" className={`shrink-0 ${AU_DESSUS_DU_LIEN}`} />
             </div>
           </div>
-        </LienLocalise>
+        </div>
 
         <div className="flex-1 min-w-0 flex flex-col justify-between py-1 pr-1">
           <div className="space-y-1">
-            <LienLocalise href={`/properties/${property.slug}`}>
-              <h3 className="font-display text-[15px] sm:text-[16px] leading-[20px] font-semibold text-foreground line-clamp-2 hover:text-primary transition-colors">
-                {property.title}
-              </h3>
-            </LienLocalise>
+            {/* `group-hover` et non `hover` : le lien de la carte couvre désormais le titre, qui
+                ne reçoit plus le survol lui-même. */}
+            <h3 id={idTitre} className="font-display text-[15px] sm:text-[16px] leading-[20px] font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+              {property.title}
+            </h3>
 
             {location && (
               <p className="text-[12px] text-muted-foreground flex items-center gap-1 truncate">

@@ -209,14 +209,16 @@ describe('Navbar — le champ montre la recherche en vigueur', () => {
     chemin = '/fr/properties';
   });
 
-  it('sur la liste des biens, le champ est prérempli par `q` — bureau et menu mobile', async () => {
+  it('sur la liste des biens, le champ est prérempli par `q` — bureau et saisie mobile', async () => {
     const user = userEvent.setup();
     monter();
 
     expect(champ()).toHaveValue('villa piscine');
 
-    await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    expect(screen.getByRole('textbox')).toHaveValue('villa piscine');
+    // TCK-549 — la saisie mobile n'est plus dans le menu : c'est la pastille qui l'ouvre.
+    await user.click(screen.getByRole('button', { name: /villa piscine/ }));
+    const dialogue = await screen.findByRole('dialog');
+    expect(within(dialogue).getByRole('searchbox')).toHaveValue('villa piscine');
   });
 
   it('le terme se modifie dans le champ, et la loupe remplace `q` sans perdre les autres filtres', async () => {

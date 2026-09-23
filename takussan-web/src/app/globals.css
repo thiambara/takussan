@@ -708,3 +708,50 @@
   box-shadow: 0 4px 12px rgba(31, 24, 18, 0.28);
   outline: none;
 }
+
+/* TCK-553 — la grappe : un disque à l'encre du texte, qui porte son nombre de biens. Distincte
+   d'une étiquette de prix (terracotta) pour ne pas se lire comme un prix. Le diamètre vient de
+   `iconSize` (44 px au moins : une cible tactile). */
+.leaflet-div-icon.takussan-cluster-marker {
+  background: transparent;
+  border: 0;
+}
+
+.takussan-cluster-marker__disque {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--foreground);
+  color: var(--background);
+  font: 700 14px/1 var(--font-sans, system-ui, sans-serif);
+  font-variant-numeric: tabular-nums;
+  border: 2px solid var(--background);
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--foreground) 18%, transparent),
+    0 2px 8px rgba(31, 24, 18, 0.24);
+  cursor: pointer;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.takussan-cluster-marker__disque:hover,
+.takussan-cluster-marker__disque:focus-visible {
+  transform: scale(1.06);
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--foreground) 22%, transparent),
+    0 4px 12px rgba(31, 24, 18, 0.3);
+  outline: none;
+}
+
+/* TCK-553 — carte plein écran sous `lg` : l'attribution OpenStreetMap tient dans la marge que le
+   dock flottant laisse sous la pastille Filtres/Liste (`--floating-dock-base`, 16 px sous `sm`).
+   À la hauteur de ligne de Leaflet (12 px × 1,4 = 17 px), la pastille la recouvrait d'1 px —
+   mesuré à 360 × 740 : pastille 676–724, attribution 723–740. */
+@media (max-width: 1023.98px) {
+  .takussan-carte-plein-ecran .leaflet-control-attribution {
+    line-height: 16px;
+  }
+}

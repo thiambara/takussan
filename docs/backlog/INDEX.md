@@ -6,16 +6,16 @@
 >
 > Pour changer ce que montre cet index, éditer le **frontmatter du ticket**, puis régénérer.
 
-**492 tickets** — 28 ouverts, 463 livrés.
+**503 tickets** — 27 ouverts, 474 livrés.
 
 | Statut | Nombre |
 |---|---:|
 | 📋 Todo | 26 |
 | 🚧 Doing | 1 |
-| 👀 Review | 1 |
+| 👀 Review | 0 |
 | ⛔ Blocked | 0 |
-| ✅ Done | 463 |
-| 🗑️ Obsolete | 1 |
+| ✅ Done | 474 |
+| 🗑️ Obsolete | 2 |
 
 ## Légende
 
@@ -66,7 +66,7 @@
 
 ## 👀 Review
 
-- [TCK-542](tickets/TCK-542-reduction-des-photos-avant-envoi.md) — Réduire les photos dans le navigateur avant l'envoi — dimensions plafonnées, format conservé `M · P2 · front`
+_(aucun)_
 
 ## ⛔ Blocked
 
@@ -74,15 +74,32 @@ _(aucun)_
 
 ---
 
-## ✅ Done — 463
+## ✅ Done — 474
 
 <details>
-<summary><strong>Vague 67 — Médias sur R2 servis par Cloudflare Transformations — ADR-0029 (2026-09-21)</strong> — 5 tickets</summary>
+<summary><strong>Vague 68 — Audit UI/UX mobile de la liste des biens et de la barre de navigation — 37 constats mesurés à 360 et 390 px, revue adverse (2026-09-22)</strong> — 10 tickets</summary>
+
+- [TCK-549](tickets/TCK-549-pastille-recherche-mobile-inerte.md) — Sur mobile, la pastille « Où cherchez-vous ? » ne permet pas d'écrire : elle relance la recherche courante et renvoie en page 1 `M · P1 · bug`
+- [TCK-550](tickets/TCK-550-selecteur-de-langue-absent-sur-mobile.md) — Aucun sélecteur de langue n'est atteignable sur mobile : FR / EN / WO n'existent que dans la barre de bureau `S · P1 · bug`
+- [TCK-551](tickets/TCK-551-menu-mobile-sans-voile-ni-verrou.md) — Menu mobile : sans voile ni verrou de défilement, fermeture impossible d'un tap à côté, rangée de catégories à moitié cachée, alignements décalés `S · P2 · front`
+- [TCK-552](tickets/TCK-552-barre-d-outils-liste-mobile.md) — Liste des biens sur mobile : 42 à 70 % du premier écran pris par six rangées de contrôles, qui disparaissent ensuite au défilement `M · P1 · front`
+- [TCK-553](tickets/TCK-553-carte-mobile-illisible-et-piege.md) — Vue carte sur mobile : 129 étiquettes de prix empilées sans regroupement, dans une carte qui capture le défilement de la page `M · P1 · front`
+- [TCK-554](tickets/TCK-554-boutons-imbriques-dans-le-lien-de-carte.md) — Carte de bien : favori et comparateur sont des <button> DANS le lien — HTML invalide, nom accessible illisible, cibles de 32 px à 6 px d'écart `S · P1 · bug`
+- [TCK-555](tickets/TCK-555-carte-de-bien-mobile-photo-sacrifiee.md) — Carte de bien sur mobile : une photo de 117 px de haut sous quatre surimpressions — la grille à deux colonnes sacrifie le premier critère de choix `M · P2 · front`
+- [TCK-556](tickets/TCK-556-tiroir-de-filtres-retour-et-compte.md) — Tiroir de filtres mobile : le geste retour défait un filtre au lieu de fermer le tiroir, et « Voir les résultats » ne dit pas combien `S · P2 · front`
+- [TCK-557](tickets/TCK-557-pagination-en-boutons-sans-liens.md) — La pagination de la liste des biens est faite de <button> sans href : pages 2 et suivantes introuvables par un robot, cibles de 36 px `S · P1 · front`
+- [TCK-558](tickets/TCK-558-zero-resultat-une-seule-issue.md) — Zéro résultat : deux fois « aucun bien » et une seule issue, « Effacer tous les filtres », là où un seul filtre suffit souvent à retrouver des biens `S · P2 · front`
+
+</details>
+
+<details>
+<summary><strong>Vague 67 — Médias sur R2 servis par Cloudflare Transformations — ADR-0029 (2026-09-21)</strong> — 6 tickets</summary>
 
 - [TCK-538](tickets/TCK-538-disques-r2-et-collections-privees.md) — Médias sur R2 : pilote S3, disques public et privé, et la règle « privé par défaut » — les pièces KYC ne sont plus sur le disque public `L · P1 · back`
 - [TCK-539](tickets/TCK-539-medias-independants-du-disque.md) — Aucun code ne suppose plus qu'un média est un fichier local : KYC, versions de documents, liens de partage, relevés bancaires, filigrane `L · P1 · back`
 - [TCK-540](tickets/TCK-540-loader-cloudflare-transformations.md) — Le front sert les images par Cloudflare Transformations — l'optimiseur de Next ne tourne plus sur le VPS `M · P1 · front`
 - [TCK-541](tickets/TCK-541-bascule-preproduction-medias-r2.md) — Bascule de la préproduction sur R2 : copie des médias, clés Dokploy, fin de la sauvegarde du volume, sauvegarde du seau privé `M · P1 · technique`
+- [TCK-542](tickets/TCK-542-reduction-des-photos-avant-envoi.md) — Réduire les photos dans le navigateur avant l'envoi — dimensions plafonnées, format conservé `M · P2 · front`
 - [TCK-545](tickets/TCK-545-urls-directes-des-collections-privees-restantes.md) — Les photos d'état des lieux, de maintenance et le téléversement générique n'exposent plus l'URL directe d'un fichier privé `S · P1 · back`
 
 </details>
@@ -887,7 +904,14 @@ _(aucun)_
 
 </details>
 
-## 🗑️ Obsolete — 1
+## 🗑️ Obsolete — 2
+
+<details>
+<summary><strong>Vague 68 — Audit UI/UX mobile de la liste des biens et de la barre de navigation — 37 constats mesurés à 360 et 390 px, revue adverse (2026-09-22)</strong> — 1 ticket</summary>
+
+- [TCK-559](tickets/TCK-559-compteur-clignote-et-recherche-en-double.md) — Liste des biens : le compteur servi par le serveur repasse par « Chargement… », et une seconde requête de recherche part après l'hydratation `S · P2 · technique`
+
+</details>
 
 <details>
 <summary><strong>Vague 15 — Câblage des zones UI stub (StubPlaceholder / "Bientôt disponible")</strong> — 1 ticket</summary>

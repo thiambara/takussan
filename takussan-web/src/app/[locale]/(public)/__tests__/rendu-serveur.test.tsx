@@ -460,3 +460,50 @@ describe('TCK-432 · AC3 — exactement un `<h1>` par page, issu du dictionnaire
     expect(compteDeH1(markup)).toBe(0);
   });
 });
+
+// ── TCK-557 — la pagination est faite de LIENS, dans le HTML servi ────────────
+
+describe('TCK-557 · AC1, AC2 — les pages suivantes sont atteignables par un lien, sans hydratation', () => {
+  /** Les `href` des `<a>` de la `<nav>` de pagination, entités décodées — ce qu'un robot suit. */
+  const hrefsDeLaPagination = (markup: string): string[] => {
+    const nav = markup.match(/<nav aria-label="Pagination"[\s\S]*?<\/nav>/)?.[0] ?? '';
+    return [...nav.matchAll(/<a [^>]*href="([^"]*)"/g)].map((m) => m[1].replaceAll('&amp;', '&'));
+  };
+
+  const resultatSurSixPages = (page: number) => ({
+    ...RESULTAT_VILLA,
+    meta: { current_page: page, last_page: 6, per_page: 30, total: 180 },
+  });
+
+  it('`?contract_type=rent` sert un <a href> vers `contract_type=rent&page=2`', async () => {
+    reponsePour = () => resultatSurSixPages(1);
+    parametresCourants = new URLSearchParams('contract_type=rent');
+    const markup = await html(
+      PageDeLaListe({ searchParams: Promise.resolve({ contract_type: 'rent' }) }),
+    );
+
+    const pageDeux = hrefsDeLaPagination(markup)
+      .map((href) => new URLSearchParams(href.split('?')[1] ?? ''))
+      .find((p) => p.get('page') === '2');
+    expect(pageDeux, 'aucun lien vers la page 2 dans le HTML servi').toBeDefined();
+    expect(pageDeux!.get('contract_type')).toBe('rent');
+    // Plus aucun bouton dans la pagination : c'est le défaut que le ticket ferme.
+    expect(markup.match(/<nav aria-label="Pagination"[\s\S]*?<\/nav>/)?.[0]).not.toContain('<button');
+  });
+
+  it('le lien de la page 1 n’écrit pas `page=`', async () => {
+    reponsePour = () => resultatSurSixPages(2);
+    parametresCourants = new URLSearchParams('contract_type=rent&page=2');
+    const markup = await html(
+      PageDeLaListe({ searchParams: Promise.resolve({ contract_type: 'rent', page: '2' }) }),
+    );
+
+    const hrefs = hrefsDeLaPagination(markup);
+    expect(hrefs).toContain('/properties?contract_type=rent');
+    expect(hrefs.filter((h) => !h.includes('page='))).toEqual([
+      // le lien « précédent » et le lien « 1 » : les deux mènent à la page 1
+      '/properties?contract_type=rent',
+      '/properties?contract_type=rent',
+    ]);
+  });
+});

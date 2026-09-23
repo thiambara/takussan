@@ -263,8 +263,28 @@ const FICHIERS_HORS_JETONS = 5;
  *  · +2 de `PropertyReservationDialog` (TCK-535) : les lignes « loyer » et « acompte » du
  *    récapitulatif, comme la ligne de nuits qui y était déjà.
  *  `BookingTunnel` et `BookingSummary`, aussi touchés, restent à 8 et 9.
+ *
+ * **242 → 243 le 2026-09-23 (TCK-557).** `search/Pagination.tsx` passe de 3 à 4 entrées, relevé
+ * par `couplesDuFichier` sur la version de `HEAD` puis sur la nouvelle : la ligne « Page X sur Y »
+ * ajoutée (`text-muted-foreground` sur la page), et la flèche désactivée qui n'est plus le même
+ * élément que la flèche active (un `<span>` sans lien au lieu d'un `<button disabled>`). L'ellipse
+ * et la flèche active étaient déjà comptées. Le fond est celui de la page, posé par un ancêtre.
+ *
+ * **243 → 244 le 2026-09-23 (TCK-550).** `shared/ChoixDeLangue.tsx`, entré dans la surface par
+ * `Navbar` et `Footer`, porte 1 entrée : les choix de langue NON courants
+ * (`text-muted-foreground`), sans fond propre — le fond est le panneau du menu ou le pied de page.
+ * Relevé par `couplesDuFichier` fichier par fichier : `Footer` reste à 4, `Navbar` à 14,
+ * `LanguageSwitcher` à 1. Le choix courant (`bg-primary text-primary-foreground`) déclare son
+ * fond et est donc MESURÉ, pas compté ici.
+ *
+ * **244 → 245 le 2026-09-23 (TCK-551).** `home/Navbar.tsx` passe de 14 à 15 entrées, relevé par
+ * `couplesDesFichiers` sur la version de `HEAD` puis sur la nouvelle : la CROIX de l'en-tête du
+ * menu mobile, devenu modale (`text-muted-foreground`, comme le bouton menu dont elle prend la
+ * place exacte), sans fond propre — le fond est le `bg-popover` du panneau. Les puces de
+ * catégorie retirées du menu n'étaient pas comptées (classes dans un gabarit conditionnel).
+ * `FavoritesPopover` reste à 6, `ui/sheet` à 2.
  */
-const ENCRES_INVERSES = 242;
+const ENCRES_INVERSES = 245;
 
 function sousLeSeuil(couples: readonly CoupleMesure[]): CoupleMesure[] {
   return couples.filter((c) => c.ratio < c.seuil);

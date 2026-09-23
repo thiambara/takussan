@@ -72,6 +72,7 @@
     "userMenu": "User menu",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
+    "menuTitle": "Menu",
     "searchPlaceholder": "Where are you looking?",
     "transactionPlaceholder": "Buy / Rent",
     "buy": "Buy",
@@ -232,7 +233,16 @@
       "cta": "Learn more",
       "pendingCta": "View details"
     },
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "searchPill": {
+      "idle": "Search",
+      "sale": "For sale",
+      "rent": "For rent"
+    },
+    "searchSurface": {
+      "title": "Find a property",
+      "back": "Back"
+    }
   },
   "footer": {
     "tagline": "Your trusted partner to find the perfect property in Senegal.",
@@ -265,7 +275,11 @@
     "zoomOut": "Zoom out",
     "markerAlt": "Property marker",
     "loading": "Loading…",
-    "truncated": "{count}+ properties — zoom in to refine"
+    "truncated": "{count}+ properties — zoom in to refine",
+    "onMap": "{count, plural, =0 {No properties on the map} one {# property on the map} other {# properties on the map}}",
+    "clusterZoom": "{count} properties here — zoom in to see them",
+    "clusterList": "{count} properties close together — see the list",
+    "clusterListTitle": "{count} properties close together"
   },
   "publicContact": {
     "title": "Send a message",
@@ -592,7 +606,8 @@
       "bedroomsShort": "{count} bd",
       "bedroomsAbbrev": "{count} bd",
       "bathroomsShort": "{count} ba",
-      "photoPending": "Photo coming soon"
+      "photoPending": "Photo coming soon",
+      "rentNoPeriod": "· rent"
     },
     "row": {
       "viewAll": "See all",
@@ -603,7 +618,8 @@
     "discovery": {
       "viewSwitchAria": "Results view",
       "viewList": "List",
-      "viewMap": "Map"
+      "viewMap": "Map",
+      "outilsFlottantsAria": "Search tools"
     },
     "rentPeriodsShort": {
       "daily": "day",
@@ -3193,13 +3209,17 @@
       "deleteAria": "Delete {name}"
     },
     "results": {
-      "empty_title": "No property found",
-      "empty_description": "Widen your criteria or remove a few filters — there is surely a home for you.",
+      "vide_titre": "Broaden your search",
+      "vide_description": "Remove just one filter — the others stay in place.",
+      "vide_description_sans_critere": "There is surely a home for you — start again from a blank search.",
+      "vide_criteres_aria": "Remove a filter",
       "empty_cta": "Clear all filters",
       "error": "Something went wrong. Please try again.",
       "error_invalid_filter": "One of the filters in this search is not valid.",
       "error_invalid_filter_named": "The “{filter}” filter is not valid.",
-      "error_retry": "Try again"
+      "error_retry": "Try again",
+      "vide_titre_hors_pages": "Nothing on this page",
+      "vide_description_hors_pages": "This search has fewer pages — go back to one of the previous ones."
     },
     "widened": {
       "unmatched": "{count, plural, =1 {No property matches “{terms}”.} other {No property matches these words: {terms}.}}",
@@ -3213,6 +3233,9 @@
       "clearAll": "Clear all",
       "close": "Close filters",
       "showResults": "Show results",
+      "showResultsCount": "{count, plural, =0 {No matching properties} =1 {Show # property} other {Show # properties}}",
+      "searchReminder": "Search",
+      "removeSearch": "Remove the search “{value}”",
       "sections": {
         "contractType": "Transaction type",
         "propertyType": "Property type",
@@ -3262,7 +3285,7 @@
     },
     "toolbar": {
       "loading": "Loading…",
-      "resultCount": "{count, plural, =1 {# property found} other {# properties found}}",
+      "resultCount": "{count, plural, =0 {No properties found} =1 {# property found} other {# properties found}}",
       "perPageAria": "Results per page",
       "perPageOption": "{count} / page",
       "filters": "Filters",
@@ -3284,8 +3307,8 @@
       "availableFrom": "Available from {date}",
       "quarter": "Neighbourhood: {value}",
       "tags": "Tags: {value}",
-      "priceMin": "≥ {value} FCFA",
-      "priceMax": "≤ {value} FCFA",
+      "priceMin": "≥ {value}",
+      "priceMax": "≤ {value}",
       "bedrooms": "{n} bd",
       "bathrooms": "{n} ba",
       "areaMin": "≥ {value} m²",
@@ -3296,7 +3319,8 @@
     "pagination": {
       "aria": "Pagination",
       "previous": "Previous page",
-      "next": "Next page"
+      "next": "Next page",
+      "position": "Page {page} of {lastPage}"
     },
     "saveSearch": {
       "defaultName": "My search",

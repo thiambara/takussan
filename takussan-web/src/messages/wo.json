@@ -226,13 +226,23 @@
     "userMenu": "Menu jëfandikukat",
     "openMenu": "Ubbil menu bi",
     "closeMenu": "Tëj menu bi",
+    "menuTitle": "Menu bi",
     "searchPlaceholder": "Fan ngay seet ?",
     "transactionPlaceholder": "Jënd / Luwaa",
     "searchAria": "Tàmbali seet bi",
     "moreTypes": "Yeneen xeet yi",
     "more": "Yeneen",
     "propertiesCount": "{count} kër",
-    "loading": "Mu ngi yeb…"
+    "loading": "Mu ngi yeb…",
+    "searchPill": {
+      "idle": "Seet",
+      "sale": "Ngir jaay",
+      "rent": "Ngir luwaa"
+    },
+    "searchSurface": {
+      "title": "Seet benn kër",
+      "back": "Dellu"
+    }
   },
   "footer": {
     "tagline": "Sa nawle bu wér ngir gis kër bi nga bëgg ci Senegaal.",
@@ -265,7 +275,11 @@
     "zoomOut": "Wàññi",
     "markerAlt": "Màndarga kër",
     "loading": "Mu ngi yeb…",
-    "truncated": "{count}+ kër — yokkal ngir gën a leer"
+    "truncated": "{count}+ kër — yokkal ngir gën a leer",
+    "onMap": "{count, plural, =0 {Amul kër ci kart bi} one {# kër ci kart bi} other {# kër ci kart bi}}",
+    "clusterZoom": "{count} kër fii — yokkal ngir gis leen",
+    "clusterList": "{count} kër yu jege lool — seetal limu bi",
+    "clusterListTitle": "{count} kër yu jege lool"
   },
   "publicContact": {
     "title": "Yónnee bataaxal",
@@ -1820,13 +1834,17 @@
       "deleteAria": "Far {name}"
     },
     "results": {
-      "empty_title": "Gisunu benn kër",
-      "empty_description": "Yaatal say coobare walla dindil ay filtre — am na kër bu la war.",
+      "vide_titre": "Yaatal sa seet",
+      "vide_description": "Dindil benn filtar rekk : yeneen yi dinañu des.",
+      "vide_description_sans_critere": "Am na kër bu la war : tàmbaliwaatal ak seet bu bees.",
+      "vide_criteres_aria": "Dindi benn filtar",
       "empty_cta": "Faral filtre yépp",
       "error": "Am na njuumte. Jéemaatal su la neexee.",
       "error_invalid_filter": "Benn ci filtar yi ci seet bii baaxul.",
       "error_invalid_filter_named": "Filtar bu « {filter} » baaxul.",
-      "error_retry": "Jéemaat"
+      "error_retry": "Jéemaat",
+      "vide_titre_hors_pages": "Dara amul ci xët wii",
+      "vide_description_hors_pages": "Seet bii amul ay xët yu bare noonu : dellul ci benn ci yi jiitu."
     },
     "widened": {
       "unmatched": "{count, plural, =1 {Gisunu benn kër ci « {terms} ».} other {Gisunu benn kër ci baat yii : {terms}.}}",
@@ -1840,6 +1858,9 @@
       "clearAll": "Far lépp",
       "close": "Tëj tànneef yi",
       "showResults": "Gis njeexital yi",
+      "showResultsCount": "{count, plural, =0 {Amul kër gu ci dëppoo} =1 {Gis # kër} other {Gis # kër}}",
+      "searchReminder": "Seet",
+      "removeSearch": "Far seet bi « {value} »",
       "sections": {
         "contractType": "Xeetu jaay",
         "propertyType": "Xeetu kër",
@@ -1889,7 +1910,7 @@
     },
     "toolbar": {
       "loading": "Mu ngi yeb…",
-      "resultCount": "{count, plural, =1 {# kër la ñu gis} other {# kër la ñu gis}}",
+      "resultCount": "{count, plural, =0 {Gisunu benn kër} =1 {# kër la ñu gis} other {# kër la ñu gis}}",
       "perPageAria": "Njeexital ci xët bu nekk",
       "perPageOption": "{count} / xët",
       "filters": "Tànneef",
@@ -1911,8 +1932,8 @@
       "availableFrom": "Jot ci {date}",
       "quarter": "Gox : {value}",
       "tags": "Tag : {value}",
-      "priceMin": "≥ {value} FCFA",
-      "priceMax": "≤ {value} FCFA",
+      "priceMin": "≥ {value}",
+      "priceMax": "≤ {value}",
       "bedrooms": "{n} neeg",
       "bathrooms": "{n} sanjaan",
       "areaMin": "≥ {value} m²",
@@ -1923,7 +1944,8 @@
     "pagination": {
       "aria": "Xët yi",
       "previous": "Xët wi jiitu",
-      "next": "Xët wi ci topp"
+      "next": "Xët wi ci topp",
+      "position": "Xët {page} ci {lastPage}"
     },
     "saveSearch": {
       "defaultName": "Sama seet",
@@ -3743,7 +3765,8 @@
       "bedroomsShort": "{count} neeg",
       "bedroomsAbbrev": "{count} neeg",
       "bathroomsShort": "{count} sanjaan",
-      "photoPending": "Nataal bi dina ñëw"
+      "photoPending": "Nataal bi dina ñëw",
+      "rentNoPeriod": "· luwaas"
     },
     "row": {
       "viewAll": "Gis lépp",
@@ -3754,7 +3777,8 @@
     "discovery": {
       "viewSwitchAria": "Wonewu njeexital yi",
       "viewList": "Limu",
-      "viewMap": "Kart"
+      "viewMap": "Kart",
+      "outilsFlottantsAria": "Jumtukaayu seet"
     },
     "rentPeriodsShort": {
       "daily": "bés",

@@ -65,6 +65,12 @@ export interface SearchAutocompleteProps {
    * (rechargement, retour arrière, terme retiré par le repli) et reste modifiable entre-temps.
    */
   value?: string;
+  /**
+   * Le champ s'apprête à naviguer — Entrée, ligne « Rechercher … », ou suggestion choisie. Une
+   * fois par navigation, jamais sur une frappe. La saisie mobile de la navbar s'en sert pour se
+   * refermer au geste, sans attendre la page suivante (TCK-549).
+   */
+  onValider?: () => void;
 }
 
 export function SearchAutocomplete({
@@ -73,6 +79,7 @@ export function SearchAutocomplete({
   className,
   onQueryChange,
   value,
+  onValider,
 }: SearchAutocompleteProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -124,8 +131,9 @@ export function SearchAutocomplete({
     else params.delete(parametreDe('q'));
     params.delete(parametreDe('page'));
     const qs = params.toString();
+    onValider?.();
     router.push(hrefLocalise(`/properties${qs ? `?${qs}` : ''}`, locale));
-  }, [router, searchParams, locale, query]);
+  }, [router, searchParams, locale, query, onValider]);
 
   const selectItem = useCallback(
     (item: SuggestItem) => {
@@ -134,9 +142,10 @@ export function SearchAutocomplete({
       // sans quoi il cesserait de montrer un terme qui filtre toujours la liste.
       setQuery(enVigueur);
       onQueryChange?.(enVigueur);
+      onValider?.();
       router.push(buildUrl(item, searchParams, locale));
     },
-    [router, searchParams, locale, enVigueur, setQuery, onQueryChange],
+    [router, searchParams, locale, enVigueur, setQuery, onQueryChange, onValider],
   );
 
   const handleKeyDown = useCallback(

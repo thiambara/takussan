@@ -68,6 +68,8 @@ describe('TCK-335 — une panne ne se présente plus comme un résultat', () => 
   });
 
   it('un résultat vide LÉGITIME affiche bien l’état vide et le compteur à zéro', async () => {
+    // TCK-558 — le zéro s'énonce UNE fois, et c'est le compteur qui le dit : « Aucun bien
+    // trouvé ». L'état vide, lui, ne constate plus rien — il propose les issues.
     mockApiFetch.mockResolvedValue({
       data: [],
       facets: {},
@@ -77,9 +79,10 @@ describe('TCK-335 — une panne ne se présente plus comme un résultat', () => 
     render(withIntl(<PropertiesDiscoveryPage />));
 
     await waitFor(() => {
-      expect(screen.getByText('Aucun bien trouvé')).toBeInTheDocument();
+      expect(document.querySelector('[data-etat="vide-recherche"]')).not.toBeNull();
     });
-    expect(screen.getByText(/0 biens? trouvés?/)).toBeInTheDocument();
+    expect(screen.getByText('Aucun bien trouvé')).toBeInTheDocument();
+    expect(screen.queryByText(/0 biens? trouvés?/)).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

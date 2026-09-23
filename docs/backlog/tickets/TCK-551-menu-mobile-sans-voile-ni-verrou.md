@@ -1,0 +1,559 @@
+---
+id: TCK-551
+title: "Menu mobile : sans voile ni verrou de défilement, fermeture impossible d'un tap à côté, rangée de catégories à moitié cachée, alignements décalés"
+status: done
+phase: P2
+family: front
+estimate: S
+wave: 68
+created: 2026-09-22
+updated: 2026-09-23
+depends_on: []
+blocks: []
+spec_refs:
+  features:
+    - docs/features.md#12-recherche--découverte-publique
+  models: []
+tags: [front, mobile, navbar, a11y, ux]
+---
+
+## Objectif utilisateur
+
+Sur téléphone, un visiteur ouvre le menu, comprend qu'il est dans un panneau au-dessus de la page,
+le ferme comme il l'attend (tap à côté, geste retour, croix), et n'y trouve que de la navigation.
+
+## Contexte
+
+Audit UI/UX mobile du 2026-09-22 (constats N5 à N8), mesuré à 390 × 844 et 360 × 740.
+
+- **N5** — le panneau n'est pas modal : aucun voile, `body` reste en `overflow: visible` (la page
+  défile dessous), un tap hors du panneau ne le ferme pas (`handleClickOutside` ne traite que les
+  menus « Plus » et utilisateur), et le focus en sort. Les cartes de résultats restent visibles
+  sous le bouton « Publier une annonce ».
+- **N6** — la rangée de catégories du menu mesure 521 px dans 342 px visibles : « Commerce » et
+  « Bureau » sont hors champ, sans fondu ni barre de défilement pour le signaler, et les dix autres
+  types ne sont pas atteignables d'ici. Le tiroir de filtres les propose tous.
+- **N7** — la barre est en `px-6` sous `lg` (logo à x = 24) quand le contenu de la page est en
+  `px-4` (x = 16). Dans le menu, le texte de « Connexion » est à x = 35 contre 24 pour les autres
+  liens : la classe `px-0` passée à `buttonVariants` perd contre la classe `px-2.5` de la variante,
+  `cva` ne fusionnant pas les classes (mesuré : les deux sont présentes, padding calculé 10 px).
+- **N8** — le bouton « Mes favoris » de la barre mobile a une zone de 36 × 36 px, quand le bouton
+  menu voisin fait 44 × 44.
+
+## Contrat de données
+
+Aucun.
+
+## Direction UX / Artistique
+
+- Le menu se comporte comme les autres panneaux modaux du site public (le tiroir de filtres en est
+  la référence) : voile, fermeture par tap extérieur, par Échap et par la croix, focus contenu.
+- Le menu est un menu de **navigation** : les raccourcis de catégories disparaissent (le tiroir de
+  filtres les porte tous), plutôt que d'être réparés.
+- Bords gauches alignés entre la barre, le menu et le contenu de la page.
+
+## Contraintes strictes (métier)
+
+- Le verrou de défilement doit tenir **sur iOS Safari**, où `overflow: hidden` sur `body` ne suffit
+  pas : la vérification se fait en émulation iOS ou sur appareil, pas seulement sur Chrome.
+- Fermer le menu rend le focus au bouton qui l'a ouvert.
+
+## Delta à produire
+
+- [x] Menu mobile modal : voile, verrou de défilement, fermeture par tap extérieur, focus contenu
+      et restitué. *(Mesuré sous Chrome, émulation mobile. La contrainte « tenir sur iOS Safari »
+      n'est PAS mesurée — aucun WebKit disponible —, cf. Notes, tour 2.)*
+- [x] Retrait de la rangée de catégories du menu mobile.
+- [x] Gouttière de la barre alignée sur celle du contenu sous `lg`.
+- [x] Lien « Connexion » aligné sur les autres entrées (fusion de classes).
+- [x] Zone tactile de 44 px pour « Mes favoris » en barre mobile, sans changer son dessin.
+- [x] Tests : tap extérieur ferme ; Échap ferme et rend le focus ; le document ne défile pas menu
+      ouvert.
+- [x] *(Tour 4, décision de la session.)* Le geste retour ferme le menu (entrée sentinelle), et
+      le menu ne laisse aucune entrée d'historique derrière une fermeture, un lien ou un choix de
+      langue ; un rechargement menu ouvert rend la position. *(Mesuré sous Chrome, cf. Notes,
+      tour 4 ; deux cas limites restent, écrits là.)*
+
+## Critères d'acceptation
+
+- [x] AC1 — menu ouvert à 390 × 844, un `scrollBy(0, 500)` du document laisse `scrollY` inchangé ;
+      menu fermé, il redevient effectif. *(Tour 2 : `scrollY` 0 → 0 menu ouvert, la page immobile
+      au pixel près ; rendu à 700 à la fermeture, puis 700 → 1000.)*
+- [x] AC2 — un tap sur le voile ferme le menu ; le focus revient au bouton menu.
+- [x] AC3 — menu ouvert, Tab ne fait jamais sortir le focus du panneau.
+- [x] AC4 — la position x du **texte** (pas de la boîte) de « Connexion » est égale à celle
+      d'« Acheter », à 1 px près.
+- [x] AC5 — le logo et le `<h1>` de `/properties` commencent au même x à 360 et 390 px.
+      *(Tour 2 : et sur les dix pages publiques qui montent la barre, à 360 et 390.)*
+- [x] AC6 — la zone tactile de « Mes favoris » en barre mobile mesure au moins 44 × 44 px.
+
+## Hors périmètre
+
+- Le bloc de recherche du menu (retiré par TCK-549).
+- Le choix de langue dans le menu (TCK-550).
+
+## Notes d'implémentation
+
+### Re-mesure des prémisses (2026-09-23, avant tout changement)
+
+Front du worktree (`next dev -p 3021`) sur l'API partagée, Chrome headless par CDP, émulation
+`mobile: true`, `/fr/properties`, déconnecté. `innerWidth` relevé = largeur demandée (390, 360) :
+aucun élargissement du viewport. Charge machine au relevé : `load averages 10.40 22.31 22.32`, 8 cœurs.
+
+| Constat | Ticket | Mesuré à 390 × 844 | Mesuré à 360 × 740 |
+|---|---|---|---|
+| N5 voile | aucun | aucun `[data-slot=sheet-overlay]` | idem |
+| N5 verrou | `body` en `overflow: visible` | `body` et `html` `visible` ; `scrollBy(0,500)` menu ouvert : `scrollY` 0 → **500** | 0 → **500** |
+| N5 tap extérieur | ne ferme pas | le point (195, 824) tombe sur le lien **d'une carte de résultat** ; menu toujours ouvert après | — |
+| N6 rangée de catégories | 521 px dans 342 | `scrollWidth` **521** / `clientWidth` **342**, hors champ : « Commerce », « Bureau » | 521 / **312** |
+| N7 gouttière | logo x = 24, contenu x = 16 | logo **24**, texte du `<h1>` **16** | **24** / **16** |
+| N7 « Connexion » | 35 contre 24 | texte « Acheter » x = **24**, « Connexion » x = **35** ; classes `px-2.5` ET `px-0`, `padding-left` calculé **10px** | idem |
+| N8 favoris | 36 × 36, menu 44 × 44 | **36 × 36** / **44 × 44** | idem |
+
+Les sept affirmations du ticket tiennent. Relevés complémentaires, servant de témoins :
+
+- **Libellé de la pastille (TCK-549) à 360** : boîte 60,2 px, `scrollWidth` 60 = `clientWidth` 60 —
+  il tient à 0 px près. Pastille 116,9 px de large.
+- **Vue carte à 360 (TCK-553)** : `nav` 0 → 69, cadre fixe de la carte 69 → 740 (671 px),
+  document non défilant (`scrollHeight − innerHeight` = 0).
+- **Bureau à 1280** : logo x = 24 (`px-6` s'y applique aussi), menu « Plus » ouvert puis fermé par
+  un appui dehors et par Échap ; connecté, menu utilisateur ouvert puis fermé par un appui dehors.
+
+### Écarts de prémisse (consignes de la session)
+
+- **« la même primitive que le tiroir de filtres (Sheet/Dialog de @base-ui/react, voir
+  FilterSidebar) »** — faux : `TiroirMobile` (`FilterSidebar.tsx`) est une modale **écrite à la
+  main** (voile `div`, `role="dialog"`, piège de Tab et Échap maison, AUCUN verrou de défilement).
+  La primitive base-ui (`Sheet` = `Dialog` de `@base-ui/react`) est celle de la surface de saisie
+  de TCK-549, dans la même `Navbar` : c'est elle qui est retenue.
+- **« le verrou de défilement de base-ui gère iOS »** — à nuancer, code lu dans
+  `node_modules/@base-ui/utils/useScrollLock.mjs` (base-ui 1.7.0) : iOS est bien **détecté**
+  (`platform.os.ios`, l. 247), mais pour le mettre sur la voie « barres de défilement superposées »
+  (`preventScrollOverlayScrollbars`, l. 50-71), qui pose `overflow: hidden` sur l'élément qui porte
+  le défilement du viewport — et le commentaire des l. 249-254 dit en toutes lettres que « on iOS,
+  scroll locking does not work if the navbar is collapsed ». Le verrou base-ui n'est donc pas une
+  preuve de tenue sur iOS Safari ; voir plus bas ce qui a été fait, et ce qui n'a pas été vérifié.
+
+### Ce qui a été fait
+
+- **Menu = `Sheet` (`Dialog` de base-ui), `side="top"`**, dont l'en-tête redessine la barre à
+  l'identique : logo à (16, 22), croix à la place exacte du bouton menu (300, 12 à 360 ; 330, 12
+  à 390). Le panneau recouvre la barre sans rien déplacer, et le voile couvre tout le reste.
+- **Retour du focus après un appui sur le voile** — base-ui ne le rend PAS dans ce cas quand
+  `focus({ preventScroll })` n'est pas pris en charge (`FloatingFocusManager.mjs`,
+  `onOpenChangeLocal` : Chrome Android et Samsung Internet, nommément), pour ne pas faire sauter
+  la page. jsdom est dans ce cas, et le test rougissait (focus sur `body`). La `Navbar` le rend
+  elle-même après l'animation de sortie (`onOpenChangeComplete`), seulement si le focus est resté
+  sur `body` : le bouton est dans une barre `fixed`, le focaliser ne fait rien défiler. Ablation :
+  garde neutralisée → le test AC2 rougit.
+- **Franchir `lg` menu ouvert le ferme** — défaut que ce ticket créait, trouvé au navigateur :
+  menu ouvert à 800 px, fenêtre passée à 1280 → panneau masqué (`lg:hidden`) mais `body` resté en
+  `overflow: hidden` et cinq enfants de `body` en `aria-hidden`. Après correctif : 0 boîte,
+  `body` `visible`, 0 `aria-hidden`. Test dédié (rouge avant, vert après).
+- `touch-none` sur le voile (nouvelle prop `overlayClassName` de `SheetContent`, additive).
+- « Mes favoris » : `ZONE_TACTILE_44` (TCK-554) sur la variante compacte — le dessin reste un rond
+  de 36 px.
+- Tests d'autres tickets adaptés au panneau en portail (`nav > div.absolute` n'existe plus) :
+  `Navbar.responsive` (TCK-505), `Navbar.langue-mobile` (TCK-550), `Navbar.pastille-mobile`
+  (TCK-549). Le test du refus de tour 1 de TCK-549 touchait une puce de catégorie DU MENU : il
+  touche désormais la puce de la barre de bureau, qui lit le même état `location` par
+  `buildSearchUrl`. Ablation (`setLocation(qEnVigueur)` retiré) : 3 tests rougissent, dont les
+  deux adaptés.
+- Garde `surface-publique.contraste` : `ENCRES_INVERSES` 244 → 245 (la croix du panneau,
+  `text-muted-foreground` sur `bg-popover`), relevé `HEAD` contre la branche fichier par fichier,
+  cause écrite dans la garde.
+
+### Mesures après (Chrome headless, `mobile: true`, `/fr/properties`, déconnecté sauf mention)
+
+`innerWidth` = largeur demandée aux deux tailles. Preuve de version lue dans le DOM (`lg:px-6` sur
+la barre, `aria-haspopup` sur le bouton menu). Entrées par `Input.dispatchTouchEvent` et
+`Input.dispatchKeyEvent` — de vrais toucher et de vraies touches, pas des `click()`.
+
+| AC | 390 × 844 | 360 × 740 |
+|---|---|---|
+| AC1 `scrollBy(0,500)` menu ouvert | **0 → 500 — ROUGE** (voir plus bas) | **0 → 500 — ROUGE** |
+| AC1 glissé tactile réel (`synthesizeScrollGesture`) | témoin menu fermé : 0 → **402** ; menu ouvert, parti du voile : **0** ; parti du panneau : **0** | 0 → **403** / **0** / **0** |
+| AC1 menu fermé, `scrollBy` | 0 → 500, `body` rendu à `visible` | idem |
+| AC2 appui sur le voile | sous le doigt : `sheet-overlay` ; menu fermé, focus sur le bouton menu, URL inchangée | idem |
+| AC3 Tab / Maj+Tab | 44 appuis (4 tours de 10 focalisables + 4), **0 sortie** ; connecté : 48 appuis, 11 focalisables, 0 sortie | 44, **0 sortie** |
+| AC4 x du texte | « Acheter » **16**, « Connexion » **17** (écart 1 px : la bordure transparente de 1 px de la variante `ghost`) — `padding-left` 0 | 16 / 17 |
+| AC5 x du texte | logo **16**, `<h1>` **16** | **16** / **16** |
+| AC6 zone tactile | dessin 36 × 36 ; `::before` 44 × 44 ; `elementFromPoint` aux 8 points du carré de 43 px → le bouton ; à ±23 px → plus le bouton | idem |
+| Échap / croix | ferment, focus sur le bouton menu | idem |
+
+Consignes de la session :
+
+- **(2) Pastille, menu ouvert** — sous le doigt à l'emplacement de la pastille : le PANNEAU (son
+  en-tête recouvre la barre). Le toucher ne fait rien : toujours 1 seule boîte, aucune saisie
+  ouverte. Deux modales ne peuvent pas s'empiler. Libellé de la pastille après `px-6 → px-4` :
+  `scrollWidth` 60 = `clientWidth` 60 aux deux tailles, non tronqué ; la pastille gagne 16 px
+  (116,9 → 132,9 à 360). La pastille flottante d'outils (TCK-552, z-40) et le bouton de
+  messagerie (z-40) sont sous le voile (z-50), vérifié par `elementFromPoint`.
+- **(3) Vue carte à 360 (`useBasDeLaNav`)** — `nav` 0 → 69, cadre fixe de la carte 69 → 740
+  (671 px), document non défilant : identique au relevé d'avant.
+- **(5) Bureau à 1280** — les 16 contrôles visibles de la barre ont le même rectangle au dixième
+  de pixel, déconnecté comme connecté ; menu « Plus » : ouvert, fermé par un appui dehors et par
+  Échap ; menu utilisateur (connecté) : ouvert, fermé par un appui dehors ; aucune boîte de
+  dialogue rendue.
+
+### AC1 est ROUGE tel qu'il est écrit — et pourquoi (tour 1 ; corrigé au tour 2, voir plus bas)
+
+`overflow: hidden` interdit le défilement par l'UTILISATEUR, pas le défilement PROGRAMMATIQUE :
+`window.scrollBy` fait défiler un conteneur en `overflow: hidden`. Or base-ui, sur tout appareil à
+barres de défilement superposées (mobiles, et ce Chrome headless même en `mobile: false` —
+mesuré à 800 px : barres incrustées 0 px), ne pose que ça. Le critère mesure donc quelque chose
+que le verrou de la primitive ne promet pas, sur tous les mobiles. Ce que l'utilisateur fait —
+glisser — est bloqué (tableau ci-dessus, avec témoin). Deux issues, à trancher par la session :
+reformuler AC1 sur un glissé tactile, ou ajouter un verrou `position: fixed` écrit à la main (ce
+que la consigne de la session écartait).
+
+### iOS Safari — NON vérifié (tour 1 ; le verrou a changé au tour 2, voir plus bas)
+
+Aucun WebKit sur cette machine ; rien n'a été installé. Ce qui est établi, et seulement ça :
+le verrou est celui de base-ui 1.7.0, qui sur iOS pose `overflow: hidden` sur l'élément qui porte
+le défilement du viewport (`useScrollLock.mjs` l. 247 → l. 50-71) et reconnaît lui-même (l. 249-254)
+ne pas tenir quand la barre d'adresse de Safari est repliée. Le voile en `touch-action: none`
+empêche un glissé parti du voile de faire défiler quoi que ce soit (pris en charge par Safari
+depuis iOS 13) ; un glissé parti du panneau reste à la merci de ce que Safari fait de
+`overflow: hidden`. **La contrainte « tenir sur iOS Safari » n'est pas démontrée**, et la case du
+Delta qui la porte reste décochée.
+
+
+### Tour 2 — après le refus du tour 1 (2026-09-23)
+
+Refus du vérificateur adverse : AC1 rouge (bloquant), contrainte iOS non démontrée (majeur),
+régression d'alignement sur les pages en `px-6` (majeur), six mineurs. Chaque défaut bloquant et
+majeur est **reproduit avant d'être corrigé**, sur le même front (`:3021`) et le même Chrome
+headless (`:9351`, `mobile: true`). Charge au relevé : `load averages 20.29 39.06 46.38`, 8 cœurs
+— aucun temps n'est mesuré, seulement des positions et des états.
+
+**Reproductions (commit `cdbf122a`) :**
+
+- **AC1** — `/fr/properties` à 390 × 844, `innerWidth` 390 : pré-défilement à 700, menu ouvert
+  (`body` en `overflow: hidden`), `scrollBy(0, 500)` → **700 → 1200**. Glissé tactile parti du
+  voile : 700 → 700 ; du panneau : 700 → 700. Menu fermé : 700 → 1000. **Reproduit.**
+- **Alignement** — à 390, texte du logo contre texte du `<h1>` : `/fr` **16 / 24**, `/fr/agents`
+  **16 / 24**, `/fr/agencies` **16 / 24**, `/fr/agents/dakar-immo-owner-1` logo 16, `main` en
+  `padding-left: 24px` ; `/fr/properties` 16 / 16. **Reproduit.** Cause relevée dans le code :
+  sous `sm`, sept conteneurs de page sous la `Navbar` sont en `px-4` (liste et fiche de bien,
+  favoris, comparateur, pages légales, réservations, pages 404 d'agent/agence), quatre en `px-6`
+  (`HomepageDiscovery`, `IndexDeProfils`, `agents/[slug]`, `agencies/[slug]`). Une seule gouttière
+  de barre ne peut s'aligner que sur l'une des deux familles.
+- **iOS** — non reproductible ici (aucun WebKit) : établi par lecture de
+  `@base-ui/utils/useScrollLock.mjs` l. 247-255, déjà cité au tour 1.
+
+**Correctifs du tour 2, chacun en TDD (test rouge d'abord, puis vert) :**
+
+1. **Verrou `position: fixed` — `src/hooks/useVerrouDeDefilement.ts`.** `body` sorti du flux,
+   décalé de `-scrollY` : rien ne bouge à l'écran, et le document n'a plus de hauteur à faire
+   défiler, qu'on le demande au doigt, par `scrollBy`, ou que Safari replie sa barre d'adresse. À
+   la levée : styles d'origine de `body` rendus, position rendue en `behavior: 'instant'`.
+   Le `Sheet` du menu passe en **`modal="trap-focus"`** : la primitive garde le piège du focus,
+   le voile, l'appui dehors, Échap et l'`aria-hidden` du reste, mais ne pose plus SON verrou.
+   Pourquoi pas les deux : sur des barres de défilement incrustées, base-ui réécrit
+   `body.style.position` en `relative`, puis restaure à sa levée ce qu'il avait lu — le `fixed`.
+   **Mesuré en jsdom par ablation** (`modal` rendu à `true`, verrou gardé) : 3 tests rougissent,
+   dont « au franchissement de `lg` … la page est déverrouillée » — la page restait figée menu
+   fermé. Un test garde donc qu'un seul verrou est posé.
+2. **Gouttière : `px-4 sm:px-6` pour la barre ET pour les quatre conteneurs de page qui étaient en
+   `px-6`** (`HomepageDiscovery`, `IndexDeProfils`, `agents/[slug]`, `agencies/[slug]`). Sous
+   `sm`, toutes les pages publiques qui montent la barre sont à 16 px ; dès `sm`, la barre revient
+   à 24 px, sa valeur d'avant ce ticket — ce qui ferme aussi le mineur « 768-1023 px » (écart
+   logo / `<h1>` de `/properties` rendu à 8 px, comme avant). Les blocs du panneau prennent
+   exactement la gouttière de la barre (un panneau ouvert à 640-1023 px ne décale plus le logo).
+   Nouvelle garde `Navbar.gouttiere.test.tsx` : la gouttière de la barre à 9 largeurs, et, sous
+   `sm`, celle de chaque conteneur `mx-auto` des fichiers qui montent `<Navbar` (≥ 10 fichiers,
+   ≥ 10 conteneurs). Rouge avant : elle nommait exactement les quatre fichiers ci-dessus.
+3. **Paysage connecté : `max-h-5/6` au lieu de `max-h-dvh`** — une bande de voile reste toujours
+   atteignable (mineur 6).
+4. Commentaire périmé de `basculerRecherche` (la « puce de catégorie du menu ») corrigé (mineur 7).
+
+**Ablations (jsdom, fichier restauré par copie, md5 vérifié après chaque) :**
+
+| Mutation | Tests rouges |
+|---|---|
+| `useVerrouDeDefilement(menuOpen)` retiré | AC1 ; « un seul verrou » |
+| `modal="trap-focus"` retiré (retour à `modal` par défaut) | AC1 ; « un seul verrou » ; « franchissement de `lg` » |
+| barre en `px-4 md:px-6 lg:px-6` (la M7 du vérificateur, qui survivait) | gouttière à 9 largeurs ; gouttière du panneau |
+| en-tête du panneau en `px-4` seul | gouttière du panneau |
+| les 4 conteneurs de page en `px-6` (état du commit `cdbf122a`) | garde des pages (4 écarts nommés) |
+| `max-h-dvh` | bande de voile |
+
+**Mesures au navigateur après correctif** (Chrome headless, `mobile: true`, `innerWidth` = largeur
+demandée partout, `scrollWidth` = `innerWidth` partout ; preuve de version lue dans le DOM :
+classes `px-4 sm:px-6` de la barre, `body.style.position` en `fixed` menu ouvert).
+
+- **AC1 à 700 px de défilement** — fr 390 × 844, fr 360 × 740, wo 360, wo 390, en 360, en 390 :
+  menu ouvert, `body` en `position: fixed; top: -700px` ; `scrollY` vaut **0** (le document n'a
+  plus rien à défiler : `scrollHeight` = `innerHeight`) ; le repère (une carte de résultat) reste
+  à **y = −495** avant ouverture, menu ouvert, après `scrollBy(0, 500)`, après `scrollTo(0, 1500)`,
+  après un glissé tactile parti du voile et après un glissé parti du panneau — **la page ne bouge
+  pas d'un pixel**, et `scrollBy` laisse `scrollY` inchangé (0 → 0). Menu fermé par le voile :
+  `scrollY` rendu à **700**, repère à −495, focus sur le bouton menu, 0 `aria-hidden` ;
+  `scrollBy(0, 300)` → **700 → 1000**. Même chose partant de 0 (script `ac.mjs`, 390 et 360).
+- **Retour arrière** : défilé à 700, menu ouvert, lien « Louer » → `/fr/properties?contract_type=rent`
+  (en tête), puis Précédent → `/fr/properties` à **700** (`useScrollRestoration` n'a pas mémorisé
+  le 0 du verrou).
+- **Changement de langue depuis le menu** : `/en/properties`, verrou levé (`body` sans
+  `position`), défilement effectif ensuite (0 → 300).
+- **Franchir `lg` menu ouvert** (800 → 1280, défilé à 600) : 0 boîte, `body` sans `position`,
+  `scrollY` **600**, champ de recherche de bureau atteignable, 0 `inert`, 0 `aria-hidden`.
+- **AC2, AC3, AC4, AC6, Échap, croix** (390 et 360, déconnecté) : toucher en (W/2, H−20) sur
+  `sheet-overlay` → fermé, focus sur le bouton menu, URL inchangée ; 44 appuis Tab / Maj+Tab sur
+  10 focalisables, **0 sortie** ; connecté à 360 : 48 appuis sur 11 focalisables, 0 sortie ;
+  texte « Acheter » **16**, « Connexion » **17**, `padding-left` 0 ; favoris : `::before` 44 × 44,
+  les 8 points à ±21,5 px → le bouton, à ±23 px → plus le bouton.
+- **Paysage connecté** 740 × 360 : `max-height` calculé 83,33 %, panneau **300** px de haut,
+  `elementFromPoint(W/2, H−5)` → `sheet-overlay` ; le panneau défile en interne (0 → 229 = max),
+  la page non ; un toucher sur le voile ferme, focus sur le bouton, `scrollY` rendu à 400.
+  844 × 390 : panneau 325 px, même résultat.
+- **AC5 et la Direction « bords alignés », sur TOUTES les pages publiques qui montent la barre**
+  (texte du logo / bord gauche du conteneur / texte du `<h1>`) :
+
+  | Largeur | `/fr` | `/properties` | fiche | `/agents` | agent | `/agencies` | agence | favoris | comparateur | légal |
+  |---|---|---|---|---|---|---|---|---|---|---|
+  | 360 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 |
+  | 390 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 | 16/16/16 |
+  | 640 | 24/24/24 | 24/16/16 | 24/24/24 | 24/24/24 | 24/24/24 | 24/24/24 | 24/24/24 | 24/24/24 | 24/16/16 | 24/24/24 |
+  | 768 | 24/48/48 | 24/32/32 | 24/24/24 | 24/48/48 | 24/48/48 | 24/48/48 | 24/48/48 | 24/24/24 | 24/32/32 | 24/32/32 |
+
+  Dès `sm`, le logo est à 24 comme avant ce ticket : les écarts de ces lignes-là préexistaient
+  (les pages n'ont pas la même gouttière entre elles au-delà de `sm`) — ils ne sont ni créés ni
+  corrigés ici, cf. `restes`.
+- **Vue carte (`useBasDeLaNav`, TCK-553)**, fr 360 × 740 et wo 390 × 844 : `nav` 0 → 69, cadre fixe
+  69 → 740 (resp. 844), document non défilant — identique menu ouvert (`body` en `fixed`,
+  `top: 0px`) et après fermeture par le voile (focus sur le bouton menu).
+- **Bureau 1280** : les 16 contrôles de la barre ont le même rectangle que le relevé d'AVANT le
+  ticket, déconnecté ET connecté ; hauteur de `nav` 135 ; menu « Plus » ouvert puis fermé dehors
+  et par Échap ; menu utilisateur ouvert puis fermé dehors ; 0 boîte de dialogue.
+- **Pastille menu ouvert** : sous le doigt, l'en-tête du panneau ; toucher → 1 seule boîte, aucune
+  saisie ouverte ; libellé « Chercher » `scrollWidth` 60 = `clientWidth` 60 à 390 et 360.
+  Observation : un double appui en moins de ~100 ms (bouton menu puis pastille) touche ce qui
+  glisse sous le doigt pendant l'animation d'entrée du panneau (`side="top"`, 200 ms) — un lien,
+  ou le voile. Jamais deux modales, jamais de verrou resté posé ; animation inchangée depuis le
+  tour 1, non traité.
+
+**Faux rouge écarté pendant ces mesures** : deux boucles `for d in "390 844"` rendaient AC2 rouge.
+Cause : `zsh` ne découpe pas `$d` sans guillemets — le script recevait `W = NaN`, et le toucher
+tombait nulle part. Instrumenté (journal des évènements par CDP) avant d'être compris ; aucun
+défaut produit.
+
+**iOS Safari — toujours NON vérifié sur appareil ni en WebKit** (aucun WebKit sur cette machine,
+rien d'installé). Ce qui change depuis le tour 1 : le verrou n'est plus l'`overflow: hidden` que
+base-ui avoue ne pas tenir sur iOS barre repliée, mais la sortie du flux de `body`
+(`position: fixed` + `top` négatif), la technique qui ne dépend pas de ce qu'iOS fait
+d'`overflow` sur le viewport. C'est un argument de mécanisme, pas une mesure : la contrainte
+stricte reste à éprouver sur un iPhone réel (ouvrir le menu défilé, barre d'adresse repliée,
+glisser depuis le panneau et depuis le voile, fermer, vérifier la position rendue).
+
+### Tour 3 — après le refus du tour 2 (2026-09-23)
+
+Refus du vérificateur adverse : AC1 à AC6 confirmés, mais **un défaut majeur** — régression de
+TCK-335/TCK-557 — et deux mineurs. Charge au relevé : `load averages 3.09 5.55 8.78`, 8 cœurs ;
+aucun temps n'est mesuré, seulement des positions et des états.
+
+**Ce que la note « Retour arrière » du tour 2 ne couvrait pas.** Elle mesurait une sortie qui
+FERME d'abord le menu (lien « Louer », puis Précédent) : la levée du verrou rend la position
+avant la navigation, et c'est juste. Elle ne mesurait pas une sortie menu OUVERT — le geste retour
+d'Android, que l'Objectif nomme comme une fermeture attendue, ou un rechargement.
+
+**Reproduction (commit `e432de1c`, sources du tour 2 remises en place le temps de la mesure),**
+`/fr/properties` à 390 × 844, défilée à 900, scripts du vérificateur rejoués :
+
+| Scénario | Témoin sans menu | Menu ouvert |
+|---|---|---|
+| `sessionStorage` juste après l'ouverture | `{"y":900}` | **`{"y":0}`** |
+| légal → liste (navigation client) → 900 → Précédent → Suivant | 901 | **0** |
+| `Page.reload` | 901 | **0** |
+
+**Reproduit.** Cause : sous `position: fixed`, `window.scrollY` vaut 0 et le navigateur émet un
+`scroll` ; `useScrollRestoration.enregistrer` mémorisait `window.scrollY`, donc 0.
+
+**Correctif (TDD, test rouge d'abord) :** le verrou **publie** la position réelle du visiteur sur
+`body` (`data-verrou-defilement-y`, posé avec `position: fixed`, retiré AVANT le `scrollTo` de la
+levée), et `positionVerticale()` — exportée par `useVerrouDeDefilement.ts` — rend cette valeur
+verrou posé, `window.scrollY` sinon. `useScrollRestoration` mémorise `positionVerticale()`.
+Choisi plutôt qu'« ignorer les `scroll` verrou posé » : la valeur mémorisée reste juste même si
+aucun `scroll` n'avait été enregistré avant l'ouverture.
+
+**Mesures après correctif** (Chrome headless, `mobile: true`, `innerWidth` = largeur demandée,
+`scrollWidth` = `innerWidth`) :
+
+- Mêmes trois scénarios, menu ouvert : `sessionStorage` **`{"y":900}`** après l'ouverture ;
+  Précédent puis Suivant → liste à **901** ; `Page.reload` → **901**. Identique au témoin.
+- Sortie menu ouvert vers une page LONGUE (vérifié parce que la barre est montée par page : la
+  levée du verrou tombe au démontage, pendant la navigation) : `/fr/agents` défilée à 300
+  (`scrollHeight` 5375) → `router.push('/fr/properties')` → 900 → menu ouvert → Précédent :
+  `/fr/agents` à **300** (témoin : 300), attribut retiré, 0 boîte ; Suivant : liste à **901**.
+  Le `scrollTo` de levée ne déplace donc pas la page d'arrivée.
+- **AC1 et AC2 rejoués** à 390 × 844 et 360 × 740 : menu ouvert, `scrollBy(0, 500)` → `scrollY`
+  0, repère immobile à −694,8 ; attribut `"900"` ; toucher en (W/2, H−20) → 0 boîte, focus sur
+  « Ouvrir le menu », position rendue à **900**, attribut retiré, `scrollBy(0, 300)` → **1200**.
+
+**Mineur 1 — `touch-none` du voile désormais gardé** : `Navbar.menu-modal.test.tsx`, « le voile
+refuse les gestes tactiles ». Il ne prouve pas qu'iOS respecte `touch-action` ; il garde que la
+classe, argument du voile, ne disparaît pas en silence.
+
+**Ablations (jsdom, fichiers restaurés par copie, md5 vérifiés après) :**
+
+| Mutation | Tests rouges |
+|---|---|
+| `useScrollRestoration` remémorise `window.scrollY` | « le `scroll` émis par la pose du verrou n'écrase pas la position par 0 » |
+| le verrou ne publie pas l'attribut | le même + « publie la position réelle … et la retire à la levée » |
+| l'attribut n'est pas retiré à la levée | « publie la position réelle … et la retire à la levée » |
+| `touch-none` retiré du voile | « le voile refuse les gestes tactiles » |
+
+**Toujours NON vérifié : iOS Safari** (aucun WebKit sur cette machine, rien d'installé ; cf. tour
+2). Le focus après un changement de langue depuis le menu n'a pas été retesté à ce tour.
+
+### Tour 4 — après le refus du tour 3 (2026-09-23)
+
+Refus du vérificateur adverse : AC1 à AC6 confirmés ; **un majeur** (un rechargement menu ouvert
+perd la position sur toutes les pages sauf `/properties`) et deux mineurs (le geste retour quitte
+la page au lieu de fermer le menu ; `PropertiesDiscoveryPage` lit encore `scrollY`). Front du
+worktree `:3021`, Chrome headless `:9351` (Chrome 154), `mobile: true`, `innerWidth` = largeur
+demandée à chaque relevé. Charge au relevé : `load averages 3.37 3.58 3.76`, 8 cœurs ; aucun temps
+n'est mesuré, seulement des positions, des états et `history.length`. Scripts :
+`scratchpad/agent-TCK-551/t4/` (`rl.mjs`, `hist.mjs`, `meme.mjs`, `vis.mjs`).
+
+#### (A) Rechargement menu ouvert — reproduit, puis corrigé
+
+`rl.mjs` : page atteinte par navigation client depuis `/fr/legal/notice`, défilée, (menu ouvert),
+`Page.reload`. ⚠ Le script du vérificateur partait de `/fr/legal/mentions-legales`, qui rend 404
+sur cette branche (la route est `/fr/legal/notice`) : sa page 404 n'ayant pas de `nav`, l'attente
+tournait 90 s par cas. Aucune incidence sur ses chiffres, que la reproduction retrouve.
+
+| Page | Taille | Défilée à | Témoin sans menu | Menu ouvert, AVANT (commit `7c816cf2`) | Menu ouvert, APRÈS |
+|---|---|---|---|---|---|
+| `/fr/agents` | 390 × 844 | 2000 | 2000 | **0** | **2000** |
+| `/fr/agents` | 360 × 740 | 1200 | 1200 | **0** | **1200** |
+| fiche `villa-moderne-a-almadies-Frlmsn` | 360 × 740 | 1200 | 1200 | **0** | **1200** (1217 au premier passage, 1200 aux deux suivants, `scrollHeight` 4268 partout) |
+| même fiche | 390 × 844 | 1200 | 1200 | **0** | **1200** |
+| `/fr` | 360 × 740 | 1200 | 1208 | **0** | **1208** |
+| `/fr` | 390 × 844 | 1200 | 1208 | **0** | **1208** |
+
+Correctif (`useVerrouDeDefilement`, une seule pièce : `poser` / `lever` idempotents) : le verrou se
+lève, position rendue, à `pagehide`. **`pagehide` suffit dans Chrome** : la position rendue par
+`scrollTo` dans ce gestionnaire est celle que le navigateur enregistre (tableau ci-dessus) —
+`beforeunload` n'a pas été nécessaire. Ajouté aussi, parce qu'Android décharge un onglet en
+arrière-plan SANS `pagehide` : `visibilitychange` → `hidden` lève, → `visible` repose ; `pageshow`
+persisté repose (retour par le cache de navigation, menu toujours ouvert). Mesuré (`vis.mjs`,
+`/fr/agents` 360 × 740 à 1200, menu ouvert, un autre onglet activé par `Target.activateTarget`) :
+caché → `visibilityState` `hidden`, `scrollY` **1200**, `body` sans `position`, attribut retiré,
+menu toujours ouvert ; ré-affiché → `body` en `fixed; top: -1200px`, attribut `"1200"`,
+`scrollY` 0. Le déchargement lui-même n'est pas reproductible en headless : c'est la mise en
+arrière-plan, son préalable, qui est mesurée.
+
+Tests (`useVerrouDeDefilement.test.ts`, rouges avant : `pagehide` et `visibilitychange` n'étaient
+pas écoutés) : `pagehide` lève et rend ; `pageshow` persisté repose ; `pageshow` non persisté ne
+fait rien ; caché lève / visible repose ; levé deux fois, position rendue une fois ; levé
+normalement, plus rien n'est écouté.
+
+#### (C) `PropertiesDiscoveryPage` l. 289
+
+`positionVerticale()` au lieu de `window.scrollY` pour la position quittée au passage en carte.
+Test ajouté à `PropertiesDiscoveryPage.carte-mobile.test.tsx` (attribut du verrou posé à 1234,
+`scrollY` 0 → retour à la liste en `scrollTo(0, 1234)`), rouge avant. Menu ouvert, la bascule
+liste/carte n'est pas atteignable (le panneau est modal) : c'est une cohérence de lecture, pas un
+parcours mesurable.
+
+#### (B) Le geste retour ferme le menu — reproduit, puis corrigé
+
+**Avant** (`hist.mjs`, `/fr/agents` 360 × 740 défilée à 1200, menu ouvert, `history.back()`) :
+`/fr/legal/notice` s'affiche, menu démonté. Reproduit.
+
+**Correctif** : `src/hooks/useEntreeSentinelle.ts`, le mécanisme du `TiroirMobile` (TCK-556)
+dupliqué dans un petit hook, `FilterSidebar` non touché — `pushState` direct avec l'état de Next
+recopié, jeton propre contre le double montage, `back()` différé d'une tâche, ne dépiler que notre
+sentinelle. Deux écarts au modèle, chacun mesuré :
+
+- **Posée dans un effet de mise en page, AVANT le verrou.** Le navigateur enregistre au
+  `pushState` la position de l'entrée qu'on quitte, et la rend quand un retour y ramène : posée
+  après le verrou, elle aurait valu 0. Test : `position` de `body` relevée au `pushState` → `''`.
+- **Un lien du menu navigue en `replace`**, et appelle `remplaceeParUneNavigation()` AVANT de
+  fermer : la navigation de Next est asynchrone (aller-retour RSC), un `back()` différé d'une
+  tâche passerait avant elle, puis son `replaceState` écraserait l'entrée d'avant le menu. Deux
+  exceptions, qui ferment par `back()` comme la croix : lien vers la page COURANTE (on
+  `preventDefault` — mesuré AVANT le ticket : logo sur `/fr` et « Acheter » sur la liste des
+  achats ne faisaient déjà que fermer, même URL, même position ; APRÈS : idem, 1200 et 900, retour
+  → `/fr/legal/notice`), et clic modifié (nouvel onglet). La déconnexion depuis le menu redirige
+  en `replace` de même (sauf depuis l'accueil). Le choix de langue passe
+  `remplacerLEntree` à `ChoixDeLangue` → `useChangementDeLangue({ remplacer: true })` →
+  `router.replace` : le pied de page et le sélecteur de bureau gardent le `push`.
+
+**Après**, onglet neuf par script (`history.length` plafonne à 50 dans un onglet réutilisé — les
+premiers relevés, pris sans ça, étaient illisibles et ont été refaits). Départ :
+`about:blank` → `/fr/legal/notice` → `/fr/agents` (navigation client), `history.length` = 3.
+
+| Fermeture (360 × 740, `/fr/agents` à 1200) | Menu ouvert | Après | Retour depuis là |
+|---|---|---|---|
+| `history.back()` (geste retour) | hl 4, marque posée | **`/fr/agents` à 1200, menu fermé**, focus « Ouvrir le menu » | `/fr/legal/notice` |
+| croix / Échap / voile (toucher CDP) | hl 4 | `/fr/agents` à 1200, focus « Ouvrir le menu » | `/fr/legal/notice` — la sentinelle est rendue |
+| lien « Louer » | hl 4 | `/fr/properties?contract_type=rent`, **hl 4** | `/fr/agents` à **1200**, puis `/fr/legal/notice` |
+| témoin sans menu : `router.push` vers la même page | — | hl **4** | `/fr/agents` à 1200, puis `/fr/legal/notice` |
+| langue fr → wo depuis le menu | hl 4 | `/wo/agents`, `lang="wo"`, hl **4** | `/fr/agents` à **1200** (AVANT ce tour : **0**, verrou posé au `push`), puis `/fr/legal/notice` |
+
+Mêmes résultats à 390 × 844 sur `/fr/agencies` défilée à 600 (retour, croix, lien, témoin,
+langue). Le lien et la langue ne laissent donc AUCUN appui perdu : même `history.length` et même
+suite de retours que le témoin sans menu. Sur `/fr/properties` à 900 (390 et 360, `liste.mjs`) :
+fermeture par la croix ou par le retour → position échantillonnée à chaque image pendant 2,5 s :
+**900** seulement ; 0 squelette apparu (observateur de mutations) ; `scrollHeight` inchangé.
+AC1 et AC2 rejoués après (B) (`ac1.mjs`, 390 et 360) : menu ouvert, `scrollBy(0, 500)` → 0 → 0,
+`body` `fixed; top: -700px` ; toucher sur le voile → fermé, position rendue **700**, focus
+« Ouvrir le menu », puis `scrollBy(0, 300)` → **1000**.
+
+**Deux cas limites, mesurés, NON corrigés** (cf. `restes`) :
+
+1. **Rechargement menu ouvert** (`rl2.mjs`, `/fr/agents` 360 à 1200) : la position est rendue
+   (1200), mais la sentinelle survit au rechargement (`history.length` 4, marque dans l'état) — le
+   premier retour rend la même page à la même position, le second `/fr/legal/notice`. Un appui
+   perdu. La dépiler au chargement suivant serait une traversée vers une entrée de l'ANCIEN
+   document, donc un second chargement complet : pire que l'appui perdu.
+2. **Suivant après un retour qui a fermé le menu** (`suivant.mjs`) : le navigateur ramène sur la
+   sentinelle, et y rend la position qu'il a enregistrée en la quittant — verrou posé, donc **0**.
+   Un retour de plus → 1200. Le tiroir de filtres (TCK-556) a la même forme. Sur Android, « Suivant »
+   n'a pas de geste ; il est dans le menu du navigateur.
+
+Tests (TDD, rouges avant le branchement) : `Navbar.menu-retour.test.tsx` (10) et
+`useEntreeSentinelle.test.tsx` (3) — une sentinelle à l'ouverture, avec l'état de Next ; posée
+avant le verrou ; popstate ferme sans second `back()` ; croix, Échap, voile rendent la sentinelle
+par `back()` ; un lien navigue en `replace` sans `back()` (même si la navigation n'a encore rien
+écrit dans l'historique) ; un lien vers la page courante ne navigue pas et rend la sentinelle ; la
+langue passe par `router.replace` ; StrictMode, hook monté ouvert : une sentinelle, aucun `back()` ;
+on ne dépile que sa sentinelle.
+
+#### Ablations (jsdom ; copie restaurée, md5 des 5 sources identiques après la série)
+
+Témoin : 49/49 verts (`useEntreeSentinelle`, `Navbar.menu-retour`, `Navbar.menu-modal`,
+`useVerrouDeDefilement`, `PropertiesDiscoveryPage.carte-mobile`).
+
+| Mutation | Rouges |
+|---|---|
+| A1 sans écouteur `pagehide` | 1 (`pagehide` lève et rend) |
+| A2 sans `visibilitychange` | 1 (caché lève / visible repose) |
+| A3 sans `pageshow` | 1 (retour du cache reverrouille) |
+| A4 `pageshow` non persisté repose aussi | **0 — mutant équivalent** : `poser` est idempotent, et un `pageshow` non persisté n'arrive qu'au premier chargement, avant le montage |
+| A5 `lever` non idempotent | 1 |
+| A6 écouteurs non retirés | 2 |
+| B1 liens sans `replace` | 1 |
+| B2 sans `remplaceeParUneNavigation()` | 1 |
+| B3 sans le cas « page courante » | 1 |
+| B4 sans jeton | 1 (hook monté ouvert sous StrictMode) |
+| B5 popstate rend AUSSI la sentinelle | **0 — mutant équivalent** : après un popstate, l'entrée courante est celle d'avant le menu, sans marque ; le contrôle de marque suffit (B9) |
+| B6 sans sentinelle | 8 |
+| B7 langue en `push` | 1 |
+| B8 verrou posé avant la sentinelle | 1 |
+| B9 `back()` sans contrôle de marque | 4 |
+| B10 `back()` immédiat, non différé | 2 |
+| C1 `window.scrollY` dans `PropertiesDiscoveryPage` | 1 |
+
+#### Vérifications statiques
+
+`npx vitest run` sur les tests des 50 fichiers qui importent un fichier touché, `src/test`,
+`src/app/[locale]/(public)`, `src/components/{compare,favorites,home,legal,property,public,shared,search}`
+et `src/hooks` : **112 fichiers, 941 tests verts** ; `src/test` seul : 34/34. `eslint` sur les
+fichiers touchés : 0. `tsc --noEmit` : 0. `check:i18n`, `check:i18n-namespaces`,
+`check:classes-emises` : 0. `scripts/check-*.mjs` : aucun ✗.
+
+**Toujours NON vérifié : iOS Safari** (aucun WebKit ici). Ni le verrou, ni `pagehide` /
+`visibilitychange` sur Safari, ni la sentinelle sous le geste de balayage d'iOS.

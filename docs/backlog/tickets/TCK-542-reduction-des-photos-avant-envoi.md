@@ -1,7 +1,7 @@
 ---
 id: TCK-542
 title: "Réduire les photos dans le navigateur avant l'envoi — dimensions plafonnées, format conservé"
-status: review
+status: done
 phase: P2
 family: front
 estimate: M
