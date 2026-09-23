@@ -165,6 +165,32 @@ describe('TCK-553 — le retour à la liste passe par la pastille flottante (AC5
     expect(scrollTo).toHaveBeenCalledWith(0, 1234);
   });
 
+  /**
+   * TCK-551, tour 4 — sous le verrou du menu mobile (`body` en `position: fixed`), `scrollY` vaut
+   * 0 : la position quittée se lit par `positionVerticale()`, comme `useScrollRestoration`.
+   */
+  it('verrou de défilement posé, la position quittée est celle que le verrou a mise de côté, pas le 0 de `scrollY`', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    render(withIntl(<PropertiesDiscoveryPage titre="Biens à louer" />));
+    await screen.findByText(/^12 biens trouvés$/);
+
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(0);
+    document.body.setAttribute('data-verrou-defilement-y', '1234');
+    try {
+      await userEvent.click(basculeMobile()!);
+      await waitFor(() => expect(screen.getByTestId('carte')).toBeInTheDocument());
+    } finally {
+      document.body.removeAttribute('data-verrou-defilement-y');
+    }
+
+    scrollTo.mockClear();
+    const pastille = screen.getByRole('group', { name: /outils de recherche/i });
+    await userEvent.click(within(pastille).getByRole('button', { name: /liste/i }));
+
+    await waitFor(() => expect(screen.queryByTestId('carte')).toBeNull());
+    expect(scrollTo).toHaveBeenCalledWith(0, 1234);
+  });
+
   it('filtres CHANGÉS depuis la carte : le retour ramène en tête des NOUVEAUX résultats, pas à l’ancienne position', async () => {
     // Refus du tour 1 (D1) : sous lg, la pastille Filtres est le seul accès aux filtres en vue
     // carte. Restaurer 1 800 px d'une liste qui n'est plus la même posait le visiteur au 13ᵉ

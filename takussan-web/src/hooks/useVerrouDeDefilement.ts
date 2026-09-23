@@ -51,20 +51,62 @@ export function positionVerticale(): number {
  *
  * ⚠ Verrou posé, `window.scrollY` vaut 0 : la position du visiteur se lit par `positionVerticale()`
  * (tour 3 — `useScrollRestoration` mémorisait ce 0).
+ *
+ * ## Quitter la page verrou posé — tour 4
+ *
+ * Le navigateur enregistre la position d'une page qu'on quitte, pour la lui rendre au
+ * rechargement ou à la restauration de l'onglet : sous le verrou, il enregistrait 0. Mesuré par
+ * `Page.reload`, témoin sans menu contre menu ouvert : `/fr/agents` à 360 × 740 défilée à 1200 →
+ * 1200 contre **0**, une fiche de bien → 1200 contre **0**, `/fr` → 1208 contre **0**. Le verrou se
+ * LÈVE donc, position rendue, dès que la page cesse d'être vue :
+ *
+ * - `pagehide` — rechargement, saisie d'une adresse, départ vers un autre document ;
+ * - `visibilitychange` vers `hidden` — l'onglet passe en arrière-plan. C'est le dernier évènement
+ *   sûr avant qu'Android ne décharge l'onglet, ce qu'il fait SANS `pagehide`, et il restaure
+ *   ensuite l'onglet depuis la position enregistrée.
+ *
+ * Et il se repose, à la même position, si la page revient avec le menu toujours ouvert : onglet
+ * ré-affiché, ou page rendue par le cache de navigation (`pageshow` persisté).
  */
 export function useVerrouDeDefilement(actif: boolean): void {
   useLayoutEffect(() => {
     if (!actif) return undefined;
     const style = document.body.style;
-    const x = window.scrollX;
-    const y = window.scrollY;
-    const origine = { position: style.position, top: style.top, left: style.left, width: style.width };
-    Object.assign(style, { position: 'fixed', top: `${-y}px`, left: `${-x}px`, width: '100%' });
-    document.body.setAttribute(ATTRIBUT_POSITION_VERROUILLEE, String(y));
-    return () => {
+    let pose: { x: number; y: number; origine: Partial<CSSStyleDeclaration> } | null = null;
+
+    const poser = () => {
+      if (pose) return;
+      const x = window.scrollX;
+      const y = window.scrollY;
+      pose = { x, y, origine: { position: style.position, top: style.top, left: style.left, width: style.width } };
+      Object.assign(style, { position: 'fixed', top: `${-y}px`, left: `${-x}px`, width: '100%' });
+      document.body.setAttribute(ATTRIBUT_POSITION_VERROUILLEE, String(y));
+    };
+    const lever = () => {
+      if (!pose) return;
+      const { x, y, origine } = pose;
+      pose = null;
       document.body.removeAttribute(ATTRIBUT_POSITION_VERROUILLEE);
       Object.assign(style, origine);
       window.scrollTo({ left: x, top: y, behavior: 'instant' });
+    };
+    const surPageMontree = (e: PageTransitionEvent) => {
+      if (e.persisted) poser();
+    };
+    const surVisibilite = () => {
+      if (document.visibilityState === 'hidden') lever();
+      else poser();
+    };
+
+    poser();
+    window.addEventListener('pagehide', lever);
+    window.addEventListener('pageshow', surPageMontree);
+    document.addEventListener('visibilitychange', surVisibilite);
+    return () => {
+      window.removeEventListener('pagehide', lever);
+      window.removeEventListener('pageshow', surPageMontree);
+      document.removeEventListener('visibilitychange', surVisibilite);
+      lever();
     };
   }, [actif]);
 }

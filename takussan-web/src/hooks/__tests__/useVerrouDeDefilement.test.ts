@@ -108,4 +108,90 @@ describe('useVerrouDeDefilement', () => {
     unmount();
     expect(scrollTo).toHaveBeenCalledWith({ left: 40, top: 120, behavior: 'instant' });
   });
+
+  /**
+   * Tour 4 — refus du tour 3 (majeur). Le navigateur enregistre la position d'une page qu'on quitte
+   * pour la lui rendre au rechargement — et, sous le verrou, cette position vaut 0. Mesuré par
+   * `Page.reload`, témoin sans menu contre menu ouvert : `/fr/agents` à 360 × 740 défilée à 1200 →
+   * 1200 contre 0 ; fiche de bien → 1200 contre 0 ; `/fr` → 1208 contre 0. Seule `/properties`
+   * mémorise sa position elle-même : toutes les autres pages perdaient la leur.
+   */
+  describe('quitter la page verrou posé (rechargement, onglet mis en arrière-plan)', () => {
+    function surWindow(type: string, persisted = false) {
+      const e = new Event(type) as Event & { persisted?: boolean };
+      Object.defineProperty(e, 'persisted', { value: persisted });
+      window.dispatchEvent(e);
+    }
+    function visibilite(etat: 'hidden' | 'visible') {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: etat });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }
+    afterEach(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
+    });
+
+    it('`pagehide` lève le verrou et rend la position, pour que le navigateur enregistre la vraie', () => {
+      renderHook(() => useVerrouDeDefilement(true));
+      defiler(0, 0);
+      surWindow('pagehide');
+      expect(document.body.style.position).toBe('');
+      expect(document.body.hasAttribute('data-verrou-defilement-y')).toBe(false);
+      expect(scrollTo).toHaveBeenCalledWith({ left: 0, top: 700, behavior: 'instant' });
+    });
+
+    it('revenue du cache (`pageshow` persisté) menu toujours ouvert, la page est reverrouillée', () => {
+      renderHook(() => useVerrouDeDefilement(true));
+      defiler(0, 0);
+      surWindow('pagehide');
+      defiler(0, 700);
+      surWindow('pageshow', true);
+      expect(document.body.style.position).toBe('fixed');
+      expect(document.body.style.top).toBe('-700px');
+      expect(document.body.getAttribute('data-verrou-defilement-y')).toBe('700');
+    });
+
+    it('un `pageshow` d’un premier chargement (non persisté) ne pose rien de plus', () => {
+      renderHook(() => useVerrouDeDefilement(true));
+      surWindow('pageshow', false);
+      expect(document.body.style.top).toBe('-700px');
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    /**
+     * Android décharge les onglets en arrière-plan SANS `pagehide`, et les restaure depuis la
+     * position enregistrée : `visibilitychange` vers `hidden` est le dernier évènement sûr.
+     */
+    it('l’onglet caché lève le verrou ; ré-affiché, il le repose à la même position', () => {
+      renderHook(() => useVerrouDeDefilement(true));
+      defiler(0, 0);
+      visibilite('hidden');
+      expect(document.body.style.position).toBe('');
+      expect(scrollTo).toHaveBeenCalledWith({ left: 0, top: 700, behavior: 'instant' });
+      defiler(0, 700);
+      visibilite('visible');
+      expect(document.body.style.position).toBe('fixed');
+      expect(document.body.style.top).toBe('-700px');
+    });
+
+    it('levé deux fois (onglet caché PUIS rechargé), la position n’est rendue qu’une fois', () => {
+      const { unmount } = renderHook(() => useVerrouDeDefilement(true));
+      defiler(0, 0);
+      visibilite('hidden');
+      surWindow('pagehide');
+      unmount();
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+    });
+
+    it('levé normalement, il n’écoute plus rien', () => {
+      const { rerender } = renderHook(({ actif }) => useVerrouDeDefilement(actif), {
+        initialProps: { actif: true },
+      });
+      rerender({ actif: false });
+      scrollTo.mockClear();
+      surWindow('pageshow', true);
+      visibilite('visible');
+      expect(document.body.style.position).toBe('');
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -401,3 +401,54 @@ classe, argument du voile, ne disparaît pas en silence.
 
 **Toujours NON vérifié : iOS Safari** (aucun WebKit sur cette machine, rien d'installé ; cf. tour
 2). Le focus après un changement de langue depuis le menu n'a pas été retesté à ce tour.
+
+### Tour 4 — après le refus du tour 3 (2026-09-23)
+
+Refus du vérificateur adverse : AC1 à AC6 confirmés ; **un majeur** (un rechargement menu ouvert
+perd la position sur toutes les pages sauf `/properties`) et deux mineurs (le geste retour quitte
+la page au lieu de fermer le menu ; `PropertiesDiscoveryPage` lit encore `scrollY`). Front du
+worktree `:3021`, Chrome headless `:9351` (Chrome 154), `mobile: true`, `innerWidth` = largeur
+demandée à chaque relevé. Charge au relevé : `load averages 3.37 3.58 3.76`, 8 cœurs ; aucun temps
+n'est mesuré, seulement des positions, des états et `history.length`. Scripts :
+`scratchpad/agent-TCK-551/t4/` (`rl.mjs`, `hist.mjs`, `meme.mjs`, `vis.mjs`).
+
+#### (A) Rechargement menu ouvert — reproduit, puis corrigé
+
+`rl.mjs` : page atteinte par navigation client depuis `/fr/legal/notice`, défilée, (menu ouvert),
+`Page.reload`. ⚠ Le script du vérificateur partait de `/fr/legal/mentions-legales`, qui rend 404
+sur cette branche (la route est `/fr/legal/notice`) : sa page 404 n'ayant pas de `nav`, l'attente
+tournait 90 s par cas. Aucune incidence sur ses chiffres, que la reproduction retrouve.
+
+| Page | Taille | Défilée à | Témoin sans menu | Menu ouvert, AVANT (commit `7c816cf2`) | Menu ouvert, APRÈS |
+|---|---|---|---|---|---|
+| `/fr/agents` | 390 × 844 | 2000 | 2000 | **0** | **2000** |
+| `/fr/agents` | 360 × 740 | 1200 | 1200 | **0** | **1200** |
+| fiche `villa-moderne-a-almadies-Frlmsn` | 360 × 740 | 1200 | 1200 | **0** | **1200** (1217 au premier passage, 1200 aux deux suivants, `scrollHeight` 4268 partout) |
+| même fiche | 390 × 844 | 1200 | 1200 | **0** | **1200** |
+| `/fr` | 360 × 740 | 1200 | 1208 | **0** | **1208** |
+| `/fr` | 390 × 844 | 1200 | 1208 | **0** | **1208** |
+
+Correctif (`useVerrouDeDefilement`, une seule pièce : `poser` / `lever` idempotents) : le verrou se
+lève, position rendue, à `pagehide`. **`pagehide` suffit dans Chrome** : la position rendue par
+`scrollTo` dans ce gestionnaire est celle que le navigateur enregistre (tableau ci-dessus) —
+`beforeunload` n'a pas été nécessaire. Ajouté aussi, parce qu'Android décharge un onglet en
+arrière-plan SANS `pagehide` : `visibilitychange` → `hidden` lève, → `visible` repose ; `pageshow`
+persisté repose (retour par le cache de navigation, menu toujours ouvert). Mesuré (`vis.mjs`,
+`/fr/agents` 360 × 740 à 1200, menu ouvert, un autre onglet activé par `Target.activateTarget`) :
+caché → `visibilityState` `hidden`, `scrollY` **1200**, `body` sans `position`, attribut retiré,
+menu toujours ouvert ; ré-affiché → `body` en `fixed; top: -1200px`, attribut `"1200"`,
+`scrollY` 0. Le déchargement lui-même n'est pas reproductible en headless : c'est la mise en
+arrière-plan, son préalable, qui est mesurée.
+
+Tests (`useVerrouDeDefilement.test.ts`, rouges avant : `pagehide` et `visibilitychange` n'étaient
+pas écoutés) : `pagehide` lève et rend ; `pageshow` persisté repose ; `pageshow` non persisté ne
+fait rien ; caché lève / visible repose ; levé deux fois, position rendue une fois ; levé
+normalement, plus rien n'est écouté.
+
+#### (C) `PropertiesDiscoveryPage` l. 289
+
+`positionVerticale()` au lieu de `window.scrollY` pour la position quittée au passage en carte.
+Test ajouté à `PropertiesDiscoveryPage.carte-mobile.test.tsx` (attribut du verrou posé à 1234,
+`scrollY` 0 → retour à la liste en `scrollTo(0, 1234)`), rouge avant. Menu ouvert, la bascule
+liste/carte n'est pas atteignable (le panneau est modal) : c'est une cohérence de lecture, pas un
+parcours mesurable.
