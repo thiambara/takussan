@@ -18,7 +18,7 @@ import { PropertyCard } from '@/components/property/PropertyCard';
 import { PropertyMap } from '@/components/map';
 import { SaveSearchButton } from '@/components/favorites/SaveSearchButton';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useSearch, type GraineDeRecherche } from '@/hooks/useSearch';
+import { filtersToParams, useSearch, type GraineDeRecherche } from '@/hooks/useSearch';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useMatchesMaxWidth } from '@/hooks/useMatchesMedia';
 import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
@@ -288,20 +288,37 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   // TCK-553 (AC5) — la liste revient là où on l'a quittée. La vue carte mobile raccourcit le
   // document à la hauteur de l'écran, et le navigateur écrête alors le défilement à 0 : sans cette
   // mémoire, revenir à la liste repartait du haut, loin du bien qu'on regardait.
-  const defilementDeLaListe = useRef(0);
-  const defilementARestaurer = useRef<number | null>(null);
+  //
+  // ⚠ La position ne vaut que pour la liste qu'on a quittée. Sous `lg`, la pastille Filtres est le
+  // seul accès aux filtres en vue carte : filtrer depuis la carte est un parcours courant. Restaurer
+  // alors 1 800 px d'une liste qui n'est plus la même posait le visiteur au 13ᵉ résultat d'une
+  // liste jamais vue — ou, sur 3 résultats, en plein pied de page (mesuré, refus du tour 1). La
+  // recherche est donc mémorisée avec la position, sous sa forme canonique (`filtersToParams`, page
+  // comprise) : changée, le retour se fait en TÊTE des nouveaux résultats, comme avant ce ticket.
+  const signatureDeLaRecherche = filtersToParams(filters).toString();
+  const listeQuittee = useRef<{ y: number; recherche: string } | null>(null);
+  const retourARestaurer = useRef<{ genre: 'position'; y: number } | { genre: 'tete' } | null>(null);
   const changerDeVue = (prochaine: View) => {
     if (prochaine === vue) return;
-    if (vue === 'list') defilementDeLaListe.current = window.scrollY;
-    else defilementARestaurer.current = defilementDeLaListe.current;
+    if (vue === 'list') {
+      listeQuittee.current = { y: window.scrollY, recherche: signatureDeLaRecherche };
+    } else {
+      const quittee = listeQuittee.current;
+      retourARestaurer.current =
+        quittee && quittee.recherche === signatureDeLaRecherche
+          ? { genre: 'position', y: quittee.y }
+          : { genre: 'tete' };
+    }
     setView(prochaine);
   };
   // Avant la peinture : la liste ne s'affiche jamais en haut pour sauter ensuite à sa position.
   useLayoutEffect(() => {
-    if (vue !== 'list' || defilementARestaurer.current === null) return;
-    const y = defilementARestaurer.current;
-    defilementARestaurer.current = null;
-    window.scrollTo(0, y);
+    const retour = retourARestaurer.current;
+    if (vue !== 'list' || retour === null) return;
+    retourARestaurer.current = null;
+    if (retour.genre === 'position') window.scrollTo(0, retour.y);
+    // `scroll-mt-20` : la rangée d'outils s'arrête sous la `nav` fixe, pas derrière elle.
+    else rangeeOutilsRef.current?.scrollIntoView({ block: 'start' });
   }, [vue]);
 
   // TCK-335 — le retour arrière repartait du haut. En traversée d'historique, Next ne
@@ -403,9 +420,11 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               // TCK-552 — plus compact sous `md` (P6) : à 28 px, « Biens immobiliers à louer » tenait
               // sur DEUX lignes à 360. Le texte ne change pas (TCK-432) ; à partir de `md`, rien ne
               // change non plus.
+              // TCK-553 — en vue carte sous `lg`, le titre quitte l'écran mais PAS l'arbre
+              // d'accessibilité (`sr-only`, et non `hidden`) : la page garde son `<h1>` (TCK-432).
               <h1
                 className={`font-display text-[22px] md:text-[34px] leading-[1.1] font-semibold text-foreground mb-2 md:mb-5 ${
-                  vue === 'map' ? 'max-lg:hidden' : ''
+                  vue === 'map' ? 'max-lg:sr-only' : ''
                 }`}
               >
                 {titre}

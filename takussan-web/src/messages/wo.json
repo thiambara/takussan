@@ -277,8 +277,8 @@
     "truncated": "{count}+ kër — yokkal ngir gën a leer",
     "onMap": "{count, plural, =0 {Amul kër ci kart bi} one {# kër ci kart bi} other {# kër ci kart bi}}",
     "clusterZoom": "{count} kër fii — yokkal ngir gis leen",
-    "clusterList": "{count} kër ci béréb bii — seetal limu bi",
-    "clusterListTitle": "{count} kër ci béréb bii"
+    "clusterList": "{count} kër yu jege lool — seetal limu bi",
+    "clusterListTitle": "{count} kër yu jege lool"
   },
   "publicContact": {
     "title": "Yónnee bataaxal",

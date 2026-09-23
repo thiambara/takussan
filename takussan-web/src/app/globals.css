@@ -745,3 +745,13 @@
     0 4px 12px rgba(31, 24, 18, 0.3);
   outline: none;
 }
+
+/* TCK-553 — carte plein écran sous `lg` : l'attribution OpenStreetMap tient dans la marge que le
+   dock flottant laisse sous la pastille Filtres/Liste (`--floating-dock-base`, 16 px sous `sm`).
+   À la hauteur de ligne de Leaflet (12 px × 1,4 = 17 px), la pastille la recouvrait d'1 px —
+   mesuré à 360 × 740 : pastille 676–724, attribution 723–740. */
+@media (max-width: 1023.98px) {
+  .takussan-carte-plein-ecran .leaflet-control-attribution {
+    line-height: 16px;
+  }
+}

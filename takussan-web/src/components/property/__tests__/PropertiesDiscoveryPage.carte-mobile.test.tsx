@@ -52,6 +52,8 @@ vi.mock('@/components/favorites/SaveSearchButton', () => ({ SaveSearchButton: ()
 import { PropertiesDiscoveryPage } from '../PropertiesDiscoveryPage';
 
 const matchMediaOriginal = window.matchMedia;
+// jsdom n'implémente pas `scrollIntoView` : un test le pose, `afterEach` le retire.
+const scrollIntoViewOriginal = Element.prototype.scrollIntoView;
 let mobile = true;
 
 beforeEach(() => {
@@ -78,6 +80,7 @@ beforeEach(() => {
 
 afterEach(() => {
   window.matchMedia = matchMediaOriginal;
+  Element.prototype.scrollIntoView = scrollIntoViewOriginal;
   vi.restoreAllMocks();
 });
 
@@ -102,6 +105,9 @@ describe('TCK-553 — la vue carte occupe l’écran sous lg (M2, AC3)', () => {
     expect(classes(vue)).toEqual(
       expect.arrayContaining(['max-lg:fixed', 'max-lg:inset-x-0', 'max-lg:bottom-0']),
     );
+    // Sous la `nav` (z-50) et la pastille flottante (z-40) : jsdom ne peint rien, c'est donc la
+    // classe qui se garde. Un `z-[60]` poserait la carte PAR-DESSUS la `nav` et la pastille.
+    expect(classes(vue)).toContain('max-lg:z-0');
     await waitFor(() => expect(vue.style.getPropertyValue('--haut-de-la-carte')).toBe(`${BAS_DE_LA_NAV}px`));
     expect(propsDeLaCarte.at(-1)).toMatchObject({ pleinEcranSousLg: true });
   });
@@ -109,7 +115,10 @@ describe('TCK-553 — la vue carte occupe l’écran sous lg (M2, AC3)', () => {
   it('ni pied de page, ni titre, ni rangée d’outils sous lg : rien ne fait défiler la page derrière la carte', async () => {
     await monteEtPasseEnCarte();
     expect(classes(screen.getByTestId('pied').parentElement!)).toContain('max-lg:hidden');
-    expect(classes(screen.getByRole('heading', { level: 1 }))).toContain('max-lg:hidden');
+    // Le titre sort de l'ÉCRAN, pas de l'arbre d'accessibilité : la page garde son `<h1>`.
+    const titre = screen.getByRole('heading', { level: 1, name: 'Biens à louer' });
+    expect(classes(titre)).toContain('max-lg:sr-only');
+    expect(classes(titre)).not.toContain('max-lg:hidden');
     expect(classes(document.querySelector('[data-rangee-outils]')!)).toContain('max-lg:hidden');
   });
 
@@ -118,6 +127,7 @@ describe('TCK-553 — la vue carte occupe l’écran sous lg (M2, AC3)', () => {
     await screen.findByText(/^12 biens trouvés$/);
     expect(classes(screen.getByTestId('pied').parentElement!)).not.toContain('max-lg:hidden');
     expect(classes(screen.getByRole('heading', { level: 1 }))).not.toContain('max-lg:hidden');
+    expect(classes(screen.getByRole('heading', { level: 1 }))).not.toContain('max-lg:sr-only');
     expect(document.querySelector('[data-vue-carte]')).toBeNull();
   });
 });
@@ -153,6 +163,37 @@ describe('TCK-553 — le retour à la liste passe par la pastille flottante (AC5
 
     await waitFor(() => expect(screen.queryByTestId('carte')).toBeNull());
     expect(scrollTo).toHaveBeenCalledWith(0, 1234);
+  });
+
+  it('filtres CHANGÉS depuis la carte : le retour ramène en tête des NOUVEAUX résultats, pas à l’ancienne position', async () => {
+    // Refus du tour 1 (D1) : sous lg, la pastille Filtres est le seul accès aux filtres en vue
+    // carte. Restaurer 1 800 px d'une liste qui n'est plus la même posait le visiteur au 13ᵉ
+    // résultat d'une liste jamais vue — ou, sur 3 résultats, en plein pied de page.
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    const versLaRangee = vi.fn();
+    Element.prototype.scrollIntoView = versLaRangee;
+    const { rerender } = render(withIntl(<PropertiesDiscoveryPage titre="Biens à louer" />));
+    await screen.findByText(/^12 biens trouvés$/);
+
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(1800);
+    await userEvent.click(basculeMobile()!);
+    await waitFor(() => expect(screen.getByTestId('carte')).toBeInTheDocument());
+
+    // Le visiteur filtre depuis la carte : l'URL change (`useSearch` la relit).
+    parametres = new URLSearchParams('contract_type=rent&type=villa&page=1');
+    rerender(withIntl(<PropertiesDiscoveryPage titre="Villas à louer" />));
+    await waitFor(() => expect(mockApiFetch.mock.calls.some((c) => String(c[0]).includes('villa'))).toBe(true));
+
+    scrollTo.mockClear();
+    versLaRangee.mockClear();
+    const pastille = screen.getByRole('group', { name: /outils de recherche/i });
+    await userEvent.click(within(pastille).getByRole('button', { name: /liste/i }));
+
+    await waitFor(() => expect(screen.queryByTestId('carte')).toBeNull());
+    expect(scrollTo).not.toHaveBeenCalledWith(0, 1800);
+    // En tête des résultats : la rangée d'outils, sous la `nav` — ce que faisait la base.
+    expect(versLaRangee).toHaveBeenCalledTimes(1);
+    expect(versLaRangee.mock.contexts[0]).toBe(document.querySelector('[data-rangee-outils]'));
   });
 
   it('à partir de lg, la pastille n’apparaît pas en vue carte : le bureau garde ses onglets', async () => {

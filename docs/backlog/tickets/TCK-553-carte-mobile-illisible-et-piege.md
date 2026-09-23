@@ -129,9 +129,10 @@ Les trois constats tiennent. Deux écarts avec ce que le ticket laisse supposer 
   (« 3 biens à cette adresse »), au lieu d'en faire une impasse. Vérifié au navigateur en ramenant
   cinq points de `/map` aux mêmes coordonnées : grappe « 3 biens à cette adresse — voir la liste »,
   popup de 3 liens.
-- **`TileLayer maxZoom={19}` et `MapContainer maxZoom={19}` sont posés.** Sans eux, Leaflet
-  plafonnait la carte au `maxZoom` par défaut des tuiles (18) : une grappe dont le zoom de
-  séparation vaut 19 n'aurait jamais été séparée par le tap.
+- **`TileLayer maxZoom={19}` est posé.** Sans lui, Leaflet plafonnait la carte au `maxZoom` par
+  défaut des tuiles (18) : une grappe dont le zoom de séparation vaut 19 n'aurait jamais été
+  séparée par le tap. *(Tour 1 : `MapContainer maxZoom={19}` était aussi posé ; retiré au tour 2,
+  il était redondant — `getMaxZoom()` de Leaflet le tire des couches, et son mutant survivait.)*
 - **Plein écran mobile = conteneur `fixed` calé sur le bas MESURÉ de la `nav`**
   (`--haut-de-la-carte`, repli 69 px), titre, rangée d'outils et pied de page en `max-lg:hidden`.
   Le document retombe à la hauteur de l'écran : il n'y a plus de page à faire défiler derrière la
@@ -181,3 +182,85 @@ grappe inséparable), `src/components/map/__tests__/PropertyMap.regroupement.tes
 sous jsdom : grappes posées, compte = points reçus, plafond, plein écran),
 `src/components/property/__tests__/PropertiesDiscoveryPage.carte-mobile.test.tsx` (AC3 par ses
 classes et la `nav` mesurée, AC4 côté page, AC5).
+
+### Correctifs après le refus du tour 1 (2026-09-23)
+
+Même banc (Chrome headless par CDP, `next dev -p 3022` du worktree, API partagée `:8002`), scripts
+du vérificateur rejoués tels quels quand ils existaient (`tiroir2.js`), les miens dans
+`agent-TCK-553/t2/`. `innerWidth` = largeur demandée à chaque passage.
+
+**D1 (majeur) — reproduit avant correctif.** 360 × 740, `/fr/properties?contract_type=rent`, liste
+à `scrollY` 1800 → carte → pastille Filtres → `Villa` → Voir → pastille Liste : **`scrollY` 1800**,
+cartes 1 à 12 au-dessus de l'écran (top −1505 … −37). Défaut confirmé : la position mémorisée
+était restaurée pour une liste qui n'était plus la même.
+
+Correctif : la recherche est mémorisée AVEC la position, sous sa forme canonique
+(`filtersToParams(filters).toString()`, page comprise). Au retour, même recherche → la position
+(AC5 inchangé) ; recherche changée → la rangée d'outils en tête (`scrollIntoView`, `scroll-mt-20`),
+ce que faisait la base. Test d'abord : `filtres CHANGÉS depuis la carte…` rouge sur le code du
+tour 1 (`scrollTo(0, 1800)` appelé), vert après.
+
+| Parcours, 360 × 740 | Avant correctif | Après |
+|---|---|---|
+| y 1800 → carte → `Villa` → Liste (`fr`) | `scrollY` 1800, 1ʳᵉ carte à −1505 | **`scrollY` 37**, rangée d'outils 80–242, 1ʳᵉ carte à **258** (= la base, mesurée par le vérificateur : 37 / 258) |
+| y 1800 → carte → `Villa` + `featured` (3 résultats) → Liste | (vérificateur) `scrollY` 912, écran entier en pied de page | **`scrollY` 37**, les 3 cartes à 258–524 et 564–809, pied de page à 825 |
+| Témoin AC5, filtres inchangés, y 2200 → carte → Liste (`en`) | 2200 | **2200**, la même carte à −152 avant comme après ; en carte `scrollHeight` 740 |
+
+**Mineurs traités.**
+
+- **m1, mutants survivants — tués par des tests ajoutés**, rejoués par mon propre script
+  (`t2/mutants.mjs`, source remise depuis la mémoire après chaque mutant, MD5 vérifiés) :
+
+  | Mutant | Avant (vérificateur) | Après |
+  |---|---|---|
+  | M3 `zoomQuiSepare` `>=` | 7/7 vert | **rouge** — deux biens à ~33 m (Δlat 0,0003°), séparés au 19 exactement : `zoomQuiSepare` doit rendre 19, pas `null` |
+  | M7 `maxZoom` retiré | 6/6 vert | **rouge** — `carte.getMaxZoom()` = 19 et `TileLayer.options.maxZoom` = 19, lus sur la carte réelle |
+  | M7b `MapContainer` seul sans `maxZoom` | — | **vert : le réglage était redondant** (`getMaxZoom()` le tire des couches) → retiré du code |
+  | M8 tap → `setZoom(+1)` | 13/13 vert | **rouge** — `flyTo` espionné : appelé une fois, sur la position de la grappe tapée, au zoom que `zoomQuiSepare` donne pour elle (index reconstruit à part) |
+  | M9 liste inséparable retirée | 13/13 vert | **rouge** — 4 biens aux mêmes coordonnées : tap → aucun vol, popup de 4 liens |
+  | M13 conteneur `max-lg:z-[60]` | 7/7 vert | **rouge** — classe `max-lg:z-0` gardée (jsdom ne peint rien) |
+  | D1 : restaurer quel que soit le filtre / retirer le retour en tête | — | **rouges** tous les deux |
+  | `scrollTo` retiré (AC5) | — | rouge (inchangé) |
+
+  Tap sur l'icône de Leaflet en jsdom : `fireEvent.click` sur `.leaflet-marker-icon` atteint bien
+  le gestionnaire du marqueur. Au navigateur, les boutons +/− montent du zoom 11 au **19** en 8
+  clics puis le bouton se désactive ; 12 tuiles de zoom 19 chargées.
+- **m2, attribution recouverte d'1 px — reproduit puis corrigé.** Avant : 360 × 740, pastille
+  676–724 (x 68–292), attribution 723–740 (x 191–360), intersection vraie. La marge sous la pastille
+  est `--floating-dock-base` (16 px sous `sm`) ; l'attribution faisait 17 px (12 px × 1,4). En
+  carte plein écran sous `lg` seulement, sa hauteur de ligne passe à 16 px
+  (`.takussan-carte-plein-ecran`, `globals.css`). Après : 360 × 740 attribution **724–740**,
+  390 × 844 **828–844** sous une pastille 780–828, 740 × 360 344–360 sous 288–336 : intersection
+  **fausse** partout. Bureau non concerné (media query `max-width: 1023.98px`). Vérifié au
+  navigateur seulement : jsdom ne met rien en page.
+- **m3, `h1` retiré de l'arbre d'accessibilité en vue carte — corrigé.** `max-lg:sr-only` au lieu
+  de `max-lg:hidden`. Au navigateur (360, 390, 740 paysage) : `h1` en boîte 1 × 1, `scrollHeight`
+  toujours = `innerHeight` (740, 844, 360), carte toujours 71 → bas de l'écran. Bureau 1280 : `h1`
+  864 × 37, visible.
+- **m5, « à cette adresse » pour des biens qui ne partagent pas forcément leurs coordonnées —
+  corrigé par le libellé.** Mesuré sur `supercluster` avec nos options : deux biens à Δlat 0,0001°
+  (~11 m) ne se séparent à aucun zoom (expansion 20), à 0,00027° (~30 m) ils se séparent au 19.
+  « N biens tout proches — voir la liste » (`en` « close together », `wo` « kër yu jege lool »)
+  est vrai dans les deux cas. Au navigateur, 4 biens ramenés aux mêmes coordonnées : grappe
+  « 4 biens tout proches — voir la liste », popup titré « 4 biens tout proches », 4 liens.
+- **m4, compteur du bureau — non modifié, délibérément.** Le ticket déclare la *mise en page* du
+  bureau inchangée, et elle l'est (carte 862 × 518, cadre 864 × 520, rayon 14 px, re-mesurés à
+  1280) ; sa direction UX et l'AC4 ne restreignent pas le compte à mobile : « Le nombre affiché en
+  vue carte est celui de la carte ». Rendre « 180 biens trouvés » au-dessus d'une carte de 140 au
+  bureau, ce serait garder M3 là. À trancher par la session si elle lit le ticket autrement.
+
+
+**AC re-vérifiés au navigateur après ces correctifs.** 390 × 844 `wo` `rent` (scénario du
+vérificateur rejoué) : 9 grappes, somme 136 = 136 points reçus, 0 paire ; `nav` 0–71, carte
+71–844, `scrollHeight` 844, pas de pied de page ; « 136 kër ci kart bi » ; y 1800 → carte → liste
+→ **1800**, 11ᵉ carte à −61 avant comme après. 360 × 740 `fr` : taps successifs sur la plus
+grosse grappe 27 (11 → 12), 12 (12 → 13), 5 (13 → 14), 2 (14 → 15), 0 paire d'isolés à chaque
+pas, compte = points reçus (80, 24, 6, 6) ; tap sur un isolé → aperçu, lien `/fr/properties/…`.
+Bureau 1280 : carte 862 × 518, cadre 864 × 520, rayon 14 px, bordure 1 px, conteneur `static`,
+pas de pastille flottante.
+
+Exécutions : `vitest run src/test src/components/map src/components/property/__tests__
+src/app/[locale]/(public) src/lib/queries/__tests__ src/components/search/__tests__
+src/hooks/__tests__ src/components/floating-dock src/components/compare src/components/feedback`
+→ 87 fichiers, **716/716** ; eslint des fichiers touchés 0 ; `tsc --noEmit` 0 ; `check:i18n`,
+`check:i18n-namespaces`, `check:classes-emises` verts ; `scripts/check-*.mjs` : aucun ✗.

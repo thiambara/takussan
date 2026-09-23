@@ -171,6 +171,17 @@ describe('TCK-553 — le regroupement des biens sur la carte', () => {
     }
   });
 
+  it('une grappe que le zoom MAXIMAL sépare encore se sépare par le tap — elle ne s’ouvre pas en liste', () => {
+    // Deux biens à ~33 m : regroupés au zoom 18 (moins de 80 px), séparés au 19. La borne est
+    // INCLUSE : c'est au-delà du zoom de la carte, pas à lui, qu'une grappe devient une liste.
+    const index = indexerLesBiens([bien(1, 14.69, -17.45), bien(2, 14.6903, -17.45)]);
+    const [grappe] = elementsDeCarte(index, SENEGAL, 12);
+    expect(grappe?.genre).toBe('grappe');
+    if (grappe?.genre !== 'grappe') return;
+    expect(zoomQuiSepare(index, grappe.id)).toBe(ZOOM_MAX_DE_LA_CARTE);
+    expect(elementsDeCarte(index, SENEGAL, ZOOM_MAX_DE_LA_CARTE).map((e) => e.genre)).toEqual(['bien', 'bien']);
+  });
+
   it('un jeu vide ne pose rien', () => {
     expect(elementsDeCarte(indexerLesBiens([]), SENEGAL, 12)).toEqual([]);
   });

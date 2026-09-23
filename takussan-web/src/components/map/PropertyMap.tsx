@@ -354,7 +354,13 @@ export function PropertyMap({
   const features = query.data?.features ?? [];
 
   return (
-    <div className={cn('relative', pleinEcranSousLg && 'h-full lg:h-auto', className)}>
+    <div
+      className={cn(
+        'relative',
+        pleinEcranSousLg && 'takussan-carte-plein-ecran h-full lg:h-auto',
+        className,
+      )}
+    >
       <div
         className={cn(
           'w-full overflow-hidden',
@@ -366,7 +372,6 @@ export function PropertyMap({
         <MapContainer
           center={DEFAULT_CENTER}
           zoom={DEFAULT_ZOOM}
-          maxZoom={ZOOM_MAX_DE_LA_CARTE}
           scrollWheelZoom
           zoomControl={false}
           className="h-full w-full"
@@ -374,6 +379,9 @@ export function PropertyMap({
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            // TCK-553 — le zoom maximal de la CARTE vient de ses couches (`getMaxZoom()` de
+            // Leaflet) : sans ce réglage, 18 par défaut, et `flyTo(…, 19)` vers une grappe que seul
+            // le zoom 19 sépare serait ramené à 18 — la grappe resterait entière.
             maxZoom={ZOOM_MAX_DE_LA_CARTE}
           />
           <ZoomControl zoomInTitle={t('zoomIn')} zoomOutTitle={t('zoomOut')} />
