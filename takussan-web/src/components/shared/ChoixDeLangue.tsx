@@ -9,6 +9,11 @@ import { cn } from '@/lib/utils';
 
 export interface ChoixDeLangueProps {
   readonly className?: string;
+  /**
+   * La navigation remplace l'entrée d'historique courante au lieu d'en empiler une — pour le menu
+   * mobile, dont l'entrée sentinelle ne doit pas rester derrière la page d'arrivée (TCK-551).
+   */
+  readonly remplacerLEntree?: boolean;
 }
 
 /**
@@ -32,9 +37,9 @@ export interface ChoixDeLangueProps {
  *
  * Zones tactiles : `min-h-11 min-w-11`, soit 44 px (WCAG 2.5.5).
  */
-export function ChoixDeLangue({ className }: ChoixDeLangueProps) {
+export function ChoixDeLangue({ className, remplacerLEntree = false }: ChoixDeLangueProps) {
   const t = useTranslations('common.languageSwitcher');
-  const { locale, enCours, choisir } = useChangementDeLangue();
+  const { locale, enCours, choisir } = useChangementDeLangue({ remplacer: remplacerLEntree });
   const idLibelle = useId();
 
   return (

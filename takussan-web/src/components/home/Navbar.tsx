@@ -23,6 +23,7 @@ import { hrefLocalise, localeDuChemin } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { useVerrouDeDefilement } from '@/hooks/useVerrouDeDefilement';
+import { useEntreeSentinelle } from '@/hooks/useEntreeSentinelle';
 import { cn } from '@/lib/utils';
 
 type PropertyTypeCountsResponse = {
@@ -108,9 +109,31 @@ export function Navbar({ className }: NavbarProps) {
     bureau.addEventListener('change', surChangement);
     return () => bureau.removeEventListener('change', surChangement);
   }, [menuOpen]);
+  // Tour 4 — le geste retour ferme le menu : une entrée sentinelle à l'ouverture. ⚠ AVANT le
+  // verrou : le navigateur enregistre au `pushState` la position de l'entrée qu'on quitte, et elle
+  // doit être la vraie, pas le 0 du verrou (cf. `useEntreeSentinelle`).
+  const { remplaceeParUneNavigation } = useEntreeSentinelle(menuOpen, () => setMenuOpen(false));
   // Le verrou de défilement du menu (tour 2) : `body` sorti du flux, et non l'`overflow: hidden`
   // de base-ui, qu'un `scrollBy` et Safari iOS traversent. Cf. `useVerrouDeDefilement`.
   useVerrouDeDefilement(menuOpen);
+  /**
+   * Un lien du menu : il ferme le menu et navigue en REMPLAÇANT la sentinelle (`replace` sur le
+   * lien) — un `back()` ne doit ni défaire la navigation ni la laisser derrière la page d'arrivée.
+   * Deux cas où il ne navigue pas, et où la sentinelle se rend donc par `back()` comme à la croix :
+   * - la cible est la page courante — le lien ne fait que fermer, comme avant ce ticket (mesuré :
+   *   logo sur `/fr`, « Acheter » sur la liste des achats → même URL, même position) ;
+   * - un clic modifié (nouvel onglet) : la page ne change pas.
+   */
+  const quitterParUnLien = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    const cible = new URL(e.currentTarget.href, window.location.href);
+    const modifie = e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+    if (cible.pathname + cible.search === window.location.pathname + window.location.search) {
+      e.preventDefault();
+    } else if (!modifie) {
+      remplaceeParUneNavigation();
+    }
+    setMenuOpen(false);
+  };
   const menuBascule = useCallback((ouvert: boolean) => {
     // Après l'animation de sortie, et seulement si le focus est resté nulle part : la primitive a
     // pu le rendre elle-même, ou le visiteur l'avoir posé ailleurs.
@@ -221,11 +244,12 @@ export function Navbar({ className }: NavbarProps) {
     };
   }, []);
 
-  async function handleLogout() {
+  async function handleLogout({ remplacer = false }: { readonly remplacer?: boolean } = {}) {
     // TCK-509 — `setUser(null)` seul effaçait l'utilisateur de l'écran mais laissait son JETON au
     // contexte : le compte connecté ensuite lisait l'API avec le jeton révoqué de celui-ci.
     await logout();
-    router.push(hrefLocalise('/', locale));
+    if (remplacer) router.replace(hrefLocalise('/', locale));
+    else router.push(hrefLocalise('/', locale));
   }
 
   const initials = user
@@ -476,7 +500,7 @@ export function Navbar({ className }: NavbarProps) {
                       {t('myProfile')}
                     </LienLocalise>
                     <button
-                      onClick={handleLogout}
+                      onClick={() => { void handleLogout(); }}
                       className="flex w-full items-center gap-2.5 px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
                     >
                       <LogOut className="size-4 text-muted-foreground" />
@@ -603,7 +627,8 @@ export function Navbar({ className }: NavbarProps) {
               <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 sm:px-6 py-3">
                 <LienLocalise
                   href="/"
-                  onClick={() => setMenuOpen(false)}
+                  replace
+                  onClick={quitterParUnLien}
                   className="mt-2.5 text-xl font-bold tracking-tighter text-primary hover:opacity-80 transition-opacity"
                 >
                   {tCommon('appName')}
@@ -626,7 +651,8 @@ export function Navbar({ className }: NavbarProps) {
                       <LienLocalise
                         key={link.labelKey}
                         href={link.href}
-                        onClick={() => setMenuOpen(false)}
+                        replace
+                        onClick={quitterParUnLien}
                         aria-current={actif ? 'page' : undefined}
                         className={`flex min-h-11 items-center font-semibold text-base transition-colors ${actif ? 'text-primary' : 'text-foreground hover:text-primary'
                           }`}
@@ -638,7 +664,7 @@ export function Navbar({ className }: NavbarProps) {
                 </div>
 
                 {/* TCK-550 — sous `lg`, le seul choix de langue atteignable : celui de bureau est `hidden lg:flex`. */}
-                <ChoixDeLangue className="px-4 sm:px-6 py-2 border-t border-border justify-between" />
+                <ChoixDeLangue remplacerLEntree className="px-4 sm:px-6 py-2 border-t border-border justify-between" />
 
                 <div className="px-4 sm:px-6 py-4 border-t border-border flex flex-col gap-3">
                   {user ? (
@@ -656,7 +682,8 @@ export function Navbar({ className }: NavbarProps) {
                       </div>
                       <LienLocalise
                         href="/app/profile"
-                        onClick={() => setMenuOpen(false)}
+                        replace
+                        onClick={quitterParUnLien}
                         className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
                       >
                         <UserCircle className="size-4 text-muted-foreground" />
@@ -664,13 +691,21 @@ export function Navbar({ className }: NavbarProps) {
                       </LienLocalise>
                       <LienLocalise
                         href="/publish"
-                        onClick={() => { armPublishIntent(); setMenuOpen(false); }}
+                        replace
+                        onClick={(e) => { armPublishIntent(); quitterParUnLien(e); }}
                         className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                       >
                         {t('publishListing')}
                       </LienLocalise>
                       <button
-                        onClick={() => { setMenuOpen(false); void handleLogout(); }}
+                        onClick={() => {
+                          // Comme un lien : la redirection vers l'accueil remplace la sentinelle,
+                          // sauf si on y est déjà (la sentinelle se rend alors par `back()`).
+                          const remplacer = pathname !== hrefLocalise('/', locale);
+                          if (remplacer) remplaceeParUneNavigation();
+                          setMenuOpen(false);
+                          void handleLogout({ remplacer });
+                        }}
                         className="flex min-h-11 items-center gap-2.5 text-sm text-foreground"
                       >
                         <LogOut className="size-4 text-muted-foreground" />
@@ -682,12 +717,13 @@ export function Navbar({ className }: NavbarProps) {
                       {/* TCK-551 (N7) — `cn()` et non `buttonVariants({ className })` : `cva` CONCATÈNE,
                           il ne fusionne pas. `px-2.5` de la variante et `px-0` d'ici étaient présents
                           tous les deux, et `px-2.5` gagnait (texte à x = 35 contre 24, mesuré). */}
-                      <LienLocalise href="/auth/login" onClick={() => setMenuOpen(false)} className={cn(buttonVariants({ variant: 'ghost' }), 'text-foreground font-medium text-sm h-11 justify-start px-0 hover:bg-transparent hover:text-primary')}>
+                      <LienLocalise href="/auth/login" replace onClick={quitterParUnLien} className={cn(buttonVariants({ variant: 'ghost' }), 'text-foreground font-medium text-sm h-11 justify-start px-0 hover:bg-transparent hover:text-primary')}>
                         {t('login')}
                       </LienLocalise>
                       <LienLocalise
                         href="/publish"
-                        onClick={() => { armPublishIntent(); setMenuOpen(false); }}
+                        replace
+                        onClick={(e) => { armPublishIntent(); quitterParUnLien(e); }}
                         className={buttonVariants({ className: 'rounded-full px-6 h-auto py-3 font-semibold text-sm shadow-sm' })}
                       >
                         {t('publishListing')}

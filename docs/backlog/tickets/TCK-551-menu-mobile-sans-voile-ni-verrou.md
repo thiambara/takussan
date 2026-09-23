@@ -69,6 +69,10 @@ Aucun.
 - [x] Zone tactile de 44 px pour « Mes favoris » en barre mobile, sans changer son dessin.
 - [x] Tests : tap extérieur ferme ; Échap ferme et rend le focus ; le document ne défile pas menu
       ouvert.
+- [x] *(Tour 4, décision de la session.)* Le geste retour ferme le menu (entrée sentinelle), et
+      le menu ne laisse aucune entrée d'historique derrière une fermeture, un lien ou un choix de
+      langue ; un rechargement menu ouvert rend la position. *(Mesuré sous Chrome, cf. Notes,
+      tour 4 ; deux cas limites restent, écrits là.)*
 
 ## Critères d'acceptation
 
@@ -452,3 +456,104 @@ Test ajouté à `PropertiesDiscoveryPage.carte-mobile.test.tsx` (attribut du ver
 `scrollY` 0 → retour à la liste en `scrollTo(0, 1234)`), rouge avant. Menu ouvert, la bascule
 liste/carte n'est pas atteignable (le panneau est modal) : c'est une cohérence de lecture, pas un
 parcours mesurable.
+
+#### (B) Le geste retour ferme le menu — reproduit, puis corrigé
+
+**Avant** (`hist.mjs`, `/fr/agents` 360 × 740 défilée à 1200, menu ouvert, `history.back()`) :
+`/fr/legal/notice` s'affiche, menu démonté. Reproduit.
+
+**Correctif** : `src/hooks/useEntreeSentinelle.ts`, le mécanisme du `TiroirMobile` (TCK-556)
+dupliqué dans un petit hook, `FilterSidebar` non touché — `pushState` direct avec l'état de Next
+recopié, jeton propre contre le double montage, `back()` différé d'une tâche, ne dépiler que notre
+sentinelle. Deux écarts au modèle, chacun mesuré :
+
+- **Posée dans un effet de mise en page, AVANT le verrou.** Le navigateur enregistre au
+  `pushState` la position de l'entrée qu'on quitte, et la rend quand un retour y ramène : posée
+  après le verrou, elle aurait valu 0. Test : `position` de `body` relevée au `pushState` → `''`.
+- **Un lien du menu navigue en `replace`**, et appelle `remplaceeParUneNavigation()` AVANT de
+  fermer : la navigation de Next est asynchrone (aller-retour RSC), un `back()` différé d'une
+  tâche passerait avant elle, puis son `replaceState` écraserait l'entrée d'avant le menu. Deux
+  exceptions, qui ferment par `back()` comme la croix : lien vers la page COURANTE (on
+  `preventDefault` — mesuré AVANT le ticket : logo sur `/fr` et « Acheter » sur la liste des
+  achats ne faisaient déjà que fermer, même URL, même position ; APRÈS : idem, 1200 et 900, retour
+  → `/fr/legal/notice`), et clic modifié (nouvel onglet). La déconnexion depuis le menu redirige
+  en `replace` de même (sauf depuis l'accueil). Le choix de langue passe
+  `remplacerLEntree` à `ChoixDeLangue` → `useChangementDeLangue({ remplacer: true })` →
+  `router.replace` : le pied de page et le sélecteur de bureau gardent le `push`.
+
+**Après**, onglet neuf par script (`history.length` plafonne à 50 dans un onglet réutilisé — les
+premiers relevés, pris sans ça, étaient illisibles et ont été refaits). Départ :
+`about:blank` → `/fr/legal/notice` → `/fr/agents` (navigation client), `history.length` = 3.
+
+| Fermeture (360 × 740, `/fr/agents` à 1200) | Menu ouvert | Après | Retour depuis là |
+|---|---|---|---|
+| `history.back()` (geste retour) | hl 4, marque posée | **`/fr/agents` à 1200, menu fermé**, focus « Ouvrir le menu » | `/fr/legal/notice` |
+| croix / Échap / voile (toucher CDP) | hl 4 | `/fr/agents` à 1200, focus « Ouvrir le menu » | `/fr/legal/notice` — la sentinelle est rendue |
+| lien « Louer » | hl 4 | `/fr/properties?contract_type=rent`, **hl 4** | `/fr/agents` à **1200**, puis `/fr/legal/notice` |
+| témoin sans menu : `router.push` vers la même page | — | hl **4** | `/fr/agents` à 1200, puis `/fr/legal/notice` |
+| langue fr → wo depuis le menu | hl 4 | `/wo/agents`, `lang="wo"`, hl **4** | `/fr/agents` à **1200** (AVANT ce tour : **0**, verrou posé au `push`), puis `/fr/legal/notice` |
+
+Mêmes résultats à 390 × 844 sur `/fr/agencies` défilée à 600 (retour, croix, lien, témoin,
+langue). Le lien et la langue ne laissent donc AUCUN appui perdu : même `history.length` et même
+suite de retours que le témoin sans menu. Sur `/fr/properties` à 900 (390 et 360, `liste.mjs`) :
+fermeture par la croix ou par le retour → position échantillonnée à chaque image pendant 2,5 s :
+**900** seulement ; 0 squelette apparu (observateur de mutations) ; `scrollHeight` inchangé.
+AC1 et AC2 rejoués après (B) (`ac1.mjs`, 390 et 360) : menu ouvert, `scrollBy(0, 500)` → 0 → 0,
+`body` `fixed; top: -700px` ; toucher sur le voile → fermé, position rendue **700**, focus
+« Ouvrir le menu », puis `scrollBy(0, 300)` → **1000**.
+
+**Deux cas limites, mesurés, NON corrigés** (cf. `restes`) :
+
+1. **Rechargement menu ouvert** (`rl2.mjs`, `/fr/agents` 360 à 1200) : la position est rendue
+   (1200), mais la sentinelle survit au rechargement (`history.length` 4, marque dans l'état) — le
+   premier retour rend la même page à la même position, le second `/fr/legal/notice`. Un appui
+   perdu. La dépiler au chargement suivant serait une traversée vers une entrée de l'ANCIEN
+   document, donc un second chargement complet : pire que l'appui perdu.
+2. **Suivant après un retour qui a fermé le menu** (`suivant.mjs`) : le navigateur ramène sur la
+   sentinelle, et y rend la position qu'il a enregistrée en la quittant — verrou posé, donc **0**.
+   Un retour de plus → 1200. Le tiroir de filtres (TCK-556) a la même forme. Sur Android, « Suivant »
+   n'a pas de geste ; il est dans le menu du navigateur.
+
+Tests (TDD, rouges avant le branchement) : `Navbar.menu-retour.test.tsx` (10) et
+`useEntreeSentinelle.test.tsx` (3) — une sentinelle à l'ouverture, avec l'état de Next ; posée
+avant le verrou ; popstate ferme sans second `back()` ; croix, Échap, voile rendent la sentinelle
+par `back()` ; un lien navigue en `replace` sans `back()` (même si la navigation n'a encore rien
+écrit dans l'historique) ; un lien vers la page courante ne navigue pas et rend la sentinelle ; la
+langue passe par `router.replace` ; StrictMode, hook monté ouvert : une sentinelle, aucun `back()` ;
+on ne dépile que sa sentinelle.
+
+#### Ablations (jsdom ; copie restaurée, md5 des 5 sources identiques après la série)
+
+Témoin : 49/49 verts (`useEntreeSentinelle`, `Navbar.menu-retour`, `Navbar.menu-modal`,
+`useVerrouDeDefilement`, `PropertiesDiscoveryPage.carte-mobile`).
+
+| Mutation | Rouges |
+|---|---|
+| A1 sans écouteur `pagehide` | 1 (`pagehide` lève et rend) |
+| A2 sans `visibilitychange` | 1 (caché lève / visible repose) |
+| A3 sans `pageshow` | 1 (retour du cache reverrouille) |
+| A4 `pageshow` non persisté repose aussi | **0 — mutant équivalent** : `poser` est idempotent, et un `pageshow` non persisté n'arrive qu'au premier chargement, avant le montage |
+| A5 `lever` non idempotent | 1 |
+| A6 écouteurs non retirés | 2 |
+| B1 liens sans `replace` | 1 |
+| B2 sans `remplaceeParUneNavigation()` | 1 |
+| B3 sans le cas « page courante » | 1 |
+| B4 sans jeton | 1 (hook monté ouvert sous StrictMode) |
+| B5 popstate rend AUSSI la sentinelle | **0 — mutant équivalent** : après un popstate, l'entrée courante est celle d'avant le menu, sans marque ; le contrôle de marque suffit (B9) |
+| B6 sans sentinelle | 8 |
+| B7 langue en `push` | 1 |
+| B8 verrou posé avant la sentinelle | 1 |
+| B9 `back()` sans contrôle de marque | 4 |
+| B10 `back()` immédiat, non différé | 2 |
+| C1 `window.scrollY` dans `PropertiesDiscoveryPage` | 1 |
+
+#### Vérifications statiques
+
+`npx vitest run` sur les tests des 50 fichiers qui importent un fichier touché, `src/test`,
+`src/app/[locale]/(public)`, `src/components/{compare,favorites,home,legal,property,public,shared,search}`
+et `src/hooks` : **112 fichiers, 941 tests verts** ; `src/test` seul : 34/34. `eslint` sur les
+fichiers touchés : 0. `tsc --noEmit` : 0. `check:i18n`, `check:i18n-namespaces`,
+`check:classes-emises` : 0. `scripts/check-*.mjs` : aucun ✗.
+
+**Toujours NON vérifié : iOS Safari** (aucun WebKit ici). Ni le verrou, ni `pagehide` /
+`visibilitychange` sur Safari, ni la sentinelle sous le geste de balayage d'iOS.
