@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { List, Map as MapIcon, SearchX } from 'lucide-react';
 import { ApiError } from '@/lib/api';
@@ -193,6 +193,35 @@ function useDepasseParLeHaut(ref: React.RefObject<HTMLElement | null>, margeHaut
   return depasse;
 }
 
+/**
+ * TCK-553 — le bas de la `nav` fixe du site public, MESURÉ, tant que `actif`.
+ *
+ * La vue carte mobile se cale dessous (AC3 : « toute la hauteur sous la `nav`, à 1 px près »). Une
+ * constante n'y suffit pas, et c'est mesuré : la `nav` fait 71 px à 390, quand `NavbarSpacer` en
+ * réserve 69 et `HAUTEUR_NAV_PX` en suppose 68. Sa hauteur suit son contenu (pastille de recherche
+ * de TCK-549) : on la lit, et on la relit quand elle change.
+ *
+ * `null` tant que rien n'est mesuré (rendu serveur, première image) : la page retombe alors sur la
+ * hauteur de `NavbarSpacer`.
+ */
+function useBasDeLaNav(actif: boolean): number | null {
+  const [bas, setBas] = useState<number | null>(null);
+  useEffect(() => {
+    if (!actif) return;
+    const nav = Array.from(document.querySelectorAll('nav')).find(
+      (n) => getComputedStyle(n).position === 'fixed',
+    );
+    if (!nav) return;
+    const lire = () => setBas(nav.getBoundingClientRect().bottom);
+    lire();
+    if (typeof ResizeObserver === 'undefined') return;
+    const obs = new ResizeObserver(lire);
+    obs.observe(nav);
+    return () => obs.disconnect();
+  }, [actif]);
+  return bas;
+}
+
 /** Hauteur de la `nav` fixe du site public (68 px, mesurée) : la rangée qui passe dessous est hors d'atteinte. */
 const HAUTEUR_NAV_PX = 68;
 
@@ -249,6 +278,31 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
   // TCK-552 — Filtres et Carte à portée du pouce pendant le défilement (P4, AC3).
   const rangeeOutilsRef = useRef<HTMLDivElement>(null);
   const rangeeDepassee = useDepasseParLeHaut(rangeeOutilsRef, HAUTEUR_NAV_PX);
+
+  // TCK-553 — sous `lg`, la vue carte occupe l'écran (M2) : le titre, la rangée d'outils et le pied
+  // de page s'effacent, et la carte se cale sous la `nav` mesurée. Filtres et le retour à la liste
+  // passent par la pastille flottante (TCK-552), montrée d'emblée en vue carte.
+  const carteMobile = vue === 'map' && sousLg;
+  const basDeLaNav = useBasDeLaNav(carteMobile);
+
+  // TCK-553 (AC5) — la liste revient là où on l'a quittée. La vue carte mobile raccourcit le
+  // document à la hauteur de l'écran, et le navigateur écrête alors le défilement à 0 : sans cette
+  // mémoire, revenir à la liste repartait du haut, loin du bien qu'on regardait.
+  const defilementDeLaListe = useRef(0);
+  const defilementARestaurer = useRef<number | null>(null);
+  const changerDeVue = (prochaine: View) => {
+    if (prochaine === vue) return;
+    if (vue === 'list') defilementDeLaListe.current = window.scrollY;
+    else defilementARestaurer.current = defilementDeLaListe.current;
+    setView(prochaine);
+  };
+  // Avant la peinture : la liste ne s'affiche jamais en haut pour sauter ensuite à sa position.
+  useLayoutEffect(() => {
+    if (vue !== 'list' || defilementARestaurer.current === null) return;
+    const y = defilementARestaurer.current;
+    defilementARestaurer.current = null;
+    window.scrollTo(0, y);
+  }, [vue]);
 
   // TCK-335 — le retour arrière repartait du haut. En traversée d'historique, Next ne
   // reprend pas la main sur le défilement : c'est la restauration NATIVE qui opère, et
@@ -349,16 +403,27 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               // TCK-552 — plus compact sous `md` (P6) : à 28 px, « Biens immobiliers à louer » tenait
               // sur DEUX lignes à 360. Le texte ne change pas (TCK-432) ; à partir de `md`, rien ne
               // change non plus.
-              <h1 className="font-display text-[22px] md:text-[34px] leading-[1.1] font-semibold text-foreground mb-2 md:mb-5">
+              <h1
+                className={`font-display text-[22px] md:text-[34px] leading-[1.1] font-semibold text-foreground mb-2 md:mb-5 ${
+                  vue === 'map' ? 'max-lg:hidden' : ''
+                }`}
+              >
                 {titre}
               </h1>
             ) : null}
 
             {/* `scroll-mt-20` : ramenée par la pastille flottante, la rangée s'arrête SOUS la `nav`
                 fixe (68 px), pas derrière elle. */}
-            <div ref={rangeeOutilsRef} className="scroll-mt-20">
+            <div
+              ref={rangeeOutilsRef}
+              data-rangee-outils
+              className={`scroll-mt-20 ${vue === 'map' ? 'max-lg:hidden' : ''}`}
+            >
             <SearchToolbar
-              total={error ? null : (meta?.total ?? 0)}
+              // TCK-553 (M3) — en vue carte, le compte de la LISTE n'est pas affiché : la carte
+              // affiche le sien (`PropertyMap`, AC4). `/map` ne reçoit pas `q` et ne place pas un
+              // bien sans coordonnées — deux nombres pour une recherche, c'était l'écran de M3.
+              total={error || vue === 'map' ? null : (meta?.total ?? 0)}
               loading={loading}
               filters={filters}
               activeCount={activeCount}
@@ -385,7 +450,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               // `mapFilters`) ni sur une liste vide (M4, E1, AC8).
               afficherTri={vue === 'list' && !aucunResultat}
               basculeDeVue={
-                aucunResultat ? undefined : <BasculeDeVue view={vue} onChange={setView} />
+                aucunResultat ? undefined : <BasculeDeVue view={vue} onChange={changerDeVue} />
               }
               // TCK-552 — la sauvegarde au BOUT des puces, et seulement s'il y en a (P7, AC5).
               // Son libellé est conservé, et c'est vérifié : `SaveSearchButton` envoie
@@ -409,7 +474,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
               des puces : elle n'y est plus rendue.
             */}
             <div data-rangee="vue-bureau" className="mb-5 hidden flex-wrap items-center gap-3 lg:flex">
-              <ViewToggle view={vue} onChange={setView} />
+              <ViewToggle view={vue} onChange={changerDeVue} />
               <SaveSearchButton
                 filters={filters}
                 activeCount={activeCount}
@@ -418,20 +483,37 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
             </div>
 
             <OutilsFlottantsDeListe
-              visible={rangeeDepassee && !sidebarOpen}
+              // TCK-553 — en vue carte, la rangée d'outils n'est plus rendue sous `lg` : la pastille
+              // est alors la SEULE sortie (et le seul accès aux filtres). Elle est montrée d'emblée.
+              visible={(rangeeDepassee || vue === 'map') && !sidebarOpen}
               activeCount={activeCount}
               vue={vue}
               onOuvrirFiltres={() => setSidebarOpen(true)}
-              onBasculerVue={() => {
-                setView(vue === 'list' ? 'map' : 'list');
-                // La vue change EN HAUT des résultats : sans ce retour, un visiteur à 1 500 px
-                // basculerait vers une carte posée hors de l'écran, au-dessus de lui.
-                rangeeOutilsRef.current?.scrollIntoView({ block: 'start' });
-              }}
+              // TCK-553 — le vieux `scrollIntoView` vers la rangée d'outils n'a plus d'objet : la
+              // carte mobile est plein écran, posée sous la `nav` quel que soit le défilement, et
+              // le retour à la liste restaure SA position (AC5, `changerDeVue`).
+              onBasculerVue={() => changerDeVue(vue === 'list' ? 'map' : 'list')}
             />
 
             {vue === 'map' ? (
-              <PropertyMap filters={mapFilters} />
+              /*
+                TCK-553 (M2, AC3) — sous `lg`, la carte est posée en `fixed` du bas de la `nav`
+                mesurée au bas de l'écran : le doigt ne déplace plus la carte « au lieu de la page »,
+                il n'y a plus de page à déplacer. `z-0` : sous la `nav` (z-50) et la pastille (z-40),
+                et les calques de Leaflet (jusqu'à z-1000) restent enfermés dans ce contexte.
+                À partir de `lg`, ce conteneur n'a aucun effet : le bureau ne change pas.
+              */
+              <div
+                data-vue-carte
+                className="max-lg:fixed max-lg:inset-x-0 max-lg:bottom-0 max-lg:top-[var(--haut-de-la-carte,69px)] max-lg:z-0"
+                style={
+                  basDeLaNav === null
+                    ? undefined
+                    : ({ '--haut-de-la-carte': `${basDeLaNav}px` } as React.CSSProperties)
+                }
+              >
+                <PropertyMap filters={mapFilters} pleinEcranSousLg />
+              </div>
             ) : (
               <>
                 {/*
@@ -517,7 +599,10 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
         </div>
       </div>
 
-      <Footer />
+      {/* TCK-553 — pas de pied de page sous la carte plein écran (M2, AC3). */}
+      <div className={vue === 'map' ? 'max-lg:hidden' : undefined}>
+        <Footer />
+      </div>
     </div>
   );
 }
