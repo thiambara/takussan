@@ -6,6 +6,7 @@ import { Check, Scale } from 'lucide-react';
 import { useCompareToggle } from '@/components/compare/useCompareToggle';
 import type { ComparePreview } from '@/lib/compare';
 import { cn } from '@/lib/utils';
+import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 
 /**
  * TCK-082 — "Compare" toggle rendered on every `PropertyCard`.
@@ -57,8 +58,9 @@ export function CompareToggleButton({
 
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
-      // La pastille vit DANS le lien de la carte : sans ces deux lignes, comparer
-      // navigue vers le bien.
+      // TCK-554 — la pastille n'est plus DANS le lien de la carte mais son frère : un tap ne
+      // navigue plus par construction. Ces deux lignes restent par défense, pour un appelant qui
+      // la poserait dans un conteneur cliquable.
       event.preventDefault();
       event.stopPropagation();
       onToggle();
@@ -76,7 +78,9 @@ export function CompareToggleButton({
       data-compare={isSelected ? 'true' : 'false'}
       className={cn(
         SIZE_CLASSES[size],
-        'relative rounded-full backdrop-blur-md flex items-center justify-center',
+        // Zone tactile de 44 × 44 px sans agrandir le rond (porte déjà `relative`).
+        ZONE_TACTILE_44,
+        'rounded-full backdrop-blur-md flex items-center justify-center',
         'cursor-pointer focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         'transition-[background-color,color,box-shadow,scale] duration-200 active:scale-[0.96]',
