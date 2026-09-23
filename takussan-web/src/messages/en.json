@@ -274,7 +274,11 @@
     "zoomOut": "Zoom out",
     "markerAlt": "Property marker",
     "loading": "Loading…",
-    "truncated": "{count}+ properties — zoom in to refine"
+    "truncated": "{count}+ properties — zoom in to refine",
+    "onMap": "{count, plural, =0 {No properties on the map} one {# property on the map} other {# properties on the map}}",
+    "clusterZoom": "{count} properties here — zoom in to see them",
+    "clusterList": "{count} properties close together — see the list",
+    "clusterListTitle": "{count} properties close together"
   },
   "publicContact": {
     "title": "Send a message",

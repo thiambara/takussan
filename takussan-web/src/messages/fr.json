@@ -274,7 +274,11 @@
     "zoomOut": "Dézoomer",
     "markerAlt": "Marqueur de bien",
     "loading": "Chargement…",
-    "truncated": "{count}+ biens — zoomez pour affiner"
+    "truncated": "{count}+ biens — zoomez pour affiner",
+    "onMap": "{count, plural, =0 {Aucun bien sur la carte} one {# bien sur la carte} other {# biens sur la carte}}",
+    "clusterZoom": "{count} biens ici — zoomer pour les voir",
+    "clusterList": "{count} biens tout proches — voir la liste",
+    "clusterListTitle": "{count} biens tout proches"
   },
   "publicContact": {
     "title": "Envoyer un message",
