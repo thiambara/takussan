@@ -3203,8 +3203,10 @@
       "deleteAria": "Supprimer {name}"
     },
     "results": {
-      "empty_title": "Aucun bien trouvé",
-      "empty_description": "Élargissez vos critères ou retirez quelques filtres — il y a sûrement un bien pour vous.",
+      "vide_titre": "Élargissez votre recherche",
+      "vide_description": "Retirez un seul critère : les autres restent en place.",
+      "vide_description_sans_critere": "Il y a sûrement un bien pour vous : repartez d'une recherche vierge.",
+      "vide_criteres_aria": "Retirer un critère",
       "empty_cta": "Effacer tous les filtres",
       "error": "Une erreur est survenue. Veuillez réessayer.",
       "error_invalid_filter": "Un des filtres de cette recherche n'est pas valide.",
@@ -3275,7 +3277,7 @@
     },
     "toolbar": {
       "loading": "Chargement…",
-      "resultCount": "{count, plural, =1 {# bien trouvé} other {# biens trouvés}}",
+      "resultCount": "{count, plural, =0 {Aucun bien trouvé} =1 {# bien trouvé} other {# biens trouvés}}",
       "perPageAria": "Résultats par page",
       "perPageOption": "{count} / page",
       "filters": "Filtres",
