@@ -107,9 +107,9 @@ describe('Navbar publique — le bouton menu est entier à 390 px (TCK-505 #3)',
 
   it('la pastille de recherche peut rétrécir dans la rangée : `flex-1` ET `min-w-0`', () => {
     monter();
-    // Le seul « Où cherchez-vous ? » rendu en TEXTE : celui de la pastille (le champ de bureau
-    // le porte en placeholder, pas en contenu).
-    const pastille = screen.getByText('Où cherchez-vous ?').closest('button');
+    // Le seul « Chercher » rendu en TEXTE : le libellé court de la pastille au repos (TCK-549 ;
+    // c'était « Où cherchez-vous ? », tronqué à 360 px).
+    const pastille = screen.getByText('Chercher').closest('button');
     expect(pastille).not.toBeNull();
     expect(classesDe(pastille)).toContain('flex-1');
     // Son `overflow` est visible : sans `min-w-0`, son minimum flex reste sa largeur de contenu.

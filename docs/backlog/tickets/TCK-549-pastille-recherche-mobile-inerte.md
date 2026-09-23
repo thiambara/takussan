@@ -64,26 +64,26 @@ Aucun endpoint nouveau. La saisie consomme la même autocomplétion que la barre
 
 ## Delta à produire
 
-- [ ] Pastille mobile : un tap ouvre une surface de saisie avec autocomplétion, focus dans le champ,
+- [x] Pastille mobile : un tap ouvre une surface de saisie avec autocomplétion, focus dans le champ,
       pré-remplie avec `q` quand on est sur `/properties`.
-- [ ] Pastille mobile : état résumé quand une recherche est active, libellé court sinon.
-- [ ] Menu mobile : retrait du bloc « champ + Acheter/Louer + Rechercher » — **après** que la
+- [x] Pastille mobile : état résumé quand une recherche est active, libellé court sinon.
+- [x] Menu mobile : retrait du bloc « champ + Acheter/Louer + Rechercher » — **après** que la
       saisie de la pastille existe (la recherche texte ne doit jamais disparaître du mobile).
-- [ ] Tests : ouverture/fermeture sans effet sur l'URL ; validation qui écrit `q` ; résumé affiché
+- [x] Tests : ouverture/fermeture sans effet sur l'URL ; validation qui écrit `q` ; résumé affiché
       sous `q` actif.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — à 360 × 740, sur `/fr/properties?q=Dakar&page=2`, un tap sur la pastille met le focus
+- [x] AC1 — à 360 × 740, sur `/fr/properties?q=Dakar&page=2`, un tap sur la pastille met le focus
       dans un champ **texte** dont la valeur est `Dakar` ; fermer sans valider laisse l'URL
       strictement identique (`page=2` compris).
-- [ ] AC2 — saisir « Almadies » et valider mène à `/fr/properties?…q=Almadies…` sans `page`, et les
+- [x] AC2 — saisir « Almadies » et valider mène à `/fr/properties?…q=Almadies…` sans `page`, et les
       autres filtres présents avant la saisie sont conservés.
-- [ ] AC3 — sous `q=Dakar&contract_type=rent`, la pastille au repos affiche « Dakar » et la
+- [x] AC3 — sous `q=Dakar&contract_type=rent`, la pastille au repos affiche « Dakar » et la
       transaction, et **pas** le texte d'invite.
-- [ ] AC4 — sans recherche active, le libellé de la pastille n'est tronqué ni en `fr`, ni en `en`,
+- [x] AC4 — sans recherche active, le libellé de la pastille n'est tronqué ni en `fr`, ni en `en`,
       ni en `wo` à 360 px (`scrollWidth <= clientWidth` sur son texte).
-- [ ] AC5 — le menu mobile ouvert ne contient plus aucun `aria-pressed` « Acheter/Louer » ; il n'y a
+- [x] AC5 — le menu mobile ouvert ne contient plus aucun `aria-pressed` « Acheter/Louer » ; il n'y a
       donc plus deux états contradictoires pour la même transaction.
 
 ## Hors périmètre
@@ -94,4 +94,68 @@ Aucun endpoint nouveau. La saisie consomme la même autocomplétion que la barre
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Prémisses re-mesurées (2026-09-23, CDP, Chrome headless, `next dev` du worktree, API :8002)
+
+- **N1 confirmé.** 360 × 740 et 390 × 844, `/fr/properties?contract_type=rent&q=Dakar&page=2` : la
+  pastille est un `BUTTON` sans `input` ; un `click()` mène à `?contract_type=rent&q=Dakar` — `page=2`
+  perdu. *Écart* : le focus relevé après coup est sur `BODY`, pas sur le bouton — `el.click()` ne
+  donne pas le focus comme un tap ; le fond du constat (aucun champ) tient.
+- **N2 confirmé.** Sous `q=Dakar`, la pastille montre « Où cherchez-vous ? » ; texte 131 px dans
+  59 px à 360, 89 px à 390 (`scrollWidth` / `clientWidth` du `<span>`).
+- **N4 confirmé.** Menu ouvert sur `?contract_type=rent` : `Acheter aria-pressed=false`,
+  `Louer aria-pressed=false`, lien `Louer aria-current=page`, 1 `input`.
+- Charge machine au moment des mesures : `load average` 68 / 48 / 42 sur 8 cœurs — les relevés
+  attendent la disparition de `animate-pulse` / `aria-busy` avant de lire.
+
+### Décisions
+
+- **Surface** : `Sheet` (`@base-ui/react` Dialog) côté `top`, plein écran (`h-dvh`), déclenchée par
+  `SheetTrigger` — focus contenu, Échap, retour du focus à la pastille, sans code maison. Le champ
+  reçoit le focus par `initialFocus` (sinon base-ui le donnerait au bouton « Retour », premier
+  focalisable).
+- **Une seule autocomplétion** : c'est `SearchAutocomplete`, la même que la barre de bureau (mêmes
+  URL : `q` en texte libre, `city`/`location`/`type` sur une suggestion). Seul ajout : une prop
+  optionnelle `onValider`, appelée juste avant chaque `router.push` du champ, pour refermer la
+  surface AU GESTE plutôt qu'à l'arrivée de la page suivante. La barre de bureau ne la passe pas.
+- **Le bouton « Rechercher »** de la surface appelle `handleSearch` — le constructeur d'URL de la
+  loupe de bureau ; le test vérifie qu'il produit la même URL que la touche Entrée.
+- **Le champ repart de `q` à chaque ouverture** (`basculerRecherche`) : sans cela, une saisie
+  abandonnée par « Retour » restait dans l'état `location` partagé et ressortait au prochain
+  « Rechercher ».
+- **Champ en 16 px** dans la surface (`[&_input]:text-base`) : sous 16 px, Safari iOS zoome au focus.
+- **Libellé court** : « Chercher » / « Search » / « Seet ». Mesuré dans la police de la page, à
+  360 px : la pastille laisse **59 px** au texte avec `px-4` ; « Rechercher » en mesure 74,
+  « Chercher » 60,2 — tronqué d'un pixel. D'où `px-3` sur la pastille (67 px disponibles).
+  TCK-551 (gouttière `px-4`, favoris à 44 px) rendra 8 px nets de plus.
+- **Résumé** : deux lignes — le lieu (`q`, sinon `location`, sinon `city`) puis la transaction
+  (« À louer » / « À vendre ») ; chacune tronque seule. Hors de `/properties`, la pastille reste au
+  repos (même règle que `qEnVigueur`).
+- Menu : seul le bloc « champ + Acheter/Louer + Rechercher » est retiré ; la rangée de catégories,
+  la modalité et la langue restent à TCK-551 / TCK-550. L'état `transaction` reste, il sert au
+  `Select` de bureau.
+
+### Vérification
+
+- Tests : `Navbar.pastille-mobile.test.tsx` (10, neuf) ; `SearchAutocomplete.test.tsx` (+2,
+  `onValider`) ; `Navbar.recherche.test.tsx` et `Navbar.responsive.test.tsx` mis au nouveau contrat
+  (la saisie mobile est dans la surface, la pastille au repos dit « Chercher »). **Ablation** : avec
+  `Navbar.tsx` de `HEAD` remis en place, les 10 tests neufs rougissent.
+- Navigateur, 360 × 740 `mobile:true` + tactile, `innerWidth` = 360 à chaque relevé :
+  - AC1 — `/fr/properties?q=Dakar&page=2`, tap : focus sur `INPUT type=text` valeur `Dakar`, dans
+    le `dialog` (0, 0, 360, 740), police 16 px ; saisie « Plateau » puis « Retour » → URL
+    identique, focus rendu à la pastille ; même chose par Échap.
+  - AC2 — `?q=Dakar&contract_type=rent&type=villa&page=2`, « Almadies » + Entrée →
+    `/fr/properties?q=Almadies&contract_type=rent&type=villa`, surface refermée. Suggestion
+    « Dakar » choisie depuis `?contract_type=rent&page=2` → `?contract_type=rent&city=Dakar`,
+    surface refermée, pastille « Dakar / À louer ».
+  - AC3 — `?q=Dakar&contract_type=rent` : pastille « Dakar » + « À louer », 39/39 px chacun.
+  - AC4 — `/fr|en|wo/properties` : « Chercher » 60/60, « Search » 45/45, « Seet » 29/29
+    (`scrollWidth`/`clientWidth`), `lang` du document vérifié.
+  - AC5 — menu ouvert sur `?contract_type=rent` : 0 `aria-pressed`, 0 `input`, `Louer=page`.
+  - Liste de suggestions à 360 : bornes 16 → 344, `scrollWidth` du document 360.
+- Bureau 1280 × 800 `mobile:false`, **témoin avant/après** (preuve de version : présence de la
+  pastille à `aria-haspopup="dialog"` dans le DOM) : colonne centrale (209, 12, 576, 110) des deux
+  côtés, champ pré-rempli `Dakar`, 6 puces, Entrée → `?q=Ngor&contract_type=rent`, loupe →
+  `?q=Yoff&contract_type=rent` — identiques.
+- Non vérifié : l'ouverture du **clavier** sur un vrai téléphone (iOS n'ouvre le clavier que si le
+  focus est donné dans le geste ; base-ui le donne juste après le montage). À vérifier sur appareil.

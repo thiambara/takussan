@@ -232,7 +232,16 @@
       "cta": "Learn more",
       "pendingCta": "View details"
     },
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "searchPill": {
+      "idle": "Search",
+      "sale": "For sale",
+      "rent": "For rent"
+    },
+    "searchSurface": {
+      "title": "Find a property",
+      "back": "Back"
+    }
   },
   "footer": {
     "tagline": "Your trusted partner to find the perfect property in Senegal.",
