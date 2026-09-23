@@ -150,7 +150,7 @@ export function SearchToolbar({
           <button
             type="button"
             onClick={onOpenSidebar}
-            className="lg:hidden flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-3.5 text-sm font-semibold text-primary-foreground shadow-sm transition-[background-color,scale] hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.96]"
+            className="lg:hidden flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-3.5 text-sm font-semibold text-primary-foreground shadow-sm transition-[background-color,scale] hover:bg-[var(--primary-deep)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.96]"
           >
             <SlidersHorizontal className="size-4" aria-hidden />
             {t('filters')}

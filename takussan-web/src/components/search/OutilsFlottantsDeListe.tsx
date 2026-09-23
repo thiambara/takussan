@@ -90,7 +90,7 @@ export function OutilsFlottantsDeListe({
       <button
         type="button"
         onClick={onOuvrirFiltres}
-        className={cn(bouton, 'rounded-l-full bg-primary pl-5 text-primary-foreground hover:bg-primary/90')}
+        className={cn(bouton, 'rounded-l-full bg-primary pl-5 text-primary-foreground hover:bg-[var(--primary-deep)]')}
       >
         <SlidersHorizontal className="size-4" aria-hidden />
         {tToolbar('filters')}
