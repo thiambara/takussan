@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 import { useScrollRestoration } from '../useScrollRestoration';
+import { useVerrouDeDefilement } from '../useVerrouDeDefilement';
 
 /**
  * TCK-335, étape 4 — la position de défilement est mémorisée PAR ENTRÉE D'HISTORIQUE.
@@ -144,5 +145,68 @@ describe('useScrollRestoration', () => {
     pageA.rerender({ pret: true });
     expect(scrollTo).toHaveBeenCalledWith(0, 4000);
     pageA.unmount();
+  });
+});
+
+/**
+ * TCK-551, tour 3 — régression mesurée par le vérificateur adverse sur `/fr/properties` à
+ * 390 × 844, défilée à 900 : ouvrir le menu mobile pose `body` en `position: fixed`, `scrollY`
+ * tombe à 0, et l'événement `scroll` qui s'ensuit écrivait `{"y":0}` dans la mémoire de CE hook.
+ * Toute sortie menu ouvert — geste retour d'Android, rechargement — perdait la position de la
+ * liste (rendue à 0, contre 901 pour le témoin sans menu).
+ *
+ * Le verrou publie son décalage sur `body` ; l'enregistrement lit la position RÉELLE du
+ * visiteur, pas le `scrollY` d'un document sorti du flux.
+ */
+describe('useScrollRestoration — sous le verrou du menu mobile (TCK-551)', () => {
+  let scrollTo: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      cb(0);
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    scrollTo.mockRestore();
+    document.body.removeAttribute('style');
+    document.body.removeAttribute('data-verrou-defilement-y');
+  });
+
+  it('le `scroll` émis par la pose du verrou n’écrase pas la position par 0', () => {
+    poserEntree('entree-menu');
+    poserDefilement(0);
+    const page = renderHook(() => useScrollRestoration(true));
+    poserDefilement(900);
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+
+    // Ouverture du menu : le verrou sort `body` du flux, le navigateur ramène `scrollY` à 0 et
+    // émet un `scroll` — exactement ce que Chrome fait, mesuré.
+    const verrou = renderHook(() => useVerrouDeDefilement(true));
+    poserDefilement(0);
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+
+    // Sortie menu ouvert (geste retour, rechargement) : la page se démonte SANS lever le verrou.
+    page.unmount();
+    verrou.unmount();
+
+    poserEntree('entree-menu');
+    poserDefilement(0);
+    scrollTo.mockClear();
+    const retour = renderHook(({ pret }) => useScrollRestoration(pret), {
+      initialProps: { pret: false },
+    });
+    retour.rerender({ pret: true });
+    expect(scrollTo).toHaveBeenCalledWith(0, 900);
+    retour.unmount();
   });
 });

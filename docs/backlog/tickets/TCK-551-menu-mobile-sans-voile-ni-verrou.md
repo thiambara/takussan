@@ -341,3 +341,63 @@ base-ui avoue ne pas tenir sur iOS barre repliée, mais la sortie du flux de `bo
 d'`overflow` sur le viewport. C'est un argument de mécanisme, pas une mesure : la contrainte
 stricte reste à éprouver sur un iPhone réel (ouvrir le menu défilé, barre d'adresse repliée,
 glisser depuis le panneau et depuis le voile, fermer, vérifier la position rendue).
+
+### Tour 3 — après le refus du tour 2 (2026-09-23)
+
+Refus du vérificateur adverse : AC1 à AC6 confirmés, mais **un défaut majeur** — régression de
+TCK-335/TCK-557 — et deux mineurs. Charge au relevé : `load averages 3.09 5.55 8.78`, 8 cœurs ;
+aucun temps n'est mesuré, seulement des positions et des états.
+
+**Ce que la note « Retour arrière » du tour 2 ne couvrait pas.** Elle mesurait une sortie qui
+FERME d'abord le menu (lien « Louer », puis Précédent) : la levée du verrou rend la position
+avant la navigation, et c'est juste. Elle ne mesurait pas une sortie menu OUVERT — le geste retour
+d'Android, que l'Objectif nomme comme une fermeture attendue, ou un rechargement.
+
+**Reproduction (commit `e432de1c`, sources du tour 2 remises en place le temps de la mesure),**
+`/fr/properties` à 390 × 844, défilée à 900, scripts du vérificateur rejoués :
+
+| Scénario | Témoin sans menu | Menu ouvert |
+|---|---|---|
+| `sessionStorage` juste après l'ouverture | `{"y":900}` | **`{"y":0}`** |
+| légal → liste (navigation client) → 900 → Précédent → Suivant | 901 | **0** |
+| `Page.reload` | 901 | **0** |
+
+**Reproduit.** Cause : sous `position: fixed`, `window.scrollY` vaut 0 et le navigateur émet un
+`scroll` ; `useScrollRestoration.enregistrer` mémorisait `window.scrollY`, donc 0.
+
+**Correctif (TDD, test rouge d'abord) :** le verrou **publie** la position réelle du visiteur sur
+`body` (`data-verrou-defilement-y`, posé avec `position: fixed`, retiré AVANT le `scrollTo` de la
+levée), et `positionVerticale()` — exportée par `useVerrouDeDefilement.ts` — rend cette valeur
+verrou posé, `window.scrollY` sinon. `useScrollRestoration` mémorise `positionVerticale()`.
+Choisi plutôt qu'« ignorer les `scroll` verrou posé » : la valeur mémorisée reste juste même si
+aucun `scroll` n'avait été enregistré avant l'ouverture.
+
+**Mesures après correctif** (Chrome headless, `mobile: true`, `innerWidth` = largeur demandée,
+`scrollWidth` = `innerWidth`) :
+
+- Mêmes trois scénarios, menu ouvert : `sessionStorage` **`{"y":900}`** après l'ouverture ;
+  Précédent puis Suivant → liste à **901** ; `Page.reload` → **901**. Identique au témoin.
+- Sortie menu ouvert vers une page LONGUE (vérifié parce que la barre est montée par page : la
+  levée du verrou tombe au démontage, pendant la navigation) : `/fr/agents` défilée à 300
+  (`scrollHeight` 5375) → `router.push('/fr/properties')` → 900 → menu ouvert → Précédent :
+  `/fr/agents` à **300** (témoin : 300), attribut retiré, 0 boîte ; Suivant : liste à **901**.
+  Le `scrollTo` de levée ne déplace donc pas la page d'arrivée.
+- **AC1 et AC2 rejoués** à 390 × 844 et 360 × 740 : menu ouvert, `scrollBy(0, 500)` → `scrollY`
+  0, repère immobile à −694,8 ; attribut `"900"` ; toucher en (W/2, H−20) → 0 boîte, focus sur
+  « Ouvrir le menu », position rendue à **900**, attribut retiré, `scrollBy(0, 300)` → **1200**.
+
+**Mineur 1 — `touch-none` du voile désormais gardé** : `Navbar.menu-modal.test.tsx`, « le voile
+refuse les gestes tactiles ». Il ne prouve pas qu'iOS respecte `touch-action` ; il garde que la
+classe, argument du voile, ne disparaît pas en silence.
+
+**Ablations (jsdom, fichiers restaurés par copie, md5 vérifiés après) :**
+
+| Mutation | Tests rouges |
+|---|---|
+| `useScrollRestoration` remémorise `window.scrollY` | « le `scroll` émis par la pose du verrou n'écrase pas la position par 0 » |
+| le verrou ne publie pas l'attribut | le même + « publie la position réelle … et la retire à la levée » |
+| l'attribut n'est pas retiré à la levée | « publie la position réelle … et la retire à la levée » |
+| `touch-none` retiré du voile | « le voile refuse les gestes tactiles » |
+
+**Toujours NON vérifié : iOS Safari** (aucun WebKit sur cette machine, rien d'installé ; cf. tour
+2). Le focus après un changement de langue depuis le menu n'a pas été retesté à ce tour.

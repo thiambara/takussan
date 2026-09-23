@@ -15,7 +15,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { cleanup, renderHook } from '@testing-library/react';
 
-import { useVerrouDeDefilement } from '@/hooks/useVerrouDeDefilement';
+import { positionVerticale, useVerrouDeDefilement } from '@/hooks/useVerrouDeDefilement';
 
 let scrollTo: ReturnType<typeof vi.fn>;
 
@@ -36,6 +36,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   document.documentElement.removeAttribute('style');
   document.body.removeAttribute('style');
+  document.body.removeAttribute('data-verrou-defilement-y');
 });
 
 describe('useVerrouDeDefilement', () => {
@@ -79,6 +80,24 @@ describe('useVerrouDeDefilement', () => {
     unmount();
     expect(document.body.style.position).toBe('');
     expect(scrollTo).toHaveBeenCalledWith({ left: 0, top: 700, behavior: 'instant' });
+  });
+
+  /**
+   * Tour 3 : `position: fixed` ramène `scrollY` à 0 — tout lecteur de `scrollY` (la mémoire de
+   * `useScrollRestoration`) prenait ce 0 pour la position du visiteur. Le verrou la publie.
+   */
+  it('publie la position réelle du visiteur tant qu’il est posé, et la retire à la levée', () => {
+    expect(positionVerticale()).toBe(700);
+    const { rerender } = renderHook(({ actif }) => useVerrouDeDefilement(actif), {
+      initialProps: { actif: true },
+    });
+    defiler(0, 0);
+    expect(document.body.getAttribute('data-verrou-defilement-y')).toBe('700');
+    expect(positionVerticale()).toBe(700);
+    rerender({ actif: false });
+    expect(document.body.hasAttribute('data-verrou-defilement-y')).toBe(false);
+    defiler(0, 700);
+    expect(positionVerticale()).toBe(700);
   });
 
   it('rend aussi le défilement horizontal', () => {

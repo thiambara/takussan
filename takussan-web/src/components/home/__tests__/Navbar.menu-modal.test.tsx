@@ -93,6 +93,17 @@ describe('Menu mobile — une modale (TCK-551, N5)', () => {
     expect(document.querySelector('[data-slot="sheet-overlay"]'), 'le voile est rendu').not.toBeNull();
   });
 
+  /**
+   * Refus du tour 2 (mineur) : `touch-none` était l'argument « iOS » du voile — un glissé qui part
+   * du voile n'a rien à faire défiler, même sur un Safari qui ignorerait la sortie du flux de
+   * `body` —, et son retrait laissait les 74 tests de `home/__tests__` verts.
+   */
+  it('le voile refuse les gestes tactiles (`touch-none`) : un glissé dessus ne fait rien défiler', async () => {
+    await ouvrir();
+    const voile = document.querySelector('[data-slot="sheet-overlay"]');
+    expect(classesDe(voile)).toContain('touch-none');
+  });
+
   it('un appui sur le voile ferme le menu et rend le focus au bouton menu (AC2)', async () => {
     const { user } = await ouvrir();
     const voile = document.querySelector('[data-slot="sheet-overlay"]') as HTMLElement;
