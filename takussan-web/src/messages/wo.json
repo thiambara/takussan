@@ -232,7 +232,16 @@
     "moreTypes": "Yeneen xeet yi",
     "more": "Yeneen",
     "propertiesCount": "{count} kër",
-    "loading": "Mu ngi yeb…"
+    "loading": "Mu ngi yeb…",
+    "searchPill": {
+      "idle": "Seet",
+      "sale": "Ngir jaay",
+      "rent": "Ngir luwaa"
+    },
+    "searchSurface": {
+      "title": "Seet benn kër",
+      "back": "Dellu"
+    }
   },
   "footer": {
     "tagline": "Sa nawle bu wér ngir gis kër bi nga bëgg ci Senegaal.",

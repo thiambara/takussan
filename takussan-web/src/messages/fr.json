@@ -232,7 +232,16 @@
       "cta": "En savoir plus",
       "pendingCta": "Voir le détail"
     },
-    "loading": "Chargement…"
+    "loading": "Chargement…",
+    "searchPill": {
+      "idle": "Chercher",
+      "sale": "À vendre",
+      "rent": "À louer"
+    },
+    "searchSurface": {
+      "title": "Rechercher un bien",
+      "back": "Retour"
+    }
   },
   "footer": {
     "tagline": "Votre partenaire de confiance pour trouver le bien immobilier idéal au Sénégal.",

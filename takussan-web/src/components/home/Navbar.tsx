@@ -3,12 +3,13 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo, useTransition } from 'react';
 import { LienLocalise } from '@/components/shared/LienLocalise';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Home, MapPin, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
+import { Home, ArrowLeft, Menu, X, ChevronUp, Building2, TreePine, Store, Warehouse, Briefcase, BedDouble, Factory, Hotel, Car, Tractor, PlusCircle, HelpCircle, ParkingCircle, LogOut, UserCircle, Search } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import { SearchAutocomplete } from '@/components/search/SearchAutocomplete';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { navLinks, categories, moreCategories } from '@/data/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { setPublishIntent } from '@/lib/publish-intent';
@@ -20,6 +21,7 @@ import { parametreDe } from '@/types/search';
 import { hrefLocalise, localeDuChemin } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
+import { cn } from '@/lib/utils';
 
 type PropertyTypeCountsResponse = {
   data: Array<{ value: string; count: number }>;
@@ -88,8 +90,35 @@ export function Navbar({ className }: NavbarProps) {
   // Le champ montre la recherche EN VIGUEUR sur la liste des biens — rechargement compris — et
   // reste modifiable. Ailleurs, `q` appartient à un autre index (`/agents`, `/agencies`) : il n'a
   // pas à apparaître dans la recherche de biens, ni à y être emporté.
-  const qEnVigueur = estListeDesBiens(pathname) ? (searchParams.get(parametreDe('q')) ?? '') : '';
+  const surLaListe = estListeDesBiens(pathname);
+  const qEnVigueur = surLaListe ? (searchParams.get(parametreDe('q')) ?? '') : '';
   const [location, setLocation] = useStateSyncedWith(qEnVigueur);
+  // TCK-549 — la pastille mobile RÉSUME la recherche en vigueur : le lieu d'abord (le terme saisi,
+  // sinon le quartier ou la ville choisis dans les suggestions), puis la transaction. Hors de la
+  // liste, ces paramètres appartiennent à un autre index : la pastille reste au repos.
+  const lieuEnVigueur = surLaListe
+    ? (qEnVigueur || searchParams.get(parametreDe('location')) || searchParams.get(parametreDe('city')) || '')
+    : '';
+  const transactionEnVigueur = surLaListe ? searchParams.get(parametreDe('contract_type')) : null;
+  const libelleTransaction =
+    transactionEnVigueur === 'sale' ? t('searchPill.sale')
+      : transactionEnVigueur === 'rent' ? t('searchPill.rent')
+        : null;
+  // La saisie mobile : un tap sur la pastille ouvre un écran de saisie, et rien d'autre — ouvrir
+  // puis fermer sans valider ne touche pas à l'URL (la pastille relançait la recherche et perdait
+  // `page`, audit du 2026-09-22).
+  const [rechercheOuverte, setRechercheOuverte] = useState(false);
+  const zoneSaisieRef = useRef<HTMLDivElement>(null);
+  const basculerRecherche = useCallback((ouverte: boolean) => {
+    // `location` repart de la recherche EN VIGUEUR à l'ouverture ET à la fermeture sans
+    // validation (Échap, « Retour », clic dehors — la validation, elle, ferme par
+    // `setRechercheOuverte` et ne passe pas ici). `location` est un état caché une fois la saisie
+    // refermée, et `buildSearchUrl` le lit : sans cette remise, la puce de catégorie du menu
+    // écrivait en `q` un texte que le visiteur avait abandonné (refus du tour 1, mesuré au
+    // navigateur : `?q=Ngor+Plateau&type=apartment`).
+    setLocation(qEnVigueur);
+    setRechercheOuverte(ouverte);
+  }, [qEnVigueur, setLocation]);
   const [transaction, setTransaction] = useState('');
   const [moreOpen, setMoreOpen] = useState(false);
   const [typeCounts, setTypeCounts] = useState<Record<string, number> | null>(null);
@@ -438,22 +467,66 @@ export function Navbar({ className }: NavbarProps) {
           )}
         </div>
 
-          {/* Mobile: search pill → opens search page.
+          {/* Mobile : la pastille OUVRE une saisie (TCK-549).
               TCK-505 (#3) — `min-w-0` sur la rangée ET sur la pastille. Un enfant flex garde
               `min-width: auto`, la largeur de son contenu : la rangée, mesurée à 400 px sur un
               viewport de 390, poussait le bouton menu hors champ. Posé sur la pastille seule, le
               défaut restait entier (mesuré) — c'est la rangée que le conteneur externe doit
-              pouvoir compresser. Le libellé, lui, tronque : `truncate` rend son `overflow`
-              non visible, donc son minimum flex tombe à 0 sans autre classe. */}
+              pouvoir compresser. Les libellés, eux, tronquent : `truncate` rend leur `overflow`
+              non visible, donc leur minimum flex tombe à 0 sans autre classe.
+              TCK-549 — `px-3` et non `px-4` : à 360 px la pastille laisse 67 px au texte, et le
+              libellé court le plus long (« Chercher ») en mesure 60. */}
           <div className="flex lg:hidden min-w-0 flex-1 items-center gap-2">
-            <button
-              type="button"
-              onClick={handleSearch}
-              className="flex-1 min-w-0 flex min-h-11 items-center gap-2 bg-card border border-border rounded-full px-4 py-2.5 shadow-sm text-left transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md"
-            >
-              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span className="text-sm text-muted-foreground truncate">{t('searchPlaceholder')}</span>
-            </button>
+            <Sheet open={rechercheOuverte} onOpenChange={basculerRecherche}>
+              <SheetTrigger
+                aria-haspopup="dialog"
+                className="flex-1 min-w-0 flex min-h-11 items-center gap-2 bg-card border border-border rounded-full px-3 py-1 shadow-sm text-left transition-[border-color,box-shadow] hover:border-primary/40 hover:shadow-md"
+              >
+                <Search className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                <span className="flex min-w-0 flex-col">
+                  <span className={cn('truncate text-sm', lieuEnVigueur ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+                    {lieuEnVigueur || t('searchPill.idle')}
+                  </span>
+                  {libelleTransaction && (
+                    <span className="truncate text-xs text-muted-foreground">{libelleTransaction}</span>
+                  )}
+                </span>
+              </SheetTrigger>
+              <SheetContent
+                side="top"
+                initialFocus={() => zoneSaisieRef.current?.querySelector<HTMLInputElement>('input') ?? true}
+                className="lg:hidden h-dvh max-h-dvh bg-background"
+              >
+                <div className="flex items-center gap-1 border-b border-border px-2 py-2">
+                  <SheetClose
+                    aria-label={t('searchSurface.back')}
+                    render={<Button variant="ghost" size="icon" className="size-11 rounded-full" />}
+                  >
+                    <ArrowLeft className="size-5" aria-hidden="true" />
+                  </SheetClose>
+                  <SheetTitle className="font-display tracking-tight">{t('searchSurface.title')}</SheetTitle>
+                </div>
+                {/* Le champ est celui de la barre de bureau — même autocomplétion, mêmes URL. Il
+                    passe en 16 px : sous cette taille, Safari iOS zoome la page au focus. */}
+                <div ref={zoneSaisieRef} className="px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  <SearchAutocomplete
+                    variant="hero"
+                    placeholder={t('searchPlaceholder')}
+                    className="[&_input]:text-base"
+                    value={qEnVigueur}
+                    onQueryChange={(v) => setLocation(v)}
+                    onValider={() => setRechercheOuverte(false)}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => { setRechercheOuverte(false); handleSearch(); }}
+                    className="mt-4 w-full rounded-full h-11 text-sm font-semibold"
+                  >
+                    {t('search')}
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           <FavoritesPopover variant="compact" />
           <button
             type="button"
@@ -470,46 +543,6 @@ export function Navbar({ className }: NavbarProps) {
       {/* Mobile menu panel */}
       {menuOpen && (
         <div className="lg:hidden absolute top-full left-0 w-full max-h-[calc(100dvh-69px)] overflow-y-auto overscroll-contain bg-popover border-t border-border shadow-lg">
-            {/* Mobile search */}
-            <div className="px-6 pt-5 pb-3">
-              <div className="flex items-center gap-2 border border-border rounded-xl px-4 py-3 mb-2">
-                <MapPin className="w-4 h-4 text-primary shrink-0" />
-                <input
-                  type="text"
-                  placeholder={t('searchPlaceholder')}
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { setMenuOpen(false); handleSearch(); } }}
-                  className="flex-1 text-sm text-foreground placeholder:text-muted-foreground font-medium outline-none bg-transparent"
-                />
-              </div>
-              <div className="flex gap-2">
-                {[
-                  { value: 'Acheter', label: t('buy') },
-                  { value: 'Louer', label: t('rent') },
-                ].map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    aria-pressed={transaction === opt.value}
-                    onClick={() => setTransaction(opt.value)}
-                    className={`flex-1 min-h-11 py-2 rounded-full text-sm font-semibold transition-colors ${transaction === opt.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground hover:bg-secondary'
-                      }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-              <Button
-                onClick={() => { setMenuOpen(false); handleSearch(); }}
-                className="mt-3 w-full rounded-full h-11 text-sm font-semibold"
-              >
-                {t('search')}
-              </Button>
-            </div>
-
             {/* Mobile categories */}
             <div className="px-6 pb-3 border-t border-border pt-3">
               <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

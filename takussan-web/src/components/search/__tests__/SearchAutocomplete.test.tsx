@@ -208,4 +208,41 @@ describe('SearchAutocomplete', () => {
       expect(input).toHaveValue('villa');
     });
   });
+
+  /**
+   * TCK-549 — la saisie mobile de la navbar vit dans une boîte de dialogue : elle doit se refermer
+   * AU MOMENT où le champ navigue, pas quand la page suivante est servie. `onValider` est ce
+   * signal — une fois par navigation, jamais sur une frappe.
+   */
+  describe('`onValider` — le champ annonce qu’il navigue (TCK-549)', () => {
+    it('appelé une fois sur Entrée en texte libre, avant la navigation, et jamais sur une frappe', async () => {
+      const { useSuggest } = await import('@/hooks/useSuggest');
+      (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({ data: undefined, isLoading: false, isFetching: false });
+      const onValider = vi.fn();
+
+      render(withProviders(<SearchAutocomplete onValider={onValider} />));
+      const input = screen.getByRole('searchbox');
+      await userEvent.type(input, 'almadies');
+      expect(onValider).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(input, { key: 'Enter' });
+      expect(onValider).toHaveBeenCalledTimes(1);
+      expect(mockPush).toHaveBeenCalledWith('/fr/properties?q=almadies');
+    });
+
+    it('appelé une fois quand une suggestion est choisie', async () => {
+      const { useSuggest } = await import('@/hooks/useSuggest');
+      (useSuggest as ReturnType<typeof vi.fn>).mockReturnValue({ data: mockSuggestData, isLoading: false, isFetching: false });
+      const onValider = vi.fn();
+
+      render(withProviders(<SearchAutocomplete onValider={onValider} />));
+      const input = screen.getByRole('searchbox');
+      await userEvent.type(input, 'da');
+      fireEvent.keyDown(input, { key: 'ArrowDown' });
+      fireEvent.keyDown(input, { key: 'Enter' });
+
+      expect(onValider).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/fr/properties?city=Dakar'));
+    });
+  });
 });
