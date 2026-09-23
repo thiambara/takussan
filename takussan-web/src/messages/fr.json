@@ -576,7 +576,8 @@
       "bedroomsShort": "{count} ch",
       "bedroomsAbbrev": "{count} Ch.",
       "bathroomsShort": "{count} sdb",
-      "photoPending": "Photo à venir"
+      "photoPending": "Photo à venir",
+      "rentNoPeriod": "· loyer"
     },
     "row": {
       "viewAll": "Tout voir",

@@ -44,18 +44,31 @@
  */
 
 /**
- * `/properties` — `grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5`, dans
- * `max-w-[1440px] px-4 md:px-8 lg:px-16` avec un rail de filtres de 264 px + 24 px
- * de gouttière à partir de `md`.
+ * `/properties` — `grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5`, dans
+ * `max-w-[1440px] px-4 md:px-8 lg:px-16`, avec un rail de filtres de 264 px + 24 px de
+ * gouttière à partir de `lg` (et non de `md` : sous `lg`, les filtres sont un tiroir).
  *
- * Mesuré : 500 px → 226 px (45,2 vw) · 800 px → 139 px (17,3 vw) · 1024 px → 140 px
- * (13,7 vw) · 1249 px → 196 px (15,7 vw) · 1440 px et au-delà → **192 px fixes**.
+ * **Re-mesuré le 2026-09-23 (TCK-555)**, à 18 largeurs de 320 à 1920 px :
  *
- * Le rail explique le décrochage entre 500 px (absent) et 800 px (présent) : la
- * carte perd la moitié de sa largeur relative en franchissant `md`.
+ * | viewport | colonnes | emplacement | déclaré |
+ * |---|---|---|---|
+ * | 320 → 767 px | 1 | `100vw − 32 px` exactement (288 → 735 px) | `calc(100vw - 32px)` |
+ * | 768 → 1023 px | 3 | 224 → 309 px (29,2 → 30,2 vw) | 31vw |
+ * | 1024 → 1279 px | 3 + rail | 192 → 277 px (18,8 → 21,7 vw) | 22vw |
+ * | 1280 → 1439 px | 4 + rail | 204 → 244 px (15,9 → 16,9 vw) | 17vw |
+ * | 1440 → 1535 px | 4, conteneur plafonné | **244 px fixes** | 244px |
+ * | 1536 px et au-delà | 5, conteneur plafonné | **192 px fixes** | 192px |
+ *
+ * ⚠ **La valeur précédente était SOUS-déclarée à quatre paliers sur cinq** — le défaut qui rend
+ * flou, pas lourd. Elle avait été mesurée sur `grid-cols-2 md:grid-cols-3 lg:grid-cols-4
+ * xl:grid-cols-5` (2026-08-24) ; TCK-529 a déplacé les paliers (`xl:4`, `2xl:5`) sans la
+ * reprendre : 22vw déclarés pour 30 réels à 1023 px, 192 px pour 244 réels de 1440 à 1535 px.
+ *
+ * Sous `md`, la grille était à deux colonnes de 136 à 360 px (`50vw`) ; TCK-555 l'a passée à
+ * une colonne pleine largeur — la photo passe de 156 × 117 à 328 × 246 px à 360 px.
  */
 export const CARD_SIZES_SEARCH_GRID =
-  '(max-width: 767px) 50vw, (max-width: 1023px) 22vw, (max-width: 1279px) 17vw, (max-width: 1439px) 14vw, 192px';
+  '(max-width: 767px) calc(100vw - 32px), (max-width: 1023px) 31vw, (max-width: 1279px) 22vw, (max-width: 1439px) 17vw, (max-width: 1535px) 244px, 192px';
 
 /**
  * `/favorites` public — `grid-cols-1 sm:grid-cols-2 lg:grid-cols-3` dans
