@@ -601,7 +601,8 @@
       "bedroomsShort": "{count} bd",
       "bedroomsAbbrev": "{count} bd",
       "bathroomsShort": "{count} ba",
-      "photoPending": "Photo coming soon"
+      "photoPending": "Photo coming soon",
+      "rentNoPeriod": "· rent"
     },
     "row": {
       "viewAll": "See all",

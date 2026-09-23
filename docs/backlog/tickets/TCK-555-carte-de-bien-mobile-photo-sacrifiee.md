@@ -74,28 +74,28 @@ Aucun endpoint. Champs déjà présents dans la réponse de liste (`contract_typ
 
 ## Delta à produire
 
-- [ ] Disposition mobile de la carte : une colonne sous `md`.
-- [ ] Surimpressions sur la photo réduites à deux au plus.
-- [ ] Comparateur déplacé hors de la photo.
-- [ ] Ancienneté en texte dans la ligne de détails.
-- [ ] Pastille de transaction masquée sous filtre de transaction.
-- [ ] Hauteur de titre réservée seulement si la disposition l'exige.
-- [ ] Repli de libellé pour un loyer sans période.
-- [ ] `sizes` des images recalculés.
+- [x] Disposition mobile de la carte : une colonne sous `md`.
+- [x] Surimpressions sur la photo réduites à deux au plus.
+- [x] Comparateur déplacé hors de la photo.
+- [x] Ancienneté en texte dans la ligne de détails.
+- [x] Pastille de transaction masquée sous filtre de transaction.
+- [x] Hauteur de titre réservée seulement si la disposition l'exige.
+- [x] Repli de libellé pour un loyer sans période.
+- [x] `sizes` des images recalculés.
 
 ## Critères d'acceptation
 
-- [ ] AC1 — à 360 px, la photo de la première carte mesure au moins 210 px de haut (1,8 fois les
+- [x] AC1 — à 360 px, la photo de la première carte mesure au moins 210 px de haut (1,8 fois les
       117 px relevés), et la grille est à une colonne sous `md` ; à partir de `md`, le nombre de
       colonnes est inchangé.
-- [ ] AC2 — au plus deux éléments sont positionnés au-dessus de la photo d'une carte.
-- [ ] AC3 — le comparateur n'est pas au-dessus de la photo, et sa zone tactile ne touche pas celle
+- [x] AC2 — au plus deux éléments sont positionnés au-dessus de la photo d'une carte.
+- [x] AC3 — le comparateur n'est pas au-dessus de la photo, et sa zone tactile ne touche pas celle
       du favori.
-- [ ] AC4 — sous `contract_type=rent`, aucune carte n'affiche de pastille de transaction ; sans
+- [x] AC4 — sous `contract_type=rent`, aucune carte n'affiche de pastille de transaction ; sans
       filtre de transaction, toutes l'affichent.
-- [ ] AC5 — un bien en location sans `rent_period` n'affiche pas un montant nu identique à celui
+- [x] AC5 — un bien en location sans `rent_period` n'affiche pas un montant nu identique à celui
       d'une vente.
-- [ ] AC6 — l'ancienneté de l'annonce reste lisible sur la carte.
+- [x] AC6 — l'ancienneté de l'annonce reste lisible sur la carte.
 
 ## Hors périmètre
 
@@ -106,4 +106,94 @@ Aucun endpoint. Champs déjà présents dans la réponse de liste (`contract_typ
 
 ## Notes d'implémentation
 
-_(à remplir par implementing-specs)_
+### Re-mesure des prémisses (2026-09-23, avant tout changement)
+
+Banc : `next dev -p 3023` du worktree, API partagée `:8002` (247 biens, sans photos), Chrome
+headless piloté par CDP, `setDeviceMetricsOverride({width:360, mobile:true, dsf:3})`,
+`innerWidth` relevé = **360** (pas d'élargissement du viewport). Charge machine : `load average`
+77 / 99 / 78 sur 8 cœurs — les mesures ci-dessous sont des géométries, pas des temps.
+
+| Constat | Ticket | Mesuré |
+|---|---|---|
+| C1 grille | 2 colonnes, cartes 156-171, photo 117-128 | **2 colonnes de 156 px, photo 156 × 117** ✓ |
+| C1 surimpressions | 4 (transaction, favori, comparateur, âge) | barre du haut (pastille « En vente » + favori + comparateur) + « le mois dernier » en bas à gauche ✓ |
+| C6 titre | `h-10` réservé | `h3` de 40 px pour une ligne de 19,25 px (« Parking couvert à Pikine ») ✓ |
+| C7 loyer sans période | présent dans les semis | **88 locations sur 127 sans `rent_period`** dans les 180 premiers biens de `/api/public/properties` (39 `monthly`) ✓ |
+
+**Écarts de prémisse relevés :**
+
+- **Surfaces de `PropertyCard`** — la consigne de session cite l'accueil, « récemment consultés »
+  et le portefeuille d'agent. Mesuré par `grep` : `PropertyCard` n'est monté que par
+  `PropertiesDiscoveryPage` (liste), `PropertySimilar` (carrousel de la fiche), `FavoritesList`
+  (`/app/favorites`) et `PublicFavoritesPage` (`/favorites`). L'accueil et « récemment consultés »
+  passent par `PropertyRow` → `PropertyCardStandard/Listing/Cover/Compact` ; le portefeuille par
+  `PropertyCardStandard`. Ces variantes ne sont pas touchées.
+- **Grille de `/properties`** — `card-image-sizes.ts` décrit `grid-cols-2 md:grid-cols-3
+  lg:grid-cols-4 xl:grid-cols-5` ; le code porte `grid-cols-2 md:grid-cols-3 xl:grid-cols-4
+  2xl:grid-cols-5` depuis TCK-529 (4b7b9138), postérieur au relevé des `sizes` (09fe8847).
+  Les `sizes` sont donc re-mesurés à tous les paliers, pas seulement sous `md`.
+- **Aucun bien semé n'est « Neuf »** (`condition` nulle sur les 180 relevés) : la règle des deux
+  surimpressions avec l'état « Neuf » se vérifie par test, pas au navigateur.
+
+### Ce qui a été fait, et les décisions qui ne se lisent pas dans le diff
+
+- **Une prop, pas l'URL** : `PropertyCard` reçoit `transactionFiltree` de la grille de
+  `/properties` (`filters.contract_type`). Elle ne retire la pastille que si le bien porte
+  EXACTEMENT cette transaction — un bien d'une autre transaction la garde, elle y dit une vraie
+  différence. Aucune autre surface ne passe la prop : pastille toujours affichée ailleurs.
+- **« Neuf » et la règle des deux surimpressions.** La photo porte UNE pastille et le favori. La
+  pastille est la transaction ; quand la transaction est masquée (ou absente), « Neuf / Sur plan »
+  prend sa place. Quand les deux ont à dire, l'état passe en texte en tête de la ligne de détails
+  (`CardMeta`) — ni perdu, ni dit deux fois. Aucun bien semé n'est « Neuf » : vérifié par test.
+- **Le comparateur** est dans la rangée du prix, à droite (à l'opposé du favori, en haut à droite de
+  la photo), dans un conteneur `relative z-10` (au-dessus du lien étiré de TCK-554). Posé sur la
+  page et non plus sur une photo, il prend une variante `surface="page"` de `CompareToggleButton`
+  (fond de carte, bordure, encre `muted-foreground` ; `bg-primary` quand il est choisi). Le défaut
+  `media` est inchangé pour les autres appelants. `-my-1` : la rangée passe de 22,5 à 24 px, pas à 32.
+  ⚠ Première écriture en table d'objets (`SURFACES = {…}`) : `check-status-badge-unique.mjs` l'a
+  refusée comme « table de tons hors du fichier canonique » — réécrite en ternaire dans le `cn()`.
+- **Titre** : `sm:h-10` au lieu de `h-10`. Sous `sm`, les trois surfaces montrent la carte seule
+  (liste et favoris à une colonne, carrousel à 85 %). ⚠ Compromis assumé : entre 640 et 767 px la
+  liste est à une colonne mais réserve encore deux lignes (les favoris et le carrousel, eux, y sont
+  à deux colonnes et en ont besoin) — une classe qui dépendrait de la grille appelante demanderait
+  une prop de plus pour 20 px sur une largeur de tablette.
+- **Loyer sans période** : « 950 000 F CFA · loyer » (`property.cards.rentNoPeriod` : fr « · loyer »,
+  en « · rent », wo « · luwaas », le mot déjà employé par `contractTypes.rent` en wolof).
+- **`design-guidelines.md`** : la silhouette de la carte de liste et ses règles sont consignées sous
+  « Cartes propriété — variantes » (contrainte du ticket).
+
+### Vérification au navigateur (2026-09-23, `:3023` du worktree, Chrome headless par CDP)
+
+Émulation `360 × 740, dsf 3, mobile: true`, `innerWidth` relevé = largeur demandée partout
+(aucun élargissement), `scrollWidth − innerWidth` = 0. Squelettes attendus (`animate-pulse`,
+`aria-busy`) avant chaque relevé.
+
+| AC | Mesure | Résultat |
+|---|---|---|
+| AC1 | `/fr/properties` à 360 px | **1 colonne, photo 328 × 246** (≥ 210 ✓) — avant : 2 colonnes, 156 × 117 |
+| AC1 | balayage 18 largeurs, avant/après | 320-767 : 1 colonne, `slot = largeur − 32`. **768 → 1920 : 3/3/3/3/3/4/4/4/4/5/5 colonnes (768, 800, 1023, 1024, 1279, 1280, 1439, 1440, 1535, 1536, 1920), emplacements identiques au pixel près** avant et après |
+| AC2 | 30 cartes, éléments dessinés sur la photo | **max 2** (« En vente » + favori) à 360, et à 1024 / 1536 px (cartes de 192 px) |
+| AC3 | comparateur | **0 / 30 sur la photo** ; écart entre zones tactiles de 44 px favori ↔ comparateur : **191 px** à 360, **89 px** à 1024 et 1536. Tap (`el.click()`) : `aria-pressed=true`, URL inchangée ; `elementFromPoint` au centre et à 5 px hors du rond → le bouton |
+| AC4 | `?contract_type=rent` / `?contract_type=sale` / sans filtre | **0 / 30** pastilles sous chaque filtre ; **30 / 30** sans filtre |
+| AC5 | formes de prix relevées sur 30 cartes | « N F CFA », « N F CFA/mois », « N F CFA · loyer » ; en : « · rent », wo : « · luwaas » |
+| AC6 | ancienneté | **30 / 30** cartes la portent en texte (« le mois dernier », « il y a 2 mois »), **0** sur la photo |
+
+Contraste du comparateur en `surface="page"` (couleurs calculées par Chrome) : repos
+`muted-foreground` sur `card` **5,72:1**, survol `foreground` sur `muted` **14,87:1**, choisi
+`primary-foreground` sur `primary` **5,06:1**.
+
+**Autres surfaces de la carte**, à 360 px sans filtre : carrousel des biens similaires (fiche) —
+pastille présente, 2 surimpressions, comparateur hors photo, titre de 19 px (40 px à 1280 : la
+réserve revient là où les diapositives s'alignent) ; `/fr/favorites` (favoris invités) — photo
+328 × 246, 2 surimpressions, comparateur hors photo. `/app/favorites` (authentifié, même composant,
+aucune prop nouvelle) n'a pas été ouvert au navigateur.
+
+**`sizes`** — sonde : une `<img>` portant le `srcset` de `next/image` et la valeur déclarée, dont
+Chrome rend le `currentSrc` choisi. À 360 px (DPR 3, besoin 984) : **1080w** avec la nouvelle
+valeur, **640w** avec l'ancienne (floue). À 1440 px (DPR 2, besoin 488) : **640w** contre **384w**
+avec l'ancienne — le sous-dimensionnement de bureau était antérieur au ticket (voir l'écart de
+prémisse ci-dessus).
+
+Longueur de liste : carte de 355 px à 360 px, soit ~11 850 px pour 30 biens avec `gap-y-10` —
+l'ordre de grandeur que l'arbitrage anticipait (~12 000).
+

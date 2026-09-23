@@ -474,7 +474,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                 {/* TCK-557 — la pagination ramène la vue ICI, sous la `nav` fixe (cf. `NavbarSpacer`). */}
                 <div
                   id={ID_DES_RESULTATS}
-                  className={`scroll-mt-[85px] lg:scroll-mt-[152px] grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10 transition-opacity duration-200 ${
+                  className={`scroll-mt-[85px] lg:scroll-mt-[152px] grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10 transition-opacity duration-200 ${
                     loading
                       ? 'opacity-50 pointer-events-none'
                       : 'opacity-100'
@@ -498,6 +498,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
                         index={i}
                         priority={i < 4}
                         sizes={CARD_SIZES_SEARCH_GRID}
+                        transactionFiltree={filters.contract_type}
                       />
                     ))
                   )}

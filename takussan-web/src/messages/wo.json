@@ -3756,7 +3756,8 @@
       "bedroomsShort": "{count} neeg",
       "bedroomsAbbrev": "{count} neeg",
       "bathroomsShort": "{count} sanjaan",
-      "photoPending": "Nataal bi dina ñëw"
+      "photoPending": "Nataal bi dina ñëw",
+      "rentNoPeriod": "· luwaas"
     },
     "row": {
       "viewAll": "Gis lépp",

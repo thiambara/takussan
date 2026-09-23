@@ -46,6 +46,12 @@ export interface CompareToggleButtonProps {
    * afficher sans requête. Facultatif : sans lui la barre retombe sur l'initiale.
    */
   readonly preview?: ComparePreview;
+  /**
+   * Ce sur quoi le bouton est posé. `media` (défaut) : une photo — pastille translucide floutée,
+   * encre claire. `page` : la surface de la carte, sous la photo (TCK-555) — une encre claire sur
+   * un voile n'y a plus de sens, le bouton prend un fond et une bordure de carte.
+   */
+  readonly surface?: 'media' | 'page';
 }
 
 export function CompareToggleButton({
@@ -53,6 +59,7 @@ export function CompareToggleButton({
   className,
   size = 'md',
   preview,
+  surface = 'media',
 }: CompareToggleButtonProps) {
   const { isSelected, onToggle, label } = useCompareToggle(propertyId, preview);
 
@@ -80,13 +87,17 @@ export function CompareToggleButton({
         SIZE_CLASSES[size],
         // Zone tactile de 44 × 44 px sans agrandir le rond (porte déjà `relative`).
         ZONE_TACTILE_44,
-        'rounded-full backdrop-blur-md flex items-center justify-center',
+        'rounded-full flex items-center justify-center',
         'cursor-pointer focus-visible:outline-none',
         'focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
         'transition-[background-color,color,box-shadow,scale] duration-200 active:scale-[0.96]',
-        isSelected
-          ? 'bg-card text-primary shadow-md'
-          : 'bg-scrim/50 text-primary-foreground hover:bg-card hover:text-primary',
+        surface === 'media'
+          ? isSelected
+            ? 'backdrop-blur-md bg-card text-primary shadow-md'
+            : 'backdrop-blur-md bg-scrim/50 text-primary-foreground hover:bg-card hover:text-primary'
+          : isSelected
+            ? 'border border-primary bg-primary text-primary-foreground'
+            : 'border border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground',
         className,
       )}
     >
