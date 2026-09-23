@@ -3222,6 +3222,9 @@
       "clearAll": "Clear all",
       "close": "Close filters",
       "showResults": "Show results",
+      "showResultsCount": "{count, plural, =0 {No matching properties} =1 {Show # property} other {Show # properties}}",
+      "searchReminder": "Search",
+      "removeSearch": "Remove the search “{value}”",
       "sections": {
         "contractType": "Transaction type",
         "propertyType": "Property type",

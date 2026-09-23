@@ -247,6 +247,7 @@ export function PropertiesDiscoveryPage({ titre, graine = null }: ProprietesDeLa
             activeCount={activeCount}
             open={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
+            total={loading || error ? null : (meta?.total ?? 0)}
           />
 
           <main className="flex-1 min-w-0">

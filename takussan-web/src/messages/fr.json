@@ -3222,6 +3222,9 @@
       "clearAll": "Tout effacer",
       "close": "Fermer les filtres",
       "showResults": "Voir les résultats",
+      "showResultsCount": "{count, plural, =0 {Aucun bien ne correspond} =1 {Voir # bien} other {Voir # biens}}",
+      "searchReminder": "Recherche",
+      "removeSearch": "Retirer la recherche « {value} »",
       "sections": {
         "contractType": "Type de transaction",
         "propertyType": "Type de bien",

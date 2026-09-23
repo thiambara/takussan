@@ -1849,6 +1849,9 @@
       "clearAll": "Far lépp",
       "close": "Tëj tànneef yi",
       "showResults": "Gis njeexital yi",
+      "showResultsCount": "{count, plural, =0 {Amul kër gu ci dëppoo} =1 {Gis # kër} other {Gis # kër}}",
+      "searchReminder": "Seet",
+      "removeSearch": "Far seet bi « {value} »",
       "sections": {
         "contractType": "Xeetu jaay",
         "propertyType": "Xeetu kër",

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useTranslations } from 'next-intl';
-import { X, RotateCcw, Star, Tag } from 'lucide-react';
+import { X, RotateCcw, Search, Star, Tag } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
@@ -11,7 +11,8 @@ import { useDebouncedCallback } from '@/hooks/useDebouncedValue';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
 import { AutourDeMoi } from '@/components/search/AutourDeMoi';
 import { conditionValues, titleTypeValues } from '@/lib/schemas/property';
-import type { SearchFilters } from '@/types/search';
+import { filtersToParams } from '@/hooks/useSearch';
+import { CLES_DE_RECHERCHE, type SearchFilters } from '@/types/search';
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -190,12 +191,24 @@ export interface FilterSidebarProps {
    * l'inscrit alors dans l'historique par `replace` : sans quoi un mot de cinq lettres coûte
    * cinq appuis sur Précédent pour être défait. Un geste discret — puce, bascule, date —
    * n'a pas d'états intermédiaires et empile.
+   *
+   * TCK-556 — **tiroir mobile ouvert, TOUT commit est `continu`**, geste discret compris. La
+   * séance du tiroir est elle-même un geste continu : ses états transitent jusqu'à la fermeture,
+   * et c'est la séance entière, pas chaque puce, que le retour arrière doit pouvoir défaire.
+   * Tiroir fermé, la taxonomie ci-dessus est inchangée. Voir {@link TiroirMobile}.
    */
   onFilterChange: (patch: Partial<SearchFilters>, options?: { continu?: boolean }) => void;
   onReset: () => void;
   activeCount: number;
   open: boolean;
   onClose: () => void;
+  /**
+   * TCK-556 — le total de la recherche COURANTE (`meta.total`), que le tiroir cache à 90 % de la
+   * hauteur. Il est porté par le bouton de pied (« Voir 48 biens »). `null` ou absent quand il
+   * n'est pas connu — chargement, erreur : le bouton dit alors « Voir les résultats », plutôt
+   * qu'un compte périmé présenté comme celui des filtres affichés.
+   */
+  total?: number | null;
   /**
    * Délai d'anti-rebond des champs libres. Injectable pour que les tests le réduisent à
    * quelques millisecondes sans figer les timers (patron `WizardReprenable`) — jamais pour
@@ -235,6 +248,7 @@ export function FilterSidebar({
   activeCount,
   open,
   onClose,
+  total = null,
   debounceMs = DEBOUNCE_CHAMPS_LIBRES_MS,
   geolocalisation,
 }: FilterSidebarProps) {
@@ -282,9 +296,30 @@ export function FilterSidebar({
   }
   const aUnBrouillon = Object.keys(brouillonEnAttente).length > 0;
 
+  /**
+   * TCK-556 — la séance du tiroir mobile : la recherche à son ouverture, et l'état visé par son
+   * dernier commit (`null` = aucun commit depuis l'ouverture). C'est ce qu'il faut pour que le
+   * retour arrière ferme le tiroir SANS défaire ses filtres — cf. {@link TiroirMobile}.
+   */
+  const seanceDuTiroir = React.useRef<{ depart: string; vise: SearchFilters | null }>({
+    depart: '',
+    vise: null,
+  });
+
+  /** Le commit tel que l'appelant le fusionnera, noté si le tiroir est ouvert. */
+  const commettre = (patch: Partial<SearchFilters>, continu: boolean) => {
+    if (open) {
+      seanceDuTiroir.current.vise = { ...filters, ...patch };
+      onFilterChange(patch, { continu: true });
+      return;
+    }
+    if (continu) onFilterChange(patch, { continu: true });
+    else onFilterChange(patch);
+  };
+
   const commitBrouillon = () => {
     if (!aUnBrouillon) return;
-    onFilterChange({ ...brouillonEnAttente, page: 1 }, { continu: true });
+    commettre({ ...brouillonEnAttente, page: 1 }, true);
   };
 
   // `useDebouncedCallback` relit `commitBrouillon` au DÉCLENCHEMENT, jamais à l'armement : un
@@ -301,7 +336,7 @@ export function FilterSidebar({
    */
   const set = (patch: Partial<SearchFilters>) => {
     differe.cancel();
-    onFilterChange({ ...brouillonEnAttente, ...patch, page: 1 });
+    commettre({ ...brouillonEnAttente, ...patch, page: 1 }, false);
   };
 
   /** Champ LIBRE : on affiche tout de suite, on commite plus tard. */
@@ -339,6 +374,25 @@ export function FilterSidebar({
     commitBrouillon();
   };
 
+  /**
+   * « Tout effacer ». Tiroir fermé : `onReset`, qui EMPILE (TCK-335). Tiroir ouvert (TCK-556) :
+   * c'est un geste de la séance comme un autre, donc il passe par {@link commettre} — sans quoi il
+   * s'empilerait au-dessus de la sentinelle, et le retour arrière ré-inscrirait l'état d'AVANT
+   * l'effacement : le geste retour défaisait « Tout effacer » au lieu de seulement fermer.
+   * Le patch porte chaque clé à `undefined`, contrôles compris, comme `resetFilters`.
+   */
+  const reinitialiser = () => {
+    differe.cancel();
+    if (!open) {
+      onReset();
+      return;
+    }
+    const toutEfface = Object.fromEntries(
+      CLES_DE_RECHERCHE.map((cle) => [cle, undefined]),
+    ) as Partial<SearchFilters>;
+    commettre({ ...toutEfface, page: 1 }, true);
+  };
+
   const contractTypes = CONTRACT_TYPE_VALUES.map((v) => ({ label: tContract(v), value: v }));
   const rentPeriods = RENT_PERIOD_VALUES.map((v) => ({ label: tPeriods(v), value: v }));
   const floorOptions = FLOOR_KEYS.map((k, i) => ({ label: t(`floors.${k}`), value: i }));
@@ -355,7 +409,75 @@ export function FilterSidebar({
     return parts.join(' · ');
   })();
 
-  const content = (
+  /**
+   * TCK-556 — la séance du tiroir, vue depuis l'historique.
+   *
+   * - à l'ouverture, on note la recherche de départ ;
+   * - au retour arrière tiroir ouvert, le navigateur est déjà revenu sur l'entrée d'AVANT le
+   *   tiroir. On ferme ; et si la séance a écrit quelque chose, on **revient en avant** sur
+   *   l'entrée de la séance (la sentinelle, qui porte son URL et l'arbre du routeur). Aucune
+   *   navigation, aucun aller-retour RSC : le routeur restaure deux fois depuis son cache. Un
+   *   brouillon encore en attente d'anti-rebond est commité une fois l'avance atterrie — sur
+   *   l'entrée de la séance, jamais sur celle d'avant ;
+   * - à toute autre fermeture, l'entrée du tiroir n'est gardée que si la séance a écrit quelque
+   *   chose (ou s'apprête à le faire : un brouillon dont l'anti-rebond court encore).
+   *
+   * ⚠ La première version ré-inscrivait la séance par un `push` après avoir laissé le routeur
+   * restaurer l'entrée d'avant : mesuré au navigateur, la liste RECHARGEAIT et affichait l'état
+   * d'avant le tiroir pendant 270 à 510 ms, le temps de l'aller-retour RSC du `push`.
+   *
+   * ⚠ On ne peut PAS empêcher le routeur de voir ce retour : son écouteur `popstate`, inscrit au
+   * montage de l'application, passe avant celui du tiroir. Mesuré dans Chrome 154 : sur `window`,
+   * un écouteur de CAPTURE inscrit après un écouteur de bulle passe APRÈS lui — l'ordre est celui
+   * d'inscription, et `stopImmediatePropagation()` y arrive trop tard. (jsdom, lui, passe la
+   * capture d'abord : un test qui s'appuierait sur ce détail serait vert sur un mécanisme mort.)
+   * Reste, mesuré : la liste relance sa recherche au retour (« Chargement… » ~300 à 700 ms sous
+   * `next dev`) et réaffiche LES MÊMES résultats — jamais ceux d'avant le tiroir.
+   */
+  const surOuvertureDuTiroir = () => {
+    seanceDuTiroir.current = { depart: filtersToParams(filters).toString(), vise: null };
+  };
+
+  const surRetourDansLeTiroir = () => {
+    differe.cancel();
+    const brouillon = brouillonEnAttente;
+    const aEcrit = seanceDuTiroir.current.vise !== null || Object.keys(brouillon).length > 0;
+    onClose();
+    if (!aEcrit) return;
+    const surAvance = () => {
+      window.removeEventListener('popstate', surAvance);
+      if (Object.keys(brouillon).length > 0) onFilterChange({ ...brouillon, page: 1 }, { continu: true });
+    };
+    window.addEventListener('popstate', surAvance);
+    window.history.forward();
+  };
+
+  const seanceAEcrit = () => seanceDuTiroir.current.vise !== null || aUnBrouillon;
+
+  // TCK-556 · F3 — la recherche libre est rappelée en tête du tiroir, retirable d'un geste. Un
+  // RAPPEL, pas un champ : `q` se modifie toujours dans la barre de navigation (cf. la note en
+  // fin de corps), mais le tiroir couvre 90 % de l'écran et la pastille du titre compte `q` —
+  // sans ce rappel, elle annonçait « 1 » filtre que rien dans le tiroir ne montrait. Jamais
+  // recopié dans « Ville » : `q` est du texte libre, pas une ville.
+  const rappelDeRecherche = filters.q ? (
+    <div className="flex items-center gap-2 px-5 py-3 border-b border-border bg-popover">
+      {/* `bg-popover` déclaré sur le libellé lui-même : c'est la surface du tiroir, et la garde de
+          contraste (TCK-458) MESURE alors le couple au lieu de le compter parmi ses trous. */}
+      <span className="shrink-0 bg-popover text-xs font-medium text-muted-foreground">{t('searchReminder')}</span>
+      <button
+        type="button"
+        onClick={() => set({ q: undefined })}
+        aria-label={t('removeSearch', { value: filters.q })}
+        className="group flex min-h-10 min-w-0 items-center gap-1.5 rounded-full border border-primary/30 bg-card px-3.5 py-1.5 text-sm font-semibold text-primary transition-colors hover:border-destructive/40 hover:text-destructive"
+      >
+        <Search className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate">{filters.q}</span>
+        <X className="size-3.5 shrink-0 opacity-60 group-hover:opacity-100" aria-hidden="true" />
+      </button>
+    </div>
+  ) : null;
+
+  const rendreContenu = (rappel?: React.ReactNode) => (
     <div className="flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
@@ -368,10 +490,7 @@ export function FilterSidebar({
         <div className="flex items-center gap-2">
           {activeCount > 0 && (
             <button
-              onClick={() => {
-                differe.cancel();
-                onReset();
-              }}
+              onClick={reinitialiser}
               type="button"
               className="flex min-h-9 items-center gap-1 px-1 text-xs font-medium text-muted-foreground hover:text-primary transition-colors"
             >
@@ -389,6 +508,8 @@ export function FilterSidebar({
           </button>
         </div>
       </div>
+
+      {rappel}
 
       {/* Body */}
       <div className="px-5">
@@ -675,7 +796,7 @@ export function FilterSidebar({
           de 264 px laissait 3 colonnes de 128 px à la grille, prix tronqués (« 28 000 000 F C… »).
           Entre 768 et 1023, c'est le tiroir, comme sur mobile. */}
       <aside className="hidden lg:block w-[264px] shrink-0 bg-card rounded-2xl border border-border shadow-sm self-start sticky top-[145px]">
-        {content}
+        {rendreContenu()}
       </aside>
 
       {/* Mobile drawer */}
@@ -683,6 +804,9 @@ export function FilterSidebar({
         <TiroirMobile
           label={t('title')}
           onClose={onClose}
+          onOuverture={surOuvertureDuTiroir}
+          onRetour={surRetourDansLeTiroir}
+          garderLEntree={seanceAEcrit}
           pied={
             <Button
               onClick={() => {
@@ -691,16 +815,20 @@ export function FilterSidebar({
               }}
               className="w-full rounded-full h-12 text-sm font-semibold"
             >
-              {t('showResults')}
+              {/* TCK-556 · F1 — le compte que le tiroir cache, avec un libellé propre au zéro. */}
+              {total === null ? t('showResults') : t('showResultsCount', { count: total })}
             </Button>
           }
         >
-          {content}
+          {rendreContenu(rappelDeRecherche)}
         </TiroirMobile>
       )}
     </>
   );
 }
+
+/** Clé posée dans `history.state` par l'entrée sentinelle du tiroir (TCK-556). */
+const MARQUE_TIROIR = '__takussanTiroirFiltres';
 
 const FOCALISABLES =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -713,19 +841,102 @@ const FOCALISABLES =
  * dans une modale sans rien de focalisé (relecture adverse de la revue design du 2026-09-16,
  * reproduit à 390 px). Désormais : le panneau prend le focus à l'ouverture, Échap est écouté sur
  * `document`, Tab tourne dans le tiroir, et le focus revient au déclencheur à la fermeture.
+ *
+ * ## Le geste retour ferme le tiroir — TCK-556
+ *
+ * Mesuré à 360 px avant ce ticket : deux puces touchées tiroir ouvert empilaient deux entrées
+ * (`history.length` 2 → 4), et un retour arrière rendait `type=villa` au lieu de
+ * `type=villa,house` **en laissant le tiroir ouvert**. Sur Android, le geste retour — le réflexe
+ * pour fermer un panneau — défaisait donc un filtre, sous le tiroir, sans que rien ne le montre.
+ *
+ * Le mécanisme, et pourquoi chaque pièce :
+ *
+ * 1. **À l'ouverture, une entrée SENTINELLE** à la même URL (`pushState` direct : l'état de Next
+ *    est recopié, marqué `__NA`, donc le routeur ne la voit pas comme une navigation). Sans elle,
+ *    le retour n'aurait rien d'autre à dépiler que la page elle-même.
+ * 2. **Tiroir ouvert, tout commit écrase** (`continu`, cf. `FilterSidebarProps.onFilterChange`) :
+ *    la sentinelle porte l'état courant de la séance, et rien ne s'empile au-dessus.
+ * 3. **Au `popstate`**, le navigateur a ramené l'entrée d'avant le tiroir. `onRetour` ferme ; si
+ *    la séance a écrit, il revient EN AVANT sur la sentinelle — l'entrée de la séance, qui porte
+ *    son URL et l'arbre du routeur. Pas de navigation : deux restaurations depuis le cache.
+ * 4. **Toute autre fermeture** (bouton, Échap, voile) rend la sentinelle par `history.back()`
+ *    si la séance n'a rien écrit (sans quoi elle resterait comme un appui perdu), et la garde
+ *    sinon : elle EST alors l'entrée de la séance.
+ *
+ * Résultat identique par les deux chemins : la séance du tiroir vaut une entrée d'historique, ou
+ * zéro, et le retour suivant la défait d'un coup. Tiroir fermé, rien de ceci ne s'applique et
+ * la taxonomie de TCK-335 (un geste discret = une entrée) est inchangée.
+ *
+ * ⚠ **StrictMode** monte, démonte et remonte l'effet : la sentinelle porte un jeton propre à ce
+ * tiroir, qui empêche le remontage d'en poser une seconde, et le `history.back()` du démontage est
+ * DIFFÉRÉ d'une tâche pour que le remontage puisse l'annuler. Sans ces deux gardes, le tiroir se
+ * refermait tout seul en développement.
  */
 function TiroirMobile({
   label,
   onClose,
+  onOuverture,
+  onRetour,
+  garderLEntree,
   pied,
   children,
 }: {
   readonly label: string;
   readonly onClose: () => void;
+  /** Appelé une fois l'entrée sentinelle posée. */
+  readonly onOuverture: () => void;
+  /** Retour arrière tiroir ouvert : fermer, et revenir sur l'entrée de la séance. */
+  readonly onRetour: () => void;
+  /** Lu à la fermeture hors retour : la séance a-t-elle écrit dans l'historique ? */
+  readonly garderLEntree: () => boolean;
   readonly pied: React.ReactNode;
   readonly children: React.ReactNode;
 }) {
   const panneau = React.useRef<HTMLDivElement>(null);
+
+  // Les rappels du parent changent à chaque rendu ; l'effet d'historique, lui, ne doit vivre
+  // qu'une fois par ouverture. Il les lit donc ici, à jour.
+  const rappels = React.useRef({ onOuverture, onRetour, garderLEntree });
+  React.useEffect(() => {
+    rappels.current = { onOuverture, onRetour, garderLEntree };
+  });
+
+  const jeton = React.useRef<string | null>(null);
+  const rendreDiffere = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    if (rendreDiffere.current !== null) {
+      window.clearTimeout(rendreDiffere.current);
+      rendreDiffere.current = null;
+    }
+    const etat = window.history.state as Record<string, unknown> | null;
+    if (jeton.current === null || etat?.[MARQUE_TIROIR] !== jeton.current) {
+      jeton.current = `tiroir-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+      window.history.pushState({ ...etat, [MARQUE_TIROIR]: jeton.current }, '', window.location.href);
+      rappels.current.onOuverture();
+    }
+
+    let fermeParRetour = false;
+    const surRetour = () => {
+      fermeParRetour = true;
+      rappels.current.onRetour();
+    };
+    window.addEventListener('popstate', surRetour);
+
+    return () => {
+      window.removeEventListener('popstate', surRetour);
+      if (fermeParRetour) return;
+      const jetonCourant = jeton.current;
+      rendreDiffere.current = window.setTimeout(() => {
+        rendreDiffere.current = null;
+        if (rappels.current.garderLEntree()) return;
+        // Ne dépiler QUE notre sentinelle : si l'entrée courante n'est plus la nôtre, quelqu'un
+        // d'autre a navigué depuis, et `back()` défairait sa navigation.
+        const courant = window.history.state as Record<string, unknown> | null;
+        if (courant?.[MARQUE_TIROIR] === jetonCourant) window.history.back();
+      }, 0);
+    };
+  }, []);
 
   // Montage seul : le focus entre, puis revient au déclencheur quand le tiroir se démonte.
   React.useEffect(() => {
