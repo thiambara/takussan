@@ -228,11 +228,11 @@ describe('Menu mobile — une seule surface de saisie (TCK-549 AC5)', () => {
     parametresUrl = new URLSearchParams('contract_type=rent');
     chemin = '/fr/properties';
     const user = userEvent.setup();
-    const { container } = monter();
+    monter();
 
     await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-    const panneau = container.querySelector('nav > div.absolute');
-    expect(panneau, 'le panneau du menu est ouvert').not.toBeNull();
+    // TCK-551 — le panneau est la boîte de dialogue du `Sheet` (portail hors du <nav>).
+    const panneau = await screen.findByRole('dialog', { name: 'Menu' });
 
     expect(panneau!.querySelectorAll('[aria-pressed]')).toHaveLength(0);
     expect(panneau!.querySelectorAll('input')).toHaveLength(0);
@@ -266,15 +266,17 @@ describe('Pastille mobile — une saisie abandonnée ne ressort par aucun geste 
     expect(push).not.toHaveBeenCalled();
   }
 
+  // TCK-551 — le menu mobile ne porte plus de puces de catégorie. Le geste suivant qui lit
+  // `location` par `buildSearchUrl` est désormais la puce de la barre de BUREAU : c'est le même
+  // état, partagé par les deux mises en page, et un visiteur qui fait pivoter sa tablette passe
+  // de l'une à l'autre sans que la navbar soit remontée.
   for (const par of ['Retour', 'Échap'] as const) {
-    it(`fermer par ${par}, puis toucher une puce de catégorie du menu : \`q\` reste celui en vigueur`, async () => {
+    it(`fermer par ${par}, puis toucher une puce de catégorie : \`q\` reste celui en vigueur`, async () => {
       const user = userEvent.setup();
-      const { container } = monter();
+      monter();
 
       await abandonner(user, par);
-      await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
-      const panneau = container.querySelector('nav > div.absolute') as HTMLElement;
-      await user.click(within(panneau).getByRole('button', { name: 'Appartement' }));
+      await user.click(screen.getByRole('button', { name: 'Appartement' }));
 
       expect(push).toHaveBeenCalledTimes(1);
       const p = parametres(String(push.mock.calls[0]![0]));

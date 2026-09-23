@@ -17,6 +17,7 @@ import {
 } from '@/lib/queries/favorites';
 import { formatPrice } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { ZONE_TACTILE_44 } from '@/lib/zone-tactile';
 import type { PropertyListItem } from '@/types/property';
 
 const POPOVER_MAX_ITEMS = 5;
@@ -77,8 +78,10 @@ export function FavoritesPopover({ variant = 'default', className }: FavoritesPo
         aria-haspopup="dialog"
         className={cn(
           'relative inline-flex items-center justify-center rounded-full transition-colors',
+          // TCK-551 (N8) — 36 px dessinés (`p-2` + icône de 20), 44 px touchables : c'était la
+          // seule cible de la barre mobile sous le seuil, à côté d'un bouton menu de 44 × 44.
           isCompact
-            ? 'p-2 text-muted-foreground hover:text-primary hover:bg-muted'
+            ? cn('p-2 text-muted-foreground hover:text-primary hover:bg-muted', ZONE_TACTILE_44)
             : 'size-9 text-foreground hover:text-primary hover:bg-muted',
         )}
       >

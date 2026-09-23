@@ -58,11 +58,10 @@ const classesDe = (el: Element | null) => (el?.className ?? '').toString().split
 
 async function ouvrirLeMenu(locale: LocaleDeTest = 'fr', nom = 'Ouvrir le menu') {
   const user = userEvent.setup();
-  const rendu = monter(locale);
+  monter(locale);
   await user.click(screen.getByRole('button', { name: nom }));
-  const panneau = rendu.container.querySelector('nav > div.absolute') as HTMLElement | null;
-  expect(panneau, 'le panneau mobile est rendu').not.toBeNull();
-  return panneau!;
+  // TCK-551 — le panneau est la boîte de dialogue du `Sheet` (portail hors du <nav>).
+  return screen.findByRole('dialog');
 }
 
 describe('Navbar publique — le choix de langue dans le menu mobile (TCK-550)', () => {

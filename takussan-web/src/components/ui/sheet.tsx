@@ -81,15 +81,18 @@ function SheetDescription({ className, ...props }: React.HTMLAttributes<HTMLPara
 
 function SheetContent({
   className,
+  overlayClassName,
   children,
   side = "left",
   ...props
 }: DialogPrimitive.Popup.Props & {
   side?: "left" | "right" | "bottom" | "top"
+  /** Classes du voile, fusionnées aux siennes (TCK-551 : `touch-none` sous le menu mobile). */
+  overlayClassName?: string
 }) {
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay className={overlayClassName} />
       <DialogPrimitive.Popup
         data-slot="sheet-content"
         data-side={side}
