@@ -126,7 +126,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
       <Navbar />
       <NavbarSpacer />
 
-      <main className="max-w-[1200px] mx-auto px-6 md:px-12 pt-10 pb-24 space-y-16">
+      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 md:px-12 pt-10 pb-24 space-y-16">
         {/* Hero asymétrique */}
         <section className="relative">
           <div className="absolute inset-x-[-12px] inset-y-[-32px] md:inset-x-[-24px] md:inset-y-[-48px] -z-10 rounded-[28px] overflow-hidden bg-card">

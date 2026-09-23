@@ -22,6 +22,7 @@ import { parametreDe } from '@/types/search';
 import { hrefLocalise, localeDuChemin } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/config';
 import { useStateSyncedWith } from '@/hooks/useStateSyncedWith';
+import { useVerrouDeDefilement } from '@/hooks/useVerrouDeDefilement';
 import { cn } from '@/lib/utils';
 
 type PropertyTypeCountsResponse = {
@@ -107,6 +108,9 @@ export function Navbar({ className }: NavbarProps) {
     bureau.addEventListener('change', surChangement);
     return () => bureau.removeEventListener('change', surChangement);
   }, [menuOpen]);
+  // Le verrou de défilement du menu (tour 2) : `body` sorti du flux, et non l'`overflow: hidden`
+  // de base-ui, qu'un `scrollBy` et Safari iOS traversent. Cf. `useVerrouDeDefilement`.
+  useVerrouDeDefilement(menuOpen);
   const menuBascule = useCallback((ouvert: boolean) => {
     // Après l'animation de sortie, et seulement si le focus est resté nulle part : la primitive a
     // pu le rendre elle-même, ou le visiteur l'avoir posé ailleurs.
@@ -142,9 +146,10 @@ export function Navbar({ className }: NavbarProps) {
     // `location` repart de la recherche EN VIGUEUR à l'ouverture ET à la fermeture sans
     // validation (Échap, « Retour », clic dehors — la validation, elle, ferme par
     // `setRechercheOuverte` et ne passe pas ici). `location` est un état caché une fois la saisie
-    // refermée, et `buildSearchUrl` le lit : sans cette remise, la puce de catégorie du menu
-    // écrivait en `q` un texte que le visiteur avait abandonné (refus du tour 1, mesuré au
-    // navigateur : `?q=Ngor+Plateau&type=apartment`).
+    // refermée, et `buildSearchUrl` le lit : sans cette remise, une puce de catégorie (celle de
+    // la barre de bureau ; le menu mobile n'en porte plus depuis TCK-551) écrivait en `q` un texte
+    // que le visiteur avait abandonné (refus du tour 1 de TCK-549, mesuré au navigateur :
+    // `?q=Ngor+Plateau&type=apartment`).
     setLocation(qEnVigueur);
     setRechercheOuverte(ouverte);
   }, [qEnVigueur, setLocation]);
@@ -307,9 +312,11 @@ export function Navbar({ className }: NavbarProps) {
     <nav
       className={`fixed top-0 w-full z-50 bg-background border-b border-border ${className || ''}`}
     >
-      {/* TCK-551 (N7) — `px-4` sous `lg`, la gouttière du contenu des pages (logo à x = 24 contre
-          16 pour le `<h1>` de `/properties`, mesuré à 360 et 390) ; `px-6` au-delà, inchangé. */}
-      <div className="flex items-start gap-4 px-4 lg:px-6 py-3 max-w-[1440px] mx-auto">
+      {/* TCK-551 (N7) — `px-4` sous `sm`, la gouttière du contenu des pages sur téléphone (logo à
+          x = 24 contre 16 pour le `<h1>` de `/properties`, mesuré à 360 et 390) ; `px-6` dès `sm`,
+          comme avant. Les pages qui montent la barre sont en `px-4` sous `sm` elles aussi :
+          `Navbar.gouttiere.test.tsx` le garde. */}
+      <div className="flex items-start gap-4 px-4 sm:px-6 py-3 max-w-[1440px] mx-auto">
         {/* Logo */}
         <LienLocalise href="/" className="text-xl font-bold tracking-tighter text-primary shrink-0 mt-2.5 hover:opacity-80 transition-opacity">
           {tCommon('appName')}
@@ -569,7 +576,12 @@ export function Navbar({ className }: NavbarProps) {
               Le menu est un menu de NAVIGATION : la rangée de catégories en est retirée (521 px
               dans 342 visibles, « Commerce » et « Bureau » hors champ) — le tiroir de filtres
               les porte toutes. */}
-          <Sheet open={menuOpen} onOpenChange={basculerMenu} onOpenChangeComplete={menuBascule}>
+          {/* `modal="trap-focus"` : la primitive garde le piège du focus, le voile, l'appui dehors,
+              Échap et l'`aria-hidden` du reste de la page — mais PAS son verrou de défilement, qui
+              sur mobile se réduit à `overflow: hidden` et laissait la page défiler menu ouvert
+              (tour 2, mesuré : `scrollBy(0, 500)`, 700 → 1200). Le verrou est
+              `useVerrouDeDefilement`, et les deux ne s'empilent pas (cf. son en-tête). */}
+          <Sheet modal="trap-focus" open={menuOpen} onOpenChange={basculerMenu} onOpenChangeComplete={menuBascule}>
             <SheetTrigger
               ref={boutonMenuRef}
               aria-label={t('openMenu')}
@@ -579,15 +591,16 @@ export function Navbar({ className }: NavbarProps) {
             </SheetTrigger>
             <SheetContent
               side="top"
-              // `touch-none` : un glissé qui part du voile n'a rien à faire défiler. C'est le seul
-              // complément au verrou de base-ui, qui sur iOS se réduit à `overflow: hidden`
-              // (`@base-ui/utils/useScrollLock`) — cf. les Notes de TCK-551.
+              // `touch-none` : un glissé qui part du voile n'a rien à faire défiler — pas même le
+              // voile, sur un Safari qui ignorerait la sortie du flux de `body`.
               overlayClassName="lg:hidden touch-none"
-              className="lg:hidden max-h-dvh rounded-b-xl bg-popover"
+              // `max-h-5/6` et non `max-h-dvh` : en paysage connecté (740 × 360), le panneau
+              // couvrait tout l'écran et aucun voile ne restait à toucher pour le fermer (mesuré).
+              className="lg:hidden max-h-5/6 rounded-b-xl bg-popover"
             >
               {/* L'en-tête redessine la barre à l'identique — logo à gauche, croix à la place
                   exacte du bouton menu : le panneau recouvre la barre sans rien déplacer. */}
-              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-3">
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 sm:px-6 py-3">
                 <LienLocalise
                   href="/"
                   onClick={() => setMenuOpen(false)}
@@ -606,7 +619,7 @@ export function Navbar({ className }: NavbarProps) {
 
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 {/* Mobile nav links */}
-                <div className="flex flex-col px-4 py-2">
+                <div className="flex flex-col px-4 sm:px-6 py-2">
                   {navLinks.map((link) => {
                     const actif = lienActif(link.href, pathname, searchParams);
                     return (
@@ -625,9 +638,9 @@ export function Navbar({ className }: NavbarProps) {
                 </div>
 
                 {/* TCK-550 — sous `lg`, le seul choix de langue atteignable : celui de bureau est `hidden lg:flex`. */}
-                <ChoixDeLangue className="px-4 py-2 border-t border-border justify-between" />
+                <ChoixDeLangue className="px-4 sm:px-6 py-2 border-t border-border justify-between" />
 
-                <div className="px-4 py-4 border-t border-border flex flex-col gap-3">
+                <div className="px-4 sm:px-6 py-4 border-t border-border flex flex-col gap-3">
                   {user ? (
                     <>
                       <div className="flex items-center gap-3 mb-1">

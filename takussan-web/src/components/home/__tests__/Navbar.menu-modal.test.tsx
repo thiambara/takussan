@@ -67,11 +67,18 @@ async function ouvrir() {
   return { user, panneau, ...rendu };
 }
 
-/** Le verrou tel que base-ui le pose : `overflow` masqué sur `html` ou sur `body`. */
+/**
+ * Le verrou du menu (tour 2) : `body` sorti du flux, en `position: fixed`. Celui de base-ui
+ * (`overflow: hidden`) laissait `scrollBy(0, 500)` faire défiler la page de 700 à 1200, mesuré au
+ * navigateur — cf. `useVerrouDeDefilement`.
+ */
 function pageVerrouillee(): boolean {
-  const html = document.documentElement;
-  const body = document.body;
-  return [html, body].some((el) => /hidden|clip/.test(el.style.overflowY || el.style.overflow));
+  return document.body.style.position === 'fixed';
+}
+
+/** Ce que pose le verrou de base-ui, et qu'il ne doit PAS poser ici : les deux se battent. */
+function verrouBaseUiPose(): boolean {
+  return [document.documentElement, document.body].some((el) => /hidden|clip/.test(el.style.overflowY || el.style.overflow));
 }
 
 afterEach(() => {
@@ -115,10 +122,31 @@ describe('Menu mobile — une modale (TCK-551, N5)', () => {
   });
 
   it('le document ne défile pas menu ouvert, et redevient libre menu fermé (AC1)', async () => {
-    const { user } = await ouvrir();
-    await waitFor(() => expect(pageVerrouillee(), 'verrou posé menu ouvert').toBe(true));
-    await user.keyboard('{Escape}');
-    await waitFor(() => expect(pageVerrouillee(), 'verrou levé menu fermé').toBe(false));
+    const scrollTo = vi.fn();
+    vi.stubGlobal('scrollTo', scrollTo);
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 700 });
+    try {
+      const { user } = await ouvrir();
+      await waitFor(() => expect(pageVerrouillee(), 'verrou posé menu ouvert').toBe(true));
+      // La page reste où elle était à l'écran : c'est `top` qui porte les 700 px défilés.
+      expect(document.body.style.top).toBe('-700px');
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(pageVerrouillee(), 'verrou levé menu fermé').toBe(false));
+      expect(scrollTo).toHaveBeenLastCalledWith({ left: 0, top: 700, behavior: 'instant' });
+    } finally {
+      Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('un seul verrou : celui de base-ui n’est pas posé par-dessus (`modal="trap-focus"`)', async () => {
+    // Sur des barres incrustées, base-ui réécrit `body.style.position` puis restaure à sa levée
+    // le `fixed` qu'il avait lu : la page resterait figée menu fermé. Il pose son verrou dans un
+    // `setTimeout(0)` : on lui laisse le temps de le faire.
+    await ouvrir();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(pageVerrouillee()).toBe(true);
+    expect(verrouBaseUiPose()).toBe(false);
   });
 
   it('Tab et Maj+Tab ne font jamais sortir le focus du panneau (AC3)', async () => {
@@ -172,6 +200,19 @@ describe('Menu mobile — passer en mise en page de bureau le referme', () => {
   });
 });
 
+/**
+ * Refus du tour 1 (mineur) : en paysage, connecté (740 × 360), le panneau en `max-h-dvh` couvrait
+ * 100 % de la hauteur — `elementFromPoint(W/2, H−5)` rendait « Mon profil », aucun voile n'était
+ * atteignable, et AC2 (« un tap sur le voile ferme le menu ») ne pouvait plus s'exercer.
+ */
+describe('Menu mobile — une bande de voile reste toujours atteignable', () => {
+  it('le panneau ne dépasse pas les 5/6 de la hauteur de l’écran', async () => {
+    const { panneau } = await ouvrir();
+    expect(classesDe(panneau)).toContain('max-h-5/6');
+    expect(classesDe(panneau)).not.toContain('max-h-dvh');
+  });
+});
+
 describe('Menu mobile — un menu de NAVIGATION (TCK-551, N6)', () => {
   it('ne porte plus la rangée de catégories : le tiroir de filtres les porte toutes', async () => {
     const { panneau } = await ouvrir();
@@ -185,24 +226,21 @@ describe('Menu mobile — un menu de NAVIGATION (TCK-551, N6)', () => {
 });
 
 describe('Menu mobile — alignements (TCK-551, N7)', () => {
-  it('la barre prend la gouttière du contenu sous `lg` (`px-4`) et garde `px-6` au-delà', () => {
-    const { container } = monter();
-    const barre = container.querySelector('nav > div');
-    expect(classesDe(barre)).toContain('px-4');
-    expect(classesDe(barre)).toContain('lg:px-6');
-    expect(classesDe(barre)).not.toContain('px-6');
-  });
-
-  it('l’en-tête et les blocs du panneau prennent la même gouttière que la barre (`px-4`)', async () => {
-    const { panneau } = await ouvrir();
+  // La gouttière de la barre elle-même, et celle des pages, sont gardées par
+  // `Navbar.gouttiere.test.tsx` (tour 2 : `px-4` sous `sm`, `px-6` au-delà).
+  it('l’en-tête et les blocs du panneau prennent EXACTEMENT la gouttière de la barre', async () => {
+    const { panneau, container } = await ouvrir();
+    const gouttiereDe = (el: Element | null) => classesDe(el).filter((c) => /^(?:[a-z0-9]+:)?p[xl]-/.test(c)).sort();
+    const attendue = gouttiereDe(container.querySelector('nav > div'));
+    expect(attendue).toEqual(['px-4', 'sm:px-6']);
     const entete = panneau.firstElementChild!;
     const defilant = panneau.querySelector('.overflow-y-auto')!;
     // Les blocs : l'en-tête, puis chaque enfant de la zone qui défile (liens, langue, compte).
+    // Ouvert entre 640 et 1023 px, un panneau en `px-4` aurait décalé le logo de 8 px.
     const blocs = [entete, ...defilant.children];
     expect(blocs.length).toBeGreaterThanOrEqual(4);
     for (const bloc of blocs) {
-      expect(classesDe(bloc), bloc.outerHTML.slice(0, 100)).toContain('px-4');
-      expect(classesDe(bloc)).not.toContain('px-6');
+      expect(gouttiereDe(bloc), bloc.outerHTML.slice(0, 100)).toEqual(attendue);
     }
   });
 
