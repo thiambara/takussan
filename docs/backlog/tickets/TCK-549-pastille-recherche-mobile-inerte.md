@@ -119,9 +119,11 @@ Aucun endpoint nouveau. La saisie consomme la même autocomplétion que la barre
   surface AU GESTE plutôt qu'à l'arrivée de la page suivante. La barre de bureau ne la passe pas.
 - **Le bouton « Rechercher »** de la surface appelle `handleSearch` — le constructeur d'URL de la
   loupe de bureau ; le test vérifie qu'il produit la même URL que la touche Entrée.
-- **Le champ repart de `q` à chaque ouverture** (`basculerRecherche`) : sans cela, une saisie
-  abandonnée par « Retour » restait dans l'état `location` partagé et ressortait au prochain
-  « Rechercher ».
+- **`location` repart de `q` à l'ouverture ET à la fermeture sans validation**
+  (`basculerRecherche`, une remise inconditionnelle) : une fois la surface refermée, `location` est
+  un état caché que `buildSearchUrl` lit. La validation (Entrée, suggestion, « Rechercher ») ferme par
+  `setRechercheOuverte` et ne passe pas par cette remise. *Le tour 1 ne remettait qu'à l'ouverture :
+  voir « Refus du tour 1 » ci-dessous.*
 - **Champ en 16 px** dans la surface (`[&_input]:text-base`) : sous 16 px, Safari iOS zoome au focus.
 - **Libellé court** : « Chercher » / « Search » / « Seet ». Mesuré dans la police de la page, à
   360 px : la pastille laisse **59 px** au texte avec `px-4` ; « Rechercher » en mesure 74,
@@ -136,7 +138,7 @@ Aucun endpoint nouveau. La saisie consomme la même autocomplétion que la barre
 
 ### Vérification
 
-- Tests : `Navbar.pastille-mobile.test.tsx` (10, neuf) ; `SearchAutocomplete.test.tsx` (+2,
+- Tests : `Navbar.pastille-mobile.test.tsx` (10 au tour 1, 13 après le refus) ; `SearchAutocomplete.test.tsx` (+2,
   `onValider`) ; `Navbar.recherche.test.tsx` et `Navbar.responsive.test.tsx` mis au nouveau contrat
   (la saisie mobile est dans la surface, la pastille au repos dit « Chercher »). **Ablation** : avec
   `Navbar.tsx` de `HEAD` remis en place, les 10 tests neufs rougissent.
@@ -159,3 +161,46 @@ Aucun endpoint nouveau. La saisie consomme la même autocomplétion que la barre
   `?q=Yoff&contract_type=rent` — identiques.
 - Non vérifié : l'ouverture du **clavier** sur un vrai téléphone (iOS n'ouvre le clavier que si le
   focus est donné dans le geste ; base-ui le donne juste après le montage). À vérifier sur appareil.
+
+### Refus du tour 1 et correctif (2026-09-23)
+
+Le vérificateur adverse a refusé le tour 1 (commit `81e76a5c`) pour un défaut **majeur**, régression
+de cette branche : une saisie **abandonnée** (Échap ou « Retour ») restait dans l'état `location` de
+la navbar, et la puce de catégorie du menu mobile l'écrivait ensuite en `q` — `handleCategoryClick`
+passe par `buildSearchUrl`, qui lit `location`. Avant la branche, le champ mobile vivait dans le menu,
+visible à côté des puces : aucun état caché. `basculerRecherche` ne remettait `location` à
+`qEnVigueur` qu'à l'ouverture.
+
+- **Reproduit AVANT correctif**, des deux façons :
+  - test : deux tests neufs (abandon par « Retour » / par Échap, puis menu → puce « Appartement »)
+    rouges sur le code du tour 1 — `expected 'Dakar Plateau' to be 'Dakar'` ;
+  - navigateur, 390 × 844 `en`, script du vérificateur rejoué : `/en/properties?q=Ngor&type=villa&page=3`,
+    saisie « Plateau », Échap (URL identique), menu → « Apartment » →
+    **`/en/properties?q=Ngor+Plateau&type=apartment`**, pastille « Ngor Plateau ».
+- **Correctif** : la remise `setLocation(qEnVigueur)` devient inconditionnelle dans
+  `basculerRecherche` (ouverture et fermeture non validée).
+- **Défaut mineur « la remise à l'ouverture n'est gardée par aucun test » (mutation M6)** : fermé par
+  un troisième test — abandon par Échap, réouverture (le champ montre `Dakar`), « Rechercher » →
+  `push` porte `q=Dakar`.
+- **Mutations** (`Navbar.tsx` restauré, md5 `87beea45…` avant et après) :
+  - remise retirée entièrement : **3 rouges** (les 3 tests neufs) ;
+  - remise à l'ouverture seule (le code du tour 1) : **2 rouges** (les deux puces).
+  - Limite assumée : une remise à la fermeture SEULE reste verte, parce qu'elle est équivalente en
+    comportement sur mobile (rien d'autre n'écrit `location` pendant que la surface est fermée : le
+    champ de bureau est `hidden lg:flex`). La remise est donc écrite en une seule ligne
+    inconditionnelle, que les tests gardent entière.
+- **Navigateur après correctif** (CDP, Chrome headless, `innerWidth` = largeur demandée) :
+  - même scénario à 390 `en` → `/en/properties?q=Ngor&type=apartment`, pastille « Ngor » ; à 360 `fr`
+    → `/fr/properties?q=Ngor&type=apartment`, pastille « Ngor ».
+  - 360 `fr`, `?q=Dakar&contract_type=rent&page=2` : saisie « Plateau », « Retour » → URL identique ;
+    réouverture → champ `Dakar` ; saisie « Plateau » puis « Rechercher » →
+    `/fr/properties?q=Dakar+Plateau&contract_type=rent`, surface refermée : la saisie VALIDÉE part
+    toujours.
+  - AC1 rejoué (360 `fr`, champ au point, « Retour » → URL identique) et AC2 rejoué (360 `wo`,
+    « Almadies » + Entrée → `/wo/properties?q=Almadies&contract_type=sale&bedrooms_min=2`) : inchangés.
+  - Bureau 1280 × 800 : colonne (209, 12, 576, 110), champ `Dakar` 14 px, 6 puces, Entrée →
+    `?q=Ngor&contract_type=rent&type=villa`, loupe → `?q=Yoff&contract_type=rent&type=villa` —
+    identique au relevé du vérificateur.
+- Contrôles : 4 fichiers de test touchés **41/41** ; `eslint` 0 ; `tsc --noEmit` propre ;
+  `check:i18n`, `check:i18n-namespaces`, `check:classes-emises` verts ; toutes les gardes
+  `scripts/check-*.mjs` vertes.

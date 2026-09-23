@@ -110,9 +110,13 @@ export function Navbar({ className }: NavbarProps) {
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
   const zoneSaisieRef = useRef<HTMLDivElement>(null);
   const basculerRecherche = useCallback((ouverte: boolean) => {
-    // Le champ repart de la recherche EN VIGUEUR à chaque ouverture : une saisie abandonnée ne
-    // doit pas ressortir au prochain « Rechercher ».
-    if (ouverte) setLocation(qEnVigueur);
+    // `location` repart de la recherche EN VIGUEUR à l'ouverture ET à la fermeture sans
+    // validation (Échap, « Retour », clic dehors — la validation, elle, ferme par
+    // `setRechercheOuverte` et ne passe pas ici). `location` est un état caché une fois la saisie
+    // refermée, et `buildSearchUrl` le lit : sans cette remise, la puce de catégorie du menu
+    // écrivait en `q` un texte que le visiteur avait abandonné (refus du tour 1, mesuré au
+    // navigateur : `?q=Ngor+Plateau&type=apartment`).
+    setLocation(qEnVigueur);
     setRechercheOuverte(ouverte);
   }, [qEnVigueur, setLocation]);
   const [transaction, setTransaction] = useState('');

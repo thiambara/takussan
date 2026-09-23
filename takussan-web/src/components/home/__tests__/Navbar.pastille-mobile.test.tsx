@@ -240,3 +240,60 @@ describe('Menu mobile — une seule surface de saisie (TCK-549 AC5)', () => {
     expect(within(panneau as HTMLElement).getByRole('link', { name: 'Louer' })).toHaveAttribute('aria-current', 'page');
   });
 });
+
+/**
+ * Refus du tour 1 (vérificateur adverse, 2026-09-23) : une saisie ABANDONNÉE restait dans l'état
+ * `location` de la navbar, que `buildSearchUrl` lit. La puce de catégorie du menu mobile l'écrivait
+ * ensuite en `q` : « Ngor Plateau » dans l'URL alors que le visiteur avait fermé sans valider.
+ * Avant cette branche, le champ mobile vivait DANS le menu, à côté des puces — aucun état caché.
+ *
+ * Ce qui est observé est encore `push` : l'URL que le geste SUIVANT produit, pas l'état interne.
+ */
+describe('Pastille mobile — une saisie abandonnée ne ressort par aucun geste suivant (TCK-549, refus tour 1)', () => {
+  beforeEach(() => {
+    push.mockReset();
+    parametresUrl = new URLSearchParams('q=Dakar&page=2');
+    chemin = '/fr/properties';
+  });
+
+  async function abandonner(user: ReturnType<typeof userEvent.setup>, par: 'Retour' | 'Échap') {
+    await user.click(pastille());
+    const dialogue = await screen.findByRole('dialog');
+    await user.type(within(dialogue).getByRole('searchbox'), ' Plateau');
+    if (par === 'Retour') await user.click(within(dialogue).getByRole('button', { name: 'Retour' }));
+    else await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(push).not.toHaveBeenCalled();
+  }
+
+  for (const par of ['Retour', 'Échap'] as const) {
+    it(`fermer par ${par}, puis toucher une puce de catégorie du menu : \`q\` reste celui en vigueur`, async () => {
+      const user = userEvent.setup();
+      const { container } = monter();
+
+      await abandonner(user, par);
+      await user.click(screen.getByRole('button', { name: 'Ouvrir le menu' }));
+      const panneau = container.querySelector('nav > div.absolute') as HTMLElement;
+      await user.click(within(panneau).getByRole('button', { name: 'Appartement' }));
+
+      expect(push).toHaveBeenCalledTimes(1);
+      const p = parametres(String(push.mock.calls[0]![0]));
+      expect(p.get('type')).toBe('apartment');
+      expect(p.get('q')).toBe('Dakar');
+    });
+  }
+
+  it('abandonner, rouvrir : le champ repart de `q`, et « Rechercher » pousse `q` en vigueur', async () => {
+    const user = userEvent.setup();
+    monter();
+
+    await abandonner(user, 'Échap');
+    await user.click(pastille());
+    const dialogue = await screen.findByRole('dialog');
+    expect(within(dialogue).getByRole('searchbox')).toHaveValue('Dakar');
+    await user.click(within(dialogue).getByRole('button', { name: 'Rechercher' }));
+
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(parametres(String(push.mock.calls[0]![0])).get('q')).toBe('Dakar');
+  });
+});
